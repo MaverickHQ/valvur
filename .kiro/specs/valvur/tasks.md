@@ -856,6 +856,24 @@ something live, and a reviewer can tell from the diff alone what is being accept
 
 ## Phase 8 — Runtime portability and hardening
 
+> **✅ COMPLETE 2026-08-30.** 135 tests, 14 e2e across Docker and rootless Podman.
+>
+> **The dual-runtime requirement found three distinct silent failures**, each of which
+> would have reported a vulnerable repository as clean, and none of which any Scanner
+> could detect. All three appeared only on **Podman under Linux** — local Docker and
+> local Podman on macOS were both green throughout.
+>
+> 1. `--user` on rootless Podman made the bind-mounted workspace unreadable. Every
+>    Scanner read an empty tree and exited 0.
+> 2. The scratch mount was then unwritable, so Scanners produced no report — and all
+>    three read paths treated a missing report as an empty one.
+> 3. Both flags were needed: `--userns=keep-id` maps the host user in, but the image's
+>    own `USER 10001` still applied and mapped to a subuid.
+>
+> Our fail-loudly rules all assumed a Scanner *errors*. These failures succeed
+> perfectly at scanning nothing, which no exit code reveals. The runner now verifies
+> the workspace is readable before scanning, and treats a missing report as a failure.
+
 **Goal:** identical behaviour on Docker and Podman, with the isolation guarantees
 proven rather than intended.
 
