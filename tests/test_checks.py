@@ -122,3 +122,51 @@ def test_an_injection_payload_is_fenced_as_untrusted_not_reproduced_as_prose(
     assert payload in summary, "the finding should still be actionable"
     before = summary[: summary.index(payload)]
     assert "[UNTRUSTED CONTENT FROM THE SCANNED REPOSITORY" in before
+
+
+# ------------------------------------------------------------------- 4.3 licence
+
+def test_a_licence_file_contradicting_package_metadata_is_a_finding(
+    tmp_path, runner_finding_nothing
+):
+    """F4.3 — a GPL LICENSE in a project whose metadata claims MIT is a real problem,
+    and no Scanner we orchestrate looks for it."""
+    import shutil
+
+    from conftest import FIXTURES
+
+    ws = tmp_path / "mismatch"
+    shutil.copytree(FIXTURES / "licence-mismatch-repo", ws)
+
+    run = scan(ws, runner=runner_finding_nothing, adapters=[CheckAdapter("licence-file")])
+
+    assert [f.rule for f in run.findings] == ["valvur.licence.mismatch"]
+
+
+def test_a_copyleft_dependency_in_a_permissive_project_is_a_finding():
+    """F4.5 — GPL obligations may extend to your own source."""
+    import json
+
+    from valvur.licence_policy import evaluate
+
+    sbom = json.dumps({"components": [
+        {"name": "gpl-thing", "version": "1.0", "licenses": [{"license": {"id": "GPL-3.0"}}]},
+        {"name": "fine-thing", "version": "2.0", "licenses": [{"license": {"id": "MIT"}}]},
+    ]})
+
+    findings = evaluate("MIT", sbom)
+
+    assert [f.rule for f in findings] == ["valvur.licence.copyleft-in-permissive"]
+
+
+def test_a_dependency_with_no_declared_licence_is_a_finding():
+    """F4.6 — unknown cannot be cleared for release."""
+    import json
+
+    from valvur.licence_policy import evaluate
+
+    sbom = json.dumps({"components": [{"name": "mystery", "version": "0.1"}]})
+
+    findings = evaluate("MIT", sbom)
+
+    assert [f.rule for f in findings] == ["valvur.licence.dependency-unknown"]
