@@ -1,4 +1,4 @@
-from .api import ScanRun, scan
+from .api import ScannerFailed, ScanRun, scan
 from .findings import Finding
 
 __all__ = ["Finding", "ScanRun", "scan"]
