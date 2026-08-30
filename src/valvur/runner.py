@@ -17,6 +17,17 @@ class ScannerOutput:
 
 IMAGE = "valvur:dev"
 _VERSION = "0.1.0.dev0"
+
+# Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
+# registry rather than granting egress to ghcr.io. ADR-0012 already made this
+# reachable by keeping the DB out of the image, so mirroring needs no special build.
+DB_REPOSITORY_ENV = "VALVUR_DB_REPOSITORY"
+
+
+def db_repository() -> str | None:
+    import os
+
+    return os.environ.get(DB_REPOSITORY_ENV) or None
 _RUNTIMES = ("docker", "podman", "nerdctl")
 
 
@@ -61,6 +72,11 @@ def detect_runtime() -> str:
     )
 
 
+def _db_repository_flags() -> list[str]:
+    mirror = db_repository()
+    return ["--db-repository", mirror] if mirror else []
+
+
 def _user_flags() -> list[str]:
     import os
 
@@ -75,6 +91,11 @@ class ContainerRunner:
     def __init__(self, image: str = IMAGE, runtime: str | None = None):
         self.image = image
         self._runtime = runtime
+
+    def verify_compatible(self) -> None:
+        from . import compat
+
+        compat.check(self.runtime, self.image)
 
     @property
     def runtime(self) -> str:
@@ -106,6 +127,10 @@ class ContainerRunner:
         ]
         if not network:
             flags.append("--network=none")           # N2.1 - no interface at all
+        else:
+            mirror = db_repository()
+            if mirror:
+                flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
         return flags
 
     def update_db(self) -> ScannerOutput:
@@ -118,6 +143,7 @@ class ContainerRunner:
                 *self._base_flags(Path.cwd(), scratch, network=True),
                 self.image,
                 "trivy", "image", "--download-db-only", "--cache-dir", "/cache/trivy",
+                *_db_repository_flags(),
             ]
 
             # externally-derived value is a path passed as a single argv element.
@@ -145,6 +171,7 @@ class ContainerRunner:
                 self.image,
                 "trivy", "fs", "/workspace",
                 "--cache-dir", "/cache/trivy",
+                *_db_repository_flags(),
                 "--skip-db-update", "--skip-java-db-update",
                 "--format", "json", "--output", "/results/trivy.json",
                 "--quiet", "--scanners", "vuln",

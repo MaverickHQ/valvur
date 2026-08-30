@@ -212,6 +212,20 @@ SARIF 2.1.0 and CycloneDX out. Public primary sources in. Every finding is
 traceable to the tool and version that produced it via `raw/` and `run.json`.
 Leave whenever you want and take everything with you.
 
+## Air-gapped operation
+
+No egress? Mirror the vulnerability database into your own OCI registry and point
+valvur at it:
+
+```bash
+export VALVUR_DB_REPOSITORY=registry.internal/mirror/trivy-db
+valvur update          # fetches from your mirror, not the internet
+valvur scan            # scans offline against the cached copy
+```
+
+The database deliberately lives **outside** the image, so mirroring needs no special
+build — and a six-month-old image never implies six-month-old vulnerability data.
+
 ## Running on AWS
 
 The same image runs on ECS/Fargate via ECR — identical artifact, no

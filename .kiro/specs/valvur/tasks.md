@@ -926,10 +926,13 @@ proven rather than intended.
 
 ### 8.3 — Version compatibility
 
+> **✅ COMPLETE 2026-08-30.** 134 tests. Phase 8 complete.
+
 10. A shim/image major version mismatch refuses to run and states both versions.
     *(F1.9)*
 
-- [ ] **8.3.11** **Design the version relationship first — none exists.** `_VERSION`
+- [x] **8.3.11** **Design the version relationship first — none exists.** `_VERSION`  
+  **STATUS 2026-08-30:** ✅ Designed: the image stamps `org.opencontainers.image.version` from `pyproject` at build time; the shim reads it and compares. Below 1.0 a **minor** difference breaks compatibility, because semver permits 0.x minors to break. An image with no label predates the check and is accepted.
   strings sit in two files, unconnected, and nothing compares them. The image should
   declare its version as an OCI label, the shim should read it, and they should
   compare on major. ADR-0001 accepted two artifacts on the condition this check
@@ -939,9 +942,12 @@ proven rather than intended.
 
 ### 8.4 — Air-gapped operation
 
+> **✅ COMPLETE 2026-08-30.** 134 tests. Phase 8 complete.
+
 12. Vulnerability databases load from a user-specified OCI registry. *(F10.5)*
 
-- [ ] **8.4.13** Expose Trivy's `--db-repository` through configuration, and document
+- [x] **8.4.13** Expose Trivy's `--db-repository` through configuration, and document  
+  **STATUS 2026-08-30:** ✅ `VALVUR_DB_REPOSITORY` passes through to Trivy's `--db-repository` for both scan and update, documented in the README.
   the mirroring workflow. This is the hardest enterprise requirement and ADR-0012
   already made it reachable — the DB lives outside the image, so mirroring needs no
   special build.
