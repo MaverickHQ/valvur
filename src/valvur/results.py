@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import artifacts
+from . import artifacts, remediation
 
 RESULTS_DIR = ".security-scan"
 _VERSION = "0.1.0.dev0"
@@ -25,6 +25,9 @@ def write(workspace: Path, run, scanner_artifacts=()) -> Path:
     )
     (folder / "results.sarif").write_text(
         artifacts.sarif(run.findings, version=_VERSION), encoding="utf-8"
+    )
+    (folder / "REMEDIATION.md").write_text(
+        remediation.render(run.findings), encoding="utf-8"
     )
     (folder / "run.json").write_text(_provenance(run), encoding="utf-8")
     for name, content in scanner_artifacts:
