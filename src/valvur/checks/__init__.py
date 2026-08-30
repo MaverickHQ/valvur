@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from .ai_artifact import AiArtifactCheck
 from .base import Check
 from .licence_file import LicenceFileCheck
 
-REGISTRY: dict[str, Check] = {c.name: c for c in (LicenceFileCheck(),)}
+REGISTRY: dict[str, Check] = {
+    c.name: c for c in (LicenceFileCheck(), AiArtifactCheck())
+}
 
-__all__ = ["REGISTRY", "Check", "LicenceFileCheck"]
+__all__ = ["REGISTRY", "AiArtifactCheck", "Check", "LicenceFileCheck"]
