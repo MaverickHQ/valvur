@@ -46,8 +46,9 @@ def test_results_are_owned_by_the_invoking_user(workspace, runtime):
     need sudo to delete their own scan output. The shim writes these files instead,
     so ownership is correct by construction on every runtime.
     """
-    scan(workspace, runner=ContainerRunner(runtime=_available(runtime)),
-         adapters=[GitleaksAdapter()], profile="quick")
+    run = scan(workspace, runner=ContainerRunner(runtime=_available(runtime)),
+               adapters=[GitleaksAdapter()], profile="quick")
+    assert run.failures == [], f"{runtime} could not run the scanner"
 
     written = [p for p in (workspace / ".security-scan").rglob("*") if p.is_file()]
     assert written
@@ -64,6 +65,14 @@ def test_a_scan_finds_the_same_things_on_every_runtime(workspace, runtime):
     run = scan(workspace, runner=ContainerRunner(runtime=_available(runtime)),
                adapters=[GitleaksAdapter()], profile="quick")
 
+    # Assert completeness first. Without this the test conflates "found nothing"
+    # with "could not run", and CI proved the difference matters: podman keeps its
+    # own image store, so it could not see a docker-built image, gitleaks was
+    # recorded as failed, and the scan completed cleanly with zero findings.
+    assert run.failures == [], (
+        f"{runtime} could not complete the scan: "
+        f"{[f'{f.tool}: {f.reason}' for f in run.failures]}"
+    )
     assert "aws-access-token" in [f.rule for f in run.findings]
 
 
