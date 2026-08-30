@@ -1,0 +1,461 @@
+# valvur — Implementation Plan
+
+**Status:** ready to execute · **Version:** 2.0 · **Date:** 2026-08-30
+
+Implements [design.md](./design.md) against [requirements.md](./requirements.md).
+Vocabulary is [CONTEXT.md](../../../CONTEXT.md); decisions are
+[docs/adr/](../../../docs/adr/).
+
+---
+
+## How to execute this plan
+
+**One phase = one commit.** Each phase states its goal, its TDD cycles, an exit
+criterion, and its commit message. Do not commit mid-phase; do not span phases.
+
+**TDD is vertical, never horizontal.** Each numbered cycle below is one
+RED→GREEN pass: write *one* test for *one* behaviour, watch it fail, write the
+minimum code to pass, move on. **Never write a batch of tests and then a batch of
+implementation** — tests written in bulk describe imagined behaviour and end up
+asserting the shape of data structures instead of what the system does.
+
+```
+RIGHT:  test → impl → test → impl → test → impl
+WRONG:  test, test, test → impl, impl, impl
+```
+
+**Cycles are written as behaviours, not implementation steps.** A cycle reads like a
+sentence about what valvur does. If a cycle can only be verified by reaching into
+internals, it is the wrong cycle — restate it in terms of observable behaviour.
+
+**Refactor only when green.** At the end of each phase, refactor with tests passing,
+then commit.
+
+**These cycles are the priority list, not the whole test suite.** They cover critical
+paths and the constraints that define the product. Add edge-case tests as you learn
+what actually breaks — do not pre-emptively expand this list.
+
+---
+
+## Phase 0 — Preflight
+
+**Goal:** every account, credential, runtime and tool the plan depends on is verified
+working *before* any code exists. No implementation.
+
+Recon performed 2026-08-30 on the target machine; re-verify each line, since these
+drift.
+
+### Local environment
+
+- [ ] **0.1** Start the Docker daemon and confirm `docker info` succeeds.
+  *(Recon: Docker 29.2.1 installed, daemon was not running.)*
+- [ ] **0.2** *(Optional in this phase)* Install Podman. Not needed until Phase 8,
+  where F1.4 requires proving Results Folder ownership on Docker *and* rootless
+  Podman. **It becomes mandatory at Phase 8** — either install it then, or downgrade
+  F1.4 deliberately and drop the dual-runtime claim from the README. Do not simply
+  leave the test unwritten. *(Recon: not installed.)*
+- [ ] **0.3** Create the project virtualenv with `uv` and pin the toolchain there.
+  *(Recon: `pytest` currently resolves to a Python 3.10 framework install while
+  `python3` is 3.12 — never run project tests against that.)*
+- [ ] **0.4** Install `cosign` (release signing, F10.3) and `syft` + `trivy` on the
+  host for adapter development against real output.
+
+### Local git
+
+Do all of this **before the first commit**. Git history is append-only in practice —
+a secret or a stray artifact committed here is permanent, and for this project it
+would be the worst possible opening line.
+
+- [ ] **0.5** `git init` with default branch `main`.
+- [ ] **0.6** Write `.gitignore` **before staging anything**: `.security-scan/`,
+  `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `dist/`, `build/`, `*.egg-info/`,
+  `.env`, `.DS_Store`. The **Results Folder** entry matters most — a tool that
+  promises results are never committed must not commit its own.
+- [ ] **0.7** Write `.gitattributes` pinning text line endings, so **Fingerprints**
+  computed on a Windows checkout match those on macOS. *(Guards F5.4 at the VCS
+  layer, where it is otherwise easy to miss.)*
+- [ ] **0.8** Confirm identity resolves to `MaverickHQ`. *(Verified 2026-08-30.)*
+- [ ] **0.9** **Configure commit signing** and enable `commit.gpgsign`. *(Recon: both
+  unset.)* A security tool with unsigned history is the first thing a reviewer
+  notices, and signed commits are the same promise as the signed release image.
+- [ ] **0.10** Install a `gitleaks` pre-commit hook so a secret cannot enter history
+  in the first place. We ship secret scanning; we should not be the project that
+  leaks one.
+- [ ] **0.11** Adopt Conventional Commits — the phase commit messages in this plan
+  already follow it, and it makes release notes generatable.
+- [ ] **0.12** Make the initial commit and verify `git log --show-signature` confirms
+  it is signed.
+
+### GitHub
+
+**GitHub only.** GitLab is out of scope; the image is published to GHCR, and to ECR
+for AWS execution.
+
+- [ ] **0.13** Create the repository — private initially — and push. `gh` is already
+  authenticated as MaverickHQ. This also **reserves the name** while changing it is
+  still free.
+- [ ] **0.14** Enable branch protection on `main`: require a passing CI check, and
+  require signed commits.
+- [ ] **0.15** Verify you can push a package to GHCR under this account, so the
+  container publishing path is proven before it is needed.
+
+### AWS
+
+- [ ] **0.16** Confirm STS identity. *(Verified: account `<aws-account-id>`, IAM user
+  `<iam-user>`.)*
+- [ ] **0.17** Verify that identity can create an ECR repository and push to it. It is
+  an IAM **user**, not a role — check the policy rather than assuming.
+- [ ] **0.18** Create the ECR repository with immutable tags and scan-on-push.
+- [ ] **0.19** Decide whether a dedicated least-privilege publishing role replaces the
+  dev user before first release. Record the answer here; do not leave it implicit.
+
+**Exit:** every box ticked, every recon line re-verified, and any deviation recorded
+in this file. **Do not start Phase 1 with a failing preflight** — every one of these
+becomes a confusing failure later if skipped.
+
+**Commit:** `chore: preflight — verify toolchain, remotes, and AWS access`
+
+---
+
+## Phase 1 — Walking skeleton
+
+**Goal:** `valvur scan` works end to end, for a real user, with a single **Scanner**.
+Thin but complete: install → scan → read results.
+
+This is the tracer bullet. It exists because usability is a requirement, and the only
+way to know the install and first-run experience is right is to have one on day two
+rather than month two. Every later phase adds depth to a system that already works.
+
+### TDD cycles
+
+1. Scanning a **Workspace** with a planted secret reports one **Finding**.
+2. Scanning a clean **Workspace** reports no **Findings** and still writes a
+   **Results Folder** with an explicit clean status. *(F7.11)*
+3. A **Scan Run** writes `.security-scan/` containing `SUMMARY.md`. *(F7.1, F7.4)*
+4. The **Results Folder** ignores itself — `.security-scan/.gitignore` contains `*`.
+   *(F7.2)*
+5. `git status` in a scanned **Workspace** shows no untracked scan output. *(F7.2 —
+   the guarantee, verified the way a user would see it.)*
+6. A secret's value never appears in any written file. *(F5.7, N2.4)*
+7. The **Workspace** is unchanged after a **Scan Run** — no file added, modified or
+   removed outside `.security-scan/`. *(F1.3, N2.2)*
+8. A **Scan Run** exits zero when **Findings** exist. *(N3.2)*
+
+### Also in this phase
+
+- [ ] **1.9** Minimal container image with Gitleaks pinned; non-root, read-only root
+  filesystem. *(F10.2)*
+- [ ] **1.10** Shim invokes it with `-v ws:/workspace:ro` and a host scratch mount.
+  *(F1.1)*
+- [ ] **1.11** Fixture **Workspace** at `tests/fixtures/broken-repo/` — for now just a
+  planted fake secret; grows each phase.
+- [ ] **1.12** **Usability gate:** someone who has never seen valvur installs and runs
+  it from the README alone, on a clean machine, in under five minutes. Write down
+  every point of confusion. Those notes drive Phase 10.
+
+**Exit:** a real user can install valvur and scan a real repository. Cycle 5 passes.
+
+**Commit:** `feat: end-to-end scan skeleton with gitleaks`
+
+---
+
+## Phase 2 — Finding identity
+
+**Goal:** **Findings** survive editing, so the scan → fix → rescan loop can tell
+progress from noise. The highest-value code in the system; ADR-0003 makes it the most
+expensive thing to change later.
+
+### TDD cycles
+
+1. A **Finding** reported twice for unchanged code keeps the same **Fingerprint**.
+2. A **Finding** keeps its **Fingerprint** when unrelated lines above it move.
+   *(The behaviour ADR-0003 exists for.)*
+3. A **Finding** keeps its **Fingerprint** when the file is reformatted.
+4. Fixing the underlying problem changes the **Finding**'s **Status** to `fixed`.
+5. A **Finding** present in both runs has **Status** `persisting`.
+6. A **Finding** absent from the previous run has **Status** `new`.
+7. A **Finding** that was `fixed` and returns has **Status** `regressed`.
+8. On a first-ever **Scan Run**, every **Finding** is `new`. *(F5.9)*
+9. **Fingerprints** are identical for the same **Workspace** on a different machine
+   and OS. *(F5.4)*
+10. Two identical patterns in one file yield two distinct **Findings**.
+11. A **Finding** reported by two **Scanners** appears once, naming both. *(F5.8)*
+12. Bumping a vulnerable dependency marks its **Finding** `fixed`. *(The dependency
+    class earns its own cycle — its key is unrelated to location.)*
+
+Each cycle covers one **Finding Class** as it becomes relevant. Do not write all six
+classes' tests before implementing any of them.
+
+**Exit:** a scripted edit-then-rescan sequence reports exactly what changed.
+
+**Commit:** `feat: stable per-class finding identity and status diff`
+
+---
+
+## Phase 3 — Scanner fleet
+
+**Goal:** the remaining five **Scanners** contribute **Findings** through one
+normalised model.
+
+### TDD cycles
+
+One vertical slice per **Scanner** — its output becomes **Findings**, then the next.
+Capture that **Scanner**'s real output as a golden fixture *at the moment you write
+its cycle*, not in a batch beforehand.
+
+1. Trivy dependency vulnerabilities become **Findings**.
+2. OSV-Scanner findings become **Findings** and merge with Trivy's where they agree.
+3. Opengrep results become **Findings**.
+4. Checkov IaC misconfigurations become **Findings** carrying the resource address.
+5. Syft produces the SBOM artifact.
+6. A crashing **Scanner** is reported at the top of `SUMMARY.md` and the run
+   completes. *(F2.5, F7.7)*
+7. A **Scanner** that times out is reported as failed, not as clean. *(F2.7)*
+8. A **Scanner** exiting non-zero *because it found issues* is a successful run.
+   *(F2.4)*
+9. When every **Scanner** fails, the **Scan Run** fails and exits non-zero. *(N3.2)*
+10. A **Workspace** path containing shell metacharacters reaches the **Scanner**
+    unaltered and unexecuted. *(N2.3)*
+
+**Exit:** all six **Scanners** contribute; killing any one still yields a complete,
+honest run.
+
+**Commit:** `feat: full scanner fleet with failure isolation`
+
+---
+
+## Phase 4 — AI-specific Checks
+
+**Goal:** the differentiator — the four **Checks** nobody else ships.
+
+### TDD cycles
+
+1. A dependency that does not exist on its registry is a critical **Finding**.
+   *(F3.2 — the headline slopsquat behaviour.)*
+2. A recently published, barely adopted dependency is flagged as a possible
+   **Slopsquat**. *(F3.3)*
+3. A dependency one character from a far more popular package is flagged. *(F3.4)*
+4. With no network, the Dependency Reality **Check** reports *skipped* — and its
+   packages are **not** reported clean. *(F3.5 — the honesty behaviour.)*
+5. Zero-width Unicode in an agent instruction file is a **Finding**. *(F3.7)*
+6. An MCP server pinned to a mutable ref is a **Finding**. *(F3.8)*
+7. Blanket tool auto-approval is a **Finding**. *(F3.9)*
+8. An agent file instructing the reader to ignore previous instructions is reported
+   as evidence and **not acted upon**. *(F3.12 — quote it, never obey it.)*
+9. Model output flowing into a shell is a **Finding**. *(F3.10)*
+10. An unpinned dependency range is a **Finding**. *(F3.11)*
+11. A **Workspace** with no licence file is a **Finding**. *(F4.2)*
+12. A licence file contradicting package metadata is a **Finding**. *(F4.3)*
+13. A copyleft dependency inside a permissive-declared project is a **Finding**.
+    *(F4.5)*
+
+**Exit:** every planted problem in the fixture **Workspace** is caught by the intended
+**Check**, and the offline path degrades honestly.
+
+**Commit:** `feat: AI-specific checks and licence analysis`
+
+---
+
+## Phase 5 — Enrichment and ranking
+
+**Goal:** the top of the list is genuinely the most urgent thing.
+
+### TDD cycles
+
+1. A **Finding** with a CVE carries its KEV status. *(F6.1, F6.2)*
+2. A KEV entry used in ransomware campaigns is marked as such.
+3. A **Finding** with a CVE carries its EPSS score when the network permits. *(F6.3)*
+4. **The inversion:** a CVSS 6.5 **Finding** in KEV ranks above a CVSS 9.8 at 0.04%
+   EPSS. *(F6.5 — the behaviour the whole feature exists for.)*
+5. With no network, ranking uses KEV alone and **Provenance** records the degradation.
+   *(F6.4)*
+6. A **Finding** in a development-only dependency ranks below the same **Finding** in
+   a production dependency. *(F6.6)*
+7. A transitive vulnerability reports its **Dependency Path** and the direct package
+   to change. *(F6.9)*
+8. **Enrichment** older than 30 days produces a staleness warning. *(F6.7)*
+
+**Exit:** cycle 4 passes — the ranking inversion is demonstrable.
+
+**Commit:** `feat: KEV/EPSS enrichment and exploit-aware ranking`
+
+---
+
+## Phase 6 — Results contract
+
+**Goal:** every artifact, each serving one consumer, all consistent.
+
+### TDD cycles
+
+1. Every **Finding** in `findings.json` appears in `results.sarif` and is counted in
+   `SUMMARY.md`. *(F7.13 — the consistency guarantee.)*
+2. `SUMMARY.md` stays within 200 lines given 10,000 **Findings**. *(F7.5)*
+3. `SUMMARY.md` opens with the machine-facing header. *(F7.6)*
+4. Failures and skips appear before any **Finding**. *(F7.7)*
+5. `results.sarif` validates against the SARIF 2.1.0 schema and carries
+   **Fingerprints**. *(F7.9)*
+6. `report.html` references no external URL and renders offline. *(F7.8)*
+7. `run.json` records **Scanner** versions, **Enrichment** dates, skips and failures.
+   *(F7.12)*
+8. `REMEDIATION.md` orders **Remediation Items** by rank, each independently
+   applicable. *(F7.14)*
+9. `raw/` prunes to the most recent N **Scan Runs**. *(N3.3)*
+10. No secret value appears in `raw/`. *(F5.7 — re-asserted at the riskiest surface.)*
+
+**Exit:** a full **Results Folder** is produced and every artifact test passes.
+
+**Commit:** `feat: complete results contract with cross-artifact consistency`
+
+---
+
+## Phase 7 — Suppressions
+
+**Goal:** accepted risks are recorded, shared and reviewed rather than forgotten.
+
+### TDD cycles
+
+1. A **Suppression** matching a **Finding** moves it to the suppressed section rather
+   than removing it. *(F8.6)*
+2. A **Suppression** without an expiry date is rejected and raises a **Finding**.
+   *(F8.3)*
+3. An expired **Suppression** reports its **Finding** normally, annotated. *(F8.4)*
+4. A **Suppression** matching nothing is reported as stale. *(F8.5)*
+5. valvur never writes to `.security-scan.toml`. *(F8.7)*
+
+**Exit:** the suppression lifecycle is fully covered.
+
+**Commit:** `feat: expiring suppressions with stale detection`
+
+---
+
+## Phase 8 — Runtime portability and hardening
+
+**Goal:** identical behaviour on Docker and Podman, with the isolation guarantees
+proven rather than intended.
+
+### TDD cycles
+
+1. **Results Folder** files are owned by the invoking user on Docker. *(F1.4)*
+2. **Results Folder** files are owned by the invoking user on rootless Podman.
+   *(F1.4 — the reason ADR-0001 exists. **Requires Podman**, deferred from task 0.2.
+   If it is still not installed, install it now or consciously drop the dual-runtime
+   claim — an untested guarantee is worse than an unclaimed one.)*
+3. The container cannot write to `/workspace`. *(F1.1)*
+4. A **Workspace** path containing spaces and symlinks scans correctly.
+5. With no container runtime present, valvur refuses with actionable remediation
+   text. *(F1.5 — an error message is a usability surface.)*
+6. A shim/image major version mismatch refuses to run and states both versions.
+   *(F1.9)*
+7. The image contains no GPL or AGPL component. *(F10.4)*
+8. Vulnerability databases load from a user-specified OCI registry. *(F10.5)*
+
+**Exit:** the full suite passes on Docker and Podman.
+
+**Commit:** `feat: runtime portability across docker and podman`
+
+---
+
+## Phase 9 — MCP surface
+
+**Goal:** an agent can scan, browse and understand **Findings** — and cannot change
+anything.
+
+### TDD cycles
+
+1. An MCP client runs a **Scan Run** and receives a summary. *(F9.1)*
+2. `list_findings` returns **Findings** in rank order, filterable by **Status**.
+3. `explain_finding` returns evidence, **Exploit Signals**, **Dependency Path** and
+   the originating source. *(F9.8)*
+4. No exposed tool modifies the **Workspace**. *(F9.2 — assert over the whole tool
+   list, so a future tool cannot quietly break it.)*
+5. Editing a file triggers no **Scan Run**. *(F9.4)*
+6. Every MCP tool has a CLI equivalent producing the same result. *(F9.3)*
+
+**Exit:** a real MCP client completes scan → list → explain against the fixture repo.
+
+**Commit:** `feat: MCP tool surface, read-only by construction`
+
+---
+
+## Phase 10 — First-run experience
+
+**Goal:** usability, treated as a feature with its own phase rather than as polish.
+Driven by the confusion notes from cycle 1.12.
+
+- [ ] **10.1** `uv tool install valvur` (and `pipx`) works on a clean machine with no
+  **Scanners**, no Python knowledge and no configuration. *(F10.6)*
+- [ ] **10.2** First run auto-pulls the image with clear progress, and states plainly
+  what it is downloading and how large it is.
+- [ ] **10.3** Zero-config default: `valvur scan` in any directory does the right
+  thing with no flags. *(P1)*
+- [ ] **10.4** `quick` **Profile** completes in under 60 seconds on a ≤50k-line
+  repository. *(P1, N1.1)*
+- [ ] **10.5** Every failure mode produces an actionable message naming the exact next
+  command. Cover: daemon not running, image pull failure, unreadable **Workspace**,
+  no manifests found, corrupt suppression file.
+- [ ] **10.6** `SUMMARY.md` is comprehensible to someone who has never used a security
+  scanner — test it on a person, not an assumption.
+- [ ] **10.7** Copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet verified against a
+  real agent in a real repository. *(P6)*
+- [ ] **10.8** Second usability gate: a new user, README only, clean machine, under
+  five minutes to first useful result.
+
+**Exit:** an unfamiliar user reaches a useful result without asking a question.
+
+**Commit:** `feat: first-run experience and actionable error handling`
+
+---
+
+## Phase 11 — Constraint verification
+
+**Goal:** convert the product's central claims from assertions into tests CI runs on
+every commit.
+
+### TDD cycles
+
+1. **The `quick` Profile makes no network connection — the test fails on any socket
+   attempt.** *(N2.1, ADR-0010. The single most important test in the suite: it is
+   what makes the README's central claim true rather than asserted.)*
+2. No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
+3. The verification command documented in the README works exactly as written.
+   *(P5 — documentation that drifts from behaviour is worse than none.)*
+4. `standard` completes within 5 minutes and 2 GB on a ≤50k-line repository.
+   *(N1.2, N1.4)*
+
+### Also in this phase
+
+- [ ] **11.5** Run valvur's `standard` **Profile** against valvur itself.
+- [ ] **11.6** Remediate every **Finding**; re-run until clean. Record anything
+  suppressed, with justification and expiry.
+- [ ] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)*
+
+**Exit:** CI proves non-exfiltration on every commit; valvur passes its own scan.
+
+**Commit:** `test: constraint verification and self-scan release gate`
+
+---
+
+## Phase 12 — Release
+
+- [ ] **12.1** **Decide the final name.** After first publish this becomes expensive:
+  PyPI, GHCR, ECR, GitHub and every install instruction.
+- [ ] **12.2** Sign the image with cosign; publish SBOM and build provenance. *(F10.3)*
+- [ ] **12.3** Repo furniture: `LICENSE`, `SECURITY.md` with a disclosure policy,
+  `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
+- [ ] **12.4** Verify every README claim traces to
+  [POSITIONING.md](../../../docs/POSITIONING.md), and every **Scanner** is credited
+  with its licence. *(P3, P4)*
+- [ ] **12.5** Publish the release to GitHub, and the signed image to GHCR.
+- [ ] **12.6** Tag v1.0.0.
+
+**Exit:** v1.0.0 released, self-scan clean, signature and SBOM published.
+
+**Commit:** `chore: release v1.0.0`
+
+---
+
+## Traceability
+
+The not-cuttable set from `requirements.md` maps to: F1 → Phase 8 · N2.1 → Phase 11
+cycle 1 · F5.3 → Phase 2 cycles 1–3 · F7.2 → Phase 1 cycles 4–5 · F9.2 → Phase 9
+cycle 4 · F9.4 → Phase 9 cycle 5. Each is a test that fails the build if broken.
