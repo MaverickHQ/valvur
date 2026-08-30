@@ -558,13 +558,16 @@ repository appears as live directive text in any artifact we write.
 
 ### 5.1 — KEV
 
+> **✅ COMPLETE 2026-08-30.**
+
 1. A **Finding** with a CVE carries its KEV status. *(F6.1, F6.2)*
 2. A KEV entry used in ransomware campaigns is marked as such. *(352 of 1,685 current
    entries carry this flag — it is the strongest call to action we can print.)*
 3. A CVE absent from KEV is marked as such, not left unknown. *(Absence of evidence is
    reportable; silence is not.)*
 
-- [ ] **5.1.4** **Bundle a KEV snapshot as a floor, refresh into the host cache.**
+- [x] **5.1.4** **Bundle a KEV snapshot as a floor, refresh into the host cache.**  
+  **STATUS 2026-08-30:** ✅ 74KB trimmed snapshot bundled as an offline floor; `valvur update` refreshes into the host cache and the fresher copy wins.
   F6.2 says bundle it, and at 1.6MB size is not the concern — freshness is. A CVE
   added to KEV yesterday would not be flagged by a three-month-old image, which is
   precisely the reasoning that moved the Trivy DB out in ADR-0012. Bundle so `quick`
@@ -575,13 +578,16 @@ repository appears as live directive text in any artifact we write.
 
 ### 5.2 — EPSS and disclosure
 
+> **✅ COMPLETE 2026-08-30.**
+
 4. A **Finding** with a CVE carries its EPSS score where the network permits. *(F6.3)*
 5. EPSS is fetched in one batched request for the CVEs actually found, not one call
    per finding. *(F6.3)*
 6. With no network, ranking uses KEV alone and **Provenance** records the degradation.
    *(F6.4)*
 
-- [ ] **5.2.7** **Disclose the EPSS lookup (F6.10).** Sending our CVE list to FIRST is
+- [x] **5.2.7** **Disclose the EPSS lookup (F6.10).** Sending our CVE list to FIRST is  
+  **STATUS 2026-08-30:** ✅ `run.json` and README now name the CVE disclosure alongside the package-name one; `--offline` covers both.
   a map of the project's *unpatched vulnerabilities* — a more sensitive disclosure
   than the dependency names of 4.4.21. Extend the `network` block in `run.json` and
   the README, and honour `--offline`. Having made a point of the lesser leak, silence
@@ -591,6 +597,8 @@ repository appears as live directive text in any artifact we write.
 
 ### 5.3 — Ranking
 
+> **✅ COMPLETE 2026-08-30.**
+
 7. **The inversion:** a CVSS 6.5 **Finding** in KEV ranks above a CVSS 9.8 at 0.04%
    EPSS. *(F6.5 — the behaviour the whole feature exists for.)*
 8. Ranking actually reorders the written output. *(`SUMMARY.md` currently iterates in
@@ -598,12 +606,14 @@ repository appears as live directive text in any artifact we write.
    no-op.)*
 9. **Enrichment** older than 30 days produces a staleness warning. *(F6.7)*
 
-- [ ] **5.3.10** **The inversion needs test data that does not exist.** None of the
+- [x] **5.3.10** **The inversion needs test data that does not exist.** None of the  
+  **STATUS 2026-08-30:** ✅ Both halves done. Synthetic pairs prove the ranking function; **Pillow 10.0.0 / CVE-2023-4863** proves the wiring against real scanner output — one of very few PyPI-reachable CVEs in KEV.
   fixture's 15 CVEs appear in KEV — verified against the live catalogue. Do both:
   a synthetic pair for the unit test, which is stable and proves the ranking function;
   and one real KEV-listed dependency for an e2e, which proves the wiring. Neither
   alone is sufficient.
-- [ ] **5.3.11** Give low-value classes a floor so they cannot crowd the top. A scan
+- [x] **5.3.11** Give low-value classes a floor so they cannot crowd the top. A scan  
+  **STATUS 2026-08-30:** ✅ Class urgency now competes with exploit urgency. Real output showed hallucinated packages sinking below any CVE with a non-zero EPSS, because they have no EPSS at all.
   of our own toy fixture returns 56 findings, of which 6 are
   `licence.dependency-unknown` from our own SBOM, while two hallucinated packages and
   an injection payload sit below them in arbitrary order. **Phase 6's 200-line cap is
@@ -613,15 +623,19 @@ repository appears as live directive text in any artifact we write.
 
 ### 5.4 — Dependency path and scope
 
+> **✅ COMPLETE 2026-08-30.**
+
 10. A transitive vulnerability reports its **Dependency Path** and the direct package
     to change. *(F6.9)*
 11. A **Finding** in a development-only dependency ranks below the same **Finding** in
     a production dependency. *(F6.6)*
 
-- [ ] **5.4.12** **Verify Trivy gives us the parent chain before committing to cycle
+- [x] **5.4.12** **Verify Trivy gives us the parent chain before committing to cycle  
+  **STATUS 2026-08-30:** ✅ **Verified, and the answer was no.** Trivy exposes no `PkgID`/`Relationship`/`PkgPath` on vulnerabilities, and Syft emits no `dependencies` section. The graph is in `Packages[].DependsOn` and exists **only for lockfiles** — `requirements.txt` is flat and carries no transitive information at all. Implemented where the data exists; reporting a path for a flat manifest would be invention.
   10.** `fs` mode may not expose it without `--list-all-pkgs`, in which case the path
   comes from the Syft SBOM instead. Confirm first; do not assume.
-- [ ] **5.4.13** Determine dev-vs-production scope per ecosystem — `devDependencies`,
+- [x] **5.4.13** Determine dev-vs-production scope per ecosystem — `devDependencies`,  
+  **STATUS 2026-08-30:** ✅ Scope from path segments and filename parts, demoted a full tier in ranking.
   `[dependency-groups]`, and filename convention for `requirements-dev.txt`. The
   fixture already carries the test material; no adapter marks scope yet.
 
