@@ -7,9 +7,11 @@ writes the Results Folder.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from . import profiles as _profiles
 from . import results
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
@@ -37,33 +39,51 @@ class ScanRun:
         return "clean" if not self.findings else "findings"
 
 
-def scan(workspace: Path, *, runner, adapters=DEFAULT_ADAPTERS) -> ScanRun:
-    findings: list[Finding] = []
-    scanners: list[ScannerRun] = []
+def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding]]:
+    """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
+    try:
+        output = adapter.run(runner, workspace)
+    except Exception as exc:
+        return ScannerRun(adapter.name, ok=False, reason=str(exc)), []
 
-    for adapter in adapters:
-        # One broken Scanner must never cost the others (F2.5). Failure is recorded,
-        # surfaced loudly, and the run continues.
-        try:
-            output = adapter.run(runner, workspace)
-        except Exception as exc:
-            scanners.append(ScannerRun(adapter.name, ok=False, reason=str(exc)))
-            continue
+    if output.exit_code != 0 and not output.stdout.strip():
+        return (
+            ScannerRun(
+                adapter.name,
+                ok=False,
+                version=output.version,
+                reason=f"exited {output.exit_code} with no report: "
+                f"{output.stderr.strip()[:200]}",
+            ),
+            [],
+        )
 
-        if output.exit_code != 0 and not output.stdout.strip():
-            scanners.append(
-                ScannerRun(
-                    adapter.name,
-                    ok=False,
-                    version=output.version,
-                    reason=f"exited {output.exit_code} with no report: "
-                    f"{output.stderr.strip()[:200]}",
-                )
-            )
-            continue
+    return ScannerRun(adapter.name, ok=True, version=output.version), adapter.parse(output)
 
-        scanners.append(ScannerRun(adapter.name, ok=True, version=output.version))
-        findings.extend(adapter.parse(output))
+
+def scan(
+    workspace: Path, *, runner, adapters=None, profile: str = _profiles.STANDARD
+) -> ScanRun:
+    if adapters is None:
+        adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
+
+    # Scanners are independent and I/O-bound — each is a container invocation — so
+    # they run concurrently. Serially, six Scanners will not meet the 5-minute
+    # standard budget (F2.6, N1.2). Results are collected back into declaration
+    # order so a Scan Run is reproducible regardless of which finished first.
+    outcomes: list[tuple[ScannerRun, list[Finding]] | None] = [None] * len(adapters)
+
+    with ThreadPoolExecutor(max_workers=max(1, len(adapters))) as pool:
+        futures = {
+            pool.submit(_run_one, adapter, runner, workspace): index
+            for index, adapter in enumerate(adapters)
+        }
+        for future in as_completed(futures):
+            outcomes[futures[future]] = future.result()
+
+    completed = [o for o in outcomes if o is not None]
+    scanners = [outcome[0] for outcome in completed]
+    findings = [f for outcome in completed for f in outcome[1]]
 
     # Total failure is a failed Scan Run (N3.2). Partial failure is a reported one.
     if scanners and all(s.failed for s in scanners):
