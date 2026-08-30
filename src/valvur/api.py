@@ -17,6 +17,7 @@ from . import profiles as _profiles
 from . import ranking as _ranking
 from . import results
 from . import state as _state
+from . import suppressions as _suppressions
 from .adapters import DEFAULT_ADAPTERS
 from .findings import Finding, merge
 from .provenance import ScannerRun
@@ -119,6 +120,12 @@ def scan(
     # asserts. Network use is Profile-gated (F6.3, F6.4).
     provider = _enrichment.LocalProvider()
     findings = provider.enrich(findings, network=_profiles.ALLOWS_NETWORK.get(profile, False))
+    # Suppressions are a policy layer applied after detection and enrichment, and
+    # before ranking. They never touch the Fingerprint or the Status diff — a
+    # suppressed Finding is still present, and un-suppressing it must not read as new.
+    policy = _suppressions.load(workspace)
+    findings = _suppressions.apply(findings, policy)
+
     findings = _ranking.apply(findings)
 
     results_dir = workspace / results.RESULTS_DIR
