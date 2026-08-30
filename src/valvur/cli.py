@@ -9,6 +9,43 @@ from pathlib import Path
 from .api import scan
 
 
+def _refresh_kev() -> None:
+    """Refresh CISA KEV into the host cache.
+
+    The image ships a snapshot as an offline floor, but exploitation data changes
+    daily and image releases do not — the ADR-0012 argument applied to a second
+    dataset. A CVE added to KEV yesterday should be flagged today.
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    from . import cache
+
+    url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            raw = json.load(response)
+    except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:
+        print(f"KEV refresh skipped ({exc}); the bundled snapshot remains in use.")
+        return
+
+    entries = {
+        v["cveID"]: {"r": v.get("knownRansomwareCampaignUse") == "Known",
+                     "d": v.get("dateAdded", "")}
+        for v in raw.get("vulnerabilities", [])
+    }
+    root = cache.root()
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "kev.json").write_text(json.dumps({
+        "source": url,
+        "catalogVersion": raw.get("catalogVersion", ""),
+        "count": len(entries),
+        "entries": entries,
+    }, separators=(",", ":")), encoding="utf-8")
+    print(f"KEV refreshed: {len(entries)} entries (catalog {raw.get('catalogVersion','?')}).")
+
+
 def main(argv: list[str] | None = None, *, runner=None) -> int:
     parser = argparse.ArgumentParser(prog="valvur", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -36,6 +73,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
             return 1
         from . import cache
 
+        _refresh_kev()
         print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
         return 0
 

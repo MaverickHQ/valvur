@@ -1,4 +1,8 @@
 # Deliberately vulnerable pins for scanner tests. Never install this.
 # urllib3 1.24.1 and PyYAML 5.1 carry long-standing, well-established advisories.
+# Pillow 10.0.0 carries CVE-2023-4863 (libwebp), which is one of the very few
+# PyPI-reachable CVEs in CISA KEV — it exists here so the KEV ranking path is
+# proven against real data rather than only against synthetic findings.
 urllib3==1.24.1
 PyYAML==5.1
+Pillow==10.0.0

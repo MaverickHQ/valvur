@@ -39,11 +39,17 @@ def _provenance(run) -> str:
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
                 # registries by the dependency-reality check on standard and deep.
+                "enrichment": {
+                    "kev_source": getattr(run, "kev_source", ""),
+                    "kev_age_days": round(getattr(run, "kev_age_days", None) or 0, 2),
+                    "stale": (getattr(run, "kev_age_days", None) or 0) > 30,
+                },
                 "network": {
                     "used": getattr(run, "network_used", False),
                     "what_left_the_machine": (
-                        "dependency package names, sent to public registries (PyPI), "
-                        "by the dependency-reality check"
+                        "dependency package names (to PyPI, by the dependency-reality "
+                        "check) and the CVE identifiers found in this workspace (to "
+                        "FIRST, for EPSS scores)"
                         if getattr(run, "network_used", False)
                         else "nothing"
                     ),
@@ -74,6 +80,14 @@ def _summary(run) -> str:
 
     # Failures come before findings. A reader who does not see them will trust a
     # partial scan as a complete one (F7.7).
+    age = getattr(run, "kev_age_days", None)
+    if age is not None and age > 30:
+        lines += [
+            f"> ⚠ Exploit intelligence is {age:.0f} days old. Run `valvur update`.",
+            "> Confident answers from stale data are worse than no answer.",
+            "",
+        ]
+
     failures = getattr(run, "failures", [])
     if failures:
         lines += ["## ⚠ Scanners that did not complete", ""]
@@ -91,8 +105,20 @@ def _summary(run) -> str:
         lines += [f"- {title}" for title in run.fixed]
         lines += [""]
 
-    for f in run.findings:
-        lines.append(f"- [{f.status}] `{f.path}:{f.line}` — {f.title} ({f.rule})")
+    for f in sorted(run.findings, key=lambda x: x.rank or 10**9):
+        badge = ""
+        if f.exploit and f.exploit.ransomware:
+            badge = " **[KEV · RANSOMWARE]**"
+        elif f.exploit and f.exploit.kev:
+            badge = " **[KEV — exploited in the wild]**"
+        elif f.exploit and f.exploit.epss is not None and f.exploit.epss >= 0.10:
+            badge = f" **[EPSS {f.exploit.epss:.0%}]**"
+        scope = ""
+        if f.dependency and f.dependency.scope == "development":
+            scope = " _(dev-only)_"
+        lines.append(
+            f"- [{f.status}] `{f.path}:{f.line}` — {f.title} ({f.rule}){badge}{scope}"
+        )
         if f.evidence:
             lines.append(f"  `{f.evidence}`")
     return "\n".join(lines) + "\n"

@@ -11,8 +11,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from . import enrichment as _enrichment
 from . import licence_policy as _licence
 from . import profiles as _profiles
+from . import ranking as _ranking
 from . import results
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
@@ -30,6 +32,8 @@ class ScanRun:
     fixed: list[str] = field(default_factory=list)
     scanners: list[ScannerRun] = field(default_factory=list)
     network_used: bool = False
+    kev_age_days: float | None = None
+    kev_source: str = ""
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -108,6 +112,12 @@ def scan(
 
     findings = merge(findings)
 
+    # Exploit intelligence: what the world reports, as opposed to what a Scanner
+    # asserts. Network use is Profile-gated (F6.3, F6.4).
+    provider = _enrichment.LocalProvider()
+    findings = provider.enrich(findings, network=_profiles.ALLOWS_NETWORK.get(profile, False))
+    findings = _ranking.apply(findings)
+
     results_dir = workspace / results.RESULTS_DIR
     previous, previously_fixed = _state.load(results_dir)
 
@@ -124,6 +134,8 @@ def scan(
         fixed=sorted(fixed_now),
         scanners=scanners,
         network_used=_profiles.ALLOWS_NETWORK.get(profile, False),
+        kev_age_days=provider.kev_age_days,
+        kev_source=provider.kev_source,
     )
 
     results.write(workspace, run, artifacts=artifacts)
