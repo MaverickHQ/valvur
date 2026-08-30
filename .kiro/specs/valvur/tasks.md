@@ -1022,6 +1022,16 @@ is no extra to opt into. The CLI is the second way in.
 
 ### 9.1 — The read-only tool surface
 
+> **✅ COMPLETE 2026-08-30.** 162 tests. Four tools: `scan`, `list_findings`,
+> `explain_finding`, `scan_status` — and a test pins that set exactly, so adding a
+> fifth is a deliberate act visible in a diff.
+>
+> Preparing cycle 5 (F9.9) exposed that **SAST findings carried raw workspace lines
+> as evidence**: neutralisation lived in the AI-artifact check rather than at the
+> model boundary. Now fixed in `Finding.__post_init__`, one place, applied to
+> everything — with fencing selective, so our own advice is not buried in warnings,
+> and unconditional for content whose *source* is an agent instruction file.
+
 1. An MCP client runs a **Scan Run** and receives a summary. *(F9.1)*
 2. `list_findings` returns **Findings** in rank order, filterable by **Status**.
 3. `list_findings` is **bounded by default and states what it omitted**. *(F9.10 —
