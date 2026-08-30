@@ -96,9 +96,14 @@ def _user_flags(runtime: str) -> list[str]:
 
     if os.name != "posix":
         return []
+    uid, gid = os.getuid(), os.getgid()
     if "podman" in runtime:
-        return ["--userns=keep-id"]
-    return ["--user", f"{os.getuid()}:{os.getgid()}"]
+        # Rootless Podman needs BOTH. keep-id maps the host user into the namespace;
+        # without --user the image's own USER (10001) still applies and maps to a
+        # subuid that cannot write the scratch mount — so the scanner runs, writes
+        # nothing, and exits 0.
+        return ["--userns=keep-id", "--user", f"{uid}:{gid}"]
+    return ["--user", f"{uid}:{gid}"]
 
 
 class ContainerRunner:
