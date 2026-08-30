@@ -41,3 +41,7 @@ select = ["E", "F", "I", "UP", "B", "S", "RUF"]
 "tests/*" = ["S101", "S105", "S106", "S107", "S603", "S607"]
 # Fixture workspaces are deliberately insecure — that is their entire purpose.
 "tests/fixtures/*" = ["ALL"]
+# S607: this script invokes the container runtime by name on purpose. Hard-coding an
+# absolute path would break every machine whose Docker lives somewhere else, and the
+# calls use argument-list form with no shell.
+"scripts/*" = ["S607"]
