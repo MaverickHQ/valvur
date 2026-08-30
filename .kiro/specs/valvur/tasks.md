@@ -393,33 +393,119 @@ honest run; the `quick` **Profile** runs only its Scanners, concurrently.
 
 ## Phase 4 — AI-specific Checks
 
-**Goal:** the differentiator — the four **Checks** nobody else ships.
+**Goal:** the differentiator — the Checks nobody else ships.
 
-### TDD cycles
+> **Reordered and sub-phased 2026-08-30 after reviewing Phases 1–3.** The original
+> order put the Dependency Reality Check first, which carries all of this phase's new
+> infrastructure — registry clients, caching, rate limits, a popularity dataset. The
+> AI Artifact Check needs none of that and is the most differentiated feature, so it
+> goes first and establishes the **Check** contract on the simplest case.
 
-1. A dependency that does not exist on its registry is a critical **Finding**.
-   *(F3.2 — the headline slopsquat behaviour.)*
-2. A recently published, barely adopted dependency is flagged as a possible
-   **Slopsquat**. *(F3.3)*
-3. A dependency one character from a far more popular package is flagged. *(F3.4)*
-4. With no network, the Dependency Reality **Check** reports *skipped* — and its
-   packages are **not** reported clean. *(F3.5 — the honesty behaviour.)*
-5. Zero-width Unicode in an agent instruction file is a **Finding**. *(F3.7)*
-6. An MCP server pinned to a mutable ref is a **Finding**. *(F3.8)*
-7. Blanket tool auto-approval is a **Finding**. *(F3.9)*
-8. An agent file instructing the reader to ignore previous instructions is reported
-   as evidence and **not acted upon**. *(F3.12 — quote it, never obey it.)*
-9. Model output flowing into a shell is a **Finding**. *(F3.10)*
-10. An unpinned dependency range is a **Finding**. *(F3.11)*
-11. A **Workspace** with no licence file is a **Finding**. *(F4.2)*
-12. A licence file contradicting package metadata is a **Finding**. *(F4.3)*
-13. A copyleft dependency inside a permissive-declared project is a **Finding**.
+### 4.0 — The Check protocol
+
+**Checks are not Scanners.** [CONTEXT.md](../../../CONTEXT.md) already draws the line:
+a **Scanner** is a third-party tool, a **Check** is ours. The adapter contract models
+"invoke an external tool in a container, parse its output", and forcing our own code
+through it would mean fabricating a fake stdout to parse back.
+
+- [ ] **4.0.1** Add a `Check` protocol — `run(workspace) -> list[Finding]` — that the
+  orchestrator sequences alongside adapters, sharing failure isolation, **Profile**
+  selection, concurrency and **Provenance**.
+- [ ] **4.0.2** **Checks run inside the container**, like Scanners. The tempting
+  shortcut is running them host-side in the shim, which is simpler and needs no image
+  rebuild. It is wrong: the Dependency Reality **Check** makes registry calls, and
+  host-side those sit entirely outside `--network=none`. The moat would revert from a
+  property to a policy. In-container, `quick` *cannot* reach a registry, so F3.5's
+  "reports skipped" is enforced by architecture rather than by remembering.
+- [ ] **4.0.3** All 45 existing tests pass unchanged.
+
+**Commit:** `refactor: add the Check protocol alongside scanner adapters`
+
+### 4.1 — AI Artifact Check
+
+Pure static file inspection: no network, no new machinery, and the feature nothing
+else ships.
+
+1. Zero-width Unicode in an agent instruction file is a **Finding**. *(F3.7)*
+2. Bidirectional and tag characters are likewise detected. *(F3.7)*
+3. An MCP server pinned to a mutable git ref is a **Finding**. *(F3.8)*
+4. Blanket tool auto-approval is a **Finding**. *(F3.9)*
+5. A permission-bypass directive is a **Finding**. *(F3.9)*
+6. An agent file containing "ignore previous instructions" is reported as a
+   **Finding** whose evidence is quoted, not obeyed. *(F3.12)*
+7. **That quoted evidence is neutralised in every written artifact** — hidden Unicode
+   escaped rather than reproduced, directive text fenced and labelled untrusted.
+   *(F3.13)*
+
+> **Cycle 7 is the one that matters, and the original plan missed it.** valvur is
+> deterministic code and cannot "obey" anything, so cycle 6 tests the wrong end of the
+> problem. The real risk is downstream: an agent reads `SUMMARY.md` first and *by
+> instruction*. Reproduce a payload verbatim and we launder an attack out of a file the
+> agent might never have opened into one we tell it to read. **valvur must not become
+> the delivery mechanism.**
+
+- [ ] **4.1.8** Fixture: agent artifacts carrying each planted problem — a `CLAUDE.md`
+  with zero-width characters, an `.mcp.json` on `@main` with blanket `autoApprove`,
+  and an injection payload. Keep them inside `tests/fixtures/`, and confirm they do
+  not trip our own self-scan in Phase 11.
+
+**Commit:** `feat: AI artifact check with evidence neutralisation`
+
+### 4.2 — Opengrep rules
+
+Extends the ruleset already shipped in Phase 3. No new infrastructure.
+
+8. Model output flowing into a shell, `eval`, `exec`, SQL or `innerHTML` is a
+   **Finding**. *(F3.10, OWASP LLM05)*
+9. An unpinned dependency range is a **Finding**. *(F3.11)*
+10. A missing lockfile is a **Finding**. *(F3.11)*
+11. A dependency on a mutable git ref is a **Finding**. *(F3.11 — the same defect we
+    found in the AWS sample that started this project.)*
+
+**Commit:** `feat: LLM-output-to-sink and pinning hygiene rules`
+
+### 4.3 — Licence Check
+
+12. A **Workspace** with no licence file is a **Finding**. *(F4.2)*
+13. A licence file contradicting package metadata is a **Finding**. *(F4.3)*
+14. A copyleft dependency inside a permissive-declared project is a **Finding**.
     *(F4.5)*
+15. A dependency whose licence cannot be determined is a **Finding**. *(F4.6)*
+
+Dependency licences come from the Syft SBOM already produced in Phase 3, so this
+Check reads an artifact rather than re-scanning.
+
+**Commit:** `feat: licence hygiene and dependency licence policy`
+
+### 4.4 — Dependency Reality Check
+
+Last, because it carries all of this phase's new infrastructure.
+
+16. A dependency that does not exist on its registry is a critical **Finding**.
+    *(F3.2 — the headline slopsquat behaviour, and the one no advisory database can
+    catch, because the package is new rather than known-bad.)*
+17. A recently published, barely adopted dependency is flagged as a possible
+    **Slopsquat**. *(F3.3)*
+18. A dependency one character from a far more popular package is flagged. *(F3.4)*
+19. With no network, the **Check** reports *skipped* — and its packages are **not**
+    reported clean. *(F3.5 — the honesty behaviour.)*
+
+- [ ] **4.4.20** **Popularity dataset.** Cycle 18 needs to know what is popular. Decide
+  the source, size, refresh cadence and licence of a bundled top-N package list per
+  ecosystem. Unplanned work that will otherwise surface mid-cycle.
+- [ ] **4.4.21** **Disclose the registry lookups.** Querying PyPI or npm reveals your
+  dependency list to those registries. It is metadata, not source — but it is exactly
+  what we criticise Snyk for, so it must be stated plainly in the README and recorded
+  in `run.json`, with an opt-out flag. `quick` stays fully offline. Being quietly loose
+  here would cost more credibility than the feature is worth.
+- [ ] **4.4.22** Registry client with caching and rate-limit handling; a registry
+  refusing us must degrade per cycle 19, never silently.
+
+**Commit:** `feat: dependency reality check for slopsquat detection`
 
 **Exit:** every planted problem in the fixture **Workspace** is caught by the intended
-**Check**, and the offline path degrades honestly.
-
-**Commit:** `feat: AI-specific checks and licence analysis`
+**Check**; the offline path degrades honestly; and no injection payload from a scanned
+repository appears as live directive text in any artifact we write.
 
 ---
 
@@ -586,8 +672,13 @@ every commit.
 ### TDD cycles
 
 1. **The `quick` Profile makes no network connection — the test fails on any socket
-   attempt.** *(N2.1, ADR-0010. The single most important test in the suite: it is
-   what makes the README's central claim true rather than asserted.)*
+   attempt, anywhere in the process tree.** *(N2.1, ADR-0010. The single most
+   important test in the suite: it is what makes the README's central claim true
+   rather than asserted.)*
+   > **Scope tightened 2026-08-30.** Asserting only that the container was launched
+   > with `--network=none` is insufficient: a host-side **Check** could reach the
+   > network freely and the test would still pass. It must assert over everything
+   > valvur starts.
 2. No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
 3. The verification command documented in the README works exactly as written.
    *(P5 — documentation that drifts from behaviour is worse than none.)*
