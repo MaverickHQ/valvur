@@ -106,13 +106,14 @@ def _directives(text: str, rel: str) -> list[dict]:
 
 def _mcp_config(text: str, rel: str) -> list[dict]:
     findings = []
-    if MUTABLE_REF.search(text):
+    mutable = MUTABLE_REF.search(text)
+    if mutable:
         findings.append({
             "rule": "valvur.ai-artifact.mcp-mutable-ref",
             "path": rel,
             "line": 0,
             "title": "MCP server pinned to a mutable git ref",
-            "evidence": neutralise(MUTABLE_REF.search(text).group(0)),
+            "evidence": neutralise(mutable.group(0)),
             "identity": ("ai_artifact", "mcp-mutable-ref", rel),
         })
     try:

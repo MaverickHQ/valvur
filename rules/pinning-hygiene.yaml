@@ -1,0 +1,17 @@
+# Pinning hygiene (F3.11).
+#
+# AI-written code reaches for the newest-sounding thing and rarely pins it. An
+# unpinned range or a mutable git ref means the code you reviewed is not necessarily
+# the code that runs — the same defect we found in the AWS sample that started this
+# project.
+
+rules:
+  - id: valvur.pinning.mutable-git-ref
+    languages: [generic]
+    paths:
+      include: ["*.txt", "*.toml", "*.json", "*.yaml", "*.yml", "*.cfg"]
+    severity: ERROR
+    message: >-
+      Dependency on a mutable git ref. Every install may fetch different code, and
+      nothing records what actually ran. Pin to a commit SHA.
+    pattern-regex: 'git\+[^\s"'']+@(main|master|HEAD|develop)\b'
