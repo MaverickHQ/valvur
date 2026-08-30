@@ -99,6 +99,21 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     sub.add_parser("update", help="Fetch the vulnerability database into the local cache")
 
+    # The same operations the MCP tools expose, so the two surfaces cannot drift
+    # (F9.3). Both call valvur.operations; there is no second implementation.
+    findings_cmd = sub.add_parser("findings", help="List findings from the last scan")
+    findings_cmd.add_argument("path", nargs="?", default=".")
+    findings_cmd.add_argument("--status", choices=["new", "persisting", "regressed"])
+    findings_cmd.add_argument("--limit", type=int)
+    findings_cmd.add_argument("--include-suppressed", action="store_true")
+
+    explain_cmd = sub.add_parser("explain", help="Explain one finding in full")
+    explain_cmd.add_argument("fingerprint")
+    explain_cmd.add_argument("path", nargs="?", default=".")
+
+    status_cmd = sub.add_parser("status", help="What the last scan actually did")
+    status_cmd.add_argument("path", nargs="?", default=".")
+
     suppress_cmd = sub.add_parser(
         "suppress",
         help="Print a ready-to-paste suppression block for a finding (never writes)",
@@ -110,6 +125,27 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     suppress_cmd.add_argument("--reason", default="", help="Why this risk is accepted")
 
     args = parser.parse_args(argv)
+
+    if args.command in {"findings", "explain", "status"}:
+        from . import operations
+
+        handler = {
+            "findings": operations.list_findings,
+            "explain": operations.explain_finding,
+            "status": operations.scan_status,
+        }[args.command]
+        payload = {"workspace": args.path}
+        for field in ("status", "limit", "fingerprint"):
+            if getattr(args, field, None) is not None:
+                payload[field] = getattr(args, field)
+        if getattr(args, "include_suppressed", False):
+            payload["include_suppressed"] = True
+        try:
+            print(handler(payload))
+        except (FileNotFoundError, ValueError) as exc:
+            print(str(exc))
+            return 1
+        return 0
 
     if args.command == "suppress":
         return _print_suppression(args)
