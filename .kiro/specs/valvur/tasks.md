@@ -734,12 +734,15 @@ that matters is buried beneath noise.
 
 ### 6.4 — raw/ and its own redaction
 
+> **✅ COMPLETE 2026-08-30.** 101 tests. Phase 6 complete.
+
 13. `raw/` preserves each **Scanner**'s unmodified output. *(F2.8, P2 — the artifact a
     reviewer uses to verify we did not mangle a Scanner's findings.)*
 14. **No secret value appears in `raw/`.** *(F5.7)*
 15. `raw/` prunes to the most recent N **Scan Runs**. *(N3.3)*
 
-- [ ] **6.4.16** **`raw/` needs a redaction pass of its own.** Our **Redaction** happens
+- [x] **6.4.16** **`raw/` needs a redaction pass of its own.** Our **Redaction** happens  
+  **STATUS 2026-08-30:** ✅ `rawoutput.scrub()` uses the secret values Gitleaks itself reports, longest-first so a Match containing a Secret leaves no fragment. Proven non-vacuous by a test that confirms the scrubber had something to remove.
   at the **Finding** boundary; `raw/` is *pre-model* Scanner output and bypasses it
   entirely, and Gitleaks emits live credential values in its JSON. Tractable —
   Gitleaks tells us exactly which strings are secrets — but it is a different

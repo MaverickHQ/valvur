@@ -254,3 +254,75 @@ def test_grouping_loses_and_duplicates_nothing(workspace):
     counted = sum(int(n) for n in re.findall(r"Resolves (\d+) finding", remediation))
 
     assert counted == len(findings_data)
+
+
+# ------------------------------------------------------------------ 6.4 raw/
+
+def test_raw_preserves_each_scanners_own_output(workspace):
+    """F2.8, P2 — the credibility artifact. When we say Trivy found CVE-X, a
+    reviewer must be able to check we did not mangle it."""
+    results = _full_scan(workspace)
+
+    raw = results / "raw"
+    assert raw.is_dir()
+    trivy = json.loads((raw / "trivy.json").read_text())
+
+    # Trivy's own shape, not ours.
+    assert "Results" in trivy
+
+
+def test_no_secret_value_appears_anywhere_in_the_results_folder(workspace):
+    """F5.7, re-asserted at the riskiest surface.
+
+    raw/ is PRE-MODEL scanner output and bypasses the Finding-boundary redaction
+    entirely. Gitleaks emits live credential values in its JSON, so without a pass of
+    its own our security tool would copy your credentials to a second cleartext
+    location on disk.
+    """
+    from conftest import GoldenRunner
+
+    runner = GoldenRunner(gitleaks=json.dumps([{
+        "RuleID": "aws-access-token", "Description": "AWS Access Token",
+        "File": "/workspace/config.py", "StartLine": 9,
+        "Secret": "AKIAV7Q2XR4TVBN6WLKJ",
+        "Match": 'AWS_ACCESS_KEY_ID = "AKIAV7Q2XR4TVBN6WLKJ"',
+    }]))
+    from valvur.adapters import GitleaksAdapter
+
+    scan(workspace, runner=runner, adapters=[GitleaksAdapter()], profile="quick")
+
+    for path in (workspace / ".security-scan").rglob("*"):
+        if path.is_file():
+            assert "AKIAV7Q2XR4TVBN6WLKJ" not in path.read_text(encoding="utf-8"), (
+                f"secret leaked into {path.name}"
+            )
+
+
+def test_the_raw_scrubber_is_actually_doing_the_work():
+    """A redaction that never had anything to remove proves nothing."""
+    from valvur.rawoutput import scrub, secrets_in
+
+    gitleaks = json.dumps([{"Secret": "AKIAV7Q2XR4TVBN6WLKJ",
+                            "Match": 'KEY = "AKIAV7Q2XR4TVBN6WLKJ"'}])
+
+    secrets = secrets_in(gitleaks)
+    assert "AKIAV7Q2XR4TVBN6WLKJ" in secrets
+
+    scrubbed = scrub(gitleaks, secrets)
+    assert "AKIAV7Q2XR4TVBN6WLKJ" not in scrubbed
+    assert "REDACTED:" in scrubbed
+
+
+def test_raw_prunes_older_runs(workspace, tmp_path):
+    """N3.3 — raw/ is the bulk of the folder and grows without this."""
+    from valvur.rawoutput import KEEP_RUNS, write
+
+    results = tmp_path / ".security-scan"
+    results.mkdir()
+    for i in range(KEEP_RUNS + 3):
+        (results / f"raw-{i:03d}").mkdir()
+
+    write(results, [("trivy", "{}")])
+
+    archives = sorted(p for p in results.glob("raw-*") if p.is_dir())
+    assert len(archives) == KEEP_RUNS
