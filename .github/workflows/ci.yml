@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guard:
+    # A pre-commit hook lives on one machine and dies to --no-verify. CI cannot be
+    # bypassed, so this is the real enforcement of ADR-0011.
+    name: no scan output in tree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Refuse any committed scan output
+        run: |
+          if git ls-files | grep -E '(^|/)\.security-scan/'; then
+            echo "::error::Scan output is committed. See docs/adr/0011-scan-output-never-enters-git.md"
+            exit 1
+          fi
+          echo "clean: no .security-scan/ paths in the tree"
+
+  test:
+    name: lint, types, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
+      - run: uv run ruff check src tests
+      - run: uv run mypy src
+      - name: Unit tests (no container required)
+        run: uv run pytest -q -m "not e2e"
+
+  e2e:
+    name: end-to-end (real container)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: docker build -t valvur:dev .
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
+      - run: uv run pytest -q -m e2e

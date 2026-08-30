@@ -141,6 +141,9 @@ becomes a confusing failure later if skipped.
 
 ## Phase 1 — Walking skeleton
 
+> **✅ Cycles 1–8 complete 2026-08-30.** 11 tests green (9 unit, 2 e2e against the
+> real container). Only 1.12, the usability gate, remains — it needs a person.
+
 **Goal:** `valvur scan` works end to end, for a real user, with a single **Scanner**.
 Thin but complete: install → scan → read results.
 
@@ -165,16 +168,21 @@ rather than month two. Every later phase adds depth to a system that already wor
 
 ### Also in this phase
 
-- [ ] **1.9** Minimal container image with Gitleaks pinned; non-root, read-only root
+- [x] **1.9** Minimal container image with Gitleaks pinned; non-root, read-only root  
+  **STATUS 2026-08-30:** ✅ `Dockerfile` — gitleaks v8.30.1 pinned, alpine 3.22, UID 10001, read-only rootfs, all caps dropped.
   filesystem. *(F10.2)*
-- [ ] **1.10** Shim invokes it with `-v ws:/workspace:ro` and a host scratch mount.
+- [x] **1.10** Shim invokes it with `-v ws:/workspace:ro` and a host scratch mount.  
+  **STATUS 2026-08-30:** ✅ `ContainerRunner` — `--network=none --read-only --cap-drop=ALL -v ws:/workspace:ro` + host scratch.
   *(F1.1)*
-- [ ] **1.11** Fixture **Workspace** at `tests/fixtures/broken-repo/` — for now just a
+- [x] **1.11** Fixture **Workspace** at `tests/fixtures/broken-repo/` — for now just a  
+  **STATUS 2026-08-30:** ✅ `tests/fixtures/{broken,clean}-repo/`. **Note:** the first fixture used AWS's published example key, which gitleaks allowlists — it was unscannable by construction. Replaced with generated credentials.
   planted fake secret; grows each phase.
-- [ ] **1.11b** CI check failing the build if any path under `.security-scan/` appears
+- [x] **1.11b** CI check failing the build if any path under `.security-scan/` appears  
+  **STATUS 2026-08-30:** ✅ `.github/workflows/ci.yml` guard job. Verified both ways: passes clean, fails on output committed via `--no-verify` with hooks bypassed.
   in the tree or in a pushed commit. The `pre-commit` hook is the first line, but a
   hook can be bypassed with `--no-verify`; CI cannot. *(ADR-0011)*
-- [ ] **1.12** **Usability gate:** someone who has never seen valvur installs and runs
+- [ ] **1.12** **Usability gate:** someone who has never seen valvur installs and runs  
+  **STATUS 2026-08-30:** ⏳ **NEEDS A HUMAN.** Cannot be self-assessed — the whole point is a person who has never seen valvur. Notes from it drive Phase 10.
   it from the README alone, on a clean machine, in under five minutes. Write down
   every point of confusion. Those notes drive Phase 10.
 

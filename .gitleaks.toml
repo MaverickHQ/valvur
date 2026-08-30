@@ -1,0 +1,17 @@
+# Config for scanning valvur's own repository.
+#
+# Test code must contain credentials that look real, or the scanners under test have
+# nothing to detect. We allowlist those specific planted values rather than
+# allowlisting the tests/ directory — a path-based exemption would blind us to a
+# genuine secret accidentally committed in test code, which is exactly the mistake
+# this project exists to catch.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Deliberately planted, never-valid credentials used as scanner test data."
+regexes = [
+  '''AKIAV7Q2XR4TVBN6WLKJ''',
+  '''hT3xK9pR2mWq7ZvB4nL8sD1yF6cJ0aE5uG7iO2Pq''',
+]

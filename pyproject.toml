@@ -1,0 +1,40 @@
+[project]
+name = "valvur"
+version = "0.1.0.dev0"
+description = "Fully offline security scanner for AI-generated code. Your source never leaves your machine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{name = "MaverickHQ"}]
+dependencies = []          # host shim is stdlib-only by design (F10.6)
+
+[project.scripts]
+valvur = "valvur.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/valvur"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["e2e: requires a real container runtime"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# A security tool should run security lints on itself.
+# S = flake8-bandit. We preach it, so we practise it.
+select = ["E", "F", "I", "UP", "B", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately handle planted credentials and invoke subprocesses.
+"tests/*" = ["S101", "S603", "S607"]
+# Fixture workspaces are deliberately insecure — that is their entire purpose.
+"tests/fixtures/*" = ["ALL"]
