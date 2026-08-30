@@ -15,7 +15,7 @@ import json
 import re
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 TIMEOUT = 10
@@ -125,7 +125,7 @@ def _age_days(meta: dict) -> float | None:
     if not stamps:
         return None
     first = min(stamps).replace("Z", "+00:00")
-    return (datetime.now(timezone.utc) - datetime.fromisoformat(first)).days
+    return (datetime.now(UTC) - datetime.fromisoformat(first)).days
 
 
 def _popular() -> set[str]:

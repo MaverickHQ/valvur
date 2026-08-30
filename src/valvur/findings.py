@@ -56,6 +56,9 @@ class Finding:
     rank: int = 0
     exploit: Exploit | None = None
     dependency: Dependency | None = None
+    # Populated when a committed Suppression matches. Policy, not identity:
+    # it never affects the Fingerprint or the Status diff.
+    suppressed: str | None = None
 
 
 def merge(findings: list[Finding]) -> list[Finding]:

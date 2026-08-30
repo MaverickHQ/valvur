@@ -770,11 +770,15 @@ that matters is buried beneath noise.
 
 ### 7.0 — Parse and match
 
-- [ ] **7.0.1** **Bump `requires-python` to `>=3.11`.** `tomllib` is 3.11+, and the
+> **✅ COMPLETE 2026-08-30.** 107 tests.
+
+- [x] **7.0.1** **Bump `requires-python` to `>=3.11`.** `tomllib` is 3.11+, and the  
+  **STATUS 2026-08-30:** ✅ `requires-python = ">=3.11"`. We claimed 3.10 where `tomllib` does not exist and suppression parsing would simply fail — invisible, since our venv is 3.12.
   shim is stdlib-only by design (F10.6) so adding `tomli` would cost us that
   property. Today we *claim* 3.10 and suppression parsing would simply fail there —
   invisible to us, since our own venv is 3.12.
-- [ ] **7.0.2** Parse `.security-scan.toml` from the **Workspace** root. *(F8.1)*
+- [x] **7.0.2** Parse `.security-scan.toml` from the **Workspace** root. *(F8.1)*  
+  **STATUS 2026-08-30:** ✅ `suppressions.load()` parses `.security-scan.toml`; a missing file is not an error.
 
 1. A **Suppression** carries a **Fingerprint**, an expiry date, a reason, **and
    human-readable context**. *(F8.2, sharpened.)*
