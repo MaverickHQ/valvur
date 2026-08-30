@@ -97,6 +97,22 @@ Slopsquatting, agent-config auditing, hidden Unicode, LLM-output-to-sink taint.
 A new, unclaimed category. Competitors' entries into it inherit their trust
 model — the SaaS answer to an AI-code problem still ships your code offsite.
 
+### A measured limit on Claim 3, recorded 2026-08-30
+
+**CISA KEV barely covers application dependencies.** Measured directly: across
+PyYAML, urllib3, Django, Jinja2 and Pillow there are **269 CVEs and exactly one in
+KEV**. The catalogue is overwhelmingly vendor appliances and enterprise software —
+Microsoft 386 entries, Cisco 96, Apple 94, of 1,685 total.
+
+Consequences for what we say:
+- For a pure-Python or pure-JavaScript project, **EPSS does most of the ranking
+  work**, not KEV. The inversion example in the README is real but will fire rarely
+  on application dependencies alone.
+- KEV earns its place mainly on **container and OS packages**, which is the `deep`
+  Profile's image scanning.
+- Do **not** imply that KEV routinely reorders a typical application scan. It does
+  not, and a knowledgeable reviewer will know it does not.
+
 ### Claim 3 — "Ten things that matter, not four hundred findings."
 Dev-dependencies demoted, KEV/EPSS-ranked, dependency paths with exact upgrade
 targets. Every scanner brags about finding more; we brag about finding **less,

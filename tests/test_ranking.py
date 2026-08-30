@@ -118,3 +118,32 @@ def test_ranking_reorders_the_written_summary(workspace):
     lines = [ln for ln in summary.splitlines() if ln.startswith("- [")]
 
     assert "KEV" in lines[0], "the exploited finding is not at the top of the output"
+
+
+# --------------------------------------------- 5.4 dependency path and scope
+
+def test_a_transitive_vulnerability_reports_the_package_you_can_actually_change(workspace):
+    """F6.9 — 'upgrade json5' is useless when json5 is three levels down and pinned
+    by something else. The direct dependency is the actionable one."""
+    run = scan(workspace, runner=GoldenRunner(trivy=golden("trivy")),
+               adapters=[TrivyAdapter()], profile="quick")
+
+    transitive = [f for f in run.findings if f.dependency and len(f.dependency.path) > 1]
+
+    assert transitive, "no dependency path was resolved"
+    example = transitive[0]
+    assert "webpack" in example.dependency.path[0]
+    assert "change webpack" in example.evidence
+
+
+def test_a_flat_manifest_yields_no_path_because_none_exists(workspace):
+    """Verified in task 5.4.12: requirements.txt is flat and carries no transitive
+    information. Reporting a path there would be an invention, not a limitation."""
+    run = scan(workspace, runner=GoldenRunner(trivy=golden("trivy")),
+               adapters=[TrivyAdapter()], profile="quick")
+
+    flat = [f for f in run.findings
+            if f.dependency and f.path.endswith("requirements.txt")]
+
+    assert flat
+    assert all(len(f.dependency.path) <= 1 for f in flat)
