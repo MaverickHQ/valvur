@@ -650,26 +650,99 @@ that matters is buried beneath noise.
 
 **Goal:** every artifact, each serving one consumer, all consistent.
 
-### TDD cycles
+> **Reordered and sub-phased 2026-08-30 after reviewing Phases 1–5.** Measured against
+> the contract, five of nine artifacts do not exist, and `SUMMARY.md` is already at
+> **185 lines for 84 findings on a toy fixture** against a 200-line cap. The original
+> cycle 2 reads as a truncation task; it is a **reformat**. And two cycles understate
+> real work — see 6.4 and 6.5.
+
+### 6.0 — The consistency invariant, first
 
 1. Every **Finding** in `findings.json` appears in `results.sarif` and is counted in
-   `SUMMARY.md`. *(F7.13 — the consistency guarantee.)*
-2. `SUMMARY.md` stays within 200 lines given 10,000 **Findings**. *(F7.5)*
-3. `SUMMARY.md` opens with the machine-facing header. *(F7.6)*
-4. Failures and skips appear before any **Finding**. *(F7.7)*
-5. `results.sarif` validates against the SARIF 2.1.0 schema and carries
-   **Fingerprints**. *(F7.9)*
-6. `report.html` references no external URL and renders offline. *(F7.8)*
-7. `run.json` records **Scanner** versions, **Enrichment** dates, skips and failures.
-   *(F7.12)*
-8. `REMEDIATION.md` orders **Remediation Items** by rank, each independently
-   applicable. *(F7.14)*
-9. `raw/` prunes to the most recent N **Scan Runs**. *(N3.3)*
-10. No secret value appears in `raw/`. *(F5.7 — re-asserted at the riskiest surface.)*
+   `SUMMARY.md`. *(F7.13)*
 
-**Exit:** a full **Results Folder** is produced and every artifact test passes.
+> Built **first** deliberately. This is the guarantee that keeps five artifacts
+> honest, and each one added afterwards is checked as it lands rather than five being
+> reconciled at the end.
 
-**Commit:** `feat: complete results contract with cross-artifact consistency`
+**Commit:** `test: cross-artifact consistency invariant`
+
+### 6.1 — findings.json and SARIF
+
+2. `findings.json` carries a schema version. *(F7.10)*
+3. `findings.json` carries neutralised evidence, not raw **Workspace** content.
+   *(F3.13 — an agent queries this per finding, so it is an injection surface exactly
+   as `SUMMARY.md` is.)*
+4. `results.sarif` validates against the SARIF 2.1.0 schema. *(F7.9)*
+5. `results.sarif` carries **Fingerprints** in `partialFingerprints`, so an IDE's
+   suppression survives an edit for the same reason ours does. *(F7.9)*
+
+**Commit:** `feat: findings.json and SARIF output`
+
+### 6.2 — SUMMARY.md within its budget
+
+6. `SUMMARY.md` opens with the machine-facing header. *(F7.6)*
+7. Failures and skips appear before any **Finding**. *(F7.7)*
+8. `SUMMARY.md` stays within 200 lines given 10,000 **Findings**. *(F7.5)*
+9. When findings are truncated, the count omitted is stated. *(Silent truncation
+   reads as "that is everything", which is a lie of omission.)*
+
+- [ ] **6.2.10** **Reformat to the budget in [design.md](./design.md) §6**: header ~25,
+  failures ~15, counts by class and status ~20, **top 15 Findings ~100**, pointers
+  ~10. We currently print every finding at ~2.2 lines each, which tops out near 85.
+  This is only safe because Phase 5 landed — truncating an unranked list discards at
+  random.
+
+**Commit:** `feat: bounded summary with explicit truncation`
+
+### 6.3 — REMEDIATION.md
+
+10. `REMEDIATION.md` orders **Remediation Items** by rank. *(F7.14)*
+11. **Findings resolved by a single change appear as one item.** *(F7.14 — our own
+    fixture has four CVEs in `loader-utils@1.4.0`, all fixed by "change webpack".
+    Emitting four items would be exactly the noise Phase 5 removed.)*
+12. Each item names the change to make, not merely the problem.
+
+- [ ] **6.3.13** Define the grouping key per **Finding Class**: dependency findings
+  group by the package the developer can actually change (the **Dependency Path**
+  root, from 5.4); secrets group by file; IaC by resource. **This grouping is most of
+  the work in this sub-phase**, and the original plan did not acknowledge that a
+  Remediation Item is an *action* rather than a Finding.
+
+**Commit:** `feat: remediation proposal grouped by action`
+
+### 6.4 — raw/ and its own redaction
+
+13. `raw/` preserves each **Scanner**'s unmodified output. *(F2.8, P2 — the artifact a
+    reviewer uses to verify we did not mangle a Scanner's findings.)*
+14. **No secret value appears in `raw/`.** *(F5.7)*
+15. `raw/` prunes to the most recent N **Scan Runs**. *(N3.3)*
+
+- [ ] **6.4.16** **`raw/` needs a redaction pass of its own.** Our **Redaction** happens
+  at the **Finding** boundary; `raw/` is *pre-model* Scanner output and bypasses it
+  entirely, and Gitleaks emits live credential values in its JSON. Tractable —
+  Gitleaks tells us exactly which strings are secrets — but it is a different
+  mechanism from the one we have, and the original cycle read as though it were
+  covered.
+
+**Commit:** `feat: raw scanner output with pre-model redaction`
+
+### 6.5 — report.html
+
+16. `report.html` references no external URL and renders offline. *(F7.8)*
+17. **No Workspace-derived content is rendered as markup.** *(F7.15)*
+18. A payload containing `<script>` is displayed as text, never executed.
+19. A payload using styling to hide itself is displayed visibly. *(A reviewer must
+    see everything the file contains — the whole point of the hidden-Unicode check.)*
+
+> **The riskiest artifact we ship.** It renders untrusted content in a browser, and
+> F3.13's fencing is a textual convention with no effect in HTML. Escaping is a
+> different mechanism and needs its own tests.
+
+**Commit:** `feat: self-contained HTML report with markup escaping`
+
+**Exit:** a full **Results Folder** is produced, every artifact test passes, and no
+**Workspace** content can act as markup, script or instruction in any of them.
 
 ---
 
