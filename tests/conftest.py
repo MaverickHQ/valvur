@@ -52,6 +52,13 @@ class FakeRunner:
             stdout=self._stdout, stderr="", exit_code=self._exit_code,
         )
 
+    def run_trivy(self, workspace: Path):
+        """Quiet by default. Tests exercising Trivy use GoldenRunner instead."""
+        from valvur.runner import ScannerOutput
+
+        return ScannerOutput(tool="trivy", version="0.74.0",
+                             stdout='{"Results": []}', stderr="", exit_code=0)
+
 
 @pytest.fixture
 def runner_finding_one_secret():
@@ -107,3 +114,39 @@ class CrashingAdapter:
 
     def parse(self, output):  # pragma: no cover - never reached
         return []
+
+
+# Golden fixtures carry the Scanner version in the filename. If a Scanner is upgraded
+# without recapturing, this mismatch fails loudly rather than silently re-baselining
+# parsing behaviour (task 3.4.1).
+PINNED_VERSIONS = {"trivy": "0.74.0", "gitleaks": "8.30.1"}
+
+
+def golden(tool: str) -> str:
+    version = PINNED_VERSIONS[tool]
+    path = FIXTURES / "golden" / f"{tool}-{version}.json"
+    if not path.is_file():
+        raise AssertionError(
+            f"No golden fixture for {tool} {version}. If you upgraded {tool}, "
+            f"recapture it and review the diff — parsing behaviour may have changed."
+        )
+    return path.read_text(encoding="utf-8")
+
+
+class GoldenRunner:
+    """Serves captured real Scanner output, so adapters are tested against reality."""
+
+    def __init__(self, **by_tool):
+        self._by_tool = by_tool
+
+    def _out(self, tool):
+        from valvur.runner import ScannerOutput
+
+        return ScannerOutput(tool, PINNED_VERSIONS.get(tool, ""),
+                             self._by_tool.get(tool, ""), "", 0)
+
+    def run_trivy(self, workspace):
+        return self._out("trivy")
+
+    def run_gitleaks(self, workspace):
+        return self._out("gitleaks")

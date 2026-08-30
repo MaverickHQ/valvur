@@ -62,6 +62,78 @@ class ContainerRunner:
             self._runtime = detect_runtime()
         return self._runtime
 
+    def _base_flags(self, workspace: Path, scratch: str, *, network: bool = False) -> list[str]:
+        from . import cache
+
+        db = cache.trivy_db()
+        db.mkdir(parents=True, exist_ok=True)
+        flags = [
+            self.runtime, "run", "--rm",
+            *_user_flags(),
+            "--read-only",
+            # A read-only root filesystem still needs scratch space. tmpfs keeps it
+            # in memory and non-persistent, so the hardening stands.
+
+            # path. It is in memory, non-persistent, noexec and nosuid.
+            "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m",  # noqa: S108
+            "--cap-drop=ALL",
+            "-v", f"{workspace}:/workspace:ro",     # F1.1 - source is read-only
+            "-v", f"{scratch}:/results",
+            "-v", f"{db}:/cache/trivy",             # ADR-0012 - DB outside the image
+        ]
+        if not network:
+            flags.append("--network=none")           # N2.1 - no interface at all
+        return flags
+
+    def update_db(self) -> ScannerOutput:
+        """Fetch the vulnerability DB out of band, so scans never need network."""
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
+            cmd = [
+                *self._base_flags(Path.cwd(), scratch, network=True),
+                self.image,
+                "trivy", "image", "--download-db-only", "--cache-dir", "/cache/trivy",
+            ]
+
+            # externally-derived value is a path passed as a single argv element.
+            proc = subprocess.run(  # noqa: S603
+                cmd, capture_output=True, text=True, timeout=900, check=False
+            )
+        return ScannerOutput("trivy-db", "", proc.stdout, proc.stderr, proc.returncode)
+
+    def run_trivy(self, workspace: Path) -> ScannerOutput:
+        import subprocess
+        import tempfile
+
+        from . import cache
+
+        if not cache.db_present():
+            raise RuntimeError(
+                "Trivy vulnerability database not present. Fetch it once with:\n"
+                "  valvur update\n"
+                "Scans then run fully offline against the cached database."
+            )
+
+        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
+            cmd = [
+                *self._base_flags(workspace, scratch),
+                self.image,
+                "trivy", "fs", "/workspace",
+                "--cache-dir", "/cache/trivy",
+                "--skip-db-update", "--skip-java-db-update",
+                "--format", "json", "--output", "/results/trivy.json",
+                "--quiet", "--scanners", "vuln",
+            ]
+            proc = subprocess.run(  # noqa: S603 - argument-list form, no shell
+                cmd, capture_output=True, text=True, timeout=600, check=False
+            )
+            report = Path(scratch) / "trivy.json"
+            stdout = report.read_text(encoding="utf-8") if report.exists() else ""
+
+        return ScannerOutput("trivy", "0.74.0", stdout, proc.stderr, proc.returncode)
+
     def run_gitleaks(self, workspace: Path) -> ScannerOutput:
         import subprocess
         import tempfile
@@ -80,7 +152,7 @@ class ContainerRunner:
                 "-v", f"{workspace}:/workspace:ro",    # F1.1 — source is read-only
                 "-v", f"{scratch}:/results",
                 self.image,
-                "dir", "/workspace",
+                "gitleaks", "dir", "/workspace",
                 "--report-format", "json",
                 "--report-path", "/results/gitleaks.json",
                 "--no-banner", "--exit-code", "0",
