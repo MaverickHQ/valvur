@@ -138,7 +138,7 @@ def scan(
         kev_source=provider.kev_source,
     )
 
-    results.write(workspace, run, artifacts=artifacts)
+    results.write(workspace, run, scanner_artifacts=artifacts)
     still_fixed = {fp for fp in previously_fixed if fp not in current}
     still_fixed |= {fp for fp in previous if fp not in current}
     _state.save(results_dir, current, still_fixed)

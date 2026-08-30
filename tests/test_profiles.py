@@ -75,3 +75,22 @@ def test_one_scanner_timing_out_does_not_delay_or_fail_the_others(
 
     assert [s.tool for s in run.failures] == ["hangs"]
     assert elapsed < 0.5, f"took {elapsed:.2f}s — the timeout serialised the others"
+
+
+def test_the_quick_profile_includes_the_ai_artifact_check(workspace, runner_finding_nothing):
+    """The differentiator must run on the fast path.
+
+    It is pure static inspection with no network need, so there is no reason to
+    make someone opt into a slower scan to get the check nothing else ships.
+    """
+    run = scan(workspace, runner=runner_finding_nothing, profile="quick")
+
+    assert "ai-artifact" in {s.tool for s in run.scanners}
+
+
+def test_the_quick_profile_excludes_every_check_needing_network(workspace, runner_finding_nothing):
+    """N2.1 — quick must stay offline, so nothing requiring a registry may run."""
+    from valvur.profiles import ALLOWS_NETWORK, scanners_for
+
+    assert ALLOWS_NETWORK["quick"] is False
+    assert "dependency-reality" not in scanners_for("quick")

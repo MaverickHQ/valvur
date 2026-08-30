@@ -14,7 +14,10 @@ DEEP = "deep"
 # adapter registry and are skipped — the matrix is declared up front so that adding
 # a Scanner is a one-line change here rather than a hunt through the orchestrator.
 SCANNERS: dict[str, tuple[str, ...]] = {
-    QUICK: ("gitleaks", "opengrep", "trivy", "licence-file"),
+    # ai-artifact belongs in quick: it is pure static file inspection, needs no
+    # network, and is the check nothing else ships. Omitting it from the fast path
+    # would mean the differentiator only runs when someone opts into a slower scan.
+    QUICK: ("gitleaks", "opengrep", "trivy", "licence-file", "ai-artifact"),
     STANDARD: (
         "gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft",
         "licence-file", "ai-artifact", "dependency-reality",
