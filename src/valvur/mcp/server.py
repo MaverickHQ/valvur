@@ -64,9 +64,14 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
 
     def call_tool(params: dict) -> dict:
         name = params.get("name")
+        if not isinstance(name, str):
+            raise RpcError(protocol.INVALID_PARAMS, "tool name must be a string")
         tool = by_name.get(name)
         if tool is None:
-            raise RpcError(protocol.INVALID_PARAMS, f"unknown tool: {name}")
+            raise RpcError(
+                protocol.INVALID_PARAMS,
+                f"unknown tool: {name}. Available: {', '.join(sorted(by_name)) or 'none'}",
+            )
         try:
             text = tool.handler(params.get("arguments") or {})
         except RpcError:

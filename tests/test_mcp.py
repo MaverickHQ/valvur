@@ -164,3 +164,21 @@ def test_the_mcp_server_imports_nothing_outside_the_standard_library():
     for module in (mod, srv):
         source = (module.__file__ or "")
         assert "site-packages" not in source or "valvur" in source
+
+
+def test_a_non_string_tool_name_is_rejected_clearly():
+    responses = _exchange(_request("tools/call", {"name": 42, "arguments": {}}))
+
+    assert responses[0]["error"]["code"] == protocol.INVALID_PARAMS
+    assert "must be a string" in responses[0]["error"]["message"]
+
+
+def test_an_unknown_tool_error_names_what_is_available():
+    """An error naming only what failed leaves the agent guessing."""
+    tool = Tool("scan", "Scan", {"type": "object"}, lambda a: "ok")
+
+    responses = _exchange(
+        _request("tools/call", {"name": "ghost", "arguments": {}}), tools=[tool]
+    )
+
+    assert "Available: scan" in responses[0]["error"]["message"]
