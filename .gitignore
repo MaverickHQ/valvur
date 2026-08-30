@@ -1,0 +1,28 @@
+# valvur results — never commit scan output.
+# The Results Folder also self-ignores via .security-scan/.gitignore,
+# but this entry is the visible signal to humans.
+.security-scan/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

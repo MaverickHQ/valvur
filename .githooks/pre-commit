@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Block secrets from ever entering history.
+# We ship secret scanning; we must not be the project that leaks one.
+set -euo pipefail
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks not installed — install it with 'brew install gitleaks'." >&2
+  echo "            Refusing to commit without secret scanning." >&2
+  exit 1
+fi
+gitleaks protect --staged --redact --no-banner

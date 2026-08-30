@@ -1,0 +1,12 @@
+# Normalise line endings in the repo so fingerprints computed on a Windows
+# checkout match those on macOS/Linux. Guards requirement F5.4 at the VCS layer.
+* text=auto eol=lf
+
+# Binary / fixture files must not be munged.
+*.png binary
+*.gif binary
+*.zip binary
+*.gz  binary
+
+# Golden scanner fixtures are byte-exact by definition — never normalise.
+tests/fixtures/golden/** -text

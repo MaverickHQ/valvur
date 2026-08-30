@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Conventional Commits — makes release notes generatable and phase commits uniform.
+set -euo pipefail
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._-]+\))?!?: .{1,}'
+if ! grep -qE "$pattern" "$1"; then
+  echo "commit-msg: message must follow Conventional Commits." >&2
+  echo "  e.g.  feat: end-to-end scan skeleton with gitleaks" >&2
+  echo "  types: feat fix docs style refactor perf test build ci chore revert" >&2
+  exit 1
+fi
