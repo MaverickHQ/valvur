@@ -1,6 +1,7 @@
 """Sub-phase 4.2 — LLM-output-to-sink and pinning hygiene rules."""
 
 from conftest import GoldenRunner, golden
+
 from valvur import scan
 from valvur.adapters import OpengrepAdapter
 

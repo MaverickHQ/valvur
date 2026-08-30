@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from . import licence_policy as _licence
 from . import profiles as _profiles
 from . import results
 from . import state as _state
@@ -98,6 +99,11 @@ def scan(
     if scanners and all(s.failed for s in scanners):
         detail = "; ".join(f"{s.tool}: {s.reason}" for s in scanners)
         raise ScannerFailed(f"Every scanner failed. Refusing to report a scan.\n{detail}")
+
+    # Dependency licence policy reads the SBOM the fleet just produced (F4.4-F4.6).
+    sbom = next((body for name, body in artifacts if name == "sbom.cdx.json"), "")
+    if sbom:
+        findings += _licence.evaluate(_licence.project_licence(workspace), sbom)
 
     findings = merge(findings)
 
