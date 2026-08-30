@@ -678,6 +678,12 @@ that matters is buried beneath noise.
 
 ### 6.1 — findings.json and SARIF
 
+> **✅ COMPLETE 2026-08-30.** 88 tests.
+> SARIF is validated against the **real OASIS 2.1.0 schema** (109KB, bundled), not
+> merely declared. Confirmed non-vacuous: the schema rejects a missing
+> `driver.name` and the wrong version, so the test would actually fail if our output
+> drifted.
+
 2. `findings.json` carries a schema version. *(F7.10)*
 3. `findings.json` carries neutralised evidence, not raw **Workspace** content.
    *(F3.13 — an agent queries this per finding, so it is an injection surface exactly
