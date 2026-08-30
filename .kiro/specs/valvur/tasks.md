@@ -212,6 +212,19 @@ rather than month two. Every later phase adds depth to a system that already wor
 
 ## Phase 2 — Finding identity
 
+> **✅ COMPLETE 2026-08-30.** All 12 cycles green; 24 tests total.
+> Rescan loop verified end-to-end against the real container: two findings reported
+> `new`, one secret removed, rescan reports one `persisting` and one `fixed`.
+>
+> Cycles 2, 3 and 9 passed with no new code — deriving identity from the secret rather
+> than its location already delivered them. That is the design working, not a gap in
+> the tests: they are written in user-visible terms precisely so they *prove* the
+> mechanism rather than restate it.
+>
+> Classes for dependency_vuln, iac_misconfig, licence and dependency_reality are
+> implemented and tested now, though the Scanners that produce them arrive in Phase 3.
+> Identity is Phase 2's subject; who reports it is not.
+
 **Goal:** **Findings** survive editing, so the scan → fix → rescan loop can tell
 progress from noise. The highest-value code in the system; ADR-0003 makes it the most
 expensive thing to change later.
