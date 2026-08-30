@@ -3,7 +3,7 @@
 The Results Folder holds several projections of a single in-memory findings model,
 each written for exactly one consumer: `SUMMARY.md` and `REMEDIATION.md` for humans
 and agents, `findings.json` for programmatic queries, `results.sarif` for IDEs and
-tooling, `report.html` for visual review, `run.json` for Provenance, and `raw/` for
+tooling, `run.json` for Provenance, and `raw/` for
 verification.
 
 ## Considered Options
@@ -31,3 +31,6 @@ in `SUMMARY.md`.
 
 `raw/` is the largest part of the folder and the part most likely to contain secrets,
 so pruning and Redaction both matter most there.
+
+
+*(Updated 2026-08-30: `report.html` was cut before implementation by [ADR-0014](./0014-no-html-report.md). The one-consumer-per-artifact rule is why — it was the only artifact without one.)*

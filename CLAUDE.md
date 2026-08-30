@@ -106,10 +106,11 @@ new argument.
 | [003](docs/adr/0003-per-class-finding-identity.md) | **Per-class finding identity.** Fingerprints keyed by each finding class's natural identity, not line numbers. Versioned (`fp_version`). See §8. |
 | [004](docs/adr/0004-opengrep-not-semgrep.md) | **Opengrep, not Semgrep.** Semgrep moved its maintained rules to a licence permitting only internal, non-competing, non-SaaS use (Dec 2024). We publish a scanning tool — that is plausibly a competing use, and redistributing those rules in an image is legally murky. Opengrep is the LGPL-2.1 consortium fork with the same rule syntax. |
 | [005](docs/adr/0005-no-gpl-tools-in-the-image.md) | **No hadolint.** GPL-3.0. Checkov and Trivy cover Dockerfiles adequately. Keeps the image's licence bill clean — which matters for a tool that ships licence analysis. |
-| [006](docs/adr/0006-no-graph-database.md) | **No graph database.** Findings are a flat table with predictable queries. The one graph-shaped thing (the dependency tree) arrives free in the SBOM. Visual comprehension is served by a self-contained `report.html`. |
+| [006](docs/adr/0006-no-graph-database.md) | **No graph database.** Findings are a flat table with predictable queries. The one graph-shaped thing (the dependency tree) arrives free in the SBOM. Visual comprehension is served by `SUMMARY.md` and `REMEDIATION.md`, which render natively everywhere (see ADR-0014). |
 | [007](docs/adr/0007-internal-enrichment-no-external-platform.md) | **Enrichment is internal and has zero external prerequisites.** ~200 lines behind an `EnrichmentProvider` interface: KEV snapshot bundled in the image, EPSS fetched on demand for found CVEs only, degrading to KEV-only when offline. The sibling VulnGraph project is **parked** and must never become a dependency. |
 | [008](docs/adr/0008-no-saas-coupled-dependencies.md) | **No SaaS-coupled dependencies.** `snyk/agent-scan` was rejected despite being credible (Apache-2.0, well-adopted) because it requires `SNYK_TOKEN` and transmits component data to Snyk. Applying this rule to Snyk and waiving it elsewhere would make the principle meaningless. |
 | [009](docs/adr/0009-human-in-the-loop-remediation.md) | **Human-in-the-loop remediation.** valvur proposes, never remediates. No `scan_and_fix` tool, no watchers, no on-save hooks. An agent told to drive findings to zero has a cheaper path via deletion and suppression than via correct fixes. See §4. |
+| [014](docs/adr/0014-no-html-report.md) | **No `report.html`.** Cut before implementation. The Results Folder is deliberately unshareable (ADR-0011), which removes an HTML report's main advantage over Markdown; rendering untrusted content in a browser was the largest security surface in the contract; and it was the only artifact with no single identified consumer, which is ADR-0002's own rule. F7.8 deferred, F7.15 stays dormant. |
 | [013](docs/adr/0013-checks-run-inside-the-container.md) | **valvur's own Checks run inside the container**, like Scanners. Host-side would put the Dependency Reality Check's registry calls outside `--network=none`, turning ADR-0010's guarantee back into a policy. No new orchestrator protocol was needed: Checks emit JSON and fit the existing adapter contract. |
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
 | [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `quick` stays offline. |
@@ -124,7 +125,6 @@ Written into the scanned project:
   .gitignore          # contains "*" — the folder ignores itself
   SUMMARY.md          # entry point, capped ~200 lines, leads with failures
   REMEDIATION.md      # ranked proposal: KEV/EPSS order, dependency paths
-  report.html         # self-contained, no external assets, opens offline
   findings.json       # normalised, schema-versioned, secrets redacted
   results.sarif       # SARIF 2.1.0 for IDEs and tooling
   sbom.cdx.json       # CycloneDX
@@ -159,8 +159,9 @@ Rules that must hold:
 - **In markup, escaping replaces fencing** (F7.15). The `[UNTRUSTED CONTENT]`
   fence is a textual convention with no effect in HTML, where a payload can
   execute or hide itself with styling while remaining in the file. Any
-  artifact that renders — `report.html` today, anything else later — escapes
-  workspace content so it cannot act as markup, style or script.
+  artifact that renders escapes workspace content so it cannot act as markup,
+  style or script. Dormant since ADR-0014 cut `report.html`; the guard stays in
+  force for whatever renders next.
 - **Clean is explicit.** No findings still writes the folder, with
   `"status": "clean"`, so an agent can tell "clean" from "never ran".
 
