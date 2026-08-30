@@ -96,7 +96,10 @@ def test_findings_report_workspace_relative_paths(workspace, runner_finding_one_
     """Container paths must never leak out. Fingerprint portability (F5.4) depends on this."""
     run = scan(workspace, runner=runner_finding_one_secret)
 
-    assert run.findings[0].path == "config.py"
+    # Scoped by rule, not by index: findings are ranked now, so position is
+    # meaningful and no longer stable. That reordering is the point (F6.5).
+    secret = next(f for f in run.findings if f.rule == "aws-access-token")
+    assert secret.path == "config.py"
 
 
 def test_a_scanner_that_produced_no_report_is_not_reported_as_clean(clean_workspace):
