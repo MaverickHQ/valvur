@@ -39,6 +39,10 @@ what actually breaks — do not pre-emptively expand this list.
 
 ## Phase 0 — Preflight
 
+> **✅ COMPLETE 2026-08-30 — 18 of 19; 0.2 skipped as optional, 0.14 deferred to Phase 12.**
+> Repo: https://github.com/MaverickHQ/valvur (private) · ECR:
+> `556632219584.dkr.ecr.eu-north-1.amazonaws.com/valvur` · first commit `8d9674a`, signed and verified.
+
 **Goal:** every account, credential, runtime and tool the plan depends on is verified
 working *before* any code exists. No implementation.
 
@@ -47,17 +51,20 @@ drift.
 
 ### Local environment
 
-- [ ] **0.1** Start the Docker daemon and confirm `docker info` succeeds.
+- [x] **0.1** Start the Docker daemon and confirm `docker info` succeeds.  
+  **STATUS 2026-08-30:** ✅ Docker 29.2.1 daemon running
   *(Recon: Docker 29.2.1 installed, daemon was not running.)*
 - [ ] **0.2** *(Optional in this phase)* Install Podman. Not needed until Phase 8,
   where F1.4 requires proving Results Folder ownership on Docker *and* rootless
   Podman. **It becomes mandatory at Phase 8** — either install it then, or downgrade
   F1.4 deliberately and drop the dual-runtime claim from the README. Do not simply
   leave the test unwritten. *(Recon: not installed.)*
-- [ ] **0.3** Create the project virtualenv with `uv` and pin the toolchain there.
+- [x] **0.3** Create the project virtualenv with `uv` and pin the toolchain there.  
+  **STATUS 2026-08-30:** ✅ .venv Python 3.12.10 · pytest 9.1.1 · ruff 0.16.5 · mypy 2.3.1
   *(Recon: `pytest` currently resolves to a Python 3.10 framework install while
   `python3` is 3.12 — never run project tests against that.)*
-- [ ] **0.4** Install `cosign` (release signing, F10.3) and `syft` + `trivy` on the
+- [x] **0.4** Install `cosign` (release signing, F10.3) and `syft` + `trivy` on the  
+  **STATUS 2026-08-30:** ✅ cosign v3.1.3 · syft 1.51.1 · trivy 0.74.0 · gitleaks 8.30.1
   host for adapter development against real output.
 
 ### Local git
@@ -66,24 +73,32 @@ Do all of this **before the first commit**. Git history is append-only in practi
 a secret or a stray artifact committed here is permanent, and for this project it
 would be the worst possible opening line.
 
-- [ ] **0.5** `git init` with default branch `main`.
-- [ ] **0.6** Write `.gitignore` **before staging anything**: `.security-scan/`,
+- [x] **0.5** `git init` with default branch `main`.  
+  **STATUS 2026-08-30:** ✅ initialised on `main`
+- [x] **0.6** Write `.gitignore` **before staging anything**: `.security-scan/`,  
+  **STATUS 2026-08-30:** ✅ written before anything was staged
   `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `dist/`, `build/`, `*.egg-info/`,
   `.env`, `.DS_Store`. The **Results Folder** entry matters most — a tool that
   promises results are never committed must not commit its own.
-- [ ] **0.7** Write `.gitattributes` pinning text line endings, so **Fingerprints**
+- [x] **0.7** Write `.gitattributes` pinning text line endings, so **Fingerprints**  
+  **STATUS 2026-08-30:** ✅ written
   computed on a Windows checkout match those on macOS. *(Guards F5.4 at the VCS
   layer, where it is otherwise easy to miss.)*
-- [ ] **0.8** Confirm identity resolves to `MaverickHQ`. *(Verified 2026-08-30.)*
-- [ ] **0.9** **Configure commit signing** and enable `commit.gpgsign`. *(Recon: both
+- [x] **0.8** Confirm identity resolves to `MaverickHQ`. *(Verified 2026-08-30.)*  
+  **STATUS 2026-08-30:** ✅ MaverickHQ
+- [x] **0.9** **Configure commit signing** and enable `commit.gpgsign`. *(Recon: both    
+  **STATUS 2026-08-30:** ✅ SSH signing configured, repo-local. Key loaded via `--apple-use-keychain`.
   unset.)* A security tool with unsigned history is the first thing a reviewer
   notices, and signed commits are the same promise as the signed release image.
-- [ ] **0.10** Install a `gitleaks` pre-commit hook so a secret cannot enter history
+- [x] **0.10** Install a `gitleaks` pre-commit hook so a secret cannot enter history  
+  **STATUS 2026-08-30:** ✅ tracked in `.githooks/`, `core.hooksPath` set — proven: scanned 97KB, no leaks
   in the first place. We ship secret scanning; we should not be the project that
   leaks one.
-- [ ] **0.11** Adopt Conventional Commits — the phase commit messages in this plan
+- [x] **0.11** Adopt Conventional Commits — the phase commit messages in this plan  
+  **STATUS 2026-08-30:** ✅ `.githooks/commit-msg` — proven: rejected a non-conventional message
   already follow it, and it makes release notes generatable.
-- [ ] **0.12** Make the initial commit and verify `git log --show-signature` confirms
+- [x] **0.12** Make the initial commit and verify `git log --show-signature` confirms    
+  **STATUS 2026-08-30:** ✅ commit `8d9674a` — *Good git signature for MaverickHQ*, registered as a GitHub signing key.
   it is signed.
 
 ### GitHub
@@ -91,22 +106,29 @@ would be the worst possible opening line.
 **GitHub only.** GitLab is out of scope; the image is published to GHCR, and to ECR
 for AWS execution.
 
-- [ ] **0.13** Create the repository — private initially — and push. `gh` is already
+- [x] **0.13** Create the repository — private initially — and push. `gh` is already  
+  **STATUS 2026-08-30:** ✅ https://github.com/MaverickHQ/valvur (private), `origin` set
   authenticated as MaverickHQ. This also **reserves the name** while changing it is
   still free.
-- [ ] **0.14** Enable branch protection on `main`: require a passing CI check, and
+- [ ] **0.14** Enable branch protection on `main`: require a passing CI check, and    
+  **STATUS 2026-08-30:** ⏳ **DEFERRED to Phase 12.** GitHub returns 403 — branch protection on *private* repos needs GitHub Pro. It becomes free when the repo goes public at release, and it guards nothing on a solo private repo. Re-attempt at 12.5, immediately after the repo is made public.
   require signed commits.
-- [ ] **0.15** Verify you can push a package to GHCR under this account, so the
+- [x] **0.15** Verify you can push a package to GHCR under this account, so the    
+  **STATUS 2026-08-30:** ✅ `docker login ghcr.io` succeeded with the refreshed `write:packages` scope.
   container publishing path is proven before it is needed.
 
 ### AWS
 
-- [ ] **0.16** Confirm STS identity. *(Verified: account `556632219584`, IAM user
+- [x] **0.16** Confirm STS identity. *(Verified: account `556632219584`, IAM user  
+  **STATUS 2026-08-30:** ✅ account 556632219584, IAM user Tromso-Aura-Hunter-dev
   `Tromso-Aura-Hunter-dev`.)*
-- [ ] **0.17** Verify that identity can create an ECR repository and push to it. It is
+- [x] **0.17** Verify that identity can create an ECR repository and push to it. It is  
+  **STATUS 2026-08-30:** ✅ simulate-principal-policy: CreateRepository, InitiateLayerUpload, PutImage, GetAuthorizationToken all **allowed**
   an IAM **user**, not a role — check the policy rather than assuming.
-- [ ] **0.18** Create the ECR repository with immutable tags and scan-on-push.
-- [ ] **0.19** Decide whether a dedicated least-privilege publishing role replaces the
+- [x] **0.18** Create the ECR repository with immutable tags and scan-on-push.  
+  **STATUS 2026-08-30:** ✅ 556632219584.dkr.ecr.eu-north-1.amazonaws.com/valvur — IMMUTABLE tags, scan-on-push
+- [x] **0.19** Decide whether a dedicated least-privilege publishing role replaces the    
+  **STATUS 2026-08-30:** ✅ **DECIDED 2026-08-30: keep `Tromso-Aura-Hunter-dev` for now.** Its ECR permissions are verified sufficient. Revisit only if the account gains other users or the image is published from CI rather than from Harvey's machine.
   dev user before first release. Record the answer here; do not leave it implicit.
 
 **Exit:** every box ticked, every recon line re-verified, and any deviation recorded
