@@ -41,6 +41,14 @@ def detect_runtime() -> str:
     )
 
 
+def _user_flags() -> list[str]:
+    import os
+
+    if os.name != "posix":
+        return []
+    return ["--user", f"{os.getuid()}:{os.getgid()}"]
+
+
 class ContainerRunner:
     """Invokes the scanner image. The Workspace is mounted read-only (ADR-0001)."""
 
@@ -61,6 +69,11 @@ class ContainerRunner:
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
             cmd = [
                 self.runtime, "run", "--rm",
+                # Run as the invoking user so the scratch mount is writable.
+                # Docker Desktop translates UIDs for us; rootful Linux Docker does
+                # not, so without this the container cannot write its report and the
+                # scan silently returns nothing. Found by CI on Linux, not locally.
+                *_user_flags(),
                 "--network=none",                      # N2.1 — no interface at all
                 "--read-only",
                 "--cap-drop=ALL",

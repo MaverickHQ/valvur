@@ -2,6 +2,8 @@
 
 import subprocess
 
+import pytest
+
 from valvur import scan
 
 
@@ -94,3 +96,19 @@ def test_findings_report_workspace_relative_paths(workspace, runner_finding_one_
     run = scan(workspace, runner=runner_finding_one_secret)
 
     assert run.findings[0].path == "config.py"
+
+
+def test_a_scanner_that_produced_no_report_is_not_reported_as_clean(clean_workspace):
+    """Fail loudly (F2.5, N3.1).
+
+    A scanner that could not write its output must never look like a clean result.
+    A silent failure manufactures false confidence and is worse than no scan.
+    """
+    from conftest import FakeRunner
+
+    from valvur.api import ScannerFailed
+
+    broken = FakeRunner(gitleaks_stdout="", exit_code=2)
+
+    with pytest.raises(ScannerFailed):
+        scan(clean_workspace, runner=broken)

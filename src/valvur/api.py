@@ -13,6 +13,10 @@ from .findings import Finding
 CONTAINER_WORKSPACE = "/workspace"
 
 
+class ScannerFailed(RuntimeError):
+    """A Scanner could not complete. Never downgraded to a clean result (F2.5)."""
+
+
 def _relative(path: str) -> str:
     """Scanners see /workspace; users and fingerprints need repo-relative paths (F5.4)."""
     if path.startswith(CONTAINER_WORKSPACE + "/"):
@@ -32,6 +36,11 @@ class ScanRun:
 
 def scan(workspace: Path, *, runner) -> ScanRun:
     output = runner.run_gitleaks(workspace)
+    if output.exit_code != 0 and not output.stdout.strip():
+        raise ScannerFailed(
+            f"{output.tool} exited {output.exit_code} and produced no report. "
+            f"Refusing to report a clean scan.\n{output.stderr.strip()[:500]}"
+        )
     raw = json.loads(output.stdout or "[]")
     findings = [
         Finding(
