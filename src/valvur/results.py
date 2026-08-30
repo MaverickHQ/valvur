@@ -115,7 +115,9 @@ def _summary(run) -> str:
     Everything else lives in findings.json — the read path stays bounded no matter
     how large the scan.
     """
-    findings = sorted(run.findings, key=lambda x: x.rank or 10**9)
+    ordered = sorted(run.findings, key=lambda x: x.rank or 10**9)
+    findings = [f for f in ordered if not f.suppressed]
+    suppressed = [f for f in ordered if f.suppressed]
     lines = ["# Security scan summary", "", MACHINE_HEADER]
 
     age = getattr(run, "kev_age_days", None)
@@ -136,7 +138,8 @@ def _summary(run) -> str:
 
     lines += [
         f"**Status:** {run.status}",
-        f"**Findings:** {len(run.findings)}"
+        f"**Findings:** {len(findings)}"
+        + (f" · **suppressed:** {len(suppressed)}" if suppressed else "")
         + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else ""),
         "",
     ]
@@ -157,6 +160,18 @@ def _summary(run) -> str:
                 "in `findings.json`, ranked, and grouped into actions in "
                 "`REMEDIATION.md`._",
             ]
+        lines.append("")
+
+    if suppressed:
+        lines += [
+            f"## Suppressed ({len(suppressed)})",
+            "",
+            "_Accepted risks from `.security-scan.toml`. Still reported, never hidden._",
+            "",
+        ]
+        lines += [f"- `{f.path}` — {f.rule} · {f.suppressed}" for f in suppressed[:10]]
+        if len(suppressed) > 10:
+            lines.append(f"- _…and {len(suppressed) - 10} more_")
         lines.append("")
 
     if run.fixed:

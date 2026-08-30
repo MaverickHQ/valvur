@@ -31,9 +31,19 @@ def assert_artifacts_agree(results_dir):
     missing = [f["fingerprint"] for f in findings if f["fingerprint"] not in sarif_fps]
     assert not missing, f"{len(missing)} finding(s) in findings.json but not in SARIF"
 
-    assert f"**Findings:** {len(findings)}" in summary, (
-        "SUMMARY.md does not count what findings.json contains"
+    # Since 7.2 the summary counts active and suppressed separately (F8.9), so the
+    # invariant checks the SPLIT sums to the whole rather than assuming one number.
+    # A suppressed finding vanishing from both counts is exactly what this catches.
+    active = [f for f in findings if not f.get("suppressed")]
+    suppressed = [f for f in findings if f.get("suppressed")]
+
+    assert f"**Findings:** {len(active)}" in summary, (
+        "SUMMARY.md does not count the active findings in findings.json"
     )
+    if suppressed:
+        assert f"**suppressed:** {len(suppressed)}" in summary, (
+            "SUMMARY.md does not count the suppressed findings in findings.json"
+        )
     return findings
 
 

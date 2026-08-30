@@ -795,6 +795,8 @@ that matters is buried beneath noise.
 
 ### 7.1 — Lifecycle
 
+> **✅ COMPLETE 2026-08-30.**
+
 3. A **Suppression** without an expiry date is rejected and raises a **Finding**.
    *(F8.3 — an unexpiring suppression is how a real finding gets buried for years.)*
 4. An expired **Suppression** reports its **Finding** normally, **and is itself
@@ -803,13 +805,16 @@ that matters is buried beneath noise.
 5. A **Suppression** matching nothing is reported as stale. *(F8.5)*
 6. valvur never writes to `.security-scan.toml`. *(F8.7)*
 
-- [ ] **7.1.7** Pin the expiry semantics: UTC, and the expiry date **inclusive** — a
+- [x] **7.1.7** Pin the expiry semantics: UTC, and the expiry date **inclusive** — a  
+  **STATUS 2026-08-30:** ✅ UTC, inclusive, pinned by test.
   suppression expiring today is still valid today. Ambiguity here means two machines
   disagree about whether a build passes.
 
 **Commit:** `feat: suppression lifecycle with mandatory expiry`
 
 ### 7.2 — Integration
+
+> **✅ COMPLETE 2026-08-30.** The F7.13 invariant caught the counting change as it happened — see the commit.
 
 > Three interactions the original plan did not mention. Each one is a way for
 > suppression to quietly break something Phases 5 and 6 established.
@@ -832,6 +837,8 @@ that matters is buried beneath noise.
 **Commit:** `feat: suppression integration with ranking, counts and SARIF`
 
 ### 7.3 — `valvur suppress`
+
+> **✅ COMPLETE 2026-08-30.** 120 tests. Phase 7 complete.
 
 12. `valvur suppress <fingerprint>` prints a ready-to-paste **Suppression** block with
     its context filled in, and writes nothing. *(F8.8, F8.7)*
