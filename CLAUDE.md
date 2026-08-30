@@ -109,7 +109,7 @@ new argument.
 | [006](docs/adr/0006-no-graph-database.md) | **No graph database.** Findings are a flat table with predictable queries. The one graph-shaped thing (the dependency tree) arrives free in the SBOM. Visual comprehension is served by `SUMMARY.md` and `REMEDIATION.md`, which render natively everywhere (see ADR-0014). |
 | [007](docs/adr/0007-internal-enrichment-no-external-platform.md) | **Enrichment is internal and has zero external prerequisites.** ~200 lines behind an `EnrichmentProvider` interface: KEV snapshot bundled in the image, EPSS fetched on demand for found CVEs only, degrading to KEV-only when offline. The sibling VulnGraph project is **parked** and must never become a dependency. |
 | [008](docs/adr/0008-no-saas-coupled-dependencies.md) | **No SaaS-coupled dependencies.** `snyk/agent-scan` was rejected despite being credible (Apache-2.0, well-adopted) because it requires `SNYK_TOKEN` and transmits component data to Snyk. Applying this rule to Snyk and waiving it elsewhere would make the principle meaningless. |
-| [009](docs/adr/0009-human-in-the-loop-remediation.md) | **Human-in-the-loop remediation.** valvur proposes, never remediates. No `scan_and_fix` tool, no watchers, no on-save hooks. An agent told to drive findings to zero has a cheaper path via deletion and suppression than via correct fixes. See §4. |
+| [009](docs/adr/0009-human-in-the-loop-remediation.md) | **Human-in-the-loop remediation.** valvur proposes, never remediates. No `scan_and_fix` tool, no watchers, no on-save hooks — and a test asserts no such tool *exists in the registry*, so adding one fails the build rather than merely failing review. An agent told to drive findings to zero has a cheaper path via deletion and suppression than via correct fixes. See §4. |
 | [014](docs/adr/0014-no-html-report.md) | **No `report.html`.** Cut before implementation. The Results Folder is deliberately unshareable (ADR-0011), which removes an HTML report's main advantage over Markdown; rendering untrusted content in a browser was the largest security surface in the contract; and it was the only artifact with no single identified consumer, which is ADR-0002's own rule. F7.8 deferred, F7.15 stays dormant. |
 | [013](docs/adr/0013-checks-run-inside-the-container.md) | **valvur's own Checks run inside the container**, like Scanners. Host-side would put the Dependency Reality Check's registry calls outside `--network=none`, turning ADR-0010's guarantee back into a policy. No new orchestrator protocol was needed: Checks emit JSON and fit the existing adapter contract. |
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
@@ -156,6 +156,9 @@ Rules that must hold:
   opened into one we tell it to read. Hidden Unicode is escaped; directive
   text is fenced and labelled untrusted. **valvur must never become the
   delivery mechanism.**
+- **The same applies to MCP responses** (F9.9). A response reaches an agent's
+  context with no file in between — the most direct injection path valvur has,
+  and the only one the agent cannot decline to read.
 - **In markup, escaping replaces fencing** (F7.15). The `[UNTRUSTED CONTENT]`
   fence is a textual convention with no effect in HTML, where a payload can
   execute or hide itself with styling while remaining in the file. Any
