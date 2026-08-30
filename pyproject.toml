@@ -12,6 +12,8 @@ dependencies = []          # host shim is stdlib-only by design (F10.6)
 
 [project.scripts]
 valvur = "valvur.cli:main"
+# MCP is the primary interface (ADR-0015); no extra to opt into.
+"valvur-mcp" = "valvur.mcp.server:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "jsonschema>=4"]
