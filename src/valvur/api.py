@@ -29,6 +29,7 @@ class ScanRun:
     findings: list[Finding] = field(default_factory=list)
     fixed: list[str] = field(default_factory=list)
     scanners: list[ScannerRun] = field(default_factory=list)
+    network_used: bool = False
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -118,7 +119,12 @@ def scan(
     current = {f.fingerprint: f.title for f in findings}
     # Name what was fixed, using the title remembered from the previous run.
     fixed_now = [previous[fp] or fp for fp in previous if fp not in current]
-    run = ScanRun(findings=findings, fixed=sorted(fixed_now), scanners=scanners)
+    run = ScanRun(
+        findings=findings,
+        fixed=sorted(fixed_now),
+        scanners=scanners,
+        network_used=_profiles.ALLOWS_NETWORK.get(profile, False),
+    )
 
     results.write(workspace, run, artifacts=artifacts)
     still_fixed = {fp for fp in previously_fixed if fp not in current}

@@ -74,7 +74,7 @@ class FakeRunner:
     def run_opengrep(self, workspace: Path):
         return self._quiet("opengrep", "1.29.0", '{"results": []}')
 
-    def run_check(self, name: str, workspace: Path):
+    def run_check(self, name: str, workspace: Path, *, network: bool = False):
         """Runs valvur's own Checks in-process. They are pure functions of the
         Workspace, so there is nothing at the container boundary worth faking."""
         import json as _json
@@ -194,7 +194,7 @@ class GoldenRunner:
     def run_opengrep(self, workspace):
         return self._out("opengrep")
 
-    def run_check(self, name, workspace):
+    def run_check(self, name, workspace, *, network=False):
         import json as _json
 
         from valvur.checks import REGISTRY

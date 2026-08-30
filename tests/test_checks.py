@@ -170,3 +170,70 @@ def test_a_dependency_with_no_declared_licence_is_a_finding():
     findings = evaluate("MIT", sbom)
 
     assert [f.rule for f in findings] == ["valvur.licence.dependency-unknown"]
+
+
+# --------------------------------------------------------- 4.4 dependency reality
+
+def test_a_dependency_that_does_not_exist_is_a_finding():
+    """F3.2 — the headline slopsquat behaviour, and the one NO advisory database can
+    catch: the package is new, not known-bad."""
+    from valvur.checks.dependency_reality import DependencyRealityCheck
+
+    class Offline(DependencyRealityCheck):
+        pass
+
+    import valvur.checks.dependency_reality as mod
+
+    real = mod._pypi
+    mod._pypi = lambda name: None if name == "aws-helper-sdk" else {"releases": {}}
+    try:
+        found = Offline().run(_tmp_manifest("aws-helper-sdk==1.0.0\nurllib3==1.24.1\n"))
+    finally:
+        mod._pypi = real
+
+    assert [f["rule"] for f in found] == ["valvur.dependency.nonexistent"]
+
+
+def test_a_hallucinated_name_suggests_the_package_you_probably_meant():
+    """Reporting absence alone is unactionable; naming the near neighbour is not."""
+    import valvur.checks.dependency_reality as mod
+    from valvur.checks.dependency_reality import DependencyRealityCheck
+
+    real = mod._pypi
+    mod._pypi = lambda name: None
+    try:
+        found = DependencyRealityCheck().run(_tmp_manifest("reqeusts==2.31.0\n"))
+    finally:
+        mod._pypi = real
+
+    assert "did you mean 'requests'" in found[0]["title"]
+
+
+def test_with_no_registry_reachable_the_check_fails_rather_than_reporting_clean():
+    """F3.5 — the honesty behaviour. Unverified is not the same as clean, and a
+    Check that quietly returns nothing would be the worst possible outcome."""
+    import pytest
+
+    import valvur.checks.dependency_reality as mod
+    from valvur.checks.dependency_reality import DependencyRealityCheck, RegistryUnreachable
+
+    real = mod._pypi
+
+    def unreachable(name):
+        raise RegistryUnreachable("no network")
+
+    mod._pypi = unreachable
+    try:
+        with pytest.raises(RegistryUnreachable):
+            DependencyRealityCheck().run(_tmp_manifest("urllib3==1.24.1\n"))
+    finally:
+        mod._pypi = real
+
+
+def _tmp_manifest(body: str):
+    import tempfile
+    from pathlib import Path
+
+    d = Path(tempfile.mkdtemp())
+    (d / "requirements.txt").write_text(body)
+    return d

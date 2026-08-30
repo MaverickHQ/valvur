@@ -17,11 +17,11 @@ SCANNERS: dict[str, tuple[str, ...]] = {
     QUICK: ("gitleaks", "opengrep", "trivy", "licence-file"),
     STANDARD: (
         "gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft",
-        "licence-file", "ai-artifact",
+        "licence-file", "ai-artifact", "dependency-reality",
     ),
     DEEP: (
         "gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft",
-        "licence-file", "ai-artifact",
+        "licence-file", "ai-artifact", "dependency-reality",
     ),
 }
 

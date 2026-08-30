@@ -63,6 +63,20 @@ Checks no other scanner ships:
 - **Pinning hygiene.** Unpinned ranges, missing lockfiles, git dependencies on
   mutable refs.
 
+### What leaves your machine, stated plainly
+
+**On `quick`: nothing.** There is no network interface inside the container.
+
+**On `standard` and `deep`**, one check needs the network: dependency reality sends
+**package names** — never source code, never file contents — to public registries to
+ask whether each dependency actually exists. That is how hallucinated packages are
+caught at all; no advisory database can do it, because the package is new rather than
+known-bad.
+
+Every run records this in `run.json`, and `valvur scan --offline` disables it. We
+criticise competitors for being vague about exactly this, so: package names, to PyPI,
+on standard and deep, and nothing else, ever.
+
 ### 3. Ten things that matter, not four hundred findings
 
 Findings are ranked by **whether attackers are actually exploiting them**, not

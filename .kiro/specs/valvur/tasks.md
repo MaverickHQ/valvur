@@ -426,6 +426,8 @@ through it would mean fabricating a fake stdout to parse back.
 
 ### 4.1 — AI Artifact Check
 
+> **✅ COMPLETE 2026-08-30.**
+
 Pure static file inspection: no network, no new machinery, and the feature nothing
 else ships.
 
@@ -447,7 +449,8 @@ else ships.
 > agent might never have opened into one we tell it to read. **valvur must not become
 > the delivery mechanism.**
 
-- [ ] **4.1.8** Fixture: agent artifacts carrying each planted problem — a `CLAUDE.md`
+- [x] **4.1.8** Fixture: agent artifacts carrying each planted problem — a `CLAUDE.md`  
+  **STATUS 2026-08-30:** ✅ Fixture gained `CLAUDE.md` (U+200B/200D/FEFF), `AGENTS.md` (injection + U+202E), `.mcp.json` (@main + blanket autoApprove), `.claude/settings.json` (bypassPermissions).
   with zero-width characters, an `.mcp.json` on `@main` with blanket `autoApprove`,
   and an injection payload. Keep them inside `tests/fixtures/`, and confirm they do
   not trip our own self-scan in Phase 11.
@@ -455,6 +458,8 @@ else ships.
 **Commit:** `feat: AI artifact check with evidence neutralisation`
 
 ### 4.2 — Opengrep rules
+
+> **✅ COMPLETE 2026-08-30.**
 
 Extends the ruleset already shipped in Phase 3. No new infrastructure.
 
@@ -469,6 +474,8 @@ Extends the ruleset already shipped in Phase 3. No new infrastructure.
 
 ### 4.3 — Licence Check
 
+> **✅ COMPLETE 2026-08-30.**
+
 12. A **Workspace** with no licence file is a **Finding**. *(F4.2)*
 13. A licence file contradicting package metadata is a **Finding**. *(F4.3)*
 14. A copyleft dependency inside a permissive-declared project is a **Finding**.
@@ -482,6 +489,9 @@ Check reads an artifact rather than re-scanning.
 
 ### 4.4 — Dependency Reality Check
 
+> **✅ COMPLETE 2026-08-30.** 63 tests. Full fleet scan of the fixture: 56 findings
+> across 9 Scanners and Checks, all green. `quick` runs 4 of them and sends nothing.
+
 Last, because it carries all of this phase's new infrastructure.
 
 16. A dependency that does not exist on its registry is a critical **Finding**.
@@ -493,15 +503,18 @@ Last, because it carries all of this phase's new infrastructure.
 19. With no network, the **Check** reports *skipped* — and its packages are **not**
     reported clean. *(F3.5 — the honesty behaviour.)*
 
-- [ ] **4.4.20** **Popularity dataset.** Cycle 18 needs to know what is popular. Decide
+- [x] **4.4.20** **Popularity dataset.** Cycle 18 needs to know what is popular. Decide  
+  **STATUS 2026-08-30:** ✅ 3000 top PyPI names, 49KB, from hugovk/top-pypi-packages. **CC0-1.0**, so redistribution is unencumbered. Refresh quarterly.
   the source, size, refresh cadence and licence of a bundled top-N package list per
   ecosystem. Unplanned work that will otherwise surface mid-cycle.
-- [ ] **4.4.21** **Disclose the registry lookups.** Querying PyPI or npm reveals your
+- [x] **4.4.21** **Disclose the registry lookups.** Querying PyPI or npm reveals your  
+  **STATUS 2026-08-30:** ✅ `run.json` carries a `network` block naming exactly what left the machine; README states it plainly; `--offline` disables it. `quick` never had it.
   dependency list to those registries. It is metadata, not source — but it is exactly
   what we criticise Snyk for, so it must be stated plainly in the README and recorded
   in `run.json`, with an opt-out flag. `quick` stays fully offline. Being quietly loose
   here would cost more credibility than the feature is worth.
-- [ ] **4.4.22** Registry client with caching and rate-limit handling; a registry
+- [x] **4.4.22** Registry client with caching and rate-limit handling; a registry  
+  **STATUS 2026-08-30:** ✅ Registry client with 404-vs-unreachable distinction. Unreachable raises, so the run records the Check as failed and the scan as incomplete — never clean (F3.5).
   refusing us must degrade per cycle 19, never silently.
 
 **Commit:** `feat: dependency reality check for slopsquat detection`

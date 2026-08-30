@@ -15,6 +15,12 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
     scan_cmd.add_argument("path", nargs="?", default=".", help="Workspace to scan")
     scan_cmd.add_argument("--profile", default="standard", choices=["quick", "standard", "deep"])
+    scan_cmd.add_argument(
+        "--offline",
+        action="store_true",
+        help="Never touch the network. Equivalent to --profile quick for network purposes; "
+        "checks needing a registry report as unverified rather than clean.",
+    )
 
     sub.add_parser("update", help="Fetch the vulnerability database into the local cache")
 
@@ -39,7 +45,8 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         runner = ContainerRunner()
 
     workspace = Path(args.path).resolve()
-    run = scan(workspace, runner=runner, profile=args.profile)
+    profile = "quick" if getattr(args, "offline", False) else args.profile
+    run = scan(workspace, runner=runner, profile=profile)
 
     for failure in run.failures:
         print(f"  ! {failure.tool} did not complete: {failure.reason}")
