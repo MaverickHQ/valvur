@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .base import ScannerAdapter, container_relative
+from .check import CheckAdapter
 from .checkov import CheckovAdapter
 from .gitleaks import GitleaksAdapter
 from .opengrep import OpengrepAdapter
@@ -17,10 +18,12 @@ DEFAULT_ADAPTERS: tuple[ScannerAdapter, ...] = (
     OpengrepAdapter(),
     CheckovAdapter(),
     SyftAdapter(),
+    CheckAdapter("licence-file"),
 )
 
 __all__ = [
     "DEFAULT_ADAPTERS",
+    "CheckAdapter",
     "CheckovAdapter",
     "GitleaksAdapter",
     "OpengrepAdapter",

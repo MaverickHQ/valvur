@@ -16,6 +16,7 @@ class ScannerOutput:
 
 
 IMAGE = "valvur:dev"
+_VERSION = "0.1.0.dev0"
 _RUNTIMES = ("docker", "podman", "nerdctl")
 
 
@@ -199,6 +200,14 @@ class ContainerRunner:
             # filesystem stays read-only, the container stays non-root and
             # capability-less, and the exec surface is in-memory and non-persistent.
             allow_exec=True,
+        )
+
+    def run_check(self, name: str, workspace: Path) -> ScannerOutput:
+        """Run one of valvur's own Checks inside the container (ADR-0013)."""
+        return self._capture(
+            workspace,
+            ["python", "-m", "valvur.checks", name, "/workspace"],
+            None, tool=name, version=_VERSION,
         )
 
     def run_gitleaks(self, workspace: Path) -> ScannerOutput:

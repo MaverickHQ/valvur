@@ -61,7 +61,7 @@ def test_every_finding_on_a_first_ever_scan_is_new(workspace, runner_finding_one
     """F5.9 — a fresh clone has no history. Everything is new, honestly."""
     run = scan(workspace, runner=runner_finding_one_secret)
 
-    assert [f.status for f in run.findings] == ["new"]
+    assert {f.status for f in run.findings} == {"new"}
 
 
 def test_fixing_the_problem_reports_the_finding_as_fixed(

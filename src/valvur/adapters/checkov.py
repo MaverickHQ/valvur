@@ -12,6 +12,7 @@ from .base import container_relative
 
 
 class CheckovAdapter:
+    kind = "scanner"
     name = "checkov"
 
     def run(self, runner, workspace: Path) -> ScannerOutput:

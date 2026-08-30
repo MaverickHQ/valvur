@@ -16,6 +16,7 @@ from .base import container_relative
 
 
 class OsvAdapter:
+    kind = "scanner"
     name = "osv-scanner"
 
     def run(self, runner, workspace: Path) -> ScannerOutput:

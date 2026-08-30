@@ -408,16 +408,19 @@ a **Scanner** is a third-party tool, a **Check** is ours. The adapter contract m
 "invoke an external tool in a container, parse its output", and forcing our own code
 through it would mean fabricating a fake stdout to parse back.
 
-- [ ] **4.0.1** Add a `Check` protocol — `run(workspace) -> list[Finding]` — that the
+- [x] **4.0.1** Add a `Check` protocol — `run(workspace) -> list[Finding]` — that the  
+  **STATUS 2026-08-30:** ✅ `checks/` package with a `Check` protocol, in-container entry point, and a `CheckAdapter`. **No orchestrator change was needed** — see 4.0.2.
   orchestrator sequences alongside adapters, sharing failure isolation, **Profile**
   selection, concurrency and **Provenance**.
-- [ ] **4.0.2** **Checks run inside the container**, like Scanners. The tempting
+- [x] **4.0.2** **Checks run inside the container**, like Scanners. The tempting  
+  **STATUS 2026-08-30:** ✅ Checks run in-container (ADR-0013). Because they emit JSON they fit the *existing* adapter contract, so they inherit failure isolation, profiles, concurrency and provenance for free. Adapters gained `kind` (`scanner`/`check`) so credit stays honest (P4).
   shortcut is running them host-side in the shim, which is simpler and needs no image
   rebuild. It is wrong: the Dependency Reality **Check** makes registry calls, and
   host-side those sit entirely outside `--network=none`. The moat would revert from a
   property to a policy. In-container, `quick` *cannot* reach a registry, so F3.5's
   "reports skipped" is enforced by architecture rather than by remembering.
-- [ ] **4.0.3** All 45 existing tests pass unchanged.
+- [x] **4.0.3** All 45 existing tests pass unchanged.  
+  **STATUS 2026-08-30:** ✅ No existing test file modified by the refactor. Three tests were then updated for a **behaviour** change — adding `licence-file` to the defaults — and were over-specified anyway: they counted *total* findings rather than asserting the behaviour under test, so any new Check would have broken them.
 
 **Commit:** `refactor: add the Check protocol alongside scanner adapters`
 

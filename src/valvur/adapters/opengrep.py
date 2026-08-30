@@ -17,6 +17,7 @@ from .base import container_relative
 
 
 class OpengrepAdapter:
+    kind = "scanner"
     name = "opengrep"
 
     def run(self, runner, workspace: Path) -> ScannerOutput:

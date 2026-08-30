@@ -10,7 +10,10 @@ def test_scanning_a_workspace_with_a_planted_secret_reports_a_finding(
 ):
     run = scan(workspace, runner=runner_finding_one_secret)
 
-    assert len(run.findings) == 1
+    # Scoped to the secret rather than counting every finding: a total count would
+    # break whenever an unrelated Check is added, which is not what this test is about.
+    secrets = [f for f in run.findings if f.rule == "aws-access-token"]
+    assert len(secrets) == 1
 
 
 def test_a_clean_workspace_reports_an_explicit_clean_status(
