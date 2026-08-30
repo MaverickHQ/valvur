@@ -62,7 +62,9 @@ class ContainerRunner:
             self._runtime = detect_runtime()
         return self._runtime
 
-    def _base_flags(self, workspace: Path, scratch: str, *, network: bool = False) -> list[str]:
+    def _base_flags(
+        self, workspace: Path, scratch: str, *, network: bool = False, allow_exec: bool = False
+    ) -> list[str]:
         from . import cache
 
         db = cache.trivy_db()
@@ -71,11 +73,12 @@ class ContainerRunner:
             self.runtime, "run", "--rm",
             *_user_flags(),
             "--read-only",
-            # A read-only root filesystem still needs scratch space. tmpfs keeps it
-            # in memory and non-persistent, so the hardening stands.
-
-            # path. It is in memory, non-persistent, noexec and nosuid.
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m",  # noqa: S108
+            # A read-only root filesystem still needs scratch space. This tmpfs is in
+            # memory, non-persistent and nosuid. `exec` is granted only to Scanners
+            # that genuinely need it (Opengrep unpacks and runs opengrep-core), never
+            # to the whole fleet — least privilege per Scanner.
+            "--tmpfs",
+            f"/tmp:rw,{'exec' if allow_exec else 'noexec'},nosuid,size=512m",  # noqa: S108
             "--cap-drop=ALL",
             "-v", f"{workspace}:/workspace:ro",     # F1.1 - source is read-only
             "-v", f"{scratch}:/results",
@@ -133,6 +136,70 @@ class ContainerRunner:
             stdout = report.read_text(encoding="utf-8") if report.exists() else ""
 
         return ScannerOutput("trivy", "0.74.0", stdout, proc.stderr, proc.returncode)
+
+    def _capture(self, workspace, argv, outfile, *, tool, version, network=False,
+                 timeout=600, allow_exec=False):
+        """Run one Scanner and read its report from the scratch mount."""
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
+            cmd = [
+                *self._base_flags(workspace, scratch, network=network, allow_exec=allow_exec),
+                self.image, *argv,
+            ]
+            proc = subprocess.run(  # noqa: S603 - argument-list form, no shell
+                cmd, capture_output=True, text=True, timeout=timeout, check=False
+            )
+            report = Path(scratch) / outfile if outfile else None
+            stdout = (
+                report.read_text(encoding="utf-8")
+                if report is not None and report.exists()
+                else proc.stdout
+            )
+        return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode)
+
+    def run_osv(self, workspace: Path) -> ScannerOutput:
+        # OSV queries api.osv.dev, so it is a standard/deep Scanner only - it is
+        # absent from the quick Profile, which must stay offline (N2.1).
+        return self._capture(
+            workspace,
+            ["osv-scanner", "scan", "source", "--recursive",
+             "--format", "json", "--output", "/results/osv.json", "/workspace"],
+            "osv.json", tool="osv-scanner", version="2.2.4", network=True,
+        )
+
+    def run_checkov(self, workspace: Path) -> ScannerOutput:
+        return self._capture(
+            workspace,
+            ["checkov", "--directory", "/workspace", "--output", "json",
+             "--output-file-path", "/results", "--quiet", "--compact",
+             # No network, ever: skip external data downloads outright.
+             "--skip-download"],
+            "results_json.json", tool="checkov", version="3.2.517",
+        )
+
+    def run_syft(self, workspace: Path) -> ScannerOutput:
+        return self._capture(
+            workspace,
+            ["syft", "scan", "dir:/workspace", "-o", "cyclonedx-json=/results/sbom.json", "-q"],
+            "sbom.json", tool="syft", version="1.51.1",
+        )
+
+    def run_opengrep(self, workspace: Path) -> ScannerOutput:
+        # Our own bundled rules only (ADR-0004). No registry fetch, so no network
+        # and no licence question.
+        return self._capture(
+            workspace,
+            ["opengrep", "scan", "--config", "/opt/valvur-rules",
+             "--json", "--output", "/results/opengrep.json",
+             "--quiet", "--no-git-ignore", "/workspace"],
+            "opengrep.json", tool="opengrep", version="1.29.0",
+            # Opengrep unpacks and execs opengrep-core. Granted only here: the root
+            # filesystem stays read-only, the container stays non-root and
+            # capability-less, and the exec surface is in-memory and non-persistent.
+            allow_exec=True,
+        )
 
     def run_gitleaks(self, workspace: Path) -> ScannerOutput:
         import subprocess

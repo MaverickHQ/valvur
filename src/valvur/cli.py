@@ -16,7 +16,22 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     scan_cmd.add_argument("path", nargs="?", default=".", help="Workspace to scan")
     scan_cmd.add_argument("--profile", default="standard", choices=["quick", "standard", "deep"])
 
+    sub.add_parser("update", help="Fetch the vulnerability database into the local cache")
+
     args = parser.parse_args(argv)
+
+    if args.command == "update":
+        from .runner import ContainerRunner
+
+        print("Fetching the vulnerability database (about 1.2GB, once)...")
+        result = (runner or ContainerRunner()).update_db()
+        if result.exit_code != 0:
+            print(f"Update failed: {result.stderr.strip()[-300:]}")
+            return 1
+        from . import cache
+
+        print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
+        return 0
 
     if runner is None:
         from .runner import ContainerRunner

@@ -1,0 +1,54 @@
+# valvur's own Opengrep rules.
+#
+# Written by us, licensed with the project. ADR-0004 moved us off Semgrep precisely
+# to avoid redistributing rules under a licence restricting competing use — so
+# bundling the community registry would reintroduce the problem we solved.
+# This set is deliberately small and high-signal; Phase 4 extends it for
+# LLM-output-to-sink taint.
+
+rules:
+  - id: valvur.python.dangerous-eval
+    languages: [python]
+    severity: ERROR
+    message: >-
+      eval() on a non-literal expression. If the input can come from an LLM, the
+      network, or a file, this is remote code execution (OWASP LLM05).
+    patterns:
+      - pattern: eval($X, ...)
+      - pattern-not: eval("...", ...)
+
+  - id: valvur.python.dangerous-exec
+    languages: [python]
+    severity: ERROR
+    message: exec() on a non-literal expression is remote code execution.
+    patterns:
+      - pattern: exec($X, ...)
+      - pattern-not: exec("...", ...)
+
+  - id: valvur.python.subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      subprocess with shell=True interpolates through a shell. Use the argument-list
+      form so arguments cannot be reinterpreted as commands.
+    pattern: subprocess.$F(..., shell=True, ...)
+
+  - id: valvur.python.insecure-yaml-load
+    languages: [python]
+    severity: ERROR
+    message: yaml.load() without SafeLoader can instantiate arbitrary Python objects.
+    patterns:
+      - pattern: yaml.load($X)
+      - pattern-not: yaml.load($X, Loader=yaml.SafeLoader)
+
+  - id: valvur.python.weak-hash
+    languages: [python]
+    severity: WARNING
+    message: >-
+      MD5 and SHA-1 are unsuitable for security purposes. Note that swapping the
+      algorithm invalidates every previously stored hash - this needs a migration,
+      not a one-line edit.
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
