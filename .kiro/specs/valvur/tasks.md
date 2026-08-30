@@ -171,6 +171,9 @@ rather than month two. Every later phase adds depth to a system that already wor
   *(F1.1)*
 - [ ] **1.11** Fixture **Workspace** at `tests/fixtures/broken-repo/` — for now just a
   planted fake secret; grows each phase.
+- [ ] **1.11b** CI check failing the build if any path under `.security-scan/` appears
+  in the tree or in a pushed commit. The `pre-commit` hook is the first line, but a
+  hook can be bypassed with `--no-verify`; CI cannot. *(ADR-0011)*
 - [ ] **1.12** **Usability gate:** someone who has never seen valvur installs and runs
   it from the README alone, on a clean machine, in under five minutes. Write down
   every point of confusion. Those notes drive Phase 10.

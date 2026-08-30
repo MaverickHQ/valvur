@@ -7,4 +7,16 @@ if ! command -v gitleaks >/dev/null 2>&1; then
   echo "            Refusing to commit without secret scanning." >&2
   exit 1
 fi
+# Refuse any staged path inside a results folder — on EVERY branch, without exception.
+# .gitignore does not stop `git add -f`; this does. Scan output is a map of a
+# project's unpatched vulnerabilities, and git objects are repo-wide, so a commit on
+# any branch puts them on the remote the moment that branch is pushed.
+if git diff --cached --name-only -z | tr '\0' '\n' | grep -qE '(^|/)\.security-scan/'; then
+  echo "pre-commit: refusing to commit scan output." >&2
+  echo "            Files under .security-scan/ must never enter git history," >&2
+  echo "            on any branch. Unstage them with:" >&2
+  echo "              git restore --staged .security-scan" >&2
+  exit 1
+fi
+
 gitleaks protect --staged --redact --no-banner
