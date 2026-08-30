@@ -233,7 +233,13 @@ class ContainerRunner:
                 cmd, capture_output=True, text=True, timeout=600, check=False
             )
             report = Path(scratch) / "trivy.json"
-            stdout = report.read_text(encoding="utf-8") if report.exists() else ""
+            if not report.exists():
+                return ScannerOutput(
+                    "trivy", "0.74.0", "",
+                    f"trivy produced no report. stderr: {proc.stderr.strip()[:300]}",
+                    proc.returncode or 99,
+                )
+            stdout = report.read_text(encoding="utf-8")
 
         return ScannerOutput("trivy", "0.74.0", stdout, proc.stderr, proc.returncode)
 
@@ -252,11 +258,18 @@ class ContainerRunner:
                 cmd, capture_output=True, text=True, timeout=timeout, check=False
             )
             report = Path(scratch) / outfile if outfile else None
-            stdout = (
-                report.read_text(encoding="utf-8")
-                if report is not None and report.exists()
-                else proc.stdout
-            )
+            if report is not None and not report.exists():
+                # The Scanner was asked for a report and produced none. Exiting 0
+                # while writing nothing means it could not write, not that it found
+                # nothing — and treating those alike reports a vulnerable repository
+                # as clean. Surfaced as a failure so the run is marked incomplete.
+                return ScannerOutput(
+                    tool, version, "",
+                    f"{tool} produced no report at {outfile}. "
+                    f"stderr: {proc.stderr.strip()[:300]}",
+                    proc.returncode or 99,
+                )
+            stdout = report.read_text(encoding="utf-8") if report is not None else proc.stdout
         return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode)
 
     def run_osv(self, workspace: Path) -> ScannerOutput:
@@ -343,7 +356,13 @@ class ContainerRunner:
                 cmd, capture_output=True, text=True, timeout=300, check=False
             )
             report = Path(scratch) / "gitleaks.json"
-            stdout = report.read_text(encoding="utf-8") if report.exists() else "[]"
+            if not report.exists():
+                return ScannerOutput(
+                    "gitleaks", "8.30.1", "",
+                    f"gitleaks produced no report. stderr: {proc.stderr.strip()[:300]}",
+                    proc.returncode or 99,
+                )
+            stdout = report.read_text(encoding="utf-8")
 
         return ScannerOutput(
             tool="gitleaks", version="8.30.1",
