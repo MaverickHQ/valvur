@@ -992,10 +992,13 @@ anything.
 
 ### 9.0 — Hand-rolled stdio transport
 
+> **✅ COMPLETE 2026-08-30.** 149 tests.
+
 **MCP is the primary interface.** `pip install valvur` gives a working server; there
 is no extra to opt into. The CLI is the second way in.
 
-- [ ] **9.0.1** Implement MCP stdio directly — newline-delimited JSON-RPC 2.0 on
+- [x] **9.0.1** Implement MCP stdio directly — newline-delimited JSON-RPC 2.0 on  
+  **STATUS 2026-08-30:** ✅ `mcp/protocol.py` — newline-delimited JSON-RPC 2.0 over stdio, stdlib only. `dependencies = []` still holds, asserted by test.
   stdin/stdout — keeping **zero runtime dependencies** (F10.6, ADR-0015). The
   official SDK pulls 22 packages including `starlette`, `uvicorn`, `pyjwt` and
   `cryptography`: an HTTP server, an OAuth stack and a crypto library, all to support
@@ -1003,13 +1006,16 @@ is no extra to opt into. The CLI is the second way in.
   tool enlarges what must be audited and patched whether or not a port is ever bound —
   and it is precisely the dependency footprint our own Dependency Reality Check
   exists to warn people about.
-- [ ] **9.0.2** Implement `initialize`, `tools/list` and `tools/call`. That is the
+- [x] **9.0.2** Implement `initialize`, `tools/list` and `tools/call`. That is the  
+  **STATUS 2026-08-30:** ✅ `initialize`, `tools/list`, `tools/call`, plus `ping` and the `notifications/initialized` no-op.
   whole protocol for a tools-only server.
-- [ ] **9.0.3** **Pin the protocol version we declare**, and record it. We own
+- [x] **9.0.3** **Pin the protocol version we declare**, and record it. We own  
+  **STATUS 2026-08-30:** ✅ Declares `2025-06-18`, negotiates down to `2025-03-26` and `2024-11-05`. An unknown version gets ours to decide on rather than a refusal.
   compatibility now: if the handshake changes we fix it rather than upgrading a
   package. Phase 9's exit criterion — a real client completing scan → list → explain —
   is what makes that risk manageable rather than theoretical.
-- [ ] **9.0.4** A malformed request produces a JSON-RPC error, never a traceback on
+- [x] **9.0.4** A malformed request produces a JSON-RPC error, never a traceback on  
+  **STATUS 2026-08-30:** ✅ Malformed JSON → `-32700`; unknown method → `-32601`; an unhandled exception → `-32603` with the diagnostic on **stderr**. A crashing *tool* is a tool error, not a protocol fault, so the agent sees the real problem.
   stdout. Anything written to stdout that is not a response corrupts the stream.
 
 **Commit:** `feat: MCP stdio transport with zero dependencies`
