@@ -696,13 +696,16 @@ that matters is buried beneath noise.
 
 ### 6.2 — SUMMARY.md within its budget
 
+> **✅ COMPLETE 2026-08-30.** 92 tests. 185 lines → 50.
+
 6. `SUMMARY.md` opens with the machine-facing header. *(F7.6)*
 7. Failures and skips appear before any **Finding**. *(F7.7)*
 8. `SUMMARY.md` stays within 200 lines given 10,000 **Findings**. *(F7.5)*
 9. When findings are truncated, the count omitted is stated. *(Silent truncation
    reads as "that is everything", which is a lie of omission.)*
 
-- [ ] **6.2.10** **Reformat to the budget in [design.md](./design.md) §6**: header ~25,
+- [x] **6.2.10** **Reformat to the budget in [design.md](./design.md) §6**: header ~25,  
+  **STATUS 2026-08-30:** ✅ **185 lines → 50**, for 57 findings. One line per finding; evidence moved to `findings.json`. Verified against 10,000 synthetic findings.
   failures ~15, counts by class and status ~20, **top 15 Findings ~100**, pointers
   ~10. We currently print every finding at ~2.2 lines each, which tops out near 85.
   This is only safe because Phase 5 landed — truncating an unranked list discards at

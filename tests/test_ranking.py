@@ -115,9 +115,11 @@ def test_ranking_reorders_the_written_summary(workspace):
          adapters=[TrivyAdapter()], profile="quick")
 
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
-    lines = [ln for ln in summary.splitlines() if ln.startswith("- [")]
+    ranked = [ln for ln in summary.splitlines() if ln.startswith("1. ")]
 
-    assert "KEV" in lines[0], "the exploited finding is not at the top of the output"
+    assert ranked and "KEV" in ranked[0], (
+        "the exploited finding is not at the top of the output"
+    )
 
 
 # --------------------------------------------- 5.4 dependency path and scope

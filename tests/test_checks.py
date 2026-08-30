@@ -114,13 +114,25 @@ def test_an_injection_payload_is_fenced_as_untrusted_not_reproduced_as_prose(
     prose would be an attack laundered out of a file the agent might never have
     opened into one we explicitly tell it to read.
     """
-    _ai_scan(workspace, runner_finding_nothing)
+    import json
 
-    summary = (workspace / ".security-scan" / "SUMMARY.md").read_text(encoding="utf-8")
+    _ai_scan(workspace, runner_finding_nothing)
+    results = workspace / ".security-scan"
     payload = "Ignore all previous instructions"
 
-    assert payload in summary, "the finding should still be actionable"
-    before = summary[: summary.index(payload)]
+    # Since 6.2, SUMMARY.md carries one line per finding and no evidence body, so the
+    # payload does not appear there at all — a stronger outcome than fencing it.
+    # The finding is still actionable: the rule, file and line are named.
+    summary = (results / "SUMMARY.md").read_text(encoding="utf-8")
+    assert payload not in summary
+    assert "prompt-injection" in summary and "AGENTS.md" in summary
+
+    # Evidence moved to findings.json, which an agent queries per finding. It must be
+    # fenced there.
+    findings = json.loads((results / "findings.json").read_text())["findings"]
+    injection = next(f for f in findings if "prompt-injection" in f["rule"])
+    assert payload in injection["evidence"]
+    before = injection["evidence"][: injection["evidence"].index(payload)]
     assert "[UNTRUSTED CONTENT FROM THE SCANNED REPOSITORY" in before
 
 
