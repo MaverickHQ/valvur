@@ -79,7 +79,8 @@ def _run_one(adapter, runner, workspace) -> tuple:
 
 
 def scan(
-    workspace: Path, *, runner, adapters=None, profile: str = _profiles.STANDARD
+    workspace: Path, *, runner, adapters=None, profile: str = _profiles.STANDARD,
+    on_progress=None,
 ) -> ScanRun:
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
@@ -107,7 +108,11 @@ def scan(
             for index, adapter in enumerate(adapters)
         }
         for future in as_completed(futures):
-            outcomes[futures[future]] = future.result()
+            outcome = future.result()
+            outcomes[futures[future]] = outcome
+            if on_progress is not None:
+                status = 'ok' if outcome[0].ok else 'failed'
+                on_progress(f"{outcome[0].tool}: {status}")
 
     completed = [o for o in outcomes if o is not None]
     scanners = [outcome[0] for outcome in completed]

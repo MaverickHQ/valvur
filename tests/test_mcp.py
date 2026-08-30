@@ -328,3 +328,110 @@ def test_the_registry_exposes_exactly_the_expected_tools():
     assert {t.name for t in registry()} == {
         "scan", "list_findings", "explain_finding", "scan_status",
     }
+
+
+# --------------------------------------------------------------- 9.2 long scans
+
+@pytest.fixture(autouse=True)
+def _clean_jobs():
+    from valvur.mcp import jobs
+
+    jobs.reset()
+    yield
+    jobs.reset()
+
+
+def test_a_scan_returns_before_it_finishes(tmp_path):
+    """Measured: 20s for a standard profile on a TOY fixture. A real project is
+    minutes, and many MCP clients time out at 30-60 seconds."""
+    import time
+
+    from valvur.mcp import jobs
+
+    def slow(workspace, profile, progress):
+        time.sleep(2)
+        return "done eventually"
+
+    started = time.monotonic()
+    jobs.start(tmp_path, "standard", slow)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.5, f"start blocked for {elapsed:.2f}s"
+
+
+def test_status_reports_running_then_done(tmp_path):
+    import time
+
+    from valvur.mcp import jobs
+
+    def quick(workspace, profile, progress):
+        progress("gitleaks: ok")
+        time.sleep(0.3)
+        return "clean: 0 finding(s)."
+
+    job = jobs.start(tmp_path, "quick", quick)
+    assert job.state == "running"
+
+    for _ in range(50):
+        if job.state != "running":
+            break
+        time.sleep(0.1)
+
+    assert job.state == "done"
+    assert job.summary == "clean: 0 finding(s)."
+    assert "gitleaks: ok" in job.progress
+
+
+def test_a_second_scan_while_one_runs_is_refused_not_queued(tmp_path):
+    """Two concurrent scans of one workspace would race on the Results Folder."""
+    import time
+
+    from valvur.mcp import jobs
+
+    def slow(workspace, profile, progress):
+        time.sleep(2)
+        return "ok"
+
+    first = jobs.start(tmp_path, "standard", slow)
+    second = jobs.start(tmp_path, "quick", slow)
+
+    assert second is first
+
+
+def test_a_failing_scan_is_reported_not_crashed(tmp_path):
+    """The server must survive a scan that dies — the agent needs to hear why."""
+    import time
+
+    from valvur.mcp import jobs
+
+    def explode(workspace, profile, progress):
+        raise RuntimeError("no container runtime")
+
+    job = jobs.start(tmp_path, "standard", explode)
+    for _ in range(50):
+        if job.state != "running":
+            break
+        time.sleep(0.05)
+
+    assert job.state == "failed"
+    assert "no container runtime" in job.error
+
+
+def test_scan_status_tells_the_agent_not_to_report_a_result_yet(tmp_path):
+    import time
+
+    from valvur.mcp import jobs
+
+    jobs.start(tmp_path, "standard", lambda w, p, g: (time.sleep(2), "ok")[1])
+
+    result = _call("scan_status", {"workspace": str(tmp_path)})
+    text = result["content"][0]["text"]
+
+    assert "RUNNING" in text
+    assert "do not report a result yet" in text
+
+
+def test_scan_status_before_any_scan_says_so(tmp_path):
+    result = _call("scan_status", {"workspace": str(tmp_path)})
+
+    assert "No scan has run" in result["content"][0]["text"]

@@ -1052,6 +1052,8 @@ is no extra to opt into. The CLI is the second way in.
 
 ### 9.2 — Long scans
 
+> **✅ COMPLETE 2026-08-30.** 168 tests. Verified end to end against a real container: scan → poll → DONE in 5s → list.
+
 9. A **Scan Run** started over MCP returns promptly, and `scan_status` reports its
    progress and result.
 
