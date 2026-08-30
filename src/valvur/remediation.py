@@ -56,14 +56,15 @@ def _key(finding: Finding) -> tuple[str, str, str]:
         ) if fix or root else f"Replace or remove `{dependency.package}` — no fix available"
         return (f"dep:{target}", action, finding.path)
 
+    path = finding.path
     if finding.rule.startswith("valvur.dependency."):
-        return ("slopsquat:" + finding.path, "Remove the hallucinated dependencies", finding.path)
+        return (f"slopsquat:{path}", "Remove the hallucinated dependencies", path)
     if finding.rule.startswith("valvur.ai-artifact."):
-        return ("agent:" + finding.path, f"Review the agent instruction file `{finding.path}`", finding.path)
+        return (f"agent:{path}", f"Review the agent instruction file `{path}`", path)
     if finding.rule.startswith("valvur.licence."):
-        return ("licence", "Resolve licensing", finding.path)
+        return ("licence", "Resolve licensing", path)
     if finding.rule in {"aws-access-token", "generic-api-key"} or "secret" in finding.rule:
-        return ("secret:" + finding.path, f"Rotate the credentials in `{finding.path}`", finding.path)
+        return (f"secret:{path}", f"Rotate the credentials in `{path}`", path)
     return (f"code:{finding.path}", f"Fix the issues in `{finding.path}`", finding.path)
 
 

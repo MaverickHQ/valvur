@@ -45,12 +45,12 @@ class ScanRun:
         return "clean" if not self.findings else "findings"
 
 
-def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding], tuple | None]:
+def _run_one(adapter, runner, workspace) -> tuple:
     """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
     try:
         output = adapter.run(runner, workspace)
     except Exception as exc:
-        return ScannerRun(adapter.name, ok=False, reason=str(exc)), [], None
+        return ScannerRun(adapter.name, ok=False, reason=str(exc)), [], None, ""
 
     if output.exit_code != 0 and not output.stdout.strip():
         return (
@@ -63,6 +63,7 @@ def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding], tup
             ),
             [],
             None,
+            output.stdout,
         )
 
     # An adapter may produce an artifact (an SBOM) instead of, or as well as, Findings.
@@ -72,6 +73,7 @@ def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding], tup
         ScannerRun(adapter.name, ok=True, version=output.version),
         adapter.parse(output),
         produced,
+        output.stdout,
     )
 
 
@@ -99,6 +101,7 @@ def scan(
     scanners = [outcome[0] for outcome in completed]
     findings = [f for outcome in completed for f in outcome[1]]
     artifacts = [o[2] for o in completed if o[2] is not None]
+    raw_outputs = [(o[0].tool, o[3]) for o in completed if o[3]]
 
     # Total failure is a failed Scan Run (N3.2). Partial failure is a reported one.
     if scanners and all(s.failed for s in scanners):
@@ -138,7 +141,7 @@ def scan(
         kev_source=provider.kev_source,
     )
 
-    results.write(workspace, run, scanner_artifacts=artifacts)
+    results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)
     still_fixed = {fp for fp in previously_fixed if fp not in current}
     still_fixed |= {fp for fp in previous if fp not in current}
     _state.save(results_dir, current, still_fixed)
