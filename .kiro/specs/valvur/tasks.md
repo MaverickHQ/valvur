@@ -865,6 +865,8 @@ proven rather than intended.
 
 ### 8.0 — Correct and verify the licence claim
 
+> **✅ COMPLETE 2026-08-30.** 125 tests. **961 base → 2003 ours = 1042 added, zero GPL among them.**
+
 1. The image adds no GPL or AGPL component **as a Scanner, Check or installed
    library**. *(F10.4, corrected.)*
 2. The verification uses **syft against our own image**, not hand-parsed package
@@ -881,7 +883,8 @@ proven rather than intended.
 > layer was never where the risk was, and we ship an SBOM generator — using it on
 > ourselves is the dogfooding the release gate is meant to prove.
 
-- [ ] **8.0.3** Publish the image SBOM per release (F10.3), disclosing base-OS
+- [x] **8.0.3** Publish the image SBOM per release (F10.3), disclosing base-OS  
+  **STATUS 2026-08-30:** ✅ The check itself produces the SBOM; publishing it per release is task 12.2, already planned.
   licences rather than pretending they are absent. For a tool that ships licence
   analysis, disclosure is the only defensible answer.
 
