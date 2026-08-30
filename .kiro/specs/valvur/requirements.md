@@ -172,6 +172,13 @@ genuinely the most urgent thing, so that I fix what attackers actually exploit.
    interface, and SHALL have no external platform prerequisite (ADR-0007).
 9. F6.9 — valvur SHALL report the **Dependency Path** and the direct dependency to
    change for every transitive vulnerability.
+10. F6.10 — WHERE **Enrichment** requires a network lookup, valvur SHALL record in
+    **Provenance** exactly what was transmitted, and SHALL provide an opt-out.
+    *Rationale: EPSS lookups transmit the CVE identifiers found in the **Workspace** —
+    a map of the project's unpatched vulnerabilities, which is a more sensitive
+    disclosure than the dependency names of F3.1. Having made a point of being
+    explicit about the lesser leak, silence about the greater one would be worse than
+    never having claimed it.*
 
 ## F7 — Results contract
 

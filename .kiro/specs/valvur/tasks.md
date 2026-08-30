@@ -529,24 +529,100 @@ repository appears as live directive text in any artifact we write.
 
 **Goal:** the top of the list is genuinely the most urgent thing.
 
-### TDD cycles
+> **Reordered and sub-phased 2026-08-30 after reviewing Phases 1–4.** The original
+> plan assumed a **Finding** model that does not exist. `design.md` §3 specifies
+> `severity`, `rank`, `exploit{}` and `dependency{}`; **none of them are implemented**,
+> and the adapters currently parse Trivy's `Severity`, `FixedVersion`, `CVSS` and
+> `PkgIdentifier` and throw them away. Cycle 4's inversion had nothing to invert.
+
+### 5.0 — Extend the Finding model
+
+- [ ] **5.0.1** Add `severity`, `rank`, `exploit` and `dependency` to `Finding`, per
+  `design.md` §3. Keep them optional so existing Checks need no change.
+- [ ] **5.0.2** Populate them in each Scanner adapter. Trivy already hands us
+  `Severity`, `FixedVersion`, `PURL`, `CVSS` and `PublishedDate`; OSV and Checkov
+  carry equivalents. This re-touches all six adapters, which is why it comes first.
+- [ ] **5.0.3** **Fingerprints must not change.** Enrichment is additive metadata, and
+  a fingerprint shift would silently invalidate every **Suppression** in every project
+  using valvur (ADR-0003). Assert the fixture's fingerprints are byte-identical
+  before and after this sub-phase.
+- [ ] **5.0.4** All 63 existing tests pass unchanged.
+
+**Commit:** `feat: carry severity and dependency metadata on findings`
+
+### 5.1 — KEV
 
 1. A **Finding** with a CVE carries its KEV status. *(F6.1, F6.2)*
-2. A KEV entry used in ransomware campaigns is marked as such.
-3. A **Finding** with a CVE carries its EPSS score when the network permits. *(F6.3)*
-4. **The inversion:** a CVSS 6.5 **Finding** in KEV ranks above a CVSS 9.8 at 0.04%
-   EPSS. *(F6.5 — the behaviour the whole feature exists for.)*
-5. With no network, ranking uses KEV alone and **Provenance** records the degradation.
+2. A KEV entry used in ransomware campaigns is marked as such. *(352 of 1,685 current
+   entries carry this flag — it is the strongest call to action we can print.)*
+3. A CVE absent from KEV is marked as such, not left unknown. *(Absence of evidence is
+   reportable; silence is not.)*
+
+- [ ] **5.1.4** **Bundle a KEV snapshot as a floor, refresh into the host cache.**
+  F6.2 says bundle it, and at 1.6MB size is not the concern — freshness is. A CVE
+  added to KEV yesterday would not be flagged by a three-month-old image, which is
+  precisely the reasoning that moved the Trivy DB out in ADR-0012. Bundle so `quick`
+  works offline immediately; refresh on `valvur update`; prefer the cached copy when
+  it is newer.
+
+**Commit:** `feat: KEV enrichment with ransomware flag`
+
+### 5.2 — EPSS and disclosure
+
+4. A **Finding** with a CVE carries its EPSS score where the network permits. *(F6.3)*
+5. EPSS is fetched in one batched request for the CVEs actually found, not one call
+   per finding. *(F6.3)*
+6. With no network, ranking uses KEV alone and **Provenance** records the degradation.
    *(F6.4)*
-6. A **Finding** in a development-only dependency ranks below the same **Finding** in
-   a production dependency. *(F6.6)*
-7. A transitive vulnerability reports its **Dependency Path** and the direct package
-   to change. *(F6.9)*
-8. **Enrichment** older than 30 days produces a staleness warning. *(F6.7)*
 
-**Exit:** cycle 4 passes — the ranking inversion is demonstrable.
+- [ ] **5.2.7** **Disclose the EPSS lookup (F6.10).** Sending our CVE list to FIRST is
+  a map of the project's *unpatched vulnerabilities* — a more sensitive disclosure
+  than the dependency names of 4.4.21. Extend the `network` block in `run.json` and
+  the README, and honour `--offline`. Having made a point of the lesser leak, silence
+  about the greater one would be worse than never having claimed it.
 
-**Commit:** `feat: KEV/EPSS enrichment and exploit-aware ranking`
+**Commit:** `feat: batched EPSS enrichment with explicit disclosure`
+
+### 5.3 — Ranking
+
+7. **The inversion:** a CVSS 6.5 **Finding** in KEV ranks above a CVSS 9.8 at 0.04%
+   EPSS. *(F6.5 — the behaviour the whole feature exists for.)*
+8. Ranking actually reorders the written output. *(`SUMMARY.md` currently iterates in
+   adapter order, so a correct `rank` field that nothing sorts by would be a silent
+   no-op.)*
+9. **Enrichment** older than 30 days produces a staleness warning. *(F6.7)*
+
+- [ ] **5.3.10** **The inversion needs test data that does not exist.** None of the
+  fixture's 15 CVEs appear in KEV — verified against the live catalogue. Do both:
+  a synthetic pair for the unit test, which is stable and proves the ranking function;
+  and one real KEV-listed dependency for an e2e, which proves the wiring. Neither
+  alone is sufficient.
+- [ ] **5.3.11** Give low-value classes a floor so they cannot crowd the top. A scan
+  of our own toy fixture returns 56 findings, of which 6 are
+  `licence.dependency-unknown` from our own SBOM, while two hallucinated packages and
+  an injection payload sit below them in arbitrary order. **Phase 6's 200-line cap is
+  only safe after this** — truncating an unranked list discards at random.
+
+**Commit:** `feat: exploit-aware ranking`
+
+### 5.4 — Dependency path and scope
+
+10. A transitive vulnerability reports its **Dependency Path** and the direct package
+    to change. *(F6.9)*
+11. A **Finding** in a development-only dependency ranks below the same **Finding** in
+    a production dependency. *(F6.6)*
+
+- [ ] **5.4.12** **Verify Trivy gives us the parent chain before committing to cycle
+  10.** `fs` mode may not expose it without `--list-all-pkgs`, in which case the path
+  comes from the Syft SBOM instead. Confirm first; do not assume.
+- [ ] **5.4.13** Determine dev-vs-production scope per ecosystem — `devDependencies`,
+  `[dependency-groups]`, and filename convention for `requirements-dev.txt`. The
+  fixture already carries the test material; no adapter marks scope yet.
+
+**Commit:** `feat: dependency paths and development-scope demotion`
+
+**Exit:** cycle 7 passes and the ranking demonstrably reorders real output; nothing
+that matters is buried beneath noise.
 
 ---
 
