@@ -52,12 +52,27 @@ class FakeRunner:
             stdout=self._stdout, stderr="", exit_code=self._exit_code,
         )
 
-    def run_trivy(self, workspace: Path):
-        """Quiet by default. Tests exercising Trivy use GoldenRunner instead."""
+    def _quiet(self, tool, version, payload):
         from valvur.runner import ScannerOutput
 
-        return ScannerOutput(tool="trivy", version="0.74.0",
-                             stdout='{"Results": []}', stderr="", exit_code=0)
+        return ScannerOutput(tool=tool, version=version, stdout=payload,
+                             stderr="", exit_code=0)
+
+    def run_trivy(self, workspace: Path):
+        """Quiet by default. Tests exercising a Scanner use GoldenRunner instead."""
+        return self._quiet("trivy", "0.74.0", '{"Results": []}')
+
+    def run_osv(self, workspace: Path):
+        return self._quiet("osv-scanner", "2.2.4", '{"results": []}')
+
+    def run_checkov(self, workspace: Path):
+        return self._quiet("checkov", "3.2.517", '{"results": {"failed_checks": []}}')
+
+    def run_syft(self, workspace: Path):
+        return self._quiet("syft", "1.51.1", "")
+
+    def run_opengrep(self, workspace: Path):
+        return self._quiet("opengrep", "1.29.0", '{"results": []}')
 
 
 @pytest.fixture
@@ -119,7 +134,10 @@ class CrashingAdapter:
 # Golden fixtures carry the Scanner version in the filename. If a Scanner is upgraded
 # without recapturing, this mismatch fails loudly rather than silently re-baselining
 # parsing behaviour (task 3.4.1).
-PINNED_VERSIONS = {"trivy": "0.74.0", "gitleaks": "8.30.1"}
+PINNED_VERSIONS = {
+    "trivy": "0.74.0", "gitleaks": "8.30.1", "osv-scanner": "2.2.4",
+    "checkov": "3.2.517", "syft": "1.51.1", "opengrep": "1.29.0",
+}
 
 
 def golden(tool: str) -> str:
@@ -150,3 +168,15 @@ class GoldenRunner:
 
     def run_gitleaks(self, workspace):
         return self._out("gitleaks")
+
+    def run_osv(self, workspace):
+        return self._out("osv-scanner")
+
+    def run_checkov(self, workspace):
+        return self._out("checkov")
+
+    def run_syft(self, workspace):
+        return self._out("syft")
+
+    def run_opengrep(self, workspace):
+        return self._out("opengrep")

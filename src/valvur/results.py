@@ -7,7 +7,7 @@ from pathlib import Path
 RESULTS_DIR = ".security-scan"
 
 
-def write(workspace: Path, run) -> Path:
+def write(workspace: Path, run, artifacts=()) -> Path:
     folder = workspace / RESULTS_DIR
     folder.mkdir(parents=True, exist_ok=True)
     # The folder ignores itself. This is THE guarantee that results are never
@@ -16,6 +16,8 @@ def write(workspace: Path, run) -> Path:
     (folder / ".gitignore").write_text("*\n", encoding="utf-8")
     (folder / "SUMMARY.md").write_text(_summary(run), encoding="utf-8")
     (folder / "run.json").write_text(_provenance(run), encoding="utf-8")
+    for name, content in artifacts:
+        (folder / name).write_text(content, encoding="utf-8")
     return folder
 
 
@@ -72,6 +74,11 @@ def _summary(run) -> str:
         + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else ""),
         "",
     ]
+    if run.fixed:
+        lines += ["", "## Fixed since the last scan", ""]
+        lines += [f"- {title}" for title in run.fixed]
+        lines += [""]
+
     for f in run.findings:
         lines.append(f"- [{f.status}] `{f.path}:{f.line}` — {f.title} ({f.rule})")
         if f.evidence:

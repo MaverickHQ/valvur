@@ -39,12 +39,12 @@ class ScanRun:
         return "clean" if not self.findings else "findings"
 
 
-def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding]]:
+def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding], tuple | None]:
     """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
     try:
         output = adapter.run(runner, workspace)
     except Exception as exc:
-        return ScannerRun(adapter.name, ok=False, reason=str(exc)), []
+        return ScannerRun(adapter.name, ok=False, reason=str(exc)), [], None
 
     if output.exit_code != 0 and not output.stdout.strip():
         return (
@@ -56,9 +56,17 @@ def _run_one(adapter, runner, workspace) -> tuple[ScannerRun, list[Finding]]:
                 f"{output.stderr.strip()[:200]}",
             ),
             [],
+            None,
         )
 
-    return ScannerRun(adapter.name, ok=True, version=output.version), adapter.parse(output)
+    # An adapter may produce an artifact (an SBOM) instead of, or as well as, Findings.
+    artifact = getattr(adapter, "artifact", None)
+    produced = (artifact, output.stdout) if artifact and output.stdout.strip() else None
+    return (
+        ScannerRun(adapter.name, ok=True, version=output.version),
+        adapter.parse(output),
+        produced,
+    )
 
 
 def scan(
@@ -71,7 +79,7 @@ def scan(
     # they run concurrently. Serially, six Scanners will not meet the 5-minute
     # standard budget (F2.6, N1.2). Results are collected back into declaration
     # order so a Scan Run is reproducible regardless of which finished first.
-    outcomes: list[tuple[ScannerRun, list[Finding]] | None] = [None] * len(adapters)
+    outcomes: list[tuple | None] = [None] * len(adapters)
 
     with ThreadPoolExecutor(max_workers=max(1, len(adapters))) as pool:
         futures = {
@@ -84,6 +92,7 @@ def scan(
     completed = [o for o in outcomes if o is not None]
     scanners = [outcome[0] for outcome in completed]
     findings = [f for outcome in completed for f in outcome[1]]
+    artifacts = [o[2] for o in completed if o[2] is not None]
 
     # Total failure is a failed Scan Run (N3.2). Partial failure is a reported one.
     if scanners and all(s.failed for s in scanners):
@@ -100,9 +109,13 @@ def scan(
         for f in findings
     ]
 
-    current = {f.fingerprint for f in findings}
-    run = ScanRun(findings=findings, fixed=sorted(previous - current), scanners=scanners)
+    current = {f.fingerprint: f.title for f in findings}
+    # Name what was fixed, using the title remembered from the previous run.
+    fixed_now = [previous[fp] or fp for fp in previous if fp not in current]
+    run = ScanRun(findings=findings, fixed=sorted(fixed_now), scanners=scanners)
 
-    results.write(workspace, run)
-    _state.save(results_dir, current, (previously_fixed | set(run.fixed)) - current)
+    results.write(workspace, run, artifacts=artifacts)
+    still_fixed = {fp for fp in previously_fixed if fp not in current}
+    still_fixed |= {fp for fp in previous if fp not in current}
+    _state.save(results_dir, current, still_fixed)
     return run

@@ -338,6 +338,10 @@ concurrency correctly.
 
 ### 3.3 — The Scanners
 
+> **✅ COMPLETE 2026-08-30.** All five Scanners contribute. Full real scan of the
+> fixture: 29 findings across gitleaks, trivy, osv-scanner, checkov and syft in
+> **11.8s** — well inside the 5-minute standard budget (N1.2).
+
 One vertical slice each. **Capture that Scanner's real output as a golden fixture at
 the moment you write its cycle**, not in a batch beforehand.
 
@@ -354,23 +358,29 @@ the moment you write its cycle**, not in a batch beforehand.
 
 ### 3.4 — Safety and supporting work
 
+> **✅ COMPLETE 2026-08-30.** 45 tests (42 unit, 3 e2e).
+
 14. A **Workspace** path containing shell metacharacters reaches the **Scanner**
     unaltered and unexecuted. *(N2.3)*
 
-- [ ] **3.4.1** **Golden fixture version discipline.** Fixture filenames carry the
+- [x] **3.4.1** **Golden fixture version discipline.** Fixture filenames carry the  
+  **STATUS 2026-08-30:** ✅ `conftest.golden()` resolves fixtures by pinned version and fails loudly on a mismatch, rather than silently re-baselining.
   Scanner version, asserted against the version pinned in the image. Without this, a
   Scanner upgrade silently re-baselines the goldens and parsing changes go unnoticed.
-- [ ] **3.4.2** Grow `tests/fixtures/broken-repo/` per cycle: a dependency manifest
+- [x] **3.4.2** Grow `tests/fixtures/broken-repo/` per cycle: a dependency manifest  
+  **STATUS 2026-08-30:** ✅ Fixture grew per cycle: `requirements.txt` (urllib3 1.24.1, PyYAML 5.1 — long-standing advisories), `main.tf`, `handler.py` incl. a byte-identical pair to exercise ordinal disambiguation.
   with a **stable** known-vulnerable package (one whose advisory will not be
   withdrawn), Terraform with a misconfigured resource, and code with a SAST issue.
   Keep it strictly inside `tests/fixtures/` — Phase 11's self-scan will otherwise flag
   our own test data in our own release gate.
-- [ ] **3.4.3** **Measure the image and record it.** We are at 30.4MB with gitleaks;
+- [x] **3.4.3** **Measure the image and record it.** We are at 30.4MB with gitleaks;  
+  **STATUS 2026-08-30:** ✅ **Measured: image 674MB, host DB cache 1.2GB fetched once via `valvur update`.** Decision: accept 674MB and keep a single image. The DB dominates and is out-of-image by ADR-0012, so it does not gate first run — a machine without it records Trivy as *skipped*, honestly, rather than reporting clean. Revisit only if the image passes ~1GB.
   the fleet will be roughly 1GB, mostly the Python layer. P1 promises useful output in
   under 60 seconds, and for a first-time user that includes pulling the image. Decide
   now whether `quick` warrants a smaller image or whether we accept and document the
   download. This is a Phase 3 decision because by Phase 10 the image is fixed.
-- [ ] **3.4.4** `state.json` should remember *what* was fixed, not only that something
+- [x] **3.4.4** `state.json` should remember *what* was fixed, not only that something  
+  **STATUS 2026-08-30:** ✅ `state.json` stores titles alongside fingerprints; `SUMMARY.md` gained a **Fixed since the last scan** section naming each one. Old list-shaped state is migrated silently.
   was. `SUMMARY.md` currently cannot say "you fixed the AWS key in config.py". A title
   alongside each fingerprint is a few lines now and awkward later.
 
