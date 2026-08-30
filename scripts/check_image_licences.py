@@ -28,10 +28,10 @@ LGPL = re.compile(r"\bLGPL\b", re.IGNORECASE)
 
 
 def sbom(image: str) -> dict:
-    # noqa justification: a partial path is correct here — the runtime is whatever
+
     # the operator has on PATH, and pinning an absolute path would break every
     # machine whose Docker lives somewhere else. Argument-list form, no shell.
-    result = subprocess.run(  # noqa: S603,S607
+    result = subprocess.run(  # noqa: S603
         ["docker", "run", "--rm", "-v", "/var/run/docker.sock:/var/run/docker.sock",
          SYFT, image, "-o", "cyclonedx-json"],
         capture_output=True, text=True, check=True,
