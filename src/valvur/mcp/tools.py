@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ..results import RESULTS_DIR
+from . import jobs
 from .server import Tool
 
 # Names that must never appear here. Asserted by test, not by convention.
@@ -64,27 +65,48 @@ def _one_line(finding: dict) -> str:
 
 # ----------------------------------------------------------------- the tools
 
-def _scan(args: dict) -> str:
+def _run_scan(workspace: Path, profile: str, progress) -> str:
+    """The work a background job performs. Returns the summary it will report."""
     from ..api import scan
     from ..runner import ContainerRunner
 
+    run = scan(workspace, runner=ContainerRunner(), profile=profile,
+               on_progress=progress)
+
+    lines = [f"{run.status}: {len(run.findings)} finding(s)."]
+    if run.failures:
+        lines += ["", "INCOMPLETE — these scanners did not run:"]
+        lines += [f"  - {f.tool}: {f.reason}" for f in run.failures]
+        lines.append("Findings are partial; do not treat this as a clean result.")
+    if run.fixed:
+        lines.append(f"Fixed since the last scan: {len(run.fixed)}")
+    return "\n".join(lines)
+
+
+def _scan(args: dict) -> str:
+    """Start a scan and return at once (F9.1).
+
+    Always asynchronous, never "synchronous when fast": a contract that changes shape
+    with project size is one an agent cannot reason about, and the slow case is
+    exactly the repository that matters.
+    """
     workspace = Path(args.get("workspace") or ".").resolve()
     profile = args.get("profile") or "standard"
 
-    run = scan(workspace, runner=ContainerRunner(), profile=profile)
+    existing = jobs.current(workspace)
+    if existing and existing.state == "running":
+        return (
+            f"A {existing.profile} scan is already running here "
+            f"({existing.elapsed:.0f}s so far). Poll `scan_status`."
+        )
 
-    lines = [f"Scan complete: {run.status}, {len(run.findings)} finding(s)."]
-    if run.failures:
-        lines.append("")
-        lines.append("INCOMPLETE — these scanners did not run:")
-        lines += [f"  - {f.tool}: {f.reason}" for f in run.failures]
-        lines.append("Findings below are partial; do not treat this as a clean result.")
-    if run.fixed:
-        lines.append(f"Fixed since the last scan: {len(run.fixed)}")
-    lines.append("")
-    lines.append(f"Results: {workspace / RESULTS_DIR}")
-    lines.append("Use `list_findings` next, then `explain_finding` for detail.")
-    return "\n".join(lines)
+    jobs.start(workspace, profile, _run_scan)
+    return (
+        f"Started a {profile} scan of {workspace}.\n"
+        "Scans take seconds to minutes depending on the project, so this returns "
+        "immediately.\n\n"
+        "Poll `scan_status` until it reports done, then use `list_findings`."
+    )
 
 
 def _list_findings(args: dict) -> str:
@@ -182,6 +204,19 @@ def _explain_finding(args: dict) -> str:
 
 
 def _scan_status(args: dict) -> str:
+    workspace = Path(args.get("workspace") or ".").resolve()
+
+    job = jobs.current(workspace)
+    if job is not None and job.state == "running":
+        done = ", ".join(job.progress) or "starting"
+        return (
+            f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed.\n"
+            f"Completed so far: {done}\n"
+            "Poll again; do not report a result yet."
+        )
+    if job is not None and job.state == "failed":
+        return f"FAILED after {job.elapsed:.0f}s — {job.error}\nNo result to report."
+
     path = _results(args.get("workspace")) / "run.json"
     if not path.is_file():
         return f"No scan has run in this workspace ({path.parent})."
@@ -199,6 +234,8 @@ def _scan_status(args: dict) -> str:
         lines.append(f"  {scanner['tool']}: {mark}")
     network = data.get("network", {})
     lines += ["", f"left this machine: {network.get('what_left_the_machine', 'unknown')}"]
+    if job is not None and job.state == "done":
+        lines = [f"DONE in {job.elapsed:.0f}s.", "", *lines]
     if not data.get("complete"):
         lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
     return "\n".join(lines)
