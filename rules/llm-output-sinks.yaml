@@ -1,0 +1,64 @@
+# LLM-output-to-sink taint (F3.10, OWASP LLM05).
+#
+# Model output is untrusted input. These rules track it from the completion call to
+# an interpreter, shell, query or DOM sink — the failure mode specific to AI-written
+# code, where the value looks internal because the code generated it.
+#
+# Uses taint mode rather than sequential patterns: the source and sink are frequently
+# separated by helper calls and control flow, which a positional pattern misses.
+
+rules:
+  - id: valvur.llm.output-to-code-execution
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Model output reaches code execution. The value is attacker-influenceable
+      wherever any part of the prompt is (OWASP LLM05). Never execute generated
+      code without a human deciding to run it.
+    pattern-sources:
+      - pattern: $CLIENT.messages.create(...)
+      - pattern: $CLIENT.chat.completions.create(...)
+      - pattern: $CLIENT.generate_content(...)
+    pattern-sinks:
+      - pattern: eval(...)
+      - pattern: exec(...)
+      - pattern: compile(...)
+
+  - id: valvur.llm.output-to-shell
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Model output reaches a shell. Use an argument list, and validate against an
+      allowlist before running anything a model chose.
+    pattern-sources:
+      - pattern: $CLIENT.messages.create(...)
+      - pattern: $CLIENT.chat.completions.create(...)
+    pattern-sinks:
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+      - pattern: subprocess.$F(..., shell=True, ...)
+
+  - id: valvur.llm.output-to-sql
+    languages: [python]
+    severity: ERROR
+    message: >-
+      String-built SQL. Injection is injection regardless of whether a human or a
+      model wrote the value — use parameterised queries.
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute(f"...{$R}...")
+          - pattern: $CUR.execute("..." % $R)
+          - pattern: $CUR.execute("..." + $R)
+
+  - id: valvur.js.output-to-innerhtml
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Model output assigned to innerHTML is stored XSS. Use textContent.
+    pattern-sources:
+      - pattern: await $CLIENT.messages.create(...)
+      - pattern: await $CLIENT.chat.completions.create(...)
+    pattern-sinks:
+      - pattern: $EL.innerHTML = ...

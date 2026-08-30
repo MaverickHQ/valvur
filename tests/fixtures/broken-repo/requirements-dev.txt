@@ -1,0 +1,2 @@
+# Mutable git ref: every install may fetch different code.
+some-tool @ git+https://github.com/example/some-tool.git@main
