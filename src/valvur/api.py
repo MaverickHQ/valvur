@@ -86,6 +86,12 @@ def scan(
     if verify is not None:
         verify()
 
+    # And confirm the container can actually see the source. An unreadable workspace
+    # is indistinguishable from a clean one from inside a Scanner.
+    readable = getattr(runner, "verify_workspace_readable", None)
+    if readable is not None:
+        readable(workspace)
+
     if adapters is None:
         adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
 

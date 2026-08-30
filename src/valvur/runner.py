@@ -31,6 +31,10 @@ def db_repository() -> str | None:
 _RUNTIMES = ("docker", "podman", "nerdctl")
 
 
+class WorkspaceUnreadable(RuntimeError):
+    """The container cannot see the source. Never downgraded to a clean result."""
+
+
 class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
 
@@ -77,11 +81,23 @@ def _db_repository_flags() -> list[str]:
     return ["--db-repository", mirror] if mirror else []
 
 
-def _user_flags() -> list[str]:
+def _user_flags(runtime: str) -> list[str]:
+    """Map the invoking user into the container — differently per runtime.
+
+    Docker (rootful) needs an explicit --user, or files land owned by root.
+
+    Rootless Podman needs --userns=keep-id INSTEAD. Passing --user there makes the
+    bind-mounted workspace unreadable inside the container, and the failure is
+    silent: the scanner reads an empty tree, exits 0, and reports a clean scan of a
+    vulnerable repository. CI found this; it is exactly the class of runtime
+    difference ADR-0001 exists for.
+    """
     import os
 
     if os.name != "posix":
         return []
+    if "podman" in runtime:
+        return ["--userns=keep-id"]
     return ["--user", f"{os.getuid()}:{os.getgid()}"]
 
 
@@ -91,6 +107,43 @@ class ContainerRunner:
     def __init__(self, image: str = IMAGE, runtime: str | None = None):
         self.image = image
         self._runtime = runtime
+
+    def verify_workspace_readable(self, workspace: Path) -> None:
+        """Confirm the container can actually see the Workspace before trusting a
+        clean result.
+
+        Found by CI: on rootless Podman the wrong user-mapping flag made the bind
+        mount unreadable, so every Scanner read an empty tree, exited 0, and valvur
+        reported a CLEAN SCAN OF A VULNERABLE REPOSITORY. No Scanner can detect this
+        — from inside, an unreadable directory and an empty one are identical.
+        """
+        import subprocess
+        import tempfile
+
+        host_entries = sum(1 for _ in workspace.iterdir())
+        if host_entries == 0:
+            return                     # genuinely empty; nothing to verify
+
+        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
+            cmd = [
+                *self._base_flags(workspace, scratch),
+                "--entrypoint", "sh", self.image,
+                "-c", "ls -A /workspace | wc -l",
+            ]
+            proc = subprocess.run(  # noqa: S603
+                cmd, capture_output=True, text=True, timeout=120, check=False
+            )
+
+        seen = proc.stdout.strip()
+        if not seen.isdigit() or int(seen) == 0:
+            raise WorkspaceUnreadable(
+                f"The container cannot read the workspace: {workspace} has "
+                f"{host_entries} entries, the container sees {seen or 'none'}.\n"
+                "Refusing to report a scan — an unreadable workspace is "
+                "indistinguishable from a clean one, and reporting it as clean would "
+                "be the worst possible failure.\n"
+                f"Runtime: {self.runtime}"
+            )
 
     def verify_compatible(self) -> None:
         from . import compat
@@ -112,7 +165,7 @@ class ContainerRunner:
         db.mkdir(parents=True, exist_ok=True)
         flags = [
             self.runtime, "run", "--rm",
-            *_user_flags(),
+            *_user_flags(self.runtime),
             "--read-only",
             # A read-only root filesystem still needs scratch space. This tmpfs is in
             # memory, non-persistent and nosuid. `exec` is granted only to Scanners
@@ -272,7 +325,7 @@ class ContainerRunner:
                 # Docker Desktop translates UIDs for us; rootful Linux Docker does
                 # not, so without this the container cannot write its report and the
                 # scan silently returns nothing. Found by CI on Linux, not locally.
-                *_user_flags(),
+                *_user_flags(self.runtime),
                 "--network=none",                      # N2.1 — no interface at all
                 "--read-only",
                 "--cap-drop=ALL",

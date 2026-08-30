@@ -252,3 +252,35 @@ def test_no_mirror_configured_adds_no_flag(monkeypatch):
     monkeypatch.delenv("VALVUR_DB_REPOSITORY", raising=False)
 
     assert _db_repository_flags() == []
+
+
+def test_an_unreadable_workspace_is_refused_not_reported_clean(workspace, monkeypatch):
+    """The failure mode CI exposed, and the one no Scanner can detect.
+
+    From inside the container an unreadable directory and an empty one are identical.
+    Every Scanner reads nothing, exits 0, and valvur would report a clean scan of a
+    vulnerable repository — the worst possible failure for this product.
+    """
+    import subprocess
+
+    from valvur.runner import ContainerRunner, WorkspaceUnreadable
+
+    runner = ContainerRunner()
+
+    class Empty:
+        stdout = "0"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: Empty())
+
+    with pytest.raises(WorkspaceUnreadable) as excinfo:
+        runner.verify_workspace_readable(workspace)
+
+    message = str(excinfo.value)
+    assert "cannot read the workspace" in message
+    assert "indistinguishable from a clean one" in message
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("runtime", RUNTIMES)
+def test_the_container_can_read_the_workspace_on_every_runtime(workspace, runtime):
+    ContainerRunner(runtime=_available(runtime)).verify_workspace_readable(workspace)
