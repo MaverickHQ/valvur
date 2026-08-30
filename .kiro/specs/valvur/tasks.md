@@ -892,6 +892,8 @@ proven rather than intended.
 
 ### 8.1 — File ownership across runtimes
 
+> **✅ COMPLETE 2026-08-30.** Ownership proven on Docker **and rootless Podman**; the dual-runtime claim now rests on evidence.
+
 3. **Results Folder** files are owned by the invoking user on Docker. *(F1.4)*
 4. **Results Folder** files are owned by the invoking user on rootless Podman.
    *(F1.4 — the reason ADR-0001 exists.)*
@@ -903,6 +905,8 @@ proven rather than intended.
 
 ### 8.2 — Isolation and runtime detection
 
+> **✅ COMPLETE 2026-08-30.** 127 tests.
+
 5. The container cannot write to `/workspace`. *(F1.1)*
 6. A **Workspace** path containing spaces scans correctly.
 7. **A symlink pointing outside the Workspace resolves to nothing inside the
@@ -911,7 +915,8 @@ proven rather than intended.
 8. With no container runtime present, valvur refuses with actionable remediation
    text. *(F1.5)*
 
-- [ ] **8.2.9** **Runtime detection must find Podman Desktop's install.** `shutil.which`
+- [x] **8.2.9** **Runtime detection must find Podman Desktop's install.** `shutil.which`  
+  **STATUS 2026-08-30:** ✅ Detection now probes known install locations as well as `PATH`, and found the real Podman 6.0.2 at `/opt/podman/bin`.
   missed a working Podman 6.0.2 at `/opt/podman/bin/podman`, because Podman Desktop
   does not add itself to `PATH`. A user with a perfectly good runtime would be told
   they have none — the worst kind of first-run failure, since the advice would be to

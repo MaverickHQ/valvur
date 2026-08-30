@@ -24,6 +24,19 @@ class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
 
 
+# Installers that do not touch PATH. Podman Desktop on macOS is the common case:
+# it puts a perfectly good runtime at /opt/podman/bin and leaves PATH alone, so
+# `shutil.which` finds nothing and we would tell a user to install what they already
+# have — the worst kind of first-run failure.
+_EXTRA_LOCATIONS = (
+    "/opt/podman/bin",                                   # Podman Desktop, macOS
+    "/opt/homebrew/bin",                                 # Homebrew, Apple silicon
+    "/usr/local/bin",                                    # Homebrew Intel, Docker
+    "/Applications/Docker.app/Contents/Resources/bin",   # Docker Desktop, macOS
+    "~/.local/bin",
+)
+
+
 def detect_runtime() -> str:
     import os
     import shutil
@@ -31,9 +44,15 @@ def detect_runtime() -> str:
     override = os.environ.get("VALVUR_RUNTIME")
     if override:
         return override
+
     for candidate in _RUNTIMES:
-        if shutil.which(candidate):
-            return candidate
+        found = shutil.which(candidate)
+        if found:
+            return found
+        for location in _EXTRA_LOCATIONS:
+            path = Path(location).expanduser() / candidate
+            if path.is_file() and os.access(path, os.X_OK):
+                return str(path)
     raise NoContainerRuntime(
         "No container runtime found. valvur needs Docker or Podman.\n"
         "  macOS:  brew install --cask docker   (or: brew install podman && podman machine start)\n"
