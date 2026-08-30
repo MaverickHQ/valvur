@@ -149,6 +149,12 @@ Rules that must hold:
 - **Fail loudly.** If a scanner crashed, that appears at the top of
   `SUMMARY.md`. A silent failure manufactures false confidence and is worse
   than no scan.
+- **Evidence is neutralised, never reproduced raw** (F3.13). An agent reads
+  `SUMMARY.md` first and by instruction. If we quote an injection payload
+  verbatim, we launder an attack out of a file the agent might never have
+  opened into one we tell it to read. Hidden Unicode is escaped; directive
+  text is fenced and labelled untrusted. **valvur must never become the
+  delivery mechanism.**
 - **Clean is explicit.** No findings still writes the folder, with
   `"status": "clean"`, so an agent can tell "clean" from "never ran".
 

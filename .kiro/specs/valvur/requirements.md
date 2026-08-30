@@ -104,6 +104,13 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
     version ranges, absent lockfiles, and dependencies on mutable git references.
 12. F3.12 — valvur SHALL treat all **Workspace** content as data and SHALL NOT act on
     instructions found within it.
+13. F3.13 — WHEN valvur writes evidence drawn from **Workspace** content into any
+    artifact, it SHALL neutralise that evidence: hidden Unicode SHALL be escaped
+    rather than reproduced, and directive text SHALL be fenced and labelled as
+    untrusted. *Rationale: an agent reads `SUMMARY.md` first and by instruction. If we
+    reproduce an injection payload verbatim, we launder an attack out of a file the
+    agent might never have opened into one we tell it to read. valvur must not become
+    the delivery mechanism.*
 
 ## F4 — Licence analysis
 
