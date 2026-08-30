@@ -44,3 +44,5 @@ jobs:
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
       - run: uv run pytest -q -m e2e
+      - name: valvur adds no GPL component (F10.4)
+        run: uv run python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
