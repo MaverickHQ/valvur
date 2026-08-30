@@ -302,12 +302,12 @@ of fixes, so that nothing changes my code without my decision.
    analysis. Disclosure is a better answer than an impossible claim.*
 5. F10.5 — valvur SHALL support retrieving vulnerability databases from a
    user-specified OCI registry for air-gapped operation.
-6. F10.6 — The host shim's **core** SHALL install without a compiler and without the
-   **Scanners** present on the host, with no runtime dependencies. *Clarified
-   2026-08-30: the MCP server is an opt-in extra (`valvur[mcp]`) because the official
-   SDK pulls 22 transitive packages including `cryptography`, which needs a compiler
-   wherever no wheel exists. The CLI — the wider audience — keeps the property; an
-   MCP user makes the trade knowingly.*
+6. F10.6 — The host shim SHALL install without a compiler, without the **Scanners**
+   present on the host, and with **no runtime dependencies at all** — including the
+   MCP server, which is on the primary install path.
+   *(See [ADR-0015](../../../docs/adr/0015-hand-rolled-mcp-stdio-transport.md): the
+   official SDK pulls 22 packages including an HTTP server, an OAuth stack and a
+   crypto library to support transports we do not use. stdio is implemented directly.)*
 
 ---
 
