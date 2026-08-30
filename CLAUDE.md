@@ -156,6 +156,11 @@ Rules that must hold:
   opened into one we tell it to read. Hidden Unicode is escaped; directive
   text is fenced and labelled untrusted. **valvur must never become the
   delivery mechanism.**
+- **In markup, escaping replaces fencing** (F7.15). The `[UNTRUSTED CONTENT]`
+  fence is a textual convention with no effect in HTML, where a payload can
+  execute or hide itself with styling while remaining in the file. Any
+  artifact that renders — `report.html` today, anything else later — escapes
+  workspace content so it cannot act as markup, style or script.
 - **Clean is explicit.** No findings still writes the folder, with
   `"status": "clean"`, so an agent can tell "clean" from "never ran".
 

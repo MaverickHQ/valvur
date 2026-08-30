@@ -209,7 +209,14 @@ form, so that I can act on them without exhausting my context window.
 13. F7.13 — Every **Finding** in `findings.json` SHALL appear in `results.sarif` and
     SHALL be counted in `SUMMARY.md`.
 14. F7.14 — `REMEDIATION.md` SHALL present **Remediation Items** in ranked order, each
-    independently applicable.
+    independently applicable. A **Remediation Item** SHALL correspond to one *action*,
+    not one **Finding**: several **Findings** resolved by a single change SHALL appear
+    as one item.
+15. F7.15 — WHEN valvur renders **Workspace**-derived content into a markup or markup-
+    adjacent artifact, it SHALL escape that content so it cannot be interpreted as
+    markup, styling or script. *Rationale: F3.13's fencing is a textual convention
+    and has no effect in HTML, where a payload can execute, or hide itself from the
+    reader with styling while remaining present in the file.*
 
 ## F8 — Suppressions
 
