@@ -141,8 +141,21 @@ becomes a confusing failure later if skipped.
 
 ## Phase 1 — Walking skeleton
 
-> **✅ Cycles 1–8 complete 2026-08-30.** 11 tests green (9 unit, 2 e2e against the
-> real container). Only 1.12, the usability gate, remains — it needs a person.
+> **✅ Cycles 1–8 complete 2026-08-30.** 12 tests green (10 unit, 2 e2e), CI green on
+> Linux. Only 1.12, the usability gate, remains — it needs a person.
+>
+> **Three defects found by tests, not review:**
+> 1. The e2e test caught container paths (`/workspace/…`) leaking into **Findings**,
+>    which would have broken **Fingerprint** portability (F5.4).
+> 2. The first fixture used AWS's published example key, which gitleaks allowlists —
+>    the fixture was unscannable by construction.
+> 3. **CI on Linux caught a design hole macOS hid.** Rootful Docker does not translate
+>    UIDs the way Docker Desktop does, so the container could not write its report —
+>    and `scan()` reported the broken run as **clean**. Exactly the silent failure the
+>    project calls worse than no scan. Now raises `ScannerFailed` (F2.5, N3.1).
+>
+> Defect 3 is the argument for ADR-0001's dual-runtime requirement, arriving seven
+> phases before Phase 8 was due to test it.
 
 **Goal:** `valvur scan` works end to end, for a real user, with a single **Scanner**.
 Thin but complete: install → scan → read results.
