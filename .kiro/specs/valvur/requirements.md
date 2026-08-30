@@ -281,7 +281,18 @@ of fixes, so that nothing changes my code without my decision.
    all capabilities dropped.
 3. F10.3 — valvur SHALL publish a signed image, an SBOM, and build provenance per
    release.
-4. F10.4 — The image SHALL contain no GPL- or AGPL-licensed component (ADR-0005).
+4. F10.4 — **CORRECTED 2026-08-30.** ~~The image SHALL contain no GPL- or
+   AGPL-licensed component.~~ valvur SHALL add no GPL- or AGPL-licensed component
+   **as a Scanner, Check or library it deliberately installs** (ADR-0005), and SHALL
+   publish an SBOM disclosing every component's licence, including the base image's.
+   *Rationale: as originally written this was unsatisfiable by any Linux container.
+   Measured on our own image: 12 GPL components — busybox, apk-tools,
+   alpine-baselayout, musl-utils, xz-libs, gdbm, readline and others — all from the
+   base OS, all mere aggregation with no linking. A requirement that can never pass
+   either blocks every release or gets quietly ignored, and the second is worse
+   because it trains people to skip the check. ADR-0005's real concern was
+   deliberately adding a GPL tool (hadolint) to a product that ships licence
+   analysis. Disclosure is a better answer than an impossible claim.*
 5. F10.5 — valvur SHALL support retrieving vulnerability databases from a
    user-specified OCI registry for air-gapped operation.
 6. F10.6 — The host shim SHALL install without a compiler and without the **Scanners**
