@@ -91,3 +91,19 @@ def gitleaks_output(*, line=3, file="/workspace/config.py", secret="AKIAV7Q2XR4T
         "Secret": secret,
         "Match": match if match is not None else f'AWS_ACCESS_KEY_ID = "{secret}"',
     }])
+
+
+class CrashingAdapter:
+    """A Scanner that dies. Not a mock of an internal collaborator — a real adapter
+    whose tool fails, which is the only way to exercise fleet failure isolation."""
+
+    name = "exploding-scanner"
+
+    def __init__(self, reason="container exited 137 (OOM)"):
+        self._reason = reason
+
+    def run(self, runner, workspace):
+        raise RuntimeError(self._reason)
+
+    def parse(self, output):  # pragma: no cover - never reached
+        return []

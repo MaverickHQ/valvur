@@ -291,6 +291,14 @@ concurrency correctly.
 
 ### 3.1 — Failure semantics
 
+> **✅ COMPLETE 2026-08-30.** All 5 cycles green, 31 tests total.
+> Phase 1's `ScannerFailed` test survived unchanged, because with one Scanner a single
+> failure *is* total failure — the rule generalised cleanly rather than needing a
+> rewrite.
+> Added beyond the cycles: `run.json` carries an explicit `"complete"` flag, because
+> `"status": "clean"` on a run where every Scanner crashed is a lie of omission. It is
+> the first field an agent should read.
+
 > **This changes existing behaviour.** Phase 1 raises `ScannerFailed` when the single
 > Scanner fails, which was right for one and is wrong for six — it contradicts cycle 1
 > below. `test_a_scanner_that_produced_no_report_is_not_reported_as_clean` therefore
