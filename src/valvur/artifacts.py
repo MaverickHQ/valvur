@@ -74,6 +74,15 @@ def sarif(findings: list[Finding], *, version: str) -> str:
             "partialFingerprints": {FINGERPRINT_KEY: finding.fingerprint},
             "properties": {"status": finding.status, "rank": finding.rank},
         })
+        if finding.suppressed:
+            # SARIF's own concept. An invented property would make IDEs show
+            # suppressed findings as live — worse than emitting no SARIF, because the
+            # tool would look wrong rather than misconfigured.
+            results[-1]["suppressions"] = [{
+                "kind": "external",
+                "status": "accepted",
+                "justification": finding.suppressed,
+            }]
 
     return json.dumps({
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",

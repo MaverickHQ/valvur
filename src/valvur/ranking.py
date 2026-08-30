@@ -70,7 +70,12 @@ def sort_key(finding: Finding) -> tuple:
     # non-zero EPSS, which real output made obvious.
     tier = min(_exploit_tier(finding), CLASS_WEIGHT.get(finding.rule, DEFAULT_WEIGHT))
 
+    # A suppressed Finding occupying a top slot crowds out a live one — the exact
+    # noise problem F6.5 exists to solve. It is still reported, just never first.
+    suppressed_penalty = 1 if finding.suppressed else 0
+
     return (
+        suppressed_penalty,
         dev_penalty,
         tier,
         -epss,

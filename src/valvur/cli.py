@@ -4,9 +4,47 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .api import scan
+
+
+def _print_suppression(args) -> int:
+    """Print a suppression block. We never write the file (F8.7) — but nobody will
+    hand-copy a 32-character hash out of findings.json either, so we print one (F8.8).
+    """
+    import json
+    from datetime import timedelta
+
+    workspace = Path(args.path).resolve()
+    findings_file = workspace / ".security-scan" / "findings.json"
+    if not findings_file.is_file():
+        print(f"No findings.json at {findings_file}. Run `valvur scan` first.")
+        return 1
+
+    findings = json.loads(findings_file.read_text(encoding="utf-8"))["findings"]
+    match = next((f for f in findings if f["fingerprint"] == args.fingerprint), None)
+    if match is None:
+        print(f"No finding with fingerprint {args.fingerprint}.")
+        print("Fingerprints are listed in .security-scan/findings.json.")
+        return 1
+
+    expires = (datetime.now(UTC).date() + timedelta(days=args.days)).isoformat()
+    reason = args.reason or "TODO: say why this risk is accepted, for the reviewer."
+
+    print("# Append to .security-scan.toml in your project root, then commit it.")
+    print("# valvur does not write this file; a suppression is your decision.")
+    print()
+    print("[[suppress]]")
+    print(f'fingerprint = "{match["fingerprint"]}"')
+    print(f'rule = "{match["rule"]}"')
+    print(f'path = "{match["path"]}"')
+    print(f"expires = {expires}")
+    print(f'reason = "{reason}"')
+    print()
+    print(f"# {match['title'][:100]}")
+    return 0
 
 
 def _refresh_kev() -> None:
@@ -61,7 +99,20 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     sub.add_parser("update", help="Fetch the vulnerability database into the local cache")
 
+    suppress_cmd = sub.add_parser(
+        "suppress",
+        help="Print a ready-to-paste suppression block for a finding (never writes)",
+    )
+    suppress_cmd.add_argument("fingerprint", help="Fingerprint from findings.json")
+    suppress_cmd.add_argument("path", nargs="?", default=".", help="Workspace")
+    suppress_cmd.add_argument("--days", type=int, default=90,
+                              help="Days until the suppression expires (default: 90)")
+    suppress_cmd.add_argument("--reason", default="", help="Why this risk is accepted")
+
     args = parser.parse_args(argv)
+
+    if args.command == "suppress":
+        return _print_suppression(args)
 
     if args.command == "update":
         from .runner import ContainerRunner

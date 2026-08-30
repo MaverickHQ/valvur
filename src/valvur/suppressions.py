@@ -120,3 +120,68 @@ def unmatched(findings, policy: Policy) -> list[Suppression]:
     """Suppressions matching nothing — stale, and worth saying so (F8.5)."""
     present = {f.fingerprint for f in findings}
     return [s for s in policy.suppressions if s.fingerprint not in present]
+
+
+def expired(policy: Policy, today: date | None = None) -> list[Suppression]:
+    """Suppressions whose expiry has passed. A lapsed risk acceptance is a decision
+    someone must retake — which is the entire purpose of mandatory expiry (F8.4)."""
+    return [s for s in policy.suppressions if s.is_expired(today)]
+
+
+def policy_findings(policy: Policy, findings, *, today: date | None = None):
+    """Report the suppression file's own problems as Findings.
+
+    An unexpiring or stale suppression is exactly how a real finding gets buried for
+    years. Reporting it in the same place as everything else is what stops that.
+    """
+    from .findings import Finding
+    from .fingerprint import derive
+
+    out = []
+
+    for problem in policy.problems:
+        shown = problem.entry.get("fingerprint", "<none>")
+        out.append(Finding(
+            rule="valvur.suppression.invalid",
+            path=SUPPRESSION_FILE,
+            line=0,
+            title=f"Suppression rejected — {problem.detail}",
+            evidence=f"fingerprint: {shown}",
+            fingerprint=derive("suppression", "invalid", str(shown), problem.detail),
+            severity="medium",
+            sources=("valvur",),
+        ))
+
+    for lapsed in expired(policy, today):
+        out.append(Finding(
+            rule="valvur.suppression.expired",
+            path=SUPPRESSION_FILE,
+            line=0,
+            title=(
+                f"Suppression for {lapsed.rule} expired on "
+                f"{lapsed.expires.isoformat()} — the finding is reported again"
+            ),
+            evidence=f"reason given: {lapsed.reason}",
+            fingerprint=derive("suppression", "expired", lapsed.fingerprint),
+            severity="medium",
+            sources=("valvur",),
+        ))
+
+    for stale in unmatched(findings, policy):
+        if stale.is_expired(today):
+            continue                      # already reported as expired
+        out.append(Finding(
+            rule="valvur.suppression.stale",
+            path=SUPPRESSION_FILE,
+            line=0,
+            title=f"Suppression matches nothing — {stale.describe()}",
+            evidence=(
+                "The finding it accepted is gone. Remove the suppression, or it will "
+                "silently accept a future finding that happens to match."
+            ),
+            fingerprint=derive("suppression", "stale", stale.fingerprint),
+            severity="low",
+            sources=("valvur",),
+        ))
+
+    return out

@@ -125,6 +125,7 @@ def scan(
     # suppressed Finding is still present, and un-suppressing it must not read as new.
     policy = _suppressions.load(workspace)
     findings = _suppressions.apply(findings, policy)
+    findings += _suppressions.policy_findings(policy, findings)
 
     findings = _ranking.apply(findings)
 
