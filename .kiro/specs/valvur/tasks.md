@@ -859,25 +859,87 @@ something live, and a reviewer can tell from the diff alone what is being accept
 **Goal:** identical behaviour on Docker and Podman, with the isolation guarantees
 proven rather than intended.
 
-### TDD cycles
+> **Reordered and sub-phased 2026-08-30 after reviewing Phase 7.** The review found
+> **F10.4 was unsatisfiable as written** and had been since we chose a base image, and
+> that our runtime detection misses a real, common Podman installation.
 
-1. **Results Folder** files are owned by the invoking user on Docker. *(F1.4)*
-2. **Results Folder** files are owned by the invoking user on rootless Podman.
-   *(F1.4 — the reason ADR-0001 exists. **Requires Podman**, deferred from task 0.2.
-   If it is still not installed, install it now or consciously drop the dual-runtime
-   claim — an untested guarantee is worse than an unclaimed one.)*
-3. The container cannot write to `/workspace`. *(F1.1)*
-4. A **Workspace** path containing spaces and symlinks scans correctly.
-5. With no container runtime present, valvur refuses with actionable remediation
-   text. *(F1.5 — an error message is a usability surface.)*
-6. A shim/image major version mismatch refuses to run and states both versions.
-   *(F1.9)*
-7. The image contains no GPL or AGPL component. *(F10.4)*
-8. Vulnerability databases load from a user-specified OCI registry. *(F10.5)*
+### 8.0 — Correct and verify the licence claim
 
-**Exit:** the full suite passes on Docker and Podman.
+1. The image adds no GPL or AGPL component **as a Scanner, Check or installed
+   library**. *(F10.4, corrected.)*
+2. The verification uses **syft against our own image**, not hand-parsed package
+   metadata.
 
-**Commit:** `feat: runtime portability across docker and podman`
+> **Why the correction.** Measured on our own image: **12 GPL components** —
+> `busybox`, `apk-tools`, `alpine-baselayout`, `musl-utils`, `xz-libs`, `gdbm`,
+> `readline` and more — every one from the base OS. No Linux container can avoid
+> them. A requirement that can never pass either blocks every release or is quietly
+> ignored, and the second is worse: it teaches people to skip the check.
+>
+> **And why syft.** A hand-rolled check over Python package metadata reported *96
+> packages, all clean*. Syft found **2,227 components and the 12 above**. The Python
+> layer was never where the risk was, and we ship an SBOM generator — using it on
+> ourselves is the dogfooding the release gate is meant to prove.
+
+- [ ] **8.0.3** Publish the image SBOM per release (F10.3), disclosing base-OS
+  licences rather than pretending they are absent. For a tool that ships licence
+  analysis, disclosure is the only defensible answer.
+
+**Commit:** `fix: correct the licence claim and verify it with syft`
+
+### 8.1 — File ownership across runtimes
+
+3. **Results Folder** files are owned by the invoking user on Docker. *(F1.4)*
+4. **Results Folder** files are owned by the invoking user on rootless Podman.
+   *(F1.4 — the reason ADR-0001 exists.)*
+
+> **Podman is installed** (6.0.2, machine running), so the deferral from task 0.2 is
+> discharged and the dual-runtime claim can stand on evidence.
+
+**Commit:** `test: file ownership on docker and rootless podman`
+
+### 8.2 — Isolation and runtime detection
+
+5. The container cannot write to `/workspace`. *(F1.1)*
+6. A **Workspace** path containing spaces scans correctly.
+7. **A symlink pointing outside the Workspace resolves to nothing inside the
+   container.** *(Not merely "symlinks work": the read-only mount should make an
+   escape structurally impossible, and that is worth asserting rather than assuming.)*
+8. With no container runtime present, valvur refuses with actionable remediation
+   text. *(F1.5)*
+
+- [ ] **8.2.9** **Runtime detection must find Podman Desktop's install.** `shutil.which`
+  missed a working Podman 6.0.2 at `/opt/podman/bin/podman`, because Podman Desktop
+  does not add itself to `PATH`. A user with a perfectly good runtime would be told
+  they have none — the worst kind of first-run failure, since the advice would be to
+  install what they already have. Probe known locations as well as `PATH`.
+
+**Commit:** `feat: robust runtime detection and proven isolation`
+
+### 8.3 — Version compatibility
+
+10. A shim/image major version mismatch refuses to run and states both versions.
+    *(F1.9)*
+
+- [ ] **8.3.11** **Design the version relationship first — none exists.** `_VERSION`
+  strings sit in two files, unconnected, and nothing compares them. The image should
+  declare its version as an OCI label, the shim should read it, and they should
+  compare on major. ADR-0001 accepted two artifacts on the condition this check
+  existed; it does not yet.
+
+**Commit:** `feat: shim and image version compatibility check`
+
+### 8.4 — Air-gapped operation
+
+12. Vulnerability databases load from a user-specified OCI registry. *(F10.5)*
+
+- [ ] **8.4.13** Expose Trivy's `--db-repository` through configuration, and document
+  the mirroring workflow. This is the hardest enterprise requirement and ADR-0012
+  already made it reachable — the DB lives outside the image, so mirroring needs no
+  special build.
+
+**Exit:** the full suite passes on Docker **and** Podman; the licence claim is one we
+can actually defend; and a runtime that is installed is a runtime we find.
 
 ---
 
