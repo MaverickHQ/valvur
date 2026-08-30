@@ -10,8 +10,15 @@ Vocabulary is [CONTEXT.md](../../../CONTEXT.md); decisions are
 
 ## How to execute this plan
 
-**One phase = one commit.** Each phase states its goal, its TDD cycles, an exit
-criterion, and its commit message. Do not commit mid-phase; do not span phases.
+**One phase = one commit**, with one documented exception. Each phase states its goal,
+its TDD cycles, an exit criterion, and its commit message. Do not span phases.
+
+The rule exists to keep changes reviewable. **Phase 3 is large enough that obeying its
+letter would defeat its purpose** — a single commit containing a refactor, the failure
+model, concurrency and five Scanner adapters is the opposite of reviewable. Phase 3
+therefore commits per sub-phase (3.0 … 3.4), each self-contained and green. Any future
+phase that grows past roughly one reviewable diff should do the same, deliberately and
+noted here — not silently.
 
 **TDD is vertical, never horizontal.** Each numbered cycle below is one
 RED→GREEN pass: write *one* test for *one* behaviour, watch it fail, write the
@@ -259,32 +266,102 @@ classes' tests before implementing any of them.
 ## Phase 3 — Scanner fleet
 
 **Goal:** the remaining five **Scanners** contribute **Findings** through one
-normalised model.
+normalised model, inside an orchestrator that already handles failure, profiles and
+concurrency correctly.
 
-### TDD cycles
+> **Reordered 2026-08-30 after reviewing Phases 1–2.** The original plan added five
+> Scanners and *then* defined what happens when one fails. That is backwards: failure
+> handling is the fleet's architecture, so building it afterwards means rewriting every
+> adapter. Failure semantics, profile selection and concurrency now come first, and
+> each Scanner slots into a structure that already works.
 
-One vertical slice per **Scanner** — its output becomes **Findings**, then the next.
-Capture that **Scanner**'s real output as a golden fixture *at the moment you write
-its cycle*, not in a batch beforehand.
+### 3.0 — Refactor to adapters *(no behaviour change)*
 
-1. Trivy dependency vulnerabilities become **Findings**.
-2. OSV-Scanner findings become **Findings** and merge with Trivy's where they agree.
-3. Opengrep results become **Findings**.
-4. Checkov IaC misconfigurations become **Findings** carrying the resource address.
-5. Syft produces the SBOM artifact.
-6. A crashing **Scanner** is reported at the top of `SUMMARY.md` and the run
-   completes. *(F2.5, F7.7)*
-7. A **Scanner** that times out is reported as failed, not as clean. *(F2.7)*
-8. A **Scanner** exiting non-zero *because it found issues* is a successful run.
+- [ ] **3.0.1** Extract a `ScannerAdapter` per tool, each owning: invoke, parse,
+  path-normalise, and fingerprint by **Finding Class**. `scan()` becomes orchestration
+  only. Do this while there is *one* adapter to move rather than six.
+  `_relative()` is gitleaks-shaped and moves into the adapter — Trivy reports target
+  names, Checkov file paths, OSV lockfile paths.
+- [ ] **3.0.2** All 24 existing tests must pass unchanged. If a test needs editing,
+  the refactor changed behaviour and has gone wrong.
+
+**Commit:** `refactor: extract scanner adapters`
+
+### 3.1 — Failure semantics
+
+> **This changes existing behaviour.** Phase 1 raises `ScannerFailed` when the single
+> Scanner fails, which was right for one and is wrong for six — it contradicts cycle 1
+> below. `test_a_scanner_that_produced_no_report_is_not_reported_as_clean` therefore
+> **changes meaning**: failure becomes a per-Scanner record, and the exception is
+> reserved for total failure. This is deliberate, not a broken test to "fix".
+
+1. A crashing **Scanner** is reported at the top of `SUMMARY.md` and the **Scan Run**
+   completes with the other Scanners' results. *(F2.5, F7.7)*
+2. A **Scanner** that times out is recorded as failed, never as clean. *(F2.7)*
+3. A **Scanner** exiting non-zero *because it found issues* is a successful run.
    *(F2.4)*
-9. When every **Scanner** fails, the **Scan Run** fails and exits non-zero. *(N3.2)*
-10. A **Workspace** path containing shell metacharacters reaches the **Scanner**
+4. When every **Scanner** fails, the **Scan Run** fails and exits non-zero. *(N3.2)*
+5. `run.json` records which Scanners ran, which failed, and why. *(F7.12, N3.1)*
+
+**Commit:** `feat: per-scanner failure isolation`
+
+### 3.2 — Profile selection and concurrency
+
+> Neither appeared in the original Phase 3 despite both being required. Concurrency
+> especially: six Scanners run serially will not meet the 5-minute `standard` budget
+> (N1.2), and discovering that in Phase 11 means restructuring the orchestrator after
+> everything depends on it.
+
+6. The `quick` **Profile** runs only its designated **Scanners**, per the matrix in
+   [design.md](./design.md) §2. *(F2.3)*
+7. Independent **Scanners** run concurrently, and a slow one does not serialise the
+   rest. *(F2.6)*
+8. A per-**Scanner** timeout fires independently and is recorded per cycle 2. *(F2.7)*
+
+**Commit:** `feat: profile selection and concurrent scanner execution`
+
+### 3.3 — The Scanners
+
+One vertical slice each. **Capture that Scanner's real output as a golden fixture at
+the moment you write its cycle**, not in a batch beforehand.
+
+9. Trivy dependency vulnerabilities become **Findings** with the `dependency_vuln`
+   identity already built in Phase 2.
+10. OSV-Scanner findings become **Findings** and merge with Trivy's where they agree,
+    keeping both sources. *(F5.8)*
+11. Opengrep results become **Findings** using the `sast` identity, including ordinal
+    disambiguation for repeats.
+12. Checkov IaC misconfigurations become **Findings** carrying the resource address.
+13. Syft produces `sbom.cdx.json`.
+
+**Commit:** `feat: full scanner fleet`
+
+### 3.4 — Safety and supporting work
+
+14. A **Workspace** path containing shell metacharacters reaches the **Scanner**
     unaltered and unexecuted. *(N2.3)*
 
-**Exit:** all six **Scanners** contribute; killing any one still yields a complete,
-honest run.
+- [ ] **3.4.1** **Golden fixture version discipline.** Fixture filenames carry the
+  Scanner version, asserted against the version pinned in the image. Without this, a
+  Scanner upgrade silently re-baselines the goldens and parsing changes go unnoticed.
+- [ ] **3.4.2** Grow `tests/fixtures/broken-repo/` per cycle: a dependency manifest
+  with a **stable** known-vulnerable package (one whose advisory will not be
+  withdrawn), Terraform with a misconfigured resource, and code with a SAST issue.
+  Keep it strictly inside `tests/fixtures/` — Phase 11's self-scan will otherwise flag
+  our own test data in our own release gate.
+- [ ] **3.4.3** **Measure the image and record it.** We are at 30.4MB with gitleaks;
+  the fleet will be roughly 1GB, mostly the Python layer. P1 promises useful output in
+  under 60 seconds, and for a first-time user that includes pulling the image. Decide
+  now whether `quick` warrants a smaller image or whether we accept and document the
+  download. This is a Phase 3 decision because by Phase 10 the image is fixed.
+- [ ] **3.4.4** `state.json` should remember *what* was fixed, not only that something
+  was. `SUMMARY.md` currently cannot say "you fixed the AWS key in config.py". A title
+  alongside each fingerprint is a few lines now and awkward later.
 
-**Commit:** `feat: full scanner fleet with failure isolation`
+**Exit:** all six **Scanners** contribute; killing any one still yields a complete,
+honest run; the `quick` **Profile** runs only its Scanners, concurrently.
+
+**Commit:** `feat: scanner fleet safety and supporting work`
 
 ---
 
