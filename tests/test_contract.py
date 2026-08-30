@@ -146,16 +146,19 @@ def test_the_summary_stays_within_its_cap_given_ten_thousand_findings(tmp_path):
     from valvur.findings import Finding
     from valvur.results import LINE_CAP, write
 
+    from dataclasses import dataclass, field
+
+    @dataclass
     class Run:
-        findings = [
+        findings: list = field(default_factory=lambda: [
             Finding(rule=f"R{i}", path=f"src/f{i}.py", line=i,
                     title=f"finding number {i}", fingerprint=f"fp{i}", rank=i + 1)
             for i in range(10_000)
-        ]
-        fixed: list[str] = []
-        scanners: list = []
-        failures: list = []
-        status = "findings"
+        ])
+        fixed: list = field(default_factory=list)
+        scanners: list = field(default_factory=list)
+        failures: list = field(default_factory=list)
+        status: str = "findings"
 
     write(tmp_path, Run())
 
