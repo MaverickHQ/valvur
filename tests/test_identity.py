@@ -54,7 +54,8 @@ def test_a_finding_absent_from_the_previous_run_is_new(workspace, runner_finding
     scan(workspace, runner=runner_finding_nothing)
     second = scan(workspace, runner=FakeRunner(gitleaks_output(), 1))
 
-    assert second.findings[0].status == "new"
+    secret = next(f for f in second.findings if f.rule == "aws-access-token")
+    assert secret.status == "new"
 
 
 def test_every_finding_on_a_first_ever_scan_is_new(workspace, runner_finding_one_secret):
@@ -80,7 +81,8 @@ def test_a_fixed_finding_that_returns_is_regressed(
     scan(workspace, runner=runner_finding_nothing)      # fixed
     returned = scan(workspace, runner=runner_finding_one_secret)  # back again
 
-    assert returned.findings[0].status == "regressed"
+    secret = next(f for f in returned.findings if f.rule == "aws-access-token")
+    assert secret.status == "regressed"
 
 
 def test_fingerprints_do_not_depend_on_where_the_workspace_lives(
