@@ -13,9 +13,13 @@ FROM anchore/syft:v1.51.1                AS syft
 
 FROM python:3.12-alpine3.22
 ARG TARGETARCH
+ARG VALVUR_VERSION=0.0.0-dev
 LABEL org.opencontainers.image.source="https://github.com/MaverickHQ/valvur"
 LABEL org.opencontainers.image.description="Fully offline security scanner for AI-generated code"
 LABEL org.opencontainers.image.licenses="MIT"
+# Read by the shim to refuse an incompatible pair (F1.9). ADR-0001 accepted two
+# artifacts on condition this check existed.
+LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 
 COPY --from=gitleaks /usr/bin/gitleaks        /usr/local/bin/gitleaks
 COPY --from=trivy    /usr/local/bin/trivy     /usr/local/bin/trivy

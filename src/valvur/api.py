@@ -81,6 +81,11 @@ def _run_one(adapter, runner, workspace) -> tuple:
 def scan(
     workspace: Path, *, runner, adapters=None, profile: str = _profiles.STANDARD
 ) -> ScanRun:
+    # Refuse a mismatched shim/image pair before doing any work (F1.9).
+    verify = getattr(runner, "verify_compatible", None)
+    if verify is not None:
+        verify()
+
     if adapters is None:
         adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
 

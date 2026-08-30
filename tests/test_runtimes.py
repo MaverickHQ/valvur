@@ -151,3 +151,95 @@ def test_no_runtime_produces_actionable_remediation(monkeypatch):
     message = str(excinfo.value)
     assert "brew install" in message
     assert "valvur scan" in message, "the message must name the exact next command"
+
+
+# ------------------------------------------------- 8.3 version compatibility
+
+def test_a_mismatched_shim_and_image_are_refused(monkeypatch):
+    """F1.9 — ADR-0001 accepted two artifacts on condition this check existed.
+
+    Without it, a stale image silently produces output a newer shim cannot parse, and
+    the failure surfaces as a confusing parse error rather than the version mismatch
+    it actually is.
+    """
+    from valvur import compat
+
+    monkeypatch.setattr(compat, "shim_version", lambda: "0.3.0")
+    monkeypatch.setattr(compat, "image_version", lambda r, i: "0.1.0")
+
+    with pytest.raises(compat.IncompatibleImage) as excinfo:
+        compat.check("docker", "valvur:dev")
+
+    message = str(excinfo.value)
+    assert "0.3.0" in message and "0.1.0" in message, "both versions must be named"
+    assert "pip install -U" in message, "the message must name the exact next command"
+
+
+def test_a_patch_difference_is_compatible(monkeypatch):
+    from valvur import compat
+
+    monkeypatch.setattr(compat, "shim_version", lambda: "0.1.4")
+    monkeypatch.setattr(compat, "image_version", lambda r, i: "0.1.9")
+
+    compat.check("docker", "valvur:dev")
+
+
+def test_a_minor_difference_breaks_compatibility_while_below_1_0(monkeypatch):
+    """Semver lets 0.x minor bumps break things, and we are in 0.x."""
+    from valvur import compat
+
+    monkeypatch.setattr(compat, "shim_version", lambda: "0.1.0")
+    monkeypatch.setattr(compat, "image_version", lambda r, i: "0.2.0")
+
+    with pytest.raises(compat.IncompatibleImage):
+        compat.check("docker", "valvur:dev")
+
+
+def test_a_minor_difference_is_compatible_once_past_1_0(monkeypatch):
+    from valvur import compat
+
+    monkeypatch.setattr(compat, "shim_version", lambda: "1.1.0")
+    monkeypatch.setattr(compat, "image_version", lambda r, i: "1.4.2")
+
+    compat.check("docker", "valvur:dev")
+
+
+def test_an_image_without_the_label_is_not_refused(monkeypatch):
+    """Predates the check. Refusing would break every image built before it existed."""
+    from valvur import compat
+
+    monkeypatch.setattr(compat, "image_version", lambda r, i: None)
+
+    compat.check("docker", "valvur:dev")
+
+
+@pytest.mark.e2e
+def test_the_real_image_declares_a_version_the_shim_accepts():
+    from valvur import compat
+
+    runner = ContainerRunner()
+    assert compat.image_version(runner.runtime, runner.image) is not None
+    runner.verify_compatible()
+
+
+# ------------------------------------------------ 8.4 air-gapped operation
+
+def test_a_mirrored_database_registry_is_passed_to_trivy(monkeypatch):
+    """F10.5 — the hardest enterprise requirement. An air-gapped organisation
+    mirrors the DB internally rather than granting egress to ghcr.io."""
+    from valvur.runner import _db_repository_flags
+
+    monkeypatch.setenv("VALVUR_DB_REPOSITORY", "registry.internal/mirror/trivy-db")
+
+    assert _db_repository_flags() == [
+        "--db-repository", "registry.internal/mirror/trivy-db",
+    ]
+
+
+def test_no_mirror_configured_adds_no_flag(monkeypatch):
+    """The default path must stay exactly as it was."""
+    from valvur.runner import _db_repository_flags
+
+    monkeypatch.delenv("VALVUR_DB_REPOSITORY", raising=False)
+
+    assert _db_repository_flags() == []
