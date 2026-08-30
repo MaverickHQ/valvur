@@ -36,6 +36,18 @@ def _provenance(run) -> str:
                 # An incomplete scan reporting "clean" would be a lie of omission.
                 # This is the single field an agent should check first.
                 "complete": not getattr(run, "failures", []),
+                # Stated plainly, because we criticise competitors for being vague
+                # about exactly this. Package NAMES (never source) are sent to public
+                # registries by the dependency-reality check on standard and deep.
+                "network": {
+                    "used": getattr(run, "network_used", False),
+                    "what_left_the_machine": (
+                        "dependency package names, sent to public registries (PyPI), "
+                        "by the dependency-reality check"
+                        if getattr(run, "network_used", False)
+                        else "nothing"
+                    ),
+                },
                 "findings": len(run.findings),
                 "fixed": len(run.fixed),
                 "scanners": [

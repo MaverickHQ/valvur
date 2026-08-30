@@ -1,0 +1,4 @@
+# Names an LLM might invent. Planted for slopsquat tests.
+aws-helper-sdk==1.0.0
+reqeusts==2.31.0
+urllib3==1.24.1

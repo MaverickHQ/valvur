@@ -202,12 +202,17 @@ class ContainerRunner:
             allow_exec=True,
         )
 
-    def run_check(self, name: str, workspace: Path) -> ScannerOutput:
-        """Run one of valvur's own Checks inside the container (ADR-0013)."""
+    def run_check(self, name: str, workspace: Path, *, network: bool = False) -> ScannerOutput:
+        """Run one of valvur's own Checks inside the container (ADR-0013).
+
+        `network` is opt-in per Check. Only dependency-reality needs it, and on the
+        quick Profile it is denied regardless — so F3.5's honest degradation is
+        enforced by the container, not by a code path someone could later change.
+        """
         return self._capture(
             workspace,
             ["python", "-m", "valvur.checks", name, "/workspace"],
-            None, tool=name, version=_VERSION,
+            None, tool=name, version=_VERSION, network=network,
         )
 
     def run_gitleaks(self, workspace: Path) -> ScannerOutput:

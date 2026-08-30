@@ -20,6 +20,8 @@ DEFAULT_ADAPTERS: tuple[ScannerAdapter, ...] = (
     SyftAdapter(),
     CheckAdapter("licence-file"),
     CheckAdapter("ai-artifact"),
+    # The only Check that needs the network, and only on standard/deep.
+    CheckAdapter("dependency-reality", needs_network=True),
 )
 
 __all__ = [

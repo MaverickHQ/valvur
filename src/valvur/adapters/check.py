@@ -23,11 +23,12 @@ from ..runner import ScannerOutput
 class CheckAdapter:
     kind = "check"
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, *, needs_network: bool = False):
         self.name = name
+        self.needs_network = needs_network
 
     def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_check(self.name, workspace)
+        return runner.run_check(self.name, workspace, network=self.needs_network)
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         findings = []
