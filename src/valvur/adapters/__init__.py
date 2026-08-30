@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from .base import ScannerAdapter, container_relative
 from .gitleaks import GitleaksAdapter
+from .trivy import TrivyAdapter
 
-DEFAULT_ADAPTERS: tuple[ScannerAdapter, ...] = (GitleaksAdapter(),)
+DEFAULT_ADAPTERS: tuple[ScannerAdapter, ...] = (GitleaksAdapter(), TrivyAdapter())
 
-__all__ = ["DEFAULT_ADAPTERS", "GitleaksAdapter", "ScannerAdapter", "container_relative"]
+__all__ = [
+    "DEFAULT_ADAPTERS",
+    "GitleaksAdapter",
+    "ScannerAdapter",
+    "TrivyAdapter",
+    "container_relative",
+]

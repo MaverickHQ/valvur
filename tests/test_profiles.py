@@ -28,9 +28,14 @@ def test_the_quick_profile_runs_only_its_designated_scanners(
 ):
     """F2.3 — the quick profile exists to be fast and offline. Running everything
     would silently break both promises."""
-    run = scan(workspace, runner=runner_finding_one_secret, profile="quick")
+    from valvur.profiles import scanners_for
 
-    assert [s.tool for s in run.scanners] == ["gitleaks"]
+    run = scan(workspace, runner=runner_finding_one_secret, profile="quick")
+    ran = {s.tool for s in run.scanners}
+
+    # Only registered adapters can run; quick must not pull in standard-only ones.
+    assert ran <= set(scanners_for("quick"))
+    assert "osv-scanner" not in ran and "checkov" not in ran
 
 
 def test_independent_scanners_do_not_serialise(workspace, runner_finding_nothing):

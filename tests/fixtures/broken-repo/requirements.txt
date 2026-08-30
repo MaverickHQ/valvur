@@ -1,0 +1,4 @@
+# Deliberately vulnerable pins for scanner tests. Never install this.
+# urllib3 1.24.1 and PyYAML 5.1 carry long-standing, well-established advisories.
+urllib3==1.24.1
+PyYAML==5.1

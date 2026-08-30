@@ -2,8 +2,6 @@
 
 import subprocess
 
-import pytest
-
 from valvur import scan
 
 
@@ -103,12 +101,22 @@ def test_a_scanner_that_produced_no_report_is_not_reported_as_clean(clean_worksp
 
     A scanner that could not write its output must never look like a clean result.
     A silent failure manufactures false confidence and is worse than no scan.
-    """
-    from conftest import FakeRunner
 
-    from valvur.api import ScannerFailed
+    **Meaning changed in sub-phase 3.1**, exactly as the plan flagged. When this was
+    written there was one Scanner, so its failure was total failure and raised. With a
+    fleet, one failure must not cost the others, so the guarantee is now that the
+    failure is *recorded* and the result is explicitly marked incomplete. Total
+    failure still raises - see test_failures.py.
+    """
+    import json
+
+    from conftest import FakeRunner
 
     broken = FakeRunner(gitleaks_stdout="", exit_code=2)
 
-    with pytest.raises(ScannerFailed):
-        scan(clean_workspace, runner=broken)
+    run = scan(clean_workspace, runner=broken)
+
+    assert [s.tool for s in run.failures] == ["gitleaks"]
+    provenance = json.loads((clean_workspace / ".security-scan" / "run.json").read_text())
+    assert provenance["complete"] is False
+
