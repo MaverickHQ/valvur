@@ -211,7 +211,8 @@ def _enforce_cap(text: str) -> str:
     if len(lines) <= LINE_CAP:
         return text
     keep = lines[: LINE_CAP - 3]
-    return "\n".join(keep + [
+    return "\n".join([
+        *keep,
         "",
         f"_Output truncated at {LINE_CAP} lines. See `findings.json` for everything._",
     ]) + "\n"
