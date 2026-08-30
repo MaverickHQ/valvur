@@ -20,6 +20,13 @@ their own work.
 Fingerprints must be byte-identical across machines, because Suppressions reference
 them and are committed. Paths are therefore Workspace-relative.
 
+The second benefit is reviewability, and it constrains how Suppressions are written.
+Per-class identity means a Suppression can say what it is accepting —
+`aws_s3_bucket.logs / CKV_AWS_18` is a decision a reviewer can weigh in a pull
+request; `4e4dff39…` is not. **The Fingerprint is the matching key, never the whole
+entry**: F8.2 requires human-readable context alongside it, or this advantage is
+thrown away at the point it would be used.
+
 **The algorithm is a compatibility surface from the first commit.** It carries an
 `fp_version`, because changing it invalidates every Suppression in every project
 using valvur. This is the most expensive thing in the system to get wrong.
