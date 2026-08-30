@@ -715,13 +715,16 @@ that matters is buried beneath noise.
 
 ### 6.3 — REMEDIATION.md
 
+> **✅ COMPLETE 2026-08-30.** 97 tests.
+
 10. `REMEDIATION.md` orders **Remediation Items** by rank. *(F7.14)*
 11. **Findings resolved by a single change appear as one item.** *(F7.14 — our own
     fixture has four CVEs in `loader-utils@1.4.0`, all fixed by "change webpack".
     Emitting four items would be exactly the noise Phase 5 removed.)*
 12. Each item names the change to make, not merely the problem.
 
-- [ ] **6.3.13** Define the grouping key per **Finding Class**: dependency findings
+- [x] **6.3.13** Define the grouping key per **Finding Class**: dependency findings  
+  **STATUS 2026-08-30:** ✅ Dependency findings group by the **Dependency Path root**, secrets by file, agent artifacts by file, licence together. **13 actions resolve 57 findings** on the fixture, summing exactly — grouping is a partition, pinned by test.
   group by the package the developer can actually change (the **Dependency Path**
   root, from 5.4); secrets group by file; IaC by resource. **This grouping is most of
   the work in this sub-phase**, and the original plan did not acknowledge that a

@@ -6,6 +6,7 @@ after this point is checked as it lands rather than five being reconciled at the
 """
 
 import json
+import re
 
 from conftest import GoldenRunner, golden
 
@@ -143,10 +144,10 @@ def test_the_summary_opens_with_the_machine_facing_header(workspace):
 def test_the_summary_stays_within_its_cap_given_ten_thousand_findings(tmp_path):
     """F7.5 — the cap is a guarantee, not a target. A real project will not be
     as forgiving as our fixture."""
+    from dataclasses import dataclass, field
+
     from valvur.findings import Finding
     from valvur.results import LINE_CAP, write
-
-    from dataclasses import dataclass, field
 
     @dataclass
     class Run:
@@ -182,3 +183,74 @@ def test_the_summary_counts_what_findings_json_contains(workspace):
     results = _full_scan(workspace)
 
     assert_artifacts_agree(results)
+
+
+# --------------------------------------------------------- 6.3 REMEDIATION.md
+
+def test_findings_resolved_by_one_change_become_one_remediation_item(workspace):
+    """F7.14 — a Remediation Item is an ACTION, not a Finding.
+
+    Our fixture has four CVEs in loader-utils@1.4.0, all fixed by changing webpack.
+    Four items would be exactly the noise Phase 5 removed.
+    """
+
+    results = _full_scan(workspace)
+    findings_data = json.loads((results / "findings.json").read_text())["findings"]
+
+    remediation = (results / "REMEDIATION.md").read_text()
+    items = remediation.count("\n## ")
+
+    assert items < len(findings_data), "grouping did not reduce anything"
+    assert "action(s)** resolve **" in remediation
+
+
+def test_a_transitive_vulnerability_names_the_package_you_can_change(workspace):
+    """Grouping by the Dependency Path root (5.4): 'upgrade json5' is useless when
+    something else pins it."""
+    results = _full_scan(workspace)
+
+    remediation = (results / "REMEDIATION.md").read_text()
+
+    assert "Upgrade `webpack`" in remediation
+
+
+def test_remediation_is_framed_as_a_proposal_not_a_script(workspace):
+    """ADR-0009 — valvur proposes, never remediates. The wording is the safeguard
+    an agent reads."""
+    results = _full_scan(workspace)
+
+    remediation = (results / "REMEDIATION.md").read_text()
+
+    assert "proposal, not a script" in remediation
+    assert "independently" in remediation
+    assert "not** proof it was fixed" in remediation
+
+
+def test_a_clean_scan_produces_an_empty_remediation_proposal(
+    clean_workspace, runner_finding_nothing
+):
+    from valvur.adapters import CheckAdapter
+
+    scan(clean_workspace, runner=runner_finding_nothing,
+         adapters=[CheckAdapter("licence-file")], profile="quick")
+
+    remediation = (clean_workspace / ".security-scan" / "REMEDIATION.md").read_text()
+
+    assert "Nothing to remediate" in remediation
+
+
+def test_grouping_loses_and_duplicates_nothing(workspace):
+    """Every Finding belongs to exactly one action.
+
+    Grouping is a partition, not a filter. Dropping one silently would hide a
+    vulnerability behind a tidier-looking list, which is the worst possible failure
+    for this feature.
+    """
+
+    results = _full_scan(workspace)
+    findings_data = json.loads((results / "findings.json").read_text())["findings"]
+
+    remediation = (results / "REMEDIATION.md").read_text()
+    counted = sum(int(n) for n in re.findall(r"Resolves (\d+) finding", remediation))
+
+    assert counted == len(findings_data)
