@@ -75,3 +75,51 @@ def test_a_clean_scan_still_satisfies_the_invariant(clean_workspace, runner_find
          adapters=[CheckAdapter("licence-file")], profile="quick")
 
     assert assert_artifacts_agree(clean_workspace / ".security-scan") == []
+
+
+# ------------------------------------------------- 6.1 findings.json and SARIF
+
+def test_findings_json_carries_a_schema_version(workspace):
+    """F7.10 — the agent-facing contract breaks silently on upgrade without one."""
+    results = _full_scan(workspace)
+
+    data = json.loads((results / "findings.json").read_text())
+
+    assert data["schema"] >= 1
+    assert data["fp_version"] >= 1
+
+
+def test_findings_json_carries_neutralised_evidence_not_raw_workspace_content(workspace):
+    """F3.13 — an agent queries this per finding, so it is an injection surface
+    exactly as SUMMARY.md is."""
+    from valvur.defang import is_invisible
+
+    results = _full_scan(workspace)
+    findings = json.loads((results / "findings.json").read_text())["findings"]
+
+    ai = [f for f in findings if "ai-artifact" in f["rule"]]
+    assert ai, "the fixture should produce agent-artifact findings"
+    assert all("UNTRUSTED CONTENT" in f["evidence"] for f in ai)
+    assert not any(is_invisible(c) for f in findings for c in f["evidence"])
+
+
+def test_results_sarif_validates_against_the_real_sarif_schema(workspace):
+    """F7.9 — declaring '"version": "2.1.0"' is not the same claim as being valid
+    SARIF, and only one of them makes an IDE work."""
+    import jsonschema
+    from conftest import FIXTURES
+
+    results = _full_scan(workspace)
+    sarif = json.loads((results / "results.sarif").read_text())
+    schema = json.loads((FIXTURES / "schema" / "sarif-2.1.0.json").read_text())
+
+    jsonschema.validate(instance=sarif, schema=schema)
+
+
+def test_every_sarif_result_carries_its_fingerprint(workspace):
+    """F7.9 — so an IDE's suppression survives an edit for the same reason ours does."""
+    results = _full_scan(workspace)
+    sarif = json.loads((results / "results.sarif").read_text())
+
+    for result in sarif["runs"][0]["results"]:
+        assert result["partialFingerprints"]["valvurFingerprint/v1"]
