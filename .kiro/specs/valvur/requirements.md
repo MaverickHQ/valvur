@@ -273,6 +273,13 @@ of fixes, so that nothing changes my code without my decision.
 8. F9.8 — WHEN a **Finding** is explained, valvur SHALL return its evidence, its
    **Exploit Signals**, its **Dependency Path** where applicable, and its originating
    **Scanner** or **Check**.
+9. F9.9 — MCP responses SHALL carry neutralised evidence, per F3.13. *Rationale: an
+   MCP response goes straight into an agent's context with no file in between. It is
+   the most direct injection path valvur has, and the only one where the agent cannot
+   choose not to read it.*
+10. F9.10 — MCP responses SHALL be bounded by default and SHALL state what was
+    omitted. *Rationale: returning several thousand **Findings** into an agent's
+    context is the problem F7.5 solved for `SUMMARY.md`, arriving by another door.*
 
 ## F10 — Distribution
 
@@ -295,8 +302,12 @@ of fixes, so that nothing changes my code without my decision.
    analysis. Disclosure is a better answer than an impossible claim.*
 5. F10.5 — valvur SHALL support retrieving vulnerability databases from a
    user-specified OCI registry for air-gapped operation.
-6. F10.6 — The host shim SHALL install without a compiler and without the **Scanners**
-   present on the host.
+6. F10.6 — The host shim's **core** SHALL install without a compiler and without the
+   **Scanners** present on the host, with no runtime dependencies. *Clarified
+   2026-08-30: the MCP server is an opt-in extra (`valvur[mcp]`) because the official
+   SDK pulls 22 transitive packages including `cryptography`, which needs a compiler
+   wherever no wheel exists. The CLI — the wider audience — keeps the property; an
+   MCP user makes the trade knowingly.*
 
 ---
 

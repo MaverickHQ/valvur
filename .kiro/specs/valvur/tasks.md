@@ -980,20 +980,70 @@ can actually defend; and a runtime that is installed is a runtime we find.
 **Goal:** an agent can scan, browse and understand **Findings** — and cannot change
 anything.
 
-### TDD cycles
+> **Reordered and sub-phased 2026-08-30 after reviewing Phase 8.** The original six
+> cycles described the tools but not the two decisions that shape them: what the MCP
+> SDK costs us, and what happens when a scan outlasts a client's timeout.
+
+### 9.0 — Dependency decision and transport
+
+- [ ] **9.0.1** **Ship MCP as an opt-in extra: `pip install valvur[mcp]`.** The
+  official SDK pulls **22 transitive packages** including `cryptography`, `cffi` and
+  `pycparser`, which need a compiler wherever no wheel exists — Alpine, some ARM
+  Linux. `pyproject.toml` currently says `dependencies = []` with a comment citing
+  F10.6, and adding the SDK to the core would abandon that property silently. The CLI
+  is the wider audience and keeps it; an MCP user makes the trade knowingly.
+  *(F10.6, clarified.)*
+- [ ] **9.0.2** Import the SDK lazily, so `valvur scan` never pays for it and a
+  missing extra produces a clear message rather than an `ImportError`.
+
+**Commit:** `feat: MCP server as an opt-in extra`
+
+### 9.1 — The read-only tool surface
 
 1. An MCP client runs a **Scan Run** and receives a summary. *(F9.1)*
 2. `list_findings` returns **Findings** in rank order, filterable by **Status**.
-3. `explain_finding` returns evidence, **Exploit Signals**, **Dependency Path** and
+3. `list_findings` is **bounded by default and states what it omitted**. *(F9.10 —
+   several thousand Findings in an agent's context is the problem F7.5 solved for
+   `SUMMARY.md`, arriving by another door.)*
+4. `explain_finding` returns evidence, **Exploit Signals**, **Dependency Path** and
    the originating source. *(F9.8)*
-4. No exposed tool modifies the **Workspace**. *(F9.2 — assert over the whole tool
-   list, so a future tool cannot quietly break it.)*
-5. Editing a file triggers no **Scan Run**. *(F9.4)*
-6. Every MCP tool has a CLI equivalent producing the same result. *(F9.3)*
+5. **MCP responses carry neutralised evidence.** *(F9.9 — an MCP response reaches an
+   agent's context with no file in between. It is the most direct injection path we
+   have, and the only one the agent cannot decline to read.)*
+6. No exposed tool modifies the **Workspace**. *(F9.2)*
+7. **No tool named `scan_and_fix`, `apply`, `write` or `remediate` exists in the
+   registry.** *(ADR-0009 is a safety property, so a contributor adding one should
+   fail a test rather than merely fail review.)*
+8. Editing a file triggers no **Scan Run**. *(F9.4)*
 
-**Exit:** a real MCP client completes scan → list → explain against the fixture repo.
+**Commit:** `feat: read-only MCP tool surface`
 
-**Commit:** `feat: MCP tool surface, read-only by construction`
+### 9.2 — Long scans
+
+9. A **Scan Run** started over MCP returns promptly, and `scan_status` reports its
+   progress and result.
+
+> **Measured: 20 seconds for the `standard` Profile on our toy fixture.** A real
+> project is minutes, and many MCP clients time out at 30–60 seconds.
+> [design.md](./design.md) §8 already listed `scan_status` alongside `scan`, implying
+> this pattern — but the original cycles did not mention it, so the implementation
+> would have defaulted to synchronous and discovered the problem in Phase 10's
+> usability gate.
+
+**Commit:** `feat: asynchronous scan with status polling`
+
+### 9.3 — CLI parity by construction
+
+10. Every MCP tool has a CLI equivalent producing the same result. *(F9.3)*
+
+- [ ] **9.3.11** Make parity **structural, not compared**: both surfaces call the same
+  function, so they cannot drift. Asserting equality of formatted output would be
+  brittle and would keep passing while the semantics diverged.
+
+**Commit:** `feat: CLI and MCP parity by construction`
+
+**Exit:** a real MCP client completes scan → list → explain against the fixture repo;
+no tool can change anything; and nothing an agent receives can act as an instruction.
 
 ---
 
