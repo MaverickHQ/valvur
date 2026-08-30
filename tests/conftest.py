@@ -74,6 +74,19 @@ class FakeRunner:
     def run_opengrep(self, workspace: Path):
         return self._quiet("opengrep", "1.29.0", '{"results": []}')
 
+    def run_check(self, name: str, workspace: Path):
+        """Runs valvur's own Checks in-process. They are pure functions of the
+        Workspace, so there is nothing at the container boundary worth faking."""
+        import json as _json
+
+        from valvur.checks import REGISTRY
+        from valvur.runner import ScannerOutput
+
+        check = REGISTRY.get(name)
+        payload = _json.dumps(check.run(workspace)) if check else "[]"
+        return ScannerOutput(tool=name, version="0.1.0.dev0", stdout=payload,
+                             stderr="", exit_code=0)
+
 
 @pytest.fixture
 def runner_finding_one_secret():
@@ -180,3 +193,13 @@ class GoldenRunner:
 
     def run_opengrep(self, workspace):
         return self._out("opengrep")
+
+    def run_check(self, name, workspace):
+        import json as _json
+
+        from valvur.checks import REGISTRY
+        from valvur.runner import ScannerOutput
+
+        check = REGISTRY.get(name)
+        return ScannerOutput(name, "0.1.0.dev0",
+                             _json.dumps(check.run(workspace)) if check else "[]", "", 0)

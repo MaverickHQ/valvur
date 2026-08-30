@@ -13,6 +13,7 @@ from .base import container_relative
 
 
 class GitleaksAdapter:
+    kind = "scanner"
     name = "gitleaks"
 
     def run(self, runner, workspace: Path) -> ScannerOutput:

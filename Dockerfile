@@ -32,6 +32,10 @@ RUN mv /tmp/opengrep_${TARGETARCH} /usr/local/bin/opengrep && rm -f /tmp/opengre
 # reintroduce exactly the licensing problem ADR-0004 exists to avoid.
 COPY rules /opt/valvur-rules
 
+# valvur's own Checks run in the container, like Scanners (ADR-0013), so the package
+# ships in the image. Last layer: check code changes rebuild only this.
+COPY src/valvur /usr/local/lib/python3.12/site-packages/valvur
+
 # Checkov is Python. Installed into the system environment; no compiler is kept.
 RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && pip install --no-cache-dir checkov==3.2.517 \

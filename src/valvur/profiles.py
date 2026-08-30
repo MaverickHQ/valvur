@@ -14,9 +14,15 @@ DEEP = "deep"
 # adapter registry and are skipped — the matrix is declared up front so that adding
 # a Scanner is a one-line change here rather than a hunt through the orchestrator.
 SCANNERS: dict[str, tuple[str, ...]] = {
-    QUICK: ("gitleaks", "opengrep", "trivy"),
-    STANDARD: ("gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft"),
-    DEEP: ("gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft"),
+    QUICK: ("gitleaks", "opengrep", "trivy", "licence-file"),
+    STANDARD: (
+        "gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft",
+        "licence-file",
+    ),
+    DEEP: (
+        "gitleaks", "opengrep", "trivy", "osv-scanner", "checkov", "syft",
+        "licence-file",
+    ),
 }
 
 # Only `quick` is required to be fully offline.

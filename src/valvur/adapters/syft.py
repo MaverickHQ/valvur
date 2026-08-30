@@ -13,6 +13,7 @@ from ..runner import ScannerOutput
 
 
 class SyftAdapter:
+    kind = "scanner"
     name = "syft"
     artifact = "sbom.cdx.json"
 

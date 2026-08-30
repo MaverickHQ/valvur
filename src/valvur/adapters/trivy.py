@@ -16,6 +16,7 @@ from .base import container_relative
 
 
 class TrivyAdapter:
+    kind = "scanner"
     name = "trivy"
 
     def run(self, runner, workspace: Path) -> ScannerOutput:
