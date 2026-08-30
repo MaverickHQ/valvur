@@ -108,9 +108,18 @@ def test_findings_json_carries_neutralised_evidence_not_raw_workspace_content(wo
     results = _full_scan(workspace)
     findings = json.loads((results / "findings.json").read_text())["findings"]
 
+    # Content from an agent instruction file is fenced unconditionally: the file
+    # exists to instruct an agent, so everything in one is a directive whether or not
+    # it reads like prose.
     ai = [f for f in findings if "ai-artifact" in f["rule"]]
     assert ai, "the fixture should produce agent-artifact findings"
     assert all("UNTRUSTED CONTENT" in f["evidence"] for f in ai)
+
+    # Everywhere else, fencing is selective — our own advice should not be buried in
+    # warnings — but invisible characters are escaped universally.
+    ours = [f for f in findings if f["rule"].startswith("CVE-")]
+    assert ours and not any("UNTRUSTED CONTENT" in f["evidence"] for f in ours)
+
     assert not any(is_invisible(c) for f in findings for c in f["evidence"])
 
 
