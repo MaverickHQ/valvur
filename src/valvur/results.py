@@ -23,11 +23,12 @@ def _summary(run) -> str:
         "# Security scan summary",
         "",
         f"**Status:** {run.status}",
-        f"**Findings:** {len(run.findings)}",
+        f"**Findings:** {len(run.findings)}"
+        + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else ""),
         "",
     ]
     for f in run.findings:
-        lines.append(f"- `{f.path}:{f.line}` — {f.title} ({f.rule})")
+        lines.append(f"- [{f.status}] `{f.path}:{f.line}` — {f.title} ({f.rule})")
         if f.evidence:
             lines.append(f"  `{f.evidence}`")
     return "\n".join(lines) + "\n"

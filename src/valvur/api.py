@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from . import fingerprint as _fp
 from . import redact as _redact
 from . import results
-from .findings import Finding
+from . import state as _state
+from .findings import Finding, merge
 
 CONTAINER_WORKSPACE = "/workspace"
 
@@ -27,6 +29,7 @@ def _relative(path: str) -> str:
 @dataclass
 class ScanRun:
     findings: list[Finding] = field(default_factory=list)
+    fixed: list[str] = field(default_factory=list)
 
     @property
     def status(self) -> str:
@@ -50,9 +53,26 @@ def scan(workspace: Path, *, runner) -> ScanRun:
             title=item["Description"],
             # Redact at the boundary — the raw secret never enters the model.
             evidence=_redact.redact(item.get("Match", ""), item.get("Secret", "")),
+            fingerprint=_fp.for_secret(
+                item["RuleID"], _relative(item["File"]), item.get("Secret", "")
+            ),
+            sources=(output.tool,),
         )
         for item in raw
     ]
-    run = ScanRun(findings=findings)
+    findings = merge(findings)
+
+    results_dir = workspace / results.RESULTS_DIR
+    previous, previously_fixed = _state.load(results_dir)
+
+    findings = [
+        replace(f, status=_state.status_for(f.fingerprint, previous, previously_fixed))
+        for f in findings
+    ]
+
+    current = {f.fingerprint for f in findings}
+    run = ScanRun(findings=findings, fixed=sorted(previous - current))
+
     results.write(workspace, run)
+    _state.save(results_dir, current, (previously_fixed | set(run.fixed)) - current)
     return run

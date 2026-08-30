@@ -35,6 +35,7 @@ select = ["E", "F", "I", "UP", "B", "S", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests deliberately handle planted credentials and invoke subprocesses.
-"tests/*" = ["S101", "S603", "S607"]
+# S105/S106/S107: test helpers carry the planted credential as a default.
+"tests/*" = ["S101", "S105", "S106", "S107", "S603", "S607"]
 # Fixture workspaces are deliberately insecure — that is their entire purpose.
 "tests/fixtures/*" = ["ALL"]

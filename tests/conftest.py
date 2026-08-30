@@ -78,3 +78,16 @@ def git_workspace(workspace):
     git("-c", "user.email=t@example.com", "-c", "user.name=t",
         "-c", "commit.gpgsign=false", "commit", "-q", "-m", "fixture")
     return workspace
+
+
+def gitleaks_output(*, line=3, file="/workspace/config.py", secret="AKIAV7Q2XR4TVBN6WLKJ",
+                    rule="aws-access-token", match=None):
+    """Build gitleaks-shaped output, so tests can vary one thing at a time."""
+    return json.dumps([{
+        "RuleID": rule,
+        "Description": "AWS Access Token",
+        "File": file,
+        "StartLine": line,
+        "Secret": secret,
+        "Match": match if match is not None else f'AWS_ACCESS_KEY_ID = "{secret}"',
+    }])
