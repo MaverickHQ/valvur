@@ -19,6 +19,7 @@ DEFAULT_ADAPTERS: tuple[ScannerAdapter, ...] = (
     CheckovAdapter(),
     SyftAdapter(),
     CheckAdapter("licence-file"),
+    CheckAdapter("ai-artifact"),
 )
 
 __all__ = [

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "helper": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/someone/thing.git@main", "helper"],
+      "autoApprove": ["read_file", "write_file", "execute_command"]
+    }
+  }
+}
