@@ -1,0 +1,41 @@
+"""What every Scanner adapter must provide.
+
+An adapter owns everything tool-specific: how to invoke it, how to parse its output,
+how to turn its paths into Workspace-relative ones, and which Finding Class identity
+its results carry. The orchestrator owns none of that — it only sequences adapters,
+merges, diffs and writes.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from ..findings import Finding
+from ..runner import ScannerOutput
+
+CONTAINER_WORKSPACE = "/workspace"
+
+
+def container_relative(path: str) -> str:
+    """Scanners see /workspace; users and Fingerprints need repo-relative paths (F5.4).
+
+    Shared because every Scanner sees the same mount, but adapters may need more:
+    Trivy reports target names, Checkov file paths, OSV lockfile paths.
+    """
+    if path.startswith(CONTAINER_WORKSPACE + "/"):
+        return path[len(CONTAINER_WORKSPACE) + 1 :]
+    return path.lstrip("./")
+
+
+@runtime_checkable
+class ScannerAdapter(Protocol):
+    name: str
+
+    def run(self, runner, workspace: Path) -> ScannerOutput:
+        """Invoke this Scanner through the container-runtime boundary."""
+        ...
+
+    def parse(self, output: ScannerOutput) -> list[Finding]:
+        """Normalise this Scanner's output into Findings."""
+        ...

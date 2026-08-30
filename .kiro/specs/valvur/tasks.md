@@ -277,12 +277,14 @@ concurrency correctly.
 
 ### 3.0 — Refactor to adapters *(no behaviour change)*
 
-- [ ] **3.0.1** Extract a `ScannerAdapter` per tool, each owning: invoke, parse,
+- [x] **3.0.1** Extract a `ScannerAdapter` per tool, each owning: invoke, parse,  
+  **STATUS 2026-08-30:** ✅ `adapters/{base,gitleaks}.py`. `api.scan()` is now orchestration only: sequence adapters, merge, diff, write. `_relative()` became `container_relative()` in `base.py`, shared because every Scanner sees the same mount.
   path-normalise, and fingerprint by **Finding Class**. `scan()` becomes orchestration
   only. Do this while there is *one* adapter to move rather than six.
   `_relative()` is gitleaks-shaped and moves into the adapter — Trivy reports target
   names, Checkov file paths, OSV lockfile paths.
-- [ ] **3.0.2** All 24 existing tests must pass unchanged. If a test needs editing,
+- [x] **3.0.2** All 24 existing tests must pass unchanged. If a test needs editing,  
+  **STATUS 2026-08-30:** ✅ **Zero test files modified**, 24 pass, ruff and mypy clean.
   the refactor changed behaviour and has gone wrong.
 
 **Commit:** `refactor: extract scanner adapters`
