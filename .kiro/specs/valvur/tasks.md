@@ -764,19 +764,82 @@ that matters is buried beneath noise.
 
 **Goal:** accepted risks are recorded, shared and reviewed rather than forgotten.
 
-### TDD cycles
+> **Reordered and sub-phased 2026-08-30 after reviewing Phase 6.** The original five
+> cycles covered the lifecycle but omitted every integration point, and F8.2 as
+> written contradicted the reason we chose per-class identity at all.
 
-1. A **Suppression** matching a **Finding** moves it to the suppressed section rather
-   than removing it. *(F8.6)*
-2. A **Suppression** without an expiry date is rejected and raises a **Finding**.
-   *(F8.3)*
-3. An expired **Suppression** reports its **Finding** normally, annotated. *(F8.4)*
-4. A **Suppression** matching nothing is reported as stale. *(F8.5)*
-5. valvur never writes to `.security-scan.toml`. *(F8.7)*
+### 7.0 — Parse and match
 
-**Exit:** the suppression lifecycle is fully covered.
+- [ ] **7.0.1** **Bump `requires-python` to `>=3.11`.** `tomllib` is 3.11+, and the
+  shim is stdlib-only by design (F10.6) so adding `tomli` would cost us that
+  property. Today we *claim* 3.10 and suppression parsing would simply fail there —
+  invisible to us, since our own venv is 3.12.
+- [ ] **7.0.2** Parse `.security-scan.toml` from the **Workspace** root. *(F8.1)*
 
-**Commit:** `feat: expiring suppressions with stale detection`
+1. A **Suppression** carries a **Fingerprint**, an expiry date, a reason, **and
+   human-readable context**. *(F8.2, sharpened.)*
+2. A **Suppression** matching a **Finding** marks it suppressed rather than removing
+   it. *(F8.6)*
+
+> **Why context is mandatory.** A pull request containing only
+> `fingerprint = "4e4dff39…"` tells a reviewer nothing about what is being accepted.
+> That is the opposite of the argument for per-class identity: suppressing
+> `aws_s3_bucket.logs / CKV_AWS_18` is a decision a human can read. The hash is the
+> matching key; it is never the whole entry.
+
+**Commit:** `feat: suppression parsing and matching`
+
+### 7.1 — Lifecycle
+
+3. A **Suppression** without an expiry date is rejected and raises a **Finding**.
+   *(F8.3 — an unexpiring suppression is how a real finding gets buried for years.)*
+4. An expired **Suppression** reports its **Finding** normally, **and is itself
+   flagged**. *(F8.4 — a lapsed risk acceptance is a decision someone must retake,
+   which is the entire purpose of mandatory expiry.)*
+5. A **Suppression** matching nothing is reported as stale. *(F8.5)*
+6. valvur never writes to `.security-scan.toml`. *(F8.7)*
+
+- [ ] **7.1.7** Pin the expiry semantics: UTC, and the expiry date **inclusive** — a
+  suppression expiring today is still valid today. Ambiguity here means two machines
+  disagree about whether a build passes.
+
+**Commit:** `feat: suppression lifecycle with mandatory expiry`
+
+### 7.2 — Integration
+
+> Three interactions the original plan did not mention. Each one is a way for
+> suppression to quietly break something Phases 5 and 6 established.
+
+7. Suppressed **Findings** are excluded from ranking positions. *(F8.9 — otherwise
+   they crowd out live ones, the exact noise problem F6.5 solved.)*
+8. `SUMMARY.md` counts active and suppressed **Findings** separately. *(F8.9 —
+   `Findings: 84` when 30 are suppressed misstates the result.)*
+9. The F7.13 cross-artifact invariant still holds with suppressions present.
+   *(Suppressed Findings stay in `findings.json` — F8.6 says distinct section, not
+   omitted — so they must still appear in the SARIF.)*
+10. `results.sarif` uses **SARIF's own** `result.suppressions` with
+    `kind: "external"`, `status: "accepted"` and the justification. *(An invented
+    property would make IDEs show suppressed findings as live — worse than emitting
+    no SARIF, because the tool would look wrong rather than misconfigured.)*
+11. Suppressing a **Finding** does not mark it `fixed`, and un-suppressing does not
+    make it `new`. *(Suppression is a **policy** layer, not an identity layer;
+    `state.json` tracks presence regardless.)*
+
+**Commit:** `feat: suppression integration with ranking, counts and SARIF`
+
+### 7.3 — `valvur suppress`
+
+12. `valvur suppress <fingerprint>` prints a ready-to-paste **Suppression** block with
+    its context filled in, and writes nothing. *(F8.8, F8.7)*
+
+> Without this, writing a suppression means hand-copying a 32-character hash out of
+> `findings.json`, which nobody will do. **Printing is not writing** — F8.7 stands,
+> and the feature becomes usable rather than theoretical.
+
+**Commit:** `feat: valvur suppress prints a paste-ready block`
+
+**Exit:** the suppression lifecycle is fully covered, nothing suppressed can crowd out
+something live, and a reviewer can tell from the diff alone what is being accepted.
 
 ---
 

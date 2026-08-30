@@ -230,7 +230,12 @@ they are reviewed rather than forgotten.
 1. F8.1 — valvur SHALL read **Suppressions** from `.security-scan.toml` at the
    **Workspace** root.
 2. F8.2 — Each **Suppression** SHALL reference a **Fingerprint** and SHALL carry an
-   expiry date and a reason.
+   expiry date, a reason, and **human-readable context** naming at minimum the rule
+   and path it applies to. *Rationale: a 32-character hash is unreviewable. A pull
+   request adding a suppression must let a reviewer see what is being accepted, which
+   is the entire argument for per-class identity — suppressing
+   `aws_s3_bucket.logs / CKV_AWS_18` is a decision a human can read, and suppressing
+   `4e4dff39…` is not. The hash is the key; it is never the whole entry.*
 3. F8.3 — IF a **Suppression** lacks an expiry date, THEN valvur SHALL reject it and
    SHALL raise a **Finding**.
 4. F8.4 — WHEN a **Suppression** has expired, valvur SHALL report the **Finding**
@@ -240,6 +245,15 @@ they are reviewed rather than forgotten.
 6. F8.6 — valvur SHALL report suppressed **Findings** in a distinct section rather
    than omitting them.
 7. F8.7 — valvur SHALL NOT create or modify **Suppressions**.
+8. F8.8 — valvur SHALL be able to **print** a ready-to-paste **Suppression** block for
+   a given **Fingerprint**, with its context filled in. *Rationale: F8.7 correctly
+   forbids writing the file, but nobody will hand-copy a 32-character hash out of
+   `findings.json`. Printing is not writing, and without it F8.7 makes the feature
+   theoretical rather than deliberate.*
+9. F8.9 — Suppressed **Findings** SHALL be excluded from ranking positions and counted
+   separately from active ones. *Rationale: a suppressed Finding occupying a top slot
+   crowds out a live one, which is the noise problem F6.5 exists to solve; and
+   `Findings: 84` when 30 are suppressed misstates the result.*
 
 ## F9 — MCP and CLI surface
 
