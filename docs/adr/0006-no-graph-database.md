@@ -14,8 +14,13 @@ even a few hundred Findings is a hairball nobody learns anything from.
 ## Consequences
 
 The genuine need behind the proposal — making Findings easy to understand — is met by
-`report.html`, a single self-contained file that opens offline, and by rendering the
-Dependency Path as an indented tree.
+`SUMMARY.md` and `REMEDIATION.md`, which render natively in every IDE and on GitHub,
+and by rendering the Dependency Path as an indented tree.
+
+*(Updated 2026-08-30: this originally cited `report.html`, cut by ADR-0014. The
+argument is unchanged — rejecting a graph database rested on findings being a flat
+table with predictable queries, and the alternative offered was a readable report.
+Markdown is a readable report.)*
 
 The one graph-shaped structure in the domain is the dependency tree, and the SBOM
 already contains it. We do not stand up a database to hold a structure we were handed.

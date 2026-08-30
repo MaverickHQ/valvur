@@ -727,22 +727,12 @@ that matters is buried beneath noise.
 
 **Commit:** `feat: raw scanner output with pre-model redaction`
 
-### 6.5 — report.html
-
-16. `report.html` references no external URL and renders offline. *(F7.8)*
-17. **No Workspace-derived content is rendered as markup.** *(F7.15)*
-18. A payload containing `<script>` is displayed as text, never executed.
-19. A payload using styling to hide itself is displayed visibly. *(A reviewer must
-    see everything the file contains — the whole point of the hidden-Unicode check.)*
-
-> **The riskiest artifact we ship.** It renders untrusted content in a browser, and
-> F3.13's fencing is a textual convention with no effect in HTML. Escaping is a
-> different mechanism and needs its own tests.
-
-**Commit:** `feat: self-contained HTML report with markup escaping`
-
 **Exit:** a full **Results Folder** is produced, every artifact test passes, and no
-**Workspace** content can act as markup, script or instruction in any of them.
+**Workspace** content can act as an instruction in any of them.
+
+> **`report.html` was cut before implementation** — see
+> [ADR-0014](../../../docs/adr/0014-no-html-report.md). Phase 6 is five sub-phases,
+> not six.
 
 ---
 

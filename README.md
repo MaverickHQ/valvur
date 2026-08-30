@@ -119,8 +119,8 @@ valvur scan --profile quick
 valvur scan --profile deep
 ```
 
-Results land in `.security-scan/`. Open `report.html` in any browser, or read
-`SUMMARY.md`. Work through `REMEDIATION.md` in order — it is ranked so the top
+Results land in `.security-scan/`. Read `SUMMARY.md` — it renders in your IDE, on
+GitHub, or in any Markdown viewer. Work through `REMEDIATION.md` in order — it is ranked so the top
 of the list is genuinely the most urgent thing.
 
 **You decide which fixes to apply, and when to rescan.** There is no autonomous
@@ -131,7 +131,6 @@ what you skipped, and what is new.
 .security-scan/
 ├── SUMMARY.md          ← start here. Bounded, leads with anything that failed
 ├── REMEDIATION.md      ← ranked proposal, with dependency paths and upgrade targets
-├── report.html         ← self-contained visual report, opens offline
 ├── findings.json       ← complete, normalised, schema-versioned
 ├── results.sarif       ← SARIF 2.1.0 for your IDE
 ├── sbom.cdx.json       ← CycloneDX SBOM

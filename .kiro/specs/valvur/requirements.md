@@ -20,8 +20,8 @@ the output, ranks it by real-world exploitability, and writes a **Results Folder
 into the **Workspace** for the developer or their coding agent to act on.
 
 **Out of scope for v1:** reachability analysis, autonomous remediation, DAST or
-penetration testing, code-quality analysis, a hosted service, and any UI beyond
-`report.html`.
+penetration testing, code-quality analysis, a hosted service, and any UI at all —
+including an HTML report ([ADR-0014](../../../docs/adr/0014-no-html-report.md)).
 
 ---
 
@@ -190,15 +190,19 @@ form, so that I can act on them without exhausting my context window.
 2. F7.2 — valvur SHALL write `.security-scan/.gitignore` containing `*`.
 3. F7.3 — valvur SHALL add `.security-scan/` to the **Workspace**'s root `.gitignore`
    if absent, and SHALL NOT otherwise modify that file.
-4. F7.4 — valvur SHALL write `SUMMARY.md`, `REMEDIATION.md`, `report.html`,
-   `findings.json`, `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`.
+4. F7.4 — valvur SHALL write `SUMMARY.md`, `REMEDIATION.md`, `findings.json`,
+   `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`.
 5. F7.5 — `SUMMARY.md` SHALL NOT exceed 200 lines regardless of **Finding** count.
 6. F7.6 — `SUMMARY.md` SHALL open with a machine-facing block describing the folder,
    the **Status** values, the ranking basis, and the constraints in F9.5–F9.7.
 7. F7.7 — WHEN any **Scanner** or **Check** failed or was skipped, `SUMMARY.md` SHALL
    state so before reporting any **Finding**.
-8. F7.8 — `report.html` SHALL be self-contained, referencing no external asset, and
-   SHALL render offline.
+8. F7.8 — **DEFERRED 2026-08-30, see [ADR-0014](../../../docs/adr/0014-no-html-report.md).**
+   ~~`report.html` SHALL be self-contained, referencing no external asset, and SHALL
+   render offline.~~ Cut before implementation: the **Results Folder** is
+   deliberately unshareable, which removes an HTML report's main advantage over
+   Markdown, while rendering untrusted content in a browser was the largest security
+   surface in the contract. Returns only with an identified consumer.
 9. F7.9 — `results.sarif` SHALL conform to SARIF 2.1.0 and SHALL carry **Fingerprints**
    in `partialFingerprints`.
 10. F7.10 — `findings.json` SHALL carry a schema version.
@@ -321,11 +325,10 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 If v1 must be reduced, cut in this order. Below the line is an abort threshold, not a
 scope decision.
 
-1. `report.html` (F7.8) — `SUMMARY.md` carries the information
-2. Syft SBOM (F2.1 partial) — Trivy emits an adequate SBOM
-3. LLM-Output-to-Sink **Check** (F3.10) — the narrowest of the four **Checks**
-4. Dependency licence policy (F4.4–F4.6) — keep project licence hygiene F4.1–F4.3
-5. `regressed` **Status** (F5.6 partial) — three states remain useful
-6. Air-gapped DB mirroring (F10.5) — defer to v1.1
+1. Syft SBOM (F2.1 partial) — Trivy emits an adequate SBOM
+2. LLM-Output-to-Sink **Check** (F3.10) — the narrowest of the four **Checks**
+3. Dependency licence policy (F4.4–F4.6) — keep project licence hygiene F4.1–F4.3
+4. `regressed` **Status** (F5.6 partial) — three states remain useful
+5. Air-gapped DB mirroring (F10.5) — defer to v1.1
 
 **Not cuttable:** F1 entirely, N2.1, F5.3, F7.2, F9.2, F9.4. These are the moat.
