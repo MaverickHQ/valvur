@@ -60,6 +60,18 @@ class Finding:
     # it never affects the Fingerprint or the Status diff.
     suppressed: str | None = None
 
+    def __post_init__(self) -> None:
+        """Neutralise evidence at the MODEL boundary, not per-adapter.
+
+        Redaction already works this way, and evidence should too: leaving it to each
+        adapter is how SAST findings ended up carrying raw workspace lines while the
+        AI-artifact check fenced its own. One place, applied to everything (F3.13).
+        """
+        from .defang import neutralise
+
+        if self.evidence:
+            object.__setattr__(self, "evidence", neutralise(self.evidence))
+
 
 def merge(findings: list[Finding]) -> list[Finding]:
     """Collapse Findings sharing a Fingerprint, keeping every reporting source.

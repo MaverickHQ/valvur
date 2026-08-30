@@ -80,7 +80,7 @@ def _hidden_unicode(text: str, rel: str) -> list[dict]:
         ),
         # Escaped, not reproduced: an invisible character copied into our own output
         # would carry the attack forward (F3.13).
-        "evidence": neutralise(content),
+        "evidence": neutralise(content, always_fence=True),
         "identity": ("ai_artifact", "hidden-unicode", rel),
     }]
 
@@ -98,7 +98,7 @@ def _directives(text: str, rel: str) -> list[dict]:
                     "path": rel,
                     "line": n,
                     "title": title,
-                    "evidence": neutralise(line),
+                    "evidence": neutralise(line, always_fence=True),
                     "identity": ("ai_artifact", rule, rel, str(n)),
                 })
     return findings
@@ -113,7 +113,7 @@ def _mcp_config(text: str, rel: str) -> list[dict]:
             "path": rel,
             "line": 0,
             "title": "MCP server pinned to a mutable git ref",
-            "evidence": neutralise(mutable.group(0)),
+            "evidence": neutralise(mutable.group(0), always_fence=True),
             "identity": ("ai_artifact", "mcp-mutable-ref", rel),
         })
     try:
@@ -128,7 +128,7 @@ def _mcp_config(text: str, rel: str) -> list[dict]:
                 "path": rel,
                 "line": 0,
                 "title": f"MCP server '{server}' auto-approves {len(approved)} tool(s)",
-                "evidence": neutralise(", ".join(map(str, approved))),
+                "evidence": neutralise(", ".join(map(str, approved)), always_fence=True),
                 "identity": ("ai_artifact", "blanket-auto-approve", rel, server),
             })
     return findings
