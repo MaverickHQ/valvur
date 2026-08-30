@@ -34,7 +34,7 @@ def sbom(image: str) -> dict:
     operator has on PATH, and hard-coding an absolute path would break every machine
     whose Docker lives elsewhere. Argument-list form, never a shell.
     """
-    result = subprocess.run(  # noqa: S603, S607
+    result = subprocess.run(  # noqa: S603
         [
             "docker", "run", "--rm",
             "-v", "/var/run/docker.sock:/var/run/docker.sock",
