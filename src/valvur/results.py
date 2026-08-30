@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import artifacts
+
 RESULTS_DIR = ".security-scan"
+_VERSION = "0.1.0.dev0"
 
 
-def write(workspace: Path, run, artifacts=()) -> Path:
+def write(workspace: Path, run, scanner_artifacts=()) -> Path:
     folder = workspace / RESULTS_DIR
     folder.mkdir(parents=True, exist_ok=True)
     # The folder ignores itself. This is THE guarantee that results are never
@@ -15,8 +18,16 @@ def write(workspace: Path, run, artifacts=()) -> Path:
     # and it travels with the folder if it is copied elsewhere.
     (folder / ".gitignore").write_text("*\n", encoding="utf-8")
     (folder / "SUMMARY.md").write_text(_summary(run), encoding="utf-8")
+    complete = not getattr(run, "failures", [])
+    (folder / "findings.json").write_text(
+        artifacts.findings_json(run.findings, status=run.status, complete=complete),
+        encoding="utf-8",
+    )
+    (folder / "results.sarif").write_text(
+        artifacts.sarif(run.findings, version=_VERSION), encoding="utf-8"
+    )
     (folder / "run.json").write_text(_provenance(run), encoding="utf-8")
-    for name, content in artifacts:
+    for name, content in scanner_artifacts:
         (folder / name).write_text(content, encoding="utf-8")
     return folder
 

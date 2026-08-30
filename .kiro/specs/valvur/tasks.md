@@ -658,6 +658,15 @@ that matters is buried beneath noise.
 
 ### 6.0 — The consistency invariant, first
 
+> **✅ COMPLETE 2026-08-30.** 84 tests. `assert_artifacts_agree()` is a reusable
+> assertion, and a second test deliberately corrupts the SARIF to prove the invariant
+> can actually fail — a guarantee that cannot fail is not a guarantee.
+>
+> Building it first immediately earned its place: it exposed that the `quick` Profile
+> was missing the **ai-artifact** Check entirely, because an earlier edit matched a
+> trailing comma that `QUICK` did not have. The differentiator was silently absent
+> from the fast path.
+
 1. Every **Finding** in `findings.json` appears in `results.sarif` and is counted in
    `SUMMARY.md`. *(F7.13)*
 
