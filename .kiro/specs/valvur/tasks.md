@@ -194,10 +194,15 @@ rather than month two. Every later phase adds depth to a system that already wor
   **STATUS 2026-08-30:** ✅ `.github/workflows/ci.yml` guard job. Verified both ways: passes clean, fails on output committed via `--no-verify` with hooks bypassed.
   in the tree or in a pushed commit. The `pre-commit` hook is the first line, but a
   hook can be bypassed with `--no-verify`; CI cannot. *(ADR-0011)*
-- [ ] **1.12** **Usability gate:** someone who has never seen valvur installs and runs  
-  **STATUS 2026-08-30:** ⏳ **NEEDS A HUMAN.** Cannot be self-assessed — the whole point is a person who has never seen valvur. Notes from it drive Phase 10.
-  it from the README alone, on a clean machine, in under five minutes. Write down
-  every point of confusion. Those notes drive Phase 10.
+- [ ] **1.12** **MOVED to Phase 10 (task 10.0) on 2026-08-30**, at Harvey's request.
+  Rationale for moving: there is no truthful install path yet — the README describes
+  v1 while we have built Phase 1 — so a participant today would only discover that the
+  software is not published, which we already know. Participants cannot be reused;
+  first-run impressions do not reset.
+  **Cost accepted:** Phase 1 was ordered as a walking skeleton specifically to get this
+  signal early. Deferring means Phase 10's task list rests on our own assumptions until
+  the gate runs, which is why it now runs *first* in Phase 10 rather than last.
+
 
 **Exit:** a real user can install valvur and scan a real repository. Cycle 5 passes.
 
@@ -426,8 +431,13 @@ anything.
 ## Phase 10 — First-run experience
 
 **Goal:** usability, treated as a feature with its own phase rather than as polish.
-Driven by the confusion notes from cycle 1.12.
+Driven by the usability gate, which runs first (10.0).
 
+- [ ] **10.0** **Run the usability gate FIRST — before any other task in this phase.**
+  Protocol: [docs/usability-gate.md](../../../docs/usability-gate.md). A developer who
+  has never seen valvur, repository URL only, no verbal help, scanning their own
+  project. **The findings become the rest of this phase's task list**, so the tasks
+  below are provisional until it has run. Moved here from Phase 1 task 1.12.
 - [ ] **10.1** `uv tool install valvur` (and `pipx`) works on a clean machine with no
   **Scanners**, no Python knowledge and no configuration. *(F10.6)*
 - [ ] **10.2** First run auto-pulls the image with clear progress, and states plainly
