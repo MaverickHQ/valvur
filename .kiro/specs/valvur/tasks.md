@@ -983,20 +983,36 @@ anything.
 > **Reordered and sub-phased 2026-08-30 after reviewing Phase 8.** The original six
 > cycles described the tools but not the two decisions that shape them: what the MCP
 > SDK costs us, and what happens when a scan outlasts a client's timeout.
+>
+> **Corrected the same day.** My first rewrite made MCP an opt-in extra, reasoning
+> that the CLI was the wider audience. That had the priority backwards: valvur is
+> agent-native, and adding it to Kiro or Claude Code *is* the product. MCP is the
+> primary interface, and ADR-0015 keeps it dependency-free by implementing stdio
+> directly.
 
-### 9.0 — Dependency decision and transport
+### 9.0 — Hand-rolled stdio transport
 
-- [ ] **9.0.1** **Ship MCP as an opt-in extra: `pip install valvur[mcp]`.** The
-  official SDK pulls **22 transitive packages** including `cryptography`, `cffi` and
-  `pycparser`, which need a compiler wherever no wheel exists — Alpine, some ARM
-  Linux. `pyproject.toml` currently says `dependencies = []` with a comment citing
-  F10.6, and adding the SDK to the core would abandon that property silently. The CLI
-  is the wider audience and keeps it; an MCP user makes the trade knowingly.
-  *(F10.6, clarified.)*
-- [ ] **9.0.2** Import the SDK lazily, so `valvur scan` never pays for it and a
-  missing extra produces a clear message rather than an `ImportError`.
+**MCP is the primary interface.** `pip install valvur` gives a working server; there
+is no extra to opt into. The CLI is the second way in.
 
-**Commit:** `feat: MCP server as an opt-in extra`
+- [ ] **9.0.1** Implement MCP stdio directly — newline-delimited JSON-RPC 2.0 on
+  stdin/stdout — keeping **zero runtime dependencies** (F10.6, ADR-0015). The
+  official SDK pulls 22 packages including `starlette`, `uvicorn`, `pyjwt` and
+  `cryptography`: an HTTP server, an OAuth stack and a crypto library, all to support
+  transports Kiro and Claude Code do not use. Installing a web server into a security
+  tool enlarges what must be audited and patched whether or not a port is ever bound —
+  and it is precisely the dependency footprint our own Dependency Reality Check
+  exists to warn people about.
+- [ ] **9.0.2** Implement `initialize`, `tools/list` and `tools/call`. That is the
+  whole protocol for a tools-only server.
+- [ ] **9.0.3** **Pin the protocol version we declare**, and record it. We own
+  compatibility now: if the handshake changes we fix it rather than upgrading a
+  package. Phase 9's exit criterion — a real client completing scan → list → explain —
+  is what makes that risk manageable rather than theoretical.
+- [ ] **9.0.4** A malformed request produces a JSON-RPC error, never a traceback on
+  stdout. Anything written to stdout that is not a response corrupts the stream.
+
+**Commit:** `feat: MCP stdio transport with zero dependencies`
 
 ### 9.1 — The read-only tool surface
 

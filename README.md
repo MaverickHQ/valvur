@@ -106,6 +106,17 @@ keeps your code off the public internet — it does not keep it on your hardware
 and it ships in two regions. **Self-hosted SonarQube CE** keeps code on your
 infrastructure; our differences there are scope and prioritisation, not residency.
 
+## For AI coding agents — the primary way in
+
+Add valvur to your agent's MCP configuration:
+
+```json
+{ "mcpServers": { "valvur": { "command": "uvx", "args": ["valvur-mcp"] } } }
+```
+
+Then ask it to scan. The server is **stdio only** — no listener, no port, no network
+surface — and every tool it exposes is read-only: valvur can never change your code.
+
 ## For developers
 
 ```bash

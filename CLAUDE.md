@@ -16,7 +16,9 @@ source scanners, normalises their findings, ranks them by real-world
 exploitability, and writes an **agent-consumable** results folder into the
 project being scanned.
 
-Delivered as an **MCP tool** the developer invokes deliberately, plus a CLI.
+Delivered primarily as an **MCP tool** the developer adds to their agent (Kiro,
+Claude Code) and invokes deliberately; the CLI is the second way in. The MCP server
+is hand-rolled over stdio with **zero dependencies** (ADR-0015).
 Packaged as one OCI container. Runs on Docker or Podman, locally by default,
 optionally on AWS (ECR/Fargate) using the identical image.
 
@@ -110,6 +112,7 @@ new argument.
 | [007](docs/adr/0007-internal-enrichment-no-external-platform.md) | **Enrichment is internal and has zero external prerequisites.** ~200 lines behind an `EnrichmentProvider` interface: KEV snapshot bundled in the image, EPSS fetched on demand for found CVEs only, degrading to KEV-only when offline. The sibling VulnGraph project is **parked** and must never become a dependency. |
 | [008](docs/adr/0008-no-saas-coupled-dependencies.md) | **No SaaS-coupled dependencies.** `snyk/agent-scan` was rejected despite being credible (Apache-2.0, well-adopted) because it requires `SNYK_TOKEN` and transmits component data to Snyk. Applying this rule to Snyk and waiving it elsewhere would make the principle meaningless. |
 | [009](docs/adr/0009-human-in-the-loop-remediation.md) | **Human-in-the-loop remediation.** valvur proposes, never remediates. No `scan_and_fix` tool, no watchers, no on-save hooks — and a test asserts no such tool *exists in the registry*, so adding one fails the build rather than merely failing review. An agent told to drive findings to zero has a cheaper path via deletion and suppression than via correct fixes. See §4. |
+| [015](docs/adr/0015-hand-rolled-mcp-stdio-transport.md) | **MCP stdio is hand-rolled, zero dependencies.** The official SDK pulls 22 packages — an HTTP server, an OAuth stack and a crypto library — to support transports Kiro and Claude Code do not use. stdio has no listener: the process boundary is the trust boundary. MCP is on the **primary** install path; the CLI is second. |
 | [014](docs/adr/0014-no-html-report.md) | **No `report.html`.** Cut before implementation. The Results Folder is deliberately unshareable (ADR-0011), which removes an HTML report's main advantage over Markdown; rendering untrusted content in a browser was the largest security surface in the contract; and it was the only artifact with no single identified consumer, which is ADR-0002's own rule. F7.8 deferred, F7.15 stays dormant. |
 | [013](docs/adr/0013-checks-run-inside-the-container.md) | **valvur's own Checks run inside the container**, like Scanners. Host-side would put the Dependency Reality Check's registry calls outside `--network=none`, turning ADR-0010's guarantee back into a policy. No new orchestrator protocol was needed: Checks emit JSON and fit the existing adapter contract. |
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
