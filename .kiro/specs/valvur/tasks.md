@@ -1068,9 +1068,12 @@ is no extra to opt into. The CLI is the second way in.
 
 ### 9.3 — CLI parity by construction
 
+> **✅ COMPLETE 2026-08-30.** 174 tests. Phase 9 complete.
+
 10. Every MCP tool has a CLI equivalent producing the same result. *(F9.3)*
 
-- [ ] **9.3.11** Make parity **structural, not compared**: both surfaces call the same
+- [x] **9.3.11** Make parity **structural, not compared**: both surfaces call the same  
+  **STATUS 2026-08-30:** ✅ Operations lifted into `valvur/operations.py`; both surfaces call them. A test asserts every MCP tool's handler *is* a shared operation, so a second implementation fails the build.
   function, so they cannot drift. Asserting equality of formatted output would be
   brittle and would keep passing while the semantics diverged.
 

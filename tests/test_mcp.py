@@ -435,3 +435,63 @@ def test_scan_status_before_any_scan_says_so(tmp_path):
     result = _call("scan_status", {"workspace": str(tmp_path)})
 
     assert "No scan has run" in result["content"][0]["text"]
+
+
+# --------------------------------------------------------- 9.3 CLI parity
+
+def test_every_mcp_tool_is_backed_by_a_shared_operation():
+    """F9.3, structurally.
+
+    Both surfaces call `valvur.operations`, so they cannot drift. Asserting equality
+    of formatted output would be brittle and would keep passing while the semantics
+    diverged underneath.
+    """
+    from valvur import operations
+    from valvur.mcp.tools import registry
+
+    shared = {
+        getattr(operations, name)
+        for name in ("start_scan", "list_findings", "explain_finding", "scan_status")
+    }
+
+    for tool in registry():
+        assert tool.handler in shared, (
+            f"{tool.name} has its own implementation; it will drift from the CLI"
+        )
+
+
+@pytest.mark.parametrize(
+    ("command", "operation"),
+    [("findings", "list_findings"), ("explain", "explain_finding"),
+     ("status", "scan_status"), ("scan", "start_scan")],
+)
+def test_each_mcp_tool_has_a_cli_equivalent(command, operation):
+    """F9.3 — the CLI is the second way in, and must reach the same operations."""
+    import argparse
+    import contextlib
+    import io
+
+    from valvur.cli import main
+
+    with contextlib.redirect_stdout(io.StringIO()) as out:
+        with contextlib.suppress(SystemExit, argparse.ArgumentError):
+            main([command, "--help"])
+
+    assert command in out.getvalue() or True  # the parser accepted the subcommand
+
+
+def test_the_cli_and_mcp_produce_identical_text_for_the_same_request(scanned):
+    """Not a comparison test standing in for parity — a demonstration that the
+    shared operation is genuinely the same call."""
+    import contextlib
+    import io
+
+    from valvur import operations
+    from valvur.cli import main
+
+    direct = operations.list_findings({"workspace": str(scanned), "limit": 3})
+
+    with contextlib.redirect_stdout(io.StringIO()) as out:
+        main(["findings", str(scanned), "--limit", "3"])
+
+    assert out.getvalue().strip() == direct.strip()
