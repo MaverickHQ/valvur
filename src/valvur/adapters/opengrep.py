@@ -53,6 +53,7 @@ class OpengrepAdapter:
                     evidence=matched,
                     fingerprint=_fp.for_sast(rule, path, matched, ordinal),
                     sources=(output.tool,),
+                    severity=_severity(item),
                 )
             )
         return findings
@@ -64,3 +65,11 @@ def _short_rule(check_id: str) -> str:
     marker = "valvur."
     index = check_id.find(marker)
     return check_id[index:] if index >= 0 else check_id
+
+
+_OPENGREP_SEVERITY = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}
+
+
+def _severity(item: dict) -> str:
+    raw = str(item.get("extra", {}).get("severity", "")).upper()
+    return _OPENGREP_SEVERITY.get(raw, "medium")

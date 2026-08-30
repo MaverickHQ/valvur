@@ -34,6 +34,8 @@ class GitleaksAdapter:
                     evidence=_redact.redact(item.get("Match", ""), secret),
                     fingerprint=_fp.for_secret(item["RuleID"], path, secret),
                     sources=(output.tool,),
+                    # A live credential in a repository is not a matter of degree.
+                    severity="critical",
                 )
             )
         return findings

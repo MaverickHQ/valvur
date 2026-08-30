@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from .. import fingerprint as _fp
-from ..findings import Finding
+from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
 from .base import container_relative
 
@@ -46,6 +46,11 @@ class OsvAdapter:
                             evidence=f"{ecosystem} package {name}@{version}",
                             fingerprint=_fp.for_dependency_vuln(ecosystem, name, version, vid),
                             sources=(output.tool,),
+                            severity=_severity(vuln),
+                            exploit=Exploit(cve=vid if vid.startswith("CVE-") else ""),
+                            dependency=Dependency(
+                                ecosystem=ecosystem, package=name, version=version
+                            ),
                         )
                     )
         return findings
@@ -65,3 +70,13 @@ def _preferred_id(vuln: dict) -> str:
         if alias.startswith("CVE-"):
             return alias
     return vuln.get("id", "")
+
+
+def _severity(vuln: dict) -> str:
+    """OSV reports severity inconsistently across ecosystems; take what is there."""
+    for entry in vuln.get("severity") or []:
+        score = str(entry.get("score", ""))
+        if score.upper() in {"CRITICAL", "HIGH", "MEDIUM", "MODERATE", "LOW"}:
+            return "medium" if score.upper() == "MODERATE" else score.lower()
+    db = (vuln.get("database_specific") or {}).get("severity", "")
+    return str(db).lower() or "unknown"
