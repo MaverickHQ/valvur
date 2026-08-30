@@ -19,4 +19,4 @@ if git diff --cached --name-only -z | tr '\0' '\n' | grep -qE '(^|/)\.security-s
   exit 1
 fi
 
-gitleaks protect --staged --redact --no-banner
+gitleaks protect --staged --redact --no-banner --config .gitleaks.toml
