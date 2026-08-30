@@ -24,8 +24,12 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         runner = ContainerRunner()
 
     workspace = Path(args.path).resolve()
-    run = scan(workspace, runner=runner)
+    run = scan(workspace, runner=runner, profile=args.profile)
 
+    for failure in run.failures:
+        print(f"  ! {failure.tool} did not complete: {failure.reason}")
+    if run.failures:
+        print("  ! this scan is INCOMPLETE")
     print(f"{run.status}: {len(run.findings)} finding(s)")
     print(f"results: {workspace / '.security-scan'}")
 

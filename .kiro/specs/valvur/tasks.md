@@ -317,6 +317,12 @@ concurrency correctly.
 
 ### 3.2 — Profile selection and concurrency
 
+> **✅ COMPLETE 2026-08-30.** All 3 cycles green, 34 tests.
+> Scanners run in a thread pool — each is a container invocation, so the work is
+> I/O-bound and threads are the right tool. Results are collected back into
+> *declaration* order, so a **Scan Run** is reproducible regardless of which Scanner
+> finished first.
+
 > Neither appeared in the original Phase 3 despite both being required. Concurrency
 > especially: six Scanners run serially will not meet the 5-minute `standard` budget
 > (N1.2), and discovering that in Phase 11 means restructuring the orchestrator after
