@@ -44,6 +44,13 @@ jobs:
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           docker build --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+      - name: Make the image visible to podman
+        # Podman keeps its own image store, so a docker build is invisible to it.
+        # Transferring is far cheaper than building twice, and without it the podman
+        # tests would silently degrade to "scanner failed, zero findings".
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq podman
+          docker save valvur:dev | podman load
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
       - run: uv run pytest -q -m e2e
