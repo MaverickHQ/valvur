@@ -537,16 +537,22 @@ repository appears as live directive text in any artifact we write.
 
 ### 5.0 — Extend the Finding model
 
-- [ ] **5.0.1** Add `severity`, `rank`, `exploit` and `dependency` to `Finding`, per
+> **✅ COMPLETE 2026-08-30.** 68 tests.
+
+- [x] **5.0.1** Add `severity`, `rank`, `exploit` and `dependency` to `Finding`, per  
+  **STATUS 2026-08-30:** ✅ `Exploit` and `Dependency` dataclasses, plus `severity` and `rank` on `Finding`. All optional, so Checks needed no change.
   `design.md` §3. Keep them optional so existing Checks need no change.
-- [ ] **5.0.2** Populate them in each Scanner adapter. Trivy already hands us
+- [x] **5.0.2** Populate them in each Scanner adapter. Trivy already hands us  
+  **STATUS 2026-08-30:** ✅ All six adapters populate them. Trivy's `Severity`/`FixedVersion`/`PURL` were previously parsed and discarded; gitleaks findings are `critical` by definition — a live credential is not a matter of degree.
   `Severity`, `FixedVersion`, `PURL`, `CVSS` and `PublishedDate`; OSV and Checkov
   carry equivalents. This re-touches all six adapters, which is why it comes first.
-- [ ] **5.0.3** **Fingerprints must not change.** Enrichment is additive metadata, and
+- [x] **5.0.3** **Fingerprints must not change.** Enrichment is additive metadata, and  
+  **STATUS 2026-08-30:** ✅ **Fingerprint digest identical before and after** (`dc6c522534a90b3d`, 46 fingerprints). Now a permanent regression test with pinned literal values, not a one-off check.
   a fingerprint shift would silently invalidate every **Suppression** in every project
   using valvur (ADR-0003). Assert the fixture's fingerprints are byte-identical
   before and after this sub-phase.
-- [ ] **5.0.4** All 63 existing tests pass unchanged.
+- [x] **5.0.4** All 63 existing tests pass unchanged.  
+  **STATUS 2026-08-30:** ✅ All 63 existing tests passed unchanged; 68 now.
 
 **Commit:** `feat: carry severity and dependency metadata on findings`
 

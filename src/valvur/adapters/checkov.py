@@ -39,6 +39,7 @@ class CheckovAdapter:
                         evidence=resource,
                         fingerprint=_fp.for_iac(check.get("check_id", ""), path, resource),
                         sources=(output.tool,),
+                        severity=str(check.get("severity") or "medium").lower(),
                     )
                 )
         return findings

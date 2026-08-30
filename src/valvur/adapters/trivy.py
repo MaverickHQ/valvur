@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from .. import fingerprint as _fp
-from ..findings import Finding
+from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
 from .base import container_relative
 
@@ -50,6 +50,37 @@ class TrivyAdapter:
                             ecosystem, package, installed, vuln["VulnerabilityID"]
                         ),
                         sources=(output.tool,),
+                        severity=str(vuln.get("Severity", "unknown")).lower(),
+                        exploit=Exploit(cve=vuln["VulnerabilityID"]),
+                        dependency=Dependency(
+                            ecosystem=ecosystem,
+                            package=package,
+                            version=installed,
+                            fixed_version=fixed,
+                            purl=str((vuln.get("PkgIdentifier") or {}).get("PURL", "")),
+                            scope=_scope(target),
+                        ),
                     )
                 )
         return findings
+
+
+# requirements-dev.txt and friends never ship. A CVE there is real but not urgent,
+# and treating it as urgent is how a scanner teaches people to ignore it (F6.6).
+_DEV_HINTS = ("dev", "test", "tests", "ci", "lint", "doc", "docs")
+
+
+def _scope(target: str) -> str:
+    if not target:
+        return "unknown"
+    lowered = target.lower()
+    segments = [seg for seg in lowered.replace("\\", "/").split("/") if seg]
+    # A directory named tests/ or ci/ anywhere in the path, or a filename suffixed
+    # -dev / _test, means this dependency does not ship.
+    if any(seg in _DEV_HINTS for seg in segments[:-1]):
+        return "development"
+    stem = segments[-1].rsplit(".", 1)[0]
+    parts = stem.replace("-", " ").replace("_", " ").replace(".", " ").split()
+    if any(part in _DEV_HINTS for part in parts):
+        return "development"
+    return "production"
