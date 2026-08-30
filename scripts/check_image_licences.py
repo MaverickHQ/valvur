@@ -30,9 +30,9 @@ LGPL = re.compile(r"\bLGPL\b", re.IGNORECASE)
 def sbom(image: str) -> dict:
     """Generate an SBOM for an image with syft.
 
-    A partial executable path is correct here: the container runtime is whatever the
-    operator has on PATH, and hard-coding an absolute path would break every machine
-    whose Docker lives elsewhere. Argument-list form, never a shell.
+    Invokes the runtime by name deliberately (see the S607 ignore in pyproject):
+    hard-coding an absolute path would break every machine whose Docker lives
+    elsewhere. Argument-list form, never a shell.
     """
     result = subprocess.run(  # noqa: S603
         [
