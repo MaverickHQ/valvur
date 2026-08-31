@@ -19,6 +19,22 @@ COPYLEFT = re.compile(r"\b(AGPL|GPL|SSPL|OSL|EUPL)\b", re.IGNORECASE)
 PERMISSIVE = re.compile(r"\b(MIT|Apache|BSD|ISC|Unlicense|Zlib)\b", re.IGNORECASE)
 
 
+def _is_dependency(component: dict) -> bool:
+    """Whether an SBOM component is a dependency whose licence we can sensibly ask
+    about.
+
+    Syft catalogues more than packages. Workflow YAML and lockfiles arrive as type
+    "file", with container paths for names. GitHub Actions arrive as type "library"
+    with a pkg:github purl — they are workflow steps pinned by git ref, not licensed
+    packages, and the pinning rule already covers the risk they actually carry.
+    Counting either inflates "N dependencies declare no licence" with things that
+    have no licence to declare.
+    """
+    if component.get("type") == "file":
+        return False
+    return not str(component.get("purl") or "").startswith("pkg:github/")
+
+
 def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
     try:
         sbom = json.loads(sbom_json or "{}")
@@ -29,7 +45,7 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
     findings: list[Finding] = []
     undeclared: list[str] = []
 
-    components = [c for c in (sbom.get("components") or []) if c.get("type") != "file"]
+    components = [c for c in (sbom.get("components") or []) if _is_dependency(c)]
     for component in components:
         name = component.get("name", "")
         version = component.get("version", "")
