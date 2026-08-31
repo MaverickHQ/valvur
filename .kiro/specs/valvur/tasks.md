@@ -1164,6 +1164,27 @@ take, and participants cannot be re-used.
 
 **Commit:** `feat: CLI first-run experience`
 
+### 10.3b — False positives, found by scanning a real project
+
+> **Added 2026-08-31.** A scan of a real 260k-line project (62s, standard profile, all
+> nine scanners green) returned 20 findings. Two genuine secrets, seven real IaC
+> misconfigurations — and three defects our synthetic fixture could not have revealed,
+> because it has no vendored code and no `.env`.
+
+13. **Build and vendor directories are excluded by default.** `.aws-sam/build/`,
+    `node_modules/`, `site-packages/`, `dist/`, `.venv/`. Six of the twenty findings —
+    **30%** — came from numpy's own test fixtures inside a build artifact directory.
+    That is not the user's code, they cannot fix it, and it is precisely the noise
+    Phase 5 exists to prevent.
+14. **A gitignored `.env` is not a critical finding.** Every developer has one, and
+    keeping secrets out of git is the *correct* practice we would be penalising. A
+    secret in a **tracked** file is critical; a secret in an ignored one is a note.
+    Ranking must consult git, not just the filesystem.
+15. `licence.dependency-unknown` still crowds real findings: five of the fourteen
+    findings in the user's own code. The class floor is not low enough.
+
+**Commit:** `fix: exclude vendored code and rank gitignored secrets honestly`
+
 ### 10.4 — Error messages as a usability surface
 
 8. **Docker installed but not running** produces a message naming the exact next
