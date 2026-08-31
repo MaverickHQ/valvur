@@ -162,9 +162,11 @@ def _summary(run) -> str:
     if absent and not findings:
         lines += [
             f"> ⚠ **Nothing found — but the `{run.profile}` profile did not run "
-            f"every Scanner.** Not examined: {', '.join(absent)}.",
-            "> This is not the same claim as \"there is nothing here\". "
-            "Run `valvur scan --profile standard` for full coverage.",
+            f"every Scanner.** Not run: {', '.join(absent)}.",
+            f"> `{run.profile}` does cover dependency CVEs, secrets, code patterns "
+            "and agent config. It does not cover "
+            f"{_profiles.gaps_in_prose(run.profile)}.",
+            "> Run `valvur scan --profile standard` for full coverage.",
             "",
         ]
 

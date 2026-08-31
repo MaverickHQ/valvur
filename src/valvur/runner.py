@@ -298,6 +298,13 @@ class ContainerRunner:
                 "--skip-db-update", "--skip-java-db-update",
                 "--format", "json", "--output", "/results/trivy.json",
                 "--quiet", "--scanners", "vuln",
+                # Trivy excludes dev dependencies by default; OSV-Scanner includes
+                # them. Measured on a real Electron app: without this the quick
+                # profile found 0 CVEs and standard found 24 — the same 24, in the
+                # same lockfile, differing only by this flag. Build and test tooling
+                # runs on the developer's machine and in CI, which is precisely the
+                # supply-chain surface this product exists to cover.
+                "--include-dev-deps",
             ]
             proc = subprocess.run(  # noqa: S603 - argument-list form, no shell
                 cmd, capture_output=True, text=True, timeout=600, check=False

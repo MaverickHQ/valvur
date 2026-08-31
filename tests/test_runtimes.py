@@ -315,3 +315,31 @@ def test_an_unreadable_workspace_is_refused_not_reported_clean(workspace, monkey
 @pytest.mark.parametrize("runtime", RUNTIMES)
 def test_the_container_can_read_the_workspace_on_every_runtime(workspace, runtime):
     ContainerRunner(runtime=_available(runtime)).verify_workspace_readable(workspace)
+
+
+# ------------------------------------------- dev dependencies on the quick profile
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("runtime", RUNTIMES)
+def test_the_offline_profile_finds_dev_dependency_vulnerabilities(mountable_tmp, runtime):
+    """The quick profile's whole claim is useful results with no network.
+
+    Measured on a real Electron app: Trivy's default excludes dev dependencies, so
+    quick reported a repository with 24 CVEs as clean while standard found all 24
+    over the network. A profile that returns false negatives makes "no network
+    required" worth nothing — this test is the reason that claim is true.
+    """
+    from conftest import FIXTURES
+
+    from valvur.adapters import TrivyAdapter
+
+    ws = mountable_tmp / "pnpm"
+    shutil.copytree(FIXTURES / "pnpm-dev-repo", ws)
+
+    run = scan(ws, runner=ContainerRunner(runtime=_available(runtime)),
+               adapters=[TrivyAdapter()], profile="quick")
+
+    packages = {f.dependency.package for f in run.findings if f.dependency}
+    assert "lodash" in packages, "dev-only transitive dependency was not scanned"
+    assert all(f.dependency.scope == "development"
+               for f in run.findings if f.dependency and f.dependency.package == "lodash")
