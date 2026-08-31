@@ -27,6 +27,7 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
 
     project_is_permissive = bool(project_licence and PERMISSIVE.search(project_licence))
     findings: list[Finding] = []
+    undeclared: list[str] = []
 
     for component in sbom.get("components") or []:
         name = component.get("name", "")
@@ -36,11 +37,8 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
         licences = _licences(component)
 
         if not licences:
-            findings.append(_finding(
-                "valvur.licence.dependency-unknown", name, version, "unknown",
-                f"{name} {version} declares no licence",
-                "A dependency of unknown licence cannot be cleared for release.",
-            ))
+            # Collected, not reported one by one. See below.
+            undeclared.append(f"{name} {version}".strip())
             continue
 
         for licence in licences:
@@ -50,6 +48,25 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
                     f"{name} {version} is {licence} in a {project_licence} project",
                     f"{licence} obligations may extend to your own source.",
                 ))
+    if undeclared:
+        # ONE finding, not one per package. A real TypeScript project produced 618 of
+        # these — 96% of its findings — burying two dozen genuine CVEs. Missing
+        # licence metadata is a bulk property of the dependency tree, and
+        # "618 dependencies declare no licence" is actionable where 618 separate
+        # findings are just a wall.
+        shown = ", ".join(sorted(undeclared)[:8])
+        more = f" …and {len(undeclared) - 8} more" if len(undeclared) > 8 else ""
+        findings.append(Finding(
+            rule="valvur.licence.dependency-unknown",
+            path="sbom.cdx.json",
+            line=0,
+            title=f"{len(undeclared)} dependencies declare no licence",
+            evidence=f"{shown}{more}",
+            fingerprint=_fp.for_licence("<dependencies>", "undeclared"),
+            severity="low",
+            sources=("valvur",),
+        ))
+
     return findings
 
 
