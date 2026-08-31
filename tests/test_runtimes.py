@@ -5,8 +5,10 @@ with different ownership on every runtime, which is why the shim writes the Resu
 Folder itself rather than the container doing it.
 """
 
+import functools
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -27,9 +29,34 @@ def _available(name: str) -> str | None:
     return None
 
 
+@functools.cache
+def _has_image(name: str) -> bool:
+    """Whether this runtime can actually obtain the image.
+
+    Parity cannot be tested against a runtime that has no image to run, and failing
+    instead of skipping teaches everyone to ignore a permanently red suite. Skipping
+    keeps the signal: a real parity regression still turns these red.
+    """
+    binary = _available(name)
+    if binary is None:
+        return False
+    from valvur.runner import IMAGE
+
+    return subprocess.run(
+        [binary, "image", "exists", IMAGE] if "podman" in name
+        else [binary, "image", "inspect", IMAGE],
+        capture_output=True, check=False,
+    ).returncode == 0
+
+
 RUNTIMES = [
-    pytest.param(name, marks=pytest.mark.skipif(
-        _available(name) is None, reason=f"{name} not installed"))
+    pytest.param(name, marks=[
+        pytest.mark.skipif(_available(name) is None, reason=f"{name} not installed"),
+        pytest.mark.skipif(
+            _available(name) is not None and not _has_image(name),
+            reason=f"{name} has no local valvur image (ghcr.io package is not public)",
+        ),
+    ])
     for name in ("docker", "podman")
 ]
 
@@ -95,10 +122,10 @@ def test_the_container_cannot_write_to_the_workspace(workspace):
 
 
 @pytest.mark.e2e
-def test_a_workspace_path_containing_spaces_scans_correctly(tmp_path):
+def test_a_workspace_path_containing_spaces_scans_correctly(mountable_tmp):
     from conftest import FIXTURES
 
-    awkward = tmp_path / "my project (v2)" / "the repo"
+    awkward = mountable_tmp / "my project (v2)" / "the repo"
     shutil.copytree(FIXTURES / "broken-repo", awkward)
 
     run = scan(awkward, runner=ContainerRunner(), adapters=[GitleaksAdapter()],
@@ -108,16 +135,16 @@ def test_a_workspace_path_containing_spaces_scans_correctly(tmp_path):
 
 
 @pytest.mark.e2e
-def test_a_symlink_pointing_outside_the_workspace_reaches_nothing(tmp_path):
+def test_a_symlink_pointing_outside_the_workspace_reaches_nothing(mountable_tmp):
     """The interesting case is not that symlinks work — it is that escape is
     structurally impossible. The link's target is simply not in the mount."""
     import subprocess
 
     from conftest import FIXTURES
 
-    workspace = tmp_path / "ws"
+    workspace = mountable_tmp / "ws"
     shutil.copytree(FIXTURES / "broken-repo", workspace)
-    secret = tmp_path / "outside-secret.txt"
+    secret = mountable_tmp / "outside-secret.txt"
     secret.write_text("AKIAV7Q2XR4TVBN6WLKJ\n")
     (workspace / "escape.txt").symlink_to(secret)
 
@@ -268,7 +295,11 @@ def test_an_unreadable_workspace_is_refused_not_reported_clean(workspace, monkey
     runner = ContainerRunner()
 
     class Empty:
+        # The container ran successfully and saw nothing — which is the case this
+        # test exists for, and is distinct from the container failing to start.
+        returncode = 0
         stdout = "0"
+        stderr = ""
 
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: Empty())
 

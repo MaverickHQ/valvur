@@ -1,5 +1,7 @@
 import json
+import platform
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -8,16 +10,38 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
-def workspace(tmp_path):
+def mountable_tmp(tmp_path):
+    """A temp directory every container runtime can actually mount.
+
+    Podman on macOS runs a VM that shares only certain host paths. pytest's tmp_path
+    lives under /var/folders, which it does not share, so the workspace mounts as an
+    empty directory and the scan correctly refuses to report it. That is an
+    environment limit rather than a regression — but leaving these tests red hides
+    the real regressions they exist to catch.
+    """
+    if platform.system() != "Darwin":
+        yield tmp_path
+        return
+    base = Path("/private/tmp/valvur-tests")
+    base.mkdir(parents=True, exist_ok=True)
+    made = Path(tempfile.mkdtemp(dir=base))
+    try:
+        yield made
+    finally:
+        shutil.rmtree(made, ignore_errors=True)
+
+
+@pytest.fixture
+def workspace(mountable_tmp):
     """A disposable copy of the broken fixture repo."""
-    ws = tmp_path / "ws"
+    ws = mountable_tmp / "ws"
     shutil.copytree(FIXTURES / "broken-repo", ws)
     return ws
 
 
 @pytest.fixture
-def clean_workspace(tmp_path):
-    ws = tmp_path / "clean"
+def clean_workspace(mountable_tmp):
+    ws = mountable_tmp / "clean"
     shutil.copytree(FIXTURES / "clean-repo", ws)
     return ws
 

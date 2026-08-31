@@ -55,6 +55,40 @@ class WorkspaceUnreadable(RuntimeError):
     """The container cannot see the source. Never downgraded to a clean result."""
 
 
+def _unreadable_hint(runtime: str, workspace) -> str:
+    """Say why, not just that. Podman on macOS runs a VM that shares only certain
+    host paths, so a repository outside them mounts as an empty directory with no
+    error from the runtime — the failure looks like a bug in us. Measured: a path
+    under /var/folders mounts empty while /private/tmp works."""
+    import platform
+
+    if "podman" not in runtime or platform.system() != "Darwin":
+        return (
+            "Check the path exists and that your container runtime is permitted to "
+            "mount it."
+        )
+    return (
+        "On macOS, Podman runs inside a VM and can only mount host paths that VM "
+        "shares. A path it does not share appears as an empty directory.\n"
+        f"  Path scanned: {workspace}\n"
+        "  Fix: scan a repository under your home directory, or share this path:\n"
+        "    podman machine stop\n"
+        "    podman machine set --volume /your/path:/your/path\n"
+        "    podman machine start\n"
+        "  Docker Desktop shares more paths by default and is unaffected."
+    )
+
+
+class ContainerStartFailed(RuntimeError):
+    """The runtime could not start the container at all.
+
+    Distinct from an unreadable Workspace, and the distinction matters: the probe
+    used to discard stderr, so a failed image pull was reported as "the container
+    cannot read the workspace" and sent the reader to check mount permissions. The
+    runtime already said exactly what was wrong; we were throwing it away.
+    """
+
+
 class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
 
@@ -160,14 +194,25 @@ class ContainerRunner:
             )
 
         seen = proc.stdout.strip()
-        if not seen.isdigit() or int(seen) == 0:
+        if proc.returncode != 0 or not seen.isdigit():
+            raise ContainerStartFailed(
+                "The container did not run, so the workspace could not be checked.\n"
+                "This is not a problem with your code — the scan never started.\n"
+                f"Runtime: {self.runtime}\n"
+                f"Image:   {self.image}\n"
+                f"{Path(self.runtime).name} said:\n"
+                f"  {(proc.stderr.strip() or '(no error text)')[:500]}\n"
+                f"If the image is missing, fetch it with:\n"
+                f"  {Path(self.runtime).name} pull {self.image}"
+            )
+        if int(seen) == 0:
             raise WorkspaceUnreadable(
                 f"The container cannot read the workspace: {workspace} has "
                 f"{host_entries} entries, the container sees {seen or 'none'}.\n"
                 "Refusing to report a scan — an unreadable workspace is "
                 "indistinguishable from a clean one, and reporting it as clean would "
                 "be the worst possible failure.\n"
-                f"Runtime: {self.runtime}"
+                f"Runtime: {self.runtime}\n" + _unreadable_hint(self.runtime, workspace)
             )
 
     def verify_compatible(self) -> None:

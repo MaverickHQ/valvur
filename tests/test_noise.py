@@ -374,3 +374,72 @@ def test_a_minority_of_undeclared_licences_is_still_reported_as_undeclared():
 
     assert findings[0].rule == "valvur.licence.dependency-unknown"
     assert "1 dependencies declare no licence" in findings[0].title
+
+
+def test_an_unreadable_workspace_on_macos_podman_explains_the_vm_share():
+    """Measured on this machine: a path under /var/folders mounts as an empty
+    directory under Podman while /private/tmp works, with no error from the runtime.
+    Refusing to scan is right; refusing without saying why looks like our bug."""
+    from valvur.runner import _unreadable_hint
+
+    hint = _unreadable_hint("/opt/podman/bin/podman", "/var/folders/x/ws")
+
+    assert "podman machine set --volume" in hint
+    assert "home directory" in hint
+
+
+def test_the_hint_does_not_blame_podman_on_other_runtimes():
+    """Docker Desktop shares more paths by default; the VM advice would misdirect."""
+    from valvur.runner import _unreadable_hint
+
+    assert "podman machine" not in _unreadable_hint("/usr/local/bin/docker", "/x")
+
+
+def test_a_container_that_never_started_is_not_called_an_unreadable_workspace(
+    monkeypatch, tmp_path
+):
+    """The probe discarded stderr, so a failed image pull was reported as "the
+    container cannot read the workspace" — sending the reader to check mount
+    permissions while the runtime had already said "unauthorized"."""
+    import subprocess
+
+    import pytest
+
+    from valvur.runner import ContainerRunner, ContainerStartFailed
+
+    (tmp_path / "a.txt").write_text("x")
+
+    def fail(*a, **k):
+        return subprocess.CompletedProcess(
+            a[0], 125, "", "Error: unable to retrieve auth token: unauthorized"
+        )
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    runner = ContainerRunner(runtime="/opt/podman/bin/podman")
+
+    with pytest.raises(ContainerStartFailed) as excinfo:
+        runner.verify_workspace_readable(tmp_path)
+
+    message = str(excinfo.value)
+    assert "unauthorized" in message
+    assert "podman pull" in message
+    assert "cannot read the workspace" not in message
+
+
+def test_a_genuinely_unreadable_workspace_still_reports_as_such(monkeypatch, tmp_path):
+    """The new branch must not swallow the failure it was built around: a container
+    that runs fine and sees nothing is the silent-clean-scan case."""
+    import subprocess
+
+    import pytest
+
+    from valvur.runner import ContainerRunner, WorkspaceUnreadable
+
+    (tmp_path / "a.txt").write_text("x")
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0], 0, "0\n", ""),
+    )
+
+    with pytest.raises(WorkspaceUnreadable):
+        ContainerRunner(runtime="/usr/local/bin/docker").verify_workspace_readable(tmp_path)
