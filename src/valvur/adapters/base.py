@@ -25,7 +25,13 @@ def container_relative(path: str) -> str:
     """
     if path.startswith(CONTAINER_WORKSPACE + "/"):
         return path[len(CONTAINER_WORKSPACE) + 1 :]
-    return path.lstrip("./")
+    # lstrip takes a CHARACTER SET, not a prefix: "./" ate the leading dot of every
+    # dotfile, so Checkov's "/.github/workflows/ci.yml" was reported as
+    # "github/workflows/ci.yml" — a path that does not exist, and a Fingerprint
+    # keyed on it that no suppression could ever match.
+    if path.startswith("./"):
+        path = path[2:]
+    return path.lstrip("/")
 
 
 @runtime_checkable

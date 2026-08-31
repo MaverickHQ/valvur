@@ -10,9 +10,11 @@ therefore independently applicable, because they will cherry-pick.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from .findings import Finding
+from .versions import release_line, version_key
 
 
 @dataclass
@@ -37,7 +39,25 @@ def group(findings: list[Finding]) -> list[Item]:
         key, action, where = _key(finding)
         item = items.setdefault((key, where), Item(action=action, where=where))
         item.findings.append(finding)
+    for item in items.values():
+        _retarget(item)
     return sorted(items.values(), key=lambda i: i.rank)
+
+
+def _retarget(item: Item) -> None:
+    """Name the upgrade that clears every CVE in this group, not whichever finding
+    happened to be grouped first. Four CVEs on one release line have four different
+    minimal fixes; only the highest resolves all four, and stopping at the lowest
+    leaves the developer believing they are done."""
+    fixes = [
+        f.dependency.fixed_version
+        for f in item.findings
+        if f.dependency and f.dependency.fixed_version
+    ]
+    if not fixes:
+        return
+    highest = max(fixes, key=version_key)
+    item.action = re.sub(r"\b\d[\w.+-]*$", highest, item.action)
 
 
 def _key(finding: Finding) -> tuple[str, str, str]:
@@ -49,12 +69,16 @@ def _key(finding: Finding) -> tuple[str, str, str]:
         # something else pins it.
         root = dependency.path[0] if len(dependency.path) > 1 else ""
         target = root.split("@")[0] if root else dependency.package
+        # Distinct major lines of one package are distinct upgrades. A pnpm tree can
+        # carry brace-expansion 1.x, 2.x and 5.x at once, and one instruction cannot
+        # serve all three without telling somebody to downgrade.
+        line = "" if root else f":{release_line(dependency.version)}"
         fix = dependency.fixed_version
         action = (
             f"Upgrade `{target}`" + (f" so `{dependency.package}` reaches {fix}"
                                      if root and fix else f" to {fix}" if fix else "")
         ) if fix or root else f"Replace or remove `{dependency.package}` — no fix available"
-        return (f"dep:{target}", action, finding.path)
+        return (f"dep:{target}{line}", action, finding.path)
 
     path = finding.path
     if finding.rule.startswith("valvur.dependency."):
@@ -92,7 +116,20 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
         flag = " **[known exploited]**" if item.exploited else ""
         lines.append(f"## {number}. {item.action}{flag}")
         lines.append("")
-        lines.append(f"Resolves {len(item.findings)} finding(s) in `{item.where}`:")
+        unfixed = sum(
+            1 for f in item.findings
+            if f.dependency and f.dependency.package and not f.dependency.fixed_version
+        )
+        # Never claim an upgrade resolves a finding whose advisory has no published
+        # fix. Overstating this is how a developer stops looking at a live issue.
+        resolved = len(item.findings) - unfixed
+        lines.append(f"Resolves {resolved} finding(s) in `{item.where}`:")
+        if unfixed:
+            lines.append("")
+            lines.append(
+                f"> ⚠ {unfixed} further finding(s) here have **no published fix** and "
+                "this upgrade does not resolve them."
+            )
         lines.append("")
         for finding in sorted(item.findings, key=lambda f: f.rank or 10**9)[:8]:
             lines.append(f"- {finding.rule} — {finding.title[:100]}")

@@ -42,3 +42,17 @@ def select(adapters, profile: str):
     """Filter a registry down to the Scanners this Profile runs."""
     wanted = scanners_for(profile)
     return [a for a in adapters if a.name in wanted]
+
+
+def not_run(profile: str) -> tuple[str, ...]:
+    """Scanners a fuller profile would have run. Coverage narrows on the offline
+    profile, and a bare "clean" from it is a claim we have not earned: measured on a
+    real TypeScript project, quick reported 0 findings while standard found 24 CVEs
+    in the same lockfile in the same minute. Quick must stay offline (N2.1), so the
+    honest fix is to say what it did not look at, not to widen it."""
+    if profile not in SCANNERS:
+        # An unrecorded profile is not evidence of a gap. Writing the artifacts must
+        # never fail over provenance we simply do not have.
+        return ()
+    ran = set(SCANNERS[profile])
+    return tuple(s for s in SCANNERS[DEEP] if s not in ran)

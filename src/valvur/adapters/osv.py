@@ -12,6 +12,7 @@ from pathlib import Path
 from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
+from ..versions import version_key as _version_key
 from .base import container_relative
 
 
@@ -49,11 +50,33 @@ class OsvAdapter:
                             severity=_severity(vuln),
                             exploit=Exploit(cve=vid if vid.startswith("CVE-") else ""),
                             dependency=Dependency(
-                                ecosystem=ecosystem, package=name, version=version
+                                ecosystem=ecosystem,
+                                package=name,
+                                version=version,
+                                fixed_version=_fixed_version(vuln, name, version),
                             ),
                         )
                     )
         return findings
+
+
+def _fixed_version(vuln: dict, name: str, version: str) -> str:
+    """The single most actionable field in a dependency finding — "upgrade to X" is
+    the whole remediation. OSV publishes a fix per affected release line, so
+    brace-expansion 1.1.15 carries fixes 1.1.16, 2.1.2 AND 5.0.7. Taking the first
+    listed would advise a major-version jump when a patch release clears it. Take
+    the smallest fix above the installed version: the minimal upgrade that works,
+    and never a downgrade."""
+    installed = _version_key(version)
+    candidates = [
+        fixed
+        for affected in vuln.get("affected") or []
+        if (affected.get("package") or {}).get("name") in (name, None, "")
+        for rng in affected.get("ranges") or []
+        for event in rng.get("events") or []
+        if (fixed := event.get("fixed")) and _version_key(fixed) > installed
+    ]
+    return min(candidates, key=_version_key, default="")
 
 
 # OSV and Trivy name the same ecosystems differently. Without this, identical
