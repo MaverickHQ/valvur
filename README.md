@@ -168,6 +168,18 @@ what you skipped, and what is new.
 Suppressions live in `.security-scan.toml` at your project root, which **is**
 committed so your team shares them. Every suppression needs an expiry date.
 
+The same file takes `[scan] exclude` — repo-relative paths you have decided not to
+scan, for deliberately vulnerable test fixtures and the like:
+
+```toml
+[scan]
+exclude = ["tests/fixtures"]
+```
+
+valvur never excludes anything by default, and it always tells you what an exclusion
+cost: the number of findings dropped and the paths that dropped them appear in
+`SUMMARY.md` and `run.json`.
+
 ## For AI coding agents
 
 If you are an AI agent working in a repository that contains `.security-scan/`:
