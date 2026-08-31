@@ -1,3 +1,5 @@
+import json
+
 """Sub-phase 10.3b — false positives found by scanning a real project.
 
 A synthetic fixture is generous: it has no vendored dependencies, no `.env`, and
@@ -482,3 +484,53 @@ def test_dependency_scope_comes_from_trivys_own_dev_flag():
 
     assert _scope_for("pnpm-lock.yaml", True) == "development"
     assert _scope_for("pnpm-lock.yaml", False) == "production"
+
+
+def test_the_same_cve_from_two_scanners_is_one_finding():
+    """Finding identity is (ecosystem, package, version, vuln_id). Trivy reports the
+    lockfile FORMAT — "pnpm" — where OSV reports the ecosystem "npm", so on a real
+    project the same 24 CVEs arrived twice, once from each scanner, and every one
+    was reported twice because the fingerprints could not match."""
+    from valvur.adapters.osv import OsvAdapter
+    from valvur.adapters.trivy import TrivyAdapter
+    from valvur.findings import merge
+    from valvur.runner import ScannerOutput
+
+    trivy = json.dumps({"Results": [{
+        "Target": "pnpm-lock.yaml", "Type": "pnpm", "Class": "lang-pkgs",
+        "Vulnerabilities": [{
+            "VulnerabilityID": "CVE-2026-69152", "PkgName": "brace-expansion",
+            "InstalledVersion": "1.1.15", "FixedVersion": "1.1.18",
+            "Severity": "HIGH", "Title": "DoS",
+        }],
+    }]})
+    osv = json.dumps({"results": [{"source": {"path": "/workspace/pnpm-lock.yaml"},
+        "packages": [{
+            "package": {"name": "brace-expansion", "version": "1.1.15", "ecosystem": "npm"},
+            "vulnerabilities": [{"id": "CVE-2026-69152", "summary": "DoS"}],
+        }]}]})
+
+    findings = (
+        TrivyAdapter().parse(ScannerOutput("trivy", "1", trivy, "", 0))
+        + OsvAdapter().parse(ScannerOutput("osv-scanner", "1", osv, "", 0))
+    )
+
+    assert len({f.fingerprint for f in findings}) == 1
+    assert len(merge(findings)) == 1
+
+
+def test_lockfile_formats_normalise_to_their_ecosystem():
+    from valvur.ecosystems import normalise
+
+    assert normalise("pnpm") == normalise("yarn") == normalise("npm") == "npm"
+    assert normalise("PyPI") == normalise("poetry") == "pip"
+    assert normalise("gradle") == "maven"
+
+
+def test_an_unknown_ecosystem_is_not_silently_blanked():
+    """A wrong-but-consistent name still merges with itself; an empty one merges
+    unrelated findings."""
+    from valvur.ecosystems import normalise
+
+    assert normalise("some-new-thing") == "some-new-thing"
+    assert normalise("") == "unknown"

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
@@ -35,7 +36,7 @@ class OsvAdapter:
                 version = info.get("version", "")
                 # OSV names ecosystems like "PyPI"; Trivy says "pip". Normalise so
                 # the two agree on identity and their Findings actually merge.
-                ecosystem = _ECOSYSTEM.get(info.get("ecosystem", ""), info.get("ecosystem", ""))
+                ecosystem = _ecosystems.normalise(info.get("ecosystem", ""))
                 for vuln in package.get("vulnerabilities") or []:
                     vid = _preferred_id(vuln)
                     findings.append(
@@ -77,14 +78,6 @@ def _fixed_version(vuln: dict, name: str, version: str) -> str:
         if (fixed := event.get("fixed")) and _version_key(fixed) > installed
     ]
     return min(candidates, key=_version_key, default="")
-
-
-# OSV and Trivy name the same ecosystems differently. Without this, identical
-# vulnerabilities would never merge and every one would be reported twice.
-_ECOSYSTEM = {
-    "PyPI": "pip", "npm": "npm", "Go": "gomod",
-    "crates.io": "cargo", "Maven": "maven", "RubyGems": "gem",
-}
 
 
 def _preferred_id(vuln: dict) -> str:
