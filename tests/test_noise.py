@@ -7,6 +7,7 @@ in a gitignored `.env`. None of that was visible until then.
 """
 
 import json
+from pathlib import Path
 
 from valvur.exclusions import filter_findings, is_vendored
 from valvur.findings import Exploit, Finding
@@ -568,3 +569,78 @@ def test_github_actions_are_not_counted_as_unlicensed_dependencies():
     assert len(findings) == 1
     assert "1 dependencies declare no licence" in findings[0].title
     assert "actions/checkout" not in findings[0].evidence
+
+
+def test_configured_exclusions_match_on_segment_boundaries():
+    """"tests/fixtures" must cover tests/fixtures/broken-repo/app.py and never
+    tests/fixtures-helper/app.py — a prefix match on raw strings would swallow an
+    unrelated directory whose name merely starts the same way."""
+    from valvur.exclusions import is_configured_out
+
+    prefixes = ("tests/fixtures",)
+
+    assert is_configured_out("tests/fixtures/broken-repo/app.py", prefixes)
+    assert not is_configured_out("tests/fixtures-helper/app.py", prefixes)
+    assert not is_configured_out("tests/test_scan.py", prefixes)
+
+
+def test_nothing_is_excluded_without_configuration():
+    """The exclusion is opt-in per project. A built-in default would silently skip
+    every project's tests, hiding real code from the people who most need to see it."""
+    from valvur.exclusions import filter_configured, load_configured
+
+    findings = [_f("x", path="tests/fixtures/a.py")]
+
+    assert filter_configured(findings, ()) == (findings, 0)
+    assert load_configured(Path("/nonexistent-workspace")) == ()
+
+
+def test_configured_exclusions_are_read_from_the_committed_file(tmp_path):
+    (tmp_path / ".security-scan.toml").write_text(
+        '[scan]\nexclude = ["tests/fixtures", "vendor/generated/"]\n'
+    )
+    from valvur.exclusions import load_configured
+
+    assert load_configured(tmp_path) == ("tests/fixtures", "vendor/generated")
+
+
+def test_an_exclusion_reports_what_it_cost():
+    """An exclusion the reader cannot see is indistinguishable from a scan that
+    found nothing. The count and the paths both appear."""
+    import json as _json
+
+    from valvur.api import ScanRun
+    from valvur.results import _provenance, _summary
+
+    run = ScanRun(findings=[], profile="offline",
+                  config_dropped=61, excluded_paths=["tests/fixtures"])
+
+    assert "61 finding(s) were excluded" in _summary(run)
+    assert "tests/fixtures" in _summary(run)
+    doc = _json.loads(_provenance(run))
+    assert doc["excluded_by_config"] == {
+        "paths": ["tests/fixtures"], "findings_dropped": 61
+    }
+
+
+def test_the_sbom_respects_configured_exclusions(monkeypatch, tmp_path):
+    """The SBOM is a release artifact, so an exclusion has to reach it and not only
+    the findings derived from it. Without this, valvur's own published SBOM listed
+    aws-helper-sdk and locktest — packages its fixtures invent precisely because they
+    do not exist."""
+    import subprocess
+
+    from valvur.runner import ContainerRunner
+
+    (tmp_path / ".security-scan.toml").write_text('[scan]\nexclude = ["tests/fixtures"]\n')
+    seen = {}
+
+    def capture(cmd, **kwargs):
+        seen["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", capture)
+    ContainerRunner(runtime="/usr/local/bin/docker").run_syft(tmp_path)
+
+    assert "--exclude" in seen["cmd"]
+    assert "./tests/fixtures/**" in seen["cmd"]

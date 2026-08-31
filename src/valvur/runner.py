@@ -373,9 +373,21 @@ class ContainerRunner:
         )
 
     def run_syft(self, workspace: Path) -> ScannerOutput:
+        from . import exclusions
+
+        # The SBOM is a release artifact, so a configured exclusion has to reach it,
+        # not just the findings derived from it. Without this, valvur's own published
+        # SBOM would list aws-helper-sdk and locktest — packages its test fixtures
+        # invent precisely because they do not exist.
+        excluded = [
+            arg
+            for prefix in exclusions.load_configured(workspace)
+            for arg in ("--exclude", f"./{prefix}/**")
+        ]
         return self._capture(
             workspace,
-            ["syft", "scan", "dir:/workspace", "-o", "cyclonedx-json=/results/sbom.json", "-q"],
+            ["syft", "scan", "dir:/workspace", "-o", "cyclonedx-json=/results/sbom.json",
+             "-q", *excluded],
             "sbom.json", tool="syft", version="1.51.1",
         )
 

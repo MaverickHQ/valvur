@@ -54,6 +54,63 @@ def filter_findings(findings: list, extra: frozenset[str] = frozenset()) -> tupl
     return kept, len(findings) - len(kept)
 
 
+def load_configured(workspace: Path) -> tuple[str, ...]:
+    """Repo-relative path prefixes the project has chosen not to scan.
+
+        [scan]
+        exclude = ["tests/fixtures"]
+
+    Deliberately NOT a built-in default. A project full of intentionally-vulnerable
+    test data needs this; every other project would be harmed by having its tests
+    silently skipped, and a scanner that hides findings by default is worse than no
+    scanner. Putting it in the committed config makes the decision reviewable —
+    someone can see it in the diff and ask why.
+    """
+    import tomllib
+
+    path = workspace / ".security-scan.toml"
+    if not path.is_file():
+        return ()
+    try:
+        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError):
+        # Malformed config is reported by the suppression loader, which reads the
+        # same file. Failing twice for one cause helps nobody.
+        return ()
+    entries = (raw.get("scan") or {}).get("exclude") or []
+    return tuple(
+        str(e).strip().strip("/") for e in entries if str(e).strip().strip("/")
+    )
+
+
+def is_configured_out(path: str, prefixes: tuple[str, ...]) -> bool:
+    """True when a repo-relative path sits under a configured prefix.
+
+    Matched on segment boundaries, so "tests/fixtures" covers
+    "tests/fixtures/broken-repo/app.py" but never "tests/fixtures-helper/app.py".
+    """
+    if not path or not prefixes:
+        return False
+    parts = Path(path.replace("\\", "/")).parts
+    for prefix in prefixes:
+        want = Path(prefix).parts
+        if parts[: len(want)] == want:
+            return True
+    return False
+
+
+def filter_configured(findings: list, prefixes: tuple[str, ...]) -> tuple[list, int]:
+    """Drop findings the project excluded. Returns (kept, dropped_count).
+
+    The count is reported, never discarded — an exclusion the reader cannot see is
+    indistinguishable from a scanner that found nothing.
+    """
+    if not prefixes:
+        return findings, 0
+    kept = [f for f in findings if not is_configured_out(f.path, prefixes)]
+    return kept, len(findings) - len(kept)
+
+
 def scanner_skip_args(kind: str) -> list[str]:
     """Per-scanner exclusion flags, so we do not spend time scanning what we discard."""
     if kind == "trivy":

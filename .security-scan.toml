@@ -1,3 +1,21 @@
+# valvur's own scan configuration — committed deliberately, reviewed on expiry.
+
+# The dogfooding gate scans this repository. tests/fixtures holds deliberately
+# vulnerable code: planted secrets, known-bad dependency manifests, prompt-injection
+# payloads and hidden Unicode. It is the input our tests assert against, so it must
+# stay exactly as broken as it is.
+#
+# Unexcluded it produced 61 of 64 self-scan findings, which makes the gate useless:
+# a signal that is 95% intentional is not a signal. The scan still runs over it —
+# this drops the findings and reports the count, so SUMMARY.md and run.json both say
+# what was excluded and what it cost.
+#
+# This is a per-project decision in a committed file, never a built-in default.
+# Skipping every project's tests would hide real code from the people who most need
+# to see it.
+[scan]
+exclude = ["tests/fixtures"]
+
 # valvur suppressions — committed deliberately, reviewed on expiry.
 #
 # Every entry needs a fingerprint, rule, path, expiry and reason. The expiry is

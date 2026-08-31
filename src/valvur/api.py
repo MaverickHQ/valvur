@@ -38,6 +38,8 @@ class ScanRun:
     kev_age_days: float | None = None
     kev_source: str = ""
     vendored_dropped: int = 0
+    config_dropped: int = 0
+    excluded_paths: list[str] = field(default_factory=list)
     profile: str = ""
 
     @property
@@ -142,6 +144,11 @@ def scan(
     # Vendored and generated code is not the developer's to fix.
     findings, vendored_dropped = _exclusions.filter_findings(findings)
 
+    # Paths this project chose not to scan, from its committed config. Never a
+    # built-in default: silently skipping a project's tests would hide real code.
+    excluded_paths = _exclusions.load_configured(workspace)
+    findings, config_dropped = _exclusions.filter_configured(findings, excluded_paths)
+
     findings = merge(findings)
 
     # A secret git is not carrying is a local credential, not a leak.
@@ -179,6 +186,8 @@ def scan(
         kev_age_days=provider.kev_age_days,
         kev_source=provider.kev_source,
         vendored_dropped=vendored_dropped,
+        config_dropped=config_dropped,
+        excluded_paths=list(excluded_paths),
         profile=profile,
     )
 
