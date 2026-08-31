@@ -533,3 +533,15 @@ def test_an_unknown_ecosystem_is_not_silently_blanked():
 
     assert normalise("some-new-thing") == "some-new-thing"
     assert normalise("") == "unknown"
+
+
+def test_valvur_does_not_scan_its_own_results_folder():
+    """Each run would otherwise feed on the last one's output: findings.json quotes
+    evidence from the repository, so scanning it produces findings ABOUT findings and
+    the noise compounds every run. Caught by dogfooding — valvur reported two
+    mutable-git-ref findings against its own findings.json."""
+    from valvur.exclusions import is_vendored
+
+    assert is_vendored(".security-scan/findings.json")
+    assert is_vendored(".security-scan/raw/ai-artifact.json")
+    assert not is_vendored("src/valvur/api.py")
