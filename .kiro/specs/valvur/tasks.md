@@ -1259,17 +1259,50 @@ container**, which is the model [ADR-0001](../../../docs/adr/0001-thin-host-shim
 rejected: valvur is a host shim that *launches* containers, so there is no
 "run valvur in a container" path to document.
 
-- [ ] **11.0.1** Establish what a reviewer can actually run. On Linux
-  `unshare -n valvur scan --profile offline` is a genuine proof — the container
-  runtime is reached over a unix socket, so the scan still completes with no network
-  namespace at all. Confirm this, because the whole claim rests on it.
-- [ ] **11.0.2** Answer the same question for macOS, where there is no `unshare` and
-  the runtime lives in a VM. If no single honest command exists, say so: a
-  per-platform instruction that works beats one universal instruction that does not.
-- [ ] **11.0.3** Rewrite the README claim to match whatever 11.0.1 and 11.0.2
-  establish, and **only then** write cycle 11.1's test against it. *(P5 — a
-  documented command that does not run is worse than no documentation, because it is
-  the one thing a sceptical reviewer will try first.)*
+- [x] **11.0.1** Establish what a reviewer can actually run.  
+  **STATUS 2026-08-31:** ✅ Done, and the claim turned out to have **two halves** that
+  the original task ran together. `--network=none` covers the Scanner containers.
+  It says nothing about the **host shim**, which is not in a container and does have
+  a reason to reach out: enrichment fetches EPSS from FIRST, gated by one condition
+  threaded from the Profile.
+
+  Built `scripts/verify-offline.py`, which checks both, and measured on a real
+  repository carrying 24 CVEs — chosen so enrichment is actually reached, because a
+  clean repository never calls it and passes vacuously:
+
+  | Profile | connection attempts from the host process |
+  |---|---|
+  | `offline` | **0** (26 findings reported) |
+  | `full` | **1**, blocked — `create_connection` |
+
+  The `full` row is the point: the same check fails where the network is genuinely
+  used, so the `offline` pass means something. `unshare -rn` confirmed working
+  unprivileged on Linux (Fedora 44); the container runtime is reached over a unix
+  socket, so the scan is unaffected by having no network namespace.
+- [x] **11.0.2** Answer the same question for macOS.  
+  **STATUS 2026-08-31:** ✅ **There is no macOS equivalent, and the README now says
+  so.** `unshare` is Linux-only; Docker Desktop's seccomp profile blocks it even
+  inside a container (measured: `unshare failed: Operation not permitted`), and
+  running the shim in a Linux container instead breaks the mount paths, because the
+  daemon resolves them on the host rather than in the container.
+
+  The platform-independent substitute is to **disconnect the machine and scan**: once
+  the image and database are cached, `offline` needs nothing else. Weaker than an OS
+  denial — it shows valvur does not *need* the network rather than that it never
+  *tries* — so it is documented alongside the script rather than instead of it.
+- [x] **11.0.3** Rewrite the README claim to match.  
+  **STATUS 2026-08-31:** ✅ The fictional one-liner is gone from `README.md`, replaced
+  by the two halves, the script, the Linux `unshare` proof and the macOS limit. P5 in
+  [POSITIONING.md](../../../docs/POSITIONING.md) and moat item 1 in
+  [CLAUDE.md](../../../CLAUDE.md) were making the same one-command claim and now
+  state the platform limit too. *(P5 — a documented command that does not run is
+  worse than no documentation, because it is the one thing a sceptical reviewer will
+  try first. This one had never been run.)*
+
+  **Left for 11.1:** `verify-offline.py` is reviewer-facing and runs a real scan, so
+  it is too slow for the unit suite. Cycle 11.1 needs the same assertion as a fast
+  test over a stubbed runner, plus the `unshare -rn` end-to-end on Linux in CI, which
+  cannot run from macOS.
 
 **Commit:** `docs: a non-exfiltration proof that actually runs`
 
