@@ -12,6 +12,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import enrichment as _enrichment
+from . import exclusions as _exclusions
+from . import gitcontext as _gitcontext
 from . import licence_policy as _licence
 from . import profiles as _profiles
 from . import ranking as _ranking
@@ -35,6 +37,7 @@ class ScanRun:
     network_used: bool = False
     kev_age_days: float | None = None
     kev_source: str = ""
+    vendored_dropped: int = 0
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -130,7 +133,13 @@ def scan(
     if sbom:
         findings += _licence.evaluate(_licence.project_licence(workspace), sbom)
 
+    # Vendored and generated code is not the developer's to fix.
+    findings, vendored_dropped = _exclusions.filter_findings(findings)
+
     findings = merge(findings)
+
+    # A secret git is not carrying is a local credential, not a leak.
+    findings = _gitcontext.apply(workspace, findings)
 
     # Exploit intelligence: what the world reports, as opposed to what a Scanner
     # asserts. Network use is Profile-gated (F6.3, F6.4).
@@ -163,6 +172,7 @@ def scan(
         network_used=_profiles.ALLOWS_NETWORK.get(profile, False),
         kev_age_days=provider.kev_age_days,
         kev_source=provider.kev_source,
+        vendored_dropped=vendored_dropped,
     )
 
     results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)

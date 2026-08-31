@@ -31,11 +31,16 @@ CLASS_WEIGHT = {
 DEFAULT_WEIGHT = 2
 
 
-def _exploit_tier(finding: Finding) -> int:
-    """Urgency from what the world reports, for Findings that have a CVE at all."""
+def _exploit_tier(finding: Finding) -> int | None:
+    """Urgency from what the world reports — or None when the world says nothing.
+
+    None, not a default. Returning a default here let `min()` prefer it over any
+    class floor above it, so the floor on noisy classes was silently discarded: a
+    licence-unknown finding weighted 5 still ranked at 2.
+    """
     exploit = finding.exploit
     if not exploit:
-        return DEFAULT_WEIGHT
+        return None
     if exploit.ransomware:
         return 0
     if exploit.kev:
@@ -46,7 +51,7 @@ def _exploit_tier(finding: Finding) -> int:
         if exploit.epss >= 0.01:
             return 3
         return 4
-    return DEFAULT_WEIGHT
+    return None
 
 
 def sort_key(finding: Finding) -> tuple:
@@ -68,7 +73,12 @@ def sort_key(finding: Finding) -> tuple:
     # most urgent things we report, because anyone can register that name today.
     # Scoring exploit signals ahead of everything sank them below any CVE with a
     # non-zero EPSS, which real output made obvious.
-    tier = min(_exploit_tier(finding), CLASS_WEIGHT.get(finding.rule, DEFAULT_WEIGHT))
+    class_tier = CLASS_WEIGHT.get(finding.rule, DEFAULT_WEIGHT)
+    exploit_tier = _exploit_tier(finding)
+    # With no exploit evidence the class floor governs alone. Where there is evidence,
+    # the better of the two wins — a hallucinated package has no EPSS and is still
+    # among the most urgent things we report.
+    tier = class_tier if exploit_tier is None else min(exploit_tier, class_tier)
 
     # A suppressed Finding occupying a top slot crowds out a live one — the exact
     # noise problem F6.5 exists to solve. It is still reported, just never first.
