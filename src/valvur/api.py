@@ -38,6 +38,7 @@ class ScanRun:
     kev_age_days: float | None = None
     kev_source: str = ""
     vendored_dropped: int = 0
+    profile: str = ""
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -173,6 +174,7 @@ def scan(
         kev_age_days=provider.kev_age_days,
         kev_source=provider.kev_source,
         vendored_dropped=vendored_dropped,
+        profile=profile,
     )
 
     results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)

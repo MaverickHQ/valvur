@@ -42,6 +42,7 @@ def _provenance(run) -> str:
     """What actually ran. Makes a clean result falsifiable (N3.1)."""
     import json
 
+    from . import profiles as _profiles
     from .fingerprint import FP_VERSION
 
     return (
@@ -50,6 +51,12 @@ def _provenance(run) -> str:
                 "schema": 1,
                 "fp_version": FP_VERSION,
                 "status": run.status,
+                # Which profile ran, and what it therefore did not look at. Without
+                # this, run.json cannot tell you a class was out of scope.
+                "profile": getattr(run, "profile", "") or "",
+                "scanners_not_run": list(
+                    _profiles.not_run(getattr(run, "profile", "") or "")
+                ),
                 # An incomplete scan reporting "clean" would be a lie of omission.
                 # This is the single field an agent should check first.
                 "complete": not getattr(run, "failures", []),
@@ -146,6 +153,20 @@ def _summary(run) -> str:
         + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else ""),
         "",
     ]
+
+    # A narrower profile reporting "clean" is the failure mode CLAUDE.md section 7
+    # calls worse than no scan: it manufactures confidence. Name the gap.
+    from . import profiles as _profiles
+
+    absent = _profiles.not_run(getattr(run, "profile", "") or "")
+    if absent and not findings:
+        lines += [
+            f"> ⚠ **Nothing found — but the `{run.profile}` profile did not run "
+            f"every Scanner.** Not examined: {', '.join(absent)}.",
+            "> This is not the same claim as \"there is nothing here\". "
+            "Run `valvur scan --profile standard` for full coverage.",
+            "",
+        ]
 
     lines += _counts_table(findings)
 

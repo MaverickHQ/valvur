@@ -54,6 +54,11 @@ def write(results_dir: Path, outputs: list[tuple[str, str]]) -> Path:
 
     raw = results_dir / "raw"
     raw.mkdir(parents=True, exist_ok=True)
+    # Output from a Scanner that did not run this time must not survive into this
+    # run's folder. A quick scan inheriting a standard scan's osv-scanner.json shows
+    # a reader vulnerability data attributed to a run that never looked for it.
+    for stale in raw.glob("*.json"):
+        stale.unlink()
     for tool, body in outputs:
         (raw / f"{tool}.json").write_text(scrub(body, secrets), encoding="utf-8")
 
