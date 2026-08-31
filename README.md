@@ -44,15 +44,42 @@ you the figure than a promise.
 
 ### 1. It cannot exfiltrate your code — and you can verify it
 
-Not a privacy policy. A property you can check yourself in one command:
+Not a privacy policy. A property you can check yourself. No account, no API key, no
+telemetry — there is nothing to opt out of.
+
+The `offline` **Profile** is the default, and it has two parts to verify, because one
+flag only covers one of them.
+
+**The Scanners** run in containers launched with `--network=none`. There is no
+network interface inside them, and the source is mounted `:ro` so they cannot write
+to your tree either.
+
+**The host process** that orchestrates them is not in a container, and could open a
+socket. It has a reason to: exploit enrichment fetches EPSS scores from FIRST — on
+`full` only, gated by one condition. So check both:
 
 ```bash
-docker run --rm --network=none -v "$PWD:/workspace:ro" valvur scan
+python3 scripts/verify-offline.py /path/to/your/repo
 ```
 
-`--network=none` means no network interface exists inside the container.
-`:ro` means the scanner cannot write to your source tree even if it tried.
-No account, no API key, no telemetry — there is nothing to opt out of.
+It asserts `--network=none` on every Scanner the Profile runs, then poisons every
+connect path in the process and runs a real scan. It reports what it cannot prove as
+well as what it can.
+
+**Stronger, on Linux** — a proof the process cannot influence, because the OS denies
+it the network outright:
+
+```bash
+unshare -rn valvur scan --profile offline
+```
+
+No privileges needed. It works because the container runtime is reached over a unix
+socket rather than the network.
+
+**On macOS** there is no `unshare` equivalent. The platform-independent version is to
+disconnect the machine and run the scan: once the image and vulnerability database
+are cached, `offline` needs nothing else. If it completes with the same findings,
+nothing left.
 
 ### 2. Security checks built for AI-generated code
 

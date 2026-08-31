@@ -51,6 +51,14 @@ rejected, however useful it seems.
    default (`offline`) profile. Source is mounted read-only. No account, no API key, no
    telemetry, ever. A reviewer must be able to *verify* this themselves, not
    take our word for it.
+
+   The claim has **two halves**, and the flag only covers one. The Scanners run in
+   containers with no network interface; the **host shim does not**, and it has a
+   reason to reach out — enrichment fetches EPSS from FIRST on `full`, gated by a
+   single condition. `scripts/verify-offline.py` checks both. On Linux
+   `unshare -rn valvur scan --profile offline` proves both at the OS level, without
+   privileges, because the container runtime is reached over a unix socket. macOS has
+   no equivalent; say so rather than implying one.
 2. **The source tree is mounted read-only.** The scanner cannot modify the code
    it scans — structurally, not by policy.
 3. **Vulnerability data comes from auditable primary sources** (CISA KEV, FIRST

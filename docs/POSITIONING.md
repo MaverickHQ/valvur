@@ -130,7 +130,7 @@ These are commitments, tracked as non-functional requirements in the spec.
 | P2 | **Every finding traceable.** `raw/` plus `run.json` let a reviewer verify any finding against the tool and version that produced it. "Show me why you flagged this" is a procurement question in regulated industries. |
 | P3 | **No lock-in, stated loudly.** SARIF and CycloneDX out, primary-source intel in. Users can leave whenever they like, and we say so. |
 | P4 | **Credit the scanners prominently.** Trivy, Gitleaks, Opengrep, Checkov, OSV-Scanner and Syft do the detection. Being upfront builds more trust than implying proprietary magic — and it is simply what is true. |
-| P5 | **Verifiable non-exfiltration.** A documented command that runs a complete `offline`-profile scan with networking disabled, which a reviewer can execute unaided. |
+| P5 | **Verifiable non-exfiltration.** Documented commands a reviewer can execute unaided, covering both halves of the claim: `--network=none` on every Scanner container, and no connection opened by the host shim. On Linux `unshare -rn` proves both at once at the OS level; macOS has no equivalent and the honest substitute is to disconnect the machine. Stating the platform limit is part of the requirement — a proof that only works where we say it does is still a proof; one we imply works everywhere is not. |
 | P6 | **Dual-audience documentation.** README addresses developers and AI coding agents separately; results are self-describing for agents that never read the README. |
 
 ## 7. Defensibility
