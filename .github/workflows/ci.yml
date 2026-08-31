@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege by default. We report this exact misconfiguration in other
+# people's repositories (CKV2_GHA_1); shipping it in our own is the first thing a
+# reviewer would notice.
+permissions:
+  contents: read
+
 jobs:
   guard:
     # A pre-commit hook lives on one machine and dies to --no-verify. CI cannot be

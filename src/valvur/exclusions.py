@@ -16,7 +16,14 @@ from pathlib import Path
 
 # Directory names, matched as whole path segments. Substring matching would exclude a
 # legitimate `src/distribution/` for containing "dist".
+# Our own Results Folder. Scanning it makes each run feed on the last one's output:
+# findings.json quotes evidence from the repository, so a scan of it produces
+# findings ABOUT findings, and the noise compounds every run. Caught by dogfooding —
+# valvur reported two mutable-git-ref findings against its own findings.json.
+RESULTS_DIR = ".security-scan"
+
 VENDORED = frozenset({
+    RESULTS_DIR,
     "node_modules", "bower_components", "jspm_packages",
     ".venv", "venv", "virtualenv", "site-packages", ".tox", ".nox", "__pypackages__",
     "vendor", "third_party", "thirdparty", "external",
