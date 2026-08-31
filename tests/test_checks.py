@@ -177,7 +177,13 @@ def test_a_dependency_with_no_declared_licence_is_a_finding():
 
     from valvur.licence_policy import evaluate
 
-    sbom = json.dumps({"components": [{"name": "mystery", "version": "0.1"}]})
+    # A tree whose licences we could read, with one package that genuinely declares
+    # none. Where NOTHING is readable the honest finding is a different one — see
+    # test_wholly_absent_licence_data_is_reported_as_unreadable_not_as_absent.
+    sbom = json.dumps({"components": [
+        {"name": "known", "version": "1.0", "licenses": [{"license": {"id": "MIT"}}]},
+        {"name": "mystery", "version": "0.1"},
+    ]})
 
     findings = evaluate("MIT", sbom)
 
