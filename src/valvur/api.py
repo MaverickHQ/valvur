@@ -83,9 +83,14 @@ def _run_one(adapter, runner, workspace) -> tuple:
 
 
 def scan(
-    workspace: Path, *, runner, adapters=None, profile: str = _profiles.STANDARD,
+    workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
     on_progress=None,
 ) -> ScanRun:
+    # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
+    # default, so a retired name like "standard" would quietly resolve to
+    # ALLOWS_NETWORK's False and disable the network without saying so.
+    profile = _profiles.resolve(profile)
+
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:

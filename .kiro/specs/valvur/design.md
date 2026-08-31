@@ -19,7 +19,7 @@ flowchart LR
     ws[("Workspace")]
     rf[("Results Folder<br/>.security-scan/")]
   end
-  subgraph img["OCI image — no network on quick"]
+  subgraph img["OCI image — no network on offline"]
     orch["Orchestrator"]
     sc["Scanners<br/>trivy · gitleaks · osv<br/>opengrep · checkov · syft"]
     ck["Checks<br/>dep-reality · ai-artifact<br/>llm-sink · pinning · licence"]
@@ -62,7 +62,7 @@ Non-root user, read-only root filesystem, all capabilities dropped (F10.2).
 
 ## 2. Profiles
 
-| | `quick` | `standard` (default) | `deep` |
+| | `offline` | `full` (default) | `full` |
 |---|---|---|---|
 | Budget (N1) | <60s | <5min | unbounded |
 | Network | **none** | registry + EPSS | + image registries |
@@ -78,7 +78,7 @@ Non-root user, read-only root filesystem, all capabilities dropped (F10.2).
 | LLM-sink, Pinning | — | ✓ | ✓ |
 | Enrichment | bundled KEV | KEV + EPSS | KEV + EPSS |
 
-`quick` is the offline guarantee (F1.2, N2.1). The AI Artifact **Check** runs in every
+`offline` is the offline guarantee (F1.2, N2.1). The AI Artifact **Check** runs in every
 **Profile** because it is pure static inspection and cheap.
 
 ---
@@ -158,7 +158,7 @@ Staleness threshold: **30 days**. Beyond it, `SUMMARY.md` carries a warning (F6.
 confident answer from a stale snapshot is worse than an absent one.
 
 Offline degradation is explicit, never silent (F6.4). KEV alone is the higher-signal
-half, so `quick` loses less than it appears.
+half, so `offline` loses less than it appears.
 
 ---
 
@@ -173,7 +173,7 @@ Parse manifests → query registry metadata per package. Thresholds:
 | New and unadopted | published <90d AND downloads <1000/mo | **high** — possible slopsquat (F3.3) |
 | Near-miss | edit distance ≤1 from a package with ≥100× downloads | **high** — typosquat (F3.4) |
 
-Offline (`quick`), only edit-distance and pinning heuristics run; the network portion
+Offline (`offline`), only edit-distance and pinning heuristics run; the network portion
 is recorded as skipped and its packages are **not** reported clean (F3.5).
 
 ### 5.2 AI Artifact (F3.6–F3.9)
@@ -251,8 +251,8 @@ Test-first. Contracts before implementation.
 | **Golden** | Normalisation of captured real `raw/` output per Scanner | Fixtures pinned with the Scanner version; upgrading a Scanner must diff here |
 | **Integration** | Orchestrator against a fixture Workspace with known planted findings | Includes a deliberately vulnerable fixture repo |
 | **E2E** | Full shim → container → Results Folder, on Docker **and** Podman | Asserts F1.4 file ownership on both |
-| **Constraint** | `quick` **Profile** with networking disabled, failing on any socket attempt | **N2.1 — the moat as a regression test** |
-| **Self-scan** | valvur's `standard` **Profile** against valvur | Release gate (N2.5) |
+| **Constraint** | `offline` **Profile** with networking disabled, failing on any socket attempt | **N2.1 — the moat as a regression test** |
+| **Self-scan** | valvur's `full` **Profile** against valvur | Release gate (N2.5) |
 
 The constraint test is the most important in the suite: it converts the central
 product claim from an assertion into something CI proves on every commit.

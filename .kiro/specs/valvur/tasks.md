@@ -324,11 +324,11 @@ concurrency correctly.
 > finished first.
 
 > Neither appeared in the original Phase 3 despite both being required. Concurrency
-> especially: six Scanners run serially will not meet the 5-minute `standard` budget
+> especially: six Scanners run serially will not meet the 5-minute `full` budget
 > (N1.2), and discovering that in Phase 11 means restructuring the orchestrator after
 > everything depends on it.
 
-6. The `quick` **Profile** runs only its designated **Scanners**, per the matrix in
+6. The `offline` **Profile** runs only its designated **Scanners**, per the matrix in
    [design.md](./design.md) §2. *(F2.3)*
 7. Independent **Scanners** run concurrently, and a slow one does not serialise the
    rest. *(F2.6)*
@@ -377,7 +377,7 @@ the moment you write its cycle**, not in a batch beforehand.
   **STATUS 2026-08-30:** ✅ **Measured: image 674MB, host DB cache 1.2GB fetched once via `valvur update`.** Decision: accept 674MB and keep a single image. The DB dominates and is out-of-image by ADR-0012, so it does not gate first run — a machine without it records Trivy as *skipped*, honestly, rather than reporting clean. Revisit only if the image passes ~1GB.
   the fleet will be roughly 1GB, mostly the Python layer. P1 promises useful output in
   under 60 seconds, and for a first-time user that includes pulling the image. Decide
-  now whether `quick` warrants a smaller image or whether we accept and document the
+  now whether `offline` warrants a smaller image or whether we accept and document the
   download. This is a Phase 3 decision because by Phase 10 the image is fixed.
 - [x] **3.4.4** `state.json` should remember *what* was fixed, not only that something  
   **STATUS 2026-08-30:** ✅ `state.json` stores titles alongside fingerprints; `SUMMARY.md` gained a **Fixed since the last scan** section naming each one. Old list-shaped state is migrated silently.
@@ -385,7 +385,7 @@ the moment you write its cycle**, not in a batch beforehand.
   alongside each fingerprint is a few lines now and awkward later.
 
 **Exit:** all six **Scanners** contribute; killing any one still yields a complete,
-honest run; the `quick` **Profile** runs only its Scanners, concurrently.
+honest run; the `offline` **Profile** runs only its Scanners, concurrently.
 
 **Commit:** `feat: scanner fleet safety and supporting work`
 
@@ -417,7 +417,7 @@ through it would mean fabricating a fake stdout to parse back.
   shortcut is running them host-side in the shim, which is simpler and needs no image
   rebuild. It is wrong: the Dependency Reality **Check** makes registry calls, and
   host-side those sit entirely outside `--network=none`. The moat would revert from a
-  property to a policy. In-container, `quick` *cannot* reach a registry, so F3.5's
+  property to a policy. In-container, `offline` *cannot* reach a registry, so F3.5's
   "reports skipped" is enforced by architecture rather than by remembering.
 - [x] **4.0.3** All 45 existing tests pass unchanged.  
   **STATUS 2026-08-30:** ✅ No existing test file modified by the refactor. Three tests were then updated for a **behaviour** change — adding `licence-file` to the defaults — and were over-specified anyway: they counted *total* findings rather than asserting the behaviour under test, so any new Check would have broken them.
@@ -490,7 +490,7 @@ Check reads an artifact rather than re-scanning.
 ### 4.4 — Dependency Reality Check
 
 > **✅ COMPLETE 2026-08-30.** 63 tests. Full fleet scan of the fixture: 56 findings
-> across 9 Scanners and Checks, all green. `quick` runs 4 of them and sends nothing.
+> across 9 Scanners and Checks, all green. `offline` runs 4 of them and sends nothing.
 
 Last, because it carries all of this phase's new infrastructure.
 
@@ -508,10 +508,10 @@ Last, because it carries all of this phase's new infrastructure.
   the source, size, refresh cadence and licence of a bundled top-N package list per
   ecosystem. Unplanned work that will otherwise surface mid-cycle.
 - [x] **4.4.21** **Disclose the registry lookups.** Querying PyPI or npm reveals your  
-  **STATUS 2026-08-30:** ✅ `run.json` carries a `network` block naming exactly what left the machine; README states it plainly; `--offline` disables it. `quick` never had it.
+  **STATUS 2026-08-30:** ✅ `run.json` carries a `network` block naming exactly what left the machine; README states it plainly; `--offline` disables it. `offline` never had it.
   dependency list to those registries. It is metadata, not source — but it is exactly
   what we criticise Snyk for, so it must be stated plainly in the README and recorded
-  in `run.json`, with an opt-out flag. `quick` stays fully offline. Being quietly loose
+  in `run.json`, with an opt-out flag. `offline` stays fully offline. Being quietly loose
   here would cost more credibility than the feature is worth.
 - [x] **4.4.22** Registry client with caching and rate-limit handling; a registry  
   **STATUS 2026-08-30:** ✅ Registry client with 404-vs-unreachable distinction. Unreachable raises, so the run records the Check as failed and the scan as incomplete — never clean (F3.5).
@@ -570,7 +570,7 @@ repository appears as live directive text in any artifact we write.
   **STATUS 2026-08-30:** ✅ 74KB trimmed snapshot bundled as an offline floor; `valvur update` refreshes into the host cache and the fresher copy wins.
   F6.2 says bundle it, and at 1.6MB size is not the concern — freshness is. A CVE
   added to KEV yesterday would not be flagged by a three-month-old image, which is
-  precisely the reasoning that moved the Trivy DB out in ADR-0012. Bundle so `quick`
+  precisely the reasoning that moved the Trivy DB out in ADR-0012. Bundle so `offline`
   works offline immediately; refresh on `valvur update`; prefer the cached copy when
   it is newer.
 
@@ -662,7 +662,7 @@ that matters is buried beneath noise.
 > assertion, and a second test deliberately corrupts the SARIF to prove the invariant
 > can actually fail — a guarantee that cannot fail is not a guarantee.
 >
-> Building it first immediately earned its place: it exposed that the `quick` Profile
+> Building it first immediately earned its place: it exposed that the `offline` Profile
 > was missing the **ai-artifact** Check entirely, because an earlier edit matched a
 > trailing comma that `QUICK` did not have. The differentiator was silently absent
 > from the fast path.
@@ -1057,7 +1057,7 @@ is no extra to opt into. The CLI is the second way in.
 9. A **Scan Run** started over MCP returns promptly, and `scan_status` reports its
    progress and result.
 
-> **Measured: 20 seconds for the `standard` Profile on our toy fixture.** A real
+> **Measured: 20 seconds for the `full` Profile on our toy fixture.** A real
 > project is minutes, and many MCP clients time out at 30–60 seconds.
 > [design.md](./design.md) §8 already listed `scan_status` alongside `scan`, implying
 > this pattern — but the original cycles did not mention it, so the implementation
@@ -1116,12 +1116,12 @@ take, and participants cannot be re-used.
   **STATUS 2026-08-31:** ✅ `valvur 0.1.0rc1` on PyPI, `ghcr.io/maverickhq/valvur:0.1.0rc1` and `:latest` on GHCR. Verified as a stranger would: fresh venv, `pip install valvur`, scanned a repo, 57 findings, zero runtime dependencies.
   tasks 12.2 and 12.5 brought forward, and doing it early de-risks the real release
   rather than duplicating it.
-- [x] **10.0.3** **Measure the image pull honestly.** The `quick` scan itself is  
+- [x] **10.0.3** **Measure the image pull honestly.** The `offline` scan itself is  
   **STATUS 2026-08-31:** ✅ **Measured: 302MB compressed** (not the 674MB uncompressed figure I had been quoting). ~24s at 100 Mbit, 48s at 50, 97s at 25. With a 5.6s scan, P1's 60 seconds holds at 50 Mbit and above and fails below it. README now states the figures rather than the promise — a claim someone can check beats one they must accept.
   **5.6s**, comfortably inside P1's 60 seconds — but the image is **674MB**, roughly
   110 seconds on a 50 Mbit connection. P1 is at risk entirely from the download.
   Measure it, then either state the figure plainly in the README or reconsider a
-  smaller image for `quick`. Do not let the claim stand unmeasured.
+  smaller image for `offline`. Do not let the claim stand unmeasured.
 
 **Commit:** `chore: publish 0.1.0rc1 for the usability gate`
 
@@ -1158,7 +1158,7 @@ take, and participants cannot be re-used.
 5. `uv tool install valvur` and `pipx install valvur` work on a clean machine with no
    **Scanners** present. *(F10.6)*
 6. `valvur scan` with no arguments does the right thing in any directory. *(P1)*
-7. The `quick` **Profile** completes within P1's budget on a ≤50k-line repository,
+7. The `offline` **Profile** completes within P1's budget on a ≤50k-line repository,
    **including** the image pull on a first run, or the README states the real figure.
    *(P1, N1.1, and see 10.0.3.)*
 
@@ -1228,7 +1228,7 @@ every commit.
 
 ### TDD cycles
 
-1. **The `quick` Profile makes no network connection — the test fails on any socket
+1. **The `offline` Profile makes no network connection — the test fails on any socket
    attempt, anywhere in the process tree.** *(N2.1, ADR-0010. The single most
    important test in the suite: it is what makes the README's central claim true
    rather than asserted.)*
@@ -1239,12 +1239,12 @@ every commit.
 2. No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
 3. The verification command documented in the README works exactly as written.
    *(P5 — documentation that drifts from behaviour is worse than none.)*
-4. `standard` completes within 5 minutes and 2 GB on a ≤50k-line repository.
+4. `full` completes within 5 minutes and 2 GB on a ≤50k-line repository.
    *(N1.2, N1.4)*
 
 ### Also in this phase
 
-- [ ] **11.5** Run valvur's `standard` **Profile** against valvur itself.
+- [ ] **11.5** Run valvur's `full` **Profile** against valvur itself.
 - [ ] **11.6** Remediate every **Finding**; re-run until clean. Record anything
   suppressed, with justification and expiry.
 - [ ] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)*

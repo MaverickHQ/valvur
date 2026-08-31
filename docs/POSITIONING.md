@@ -88,7 +88,7 @@ Everything in the README and any pitch reduces to these:
 
 ### Claim 1 — "It cannot exfiltrate your code, and you can prove it."
 Not a privacy policy: a demonstrable property. Read-only source mount,
-`--network=none` on the quick profile, published SBOM, signed image,
+`--network=none` on the default `offline` profile, published SBOM, signed image,
 reproducible build, and a documented command a security reviewer runs to verify
 it themselves. **SaaS competitors structurally cannot make this claim.**
 
@@ -108,7 +108,7 @@ Consequences for what we say:
 - For a pure-Python or pure-JavaScript project, **EPSS does most of the ranking
   work**, not KEV. The inversion example in the README is real but will fire rarely
   on application dependencies alone.
-- KEV earns its place mainly on **container and OS packages**, which is the `deep`
+- KEV earns its place mainly on **container and OS packages**, which is the `full`
   Profile's image scanning.
 - Do **not** imply that KEV routinely reorders a typical application scan. It does
   not, and a knowledgeable reviewer will know it does not.
@@ -130,7 +130,7 @@ These are commitments, tracked as non-functional requirements in the spec.
 | P2 | **Every finding traceable.** `raw/` plus `run.json` let a reviewer verify any finding against the tool and version that produced it. "Show me why you flagged this" is a procurement question in regulated industries. |
 | P3 | **No lock-in, stated loudly.** SARIF and CycloneDX out, primary-source intel in. Users can leave whenever they like, and we say so. |
 | P4 | **Credit the scanners prominently.** Trivy, Gitleaks, Opengrep, Checkov, OSV-Scanner and Syft do the detection. Being upfront builds more trust than implying proprietary magic — and it is simply what is true. |
-| P5 | **Verifiable non-exfiltration.** A documented command that runs a full quick-profile scan with networking disabled, which a reviewer can execute unaided. |
+| P5 | **Verifiable non-exfiltration.** A documented command that runs a complete `offline`-profile scan with networking disabled, which a reviewer can execute unaided. |
 | P6 | **Dual-audience documentation.** README addresses developers and AI coding agents separately; results are self-describing for agents that never read the README. |
 
 ## 7. Defensibility

@@ -36,7 +36,7 @@ hidden Unicode directives, model output flowing into shells and interpreters.
 | | |
 |---|---|
 | Image download, once | **302MB compressed** — ~24s at 100 Mbit, ~48s at 50, ~97s at 25 |
-| `quick` scan thereafter | **5.6s** |
+| `offline` scan thereafter | **5.6s** |
 
 So the first run lands inside a minute on a 50 Mbit connection or better, and takes
 longer on a slower one. Every run after that is just the scan. We would rather give
@@ -75,9 +75,9 @@ Checks no other scanner ships:
 
 ### What leaves your machine, stated plainly
 
-**On `quick`: nothing.** There is no network interface inside the container.
+**On `offline` (the default): nothing.** There is no network interface inside the container.
 
-**On `standard` and `deep`**, one check needs the network: dependency reality sends
+**On `full`**, two checks need the network: dependency reality sends
 **package names** — never source code, never file contents — to public registries to
 ask whether each dependency actually exists. That is how hallucinated packages are
 caught at all; no advisory database can do it, because the package is new rather than
@@ -136,7 +136,7 @@ pip install valvur          # or: uv tool install valvur
 valvur scan
 
 # Fast, fully offline pre-commit check (~60s, no network interface at all)
-valvur scan --profile quick
+valvur scan --profile offline
 
 # Everything, including container images and deep licence analysis
 valvur scan --profile deep

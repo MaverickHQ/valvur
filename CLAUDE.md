@@ -48,7 +48,7 @@ constraint, not an aspiration. Any feature that trades one away must be
 rejected, however useful it seems.
 
 1. **It never phones home, and that is provable.** `--network=none` on the
-   quick profile. Source is mounted read-only. No account, no API key, no
+   default (`offline`) profile. Source is mounted read-only. No account, no API key, no
    telemetry, ever. A reviewer must be able to *verify* this themselves, not
    take our word for it.
 2. **The source tree is mounted read-only.** The scanner cannot modify the code
@@ -116,8 +116,9 @@ new argument.
 | [014](docs/adr/0014-no-html-report.md) | **No `report.html`.** Cut before implementation. The Results Folder is deliberately unshareable (ADR-0011), which removes an HTML report's main advantage over Markdown; rendering untrusted content in a browser was the largest security surface in the contract; and it was the only artifact with no single identified consumer, which is ADR-0002's own rule. F7.8 deferred, F7.15 stays dormant. |
 | [013](docs/adr/0013-checks-run-inside-the-container.md) | **valvur's own Checks run inside the container**, like Scanners. Host-side would put the Dependency Reality Check's registry calls outside `--network=none`, turning ADR-0010's guarantee back into a policy. No new orchestrator protocol was needed: Checks emit JSON and fit the existing adapter contract. |
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
-| [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `quick` stays offline. |
-| [010](docs/adr/0010-provable-non-exfiltration.md) | **Provable non-exfiltration is a hard constraint.** Not a policy — a testable property, with a regression test that fails if the quick profile touches a socket. This is the product; see §3. |
+| [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `offline` stays offline. |
+| [016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md) | **Two Profiles, split on the network boundary.** `offline` (the default) runs every Scanner that completes under `--network=none` — which is all of them bar two. `full` adds `osv-scanner` and the dependency-reality Check, the only two needing a socket. The old set was drawn along *speed* while being described as a network boundary, and `deep` was byte-identical to `standard` — it promised more and delivered exactly `standard`. Retired names still resolve. |
+| [010](docs/adr/0010-provable-non-exfiltration.md) | **Provable non-exfiltration is a hard constraint.** Not a policy — a testable property, with a regression test that fails if the `offline` profile touches a socket. This is the product; see §3. |
 
 ## 7. Results contract
 
@@ -216,7 +217,7 @@ correct and honest.
 
 ## 10. Prohibited without explicit owner approval
 
-- Any network call in the `quick` profile.
+- Any network call in the `offline` profile.
 - Any dependency requiring an account, API key or token to function.
 - Any feature that writes to the scanned source tree.
 - Any autonomous remediation.
