@@ -32,6 +32,17 @@ hidden Unicode directives, model output flowing into shells and interpreters.
 
 ## The three claims
 
+### First run, measured
+
+| | |
+|---|---|
+| Image download, once | **302MB compressed** — ~24s at 100 Mbit, ~48s at 50, ~97s at 25 |
+| `quick` scan thereafter | **5.6s** |
+
+So the first run lands inside a minute on a 50 Mbit connection or better, and takes
+longer on a slower one. Every run after that is just the scan. We would rather give
+you the figure than a promise.
+
 ### 1. It cannot exfiltrate your code — and you can verify it
 
 Not a privacy policy. A property you can check yourself in one command:
