@@ -1226,6 +1226,53 @@ by the MCP path first, and by the CLI second.
 **Goal:** convert the product's central claims from assertions into tests CI runs on
 every commit.
 
+> **Reordered 2026-08-31 after auditing two real GitHub repositories.** Phase 11 was
+> written on the assumption that the risk was *constraint violation* — valvur
+> reaching the network, writing where it should not, running too long. That audit
+> found roughly twenty defects and **almost none were constraint violations.** They
+> were silent coverage loss: scanners succeeding perfectly at scanning nothing, and
+> valvur reporting a confident clean result. The worst of them reported a repository
+> with 24 CVEs as clean.
+>
+> Not one would have been caught by the cycles below as originally written. So a
+> coverage canary and a profile-equivalence check are now cycles in their own right,
+> ahead of the timing budget.
+>
+> The other change is that **cycle 3 turned out to be a design problem, not a test.**
+> The README's verification command does not work, and cannot be repaired by fixing
+> the image name — see 11.0. It moves to the front because its answer may change what
+> the README is allowed to claim.
+
+### 11.0 — Decide the real non-exfiltration proof *(design, before any test)*
+
+The README's central claim is that non-exfiltration is *"a property you can check
+yourself in one command"*:
+
+```bash
+docker run --rm --network=none -v "$PWD:/workspace:ro" valvur scan
+```
+
+**Measured 2026-08-31: that command fails twice.** The image `valvur` does not exist,
+and with the real name it fails again — `exec: "scan": executable file not found`,
+because the image's `Cmd` is `python3`. It is not a typo. It describes a **fat
+container**, which is the model [ADR-0001](../../../docs/adr/0001-thin-host-shim-read-only-container.md)
+rejected: valvur is a host shim that *launches* containers, so there is no
+"run valvur in a container" path to document.
+
+- [ ] **11.0.1** Establish what a reviewer can actually run. On Linux
+  `unshare -n valvur scan --profile offline` is a genuine proof — the container
+  runtime is reached over a unix socket, so the scan still completes with no network
+  namespace at all. Confirm this, because the whole claim rests on it.
+- [ ] **11.0.2** Answer the same question for macOS, where there is no `unshare` and
+  the runtime lives in a VM. If no single honest command exists, say so: a
+  per-platform instruction that works beats one universal instruction that does not.
+- [ ] **11.0.3** Rewrite the README claim to match whatever 11.0.1 and 11.0.2
+  establish, and **only then** write cycle 11.1's test against it. *(P5 — a
+  documented command that does not run is worse than no documentation, because it is
+  the one thing a sceptical reviewer will try first.)*
+
+**Commit:** `docs: a non-exfiltration proof that actually runs`
+
 ### TDD cycles
 
 1. **The `offline` Profile makes no network connection — the test fails on any socket
@@ -1233,23 +1280,79 @@ every commit.
    important test in the suite: it is what makes the README's central claim true
    rather than asserted.)*
    > **Scope tightened 2026-08-30.** Asserting only that the container was launched
-   > with `--network=none` is insufficient: a host-side **Check** could reach the
+   > with `--network=none` is insufficient: something host-side could reach the
    > network freely and the test would still pass. It must assert over everything
    > valvur starts.
-2. No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
-3. The verification command documented in the README works exactly as written.
-   *(P5 — documentation that drifts from behaviour is worse than none.)*
-4. `full` completes within 5 minutes and 2 GB on a ≤50k-line repository.
-   *(N1.2, N1.4)*
+   >
+   > **Rationale corrected 2026-08-31.** The original note named a host-side
+   > **Check** as the risk; [ADR-0013](../../../docs/adr/0013-checks-run-inside-the-container.md)
+   > moved Checks into the container, so that specific hole is closed. The real
+   > host-side network user is now **enrichment** — EPSS is fetched from FIRST by the
+   > shim — and it is gated by a single boolean threaded from the Profile. One
+   > inverted condition and the offline guarantee is gone with no visible symptom.
+   > The scope is unchanged; only what it is guarding against.
+
+2. **The canary fixture yields at least its known findings, per Scanner.** *(New
+   2026-08-31. The regression net for silent coverage loss.)*
+
+   `tests/fixtures/broken-repo` exercises all nine Scanners. Measured on the `full`
+   Profile, 2026-08-31 — **73 findings**:
+
+   | trivy | osv-scanner | opengrep | checkov | ai-artifact | gitleaks | dep-reality | licence-file |
+   |---|---|---|---|---|---|---|---|
+   | 36 | 37 | 12 | 12 | 6 | 2 | 2 | 1 |
+
+   Assert a **floor per Scanner**, not exact totals: advisory databases grow, and a
+   test that breaks every time OSV publishes is a test people delete. A Scanner
+   dropping to zero is the signal — that is what every silent failure looked like.
+
+   This is the cycle that would have caught all three of the worst defects found on
+   2026-08-31: Trivy's dev-dependency exclusion (24 CVEs → 0), the ecosystem
+   mismatch that double-reported every shared CVE (24 → 48), and "no package sources
+   found" being treated as a scan failure.
+
+3. **`offline` and `full` report the same dependency vulnerabilities on the canary.**
+   *(New 2026-08-31. N2.1, [ADR-0016](../../../docs/adr/0016-two-profiles-split-on-the-network-boundary.md).)*
+
+   ADR-0016 claims the offline Profile gives up a second advisory source and the
+   slopsquat Check — and nothing else. **That claim was false until 2026-08-31**, when
+   `offline` returned 0 CVEs on a repository where `full` found 24, in the same
+   lockfile in the same minute. An offline Profile that quietly finds less makes
+   *"no network required"* worth nothing, because the honest advice becomes "run the
+   networked one anyway".
+
+4. No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
+
+5. **Both budgets, not just the slow one.** *(N1.1, N1.2, N1.4)*
+   - `offline` completes in under 60 seconds on a ≤50k-line repository. *(N1.1 —
+     now the tighter constraint. ADR-0016 moved Checkov into `offline`, and Checkov
+     is **13.7s of its measured 18.1s**. The old `quick` had no Checkov and no risk
+     here; `offline` does.)*
+   - `full` completes within 5 minutes and 2 GB on the same repository. *(N1.2, N1.4
+     — comfortable at ~19s measured, but unverified for memory.)*
 
 ### Also in this phase
 
-- [ ] **11.5** Run valvur's `full` **Profile** against valvur itself.
-- [ ] **11.6** Remediate every **Finding**; re-run until clean. Record anything
-  suppressed, with justification and expiry.
-- [ ] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)*
+- [ ] **11.6** **Verify the self-scan** — mostly done 2026-08-31, restated as
+  verification rather than work. Current state under `offline`: **1 live Finding, 2
+  suppressed with reasons and a one-year expiry, 61 excluded** by
+  `[scan] exclude = ["tests/fixtures"]` and reported in both `SUMMARY.md` and
+  `run.json`. `LICENSE` is Apache-2.0. The one open decision is whether the remaining
+  Finding — *4 dependencies declare no licence*, all genuinely ours — is acceptable
+  to ship or wants a suppression with a reason.
+- [ ] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)* It must fail on
+  three things, not one:
+  1. any unsuppressed **Finding**;
+  2. any **expired suppression** — the lapse already re-reports the Finding, but if
+     nothing fails the build then "mandatory expiry" is decoration;
+  3. any **skipped runtime-parity test**. Four Podman tests skip today because the
+     GHCR package is private (task 12.6). Dual-runtime parity is an F1 claim, and a
+     green CI that never ran those tests is asserting something it did not check.
+     "Skipped" and "passed" must not look the same to the gate.
 
-**Exit:** CI proves non-exfiltration on every commit; valvur passes its own scan.
+**Exit:** CI proves non-exfiltration on every commit, proves coverage has not
+silently narrowed, and valvur passes its own scan. The README's verification command
+runs as written on every platform it claims.
 
 **Commit:** `test: constraint verification and self-scan release gate`
 
