@@ -137,8 +137,14 @@ Written into the scanned project:
   raw/                # per-tool output, secrets redacted
 ```
 
-Plus `.security-scan.toml` at project root — **committed**, holds suppressions
-with **mandatory expiry dates**.
+Plus `.security-scan.toml` at project root — **committed**, holding two things:
+suppressions with **mandatory expiry dates**, and `[scan] exclude`, repo-relative
+path prefixes the project has chosen not to scan. Exclusion is never a built-in
+default: a project of deliberately vulnerable test data needs it, and every other
+project would be harmed by having its tests silently skipped. Both the count of
+excluded findings and the paths responsible appear in `SUMMARY.md` and `run.json`,
+because an exclusion the reader cannot see is indistinguishable from a scan that
+found nothing.
 
 Rules that must hold:
 - **Self-ignoring folder** is the guarantee results are never committed; a root
