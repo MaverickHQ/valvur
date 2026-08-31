@@ -138,11 +138,12 @@ def test_unknown_licence_findings_are_aggregated_into_one():
 
     from valvur.licence_policy import evaluate
 
-    sbom = json.dumps({"components": [
-        {"name": f"pkg{i}", "version": "1.0"} for i in range(50)
-    ]})
+    # Readable tree, so this exercises aggregation rather than the unreadable case.
+    comps = [{"name": f"ok{i}", "version": "1.0",
+              "licenses": [{"license": {"id": "MIT"}}]} for i in range(60)]
+    comps += [{"name": f"pkg{i}", "version": "1.0"} for i in range(50)]
 
-    findings = evaluate("MIT", sbom)
+    findings = evaluate("MIT", json.dumps({"components": comps}))
 
     assert len(findings) == 1
     assert "50 dependencies declare no licence" in findings[0].title
@@ -317,3 +318,59 @@ def test_dotfile_paths_keep_their_leading_dot():
     assert container_relative("/workspace/.env") == ".env"
     assert container_relative("./src/app.py") == "src/app.py"
     assert container_relative("/workspace/src/app.py") == "src/app.py"
+
+
+def test_sbom_file_components_are_not_counted_as_dependencies():
+    """Syft catalogues workflow YAML and lockfiles as type "file". They are not
+    dependencies, and their names are container paths — counting them inflated the
+    total and leaked /workspace into evidence bound for a committed file."""
+    import json
+
+    from valvur.licence_policy import evaluate
+
+    sbom = json.dumps({"components": [
+        {"name": "/workspace/.github/workflows/ci.yml", "type": "file"},
+        {"name": "left-pad", "version": "1.0", "type": "library"},
+    ]})
+
+    findings = evaluate("MIT", sbom)
+
+    assert len(findings) == 1
+    assert "/workspace" not in findings[0].evidence
+    assert "1 of 1" in findings[0].title
+
+
+def test_wholly_absent_licence_data_is_reported_as_unreadable_not_as_absent():
+    """npm licence metadata lives in each installed package, not the lockfile. Saying
+    "618 dependencies declare no licence" states as fact something we could not read,
+    and gives the developer nothing to do about it."""
+    import json
+
+    from valvur.licence_policy import evaluate
+
+    sbom = json.dumps({"components": [
+        {"name": f"pkg{i}", "version": "1.0", "type": "library"} for i in range(50)
+    ]})
+
+    findings = evaluate("MIT", sbom)
+
+    assert findings[0].rule == "valvur.licence.dependencies-unreadable"
+    assert "could not be determined" in findings[0].title
+    assert "Install dependencies and rescan" in findings[0].evidence
+
+
+def test_a_minority_of_undeclared_licences_is_still_reported_as_undeclared():
+    """The unreadable wording must not swallow the real case: a tree we could read,
+    where a few packages genuinely ship no licence."""
+    import json
+
+    from valvur.licence_policy import evaluate
+
+    comps = [{"name": f"ok{i}", "version": "1.0", "type": "library",
+              "licenses": [{"license": {"id": "MIT"}}]} for i in range(20)]
+    comps.append({"name": "mystery", "version": "1.0", "type": "library"})
+
+    findings = evaluate("MIT", json.dumps(comps and {"components": comps}))
+
+    assert findings[0].rule == "valvur.licence.dependency-unknown"
+    assert "1 dependencies declare no licence" in findings[0].title

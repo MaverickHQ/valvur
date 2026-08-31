@@ -29,9 +29,14 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
     findings: list[Finding] = []
     undeclared: list[str] = []
 
-    for component in sbom.get("components") or []:
+    components = [c for c in (sbom.get("components") or []) if c.get("type") != "file"]
+    for component in components:
         name = component.get("name", "")
         version = component.get("version", "")
+        # Syft catalogues workflow YAML and lockfiles as type "file". They are not
+        # dependencies, they carry no licence to declare, and their names are
+        # container paths — counting them inflated the total and leaked /workspace
+        # into evidence that ends up in a committed suppressions file.
         if not name:
             continue
         licences = _licences(component)
@@ -48,7 +53,28 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
                     f"{name} {version} is {licence} in a {project_licence} project",
                     f"{licence} obligations may extend to your own source.",
                 ))
-    if undeclared:
+    # Licence metadata for npm lives in each package's own package.json, which is
+    # absent when only a lockfile is present. Reporting "618 dependencies declare no
+    # licence" then states as fact something we simply could not read. Saying so is
+    # a coverage statement, and it comes with an action that actually works.
+    if undeclared and components and len(undeclared) >= 0.9 * len(components):
+        findings.append(Finding(
+            rule="valvur.licence.dependencies-unreadable",
+            path="sbom.cdx.json",
+            line=0,
+            title=(
+                f"Licences could not be determined for {len(undeclared)} of "
+                f"{len(components)} dependencies"
+            ),
+            evidence=(
+                "Licence metadata ships inside each installed package, not in the "
+                "lockfile. Install dependencies and rescan to resolve them."
+            ),
+            fingerprint=_fp.for_licence("<dependencies>", "unreadable"),
+            severity="low",
+            sources=("valvur",),
+        ))
+    elif undeclared:
         # ONE finding, not one per package. A real TypeScript project produced 618 of
         # these — 96% of its findings — burying two dozen genuine CVEs. Missing
         # licence metadata is a bulk property of the dependency tree, and
