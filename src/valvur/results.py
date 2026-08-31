@@ -63,6 +63,13 @@ def _provenance(run) -> str:
                 # Reported, not silent: a user who vendored a vulnerable copy
                 # deserves to know we skipped it.
                 "excluded_vendored": getattr(run, "vendored_dropped", 0),
+                # What this project chose not to scan, and how much it cost. An
+                # exclusion the reader cannot see is indistinguishable from a
+                # scanner that found nothing.
+                "excluded_by_config": {
+                    "paths": list(getattr(run, "excluded_paths", []) or []),
+                    "findings_dropped": getattr(run, "config_dropped", 0),
+                },
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
                 # registries by the dependency-reality check on standard and deep.
@@ -167,6 +174,17 @@ def _summary(run) -> str:
             "and agent config. It does not cover "
             f"{_profiles.gaps_in_prose(run.profile)}.",
             "> Run `valvur scan --profile standard` for full coverage.",
+            "",
+        ]
+
+    dropped = getattr(run, "config_dropped", 0)
+    if dropped:
+        where = ", ".join(f"`{p}`" for p in getattr(run, "excluded_paths", []) or [])
+        lines += [
+            f"> **{dropped} finding(s) were excluded** by `.security-scan.toml`: "
+            f"{where}.",
+            "> Stated because an exclusion you cannot see is indistinguishable from "
+            "a scan that found nothing.",
             "",
         ]
 
