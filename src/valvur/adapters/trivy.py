@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
@@ -43,7 +44,8 @@ class TrivyAdapter:
             # Trivy reports a target, not always a path — a lockfile, an image layer,
             # or an OS package database. container_relative handles the path case.
             target = container_relative(str(result.get("Target", "")))
-            ecosystem = str(result.get("Type", "unknown"))
+            # Trivy reports the lockfile FORMAT ("pnpm"), not the ecosystem ("npm").
+            ecosystem = _ecosystems.normalise(str(result.get("Type", "")))
 
             for vuln in result.get("Vulnerabilities") or []:
                 package = vuln["PkgName"]
