@@ -20,6 +20,22 @@ class ScannerOutput:
 # by anyone — pointing at a local tag would make the first run fail for every user
 # who is not us.
 IMAGE = _os.environ.get("VALVUR_IMAGE") or "ghcr.io/maverickhq/valvur:0.1.0rc1"
+
+# A Scanner that finds nothing to analyse has not failed. OSV-Scanner reads lockfiles
+# only, so a project with a pyproject.toml and no lockfile makes it exit 128 saying
+# "No package sources found" — a normal condition we were reporting as a failure,
+# which marked the whole scan incomplete and made every lockfile-less project look
+# broken. The mirror of the Phase 8 lesson: there, missing output WAS a failure.
+NOTHING_TO_SCAN = (
+    "no package sources found",
+    "no such file or directory",
+    "no files to scan",
+)
+
+
+def _is_nothing_to_scan(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return any(phrase in lowered for phrase in NOTHING_TO_SCAN)
 _VERSION = "0.1.0rc1"
 
 # Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
@@ -267,6 +283,9 @@ class ContainerRunner:
                 cmd, capture_output=True, text=True, timeout=timeout, check=False
             )
             report = Path(scratch) / outfile if outfile else None
+            if report is not None and not report.exists() and _is_nothing_to_scan(proc.stderr):
+                # Nothing to analyse: an empty result, honestly earned.
+                return ScannerOutput(tool, version, "", "", 0)
             if report is not None and not report.exists():
                 # The Scanner was asked for a report and produced none. Exiting 0
                 # while writing nothing means it could not write, not that it found

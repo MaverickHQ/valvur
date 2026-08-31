@@ -113,3 +113,46 @@ def test_exploit_evidence_still_wins_where_it_exists():
     ])
 
     assert ranked[0].rule == "CVE-2023-4863"
+
+
+def test_osv_severity_vocabulary_is_normalised_on_every_path():
+    """OSV speaks GitHub's vocabulary, which calls medium 'moderate'. Unmapped it
+    falls outside our scale and sorts BELOW low, so real npm advisories ranked
+    beneath an unknown-licence note. The fallback path skipped the mapping."""
+    from valvur.adapters.osv import _severity
+    from valvur.findings import SEVERITIES
+
+    from_scores = _severity({"severity": [{"score": "MODERATE"}]})
+    from_fallback = _severity({"database_specific": {"severity": "MODERATE"}})
+
+    assert from_scores == "medium"
+    assert from_fallback == "medium"
+    assert from_fallback in SEVERITIES
+
+
+def test_unknown_licence_findings_are_aggregated_into_one():
+    """A real TypeScript project produced 618 of these — 96% of its findings —
+    burying two dozen genuine CVEs. Missing licence metadata is a bulk property of
+    the dependency tree, not 618 separate problems."""
+    import json
+
+    from valvur.licence_policy import evaluate
+
+    sbom = json.dumps({"components": [
+        {"name": f"pkg{i}", "version": "1.0"} for i in range(50)
+    ]})
+
+    findings = evaluate("MIT", sbom)
+
+    assert len(findings) == 1
+    assert "50 dependencies declare no licence" in findings[0].title
+
+
+def test_nothing_to_scan_is_not_a_scan_failure():
+    """OSV-Scanner reads lockfiles only, so a pyproject-without-lockfile makes it
+    exit 128 saying 'No package sources found'. Reporting that as a failure marked
+    the whole scan incomplete and made every lockfile-less project look broken."""
+    from valvur.runner import _is_nothing_to_scan
+
+    assert _is_nothing_to_scan("No package sources found, --help for usage")
+    assert not _is_nothing_to_scan("permission denied reading /workspace")

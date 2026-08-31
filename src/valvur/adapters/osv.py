@@ -72,11 +72,24 @@ def _preferred_id(vuln: dict) -> str:
     return vuln.get("id", "")
 
 
+# OSV speaks GitHub's vocabulary, which calls medium "moderate". Left unmapped it
+# falls outside our scale entirely and sorts BELOW low — so real npm advisories ranked
+# beneath an unknown-licence note. Normalise on every path, not just the first.
+_OSV_SEVERITY = {
+    "CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium",
+    "MODERATE": "medium", "LOW": "low",
+}
+
+
+def _normalise(value: str) -> str | None:
+    return _OSV_SEVERITY.get(str(value).strip().upper())
+
+
 def _severity(vuln: dict) -> str:
     """OSV reports severity inconsistently across ecosystems; take what is there."""
     for entry in vuln.get("severity") or []:
-        score = str(entry.get("score", ""))
-        if score.upper() in {"CRITICAL", "HIGH", "MEDIUM", "MODERATE", "LOW"}:
-            return "medium" if score.upper() == "MODERATE" else score.lower()
+        mapped = _normalise(entry.get("score", ""))
+        if mapped:
+            return mapped
     db = (vuln.get("database_specific") or {}).get("severity", "")
-    return str(db).lower() or "unknown"
+    return _normalise(db) or "unknown"
