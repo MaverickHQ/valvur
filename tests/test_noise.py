@@ -545,3 +545,26 @@ def test_valvur_does_not_scan_its_own_results_folder():
     assert is_vendored(".security-scan/findings.json")
     assert is_vendored(".security-scan/raw/ai-artifact.json")
     assert not is_vendored("src/valvur/api.py")
+
+
+def test_github_actions_are_not_counted_as_unlicensed_dependencies():
+    """Syft types GitHub Actions as libraries with a pkg:github purl. They are
+    workflow steps pinned by git ref, not licensed packages — the pinning rule
+    already covers the risk they carry — so counting them inflates "N dependencies
+    declare no licence" with things that have no licence to declare."""
+    from valvur.licence_policy import evaluate
+
+    sbom = json.dumps({"components": [
+        {"name": "actions/checkout", "version": "v5", "type": "library",
+         "purl": "pkg:github/actions/checkout@v5"},
+        {"name": "left-pad", "version": "1.0", "type": "library",
+         "purl": "pkg:npm/left-pad@1.0"},
+        {"name": "ok", "version": "1.0", "type": "library", "purl": "pkg:npm/ok@1.0",
+         "licenses": [{"license": {"id": "MIT"}}]},
+    ]})
+
+    findings = evaluate("Apache-2.0", sbom)
+
+    assert len(findings) == 1
+    assert "1 dependencies declare no licence" in findings[0].title
+    assert "actions/checkout" not in findings[0].evidence

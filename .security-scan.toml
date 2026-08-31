@@ -1,0 +1,23 @@
+# valvur suppressions — committed deliberately, reviewed on expiry.
+#
+# Every entry needs a fingerprint, rule, path, expiry and reason. The expiry is
+# mandatory by design: an accepted risk that never comes back up for review is an
+# accepted risk nobody is accepting any more.
+#
+# These two are Checkov rules that do not apply to a one-shot scanner image. Neither
+# is a defect to fix later — they are the rule being wrong about this container — so
+# they carry a long expiry and a reason that says what would change the answer.
+
+[[suppress]]
+fingerprint = "6addff03638bb8538647b6b3ea9e90df"
+rule = "CKV_DOCKER_4"
+path = "Dockerfile"
+expires = 2027-08-31
+reason = "ADD is required here: lines 31-32 fetch the Opengrep release binary over HTTPS, pinned to v1.29.0 with --chmod. COPY cannot fetch a URL, so the rule's remedy does not apply. No archive is auto-extracted, which is the behaviour CKV_DOCKER_4 actually guards against. Revisit if the download moves into a builder stage."
+
+[[suppress]]
+fingerprint = "0e2cb52a1e48b5c3e8507724afdc67b4"
+rule = "CKV_DOCKER_2"
+path = "Dockerfile"
+expires = 2027-08-31
+reason = "No HEALTHCHECK: this image runs one scanner command and exits. A healthcheck describes a long-running service, and Docker never runs one for a container that has already finished. Adding it would be cargo cult. Revisit if valvur ever ships a daemon or server mode."

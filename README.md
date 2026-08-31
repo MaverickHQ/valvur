@@ -257,7 +257,10 @@ always will be.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
+
+Apache-2.0 rather than MIT for the explicit patent grant — this is a security
+tool, and a contributor's patents should not become a downstream user's problem.
 
 Bundled scanners retain their own licences, listed above. No GPL-licensed tools
 are included in the distributed image.
