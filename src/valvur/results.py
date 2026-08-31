@@ -53,6 +53,9 @@ def _provenance(run) -> str:
                 # An incomplete scan reporting "clean" would be a lie of omission.
                 # This is the single field an agent should check first.
                 "complete": not getattr(run, "failures", []),
+                # Reported, not silent: a user who vendored a vulnerable copy
+                # deserves to know we skipped it.
+                "excluded_vendored": getattr(run, "vendored_dropped", 0),
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
                 # registries by the dependency-reality check on standard and deep.

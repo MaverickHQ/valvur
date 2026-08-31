@@ -1166,6 +1166,11 @@ take, and participants cannot be re-used.
 
 ### 10.3b — False positives, found by scanning a real project
 
+> **✅ COMPLETE 2026-08-31.** 182 tests. Re-scanned the same project: **20 findings →
+> 14**, six vendored excluded and reported, `.env` secrets down from critical to
+> medium with the reason in the title, and the licence-unknown findings now ranked
+> 11–14 instead of near the top.
+
 > **Added 2026-08-31.** A scan of a real 260k-line project (62s, standard profile, all
 > nine scanners green) returned 20 findings. Two genuine secrets, seven real IaC
 > misconfigurations — and three defects our synthetic fixture could not have revealed,
