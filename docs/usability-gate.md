@@ -21,6 +21,10 @@ that `SUMMARY.md` is comprehensible to someone who has never used a scanner.
 
 ## The rules
 
+0. **Have them take the MCP path first.** Since ADR-0015 that is the primary
+   interface: paste the config into Kiro or Claude Code, restart, ask the agent to
+   scan. The CLI is the second way in and should be tried second, if at all. Watching
+   someone use the path we have deprioritised would answer the wrong question.
 1. Give them **only the repository URL**. No verbal setup, no "you'll want to…".
 2. **Say nothing while they work.** Not a hint, not a nudge. The silence is the
    experiment. If they get stuck for more than two minutes, that is a finding — write
@@ -44,7 +48,8 @@ Write these down as they happen — reconstructed notes lose the detail that mat
 | Anything they expected that did not happen | A model mismatch, the most valuable kind of finding |
 | Anything they read twice | Ambiguous wording |
 | Where they stopped to ask a question | Where the docs stop working |
-| Whether they understood the findings **without help** | Feeds task 10.6 |
+| Whether they understood the findings **without help** | Feeds task 10.4.12 |
+| Whether the agent surfaced anything when the server failed | Agents commonly swallow stderr, so a dead server can look like an idle one |
 | Whether they knew the results were gitignored | F7.2 is a promise; do they perceive it? |
 
 ## Two questions at the end

@@ -1087,34 +1087,100 @@ no tool can change anything; and nothing an agent receives can act as an instruc
 ## Phase 10 — First-run experience
 
 **Goal:** usability, treated as a feature with its own phase rather than as polish.
-Driven by the usability gate, which runs first (10.0).
 
-- [ ] **10.0** **Run the usability gate FIRST — before any other task in this phase.**
-  Protocol: [docs/usability-gate.md](../../../docs/usability-gate.md). A developer who
-  has never seen valvur, repository URL only, no verbal help, scanning their own
-  project. **The findings become the rest of this phase's task list**, so the tasks
-  below are provisional until it has run. Moved here from Phase 1 task 1.12.
-- [ ] **10.1** `uv tool install valvur` (and `pipx`) works on a clean machine with no
-  **Scanners**, no Python knowledge and no configuration. *(F10.6)*
-- [ ] **10.2** First run auto-pulls the image with clear progress, and states plainly
-  what it is downloading and how large it is.
-- [ ] **10.3** Zero-config default: `valvur scan` in any directory does the right
-  thing with no flags. *(P1)*
-- [ ] **10.4** `quick` **Profile** completes in under 60 seconds on a ≤50k-line
-  repository. *(P1, N1.1)*
-- [ ] **10.5** Every failure mode produces an actionable message naming the exact next
-  command. Cover: daemon not running, image pull failure, unreadable **Workspace**,
-  no manifests found, corrupt suppression file.
-- [ ] **10.6** `SUMMARY.md` is comprehensible to someone who has never used a security
-  scanner — test it on a person, not an assumption.
-- [ ] **10.7** Copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet verified against a
+> **Reordered 2026-08-31 after reviewing Phase 9.** Two problems. The phase could not
+> run at all — nothing is published, so the usability gate had nothing for a
+> participant to install. And its tasks were written when the **CLI** was primary;
+> since ADR-0015 the first run is an MCP configuration flow with entirely different
+> failure modes.
+
+### 10.0 — Pre-release publish
+
+The gate needs something real to install. A source checkout tests a path no user will
+take, and participants cannot be re-used.
+
+- [ ] **10.0.1** **The name decision comes due here, not at 12.1.** Publishing an rc to
+  PyPI *claims the name*. `valvur` was chosen as provisional on the understanding that
+  renaming stayed free until first publish — this is first publish. Decide now or
+  rename now; there is no third option.
+- [ ] **10.0.2** Publish `0.1.0rc1` to PyPI and the image to GHCR. This is most of
+  tasks 12.2 and 12.5 brought forward, and doing it early de-risks the real release
+  rather than duplicating it.
+- [ ] **10.0.3** **Measure the image pull honestly.** The `quick` scan itself is
+  **5.6s**, comfortably inside P1's 60 seconds — but the image is **674MB**, roughly
+  110 seconds on a 50 Mbit connection. P1 is at risk entirely from the download.
+  Measure it, then either state the figure plainly in the README or reconsider a
+  smaller image for `quick`. Do not let the claim stand unmeasured.
+
+**Commit:** `chore: publish 0.1.0rc1 for the usability gate`
+
+### 10.1 — The usability gate
+
+- [ ] **10.1.1** **Run it before any other task in this phase.** Protocol:
+  [docs/usability-gate.md](../../../docs/usability-gate.md). A developer who has never
+  seen valvur, repository URL only, no verbal help, scanning **their own** project.
+  **The findings become the rest of this phase's task list**, so everything below is
+  provisional until it has run. Moved here from Phase 1 task 1.12.
+- [ ] **10.1.2** Have them install it **the way the README says** — the MCP path
+  first, since that is now primary — rather than however we would do it.
+
+**Commit:** `docs: record usability gate findings`
+
+### 10.2 — The MCP first run *(the primary path)*
+
+1. Pasting the README's config block into Kiro produces a working server.
+2. Pasting it into Claude Code produces a working server. *(Their config shapes
+   differ; one working and the other not would be found by users rather than by us.)*
+3. A malformed config, or `valvur-mcp` not on `PATH`, produces a diagnosable failure
+   rather than silence. *(Agents commonly swallow a server's stderr, so a server that
+   dies at startup can look like a server that does nothing.)*
+4. The first tool call states plainly that the image is being pulled and how large it
+   is, rather than appearing to hang.
+
+- [ ] **10.2.5** Verify the copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a
   real agent in a real repository. *(P6)*
-- [ ] **10.8** Second usability gate: a new user, README only, clean machine, under
-  five minutes to first useful result.
 
-**Exit:** an unfamiliar user reaches a useful result without asking a question.
+**Commit:** `feat: MCP first-run experience`
 
-**Commit:** `feat: first-run experience and actionable error handling`
+### 10.3 — The CLI first run
+
+5. `uv tool install valvur` and `pipx install valvur` work on a clean machine with no
+   **Scanners** present. *(F10.6)*
+6. `valvur scan` with no arguments does the right thing in any directory. *(P1)*
+7. The `quick` **Profile** completes within P1's budget on a ≤50k-line repository,
+   **including** the image pull on a first run, or the README states the real figure.
+   *(P1, N1.1, and see 10.0.3.)*
+
+**Commit:** `feat: CLI first-run experience`
+
+### 10.4 — Error messages as a usability surface
+
+8. **Docker installed but not running** produces a message naming the exact next
+   command. *(The commonest first-run failure on macOS, and currently the worst
+   handled: detection finds the binary, the run fails, and the user gets a generic
+   "every scanner failed" with Docker's raw stderr attached.)*
+9. An image pull failure is diagnosed as such.
+10. A **Workspace** with no manifests at all says so, rather than reporting clean.
+11. A corrupt `.security-scan.toml` names the line.
+
+> Five failure modes already produce good messages — `NoContainerRuntime`,
+> `IncompatibleImage`, `WorkspaceUnreadable`, `ScannerFailed`, `RegistryUnreachable`.
+> These are the gaps.
+
+- [ ] **10.4.12** Decide what a **human** sees first in `SUMMARY.md`. It currently
+  opens with twelve lines addressed to an agent, so a developer reads instructions
+  meant for something else before reaching their findings. Correct for the MCP path;
+  worth deciding deliberately rather than inheriting.
+
+**Commit:** `feat: actionable errors for every first-run failure`
+
+### 10.5 — The second gate
+
+12. A different developer, README only, clean machine, reaches a useful result in
+    under five minutes without asking a question.
+
+**Exit:** an unfamiliar user reaches a useful result without asking a question —
+by the MCP path first, and by the CLI second.
 
 ---
 
@@ -1154,8 +1220,9 @@ every commit.
 
 ## Phase 12 — Release
 
-- [ ] **12.1** **Decide the final name.** After first publish this becomes expensive:
-  PyPI, GHCR, ECR, GitHub and every install instruction.
+- [ ] **12.1** ~~**Decide the final name.**~~ **MOVED to task 10.0.1 on 2026-08-31.**
+  Publishing the `0.1.0rc1` needed for the usability gate *is* first publish, and
+  claims the name. The deadline moved with it.
 - [ ] **12.2** Sign the image with cosign; publish SBOM and build provenance. *(F10.3)*
 - [ ] **12.3** Repo furniture: `LICENSE`, `SECURITY.md` with a disclosure policy,
   `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
