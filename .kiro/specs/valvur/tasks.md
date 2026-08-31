@@ -1106,7 +1106,8 @@ take, and participants cannot be re-used.
 - [ ] **10.0.2** Publish `0.1.0rc1` to PyPI and the image to GHCR. This is most of
   tasks 12.2 and 12.5 brought forward, and doing it early de-risks the real release
   rather than duplicating it.
-- [ ] **10.0.3** **Measure the image pull honestly.** The `quick` scan itself is
+- [x] **10.0.3** **Measure the image pull honestly.** The `quick` scan itself is  
+  **STATUS 2026-08-31:** ✅ **Measured: 302MB compressed** (not the 674MB uncompressed figure I had been quoting). ~24s at 100 Mbit, 48s at 50, 97s at 25. With a 5.6s scan, P1's 60 seconds holds at 50 Mbit and above and fails below it. README now states the figures rather than the promise — a claim someone can check beats one they must accept.
   **5.6s**, comfortably inside P1's 60 seconds — but the image is **674MB**, roughly
   110 seconds on a 50 Mbit connection. P1 is at risk entirely from the download.
   Measure it, then either state the figure plainly in the README or reconsider a
