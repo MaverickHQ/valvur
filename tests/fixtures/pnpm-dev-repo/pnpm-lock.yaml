@@ -1,0 +1,24 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+  .:
+    devDependencies:
+      some-wrapper:
+        specifier: 1.0.0
+        version: 1.0.0
+
+packages:
+  some-wrapper@1.0.0:
+    resolution: {integrity: sha512-ZZZZ}
+  lodash@4.17.15:
+    resolution: {integrity: sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==}
+
+snapshots:
+  some-wrapper@1.0.0:
+    dependencies:
+      lodash: 4.17.15
+  lodash@4.17.15: {}

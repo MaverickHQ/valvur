@@ -32,6 +32,14 @@ class TrivyAdapter:
             # requirements.txt has no transitive information to report, so there is
             # genuinely no path to give (verified, task 5.4.12).
             parents = _parent_map(result.get("Packages") or [])
+            # Trivy marks each package dev-or-not; the vulnerability records do not
+            # carry it. Now that dev dependencies are scanned, saying which findings
+            # reach shipped code is the difference between 24 findings and 24
+            # findings a developer can triage.
+            dev = {
+                (pkg.get("Name"), pkg.get("Version")): bool(pkg.get("Dev"))
+                for pkg in result.get("Packages") or []
+            }
             # Trivy reports a target, not always a path — a lockfile, an image layer,
             # or an OS package database. container_relative handles the path case.
             target = container_relative(str(result.get("Target", "")))
@@ -60,7 +68,7 @@ class TrivyAdapter:
                             version=installed,
                             fixed_version=fixed,
                             purl=str((vuln.get("PkgIdentifier") or {}).get("PURL", "")),
-                            scope=_scope(target),
+                            scope=_scope_for(target, dev.get((package, installed))),
                             direct=_pkg_id(package, installed) not in parents or None,
                             path=_path_to_root(
                                 _pkg_id(package, installed), parents
@@ -74,6 +82,13 @@ class TrivyAdapter:
 # requirements-dev.txt and friends never ship. A CVE there is real but not urgent,
 # and treating it as urgent is how a scanner teaches people to ignore it (F6.6).
 _DEV_HINTS = ("dev", "test", "tests", "ci", "lint", "doc", "docs")
+
+
+def _scope_for(target: str, is_dev: bool | None) -> str:
+    """Trivy's own dev flag beats inferring scope from the target path."""
+    if is_dev is None:
+        return _scope(target)
+    return "development" if is_dev else "production"
 
 
 def _scope(target: str) -> str:

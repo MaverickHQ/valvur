@@ -6,6 +6,7 @@ which six were numpy's own test files inside a build directory and two were secr
 in a gitignored `.env`. None of that was visible until then.
 """
 
+
 from valvur.exclusions import filter_findings, is_vendored
 from valvur.findings import Exploit, Finding
 from valvur.ranking import apply
@@ -200,8 +201,12 @@ def test_a_narrower_profile_does_not_claim_bare_clean():
     text = _summary(ScanRun(findings=[], profile="quick"))
 
     assert "did not run every Scanner" in text
-    assert "osv-scanner" in text
     assert "--profile standard" in text
+    # Named by what is missing, not by which binary did not run: quick does not run
+    # osv-scanner, but Trivy covers dependency CVEs, so listing the tool alone reads
+    # as "dependencies unchecked" — which is exactly the false alarm this avoids.
+    assert "infrastructure misconfiguration" in text
+    assert "does cover dependency CVEs" in text
 
 
 def test_full_coverage_clean_carries_no_caveat():
@@ -443,3 +448,37 @@ def test_a_genuinely_unreadable_workspace_still_reports_as_such(monkeypatch, tmp
 
     with pytest.raises(WorkspaceUnreadable):
         ContainerRunner(runtime="/usr/local/bin/docker").verify_workspace_readable(tmp_path)
+
+
+def test_trivy_is_asked_for_dev_dependencies(monkeypatch, tmp_path):
+    """Trivy excludes dev dependencies by default; OSV-Scanner includes them.
+    Measured on a real Electron app: without this flag the quick profile found 0
+    CVEs and standard found 24 — the same 24, same lockfile, one flag apart. Build
+    and test tooling runs on the developer's machine and in CI, which is exactly the
+    supply-chain surface this product exists to cover."""
+    import subprocess
+
+    from valvur import cache
+    from valvur.runner import ContainerRunner
+
+    seen = {}
+
+    def capture(cmd, **kwargs):
+        seen["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(subprocess, "run", capture)
+
+    ContainerRunner(runtime="/usr/local/bin/docker").run_trivy(tmp_path)
+
+    assert "--include-dev-deps" in seen["cmd"]
+
+
+def test_dependency_scope_comes_from_trivys_own_dev_flag():
+    """Now that dev dependencies are scanned, saying which findings reach shipped
+    code is the difference between 24 findings and 24 a developer can triage."""
+    from valvur.adapters.trivy import _scope_for
+
+    assert _scope_for("pnpm-lock.yaml", True) == "development"
+    assert _scope_for("pnpm-lock.yaml", False) == "production"

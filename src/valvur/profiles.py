@@ -56,3 +56,25 @@ def not_run(profile: str) -> tuple[str, ...]:
         return ()
     ran = set(SCANNERS[profile])
     return tuple(s for s in SCANNERS[DEEP] if s not in ran)
+
+
+# What each Scanner is the only source of, in the reader's terms rather than ours.
+# Naming the tool alone misleads: quick does not run osv-scanner, but Trivy covers
+# dependency CVEs, so "osv-scanner not run" reads as "dependencies unchecked".
+_ADDS: dict[str, str] = {
+    "checkov": "infrastructure misconfiguration",
+    "syft": "the SBOM and dependency licences",
+    "dependency-reality": "hallucinated and typosquatted packages",
+    "osv-scanner": "a second dependency-advisory source",
+}
+
+
+def gaps_in_prose(profile: str) -> str:
+    """The coverage a profile lacks, described by what is missing rather than by
+    which binary did not run."""
+    missing = [_ADDS[s] for s in not_run(profile) if s in _ADDS]
+    if not missing:
+        return "nothing else"
+    if len(missing) == 1:
+        return missing[0]
+    return ", ".join(missing[:-1]) + f" or {missing[-1]}"

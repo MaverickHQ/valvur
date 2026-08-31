@@ -1267,7 +1267,32 @@ every commit.
   [POSITIONING.md](../../../docs/POSITIONING.md), and every **Scanner** is credited
   with its licence. *(P3, P4)*
 - [ ] **12.5** Publish the release to GitHub, and the signed image to GHCR.
-- [ ] **12.6** Tag v1.0.0.
+- [ ] **12.6** **Make the GHCR package public — owner action, blocks every other
+  user.** *(F1.5, 10.1, 10.2)* Deliberately held private during development
+  (decision 2026-08-31); the tool is unusable by anyone else until it is flipped.
+
+  **Verify the problem, before and after:**
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}\n' \
+    "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io"
+  ```
+  403 anonymously today. Must be 200 before the usability gate means anything.
+
+  **Do it:** GitHub → Packages → `valvur` → Package settings → Change visibility →
+  Public. Then confirm a genuinely cold pull works — an authenticated machine
+  proves nothing, because a locally cached image hides this completely:
+  ```bash
+  docker logout ghcr.io && docker pull ghcr.io/maverickhq/valvur:0.1.0rc1
+  ```
+
+  **Why this is its own task.** Measured 2026-08-31: local scans passed only
+  because docker had the image cached from the build. A new user's first run
+  failed at the pull, and the failure was reported as *"the container cannot read
+  the workspace"* — advice about mount permissions for an authentication problem.
+  The message is fixed; the visibility is not. Tasks 10.1 and 10.2 cannot be
+  evaluated honestly until this is done, because their entire subject is the
+  first run.
+- [ ] **12.7** Tag v1.0.0.
 
 **Exit:** v1.0.0 released, self-scan clean, signature and SBOM published.
 
