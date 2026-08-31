@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os as _os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,8 +16,11 @@ class ScannerOutput:
     exit_code: int
 
 
-IMAGE = "valvur:dev"
-_VERSION = "0.1.0.dev0"
+# The published image. A fresh install has no local build, so this must be pullable
+# by anyone — pointing at a local tag would make the first run fail for every user
+# who is not us.
+IMAGE = _os.environ.get("VALVUR_IMAGE") or "ghcr.io/maverickhq/valvur:0.1.0rc1"
+_VERSION = "0.1.0rc1"
 
 # Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
 # registry rather than granting egress to ghcr.io. ADR-0012 already made this

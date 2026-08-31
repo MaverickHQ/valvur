@@ -1096,14 +1096,24 @@ no tool can change anything; and nothing an agent receives can act as an instruc
 
 ### 10.0 — Pre-release publish
 
+> **✅ COMPLETE 2026-08-31.** The gate now has something real to install.
+>
+> **Caught before upload:** the sdist would have shipped **14 occurrences** of the
+> planted AWS credentials and the injection payload to PyPI — the test fixtures are
+> deliberately full of them. Tests are now excluded from the sdist. Publishing fake
+> credentials from a tool that detects credentials would have been found by someone
+> else's scanner, not ours.
+
 The gate needs something real to install. A source checkout tests a path no user will
 take, and participants cannot be re-used.
 
-- [ ] **10.0.1** **The name decision comes due here, not at 12.1.** Publishing an rc to
+- [x] **10.0.1** **The name decision comes due here, not at 12.1.** Publishing an rc to  
+  **STATUS 2026-08-31:** ✅ **`valvur` kept.** Confirmed 2026-08-31; the name is now claimed on PyPI and cannot be released.
   PyPI *claims the name*. `valvur` was chosen as provisional on the understanding that
   renaming stayed free until first publish — this is first publish. Decide now or
   rename now; there is no third option.
-- [ ] **10.0.2** Publish `0.1.0rc1` to PyPI and the image to GHCR. This is most of
+- [x] **10.0.2** Publish `0.1.0rc1` to PyPI and the image to GHCR. This is most of  
+  **STATUS 2026-08-31:** ✅ `valvur 0.1.0rc1` on PyPI, `ghcr.io/maverickhq/valvur:0.1.0rc1` and `:latest` on GHCR. Verified as a stranger would: fresh venv, `pip install valvur`, scanned a repo, 57 findings, zero runtime dependencies.
   tasks 12.2 and 12.5 brought forward, and doing it early de-risks the real release
   rather than duplicating it.
 - [x] **10.0.3** **Measure the image pull honestly.** The `quick` scan itself is  

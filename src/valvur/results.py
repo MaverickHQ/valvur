@@ -7,7 +7,7 @@ from pathlib import Path
 from . import artifacts, rawoutput, remediation
 
 RESULTS_DIR = ".security-scan"
-_VERSION = "0.1.0.dev0"
+_VERSION = "0.1.0rc1"
 
 
 def write(workspace: Path, run, scanner_artifacts=(), raw_outputs=()) -> Path:

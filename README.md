@@ -2,9 +2,8 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> ⚠️ **Status: spec phase.** The design is locked and documented; the implementation
-> has not started. Commands below describe the v1 target surface.
-> **The name `valvur` is provisional** until first publish.
+> **Status: `0.1.0rc1`** — a release candidate, published and installable.
+> `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 ---
 
@@ -122,7 +121,7 @@ infrastructure; our differences there are scope and prioritisation, not residenc
 Add valvur to your agent's MCP configuration:
 
 ```json
-{ "mcpServers": { "valvur": { "command": "uvx", "args": ["valvur-mcp"] } } }
+{ "mcpServers": { "valvur": { "command": "uvx", "args": ["--from", "valvur", "valvur-mcp"] } } }
 ```
 
 Then ask it to scan. The server is **stdio only** — no listener, no port, no network
@@ -131,7 +130,9 @@ surface — and every tool it exposes is read-only: valvur can never change your
 ## For developers
 
 ```bash
-# Scan the current project (default profile, ~3-5 min)
+pip install valvur          # or: uv tool install valvur
+
+# Scan the current project (default profile)
 valvur scan
 
 # Fast, fully offline pre-commit check (~60s, no network interface at all)
