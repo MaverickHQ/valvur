@@ -7,6 +7,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from . import profiles as _profiles
 from .api import scan
 
 
@@ -89,12 +90,21 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
     scan_cmd.add_argument("path", nargs="?", default=".", help="Workspace to scan")
-    scan_cmd.add_argument("--profile", default="standard", choices=["quick", "standard", "deep"])
+    scan_cmd.add_argument(
+        "--profile", default=_profiles.DEFAULT,
+        # The retired 0.1.0rc1 names still resolve, so a script or agent config
+        # written against the rc keeps working; they are not advertised.
+        choices=[*_profiles.SCANNERS, *_profiles.ALIASES],
+        metavar="{offline,full}",
+        help="offline (default) runs every Scanner that works with --network=none. "
+        "full adds osv-scanner and the dependency-reality Check, which send package "
+        "names to public registries.",
+    )
     scan_cmd.add_argument(
         "--offline",
         action="store_true",
-        help="Never touch the network. Equivalent to --profile quick for network purposes; "
-        "checks needing a registry report as unverified rather than clean.",
+        help="Force the offline Profile regardless of --profile. Checks needing a "
+        "registry report as unverified rather than clean.",
     )
 
     sub.add_parser("update", help="Fetch the vulnerability database into the local cache")
@@ -170,7 +180,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         runner = ContainerRunner()
 
     workspace = Path(args.path).resolve()
-    profile = "quick" if getattr(args, "offline", False) else args.profile
+    profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
     run = scan(workspace, runner=runner, profile=profile)
 
     for failure in run.failures:

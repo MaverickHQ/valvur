@@ -1,5 +1,10 @@
 # valvur's own Checks run inside the container
 
+> **Note (2026-08-31):** the Profile named here has been renamed. `quick` is now
+> `offline` and is the default; `standard` and `deep` are now the single `full`
+> Profile. See [ADR-0016](0016-two-profiles-split-on-the-network-boundary.md).
+
+
 **Checks** — detection valvur performs itself — execute inside the scanner image
 exactly as third-party **Scanners** do. They are invoked as
 `python -m valvur.checks <name> /workspace`, emit JSON on stdout, and the host parses

@@ -38,8 +38,11 @@ def registry() -> list[Tool]:
                      ".security-scan/ and never modifies your source.",
              {"type": "object", "properties": {
                  **workspace_arg,
-                 "profile": {"type": "string", "enum": ["quick", "standard", "deep"],
-                             "description": "quick is fully offline. Defaults to standard."},
+                 "profile": {"type": "string", "enum": ["offline", "full"],
+                             "description": "offline (the default) runs every Scanner "
+                             "that works with no network access. full adds a second "
+                             "advisory source and the dependency-reality Check, both "
+                             "of which send package names to public registries."},
              }}, start_scan),
         Tool("list_findings", "List findings from the last scan, worst first. "
                               "Bounded by default.",

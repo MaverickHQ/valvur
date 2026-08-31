@@ -1,5 +1,3 @@
-import json
-
 """Sub-phase 10.3b — false positives found by scanning a real project.
 
 A synthetic fixture is generous: it has no vendored dependencies, no `.env`, and
@@ -8,6 +6,7 @@ which six were numpy's own test files inside a build directory and two were secr
 in a gitignored `.env`. None of that was visible until then.
 """
 
+import json
 
 from valvur.exclusions import filter_findings, is_vendored
 from valvur.findings import Exploit, Finding
@@ -200,14 +199,14 @@ def test_a_narrower_profile_does_not_claim_bare_clean():
     from valvur.api import ScanRun
     from valvur.results import _summary
 
-    text = _summary(ScanRun(findings=[], profile="quick"))
+    text = _summary(ScanRun(findings=[], profile="offline"))
 
     assert "did not run every Scanner" in text
     assert "--profile standard" in text
     # Named by what is missing, not by which binary did not run: quick does not run
     # osv-scanner, but Trivy covers dependency CVEs, so listing the tool alone reads
     # as "dependencies unchecked" — which is exactly the false alarm this avoids.
-    assert "infrastructure misconfiguration" in text
+    assert "hallucinated and typosquatted packages" in text
     assert "does cover dependency CVEs" in text
 
 
@@ -217,7 +216,7 @@ def test_full_coverage_clean_carries_no_caveat():
     from valvur.api import ScanRun
     from valvur.results import _summary
 
-    assert "did not run every Scanner" not in _summary(ScanRun(findings=[], profile="deep"))
+    assert "did not run every Scanner" not in _summary(ScanRun(findings=[], profile="full"))
 
 
 def test_stale_raw_output_does_not_survive_into_a_later_run(tmp_path):
@@ -240,9 +239,9 @@ def test_run_json_records_the_profile_and_its_gaps():
     from valvur.api import ScanRun
     from valvur.results import _provenance
 
-    doc = json.loads(_provenance(ScanRun(findings=[], profile="quick")))
+    doc = json.loads(_provenance(ScanRun(findings=[], profile="offline")))
 
-    assert doc["profile"] == "quick"
+    assert doc["profile"] == "offline"
     assert "osv-scanner" in doc["scanners_not_run"]
 
 

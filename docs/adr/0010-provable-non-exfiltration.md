@@ -1,5 +1,10 @@
 # Non-exfiltration is a hard constraint, not a policy
 
+> **Note (2026-08-31):** the Profile named here has been renamed. `quick` is now
+> `offline` and is the default; `standard` and `deep` are now the single `full`
+> Profile. See [ADR-0016](0016-two-profiles-split-on-the-network-boundary.md).
+
+
 valvur must never transmit Workspace contents anywhere, and a reviewer must be able
 to verify that unaided. The `quick` Profile runs with no network interface at all;
 the Workspace is always mounted read-only; there is no account, API key or telemetry.

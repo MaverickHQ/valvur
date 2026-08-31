@@ -18,7 +18,7 @@ The developer's project being examined. Always mounted read-only; valvur never w
 _Avoid_: project, repo, target, source directory, codebase
 
 **Profile**:
-The named breadth of a Scan Run — `quick`, `standard` or `deep` — determining which Scanners run and whether any network access is permitted.
+The named breadth of a Scan Run — `offline` or `full` — determining which Scanners run and whether any network access is permitted. Split on the network boundary, not on speed (ADR-0016). The retired `quick`/`standard`/`deep` names still resolve.
 _Avoid_: mode, level, preset, tier
 
 **Scanner**:

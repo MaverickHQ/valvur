@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from . import profiles as _profiles
 from .mcp import jobs
 from .results import RESULTS_DIR
 
@@ -77,7 +78,7 @@ def start_scan(args: dict) -> str:
     exactly the repository that matters.
     """
     workspace = Path(args.get("workspace") or ".").resolve()
-    profile = args.get("profile") or "standard"
+    profile = _profiles.resolve(args.get("profile") or _profiles.DEFAULT)
 
     existing = jobs.current(workspace)
     if existing and existing.state == "running":

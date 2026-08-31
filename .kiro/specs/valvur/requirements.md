@@ -34,7 +34,7 @@ entirely on my machine, so that my source code never reaches a third party.
 
 1. F1.1 — WHEN a **Scan Run** starts, valvur SHALL mount the **Workspace** into the
    container read-only.
-2. F1.2 — WHEN the `quick` **Profile** is selected, valvur SHALL run the container
+2. F1.2 — WHEN the `offline` **Profile** is selected, valvur SHALL run the container
    with no network interface.
 3. F1.3 — valvur SHALL write no file inside the **Workspace** from within the
    container; the host shim SHALL write every **Results Folder** artifact.
@@ -317,7 +317,7 @@ of fixes, so that nothing changes my code without my decision.
 Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 
 1. P1 — A first **Scan Run** SHALL require one command, no account, and SHALL complete
-   the `quick` **Profile** in under 60 seconds on a mid-sized repository.
+   the `offline` **Profile** in under 60 seconds on a mid-sized repository.
 2. P2 — Every **Finding** SHALL be traceable to the **Scanner** or **Check** and
    version that produced it.
 3. P3 — valvur SHALL emit SARIF and CycloneDX, and SHALL depend on no proprietary
@@ -330,21 +330,21 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    the **Results Folder** SHALL be self-describing.
 
 ### N1 — Performance
-1. N1.1 — `quick` **Profile** SHALL complete in under 60 seconds on a repository of
+1. N1.1 — `offline` **Profile** SHALL complete in under 60 seconds on a repository of
    ≤50k lines.
-2. N1.2 — `standard` **Profile** SHALL complete in under 5 minutes on the same.
+2. N1.2 — `full` **Profile** SHALL complete in under 5 minutes on the same.
 3. N1.3 — `SUMMARY.md` SHALL be readable within a 200k-token context alongside
    `REMEDIATION.md`.
-4. N1.4 — Memory use SHALL remain under 2 GB for the `standard` **Profile**.
+4. N1.4 — Memory use SHALL remain under 2 GB for the `full` **Profile**.
 
 ### N2 — Security
-1. N2.1 — The `quick` **Profile** SHALL make no network connection, verified by an
+1. N2.1 — The `offline` **Profile** SHALL make no network connection, verified by an
    automated test that fails on any socket attempt (ADR-0010).
 2. N2.2 — valvur SHALL never write outside the **Results Folder** and the host
    scratch directory.
 3. N2.3 — No **Workspace**-derived value SHALL reach a shell interpreter.
 4. N2.4 — Secret values SHALL NOT be written to disk unredacted, nor to logs.
-5. N2.5 — valvur SHALL pass its own `standard` **Profile** with no unsuppressed
+5. N2.5 — valvur SHALL pass its own `full` **Profile** with no unsuppressed
    **Findings** as a release gate.
 
 ### N3 — Operability

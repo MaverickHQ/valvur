@@ -23,19 +23,22 @@ class SlowAdapter:
         return []
 
 
-def test_the_quick_profile_runs_only_its_designated_scanners(
+def test_the_offline_profile_runs_only_its_designated_scanners(
     workspace, runner_finding_one_secret
 ):
-    """F2.3 — the quick profile exists to be fast and offline. Running everything
-    would silently break both promises."""
+    """F2.3 — the offline Profile exists to make non-exfiltration provable. Pulling
+    in a Scanner that opens a socket would break that silently.
+
+    Checkov and Syft are deliberately NOT excluded: both complete under
+    --network=none, so keeping them out bought nothing and cost coverage (ADR-0016).
+    """
     from valvur.profiles import scanners_for
 
-    run = scan(workspace, runner=runner_finding_one_secret, profile="quick")
+    run = scan(workspace, runner=runner_finding_one_secret, profile="offline")
     ran = {s.tool for s in run.scanners}
 
-    # Only registered adapters can run; quick must not pull in standard-only ones.
-    assert ran <= set(scanners_for("quick"))
-    assert "osv-scanner" not in ran and "checkov" not in ran
+    assert ran <= set(scanners_for("offline"))
+    assert "osv-scanner" not in ran and "dependency-reality" not in ran
 
 
 def test_independent_scanners_do_not_serialise(workspace, runner_finding_nothing):
@@ -88,9 +91,63 @@ def test_the_quick_profile_includes_the_ai_artifact_check(workspace, runner_find
     assert "ai-artifact" in {s.tool for s in run.scanners}
 
 
-def test_the_quick_profile_excludes_every_check_needing_network(workspace, runner_finding_nothing):
-    """N2.1 — quick must stay offline, so nothing requiring a registry may run."""
+def test_the_offline_profile_excludes_every_check_needing_network(
+    workspace, runner_finding_nothing
+):
+    """N2.1 — the offline Profile must stay offline, so nothing that reaches a
+    registry or an advisory API may run in it."""
     from valvur.profiles import ALLOWS_NETWORK, scanners_for
 
-    assert ALLOWS_NETWORK["quick"] is False
-    assert "dependency-reality" not in scanners_for("quick")
+    assert ALLOWS_NETWORK["offline"] is False
+    assert "dependency-reality" not in scanners_for("offline")
+    assert "osv-scanner" not in scanners_for("offline")
+
+
+# ------------------------------------------------ the two-profile split (ADR-0016)
+
+def test_the_offline_profile_runs_every_scanner_that_works_without_a_socket():
+    """The split is drawn on whether anything leaves the machine, which is the only
+    line this product cares about. Verified, not assumed: checkov with
+    --skip-download and syft cataloguing local files both complete under
+    --network=none."""
+    from valvur.profiles import ALLOWS_NETWORK, OFFLINE, SCANNERS
+
+    assert ALLOWS_NETWORK[OFFLINE] is False
+    assert {"checkov", "syft", "trivy"} <= set(SCANNERS[OFFLINE])
+    assert not {"osv-scanner", "dependency-reality"} & set(SCANNERS[OFFLINE])
+
+
+def test_only_the_two_socket_scanners_separate_the_profiles():
+    from valvur.profiles import FULL, OFFLINE, SCANNERS
+
+    extra = set(SCANNERS[FULL]) - set(SCANNERS[OFFLINE])
+
+    assert extra == {"osv-scanner", "dependency-reality"}
+
+
+def test_offline_is_the_default():
+    """The target market cannot send code or manifests anywhere, and the
+    dependency-reality Check does transmit package names. Reaching the network is
+    opted into, never acquired by typing `valvur scan`."""
+    from valvur.profiles import ALLOWS_NETWORK, DEFAULT
+
+    assert ALLOWS_NETWORK[DEFAULT] is False
+
+
+def test_the_retired_names_still_resolve():
+    """An agent config written against 0.1.0rc1 must keep working. `deep` was
+    byte-identical to `standard`, so both land on `full`."""
+    from valvur.profiles import FULL, OFFLINE, resolve
+
+    assert resolve("quick") == OFFLINE
+    assert resolve("standard") == resolve("deep") == FULL
+    assert resolve("offline") == OFFLINE
+
+
+def test_a_retired_name_does_not_silently_disable_the_network():
+    """Every downstream lookup is a dict.get with a default, so an unresolved
+    "standard" would land on ALLOWS_NETWORK's False and turn the network off without
+    saying so — a silent narrowing of the scan."""
+    from valvur.profiles import ALLOWS_NETWORK, resolve
+
+    assert ALLOWS_NETWORK[resolve("standard")] is True

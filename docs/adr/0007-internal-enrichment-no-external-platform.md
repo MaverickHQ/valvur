@@ -1,5 +1,10 @@
 # Enrichment is internal, with no external prerequisites
 
+> **Note (2026-08-31):** the Profile named here has been renamed. `quick` is now
+> `offline` and is the default; `standard` and `deep` are now the single `full`
+> Profile. See [ADR-0016](0016-two-profiles-split-on-the-network-boundary.md).
+
+
 Exploit Signals come from a ~200-line internal module behind an `EnrichmentProvider`
 interface: a CISA KEV snapshot bundled in the image, plus FIRST EPSS fetched on
 demand for only the CVEs a Scan Run actually found. valvur depends on no external
