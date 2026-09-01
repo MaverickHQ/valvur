@@ -78,7 +78,12 @@ def _key(finding: Finding) -> tuple[str, str, str]:
             f"Upgrade `{target}`" + (f" so `{dependency.package}` reaches {fix}"
                                      if root and fix else f" to {fix}" if fix else "")
         ) if fix or root else f"Replace or remove `{dependency.package}` — no fix available"
-        return (f"dep:{target}{line}", action, finding.path)
+        # Group on the lowercased name. Scanners disagree on case for the same
+        # package — Trivy says "Pillow", OSV says "pillow" on some advisories — and
+        # ungrouped they became two actions for one dependency, the second advising
+        # 10.0.1 after the first advised 12.3.0. Following both in order downgrades.
+        # Fingerprints already normalise case, so only the proposal was affected.
+        return (f"dep:{target.lower()}{line}", action, finding.path)
 
     path = finding.path
     if finding.rule.startswith("valvur.dependency."):
