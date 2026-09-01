@@ -1308,10 +1308,28 @@ rejected: valvur is a host shim that *launches* containers, so there is no
 
 ### TDD cycles
 
-1. **The `offline` Profile makes no network connection — the test fails on any socket
+1. ✅ **The `offline` Profile makes no network connection — the test fails on any socket
    attempt, anywhere in the process tree.** *(N2.1, ADR-0010. The single most
    important test in the suite: it is what makes the README's central claim true
    rather than asserted.)*
+   > **DONE 2026-09-01** — `tests/test_constraints.py`, 6 tests. Both halves asserted,
+   > each paired with a check that it can fail:
+   >
+   > | mutation | caught by |
+   > |---|---|
+   > | enrichment ignores the Profile | host-process test |
+   > | `--network=none` removed | container-argv test |
+   > | `--network=none` unconditional | the falsifiability guard |
+   >
+   > The stub carries a real CVE deliberately. Enrichment short-circuits on a finding
+   > set with none, so a stub without one passes while testing nothing — which is
+   > exactly how this passed vacuously on 2026-08-31.
+   >
+   > **Gap, recorded not omitted:** these cover the shim (in-process) and the
+   > containers (argv). Neither covers a **subprocess** opening a socket — the docker
+   > CLI, or a future helper binary. Only an OS-level denial does, and `unshare -rn`
+   > is Linux-only. Present as a skipped test carrying its own reason, to be enabled
+   > by 11.7 in CI. It is not claimed as passing.
    > **Scope tightened 2026-08-30.** Asserting only that the container was launched
    > with `--network=none` is insufficient: something host-side could reach the
    > network freely and the test would still pass. It must assert over everything
