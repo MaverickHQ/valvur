@@ -21,6 +21,7 @@ import contextlib
 import json
 import socket as socket_mod
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -331,3 +332,194 @@ def test_the_offline_profile_misses_no_vulnerable_package(mountable_tmp):
     assert not (full - offline), (
         f"the offline Profile missed packages that full found: {sorted(full - offline)}"
     )
+
+
+# ------------------------ cycle 4: nothing is written outside results and scratch
+
+@pytest.mark.e2e
+def test_every_scanner_mounts_the_workspace_read_only(monkeypatch, tmp_path):
+    """F1.1, N2.2 — the mount IS the jail (ADR-0001). Not a check valvur performs, a
+    thing that cannot happen.
+
+    Asserted over every Scanner the Profile runs, rather than one ad-hoc container:
+    a Scanner added without `:ro` would otherwise be caught by review or not at all.
+    """
+    from valvur import cache
+    from valvur.adapters import DEFAULT_ADAPTERS
+    from valvur.runner import ContainerRunner
+
+    launched: list[list[str]] = []
+
+    def capture(cmd, **kwargs):
+        launched.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(subprocess, "run", capture)
+    runner = ContainerRunner(runtime="/usr/local/bin/docker")
+
+    for adapter in profiles.select(DEFAULT_ADAPTERS, profiles.FULL):
+        with contextlib.suppress(Exception):
+            adapter.run(runner, tmp_path)
+
+    # Only the values of -v flags. Syft's scan target is the string "dir:/workspace",
+    # which is an argument rather than a mount and would otherwise fail this.
+    mounts = [
+        cmd[i + 1]
+        for cmd in launched if isinstance(cmd, list)
+        for i, arg in enumerate(cmd[:-1])
+        if arg == "-v" and ":/workspace" in str(cmd[i + 1])
+    ]
+    assert mounts, "no workspace mount was built, so nothing was asserted"
+    for mount in mounts:
+        assert mount.endswith(":/workspace:ro"), f"workspace mounted writable: {mount}"
+
+
+@pytest.mark.e2e
+def test_a_scan_writes_nothing_outside_the_results_folder(mountable_tmp):
+    """N2.2 — a real scan, with sentinels planted around the Workspace.
+
+    The existing workspace-unchanged test runs against a fake runner, so it proves
+    the orchestration does not write. This runs the real containers, and watches the
+    parent directory too: a path-handling bug that escaped the mount would land
+    beside the Workspace rather than inside it, where the other test cannot see it.
+    """
+    import hashlib
+    import shutil
+
+    from conftest import FIXTURES
+
+    from valvur.runner import ContainerRunner
+
+    ws = mountable_tmp / "repo"
+    shutil.copytree(FIXTURES / "broken-repo", ws)
+    sentinel = mountable_tmp / "DO-NOT-TOUCH.txt"
+    sentinel.write_text("untouched")
+    neighbour = mountable_tmp / "sibling"
+    neighbour.mkdir()
+    (neighbour / "file.txt").write_text("also untouched")
+
+    def digest(root):
+        return {
+            str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(root.rglob("*"))
+            if p.is_file() and ".security-scan" not in p.parts
+        }
+
+    before = digest(mountable_tmp)
+    scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    after = digest(mountable_tmp)
+
+    assert after == before, (
+        f"files changed outside the Results Folder: "
+        f"{set(after) ^ set(before) or [k for k in before if before[k] != after.get(k)]}"
+    )
+    assert (ws / ".security-scan" / "SUMMARY.md").is_file(), "the scan wrote nothing at all"
+
+
+@pytest.mark.e2e
+def test_the_host_scratch_is_removed_after_a_scan(mountable_tmp):
+    """ADR-0001 mounts a scratch dir `:rw` so containers can write reports. It is a
+    TemporaryDirectory, so it must not survive the run — a scanner's raw output
+    contains live credentials (F5.7), and leaving it in /tmp puts them in a second
+    cleartext location nobody knows to clean up."""
+    import shutil
+    import tempfile
+
+    from conftest import FIXTURES
+
+    from valvur.runner import ContainerRunner
+
+    ws = mountable_tmp / "repo"
+    shutil.copytree(FIXTURES / "broken-repo", ws)
+
+    root = Path(tempfile.gettempdir())
+    before = {p.name for p in root.glob("valvur-*")}
+    scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    leaked = {p.name for p in root.glob("valvur-*")} - before
+
+    assert not leaked, f"scratch directories survived the scan: {sorted(leaked)}"
+
+
+# ------------------------------------------------------ cycle 5: both budgets
+
+# Measured 2026-09-01 on this repository's own source — 38,697 lines, the largest
+# real codebase to hand — with a warm image and database:
+#
+#   offline  23.4s   (N1.1 budget: 60s)
+#   full     25.2s   (N1.2 budget: 300s)
+#   peak container memory  344 MiB   (N1.4 budget: 2 GB)
+#
+# The budgets are asserted rather than the measurements: a test pinned to 23.4s
+# fails on a slower machine while telling nobody anything useful. A failure here
+# means the REQUIREMENT is at risk, which is the only reason to have it.
+N1_1_OFFLINE_SECONDS = 60
+N1_2_FULL_SECONDS = 300
+
+
+def _sizeable_workspace(root: Path) -> Path:
+    """A real codebase, without the virtualenv. Copying the repository wholesale
+    would scan .venv, which is both enormous and excluded in practice."""
+    import shutil
+
+    repo = Path(__file__).resolve().parent.parent
+    ws = root / "sizeable"
+    ws.mkdir()
+    for name in ("src", "tests", "docs", "scripts", "rules"):
+        source = repo / name
+        if source.is_dir():
+            shutil.copytree(source, ws / name, ignore=shutil.ignore_patterns("__pycache__"))
+    for name in ("pyproject.toml", "Dockerfile", "README.md", "CLAUDE.md"):
+        if (repo / name).is_file():
+            shutil.copy2(repo / name, ws / name)
+    return ws
+
+
+@pytest.mark.e2e
+def test_the_offline_profile_meets_its_time_budget(mountable_tmp):
+    """N1.1 — 60 seconds. This is now the TIGHTER of the two budgets, which it was
+    not when written: ADR-0016 moved Checkov into `offline`, and Checkov is the
+    single slowest Scanner. The old `quick` had no Checkov and no risk here."""
+    import time
+
+    from valvur.runner import ContainerRunner
+
+    ws = _sizeable_workspace(mountable_tmp)
+    started = time.monotonic()
+    run = scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    elapsed = time.monotonic() - started
+
+    assert not run.failures, f"a Scanner failed, so the timing is meaningless: {run.failures}"
+    assert elapsed < N1_1_OFFLINE_SECONDS, (
+        f"offline took {elapsed:.1f}s against a {N1_1_OFFLINE_SECONDS}s budget (N1.1)"
+    )
+
+
+@pytest.mark.e2e
+def test_the_full_profile_meets_its_time_budget(mountable_tmp):
+    """N1.2 — 5 minutes."""
+    import time
+
+    from valvur.runner import ContainerRunner
+
+    ws = _sizeable_workspace(mountable_tmp)
+    started = time.monotonic()
+    run = scan(ws, runner=ContainerRunner(), profile=profiles.FULL)
+    elapsed = time.monotonic() - started
+
+    assert not run.failures, f"a Scanner failed, so the timing is meaningless: {run.failures}"
+    assert elapsed < N1_2_FULL_SECONDS, (
+        f"full took {elapsed:.1f}s against a {N1_2_FULL_SECONDS}s budget (N1.2)"
+    )
+
+
+@pytest.mark.skip(
+    reason="Needs Linux. N1.4 (2 GB) was measured by hand at 344 MiB peak container "
+    "usage on 2026-09-01, but asserting it continuously needs cgroup accounting the "
+    "container runtime exposes properly only on Linux; sampling `docker stats` from "
+    "a test races the scan and reports whatever it happened to catch. Enable in CI "
+    "with 11.7, where the runtime is native."
+)
+def test_a_scan_stays_within_its_memory_budget():
+    """N1.4 — 2 GB. Measured 344 MiB; unasserted from macOS."""
+    raise AssertionError("must be enabled in CI on Linux")
