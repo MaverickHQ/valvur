@@ -94,7 +94,7 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
         # ONE finding, not one per package. A real TypeScript project produced 618 of
         # these — 96% of its findings — burying two dozen genuine CVEs. Missing
         # licence metadata is a bulk property of the dependency tree, and
-        # "618 dependencies declare no licence" is actionable where 618 separate
+        # one aggregated count is actionable where 618 separate
         # findings are just a wall.
         shown = ", ".join(sorted(undeclared)[:8])
         more = f" …and {len(undeclared) - 8} more" if len(undeclared) > 8 else ""
@@ -102,8 +102,13 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
             rule="valvur.licence.dependency-unknown",
             path="sbom.cdx.json",
             line=0,
-            title=f"{len(undeclared)} dependencies declare no licence",
-            evidence=f"{shown}{more}",
+            title=f"{len(undeclared)} dependencies have no licence recorded",
+            evidence=(
+                f"{shown}{more}. Not the same as declaring none: the SBOM is the "
+                "source, and licence detection is partial — a package declaring its "
+                "licence only through PyPI classifiers, for instance, records none "
+                "here. Check upstream before treating this as a compliance gap."
+            ),
             fingerprint=_fp.for_licence("<dependencies>", "undeclared"),
             severity="low",
             sources=("valvur",),

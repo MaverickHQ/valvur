@@ -149,7 +149,7 @@ def test_unknown_licence_findings_are_aggregated_into_one():
     findings = evaluate("MIT", json.dumps({"components": comps}))
 
     assert len(findings) == 1
-    assert "50 dependencies declare no licence" in findings[0].title
+    assert "50 dependencies have no licence recorded" in findings[0].title
 
 
 def test_nothing_to_scan_is_not_a_scan_failure():
@@ -380,7 +380,7 @@ def test_a_minority_of_undeclared_licences_is_still_reported_as_undeclared():
     findings = evaluate("MIT", json.dumps(comps and {"components": comps}))
 
     assert findings[0].rule == "valvur.licence.dependency-unknown"
-    assert "1 dependencies declare no licence" in findings[0].title
+    assert "1 dependencies have no licence recorded" in findings[0].title
 
 
 def test_an_unreadable_workspace_on_macos_podman_explains_the_vm_share():
@@ -567,7 +567,7 @@ def test_github_actions_are_not_counted_as_unlicensed_dependencies():
     findings = evaluate("Apache-2.0", sbom)
 
     assert len(findings) == 1
-    assert "1 dependencies declare no licence" in findings[0].title
+    assert "1 dependencies have no licence recorded" in findings[0].title
     assert "actions/checkout" not in findings[0].evidence
 
 

@@ -39,3 +39,10 @@ rule = "CKV_DOCKER_2"
 path = "Dockerfile"
 expires = 2027-08-31
 reason = "No HEALTHCHECK: this image runs one scanner command and exits. A healthcheck describes a long-running service, and Docker never runs one for a container that has already finished. Adding it would be cargo cult. Revisit if valvur ever ships a daemon or server mode."
+
+[[suppress]]
+fingerprint = "f8d0842b5a5b319120a3f06e6f77b23a"
+rule = "valvur.licence.dependency-unknown"
+path = "sbom.cdx.json"
+expires = 2027-09-01
+reason = "Not a compliance gap: all four DO declare licences, through PyPI classifiers that Syft does not read. Verified 2026-09-01 — docutils (BSD/GPL/public domain), id (Apache-2.0), markdown-it-py (MIT), pathspec (MPL-2.0). Syft records licences for 36 of 140 components here, so the blind spot is detection, not declaration. valvur cannot fix this generally: it has only the SBOM, and the scanned project's packages are not installed on the host to read classifiers from. Revisit when Syft reads Trove classifiers, or if a genuinely unlicensed dependency appears in this list."
