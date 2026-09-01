@@ -1420,15 +1420,43 @@ rejected: valvur is a host shim that *launches* containers, so there is no
 
 ### Also in this phase
 
-- [ ] **11.6** **Verify the self-scan** — mostly done 2026-08-31, restated as
-  verification rather than work. Current state under `offline`: **1 live Finding, 2
+- [x] **11.6** **Verify the self-scan** — mostly done 2026-08-31, restated as
+  verification rather than work.  
+  **STATUS 2026-09-01:** ✅ **N2.5 passes: 0 unsuppressed Findings**, 3 suppressed
+  with reasons, 62 excluded. The open decision is resolved, and investigating it
+  found the Finding was **false**. All four packages *do* declare licences — through
+  PyPI Trove classifiers, which Syft does not read: `docutils` (BSD/GPL/public
+  domain), `id` (Apache-2.0), `markdown-it-py` (MIT), `pathspec` (MPL-2.0). Syft
+  records licences for 36 of 140 components here, so the blind spot is detection,
+  not declaration.
+
+  Two changes followed. The message no longer asserts what it cannot know —
+  *"N dependencies have no licence recorded"*, with the evidence saying the SBOM is
+  the source and detection is partial. And the Finding is suppressed with that as
+  the reason, because valvur cannot fix it generally: it holds only the SBOM, and a
+  scanned project's packages are not installed on the host to read classifiers from.
+
+  Original text follows. Current state under `offline`: **1 live Finding, 2
   suppressed with reasons and a one-year expiry, 61 excluded** by
   `[scan] exclude = ["tests/fixtures"]` and reported in both `SUMMARY.md` and
   `run.json`. `LICENSE` is Apache-2.0. The one open decision is whether the remaining
   Finding — *4 dependencies declare no licence*, all genuinely ours — is acceptable
   to ship or wants a suppression with a reason.
-- [ ] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)* It must fail on
-  three things, not one:
+- [x] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)*  
+  **STATUS 2026-09-01:** ✅ New `selfscan` job, plus two fixes to the existing `e2e`
+  job. Each failure condition was verified by planting it and watching the gate
+  fail — an ungated gate is the thing this phase exists to prevent.
+
+  **The e2e job could not have been passing.** It builds `valvur:dev` and never set
+  `VALVUR_IMAGE`, so every container test ran against the published GHCR tag it had
+  not built and cannot pull while the package is private (task 12.6). Now set.
+
+  **Runtime parity is asserted to have run.** The parity tests skip when a runtime
+  has no local image — right locally, wrong in CI, where both runtimes have it. A
+  skip there means the F1 dual-runtime claim went unverified while CI stayed green.
+  The job now fails if `tests/test_runtimes.py` reports any skip.
+
+  Original text follows. It must fail on three things, not one:
   1. any unsuppressed **Finding**;
   2. any **expired suppression** — the lapse already re-reports the Finding, but if
      nothing fails the build then "mandatory expiry" is decoration;

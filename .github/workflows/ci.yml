@@ -59,6 +59,93 @@ jobs:
           docker save valvur:dev | podman load
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
-      - run: uv run pytest -q -m e2e
+      - name: End-to-end, against the image just built
+        # Without VALVUR_IMAGE the tests run against the published GHCR tag, which
+        # this job did not build and cannot pull while the package is private
+        # (task 12.6). Every container test would fail on the pull.
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run pytest -q -m e2e
+      - name: Runtime parity actually ran on both runtimes
+        # The parity tests skip when a runtime has no local image. That is right
+        # locally and wrong here: docker and podman both have it, so a skip means
+        # the F1 dual-runtime claim went unverified while CI stayed green.
+        # "Skipped" and "passed" must not look the same to a release gate.
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          uv run pytest -q tests/test_runtimes.py -rs | tee parity.txt
+          if grep -qE '[0-9]+ skipped' parity.txt; then
+            echo "::error::Runtime parity tests were skipped. Dual-runtime support (F1) is unverified."
+            exit 1
+          fi
       - name: valvur adds no GPL component (F10.4)
         run: uv run python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
+
+  selfscan:
+    name: self-scan release gate (N2.5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Build image
+        run: |
+          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          docker build --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
+      - name: Fetch the vulnerability database
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+      - name: Scan valvur with valvur
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur scan . --profile full
+      - name: Gate on the result
+        # Three failure conditions, not one. The CLI exits zero when findings exist
+        # (N3.2), so the gate reads the artifact rather than the exit code.
+        run: |
+          python3 - <<'EOF'
+          import json, sys, pathlib
+
+          results = pathlib.Path(".security-scan")
+          findings = json.loads((results / "findings.json").read_text())["findings"]
+          run = json.loads((results / "run.json").read_text())
+
+          failures = []
+
+          # 1. The scan must have completed. A Scanner that crashed makes "no
+          #    findings" meaningless, and that is how a clean result gets faked.
+          if not run.get("complete"):
+              failures.append("a Scanner did not complete, so this result proves nothing")
+
+          # 2. No unsuppressed findings (N2.5).
+          live = [f for f in findings if not f.get("suppressed")]
+          for f in live:
+              failures.append(f"{f['severity']}: {f['rule']} in {f['path']} - {f['title']}")
+
+          # 3. No expired suppressions. The lapse re-reports the finding, but if
+          #    nothing fails the build then "mandatory expiry" is decoration.
+          for f in findings:
+              if f["rule"] in {"valvur.suppression.expired", "valvur.suppression.stale"}:
+                  failures.append(f"{f['rule']}: {f['title']}")
+
+          excluded = run.get("excluded_by_config", {})
+          print(f"suppressed: {len(findings) - len(live)}  "
+                f"excluded: {excluded.get('findings_dropped', 0)} "
+                f"from {excluded.get('paths', [])}")
+
+          if failures:
+              for line in failures:
+                  print(f"::error::{line}")
+              sys.exit(1)
+          print("self-scan clean: no unsuppressed findings, no expired suppressions")
+          EOF
+      - name: Refuse to leave scan output behind (ADR-0011)
+        if: always()
+        run: |
+          if git status --porcelain | grep -E '\.security-scan/'; then
+            echo "::error::Scan output is visible to git. The self-ignoring folder failed."
+            exit 1
+          fi
