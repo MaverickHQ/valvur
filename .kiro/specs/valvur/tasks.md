@@ -1395,7 +1395,20 @@ rejected: valvur is a host shim that *launches* containers, so there is no
    *"no network required"* worth nothing, because the honest advice becomes "run the
    networked one anyway".
 
-4. No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
+4. ✅ No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
+   > **DONE 2026-09-01.** Three tests. The existing workspace-unchanged test runs
+   > against a fake runner, so it proves the orchestration does not write; these run
+   > the real containers.
+   >
+   > - Every Scanner in **both** Profiles mounts the Workspace `:ro`, asserted over
+   >   the whole adapter set so a Scanner added without it fails the build rather
+   >   than review. Mutation-tested.
+   > - A real scan changes nothing in the Workspace's **parent** directory either.
+   >   A path-handling bug that escaped the mount would land beside the Workspace,
+   >   where a test watching only inside it cannot see.
+   > - The `:rw` scratch directory does not survive the run. Raw Scanner output
+   >   contains live credentials (F5.7); leaving it in `/tmp` puts them in a second
+   >   cleartext location nobody knows to clean up.
 
 5. **Both budgets, not just the slow one.** *(N1.1, N1.2, N1.4)*
    - `offline` completes in under 60 seconds on a ≤50k-line repository. *(N1.1 —
