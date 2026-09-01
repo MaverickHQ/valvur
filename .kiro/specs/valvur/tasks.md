@@ -1343,8 +1343,18 @@ rejected: valvur is a host shim that *launches* containers, so there is no
    > inverted condition and the offline guarantee is gone with no visible symptom.
    > The scope is unchanged; only what it is guarding against.
 
-2. **The canary fixture yields at least its known findings, per Scanner.** *(New
+2. ✅ **The canary fixture yields at least its known findings, per Scanner.** *(New
    2026-08-31. The regression net for silent coverage loss.)*
+   > **DONE 2026-09-01.** Two tests. Floors per Scanner, plus a dedicated dev-only
+   > dependency check.
+   >
+   > **The claim below was wrong when written, and is now true.** The fixture had
+   > **zero** dev-marked packages, so it could not have caught Trivy's
+   > dev-dependency exclusion — the worst defect of the three. Added `minimist`,
+   > reachable only through `devDependencies`, and verified against the image both
+   > ways: with `--include-dev-deps` it is reported, without it the production tree
+   > still reports and `minimist` alone vanishes. Mutation-tested: removing the flag
+   > fails the test.
 
    `tests/fixtures/broken-repo` exercises all nine Scanners. Measured on the `full`
    Profile, 2026-08-31 — **73 findings**:
@@ -1362,8 +1372,21 @@ rejected: valvur is a host shim that *launches* containers, so there is no
    mismatch that double-reported every shared CVE (24 → 48), and "no package sources
    found" being treated as a scan failure.
 
-3. **`offline` and `full` report the same dependency vulnerabilities on the canary.**
+3. ✅ **`offline` and `full` report the same dependency vulnerabilities on the canary.**
    *(New 2026-08-31. N2.1, [ADR-0016](../../../docs/adr/0016-two-profiles-split-on-the-network-boundary.md).)*
+   > **DONE 2026-09-01, asserted at package level rather than advisory level.**
+   > Measured on the canary: `offline` 37 dependency findings, `full` 38, and the
+   > difference is entirely `PYSEC-2023-175`, an advisory OSV carries and Trivy's
+   > database does not. **Nothing was offline-only.** Requiring identical advisory
+   > IDs would encode "Trivy and OSV ship the same data", which is false and not what
+   > ADR-0016 claims. What must never happen is a vulnerable *package* disappearing —
+   > the CLU failure, seven packages to zero. Mutation-tested against exactly that.
+   >
+   > **Found while writing it:** `Pillow` and `pillow` were being proposed as two
+   > separate upgrades, the second to 10.0.1 *after* the first to 12.3.0, so
+   > following the proposal in order downgraded the package it had just fixed.
+   > Fingerprints already normalise case, so identity and suppressions were
+   > unaffected — only the proposal. Fixed and covered.
 
    ADR-0016 claims the offline Profile gives up a second advisory source and the
    slopsquat Check — and nothing else. **That claim was false until 2026-08-31**, when

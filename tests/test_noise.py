@@ -258,7 +258,7 @@ def _dep_finding(pkg, version, fix, rule):
 
     return Finding(
         rule=rule, path="pnpm-lock.yaml", line=0, title=f"{pkg} {version}",
-        evidence="", fingerprint=f"{rule}-{version}", severity="high",
+        evidence="", fingerprint=f"{rule}-{pkg}-{version}", severity="high",
         sources=("osv-scanner",),
         dependency=Dependency(
             ecosystem="npm", package=pkg, version=version, fixed_version=fix
@@ -644,3 +644,19 @@ def test_the_sbom_respects_configured_exclusions(monkeypatch, tmp_path):
 
     assert "--exclude" in seen["cmd"]
     assert "./tests/fixtures/**" in seen["cmd"]
+
+
+def test_one_package_under_two_spellings_is_one_upgrade():
+    """Scanners disagree on case for the same package: Trivy reports "Pillow", OSV
+    reports "pillow" on some advisories. Ungrouped they became two actions for one
+    dependency — and the second advised 10.0.1 after the first advised 12.3.0, so
+    following the proposal in order downgrades the package it just fixed."""
+    from valvur.remediation import group
+
+    items = group([
+        _dep_finding("Pillow", "10.0.0", "12.3.0", "CVE-1"),
+        _dep_finding("pillow", "10.0.0", "10.0.1", "PYSEC-1"),
+    ])
+
+    assert len(items) == 1
+    assert items[0].action == "Upgrade `Pillow` to 12.3.0"
