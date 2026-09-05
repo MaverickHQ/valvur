@@ -54,6 +54,12 @@ def _provenance(run) -> str:
                 # Which profile ran, and what it therefore did not look at. Without
                 # this, run.json cannot tell you a class was out of scope.
                 "profile": getattr(run, "profile", "") or "",
+                # Scanners that had nothing to analyse. Distinct from a failure —
+                # the run is still complete — and distinct from finding nothing.
+                "scanners_skipped": {
+                    s.tool: s.reason
+                    for s in getattr(run, "scanners", []) if getattr(s, "skipped", False)
+                },
                 "scanners_not_run": list(
                     _profiles.not_run(getattr(run, "profile", "") or "")
                 ),
@@ -174,6 +180,17 @@ def _summary(run) -> str:
             "and agent config. It does not cover "
             f"{_profiles.gaps_in_prose(run.profile)}.",
             "> Run `valvur scan --profile standard` for full coverage.",
+            "",
+        ]
+
+    skipped = [s for s in getattr(run, "scanners", []) if getattr(s, "skipped", False)]
+    if skipped:
+        lines += [
+            "> **Not run, having nothing to analyse:** "
+            + "; ".join(f"**{s.tool}** — {s.reason}" for s in skipped)
+            + ".",
+            "> Reported because a Scanner that did not run must never look like one "
+            "that ran and found nothing.",
             "",
         ]
 

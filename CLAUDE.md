@@ -185,6 +185,12 @@ Rules that must hold:
   force for whatever renders next.
 - **Clean is explicit.** No findings still writes the folder, with
   `"status": "clean"`, so an agent can tell "clean" from "never ran".
+- **A Scanner that did not run says so.** Checkov is skipped where there is no
+  infrastructure to analyse — it costs ~10s of fixed startup whatever it finds — and
+  the skip with its reason appears in `run.json` (`scanners_skipped`) and in
+  `SUMMARY.md`. It is not a failure and the run stays `complete`. A conditional
+  Scanner is one that can silently stop running, so the skip is reported, detection
+  is biased towards scanning when unsure, and both branches are tested.
 
 ## 8. Finding identity
 

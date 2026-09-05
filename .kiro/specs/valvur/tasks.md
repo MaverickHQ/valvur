@@ -1558,8 +1558,33 @@ or cannot check the claims we make about it, is not testing the product.
   every remaining literal agrees — a release is the one moment this breaks, and the
   one moment nobody is running the test suite.
 
-- [ ] **12a.3** **Decide whether Checkov runs unconditionally — this is a product
-  decision and it gates 12a.4.** ⚠️ **OWNER INPUT NEEDED.**
+- [x] **12a.3** **Decide whether Checkov runs unconditionally — this is a product
+  decision and it gates 12a.4.** ✅ **DECIDED 2026-09-05: gate it.**
+
+  > **DONE.** `src/valvur/applicability.py` + `CheckovAdapter.applies_to`. Measured
+  > after, on real repositories and a warm cache:
+  >
+  > | repository | files | Checkov | offline |
+  > |---|---|---|---|
+  > | crucible-autoresearcher (Python) | 69 | skipped | **7.1s** |
+  > | CLU (TypeScript, GH Actions) | 109 | ran — `.github/workflows/release.yml` | 17.7s |
+  > | fixture | 12 | ran — `main.tf` | 16.8s |
+  >
+  > Application-only repositories go from ~18s to ~7s; repositories with
+  > infrastructure still pay for it, correctly.
+  >
+  > **The three rules the risk demanded**, all enforced by tests: detection is
+  > **biased to running** (an unreadable or unrecognised file counts as
+  > infrastructure); the skip is **never silent** (`run.json.scanners_skipped` and a
+  > `SUMMARY.md` line, `complete` unchanged — a skip is not a failure); and **both
+  > branches are tested**, because a detector rotted to always-False would sail
+  > through a suite that only checked the skip. Mutation-tested: forcing it to
+  > always-False fails 20 unit tests *and* the e2e coverage canary.
+  >
+  > **A measurement error caught in passing.** The first re-measurement showed CLU
+  > and crucible at 6.4s with Checkov skipped — both were empty directories, cleaned
+  > from the scratchpad between sessions. A scan of nothing is fast and proves
+  > nothing. Re-cloned and re-measured; CLU does have infrastructure and does pay.
 
   Measured 2026-09-05 on the offline Profile, per Scanner, against a 12-file fixture:
 
@@ -1593,6 +1618,12 @@ or cannot check the claims we make about it, is not testing the product.
   Roughly 4× out, and not because of repository size — the 5.6s was measured when
   `quick` had five Scanners and no Checkov, before ADR-0016. Correct the figure, or
   change the product first (12a.3) and then correct it.
+
+  > **PARTIALLY DONE 2026-09-05.** 12a.3 changed the product, so the table was
+  > corrected against it: `~7s` for application code, `~17s` with infrastructure,
+  > with the measurement basis stated. **The rest of this task stands** — the Profile
+  > names throughout, the verification instructions rewritten in 11.0, and the
+  > Scanner licence credits (P4) are all still unverified.
 
   Also re-check: the Profile names throughout (ADR-0016 renamed them), the
   verification instructions (rewritten in 11.0, and platform-split), and that every

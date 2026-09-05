@@ -16,6 +16,11 @@ class ScannerRun:
     ok: bool
     version: str = ""
     reason: str = ""
+    # A third state, distinct from both. A Scanner with nothing to analyse has not
+    # failed, and the Scan Run is still complete — but it has not run either, and
+    # letting that look identical to "ran and found nothing" is how a conditional
+    # Scanner silently stops working.
+    skipped: bool = False
 
     @property
     def failed(self) -> bool:
