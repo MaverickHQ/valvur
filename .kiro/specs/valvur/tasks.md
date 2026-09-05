@@ -1874,10 +1874,12 @@ it. The document cannot show that, so it is stated here:
 ```
 12a.2–12a.7  ✅ done
      ↓
-Phase 13  Portability          ← blocks 12a.1: publishing an unusable image is worse
-Phase 14  Stale data           ← ships in 0.2.0; it is a wrong answer, not a gap
-Phase 15  Our own supply chain ← before 12a.7 runs and holds signing credentials
-Phase 16  Operations           ← before anyone else runs concurrent scans
+Phase 13  Portability          ✅ multi-arch build; published artifact under test
+Phase 14  Stale data           ✅ inconclusive verdict, --if-stale, DB age surfaced
+Phase 15  Our own supply chain ✅ digests pinned, Opengrep verified, 98MB smaller
+     ↓
+Phase 16  Operations           ← here. The MCP surface still reports Phase 14's
+                                 verdict badly, and Ctrl-C does not stop the work
      ↓
 12a.1 + 12a.7   publish 0.2.0
      ↓
@@ -1887,6 +1889,13 @@ Phase 17  Traceability and seams  ← before claiming stability
      ↓
 12b.3  tag v1.0.0
 ```
+
+> **Note added 2026-09-05.** Each of 13, 14 and 15 found something worse than the
+> defect it was written for: the Dockerfile could always build amd64 and only the
+> *push* was single-arch; the database age measured the download rather than the
+> data, so an air-gapped mirror was guaranteed to read as fresh; and Opengrep shipped
+> three times in every image because deleting a file in a later layer reclaims
+> nothing. In each case the measurement, not the reasoning, was what found it.
 
 ---
 
@@ -2183,18 +2192,101 @@ declared, and the per-architecture selection still in place.
 
 **Goal:** the things that only break once someone else is using it.
 
-- [ ] **16.1** **A cross-process lock on the Results Folder.** `jobs.py` holds a
-  `threading.Lock`, which is in-process only. Two CLI runs, or a CLI run alongside the
-  MCP server, race on `state.json` and `findings.json` — and a corrupted `state.json`
-  silently breaks the new/fixed/regressed diff, which is the one artifact a developer
-  trusts to tell them whether they made progress.
-- [ ] **16.2** **`valvur --version`.** `docs/RELEASING.md` and two issue templates tell
-  people to run it; it does not exist. The same class as the verification command
-  found in 11.0, and found the same way — by running what the documentation says.
+> **Reordered 2026-09-05, after reviewing the phase against what Phases 13–15
+> actually built.** Both original tasks survive, one of them re-scoped, but neither
+> was the most important thing here — and one of my justifications for them was
+> false.
+>
+> **16.1 overstated its risk.** I wrote that concurrent scans "corrupt `state.json`".
+> Measured: two concurrent scans, then two more on different Profiles, left every
+> artifact **valid JSON and internally consistent**. The real defect is a *lost
+> update*, which is quieter and still wrong.
+>
+> **16.2's justification was partly false.** It claimed `docs/RELEASING.md` and *two*
+> issue templates tell people to run `valvur --version`. It is **one** issue
+> template; `RELEASING.md` never mentions it. The task stands — the command still does
+> not exist — but a task list that overstates its own evidence is the thing this
+> project keeps finding in other people's documentation.
+>
+> **And the phase was missing the most consequential gap entirely:** Phase 14's
+> verdict never reached the MCP surface, which ADR-0015 makes the *primary*
+> interface.
 
-**Exit:** concurrent use is safe, and every command the documentation names exists.
+- [ ] **16.1** **The MCP surface must carry the `inconclusive` verdict.** *(F9.9,
+  ADR-0015 — new, and it outranks everything else here.)*
 
-**Commit:** `fix: concurrent scans, and the version flag the docs promised`
+  Phase 14 taught valvur to say "we found nothing, and our data was too old for that
+  to be evidence". It taught the CLI, `SUMMARY.md` and `run.json`. It did not teach
+  the surface that reaches an agent's context with no file in between.
+
+  **Measured 2026-09-05** against a scan with a 60-day-old database:
+
+  | tool | what an agent is told |
+  |---|---|
+  | `list_findings` | *"No findings match. The scan itself may still have been incomplete — check `scan_status`."* |
+  | `scan_status` | `status: inconclusive` · `complete: True` · every Scanner `ok` |
+
+  The first points at the **wrong reason** — the scan was complete; it was
+  inconclusive — and never uses the word. The second is accurate and reads as
+  self-contradictory: an inconclusive verdict beside a complete run and seven healthy
+  Scanners, with nothing saying the database is two months old.
+
+  This is the defect Phase 14 exists to remove, still live on the surface where it
+  costs most. An agent that reads "no findings match" stops looking, and unlike a
+  human it will not glance at `SUMMARY.md` for a caveat it was not told to expect.
+
+  > **Cycle:** an `inconclusive` scan must make every MCP tool say so, in its own
+  > words, with the age and the consequence. Paired with a fresh-database scan that
+  > says none of it — a caveat on every response is a caveat agents learn to skip.
+
+- [ ] **16.2** **Interrupting a scan must actually stop it.** *(New 2026-09-05.)*
+
+  **Measured:** `SIGINT` to a running scan leaves the Scanner container
+  **running to completion** — `Up 9 seconds` after the shim had exited — with the
+  host scratch directory alive for that window. There is no signal handling
+  anywhere: `subprocess.run` with no cleanup, inside a `ThreadPoolExecutor`.
+
+  Both self-clean once the container finishes, so this is a window rather than a
+  permanent leak. It is still wrong twice over: the developer cancelled and the
+  machine kept working, and Phase 11's scratch-removal test — which exists because
+  raw Scanner output carries live credentials (F5.7) — only covers a scan that was
+  allowed to finish.
+
+  > **Decide when doing it:** kill the container, or wait for it. Killing is what
+  > Ctrl-C means to the person pressing it. It also needs care, because a container
+  > killed mid-write leaves a partial report in the scratch mount, and "a Scanner
+  > produced no report" is already a failure path — an interrupted scan must not be
+  > reportable as a failed one.
+
+- [ ] **16.3** **One writer per Results Folder — and per database cache.**
+  *(Was 16.1, re-scoped.)*
+
+  `jobs.py` holds a `threading.Lock`, which is in-process only. Two CLI runs, or a
+  CLI run alongside the MCP server, are unguarded.
+
+  **What actually goes wrong, measured rather than assumed:** not corruption. Both
+  scans read the same `state.json`, both write their own, and the last one wins — so
+  the next run computes its new/fixed/regressed diff against a view that never
+  happened. That is the one artifact a developer trusts to say whether they made
+  progress, and it fails silently. A mixed Results Folder is also possible, because
+  `results.write()` writes several files sequentially and `rawoutput.write()` clears
+  `raw/` first — but it needs unlucky timing, and two attempts did not produce it.
+
+  > **Extend the scope to `valvur update`.** Two processes writing the same database
+  > cache is unexamined, and a corrupt vulnerability database poisons **every future
+  > scan** — worse than a spoiled Results Folder, which one rescan fixes. One lock
+  > mechanism, two callers. Measure what concurrent updates actually do before
+  > designing around a guess.
+
+- [ ] **16.4** **`valvur --version`.** *(Was 16.2.)* One issue template asks people to
+  run it and it does not exist. Same class as the verification command found in 11.0,
+  and found the same way — by running what the documentation says.
+
+**Exit:** an agent cannot mistake an inconclusive scan for a clean one; Ctrl-C stops
+the work; concurrent use cannot silently spoil the status diff or the database; and
+every command the documentation names exists.
+
+**Commit:** `fix: the operational edges that only appear with a second user`
 
 ---
 
