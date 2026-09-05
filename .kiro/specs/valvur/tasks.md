@@ -1625,7 +1625,7 @@ or cannot check the claims we make about it, is not testing the product.
   running — the exact failure class Phase 11 exists to catch — so if this is done,
   the trigger belongs in the coverage canary (11.2) with a fixture that has no IaC.
 
-- [ ] **12a.4** **Re-verify every README claim by measurement, not by reading.**
+- [x] **12a.4** **Re-verify every README claim by measurement, not by reading.**
   *(P3, P4)*
 
   This was written as a read-through. It cannot be one: the claims changed under it
@@ -1747,7 +1747,7 @@ or cannot check the claims we make about it, is not testing the product.
   > dependency manifests would trade a false positive for a false negative. Not
   > worth that trade today; worth an issue.
 
-- [~] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
+- [ ] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
   ✅ **Automation done 2026-09-05. Publishing blocked on 12a.1 and owner setup.**
 
   > `.github/workflows/release.yml`, triggered by a `v*` tag, in two jobs.
