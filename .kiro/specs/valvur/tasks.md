@@ -2485,9 +2485,28 @@ every command the documentation names exists.
   > results-contract changes. Where a decision already lives in an ADR, cite it rather
   > than restating it.
 
-- [ ] **17.1** Audit the not-cuttable set — F1, N2.1, F5.3, F7.2, F9.2, F9.4 — and
-  make each one a test that genuinely fails when broken. Mutation-test them, as
-  Phase 11 did.
+- [x] **17.1** Audit the not-cuttable set. ✅ **DONE 2026-09-05.**
+
+  > `tests/test_not_cuttable.py` — six tests for the negative requirements nobody had
+  > written, because it is easy to test that a thing happens and awkward to test that
+  > a thing never does. Awkward is not unnecessary: a negative requirement with no
+  > test is a promise nobody is keeping.
+  >
+  > **F9.4 now has one**, along with F1.7 (no credential is read), F1.8 (no
+  > telemetry) and F1.10 (no cloud-specific branch). Mutation-tested by planting the
+  > defect each forbids — a `watchdog` import, a runtime dependency, and a
+  > `VALVUR_API_TOKEN` read all fail the right test. F5.3, F1.2 and F1.11 were
+  > already covered by tests that never named them; they cite the ID now, so the
+  > claim and the check are connected.
+  >
+  > **Sixteen of seventeen IDs in the set are now cited. The seventeenth is not
+  > implemented at all** — F1.6, SELinux labelling, has no `:z` or `:Z` anywhere.
+  > Measured: Podman's Fedora VM is `Enforcing` and a full scan through it succeeded
+  > with 74 findings and no failures, identical to Docker, with no label applied —
+  > host directories reach that VM through virtiofs. **A native RHEL or Fedora host is
+  > untested and is the target market.** Recorded against the requirement itself with
+  > the evidence, because could-not-reproduce is not the same as does-not-happen, and
+  > leaving an unmet requirement unmentioned is the one option that is not honest.
 
   > **`F9.4` still has no test**, while the Traceability section states *"Each is a
   > test that fails the build if broken."* That sentence remains false, and it is the

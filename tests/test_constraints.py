@@ -132,7 +132,7 @@ def test_a_scan_survives_the_network_being_unavailable(workspace, record_connect
 
 # --------------------------------------------- half 2: the containers (N2.1)
 
-def test_every_scanner_on_the_offline_profile_is_launched_with_no_network(
+def test_every_scanner_on_the_offline_profile_is_launched_with_no_network(  # F1.2
     monkeypatch, tmp_path
 ):
     """Asserted over the whole Profile rather than one Scanner, so adding a Scanner
@@ -633,7 +633,7 @@ def test_only_the_needed_opengrep_binary_is_fetched():
 # ------------------------------------------- interruption is its own outcome (16.2)
 
 def test_interrupting_a_scan_stops_the_containers(monkeypatch):
-    """Task 16.2. Measured before this existed: `docker run` does not stop its
+    """F1.11, task 16.2. Measured before this existed: `docker run` does not stop its
     container on SIGINT, nor when the CLI is SIGKILLed — the daemon owns the
     lifecycle. The developer cancelled and the machine kept working, with the scratch
     mount holding raw output and live credentials (F5.7) alive for the duration.
