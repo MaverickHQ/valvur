@@ -2256,7 +2256,21 @@ declared, and the per-architecture selection still in place.
   > words, with the age and the consequence. Paired with a fresh-database scan that
   > says none of it — a caveat on every response is a caveat agents learn to skip.
 
-- [ ] **16.2** **Interrupting a scan must actually stop it.** *(New 2026-09-05.)*
+- [x] **16.2** **Interrupting a scan must actually stop it.** ✅ **DONE 2026-09-05.**
+
+  > Every container now carries a unique `--name`, one `_launch()` helper registers
+  > and forgets them so no call site can omit it, and `kill_running()` stops whatever
+  > is live. Measured end to end: **2 containers running → 0 after SIGINT**, exit
+  > code **130**, and no Results Folder written.
+  >
+  > **Interruption is its own outcome**, as decided. Exiting happens long before
+  > `results.write()`, so a cancelled scan cannot be mistaken for a failed one — "a
+  > Scanner produced no report" stays reserved for a Scanner that actually failed.
+  >
+  > Three tests, mutation-verified: removing `--name` from the launch path fails the
+  > one asserting every Scanner carries a handle. The registry is also asserted to
+  > empty itself, because a registry that only grows makes an interrupt try to kill
+  > containers that exited long ago — noise that hides the ones genuinely running.
 
   **Measured:** `SIGINT` to a running scan leaves the Scanner container
   **running to completion** — `Up 9 seconds` after the shim had exited — with the

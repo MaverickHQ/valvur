@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,6 +11,42 @@ from pathlib import Path
 from . import profiles as _profiles
 from .api import scan
 from .version import __version__
+
+
+def _stop_on_interrupt(runner) -> None:
+    """Make Ctrl-C mean stop (task 16.2).
+
+    Without this the shim exits and the Scanner containers run to completion, because
+    the daemon owns their lifecycle — measured, `docker run` forwards nothing useful.
+    The developer cancels and the machine keeps working, with the scratch mount
+    holding raw output and live credentials (F5.7) alive for the duration.
+
+    Interruption is its OWN outcome. "A Scanner produced no report" is already a
+    failure path (Phase 3), so an interrupted scan must not be reportable as a failed
+    one — and no Results Folder is written at all, because exiting here happens long
+    before results.write().
+    """
+    import signal
+
+    from .runner import kill_running
+
+    def handle(_signum, _frame):
+        runtime = None
+        with contextlib.suppress(Exception):
+            runtime = runner.runtime
+        stopped = kill_running(runtime)
+        print(
+            f"\n  ! interrupted — stopped {stopped} scanner(s)"
+            if stopped
+            else "\n  ! interrupted",
+            file=sys.stderr,
+        )
+        print("  ! no results written", file=sys.stderr)
+        # 130 is the shell convention for "terminated by SIGINT".
+        raise SystemExit(130)
+
+    with contextlib.suppress(ValueError):   # not the main thread; nothing to install
+        signal.signal(signal.SIGINT, handle)
 
 
 def _database_needs_refresh() -> bool:
@@ -262,6 +299,8 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         from .runner import ContainerRunner
 
         runner = ContainerRunner()
+
+    _stop_on_interrupt(runner)
 
     from .runner import unsupported_platform_warning
 
