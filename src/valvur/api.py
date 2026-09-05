@@ -7,6 +7,7 @@ writes the Results Folder.
 
 from __future__ import annotations
 
+import contextlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -19,6 +20,7 @@ from . import licence_policy as _licence
 from . import profiles as _profiles
 from . import ranking as _ranking
 from . import results
+from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
 from .adapters import DEFAULT_ADAPTERS
@@ -125,6 +127,33 @@ def scan(
     # ALLOWS_NETWORK's False and disable the network without saying so.
     profile = _profiles.resolve(profile)
 
+    # One scan per Workspace, one writer per database (task 16.3). Taken in a fixed
+    # order — Workspace, then cache — so two scans can never deadlock against each
+    # other. The cache lock is SHARED: any number of scans may read the database at
+    # once, and only `valvur update` excludes them.
+    from . import cache as _cache_mod
+    from . import locking as _locking
+
+    with contextlib.ExitStack() as _locks:
+        _locks.enter_context(_locking.held(
+            _locking.workspace_lock(workspace / _results.RESULTS_DIR),
+            exclusive=True, wait=False,
+            busy_message=(
+                f"a scan is already running in {workspace}. Wait for it, or scan a "
+                "different workspace — two at once would each overwrite the other's "
+                "state.json and silently spoil the next run's new/fixed diff."
+            ),
+        ))
+        _locks.enter_context(_locking.held(
+            _locking.cache_lock(_cache_mod.root()), exclusive=False, wait=True,
+        ))
+        return _scan_locked(
+            workspace, runner=runner, adapters=adapters, profile=profile,
+            on_progress=on_progress,
+        )
+
+
+def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRun:
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:

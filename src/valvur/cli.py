@@ -8,6 +8,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from . import locking as _locking
 from . import profiles as _profiles
 from .api import scan
 from .version import __version__
@@ -309,7 +310,13 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     workspace = Path(args.path).resolve()
     profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
-    run = scan(workspace, runner=runner, profile=profile)
+    try:
+        run = scan(workspace, runner=runner, profile=profile)
+    except _locking.Busy as busy:
+        # An expected condition, not a crash. A traceback here would read as a bug in
+        # valvur when it is a second scan doing exactly what it should.
+        print(f"  ! {busy}", file=sys.stderr)
+        return 1
 
     for failure in run.failures:
         print(f"  ! {failure.tool} did not complete: {failure.reason}")

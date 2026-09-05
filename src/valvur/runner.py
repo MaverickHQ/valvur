@@ -344,6 +344,15 @@ class ContainerRunner:
 
     def update_db(self) -> ScannerOutput:
         """Fetch the vulnerability DB out of band, so scans never need network."""
+        from . import cache, locking
+
+        # Exclusive, and it waits: readers finish, then new ones queue behind us
+        # (task 16.3). trivy.db is a 1.35GB BoltDB and Trivy takes no lock of its
+        # own — measured, there is no lock file anywhere in the cache directory.
+        with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
+            return self._update_db_locked()
+
+    def _update_db_locked(self) -> ScannerOutput:
         import tempfile
 
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:

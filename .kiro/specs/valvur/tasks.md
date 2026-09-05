@@ -2300,8 +2300,31 @@ declared, and the per-architecture selection still in place.
   > answer of exactly the kind this project keeps removing. **Interruption is its own
   > outcome: not failure, not success.** No Results Folder is written.
 
-- [ ] **16.3** **One writer per Results Folder — and per database cache.**
-  *(Was 16.1, re-scoped.)*
+- [x] **16.3** **One writer per Results Folder — and per database cache.**
+  ✅ **DONE 2026-09-05.**
+
+  > `locking.py`, `flock`, two locks taken in a fixed order so scans cannot deadlock.
+  > The Workspace lock is **exclusive and fails fast**; the cache lock is **shared for
+  > readers and exclusive for `update`**, which waits — mutual exclusion there would
+  > serialise unrelated scans for no reason.
+  >
+  > **The cache hazard could not be reproduced, which is not the same as disproved.**
+  > A scan racing a rewrite completed cleanly with all 37 Trivy findings — but Trivy's
+  > read takes 0.6s while an update spends most of its time downloading, so the write
+  > window probably never overlapped. Implemented anyway: the lock is cheap, and
+  > "I could not make it fail" is weak evidence for a 1.35GB file being rewritten
+  > under live readers with no lock of Trivy's own.
+  >
+  > **Two things fell out of it.** A refusal is an expected condition, so the CLI
+  > catches `Busy` and prints one line instead of a traceback that reads as a bug in
+  > valvur. And taking the Workspace lock creates the Results Folder before a scan has
+  > produced anything — so `.gitignore` is now written at *creation*, because
+  > ADR-0011 is a guarantee about the folder and an interrupted run (routine since
+  > 16.2) would otherwise leave one git can see.
+  >
+  > Seven tests. `os.fork` is explicitly not used to test exclusion: flock belongs to
+  > the open file description, which a fork inherits, so the child holds the same lock
+  > and every assertion passes vacuously. Found the hard way.
 
   `jobs.py` holds a `threading.Lock`, which is in-process only. Two CLI runs, or a
   CLI run alongside the MCP server, are unguarded.
