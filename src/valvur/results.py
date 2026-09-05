@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import artifacts, rawoutput, remediation
+from .version import __version__ as _VERSION
 
 RESULTS_DIR = ".security-scan"
-_VERSION = "0.1.0rc1"
 
 
 def write(workspace: Path, run, scanner_artifacts=(), raw_outputs=()) -> Path:

@@ -6,6 +6,8 @@ import os as _os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .version import __version__, default_image
+
 
 @dataclass(frozen=True)
 class ScannerOutput:
@@ -19,7 +21,7 @@ class ScannerOutput:
 # The published image. A fresh install has no local build, so this must be pullable
 # by anyone — pointing at a local tag would make the first run fail for every user
 # who is not us.
-IMAGE = _os.environ.get("VALVUR_IMAGE") or "ghcr.io/maverickhq/valvur:0.1.0rc1"
+IMAGE = _os.environ.get("VALVUR_IMAGE") or default_image()
 
 # A Scanner that finds nothing to analyse has not failed. OSV-Scanner reads lockfiles
 # only, so a project with a pyproject.toml and no lockfile makes it exit 128 saying
@@ -36,7 +38,7 @@ NOTHING_TO_SCAN = (
 def _is_nothing_to_scan(stderr: str) -> bool:
     lowered = stderr.lower()
     return any(phrase in lowered for phrase in NOTHING_TO_SCAN)
-_VERSION = "0.1.0rc1"
+_VERSION = __version__
 
 # Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
 # registry rather than granting egress to ghcr.io. ADR-0012 already made this

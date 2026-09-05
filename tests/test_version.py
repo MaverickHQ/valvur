@@ -1,0 +1,96 @@
+"""One version, derived once (task 12a.2).
+
+The literal used to live in five places, and F1.9 refuses to run a mismatched shim
+and image by comparing two of them. A partial bump therefore shipped a pair that
+either refused to start or — worse — agreed while being wrong.
+
+Found while centralising it, and the reason this file exists: the editable install's
+metadata was six days stale. `importlib.metadata` reported `0.1.0.dev0` while
+`pyproject.toml` declared `0.1.0rc1`, so every local scan for a week ran as one
+version and wrote the other into `results.sarif`. The two happened to share a
+compatibility series, so F1.9 stayed quiet.
+"""
+
+from __future__ import annotations
+
+import re
+import tomllib
+from importlib.metadata import version as installed_version
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+
+
+def _declared() -> str:
+    return tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
+
+
+def test_every_version_surface_agrees():
+    """The whole point: one value, several readers, no way for them to diverge."""
+    from valvur.compat import shim_version
+    from valvur.results import _VERSION as results_version
+    from valvur.runner import _VERSION as runner_version
+    from valvur.version import __version__
+
+    assert {__version__, runner_version, results_version, shim_version()} == {__version__}
+
+
+def test_the_installed_metadata_matches_what_pyproject_declares():
+    """Catches a stale editable install, which is how the version silently split.
+
+    It also catches a non-canonical version string. CI labels the image with the RAW
+    pyproject value while the shim reports the PEP 440 NORMALISED one, so writing
+    `0.2.0-rc1` would have the two disagree at exactly the moment F1.9 compares them.
+    If this fails after a version bump, reinstall: `uv pip install -e .`
+    """
+    assert installed_version("valvur") == _declared(), (
+        "installed metadata and pyproject.toml disagree — the environment is stale, "
+        "or the version string is not PEP 440 canonical"
+    )
+
+
+def test_the_readme_states_the_version_it_ships():
+    """The one literal a human still maintains, so a test maintains it instead."""
+    readme = (REPO / "README.md").read_text()
+    stated = re.search(r"\*\*Status: `([^`]+)`\*\*", readme)
+
+    assert stated, "README no longer states a version — this test needs updating with it"
+    assert stated.group(1) == _declared()
+
+
+def test_the_default_image_carries_the_shim_version():
+    """A shim that asks for whatever tag it was built alongside cannot drift from it."""
+    from valvur.version import __version__, default_image
+
+    assert default_image().endswith(f":{__version__}")
+
+
+def test_an_explicit_image_still_wins(monkeypatch):
+    """Local builds and air-gapped mirrors both need this override to keep working."""
+    import importlib
+
+    monkeypatch.setenv("VALVUR_IMAGE", "registry.internal/valvur:pinned")
+    import valvur.runner as runner
+
+    importlib.reload(runner)
+    try:
+        assert runner.IMAGE == "registry.internal/valvur:pinned"
+    finally:
+        monkeypatch.delenv("VALVUR_IMAGE")
+        importlib.reload(runner)
+
+
+def test_an_uninstalled_checkout_does_not_invent_a_release_number():
+    """A plausible-looking fallback would be worse than an obviously fake one: F1.9
+    would compare it against a real image and reach a confident, wrong answer."""
+    from valvur.version import DEV_VERSION
+
+    assert "dev" in DEV_VERSION
+    assert DEV_VERSION.startswith("0.0.0")
+
+
+def test_the_package_exposes_its_version():
+    """`valvur.__version__` is where anyone will look first, including us."""
+    import valvur
+
+    assert valvur.__version__ == _declared()
