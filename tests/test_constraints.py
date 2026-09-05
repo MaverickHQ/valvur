@@ -213,10 +213,18 @@ def test_the_whole_process_tree_is_denied_the_network_under_unshare():
 
 # ------------------------------------------ cycle 2: coverage has not narrowed
 
-# Measured on the `full` Profile, 2026-09-01: 74 findings across nine Scanners.
+# Measured on the `full` Profile, 2026-09-05: 75 findings across nine Scanners —
+# osv-scanner 38, trivy 37, checkov 13, opengrep 12, ai-artifact 6, gitleaks 2,
+# dependency-reality 2, licence-file 1, valvur 1.
+#
 # Floors, not exact counts. Advisory databases grow, and a test that breaks whenever
 # OSV publishes is a test people delete — but a Scanner reaching ZERO is never
 # normal, and that is what every silent failure this project has hit looked like.
+#
+# Opengrep reads 12 here rather than the 14 in the golden fixture: rules ship INSIDE
+# the image, so `valvur.pinning.mutable-action-ref` (added 12a.6) reaches a real scan
+# only once the image is rebuilt. The golden covers the rule today; this number moves
+# when 12a.7 rebuilds.
 CANARY_FLOOR = {
     "osv-scanner": 20,
     "trivy": 20,

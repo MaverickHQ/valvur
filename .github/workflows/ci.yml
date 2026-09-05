@@ -18,7 +18,7 @@ jobs:
     name: no scan output in tree
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Refuse any committed scan output
         run: |
           if git ls-files | grep -E '(^|/)\.security-scan/'; then
@@ -31,8 +31,8 @@ jobs:
     name: lint, types, tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
       - run: uv run ruff check src tests
@@ -44,8 +44,8 @@ jobs:
     name: end-to-end (real container)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - name: Build image (version label drives the F1.9 compatibility check)
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
@@ -86,8 +86,8 @@ jobs:
     name: self-scan release gate (N2.5)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - name: Build image
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)

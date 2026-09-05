@@ -1,0 +1,13 @@
+# Deliberately broken, like everything else in this fixture: the actions are pinned
+# to mutable tags, which is how the tj-actions/changed-files compromise reached tens
+# of thousands of repositories in March 2025.
+name: ci
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@main
+      - run: pip install -r requirements.txt && python handler.py

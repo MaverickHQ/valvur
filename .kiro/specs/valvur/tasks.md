@@ -1687,15 +1687,36 @@ or cannot check the claims we make about it, is not testing the product.
         they touched.
   - [x] README now links all of them.
 
-- [ ] **12a.6** **Pin our own supply chain.** Measured 2026-09-05: every workflow step
-  uses a mutable tag — `actions/checkout@v5`, `astral-sh/setup-uv@v6` — in a pipeline
-  that is about to hold signing credentials (12a.7). Pin to commit SHAs and add
-  Dependabot to keep them moving deliberately.
+- [x] **12a.6** **Pin our own supply chain.** ✅ **DONE 2026-09-05.**
 
-  **And note the product gap this exposed.** `valvur.pinning.mutable-git-ref` did not
-  flag our workflow, because it only matches `git+…@main` — pip-style VCS installs.
-  Unpinned GitHub Actions are the most common instance of exactly the defect that
-  rule describes, and we do not catch it. Fix the rule, or record why not.
+  > Every workflow step now carries a commit SHA with the tag in a trailing comment,
+  > so Dependabot can still track it. `.github/dependabot.yml` covers actions, pip
+  > and Docker weekly — **necessary rather than optional now**, because a pinned SHA
+  > never moves on its own, so a security update arrives only if something opens the
+  > pull request.
+  >
+  > **The product gap is fixed too.** `valvur.pinning.mutable-action-ref` catches
+  > `@v6`, `@main` and reusable-workflow refs, and ignores a 40-character SHA, a
+  > local `./…` action and a `docker://` ref — verified against the real scanner in
+  > all six forms. `WARNING`, not `ERROR`: unpinned actions are near-universal, and a
+  > rule that fires on every repository's first workflow file teaches people to skip
+  > the category.
+  >
+  > The fixture gained an unpinned workflow and the opengrep golden was recaptured.
+  > The diff was exactly **+2 `mutable-action-ref`** and nothing else moved, which is
+  > what a golden is for.
+  >
+  > **Rules ship inside the image**, so the new rule reaches a real scan only when
+  > 12a.7 rebuilds — the golden covers it today, and the canary's opengrep count
+  > moves from 12 to 14 then. Worth knowing rather than discovering.
+  >
+  > **A false-positive class found by the self-scan, and left recorded rather than
+  > suppressed.** The older rule scans every YAML file, so the comment documenting
+  > it — which quoted the string it matches — became a finding against the rule file
+  > itself. Ours is reworded. Any project whose rule definitions or documentation
+  > quote a pattern will hit the same thing, and narrowing `paths.include` to
+  > dependency manifests would trade a false positive for a false negative. Not
+  > worth that trade today; worth an issue.
 
 - [ ] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
 

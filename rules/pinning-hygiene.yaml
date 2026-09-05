@@ -15,3 +15,33 @@ rules:
       Dependency on a mutable git ref. Every install may fetch different code, and
       nothing records what actually ran. Pin to a commit SHA.
     pattern-regex: 'git\+[^\s"'']+@(main|master|HEAD|develop)\b'
+
+  # Added 2026-09-05 (task 12a.6). The rule above only matched pip-style VCS
+  # installs — a git URL pointing at a branch — so it missed the commonest instance
+  # of the defect it describes, and our own workflow, which is how the gap was found.
+  #
+  # The literal pattern is deliberately not written out here: the rule above scans
+  # every YAML file, so a comment quoting the string it matches becomes a finding
+  # against this very file. Documentation that trips the rule it documents is a
+  # false positive worth avoiding rather than suppressing.
+  #
+  # A tag is a mutable pointer. In March 2025 tj-actions/changed-files had its tags
+  # moved to point at code that dumped CI secrets into build logs, reaching tens of
+  # thousands of repositories that had pinned nothing more specific than a version.
+  # A commit SHA cannot be moved.
+  #
+  # WARNING rather than ERROR: unpinned actions are near-universal, and a rule that
+  # fires on every repository's first workflow file teaches people to skip the
+  # category. Real, worth fixing, not an emergency.
+  - id: valvur.pinning.mutable-action-ref
+    languages: [generic]
+    paths:
+      include: ["*.yml", "*.yaml"]
+    severity: WARNING
+    message: >-
+      Action pinned to a mutable tag or branch. Tags can be moved to point at
+      different code, so what you reviewed is not necessarily what runs — this is how
+      the tj-actions/changed-files compromise reached tens of thousands of
+      repositories. Pin to a full commit SHA and keep the tag in a trailing comment
+      so Dependabot can still track it.
+    pattern-regex: 'uses:\s+[\w.-]+/[\w./-]+@(?![0-9a-fA-F]{40}\b)[^\s]+'
