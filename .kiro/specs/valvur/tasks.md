@@ -2101,21 +2101,79 @@ which is the half that keeps the warning worth reading.
 > there is not merely bad code: it is bad code signed with our identity and recorded
 > in a transparency log as authentic.
 
-- [ ] **15.1** Pin every `FROM` by digest, with the tag in a trailing comment so
-  Dependabot can still track it — the same form used for actions in 12a.6.
-- [ ] **15.2** Verify the Opengrep download: pinned SHA256 at minimum, its published
-  signature if practical. A build that cannot verify its input must fail rather than
-  proceed.
-- [ ] **15.3** **Build once, cache between runs.** Measured: 3 builds per CI run and 2
-  per release, with no layer caching configured anywhere. This is the cost item as
-  well as the speed one.
-- [ ] **15.4** Measure what each Scanner contributes to the 302 MB compressed image.
-  The first run is dominated by the pull — 25–100× the scan itself — so this is where
-  P1 is actually won or lost. Measure before optimising; the answer may be that
-  Checkov is most of it, in which case it is the same trade already made in 12a.3.
+- [x] **15.1** Pin every `FROM` by digest. ✅ **DONE 2026-09-05.**
 
-**Exit:** every input to the image is pinned by content and verified, and CI builds it
-once.
+  > All five, by **index** digest with the tag in a comment above — Dockerfile has no
+  > inline comments on `FROM`, which the first attempt discovered by failing to parse.
+  >
+  > **Index digests, deliberately.** Pinning a child manifest would have silently
+  > broken Phase 13's multi-arch build by resolving to one architecture whatever
+  > `--platform` asked for — a defect that looks like a working build.
+  >
+  > Also corrected while in there: the image declared
+  > `org.opencontainers.image.licenses="MIT"`, stale since the Apache-2.0 change on
+  > 2026-08-31. Every published image carried the wrong licence in its own metadata.
+- [x] **15.2** Verify the Opengrep download. ✅ **DONE 2026-09-05 — both.**
+
+  > Opengrep publishes no checksums but signs every binary with **sigstore,
+  > keylessly**, from its own workflow. Both signatures verified with `cosign
+  > verify-blob` against
+  > `.../rolling-release.yml@refs/heads/main` — **Verified OK** — and the SHA256 of
+  > those verified artifacts is what the Dockerfile now pins.
+  >
+  > Two halves, because they answer different questions. The in-build `sha256sum -c`
+  > is deterministic and needs no network: it fails the build rather than baking in
+  > whatever was served. `scripts/verify-opengrep.sh` runs in CI and checks
+  > *provenance* — a pinned digest is only as trustworthy as the download that
+  > produced it — and asserts the pin matches the artifact actually signed, because
+  > pinning one artifact while verifying another proves nothing.
+  >
+  > **Verified the check can fail:** a deliberately wrong digest fails the build with
+  > `sha256sum: WARNING: 1 of 1 computed checksums did NOT match`.
+  >
+  > Corroboration worth recording: the arm64 binary in the **already-published**
+  > image matches the signed upstream artifact byte for byte.
+- [x] **15.3** **Cache between runs.** ✅ **DONE 2026-09-05.**
+
+  > Every build now uses `--cache-from/--cache-to type=gha`, so layers are shared
+  > across jobs *and* across runs. Kept as independent builds rather than one build
+  > passing a tarball between jobs: a 576MB artifact uploaded and downloaded twice
+  > costs more than a cached rebuild, and the jobs stay independently runnable.
+- [x] **15.4** Measure what each Scanner contributes. ✅ **DONE 2026-09-05, and the
+  measurement found a defect rather than a trade-off.**
+
+  > | layer | MB |
+  > |---|---|
+  > | Checkov pip install | 163 |
+  > | Trivy | 156 |
+  > | Syft | 81 |
+  > | osv-scanner | 51 |
+  > | **Opengrep — binary A** | **50** |
+  > | **Opengrep — binary B** | **48** |
+  > | **Opengrep — the copy** | **50** |
+  > | Python build deps | 43 |
+  > | Gitleaks | 22 |
+  >
+  > **Opengrep appeared three times.** Both architectures' binaries were `ADD`ed and
+  > the unused one deleted — but layers are additive, so `rm` reclaims nothing. Every
+  > image carried ~148MB of layers for a 50MB tool, including a binary that could
+  > never run on it.
+  >
+  > Restructured into per-architecture stages selected by `FROM
+  > opengrep-${TARGETARCH}`, so only the needed binary is ever fetched. **674MB →
+  > 576MB uncompressed, a 98MB saving**, with the scan output unchanged: 74 findings,
+  > complete, every Scanner contributing. Verified on both architectures — and
+  > because the two binaries have different digests, the checksum check passing *is*
+  > the proof that the right one was selected.
+  >
+  > Checkov is still the largest single item, which is the trade 12a.3 already made
+  > deliberately.
+
+**Exit:** ✅ **Reached 2026-09-05.** Every input is pinned by content, the Opengrep
+binaries are signature-verified as well as digest-pinned, builds share a layer cache,
+and the image is 98MB smaller for shipping only what it can run. Three commit-time
+tests guard it: bases pinned by digest, digests actually checked rather than merely
+declared, and the per-architecture selection still in place.
 
 **Commit:** `build: pin and verify every input to the image`
 
