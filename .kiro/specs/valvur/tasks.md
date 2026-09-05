@@ -1545,8 +1545,32 @@ or cannot check the claims we make about it, is not testing the product.
   permissions for an authentication problem. The message is fixed (11.0); the
   visibility is not.
 
-- [ ] **12a.2** **One source of truth for the version, and a check that it holds.**
-  *(F1.9)*
+- [x] **12a.2** **One source of truth for the version, and a check that it holds.**
+  *(F1.9)* ✅ **DONE 2026-09-05.**
+
+  > `src/valvur/version.py` derives `__version__` from installed package metadata;
+  > `runner._VERSION`, `runner.IMAGE`, `results._VERSION` and `compat.shim_version()`
+  > all read it. **Five places became two:** `pyproject.toml`, which a human edits,
+  > and the README's status line, which a test now maintains. Remaining mentions are
+  > historical prose about which version the retired Profile names came from.
+  >
+  > The image tag is derived too — `default_image()` returns
+  > `ghcr.io/maverickhq/valvur:{__version__}` — so a shim asks for the tag it was
+  > built alongside and cannot drift from it. `VALVUR_IMAGE` still overrides, for
+  > local builds and air-gapped mirrors.
+  >
+  > **Centralising it exposed the bug it was meant to prevent, already live.** The
+  > editable install's metadata was six days stale: `importlib.metadata` reported
+  > `0.1.0.dev0` while `pyproject.toml` declared `0.1.0rc1`. Every local scan for a
+  > week ran as one version and wrote the other into `results.sarif`. F1.9 stayed
+  > quiet because the two share a compatibility series — it compares `(0, 1)` against
+  > `(0, 1)`. The hardcoded literal is exactly what hid it.
+  >
+  > Tests cover both failure modes, each verified by planting it: a **partial bump**
+  > (pyproject moved, environment stale) fails two tests, and a **non-canonical
+  > version string** fails one. That second matters at release: CI labels the image
+  > with the raw `pyproject.toml` value while the shim reports the PEP 440 normalised
+  > one, so `0.2.0-rc1` would have them disagree at the moment F1.9 compares them.
 
   Measured 2026-09-05 — the literal appears in **five** places:
   `pyproject.toml`, `src/valvur/runner.py` twice (`IMAGE` and `_VERSION`),

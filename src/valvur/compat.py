@@ -9,7 +9,8 @@ as the version mismatch it is.
 from __future__ import annotations
 
 import subprocess
-from importlib.metadata import PackageNotFoundError, version
+
+from .version import __version__
 
 LABEL = "org.opencontainers.image.version"
 
@@ -19,10 +20,8 @@ class IncompatibleImage(RuntimeError):
 
 
 def shim_version() -> str:
-    try:
-        return version("valvur")
-    except PackageNotFoundError:      # running from a source checkout
-        return "0.0.0-dev"
+    """The one version, derived in `version.py` so nothing here can disagree."""
+    return __version__
 
 
 def image_version(runtime: str, image: str) -> str | None:
