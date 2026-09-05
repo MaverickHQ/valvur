@@ -1747,7 +1747,49 @@ or cannot check the claims we make about it, is not testing the product.
   > dependency manifests would trade a false positive for a false negative. Not
   > worth that trade today; worth an issue.
 
-- [ ] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
+- [~] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
+  ✅ **Automation done 2026-09-05. Publishing blocked on 12a.1 and owner setup.**
+
+  > `.github/workflows/release.yml`, triggered by a `v*` tag, in two jobs.
+  >
+  > **`verify` refuses to release a tree that disagrees with itself.** The tag must
+  > match `pyproject.toml` — the one moment nobody runs the suite first and the one
+  > moment a mismatch is expensive — then lint, types, the *whole* suite including
+  > e2e, F10.4, and the self-scan gate (N2.5, failing on unsuppressed findings,
+  > expired suppressions and an incomplete scan).
+  >
+  > **`release` publishes, then proves what it published.** Pushes to GHCR; **signs
+  > the digest, never the tag** — a tag can be moved, which is the entire reason we
+  > pin actions to SHAs, and signing one would carry that defect into our own supply
+  > chain; keyless via OIDC, so there is no key to store or leak; attests SLSA
+  > provenance; publishes CycloneDX *and* SPDX SBOMs **of the image**, distinct from
+  > the one valvur writes for a scanned project; publishes to PyPI by trusted
+  > publishing rather than a stored token; and puts the verification commands in the
+  > release notes so a sceptic does not have to find them.
+  >
+  > Permissions are per-job. `ci.yml`'s top-level `contents: read` stays, and a test
+  > now asserts it — `ci.yml` runs on pull requests including from forks, where a
+  > write token is the difference between reading the repository and rewriting it.
+  >
+  > **Verified locally:** the tag gate accepts `v0.1.0rc1` and rejects `v0.2.0` and
+  > `v1.0.0` against the current tree; both distributions build and the sdist still
+  > excludes the planted credentials (10.0.2's guard holds); the new workflow passes
+  > our own pinning rule and Checkov with zero findings. A second test asserts every
+  > action in every workflow is SHA-pinned, mutation-tested — the opengrep rule only
+  > reaches a real scan after the image is rebuilt, so this is the commit-time guard,
+  > and the release workflow is exactly where a moved tag would sign bad code with
+  > our identity.
+  >
+  > **Deliberately not done: the version is still `0.1.0rc1`.** Bumping it breaks
+  > local scanning until the image is published, because the shim derives its image
+  > tag from its own version (12a.2). That is the right trade — the alternative is a
+  > shim silently using an image built from different code — but it means the bump
+  > belongs immediately before the tag, not now.
+  >
+  > **Blocked on, and requires the owner:** 12a.1 (public repo and package), PyPI
+  > trusted publishing configured against this workflow, and a `release` GitHub
+  > environment. All three are in [docs/RELEASING.md](../../../docs/RELEASING.md),
+  > along with the release procedure and how to verify a release as a user would.
 
   There is no release automation at all today — 12.2 and 12.5 were both hand-run
   steps, which is how a mismatched artifact ships. A tag-triggered `release.yml`

@@ -1,0 +1,185 @@
+name: release
+
+# Triggered by a tag, so the release is a consequence of the tag rather than a
+# sequence of hand-run commands. 12.2 and 12.5 were both manual, which is how a
+# mismatched artifact ships: the image built from one tree, the wheel from another.
+on:
+  push:
+    tags: ["v*"]
+
+# Least privilege by default; every elevation is per-job and justified where it is
+# granted. ci.yml's top-level `contents: read` is the same rule.
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/maverickhq/valvur
+
+jobs:
+  verify:
+    name: the tag says what the tree says
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: The tag must match the declared version
+        id: version
+        # The one moment nobody runs the test suite before taking the path, and the
+        # one moment a version mismatch is expensive. F1.9 compares the shim against
+        # the image; if the tag and pyproject disagree, they are already wrong.
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          DECLARED=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          if [ "$TAG" != "$DECLARED" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match pyproject.toml version ${DECLARED}."
+            exit 1
+          fi
+          echo "version=$DECLARED" >> "$GITHUB_OUTPUT"
+          echo "releasing $DECLARED"
+
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
+      - run: uv run ruff check src tests scripts
+      - run: uv run mypy src
+
+      - name: Build the image the tests will run against
+        run: docker build --build-arg VALVUR_VERSION="${{ steps.version.outputs.version }}" -t valvur:dev .
+
+      - name: The whole suite, not just the fast half
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run pytest -q
+
+      - name: valvur adds no GPL component (F10.4)
+        run: uv run python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
+
+      - name: Self-scan gate (N2.5)
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          uv run valvur update
+          uv run valvur scan . --profile full
+          uv run python - <<'PY'
+          import json, pathlib, sys
+          results = pathlib.Path(".security-scan")
+          findings = json.loads((results / "findings.json").read_text())["findings"]
+          run = json.loads((results / "run.json").read_text())
+          bad = []
+          if not run.get("complete"):
+              bad.append("a Scanner did not complete, so this result proves nothing")
+          bad += [f"{f['severity']}: {f['rule']} in {f['path']}"
+                  for f in findings if not f.get("suppressed")]
+          bad += [f"{f['rule']}: {f['title']}" for f in findings
+                  if f["rule"] in {"valvur.suppression.expired", "valvur.suppression.stale"}]
+          for line in bad:
+              print(f"::error::{line}")
+          sys.exit(1 if bad else 0)
+          PY
+
+  release:
+    name: sign, attest and publish
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write       # create the GitHub release
+      packages: write       # push the image to GHCR
+      id-token: write       # keyless signing, and PyPI trusted publishing
+      attestations: write   # SLSA build provenance
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+
+      - name: Push the image
+        id: push
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          docker build --build-arg VALVUR_VERSION="$VERSION" \
+            -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"
+          # The digest, not the tag. A tag can be moved to point at other code, which
+          # is the whole reason we pin actions to SHAs — signing one would carry the
+          # same defect into our own supply chain.
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$VERSION" | cut -d@ -f2)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "pushed $IMAGE:$VERSION@$DIGEST"
+
+      - name: Sign the image, keylessly
+        # No key to store, rotate or leak. The signature is bound to this workflow's
+        # OIDC identity and recorded in the public Rekor transparency log, so anyone
+        # can verify who built it and from which commit — without trusting us.
+        run: cosign sign --yes "${IMAGE}@${{ steps.push.outputs.digest }}"
+
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: SBOM of the image
+        # Distinct from the sbom.cdx.json valvur writes for a scanned project: this
+        # one describes the released artifact. F10.4 requires publishing it, because
+        # the base image carries GPL components and disclosure is the honest answer
+        # to a claim no Linux container could satisfy.
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:v1.51.1 "$IMAGE:$VERSION" \
+            -o cyclonedx-json > "valvur-$VERSION.cdx.json"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:v1.51.1 "$IMAGE:$VERSION" \
+            -o spdx-json > "valvur-$VERSION.spdx.json"
+
+      - name: Build the Python distributions
+        run: uv build
+
+      - name: Publish to PyPI
+        # Trusted publishing: an OIDC exchange rather than a long-lived API token, so
+        # there is no secret to leak. Configured on PyPI against this repository and
+        # this workflow file.
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "## Verify this release before trusting it"
+            echo
+            echo 'The image is signed keylessly, so there is no key to trust — only a'
+            echo 'transparency-log entry naming the workflow that built it:'
+            echo
+            echo '```bash'
+            echo "cosign verify ${IMAGE}@${DIGEST} \\"
+            echo "  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo '```'
+            echo
+            echo 'Build provenance, and the SBOM attached below:'
+            echo
+            echo '```bash'
+            echo "gh attestation verify oci://${IMAGE}:${VERSION} --repo MaverickHQ/valvur"
+            echo '```'
+            echo
+            echo "Image digest: \`${DIGEST}\`"
+            echo
+            echo "See [CHANGELOG.md](https://github.com/MaverickHQ/valvur/blob/${GITHUB_REF_NAME}/CHANGELOG.md) for what changed."
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" \
+            --title "valvur $VERSION" \
+            --notes-file notes.md \
+            "valvur-$VERSION.cdx.json" \
+            "valvur-$VERSION.spdx.json" \
+            dist/*

@@ -102,6 +102,12 @@ interesting work is.
 - The self-scan gate must pass: valvur scans itself on every build, and an
   unsuppressed finding fails it. A suppression needs a reason and an expiry.
 
+## Releasing
+
+Maintainers: [docs/RELEASING.md](docs/RELEASING.md). The release is a consequence of
+a tag — bump `pyproject.toml`, tag, push, and the workflow verifies, signs, attests
+and publishes. It refuses a tag that disagrees with the tree.
+
 ## Reporting a security issue
 
 Please do not open an issue. See [SECURITY.md](SECURITY.md).
