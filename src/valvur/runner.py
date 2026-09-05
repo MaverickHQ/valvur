@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import os as _os
+import threading as _threading
+import uuid as _uuid
+from contextlib import suppress as _suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -190,6 +193,44 @@ def unsupported_platform_warning() -> str:
     )
 
 
+# Containers this process started, so an interrupt can stop them (task 16.2).
+#
+# Measured 2026-09-05: `docker run` does NOT stop its container on SIGINT, nor when
+# the CLI is SIGKILLed — the daemon owns the lifecycle, so killing the client changes
+# nothing. Letting signals propagate is therefore not an available design. `docker
+# kill` by name takes 0.24s, but valvur passed no `--name` and no `--cidfile`, so
+# there was no handle at all: a cancelled scan kept working, and the scratch mount
+# holding raw output with live credentials (F5.7) stayed alive with it.
+_live_containers: set[str] = set()
+_live_lock = _threading.Lock()
+
+
+def _container_name() -> str:
+    return f"valvur-{_uuid.uuid4().hex[:16]}"
+
+
+def kill_running(runtime: str | None = None) -> int:
+    """Stop every container this process started. Returns how many were signalled.
+
+    Best effort by construction: a container that has already exited is not an error,
+    and refusing to exit because cleanup was imperfect would be worse than the mess.
+    """
+    import subprocess
+
+    with _live_lock:
+        names = sorted(_live_containers)
+    if not names:
+        return 0
+    binary = runtime or detect_runtime()
+    for name in names:
+        with _suppress(Exception):
+            subprocess.run(  # noqa: S603
+                [binary, "kill", name],
+                capture_output=True, timeout=15, check=False,
+            )
+    return len(names)
+
+
 class ContainerRunner:
     """Invokes the scanner image. The Workspace is mounted read-only (ADR-0001)."""
 
@@ -206,7 +247,6 @@ class ContainerRunner:
         reported a CLEAN SCAN OF A VULNERABLE REPOSITORY. No Scanner can detect this
         — from inside, an unreadable directory and an empty one are identical.
         """
-        import subprocess
         import tempfile
 
         host_entries = sum(1 for _ in workspace.iterdir())
@@ -219,7 +259,7 @@ class ContainerRunner:
                 "--entrypoint", "sh", self.image,
                 "-c", "ls -A /workspace | wc -l",
             ]
-            proc = subprocess.run(  # noqa: S603
+            proc = self._launch(
                 cmd, capture_output=True, text=True, timeout=120, check=False
             )
 
@@ -256,6 +296,21 @@ class ContainerRunner:
             self._runtime = detect_runtime()
         return self._runtime
 
+    def _launch(self, cmd, **kwargs):
+        """Run a container command, tracking it so an interrupt can stop it."""
+        import subprocess
+
+        name = cmd[cmd.index("--name") + 1] if "--name" in cmd else None
+        if name:
+            with _live_lock:
+                _live_containers.add(name)
+        try:
+            return subprocess.run(cmd, **kwargs)  # noqa: S603
+        finally:
+            if name:
+                with _live_lock:
+                    _live_containers.discard(name)
+
     def _base_flags(
         self, workspace: Path, scratch: str, *, network: bool = False, allow_exec: bool = False
     ) -> list[str]:
@@ -265,6 +320,7 @@ class ContainerRunner:
         db.mkdir(parents=True, exist_ok=True)
         flags = [
             self.runtime, "run", "--rm",
+            "--name", _container_name(),
             *_user_flags(self.runtime),
             "--read-only",
             # A read-only root filesystem still needs scratch space. This tmpfs is in
@@ -288,7 +344,6 @@ class ContainerRunner:
 
     def update_db(self) -> ScannerOutput:
         """Fetch the vulnerability DB out of band, so scans never need network."""
-        import subprocess
         import tempfile
 
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
@@ -300,13 +355,12 @@ class ContainerRunner:
             ]
 
             # externally-derived value is a path passed as a single argv element.
-            proc = subprocess.run(  # noqa: S603
+            proc = self._launch(
                 cmd, capture_output=True, text=True, timeout=900, check=False
             )
         return ScannerOutput("trivy-db", "", proc.stdout, proc.stderr, proc.returncode)
 
     def run_trivy(self, workspace: Path) -> ScannerOutput:
-        import subprocess
         import tempfile
 
         from . import cache
@@ -336,7 +390,7 @@ class ContainerRunner:
                 # supply-chain surface this product exists to cover.
                 "--include-dev-deps",
             ]
-            proc = subprocess.run(  # noqa: S603 - argument-list form, no shell
+            proc = self._launch(
                 cmd, capture_output=True, text=True, timeout=600, check=False
             )
             report = Path(scratch) / "trivy.json"
@@ -353,7 +407,6 @@ class ContainerRunner:
     def _capture(self, workspace, argv, outfile, *, tool, version, network=False,
                  timeout=600, allow_exec=False):
         """Run one Scanner and read its report from the scratch mount."""
-        import subprocess
         import tempfile
 
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
@@ -361,7 +414,7 @@ class ContainerRunner:
                 *self._base_flags(workspace, scratch, network=network, allow_exec=allow_exec),
                 self.image, *argv,
             ]
-            proc = subprocess.run(  # noqa: S603 - argument-list form, no shell
+            proc = self._launch(
                 cmd, capture_output=True, text=True, timeout=timeout, check=False
             )
             report = Path(scratch) / outfile if outfile else None
@@ -450,12 +503,12 @@ class ContainerRunner:
         )
 
     def run_gitleaks(self, workspace: Path) -> ScannerOutput:
-        import subprocess
         import tempfile
 
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
             cmd = [
                 self.runtime, "run", "--rm",
+                "--name", _container_name(),
                 # Run as the invoking user so the scratch mount is writable.
                 # Docker Desktop translates UIDs for us; rootful Linux Docker does
                 # not, so without this the container cannot write its report and the
@@ -474,7 +527,7 @@ class ContainerRunner:
             ]
             # check=False: a scanner exiting non-zero because it found issues is a
             # successful run (F2.4). We interpret exit codes ourselves.
-            proc = subprocess.run(  # noqa: S603
+            proc = self._launch(
                 cmd, capture_output=True, text=True, timeout=300, check=False
             )
             report = Path(scratch) / "gitleaks.json"
