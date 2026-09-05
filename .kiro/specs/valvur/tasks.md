@@ -902,7 +902,7 @@ proven rather than intended.
 > ourselves is the dogfooding the release gate is meant to prove.
 
 - [x] **8.0.3** Publish the image SBOM per release (F10.3), disclosing base-OS  
-  **STATUS 2026-08-30:** ✅ The check itself produces the SBOM; publishing it per release is task 12.2, already planned.
+  **STATUS 2026-08-30:** ✅ The check itself produces the SBOM; publishing it per release is task 12a.7, already planned.
   licences rather than pretending they are absent. For a tool that ships licence
   analysis, disclosure is the only defensible answer.
 
@@ -1114,7 +1114,7 @@ take, and participants cannot be re-used.
   rename now; there is no third option.
 - [x] **10.0.2** Publish `0.1.0rc1` to PyPI and the image to GHCR. This is most of  
   **STATUS 2026-08-31:** ✅ `valvur 0.1.0rc1` on PyPI, `ghcr.io/maverickhq/valvur:0.1.0rc1` and `:latest` on GHCR. Verified as a stranger would: fresh venv, `pip install valvur`, scanned a repo, 57 findings, zero runtime dependencies.
-  tasks 12.2 and 12.5 brought forward, and doing it early de-risks the real release
+  task 12a.7 brought forward, and doing it early de-risks the real release
   rather than duplicating it.
 - [x] **10.0.3** **Measure the image pull honestly.** The `offline` scan itself is  
   **STATUS 2026-08-31:** ✅ **Measured: 302MB compressed** (not the 674MB uncompressed figure I had been quoting). ~24s at 100 Mbit, 48s at 50, 97s at 25. With a 5.6s scan, P1's 60 seconds holds at 50 Mbit and above and fails below it. README now states the figures rather than the promise — a claim someone can check beats one they must accept.
@@ -1449,7 +1449,7 @@ rejected: valvur is a host shim that *launches* containers, so there is no
 
   **The e2e job could not have been passing.** It builds `valvur:dev` and never set
   `VALVUR_IMAGE`, so every container test ran against the published GHCR tag it had
-  not built and cannot pull while the package is private (task 12.6). Now set.
+  not built and cannot pull while the package is private (task 12a.1). Now set.
 
   **Runtime parity is asserted to have run.** The parity tests skip when a runtime
   has no local image — right locally, wrong in CI, where both runtimes have it. A
@@ -1461,7 +1461,7 @@ rejected: valvur is a host shim that *launches* containers, so there is no
   2. any **expired suppression** — the lapse already re-reports the Finding, but if
      nothing fails the build then "mandatory expiry" is decoration;
   3. any **skipped runtime-parity test**. Four Podman tests skip today because the
-     GHCR package is private (task 12.6). Dual-runtime parity is an F1 claim, and a
+     GHCR package is private (task 12a.1). Dual-runtime parity is an F1 claim, and a
      green CI that never ran those tests is asserting something it did not check.
      "Skipped" and "passed" must not look the same to the gate.
 
@@ -1475,44 +1475,199 @@ runs as written on every platform it claims.
 
 ## Phase 12 — Release
 
-- [ ] **12.1** ~~**Decide the final name.**~~ **MOVED to task 10.0.1 on 2026-08-31.**
+**Goal:** make valvur obtainable, verifiable and trustworthy by someone who is not
+us — then release it.
+
+> **Split in two on 2026-09-05, after reviewing what Phase 11 actually built.** The
+> phase as written could not reach its own exit criterion.
+>
+> **It was circular.** Task 12.6 unblocks Phase 10's usability gate; the gate's
+> findings *become* Phase 10's task list; and Phase 12 then tagged `v1.0.0`. Those
+> cannot all hold. Tagging 1.0.0 before one external person has installed the tool
+> inverts the order, so the phase is now **12a — make it obtainable**, the gate runs
+> against that, and **12b — release** acts on what the gate finds.
+>
+> **The target version changed with it.** `v1.0.0` is a promise about stability that
+> nothing has tested. ADR-0016 was a breaking change, the published artifact is still
+> `0.1.0rc1`, and the next publish has a licence-metadata correction to carry (12a.7).
+> 12a ships **0.2.0**; 1.0.0 waits for the gate.
+>
+> **And four assumptions had gone stale.** 12.6 named the package while the
+> *repository* is private too; the README's headline performance figure is wrong by
+> roughly 4×; the published PyPI artifact declares a licence the repository no longer
+> uses; and the version literal turned out to live in five places while F1.9 compares
+> two of them.
+
+- [x] **12.1** ~~**Decide the final name.**~~ **MOVED to task 10.0.1 on 2026-08-31.**
   Publishing the `0.1.0rc1` needed for the usability gate *is* first publish, and
-  claims the name. The deadline moved with it.
-- [ ] **12.2** Sign the image with cosign; publish SBOM and build provenance. *(F10.3)*
-- [ ] **12.3** Repo furniture: `LICENSE`, `SECURITY.md` with a disclosure policy,
-  `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
-- [ ] **12.4** Verify every README claim traces to
-  [POSITIONING.md](../../../docs/POSITIONING.md), and every **Scanner** is credited
-  with its licence. *(P3, P4)*
-- [ ] **12.5** Publish the release to GitHub, and the signed image to GHCR.
-- [ ] **12.6** **Make the GHCR package public — owner action, blocks every other
-  user.** *(F1.5, 10.1, 10.2)* Deliberately held private during development
-  (decision 2026-08-31); the tool is unusable by anyone else until it is flipped.
+  claims the name. The deadline moved with it. ✅ `valvur` kept.
 
-  **Verify the problem, before and after:**
+---
+
+### 12a — Make it obtainable and trustworthy
+
+Nothing below is optional for the gate. A participant who cannot obtain the tool,
+or cannot check the claims we make about it, is not testing the product.
+
+- [ ] **12a.1** **Push, then make the repository public, then the package.**
+  *(F1.5, blocks 10.1 and 10.2)* — **owner action.**
+
+  Held private during development (decision 2026-08-31). **Measured 2026-09-05:**
+
+  | | |
+  |---|---|
+  | `api.github.com/repos/MaverickHQ/valvur` | **404** anonymously |
+  | `ghcr.io/token?scope=…valvur:pull` | **401** anonymously |
+  | local commits ahead of `origin/main` | **17** |
+
+  The original task named only the package. The **repository** is private too, which
+  matters more: the README now tells a reviewer to run
+  [`scripts/verify-offline.py`](../../../scripts/verify-offline.py) as the central
+  proof of the central claim, and they cannot obtain it. The ADRs, which are where
+  every decision's reasoning lives, are equally unreachable.
+
+  Order matters — push first, or the public repository is missing all of Phase 11:
   ```bash
-  curl -s -o /dev/null -w '%{http_code}\n' \
-    "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io"
+  git push origin main
+  # GitHub → Settings → Change visibility → Public
+  # GitHub → Packages → valvur → Package settings → Change visibility → Public
   ```
-  403 anonymously today. Must be 200 before the usability gate means anything.
-
-  **Do it:** GitHub → Packages → `valvur` → Package settings → Change visibility →
-  Public. Then confirm a genuinely cold pull works — an authenticated machine
-  proves nothing, because a locally cached image hides this completely:
+  Then confirm a genuinely **cold** pull. An authenticated machine proves nothing,
+  because a locally cached image hides this completely — which is exactly how it went
+  unnoticed until 2026-08-31:
   ```bash
-  docker logout ghcr.io && docker pull ghcr.io/maverickhq/valvur:0.1.0rc1
+  docker logout ghcr.io && docker pull ghcr.io/maverickhq/valvur:0.2.0
+  curl -s -o /dev/null -w '%{http_code}\n' https://api.github.com/repos/MaverickHQ/valvur
   ```
+  **Why it earns its own task.** Local scans passed only because Docker had the image
+  cached from the build. A new user's first run failed at the pull, and the failure
+  was reported as *"the container cannot read the workspace"* — advice about mount
+  permissions for an authentication problem. The message is fixed (11.0); the
+  visibility is not.
 
-  **Why this is its own task.** Measured 2026-08-31: local scans passed only
-  because docker had the image cached from the build. A new user's first run
-  failed at the pull, and the failure was reported as *"the container cannot read
-  the workspace"* — advice about mount permissions for an authentication problem.
-  The message is fixed; the visibility is not. Tasks 10.1 and 10.2 cannot be
-  evaluated honestly until this is done, because their entire subject is the
-  first run.
-- [ ] **12.7** Tag v1.0.0.
+- [ ] **12a.2** **One source of truth for the version, and a check that it holds.**
+  *(F1.9)*
 
-**Exit:** v1.0.0 released, self-scan clean, signature and SBOM published.
+  Measured 2026-09-05 — the literal appears in **five** places:
+  `pyproject.toml`, `src/valvur/runner.py` twice (`IMAGE` and `_VERSION`),
+  `src/valvur/results.py`, and `README.md`.
+
+  F1.9 refuses to run a mismatched shim and image, comparing exactly two of those. A
+  partial bump therefore ships a pair that either refuses to start or, worse, agrees
+  while being wrong. Derive them from package metadata, and add a CI step asserting
+  every remaining literal agrees — a release is the one moment this breaks, and the
+  one moment nobody is running the test suite.
+
+- [ ] **12a.3** **Decide whether Checkov runs unconditionally — this is a product
+  decision and it gates 12a.4.** ⚠️ **OWNER INPUT NEEDED.**
+
+  Measured 2026-09-05 on the offline Profile, per Scanner, against a 12-file fixture:
+
+  | gitleaks | trivy | opengrep | **checkov** | syft | licence-file | ai-artifact |
+  |---|---|---|---|---|---|---|
+  | 1.0s | 0.6s | 3.1s | **11.2s** | 1.3s | 1.0s | 1.1s |
+
+  Checkov is a fixed startup cost, not proportional to the work. A repository with no
+  Dockerfile, no terraform and no Kubernetes manifests pays 11 seconds for a Scanner
+  that has nothing to look at.
+
+  Gating it on the presence of IaC files would return most projects to ~8s scans. The
+  argument against is that a conditional Scanner is a Scanner that can silently stop
+  running — the exact failure class Phase 11 exists to catch — so if this is done,
+  the trigger belongs in the coverage canary (11.2) with a fixture that has no IaC.
+
+- [ ] **12a.4** **Re-verify every README claim by measurement, not by reading.**
+  *(P3, P4)*
+
+  This was written as a read-through. It cannot be one: the claims changed under it
+  in Phase 11, and at least one is now wrong.
+
+  **Measured 2026-09-05 — the README says an offline scan takes `5.6s`:**
+
+  | repository | size | offline |
+  |---|---|---|
+  | fixture | 12 files | **20.3s** |
+  | CLU | ~100 files | 18.0s |
+  | valvur itself | 38,697 lines | 23.4s |
+
+  Roughly 4× out, and not because of repository size — the 5.6s was measured when
+  `quick` had five Scanners and no Checkov, before ADR-0016. Correct the figure, or
+  change the product first (12a.3) and then correct it.
+
+  Also re-check: the Profile names throughout (ADR-0016 renamed them), the
+  verification instructions (rewritten in 11.0, and platform-split), and that every
+  Scanner is still credited with its licence (P4).
+
+- [ ] **12a.5** **Repo furniture.** Measured 2026-09-05: **one of seven** present.
+
+  - [x] `LICENSE` — Apache-2.0, added 2026-08-31
+  - [ ] `SECURITY.md` with a real disclosure route and a response commitment
+  - [ ] **Enable GitHub private vulnerability reporting** — **owner action**, same
+        category as 12a.1. A `SECURITY.md` pointing at a channel that is not open is
+        the security-tool equivalent of a broken verification command.
+  - [ ] `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates
+  - [ ] `CHANGELOG.md` — omitted from the original task and now overdue: ADR-0016 was
+        a breaking change, and its alias table (`quick`→`offline`,
+        `standard`/`deep`→`full`) is what a user upgrading actually needs.
+
+- [ ] **12a.6** **Pin our own supply chain.** Measured 2026-09-05: every workflow step
+  uses a mutable tag — `actions/checkout@v5`, `astral-sh/setup-uv@v6` — in a pipeline
+  that is about to hold signing credentials (12a.7). Pin to commit SHAs and add
+  Dependabot to keep them moving deliberately.
+
+  **And note the product gap this exposed.** `valvur.pinning.mutable-git-ref` did not
+  flag our workflow, because it only matches `git+…@main` — pip-style VCS installs.
+  Unpinned GitHub Actions are the most common instance of exactly the defect that
+  rule describes, and we do not catch it. Fix the rule, or record why not.
+
+- [ ] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
+
+  There is no release automation at all today — 12.2 and 12.5 were both hand-run
+  steps, which is how a mismatched artifact ships. A tag-triggered `release.yml`
+  covering: cosign keyless signing, an SBOM **of the image** (distinct from the
+  `sbom.cdx.json` valvur writes for a scanned project — reuse the Syft invocation
+  already in `scripts/check_image_licences.py`), SLSA build provenance via
+  `actions/attest-build-provenance`, the GHCR push and the PyPI publish.
+
+  **Permissions wrinkle.** `ci.yml`'s top-level `permissions: contents: read` is
+  correct and must stay — we report `CKV2_GHA_1` in other people's repositories.
+  Signing needs `id-token: write` and `attestations: write`, scoped to the release
+  job alone.
+
+  **This publish carries a correction.** Measured 2026-09-05: PyPI's metadata for
+  `0.1.0rc1` declares **MIT**, because the artifact predates the Apache-2.0 change of
+  2026-08-31. PyPI metadata cannot be edited in place. Until `0.2.0` ships, valvur's
+  own published package contradicts its own `LICENSE` file — which, for a tool that
+  performs licence analysis, is the first thing a reviewer will find.
+
+**Exit (12a):** a stranger can find the repository, read the reasoning, install the
+tool, pull the image cold, and verify the non-exfiltration claim unaided. `0.2.0` is
+published, signed, with an SBOM and provenance, and its metadata tells the truth.
+
+**Commit:** `chore: release 0.2.0 — obtainable, signed, and honestly described`
+
+---
+
+### → The usability gate runs here
+
+[Task 10.1](#101--the-usability-gate) has never run, because until 12a there was
+nothing a participant could obtain. It runs now, against `0.2.0`, and **its findings
+become the task list for 12b.** Everything below is provisional until it has.
+
+---
+
+### 12b — Release
+
+- [ ] **12b.1** Act on the usability gate's findings. Phase 10 tasks 10.1–10.5 close
+  here or are explicitly deferred with a reason.
+- [ ] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
+  the release artifact rather than the working tree. *(N2.5)*
+- [ ] **12b.3** Tag `v1.0.0` — the first version claiming stability, and the first one
+  a person outside this repository has successfully used.
+
+**Exit (12b):** v1.0.0 released. CI proves non-exfiltration on every commit, the
+self-scan is clean, the signature and SBOM are published, and someone who has never
+seen valvur has installed it and got a useful answer.
 
 **Commit:** `chore: release v1.0.0`
 
