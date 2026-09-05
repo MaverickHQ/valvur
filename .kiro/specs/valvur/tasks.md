@@ -2514,8 +2514,28 @@ every command the documentation names exists.
   > holds in fact — it simply is not enforced, and nothing would fail if someone added
   > a watcher tomorrow.
 
-- [ ] **17.2** A CI check that requirements and code stay in step — **in both
-  directions.** Requirement → code catches an ID nobody implemented; code → requirement
+- [x] **17.2** A CI check that requirements and code stay in step — **in both
+  directions.** ✅ **DONE 2026-09-05.**
+
+  > `scripts/check_traceability.py`, in CI. **Requirement → code** finds an ID nobody
+  > implemented. **Code → requirement** is approximated by requiring every ADR to cite
+  > at least one requirement — decisions land in ADRs before they land in code, so
+  > that is where the drift becomes visible earliest.
+  >
+  > **Both are ratchets against a recorded baseline** (`docs/traceability-baseline.toml`).
+  > Neither fails on today's debt; both fail the moment it grows, and the check tells
+  > you when the baseline could shrink. A check that fails on day one is a check
+  > somebody disables in week two.
+  >
+  > Baseline today: **25 uncited requirements** — down from 31, because 17.1's
+  > citations landed — and **8 ADRs citing no requirement**. Verified in both
+  > directions by planting each: a new requirement nobody implements, and a new ADR
+  > citing nothing.
+  >
+  > **Its first run was wrong and said so loudly.** The baseline file lists exactly
+  > the uncited IDs, so scanning `docs/` counted it as a citation and reported 25
+  > requirements resolving simultaneously. `requirements.md` was already excluded for
+  > the same reason; the file being written needed excluding too. Requirement → code catches an ID nobody implemented; code → requirement
   is the direction that drifted, and needs a convention to check against (every ADR
   and every user-visible behaviour cites an ID, say). **31** IDs are uncited today;
   the check should start from that baseline rather than fail the build on day one.
