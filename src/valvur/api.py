@@ -54,6 +54,14 @@ class ScanRun:
 
 def _run_one(adapter, runner, workspace) -> tuple:
     """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
+    applies = getattr(adapter, "applies_to", None)
+    if applies is not None:
+        should_run, why = applies(workspace)
+        if not should_run:
+            # Not a failure: the Scan Run stays complete. Recorded so the reader can
+            # tell "had nothing to look at" from "looked and found nothing".
+            return ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, ""
+
     try:
         output = adapter.run(runner, workspace)
     except Exception as exc:

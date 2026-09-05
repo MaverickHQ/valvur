@@ -36,11 +36,23 @@ hidden Unicode directives, model output flowing into shells and interpreters.
 | | |
 |---|---|
 | Image download, once | **302MB compressed** — ~24s at 100 Mbit, ~48s at 50, ~97s at 25 |
-| `offline` scan thereafter | **5.6s** |
+| `offline` scan, application code | **~7s** |
+| `offline` scan, with infrastructure code | **~17s** |
 
 So the first run lands inside a minute on a 50 Mbit connection or better, and takes
 longer on a slower one. Every run after that is just the scan. We would rather give
 you the figure than a promise.
+
+The difference between those two rows is Checkov, which costs about ten seconds of
+fixed startup whatever it finds. It runs only when there is infrastructure to
+analyse — a Dockerfile, terraform, Kubernetes manifests, CI workflows, a
+CloudFormation or Helm template. When it is skipped, `SUMMARY.md` and `run.json` both
+say so and why, because a scanner that did not run must never look like one that ran
+and found nothing.
+
+Measured 2026-09-05 on a warm image and database: 7.1s on a 69-file Python project,
+17.7s on a 109-file TypeScript project with GitHub Actions workflows, 23.4s on this
+repository's own 38,697 lines.
 
 ### 1. It cannot exfiltrate your code — and you can verify it
 
