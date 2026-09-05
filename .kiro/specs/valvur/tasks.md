@@ -2252,11 +2252,22 @@ declared, and the per-architecture selection still in place.
   raw Scanner output carries live credentials (F5.7) — only covers a scan that was
   allowed to finish.
 
-  > **Decide when doing it:** kill the container, or wait for it. Killing is what
-  > Ctrl-C means to the person pressing it. It also needs care, because a container
-  > killed mid-write leaves a partial report in the scratch mount, and "a Scanner
-  > produced no report" is already a failure path — an interrupted scan must not be
-  > reportable as a failed one.
+  > ✅ **DECIDED 2026-09-05: kill the containers.** Ctrl-C means "stop" to the person
+  > pressing it, and the scratch window is where raw output with live credentials
+  > sits.
+  >
+  > **What the measurements constrain.** `docker run` does **not** stop the container
+  > on SIGINT — nor when the CLI is SIGKILLed, because the daemon owns the lifecycle.
+  > So letting signals propagate is not an available design. `docker kill` by name
+  > takes **0.24s**, but valvur passes no `--name` and no `--cidfile`, so today there
+  > is no handle at all. The work is therefore: a unique name per invocation, a
+  > registry of live containers, and a handler that kills them.
+  >
+  > **The hazard to design around.** "A Scanner produced no report" is already a
+  > failure path (Phase 3). A killed container must be distinguishable from a crashed
+  > one, or interrupting a scan produces a run marked *incomplete* — a confident wrong
+  > answer of exactly the kind this project keeps removing. **Interruption is its own
+  > outcome: not failure, not success.** No Results Folder is written.
 
 - [ ] **16.3** **One writer per Results Folder — and per database cache.**
   *(Was 16.1, re-scoped.)*
@@ -2272,11 +2283,29 @@ declared, and the per-architecture selection still in place.
   `results.write()` writes several files sequentially and `rawoutput.write()` clears
   `raw/` first — but it needs unlucky timing, and two attempts did not produce it.
 
-  > **Extend the scope to `valvur update`.** Two processes writing the same database
-  > cache is unexamined, and a corrupt vulnerability database poisons **every future
-  > scan** — worse than a spoiled Results Folder, which one rescan fixes. One lock
-  > mechanism, two callers. Measure what concurrent updates actually do before
-  > designing around a guess.
+  > ✅ **DECIDED 2026-09-05: one module, two locks, different contention policies.**
+  >
+  > | resource | lock | on contention |
+  > |---|---|---|
+  > | Workspace | `.security-scan/.lock` | **fail fast** — `jobs.py` already says "a scan is already running here" |
+  > | Database cache | `~/.cache/valvur/.lock` | **block** — erroring because a pre-commit hook is refreshing would be worse than waiting |
+  >
+  > The differing policies are the argument for one module rather than one policy.
+  >
+  > **`fcntl.flock` on a lockfile**, because the kernel releases it when the process
+  > dies — a crashed scan leaves no stale lock to reap, which a PID file would.
+  > POSIX-only, which task 13.3 already made acceptable by scoping Windows to WSL2.
+  >
+  > **Phase 14 raised this risk, and it was my doing.** Adding `valvur update
+  > --if-stale` and recommending it for pre-commit hooks and cron made update-vs-scan
+  > far more likely than when this task was written. Measured: Trivy takes **no lock
+  > of its own** — there is no lock file in the cache — and `trivy.db` is a 1.35GB
+  > BoltDB rewritten under live readers.
+  >
+  > **Measure before assuming the worst:** whether a concurrent rewrite corrupts a
+  > reader or Trivy simply fails cleanly. If it fails cleanly the cache lock is a UX
+  > improvement rather than a correctness fix, and the fail-fast/block split above may
+  > want revisiting.
 
 - [ ] **16.4** **`valvur --version`.** *(Was 16.2.)* One issue template asks people to
   run it and it does not exist. Same class as the verification command found in 11.0,
