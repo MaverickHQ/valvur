@@ -53,8 +53,27 @@ class ScanRun:
 
     @property
     def status(self) -> str:
-        """`clean` must be explicit, so an agent can tell it from a run that never happened."""
-        return "clean" if not self.findings else "findings"
+        """`clean` must be explicit, so an agent can tell it from a run that never
+        happened — and must not be claimed when we cannot support it.
+
+        Three states, not two. Until 2026-09-05 a scan with a 400-day-old database
+        and no findings reported `clean`, and the prose warning explaining why that
+        meant nothing lived in `SUMMARY.md` — a file the results contract tells
+        agents to read *bounded* while querying `findings.json` for detail. The one
+        consumer most likely to act on the verdict was the one least likely to see
+        the caveat.
+
+        `inconclusive` says the thing that is actually true: we looked, we found
+        nothing, and our data was too old for that to be evidence.
+        """
+        if self.findings:
+            return "findings"
+        from . import cache as _cache
+
+        age = self.db_age_days
+        if age is not None and age > _cache.DB_STALE_AFTER_DAYS:
+            return "inconclusive"
+        return "clean"
 
 
 def _run_one(adapter, runner, workspace) -> tuple:

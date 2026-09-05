@@ -2042,6 +2042,37 @@ unverified — which is true, and is the point.
   >
   > A test asserts `scan()` never calls `update_db`, so this stays decided rather
   > than drifting.
+  >
+  > **REOPENED and properly resolved 2026-09-05, after "how do we make sure the data
+  > is current?" exposed the above as detection dressed as a solution.** Two of the
+  > three reasons did not survive scrutiny, and one was simply wrong.
+  >
+  > **The 1.2GB was never measured.** The published artifact is **116MB compressed**;
+  > 1.2GB is the uncompressed size on disk. Our own help text had quoted the wrong
+  > figure for months, discouraging the very update the tool depends on. The
+  > profile-divergence argument only applied to the design already rejected, and §4 is
+  > about *remediation* decisions — refreshing reference data is not accepting risk on
+  > someone's behalf.
+  >
+  > **What actually solves it, in three parts:**
+  >
+  > 1. **The verdict carries the claim.** A stale scan with no findings now reports
+  >    **`inconclusive`**, not `clean`. Phase 14 had fixed only the prose — a
+  >    400-day-old database still produced `"status": "clean"`, and the results
+  >    contract tells agents to read `SUMMARY.md` *bounded* while querying
+  >    `findings.json`, so the consumer most likely to act on the verdict was the one
+  >    least likely ever to see the caveat. Third status added to the contract
+  >    ([CLAUDE.md §7](../../../CLAUDE.md)).
+  > 2. **Staleness is knowable for free.** Trivy stamps `NextUpdate`, so being past
+  >    due costs one file read and no network.
+  > 3. **`valvur update --if-stale`** — a no-op when current, so it is cheap enough
+  >    for a pre-commit hook, a cron entry or CI. That is the mechanism that keeps
+  >    data current; the status is what makes ignoring it visible.
+  >
+  > **Auto-update is still refused, for the one reason that holds:** `offline` is the
+  > default and cannot reach the network, so auto-updating would help only `full`
+  > users while introducing exactly the profile divergence described above. It would
+  > solve the problem for the minority and hide it from the majority.
 
 **Exit:** ✅ **Reached 2026-09-05.** Verified end-to-end by ageing the real database's
 build stamp to 40 days: the terminal warned, `SUMMARY.md` carried it, and `run.json`

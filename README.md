@@ -180,6 +180,17 @@ valvur scan
 valvur scan --profile full
 ```
 
+Keep the vulnerability database current — the check costs nothing when it is, so
+this is safe in a pre-commit hook, a cron entry or CI:
+
+```bash
+valvur update --if-stale    # ~116MB when it is out of date, one file read when not
+```
+
+A scan with a database older than a week reports **`inconclusive`** rather than
+`clean` when it finds nothing. What was found is always real; only *absence* needs
+current data to mean anything.
+
 Results land in `.security-scan/`. Read `SUMMARY.md` — it renders in your IDE, on
 GitHub, or in any Markdown viewer. Work through `REMEDIATION.md` in order — it is ranked so the top
 of the list is genuinely the most urgent thing.
