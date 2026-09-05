@@ -139,7 +139,8 @@ Written into the scanned project:
 
 ```
 .security-scan/
-  .gitignore          # contains "*" — the folder ignores itself
+  .gitignore          # contains "*" — the folder ignores itself, from creation
+  .lock               # flock target: one scan per workspace at a time
   SUMMARY.md          # entry point, capped ~200 lines, leads with failures
   REMEDIATION.md      # ranked proposal: KEV/EPSS order, dependency paths
   findings.json       # normalised, schema-versioned, secrets redacted
@@ -161,7 +162,14 @@ found nothing.
 
 Rules that must hold:
 - **Self-ignoring folder** is the guarantee results are never committed; a root
-  `.gitignore` entry is added too, as a visible signal to humans.
+  `.gitignore` entry is added too, as a visible signal to humans. The `.gitignore`
+  is written when the folder is *created*, not when a scan succeeds — an interrupted
+  run (routine since task 16.2) would otherwise leave a folder git can see.
+- **One scan per Workspace at a time**, enforced by `flock` on `.security-scan/.lock`.
+  Concurrent scans do not corrupt anything, but both read the same `state.json` and
+  the last to finish wins — so the next run's new/fixed/regressed diff is computed
+  against a view that never happened. The database cache is locked too: readers
+  share, `valvur update` excludes.
 - **Secrets are redacted** in every written artifact including `raw/`. Gitleaks
   emits live credential values; writing those verbatim would have our security
   tool copy your secrets to a second cleartext location on disk.
