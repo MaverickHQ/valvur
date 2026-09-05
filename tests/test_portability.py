@@ -1,4 +1,4 @@
-"""Phase 13 — the published artifact runs on the machines people actually have.
+"""Phase 13 — the published artifact runs on the machines people actually have (F10.7).
 
 Measured 2026-09-05: the published image was `linux/arm64` only, so every amd64 user
 — most CI runners, most Linux desktops, every cloud VM, every Intel Mac — could not

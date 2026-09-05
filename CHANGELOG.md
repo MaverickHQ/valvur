@@ -9,6 +9,28 @@ a minor bump may break things until 1.0.
 
 ### Changed — BREAKING
 
+- **A scan can now report `inconclusive`.** Previously `status` was `findings` or
+  `clean`; there is now a third value, for a scan that found nothing against a
+  vulnerability database too old for that to be evidence. Anything parsing `status`
+  and treating "not `findings`" as "safe" needs updating. What was *found* is real
+  however old the data — only absence needs current data to mean anything.
+
+  Keep the database current cheaply; the check costs one file read when it is:
+
+  ```bash
+  valvur update --if-stale
+  ```
+
+- **`Ctrl-C` now stops a scan.** It previously left the scanner containers running to
+  completion, because the container runtime's daemon owns their lifecycle. An
+  interrupted scan writes no results and is not reported as a failure.
+
+- **One scan per project at a time.** A second concurrent scan of the same directory
+  is refused with a message rather than silently spoiling the first run's status diff.
+
+- **The image is published for `linux/amd64` as well as `linux/arm64`.** `0.1.0rc1`
+  was arm64 only — unusable on most CI, most Linux desktops and every Intel Mac.
+
 - **Two profiles, `offline` and `full`, replacing `quick`/`standard`/`deep`**
   ([ADR-0016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md)). The old
   set was split along *speed* while being described as a network boundary, and `deep`

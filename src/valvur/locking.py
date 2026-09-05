@@ -1,4 +1,4 @@
-"""One writer per Results Folder, one writer per database cache (task 16.3).
+"""One writer per Results Folder, one writer per database cache (F1.12, N2.6).
 
 Two resources with different shapes, which is why the policies differ.
 
@@ -72,7 +72,7 @@ def _ignore_os_error() -> Iterator[None]:
 def workspace_lock(results_dir: Path) -> Path:
     """The lock lives inside the Results Folder, which is the one place valvur is
     allowed to write (N2.2) — so taking it creates that folder before a scan has
-    produced anything.
+    produced anything (F7.18).
 
     That must not leave git able to see it. `results.write()` writes the
     self-ignoring `.gitignore` at the end of a run, which is too late if the run is

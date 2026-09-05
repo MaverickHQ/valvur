@@ -15,7 +15,7 @@ from .version import __version__
 
 
 def _stop_on_interrupt(runner) -> None:
-    """Make Ctrl-C mean stop (task 16.2).
+    """Make Ctrl-C mean stop (F1.11, task 16.2).
 
     Without this the shim exits and the Scanner containers run to completion, because
     the daemon owns their lifecycle — measured, `docker run` forwards nothing useful.

@@ -65,7 +65,7 @@ class ScanRun:
         consumer most likely to act on the verdict was the one least likely to see
         the caveat.
 
-        `inconclusive` says the thing that is actually true: we looked, we found
+        F7.16. `inconclusive` says the thing that is actually true: we looked, we found
         nothing, and our data was too old for that to be evidence.
         """
         if self.findings:

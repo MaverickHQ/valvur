@@ -2409,7 +2409,49 @@ every command the documentation names exists.
 >
 > **And the phase was missing the hole that matters.** See 17.0.
 
-- [ ] **17.0** **Reconcile the spec with the code.** *(New, and it comes first.)*
+- [x] **17.0** **Reconcile the spec with the code.** ✅ **DONE 2026-09-05.**
+
+  > **Nine requirements appended — 127 IDs to 136.** Appended, never renumbered (§9).
+  >
+  > | ID | behaviour |
+  > |---|---|
+  > | F1.11 | interruption is a third outcome: containers stopped, no Results Folder, not a failure |
+  > | F1.12 | one **Scan Run** per **Workspace**, refused with a reason |
+  > | F6.11 | database age read from the data, not the file's mtime |
+  > | F7.16 | `findings` / `clean` / **`inconclusive`** |
+  > | F7.17 | `run.json` records the database's age, staleness and threshold |
+  > | F7.18 | the Results Folder is self-ignoring from creation, not from success |
+  > | F10.7 | published for both architectures; CI tests the published artifact |
+  > | F10.8 | refreshing is explicit and a no-op when current |
+  > | N2.6 | writes to the database cache are serialised against readers |
+  >
+  > `design.md` gained §6a (freshness and the third status), §6b (concurrency and
+  > interruption) and §6c (distribution) — it had **zero** mentions of `inconclusive`
+  > or `lock` before. `CHANGELOG.md` now carries the contract change, which was
+  > missing: anything parsing `status` and reading "not `findings`" as "safe" breaks
+  > on `inconclusive`.
+  >
+  > **All nine are cited in code or tests**, so the drift is closed at the source
+  > rather than only documented. The 31 pre-existing uncited IDs are unchanged and
+  > remain 17.2's problem.
+  >
+  > **What I would now decide differently**, as the task asked — recording these
+  > rather than rubber-stamping what the code happens to do:
+  >
+  > - **The `.lock` lives inside the Results Folder**, which forces that folder into
+  >   existence before a scan has produced anything. Locking outside the Workspace
+  >   (keyed by a hash of its path) would avoid it, at the cost of not excluding two
+  >   *different users* on a shared machine. I took the simpler option and paid for it
+  >   with F7.18; a shared build agent might want the other.
+  > - **F1.12 fails fast rather than waiting.** It matches `jobs.py`, but a developer
+  >   who fires two scans probably wants the second to queue. Worth revisiting if
+  >   anyone hits it.
+  > - **Seven days will feel aggressive to someone scanning weekly** — they will see
+  >   the warning most times. That is arguably correct and arguably nagging; it needs a
+  >   real user before it can be judged.
+  > - **`inconclusive` is a breaking change to the results contract**, made while the
+  >   package is private and effectively unused. If it had shipped six months later it
+  >   would have needed a schema bump instead.
 
   **Measured 2026-09-05: five behaviours built in Phases 13–16 have no requirement ID
   and no design description.**
