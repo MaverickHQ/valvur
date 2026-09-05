@@ -259,3 +259,39 @@ def test_a_missing_database_needs_refreshing(tmp_path, monkeypatch):
     monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "nothing")
 
     assert _database_needs_refresh() is True
+
+
+def test_if_stale_refreshes_anything_the_scan_would_call_inconclusive(
+    tmp_path, monkeypatch
+):
+    """The command that fixes staleness must agree with the code that detects it.
+
+    `NextUpdate` is the database's own opinion of its shelf life; `UpdatedAt` is when
+    the data was built. They can disagree — a mirror serving old data with a
+    forward-dated NextUpdate reads as "not due" while being 45 days old. Until
+    2026-09-05 `--if-stale` consulted only the first, so it declined to refresh
+    exactly the database that makes a scan report `inconclusive`.
+    """
+    from valvur.cli import _database_needs_refresh
+
+    _database(tmp_path, updated_days_ago=45, next_update_days_ago=-1)
+    (tmp_path / "trivy" / "db" / "trivy.db").write_text("")
+    monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "trivy")
+
+    # The scan's verdict and the fix path must not contradict each other.
+    assert ScanRun(findings=[], db_age_days=cache.db_age_days()).status == "inconclusive"
+    assert _database_needs_refresh() is True
+
+
+def test_if_stale_still_does_nothing_for_a_genuinely_current_database(
+    tmp_path, monkeypatch
+):
+    """The pair. If it refreshed on every run it would cost 116MB a time and stop
+    being safe to put in a pre-commit hook, which is the whole point of it."""
+    from valvur.cli import _database_needs_refresh
+
+    _database(tmp_path, updated_days_ago=0.2, next_update_days_ago=-0.8)
+    (tmp_path / "trivy" / "db" / "trivy.db").write_text("")
+    monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "trivy")
+
+    assert _database_needs_refresh() is False
