@@ -531,3 +531,43 @@ def test_the_full_profile_meets_its_time_budget(mountable_tmp):
 def test_a_scan_stays_within_its_memory_budget():
     """N1.4 — 2 GB. Measured 344 MiB; unasserted from macOS."""
     raise AssertionError("must be enabled in CI on Linux")
+
+
+# ------------------------------------------------- our own supply chain (12a.6/7)
+
+def test_every_action_in_every_workflow_is_pinned_to_a_sha():
+    """A tag is a mutable pointer, and the release workflow holds signing
+    credentials — `id-token: write`, `packages: write`, `contents: write`. A moved
+    tag there does not just run bad code, it signs it with our identity.
+
+    `valvur.pinning.mutable-action-ref` catches this in a scan, but rules ship inside
+    the image, so that only helps after a rebuild. This is the commit-time guard.
+    """
+    import re
+
+    workflows = sorted(Path(".github/workflows").glob("*.yml"))
+    assert workflows, "no workflows found — this test is asserting nothing"
+
+    unpinned = []
+    for path in workflows:
+        for number, line in enumerate(path.read_text().splitlines(), start=1):
+            match = re.search(r"uses:\s*([\w.-]+/[\w./-]+)@(\S+)", line)
+            if match and not re.fullmatch(r"[0-9a-f]{40}", match.group(2)):
+                unpinned.append(f"{path.name}:{number} {match.group(1)}@{match.group(2)}")
+
+    assert not unpinned, "actions pinned to a mutable tag: " + "; ".join(unpinned)
+
+
+def test_no_workflow_grants_write_permission_it_does_not_need():
+    """Least privilege, asserted rather than reviewed. `ci.yml` runs on every pull
+    request including from forks; a write token there is the difference between a
+    malicious PR reading the repository and rewriting it."""
+    import re
+
+    text = Path(".github/workflows/ci.yml").read_text()
+    top_level = re.search(r"^permissions:\n((?:\s+\w[\w-]*:.*\n)+)", text, re.M)
+
+    assert top_level, "ci.yml declares no top-level permissions block"
+    assert "write" not in top_level.group(1), (
+        f"ci.yml grants write at the top level: {top_level.group(1).strip()}"
+    )
