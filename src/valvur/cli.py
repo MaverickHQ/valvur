@@ -11,6 +11,38 @@ from . import profiles as _profiles
 from .api import scan
 
 
+def _warn_if_database_stale(run) -> None:
+    """Tell them in the terminal, not only in a file they may never open.
+
+    Until 2026-09-05 the age of the database that decides whether findings exist was
+    computed and reported nowhere at all.
+    """
+    from . import cache
+
+    age = getattr(run, "db_age_days", None)
+    if age is None or age <= cache.DB_STALE_AFTER_DAYS:
+        return
+
+    unsuppressed = [f for f in run.findings if not f.suppressed]
+    print(f"  ! the vulnerability database is {age:.0f} days old", file=sys.stderr)
+    if not unsuppressed:
+        print(
+            "  ! THIS SCAN FOUND NOTHING, AND THAT IS NOT EVIDENCE THERE IS NOTHING.",
+            file=sys.stderr,
+        )
+        print(
+            f"  ! roughly {age:.0f} days of advisories are missing. "
+            "Run `valvur update` and rescan.",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            f"  ! the list is incomplete: roughly {age:.0f} days of advisories are "
+            "missing. Run `valvur update`.",
+            file=sys.stderr,
+        )
+
+
 def _print_suppression(args) -> int:
     """Print a suppression block. We never write the file (F8.7) — but nobody will
     hand-copy a 32-character hash out of findings.json either, so we print one (F8.8).
@@ -192,6 +224,22 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         print(f"  ! {failure.tool} did not complete: {failure.reason}")
     if run.failures:
         print("  ! this scan is INCOMPLETE")
+
+    # Task 14.2 — decided 2026-09-05: valvur does NOT update the database by itself,
+    # on any Profile. Three reasons, in order of weight.
+    #
+    # It is a 1.2GB download. Starting one inside a scan the user asked to be fast
+    # is hostile, and doing it silently is worse.
+    #
+    # It would make the Profiles disagree for a reason unrelated to coverage. If
+    # `full` refreshed and `offline` could not, the two would scan different data
+    # and the equivalence asserted in Phase 11 cycle 3 would break — not because
+    # coverage differs, but because we introduced a difference.
+    #
+    # And updating on the user's behalf is the same move as fixing on their behalf,
+    # which section 4 refuses. So: say it, loudly, and let them decide.
+    _warn_if_database_stale(run)
+
     print(f"{run.status}: {len(run.findings)} finding(s)")
     print(f"results: {workspace / '.security-scan'}")
 

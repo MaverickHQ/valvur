@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from . import cache as _cache
 from . import enrichment as _enrichment
 from . import exclusions as _exclusions
 from . import gitcontext as _gitcontext
@@ -37,6 +38,10 @@ class ScanRun:
     network_used: bool = False
     kev_age_days: float | None = None
     kev_source: str = ""
+    # The database that decides whether findings EXIST, as opposed to KEV which only
+    # decides how they rank. Until 2026-09-05 only the latter was instrumented.
+    db_age_days: float | None = None
+    db_overdue_days: float | None = None
     vendored_dropped: int = 0
     config_dropped: int = 0
     excluded_paths: list[str] = field(default_factory=list)
@@ -192,6 +197,8 @@ def scan(
         scanners=scanners,
         network_used=_profiles.ALLOWS_NETWORK.get(profile, False),
         kev_age_days=provider.kev_age_days,
+        db_age_days=_cache.db_age_days(),
+        db_overdue_days=_cache.db_overdue_days(),
         kev_source=provider.kev_source,
         vendored_dropped=vendored_dropped,
         config_dropped=config_dropped,
