@@ -94,3 +94,47 @@ def test_the_package_exposes_its_version():
     import valvur
 
     assert valvur.__version__ == _declared()
+
+
+def test_the_cli_reports_its_version(capsys):
+    """Task 16.4. One issue template asked people to run `valvur --version` and it
+    did not exist — the same class as the verification command found in 11.0, and
+    found the same way: by running what the documentation says."""
+    import pytest
+
+    from valvur.cli import main
+
+    with pytest.raises(SystemExit) as exit_code:
+        main(["--version"])
+
+    assert exit_code.value.code == 0
+    assert capsys.readouterr().out.strip() == f"valvur {_declared()}"
+
+
+def test_every_command_the_docs_name_actually_exists(capsys):
+    """The generalisation of 11.0 and 16.4. Documentation naming a command that does
+    not run is worse than no documentation: it is the first thing a sceptical reader
+    tries, and valvur has now shipped two such commands — the verification one-liner
+    and `--version`."""
+    import re
+
+    import pytest
+
+    from valvur.cli import main
+
+    named = set()
+    for path in [*(REPO / ".github").rglob("*.yml"),
+                 REPO / "docs" / "RELEASING.md",
+                 REPO / "README.md",
+                 REPO / "CONTRIBUTING.md"]:
+        if path.is_file():
+            named |= set(re.findall(r"`valvur (--?[\w-]+|\w+)", path.read_text()))
+
+    assert named, "no valvur commands are documented, which cannot be right"
+
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    help_text = capsys.readouterr().out
+
+    missing = sorted(n for n in named if n not in help_text)
+    assert not missing, f"documented but not available: {missing}"

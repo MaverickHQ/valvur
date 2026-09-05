@@ -2324,9 +2324,19 @@ declared, and the per-architecture selection still in place.
   > improvement rather than a correctness fix, and the fail-fast/block split above may
   > want revisiting.
 
-- [ ] **16.4** **`valvur --version`.** *(Was 16.2.)* One issue template asks people to
-  run it and it does not exist. Same class as the verification command found in 11.0,
-  and found the same way — by running what the documentation says.
+- [x] **16.4** **`valvur --version`.** *(Was 16.2.)* ✅ **DONE 2026-09-05.**
+
+  > Reports the shim's version, derived from the one source 12a.2 established. The
+  > image's version is checked against it at scan time (F1.9), so the two cannot
+  > silently diverge.
+  >
+  > **Generalised rather than just fixed.** valvur has now shipped *two* documented
+  > commands that did not run — the verification one-liner found in 11.0 and this
+  > one. A test now extracts every `` `valvur …` `` command named in the README,
+  > `CONTRIBUTING.md`, `docs/RELEASING.md` and the issue templates, and asserts each
+  > appears in `--help`. Verified it catches a gap by documenting a command that does
+  > not exist. Documentation naming a command that does not run is worse than no
+  > documentation: it is the first thing a sceptical reader tries.
 
 **Exit:** an agent cannot mistake an inconclusive scan for a clean one; Ctrl-C stops
 the work; concurrent use cannot silently spoil the status diff or the database; and

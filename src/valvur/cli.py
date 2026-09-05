@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import profiles as _profiles
 from .api import scan
+from .version import __version__
 
 
 def _database_needs_refresh() -> bool:
@@ -145,6 +146,13 @@ def _refresh_kev() -> None:
 
 def main(argv: list[str] | None = None, *, runner=None) -> int:
     parser = argparse.ArgumentParser(prog="valvur", description=__doc__)
+    # One issue template asks people to run this and it did not exist (task 16.4) —
+    # the same class as the verification command found in 11.0, and found the same
+    # way, by running what the documentation says. Reports the shim's version; the
+    # image's is checked against it at scan time (F1.9).
+    parser.add_argument(
+        "--version", action="version", version=f"valvur {__version__}"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
     scan_cmd.add_argument("path", nargs="?", default=".", help="Workspace to scan")
