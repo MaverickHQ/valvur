@@ -22,8 +22,19 @@ def _database_needs_refresh() -> bool:
 
     if not cache.db_present():
         return True
+
+    # BOTH signals, because they can disagree and the disagreement is not academic.
+    # `NextUpdate` is the database's own opinion of its shelf life; `UpdatedAt` is
+    # when the data was actually built. A mirror serving old data with a forward-dated
+    # NextUpdate makes the second say 45 days and the first say "not due" — and until
+    # 2026-09-05 this used only the first, so `--if-stale` refused to fix the exact
+    # condition that makes a scan report `inconclusive`. The command whose purpose is
+    # to resolve staleness has to agree with the code that detects it.
     overdue = cache.db_overdue_days()
-    return overdue is None or overdue > 0
+    if overdue is None or overdue > 0:
+        return True
+    age = cache.db_age_days()
+    return age is None or age > cache.DB_STALE_AFTER_DAYS
 
 
 def _warn_if_database_stale(run) -> None:
