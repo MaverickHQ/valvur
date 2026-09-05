@@ -306,6 +306,21 @@ The same image runs on ECS/Fargate via ECR — identical artifact, no
 AWS-specific code paths, no behavioural difference. Local is the default and
 always will be.
 
+## Contributing, and reporting problems
+
+- **A finding you disagree with** — a false positive, or something valvur missed —
+  is a bug worth reporting. The second kind especially: a missed finding is the worst
+  failure this tool has, because it tells you your code is safe when it is not.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** covers the setup, the testing style, and the
+  handful of things that will be refused on principle rather than on merit. Reading
+  that list first is kinder than a rejected pull request.
+- **[SECURITY.md](SECURITY.md)** — please do not open a public issue for a suspected
+  vulnerability. It states what is in scope, which for a security tool includes a
+  false clean result.
+- **[CHANGELOG.md](CHANGELOG.md)** — what changed, including the profile rename and
+  how the old names still resolve.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — short, and only what will be enforced.
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE).

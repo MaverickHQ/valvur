@@ -1,0 +1,26 @@
+name: Feature request
+description: Something valvur should do and does not.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Worth reading [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) first — a few
+        things are refused on principle rather than on merit, and it is kinder to say
+        so before you spend a weekend on it. Anything that sends code somewhere,
+        needs an account, writes to the scanned tree, or fixes findings autonomously
+        is in that list.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem, not the solution. It often has a cheaper answer than the one we would both reach for.
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried or considered instead

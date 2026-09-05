@@ -1,0 +1,44 @@
+name: Bug report
+description: valvur did not do what it says it does.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        If valvur reported the wrong findings, use *A finding you disagree with*
+        instead — it asks for what we need. If it is a security issue, do not open an
+        issue at all; see [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected instead
+    validations: { required: true }
+  - type: textarea
+    id: command
+    attributes:
+      label: What you ran
+      render: shell
+    validations: { required: true }
+  - type: textarea
+    id: output
+    attributes:
+      label: What it printed
+      description: The whole error, including the parts that look irrelevant.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: valvur version
+    validations: { required: true }
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Container runtime
+      options: [Docker, Podman, Other]
+    validations: { required: true }
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.6, Ubuntu 24.04, …"
+    validations: { required: true }

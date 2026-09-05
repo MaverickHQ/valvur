@@ -1653,17 +1653,39 @@ or cannot check the claims we make about it, is not testing the product.
   verification instructions (rewritten in 11.0, and platform-split), and that every
   Scanner is still credited with its licence (P4).
 
-- [ ] **12a.5** **Repo furniture.** Measured 2026-09-05: **one of seven** present.
+- [x] **12a.5** **Repo furniture.** ✅ **DONE 2026-09-05** — was one of seven.
 
   - [x] `LICENSE` — Apache-2.0, added 2026-08-31
-  - [ ] `SECURITY.md` with a real disclosure route and a response commitment
-  - [ ] **Enable GitHub private vulnerability reporting** — **owner action**, same
-        category as 12a.1. A `SECURITY.md` pointing at a channel that is not open is
-        the security-tool equivalent of a broken verification command.
-  - [ ] `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates
-  - [ ] `CHANGELOG.md` — omitted from the original task and now overdue: ADR-0016 was
-        a breaking change, and its alias table (`quick`→`offline`,
-        `standard`/`deep`→`full`) is what a user upgrading actually needs.
+  - [x] `SECURITY.md` — private reporting route, and commitments a solo maintainer
+        can keep (5 working days to acknowledge, 15 to assess) rather than ones that
+        read well. **The scope section is the part that matters**: for this product a
+        *false clean result* is a vulnerability, not a bug, along with a silent
+        scanner failure, evidence that survives neutralisation, and anything leaving
+        the machine on `offline`. Findings from the bundled Scanners are explicitly
+        out of scope and pointed upstream.
+  - [ ] **Enable GitHub private vulnerability reporting** — ⚠️ **STILL OPEN, owner
+        action**, same category as 12a.1. `SECURITY.md` now points at
+        `/security/advisories/new`, and until the setting is on, that link 404s. A
+        disclosure route that does not exist is the security-tool equivalent of a
+        verification command that does not run — which is exactly what 11.0 found.
+  - [x] `CONTRIBUTING.md` — setup, the spec/ADR/vocabulary conventions, and a
+        **"what will be turned down"** section so the moat is stated before someone
+        spends a weekend on a feature that sends code somewhere. Encodes the testing
+        discipline this project actually uses: every assertion must be able to fail,
+        prove the fixture reaches the code under test, mutation-test anything
+        load-bearing.
+  - [x] `CODE_OF_CONDUCT.md` — original and short, because the Contributor Covenant
+        could not be fetched and a standard document reproduced from memory with
+        subtly wrong wording is worse than none. Structure credited to it.
+  - [x] Issue templates (bug, feature, **a finding you disagree with**) and a PR
+        template whose checklist is the real gates. The accuracy template asks which
+        direction the error runs and says a missed finding is treated as a security
+        report. `config.yml` routes suspected vulnerabilities away from public issues.
+  - [x] `CHANGELOG.md` — Keep a Changelog format, with the ADR-0016 alias table
+        (`quick`→`offline`, `standard`/`deep`→`full`) a user upgrading needs, and the
+        month of defect fixes written up in terms of what they meant rather than what
+        they touched.
+  - [x] README now links all of them.
 
 - [ ] **12a.6** **Pin our own supply chain.** Measured 2026-09-05: every workflow step
   uses a mutable tag — `actions/checkout@v5`, `astral-sh/setup-uv@v6` — in a pipeline

@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MaverickHQ/valvur/security/advisories/new
+    about: >-
+      Do not open a public issue. Report privately — a flaw in a security tool can
+      tell someone their code is safe when it is not. See SECURITY.md for scope.
+  - name: A finding you disagree with
+    url: https://github.com/MaverickHQ/valvur/issues/new?template=false-result.yml
+    about: A false positive, or something valvur missed. Both are bugs worth reporting.
