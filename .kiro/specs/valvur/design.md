@@ -209,6 +209,77 @@ budget is never exceeded.
 
 ---
 
+## 6a. Data freshness and the third status (F6.11, F7.16–F7.17)
+
+Presence of a **Finding** needs no fresh data to mean something. **Absence** does.
+That asymmetry is the whole design.
+
+**Age is read from the data, not the file.** Trivy stamps `UpdatedAt` when it builds
+the database; the file's mtime records only when it was fetched. An air-gapped mirror
+(F10.5) can serve a six-month-old database this morning, so mtime would report the
+users who most need the warning as the freshest of all.
+
+**Threshold: 7 days.** Derived, not chosen — Trivy sets `NextUpdate` to
+`UpdatedAt + 24h`, so seven days is seven missed rebuilds. KEV's 30-day threshold
+stays looser deliberately: it changes how **Findings** rank, not whether they exist.
+
+**Three statuses.**
+
+| | |
+|---|---|
+| `findings` | at least one **Finding**, whatever the database's age |
+| `clean` | none, and the database was current enough for that to be evidence |
+| `inconclusive` | none, and it was not |
+
+The verdict carries the claim rather than a caveat in prose. Agents are instructed to
+read `SUMMARY.md` bounded and query `findings.json` per **Finding** (F9.5–F9.7), so
+the consumer most likely to act on a verdict is the least likely to read a warning
+beside it. Every MCP tool restates the age and the consequence for the same reason.
+
+**valvur never refreshes the database itself** (F10.8). It is a 116MB download; doing
+it inside a scan the developer asked to be fast is hostile, and doing it only on
+`full` would make the two **Profiles** scan different data. `valvur update --if-stale`
+costs one file read when current, which is what makes it safe in a hook.
+
+## 6b. Concurrency and interruption (F1.11, F1.12, F7.18, N2.6)
+
+Two resources, two policies, one mechanism (`fcntl.flock`).
+
+| resource | lock | contention |
+|---|---|---|
+| **Workspace** | `.security-scan/.lock` | exclusive, **fails fast** |
+| Database cache | `~/.cache/valvur/.lock` | **shared** for scans, exclusive for `update`, which waits |
+
+Concurrent scans corrupt nothing — measured — but each reads the same `state.json`
+and the last to write wins, so the next run's **Status** diff is computed against a
+view that never happened. Readers of the database share freely because only `update`
+writes; making scans exclude each other there would serialise unrelated work.
+
+`flock` rather than a PID file: the kernel releases it when the process dies, so a
+crashed or interrupted run leaves nothing to reap. Locks are taken in a fixed order —
+**Workspace**, then cache — so two scans cannot deadlock.
+
+**Interruption is a third outcome** (F1.11), not a failure. `docker run` propagates no
+useful signal and the daemon owns the container lifecycle, so every container is
+named and killed explicitly. No **Results Folder** is written, because "a Scanner
+produced no report" is already a failure path (§7) and a cancelled scan must not be
+mistaken for one.
+
+Taking the **Workspace** lock creates the **Results Folder** before a scan has
+produced anything, so it writes its own `.gitignore` at that moment (F7.18) —
+ADR-0011 is a guarantee about the folder, not about a successful run.
+
+## 6c. Distribution (F10.7)
+
+The image is published for `linux/amd64` and `linux/arm64` as one index, and the
+signature covers the index rather than a child manifest — signing one architecture
+would leave the other unsigned, which is the same defect as signing a mutable tag.
+
+CI tests the **published** artifact, not a local build. Both workflows built locally
+and neither pulled what was published, which is why `0.1.0rc1` shipped `arm64`-only
+and no test could see it.
+
+
 ## 7. Error handling
 
 | Condition | Behaviour | Req |

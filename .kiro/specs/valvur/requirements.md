@@ -52,6 +52,17 @@ entirely on my machine, so that my source code never reaches a third party.
 10. F1.10 — WHEN a **Scan Run** targets AWS, valvur SHALL use the identical image
     with no AWS-specific code path.
 
+11. F1.11 — WHEN a **Scan Run** is interrupted, valvur SHALL stop the **Scanner**
+    containers it started, SHALL write no **Results Folder**, and SHALL NOT report the
+    run as failed. *Added 2026-09-05 (task 16.2). Interruption is a third outcome:
+    "a Scanner produced no report" is a failure path, and a cancelled scan must not
+    be mistaken for one. Measured: `docker run` propagates no useful signal, so
+    containers must be named and killed explicitly.*
+12. F1.12 — valvur SHALL permit only one **Scan Run** per **Workspace** at a time, and
+    SHALL refuse a second with a message naming the cause. *Added 2026-09-05 (task
+    16.3). Concurrent scans do not corrupt the artifacts — measured — but both read
+    the same `state.json` and the last to finish wins, so the next run's **Status**
+    diff is computed against a view that never happened.*
 ## F2 — Scanner orchestration
 
 **User Story:** As a developer, I want one command to run every relevant scanner, so
@@ -180,6 +191,11 @@ genuinely the most urgent thing, so that I fix what attackers actually exploit.
     explicit about the lesser leak, silence about the greater one would be worse than
     never having claimed it.*
 
+11. F6.11 — valvur SHALL determine the age of the vulnerability database from the data
+    it contains, not from the file's modification time, and SHALL report that age in
+    the **Results Folder**. *Added 2026-09-05 (task 14.1). An air-gapped mirror (F10.5)
+    can serve a six-month-old database today; mtime would read as fresh, so the users
+    who most need the warning were guaranteed not to get it.*
 ## F7 — Results contract
 
 **User Story:** As an AI coding agent, I want results in a bounded, self-describing
@@ -222,6 +238,20 @@ form, so that I can act on them without exhausting my context window.
     and has no effect in HTML, where a payload can execute, or hide itself from the
     reader with styling while remaining present in the file.*
 
+16. F7.16 — valvur SHALL report a **Status** of `findings`, `clean` or `inconclusive`,
+    and SHALL NOT report `clean` when no **Finding** was made against a vulnerability
+    database older than the threshold in `design.md`. *Added 2026-09-05 (tasks 14.1,
+    14.2). Presence of **Findings** needs no fresh data to mean something; absence
+    does. Prose alone was insufficient: agents are instructed to read `SUMMARY.md`
+    bounded and query `findings.json`, so the verdict itself must carry the claim.*
+17. F7.17 — `run.json` SHALL record the vulnerability database's age, whether it is
+    stale, and the threshold applied. *Added 2026-09-05. N3.1 requires a **Clean
+    Scan** to be distinguishable from a failed one; it must also be distinguishable
+    from one whose data was too old to know.*
+18. F7.18 — The **Results Folder** SHALL be self-ignoring from the moment it is
+    created, not from the completion of a **Scan Run**. *Added 2026-09-05 (task 16.3).
+    F7.2 was satisfied only at the end of a run; interruption (F1.11) is routine, and
+    would otherwise leave a folder git can see.*
 ## F8 — Suppressions
 
 **User Story:** As a team lead, I want accepted risks recorded and shared, so that
@@ -311,6 +341,17 @@ of fixes, so that nothing changes my code without my decision.
 
 ---
 
+7. F10.7 — valvur SHALL publish the image for `linux/amd64` and `linux/arm64`, and
+   SHALL verify the published artifact rather than a locally built one. *Added
+   2026-09-05 (task 13.1). `0.1.0rc1` was published `arm64` only, unusable for most
+   CI, most Linux desktops and every Intel Mac. Both workflows built locally and
+   neither pulled what was published, so no test could see it.*
+8. F10.8 — valvur SHALL provide a means of refreshing the vulnerability database that
+   is a no-op when it is current, and SHALL NOT refresh it as a side effect of a
+   **Scan Run**. *Added 2026-09-05 (task 14.2). The check costs one file read, so it is
+   safe in a hook or a cron entry. Refreshing during a scan would start a 116MB
+   download the developer did not ask for, and would make the `offline` and `full`
+   **Profiles** scan different data.*
 ## Non-functional requirements
 
 ### P — Positioning commitments
@@ -347,6 +388,11 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 5. N2.5 — valvur SHALL pass its own `full` **Profile** with no unsuppressed
    **Findings** as a release gate.
 
+6. N2.6 — valvur SHALL serialise writes to the vulnerability database cache against
+   readers of it. *Added 2026-09-05 (task 16.3). Trivy takes no lock of its own —
+   measured — and `trivy.db` is a 1.35GB file rewritten under live readers. Task 14.2
+   put `--if-stale` into pre-commit hooks, which made the overlap likely rather than
+   theoretical.*
 ### N3 — Operability
 1. N3.1 — Every **Scan Run** SHALL produce **Provenance** sufficient to distinguish a
    **Clean Scan** from a failed one.

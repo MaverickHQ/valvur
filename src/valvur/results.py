@@ -80,8 +80,8 @@ def _provenance(run) -> str:
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
                 # registries by the dependency-reality check on standard and deep.
-                # The vulnerability database, distinct from the enrichment data
-                # below. This one determines whether findings exist at all, so a
+                # F7.17. The vulnerability database, distinct from the enrichment
+                # data below. This one determines whether findings exist at all, so a
                 # clean result cannot be judged without it.
                 "database": {
                     "age_days": _round_or_none(getattr(run, "db_age_days", None)),

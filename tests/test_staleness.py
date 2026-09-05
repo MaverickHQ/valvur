@@ -1,5 +1,8 @@
 """Phase 14 — a clean result from a stale database is not a clean result.
 
+F6.11 (age from the data), F7.16 (the third status), F7.17 (recorded in run.json),
+F10.8 (refreshing is explicit and cheap).
+
 This was the last live instance of the defect that has shaped this project. valvur
 already warned when *exploit intelligence* was over 30 days old — the data that
 decides how findings RANK — and said nothing about the vulnerability database, which

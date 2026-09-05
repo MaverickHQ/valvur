@@ -35,7 +35,7 @@ def db_present() -> bool:
 
 
 def db_age_days() -> float | None:
-    """How old the DATA is, not how long ago it was downloaded.
+    """How old the DATA is, not how long ago it was downloaded (F6.11).
 
     Those differ, and the difference matters most to the users who need it most.
     An air-gapped mirror (F10.5) can hand over a six-month-old database this

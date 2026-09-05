@@ -1,4 +1,4 @@
-"""Task 16.3 — one writer per Results Folder, one writer per database cache.
+"""F1.12 and N2.6 — one writer per Results Folder, one writer per database cache.
 
 Two resources with different shapes, so two policies.
 
