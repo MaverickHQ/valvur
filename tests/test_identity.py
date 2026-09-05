@@ -17,6 +17,9 @@ def test_a_finding_keeps_its_fingerprint_across_identical_scans(
 
 
 def test_a_finding_keeps_its_fingerprint_when_unrelated_lines_above_it_move(workspace):
+    """F5.3 — identity comes from the Finding Class's natural key, never a line
+    number. Line-based identity would make the rescan diff useless: every edit above
+    a Finding would report it as fixed and reintroduced."""
     """The behaviour ADR-0003 exists for.
 
     Without this, fixing the first finding makes every finding below it look new,

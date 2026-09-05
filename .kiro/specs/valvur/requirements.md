@@ -44,6 +44,23 @@ entirely on my machine, so that my source code never reaches a third party.
    `podman`, `nerdctl`, and SHALL allow override by environment variable.
 6. F1.6 — WHERE SELinux labelling is required by the host, valvur SHALL apply the
    appropriate mount label.
+
+   > ⚠️ **UNIMPLEMENTED, found 2026-09-05 (task 17.1).** There is no `:z` or `:Z`
+   > anywhere in the codebase — this requirement has never been met, and it sits in
+   > the not-cuttable set.
+   >
+   > **Not reproducible as a defect in the only enforcing environment reachable from
+   > this machine.** Podman's Fedora VM reports `Enforcing`, and a full scan through
+   > it succeeded with 74 findings and no failures — identical to Docker — with no
+   > label applied. Host directories reach that VM through virtiofs, which is
+   > probably why.
+   >
+   > **A native RHEL or Fedora host with a workspace under `$HOME` is untested, and
+   > it is the target market** (§5: regulated industries, where Podman on RHEL is the
+   > default). Could not reproduce is not the same as does not happen. Either
+   > implement the label, or measure it on a real host and cut the requirement with
+   > that evidence — leaving it unmet and unmentioned is the one option that is not
+   > honest.
 7. F1.7 — valvur SHALL require no account, API key, token or credential to perform
    any **Scan Run**.
 8. F1.8 — valvur SHALL emit no telemetry under any **Profile**.
