@@ -19,8 +19,13 @@ project being scanned.
 Delivered primarily as an **MCP tool** the developer adds to their agent (Kiro,
 Claude Code) and invokes deliberately; the CLI is the second way in. The MCP server
 is hand-rolled over stdio with **zero dependencies** (ADR-0015).
-Packaged as one OCI container. Runs on Docker or Podman, locally by default,
-optionally on AWS (ECR/Fargate) using the identical image.
+Packaged as one OCI container. Runs on Docker or Podman, locally by default.
+
+> **Corrected 2026-09-05 (task 12a.4).** This previously read "optionally on AWS
+> (ECR/Fargate) using the identical image". The image pushes to any registry, ECR
+> included, and has no cloud-specific code paths — but ADR-0001's shim *launches*
+> containers, and Fargate exposes no Docker socket and no privileged mode. It has
+> never been run there. The intent is recorded, the claim is not.
 
 **Status:** spec phase. No application code yet.
 

@@ -124,7 +124,7 @@ known-bad.
 
 Every run records this in `run.json`, and `valvur scan --offline` disables it. We
 criticise competitors for being vague about exactly this, so: package names, to PyPI,
-on standard and deep, and nothing else, ever.
+on `full`, and nothing else, ever.
 
 ### 3. Ten things that matter, not four hundred findings
 
@@ -171,14 +171,13 @@ surface — and every tool it exposes is read-only: valvur can never change your
 ```bash
 pip install valvur          # or: uv tool install valvur
 
-# Scan the current project (default profile)
+# Scan the current project. The default profile is `offline`: no network
+# interface inside any container, and nothing sent from the host either.
 valvur scan
 
-# Fast, fully offline pre-commit check (~60s, no network interface at all)
-valvur scan --profile offline
-
-# Everything, including container images and deep licence analysis
-valvur scan --profile deep
+# Add the second advisory source and the slopsquat check. Both send dependency
+# package NAMES — never source — to public registries.
+valvur scan --profile full
 ```
 
 Results land in `.security-scan/`. Read `SUMMARY.md` — it renders in your IDE, on
@@ -219,7 +218,7 @@ valvur never excludes anything by default, and it always tells you what an exclu
 cost: the number of findings dropped and the paths that dropped them appear in
 `SUMMARY.md` and `run.json`.
 
-## For AI coding agents
+## For an agent reading the results
 
 If you are an AI agent working in a repository that contains `.security-scan/`:
 
@@ -255,12 +254,12 @@ under claim 2 above). Full credit to:
 
 | Tool | Licence | Does |
 |---|---|---|
-| [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Dependencies, IaC, container images, SBOM, licences |
+| [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Dependency vulnerabilities |
 | [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets, including git history |
 | [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Dependencies against OSV.dev |
 | [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis, many languages |
 | [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Deep IaC policy |
-| [Syft](https://github.com/anchore/syft) | Apache-2.0 | SBOM generation |
+| [Syft](https://github.com/anchore/syft) | Apache-2.0 | SBOM generation, and the dependency licences read from it |
 
 Exploit intelligence comes from **CISA KEV** and **FIRST EPSS** — public primary
 sources, auditable and mirrorable. No proprietary vulnerability database, so
@@ -300,11 +299,19 @@ valvur scan            # scans offline against the cached copy
 The database deliberately lives **outside** the image, so mirroring needs no special
 build — and a six-month-old image never implies six-month-old vulnerability data.
 
-## Running on AWS
+## Running elsewhere
 
-The same image runs on ECS/Fargate via ECR — identical artifact, no
-AWS-specific code paths, no behavioural difference. Local is the default and
-always will be.
+The image is a plain OCI artifact with **no cloud-specific code paths**, so it pushes
+to any registry — ECR included — and runs wherever a container runs.
+
+Orchestration is the part to think about. valvur is a thin host shim that *launches*
+scanner containers ([ADR-0001](docs/adr/0001-thin-host-shim-read-only-container.md)),
+so wherever you run it needs to give the shim a container runtime to talk to. A build
+agent, a VM or ECS on EC2 can do that. **Serverless container platforms generally
+cannot** — AWS Fargate exposes no Docker socket and no privileged mode — and we have
+not run valvur there, so we do not claim it works.
+
+Local is the default and always will be.
 
 ## Contributing, and reporting problems
 
@@ -328,5 +335,12 @@ Apache-2.0. See [LICENSE](LICENSE).
 Apache-2.0 rather than MIT for the explicit patent grant — this is a security
 tool, and a contributor's patents should not become a downstream user's problem.
 
-Bundled scanners retain their own licences, listed above. No GPL-licensed tools
-are included in the distributed image.
+Bundled scanners retain their own licences, listed above.
+
+**valvur adds no GPL- or AGPL-licensed component of its own.** The base image is
+Alpine Linux, whose userland carries GPL components — busybox, apk-tools, musl-utils
+and others — as every Linux container does; the published SBOM discloses all of them,
+and CI fails the build if a GPL component appears in what *we* add
+([ADR-0005](docs/adr/0005-no-gpl-tools-in-the-image.md), F10.4). Opengrep is LGPL-2.1
+and ships as an unmodified binary invoked as a subprocess, which is aggregation
+rather than a derivative work ([ADR-0004](docs/adr/0004-opengrep-not-semgrep.md)).

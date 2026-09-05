@@ -1643,11 +1643,40 @@ or cannot check the claims we make about it, is not testing the product.
   `quick` had five Scanners and no Checkov, before ADR-0016. Correct the figure, or
   change the product first (12a.3) and then correct it.
 
-  > **PARTIALLY DONE 2026-09-05.** 12a.3 changed the product, so the table was
-  > corrected against it: `~7s` for application code, `~17s` with infrastructure,
-  > with the measurement basis stated. **The rest of this task stands** — the Profile
-  > names throughout, the verification instructions rewritten in 11.0, and the
-  > Scanner licence credits (P4) are all still unverified.
+  > **DONE 2026-09-05.** Two passes. The timing table was corrected against 12a.3
+  > (`~7s` application code, `~17s` with infrastructure, basis stated). The sweep
+  > then found five more claims that were wrong rather than merely stale, every one
+  > checked against the code or the image rather than read:
+  >
+  > | claim | reality |
+  > |---|---|
+  > | Trivy credited for "Dependencies, IaC, container images, SBOM, licences" | we invoke `trivy fs --scanners vuln` — **dependencies only** |
+  > | `valvur scan --profile deep`, "including container images" | `deep` is retired, and valvur **never scans container images** |
+  > | "Fast, fully offline pre-commit check (~60s)" | ~7s, and `offline` is now the default rather than an option |
+  > | "on standard and deep" | retired names |
+  > | "No GPL-licensed tools are included in the distributed image" | contradicted by ADR-0005's own correction *and* by the Opengrep LGPL-2.1 row two lines above |
+  >
+  > **And one claim that traced to nothing at all.** *"The same image runs on
+  > ECS/Fargate via ECR — identical artifact, no AWS-specific code paths, no
+  > behavioural difference."* It appears in no requirement, nothing in
+  > POSITIONING.md backs it (its only AWS mentions are about the competitor), there
+  > is no AWS code anywhere, and it has never been run. It is also architecturally
+  > doubtful: ADR-0001's shim *launches* containers, and Fargate exposes no Docker
+  > socket and no privileged mode. Rewritten to what is defensible — the image is a
+  > plain OCI artifact that pushes anywhere, and orchestration needs a runtime the
+  > shim can reach. `CLAUDE.md` §1 carried the same claim and now records the
+  > correction rather than the claim.
+  >
+  > **Verified rather than assumed:** all six Scanner licences against their
+  > repositories (P4 — all correct); every Scanner present in the image at the
+  > credited version; F10.4 by running `scripts/check_image_licences.py` against the
+  > published image (passes — valvur adds no GPL component); every README link
+  > resolves; `VALVUR_DB_REPOSITORY` is the real variable name; the comparison table
+  > traces to POSITIONING.md lines 57–79; and the advertised MCP entry point starts,
+  > reports `valvur 0.1.0rc1` and exposes its four read-only tools.
+  >
+  > Also fixed: two sections shared the heading *"For AI coding agents"*, one about
+  > installing and one about reading output.
 
   Also re-check: the Profile names throughout (ADR-0016 renamed them), the
   verification instructions (rewritten in 11.0, and platform-split), and that every
