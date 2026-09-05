@@ -2545,8 +2545,20 @@ every command the documentation names exists.
   > problem and a latent risk for a *removed* field, not a live defect. Conflating
   > them would inflate a real finding with a speculative one.
 
-- [ ] **17.4** **Say when `fp_version` changes.** *(Rewritten — the original premise
-  was false.)*
+- [x] **17.4** **Say when `fp_version` changes.** ✅ **DONE 2026-09-05.**
+
+  > `state.load()` already discarded history correctly; it now records *why*, and
+  > `SUMMARY.md` and `run.json` say so. The wording matters: **"this is not a
+  > regression — nothing got worse"**, plus a warning that committed suppressions
+  > keyed on the old identities have stopped matching too, which is the part a
+  > developer would otherwise discover much later.
+  >
+  > **My first test for it was vacuous and the mutation caught it.** It constructed
+  > `ScanRun(identity_reset=…)` directly, so it exercised the reporting and not the
+  > detection — removing the detection entirely left all 15 tests green. The test now
+  > goes through `state.load()`, and the same mutation fails it. Exactly the trap
+  > CONTRIBUTING warns about, walked into while implementing the phase about
+  > traceability.
 
   `state.py` already reads it and starts clean when it moves, which is correct. It
   does so **silently**: every finding reappears as `new`, every previous `fixed`

@@ -51,6 +51,8 @@ def _provenance(run) -> str:
             {
                 "schema": 1,
                 "fp_version": FP_VERSION,
+                # F5.3 / task 17.4: history was discarded because identity changed.
+                "identity_reset": list(getattr(run, "identity_reset", None) or ()) or None,
                 "status": run.status,
                 # Which profile ran, and what it therefore did not look at. Without
                 # this, run.json cannot tell you a class was out of scope.
@@ -216,6 +218,18 @@ def _summary(run) -> str:
             "and agent config. It does not cover "
             f"{_profiles.gaps_in_prose(run.profile)}.",
             "> Run `valvur scan --profile standard` for full coverage.",
+            "",
+        ]
+
+    reset = getattr(run, "identity_reset", None)
+    if reset:
+        old, new = reset
+        lines += [
+            f"> ⚠ **Finding identity changed (`fp_version` {old} → {new}), so history "
+            "was discarded.**",
+            "> Everything below is reported as `new` and previous fixes are not shown. "
+            "This is not a regression — nothing got worse. Committed suppressions "
+            "keyed on the old identities will also have stopped matching.",
             "",
         ]
 

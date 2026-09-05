@@ -143,3 +143,82 @@ def test_bumping_a_vulnerable_dependency_changes_its_identity():
     upgraded = for_dependency_vuln("npm", "lodash", "4.17.21", "CVE-2021-23337")
 
     assert vulnerable != upgraded
+
+
+# ------------------------------------------- fp_version is a compatibility surface
+
+def test_a_fingerprint_version_change_discards_history(tmp_path):
+    """F5.3 — the behaviour was always correct. Comparing identities derived by
+    different algorithms would report every Finding as both fixed and new."""
+    import json
+
+    from valvur import state
+    from valvur.fingerprint import FP_VERSION
+
+    results = tmp_path / ".security-scan"
+    results.mkdir()
+    (results / "state.json").write_text(json.dumps({
+        "schema": 1, "fp_version": FP_VERSION + 1,
+        "present": {"a" * 32: "old finding"}, "fixed": ["b" * 32],
+    }))
+
+    present, fixed = state.load(results)
+
+    assert present == {} and fixed == set()
+    # And the discard is *detected*, not just performed. Asserting only that history
+    # is empty would pass just as well if nothing noticed why — which is how the
+    # first version of this test managed to survive removing the detection entirely.
+    assert state.take_reset() == (FP_VERSION + 1, FP_VERSION)
+
+
+def test_an_unchanged_fingerprint_version_reports_no_reset(tmp_path):
+    """The pair. `take_reset()` must be empty on every ordinary scan, or the notice
+    fires constantly and stops meaning anything."""
+    import json
+
+    from valvur import state
+    from valvur.fingerprint import FP_VERSION
+
+    results = tmp_path / ".security-scan"
+    results.mkdir()
+    (results / "state.json").write_text(json.dumps({
+        "schema": 1, "fp_version": FP_VERSION, "present": {}, "fixed": [],
+    }))
+
+    state.load(results)
+
+    assert state.take_reset() is None
+
+
+def test_a_fingerprint_version_change_says_so(tmp_path):
+    """Task 17.4 — discarding was correct; discarding *silently* was not.
+
+    Every Finding reappears as `new`, every previous `fixed` vanishes, and committed
+    suppressions stop matching. A developer sees what looks like a catastrophic
+    regression, with nothing anywhere to say an identity algorithm changed underneath
+    them. Same class as everything Phase 14 removed: a confident output whose meaning
+    quietly changed.
+    """
+    import json
+
+    from valvur.api import ScanRun
+    from valvur.results import _summary
+
+    text = _summary(ScanRun(findings=[], identity_reset=(1, 2)))
+
+    assert "Finding identity changed" in text
+    assert "not a regression" in text
+    assert "suppressions" in text
+
+    document = json.loads(__import__("valvur.results", fromlist=["_provenance"])
+                          ._provenance(ScanRun(findings=[], identity_reset=(1, 2))))
+    assert document["identity_reset"] == [1, 2]
+
+
+def test_an_ordinary_scan_says_nothing_about_identity(tmp_path):
+    """The pair. A notice on every scan is one nobody reads, and this one must mean
+    something on the rare occasion it appears."""
+    from valvur.api import ScanRun
+    from valvur.results import _summary
+
+    assert "Finding identity changed" not in _summary(ScanRun(findings=[]))

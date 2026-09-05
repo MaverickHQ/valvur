@@ -16,6 +16,19 @@ STATE_FILE = "state.json"
 SCHEMA = 1
 
 
+#: Set when history was discarded because the Fingerprint algorithm changed.
+#: Read once by the caller, which reports it (task 17.4). Discarding was always
+#: correct; doing it silently was not — every Finding reappears as `new`, every
+#: previous `fixed` vanishes, and committed Suppressions stop matching. A developer
+#: sees what looks like a catastrophic regression with nothing to say otherwise.
+_reset: list[tuple[object, int]] = []
+
+
+def take_reset() -> tuple[object, int] | None:
+    """The Fingerprint version change that discarded history, if there was one."""
+    return _reset.pop() if _reset else None
+
+
 def load(results_dir: Path) -> tuple[dict[str, str], set[str]]:
     """Return ({fingerprint: title} present last run, fingerprints ever fixed).
 
@@ -32,6 +45,7 @@ def load(results_dir: Path) -> tuple[dict[str, str], set[str]]:
     # A fingerprint algorithm change invalidates all history; start clean rather
     # than silently comparing incomparable identities.
     if data.get("fp_version") != FP_VERSION:
+        _reset.append((data.get("fp_version"), FP_VERSION))
         return {}, set()
     present = data.get("present", {})
     if isinstance(present, list):  # pre-3.4.4 state; titles unknown
