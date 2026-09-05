@@ -14,10 +14,10 @@ from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
 from ..versions import version_key as _version_key
-from .base import container_relative
+from .base import ScannerAdapter, container_relative
 
 
-class OsvAdapter:
+class OsvAdapter(ScannerAdapter):
     kind = "scanner"
     name = "osv-scanner"
 

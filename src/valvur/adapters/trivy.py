@@ -13,10 +13,10 @@ from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
-from .base import container_relative
+from .base import ScannerAdapter, container_relative
 
 
-class TrivyAdapter:
+class TrivyAdapter(ScannerAdapter):
     kind = "scanner"
     name = "trivy"
 

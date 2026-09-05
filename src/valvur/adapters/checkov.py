@@ -8,10 +8,10 @@ from pathlib import Path
 from .. import fingerprint as _fp
 from ..findings import Finding
 from ..runner import ScannerOutput
-from .base import container_relative
+from .base import ScannerAdapter, container_relative
 
 
-class CheckovAdapter:
+class CheckovAdapter(ScannerAdapter):
     kind = "scanner"
     name = "checkov"
 

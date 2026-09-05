@@ -80,13 +80,18 @@ class ScanRun:
 
 def _run_one(adapter, runner, workspace) -> tuple:
     """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
-    applies = getattr(adapter, "applies_to", None)
-    if applies is not None:
-        should_run, why = applies(workspace)
-        if not should_run:
-            # Not a failure: the Scan Run stays complete. Recorded so the reader can
-            # tell "had nothing to look at" from "looked and found nothing".
-            return ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, ""
+    # Part of the ScannerAdapter protocol (task 17.3) rather than a `getattr` the
+    # orchestrator hopes for. Every adapter inherits a default, so the call is
+    # unconditional and an adapter that forgets the method is impossible.
+    #
+    # It does NOT make a MISSPELLED override a type error — mypy sees an extra
+    # method and an inherited default, and is content. `test_applicability.py`
+    # catches that; the type checker will not. Worth knowing rather than assuming.
+    should_run, why = adapter.applies_to(workspace)
+    if not should_run:
+        # Not a failure: the Scan Run stays complete. Recorded so the reader can tell
+        # "had nothing to look at" from "looked and found nothing".
+        return ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, ""
 
     try:
         output = adapter.run(runner, workspace)
@@ -108,6 +113,8 @@ def _run_one(adapter, runner, workspace) -> tuple:
         )
 
     # An adapter may produce an artifact (an SBOM) instead of, or as well as, Findings.
+    # Not on the protocol: see the note in adapters/base.py — a Protocol class
+    # attribute's default is not inherited, only a method body is.
     artifact = getattr(adapter, "artifact", None)
     produced = (artifact, output.stdout) if artifact and output.stdout.strip() else None
     return (

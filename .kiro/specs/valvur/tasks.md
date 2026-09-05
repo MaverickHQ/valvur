@@ -2520,10 +2520,25 @@ every command the documentation names exists.
   and every user-visible behaviour cites an ID, say). **31** IDs are uncited today;
   the check should start from that baseline rather than fail the build on day one.
 
-- [ ] **17.3** **Promote `applies_to` to the `ScannerAdapter` protocol.** Introduced
-  for Checkov in 12a.3 via `getattr`, so it is a load-bearing seam that can silently
-  stop being called — the exact shape of the defects Phase 11 exists to catch, in the
-  mechanism added to prevent one.
+- [x] **17.3** **Promote `applies_to` to the `ScannerAdapter` protocol.**
+  ✅ **DONE 2026-09-05.**
+
+  > On the protocol with a default, and every adapter — including the four test stubs
+  > — now implements `ScannerAdapter` explicitly rather than structurally. The
+  > orchestrator calls it unconditionally, so an adapter cannot forget to be asked.
+  >
+  > **It does not do what I claimed, and the comment saying so is corrected.** I wrote
+  > that a misspelled override would become "a type error". It does not: mypy sees an
+  > extra method plus an inherited default and is content. Verified by misspelling it
+  > — **mypy passes, the test fails.** The protocol removes one failure mode, not
+  > both, and the code now says which.
+  >
+  > **`artifact` was promoted too, and reverted.** Same seam by appearance, different
+  > by mechanism: a Protocol's *method body* is inherited by an explicit subclass, an
+  > annotated class attribute's *default* is not — so every adapter without one raised
+  > `AttributeError` and 96 tests failed. It stays a `getattr`, with a note in
+  > `base.py` explaining why the two hooks are treated differently. Symmetry was the
+  > wrong instinct.
 
   > Note, but do **not** fold in, the defensive `getattr` over `ScanRun` in
   > `results.py`. Tested 2026-09-05: renaming a field fails 29 tests, so it is a style

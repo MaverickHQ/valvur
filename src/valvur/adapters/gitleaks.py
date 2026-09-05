@@ -9,10 +9,10 @@ from .. import fingerprint as _fp
 from .. import redact as _redact
 from ..findings import Finding
 from ..runner import ScannerOutput
-from .base import container_relative
+from .base import ScannerAdapter, container_relative
 
 
-class GitleaksAdapter:
+class GitleaksAdapter(ScannerAdapter):
     kind = "scanner"
     name = "gitleaks"
 

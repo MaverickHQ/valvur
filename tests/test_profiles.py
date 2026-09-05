@@ -4,9 +4,10 @@ import time
 
 from valvur import scan
 from valvur.adapters import GitleaksAdapter
+from valvur.adapters.base import ScannerAdapter
 
 
-class SlowAdapter:
+class SlowAdapter(ScannerAdapter):
     """A Scanner that takes its time, so serialisation is observable."""
 
     def __init__(self, name, seconds=0.3):
@@ -58,7 +59,7 @@ def test_one_scanner_timing_out_does_not_delay_or_fail_the_others(
     """F2.7 — the timeout is per-Scanner. A hung Trivy must not hold up Gitleaks."""
     import subprocess
 
-    class TimingOut:
+    class TimingOut(ScannerAdapter):
         name = "hangs"
 
         def run(self, runner, ws):
