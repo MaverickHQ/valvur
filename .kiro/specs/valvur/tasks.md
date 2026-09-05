@@ -2212,8 +2212,25 @@ declared, and the per-architecture selection still in place.
 > verdict never reached the MCP surface, which ADR-0015 makes the *primary*
 > interface.
 
-- [ ] **16.1** **The MCP surface must carry the `inconclusive` verdict.** *(F9.9,
-  ADR-0015 — new, and it outranks everything else here.)*
+- [x] **16.1** **The MCP surface must carry the `inconclusive` verdict.** *(F9.9,
+  ADR-0015.)* ✅ **DONE 2026-09-05.**
+
+  > `_staleness_note()` in `operations.py`, reaching all three surfaces an agent
+  > touches: the summary returned when a background scan finishes, `list_findings`,
+  > and `scan_status`. It gives the age, the consequence and the command — not just
+  > the label.
+  >
+  > **Two different claims, kept different.** Nothing found: *"that is NOT evidence
+  > there is nothing"*. Findings present: *"the list is incomplete"*. What was found
+  > is real however old the data; only absence needs current data to mean anything.
+  >
+  > `scan_status` also explains itself now. `inconclusive` beside `complete: True` and
+  > seven healthy Scanners reads as a contradiction; it is not one, and the line says
+  > so — every Scanner ran, and the data was too old for a nil result to be evidence.
+  >
+  > Mutation-tested: suppressing the note fails three tests. Paired with a
+  > fresh-database case on every tool, because a caveat on every response is one an
+  > agent learns to skip.
 
   Phase 14 taught valvur to say "we found nothing, and our data was too old for that
   to be evidence". It taught the CLI, `SUMMARY.md` and `run.json`. It did not teach

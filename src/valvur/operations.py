@@ -67,6 +67,10 @@ def _run_scan(workspace: Path, profile: str, progress) -> str:
         lines.append("Findings are partial; do not treat this as a clean result.")
     if run.fixed:
         lines.append(f"Fixed since the last scan: {len(run.fixed)}")
+    # The first thing an agent reads after `start_scan` completes. Saying
+    # "inconclusive: 0 finding(s)" without the reason invites it to treat the number
+    # as the answer.
+    lines += _staleness_note(str(workspace), found_nothing=not run.findings)
     return "\n".join(lines)
 
 
@@ -96,6 +100,55 @@ def start_scan(args: dict) -> str:
     )
 
 
+def _provenance(workspace: str | None) -> dict:
+    path = _results(workspace) / "run.json"
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _staleness_note(workspace: str | None, *, found_nothing: bool) -> list[str]:
+    """What an agent must be told when the database was too old to be evidence.
+
+    Phase 14 taught the CLI, `SUMMARY.md` and `run.json` to say this. It did not
+    teach the MCP surface — the one that reaches an agent's context with no file in
+    between, and the one ADR-0015 makes primary. Measured 2026-09-05 on a 60-day-old
+    database: `list_findings` said "No findings match" and pointed at `scan_status`
+    for *incompleteness*, which was the wrong reason, because the scan had completed.
+
+    An agent that reads "no findings" stops looking. Unlike a human it will not
+    glance at `SUMMARY.md` for a caveat nobody told it to expect.
+    """
+    database = _provenance(workspace).get("database") or {}
+    if not database.get("stale"):
+        return []
+
+    age = database.get("age_days")
+    age_text = f"{age:.0f} days old" if isinstance(age, (int, float)) else "out of date"
+    note = [
+        "",
+        f"WARNING: the vulnerability database is {age_text}.",
+    ]
+    if found_nothing:
+        note += [
+            "This scan found nothing, and that is NOT evidence that there is nothing.",
+            "Absence of findings requires current data to mean anything; presence "
+            "does not.",
+        ]
+    else:
+        note += [
+            "The findings above are real, but the list is incomplete — advisories "
+            "published since are missing.",
+        ]
+    note += [
+        "Run `valvur update --if-stale` and scan again before relying on this result.",
+    ]
+    return note
+
+
 def list_findings(args: dict) -> str:
     data = _load(args.get("workspace"))
     findings = data["findings"]
@@ -112,10 +165,12 @@ def list_findings(args: dict) -> str:
     shown, omitted = findings[:limit], max(0, len(findings) - limit)
 
     if not findings:
-        return (
+        lines = [
             "No findings match. The scan itself may still have been incomplete — "
             "check `scan_status`."
-        )
+        ]
+        lines += _staleness_note(args.get("workspace"), found_nothing=True)
+        return "\n".join(lines)
 
     lines = [f"{len(findings)} finding(s); showing {len(shown)}, worst first.", ""]
     lines += [_one_line(f) for f in shown]
@@ -126,6 +181,7 @@ def list_findings(args: dict) -> str:
             f"{omitted} more not shown. Raise `limit` (max {MAX_LIMIT}) or filter "
             "by `status`.",
         ]
+    lines += _staleness_note(args.get("workspace"), found_nothing=False)
     return "\n".join(lines)
 
 
@@ -213,9 +269,17 @@ def scan_status(args: dict) -> str:
         f"status:   {data.get('status')}",
         f"complete: {data.get('complete')}",
         f"findings: {data.get('findings')}",
-        "",
-        "Scanners:",
     ]
+    # `inconclusive` beside `complete: True` and a list of healthy Scanners reads as
+    # a contradiction unless the reason is given. It is not a contradiction: every
+    # Scanner ran, and the data they ran against was too old for "nothing" to mean
+    # anything.
+    if data.get("status") == "inconclusive":
+        lines.append(
+            "          ^ every Scanner ran; the data they ran against was too old "
+            "for a nil result to be evidence"
+        )
+    lines += ["", "Scanners:"]
     for scanner in data.get("scanners", []):
         mark = "ok" if scanner["ok"] else f"FAILED — {scanner['reason'][:80]}"
         lines.append(f"  {scanner['tool']}: {mark}")
@@ -225,6 +289,9 @@ def scan_status(args: dict) -> str:
         lines = [f"DONE in {job.elapsed:.0f}s.", "", *lines]
     if not data.get("complete"):
         lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
+    lines += _staleness_note(
+        args.get("workspace"), found_nothing=not data.get("findings")
+    )
     return "\n".join(lines)
 
 
