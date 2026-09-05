@@ -95,7 +95,13 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # stderr, never stdout: stdout is the JSON-RPC channel, and a line of prose
+    # there corrupts the stream for every client.
+    from ..runner import unsupported_platform_warning
     from .tools import registry
+
+    if warning := unsupported_platform_warning():
+        print(warning, file=sys.stderr, flush=True)
 
     try:
         protocol.serve(build(registry()))

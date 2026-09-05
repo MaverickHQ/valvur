@@ -1914,21 +1914,63 @@ Phase 17  Traceability and seams  ← before claiming stability
    pass. It must fail today.
 2. The published manifest lists both `linux/amd64` and `linux/arm64`.
 
-- [ ] **13.1** Build multi-arch in `release.yml` — `docker buildx build --platform
-  linux/amd64,linux/arm64 --push`. Note this changes how the digest is obtained:
-  buildx pushes directly, so the digest comes from the imagetools output rather than
-  `docker inspect`, and **the signature must cover the multi-platform index** rather
-  than one child manifest.
-- [ ] **13.2** Add a CI job that pulls the published image on `ubuntu-latest` and runs
-  one real scan. It cannot run until 12a.1 makes the package public — until then it
-  should skip *loudly*, the way the runtime-parity tests do (11.7).
-- [ ] **13.3** **Decide Windows, and say so either way.** `runner.py` guards the
-  posix-only user-mapping with `os.name != "posix"`, so valvur may half-work there:
-  untested, undocumented, and unclaimed. A stated "not supported" is worth more than
-  silence, because silence reads as "should work".
+- [x] **13.1** Build multi-arch in `release.yml`. ✅ **DONE 2026-09-05.**
 
-**Exit:** a stranger on amd64 can install valvur and scan a repository. CI proves it
-against the published artifact rather than a local build.
+  > buildx with QEMU, both platforms in one index. The digest now comes from
+  > `--metadata-file` rather than `docker inspect` — buildx pushes directly, so there
+  > is no local image to inspect — and it is the **index** digest, because signing a
+  > child manifest would leave the other architecture unsigned: the same defect as
+  > signing a tag. A following step asserts the published index really carries both,
+  > because a `--platform` flag silently ignored, or a builder falling back to the
+  > runner's own architecture, both produce a successful-looking push.
+  >
+  > **The Dockerfile was never the problem, and now that is measured rather than
+  > assumed.** Built `linux/amd64` locally under emulation and ran a real scan
+  > through it: **74 findings, `complete: True`, no scanner failures**, every scanner
+  > contributing. The Opengrep binary's ELF machine type is `0x3e` — x86-64 — so
+  > `TARGETARCH` had been selecting correctly all along.
+  >
+  > Two scanners appeared to fail first, and did not. `opengrep` and `checkov` both
+  > died on `/tmp` permissions because a bare `docker run` lacks the tmpfs the runner
+  > mounts (Opengrep needs `exec`, Checkov a writable cache as non-root). Diagnosed
+  > rather than reported: an emulation artifact and a real defect look identical
+  > until you read the error.
+- [x] **13.2** A CI job and a test, both pointed at the **published** artifact.
+  ✅ **DONE 2026-09-05.**
+
+  > New `published` job in `ci.yml`, plus `tests/test_portability.py`. Both check
+  > whether an anonymous client can obtain a pull token and, while the package is
+  > private, **skip loudly with the reason** — the job emits a `::warning::` saying
+  > the published artifact is unverified on amd64. A skip that reads as a pass is how
+  > this shipped in the first place.
+  >
+  > **Verified it catches the real defect**: forcing the public check to pass makes
+  > the test fail against today's published image with
+  > *"missing ['linux/amd64', 'linux/arm64'] — it advertises a single platform with
+  > no manifest list"*. So the moment 12a.1 lands, this fails until 13.1's build has
+  > run, which is exactly the ordering the phase needs.
+- [x] **13.3** **Decide Windows, and say so either way.** ✅ **DECIDED 2026-09-05:
+  WSL2 supported, native Windows not claimed.**
+
+  > Not blocked, and not claimed. A hard refusal would be wrong — it may genuinely
+  > work and nobody has checked — and silence would be worse, because silence reads
+  > as "supported". `unsupported_platform_warning()` says which it is at startup and
+  > points at WSL2, where valvur is running on Linux and is tested on every commit.
+  >
+  > **In MCP mode the warning goes to stderr, never stdout**, because stdout is the
+  > JSON-RPC channel and a line of prose there corrupts the stream for every client.
+  > A test asserts the server writes nothing to stdout.
+  >
+  > The README now carries a platform table. It says `linux/amd64` and `linux/arm64`
+  > are both published **from 0.2.0** — `0.1.0rc1` is arm64 only, and writing "both
+  > published" today would have been the same class of untrue claim 12a.4 spent a
+  > morning removing.
+
+**Exit:** ✅ **Reached, pending publication.** The build produces both architectures
+and CI is pointed at the published artifact rather than a local build. The remaining
+step is not code: `0.2.0` must actually be published (12a.1 + 12a.7) before the
+`published` job stops skipping. Until then it warns on every run that the artifact is
+unverified — which is true, and is the point.
 
 **Commit:** `build: publish a multi-arch image, and test the published one`
 

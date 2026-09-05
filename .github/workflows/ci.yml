@@ -82,6 +82,71 @@ jobs:
       - name: valvur adds no GPL component (F10.4)
         run: uv run python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
 
+  published:
+    name: the published image, on amd64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Can an anonymous client even pull it?
+        id: reachable
+        # While the package is private (task 12a.1) this job cannot test anything.
+        # It skips LOUDLY rather than passing: a skip that reads as a pass is exactly
+        # how a single-arch image shipped unnoticed for a week.
+        run: |
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io")
+          if [ "$CODE" != "200" ]; then
+            echo "::warning::ghcr.io/maverickhq/valvur is not publicly pullable (HTTP $CODE, task 12a.1). The published artifact is UNVERIFIED on amd64."
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: The published index must carry amd64
+        if: steps.reachable.outputs.reachable == 'true'
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          docker manifest inspect "ghcr.io/maverickhq/valvur:$VERSION" > manifest.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open("manifest.json"))
+          got = {f"{m['platform']['os']}/{m['platform']['architecture']}"
+                 for m in d.get("manifests", [])
+                 if m.get("platform", {}).get("architecture") != "unknown"}
+          missing = {"linux/amd64", "linux/arm64"} - got
+          if missing:
+              print(f"::error::published image is missing {sorted(missing)}; it advertises {sorted(got) or 'a single platform'}")
+              sys.exit(1)
+          print(f"published platforms: {sorted(got)}")
+          PY
+
+      - name: Scan a real repository with the PUBLISHED image
+        # This runner is amd64. Every other job builds the image locally, which always
+        # matches the machine that made it — the reason nobody noticed the published
+        # one was arm64-only. This job is the only thing pointed at what users get.
+        if: steps.reachable.outputs.reachable == 'true'
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          uv venv --python 3.12
+          uv pip install -e ".[dev]"
+          export VALVUR_IMAGE="ghcr.io/maverickhq/valvur:$VERSION"
+          uv run valvur update
+          uv run valvur scan tests/fixtures/broken-repo --profile offline
+          uv run python - <<'PY'
+          import json, pathlib, sys
+          run = json.loads(pathlib.Path("tests/fixtures/broken-repo/.security-scan/run.json").read_text())
+          findings = json.loads(pathlib.Path("tests/fixtures/broken-repo/.security-scan/findings.json").read_text())["findings"]
+          if not run.get("complete"):
+              print("::error::the published image could not complete a scan on amd64")
+              sys.exit(1)
+          if len(findings) < 20:
+              print(f"::error::only {len(findings)} findings from the published image; the fixture yields far more")
+              sys.exit(1)
+          print(f"published image scanned cleanly on amd64: {len(findings)} findings")
+          PY
+
   selfscan:
     name: self-scan release gate (N2.5)
     runs-on: ubuntu-latest

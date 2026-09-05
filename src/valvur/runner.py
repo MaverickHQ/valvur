@@ -162,6 +162,34 @@ def _user_flags(runtime: str) -> list[str]:
     return ["--user", f"{uid}:{gid}"]
 
 
+def unsupported_platform_warning() -> str:
+    """What to say on a platform valvur has never been tested on.
+
+    Decided in task 13.3. Native Windows is **not claimed** — the user-mapping flags
+    are skipped there (`os.name != "posix"`), bind-mount path translation is
+    Docker Desktop's rather than ours, and no test has ever run on it. It may work.
+    That is not the same as supported, and the difference is the whole point of this
+    project.
+
+    A hard refusal would be wrong, because it might genuinely work and we do not
+    know. Silence would be worse, because silence reads as "supported". So: proceed,
+    and say plainly which it is. Under WSL2 valvur is running on Linux and this does
+    not fire.
+    """
+    import platform
+
+    if platform.system() != "Windows":
+        return ""
+    return (
+        "valvur has never been tested on native Windows and does not claim to "
+        "support it. It may work; nobody has checked, and results are unverified.\n"
+        "  Recommended: run valvur inside WSL2, where it is running on Linux and is "
+        "tested on every commit.\n"
+        "  If you do run it here and it works — or does not — please tell us: "
+        "https://github.com/MaverickHQ/valvur/issues"
+    )
+
+
 class ContainerRunner:
     """Invokes the scanner image. The Workspace is mounted read-only (ADR-0001)."""
 

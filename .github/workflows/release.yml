@@ -94,23 +94,48 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+      - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
-      - name: Push the image
+      - name: Push the image, for both architectures
         id: push
         env:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
-          docker build --build-arg VALVUR_VERSION="$VERSION" \
-            -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
-          docker push "$IMAGE:$VERSION"
-          docker push "$IMAGE:latest"
-          # The digest, not the tag. A tag can be moved to point at other code, which
-          # is the whole reason we pin actions to SHAs — signing one would carry the
-          # same defect into our own supply chain.
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$VERSION" | cut -d@ -f2)
+          # Both architectures, in one index. Published single-arch, valvur is
+          # unusable for every amd64 user — most CI, most Linux desktops, every
+          # cloud VM, every Intel Mac — and the Dockerfile already handles both.
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg VALVUR_VERSION="$VERSION" \
+            -t "$IMAGE:$VERSION" -t "$IMAGE:latest" \
+            --metadata-file metadata.json \
+            --push .
+          # buildx pushes directly, so there is no local image to inspect. The digest
+          # comes from the build metadata and is the digest of the multi-platform
+          # INDEX — signing a child manifest would leave the other architecture
+          # unsigned, which is the same defect as signing a tag.
+          DIGEST=$(python3 -c "import json;print(json.load(open('metadata.json'))['containerimage.digest'])")
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "pushed $IMAGE:$VERSION@$DIGEST"
+
+      - name: The index really does carry both architectures
+        # Asserted here rather than trusted, because this is the exact claim that was
+        # wrong before: a --platform flag silently ignored, or a builder falling back
+        # to the runner's own architecture, both produce a successful-looking push.
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          PLATFORMS=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --raw \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(sorted(f\"{m['platform']['os']}/{m['platform']['architecture']}\" for m in d.get('manifests', []) if m.get('platform',{}).get('architecture') != 'unknown')))")
+          echo "published platforms: $PLATFORMS"
+          for want in linux/amd64 linux/arm64; do
+            case " $PLATFORMS " in
+              *" $want "*) ;;
+              *) echo "::error::published index is missing $want"; exit 1 ;;
+            esac
+          done
 
       - name: Sign the image, keylessly
         # No key to store, rotate or leak. The signature is bound to this workflow's
