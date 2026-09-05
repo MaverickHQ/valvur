@@ -1878,10 +1878,11 @@ Phase 13  Portability          ✅ multi-arch build; published artifact under te
 Phase 14  Stale data           ✅ inconclusive verdict, --if-stale, DB age surfaced
 Phase 15  Our own supply chain ✅ digests pinned, Opengrep verified, 98MB smaller
      ↓
-Phase 16  Operations           ← here. The MCP surface still reports Phase 14's
-                                 verdict badly, and Ctrl-C does not stop the work
+Phase 16  Operations           ✅ MCP carries the verdict; Ctrl-C stops the scan;
+                                 one writer per workspace and per database
      ↓
-12a.1 + 12a.7   publish 0.2.0
+12a.1 + 12a.7   publish 0.2.0   ← here. Nothing in the code blocks it now;
+                                  the remaining steps are owner actions
      ↓
 Phase 10 usability gate  →  12b.1, 12b.2
      ↓
@@ -2387,31 +2388,103 @@ every command the documentation names exists.
 
 **Goal:** the claims the spec makes about itself are true. Before v1.0.0, not after.
 
-> **Measured 2026-09-05:** 40 of 127 requirement IDs are cited in neither source nor
-> tests. Most are implemented and merely untraceable, which defeats the point of
-> load-bearing IDs — but **`F9.4` is in the not-cuttable set and has no test at all**,
-> while the Traceability section states *"Each is a test that fails the build if
-> broken."* That sentence is currently false, and it is the sentence a reviewer would
-> check first.
+> **Reviewed and rewritten 2026-09-05, after Phases 13–16.** Two of the four original
+> premises were wrong, and the phase was auditing the only direction that had not
+> drifted.
+>
+> **The count was overstated: 31, not 40.** The original measurement looked at `src/`
+> and `tests/` only. Nine more — `F10.3`, `F7.8`, `F7.15`, `F6.7`, `N2.5`, `P1`, `P3`,
+> `P5`, `P6` — are cited in CI workflows, scripts or docs.
+>
+> **17.4 was simply wrong.** It claimed nothing reads `fp_version`.
+> [`state.py`](../../../src/valvur/state.py) reads it and discards all history when it
+> changes, deliberately and with a comment explaining why. The real gap is narrower
+> and different, and the task is rewritten rather than tightened.
+>
+> **17.3's wider suspicion did not survive testing.** `results.py` reads `ScanRun`
+> almost entirely through `getattr(run, …, default)`, which looked like it would make
+> a renamed field silent. It does not: renaming one fails **29 tests**. A latent
+> hazard and poor style for a dataclass in the same package, but not an active defect,
+> and not to be conflated with the real one.
+>
+> **And the phase was missing the hole that matters.** See 17.0.
+
+- [ ] **17.0** **Reconcile the spec with the code.** *(New, and it comes first.)*
+
+  **Measured 2026-09-05: five behaviours built in Phases 13–16 have no requirement ID
+  and no design description.**
+
+  | built | requirement | `design.md` |
+  |---|---|---|
+  | `inconclusive` status | — | 0 mentions |
+  | database staleness, `--if-stale` | — | — |
+  | multi-arch publication | — | — |
+  | interruption semantics | — | — |
+  | workspace and cache locking | — | 0 mentions |
+
+  No requirement mentions the status vocabulary **at all** — not even `clean`. The
+  results contract lives in [CLAUDE.md §7](../../../CLAUDE.md) and in the code, but
+  not in `requirements.md`.
+
+  17.2 proposes a check that every requirement appears in the code, which enforces
+  **requirement → code**. The direction actually drifting is **code → requirement**,
+  and it drifted faster than the audit would have fixed it: five unrequirement'd
+  behaviours were added across four phases while this task waited to fix citations of
+  the older ones. *"Spec-driven"* is currently untrue for the most recent quarter of
+  the work, and the phase as written would not have noticed.
+
+  > **This is a spec-writing task, and the easy way to do it badly is to invent
+  > requirements that match whatever the code happens to do.** Record what exists,
+  > and mark anything that would now be decided differently — the reconciliation is
+  > worth nothing if it only rubber-stamps.
+  >
+  > **Requirement IDs are load-bearing and must never be renumbered** (§9), so new
+  > ones append: a new group for behaviour that has none, and extensions to F7 for the
+  > results-contract changes. Where a decision already lives in an ADR, cite it rather
+  > than restating it.
 
 - [ ] **17.1** Audit the not-cuttable set — F1, N2.1, F5.3, F7.2, F9.2, F9.4 — and
   make each one a test that genuinely fails when broken. Mutation-test them, as
   Phase 11 did.
-- [ ] **17.2** A CI check that every requirement ID appears in source or tests, so the
-  next 40 cannot accumulate silently.
-- [ ] **17.3** **Promote `applies_to` to the `ScannerAdapter` protocol.** It was
-  introduced for Checkov in 12a.3 via `getattr`, so it is a load-bearing seam that can
-  silently stop being called — the exact shape of the defects Phase 11 exists to
-  catch, in the mechanism added to prevent one.
-- [ ] **17.4** **Make `fp_version` do something.** It is described as a compatibility
-  surface from the first commit, but nothing reads it: changing the algorithm silently
-  invalidates every suppression in every repository with no warning and no migration.
-  Read it from `state.json` and say so loudly when it moves.
 
-**Exit:** every not-cuttable requirement is a failing test when broken, and no
-described mechanism is inert.
+  > **`F9.4` still has no test**, while the Traceability section states *"Each is a
+  > test that fails the build if broken."* That sentence remains false, and it is the
+  > one a reviewer checks first. There is also no watching code, so the requirement
+  > holds in fact — it simply is not enforced, and nothing would fail if someone added
+  > a watcher tomorrow.
 
-**Commit:** `test: make the traceability claim true`
+- [ ] **17.2** A CI check that requirements and code stay in step — **in both
+  directions.** Requirement → code catches an ID nobody implemented; code → requirement
+  is the direction that drifted, and needs a convention to check against (every ADR
+  and every user-visible behaviour cites an ID, say). **31** IDs are uncited today;
+  the check should start from that baseline rather than fail the build on day one.
+
+- [ ] **17.3** **Promote `applies_to` to the `ScannerAdapter` protocol.** Introduced
+  for Checkov in 12a.3 via `getattr`, so it is a load-bearing seam that can silently
+  stop being called — the exact shape of the defects Phase 11 exists to catch, in the
+  mechanism added to prevent one.
+
+  > Note, but do **not** fold in, the defensive `getattr` over `ScanRun` in
+  > `results.py`. Tested 2026-09-05: renaming a field fails 29 tests, so it is a style
+  > problem and a latent risk for a *removed* field, not a live defect. Conflating
+  > them would inflate a real finding with a speculative one.
+
+- [ ] **17.4** **Say when `fp_version` changes.** *(Rewritten — the original premise
+  was false.)*
+
+  `state.py` already reads it and starts clean when it moves, which is correct. It
+  does so **silently**: every finding reappears as `new`, every previous `fixed`
+  vanishes, and committed suppressions stop matching — with no explanation in
+  `SUMMARY.md`, `run.json` or the terminal.
+
+  A developer sees a scan that looks like a catastrophic regression and has nothing to
+  tell them it was an identity change. That is the same class as everything Phase 14
+  removed: a confident output whose meaning silently changed.
+
+**Exit:** the spec describes the product that exists; every not-cuttable requirement
+is a failing test when broken; and no described mechanism is inert or silent.
+
+**Commit:** `docs: make the spec describe the product, and the claims true`
 
 ---
 
