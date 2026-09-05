@@ -1512,6 +1512,12 @@ or cannot check the claims we make about it, is not testing the product.
 - [ ] **12a.1** **Push, then make the repository public, then the package.**
   *(F1.5, blocks 10.1 and 10.2)* — **owner action.**
 
+  > ⛔ **BLOCKED BY [Phase 13](#phase-13--portability), added 2026-09-05.** The
+  > published image is `linux/arm64` only, so going public today hands every amd64
+  > user an artifact that cannot run. Publishing an unusable image is worse than
+  > publishing nothing: it converts a private repository into a public first
+  > impression that fails.
+
   Held private during development (decision 2026-08-31). **Measured 2026-09-05:**
 
   | | |
@@ -1750,6 +1756,14 @@ or cannot check the claims we make about it, is not testing the product.
 - [ ] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
   ✅ **Automation done 2026-09-05. Publishing blocked on 12a.1 and owner setup.**
 
+  > ⛔ **ALSO BLOCKED BY [Phase 15](#phase-15--our-own-supply-chain).** This workflow
+  > holds `id-token: write`. Every `FROM` is pinned by tag rather than digest and the
+  > Opengrep binary is fetched unverified, so a compromised input would not merely
+  > build bad code — it would sign it with our identity and log it as authentic.
+  > Phase 13 also changes this task: a multi-platform build obtains its digest
+  > differently, and the signature must cover the index rather than one child
+  > manifest.
+
   > `.github/workflows/release.yml`, triggered by a `v*` tag, in two jobs.
   >
   > **`verify` refuses to release a tree that disagrees with itself.** The tag must
@@ -1834,6 +1848,10 @@ become the task list for 12b.** Everything below is provisional until it has.
 - [ ] **12b.3** Tag `v1.0.0` — the first version claiming stability, and the first one
   a person outside this repository has successfully used.
 
+  > ⛔ **REQUIRES [Phase 17](#phase-17--traceability-and-seams).** A version claiming
+  > stability should not ship with a Traceability section that is untrue, a
+  > compatibility surface nothing reads, and a load-bearing seam wired by `getattr`.
+
 **Exit (12b):** v1.0.0 released. CI proves non-exfiltration on every commit, the
 self-scan is clean, the signature and SBOM are published, and someone who has never
 seen valvur has installed it and got a useful answer.
@@ -1842,8 +1860,216 @@ seen valvur has installed it and got a useful answer.
 
 ---
 
+## Phases 13–17 — added 2026-09-05 after a step-back review
+
+**Why these exist.** Phase 12 was written on the assumption that what remained was
+publishing. A review against the requirements rather than against the task list found
+one release blocker, one live instance of this project's signature defect, and two
+supply-chain gaps in the build that is about to hold signing credentials. None was
+caught by a test, because none was the kind of thing the tests were pointed at.
+
+**Running order.** These phases sit *between* the two halves of Phase 12, not after
+it. The document cannot show that, so it is stated here:
+
+```
+12a.2–12a.7  ✅ done
+     ↓
+Phase 13  Portability          ← blocks 12a.1: publishing an unusable image is worse
+Phase 14  Stale data           ← ships in 0.2.0; it is a wrong answer, not a gap
+Phase 15  Our own supply chain ← before 12a.7 runs and holds signing credentials
+Phase 16  Operations           ← before anyone else runs concurrent scans
+     ↓
+12a.1 + 12a.7   publish 0.2.0
+     ↓
+Phase 10 usability gate  →  12b.1, 12b.2
+     ↓
+Phase 17  Traceability and seams  ← before claiming stability
+     ↓
+12b.3  tag v1.0.0
+```
+
+---
+
+## Phase 13 — Portability
+
+**Goal:** the published artifact runs on the machines people actually have.
+
+> **Measured 2026-09-05.** `docker manifest inspect` reports the published image as
+> **`linux/arm64` only**. Every amd64 user — most CI runners, most Linux desktops,
+> every cloud VM, every Intel Mac — cannot run it. `docker pull --platform
+> linux/amd64` warns on an arm64 host and fails outright on a real amd64 one.
+>
+> The Dockerfile is already arch-aware: it takes `TARGETARCH` and fetches both
+> Opengrep binaries. Nothing is missing but a multi-platform build. It was published
+> single-arch from an Apple Silicon Mac.
+>
+> **The gap that let it through matters more than the defect.** Both workflows
+> `docker build` locally and neither ever pulls the published image, so CI cannot
+> catch this class at all — not this bug, and not the next one like it.
+
+### TDD cycles
+
+1. **A scan using the *published* image succeeds on amd64.** Not a locally built one.
+   This is the cycle that closes the blind spot; the multi-arch build is what makes it
+   pass. It must fail today.
+2. The published manifest lists both `linux/amd64` and `linux/arm64`.
+
+- [ ] **13.1** Build multi-arch in `release.yml` — `docker buildx build --platform
+  linux/amd64,linux/arm64 --push`. Note this changes how the digest is obtained:
+  buildx pushes directly, so the digest comes from the imagetools output rather than
+  `docker inspect`, and **the signature must cover the multi-platform index** rather
+  than one child manifest.
+- [ ] **13.2** Add a CI job that pulls the published image on `ubuntu-latest` and runs
+  one real scan. It cannot run until 12a.1 makes the package public — until then it
+  should skip *loudly*, the way the runtime-parity tests do (11.7).
+- [ ] **13.3** **Decide Windows, and say so either way.** `runner.py` guards the
+  posix-only user-mapping with `os.name != "posix"`, so valvur may half-work there:
+  untested, undocumented, and unclaimed. A stated "not supported" is worth more than
+  silence, because silence reads as "should work".
+
+**Exit:** a stranger on amd64 can install valvur and scan a repository. CI proves it
+against the published artifact rather than a local build.
+
+**Commit:** `build: publish a multi-arch image, and test the published one`
+
+---
+
+## Phase 14 — Confident answers from stale data
+
+**Goal:** valvur never reports clean from a database too old to know otherwise.
+
+> **This is the last live instance of this project's signature defect**, and it sits
+> in the one place it matters most. `cache.db_age_days()` exists and is consulted
+> **nowhere**. Measured 2026-09-05: the local database was 6 days old and nothing said
+> so. At six months, a user gets a confident clean result with no warning.
+>
+> We already warn when *KEV enrichment* data is over 30 days stale — that is the data
+> that ranks findings. We say nothing about the database that determines whether
+> findings exist at all. The wrong one is instrumented.
+
+### TDD cycles
+
+1. **A scan with a stale database does not report an unqualified clean.** The age and
+   its consequence appear in `SUMMARY.md` and `run.json`, with at least the prominence
+   of the existing KEV warning. Paired, as ever, with a check that a *fresh* database
+   produces no warning — or the caveat becomes noise a reader learns to skip.
+2. `run.json` records the database's age and source, so a clean result stays
+   falsifiable after the fact (N3.1).
+3. The threshold is justified in the code rather than chosen. Trivy's own database
+   rebuilds every 6 hours; pick a number against that and say why.
+
+- [ ] **14.1** Surface it, and decide the threshold above which a clean result is
+  qualified rather than merely annotated.
+- [ ] **14.2** Decide whether `valvur update` should be prompted, or run automatically
+  on the `full` profile where network is already permitted. **Not on `offline`** —
+  that would trade the moat for freshness, which is precisely the exchange §3 refuses.
+
+**Exit:** a stale database is impossible to miss, and CI proves the warning can both
+fire and stay silent.
+
+**Commit:** `fix: a clean result from a stale database is not a clean result`
+
+---
+
+## Phase 15 — Our own supply chain
+
+**Goal:** the build that signs our releases is as pinned as the releases it signs.
+
+> **Measured 2026-09-05, and the inconsistency is ours.** Last week we pinned every
+> GitHub Action to a commit SHA because a tag is a mutable pointer. In the same
+> repository:
+>
+> - Every `FROM` is pinned by **tag**, not digest — `aquasec/trivy:0.74.0` and four
+>   others. A moved tag rebuilds a different scanner into our image.
+> - The Opengrep binary is fetched over HTTPS with **no verification at all**. The
+>   comment beside it says *"Opengrep publishes signed static musllinux binaries"* —
+>   and we check neither signature nor checksum.
+>
+> Both sit in the build that Phase 12a.7 gives `id-token: write`. A compromised input
+> there is not merely bad code: it is bad code signed with our identity and recorded
+> in a transparency log as authentic.
+
+- [ ] **15.1** Pin every `FROM` by digest, with the tag in a trailing comment so
+  Dependabot can still track it — the same form used for actions in 12a.6.
+- [ ] **15.2** Verify the Opengrep download: pinned SHA256 at minimum, its published
+  signature if practical. A build that cannot verify its input must fail rather than
+  proceed.
+- [ ] **15.3** **Build once, cache between runs.** Measured: 3 builds per CI run and 2
+  per release, with no layer caching configured anywhere. This is the cost item as
+  well as the speed one.
+- [ ] **15.4** Measure what each Scanner contributes to the 302 MB compressed image.
+  The first run is dominated by the pull — 25–100× the scan itself — so this is where
+  P1 is actually won or lost. Measure before optimising; the answer may be that
+  Checkov is most of it, in which case it is the same trade already made in 12a.3.
+
+**Exit:** every input to the image is pinned by content and verified, and CI builds it
+once.
+
+**Commit:** `build: pin and verify every input to the image`
+
+---
+
+## Phase 16 — Operations
+
+**Goal:** the things that only break once someone else is using it.
+
+- [ ] **16.1** **A cross-process lock on the Results Folder.** `jobs.py` holds a
+  `threading.Lock`, which is in-process only. Two CLI runs, or a CLI run alongside the
+  MCP server, race on `state.json` and `findings.json` — and a corrupted `state.json`
+  silently breaks the new/fixed/regressed diff, which is the one artifact a developer
+  trusts to tell them whether they made progress.
+- [ ] **16.2** **`valvur --version`.** `docs/RELEASING.md` and two issue templates tell
+  people to run it; it does not exist. The same class as the verification command
+  found in 11.0, and found the same way — by running what the documentation says.
+
+**Exit:** concurrent use is safe, and every command the documentation names exists.
+
+**Commit:** `fix: concurrent scans, and the version flag the docs promised`
+
+---
+
+## Phase 17 — Traceability and seams
+
+**Goal:** the claims the spec makes about itself are true. Before v1.0.0, not after.
+
+> **Measured 2026-09-05:** 40 of 127 requirement IDs are cited in neither source nor
+> tests. Most are implemented and merely untraceable, which defeats the point of
+> load-bearing IDs — but **`F9.4` is in the not-cuttable set and has no test at all**,
+> while the Traceability section states *"Each is a test that fails the build if
+> broken."* That sentence is currently false, and it is the sentence a reviewer would
+> check first.
+
+- [ ] **17.1** Audit the not-cuttable set — F1, N2.1, F5.3, F7.2, F9.2, F9.4 — and
+  make each one a test that genuinely fails when broken. Mutation-test them, as
+  Phase 11 did.
+- [ ] **17.2** A CI check that every requirement ID appears in source or tests, so the
+  next 40 cannot accumulate silently.
+- [ ] **17.3** **Promote `applies_to` to the `ScannerAdapter` protocol.** It was
+  introduced for Checkov in 12a.3 via `getattr`, so it is a load-bearing seam that can
+  silently stop being called — the exact shape of the defects Phase 11 exists to
+  catch, in the mechanism added to prevent one.
+- [ ] **17.4** **Make `fp_version` do something.** It is described as a compatibility
+  surface from the first commit, but nothing reads it: changing the algorithm silently
+  invalidates every suppression in every repository with no warning and no migration.
+  Read it from `state.json` and say so loudly when it moves.
+
+**Exit:** every not-cuttable requirement is a failing test when broken, and no
+described mechanism is inert.
+
+**Commit:** `test: make the traceability claim true`
+
+---
+
 ## Traceability
 
 The not-cuttable set from `requirements.md` maps to: F1 → Phase 8 · N2.1 → Phase 11
 cycle 1 · F5.3 → Phase 2 cycles 1–3 · F7.2 → Phase 1 cycles 4–5 · F9.2 → Phase 9
 cycle 4 · F9.4 → Phase 9 cycle 5. Each is a test that fails the build if broken.
+
+> ⚠️ **That last sentence is currently false, found 2026-09-05.** **F9.4** — no
+> watchers, no save hooks, no scan started other than by explicit invocation — has no
+> test at all. There is also no watching code, so the requirement holds in fact; it
+> simply is not *enforced*, and nothing would fail if someone added a watcher
+> tomorrow. [Phase 17](#phase-17--traceability-and-seams) fixes the claim and the
+> gap. Recorded here rather than quietly corrected, because a traceability section
+> that has been wrong once is worth reading sceptically.
