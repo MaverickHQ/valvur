@@ -46,3 +46,10 @@ rule = "valvur.licence.dependency-unknown"
 path = "sbom.cdx.json"
 expires = 2027-09-01
 reason = "Not a compliance gap: all four DO declare licences, through PyPI classifiers that Syft does not read. Verified 2026-09-01 — docutils (BSD/GPL/public domain), id (Apache-2.0), markdown-it-py (MIT), pathspec (MPL-2.0). Syft records licences for 36 of 140 components here, so the blind spot is detection, not declaration. valvur cannot fix this generally: it has only the SBOM, and the scanned project's packages are not installed on the host to read classifiers from. Revisit when Syft reads Trove classifiers, or if a genuinely unlicensed dependency appears in this list."
+
+[[suppress]]
+fingerprint = "b931bd3d8aedd259c03494ed10463d78"
+rule = "CKV_DOCKER_7"
+path = "Dockerfile"
+expires = 2027-09-05
+reason = "Not a registry image: 'opengrep-${TARGETARCH}' names an internal build stage defined above, selected by the platform being built (task 15.4). There is no tag to pin, and the stages it resolves to are themselves pinned by digest. Checkov's dockerfile parser does not resolve inter-stage references through a build argument, so it reads the absent tag as 'latest'. Revisit if Checkov gains stage-aware parsing, or if this FROM ever names a real image."
