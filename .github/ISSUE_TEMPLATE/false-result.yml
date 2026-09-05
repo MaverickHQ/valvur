@@ -1,0 +1,57 @@
+name: A finding you disagree with
+description: valvur reported something it should not have, or missed something it should have caught.
+labels: ["accuracy"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Both directions matter, and the second matters more. A missed finding is the
+        worst failure this tool has — it tells someone their code is safe when it is
+        not — so if valvur reported clean on something vulnerable, say so and it will
+        be treated as a security report rather than a bug.
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Which way round?
+      options:
+        - valvur reported something that is not a real problem
+        - valvur missed something it should have found
+        - valvur reported it, but the remediation advice is wrong
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What was reported, or should have been?
+      description: The rule ID and the finding, or a description of what was missed.
+      placeholder: "CVE-2026-1234 on left-pad 1.0.0, or: no finding for the AWS key in config.py"
+    validations: { required: true }
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: The smallest thing that reproduces it
+      description: >
+        A few lines of a manifest or source file is ideal. Please redact real
+        credentials — send the shape, not the secret.
+      render: text
+    validations: { required: true }
+  - type: textarea
+    id: provenance
+    attributes:
+      label: run.json
+      description: >
+        From `.security-scan/run.json`. It records the profile, scanner versions and
+        database age, which is usually the fastest route to the cause. **Check it for
+        paths you would rather not share before pasting.**
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: valvur version
+      description: "`valvur --version`, or `python -c 'import valvur; print(valvur.__version__)'`"
+    validations: { required: true }
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Container runtime
+      options: [Docker, Podman, Other]
+    validations: { required: true }
