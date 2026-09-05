@@ -2000,14 +2000,53 @@ unverified — which is true, and is the point.
 3. The threshold is justified in the code rather than chosen. Trivy's own database
    rebuilds every 6 hours; pick a number against that and say why.
 
-- [ ] **14.1** Surface it, and decide the threshold above which a clean result is
-  qualified rather than merely annotated.
-- [ ] **14.2** Decide whether `valvur update` should be prompted, or run automatically
-  on the `full` profile where network is already permitted. **Not on `offline`** —
-  that would trade the moat for freshness, which is precisely the exchange §3 refuses.
+- [x] **14.1** Surface it, and decide the threshold. ✅ **DONE 2026-09-05.**
 
-**Exit:** a stale database is impossible to miss, and CI proves the warning can both
-fire and stay silent.
+  > **Threshold: 7 days, and it is derived rather than chosen.** Trivy stamps
+  > `NextUpdate` at `UpdatedAt + 24h`, so it rebuilds daily — seven days is seven
+  > missed rebuilds. KEV's 30 days stays looser on purpose: it changes how findings
+  > *rank*, not whether they are *found*.
+  >
+  > **The age now measures the data, not the file.** `db_age_days()` read the
+  > metadata file's mtime, which is when it was *downloaded*. For an air-gapped
+  > mirror (F10.5) those diverge completely: a mirror can hand over a six-month-old
+  > database this morning and mtime reads as fresh. It now reads Trivy's `UpdatedAt`,
+  > with mtime as the fallback. Tested with a 180-day-old build stamp written this
+  > second — the case that motivated it.
+  >
+  > **Two different claims, because they are different claims.** Stale with no
+  > findings: *"this scan found nothing, and that is not evidence there is nothing"*.
+  > Stale with findings: *"the list is not complete"*. Saying "found nothing" in the
+  > second case would be false, and a warning that overstates gets ignored.
+  >
+  > Surfaced in `SUMMARY.md` **above** the exploit-intelligence warning, in
+  > `run.json` as a `database` block (age, overdue, stale, threshold), and in the
+  > terminal — a user may never open `SUMMARY.md`, and the case where that matters
+  > most is the one where there is nothing in it to draw them there. Unknown is
+  > reported as unknown, never as zero. Mutation-tested both ways: removing the
+  > staleness check fails three tests, reverting to mtime fails the mirror test.
+- [x] **14.2** ✅ **DECIDED 2026-09-05: valvur never updates the database itself, on
+  any Profile.** Three reasons, in order of weight.
+
+  > **It is a 1.2GB download.** Starting one inside a scan the user asked to be fast
+  > is hostile, and starting it silently is worse.
+  >
+  > **It would make the Profiles disagree for a reason unrelated to coverage.** If
+  > `full` refreshed and `offline` could not, the two would scan different data — and
+  > Phase 11 cycle 3 asserts they find the same packages. That test would start
+  > failing for a difference *we* introduced, which is the worst kind.
+  >
+  > **Updating on the user's behalf is the same move as fixing on their behalf**, and
+  > §4 refuses that. So valvur says it, loudly, in three places, and the developer
+  > decides.
+  >
+  > A test asserts `scan()` never calls `update_db`, so this stays decided rather
+  > than drifting.
+
+**Exit:** ✅ **Reached 2026-09-05.** Verified end-to-end by ageing the real database's
+build stamp to 40 days: the terminal warned, `SUMMARY.md` carried it, and `run.json`
+recorded `{"age_days": 40.0, "stale": true}`. At the true 6.2 days nothing fires,
+which is the half that keeps the warning worth reading.
 
 **Commit:** `fix: a clean result from a stale database is not a clean result`
 

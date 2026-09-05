@@ -42,6 +42,7 @@ def _provenance(run) -> str:
     """What actually ran. Makes a clean result falsifiable (N3.1)."""
     import json
 
+    from . import cache as _cache
     from . import profiles as _profiles
     from .fingerprint import FP_VERSION
 
@@ -79,6 +80,15 @@ def _provenance(run) -> str:
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
                 # registries by the dependency-reality check on standard and deep.
+                # The vulnerability database, distinct from the enrichment data
+                # below. This one determines whether findings exist at all, so a
+                # clean result cannot be judged without it.
+                "database": {
+                    "age_days": _round_or_none(getattr(run, "db_age_days", None)),
+                    "overdue_days": _round_or_none(getattr(run, "db_overdue_days", None)),
+                    "stale": _db_is_stale(run),
+                    "stale_after_days": _cache.DB_STALE_AFTER_DAYS,
+                },
                 "enrichment": {
                     "kev_source": getattr(run, "kev_source", ""),
                     "kev_age_days": round(getattr(run, "kev_age_days", None) or 0, 2),
@@ -142,6 +152,32 @@ def _summary(run) -> str:
     findings = [f for f in ordered if not f.suppressed]
     suppressed = [f for f in ordered if f.suppressed]
     lines = ["# Security scan summary", "", MACHINE_HEADER]
+
+    # The database first, and above the exploit-intelligence warning below it. KEV
+    # decides how findings RANK; this decides whether they exist. For six days this
+    # file warned about the second and said nothing about the first.
+    if _db_is_stale(run):
+        db_age = getattr(run, "db_age_days", None)
+        unsuppressed = [f for f in findings if not f.suppressed]
+        lines += [
+            f"> ⚠ **The vulnerability database is {db_age:.0f} days old.** "
+            "Run `valvur update`.",
+        ]
+        if not unsuppressed:
+            # The dangerous combination, and the reason for the whole phase. Nothing
+            # found, by data too old to have found it.
+            lines += [
+                "> **This scan found nothing, and it is not evidence that there is "
+                "nothing.** Trivy rebuilds daily, so this result is missing roughly "
+                f"{db_age:.0f} days of advisories. Update and rescan before trusting "
+                "it.",
+            ]
+        else:
+            lines += [
+                "> Findings below are real, but the list is not complete: roughly "
+                f"{db_age:.0f} days of advisories are missing.",
+            ]
+        lines += [""]
 
     age = getattr(run, "kev_age_days", None)
     if age is not None and age > 30:
@@ -298,3 +334,16 @@ def _enforce_cap(text: str) -> str:
         "",
         f"_Output truncated at {LINE_CAP} lines. See `findings.json` for everything._",
     ]) + "\n"
+
+
+def _round_or_none(value: float | None) -> float | None:
+    """None is not zero. An unreadable database age must not read as "brand new" —
+    that is precisely the confident-wrong-answer this phase removes."""
+    return None if value is None else round(value, 2)
+
+
+def _db_is_stale(run) -> bool:
+    from . import cache as _cache
+
+    age = getattr(run, "db_age_days", None)
+    return age is not None and age > _cache.DB_STALE_AFTER_DAYS
