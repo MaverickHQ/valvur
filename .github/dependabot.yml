@@ -1,0 +1,47 @@
+# We report unpinned and outdated dependencies in other people's repositories.
+# Not tracking our own would be the first thing a reviewer notices — the same
+# reasoning that made us fix CKV2_GHA_1 in this repo an hour after reporting it
+# in someone else's.
+#
+# Actions are pinned to commit SHAs, which is what makes Dependabot necessary here
+# rather than optional: a pinned SHA never moves on its own, so security updates
+# arrive only if something opens the pull request.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies", "supply-chain"]
+    groups:
+      # One pull request rather than four. These are all first-party or
+      # well-known actions; reviewing them together is honest, and a flood of
+      # individual PRs is how dependency updates start getting rubber-stamped.
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies"]
+    groups:
+      dev-dependencies:
+        # Runtime dependencies are deliberately zero (ADR-0015), so in practice
+        # everything here is tooling. Grouped, but security updates still arrive
+        # on their own so they are not buried.
+        patterns: ["*"]
+        applies-to: version-updates
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies", "supply-chain"]
