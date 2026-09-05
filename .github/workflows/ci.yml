@@ -62,7 +62,7 @@ jobs:
       - name: End-to-end, against the image just built
         # Without VALVUR_IMAGE the tests run against the published GHCR tag, which
         # this job did not build and cannot pull while the package is private
-        # (task 12.6). Every container test would fail on the pull.
+        # (task 12a.1). Every container test would fail on the pull.
         env:
           VALVUR_IMAGE: valvur:dev
         run: uv run pytest -q -m e2e
