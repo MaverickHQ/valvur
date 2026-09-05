@@ -11,6 +11,21 @@ from . import profiles as _profiles
 from .api import scan
 
 
+def _database_needs_refresh() -> bool:
+    """Whether an update is worth doing, decided without touching the network.
+
+    Trivy stamps `NextUpdate` in its own metadata, so being past due is knowable for
+    free. That is what makes `--if-stale` cheap enough to run unconditionally in a
+    hook or a cron entry: when the database is current it costs one file read.
+    """
+    from . import cache
+
+    if not cache.db_present():
+        return True
+    overdue = cache.db_overdue_days()
+    return overdue is None or overdue > 0
+
+
 def _warn_if_database_stale(run) -> None:
     """Tell them in the terminal, not only in a file they may never open.
 
@@ -139,7 +154,16 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         "registry report as unverified rather than clean.",
     )
 
-    sub.add_parser("update", help="Fetch the vulnerability database into the local cache")
+    update_cmd = sub.add_parser(
+        "update", help="Fetch the vulnerability database into the local cache"
+    )
+    update_cmd.add_argument(
+        "--if-stale",
+        action="store_true",
+        help="Do nothing unless the database is actually out of date. Cheap enough "
+        "to put in a pre-commit hook, a cron entry or CI — the freshness check needs "
+        "no network at all.",
+    )
 
     # The same operations the MCP tools expose, so the two surfaces cannot drift
     # (F9.3). Both call valvur.operations; there is no second implementation.
@@ -193,9 +217,18 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         return _print_suppression(args)
 
     if args.command == "update":
+        from . import cache
         from .runner import ContainerRunner
 
-        print("Fetching the vulnerability database (about 1.2GB, once)...")
+        if getattr(args, "if_stale", False) and not _database_needs_refresh():
+            age = cache.db_age_days()
+            print(f"Database is {age:.1f} days old and current enough. Nothing to do.")
+            return 0
+
+        # 116 MB compressed, measured 2026-09-05 against the published artifact. The
+        # help text said 1.2GB for months — that is the UNCOMPRESSED size on disk,
+        # and quoting it discouraged exactly the update this tool depends on.
+        print("Fetching the vulnerability database (about 116MB)...")
         result = (runner or ContainerRunner()).update_db()
         if result.exit_code != 0:
             print(f"Update failed: {result.stderr.strip()[-300:]}")

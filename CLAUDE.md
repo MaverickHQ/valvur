@@ -188,8 +188,13 @@ Rules that must hold:
   artifact that renders escapes workspace content so it cannot act as markup,
   style or script. Dormant since ADR-0014 cut `report.html`; the guard stays in
   force for whatever renders next.
-- **Clean is explicit.** No findings still writes the folder, with
-  `"status": "clean"`, so an agent can tell "clean" from "never ran".
+- **Clean is explicit, and never claimed when it cannot be supported.** Three
+  statuses, not two: `findings`, `clean`, and **`inconclusive`** — no findings, but
+  the vulnerability database was too old for that to be evidence. An agent can tell
+  all three from "never ran". Warning in `SUMMARY.md` alone is not enough: the
+  contract tells agents to read it *bounded* and query `findings.json` for detail, so
+  the consumer most likely to act on the verdict is the one least likely to see a
+  caveat explaining it means nothing. The verdict itself has to carry the claim.
 - **A Scanner that did not run says so.** Checkov is skipped where there is no
   infrastructure to analyse — it costs ~10s of fixed startup whatever it finds — and
   the skip with its reason appears in `run.json` (`scanners_skipped`) and in

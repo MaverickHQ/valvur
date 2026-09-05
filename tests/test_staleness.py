@@ -29,8 +29,10 @@ def _database(tmp_path, *, updated_days_ago: float, next_update_days_ago: float 
     now = datetime.now(UTC)
     (db / "metadata.json").write_text(json.dumps({
         "Version": 2,
-        "UpdatedAt": (now - timedelta(days=updated_days_ago)).isoformat().replace("+00:00", "Z"),
-        "NextUpdate": (now - timedelta(days=next_update_days_ago)).isoformat().replace("+00:00", "Z"),
+        "UpdatedAt": (now - timedelta(days=updated_days_ago))
+                     .isoformat().replace("+00:00", "Z"),
+        "NextUpdate": (now - timedelta(days=next_update_days_ago))
+                      .isoformat().replace("+00:00", "Z"),
         "DownloadedAt": now.isoformat().replace("+00:00", "Z"),
     }))
     return db
@@ -187,3 +189,73 @@ def test_valvur_never_updates_the_database_by_itself():
     assert "update_db" not in source, (
         "a scan now updates the database by itself — see task 14.2 for why it must not"
     )
+
+
+# ------------------------- the machine-readable claim, not just the prose (14.2)
+
+def test_a_stale_scan_with_no_findings_does_not_report_clean():
+    """The hole Phase 14 left open, and the one that mattered most.
+
+    Warning in `SUMMARY.md` fixed the prose and left the verdict intact: a 400-day-old
+    database with no findings still reported `"status": "clean"`. The results contract
+    tells agents to read SUMMARY.md *bounded* and query findings.json for detail — so
+    the consumer most likely to act on the verdict was the one least likely ever to
+    see the caveat explaining it meant nothing.
+    """
+    assert ScanRun(findings=[], db_age_days=400.0).status == "inconclusive"
+
+
+def test_a_fresh_scan_with_no_findings_still_reports_clean():
+    """The pair. `inconclusive` has to be rare or it becomes the new `clean`."""
+    assert ScanRun(findings=[], db_age_days=1.0).status == "clean"
+    assert ScanRun(findings=[], db_age_days=None).status == "clean"
+
+
+def test_findings_are_findings_however_old_the_database():
+    """What was found is real regardless of age; only absence is unprovable."""
+    from valvur.findings import Finding
+
+    finding = Finding(rule="CVE-1", path="a.py", line=0, title="x", evidence="",
+                      fingerprint="a" * 32, severity="high", sources=("trivy",))
+
+    assert ScanRun(findings=[finding], db_age_days=400.0).status == "findings"
+
+
+# ------------------------------------------- keeping it current cheaply (14.2)
+
+def test_the_freshness_check_needs_no_network(tmp_path, monkeypatch):
+    """What makes `--if-stale` safe in a pre-commit hook or a cron entry. Trivy
+    stamps NextUpdate in its own metadata, so being past due costs one file read."""
+    import socket
+
+    from valvur.cli import _database_needs_refresh
+
+    _database(tmp_path, updated_days_ago=0.2, next_update_days_ago=-0.8)
+    (tmp_path / "trivy" / "db" / "trivy.db").write_text("")
+    monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "trivy")
+
+    def blocked(*args, **kwargs):
+        raise AssertionError("the freshness check opened a socket")
+
+    monkeypatch.setattr(socket.socket, "connect", blocked)
+    monkeypatch.setattr(socket, "create_connection", blocked)
+
+    assert _database_needs_refresh() is False
+
+
+def test_a_database_past_its_own_next_update_needs_refreshing(tmp_path, monkeypatch):
+    from valvur.cli import _database_needs_refresh
+
+    _database(tmp_path, updated_days_ago=9, next_update_days_ago=8)
+    (tmp_path / "trivy" / "db" / "trivy.db").write_text("")
+    monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "trivy")
+
+    assert _database_needs_refresh() is True
+
+
+def test_a_missing_database_needs_refreshing(tmp_path, monkeypatch):
+    from valvur.cli import _database_needs_refresh
+
+    monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "nothing")
+
+    assert _database_needs_refresh() is True
