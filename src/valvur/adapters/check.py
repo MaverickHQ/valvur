@@ -18,9 +18,10 @@ from pathlib import Path
 from .. import fingerprint as _fp
 from ..findings import Finding
 from ..runner import ScannerOutput
+from .base import ScannerAdapter
 
 
-class CheckAdapter:
+class CheckAdapter(ScannerAdapter):
     kind = "check"
 
     def __init__(self, name: str, *, needs_network: bool = False):

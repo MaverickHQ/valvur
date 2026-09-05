@@ -45,3 +45,20 @@ class ScannerAdapter(Protocol):
     def parse(self, output: ScannerOutput) -> list[Finding]:
         """Normalise this Scanner's output into Findings."""
         ...
+
+    def applies_to(self, workspace: Path) -> tuple[bool, str]:
+        """Whether this Scanner has anything to look at, and the evidence either way.
+
+        Part of the protocol rather than a `getattr` the orchestrator hopes for
+        (task 17.3). Introduced for Checkov in 12a.3, it decides whether a Scanner
+        runs at all, so the orchestrator calling it unconditionally is what matters:
+        an adapter cannot forget to be asked.
+
+        A **misspelled** override still falls back to this default silently — mypy
+        accepts an extra method — so `test_applicability.py` covers that case. The
+        protocol removes one failure mode, not both.
+
+        The default applies: most Scanners always have something to look at, and a
+        Scanner that never declares otherwise should not have to say so.
+        """
+        return True, ""

@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from valvur.adapters.base import ScannerAdapter
+
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
@@ -152,7 +154,7 @@ def gitleaks_output(*, line=3, file="/workspace/config.py", secret="AKIAV7Q2XR4T
     }])
 
 
-class CrashingAdapter:
+class CrashingAdapter(ScannerAdapter):
     """A Scanner that dies. Not a mock of an internal collaborator — a real adapter
     whose tool fails, which is the only way to exercise fleet failure isolation."""
 

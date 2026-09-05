@@ -10,9 +10,10 @@ from pathlib import Path
 
 from ..findings import Finding
 from ..runner import ScannerOutput
+from .base import ScannerAdapter
 
 
-class SyftAdapter:
+class SyftAdapter(ScannerAdapter):
     kind = "scanner"
     name = "syft"
     artifact = "sbom.cdx.json"

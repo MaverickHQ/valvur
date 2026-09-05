@@ -128,10 +128,11 @@ def test_the_adapter_skips_only_when_nothing_applies(tmp_path):
 def test_a_skipped_scanner_is_not_a_failure_and_is_reported(workspace, runner_finding_nothing):
     """The Scan Run stays complete, but the reader is told. A Scanner that did not
     run must never look like one that ran and found nothing."""
+    from valvur.adapters.base import ScannerAdapter
     from valvur.api import scan
     from valvur.results import _provenance, _summary
 
-    class NothingApplies:
+    class NothingApplies(ScannerAdapter):
         kind = "scanner"
         name = "checkov"
 
