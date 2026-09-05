@@ -299,6 +299,15 @@ valvur scan            # scans offline against the cached copy
 The database deliberately lives **outside** the image, so mirroring needs no special
 build — and a six-month-old image never implies six-month-old vulnerability data.
 
+## Platforms
+
+| | |
+|---|---|
+| macOS, Linux — Docker or Podman | **Supported**, tested on every commit against both runtimes |
+| `linux/amd64` and `linux/arm64` | Both, **from 0.2.0**. `0.1.0rc1` was published `arm64` only — a defect, not a policy |
+| Windows via **WSL2** | Supported — inside WSL valvur is running on Linux |
+| Native Windows | **Not claimed.** It may work; nobody has tested it, so valvur says so at startup rather than pretending either way |
+
 ## Running elsewhere
 
 The image is a plain OCI artifact with **no cloud-specific code paths**, so it pushes

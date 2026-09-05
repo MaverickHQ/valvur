@@ -179,6 +179,11 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
         runner = ContainerRunner()
 
+    from .runner import unsupported_platform_warning
+
+    if warning := unsupported_platform_warning():
+        print(warning, file=sys.stderr)
+
     workspace = Path(args.path).resolve()
     profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
     run = scan(workspace, runner=runner, profile=profile)
