@@ -571,3 +571,60 @@ def test_no_workflow_grants_write_permission_it_does_not_need():
     assert "write" not in top_level.group(1), (
         f"ci.yml grants write at the top level: {top_level.group(1).strip()}"
     )
+
+
+def test_every_base_image_is_pinned_by_digest():
+    """Task 15.1, and the same rule we apply to actions.
+
+    A tag is a mutable pointer. Every `FROM` here was pinned by tag while every
+    action was pinned by SHA — the same defect, in the build that signs our releases,
+    where a moved tag does not merely run different code but signs it with our
+    identity and logs it as authentic.
+    """
+    import re
+
+    dockerfile = Path("Dockerfile").read_text()
+    unpinned = []
+    for number, line in enumerate(dockerfile.splitlines(), start=1):
+        match = re.match(r"^FROM\s+(\S+)", line)
+        if not match:
+            continue
+        reference = match.group(1)
+        # A stage built on an earlier stage carries no registry reference to pin.
+        if "/" not in reference and ":" not in reference:
+            continue
+        if reference.startswith("opengrep-"):
+            continue
+        if "@sha256:" not in reference:
+            unpinned.append(f"Dockerfile:{number} {reference}")
+
+    assert not unpinned, "base images pinned by mutable tag: " + "; ".join(unpinned)
+
+
+def test_the_opengrep_binaries_are_checksum_pinned():
+    """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
+    any kind, beside a comment noting that Opengrep publishes them signed."""
+    import re
+
+    dockerfile = Path("Dockerfile").read_text()
+
+    for arch in ("AMD64", "ARM64"):
+        pin = re.search(rf"^ARG OPENGREP_SHA256_{arch}=([0-9a-f]{{64}})$", dockerfile, re.M)
+        assert pin, f"no pinned SHA256 for {arch}"
+
+    assert "sha256sum -c -" in dockerfile, (
+        "the pinned digests are declared but never checked, which is worse than not "
+        "declaring them: it reads as verification and is not"
+    )
+
+
+def test_only_the_needed_opengrep_binary_is_fetched():
+    """Task 15.4. Both were ADDed and the unused one deleted — but layers are
+    additive, so `rm` reclaims nothing. Measured at 98MB of dead weight in every
+    image, for a 50MB tool."""
+    dockerfile = Path("Dockerfile").read_text()
+
+    assert "FROM opengrep-${TARGETARCH}" in dockerfile, (
+        "the per-architecture stage selection is gone; both binaries will ship again"
+    )
+    assert "rm -f /tmp/opengrep_*" not in dockerfile

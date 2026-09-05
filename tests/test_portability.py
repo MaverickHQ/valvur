@@ -104,11 +104,16 @@ def test_the_dockerfile_can_build_for_both_architectures():
     dockerfile = Path("Dockerfile").read_text()
 
     assert "ARG TARGETARCH" in dockerfile
-    assert "opengrep_amd64" in dockerfile and "opengrep_arm64" in dockerfile
-    selector = "/tmp/opengrep_" + "${TARGETARCH}"  # noqa: S108 - a Dockerfile path, not ours
-    assert selector in dockerfile, (
+    # Restructured in task 15.4 from two ADDs plus a delete into two stages, because
+    # layers are additive and the deleted binary shipped anyway. The claim under test
+    # is unchanged: the correct binary must be chosen by the platform being built.
+    assert "AS opengrep-amd64" in dockerfile
+    assert "AS opengrep-arm64" in dockerfile
+    assert "FROM opengrep-${TARGETARCH}" in dockerfile, (
         "the per-architecture binary is no longer selected by TARGETARCH"
     )
+    assert "opengrep_musllinux_x86" in dockerfile
+    assert "opengrep_musllinux_aarch64" in dockerfile
 
 
 # ------------------------------------------------------- native Windows (13.3)

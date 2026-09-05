@@ -46,10 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
       - name: Build image (version label drives the F1.9 compatibility check)
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          docker build --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+          docker buildx build --load \
+              --cache-from type=gha --cache-to type=gha,mode=max \
+              --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
       - name: Make the image visible to podman
         # Podman keeps its own image store, so a docker build is invisible to it.
         # Transferring is far cheaper than building twice, and without it the podman
@@ -79,6 +82,14 @@ jobs:
             echo "::error::Runtime parity tests were skipped. Dual-runtime support (F1) is unverified."
             exit 1
           fi
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+      - name: The Opengrep binaries are signed by Opengrep (15.2)
+        # The Dockerfile pins their SHA256, which makes the build deterministic. That
+        # is not the same as knowing where they came from — a pinned digest is only
+        # as trustworthy as the download that produced it. This checks provenance,
+        # and that the pin matches the artifact actually signed.
+        run: sh scripts/verify-opengrep.sh
+
       - name: valvur adds no GPL component (F10.4)
         run: uv run python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
 
@@ -153,10 +164,13 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
       - name: Build image
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          docker build --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+          docker buildx build --load \
+              --cache-from type=gha --cache-to type=gha,mode=max \
+              --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
       - name: Fetch the vulnerability database
