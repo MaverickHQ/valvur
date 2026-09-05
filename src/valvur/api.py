@@ -44,6 +44,8 @@ class ScanRun:
     # decides how they rank. Until 2026-09-05 only the latter was instrumented.
     db_age_days: float | None = None
     db_overdue_days: float | None = None
+    #: (old, new) when the Fingerprint algorithm changed and history was discarded.
+    identity_reset: tuple[object, int] | None = None
     vendored_dropped: int = 0
     config_dropped: int = 0
     excluded_paths: list[str] = field(default_factory=list)
@@ -237,6 +239,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
 
     results_dir = workspace / results.RESULTS_DIR
     previous, previously_fixed = _state.load(results_dir)
+    identity_reset = _state.take_reset()
 
     findings = [
         replace(f, status=_state.status_for(f.fingerprint, previous, previously_fixed))
@@ -252,6 +255,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
         scanners=scanners,
         network_used=_profiles.ALLOWS_NETWORK.get(profile, False),
         kev_age_days=provider.kev_age_days,
+        identity_reset=identity_reset,
         db_age_days=_cache.db_age_days(),
         db_overdue_days=_cache.db_overdue_days(),
         kev_source=provider.kev_source,
