@@ -12,6 +12,7 @@ from conftest import GoldenRunner, golden
 
 from valvur import scan
 from valvur.adapters import CheckAdapter, OpengrepAdapter, TrivyAdapter
+from valvur.coverage import RULE as COVERAGE_RULE
 
 
 def assert_artifacts_agree(results_dir):
@@ -34,15 +35,30 @@ def assert_artifacts_agree(results_dir):
     # Since 7.2 the summary counts active and suppressed separately (F8.9), so the
     # invariant checks the SPLIT sums to the whole rather than assuming one number.
     # A suppressed finding vanishing from both counts is exactly what this catches.
-    active = [f for f in findings if not f.get("suppressed")]
+    #
+    # Three parts since 19.C.1, not two. A coverage note is a Finding — fingerprinted,
+    # in SARIF, suppressible — but it is a statement about valvur's reach, not about
+    # the scanned code, so it is counted on its own line. The invariant is still that
+    # the parts account for every Finding: nothing may vanish from all three.
+    active = [f for f in findings
+              if not f.get("suppressed") and f["rule"] != COVERAGE_RULE]
     suppressed = [f for f in findings if f.get("suppressed")]
+    notes = [f for f in findings
+             if not f.get("suppressed") and f["rule"] == COVERAGE_RULE]
 
-    assert f"**Findings:** {len(active)}" in summary, (
+    assert len(active) + len(suppressed) + len(notes) == len(findings), (
+        "the split does not account for every finding in findings.json"
+    )
+    assert f"**Active findings:** {len(active)}" in summary, (
         "SUMMARY.md does not count the active findings in findings.json"
     )
     if suppressed:
         assert f"**suppressed:** {len(suppressed)}" in summary, (
             "SUMMARY.md does not count the suppressed findings in findings.json"
+        )
+    if notes:
+        assert f"**not covered:** {len(notes)}" in summary, (
+            "SUMMARY.md does not count the coverage notes in findings.json"
         )
     return findings
 
@@ -193,8 +209,15 @@ def test_truncation_states_what_was_omitted(workspace):
     summary = (results / "SUMMARY.md").read_text()
     findings = json.loads((results / "findings.json").read_text())["findings"]
 
+    # The "All N are in findings.json" pointer counts the ACTIVE findings, which is
+    # what the truncated list above it contains. Counting every Finding would send the
+    # reader looking for entries that were never in that list — a coverage note is in
+    # findings.json but is reported in its own block, not among the most urgent.
+    active = [f for f in findings
+              if not f.get("suppressed") and f["rule"] != COVERAGE_RULE]
+
     assert "further finding(s) omitted here" in summary
-    assert f"All {len(findings)} are" in summary
+    assert f"All {len(active)} are" in summary
 
 
 def test_the_summary_counts_what_findings_json_contains(workspace):

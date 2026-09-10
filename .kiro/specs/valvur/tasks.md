@@ -1210,10 +1210,17 @@ take, and participants cannot be re-used.
 > `IncompatibleImage`, `WorkspaceUnreadable`, `ScannerFailed`, `RegistryUnreachable`.
 > These are the gaps.
 
-- [ ] **10.4.12** Decide what a **human** sees first in `SUMMARY.md`. It currently
-  opens with twelve lines addressed to an agent, so a developer reads instructions
-  meant for something else before reaching their findings. Correct for the MCP path;
-  worth deciding deliberately rather than inheriting.
+- [x] **10.4.12** Decide what a **human** sees first in `SUMMARY.md`.
+  ✅ **DECIDED 2026-09-10, in Block 3.** One sentence of plain English after the
+  title, before the machine block: a verdict the reader can act on, ordered by what
+  stops them trusting the rest — an incomplete scan first, then live findings, then
+  the two different reasons a nil result may mean nothing.
+
+  > **Not "demote the agent block".** F7.6 requires it to open the file, and answering
+  > this task surfaced that the block had never satisfied F7.6 either: it must describe
+  > *the **Status** values and the ranking basis* and did neither. So the answer was to
+  > **complete it** and put the human sentence above it. An agent still meets every
+  > constraint before any **Finding**, which is what F7.7 states and protects.
 
 **Commit:** `feat: actionable errors for every first-run failure`
 
@@ -2702,19 +2709,29 @@ Closes the F3.1 gap, and clears valvur's own deliberately-red self-scan finding.
 
 **Commit:** `feat: the reality check covers the ecosystems people use`
 
-### Block 3 — Status: what the result means · 19.C.1, 19.C.2, 19.E.2, 10.4.12
+### Block 3 — Status: what the result means · ✅ DONE 2026-09-10
 
-19.E.2's own text says *"after 19.C.1"*, and 19.C.2 is the decision the other two
-implement. One status model with three expressions — split them and it gets rewritten
-three times.
+Ran as one change because it was one decision. 19.C.2 chose the model, 19.E.2
+implemented it, 19.C.1 exposed it on four surfaces, and 10.4.12 decided what a human
+meets first. Split apart, the status model would have been rewritten three times.
 
-**10.4.12 pulls forward from Phase 21** (where it is 21.C.1): what a human sees first
-in `SUMMARY.md` is a design decision *about the file this block restructures*.
-Deciding the ordering after rewriting the content is backwards.
-
-Runs after Block 2 so its tests are written against the final finding set.
-
-**Commit:** `feat: a result that says what it means`
+> **10.4.12, and an unmet requirement found while answering it.** F7.6 requires the
+> machine-facing block to describe *the folder, the **Status** values, the ranking
+> basis, and the F9.5–F9.7 constraints*. It described the first and the last, and had
+> never mentioned the middle two — so an agent reading `inconclusive` had nothing
+> telling it not to report that as clean, which is the entire reason F7.16 put the
+> claim in the verdict rather than in prose.
+>
+> The answer to *what does a human see first* is therefore not "demote the agent
+> block": it is **complete it, and put one sentence of plain English above it**. F7.6's
+> protection is that an agent meets the constraints before any Finding — F7.7 states
+> that at the content level and it still holds.
+>
+> **Six mutations, all failing**, including re-gating the C3 caveat and counting
+> coverage notes as active. The first attempt at running them was itself invalid: zsh
+> does not word-split unquoted variables, so `pytest $FILES` passed one long filename
+> and every mutation "passed" against zero tests. Caught by reading `no tests ran`
+> rather than the absence of failures.
 
 ### Rider — 19.C.3
 
@@ -2864,17 +2881,69 @@ signals, broader AI-code coverage, and portfolio-grade polish.
 
 ### C — Operations
 
-- [ ] **19.C.1** Make active versus suppressed findings explicit in terminal output,
-  `run.json`, and `SUMMARY.md`. A scan with zero active findings and only suppressed
-  findings should not read like a live-finding failure to a portfolio reviewer.
+- [x] **19.C.1** Make active versus suppressed findings explicit in terminal output,
+  `run.json`, and `SUMMARY.md`. ✅ **DONE 2026-09-10.** Three counts, on four surfaces
+  — the MCP `scan_status` response too, which ADR-0015 makes primary and which the task
+  did not name.
 
-- [ ] **19.C.2** Decide whether suppressed-only results need a distinct status such
-  as `clean-with-suppressions`, or whether `findings` stays as the machine status
-  while `active_findings` becomes the human-facing gate.
+  > **The motivating case, measured on valvur itself.** The self-scan printed
+  > `findings: 4 finding(s)`, where all four were accepted risks recorded in a
+  > committed file with expiry dates. It now prints `clean: 0 active, 4 suppressed`.
+  > A portfolio reviewer previously met what looked like four live failures.
+  >
+  > `run.json`'s `findings` is a breakdown rather than an integer:
+  > `{active, suppressed, not_covered, total}`. One number made an accepted risk, a
+  > live problem and a note about our own missing coverage indistinguishable to every
+  > machine consumer. The MCP surface reads it with a fallback, so an older `run.json`
+  > still renders.
+  >
+  > **Corpus defect C3 fixed.** The Profile caveat was gated on `not findings`, so one
+  > missing-licence finding suppressed the notice that dependency-reality never ran —
+  > the reader was told least about missing coverage exactly when there was most else
+  > on screen. Now reported either way.
+  >
+  > **Corpus defect C2 fixed.** `scanners_not_run` reaches `SUMMARY.md` and
+  > `scan_status`, not just `run.json`. And a coverage note is reported *separately*
+  > from a Profile omission, because they are different claims and both can be true:
+  > one says a Scanner did not run, the other says nothing here reads a whole
+  > ecosystem even when it does.
+  >
+  > **Corpus defect C5 fixed, and it was wider than the corpus showed.** Every Finding
+  > from `licence-file` *and* `ai-artifact` arrived as `unknown` severity — including
+  > every AI-artifact detection, which is what this product is most distinctive for. An
+  > instruction-override directive planted in `CLAUDE.md` ranked identically to a
+  > missing licence file. Now stated per rule, and a structural test fails when any
+  > Check reports without one.
+  >
+  > **The non-exfiltration disclosure was wrong.** `what_left_the_machine` still named
+  > PyPI alone after 19.D.1 added the npm registry, and never mentioned osv-scanner's
+  > destination at all. That sentence **is** the §3 claim, not a description of it, so
+  > a registry added without amending it makes the claim false. Now enumerated exactly
+  > and pinned by a test.
 
-- [ ] **19.C.3** Add `valvur-mcp --help` and `valvur-mcp --version` handling without
-  writing anything to stdout during normal MCP operation. Silent `--help` is correct
-  for stdio, but poor for demos and first-run diagnosis.
+- [x] **19.C.2** Decide whether suppressed-only results need a distinct status.
+  ✅ **DECIDED 2026-09-10: no.** Three statuses stay. `clean-with-suppressions` was
+  rejected — three values are a documented contract (§7, F7.16), every consumer
+  switches on them, and a fourth is a breaking change buying a count that now appears
+  beside the verdict on every surface anyway.
+
+  > `active` became the human-facing gate instead, as the task's second option
+  > proposed. A suppression is a decision this project recorded in a committed file, so
+  > a scan whose only Findings are accepted risks *is* clean by that project's own
+  > policy — provided the count is impossible to miss, which is 19.C.1's job.
+
+- [x] **19.C.3** Add `valvur-mcp --help` and `--version` without writing to stdout
+  during normal MCP operation. ✅ **DONE 2026-09-10.** Both answer on **stdout** —
+  deliberately, because a person ran the command, so the JSON-RPC channel is not in
+  use. Verified that a `ping` still returns nothing but JSON-RPC.
+
+  > No argparse. This entry point takes no options beyond these two, and a parser
+  > invites adding some — every flag here is a way for a client's configuration to
+  > change what the server does behind the agent's back.
+  >
+  > **An unrecognised flag is refused with exit 2, not ignored**, and the usage goes to
+  > stderr. A flag that starts the server anyway is how a typo in an agent config
+  > becomes a silent misconfiguration nobody notices for weeks.
 
 ### D — Functionality
 
@@ -2970,9 +3039,25 @@ signals, broader AI-code coverage, and portfolio-grade polish.
   > stop being true because a Profile skipped the Scanner that has it. That is the
   > structural fix for C1 below.
 
-- [ ] **19.E.2** Revisit `ScanRun.status` semantics after 19.C.1. The current status
-  is structurally simple, but it conflates live and suppressed Findings in a way that
-  is easy for humans to misread.
+- [x] **19.E.2** Revisit `ScanRun.status` semantics after 19.C.1. ✅ **DONE
+  2026-09-10.** `status` answered four questions with one word: did we find problems in
+  your code, are there accepted risks, did we look at everything, was our data good
+  enough. It now answers only the first, and the other three are reported beside it.
+
+  > `ScanRun` grew `active`, `suppressed` and `coverage_notes`. Only `active` feeds the
+  > verdict. **`inconclusive` widened** to cover an uninspected ecosystem — the same
+  > claim it already made for a stale database: *we did not look, so `clean` is not
+  > ours to claim*.
+  >
+  > It deliberately does **not** cover a Profile omission. The user chose `offline` and
+  > valvur did that job completely; that is different from valvur silently being unable
+  > to do a job nobody declined. Including it would have made every default scan
+  > `inconclusive`, which destroys the word.
+  >
+  > **The consequence that decided the coverage-note half:** a release gate keyed on
+  > active findings must not go red because valvur has no Rust support. The user cannot
+  > fix that, and a gate nobody can turn green is a gate that gets deleted. F7.16
+  > amended in `requirements.md`.
 
 - [ ] **19.E.3** Add a small release-readiness document or checklist aimed at GitHub
   portfolio readers: how to install, how to verify the image, how to run offline,

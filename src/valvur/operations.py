@@ -265,24 +265,54 @@ def scan_status(args: dict) -> str:
         return f"No scan has run in this workspace ({path.parent})."
     data = json.loads(path.read_text(encoding="utf-8"))
 
+    # `findings` is a breakdown, not a total (task 19.C.1). An agent reading one
+    # number could not tell four accepted risks from four live problems, and this is
+    # the surface ADR-0015 makes primary — it reaches an agent's context with no file
+    # in between, so a caveat it does not carry is a caveat nobody sees.
+    counts = data.get("findings")
+    if not isinstance(counts, dict):          # a run.json written by an older valvur
+        counts = {"active": counts, "suppressed": 0, "not_covered": 0}
     lines = [
         f"status:   {data.get('status')}",
         f"complete: {data.get('complete')}",
-        f"findings: {data.get('findings')}",
+        f"findings: {counts.get('active', 0)} active"
+        + (f", {counts['suppressed']} suppressed" if counts.get("suppressed") else "")
+        + (f", {counts['not_covered']} not covered" if counts.get("not_covered") else ""),
     ]
     # `inconclusive` beside `complete: True` and a list of healthy Scanners reads as
     # a contradiction unless the reason is given. It is not a contradiction: every
     # Scanner ran, and the data they ran against was too old for "nothing" to mean
     # anything.
     if data.get("status") == "inconclusive":
-        lines.append(
-            "          ^ every Scanner ran; the data they ran against was too old "
-            "for a nil result to be evidence"
-        )
+        # Two different reasons produce this verdict and an agent must be told which.
+        # "Update the database" is useless advice when the real answer is that valvur
+        # has no existence check for the ecosystem in front of it.
+        if (data.get("database") or {}).get("stale"):
+            lines.append(
+                "          ^ every Scanner ran; the data they ran against was too old "
+                "for a nil result to be evidence"
+            )
+        else:
+            lines.append(
+                "          ^ nothing live was found, but part of this repository was "
+                "not inspected at all — see `coverage` below"
+            )
     lines += ["", "Scanners:"]
     for scanner in data.get("scanners", []):
         mark = "ok" if scanner["ok"] else f"FAILED — {scanner['reason'][:80]}"
         lines.append(f"  {scanner['tool']}: {mark}")
+    # What did NOT run, and what nothing here reads even when it does. Two different
+    # claims, both absent from this surface until task 19.C.1.
+    not_run = data.get("scanners_not_run") or []
+    if not_run:
+        lines += ["", f"not run on the `{data.get('profile')}` profile: " + ", ".join(not_run)]
+    skipped = data.get("scanners_skipped") or {}
+    for tool, why in skipped.items():
+        lines.append(f"  {tool}: skipped — {why}")
+    ignores = (data.get("coverage") or {}).get("dependency-reality", {}).get("ignores") or []
+    if ignores:
+        lines += ["", "coverage: " + "; ".join(ignores)]
+
     network = data.get("network", {})
     lines += ["", f"left this machine: {network.get('what_left_the_machine', 'unknown')}"]
     if job is not None and job.state == "done":
@@ -290,7 +320,7 @@ def scan_status(args: dict) -> str:
     if not data.get("complete"):
         lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
     lines += _staleness_note(
-        args.get("workspace"), found_nothing=not data.get("findings")
+        args.get("workspace"), found_nothing=not counts.get("active")
     )
     return "\n".join(lines)
 

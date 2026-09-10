@@ -94,11 +94,58 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
     }
 
 
+#: What `valvur-mcp --help` prints. Not argparse: this entry point takes no options
+#: at all beyond these two, and a parser would invite adding some — every flag here is
+#: a way for a client's configuration to change what the server does behind the
+#: agent's back.
+USAGE = """valvur-mcp — the MCP server, over stdio.
+
+Not run by hand. An agent starts it and speaks JSON-RPC on stdin/stdout; there is no
+listener and no port, because the process boundary is the trust boundary (ADR-0015).
+
+Add it to your agent instead:
+
+    {
+      "mcpServers": {
+        "valvur": { "command": "valvur-mcp" }
+      }
+    }
+
+Tools: scan_workspace, scan_status, list_findings, explain_finding — all read-only
+with respect to your source. There is no scan-and-fix tool and there will not be one
+(ADR-0009): you choose which fixes to apply.
+
+  --help      this text
+  --version   the version, which must match the container image
+
+Everything else — profiles, workspace paths — is an argument to the tools, not to
+this command. `valvur --help` documents the CLI."""
+
+
 def main(argv: list[str] | None = None) -> int:
     # stderr, never stdout: stdout is the JSON-RPC channel, and a line of prose
     # there corrupts the stream for every client.
     from ..runner import unsupported_platform_warning
+    from ..version import __version__
     from .tools import registry
+
+    # Silence on stdout is correct for stdio and terrible for a first-run diagnosis:
+    # someone checking the binary works had no way to ask, and got a process that sat
+    # there apparently doing nothing (task 19.C.3). These two answers go to STDOUT
+    # deliberately — a person ran the command, so the JSON-RPC channel is not in use.
+    args = sys.argv[1:] if argv is None else argv
+    if args:
+        if args[0] in ("-h", "--help", "help"):
+            print(USAGE)
+            return 0
+        if args[0] in ("-V", "--version", "version"):
+            print(f"valvur-mcp {__version__}")
+            return 0
+        # Refused rather than ignored. An unrecognised flag that starts the server
+        # anyway is how a typo in an agent config becomes a silent misconfiguration.
+        print(f"valvur-mcp: unrecognised argument {args[0]!r}", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
+        return 2
 
     if warning := unsupported_platform_warning():
         print(warning, file=sys.stderr, flush=True)

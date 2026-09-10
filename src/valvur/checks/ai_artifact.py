@@ -72,6 +72,7 @@ def _hidden_unicode(text: str, rel: str) -> list[dict]:
     first_line, content = lines[0]
     return [{
         "rule": "valvur.ai-artifact.hidden-unicode",
+        "severity": "high",
         "path": rel,
         "line": first_line,
         "title": (
@@ -95,6 +96,7 @@ def _directives(text: str, rel: str) -> list[dict]:
             if pattern.search(line):
                 findings.append({
                     "rule": f"valvur.ai-artifact.{rule}",
+                    "severity": "high",
                     "path": rel,
                     "line": n,
                     "title": title,
@@ -110,6 +112,7 @@ def _mcp_config(text: str, rel: str) -> list[dict]:
     if mutable:
         findings.append({
             "rule": "valvur.ai-artifact.mcp-mutable-ref",
+            "severity": "medium",
             "path": rel,
             "line": 0,
             "title": "MCP server pinned to a mutable git ref",
@@ -125,6 +128,7 @@ def _mcp_config(text: str, rel: str) -> list[dict]:
         if approved:
             findings.append({
                 "rule": "valvur.ai-artifact.blanket-auto-approve",
+                "severity": "high",
                 "path": rel,
                 "line": 0,
                 "title": f"MCP server '{server}' auto-approves {len(approved)} tool(s)",

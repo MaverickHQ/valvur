@@ -33,6 +33,18 @@ DECLARED = (
 
 
 class LicenceFileCheck:
+    """Severities are stated, not defaulted (task 19.C.1, corpus defect C5).
+
+    Every Finding from this Check and from `ai_artifact` arrived as `unknown`, which
+    reached the `SUMMARY.md` counts table as a literal `| unknown | 1 |` row on every
+    corpus project. Ranking was unaffected — `ranking.py` weights by rule, not severity
+    — but `findings.json`, SARIF and every IDE reading it saw `unknown`.
+
+    `low` for a missing or unidentified licence: it is a release blocker, not a
+    vulnerability. `medium` for a mismatch, because two files disagreeing about the
+    licence is a statement someone will rely on being true.
+    """
+
     name = "licence-file"
 
     def run(self, workspace: Path) -> list[dict]:
@@ -42,6 +54,7 @@ class LicenceFileCheck:
         if licence_path is None:
             return [{
                 "rule": "valvur.licence.missing",
+                "severity": "low",
                 "path": ".",
                 "line": 0,
                 "title": "No licence file found",
@@ -58,6 +71,7 @@ class LicenceFileCheck:
         if identified is None:
             return [{
                 "rule": "valvur.licence.unidentified",
+                "severity": "low",
                 "path": rel,
                 "line": 0,
                 "title": "Licence file present but its licence could not be identified",
@@ -69,6 +83,7 @@ class LicenceFileCheck:
         if declared and declared[1].upper() != identified.upper():
             return [{
                 "rule": "valvur.licence.mismatch",
+                "severity": "medium",
                 "path": declared[0],
                 "line": 0,
                 "title": (

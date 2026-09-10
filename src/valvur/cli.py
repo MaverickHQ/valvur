@@ -338,7 +338,23 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     # which section 4 refuses. So: say it, loudly, and let them decide.
     _warn_if_database_stale(run)
 
-    print(f"{run.status}: {len(run.findings)} finding(s)")
+    # Active first, and counted separately (task 19.C.1). This line used to read
+    # `findings: 4 finding(s)` for a scan whose four Findings were all accepted risks
+    # recorded in a committed file — indistinguishable from four live problems, to the
+    # reader most likely to act on it.
+    parts = [f"{len(run.active)} active"]
+    if run.suppressed:
+        parts.append(f"{len(run.suppressed)} suppressed")
+    if run.coverage_notes:
+        parts.append(f"{len(run.coverage_notes)} not covered")
+    print(f"{run.status}: {', '.join(parts)}")
+
+    for note in run.coverage_notes:
+        # Named in the terminal, not only in a file. This is the sentence that says
+        # the scan could not help with part of the repository, and a reader who never
+        # opens SUMMARY.md would otherwise see a bare "clean".
+        print(f"  · not checked: {note.title.replace(' were not checked for existence', '')}")
+
     print(f"results: {workspace / '.security-scan'}")
 
     # Findings never fail the run (N3.2). Only a failed Scan Run exits non-zero.
