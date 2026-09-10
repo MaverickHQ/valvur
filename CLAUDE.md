@@ -48,10 +48,11 @@ coverage: what gets inspected — then Block 3, status: what the result means.
 
 **Two known gaps worth knowing before proposing anything:**
 
-- **Slopsquat detection reads `requirements*.txt` only**, against PyPI. Not
-  `pyproject.toml`, not npm, Cargo or Go — and it says nothing when it cannot help,
-  so an npm project scans clean on the check this product is most distinctive for
-  (§5.3). Task 19.D.1.
+- **Slopsquat detection covers Python and npm, and nothing else.** `requirements*.txt`
+  and `pyproject.toml` (PEP 621 and Poetry) against PyPI; `package.json` against the
+  npm registry. Cargo, Go, Ruby, PHP and JVM have no existence check — but a project
+  using one now gets a **Finding** saying so, on every Profile, so the gap is stated
+  rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
 - **F1.6, SELinux mount labelling, is unimplemented** and sits in the not-cuttable
   set. It could not be reproduced as a defect on the one enforcing environment
   reachable here, but a native RHEL host — the target market — is untested. Phase 20.

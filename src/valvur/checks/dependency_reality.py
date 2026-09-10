@@ -4,9 +4,19 @@ The signature failure of AI-written code. Language models invent plausible packa
 names; attackers register them. **No advisory database can catch this**, because the
 package is *new*, not known-bad — which is precisely why it needs its own Check.
 
-Runs in-container (ADR-0013). On the `quick` Profile there is no network interface,
+Runs in-container (ADR-0013). On the `offline` Profile there is no network interface,
 so this Check cannot reach a registry and fails loudly rather than reporting the
 dependencies clean (F3.5). That honesty is enforced by the architecture.
+
+Covers **Python** (`requirements*.txt`, and `pyproject.toml` in both PEP 621 and
+Poetry shapes) against PyPI, and **npm** (`package.json`) against the npm registry.
+Everything else is reported as missing coverage by `valvur.coverage` rather than
+passed over — which is the half that stays true however many ecosystems are added,
+because something is always uncovered.
+
+Direct manifests only, never lockfiles. A lockfile is a resolved transitive tree, and
+transitive dependencies are not the ones a language model invents: the hallucination
+is written into the file a human or an agent edited.
 """
 
 from __future__ import annotations
@@ -17,6 +27,7 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import quote
 
 TIMEOUT = 10
 NEW_PACKAGE_DAYS = 90
@@ -24,33 +35,20 @@ _UA = {"User-Agent": "valvur/0.1 (+https://github.com/MaverickHQ/valvur)"}
 
 REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")
 
-#: Manifests this Check reads. Everything else in the table below is declared as
-#: *not* read, because the alternative is silence (task 19.D.3).
-COVERED = ("requirements*.txt",)
+#: `pyproject.toml` keys that hold dependency *names*, in the two shapes that are
+#: common in the wild. PEP 621 lists requirement strings; Poetry uses a table whose
+#: keys are the names. Both are parsed because both are everywhere, and a project
+#: using the one we skipped would scan clean for the wrong reason.
+_POETRY_SKIP = {"python"}
 
-#: Manifests that declare dependencies this Check does not inspect, mapped to the
-#: ecosystem a reader would expect it to cover.
-#:
-#: Without this, a repository with no `requirements.txt` produced no findings and no
-#: explanation — indistinguishable from one that was checked and found clean. Measured
-#: 2026-09-10: an npm project with a deliberately non-existent package returned zero
-#: findings. The most distinctive Check in the product was silently absent for most
-#: repositories, which is the failure class this project exists to remove.
-UNCOVERED: dict[str, str] = {
-    "pyproject.toml": "Python (PEP 621 / Poetry)",
-    "poetry.lock": "Python (Poetry)",
-    "Pipfile": "Python (Pipenv)",
-    "package.json": "npm",
-    "package-lock.json": "npm",
-    "pnpm-lock.yaml": "npm (pnpm)",
-    "yarn.lock": "npm (Yarn)",
-    "Cargo.toml": "Rust (Cargo)",
-    "go.mod": "Go",
-    "Gemfile": "Ruby (Bundler)",
-    "composer.json": "PHP (Composer)",
-    "build.gradle": "JVM (Gradle)",
-    "pom.xml": "JVM (Maven)",
-}
+#: `package.json` keys that declare registry dependencies. `peerDependencies` is
+#: included: a hallucinated peer is still a name someone can register.
+_NPM_FIELDS = ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")
+
+#: Specs that do not name a registry package — a local path, a git URL, a workspace
+#: sibling. Checking these against the registry would report every monorepo package as
+#: nonexistent, which is the false positive most likely to make a real finding ignored.
+_NOT_REGISTRY = ("file:", "link:", "workspace:", "git+", "git:", "http://", "https://", "portal:")
 
 
 class RegistryUnreachable(RuntimeError):
@@ -61,10 +59,13 @@ class DependencyRealityCheck:
     name = "dependency-reality"
 
     def run(self, workspace: Path) -> list[dict]:
-        # Reported first, and before the early return below: a repository with no
-        # `requirements.txt` used to exit here with nothing at all, which is exactly
-        # the case where the gap most needs stating (task 19.D.3).
-        findings: list[dict] = list(_coverage_gap(workspace))
+        # Coverage gaps are NOT reported here any more. They were, until a local
+        # corpus showed the consequence: this Check needs the network, so it does not
+        # run on the default Profile at all, and the one message that says "this scan
+        # could not help you" was absent from the Profile almost everyone uses. The
+        # gap is a static fact about files on disk — it belongs somewhere that runs
+        # unconditionally. See `valvur/coverage.py` (task 19.D.1, C1).
+        findings: list[dict] = []
 
         declared = _declared_packages(workspace)
         if not declared:
@@ -73,40 +74,45 @@ class DependencyRealityCheck:
         popular = _popular()
         reached_any = False
 
-        for name, source in sorted(declared):
+        for ecosystem, name, source in sorted(declared):
             try:
-                meta = _pypi(name)
+                meta = _lookup(ecosystem, name)
                 reached_any = True
             except RegistryUnreachable:
                 continue
 
+            registry = _REGISTRY_NAME[ecosystem]
             if meta is None:
                 # A nonexistent name that is one edit from a popular package is
                 # almost always a typo, and saying so is far more useful than
                 # reporting absence alone.
-                suggestion = _near_miss(name, popular)
+                suggestion = _near_miss(name, popular) if ecosystem == "pip" else None
                 findings.append(_finding(
-                    "valvur.dependency.nonexistent", name, source,
-                    f"'{name}' does not exist on PyPI"
+                    "valvur.dependency.nonexistent", ecosystem, name, source, "high",
+                    f"'{name}' does not exist on {registry}"
                     + (f" — did you mean '{suggestion}'?" if suggestion else ""),
                     "A dependency that does not exist was almost certainly hallucinated. "
                     "If someone registers that name, your next install runs their code.",
                 ))
                 continue
 
-            age = _age_days(meta)
+            age = _age_days(ecosystem, meta)
             if age is not None and age < NEW_PACKAGE_DAYS:
                 findings.append(_finding(
-                    "valvur.dependency.newly-registered", name, source,
+                    "valvur.dependency.newly-registered", ecosystem, name, source, "medium",
                     f"'{name}' was first published {int(age)} day(s) ago",
                     "Recently registered packages matching a plausible name are the "
                     "slopsquat pattern. Confirm this is the package you meant.",
                 ))
 
-            near = _near_miss(name, popular)
+            # PyPI only. The near-miss comparison needs a corpus of popular names and
+            # only PyPI's ships in the image, so npm names are checked for existence
+            # and not for similarity. Declared in the Check's Coverage rather than
+            # left for a reader to infer from silence.
+            near = _near_miss(name, popular) if ecosystem == "pip" else None
             if near:
                 findings.append(_finding(
-                    "valvur.dependency.near-miss", name, source,
+                    "valvur.dependency.near-miss", ecosystem, name, source, "medium",
                     f"'{name}' is one character from the far more popular '{near}'",
                     f"Typosquat pattern. Did you mean '{near}'?",
                 ))
@@ -115,86 +121,190 @@ class DependencyRealityCheck:
             raise RegistryUnreachable(
                 f"No registry was reachable, so {len(declared)} dependency name(s) "
                 "could not be verified. They are NOT reported as clean. "
-                "Re-run on the standard profile, which permits registry lookups."
+                "Re-run with `--profile full`, which permits registry lookups."
             )
         return findings
 
 
-def _coverage_gap(workspace: Path):
-    """State the manifests this Check did not read, so their silence is not mistaken
-    for a clean result.
+def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
+    """Every directly-declared dependency, as (ecosystem, name, manifest path).
 
-    One finding per ecosystem rather than per file: a monorepo with forty
-    `package.json` files has one gap, not forty. The same lesson the licence Check
-    learned when 618 undeclared dependencies buried two dozen real CVEs.
+    Ecosystem travels with the name because the same string is a different package in
+    two registries — and because the registry to ask is decided here, once, rather
+    than guessed later.
     """
-    from .. import exclusions
-
-    seen: dict[str, list[str]] = {}
-    for manifest, ecosystem in UNCOVERED.items():
-        for path in sorted(workspace.rglob(manifest)):
-            relative = str(path.relative_to(workspace))
-            if exclusions.is_vendored(relative):
-                continue          # a dependency's own manifest is not this project's
-            seen.setdefault(ecosystem, []).append(relative)
-
-    for ecosystem, paths in sorted(seen.items()):
-        shown = ", ".join(paths[:3])
-        more = f" and {len(paths) - 3} more" if len(paths) > 3 else ""
-        yield {
-            "rule": "valvur.dependency.ecosystem-not-covered",
-            "path": paths[0],
-            "line": 0,
-            "severity": "low",
-            "title": f"{ecosystem} dependencies were not checked for existence",
-            "evidence": (
-                f"Found {shown}{more}. The Dependency Reality Check currently reads "
-                f"{' and '.join(COVERED)} against PyPI only, so no {ecosystem} "
-                "dependency here was verified to exist. This is missing coverage, "
-                "not a clean result — see task 19.D.1."
-            ),
-            "identity": ("dependency_reality_gap", ecosystem),
-        }
-
-
-def _declared_packages(workspace: Path) -> set[tuple[str, str]]:
-    found: set[tuple[str, str]] = set()
-    for req in workspace.rglob("requirements*.txt"):
-        rel = str(req.relative_to(workspace))
-        for line in req.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.split("#")[0].strip()
-            if not line or line.startswith("-") or "git+" in line:
-                continue
-            match = REQUIREMENT.match(line)
-            if match:
-                found.add((match.group(1).lower(), rel))
+    found: set[tuple[str, str, str]] = set()
+    for path in _manifests(workspace, "requirements*.txt"):
+        found |= _from_requirements(path, workspace)
+    for path in _manifests(workspace, "pyproject.toml"):
+        found |= _from_pyproject(path, workspace)
+    for path in _manifests(workspace, "package.json"):
+        found |= _from_package_json(path, workspace)
     return found
 
 
-def _pypi(name: str) -> dict | None:
-    request = urllib.request.Request(f"https://pypi.org/pypi/{name}/json", headers=_UA)
+def _manifests(workspace: Path, pattern: str):
+    from .. import exclusions
+
+    for path in sorted(workspace.rglob(pattern)):
+        if path.is_file() and not exclusions.is_vendored(str(path.relative_to(workspace))):
+            yield path
+
+
+def _text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _from_requirements(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    rel = str(path.relative_to(workspace))
+    found: set[tuple[str, str, str]] = set()
+    for line in _text(path).splitlines():
+        line = line.split("#")[0].strip()
+        if not line or line.startswith("-") or "git+" in line:
+            continue
+        match = REQUIREMENT.match(line)
+        if match:
+            found.add(("pip", match.group(1).lower(), rel))
+    return found
+
+
+def _from_pyproject(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """PEP 621 and Poetry, because both are common and a project using the shape we
+    skipped would scan clean for the wrong reason.
+
+    A malformed manifest yields nothing rather than raising: this Check exists to
+    report hallucinated packages, and failing the whole Scanner over a TOML syntax
+    error would take the real findings down with it.
+    """
+    import tomllib
+
+    rel = str(path.relative_to(workspace))
+    try:
+        data = tomllib.loads(_text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+
+    found: set[tuple[str, str, str]] = set()
+
+    project = data.get("project") or {}
+    specs = list(project.get("dependencies") or [])
+    for group in (project.get("optional-dependencies") or {}).values():
+        specs += list(group or [])
+    for spec in specs:
+        if not isinstance(spec, str) or "git+" in spec or "@" in spec.split(";")[0]:
+            continue          # a direct URL reference names no registry package
+        match = REQUIREMENT.match(spec.strip())
+        if match:
+            found.add(("pip", match.group(1).lower(), rel))
+
+    poetry = (data.get("tool") or {}).get("poetry") or {}
+    tables = [poetry.get("dependencies") or {}]
+    tables += [
+        (group or {}).get("dependencies") or {}
+        for group in (poetry.get("group") or {}).values()
+    ]
+    for table in tables:
+        if not isinstance(table, dict):
+            continue
+        for name, spec in table.items():
+            # `python = "^3.11"` is the interpreter constraint, not a package; and a
+            # table-valued spec with `path`/`git`/`url` is not from the registry.
+            if name.lower() in _POETRY_SKIP:
+                continue
+            if isinstance(spec, dict) and not spec.keys() & {"version", "extras"}:
+                continue
+            found.add(("pip", name.lower(), rel))
+
+    return found
+
+
+def _from_package_json(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    rel = str(path.relative_to(workspace))
+    try:
+        data = json.loads(_text(path))
+    except (json.JSONDecodeError, ValueError):
+        return set()
+    if not isinstance(data, dict):
+        return set()
+
+    found: set[tuple[str, str, str]] = set()
+    for field in _NPM_FIELDS:
+        table = data.get(field)
+        if not isinstance(table, dict):
+            continue
+        for name, spec in table.items():
+            if not isinstance(name, str) or not name:
+                continue
+            if isinstance(spec, str) and spec.startswith(_NOT_REGISTRY):
+                continue
+            # npm names are lowercase by rule, and case-insensitive at the registry.
+            found.add(("npm", name.lower(), rel))
+    return found
+
+
+#: Where each ecosystem's names are verified, named as a reader would name it.
+_REGISTRY_NAME = {"pip": "PyPI", "npm": "the npm registry"}
+
+
+def _lookup(ecosystem: str, name: str) -> dict | None:
+    """Registry metadata, or None when the package definitively does not exist.
+
+    One dispatch rather than a call site per ecosystem: the 404-versus-unreachable
+    distinction is the load-bearing part of F3.5 — *absent* is a finding, *could not
+    ask* must never be reported as clean — and writing it twice is how the two answers
+    end up drifting apart.
+    """
+    if ecosystem == "npm":
+        # `safe="@/"`: a scoped name is `@scope/name`, and the slash stays a slash.
+        # Measured against registry.npmjs.org 2026-09-10, all of `@types/node`,
+        # `@types%2Fnode` and `@types%2fnode` return 200 — so this is not a live bug
+        # there. It is the canonical form npm itself uses, and private mirrors
+        # (Artifactory, Verdaccio, Nexus) are stricter than npmjs.org about the
+        # encoded variant. This product's users are disproportionately behind one.
+        return _fetch(f"https://registry.npmjs.org/{quote(name, safe='@/')}")
+    return _fetch(f"https://pypi.org/pypi/{quote(name, safe='')}/json")
+
+
+def _fetch(url: str) -> dict | None:
+    # Both callers build this from a literal https:// prefix and a percent-quoted
+    # package name, so no caller-controlled scheme can reach here. Asserted rather
+    # than assumed, because a scheme reaching urlopen is how a dependency name turns
+    # into a file read.
+    if not url.startswith("https://"):
+        raise RegistryUnreachable(f"refusing a non-https registry URL: {url!r}")
+    request = urllib.request.Request(url, headers=_UA)  # noqa: S310 — asserted above
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
-            return json.load(response)
+            body = json.load(response)
+            return body if isinstance(body, dict) else {}
     except urllib.error.HTTPError as exc:
-        if exc.code == 404:
+        if exc.code in (404, 405):
             return None          # definitively absent — the headline finding
         raise RegistryUnreachable(str(exc)) from exc
-    except (urllib.error.URLError, OSError, TimeoutError) as exc:
+    except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:
         raise RegistryUnreachable(str(exc)) from exc
 
 
-def _age_days(meta: dict) -> float | None:
-    stamps = [
-        f["upload_time_iso_8601"]
-        for files in (meta.get("releases") or {}).values()
-        for f in files
-        if f.get("upload_time_iso_8601")
-    ]
+def _age_days(ecosystem: str, meta: dict) -> float | None:
+    stamps: list[str] = []
+    if ecosystem == "npm":
+        created = (meta.get("time") or {}).get("created")
+        if isinstance(created, str):
+            stamps = [created]
+    else:
+        stamps = [
+            f["upload_time_iso_8601"]
+            for files in (meta.get("releases") or {}).values()
+            for f in files
+            if f.get("upload_time_iso_8601")
+        ]
     if not stamps:
         return None
     first = min(stamps).replace("Z", "+00:00")
-    return (datetime.now(UTC) - datetime.fromisoformat(first)).days
+    try:
+        return (datetime.now(UTC) - datetime.fromisoformat(first)).days
+    except ValueError:
+        return None
 
 
 def _popular() -> set[str]:
@@ -238,12 +348,27 @@ def _within_one_edit(a: str, b: str) -> bool:
     return False
 
 
-def _finding(rule: str, name: str, source: str, title: str, evidence: str) -> dict:
+def _finding(
+    rule: str, ecosystem: str, name: str, source: str, severity: str,
+    title: str, evidence: str,
+) -> dict:
+    """Severity is stated rather than defaulted.
+
+    Every finding from this Check used to arrive as `unknown`, including the one the
+    product exists for: a dependency that does not exist is the signature failure of
+    AI-written code, and it ranked below a missing licence file. `high` rather than
+    `critical` — nobody has registered the name yet, and if someone has, the CVE
+    Scanners are the ones that will say so.
+    """
     return {
         "rule": rule,
         "path": source,
         "line": 0,
+        "severity": severity,
         "title": title,
         "evidence": evidence,
-        "identity": ("dependency_reality", "pip", name),
+        # The canonical ecosystem is part of identity, and "pip" is spelled exactly as
+        # before: changing it would alter every existing Python fingerprint and
+        # invalidate every committed suppression keyed on one (ADR-0003).
+        "identity": ("dependency_reality", ecosystem, name),
     }

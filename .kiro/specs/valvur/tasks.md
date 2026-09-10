@@ -2654,7 +2654,39 @@ those same two YAML files, proved by one CI run.
 
 **Commit:** `chore: one verification path, used everywhere`
 
-### Block 2 — Coverage: what gets inspected · 19.D.1, 19.D.2, 19.E.1
+### Block 2 — Coverage: what gets inspected · 19.D.1, 19.D.2, 19.E.1 — ✅ DONE 2026-09-10
+
+> **All four Block 2 corpus defects verified fixed on the real projects, through a
+> rebuilt image.** C1: the Rust gap now appears on the default `offline` Profile with
+> no network used. C4: the monorepo that reported `npm`, `npm (pnpm)` and `Python`
+> reports **none** — both are genuinely covered now — and the Rust project reports
+> exactly one. C6: the reported path is `Cargo.toml`, not `Cargo.lock`.
+>
+> **C4's fix already existed in the codebase.** `ecosystems.py` canonicalises `pnpm`
+> and `yarn` to `npm`, and its docstring describes the identical bug — 24 CVEs
+> reported twice because Trivy said "pnpm" where osv-scanner said "npm". 19.D.3 built
+> a second table keyed on display labels right beside it. The gap table is keyed on
+> the canonical name now.
+>
+> **A mutation that should have failed did not.** Keying the gap fingerprint on the
+> display label passed all 42 tests, because the table has one entry per ecosystem so
+> the *count* assertions could not tell the difference. The property they missed:
+> a label is prose, and prose gets edited — "Rust (Cargo)" becoming "Rust" would
+> silently invalidate every committed suppression on that gap (ADR-0003). Now pinned.
+>
+> **A test claimed to check something it had patched out.** The scoped-package test
+> monkeypatched `_lookup` and then asserted about the URL `_lookup` builds, proving
+> only that `@types/node` survived JSON parsing. Rewritten against the real URL — and
+> then **measured**: `@types/node`, `@types%2Fnode` and `@types%2fnode` all return 200
+> from registry.npmjs.org, so the encoding was never a live bug there. Changed anyway,
+> because private mirrors are stricter and this product's users are behind them.
+>
+> **Left for Block 3, deliberately:** a coverage gap is a Finding, so `status` is now
+> `findings` for any repository with an uncovered ecosystem. `clean` is unreachable for
+> a polyglot repo. §7 already has the right word — `inconclusive` means *we looked,
+> found nothing, and could not support the claim* — but deciding it here would
+> pre-empt 19.C.2 and 19.E.2. A test pins today's behaviour so Block 3 has to change
+> it on purpose.
 
 Together because **19.E.1 is the general form of what 19.D.3 did by hand**. Declaring
 each adapter's coverage contract before 19.D.1 widens the Dependency Reality Check
@@ -2846,39 +2878,53 @@ signals, broader AI-code coverage, and portfolio-grade polish.
 
 ### D — Functionality
 
-- [ ] **19.D.1** Expand the Dependency Reality Check beyond `requirements*.txt`, or
-  explicitly report unsupported manifest coverage. At minimum: `pyproject.toml`,
-  Poetry lockfiles, npm/package lockfiles, pnpm, Cargo and Go should not look clean
-  merely because they were not inspected.
+- [x] **19.D.1** Expand the Dependency Reality Check beyond `requirements*.txt`.
+  ✅ **DONE 2026-09-10.** Now reads `requirements*.txt` and `pyproject.toml` — PEP 621
+  *and* Poetry, because both are everywhere and a project using the shape we skipped
+  would scan clean for the wrong reason — against PyPI, and `package.json` against the
+  npm registry.
 
-  > **This closes an unmet requirement, not a missing feature.** F3.1 says *"for each
-  > declared dependency"*; the Check reads `requirements*.txt` and queries PyPI.
-  > Measured 2026-09-10: an npm project with a deliberately non-existent package
-  > returns **0 findings**, silently. Recorded against F3.1 in `requirements.md` and
-  > §5.1 of `design.md`.
+  > **Direct manifests, never lockfiles.** A lockfile is a resolved transitive tree,
+  > and transitive dependencies are not the ones a language model invents: the
+  > hallucination is written into the file a human or an agent edited. `poetry.lock`
+  > beside a `pyproject.toml` is a deliberate skip, not a hole — and a lockfile with
+  > *no* readable manifest beside it still reports a gap, because then nothing was
+  > inspected at all.
   >
-  > **Phase 17 did not catch this**, and it is worth knowing why: 17.2's ratchet
-  > checks that every requirement is *cited* somewhere, not that it is *satisfied*.
-  > F3.1 is cited — by the code that implements a tenth of it.
+  > **Measured end-to-end through the rebuilt image**, not just in unit tests: an npm
+  > project with an invented package now reports it, where it previously returned 0
+  > findings silently. `express` and `@types/node` were correctly left alone, and so
+  > was a `workspace:*` sibling — the false positive most likely to make a real
+  > finding ignored is reporting every package in a monorepo as nonexistent.
+  >
+  > **Cargo, Go, Ruby, PHP and JVM still have no existence check**, and are reported
+  > as gaps instead. That is the honest half of this task's own wording — *"or
+  > explicitly report unsupported manifest coverage"* — and it is what keeps F3.1
+  > true rather than aspirational.
+  >
+  > **Severity, while here.** Every finding from this Check arrived as `unknown`,
+  > including the one the product exists for: a nonexistent dependency ranked below a
+  > missing licence file. Now `high` for nonexistent, `medium` for near-miss and
+  > newly-registered. `high` rather than `critical` — nobody has registered the name
+  > yet, and if they have, the CVE Scanners are what will say so.
+  >
+  > **The self-scan gate is green again.** 19.D.3 left it deliberately red with one
+  > finding — *"Python (PEP 621 / Poetry) dependencies were not checked"* — because
+  > this repository uses `pyproject.toml`. Resolved by coverage, as promised, not by a
+  > suppression: **0 live findings**, 4 suppressed, 165 excluded from fixtures.
 
-- [ ] **19.D.2** Replace remaining user-facing references to the retired `standard`
-  Profile with `full`. Keep the alias working, but do not teach new users the old
-  name.
+- [x] **19.D.2** Replace remaining user-facing references to the retired `standard`
+  Profile with `full`. ✅ **DONE 2026-09-10.** Both output strings fixed:
+  `results.py` now says *"Run `valvur scan --profile full` for full coverage"*, and
+  `dependency_reality.py` says *"Re-run with `--profile full`"*. The alias still
+  resolves; new users are no longer taught the retired name.
 
-  > **Confirmed 2026-09-10, and worse than "polish".** I first reported this task's
-  > premise as false, having searched only the documentation. The retired name
-  > survives in **output strings**, which is the one place that actually teaches it:
-  >
-  > | | |
-  > |---|---|
-  > | `src/valvur/results.py:220` | `SUMMARY.md`'s coverage caveat says **"Run `valvur scan --profile standard` for full coverage"** |
-  > | `src/valvur/checks/dependency_reality.py:86` | *"Re-run on the standard profile, which permits registry lookups."* |
-  >
-  > Both work, via the alias, which is exactly why nothing failed. The first is the
-  > line ADR-0016 rewrote — the Profiles were renamed and the sentence recommending
-  > one was not. The CLI (`--profile {offline,full}`) and the MCP enum are already
-  > correct; everything else that mentions `standard` is an internal comment or a
-  > deliberate historical note in an ADR, and should stay.
+  > I first reported this task's premise as **false**, having searched only the
+  > documentation. The retired name survived in **output strings**, which is the one
+  > place that actually teaches it. Both worked, via the alias, which is exactly why
+  > nothing failed. A test now asserts `--profile standard` is *absent* from the
+  > Summary as well as `--profile full` being present — the pair, so removing the fix
+  > fails rather than merely un-improving.
 
 - [x] **19.D.3** Add coverage-gap reporting for Checks that are intentionally narrow.
   ✅ **DONE 2026-09-10.**
@@ -2909,9 +2955,20 @@ signals, broader AI-code coverage, and portfolio-grade polish.
 
 ### E — Architecture
 
-- [ ] **19.E.1** Preserve the adapter boundary, but make coverage contracts explicit:
-  each Scanner or Check should declare what inputs it covers and what it deliberately
-  ignores, and Provenance should expose that where useful.
+- [x] **19.E.1** Make coverage contracts explicit, without breaking the adapter
+  boundary. ✅ **DONE 2026-09-10.** `coverage(workspace, exclude)` joins the
+  `ScannerAdapter` protocol beside `applies_to`, returning what an adapter reads, what
+  it deliberately ignores, and the gaps that bite in *this* Workspace. `run.json`
+  carries the declaration under `coverage`.
+
+  > **The default is empty, never "covers everything".** An adapter that has not
+  > declared its limits is recorded as having declared nothing. Recording it as
+  > unlimited would be the silent-narrowing failure the method exists to remove, and a
+  > test pins the distinction: absent and present-but-empty are different claims.
+  >
+  > **Asked of the whole registry, not the Profile's selection** — a limit does not
+  > stop being true because a Profile skipped the Scanner that has it. That is the
+  > structural fix for C1 below.
 
 - [ ] **19.E.2** Revisit `ScanRun.status` semantics after 19.C.1. The current status
   is structurally simple, but it conflates live and suppressed Findings in a way that

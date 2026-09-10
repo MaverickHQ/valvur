@@ -15,7 +15,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .. import coverage as _coverage
 from .. import fingerprint as _fp
+from ..coverage import Coverage
 from ..findings import Finding
 from ..runner import ScannerOutput
 from .base import ScannerAdapter
@@ -30,6 +32,30 @@ class CheckAdapter(ScannerAdapter):
 
     def run(self, runner, workspace: Path) -> ScannerOutput:
         return runner.run_check(self.name, workspace, network=self.needs_network)
+
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
+        """Only dependency-reality has limits worth stating, and they are the ones
+        that matter: it is the Check nothing else in the product substitutes for."""
+        if self.name != "dependency-reality":
+            return Coverage()
+
+        from .. import ecosystems as _ecosystems
+
+        reads, ignores = [], []
+        for manifests in _ecosystems.MANIFESTS.values():
+            if manifests.reads:
+                reads.append(f"{manifests.label}: {', '.join(manifests.reads)}")
+            else:
+                ignores.append(f"{manifests.label}: no existence check")
+        # Stated rather than left implicit: names are checked for existence in both
+        # ecosystems, but the near-miss typosquat comparison needs a corpus of popular
+        # package names and only PyPI's ships in the image.
+        ignores.append("npm: no typosquat near-miss comparison (no popular-npm corpus)")
+        return Coverage(
+            inspects=tuple(sorted(reads)),
+            ignores=tuple(sorted(ignores)),
+            gaps=tuple(_coverage.dependency_gaps(workspace, exclude)),
+        )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         findings = []

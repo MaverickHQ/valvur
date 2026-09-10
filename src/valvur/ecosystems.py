@@ -10,6 +10,8 @@ because the fingerprints could not match.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 # Lockfile formats and scanner spellings, mapped to the ecosystem they describe.
 _CANONICAL: dict[str, str] = {
     # npm — the format is not the ecosystem
@@ -38,3 +40,55 @@ def normalise(name: str) -> str:
     with itself, while an empty one silently merges unrelated findings."""
     key = (name or "").strip().lower()
     return _CANONICAL.get(key, key or "unknown")
+
+
+@dataclass(frozen=True)
+class Manifests:
+    """Which dependency manifests belong to an ecosystem, and which of them valvur
+    actually parses.
+
+    `reads` is the honest half: a manifest listed there is inspected by the Dependency
+    Reality Check. `sees` is recognised and **not** parsed — either because another
+    manifest for the same ecosystem covers it (a lockfile's transitive dependencies
+    are not the ones a language model invents) or because the ecosystem has no
+    registry lookup implemented at all.
+
+    Keyed by the same canonical names as `normalise` above, deliberately. Task 19.D.3
+    built a parallel table keyed on *display labels* and immediately reproduced the bug
+    this module's docstring describes: `pnpm-lock.yaml` and `package.json` were
+    reported as two separate uncovered ecosystems, because "npm" and "npm (pnpm)" are
+    different strings. The fix already existed here.
+    """
+
+    label: str
+    reads: tuple[str, ...] = ()
+    sees: tuple[str, ...] = ()
+
+
+#: What a dependency manifest on disk means, per ecosystem.
+#:
+#: An ecosystem with an empty `reads` has no existence check at all — its presence in
+#: a Workspace is reported as missing coverage rather than passed over, because a
+#: Check that says nothing is indistinguishable from one that found nothing.
+MANIFESTS: dict[str, Manifests] = {
+    "pip": Manifests(
+        "Python",
+        reads=("requirements*.txt", "pyproject.toml"),
+        # Pipfile and setup.py declare dependencies in shapes we do not parse; the
+        # lockfiles carry resolved transitive trees, which are not where hallucinated
+        # names appear. Both are only a gap when nothing readable sits beside them.
+        sees=("Pipfile", "setup.py", "setup.cfg", "poetry.lock", "uv.lock"),
+    ),
+    "npm": Manifests(
+        "npm",
+        reads=("package.json",),
+        sees=("package-lock.json", "pnpm-lock.yaml", "yarn.lock"),
+    ),
+    "cargo": Manifests("Rust (Cargo)", sees=("Cargo.toml", "Cargo.lock")),
+    "gomod": Manifests("Go", sees=("go.mod", "go.sum")),
+    # Maven and Gradle resolve from the same registry, so they are one ecosystem with
+    # two build tools — the distinction that produced the pnpm/yarn bug.
+    "maven": Manifests("JVM (Maven/Gradle)", sees=("pom.xml", "build.gradle", "build.gradle.kts")),
+    "gem": Manifests("Ruby (Bundler)", sees=("Gemfile", "Gemfile.lock")),
+    "composer": Manifests("PHP (Composer)", sees=("composer.json", "composer.lock")),
+}
