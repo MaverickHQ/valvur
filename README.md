@@ -100,9 +100,17 @@ Checks no other scanner ships:
 - **Dependency reality / slopsquat detection.** LLMs invent package names;
   attackers register them. Research across 16 models and 576,000 samples found
   hallucinated imports at scale, over half of them pure fabrications. No advisory
-  database can catch this — the package is *new*, not known-bad. We check whether
-  each dependency actually exists, how old it is, how adopted it is, and whether
-  it is one character from something popular.
+  database can catch this — the package is *new*, not known-bad. We check whether a
+  dependency actually exists, how old it is, how adopted it is, and whether it is one
+  character from something popular.
+
+  > **Coverage today: `requirements*.txt` against PyPI, and nothing else.** Not
+  > `pyproject.toml`, not Poetry, not npm, pnpm, Cargo or Go. A project using any of
+  > those gets no slopsquat coverage at all — and currently gets it *silently*, which
+  > is the part we consider a defect rather than a limitation. Being widened in
+  > [task 19.D.1](.kiro/specs/valvur/tasks.md), along with reporting the gap where it
+  > applies (19.D.3). Stated here because a check that silently covers nothing is
+  > worse than one that says it does not apply.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
   `.mcp.json`, skills and prompt files — scanned for injected directives, hidden
   Unicode (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket

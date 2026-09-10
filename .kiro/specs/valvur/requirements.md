@@ -108,6 +108,21 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
 
 1. F3.1 — valvur SHALL implement a Dependency Reality **Check** that, for each
    declared dependency, determines whether the package exists on its registry.
+
+   > ⚠️ **PARTIALLY UNMET, found 2026-09-10 (task 19.D.1).** The **Check** reads
+   > `requirements*.txt` and queries PyPI. Nothing else: not `pyproject.toml` — which
+   > is now the Python norm — and not Poetry, npm, pnpm, Cargo or Go. *"Each declared
+   > dependency"* is therefore satisfied for one manifest format in one ecosystem.
+   >
+   > **Measured:** an npm project with a deliberately non-existent package returns
+   > **0 findings**. F3.5 does not cover this — its skip condition is *"cannot reach a
+   > registry"*, and an unsupported ecosystem is a different thing that currently
+   > produces silence. So the most distinctive **Check** in the product (§5.3) reports
+   > nothing, and says nothing about why, for the majority of repositories.
+   >
+   > Widening is task 19.D.1; reporting the gap where it still applies is 19.D.3.
+   > **Neither is optional if this requirement stays as written** — the alternative is
+   > amending F3.1 to name the ecosystems it actually covers.
 2. F3.2 — WHEN a declared dependency does not exist on its registry, valvur SHALL
    raise a **Finding** of the highest severity tier.
 3. F3.3 — valvur SHALL flag a dependency as a possible **Slopsquat** WHEN it was

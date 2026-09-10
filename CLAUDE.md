@@ -27,18 +27,29 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-10):** built and tested; not yet obtainable by anyone else.
+**Status (2026-09-10):** built and tested; hardening before it is made obtainable.
 
 `0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
-private**, so nobody outside this machine can install it — and the image published so
-far is `linux/arm64` only, which task 13.1 fixed in the build but which only takes
-effect on the next release. Making both public is task 12a.1, the single thing
-blocking everything downstream of it.
+private**, so nobody outside this machine can install it. Publication is no longer the
+next step: it now waits behind **Phase 19** (reliability and portfolio hardening) and
+**Phase 20** (the F1.6 SELinux gap), because releasing first would publish the known
+debt rather than fix it. [Phase 21](.kiro/specs/valvur/tasks.md) is the ordered
+release sequence after those.
 
-Roughly: 79 Python modules, 348 tests, 16 ADRs, 136 requirement IDs, 91 of 103 tasks
-done. The 12 open ones are three owner actions, the usability gate (which needs a
-person who has never seen this tool), and one design decision — 10.4.12, what a human
-sees first in `SUMMARY.md`.
+Roughly: 79 Python modules, 348 tests, 16 ADRs, 136 requirement IDs, **93 done and 34
+open** across 21 phases. Of the open work, most is Phase 19; the rest is three owner
+actions, the usability gate (which needs a person who has never seen this tool), and
+one design decision.
+
+**Two known gaps worth knowing before proposing anything:**
+
+- **Slopsquat detection reads `requirements*.txt` only**, against PyPI. Not
+  `pyproject.toml`, not npm, Cargo or Go — and it says nothing when it cannot help,
+  so an npm project scans clean on the check this product is most distinctive for
+  (§5.3). Task 19.D.1.
+- **F1.6, SELinux mount labelling, is unimplemented** and sits in the not-cuttable
+  set. It could not be reproduced as a defect on the one enforcing environment
+  reachable here, but a native RHEL host — the target market — is untested. Phase 20.
 
 > **This line was wrong for six weeks**, saying "spec phase, no application code yet"
 > while the tool scanned its own repository on every commit. It is the first thing a

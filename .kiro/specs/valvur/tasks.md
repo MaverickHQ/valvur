@@ -2680,6 +2680,16 @@ signals, broader AI-code coverage, and portfolio-grade polish.
   Poetry lockfiles, npm/package lockfiles, pnpm, Cargo and Go should not look clean
   merely because they were not inspected.
 
+  > **This closes an unmet requirement, not a missing feature.** F3.1 says *"for each
+  > declared dependency"*; the Check reads `requirements*.txt` and queries PyPI.
+  > Measured 2026-09-10: an npm project with a deliberately non-existent package
+  > returns **0 findings**, silently. Recorded against F3.1 in `requirements.md` and
+  > §5.1 of `design.md`.
+  >
+  > **Phase 17 did not catch this**, and it is worth knowing why: 17.2's ratchet
+  > checks that every requirement is *cited* somewhere, not that it is *satisfied*.
+  > F3.1 is cited — by the code that implements a tenth of it.
+
 - [ ] **19.D.2** Replace remaining user-facing references to the retired `standard`
   Profile with `full`. Keep the alias working, but do not teach new users the old
   name.
