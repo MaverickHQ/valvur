@@ -203,7 +203,11 @@ def test_a_narrower_profile_does_not_claim_bare_clean():
     text = _summary(ScanRun(findings=[], profile="offline"))
 
     assert "did not run every Scanner" in text
-    assert "--profile standard" in text
+    # `full`, not `standard`. The Profiles were renamed by ADR-0016 and the sentence
+    # recommending one was not — the retired name survived in the output string, which
+    # is the one place that actually teaches it to a new user (task 19.D.2).
+    assert "--profile full" in text
+    assert "--profile standard" not in text
     # Named by what is missing, not by which binary did not run: quick does not run
     # osv-scanner, but Trivy covers dependency CVEs, so listing the tool alone reads
     # as "dependencies unchecked" — which is exactly the false alarm this avoids.

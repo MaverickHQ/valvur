@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from ..coverage import Coverage
 from ..findings import Finding
 from ..runner import ScannerOutput
 
@@ -62,3 +63,20 @@ class ScannerAdapter(Protocol):
         Scanner that never declares otherwise should not have to say so.
         """
         return True, ""
+
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
+        """What this Scanner reads, what it deliberately does not, and where that
+        bites in *this* Workspace (task 19.E.1).
+
+        Distinct from `applies_to`, which answers whether to run at all. This answers
+        the question a reader actually has after a clean result: *what did you look
+        at?* Adapters are the only place that knows, and the orchestrator asks every
+        one of them — including those the Profile did not select, because a limit does
+        not stop being true because a Scanner was skipped.
+
+        The default is **empty, not "covers everything"**. An adapter that has not
+        declared its limits is recorded as having declared nothing, which is honest;
+        recording it as unlimited would be the silent-narrowing failure this method
+        exists to remove.
+        """
+        return Coverage()

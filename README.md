@@ -104,13 +104,15 @@ Checks no other scanner ships:
   dependency actually exists, how old it is, how adopted it is, and whether it is one
   character from something popular.
 
-  > **Coverage today: `requirements*.txt` against PyPI, and nothing else.** Not
-  > `pyproject.toml`, not Poetry, not npm, pnpm, Cargo or Go. A project using any of
-  > those gets no slopsquat coverage at all — and currently gets it *silently*, which
-  > is the part we consider a defect rather than a limitation. Being widened in
-  > [task 19.D.1](.kiro/specs/valvur/tasks.md), along with reporting the gap where it
-  > applies (19.D.3). Stated here because a check that silently covers nothing is
-  > worse than one that says it does not apply.
+  > **Coverage today: Python and npm.** `requirements*.txt` and `pyproject.toml`
+  > (PEP 621 and Poetry) against PyPI; `package.json` against the npm registry. Direct
+  > manifests, never lockfiles — a lockfile is a resolved transitive tree, and the
+  > invented name is in the file a human or an agent edited.
+  >
+  > **Cargo, Go, Ruby, PHP and JVM have no existence check.** A project using one gets
+  > a finding saying so, on every profile, rather than a clean result it did not earn.
+  > That reporting is the part we consider non-optional: a check that silently covers
+  > nothing is worse than one that says it does not apply.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
   `.mcp.json`, skills and prompt files — scanned for injected directives, hidden
   Unicode (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket

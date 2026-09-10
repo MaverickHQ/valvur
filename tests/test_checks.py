@@ -6,6 +6,16 @@ third-party tool we orchestrate. Checks run in the container exactly as Scanners
 
 from valvur import scan
 from valvur.adapters import CheckAdapter
+from valvur.coverage import RULE as COVERAGE_GAP
+
+
+def _is_gap(finding) -> bool:
+    """Coverage gaps are reported on every scan of a Workspace with an ecosystem we do
+    not read, independently of which adapters ran (task 19.D.1). The `broken-repo`
+    fixture carries a `package-lock.json` with no `package.json`, so one arrives here.
+    Filtered rather than asserted away: these tests are about Checks, not coverage, and
+    `tests/test_coverage_gaps.py` is where the gap itself is pinned down."""
+    return finding.rule == COVERAGE_GAP
 
 
 def test_a_workspace_with_no_licence_file_is_a_finding(workspace, runner_finding_nothing):
@@ -13,7 +23,7 @@ def test_a_workspace_with_no_licence_file_is_a_finding(workspace, runner_finding
     run = scan(workspace, runner=runner_finding_nothing,
                adapters=[CheckAdapter("licence-file")])
 
-    assert [f.rule for f in run.findings] == ["valvur.licence.missing"]
+    assert [f.rule for f in run.findings if not _is_gap(f)] == ["valvur.licence.missing"]
 
 
 def test_a_workspace_with_a_licence_file_is_clean(workspace, runner_finding_nothing):
@@ -22,7 +32,7 @@ def test_a_workspace_with_a_licence_file_is_clean(workspace, runner_finding_noth
     run = scan(workspace, runner=runner_finding_nothing,
                adapters=[CheckAdapter("licence-file")])
 
-    assert run.findings == []
+    assert [f for f in run.findings if not _is_gap(f)] == []
 
 
 def test_checks_are_distinguishable_from_scanners(workspace, runner_finding_nothing):
@@ -42,7 +52,7 @@ def test_a_check_failure_is_isolated_like_a_scanner_failure(
     run = scan(workspace, runner=runner_finding_one_secret,
                adapters=[CheckAdapter("no-such-check")])
 
-    assert run.findings == [] or run.failures
+    assert [f for f in run.findings if not _is_gap(f)] == [] or run.failures
 
 
 # ---------------------------------------------------------------- 4.1 AI artifact
@@ -202,12 +212,12 @@ def test_a_dependency_that_does_not_exist_is_a_finding():
 
     import valvur.checks.dependency_reality as mod
 
-    real = mod._pypi
-    mod._pypi = lambda name: None if name == "aws-helper-sdk" else {"releases": {}}
+    real = mod._lookup
+    mod._lookup = lambda eco, name: None if name == "aws-helper-sdk" else {"releases": {}}
     try:
         found = Offline().run(_tmp_manifest("aws-helper-sdk==1.0.0\nurllib3==1.24.1\n"))
     finally:
-        mod._pypi = real
+        mod._lookup = real
 
     assert [f["rule"] for f in found] == ["valvur.dependency.nonexistent"]
 
@@ -217,12 +227,12 @@ def test_a_hallucinated_name_suggests_the_package_you_probably_meant():
     import valvur.checks.dependency_reality as mod
     from valvur.checks.dependency_reality import DependencyRealityCheck
 
-    real = mod._pypi
-    mod._pypi = lambda name: None
+    real = mod._lookup
+    mod._lookup = lambda eco, name: None
     try:
         found = DependencyRealityCheck().run(_tmp_manifest("reqeusts==2.31.0\n"))
     finally:
-        mod._pypi = real
+        mod._lookup = real
 
     assert "did you mean 'requests'" in found[0]["title"]
 
@@ -235,17 +245,17 @@ def test_with_no_registry_reachable_the_check_fails_rather_than_reporting_clean(
     import valvur.checks.dependency_reality as mod
     from valvur.checks.dependency_reality import DependencyRealityCheck, RegistryUnreachable
 
-    real = mod._pypi
+    real = mod._lookup
 
-    def unreachable(name):
+    def unreachable(eco, name):
         raise RegistryUnreachable("no network")
 
-    mod._pypi = unreachable
+    mod._lookup = unreachable
     try:
         with pytest.raises(RegistryUnreachable):
             DependencyRealityCheck().run(_tmp_manifest("urllib3==1.24.1\n"))
     finally:
-        mod._pypi = real
+        mod._lookup = real
 
 
 def _tmp_manifest(body: str):

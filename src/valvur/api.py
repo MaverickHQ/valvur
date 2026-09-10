@@ -13,6 +13,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import cache as _cache
+from . import coverage as _coverage
 from . import enrichment as _enrichment
 from . import exclusions as _exclusions
 from . import gitcontext as _gitcontext
@@ -50,6 +51,10 @@ class ScanRun:
     config_dropped: int = 0
     excluded_paths: list[str] = field(default_factory=list)
     profile: str = ""
+    #: Per-adapter coverage contracts: what each reads and what it deliberately does
+    #: not (task 19.E.1). Provenance, not findings — the gaps themselves arrive as
+    #: Findings so they are ranked, fingerprinted and suppressible like anything else.
+    coverage: dict = field(default_factory=dict)
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -206,6 +211,17 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
         detail = "; ".join(f"{s.tool}: {s.reason}" for s in scanners)
         raise ScannerFailed(f"Every scanner failed. Refusing to report a scan.\n{detail}")
 
+    # Coverage gaps, from the whole registry rather than this Profile's selection
+    # (task 19.E.1). Deliberately outside the Scanner fleet: a coverage limit is a
+    # static fact about the Workspace, needs no container and no socket, and stays
+    # true on every Profile. It used to live inside the dependency-reality Check,
+    # which the default `offline` Profile does not run — so the one message saying
+    # "this scan could not help you" was missing exactly where it mattered most.
+    configured = tuple(_exclusions.load_configured(workspace))
+    coverage_declared = _coverage.collect(DEFAULT_ADAPTERS, workspace, configured)
+    for adapter in DEFAULT_ADAPTERS:
+        findings += list(adapter.coverage(workspace, configured).gaps)
+
     # Dependency licence policy reads the SBOM the fleet just produced (F4.4-F4.6).
     sbom = next((body for name, body in artifacts if name == "sbom.cdx.json"), "")
     if sbom:
@@ -216,8 +232,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
 
     # Paths this project chose not to scan, from its committed config. Never a
     # built-in default: silently skipping a project's tests would hide real code.
-    excluded_paths = _exclusions.load_configured(workspace)
-    findings, config_dropped = _exclusions.filter_configured(findings, excluded_paths)
+    findings, config_dropped = _exclusions.filter_configured(findings, configured)
+    excluded_paths = list(configured)
 
     findings = merge(findings)
 
@@ -263,6 +279,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
         config_dropped=config_dropped,
         excluded_paths=list(excluded_paths),
         profile=profile,
+        coverage=coverage_declared,
     )
 
     results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)

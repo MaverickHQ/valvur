@@ -21,7 +21,11 @@ def test_a_crashing_scanner_does_not_stop_the_other_scanners(
         adapters=[GitleaksAdapter(), CrashingAdapter()],
     )
 
-    assert len(run.findings) == 1
+    # The subject is failure isolation: the surviving Scanner's finding must arrive.
+    # Counting every Finding in the run made this depend on how many OTHER findings
+    # the fixture happens to produce, which is not what the test is about — the
+    # coverage gaps added in 19.D.1 broke it without touching failure isolation.
+    assert [f.rule for f in run.findings if f.rule == "aws-access-token"]
 
 
 def test_a_crashing_scanner_is_reported_at_the_top_of_the_summary(
@@ -107,5 +111,7 @@ def test_run_json_states_plainly_whether_the_scan_was_complete(
 
     data = json.loads((workspace / ".security-scan" / "run.json").read_text())
 
-    assert data["status"] == "clean"
+    # `complete` is the subject, and it is deliberately independent of `status`: a
+    # scan can find nothing and still be worthless because a Scanner crashed. That
+    # separation is the whole point of the field.
     assert data["complete"] is False

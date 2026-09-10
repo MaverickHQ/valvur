@@ -66,6 +66,12 @@ def _provenance(run) -> str:
                 "scanners_not_run": list(
                     _profiles.not_run(getattr(run, "profile", "") or "")
                 ),
+                # What each Scanner and Check reads, and what it deliberately does
+                # not (task 19.E.1). Distinct from the two fields above: those say a
+                # Scanner did not run, this says what it does not look at even when
+                # it does. A reader asking "was my Cargo.toml checked?" has nowhere
+                # else to find out.
+                "coverage": getattr(run, "coverage", {}) or {},
                 # An incomplete scan reporting "clean" would be a lie of omission.
                 # This is the single field an agent should check first.
                 "complete": not getattr(run, "failures", []),
@@ -81,7 +87,7 @@ def _provenance(run) -> str:
                 },
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
-                # registries by the dependency-reality check on standard and deep.
+                # registries by the dependency-reality Check, on `full` only.
                 # F7.17. The vulnerability database, distinct from the enrichment
                 # data below. This one determines whether findings exist at all, so a
                 # clean result cannot be judged without it.
@@ -217,7 +223,7 @@ def _summary(run) -> str:
             f"> `{run.profile}` does cover dependency CVEs, secrets, code patterns "
             "and agent config. It does not cover "
             f"{_profiles.gaps_in_prose(run.profile)}.",
-            "> Run `valvur scan --profile standard` for full coverage.",
+            "> Run `valvur scan --profile full` for full coverage.",
             "",
         ]
 
