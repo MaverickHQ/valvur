@@ -13,15 +13,23 @@ deserve to know which before you start. See **What will be turned down** below.
 
 ```bash
 uv venv --python 3.12
-uv pip install -e ".[dev]"
+uv sync --extra dev --locked  # install the committed uv.lock, and fail if it is stale
 uv run valvur update          # fetches the vulnerability database, once
-uv run pytest -q -m "not e2e" # unit tests, no container needed
+./scripts/verify.sh           # lint, types, traceability, unit tests, package build
 ```
 
-The end-to-end tests need Docker or Podman and the image:
+`scripts/verify.sh` is the one command worth running before every push: it is the
+same file `ci.yml` and `release.yml` call, so it cannot drift from what CI checks.
+Pass names to run a subset — `./scripts/verify.sh lint types`.
+
+The end-to-end tests need Docker or Podman and the image. It is not included above
+because it needs a container; CI runs it, and so should you before anything touching
+the runner, adapters or Checks:
 
 ```bash
-docker build --build-arg VALVUR_VERSION="$(uv run python -c 'import valvur; print(valvur.__version__)')" -t valvur:dev .
+docker buildx build --load \
+  --build-arg VALVUR_VERSION="$(uv run python -c 'import valvur; print(valvur.__version__)')" \
+  -t valvur:dev .
 VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 ```
 

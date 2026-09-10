@@ -12,6 +12,18 @@ on:
 permissions:
   contents: read
 
+# One release at a time, globally — not one per tag (19.B.2). Two different tags are
+# the dangerous case, not two pushes of the same one: both build `:latest`, so the
+# slower workflow can leave `latest` pointing at the older version while its own
+# signature, attestation and GitHub release all say otherwise.
+#
+# Never cancel-in-progress. A release cancelled between `docker buildx --push` and
+# `cosign sign` leaves an unsigned image published under a real version tag, which is
+# strictly worse than a queued job.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/maverickhq/valvur
@@ -43,9 +55,12 @@ jobs:
           echo "releasing $DECLARED"
 
       - run: uv venv --python 3.12
-      - run: uv pip install -e ".[dev]"
-      - run: uv run ruff check src tests scripts
-      - run: uv run mypy src
+
+      - name: Lint, types, traceability, unit tests, package build
+        # The same script CI and contributors run (19.A.3). Release used to hold its
+        # own copy of these commands, which is how it ended up linting a wider set
+        # than CI did (19.A.2).
+        run: ./scripts/verify.sh
 
       - name: Build the image the tests will run against
         run: |
@@ -55,6 +70,8 @@ jobs:
             -t valvur:dev .
 
       - name: The whole suite, not just the fast half
+        # verify.sh runs `-m "not e2e"` because it must work without a container.
+        # Release is the one place that has one, so the e2e half runs here.
         env:
           VALVUR_IMAGE: valvur:dev
         run: uv run pytest -q

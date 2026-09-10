@@ -34,19 +34,18 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - run: uv venv --python 3.12
-      - run: uv pip install -e ".[dev]"
-      - run: uv run ruff check src tests
-      - run: uv run mypy src
-      - name: Requirements and code stay in step (17.2)
-        # A ratchet, not a gate on today's debt: it fails when a requirement loses
-        # its last citation, or an ADR lands citing none. Both directions matter, and
-        # the second is the one that drifted — five behaviours reached production
-        # across Phases 13-16 with no requirement at all, and an audit of citations
-        # would never have noticed.
-        run: uv run python scripts/check_traceability.py
 
-      - name: Unit tests (no container required)
-        run: uv run pytest -q -m "not e2e"
+      - name: Lint, types, traceability, unit tests, package build
+        # The same script a contributor runs locally (19.A.3). It is called rather
+        # than duplicated on purpose: this job and release.yml previously carried
+        # their own copies and drifted — CI linted `src tests`, release linted
+        # `src tests scripts`, so four scripts were first checked on tag day (19.A.2).
+        # Aligning two lists fixes that until the next edit; sharing one file fixes it.
+        #
+        # It installs from uv.lock with --locked, so a pyproject.toml change without a
+        # matching `uv lock` fails here instead of resolving to whatever PyPI serves
+        # that morning (19.A.1).
+        run: ./scripts/verify.sh
 
   e2e:
     name: end-to-end (real container)
@@ -69,7 +68,7 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq podman
           docker save valvur:dev | podman load
       - run: uv venv --python 3.12
-      - run: uv pip install -e ".[dev]"
+      - run: uv sync --extra dev --locked
       - name: End-to-end, against the image just built
         # Without VALVUR_IMAGE the tests run against the published GHCR tag, which
         # this job did not build and cannot pull while the package is private
@@ -114,13 +113,31 @@ jobs:
         # It skips LOUDLY rather than passing: a skip that reads as a pass is exactly
         # how a single-arch image shipped unnoticed for a week.
         run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          echo "reachable=false" >> "$GITHUB_OUTPUT"
+
+          TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::ghcr.io/maverickhq/valvur is not publicly pullable (task 12a.1). The published artifact is UNVERIFIED on amd64."
+            exit 0
+          fi
+
+          # Reachable is not the same as published. A release-prep commit bumps
+          # pyproject.toml before the tag workflow pushes that version, so on main the
+          # declared version legitimately does not exist yet — and inspecting it would
+          # fail a PR for a reason that is nobody's fault (19.B.1). Gate on the tag,
+          # not on the registry.
           CODE=$(curl -s -o /dev/null -w '%{http_code}' \
-            "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io")
-          if [ "$CODE" != "200" ]; then
-            echo "::warning::ghcr.io/maverickhq/valvur is not publicly pullable (HTTP $CODE, task 12a.1). The published artifact is UNVERIFIED on amd64."
-            echo "reachable=false" >> "$GITHUB_OUTPUT"
-          else
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+            "https://ghcr.io/v2/maverickhq/valvur/manifests/$VERSION")
+          if [ "$CODE" = "200" ]; then
             echo "reachable=true" >> "$GITHUB_OUTPUT"
+            echo "ghcr.io/maverickhq/valvur:$VERSION is published; verifying it"
+          else
+            echo "::notice::ghcr.io/maverickhq/valvur:$VERSION is not published yet (HTTP $CODE). Nothing to verify on this commit; release.yml verifies the artifact it pushes."
           fi
 
       - name: The published index must carry amd64
@@ -149,7 +166,7 @@ jobs:
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           uv venv --python 3.12
-          uv pip install -e ".[dev]"
+          uv sync --extra dev --locked
           export VALVUR_IMAGE="ghcr.io/maverickhq/valvur:$VERSION"
           uv run valvur update
           uv run valvur scan tests/fixtures/broken-repo --profile offline
@@ -180,7 +197,7 @@ jobs:
               --cache-from type=gha --cache-to type=gha,mode=max \
               --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
       - run: uv venv --python 3.12
-      - run: uv pip install -e ".[dev]"
+      - run: uv sync --extra dev --locked
       - name: Fetch the vulnerability database
         env:
           VALVUR_IMAGE: valvur:dev

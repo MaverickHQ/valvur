@@ -2742,30 +2742,81 @@ signals, broader AI-code coverage, and portfolio-grade polish.
 
 ### A — Build
 
-- [ ] **19.A.1** Add a committed dependency lockfile for development and build
-  tooling. CI and release currently install open ranges from `pyproject.toml`; a new
-  `pytest`, `ruff`, `mypy`, `jsonschema` or `hatchling` release can break the build
-  without a code change. Use the lock in CI and release, and let Dependabot update it.
+- [x] **19.A.1** Add a committed dependency lockfile for development and build tooling.
+  ✅ **DONE 2026-09-10.** `uv.lock`, 19 packages. Every CI and release job installs it
+  with `uv sync --extra dev --locked`; Dependabot's `pip` entry became `uv`, because
+  pointing it at `pyproject.toml` would bump the declared ranges and leave the lock —
+  the thing actually installed — untouched.
 
-- [ ] **19.A.2** Align CI and release verification commands. CI currently lints
-  `src tests`, while release lints `src tests scripts`; scripts should fail before
-  release day, not during the tag workflow.
+  > **The risk was already realised.** The open ranges `pytest>=8` and `mypy>=1.11`
+  > had floated to **pytest 9.1.1** and **mypy 2.3.1** — two major versions nobody
+  > chose. Locking froze what currently works rather than preventing a future problem.
+  >
+  > **`--locked`, not `--frozen`.** The first version used `--frozen` and three
+  > comments claimed it caught drift. It does not: both install the lock instead of
+  > re-resolving, but only `--locked` *fails* when `pyproject.toml` has moved past it.
+  > Measured — adding a dev dependency without re-locking passed under `--frozen` and
+  > fails under `--locked`. A lockfile nothing checks is decoration.
+  >
+  > **`hatchling` is bounded rather than locked**, to `>=1.27,<2`. Build backends are
+  > resolved outside the lock at build time, so an unqualified `hatchling` means a 2.0
+  > could change the wheel this repository produces with no commit here.
 
-- [ ] **19.A.3** Add a single local verification command or script that mirrors CI:
-  lint, types, traceability, non-e2e tests, and package build. It should work with
-  cache directories outside the user's home when sandboxed.
+- [x] **19.A.2** Align CI and release verification commands.
+  ✅ **DONE 2026-09-10.** Not by aligning two lists — by deleting one. Both workflows
+  now call `scripts/verify.sh`. Aligning the lists fixes the divergence until the next
+  edit; sharing one file is what stops it returning.
+
+  > The gap was real: `ci.yml` linted `src tests`, `release.yml` linted
+  > `src tests scripts`, so four files under `scripts/` were first checked on tag day.
+  > `pyproject.toml` already carried a `"scripts/*"` per-file-ignore — the configuration
+  > for linting them had been written; the invocation never was.
+
+- [x] **19.A.3** Add a single local verification command that mirrors CI.
+  ✅ **DONE 2026-09-10.** `scripts/verify.sh` — sync from the lock, then lint, types,
+  traceability, non-e2e tests and package build. Takes names for a subset
+  (`./scripts/verify.sh lint types`). Redirects `UV_CACHE_DIR`, `RUFF_CACHE_DIR`,
+  `MYPY_CACHE_DIR` and `XDG_CACHE_HOME` to a temp root when `$HOME` is not writable,
+  and never overrides a value the caller set.
+
+  > **Its first version passed by running nothing.** The selection helper counted its
+  > own arguments, so `$#` was never 0, no check ever matched, and the script printed
+  > *all checks passed* having executed zero of them. Found by reading the output
+  > rather than the exit code.
+  >
+  > It now counts what ran and **fails when that is zero**. A verifier that can pass
+  > vacuously is worse than no verifier — it is the exact defect this repository
+  > exists to find, written into the tool meant to catch it.
 
 ### B — Deploy
 
-- [ ] **19.B.1** Move published-image verification out of regular PR/main CI, or gate
-  it so it only runs when the declared image tag exists. A release-prep commit that
-  bumps `pyproject.toml` can legitimately precede the published GHCR image.
+- [x] **19.B.1** Gate published-image verification on the declared tag existing.
+  ✅ **DONE 2026-09-10.** The job asked only whether the *repository* was anonymously
+  pullable, then inspected `:$VERSION` regardless. A release-prep commit bumps
+  `pyproject.toml` before the tag workflow pushes that version, so the moment the
+  package goes public every such PR would fail on a manifest that legitimately does
+  not exist yet. It now requests that specific manifest and skips with a `::notice`
+  on anything but 200.
 
-- [ ] **19.B.2** Add release workflow concurrency so two tag pushes cannot publish,
-  sign, attest or create GitHub releases over each other.
+  > **Both branches exercised against real GHCR**, since the tag path could not be
+  > tested on a private package: an existing tag returns 200 (verify) and a fabricated
+  > one returns 404 (skip). Today, valvur's own package yields no anonymous token at
+  > all, and the job warns loudly — unchanged, and still correct.
 
-- [ ] **19.B.3** Update release documentation to use the same build path as CI for
-  local release testing.
+- [x] **19.B.2** Add release workflow concurrency.
+  ✅ **DONE 2026-09-10.** `group: release`, **global rather than per-tag**: two
+  different tags are the dangerous case, not two pushes of one. Both build `:latest`,
+  so the slower workflow can leave `latest` on the older version while its signature,
+  attestation and GitHub release all say otherwise.
+
+  > `cancel-in-progress: false`, deliberately. A release cancelled between
+  > `docker buildx --push` and `cosign sign` leaves an **unsigned image published under
+  > a real version tag** — strictly worse than a queued job.
+
+- [x] **19.B.3** Update release documentation to use the same build path as CI.
+  ✅ **DONE 2026-09-10.** `docs/RELEASING.md` and `CONTRIBUTING.md` now use
+  `docker buildx build --load` and `./scripts/verify.sh`. RELEASING held a third copy
+  of the lint/type/test commands; third copies drift too.
 
   > **Premise corrected 2026-09-10.** This said the documented `docker build` in
   > `docs/RELEASING.md` fails because the Dockerfile relies on `TARGETARCH`. It does

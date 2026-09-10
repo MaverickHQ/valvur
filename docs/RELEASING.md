@@ -26,8 +26,8 @@ These cannot be automated, and the workflow fails without them.
 # 1. Bump the one place the version lives.
 $EDITOR pyproject.toml            # version = "0.2.0"
 
-# 2. Refresh the editable install, or the version tests fail and are right to.
-uv pip install -e ".[dev]"
+# 2. Refresh the install, or the version tests fail and are right to.
+uv sync --extra dev --locked
 
 # 3. Move [Unreleased] to [0.2.0] with today's date.
 $EDITOR CHANGELOG.md
@@ -37,7 +37,13 @@ $EDITOR README.md                 # > **Status: `0.2.0`**
 
 # 5. Everything must be green BEFORE the tag. The workflow checks again, but
 #    finding out here is cheaper than finding out in a job that has already pushed.
-uv run pytest -q && uv run ruff check src tests scripts && uv run mypy src
+#    This is the same script CI and release.yml both call (19.A.3) — the commands
+#    used to be written out here as a third copy, and third copies drift.
+./scripts/verify.sh
+
+#    verify.sh skips the e2e suite because it must run without a container. You have
+#    one, so run that half too, against the image built below.
+VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 
 git commit -am "chore: release 0.2.0"
 git tag v0.2.0                    # must match pyproject exactly; the workflow rejects a mismatch
@@ -55,9 +61,20 @@ different code — but it means during a release you either work from a local bu
 pin explicitly:
 
 ```bash
-docker build --build-arg VALVUR_VERSION=0.2.0 -t valvur:dev .
+docker buildx build --load --build-arg VALVUR_VERSION=0.2.0 -t valvur:dev .
 VALVUR_IMAGE=valvur:dev valvur scan .
 ```
+
+> **`buildx`, not plain `docker build` (19.B.3)** — the same command `ci.yml` and
+> `release.yml` run.
+>
+> Plain `docker build` does work today: **measured 2026-09-10, it exits 0** and
+> produces a working image, because modern Docker enables BuildKit by default and
+> BuildKit supplies `TARGETARCH`. But the Dockerfile selects its Opengrep stage with
+> `FROM opengrep-${TARGETARCH}`, so that success is a default, not a guarantee. With
+> `DOCKER_BUILDKIT=0`, or on an older Docker, there is nothing to resolve and the
+> build fails somewhere unhelpful. Naming `buildx` makes the dependency explicit
+> rather than lucky.
 
 Keep the window short: bump, verify, tag and push in one sitting.
 

@@ -23,7 +23,11 @@ updates:
       actions:
         patterns: ["*"]
 
-  - package-ecosystem: pip
+  - package-ecosystem: uv
+    # `uv`, not `pip`, since 19.A.1: the resolution now lives in a committed uv.lock
+    # and CI installs it with --frozen. Pointing Dependabot at pyproject.toml would
+    # bump the declared ranges and leave the lock — the thing actually installed —
+    # untouched, so nothing would reach CI.
     directory: /
     schedule:
       interval: weekly
