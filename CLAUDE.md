@@ -50,16 +50,20 @@ not), **Block 6** (the three owner actions at github.com that unblock publicatio
 and then the release tail: the usability gate, which needs a person who has never seen
 this tool, and `v1.0.0`.
 
-**Two known gaps worth knowing before proposing anything:**
+**One known gap, and one deliberate friction, worth knowing before proposing anything:**
 
 - **Slopsquat detection covers Python and npm, and nothing else.** `requirements*.txt`
   and `pyproject.toml` (PEP 621 and Poetry) against PyPI; `package.json` against the
   npm registry. Cargo, Go, Ruby, PHP and JVM have no existence check — but a project
   using one now gets a **Finding** saying so, on every Profile, so the gap is stated
   rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
-- **F1.6, SELinux mount labelling, is unimplemented** and sits in the not-cuttable
-  set. It could not be reproduced as a defect on the one enforcing environment
-  reachable here, but a native RHEL host — the target market — is untested. Phase 20.
+- **On SELinux-enforcing hosts, valvur refuses to scan until the developer acts.**
+  Measured 2026-09-10 on Fedora CoreOS 44, native xfs under `$HOME`: a container may
+  not read a `user_home_t` directory, so all three mounts were denied. valvur labels
+  its **own** scratch and cache mounts automatically; it does **not** relabel the
+  scanned tree unless `VALVUR_SELINUX_RELABEL=1` is set, because `:z` rewrites the
+  SELinux context of every file in it and that outlives the scan (§10). The cost is a
+  failed first run on RHEL, accepted deliberately. F1.6 met; Phase 20 closed.
 
 > **This line was wrong for six weeks**, saying "spec phase, no application code yet"
 > while the tool scanned its own repository on every commit. It is the first thing a
@@ -170,6 +174,7 @@ new argument.
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
 | [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `offline` stays offline. |
 | [016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md) | **Two Profiles, split on the network boundary.** `offline` (the default) runs every Scanner that completes under `--network=none` — which is all of them bar two. `full` adds `osv-scanner` and the dependency-reality Check, the only two needing a socket. The old set was drawn along *speed* while being described as a network boundary, and `deep` was byte-identical to `standard` — it promised more and delivered exactly `standard`. Retired names still resolve. |
+| [017](docs/adr/0017-selinux-relabelling-is-opt-in.md) | **SELinux relabelling of the source tree is opt-in.** Measured on a native enforcing host: all three mounts are denied, so valvur was unusable on RHEL — the primary target market. Its **own** scratch and cache mounts are labelled `:z` unconditionally; the **Workspace is not**, unless `VALVUR_SELINUX_RELABEL=1`, because `:z` rewrites the SELinux context of every file in the scanned tree and that outlives the scan (§10, moat item 2). `:Z` is impossible rather than merely undesirable — it stamps a private MCS category and valvur runs its Scanners concurrently against one mount, so the second is denied. The accepted cost is a failed first run on RHEL. |
 | [010](docs/adr/0010-provable-non-exfiltration.md) | **Provable non-exfiltration is a hard constraint.** Not a policy — a testable property, with a regression test that fails if the `offline` profile touches a socket. This is the product; see §3. |
 
 ## 7. Results contract

@@ -329,6 +329,26 @@ build — and a six-month-old image never implies six-month-old vulnerability da
 | Windows via **WSL2** | Supported — inside WSL valvur is running on Linux |
 | Native Windows | **Not claimed.** It may work; nobody has tested it, so valvur says so at startup rather than pretending either way |
 
+**SELinux-enforcing hosts (RHEL, Fedora, CentOS Stream).** Measured on Fedora CoreOS
+44 with a workspace on native xfs under `$HOME`: a container may not read a directory
+labelled `user_home_t` or `admin_home_t`, so valvur **refuses to scan** and tells you
+why. It does not report a false clean.
+
+valvur labels its own scratch and cache mounts automatically. It does **not** relabel
+your source tree unless you ask, because `:z` rewrites the SELinux context of every
+file in it and the change outlives the scan:
+
+```bash
+VALVUR_SELINUX_RELABEL=1 valvur scan .
+```
+
+Or do it yourself once — `chcon -R -t container_file_t .`, undone with
+`restorecon -R -F .` (the `-F` is required; `container_file_t` is a customizable type
+and restorecon skips those unless forced).
+
+`:Z` is deliberately not offered: it stamps a private MCS category, and valvur runs its
+scanners concurrently against one mount.
+
 ## Running elsewhere
 
 The image is a plain OCI artifact with **no cloud-specific code paths**, so it pushes
