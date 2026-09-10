@@ -19,7 +19,10 @@ valvur = "valvur.cli:main"
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "jsonschema>=4"]
 
 [build-system]
-requires = ["hatchling"]
+# Bounded, not open (19.A.1). uv.lock pins the dev tooling, but a build backend is
+# resolved outside the lock at build time — so an unqualified "hatchling" means a
+# hatchling 2.0 could change the wheel this repository produces with no commit here.
+requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
