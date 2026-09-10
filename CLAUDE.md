@@ -234,12 +234,20 @@ Rules that must hold:
   style or script. Dormant since ADR-0014 cut `report.html`; the guard stays in
   force for whatever renders next.
 - **Clean is explicit, and never claimed when it cannot be supported.** Three
-  statuses, not two: `findings`, `clean`, and **`inconclusive`** — no findings, but
-  the vulnerability database was too old for that to be evidence. An agent can tell
-  all three from "never ran". Warning in `SUMMARY.md` alone is not enough: the
-  contract tells agents to read it *bounded* and query `findings.json` for detail, so
-  the consumer most likely to act on the verdict is the one least likely to see a
-  caveat explaining it means nothing. The verdict itself has to carry the claim.
+  statuses, not two: `findings`, `clean`, and **`inconclusive`** — nothing live was
+  found, and either the vulnerability database was too old for that to be evidence or
+  an ecosystem present in the workspace was never inspected. An agent can tell all
+  three from "never ran". Warning in `SUMMARY.md` alone is not enough: the contract
+  tells agents to read it *bounded* and query `findings.json` for detail, so the
+  consumer most likely to act on the verdict is the one least likely to see a caveat
+  explaining it means nothing. The verdict itself has to carry the claim.
+- **The verdict is about the code, not about valvur.** Only **active** findings —
+  unsuppressed, and excluding valvur's own coverage notes — make a status `findings`.
+  A suppressed finding is a decision this project already recorded; a coverage note is
+  our missing feature. Counting either as a problem in the user's code makes a release
+  gate go red for something they did not do and cannot fix, and a gate nobody can turn
+  green is a gate that gets deleted. All three counts appear on every surface: the
+  terminal, `run.json`, `SUMMARY.md` and the MCP `scan_status` response.
 - **A Scanner that did not run says so.** Checkov is skipped where there is no
   infrastructure to analyse — it costs ~10s of fixed startup whatever it finds — and
   the skip with its reason appears in `run.json` (`scanners_skipped`) and in

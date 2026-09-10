@@ -39,7 +39,7 @@ def test_a_crashing_scanner_is_reported_at_the_top_of_the_summary(
     )
 
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
-    before_findings = summary.split("**Findings:**")[0]
+    before_findings = summary.split("**Active findings:**")[0]
 
     assert "exploding-scanner" in before_findings
 

@@ -250,6 +250,18 @@ form, so that I can act on them without exhausting my context window.
 5. F7.5 — `SUMMARY.md` SHALL NOT exceed 200 lines regardless of **Finding** count.
 6. F7.6 — `SUMMARY.md` SHALL open with a machine-facing block describing the folder,
    the **Status** values, the ranking basis, and the constraints in F9.5–F9.7.
+
+   > ⚠️ **PARTIALLY UNMET until 2026-09-10 (task 10.4.12).** The block described the
+   > folder and the F9.5–F9.7 constraints, and said nothing about **the Status values
+   > or the ranking basis** — two of the four things this requirement names. An agent
+   > reading `inconclusive` had nothing telling it not to report that as clean, which
+   > is the entire reason F7.16 put the claim in the verdict rather than in prose. Both
+   > clauses are now present, and a test asserts each **Status** value appears by name.
+   >
+   > **A one-sentence human verdict now precedes the block**, after the title. F7.6's
+   > protection is that an agent meets the constraints before any **Finding**, which
+   > F7.7 states at the content level and which still holds. What a human met first was
+   > twelve lines of instructions addressed to somebody else.
 7. F7.7 — WHEN any **Scanner** or **Check** failed or was skipped, `SUMMARY.md` SHALL
    state so before reporting any **Finding**.
 8. F7.8 — **DEFERRED 2026-08-30, see [ADR-0014](../../../docs/adr/0014-no-html-report.md).**
@@ -279,10 +291,29 @@ form, so that I can act on them without exhausting my context window.
 
 16. F7.16 — valvur SHALL report a **Status** of `findings`, `clean` or `inconclusive`,
     and SHALL NOT report `clean` when no **Finding** was made against a vulnerability
-    database older than the threshold in `design.md`. *Added 2026-09-05 (tasks 14.1,
-    14.2). Presence of **Findings** needs no fresh data to mean something; absence
-    does. Prose alone was insufficient: agents are instructed to read `SUMMARY.md`
-    bounded and query `findings.json`, so the verdict itself must carry the claim.*
+    database older than the threshold in `design.md`, **or when an ecosystem present in
+    the Workspace was not inspected at all**. *Added 2026-09-05 (tasks 14.1, 14.2).
+    Presence of **Findings** needs no fresh data to mean something; absence does. Prose
+    alone was insufficient: agents are instructed to read `SUMMARY.md` bounded and query
+    `findings.json`, so the verdict itself must carry the claim.*
+
+    > **Amended 2026-09-10 (tasks 19.C.2, 19.E.2).** Three **Status** values, still —
+    > `clean-with-suppressions` was rejected, because every consumer switches on these
+    > three and a fourth is a breaking change buying a count now printed beside the
+    > verdict on every surface.
+    >
+    > What changed is what feeds the verdict. It was every **Finding**, so a scan whose
+    > only **Findings** were accepted risks read `findings`, and after 19.D.1 any
+    > repository containing a `Cargo.toml` could never read `clean`. Neither is a
+    > statement about the user's code. **Suppressed Findings and coverage notes no
+    > longer make the verdict negative**, and both are counted explicitly instead.
+    >
+    > The uninspected-ecosystem clause is the same claim the stale-database clause
+    > already made: *we did not look, so `clean` is not ours to claim*. It deliberately
+    > does **not** cover a **Profile** omission — the user chose `offline` and valvur
+    > did that job completely, which is different from valvur silently being unable to
+    > do a job nobody declined. That gap is named in `SUMMARY.md` and `run.json` on
+    > every run instead.
 17. F7.17 — `run.json` SHALL record the vulnerability database's age, whether it is
     stale, and the threshold applied. *Added 2026-09-05. N3.1 requires a **Clean
     Scan** to be distinguishable from a failed one; it must also be distinguishable

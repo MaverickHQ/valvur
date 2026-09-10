@@ -25,6 +25,7 @@ from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
 from .adapters import DEFAULT_ADAPTERS
+from .coverage import RULE as _COVERAGE_RULE
 from .findings import Finding, merge
 from .provenance import ScannerRun
 
@@ -61,6 +62,33 @@ class ScanRun:
         return [s for s in self.scanners if s.failed]
 
     @property
+    def active(self) -> list[Finding]:
+        """Findings about the scanned project, and nothing else (task 19.C.1).
+
+        Two kinds of Finding are deliberately not here, for opposite reasons.
+
+        A **suppressed** Finding is a risk this project recorded a decision about. It
+        is still reported, never hidden — but a scan whose only Findings are accepted
+        risks is not a scan that found problems, and reading like one trains people to
+        ignore the verdict.
+
+        A **coverage note** is valvur's own limitation, not the user's defect. Counting
+        "we have no existence check for Rust" as a finding against their code would
+        make the verdict permanently negative for something they cannot fix, and would
+        fail their CI for our missing feature.
+        """
+        return [f for f in self.findings if not f.suppressed and f.rule != _COVERAGE_RULE]
+
+    @property
+    def suppressed(self) -> list[Finding]:
+        return [f for f in self.findings if f.suppressed]
+
+    @property
+    def coverage_notes(self) -> list[Finding]:
+        """What valvur did not inspect, as opposed to what it did not find."""
+        return [f for f in self.findings if f.rule == _COVERAGE_RULE and not f.suppressed]
+
+    @property
     def status(self) -> str:
         """`clean` must be explicit, so an agent can tell it from a run that never
         happened — and must not be claimed when we cannot support it.
@@ -74,13 +102,36 @@ class ScanRun:
 
         F7.16. `inconclusive` says the thing that is actually true: we looked, we found
         nothing, and our data was too old for that to be evidence.
+
+        **Still three, decided 2026-09-10 (task 19.C.2).** A fourth —
+        `clean-with-suppressions` — was rejected: three statuses are a documented
+        contract (§7, F7.16) and every consumer switches on them, so a new one is a
+        breaking change that buys a count already printed beside the verdict. A
+        suppression is a decision this project recorded in a committed file; a scan
+        whose only Findings are accepted risks *is* clean by that project's own policy,
+        and `active` versus `suppressed` is now explicit on every surface.
+
+        What changed is what feeds the verdict (task 19.E.2). It used to be
+        `self.findings` — every Finding, suppressed ones included, and after 19.D.1
+        coverage notes too. So a repository with an accepted risk and no live problem
+        read as `findings`, and any repository containing a `Cargo.toml` could never
+        read `clean` at all. Neither is a statement about the user's code.
+
+        `inconclusive` covers a coverage gap for the same reason it covers a stale
+        database: **we did not look, so "clean" is not ours to claim.** It does *not*
+        cover a Profile omission — the user chose `offline` and valvur did that job
+        completely, which is a different thing from valvur silently being unable to do
+        a job nobody declined. The Profile gap is named in `SUMMARY.md` and `run.json`
+        instead, on every run.
         """
-        if self.findings:
+        if self.active:
             return "findings"
         from . import cache as _cache
 
         age = self.db_age_days
         if age is not None and age > _cache.DB_STALE_AFTER_DAYS:
+            return "inconclusive"
+        if self.coverage_notes:
             return "inconclusive"
         return "clean"
 

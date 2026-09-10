@@ -239,22 +239,37 @@ def test_provenance_carries_the_contract(tmp_path):
 
 # ------------------------------------------------ an open question, pinned for now
 
-def test_a_coverage_gap_currently_makes_the_run_report_findings(tmp_path, monkeypatch):
-    """**Recorded, not endorsed.** A coverage gap is a Finding — ranked, fingerprinted
-    and suppressible like any other — so a Workspace with an uncovered ecosystem can no
-    longer report `clean`. Any repository with a `Cargo.toml` now reads `findings`.
+def test_a_coverage_gap_does_not_read_as_a_problem_in_your_code(tmp_path):
+    """**Decided in Block 3 (19.C.2, 19.E.2).** This test previously pinned the
+    opposite, so that changing it had to be deliberate. It is now deliberate.
 
-    That is arguably wrong: `findings` means *we found problems in your code*, and a
-    coverage gap is our limitation, not the user's defect. §7 already has the right
-    vocabulary for it — `inconclusive` means *we looked, found nothing, and could not
-    support the claim* — and that is the same shape.
+    A coverage gap made `status` read `findings`, so any repository containing a
+    `Cargo.toml` could never report `clean` — a permanently negative verdict about
+    something the user cannot fix. `findings` means *we found problems in your code*,
+    and this is our limitation.
 
-    Deciding it here would pre-empt **19.C.2 and 19.E.2**, which own the status model
-    and run next. This test pins today's behaviour so that changing it has to be
-    deliberate rather than incidental, and fails loudly when Block 3 does change it.
+    `inconclusive` is the honest answer, and it is the same claim the word already
+    carries for a stale database: **we did not look, so "clean" is not ours to
+    claim.**
     """
     from valvur.api import ScanRun
 
     gaps = coverage.dependency_gaps(_repo(tmp_path, {"Cargo.toml": ""}))
+    run = ScanRun(findings=list(gaps))
 
-    assert ScanRun(findings=list(gaps)).status == "findings"
+    assert run.status == "inconclusive"
+    assert run.active == []
+    assert len(run.coverage_notes) == 1
+
+
+def test_a_gap_never_fails_someone_else_s_build(tmp_path):
+    """The consequence that decided it. A release gate keyed on active findings must
+    not go red because valvur has no Rust support — the user cannot fix that, and a
+    gate nobody can turn green is a gate that gets deleted."""
+    from valvur.api import ScanRun
+
+    gaps = coverage.dependency_gaps(_repo(tmp_path, {"go.mod": "module x\n"}))
+
+    assert ScanRun(findings=list(gaps)).active == []
+    # But it is still reported, never hidden — that is the whole point of 19.D.3.
+    assert ScanRun(findings=list(gaps)).coverage_notes
