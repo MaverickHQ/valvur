@@ -2739,15 +2739,23 @@ meets first. Split apart, the status model would have been rewritten three times
 and never reads it. No dependency in either direction — attach it to whichever block
 runs first.
 
-### Block 4 — Corpus verification · 19.F.3, 19.F.4, 19.F.5, 19.E.3
+### Block 4 — Corpus verification · 19.F.3, 19.F.4, 19.F.5, 19.E.3 — ✅ DONE 2026-09-10
 
-Runs against the corpus staged in Block 0. **The only block that cannot be sized in
-advance**: 19.F.3 and 19.F.4 are a loop over whatever Block 0 turns up. 19.E.3 joins
-it because the release-readiness document explains what clean, suppressed and
-inconclusive mean — which Block 3 decides and this block confirms against real
-projects.
+The block that could not be sized in advance, and the one that paid best. Three
+defects, all false positives valvur produced on ordinary repositories, none of which
+any unit test would have found — because each needed a *shape* of real project rather
+than a behaviour anyone thought to write down.
 
-**Commit:** `test: the corpus, and what it found`
+> **Two of the three were introduced by Block 2, four hours earlier, with tests
+> passing.** Widening the Dependency Reality Check to `pyproject.toml` immediately
+> started reporting monorepo workspace members as hallucinated, and started comparing
+> names against a popular-package list without PEP 503 normalisation. Neither is
+> visible from a synthetic fixture; both are the first thing a real monorepo does.
+>
+> **The third had been latent for weeks.** `.uv-cache/` was 40% of one project's
+> report. The exclusion mechanism worked perfectly and the name simply postdated the
+> list — a denylist ageing quietly, which is the same silent-drift class as everything
+> else this phase removed, pointed the other way.
 
 ### Block 5 — SELinux · 20.1, then 20.2 **or** 20.3, then 20.4 — *environment-gated*
 
@@ -3059,10 +3067,19 @@ signals, broader AI-code coverage, and portfolio-grade polish.
   > fix that, and a gate nobody can turn green is a gate that gets deleted. F7.16
   > amended in `requirements.md`.
 
-- [ ] **19.E.3** Add a small release-readiness document or checklist aimed at GitHub
-  portfolio readers: how to install, how to verify the image, how to run offline,
-  what a clean/suppressed/inconclusive result means, and what valvur intentionally
-  does not claim.
+- [x] **19.E.3** Add a release-readiness document aimed at GitHub portfolio readers.
+  ✅ **DONE 2026-09-10.** [`docs/EVALUATING.md`](../../../docs/EVALUATING.md), linked
+  from the README. Install, verify the signed image, prove non-exfiltration on both
+  halves, read the three statuses, and a plain list of what valvur does **not** claim.
+
+  > **Written to be read sceptically**, which meant leading with the limits rather than
+  > appending them: dependency-reality covers Python and npm only; F1.6 SELinux
+  > labelling is unimplemented; there is no reachability analysis and never will be.
+  >
+  > Its last section points at the repository's own audit trail — the unmet-requirement
+  > annotations, the tasks recording premises I asserted and then measured to be false,
+  > and the traceability ratchet. For a security tool, the record of being wrong in
+  > public is more persuasive than the feature list.
 
 ### F — Local corpus validation
 
@@ -3120,18 +3137,69 @@ into the smallest publishable fixture that reproduces it.
   > meeting, and no unit test was ever going to catch it — 19.D.3 shipped with tests
   > passing, four hours before the corpus found this.
 
-- [ ] **19.F.3** For each corpus failure, classify it before fixing it:
-  true defect, false positive, false negative, unsupported coverage, unclear
-  Provenance, confusing human-facing output, or environment/setup failure.
+- [x] **19.F.3** Classify each corpus failure before fixing it.
+  ✅ **DONE 2026-09-10.** Three defects, all the same class — **false positives valvur
+  itself produced on ordinary repositories**, which is the worst finding this product
+  can emit: a developer told their own code is a supply-chain attack stops reading the
+  report, and the real finding in it goes with them.
 
-- [ ] **19.F.4** Distil each true defect or confusing output into a minimal fixture
-  under `tests/fixtures/` and a failing test. The local project proves the behaviour
-  matters; the fixture is what keeps the regression test safe, small and publishable.
+  > | | Defect | Classification |
+  > |---|---|---|
+  > | **F1** | Three **high-severity** *"almost certainly hallucinated"* findings against a monorepo's own workspace members. `uv`, Poetry and Hatch all resolve a plain `"demo-core"` from the tree beside it when a member defines that name — nothing in the dependency string says so. The npm side already skipped `workspace:*`, `file:` and `link:`; Python has no equivalent marker. | false positive |
+  > | **F2** | *"'discord.py' is one character from the far more popular 'discord-py'"* — **the same package.** PEP 503 folds `.`, `-` and `_` together; verified 2026-09-10 that PyPI returns 200 for all three spellings with canonical name `discord.py`. One edit apart on raw strings, zero apart in fact, so any name containing a dot or underscore could accuse itself. | false positive |
+  > | **F3** | **17 of one project's 42 findings were inside `.uv-cache/`** — `eval` and `exec` in pytest, hypothesis, pygments and attrs, every one at high severity. Forty percent of that report was other people's code. | false positive |
+  >
+  > **F3 is the one worth learning from.** The mechanism was correct and already
+  > working; the directory name simply postdated the list. `exclusions.VENDORED` is a
+  > denylist, and a denylist ages — uv did not exist when it was written.
+  >
+  > **Excluding whatever `.gitignore` covers was considered and rejected.** It is the
+  > project's own statement about what is not its source, which is exactly the right
+  > signal — and it would stop valvur scanning `.env` files, which are gitignored
+  > precisely because they hold the credentials this tool exists to find.
 
-- [ ] **19.F.5** Re-run the corpus after the Phase 19 fixes. The success condition is
-  not "no Findings"; it is no Scanner failures, no silent skipped coverage, no
-  confusing status, no avoidable false positives from valvur itself, and clear
-  Provenance for everything that did or did not run.
+- [x] **19.F.4** Distil each defect into a minimal fixture and a failing test.
+  ✅ **DONE 2026-09-10.** `tests/fixtures/monorepo/` — a root manifest declaring two
+  local Python packages and a scoped npm workspace member, plus one real external
+  dependency in each ecosystem so the fix cannot be "stop checking anything".
+  `tests/test_corpus_regressions.py` holds all three, each with its pairing test.
+
+  > **Every fix has a pair**, because each of these is a way to make findings
+  > disappear: a local package is skipped but a real external one is still asked
+  > about; PEP 503 folding must not disarm a genuine transposition like `reqeusts`;
+  > and a whole-segment match must leave a developer's own `src/cache/` alone.
+  >
+  > **A local package is never even asked about**, not merely unreported. A workspace
+  > member's name leaving the machine buys nothing, and §3 is about what we transmit
+  > as much as what we say.
+  >
+  > F2 is a property of a pure function and is tested as one. Manufacturing a fixture
+  > directory for it would have been ceremony.
+
+- [x] **19.F.5** Re-run the corpus after the fixes.
+  ✅ **DONE 2026-09-10.** Ten scans across six projects and two Profiles, against an
+  image rebuilt from the fixed tree.
+
+  > | Condition | Result |
+  > |---|---|
+  > | No Scanner failures | **0**, every run `complete: true` |
+  > | No silent skipped coverage | every omission named: Profile gaps, conditional skips, uninspected ecosystems |
+  > | No confusing status | `clean: 0 active`, `findings: 70 active, 1 not covered` |
+  > | No avoidable false positives from valvur | three classes found and fixed; none remain |
+  > | Clear Provenance | `run.json` carries the coverage contract, the skip reasons and what left the machine |
+  >
+  > **The monorepo went from 45 findings to 23** — 22 dropped as vendored, up from 3.
+  > Half its report had been other people's code.
+  >
+  > **One measurement recorded rather than fixed:** that project's `full` scan went
+  > from 87s to 123s, because 19.D.1 now queries a registry for every declared package
+  > and the lookups are serial. Real work for real coverage, but the lookups are
+  > independent and I/O-bound, so this is the obvious place to parallelise if scan time
+  > becomes a complaint. Not done here — it touches the one code path that reaches the
+  > network, and that is not a change to make casually at the end of a block.
+  >
+  > **The corpus was deleted afterwards.** It was disposable by design (19.F.2), and
+  > one project carried a live API key.
 
 **Exit:** a fresh contributor can run one documented command for local confidence;
 CI and release gates check the same things at the right time; suppressed-only,
