@@ -2602,24 +2602,216 @@ is a failing test when broken; and no described mechanism is inert or silent.
 
 ---
 
-## Phase 18 — Everything that remains
+## Phase 19 — Reliability, release and portfolio hardening
 
-**Goal:** one ordered view of the ten open tasks, which are scattered across four
-phases and blocked on three different kinds of thing.
+**Goal:** remove the remaining ways valvur can look green while being ambiguous,
+environment-dependent, or confusing to a first-time user. This phase is about
+repeatable builds, release gates that fail in the right place, clearer operational
+signals, broader AI-code coverage, and portfolio-grade polish.
 
-> **Added 2026-09-10.** Nothing here is new work — every item references a task that
-> already exists. The phases were written as the work was understood, so what is left
-> now sits in Phases 0, 10 and 12 with no single place showing the order or the
-> dependencies. This is that place. **If an item here disagrees with its own task,
-> the task is authoritative.**
+> **Added 2026-09-10 from build/deploy/operations/functionality/architecture audit.**
+> The repo is already strong: lint, types, traceability and non-e2e tests pass; the
+> wheel builds and installs; release signing, provenance, SBOMs, redaction and
+> self-scan gates exist. The work below is the next layer: make success reproducible,
+> make failures explicit, and remove confusing-but-technically-true outputs.
 >
-> **Closed while writing this**, because both were done and neither said so:
-> [0.2](#phase-0--preflight) (Podman installed, six weeks after the entry still read
-> *"Recon: not installed"*) and [1.12](#phase-1--walking-skeleton) (a pointer to work
-> that moved to 10.0 and finished on 2026-08-31). Two tasks that looked like
-> remaining work and were not.
+> **Runs before public release.** The earlier "Everything that remains" phase mixed
+> hardening and publication. That ordered the public-release actions before the
+> optimisation work that should precede them. Publication now waits until Phases 19
+> and 20 are complete.
+
+### A — Build
+
+- [ ] **19.A.1** Add a committed dependency lockfile for development and build
+  tooling. CI and release currently install open ranges from `pyproject.toml`; a new
+  `pytest`, `ruff`, `mypy`, `jsonschema` or `hatchling` release can break the build
+  without a code change. Use the lock in CI and release, and let Dependabot update it.
+
+- [ ] **19.A.2** Align CI and release verification commands. CI currently lints
+  `src tests`, while release lints `src tests scripts`; scripts should fail before
+  release day, not during the tag workflow.
+
+- [ ] **19.A.3** Add a single local verification command or script that mirrors CI:
+  lint, types, traceability, non-e2e tests, and package build. It should work with
+  cache directories outside the user's home when sandboxed.
+
+### B — Deploy
+
+- [ ] **19.B.1** Move published-image verification out of regular PR/main CI, or gate
+  it so it only runs when the declared image tag exists. A release-prep commit that
+  bumps `pyproject.toml` can legitimately precede the published GHCR image.
+
+- [ ] **19.B.2** Add release workflow concurrency so two tag pushes cannot publish,
+  sign, attest or create GitHub releases over each other.
+
+- [ ] **19.B.3** Update release documentation to use the same build path as CI for
+  local release testing.
+
+  > **Premise corrected 2026-09-10.** This said the documented `docker build` in
+  > `docs/RELEASING.md` fails because the Dockerfile relies on `TARGETARCH`. It does
+  > not — **measured: plain `docker build` exits 0** and produces a working image,
+  > because modern Docker enables BuildKit by default and BuildKit supplies
+  > `TARGETARCH`.
+  >
+  > The task is still worth doing, for a different reason: the build silently depends
+  > on BuildKit being on. With `DOCKER_BUILDKIT=0`, or on an older Docker, `FROM
+  > opengrep-${TARGETARCH}` has nothing to resolve. Documenting `docker buildx build
+  > --load` makes that dependency explicit rather than lucky, and matches what CI and
+  > `release.yml` actually run.
+
+### C — Operations
+
+- [ ] **19.C.1** Make active versus suppressed findings explicit in terminal output,
+  `run.json`, and `SUMMARY.md`. A scan with zero active findings and only suppressed
+  findings should not read like a live-finding failure to a portfolio reviewer.
+
+- [ ] **19.C.2** Decide whether suppressed-only results need a distinct status such
+  as `clean-with-suppressions`, or whether `findings` stays as the machine status
+  while `active_findings` becomes the human-facing gate.
+
+- [ ] **19.C.3** Add `valvur-mcp --help` and `valvur-mcp --version` handling without
+  writing anything to stdout during normal MCP operation. Silent `--help` is correct
+  for stdio, but poor for demos and first-run diagnosis.
+
+### D — Functionality
+
+- [ ] **19.D.1** Expand the Dependency Reality Check beyond `requirements*.txt`, or
+  explicitly report unsupported manifest coverage. At minimum: `pyproject.toml`,
+  Poetry lockfiles, npm/package lockfiles, pnpm, Cargo and Go should not look clean
+  merely because they were not inspected.
+
+- [ ] **19.D.2** Replace remaining user-facing references to the retired `standard`
+  Profile with `full`. Keep the alias working, but do not teach new users the old
+  name.
+
+  > **Confirmed 2026-09-10, and worse than "polish".** I first reported this task's
+  > premise as false, having searched only the documentation. The retired name
+  > survives in **output strings**, which is the one place that actually teaches it:
+  >
+  > | | |
+  > |---|---|
+  > | `src/valvur/results.py:220` | `SUMMARY.md`'s coverage caveat says **"Run `valvur scan --profile standard` for full coverage"** |
+  > | `src/valvur/checks/dependency_reality.py:86` | *"Re-run on the standard profile, which permits registry lookups."* |
+  >
+  > Both work, via the alias, which is exactly why nothing failed. The first is the
+  > line ADR-0016 rewrote — the Profiles were renamed and the sentence recommending
+  > one was not. The CLI (`--profile {offline,full}`) and the MCP enum are already
+  > correct; everything else that mentions `standard` is an internal comment or a
+  > deliberate historical note in an ADR, and should stay.
+
+- [ ] **19.D.3** Add coverage-gap reporting for Checks that are intentionally narrow.
+  A missing Finding should distinguish "looked and found nothing" from "this
+  ecosystem is not implemented yet."
+
+### E — Architecture
+
+- [ ] **19.E.1** Preserve the adapter boundary, but make coverage contracts explicit:
+  each Scanner or Check should declare what inputs it covers and what it deliberately
+  ignores, and Provenance should expose that where useful.
+
+- [ ] **19.E.2** Revisit `ScanRun.status` semantics after 19.C.1. The current status
+  is structurally simple, but it conflates live and suppressed Findings in a way that
+  is easy for humans to misread.
+
+- [ ] **19.E.3** Add a small release-readiness document or checklist aimed at GitHub
+  portfolio readers: how to install, how to verify the image, how to run offline,
+  what a clean/suppressed/inconclusive result means, and what valvur intentionally
+  does not claim.
+
+### F — Local corpus validation
+
+Use real projects on this machine as a discovery corpus, not as committed fixtures.
+Every scan runs against a temporary copy, and every defect that matters is distilled
+into the smallest publishable fixture that reproduces it.
+
+- [ ] **19.F.1** Select a small, mixed local corpus before implementing fixes:
+  Python projects, Node projects, a Rust project, and at least one mixed repository.
+  Record which claim each project exercises — dependency manifests, lockfiles,
+  agent artifacts, infrastructure detection, suppressions, or multi-ecosystem
+  coverage.
+
+- [ ] **19.F.2** Scan only disposable copies under `/private/tmp/valvur-corpus/`.
+  Never write `.security-scan/` into the original local projects while using them as
+  examples, and never commit their source into valvur.
+
+- [ ] **19.F.3** For each corpus failure, classify it before fixing it:
+  true defect, false positive, false negative, unsupported coverage, unclear
+  Provenance, confusing human-facing output, or environment/setup failure.
+
+- [ ] **19.F.4** Distil each true defect or confusing output into a minimal fixture
+  under `tests/fixtures/` and a failing test. The local project proves the behaviour
+  matters; the fixture is what keeps the regression test safe, small and publishable.
+
+- [ ] **19.F.5** Re-run the corpus after the Phase 19 fixes. The success condition is
+  not "no Findings"; it is no Scanner failures, no silent skipped coverage, no
+  confusing status, no avoidable false positives from valvur itself, and clear
+  Provenance for everything that did or did not run.
+
+**Exit:** a fresh contributor can run one documented command for local confidence;
+CI and release gates check the same things at the right time; suppressed-only,
+stale-data and unsupported-coverage states are unmistakable; and the public GitHub
+project reads as reliable rather than merely clever.
+
+**Commit:** `chore: harden build, release and portfolio readiness`
+
+---
+
+## Phase 20 — Close Phase 8 runtime portability debt
+
+**Goal:** resolve the one known gap left by Phase 8 before public release: F1.6,
+SELinux mount labelling. Phase 8 found multiple false-clean runtime failures; this
+phase exists so an untested native SELinux host does not become the next one.
+
+> **Added 2026-09-10 after reviewing Phase 8.** Phase 8 is correctly marked complete
+> for the Docker/rootless-Podman behaviours it tested, but F1.6 was later found
+> unimplemented. That cannot remain only a note if valvur is going to claim reliable
+> regulated-industry portability.
+
+- [ ] **20.1** Test valvur on a native SELinux-enforcing RHEL or Fedora host, with a
+  Workspace under `$HOME`, using Podman. Record whether an unlabelled mount fails,
+  succeeds, or succeeds only in a VM/virtiofs environment.
+
+- [ ] **20.2** If SELinux labelling is required, implement the chosen mount-label
+  behaviour and test the exact runtime flags. Be explicit about whether valvur uses
+  `:z`, `:Z`, an opt-in environment variable, or refuses with remediation text.
+
+- [ ] **20.3** If SELinux labelling is not required in the supported runtime shape,
+  cut or amend F1.6 in `requirements.md` with the native-host evidence. Do not leave
+  an unmet not-cuttable requirement in place.
+
+- [ ] **20.4** Update the Phase 8 completion note so it points to this closure rather
+  than implying every runtime-portability requirement was finished on 2026-08-30.
+
+**Exit:** F1.6 is either implemented and tested on the environment it names, or the
+requirement is amended with evidence from that environment. No Phase 8 portability
+claim remains stronger than the proof behind it.
+
+**Commit:** `test: close SELinux portability gap`
+
+---
+
+## Phase 21 — Everything that remains
+
+**Goal:** one ordered release sequence for the open tasks that should happen only
+after hardening and runtime-portability debt are closed.
+
+> **Originally added as Phase 18 on 2026-09-10. Renumbered 2026-09-10.** The phase
+> was a useful release checklist, but it ran too early: public-release actions should
+> not precede the reliability and portfolio hardening now captured in Phase 19, or
+> the F1.6 portability closure in Phase 20. **If an item here disagrees with its own
+> task, the task is authoritative.**
+>
+> **Closed while writing the original phase**, because both were done and neither
+> said so: [0.2](#phase-0--preflight) (Podman installed, six weeks after the entry
+> still read *"Recon: not installed"*) and [1.12](#phase-1--walking-skeleton) (a
+> pointer to work that moved to 10.0 and finished on 2026-08-31). Two tasks that
+> looked like remaining work and were not.
 
 ```
+PREREQUISITES
+   Phase 19  reliability, release and portfolio hardening
+   Phase 20  F1.6 SELinux/runtime portability closure
+        ↓
 A. OWNER ACTIONS — nothing downstream can start
    12a.1  push · repo public · package public
    0.14   branch protection (needs the repo public first)
@@ -2634,7 +2826,7 @@ D2. 12b.1  act on what the gate found
     12b.2  re-run the constraint suite against the release artifact
     12b.3  tag v1.0.0
 
-C. UNBLOCKED, AND NOT WAITING ON ANY OF THE ABOVE
+C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS
    10.4.12  what a human sees first in SUMMARY.md
    10.2.5   the CLAUDE.md / AGENTS.md snippet, against a real agent
 ```
@@ -2643,14 +2835,14 @@ C. UNBLOCKED, AND NOT WAITING ON ANY OF THE ABOVE
 
 Only the repository owner can do these, and everything else waits behind them.
 
-- **18.A.1** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
+- **21.A.1** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
   ahead), make the **repository** public, then the **package**. In that order, or the
   newly-public repo is missing every phase from 10.3b onward. Measured 2026-09-10:
   repo API `404`, GHCR anonymous token `401`.
-- **18.A.2** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
+- **21.A.2** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
   since 2026-08-30 because GitHub charges for it on private repositories; it becomes
-  free the moment 18.A.1 lands, and guards nothing until then.
-- **18.A.3** → the setup half of [12a.7](#12a--make-it-obtainable-and-trustworthy)
+  free the moment 21.A.1 lands, and guards nothing until then.
+- **21.A.3** → the setup half of [12a.7](#12a--make-it-obtainable-and-trustworthy)
   and [12a.5](#12a--make-it-obtainable-and-trustworthy): PyPI trusted publishing
   against `release.yml`, a `release` GitHub environment, and private vulnerability
   reporting. All three are documented in
@@ -2659,23 +2851,24 @@ Only the repository owner can do these, and everything else waits behind them.
 
 ### B — Needs a person who has never seen valvur
 
-- **18.B.1** → [10.1.1](#101--the-usability-gate) and
+- **21.B.1** → [10.1.1](#101--the-usability-gate) and
   [10.1.2](#101--the-usability-gate). The usability gate. **Cannot be simulated** —
   the entire value is that the participant has no context, and participants cannot be
-  reused because first impressions do not reset. Blocked by 18.A.1: there is nothing
+  reused because first impressions do not reset. Blocked by 21.A.1: there is nothing
   to install until the package is public.
 
 ### C — Unblocked
 
-Neither of these waits on anything. They are the only remaining work that can proceed
-while the owner actions are pending.
+Neither of these waits on the owner actions. They can proceed while the owner actions
+are pending, but still come after Phase 19 so the surface being tested is the hardened
+one.
 
-- **18.C.1** → [10.4.12](#104--error-messages-as-a-usability-surface). Decide what
+- **21.C.1** → [10.4.12](#104--error-messages-as-a-usability-surface). Decide what
   a **human** sees first in `SUMMARY.md`. It is currently written for agents — the
   machine-facing block is first by design (F7.6) — and no one has asked whether that
   is right for the person who opens it in an editor. A genuine design decision, not a
   bug.
-- **18.C.2** → [10.2.5](#102--the-mcp-first-run-the-primary-path). Verify the
+- **21.C.2** → [10.2.5](#102--the-mcp-first-run-the-primary-path). Verify the
   copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a real agent in a real
   repository *(P6)*. Partly evidenced already — task 12a.4 confirmed `valvur-mcp`
   starts, reports its version and advertises four read-only tools — but nobody has
@@ -2684,29 +2877,18 @@ while the owner actions are pending.
 
 ### D — Sequenced after
 
-- **18.D.1** → [12a.7](#12a--make-it-obtainable-and-trustworthy), publishing half.
+- **21.D.1** → [12a.7](#12a--make-it-obtainable-and-trustworthy), publishing half.
   The automation is done and verified; tagging publishes `0.2.0`. Carries two
   corrections that only take effect on release: the **multi-arch build** (13.1 — the
   published image is still `arm64` only) and the **PyPI licence metadata**, which
   still says MIT while the repository is Apache-2.0.
-- **18.D.2** → [12b.1](#12b--release). Act on the gate's findings.
-- **18.D.3** → [12b.2](#12b--release). Re-run the Phase 11 constraint suite and
+- **21.D.2** → [12b.1](#12b--release). Act on the gate's findings.
+- **21.D.3** → [12b.2](#12b--release). Re-run the Phase 11 constraint suite and
   the self-scan gate against the **release artifact** rather than the working tree.
-- **18.D.4** → [12b.3](#12b--release). Tag `v1.0.0`.
-
-### One decision this phase does not contain
-
-**F1.6 — SELinux labelling — is an unmet requirement in the not-cuttable set**, found
-by task 17.1 and recorded against the requirement itself. There is no `:z` or `:Z`
-anywhere. A full scan through Podman's Fedora VM under `Enforcing` succeeded with 74
-findings and no failures, so it could not be reproduced as a defect — but host
-directories reach that VM through virtiofs, and **a native RHEL or Fedora host is
-untested and is the target market** (§5). Either implement the label or cut the
-requirement with evidence from a real host. It belongs before `v1.0.0` and it is not
-a task here because it needs a decision first.
+- **21.D.4** → [12b.3](#12b--release). Tag `v1.0.0`.
 
 **Exit:** `v1.0.0` released, having been installed and used by someone who did not
-build it.
+build it, after Phases 19 and 20 removed the known reliability and portability debt.
 
 **Commit:** *(none — this phase only references others)*
 
