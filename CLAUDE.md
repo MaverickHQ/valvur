@@ -36,19 +36,18 @@ next step: it now waits behind **Phase 19** (reliability and portfolio hardening
 debt rather than fix it. [Phase 21](.kiro/specs/valvur/tasks.md) is the ordered
 release sequence after those.
 
-Roughly: 83 Python modules, 425 tests, 16 ADRs, 136 requirement IDs, **114 done and 13
+Roughly: 84 Python modules, 440 tests, 17 ADRs, 136 requirement IDs, **118 done and 9
 open** across 21 phases. Of the open work, most is Phase 19; the rest is three owner
 actions, the usability gate (which needs a person who has never seen this tool), and
 one design decision.
 
 The open tasks are **grouped into seven runnable blocks** at the head of Phase 19 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md), rather than run one at a time. Blocks 0
-(corpus staging), 1 (build and release plumbing), 2 (coverage), 3 (status) and 4
-(corpus verification) are done — **Phase 19 is complete**. What remains is **Block 5**
-(Phase 20, SELinux — needs an enforcing RHEL or Fedora host, which this machine is
-not), **Block 6** (the three owner actions at github.com that unblock publication),
-and then the release tail: the usability gate, which needs a person who has never seen
-this tool, and `v1.0.0`.
+0 through 5 are done — **Phases 19 and 20 are complete, and nothing technical now
+blocks publication.** What remains is **Block 6**: the three owner actions at
+github.com (push, repository public, package public, branch protection, PyPI trusted
+publishing), and then the release tail — the usability gate, which needs a person who
+has never seen this tool, and `v1.0.0`.
 
 **One known gap, and one deliberate friction, worth knowing before proposing anything:**
 
