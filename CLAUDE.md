@@ -1,10 +1,10 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29.
-> **Working name:** `valvur` (Estonian: *guard, watchman*). Provisional until first
-> publish — renaming is one `sed` away and stays cheap until a GitHub repo, PyPI
-> release or Docker push exists.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-10.
+> **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
+> provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
+> which claimed it (task 10.0.1).
 
 ---
 
@@ -27,7 +27,25 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status:** spec phase. No application code yet.
+**Status (2026-09-10):** built and tested; not yet obtainable by anyone else.
+
+`0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
+private**, so nobody outside this machine can install it — and the image published so
+far is `linux/arm64` only, which task 13.1 fixed in the build but which only takes
+effect on the next release. Making both public is task 12a.1, the single thing
+blocking everything downstream of it.
+
+Roughly: 79 Python modules, 348 tests, 16 ADRs, 136 requirement IDs, 91 of 103 tasks
+done. The 12 open ones are three owner actions, the usability gate (which needs a
+person who has never seen this tool), and one design decision — 10.4.12, what a human
+sees first in `SUMMARY.md`.
+
+> **This line was wrong for six weeks**, saying "spec phase, no application code yet"
+> while the tool scanned its own repository on every commit. It is the first thing a
+> joining agent reads, so it is the first thing worth keeping true — the same drift
+> Phase 17 exists to catch, in the document describing the project. If it disagrees
+> with [`tasks.md`](.kiro/specs/valvur/tasks.md), the task list is authoritative and
+> this line is stale again.
 
 ## 2. What it is NOT
 
