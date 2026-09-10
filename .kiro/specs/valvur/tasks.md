@@ -61,11 +61,13 @@ drift.
 - [x] **0.1** Start the Docker daemon and confirm `docker info` succeeds.  
   **STATUS 2026-08-30:** ✅ Docker 29.2.1 daemon running
   *(Recon: Docker 29.2.1 installed, daemon was not running.)*
-- [ ] **0.2** *(Optional in this phase)* Install Podman. Not needed until Phase 8,
-  where F1.4 requires proving Results Folder ownership on Docker *and* rootless
-  Podman. **It becomes mandatory at Phase 8** — either install it then, or downgrade
-  F1.4 deliberately and drop the dual-runtime claim from the README. Do not simply
-  leave the test unwritten. *(Recon: not installed.)*
+- [x] **0.2** *(Optional in this phase)* Install Podman.  
+  **STATUS 2026-09-10:** ✅ **podman 6.0.2**, machine running. The dual-runtime claim
+  is kept rather than downgraded: five parity tests in `tests/test_runtimes.py` run
+  against it, and task 17.1 used it to test valvur under **enforcing SELinux** — the
+  one environment reachable from this machine where F1.6 could be exercised at all.
+  The original *(Recon: not installed.)* note stood for six weeks after it stopped
+  being true.
 - [x] **0.3** Create the project virtualenv with `uv` and pin the toolchain there.  
   **STATUS 2026-08-30:** ✅ .venv Python 3.12.10 · pytest 9.1.1 · ruff 0.16.5 · mypy 2.3.1
   *(Recon: `pytest` currently resolves to a Python 3.10 framework install while
@@ -118,7 +120,7 @@ for AWS execution.
   authenticated as MaverickHQ. This also **reserves the name** while changing it is
   still free.
 - [ ] **0.14** Enable branch protection on `main`: require a passing CI check, and    
-  **STATUS 2026-08-30:** ⏳ **DEFERRED to Phase 12.** GitHub returns 403 — branch protection on *private* repos needs GitHub Pro. It becomes free when the repo goes public at release, and it guards nothing on a solo private repo. Re-attempt at 12.5, immediately after the repo is made public.
+  **STATUS 2026-08-30:** ⏳ **DEFERRED to Phase 12.** GitHub returns 403 — branch protection on *private* repos needs GitHub Pro. It becomes free when the repo goes public at release, and it guards nothing on a solo private repo. Re-attempt immediately after [12a.1](#12a--make-it-obtainable-and-trustworthy) makes the repo public. *(Corrected 2026-09-10: this said "re-attempt at 12.5", a task number that stopped existing when Phase 12 split into 12a/12b.)*
   require signed commits.
 - [x] **0.15** Verify you can push a package to GHCR under this account, so the    
   **STATUS 2026-08-30:** ✅ `docker login ghcr.io` succeeded with the refreshed `write:packages` scope.
@@ -201,7 +203,11 @@ rather than month two. Every later phase adds depth to a system that already wor
   **STATUS 2026-08-30:** ✅ `.github/workflows/ci.yml` guard job. Verified both ways: passes clean, fails on output committed via `--no-verify` with hooks bypassed.
   in the tree or in a pushed commit. The `pre-commit` hook is the first line, but a
   hook can be bypassed with `--no-verify`; CI cannot. *(ADR-0011)*
-- [ ] **1.12** **MOVED to Phase 10 (task 10.0) on 2026-08-30**, at Harvey's request.
+- [x] **1.12** **MOVED to Phase 10 (task 10.0) on 2026-08-30**, at Harvey's request.  
+  **CLOSED 2026-09-10:** ✅ superseded — [10.0](#100--pre-release-publish) completed on
+  2026-08-31 and `0.1.0rc1` was published. This entry stayed open as a pointer to work
+  that had already moved and finished, which made the count of remaining tasks wrong.
+  The *gate* it once referred to is [10.1](#101--the-usability-gate), still open.
   Rationale for moving: there is no truthful install path yet — the README describes
   v1 while we have built Phase 1 — so a participant today would only discover that the
   software is not published, which we already know. Participants cannot be reused;
@@ -2593,6 +2599,116 @@ every command the documentation names exists.
 is a failing test when broken; and no described mechanism is inert or silent.
 
 **Commit:** `docs: make the spec describe the product, and the claims true`
+
+---
+
+## Phase 18 — Everything that remains
+
+**Goal:** one ordered view of the ten open tasks, which are scattered across four
+phases and blocked on three different kinds of thing.
+
+> **Added 2026-09-10.** Nothing here is new work — every item references a task that
+> already exists. The phases were written as the work was understood, so what is left
+> now sits in Phases 0, 10 and 12 with no single place showing the order or the
+> dependencies. This is that place. **If an item here disagrees with its own task,
+> the task is authoritative.**
+>
+> **Closed while writing this**, because both were done and neither said so:
+> [0.2](#phase-0--preflight) (Podman installed, six weeks after the entry still read
+> *"Recon: not installed"*) and [1.12](#phase-1--walking-skeleton) (a pointer to work
+> that moved to 10.0 and finished on 2026-08-31). Two tasks that looked like
+> remaining work and were not.
+
+```
+A. OWNER ACTIONS — nothing downstream can start
+   12a.1  push · repo public · package public
+   0.14   branch protection (needs the repo public first)
+        ↓
+D1. 12a.7 (second half)  publish 0.2.0  ← needs PyPI trusted publishing + a
+                                           `release` environment, also owner actions
+        ↓
+B. NEEDS A PERSON WHO HAS NEVER SEEN VALVUR
+   10.1.1 · 10.1.2   the usability gate
+        ↓
+D2. 12b.1  act on what the gate found
+    12b.2  re-run the constraint suite against the release artifact
+    12b.3  tag v1.0.0
+
+C. UNBLOCKED, AND NOT WAITING ON ANY OF THE ABOVE
+   10.4.12  what a human sees first in SUMMARY.md
+   10.2.5   the CLAUDE.md / AGENTS.md snippet, against a real agent
+```
+
+### A — Owner actions
+
+Only the repository owner can do these, and everything else waits behind them.
+
+- **18.A.1** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
+  ahead), make the **repository** public, then the **package**. In that order, or the
+  newly-public repo is missing every phase from 10.3b onward. Measured 2026-09-10:
+  repo API `404`, GHCR anonymous token `401`.
+- **18.A.2** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
+  since 2026-08-30 because GitHub charges for it on private repositories; it becomes
+  free the moment 18.A.1 lands, and guards nothing until then.
+- **18.A.3** → the setup half of [12a.7](#12a--make-it-obtainable-and-trustworthy)
+  and [12a.5](#12a--make-it-obtainable-and-trustworthy): PyPI trusted publishing
+  against `release.yml`, a `release` GitHub environment, and private vulnerability
+  reporting. All three are documented in
+  [docs/RELEASING.md](../../../docs/RELEASING.md); the release workflow fails without
+  the first two, and `SECURITY.md` links to a 404 without the third.
+
+### B — Needs a person who has never seen valvur
+
+- **18.B.1** → [10.1.1](#101--the-usability-gate) and
+  [10.1.2](#101--the-usability-gate). The usability gate. **Cannot be simulated** —
+  the entire value is that the participant has no context, and participants cannot be
+  reused because first impressions do not reset. Blocked by 18.A.1: there is nothing
+  to install until the package is public.
+
+### C — Unblocked
+
+Neither of these waits on anything. They are the only remaining work that can proceed
+while the owner actions are pending.
+
+- **18.C.1** → [10.4.12](#104--error-messages-as-a-usability-surface). Decide what
+  a **human** sees first in `SUMMARY.md`. It is currently written for agents — the
+  machine-facing block is first by design (F7.6) — and no one has asked whether that
+  is right for the person who opens it in an editor. A genuine design decision, not a
+  bug.
+- **18.C.2** → [10.2.5](#102--the-mcp-first-run-the-primary-path). Verify the
+  copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a real agent in a real
+  repository *(P6)*. Partly evidenced already — task 12a.4 confirmed `valvur-mcp`
+  starts, reports its version and advertises four read-only tools — but nobody has
+  pasted the snippet into Kiro or Claude Code and watched what happens, which is the
+  actual claim.
+
+### D — Sequenced after
+
+- **18.D.1** → [12a.7](#12a--make-it-obtainable-and-trustworthy), publishing half.
+  The automation is done and verified; tagging publishes `0.2.0`. Carries two
+  corrections that only take effect on release: the **multi-arch build** (13.1 — the
+  published image is still `arm64` only) and the **PyPI licence metadata**, which
+  still says MIT while the repository is Apache-2.0.
+- **18.D.2** → [12b.1](#12b--release). Act on the gate's findings.
+- **18.D.3** → [12b.2](#12b--release). Re-run the Phase 11 constraint suite and
+  the self-scan gate against the **release artifact** rather than the working tree.
+- **18.D.4** → [12b.3](#12b--release). Tag `v1.0.0`.
+
+### One decision this phase does not contain
+
+**F1.6 — SELinux labelling — is an unmet requirement in the not-cuttable set**, found
+by task 17.1 and recorded against the requirement itself. There is no `:z` or `:Z`
+anywhere. A full scan through Podman's Fedora VM under `Enforcing` succeeded with 74
+findings and no failures, so it could not be reproduced as a defect — but host
+directories reach that VM through virtiofs, and **a native RHEL or Fedora host is
+untested and is the target market** (§5). Either implement the label or cut the
+requirement with evidence from a real host. It belongs before `v1.0.0` and it is not
+a task here because it needs a decision first.
+
+**Exit:** `v1.0.0` released, having been installed and used by someone who did not
+build it.
+
+**Commit:** *(none — this phase only references others)*
 
 ---
 
