@@ -44,6 +44,10 @@ class CheckAdapter(ScannerAdapter):
                     evidence=item.get("evidence", ""),
                     fingerprint=_fp.derive(*identity),
                     sources=(output.tool,),
+                    # Checks may state their own severity. Without this every Check
+                    # finding ranked identically, so a coverage note and a
+                    # hallucinated dependency arrived at the same weight.
+                    **({"severity": item["severity"]} if item.get("severity") else {}),
                 )
             )
         return findings

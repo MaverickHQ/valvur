@@ -28,6 +28,17 @@ VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 If a version test fails after you change `pyproject.toml`, reinstall — the editable
 install's metadata goes stale, and that is a real bug we shipped for six days.
 
+**Rules and Checks ship *inside* the image** (ADR-0013), so editing
+`src/valvur/checks/` or `rules/` changes nothing about a real scan until you rebuild.
+Unit tests exercise your new code; `valvur scan` runs the image's copy. This has
+caught us twice — a new Opengrep rule (12a.6) and a new coverage report (19.D.3) —
+both times as a change that passed every test and did nothing in practice:
+
+```bash
+docker buildx build --load --build-arg VALVUR_VERSION="$(uv run python -c 'import valvur; print(valvur.__version__)')" -t valvur:dev .
+VALVUR_IMAGE=valvur:dev uv run valvur scan .
+```
+
 ## How the work is organised
 
 - **Spec-driven.** [`.kiro/specs/valvur/`](.kiro/specs/valvur/) holds requirements →

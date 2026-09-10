@@ -2709,9 +2709,32 @@ signals, broader AI-code coverage, and portfolio-grade polish.
   > correct; everything else that mentions `standard` is an internal comment or a
   > deliberate historical note in an ADR, and should stay.
 
-- [ ] **19.D.3** Add coverage-gap reporting for Checks that are intentionally narrow.
-  A missing Finding should distinguish "looked and found nothing" from "this
-  ecosystem is not implemented yet."
+- [x] **19.D.3** Add coverage-gap reporting for Checks that are intentionally narrow.
+  ✅ **DONE 2026-09-10.**
+
+  > `valvur.dependency.ecosystem-not-covered`, **low** severity — it is our missing
+  > coverage, not a defect in the user's code, and ranking it alongside a hallucinated
+  > dependency would be dishonest in the other direction.
+  >
+  > **Reported before the early return**, which is the whole point: a repository with
+  > no `requirements.txt` used to exit with an empty list, so the one shape that most
+  > needed the warning was guaranteed not to get it. One finding per *ecosystem*, not
+  > per file — a monorepo has one gap, not forty — and vendored manifests are ignored,
+  > since `node_modules` is full of other people's `package.json`.
+  >
+  > Checks can now state their own severity; previously every Check finding ranked
+  > alike, so a coverage note and a hallucinated dependency arrived at the same weight.
+  >
+  > **valvur now reports its own gap.** The self-scan has **1 active finding** —
+  > *"Python (PEP 621 / Poetry) dependencies were not checked for existence"* — because
+  > this repository uses `pyproject.toml` and the Check reads `requirements*.txt`. It
+  > is true, it is ours, and **19.D.1 resolves it rather than a suppression**. The
+  > self-scan gate is red until then, deliberately.
+  >
+  > **The trap this exposed, now in CONTRIBUTING.md:** Checks and rules ship *inside*
+  > the image (ADR-0013), so unit tests passed while a real scan ran the published
+  > image's older copy and reported nothing. Second time — the first was an Opengrep
+  > rule in 12a.6.
 
 ### E — Architecture
 
