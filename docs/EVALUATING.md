@@ -125,9 +125,13 @@ Read this before the feature list, not after.
   `pyproject.toml` against PyPI; `package.json` against the npm registry. Cargo, Go,
   Ruby, PHP and JVM have **no existence check** — and a repository using one gets a
   finding saying so on every profile, rather than a clean result it did not earn.
-- **SELinux mount labelling is unimplemented** (F1.6). It could not be reproduced as a
-  defect on the enforcing environment available here, and a native RHEL host is
-  untested. Recorded rather than quietly assumed.
+- **On SELinux-enforcing hosts valvur refuses to scan until you act.** Measured on
+  Fedora CoreOS 44, native xfs under `$HOME`: the container may not read a
+  `user_home_t` directory. valvur fails loudly rather than reporting a false clean,
+  and will not relabel your source tree unless you set `VALVUR_SELINUX_RELABEL=1` —
+  `:z` persists after the scan, and rewriting the labels of the code you asked us not
+  to touch is not a thing to do quietly. That means a first run on RHEL fails, and
+  that is a deliberate trade rather than an oversight.
 - **It is not a pen-test tool.** No DAST, no exploitation, no scanning of deployed
   systems.
 

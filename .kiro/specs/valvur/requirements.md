@@ -45,22 +45,43 @@ entirely on my machine, so that my source code never reaches a third party.
 6. F1.6 — WHERE SELinux labelling is required by the host, valvur SHALL apply the
    appropriate mount label.
 
-   > ⚠️ **UNIMPLEMENTED, found 2026-09-05 (task 17.1).** There is no `:z` or `:Z`
-   > anywhere in the codebase — this requirement has never been met, and it sits in
-   > the not-cuttable set.
+   > ✅ **MET 2026-09-10 (Phase 20), and measured on a real enforcing host.**
+   > Fedora CoreOS 44, SELinux `targeted` policy enforcing, `container-selinux`
+   > installed, workspace on native **xfs on a block device — not virtiofs** — under
+   > `$HOME`. Both rootful and rootless Podman.
    >
-   > **Not reproducible as a defect in the only enforcing environment reachable from
-   > this machine.** Podman's Fedora VM reports `Enforcing`, and a full scan through
-   > it succeeded with 74 findings and no failures — identical to Docker — with no
-   > label applied. Host directories reach that VM through virtiofs, which is
-   > probably why.
+   > **It was a real defect, not a theoretical one.** All three of valvur's mounts were
+   > denied: the source unreadable (`user_home_t` / `admin_home_t`), the scratch
+   > directory unwritable, the database cache unwritable. valvur was unusable on its
+   > **primary target platform** (§5: regulated industries, where Podman on RHEL is the
+   > default).
    >
-   > **A native RHEL or Fedora host with a workspace under `$HOME` is untested, and
-   > it is the target market** (§5: regulated industries, where Podman on RHEL is the
-   > default). Could not reproduce is not the same as does not happen. Either
-   > implement the label, or measure it on a real host and cut the requirement with
-   > that evidence — leaving it unmet and unmentioned is the one option that is not
-   > honest.
+   > **The 2026-09-05 note was wrong in its conclusion and right to be suspicious.**
+   > It recorded that the defect could not be reproduced through Podman's VM and
+   > guessed virtiofs was why. It reproduces immediately on a native filesystem inside
+   > that same VM. *Could not reproduce* was indeed not the same as *does not happen*.
+   >
+   > **`:Z` is ruled out by valvur's own architecture.** It stamps a private MCS
+   > category; measured, a second container is then denied. Scanners run concurrently
+   > against one mount, so `:Z` would break the fleet from the second Scanner onward.
+   >
+   > **What is applied, and what is not.** valvur's own directories — the scratch mount
+   > and the Trivy cache — are labelled `:z` unconditionally on an enforcing host:
+   > they are a temporary directory we created and a cache we own. **The Workspace is
+   > not**, unless `VALVUR_SELINUX_RELABEL=1` is set. `:z` rewrites the SELinux context
+   > of every file in the scanned tree and the change persists after the scan, which
+   > §10 prohibits without explicit owner approval. Approval was sought and the opt-in
+   > shape was chosen deliberately, accepting that valvur fails on first run on RHEL.
+   >
+   > **The failure is loud, which is what makes the opt-in defensible.** The readability
+   > probe returns 0 entries where the host has entries, so `WorkspaceUnreadable` is
+   > raised and the message names SELinux, the environment variable, the manual `chcon`
+   > and the undo. Verified verbatim on the enforcing host: valvur never reports a
+   > false clean there.
+   >
+   > **F1.1 survives the relabel** — measured: a `,z` mount is still read-only, and a
+   > write to `/workspace` is refused.
+
 7. F1.7 — valvur SHALL require no account, API key, token or credential to perform
    any **Scan Run**.
 8. F1.8 — valvur SHALL emit no telemetry under any **Profile**.

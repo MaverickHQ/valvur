@@ -879,6 +879,15 @@ something live, and a reviewer can tell from the diff alone what is being accept
 > Our fail-loudly rules all assumed a Scanner *errors*. These failures succeed
 > perfectly at scanning nothing, which no exit code reveals. The runner now verifies
 > the workspace is readable before scanning, and treats a missing report as a failure.
+>
+> ⚠️ **This phase was complete for what it tested, and one requirement it names was
+> not.** F1.6 — SELinux mount labelling — had never been implemented, and this note
+> read as though every runtime-portability requirement was finished on 2026-08-30.
+> It was found on 2026-09-05 (task 17.1) and closed on 2026-09-10 by
+> [Phase 20](#phase-20--close-phase-8-runtime-portability-debt), which reproduced it on
+> a native enforcing host: **all three of valvur's mounts were denied**, and valvur was
+> unusable on its primary target platform. The fourth silent failure of the set, found
+> six weeks after the phase that should have caught it.
 
 **Goal:** identical behaviour on Docker and Podman, with the isolation guarantees
 proven rather than intended.
@@ -2757,11 +2766,20 @@ than a behaviour anyone thought to write down.
 > list — a denylist ageing quietly, which is the same silent-drift class as everything
 > else this phase removed, pointed the other way.
 
-### Block 5 — SELinux · 20.1, then 20.2 **or** 20.3, then 20.4 — *environment-gated*
+### Block 5 — SELinux · 20.1, 20.2, 20.4 — ✅ DONE 2026-09-10
 
-Independent of every Phase 19 block; runnable the moment an enforcing host exists.
-Effectively three tasks, since 20.2 and 20.3 are mutually exclusive branches on what
-20.1 measures. The development machine is macOS, so this needs a Fedora or RHEL VM.
+Not environment-gated after all. The block was written assuming no enforcing host was
+reachable from a macOS machine; **the Podman machine already running on it is Fedora
+CoreOS with SELinux enforcing**, and a workspace created on its own xfs filesystem —
+rather than shared in over virtiofs — is exactly the native case F1.6 names.
+
+> **20.3 was not taken.** It was the branch for *the defect does not reproduce*, and it
+> reproduced on the first attempt, in both rootful and rootless Podman.
+>
+> The measurements settled three things no amount of reading would have: that valvur
+> was unusable on its primary target platform; that `:Z` is incompatible with running
+> Scanners concurrently; and that `restorecon -R` does not undo `:z`, which had already
+> been written into the remediation text as though it did.
 
 ### Block 6 — Owner actions, one sitting · 12a.1, 0.14, 12a.7 (setup half)
 
@@ -3221,20 +3239,68 @@ phase exists so an untested native SELinux host does not become the next one.
 > unimplemented. That cannot remain only a note if valvur is going to claim reliable
 > regulated-industry portability.
 
-- [ ] **20.1** Test valvur on a native SELinux-enforcing RHEL or Fedora host, with a
-  Workspace under `$HOME`, using Podman. Record whether an unlabelled mount fails,
-  succeeds, or succeeds only in a VM/virtiofs environment.
+- [x] **20.1** Test valvur on a native SELinux-enforcing host, Workspace under
+  `$HOME`, using Podman. ✅ **DONE 2026-09-10.** Fedora CoreOS 44, `targeted` policy
+  **enforcing**, `container-selinux` 2.250, workspace on **xfs on a block device —
+  not virtiofs**. Rootful and rootless both tested.
 
-- [ ] **20.2** If SELinux labelling is required, implement the chosen mount-label
-  behaviour and test the exact runtime flags. Be explicit about whether valvur uses
-  `:z`, `:Z`, an opt-in environment variable, or refuses with remediation text.
+  > **It fails.** Every one of valvur's three mounts is denied: the source
+  > (`admin_home_t` as root, `user_home_t` as an ordinary user), the scratch directory
+  > and the Trivy cache. `:z` fixes all three.
+  >
+  > **The 2026-09-05 note guessed virtiofs was hiding it, and was right to be
+  > suspicious.** The same Podman VM reproduces the defect immediately on its own
+  > native filesystem. *Could not reproduce* was not *does not happen*.
+  >
+  > **`:Z` is architecturally impossible here**, which no amount of reading would have
+  > settled: it stamps a private MCS category, and a second container is then denied.
+  > valvur launches its Scanners concurrently against one mount, so `:Z` would break
+  > the fleet from the second Scanner onward. Measured, not inferred.
+  >
+  > **valvur fails loudly rather than falsely clean**, which is what kept this a
+  > usability defect rather than a safety one. The probe's `ls -A /workspace | wc -l`
+  > returns 0 while the host has entries, so `WorkspaceUnreadable` is raised. Run
+  > verbatim on the enforcing host to confirm.
 
-- [ ] **20.3** If SELinux labelling is not required in the supported runtime shape,
-  cut or amend F1.6 in `requirements.md` with the native-host evidence. Do not leave
-  an unmet not-cuttable requirement in place.
+- [x] **20.2** Implement the chosen mount-label behaviour and test the exact runtime
+  flags. ✅ **DONE 2026-09-10. Opt-in relabel, refusing by default** — chosen by the
+  owner after the measurements above.
 
-- [ ] **20.4** Update the Phase 8 completion note so it points to this closure rather
-  than implying every runtime-portability requirement was finished on 2026-08-30.
+  > **valvur's own directories are labelled unconditionally** on an enforcing host: the
+  > scratch mount and the Trivy cache are a temporary directory we created and a cache
+  > we own, and without the label the container cannot write its results at all.
+  >
+  > **The Workspace is not**, unless `VALVUR_SELINUX_RELABEL=1`. `:z` rewrites the
+  > SELinux context of every file in the scanned tree and it persists after the scan;
+  > §10 prohibits writing to the scanned tree without explicit owner approval, and a
+  > tool whose first promise is that it cannot touch your code should not quietly
+  > rewrite its labels. The accepted cost is that a first run on RHEL fails.
+  >
+  > **An environment variable, not a CLI flag.** MCP is the primary interface
+  > (ADR-0015) and has no command line, so a flag would fix this for the second-choice
+  > path only.
+  >
+  > **The first draft of the remediation shipped a false instruction.** It said
+  > *"Undo with: restorecon -R"*, which does **nothing**: `container_file_t` is listed
+  > in the policy's `customizable_types` and restorecon skips those unless forced.
+  > Measured on the host, corrected to `restorecon -R -F`. A remediation that silently
+  > does nothing is worse than none — the reader believes they have undone it.
+  >
+  > **Exact flags verified on the enforcing host**, generated by valvur and run there:
+  > default leaves the label `admin_home_t` untouched and the probe sees 0; with the
+  > opt-in the label becomes `container_file_t` and the probe sees every entry. **F1.1
+  > survives** — a write to `/workspace` is still refused through a `,z` mount.
+
+- [x] **20.3** ~~If SELinux labelling is not required, cut or amend F1.6.~~
+  ✅ **NOT TAKEN 2026-09-10.** This was the branch for *"the defect does not reproduce
+  on a native host"*. It does, immediately, so 20.2 was the applicable branch and F1.6
+  stands as written — now met rather than cut.
+
+- [x] **20.4** Update the Phase 8 completion note.
+  ✅ **DONE 2026-09-10.** [Phase 8](#phase-8--runtime-portability-and-hardening) now
+  records that it was complete for what it tested and that F1.6 was not among it —
+  the fourth silent failure of that set, found six weeks after the phase that should
+  have caught it.
 
 **Exit:** F1.6 is either implemented and tested on the environment it names, or the
 requirement is amended with evidence from that environment. No Phase 8 portability

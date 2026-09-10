@@ -8,7 +8,6 @@
 
 # Requirement IDs cited in no source file, test, script, workflow or doc.
 uncited_requirements = [
-  "F1.6",
   "F2.1",
   "F2.2",
   "F3.3",
