@@ -2602,6 +2602,126 @@ is a failing test when broken; and no described mechanism is inert or silent.
 
 ---
 
+## Execution order for Phases 19–21 — run in blocks, not one task at a time
+
+> **Added 2026-09-10.** The three remaining phases hold **33 open tasks**. Run
+> sequentially they are 33 review cycles; grouped by the files they touch and the
+> decisions they share, **27 of them collapse into 7 blocks**. The remaining 6 are
+> genuinely serial or wait on a person, a host, or an artifact that does not exist yet.
+>
+> **This regrouping is a reading order, not a renumbering.** Every task keeps its ID
+> and its own text, which stays authoritative where the two disagree.
+>
+> **It produced one real re-sequencing:** 19.F.1 and 19.F.2 move to the **front**.
+> They sit last in Phase 19's own ordering, but 19.F.1 says *"before implementing
+> fixes"* and is right — run last the corpus only verifies; run first it also says
+> which of the other blocks are worth doing.
+
+```
+Block 0  corpus staging   ─┐
+Block 1  build + release  ─┼─ share no files; any order, or all three at once
+Block 5  SELinux          ─┘   (5 whenever an enforcing host exists)
+                               ↓
+                          Block 2  coverage       (rebuild the image to verify)
+                               ↓
+                          Block 3  status
+                               ↓
+                          Block 4  corpus verification  ← uses Block 0's corpus
+                               ↓
+                          Block 6  owner actions → the serial release tail
+```
+
+### Block 0 — Stage the corpus · 19.F.1, 19.F.2
+
+No source changes, no commit. Copy a mixed corpus to `/private/tmp/valvur-corpus/`,
+scan it, and record what today's build does. That recording is the baseline Blocks 2
+and 3 are measured against, which is the reason this runs first rather than last.
+
+### Block 1 — Build and release plumbing · 19.A.1, 19.A.2, 19.A.3, 19.B.1, 19.B.2, 19.B.3
+
+Touches `.github/workflows/ci.yml`, `release.yml`, `pyproject.toml`, a new lockfile,
+a new local verification script, and `docs/RELEASING.md`. Nothing under `src/`.
+
+Together because **19.A.3's script is the answer to 19.A.2**: write the verification
+command once, call it from both workflows, and the divergence cannot return. Doing
+19.A.2 alone produces an edit that 19.A.3 overwrites. 19.B.1–19.B.3 are three edits to
+those same two YAML files, proved by one CI run.
+
+> **Measured 2026-09-10.** `ci.yml:38` lints `src tests`; `release.yml:47` lints
+> `src tests scripts`. Four Python files under `scripts/` are therefore linted for the
+> first time on tag day. Neither workflow declares `concurrency`. There is no
+> lockfile of any kind — not `uv.lock`, not `constraints.txt`.
+
+**Commit:** `chore: one verification path, used everywhere`
+
+### Block 2 — Coverage: what gets inspected · 19.D.1, 19.D.2, 19.E.1
+
+Together because **19.E.1 is the general form of what 19.D.3 did by hand**. Declaring
+each adapter's coverage contract before 19.D.1 widens the Dependency Reality Check
+means declaring it twice. 19.D.2's two surviving `standard` strings live in
+`results.py` and `checks/dependency_reality.py` — both files this block already has
+open.
+
+Closes the F3.1 gap, and clears valvur's own deliberately-red self-scan finding.
+
+> ⚠️ **Needs an image rebuild to verify.** Checks ship inside the image (ADR-0013), so
+> unit tests can pass while a real scan runs the published image's older copy. Third
+> time this trap applies: 12a.6, 19.D.3, and now here.
+
+**Commit:** `feat: the reality check covers the ecosystems people use`
+
+### Block 3 — Status: what the result means · 19.C.1, 19.C.2, 19.E.2, 10.4.12
+
+19.E.2's own text says *"after 19.C.1"*, and 19.C.2 is the decision the other two
+implement. One status model with three expressions — split them and it gets rewritten
+three times.
+
+**10.4.12 pulls forward from Phase 21** (where it is 21.C.1): what a human sees first
+in `SUMMARY.md` is a design decision *about the file this block restructures*.
+Deciding the ordering after rewriting the content is backwards.
+
+Runs after Block 2 so its tests are written against the final finding set.
+
+**Commit:** `feat: a result that says what it means`
+
+### Rider — 19.C.3
+
+`valvur-mcp --help` / `--version`. One function; `mcp/server.py` already takes `argv`
+and never reads it. No dependency in either direction — attach it to whichever block
+runs first.
+
+### Block 4 — Corpus verification · 19.F.3, 19.F.4, 19.F.5, 19.E.3
+
+Runs against the corpus staged in Block 0. **The only block that cannot be sized in
+advance**: 19.F.3 and 19.F.4 are a loop over whatever Block 0 turns up. 19.E.3 joins
+it because the release-readiness document explains what clean, suppressed and
+inconclusive mean — which Block 3 decides and this block confirms against real
+projects.
+
+**Commit:** `test: the corpus, and what it found`
+
+### Block 5 — SELinux · 20.1, then 20.2 **or** 20.3, then 20.4 — *environment-gated*
+
+Independent of every Phase 19 block; runnable the moment an enforcing host exists.
+Effectively three tasks, since 20.2 and 20.3 are mutually exclusive branches on what
+20.1 measures. The development machine is macOS, so this needs a Fedora or RHEL VM.
+
+### Block 6 — Owner actions, one sitting · 12a.1, 0.14, 12a.7 (setup half)
+
+All at github.com plus one push, in this order: push → repository public → package
+public → branch protection → PyPI trusted publishing, the `release` environment, and
+private vulnerability reporting.
+
+### The 6 that do not group
+
+| Task | Why it stays alone |
+|---|---|
+| **10.2.5** | Paste the agent snippet into a real agent in a real repository. One sitting, but it is an observation, not an edit. |
+| **10.1.1**, **10.1.2** | Need a person who has never seen valvur. Cannot be batched, cannot be simulated, and participants cannot be reused — first impressions do not reset. |
+| **12a.7** (publish) → **12b.1** → **12b.2** → **12b.3** | A release ordering. Each step's input is the previous step's artifact. |
+
+---
+
 ## Phase 19 — Reliability, release and portfolio hardening
 
 **Goal:** remove the remaining ways valvur can look green while being ambiguous,
@@ -2757,15 +2877,55 @@ Use real projects on this machine as a discovery corpus, not as committed fixtur
 Every scan runs against a temporary copy, and every defect that matters is distilled
 into the smallest publishable fixture that reproduces it.
 
-- [ ] **19.F.1** Select a small, mixed local corpus before implementing fixes:
-  Python projects, Node projects, a Rust project, and at least one mixed repository.
-  Record which claim each project exercises — dependency manifests, lockfiles,
-  agent artifacts, infrastructure detection, suppressions, or multi-ecosystem
-  coverage.
+- [x] **19.F.1** Select a small, mixed local corpus before implementing fixes.
+  ✅ **DONE 2026-09-10.** Six projects, each chosen for a different claim: a
+  Rust + Python + npm + Docker/Compose monorepo (multi-ecosystem, IaC, agent
+  artifacts); a `pyproject.toml`-only Python project (the known gap); a Python project
+  with **both** `requirements.txt` and `pyproject.toml` (false-positive risk); a
+  project with **no manifest at all** (the nothing-to-scan path); a monorepo with one
+  `pyproject.toml` and four `package.json` (per-ecosystem deduplication); and a 309MB
+  Node project with populated `node_modules` (vendored-path skipping at scale).
 
-- [ ] **19.F.2** Scan only disposable copies under `/private/tmp/valvur-corpus/`.
-  Never write `.security-scan/` into the original local projects while using them as
-  examples, and never commit their source into valvur.
+  > **Claims the corpus does not exercise, recorded rather than assumed:**
+  > suppressions and expiry (no project has a `.security-scan.toml`, so those paths
+  > stay synthetic-fixture-only); Go, Ruby, PHP and JVM; and secrets at scale.
+
+- [x] **19.F.2** Scan only disposable copies under `/private/tmp/valvur-corpus/`.
+  ✅ **DONE 2026-09-10.** Copies only; no original was scanned and none holds a
+  `.security-scan/`. **The register of what was scanned is deliberately not committed**
+  — it names six private repositories, and one of them carries a live API key in a
+  committed-adjacent `.env`. Only the shapes above and the defects below cross into
+  git; the corpus is deleted when Block 4 finishes.
+
+  > **Secret redaction verified on a real credential.** That `.env` holds a live
+  > Anthropic API key. Zero valvur-written artifacts contain the literal secret and no
+  > `sk-ant` prefix appears anywhere under `.security-scan/`, `raw/` included. The
+  > first time this guarantee has been tested against a key that actually works.
+
+  > ### What the baseline measured
+  >
+  > **No Scanner failed anywhere** — nine scans across six projects, two profiles, all
+  > exit 0. No crashes, no timeouts, including 309MB and 421MB trees. Runtime 24–83s.
+  >
+  > **Six defects, none of which unit tests could have found**, because all six are
+  > about what the output does or does not say:
+  >
+  > | | Defect | Class | Fix in |
+  > |---|---|---|---|
+  > | **C1** | **Coverage-gap reporting never runs on the default profile.** 19.D.3's `ecosystem-not-covered` lives inside a Check registered `needs_network=True`, which `profiles.py` excludes from `offline`. The gap is a *static filesystem fact* and needs no network — so the message that exists to say "this scan could not help you" is absent from the profile almost everyone runs. | unsupported coverage, silent | Block 2 |
+  > | **C2** | `run.json` records `scanners_not_run`; `SUMMARY.md` names only the *conditional* skip (checkov, "nothing to analyse") and stays silent on the two the profile excluded. The §7 rule is honoured for the skip with nothing to find and not for the omission that does. | unclear Provenance | Block 3 |
+  > | **C3** | **The one caveat that would say so is gated on finding nothing** — `results.py:213`, `if absent and not findings:`. One missing-licence finding was enough to suppress the notice that dependency-reality never ran. The reader is told least about missing coverage exactly when there is most else on screen. | confusing output | Block 3 |
+  > | **C4** | **npm and pnpm counted as two ecosystems.** The monorepo reports `npm`, `npm (pnpm)` and `Python` — three gaps for two ecosystems. 19.D.3 deduped four `package.json` files to one, then split npm on lockfile flavour, because `UNCOVERED` maps filenames to *labels* and dedup is by label. npm + pnpm + yarn would report three. | false positive | Block 2 |
+  > | **C5** | `valvur.licence.missing` carries severity `unknown`, which reaches the `SUMMARY.md` counts table as a literal `unknown` row. Every corpus project has one. | confusing output | Block 3 |
+  > | **C6** | The representative path for a deduped ecosystem gap is arbitrary — `infra/package.json` over the root `package.json`, by `rglob` order. Cosmetic, but it is the path a reader opens first. | confusing output | Block 2 |
+  >
+  > **C1 and C3 together are the finding that justifies the block.** Independently each
+  > looks minor. Together they mean: on the default profile, valvur omits its most
+  > distinctive Check, records that omission only in a file the contract tells agents
+  > not to read whole, and suppresses the one human-facing sentence about it as soon as
+  > anything else is found. That is the silent-narrowing class this project keeps
+  > meeting, and no unit test was ever going to catch it — 19.D.3 shipped with tests
+  > passing, four hours before the corpus found this.
 
 - [ ] **19.F.3** For each corpus failure, classify it before fixing it:
   true defect, false positive, false negative, unsupported coverage, unclear
