@@ -36,15 +36,17 @@ next step: it now waits behind **Phase 19** (reliability and portfolio hardening
 debt rather than fix it. [Phase 21](.kiro/specs/valvur/tasks.md) is the ordered
 release sequence after those.
 
-Roughly: 79 Python modules, 358 tests, 16 ADRs, 136 requirement IDs, **102 done and 25
+Roughly: 80 Python modules, 394 tests, 16 ADRs, 136 requirement IDs, **105 done and 22
 open** across 21 phases. Of the open work, most is Phase 19; the rest is three owner
 actions, the usability gate (which needs a person who has never seen this tool), and
 one design decision.
 
 The open tasks are **grouped into seven runnable blocks** at the head of Phase 19 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md), rather than run one at a time. Blocks 0
-(corpus staging) and 1 (build and release plumbing) are done. Next is **Block 2** —
-coverage: what gets inspected — then Block 3, status: what the result means.
+(corpus staging), 1 (build and release plumbing) and 2 (coverage) are done. Next is
+**Block 3** — status: what the result means — which inherits an open question from
+Block 2: a coverage gap is a Finding, so `clean` is currently unreachable for any
+repository with an ecosystem valvur does not inspect.
 
 **Two known gaps worth knowing before proposing anything:**
 
