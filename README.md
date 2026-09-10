@@ -356,6 +356,10 @@ Local is the default and always will be.
   false clean result.
 - **[CHANGELOG.md](CHANGELOG.md)** — what changed, including the profile rename and
   how the old names still resolve.
+- **[docs/EVALUATING.md](docs/EVALUATING.md)** — for someone deciding whether this is
+  worth their time: how to verify the signed image, how to prove it does not phone
+  home, how to read the three statuses, and a plain list of what it does **not**
+  claim. Written to be read sceptically.
 - **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — short, and only what will be enforced.
 
 ## Licence

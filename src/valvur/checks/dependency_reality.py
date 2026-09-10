@@ -126,6 +126,48 @@ class DependencyRealityCheck:
         return findings
 
 
+def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
+    """Package names this Workspace *defines*, as (ecosystem, name).
+
+    A monorepo member is declared like any other dependency and resolved from the tree
+    beside it — `uv`, Poetry and Hatch all do this for a plain `"demo-core"` when a
+    member's `pyproject.toml` names it. Nothing in the dependency string says so, and
+    the npm markers we already skip (`workspace:*`, `file:`, `link:`) have no Python
+    equivalent.
+
+    Measured on a real local monorepo: **three high-severity findings**, each telling a
+    developer that a package they wrote was "almost certainly hallucinated". That is
+    the worst finding this product can emit — someone who is told their own code is a
+    supply-chain attack stops reading the report, and the real finding in it goes too.
+
+    Keyed on what a manifest *defines*, not on what appears in one: a dependency that
+    happens to share a name with something in the tree is still a dependency.
+    """
+    import tomllib
+
+    defined: set[tuple[str, str]] = set()
+    for path in _manifests(workspace, "pyproject.toml"):
+        try:
+            data = tomllib.loads(_text(path))
+        except (tomllib.TOMLDecodeError, ValueError):
+            continue
+        for name in (
+            (data.get("project") or {}).get("name"),
+            ((data.get("tool") or {}).get("poetry") or {}).get("name"),
+        ):
+            if isinstance(name, str) and name:
+                defined.add(("pip", name.lower()))
+    for path in _manifests(workspace, "package.json"):
+        try:
+            data = json.loads(_text(path))
+        except (json.JSONDecodeError, ValueError):
+            continue
+        name = data.get("name") if isinstance(data, dict) else None
+        if isinstance(name, str) and name:
+            defined.add(("npm", name.lower()))
+    return defined
+
+
 def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
     """Every directly-declared dependency, as (ecosystem, name, manifest path).
 
@@ -140,7 +182,11 @@ def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
         found |= _from_pyproject(path, workspace)
     for path in _manifests(workspace, "package.json"):
         found |= _from_package_json(path, workspace)
-    return found
+
+    # Never asked about, not merely unreported. A workspace member's name leaving the
+    # machine buys nothing, and §3 is about what we transmit as much as what we say.
+    local = _defined_locally(workspace)
+    return {(eco, name, src) for eco, name, src in found if (eco, name) not in local}
 
 
 def _manifests(workspace: Path, pattern: str):
@@ -307,19 +353,48 @@ def _age_days(ecosystem: str, meta: dict) -> float | None:
         return None
 
 
-def _popular() -> set[str]:
+def _popular() -> dict[str, str]:
+    """Popular PyPI names, keyed by PEP 503 canonical form.
+
+    Folded once here rather than inside `_near_miss`, which is called per declared
+    dependency: rebuilding a 4000-entry map for every package in a monorepo is work
+    nobody asked for.
+    """
     path = Path(__file__).resolve().parent.parent / "data" / "popular-pypi.json"
     if not path.is_file():
-        return set()
-    return {n.lower() for n in json.loads(path.read_text())["packages"]}
+        return {}
+    return {canonical(n): n.lower() for n in json.loads(path.read_text())["packages"]}
 
 
-def _near_miss(name: str, popular: set[str]) -> str | None:
-    if name in popular:
+#: PEP 503 name normalisation. Runs of `.`, `-` and `_` are one separator, and PyPI
+#: serves every spelling from a single project.
+_SEPARATORS = re.compile(r"[-_.]+")
+
+
+def canonical(name: str) -> str:
+    return _SEPARATORS.sub("-", name).lower()
+
+
+def _near_miss(name: str, popular: dict[str, str]) -> str | None:
+    """The nearest popular package, comparing PEP 503 canonical forms.
+
+    Measured on a real project before this: *"'discord.py' is one character from the
+    far more popular 'discord-py'"* — the same package. Verified 2026-09-10 that PyPI
+    returns 200 for `discord.py`, `discord-py` and `discord_py`, all with the canonical
+    name `discord.py`. The comparison was one edit apart on raw strings and zero apart
+    in fact, so any package whose name contains a dot or an underscore could accuse
+    itself of typosquatting itself.
+
+    Canonical form is used for the COMPARISON only. Identity keeps the declared
+    spelling — normalising it would move every existing fingerprint and invalidate
+    every committed suppression on a dependency finding (ADR-0003).
+    """
+    target = canonical(name)
+    if target in popular:
         return None
-    for candidate in popular:
-        if abs(len(candidate) - len(name)) <= 1 and _within_one_edit(name, candidate):
-            return candidate
+    for candidate, original in popular.items():
+        if abs(len(candidate) - len(target)) <= 1 and _within_one_edit(target, candidate):
+            return original
     return None
 
 

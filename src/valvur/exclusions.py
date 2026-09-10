@@ -32,7 +32,28 @@ VENDORED = frozenset({
     "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache",
     ".git", ".hg", ".svn",
     "Pods", "Carthage", ".gradle", ".m2",
+    # Package-manager caches, which hold third-party source rather than build output.
+    # Added 2026-09-10 (task 19.F.3) after a real monorepo reported **17 of its 42
+    # findings inside `.uv-cache/`** — `eval` and `exec` in pytest, hypothesis,
+    # pygments and attrs, every one at high severity. Forty percent of that report was
+    # other people's code, and a developer who meets that stops reading the rest.
+    ".uv-cache", ".cache", ".npm", ".yarn", ".pnpm-store", ".cargo", ".bundle",
+    ".nuget", ".ivy2", ".sbt", ".stack-work", ".direnv", ".eggs",
+    ".conda", "conda-meta", ".pixi",
+    ".turbo", ".parcel-cache", ".vite", ".angular", ".astro",
 })
+
+# This list is a denylist, and a denylist ages: uv did not exist when the first
+# version was written, so `.uv-cache` became findings the moment a project used it.
+# Two things limit the damage rather than pretending the list is complete. The count
+# of dropped findings is always reported (`excluded_vendored` in `run.json`), so an
+# over-broad entry is visible; and the entries are whole path segments, so a
+# legitimate `src/cache/` module is untouched while a top-level `.cache/` is not.
+#
+# **Rejected: excluding whatever `.gitignore` covers.** It is the project's own
+# statement about what is not its source, which is exactly the right signal — and it
+# would stop valvur scanning `.env` files, which are gitignored precisely because they
+# hold the credentials this tool exists to find.
 
 
 def is_vendored(path: str, extra: frozenset[str] = frozenset()) -> bool:

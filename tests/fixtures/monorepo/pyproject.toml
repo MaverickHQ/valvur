@@ -1,0 +1,17 @@
+# Distilled from a real local monorepo (task 19.F.4). valvur reported all three
+# workspace members as "almost certainly hallucinated", at high severity.
+[project]
+name = "monorepo-root"
+version = "0.1.0"
+dependencies = [
+  "demo-core",          # defined at services/core — local, not from PyPI
+  "demo-api",           # defined at services/api — local, not from PyPI
+  "flask>=3",           # a real external dependency
+]
+
+[tool.uv.sources]
+demo-core = { workspace = true }
+demo-api = { workspace = true }
+
+[tool.uv.workspace]
+members = ["services/*"]
