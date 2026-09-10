@@ -167,6 +167,12 @@ half, so `offline` loses less than it appears.
 ### 5.1 Dependency Reality (F3.1–F3.5)
 Parse manifests → query registry metadata per package. Thresholds:
 
+> **Coverage today, and it is narrower than "manifests" suggests:** `requirements*.txt`
+> against PyPI, and nothing else. Not `pyproject.toml`, Poetry, npm, pnpm, Cargo or Go.
+> An unsupported ecosystem currently produces silence rather than a recorded gap —
+> F3.5's skip condition is "cannot reach a registry", which is a different case. See
+> the note on F3.1 in `requirements.md`; widening is task 19.D.1.
+
 | Signal | Rule | Class |
 |---|---|---|
 | Not on registry | absent | **critical** — hallucinated (F3.2) |
