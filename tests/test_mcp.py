@@ -417,11 +417,14 @@ def test_a_failing_scan_is_reported_not_crashed(tmp_path):
     assert "no container runtime" in job.error
 
 
-def test_scan_status_tells_the_agent_not_to_report_a_result_yet(tmp_path):
+def test_scan_status_tells_the_agent_not_to_report_a_result_yet(tmp_path, monkeypatch):
     import time
 
     from valvur.mcp import jobs
 
+    # The status call now waits for the job (task 10.2.5); shorten that so the test
+    # can observe a job that outlasts it.
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.2)
     jobs.start(tmp_path, "standard", lambda w, p, g: (time.sleep(2), "ok")[1])
 
     result = _call("scan_status", {"workspace": str(tmp_path)})
@@ -429,6 +432,52 @@ def test_scan_status_tells_the_agent_not_to_report_a_result_yet(tmp_path):
 
     assert "RUNNING" in text
     assert "do not report a result yet" in text
+
+
+def test_scan_status_waits_rather_than_answering_instantly(tmp_path, monkeypatch):
+    """Measured with a real agent (task 10.2.5): a 51-second scan cost **14 status
+    polls in 20 turns**, because each returned instantly and the agent had nothing
+    left to do but ask again. It hit its turn limit before writing a report.
+
+    A bounded wait means one poll covers seconds of scan rather than milliseconds.
+    """
+    import time
+
+    from valvur.mcp import jobs
+
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 5.0)
+    jobs.start(tmp_path, "standard", lambda w, p, g: (time.sleep(0.5), "ok")[1])
+
+    began = time.monotonic()
+    result = _call("scan_status", {"workspace": str(tmp_path)})
+    waited = time.monotonic() - began
+    text = result["content"][0]["text"]
+
+    # It waited for the job to finish - and no longer than that. The fake job writes
+    # no run.json, so the settled branch reports "no scan"; what matters here is that
+    # the answer is not RUNNING and that the call took the job's duration, not zero.
+    assert "RUNNING" not in text, text
+    assert 0.4 < waited < 3.0, f"waited {waited:.2f}s"
+
+
+def test_the_wait_is_bounded_so_a_client_never_times_out(tmp_path, monkeypatch):
+    """The pair. The docstring's constraint is that many clients give up at 30-60
+    seconds; a wait that outlived a stuck scan would turn a slow result into a dead
+    server."""
+    import time
+
+    from valvur.mcp import jobs
+
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.3)
+    jobs.start(tmp_path, "standard", lambda w, p, g: (time.sleep(3), "ok")[1])
+
+    began = time.monotonic()
+    text = _call("scan_status", {"workspace": str(tmp_path)})["content"][0]["text"]
+    waited = time.monotonic() - began
+
+    assert "RUNNING" in text
+    assert waited < 1.0, f"waited {waited:.2f}s for a job that was not going to finish"
+    assert jobs.STATUS_WAIT_SECONDS <= 25, "must stay well under the 30s client timeout"
 
 
 def test_scan_status_before_any_scan_says_so(tmp_path):

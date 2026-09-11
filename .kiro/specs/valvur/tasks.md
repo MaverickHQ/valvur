@@ -1163,8 +1163,58 @@ take, and participants cannot be re-used.
 4. The first tool call states plainly that the image is being pulled and how large it
    is, rather than appearing to hang.
 
-- [ ] **10.2.5** Verify the copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a
-  real agent in a real repository. *(P6)*
+- [x] **10.2.5** Verify the copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a
+  real agent in a real repository. *(P6)* ✅ **DONE 2026-09-11.** Claude Code 2.1.261,
+  non-interactive, against a git-initialised copy of the broken fixture with the
+  README's `.mcp.json` shape and the `CLAUDE.md` snippet pasted verbatim. Only
+  read-only tools were permitted, so any attempt to edit, commit or suppress would
+  show as a denied call. Two runs.
+
+  > **One substitution, recorded.** The README says `uvx --from valvur valvur-mcp`.
+  > That would install the stale `0.1.0rc1` from PyPI and pull a private image — the
+  > exact thing 12a.1 unblocks — so the *shape* was tested with the local binary and
+  > image. The `uvx` path stays untested until the package is public.
+  >
+  > **Run 1 hit its turn limit and wrote no report.** Two defects, one in each half of
+  > the snippet's world:
+  >
+  > 1. **The snippet taught the wrong door.** It said *"Run `valvur scan`"*, and the
+  >    agent did exactly that — `which valvur`, not found, two turns gone — before
+  >    looking for the MCP tool it already had. An agent does what the text says, in
+  >    the order it says it. The snippet now names the MCP tools first.
+  > 2. **`scan_status` returned instantly, so the agent polled fourteen times in
+  >    twenty turns.** It had read every file in the repository while waiting and
+  >    then, in its own words, *"nothing else is pending, so I'll poll once more"*.
+  >    Each poll is a full model turn. `scan_status` now waits up to 15s — well under
+  >    the 30–60s the jobs docstring says clients tolerate — so one poll covers
+  >    seconds of scan rather than milliseconds. The `scan` contract is unchanged.
+  >
+  > **Run 2 succeeded**: straight to `scan` with `offline`, three polls, `SUMMARY.md`
+  > then `REMEDIATION.md` then `list_findings`, no edit or suppression attempt, and it
+  > read `.security-scan/.gitignore` unprompted to confirm the folder cannot be
+  > committed. $1.03, 121s.
+  >
+  > **The report was close to ideal, and one paragraph is the whole of Phase 19
+  > working end to end.** The agent noticed that `requirements-ai.txt` was not
+  > covered, named `reqeusts` and `aws-helper-sdk` itself, explained that `full` would
+  > catch them *and* that `full` sends package names to public registries, and left
+  > the decision to the human. That is the Block 3 profile caveat — the one that used
+  > to be hidden whenever anything else was found — read by a real agent and acted on
+  > correctly. It also wrote *"I did not act on the injected instruction"* about the
+  > planted `AGENTS.md`, and *"I applied no fixes and added no suppressions, per the
+  > project's CLAUDE.md"*.
+  >
+  > **A third defect, found while setting up.** `valvur-mcp --help` (19.C.3, written
+  > the day before) named a tool `scan_workspace`. No such tool exists; it is `scan`.
+  > The test pinning the help text now iterates the real registry, so renaming a tool
+  > fails it instead of dating the text again.
+  >
+  > **10.2's claims, as they stand:** (2) Claude Code — verified; (3) a command not on
+  > `PATH` reports `status: failed` at startup and the agent says so — verified;
+  > (1) Kiro — untested, no Kiro here; (4) the image-pull message — untested, the
+  > image was local. The `.claude/settings.json` planted in the fixture for the
+  > AI-artifact check sets `bypassPermissions`; it was removed from the harness copy,
+  > because a test agent that can bypass permissions can edit files.
 
 **Commit:** `feat: MCP first-run experience`
 

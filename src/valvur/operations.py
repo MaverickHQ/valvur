@@ -251,11 +251,17 @@ def scan_status(args: dict) -> str:
 
     job = jobs.current(workspace)
     if job is not None and job.state == "running":
+        # Wait a bounded time before answering, so a poll covers seconds of scan
+        # rather than milliseconds. The agent pays one turn per call either way;
+        # returning instantly made it pay fourteen (task 10.2.5).
+        job.wait()
+    if job is not None and job.state == "running":
         done = ", ".join(job.progress) or "starting"
         return (
             f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed.\n"
             f"Completed so far: {done}\n"
-            "Poll again; do not report a result yet."
+            f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
+            "do not report a result yet."
         )
     if job is not None and job.state == "failed":
         return f"FAILED after {job.elapsed:.0f}s — {job.error}\nNo result to report."
