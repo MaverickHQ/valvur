@@ -36,7 +36,7 @@ next step: it now waits behind **Phase 19** (reliability and portfolio hardening
 debt rather than fix it. [Phase 21](.kiro/specs/valvur/tasks.md) is the ordered
 release sequence after those.
 
-Roughly: 84 Python modules, 440 tests, 17 ADRs, 136 requirement IDs, **118 done and 9
+Roughly: 84 Python modules, 443 tests, 17 ADRs, 136 requirement IDs, **119 done and 8
 open** across 21 phases. Of the open work, most is Phase 19; the rest is three owner
 actions, the usability gate (which needs a person who has never seen this tool), and
 one design decision.
