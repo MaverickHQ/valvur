@@ -111,8 +111,8 @@ Add it to your agent instead:
       }
     }
 
-Tools: scan_workspace, scan_status, list_findings, explain_finding — all read-only
-with respect to your source. There is no scan-and-fix tool and there will not be one
+Tools: scan, scan_status, list_findings, explain_finding — all read-only with
+respect to your source. There is no scan-and-fix tool and there will not be one
 (ADR-0009): you choose which fixes to apply.
 
   --help      this text

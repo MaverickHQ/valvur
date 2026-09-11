@@ -164,7 +164,26 @@ def test_valvur_mcp_answers_help_and_version(capsys):
     out = capsys.readouterr().out
     assert "mcpServers" in out
     # It must not teach a scan-and-fix tool that deliberately does not exist.
-    assert "scan_workspace" in out and "scan_and_fix" not in out
+    assert "scan_and_fix" not in out
+
+
+def test_the_help_text_names_the_tools_that_actually_exist(capsys):
+    """The first version said `scan_workspace`. No such tool: the registry's name is
+    `scan`. Found by task 10.2.5, listing the tools through a real client and
+    comparing — a `--help` that teaches a wrong name is a first-run diagnosis that
+    sends the reader looking for something that is not there.
+
+    Asserted against the registry rather than a list typed here, so renaming a tool
+    fails this test instead of silently dating the help text again.
+    """
+    from valvur.mcp.server import main
+    from valvur.mcp.tools import registry
+
+    main(["--help"])
+    out = capsys.readouterr().out
+
+    for tool in registry():
+        assert tool.name in out, f"--help does not mention the real tool {tool.name!r}"
 
 
 def test_valvur_mcp_refuses_an_unrecognised_flag(capsys):

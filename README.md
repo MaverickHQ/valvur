@@ -259,11 +259,19 @@ Add this to your project's `CLAUDE.md` or `AGENTS.md`:
 
 ```markdown
 ## Security scanning
-This project uses valvur. Run `valvur scan` to scan; results appear in
-`.security-scan/`. Read SUMMARY.md then REMEDIATION.md. Never commit
-`.security-scan/`. Never add suppressions without explicit human approval.
-Propose fixes for approval — do not apply them and rescan autonomously.
+This project uses valvur. Scan with the `valvur` MCP tools if you have them:
+call `scan`, then `scan_status` until it reports DONE. Otherwise run
+`valvur scan`. Results appear in `.security-scan/`: read SUMMARY.md, then
+REMEDIATION.md. Never commit `.security-scan/`. Never add suppressions without
+explicit human approval. Propose fixes for approval — do not apply them and
+rescan autonomously.
 ```
+
+> **Tested against a real agent, not just written** (task 10.2.5). The first version
+> said only *"Run `valvur scan`"*, and Claude Code did exactly that — two turns of
+> `which valvur` and a not-found error before it looked for the MCP tool it already
+> had. The snippet now names the tool first, because the agent will do what the text
+> says, in the order it says it.
 
 ## What actually does the scanning
 
