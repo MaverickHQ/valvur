@@ -177,6 +177,36 @@ built from the same tree. Re-running the whole workflow on a tag that already ha
 wheel on PyPI fails at the PyPI step — correctly. Never `git tag -f` a version that
 reached PyPI.
 
+## The air-gap recipe that was measured (22.B.3)
+
+Reproducible on any machine with Docker, and the basis for the README's mirroring
+section. The point of `--internal` is that the gap is structural: a container on
+that network has no route out, so the database can only have come from the mirror.
+
+```bash
+docker network create --internal airgap
+docker run -d --name mirror --network airgap registry:2
+# populate it from a connected network first, then move it:
+#   docker network connect bridge mirror
+#   docker run --rm --network bridge ghcr.io/oras-project/oras:v1.2.3 \
+#     cp --to-plain-http ghcr.io/aquasecurity/trivy-db:2 <mirror-ip>:5000/trivy-db:2
+#   docker network disconnect bridge mirror
+docker run -d --name names -p 127.0.0.1:8080:80 \
+  -v /path/with/pypi.txt,npm.txt,metadata.json,kev.json:/usr/share/nginx/html:ro nginx:alpine
+
+VALVUR_CACHE=$(mktemp -d) \
+VALVUR_DB_REPOSITORY=mirror:5000/trivy-db VALVUR_DB_INSECURE=1 \
+VALVUR_CONTAINER_NETWORK=airgap \
+VALVUR_NAME_INDEX_URL=http://127.0.0.1:8080 VALVUR_KEV_URL=http://127.0.0.1:8080/kev.json \
+python3 scripts/verify-mirror.py tests/fixtures/broken-repo
+```
+
+Result on 2026-09-12: update and offline scan complete from a fresh cache, 76
+findings, `what_left_the_machine: nothing`, no connection attempted outside
+loopback — and two settings that did not exist that morning, because the documented
+one on its own did not work (`VALVUR_DB_INSECURE`, `VALVUR_CONTAINER_NETWORK`), plus
+a third for the one fetch that had no mirror at all (`VALVUR_KEV_URL`).
+
 **The `release` environment is the manual brake.** Adding a required reviewer to it
 (Settings → Environments → release) makes the `release` job wait for approval after
 `verify` passes and before anything is pushed. That is the right place for a human

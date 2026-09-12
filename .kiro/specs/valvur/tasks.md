@@ -3664,10 +3664,32 @@ the first tag was going to be `0.2.0` in front of everyone.
   is pushed and PyPI fails, when PyPI succeeds and the GitHub release fails, and when
   a tag has to be re-run. There is currently no rollback story of any kind.
 
-- [ ] **22.B.3** Stand up a real mirror and run air-gapped. `VALVUR_DB_REPOSITORY` is
+- [x] **22.B.3** Stand up a real mirror and run air-gapped. `VALVUR_DB_REPOSITORY` is
   documented in two places and has never been exercised. Point it at a local OCI
   registry, cut the network, and confirm `valvur update` and a `full`-equivalent scan
   complete. After 22.A.2, the name index needs the same treatment.
+
+  > **Done 2026-09-12 — and the documented setting did not work on its own.** A
+  > `registry:2` on a Docker `--internal` network (no route out: structural, not a
+  > firewall rule), the Trivy DB copied in with `oras`, and `VALVUR_DB_REPOSITORY`
+  > pointed at it: *"server gave HTTP response to HTTPS client"*. Trivy assumes TLS
+  > for anything that is not `localhost` or a private-range IP literal. Three
+  > settings that did not exist that morning: `VALVUR_DB_INSECURE=1` (Trivy's
+  > `--insecure`), `VALVUR_CONTAINER_NETWORK` (the update container joins the
+  > mirror's network; never applied to a `--network=none` container, asserted), and
+  > `VALVUR_KEV_URL` — KEV was the one fetch with no mirror at all, so an air-gapped
+  > `valvur update` always tried cisa.gov. The index mirror is `VALVUR_NAME_INDEX_URL`:
+  > the three files served verbatim by any static server, `built_at` preserved so the
+  > reported age is the data's (F6.11); truncated or non-index mirrors refused.
+  > `scripts/verify-mirror.py` runs update + offline scan with every connection
+  > outside the mirrors refused as an air gap would refuse it, and judges the
+  > attempts. Result from a fresh cache: update complete (DB via the internal
+  > registry — 8 GETs in its log — index and KEV via loopback), offline scan complete
+  > with 76 findings, `what_left_the_machine: nothing`, no attempt beyond loopback.
+  > "`full`-equivalent" is the wrong phrase: `full` reaches api.osv.dev and FIRST by
+  > definition; what an air-gapped site runs is `offline`, which since 22.A.2
+  > includes the hallucination check. Recipe in `docs/RELEASING.md`; settings in the
+  > README's air-gap section.
 
 - [ ] **22.B.4** Measure the true first run and publish the least flattering number.
   From a clean machine: bytes downloaded (image, database, index), wall-clock to the

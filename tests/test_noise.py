@@ -389,12 +389,19 @@ def test_a_minority_of_undeclared_licences_is_still_reported_as_undeclared():
     assert "1 dependencies have no licence recorded" in findings[0].title
 
 
-def test_an_unreadable_workspace_on_macos_podman_explains_the_vm_share():
+def test_an_unreadable_workspace_on_macos_podman_explains_the_vm_share(monkeypatch):
     """Measured on this machine: a path under /var/folders mounts as an empty
     directory under Podman while /private/tmp works, with no error from the runtime.
-    Refusing to scan is right; refusing without saying why looks like our bug."""
+    Refusing to scan is right; refusing without saying why looks like our bug.
+
+    The platform is pinned rather than assumed: this passed for twelve days on a Mac
+    and failed on the first CI run that saw it (22.B.1), because the hint is
+    correctly withheld on Linux and the test never said which platform it meant."""
+    import platform
+
     from valvur.runner import _unreadable_hint
 
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
     hint = _unreadable_hint("/opt/podman/bin/podman", "/var/folders/x/ws")
 
     assert "podman machine set --volume" in hint

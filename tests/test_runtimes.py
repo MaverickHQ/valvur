@@ -163,12 +163,19 @@ def test_a_symlink_pointing_outside_the_workspace_reaches_nothing(mountable_tmp)
 def test_runtime_detection_finds_installs_that_are_not_on_path(monkeypatch):
     """Podman Desktop puts a working runtime at /opt/podman/bin and leaves PATH
     alone. Telling that user to install what they already have is the worst kind of
-    first-run failure."""
+    first-run failure.
+
+    Wherever the runtime really is, that directory stands in for /opt/podman/bin:
+    this used to look only in the macOS locations, so on a Linux runner with
+    docker in /usr/bin it skipped — and the CI guard read the skip as "parity
+    unverified" and went red on the first run that ever reached it (22.B.1)."""
+    real = _available("podman") or _available("docker")
+    if real is None:
+        pytest.skip("no runtime installed anywhere")
+
     monkeypatch.delenv("VALVUR_RUNTIME", raising=False)
     monkeypatch.setattr("shutil.which", lambda _: None)
-
-    if _available("podman") is None and _available("docker") is None:
-        pytest.skip("no runtime installed anywhere")
+    monkeypatch.setattr("valvur.runner._EXTRA_LOCATIONS", (str(Path(real).parent),))
 
     assert Path(detect_runtime()).is_file()
 
@@ -277,8 +284,104 @@ def test_no_mirror_configured_adds_no_flag(monkeypatch):
     from valvur.runner import _db_repository_flags
 
     monkeypatch.delenv("VALVUR_DB_REPOSITORY", raising=False)
+    monkeypatch.delenv("VALVUR_DB_INSECURE", raising=False)
 
     assert _db_repository_flags() == []
+
+
+def test_a_plain_http_mirror_needs_the_insecure_flag_and_gets_it_only_when_asked(monkeypatch):
+    """Measured 2026-09-12 (22.B.3), the first time F10.5 was exercised: against an
+    internal `registry:2`, the documented setting alone fails with "server gave HTTP
+    response to HTTPS client". Trivy's `--insecure` is the switch, and it is never
+    applied to the default ghcr.io path, where TLS is the point."""
+    from valvur.runner import _db_repository_flags
+
+    monkeypatch.setenv("VALVUR_DB_REPOSITORY", "mirror.internal:5000/trivy-db")
+    monkeypatch.setenv("VALVUR_DB_INSECURE", "1")
+    assert _db_repository_flags() == [
+        "--db-repository", "mirror.internal:5000/trivy-db", "--insecure",
+    ]
+
+    monkeypatch.delenv("VALVUR_DB_REPOSITORY")
+    assert "--insecure" not in _db_repository_flags()
+
+
+def test_a_container_network_applies_only_to_networked_containers(monkeypatch, tmp_path):
+    """An air-gapped site's mirror may live on a user-defined network — or an
+    `--internal` one, which is how 22.B.3 proved the gap structurally. The update
+    container joins it. A scan container never does: `--network=none` is not a
+    default this setting can override."""
+    import subprocess
+
+    from valvur import cache
+    from valvur.runner import ContainerRunner
+
+    launched: list[list[str]] = []
+
+    def capture(cmd, **kwargs):
+        launched.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(subprocess, "run", capture)
+    monkeypatch.setenv("VALVUR_CONTAINER_NETWORK", "airgap")
+    runner = ContainerRunner(runtime="/usr/local/bin/docker")
+
+    runner.update_db()
+    runner.run_gitleaks(tmp_path)
+
+    update, scan = launched
+    assert "--network=airgap" in update and "--network=none" not in update
+    assert "--network=none" in scan and "--network=airgap" not in scan
+
+
+def test_kev_is_fetched_from_the_mirror_when_one_is_named(monkeypatch, tmp_path, capsys):
+    """The third thing `valvur update` fetches, and the third thing an air-gapped site
+    has to mirror. One JSON file; any static server; plain http accepted because the
+    URL is the operator's, never a Workspace's."""
+    import io
+    import json
+    import urllib.request
+
+    from valvur import cache, cli
+
+    seen: list[str] = []
+    catalog = json.dumps({"catalogVersion": "2026.09.11", "vulnerabilities": [
+        {"cveID": "CVE-2026-1", "knownRansomwareCampaignUse": "Known", "dateAdded": "2026-09-01"},
+    ]}).encode()
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            self.close()
+
+    def fake(request, timeout=None):
+        seen.append(request if isinstance(request, str) else request.full_url)
+        return Response(catalog)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    monkeypatch.setattr(cache, "root", lambda: tmp_path)
+    monkeypatch.setenv(cli.KEV_URL_ENV, "http://mirror.internal:8080/kev.json")
+
+    cli._refresh_kev()
+
+    assert seen == ["http://mirror.internal:8080/kev.json"]
+    assert json.loads((tmp_path / "kev.json").read_text())["count"] == 1
+    assert "KEV refreshed: 1 entries" in capsys.readouterr().out
+
+
+def test_a_kev_mirror_that_is_not_http_is_refused_softly(monkeypatch, tmp_path, capsys):
+    from valvur import cache, cli
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path)
+    monkeypatch.setenv(cli.KEV_URL_ENV, "file:///etc/passwd")
+
+    cli._refresh_kev()
+
+    assert "skipped" in capsys.readouterr().out
+    assert not (tmp_path / "kev.json").exists()
 
 
 def test_an_unreadable_workspace_is_refused_not_reported_clean(workspace, monkeypatch):

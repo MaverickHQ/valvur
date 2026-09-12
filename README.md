@@ -338,21 +338,43 @@ Leave whenever you want and take everything with you.
 
 ## Air-gapped operation
 
-No egress? Mirror the vulnerability database into your own OCI registry and point
-valvur at it:
+No egress? `valvur update` fetches three things, and each has a mirror setting.
+Measured end to end on 2026-09-12 — a registry on a Docker network with no route
+out, a static file server, and every other connection refused — `valvur update`
+and an `offline` scan both complete from the mirrors alone.
 
 ```bash
+# 1. The vulnerability database: an OCI artifact, mirrored into any registry.
+#    (once, from a connected machine — oras, crane and skopeo all work)
+oras cp ghcr.io/aquasecurity/trivy-db:2 registry.internal/mirror/trivy-db:2
+
+# 2. The package-name index and CISA KEV: plain files, served by any web server.
+#    (from a machine that has run `valvur update`)
+cp ~/.cache/valvur/names/{pypi.txt,npm.txt,metadata.json} /srv/valvur-mirror/
+curl -o /srv/valvur-mirror/kev.json \
+  https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+
+# 3. On the air-gapped machine:
 export VALVUR_DB_REPOSITORY=registry.internal/mirror/trivy-db
-valvur update          # fetches from your mirror, not the internet
-valvur scan            # scans offline against the cached copy
+export VALVUR_DB_INSECURE=1              # only if the registry is plain HTTP or self-signed
+export VALVUR_NAME_INDEX_URL=http://mirror.internal/valvur-mirror
+export VALVUR_KEV_URL=http://mirror.internal/valvur-mirror/kev.json
+valvur update          # fetches from your mirrors, not the internet
+valvur scan            # scans offline against the cached copies
 ```
 
-The database deliberately lives **outside** the image, so mirroring needs no special
-build — and a six-month-old image never implies six-month-old vulnerability data.
+`VALVUR_DB_INSECURE` exists because the first real test found it missing: Trivy
+assumes TLS for any registry that is not `localhost` or a private-range IP literal,
+so an internal mirror on plain HTTP fails with *"server gave HTTP response to HTTPS
+client"* until it is set. If your mirror registry lives on a named container
+network, `VALVUR_CONTAINER_NETWORK` joins the update container to it. And
+`scripts/verify-mirror.py` runs the update and a scan with every connection outside
+your mirrors refused, and tells you if anything tried.
 
-The package-name index lives beside it (`~/.cache/valvur/names/`, two plain-text
-files, one name per line) and can be copied in from any machine that has run
-`valvur update`. A mirror setting for it is on the list, not yet built.
+The database, the index and KEV all deliberately live **outside** the image, so
+mirroring needs no special build — and a six-month-old image never implies
+six-month-old data. The age of each is reported in `run.json`, computed from when
+the data was built, not when your mirror served it.
 
 ## Platforms
 

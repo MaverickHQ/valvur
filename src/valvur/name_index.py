@@ -31,6 +31,14 @@ from urllib.parse import urlencode
 PYPI_SIMPLE = "https://pypi.org/simple/"
 NPM_REPLICATE = "https://replicate.npmjs.com"
 
+#: An air-gapped site's copy of the index (22.B.3): a URL under which the three
+#: files of this directory — `pypi.txt`, `npm.txt`, `metadata.json` — are served
+#: as-is, by any static file server, from a machine that ran `valvur update` with
+#: a network. `built_at` travels with them, so the age a scan reports is the age
+#: of the data (F6.11), not of the copy. Plain HTTP is accepted here and nowhere
+#: else: this URL is set by an operator, never derived from a package name.
+MIRROR_ENV = "VALVUR_NAME_INDEX_URL"
+
 #: One file per ecosystem, keyed by the ecosystem name the Check already uses for
 #: Finding identity (ADR-0003) — so the Check can go from a declared package to a file
 #: without a second table that could disagree with the first.
@@ -139,6 +147,9 @@ def refresh(directory: Path, *, ecosystems: Iterable[str] = tuple(FILES),
     caller holds the cache lock (exclusive) around this; see `cli.py`.
     """
     directory.mkdir(parents=True, exist_ok=True)
+    mirror = os.environ.get(MIRROR_ENV, "").strip()
+    if mirror:
+        return fetch_mirror(mirror, directory, ecosystems=ecosystems, progress=progress)
     metadata = _read_metadata(directory)
     for ecosystem in ecosystems:
         if ecosystem not in FILES:
@@ -161,6 +172,48 @@ def refresh(directory: Path, *, ecosystems: Iterable[str] = tuple(FILES),
         metadata["ecosystems"][ecosystem] = entry
         _write_metadata(directory, metadata)
         progress(f"{ecosystem}: {len(names):,} names")
+    return metadata
+
+
+def fetch_mirror(base: str, directory: Path, *, ecosystems: Iterable[str] = tuple(FILES),
+                 progress: Progress = lambda _: None) -> dict:
+    """Copy the index from a mirror serving this directory's files verbatim.
+
+    The mirror's `metadata.json` is what gets written, with its `built_at` intact —
+    a copy taken this morning of a list built in March is a March list, and the
+    scan must say so. Each file is validated against the same floor as a registry
+    fetch: a truncated mirror is refused for the same reason a truncated registry
+    response is.
+    """
+    base = base.rstrip("/")
+    if not base.startswith(("https://", "http://")):
+        raise IndexUnavailable(f"{MIRROR_ENV} must be an http(s) URL, not {base!r}")
+    progress(f"fetching the package-name index from the mirror at {base}")
+    remote = _json(_get(f"{base}/{METADATA}", allow_http=True))
+    entries = remote.get("ecosystems") if isinstance(remote.get("ecosystems"), dict) else None
+    if not entries:
+        raise IndexUnavailable(f"{base}/{METADATA} carries no ecosystems; is this a mirror of "
+                               "~/.cache/valvur/names?")
+    metadata = _read_metadata(directory)
+    for ecosystem in ecosystems:
+        if ecosystem not in FILES:
+            raise ValueError(f"no index is defined for {ecosystem!r}")
+        if ecosystem not in entries:
+            raise IndexUnavailable(f"the mirror at {base} has no {ecosystem} index")
+        body = _get(f"{base}/{FILES[ecosystem]}", accept="text/plain", allow_http=True)
+        names = {line for line in body.decode("utf-8", errors="replace").split("\n") if line}
+        if len(names) < MINIMUM_NAMES[ecosystem]:
+            raise IndexUnavailable(
+                f"{ecosystem}: the mirror served {len(names):,} names, far fewer than the "
+                f"{MINIMUM_NAMES[ecosystem]:,} the registry is known to hold. Refusing to "
+                "write a truncated index."
+            )
+        _write_names(directory / FILES[ecosystem], names)
+        entry = dict(entries[ecosystem])
+        entry["mirror"] = base
+        metadata["ecosystems"][ecosystem] = entry
+        _write_metadata(directory, metadata)
+        progress(f"{ecosystem}: {len(names):,} names, built {entry.get('built_at', '?')}")
     return metadata
 
 
@@ -261,8 +314,9 @@ def fetch_npm_changes(current: set[str], since: object,
 
 # ------------------------------------------------------------------ plumbing
 
-def _get(url: str, *, accept: str = "application/json") -> bytes:
-    if not url.startswith("https://"):
+def _get(url: str, *, accept: str = "application/json", allow_http: bool = False) -> bytes:
+    permitted = ("https://", "http://") if allow_http else ("https://",)
+    if not url.startswith(permitted):
         raise IndexUnavailable(f"refusing a non-https index source: {url!r}")
     request = urllib.request.Request(  # noqa: S310 — https asserted above
         url, headers={**_UA, "Accept": accept, "Accept-Encoding": "gzip"}
