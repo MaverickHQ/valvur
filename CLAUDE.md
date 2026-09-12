@@ -74,8 +74,8 @@ hash-locked, the Checks in one container, per-scanner timing, the shim carrying 
 build hash, and `.kiro/` — the primary client's own files — into the AI Artifact
 Check. Then the gate and `v1.0.0`.
 
-Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **138 done and 27
-open** across 23 phases — 19 of the 27 are Phase 23, and 8 are Phase 21's owner actions,
+Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **138 done and 31
+open** across 23 phases — 23 of the 31 are Phase 23, and 8 are Phase 21's owner actions,
 release tail and usability gate. A public corpus of eleven real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

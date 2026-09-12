@@ -4167,8 +4167,20 @@ last.
 
 - [ ] **23.3.5** `valvur gate --fail-on high --no-inconclusive`: one exit code from
   `run.json`, replacing the Python heredoc that `ci.yml` and `release.yml` each carry
-  a copy of, and what a `MaverickHQ/valvur-action` calls so that CI adoption is one
-  `uses:` line. `valvur cache` beside it: what is cached, how old, how large, `--clear`.
+  a copy of. `valvur cache` beside it: what is cached, how old, how large, `--clear`.
+
+- [ ] **23.3.6** `MaverickHQ/valvur-action`: a composite action that installs the
+  shim, restores the database and index from the Actions cache (the pattern
+  `ci.yml` uses), runs `valvur scan` and `valvur gate`, and uploads `results.sarif`
+  to code scanning. CI adoption becomes one `uses:` line, and it is the first thing a
+  team evaluating valvur will ask for. Dogfooded by this repository's own self-scan
+  job, which replaces its heredoc with it.
+
+- [ ] **23.3.7** A scan budget. Each Scanner has a 600s timeout and the run has none;
+  an agent session with a runaway Checkov waits ten minutes for one Scanner. `--budget`
+  (default: none on the CLI, 300s over MCP — F2.6's figure) stops launching new
+  Scanners past it, cancels the rest, and reports the run incomplete with the ones it
+  cut named. Pairs with `scan_cancel`.
 
 ### 4 — Build and architecture
 
@@ -4205,6 +4217,14 @@ last.
   with the number in the README's scanner table, or drop it from `full` — either is
   fine; "a second advisory source" without a number is not.
 
+- [ ] **23.4.6** Checkov on demand. It is 191MB of the image, the slowest Scanner by
+  ten seconds, and `applies_to` already knows when there is nothing for it to read —
+  yet every user pulls it and every scan of application code pays its startup. Two
+  shapes to measure: a second image (`valvur-checkov`) pulled the first time
+  `applies_to` says yes, or a `slim` tag of the main image without it. Either way the
+  README's first-run table gets a smaller number for the common case, and 23.3.2's
+  timing says exactly how much smaller. Decide with the measurement, not before.
+
 ### 5 — The primary client's own files
 
 - [ ] **23.5.1** `.kiro/` into the AI Artifact Check: `steering/*.md` are agent
@@ -4233,6 +4253,19 @@ last.
   is public and unauthenticated, so *newly registered AND under N downloads* — the
   slopsquat signal design.md specified for F3.3 — is real for half the ecosystems.
   PyPI stays stated as impossible without a third party.
+
+- [ ] **23.5.5** Coverage statements that still count as active. The rc run showed
+  fifteen `valvur.licence.dependency-unknown` findings — one fact, since collapsed to
+  one Finding — and the corpus shows `valvur.licence.dependencies-unreadable` on six
+  of eleven real projects: *"licences could not be determined"* is a statement about
+  what valvur could read, not a defect in the code, yet it is an active, low Finding
+  that makes a project read `findings` with nothing wrong in it. Decide the class:
+  either these join `coverage.NOTE_RULES` (never active; but a licence gap must NOT
+  make a security verdict `inconclusive`, so the note machinery needs a "does not
+  cast doubt" flag), or they stay active with the rule that a gate keyed on
+  high/critical never sees them, and the README says so. The REMEDIATION wording that
+  put two versions in one sentence — *"so `json5` reaches 2.2.2, 1.0.2"* — is fixed in
+  passing: one target per action, the minimal one, as the CHANGELOG already promises.
 
 **Exit:** a stranger installs the published version, `valvur doctor` passes or tells
 them exactly why not, the first scan lands in about a minute, and the Check that
