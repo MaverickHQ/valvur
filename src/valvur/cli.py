@@ -116,7 +116,7 @@ def _warn_if_name_index_stale(run) -> None:
     gets its own sentence rather than a copy of the database's."""
     from . import cache
 
-    age = getattr(run, "name_index_age_days", None)
+    age = run.name_index_age_days
     if age is None or age <= cache.NAME_INDEX_STALE_AFTER_DAYS:
         return
     print(f"  ! the package-name index is {age:.0f} days old. Run `valvur update`.",
@@ -133,7 +133,7 @@ def _warn_if_database_stale(run) -> None:
     """
     from . import cache
 
-    age = getattr(run, "db_age_days", None)
+    age = run.db_age_days
     if age is None or age <= cache.DB_STALE_AFTER_DAYS:
         return
 

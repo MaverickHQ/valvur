@@ -179,24 +179,19 @@ def test_the_summary_opens_with_the_machine_facing_header(workspace):
 def test_the_summary_stays_within_its_cap_given_ten_thousand_findings(tmp_path):
     """F7.5 — the cap is a guarantee, not a target. A real project will not be
     as forgiving as our fixture."""
-    from dataclasses import dataclass, field
-
+    from valvur.api import ScanRun
     from valvur.findings import Finding
     from valvur.results import LINE_CAP, write
 
-    @dataclass
-    class Run:
-        findings: list = field(default_factory=lambda: [
-            Finding(rule=f"R{i}", path=f"src/f{i}.py", line=i,
-                    title=f"finding number {i}", fingerprint=f"fp{i}", rank=i + 1)
-            for i in range(10_000)
-        ])
-        fixed: list = field(default_factory=list)
-        scanners: list = field(default_factory=list)
-        failures: list = field(default_factory=list)
-        status: str = "findings"
+    # A real ScanRun, not a stub: this was the one duck-typed `Run` in the suite,
+    # and the reason results.py carried 38 defensive `getattr`s (22.D.2).
+    run = ScanRun(findings=[
+        Finding(rule=f"R{i}", path=f"src/f{i}.py", line=i,
+                title=f"finding number {i}", fingerprint=f"fp{i}", rank=i + 1)
+        for i in range(10_000)
+    ])
 
-    write(tmp_path, Run())
+    write(tmp_path, run)
 
     summary = (tmp_path / ".security-scan" / "SUMMARY.md").read_text()
     assert len(summary.splitlines()) <= LINE_CAP

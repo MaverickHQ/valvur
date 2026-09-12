@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import artifacts, rawoutput, remediation
 from . import coverage as _coverage
 from .version import __version__ as _VERSION
 
+if TYPE_CHECKING:
+    # A ScanRun and nothing else (22.D.2). This module held 38 `getattr(run, …,
+    # default)` calls defending against a duck-typed stub no test ever passed — the
+    # tests all build a real ScanRun — so the defaults were dead code that could
+    # silently paper over a renamed field. The type is what enforces it now; the
+    # import is annotation-only because `api` imports this module.
+    from .api import ScanRun
+
 RESULTS_DIR = ".security-scan"
 
 
-def write(workspace: Path, run, scanner_artifacts=(), raw_outputs=()) -> Path:
+def write(workspace: Path, run: ScanRun, scanner_artifacts=(), raw_outputs=()) -> Path:
     """The Results Folder, `.security-scan/` in the Workspace (F7.1): SUMMARY.md,
     REMEDIATION.md, findings.json, results.sarif, run.json, raw/, and sbom.cdx.json
     when Syft produced one (F7.4)."""
@@ -22,7 +31,7 @@ def write(workspace: Path, run, scanner_artifacts=(), raw_outputs=()) -> Path:
     # and it travels with the folder if it is copied elsewhere.
     (folder / ".gitignore").write_text("*\n", encoding="utf-8")
     (folder / "SUMMARY.md").write_text(_summary(run), encoding="utf-8")
-    complete = not getattr(run, "failures", [])
+    complete = not run.failures
     (folder / "findings.json").write_text(
         artifacts.findings_json(run.findings, status=run.status, complete=complete),
         encoding="utf-8",
@@ -42,7 +51,7 @@ def write(workspace: Path, run, scanner_artifacts=(), raw_outputs=()) -> Path:
     return folder
 
 
-def _provenance(run) -> str:
+def _provenance(run: ScanRun) -> str:
     """What actually ran. Makes a clean result falsifiable (N3.1)."""
     import json
 
@@ -56,38 +65,38 @@ def _provenance(run) -> str:
                 "schema": 1,
                 "fp_version": FP_VERSION,
                 # F5.3 / task 17.4: history was discarded because identity changed.
-                "identity_reset": list(getattr(run, "identity_reset", None) or ()) or None,
+                "identity_reset": list(run.identity_reset) if run.identity_reset else None,
                 "status": run.status,
                 # Which profile ran, and what it therefore did not look at. Without
                 # this, run.json cannot tell you a class was out of scope.
-                "profile": getattr(run, "profile", "") or "",
+                "profile": run.profile,
                 # Scanners that had nothing to analyse. Distinct from a failure —
                 # the run is still complete — and distinct from finding nothing.
                 "scanners_skipped": {
                     s.tool: s.reason
-                    for s in getattr(run, "scanners", []) if getattr(s, "skipped", False)
+                    for s in run.scanners if s.skipped
                 },
                 "scanners_not_run": list(
-                    _profiles.not_run(getattr(run, "profile", "") or "")
+                    _profiles.not_run(run.profile)
                 ),
                 # What each Scanner and Check reads, and what it deliberately does
                 # not (task 19.E.1). Distinct from the two fields above: those say a
                 # Scanner did not run, this says what it does not look at even when
                 # it does. A reader asking "was my Cargo.toml checked?" has nowhere
                 # else to find out.
-                "coverage": getattr(run, "coverage", {}) or {},
+                "coverage": run.coverage,
                 # An incomplete scan reporting "clean" would be a lie of omission.
                 # This is the single field an agent should check first.
-                "complete": not getattr(run, "failures", []),
+                "complete": not run.failures,
                 # Reported, not silent: a user who vendored a vulnerable copy
                 # deserves to know we skipped it.
-                "excluded_vendored": getattr(run, "vendored_dropped", 0),
+                "excluded_vendored": run.vendored_dropped,
                 # What this project chose not to scan, and how much it cost. An
                 # exclusion the reader cannot see is indistinguishable from a
                 # scanner that found nothing.
                 "excluded_by_config": {
-                    "paths": list(getattr(run, "excluded_paths", []) or []),
-                    "findings_dropped": getattr(run, "config_dropped", 0),
+                    "paths": list(run.excluded_paths),
+                    "findings_dropped": run.config_dropped,
                 },
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
@@ -96,8 +105,8 @@ def _provenance(run) -> str:
                 # data below. This one determines whether findings exist at all, so a
                 # clean result cannot be judged without it.
                 "database": {
-                    "age_days": _round_or_none(getattr(run, "db_age_days", None)),
-                    "overdue_days": _round_or_none(getattr(run, "db_overdue_days", None)),
+                    "age_days": _round_or_none(run.db_age_days),
+                    "overdue_days": _round_or_none(run.db_overdue_days),
                     "stale": _db_is_stale(run),
                     "stale_after_days": _cache.DB_STALE_AFTER_DAYS,
                 },
@@ -106,20 +115,20 @@ def _provenance(run) -> str:
                 # false on a machine that has never run `valvur update`; then the
                 # dependency-reality Check failed and `complete` above says so.
                 "name_index": {
-                    "present": getattr(run, "name_index_age_days", None) is not None,
-                    "age_days": _round_or_none(getattr(run, "name_index_age_days", None)),
+                    "present": run.name_index_age_days is not None,
+                    "age_days": _round_or_none(run.name_index_age_days),
                     "stale": _index_is_stale(run),
                     "stale_after_days": _cache.NAME_INDEX_STALE_AFTER_DAYS,
                 },
                 "enrichment": {
-                    "kev_source": getattr(run, "kev_source", ""),
-                    "kev_age_days": round(getattr(run, "kev_age_days", None) or 0, 2),
-                    "stale": (getattr(run, "kev_age_days", None) or 0) > 30,
+                    "kev_source": run.kev_source,
+                    "kev_age_days": round(run.kev_age_days or 0, 2),
+                    "stale": (run.kev_age_days or 0) > 30,
                 },
                 # F6.10: what a network lookup transmitted, recorded exactly; the
                 # opt-out is the default Profile, and `--offline` forces it.
                 "network": {
-                    "used": getattr(run, "network_used", False),
+                    "used": run.network_used,
                     "what_left_the_machine": (
                         # Enumerated exactly, and kept exact. This sentence IS the
                         # non-exfiltration claim (§3), so a registry added without
@@ -134,7 +143,7 @@ def _provenance(run) -> str:
                         "osv-scanner) and the CVE identifiers found in this "
                         "workspace (to FIRST, for EPSS scores). Never source code, "
                         "and never a Python or npm name the index already settled."
-                        if getattr(run, "network_used", False)
+                        if run.network_used
                         else "nothing"
                     ),
                 },
@@ -142,9 +151,9 @@ def _provenance(run) -> str:
                 # made an accepted risk, a live problem and a note about our own
                 # missing coverage indistinguishable to every machine consumer.
                 "findings": {
-                    "active": len(getattr(run, "active", run.findings)),
-                    "suppressed": len(getattr(run, "suppressed", [])),
-                    "not_covered": len(getattr(run, "coverage_notes", [])),
+                    "active": len(run.active),
+                    "suppressed": len(run.suppressed),
+                    "not_covered": len(run.coverage_notes),
                     "total": len(run.findings),
                 },
                 "fixed": len(run.fixed),
@@ -155,7 +164,7 @@ def _provenance(run) -> str:
                         "ok": s.ok,
                         "reason": s.reason,
                     }
-                    for s in getattr(run, "scanners", [])
+                    for s in run.scanners
                 ],
             },
             indent=2,
@@ -203,17 +212,17 @@ MACHINE_HEADER = """<!-- valvur results. Read this file first; it is bounded by 
 """
 
 
-def _verdict(run) -> str:
+def _verdict(run: ScanRun) -> str:
     """One sentence, for the person who opened this file.
 
     Ordered by what stops the reader trusting the rest: an incomplete scan first, then
     live findings, then the two different reasons a nil result may mean nothing.
     """
-    active = list(getattr(run, "active", None) or [])
-    suppressed = list(getattr(run, "suppressed", []) or [])
-    notes = list(getattr(run, "coverage_notes", []) or [])
+    active = list(run.active)
+    suppressed = list(run.suppressed)
+    notes = list(run.coverage_notes)
 
-    if getattr(run, "failures", []):
+    if run.failures:
         names = ", ".join(f.tool for f in run.failures)
         return (
             f"**This scan is incomplete — {names} did not finish.** Anything below is "
@@ -248,7 +257,7 @@ def _verdict(run) -> str:
     return "**Nothing was found, by a scan that was able to look.** No action needed."
 
 
-def _summary(run) -> str:
+def _summary(run: ScanRun) -> str:
     """The agent's entry point. Bounded (F7.5) and self-describing (F7.6).
 
     Budget per design.md section 6: header, failures, counts, top findings, pointers.
@@ -269,7 +278,7 @@ def _summary(run) -> str:
     # decides how findings RANK; this decides whether they exist. For six days this
     # file warned about the second and said nothing about the first.
     if _db_is_stale(run):
-        db_age = getattr(run, "db_age_days", None)
+        db_age = run.db_age_days
         unsuppressed = [f for f in findings if not f.suppressed]
         lines += [
             f"> ⚠ **The vulnerability database is {db_age:.0f} days old.** "
@@ -292,7 +301,7 @@ def _summary(run) -> str:
         lines += [""]
 
     if _index_is_stale(run):
-        index_age = getattr(run, "name_index_age_days", None)
+        index_age = run.name_index_age_days
         lines += [
             f"> ⚠ **The package-name index is {index_age:.0f} days old.** Run "
             "`valvur update`. Dependencies were checked for existence against a list "
@@ -302,7 +311,7 @@ def _summary(run) -> str:
             "",
         ]
 
-    age = getattr(run, "kev_age_days", None)
+    age = run.kev_age_days
     if age is not None and age > 30:
         lines += [
             f"> ⚠ Exploit intelligence is {age:.0f} days old. Run `valvur update`.",
@@ -312,7 +321,7 @@ def _summary(run) -> str:
 
     # Failures come before findings. A reader who does not see them will trust a
     # partial scan as a complete one (F7.7).
-    failures = getattr(run, "failures", [])
+    failures = run.failures
     if failures:
         lines += ["## ⚠ Scanners that did not complete", ""]
         lines += [f"- **{f.tool}** — {f.reason}" for f in failures]
@@ -348,7 +357,7 @@ def _summary(run) -> str:
     # reader was told least about missing coverage exactly when there was most else on
     # screen — and `run.json` recorded it all along, in a file the contract tells
     # agents to read bounded.
-    absent = _profiles.not_run(getattr(run, "profile", "") or "")
+    absent = _profiles.not_run(run.profile)
     if absent:
         headline = (
             "⚠ **Nothing found — but this Profile did not run every Scanner.**"
@@ -380,7 +389,7 @@ def _summary(run) -> str:
             "",
         ]
 
-    reset = getattr(run, "identity_reset", None)
+    reset = run.identity_reset
     if reset:
         old, new = reset
         lines += [
@@ -392,7 +401,7 @@ def _summary(run) -> str:
             "",
         ]
 
-    skipped = [s for s in getattr(run, "scanners", []) if getattr(s, "skipped", False)]
+    skipped = [s for s in run.scanners if s.skipped]
     if skipped:
         lines += [
             "> **Not run, having nothing to analyse:** "
@@ -403,9 +412,9 @@ def _summary(run) -> str:
             "",
         ]
 
-    dropped = getattr(run, "config_dropped", 0)
+    dropped = run.config_dropped
     if dropped:
-        where = ", ".join(f"`{p}`" for p in getattr(run, "excluded_paths", []) or [])
+        where = ", ".join(f"`{p}`" for p in run.excluded_paths)
         lines += [
             f"> **{dropped} finding(s) were excluded** by `.security-scan.toml`: "
             f"{where}.",
@@ -515,15 +524,15 @@ def _round_or_none(value: float | None) -> float | None:
     return None if value is None else round(value, 2)
 
 
-def _db_is_stale(run) -> bool:
+def _db_is_stale(run: ScanRun) -> bool:
     from . import cache as _cache
 
-    age = getattr(run, "db_age_days", None)
+    age = run.db_age_days
     return age is not None and age > _cache.DB_STALE_AFTER_DAYS
 
 
-def _index_is_stale(run) -> bool:
+def _index_is_stale(run: ScanRun) -> bool:
     from . import cache as _cache
 
-    age = getattr(run, "name_index_age_days", None)
+    age = run.name_index_age_days
     return age is not None and age > _cache.NAME_INDEX_STALE_AFTER_DAYS
