@@ -3515,8 +3515,27 @@ The one product move. Existence — *does this package name exist at all?* — i
 hallucination check. Age and near-miss similarity are refinements. Existence can be
 answered from a local index of names; the refinements need a registry. Split them.
 
-- [ ] **22.A.1** Design and measure the index before building it. Two decisions, each
+- [x] **22.A.1** Design and measure the index before building it. Two decisions, each
   with a number behind it, recorded as an ADR:
+
+  > **Done 2026-09-12 — [ADR-0018](../../../docs/adr/0018-offline-package-name-index.md).**
+  > Measured against the live registries: PyPI 890,006 names (12.8MB plain, 4.0MB
+  > gzip); npm 4,382,736 (90.5MB plain, 25.4MB gzip). **Exact wins**: 29MB on the wire
+  > beside the database's 116MB, and a bloom filter at 0.1% would have saved 20MB for
+  > one missed hallucination in a thousand. Lookup is a binary search over the
+  > memory-mapped plain file — 8µs a name, measured, against 0.3s/1.6s per scan to
+  > stream the gzip or a second and ~270MB to build a set — so the index is stored
+  > uncompressed and `grep -x` is the audit. **Sources:** PyPI's simple index is one
+  > 9.7MB request. npm has no all-names endpoint: `replicate.npmjs.com/_all_docs`
+  > caps pages at 10,000 and refuses `skip` (439 requests, 145.6MB, 330s for the full
+  > set); `_changes` is ~24,000 entries a day, so a week of drift is ~17 requests.
+  > `all-the-package-names` was rejected on **measurement**: diffed the morning it
+  > was published, 140,823 of its names do not exist on the registry (deleted spam
+  > it never dropped — the direction that turns a hallucination into "exists") and
+  > 81,134 registry names are missing from it. Staleness: PyPI adds ~530 projects a
+  > day and npm ~1,600; threshold set at 30 days, with the note that an old index
+  > *overstates* (a package newer than itself reads as nonexistent) rather than
+  > misses, so the threshold keeps the age visible rather than marking a cliff.
 
   **Exact set or probabilistic?** A bloom filter is small (roughly a byte per name at
   1% false positives), but a false positive here is a *missed hallucination* — the
@@ -3535,10 +3554,40 @@ answered from a local index of names; the refinements need a registry. Split the
   > **Not in the image.** Names change daily; image releases do not. The exact
   > argument ADR-0012 made for the database, and the same answer.
 
-- [ ] **22.A.2** Implement it, and move existence to the default Profile. The
+- [x] **22.A.2** Implement it, and move existence to the default Profile. The
   dependency-reality Check runs on `offline` against the index — existence only, under
   `--network=none`, with `what_left_the_machine` still `nothing`. On `full` it adds
   what needs a registry: first-publish age and the near-miss comparison.
+
+  > **Done 2026-09-12.** `src/valvur/name_index.py` (builder on the host, reader in
+  > the container, one file because the format is the contract); `valvur update`
+  > fetches it under the cache's exclusive lock and `--if-stale` refreshes the index
+  > alone when only it is due; the runner mounts `~/.cache/valvur/names` read-only at
+  > `/cache/names` and sets `VALVUR_NETWORK=1` in exactly the case it omits
+  > `--network=none`, so the Check reads the decision the kernel enforces and never
+  > probes. The network grant moved out of the adapter and into `profiles.select`
+  > (`for_profile` on the protocol) — the only place a network is granted. Stale past
+  > 30 days is `inconclusive` on every surface the database's staleness reaches:
+  > verdict, `run.json` (`name_index` block), `SUMMARY.md`, terminal, MCP.
+  >
+  > **One correction to the task as written:** the near-miss comparison never needed
+  > a registry — it reads the popular list shipped in the image — so it runs offline
+  > too. The gap prose says `offline` lacks "package age (newly-registered names)";
+  > hallucinated packages moved to the *covered* side of the Summary's sentence.
+  >
+  > **Proven in a real container**, image `valvur:blockA`, `tests/fixtures/broken-repo`
+  > on `offline`: `reqeusts` ("did you mean 'requests'?") and `aws-helper-sdk`, both
+  > high, `what_left_the_machine: nothing`, `name_index.present: true`. On `full`
+  > the same two plus age lookups for the names the index confirmed. Empty cache:
+  > the Check refuses host-side before launching, fix first — the first measurement
+  > produced a traceback truncated at 200 characters with `valvur update` cut off.
+  > The Phase 11 suite gained six tests (the Check opens no connection ungranted, does
+  > when granted, never sends a name the index settled, refuses without an index, the
+  > runner tells containers the truth, the mount is `:ro`); `verify-offline.py` runs
+  > the Check in-process under the poison as a third half. Eight mutations, six
+  > caught, two equivalent-or-fixed. The unit suite now refuses every `urlopen` — a
+  > `full` scan against a fake runner would otherwise have reached PyPI from a test.
+  > 443 → 524 tests.
 
   > **This amends ADR-0016**, which says `full` adds *"the two that genuinely need a
   > socket"*. After this, one of the two runs on both Profiles and only its

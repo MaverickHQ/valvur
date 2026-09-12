@@ -67,7 +67,16 @@ def record_connections(monkeypatch):
     harmless, and `ssl` subclasses socket at import time, so replacing the class
     breaks the interpreter instead of the network. Connecting is the exfiltration.
     """
+    import urllib.request
+
+    import conftest
+
     attempts: list[str] = []
+    # The unit suite refuses at the HTTP layer (conftest). This fixture denies one
+    # layer down and records, so the real `urlopen` has to be in place for the
+    # attempt to reach the poison — otherwise the falsifiability tests below would
+    # see no connection for the wrong reason.
+    monkeypatch.setattr(urllib.request, "urlopen", conftest.REAL_URLOPEN)
 
     def deny(name):
         def blocked(*args, **kwargs):
@@ -181,13 +190,124 @@ def test_the_networked_scanner_is_not_launched_with_no_network(monkeypatch, tmp_
     assert "--network=none" not in launched[0]
 
 
-def test_osv_and_dependency_reality_are_the_only_networked_scanners():
+def test_osv_is_the_only_scanner_the_offline_profile_does_not_run():
     """N2.1 — the offline guarantee is a property of the Profile's membership, so it
-    is asserted there and not only at each call site."""
+    is asserted there and not only at each call site. Since ADR-0018 the
+    dependency-reality Check runs on both Profiles; what changes with the network is
+    asserted in-process below, because membership alone no longer says it."""
     networked = set(profiles.SCANNERS[profiles.FULL]) - set(profiles.SCANNERS[profiles.OFFLINE])
 
-    assert networked == {"osv-scanner", "dependency-reality"}
+    assert networked == {"osv-scanner"}
     assert profiles.ALLOWS_NETWORK[profiles.OFFLINE] is False
+
+
+# ------------------------------ half 3: the Check that runs on both sides (ADR-0018)
+
+def test_the_dependency_check_opens_no_connection_without_a_network_grant(
+    workspace, record_connections
+):
+    """The Check now runs on `offline`, so the container flag is no longer the only
+    thing between a package name and a registry: the Check itself must not try. Run
+    in-process against the broken fixture, which declares two hallucinated names —
+    so the check has every reason to reach out, and the index has to answer instead.
+    """
+    from valvur.checks.dependency_reality import DependencyRealityCheck
+
+    found = DependencyRealityCheck().run(workspace)
+
+    assert record_connections == [], f"the Check connected: {record_connections}"
+    nonexistent = {f["title"].split("'")[1] for f in found
+                   if f["rule"] == "valvur.dependency.nonexistent"}
+    assert {"reqeusts", "aws-helper-sdk"} <= nonexistent, (
+        "no hallucination was reported, so the assertion above proved nothing"
+    )
+
+
+def test_the_dependency_check_does_connect_when_granted_so_the_previous_test_can_fail(
+    workspace, record_connections, network_granted
+):
+    """Falsifiability, again. With the grant the Check asks a registry about the
+    names the index says exist (for their age) — and the poison records it."""
+    from valvur.checks.dependency_reality import DependencyRealityCheck, RegistryUnreachable
+
+    with contextlib.suppress(RegistryUnreachable):
+        DependencyRealityCheck().run(workspace)
+
+    assert record_connections, "granted a network, the Check made no connection"
+
+
+def test_a_name_the_index_settles_is_never_sent_to_a_registry(
+    workspace, network_granted, monkeypatch
+):
+    """Section 3 is about what leaves the machine. A hallucinated name is the one
+    most worth not sending — it is the one a registry operator could register."""
+    import valvur.checks.dependency_reality as mod
+
+    asked: list[str] = []
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: asked.append(name) or {"releases": {}})
+
+    mod.DependencyRealityCheck().run(workspace)
+
+    assert "reqeusts" not in asked and "aws-helper-sdk" not in asked
+    assert "urllib3" in asked, "an existing name was not asked for its age, so nothing was sent"
+
+
+def test_without_an_index_the_offline_check_fails_rather_than_reporting_clean(
+    workspace, no_name_index
+):
+    """F3.5 on the new path. A machine that never ran `valvur update` has nothing
+    to check existence against and no network to ask — and must say so."""
+    from valvur.checks.dependency_reality import DependencyRealityCheck, IndexMissing
+
+    with pytest.raises(IndexMissing, match="valvur update"):
+        DependencyRealityCheck().run(workspace)
+
+
+def test_the_networked_containers_are_told_and_the_offline_ones_are_not(monkeypatch, tmp_path):
+    """The Check reads VALVUR_NETWORK; the runner sets it in exactly the case it
+    omits --network=none. Both halves, because either alone would pass with the
+    variable set unconditionally."""
+    from valvur import cache
+    from valvur.runner import NETWORK_ENV, ContainerRunner
+
+    launched: list[list[str]] = []
+
+    def capture(cmd, **kwargs):
+        launched.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(subprocess, "run", capture)
+    runner = ContainerRunner(runtime="/usr/local/bin/docker")
+
+    runner.run_check("dependency-reality", tmp_path, network=False)
+    runner.run_check("dependency-reality", tmp_path, network=True)
+
+    offline, full = launched
+    assert "--network=none" in offline and f"{NETWORK_ENV}=1" not in offline
+    assert "--network=none" not in full and f"{NETWORK_ENV}=1" in full
+
+
+def test_the_index_is_mounted_read_only_into_every_container(monkeypatch, tmp_path):
+    """The Check only asks the index questions. A writable mount would let a
+    compromised Scanner edit the list of what exists."""
+    from valvur import cache
+    from valvur.runner import ContainerRunner
+
+    launched: list[list[str]] = []
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(cache, "name_index", lambda: tmp_path / "names")
+
+    def capture(cmd, **kwargs):
+        launched.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", capture)
+    ContainerRunner(runtime="/usr/local/bin/docker").run_check("licence-file", tmp_path)
+
+    mounts = [launched[0][i + 1] for i, flag in enumerate(launched[0]) if flag == "-v"]
+    index_mount = next(m for m in mounts if m.endswith("/cache/names:ro"))
+    assert index_mount.startswith(str(tmp_path / "names") + ":")
 
 
 # ------------------------------------------------------------- the known gap
@@ -707,3 +827,50 @@ def test_a_launch_stops_being_tracked_once_it_finishes(monkeypatch, tmp_path):
 
     with runner_module._live_lock:
         assert runner_module._live_containers == set()
+
+
+def test_without_an_index_the_runner_refuses_before_launching_and_names_the_fix(
+    monkeypatch, tmp_path
+):
+    """The first-run experience. Measured 2026-09-12 with an empty cache: the Check
+    failed inside the container and the reason reached `SUMMARY.md` as a traceback
+    truncated at 200 characters, with `valvur update` cut off. Trivy already refuses
+    host-side with the fix first; the Check gets the same treatment."""
+    from valvur import cache
+    from valvur.runner import ContainerRunner
+
+    launched: list[list[str]] = []
+    monkeypatch.setattr(cache, "name_index_present", lambda: False)
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: launched.append(cmd))
+    runner = ContainerRunner(runtime="/usr/local/bin/docker")
+
+    with pytest.raises(RuntimeError, match="valvur update"):
+        runner.run_check("dependency-reality", tmp_path, network=False)
+
+    assert launched == [], "a container was launched with nothing to check against"
+    # With a network the registry can answer instead, so no refusal.
+    monkeypatch.setattr(subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "[]", ""))
+    runner.run_check("dependency-reality", tmp_path, network=True)
+
+
+def test_the_check_entry_point_turns_its_own_refusal_into_one_line(capsys, tmp_path):
+    """In-container half of the same fix: a refusal is a sentence on stderr and a
+    non-zero exit, not a traceback."""
+    from valvur.checks.__main__ import main
+
+    (tmp_path / "requirements.txt").write_text("nope-x\n")
+    empty = tmp_path / "no-index"
+    empty.mkdir()
+    import os
+    os.environ["VALVUR_NAME_INDEX"] = str(empty)
+    try:
+        code = main(["dependency-reality", str(tmp_path)])
+    finally:
+        del os.environ["VALVUR_NAME_INDEX"]
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert captured.err.startswith("Run `valvur update`")
+    assert "Traceback" not in captured.err
+    assert captured.out == ""

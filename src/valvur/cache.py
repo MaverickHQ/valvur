@@ -1,4 +1,5 @@
-"""Host-side cache for vulnerability data (ADR-0012).
+"""Host-side cache for vulnerability data (ADR-0012) and the package-name index
+(ADR-0018).
 
 Lives outside the image so advisory freshness and image version stay independent —
 they change at completely different rates.
@@ -20,6 +21,14 @@ STALE_AFTER_DAYS = 30
 #: enough to know".
 DB_STALE_AFTER_DAYS = 7
 
+#: When the package-name index stops being evidence (ADR-0018). Thirty days is
+#: roughly 16,000 PyPI and 48,000 npm names of drift, and matches the KEV threshold
+#: already reported beside it. The failure direction is the opposite of the
+#: database's: an old index is MISSING names, so it overstates — a package newer than
+#: the index is reported nonexistent — rather than letting a hallucination through.
+#: The threshold keeps the answer's age visible; it is not a cliff.
+NAME_INDEX_STALE_AFTER_DAYS = 30
+
 
 def root() -> Path:
     base = os.environ.get("XDG_CACHE_HOME") or os.environ.get("VALVUR_CACHE")
@@ -28,6 +37,55 @@ def root() -> Path:
 
 def trivy_db() -> Path:
     return root() / "trivy"
+
+
+def name_index() -> Path:
+    """Where the package-name index lives: one sorted plain-text file per ecosystem
+    and a `metadata.json` saying when each was built (ADR-0018). Mounted read-only
+    into every container at `/cache/names`."""
+    return root() / "names"
+
+
+def name_index_present() -> bool:
+    return (name_index() / "metadata.json").is_file()
+
+
+def name_index_age_days() -> float | None:
+    """Age of the OLDEST ecosystem in the index, or None when there is no index.
+
+    The oldest, because the verdict is one verdict: a fresh PyPI list beside a
+    six-week-old npm list is a six-week-old answer for any project with a
+    `package.json`. Built time, not download time, for the same reason as the
+    database (F6.11): a mirror can hand over old data this morning.
+    """
+    import json
+
+    marker = name_index() / "metadata.json"
+    if not marker.is_file():
+        return None
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+        ecosystems = data.get("ecosystems") or {}
+        if not isinstance(ecosystems, dict) or not ecosystems:
+            return None
+        ages = [stamp_age_days(entry.get("built_at")) for entry in ecosystems.values()]
+    except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError):
+        return None
+    if any(age is None for age in ages):
+        return None
+    return max(ages)  # type: ignore[type-var]
+
+
+def stamp_age_days(stamp: object) -> float | None:
+    from datetime import UTC, datetime
+
+    try:
+        built = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    if built.tzinfo is None:
+        built = built.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - built).total_seconds() / 86400
 
 
 def db_present() -> bool:

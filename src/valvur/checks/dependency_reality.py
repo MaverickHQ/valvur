@@ -4,9 +4,13 @@ The signature failure of AI-written code. Language models invent plausible packa
 names; attackers register them. **No advisory database can catch this**, because the
 package is *new*, not known-bad — which is precisely why it needs its own Check.
 
-Runs in-container (ADR-0013). On the `offline` Profile there is no network interface,
-so this Check cannot reach a registry and fails loudly rather than reporting the
-dependencies clean (F3.5). That honesty is enforced by the architecture.
+Runs in-container (ADR-0013), on **both** Profiles. Existence is answered from the
+package-name index in the host cache (ADR-0018), mounted read-only at `/cache/names`,
+so the hallucination check needs no socket; the near-miss comparison uses the popular
+list shipped in the image. Only first-publish age still asks a registry, and only on
+`full` — the container tells the Check whether it was given a network
+(`VALVUR_NETWORK=1`), and the Check never guesses. No index on a Profile without a
+network is a loud failure with the command that fixes it, never a clean result (F3.5).
 
 Covers **Python** (`requirements*.txt`, and `pyproject.toml` in both PEP 621 and
 Poetry shapes) against PyPI, and **npm** (`package.json`) against the npm registry.
@@ -22,6 +26,7 @@ is written into the file a human or an agent edited.
 from __future__ import annotations
 
 import json
+import os
 import re
 import urllib.error
 import urllib.request
@@ -31,6 +36,12 @@ from urllib.parse import quote
 
 TIMEOUT = 10
 NEW_PACKAGE_DAYS = 90
+
+#: Where the runner mounts the host cache's name index (ADR-0018), and the variable
+#: the runner sets when — and only when — the container was launched with a network.
+INDEX_MOUNT = "/cache/names"
+INDEX_ENV = "VALVUR_NAME_INDEX"
+NETWORK_ENV = "VALVUR_NETWORK"
 _UA = {"User-Agent": "valvur/0.1 (+https://github.com/MaverickHQ/valvur)"}
 
 REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")
@@ -55,13 +66,18 @@ class RegistryUnreachable(RuntimeError):
     """Raised so the run records this Check as failed rather than clean (F3.5)."""
 
 
+class IndexMissing(RuntimeError):
+    """No index for an ecosystem this Workspace declares, and no network to ask
+    instead. Raised so the run records this Check as failed, with the fix."""
+
+
 class DependencyRealityCheck:
     name = "dependency-reality"
 
     def run(self, workspace: Path) -> list[dict]:
-        # Coverage gaps are NOT reported here any more. They were, until a local
-        # corpus showed the consequence: this Check needs the network, so it does not
-        # run on the default Profile at all, and the one message that says "this scan
+        # Coverage gaps are NOT reported here. They were, until a local corpus showed
+        # the consequence: at the time this Check needed the network and did not run
+        # on the default Profile at all, so the one message that says "this scan
         # could not help you" was absent from the Profile almost everyone uses. The
         # gap is a static fact about files on disk — it belongs somewhere that runs
         # unconditionally. See `valvur/coverage.py` (task 19.D.1, C1).
@@ -71,18 +87,72 @@ class DependencyRealityCheck:
         if not declared:
             return findings
 
+        from .. import name_index as _index
+
         popular = _popular()
-        reached_any = False
+        network = _network_allowed()
+        indexes = {eco: _index.open_index(_index_dir(), eco) for eco in {d[0] for d in declared}}
+        try:
+            unindexed = sorted(eco for eco, idx in indexes.items() if idx is None)
+            if unindexed and not network:
+                # Fail with the command that fixes it, the way Trivy fails without its
+                # database. Raising rather than returning [] is the whole of F3.5:
+                # "could not check" must never read as "checked and found nothing".
+                raise IndexMissing(
+                    "Run `valvur update`: no package-name index for "
+                    f"{', '.join(_REGISTRY_NAME[e] for e in unindexed)}, so "
+                    f"{len(declared)} dependency name(s) were NOT verified (and are "
+                    "NOT clean)."
+                )
+            findings, reached_any, asked_any = self._verify(declared, indexes, popular, network)
+        finally:
+            for idx in indexes.values():
+                if idx is not None:
+                    idx.close()
+
+        if asked_any and not reached_any:
+            # Two different situations, each with its own fix. Naming the wrong one
+            # sends a user without an index to a Profile that will fail for the
+            # other reason.
+            if unindexed:
+                raise RegistryUnreachable(
+                    f"No registry was reachable, so {len(declared)} dependency name(s) "
+                    "could not be verified. They are NOT reported as clean. Run "
+                    "`valvur update` to fetch the package-name index, which answers "
+                    "existence with no registry at all; re-run when the network is "
+                    "available for package age."
+                )
+            raise RegistryUnreachable(
+                "No registry was reachable, so first-publish age could not be checked. "
+                "Existence was verified from the local index, but this Profile promises "
+                "more than that, and the result is NOT reported as clean. Re-run when the "
+                "network is available, or with `--profile offline`, which does not ask."
+            )
+        return findings
+
+    def _verify(self, declared, indexes, popular, network) -> tuple[list[dict], bool, bool]:
+        """The per-package decisions. Returns (findings, reached a registry, asked one)."""
+        findings: list[dict] = []
+        reached_any = asked_any = False
 
         for ecosystem, name, source in sorted(declared):
-            try:
-                meta = _lookup(ecosystem, name)
-                reached_any = True
-            except RegistryUnreachable:
-                continue
+            index = indexes[ecosystem]
+            meta: dict | None = None
+            if index is not None:
+                exists = index.contains(_index_form(ecosystem, name))
+            else:
+                # No index but a network: the registry answers existence as well as
+                # age, which is what this Check did before ADR-0018.
+                asked_any = True
+                try:
+                    meta = _lookup(ecosystem, name)
+                    reached_any = True
+                except RegistryUnreachable:
+                    continue
+                exists = meta is not None
 
             registry = _REGISTRY_NAME[ecosystem]
-            if meta is None:
+            if not exists:
                 # A nonexistent name that is one edit from a popular package is
                 # almost always a typo, and saying so is far more useful than
                 # reporting absence alone.
@@ -96,6 +166,43 @@ class DependencyRealityCheck:
                 ))
                 continue
 
+            # PyPI only. The near-miss comparison needs a corpus of popular names and
+            # only PyPI's ships in the image, so npm names are checked for existence
+            # and not for similarity. Declared in the Check's Coverage rather than
+            # left for a reader to infer from silence. Local: it never needed a
+            # registry, and until ADR-0018 it was withheld offline for no reason.
+            near = _near_miss(name, popular) if ecosystem == "pip" else None
+            if near:
+                findings.append(_finding(
+                    "valvur.dependency.near-miss", ecosystem, name, source, "medium",
+                    f"'{name}' is one character from the far more popular '{near}'",
+                    f"Typosquat pattern. Did you mean '{near}'?",
+                ))
+
+            # First-publish age is the one question that still needs a registry, so
+            # it is asked only with a network — and only about names the index has
+            # already said exist. A nonexistent name is settled locally and never
+            # leaves the machine.
+            if not network:
+                continue
+            if meta is None:
+                asked_any = True
+                try:
+                    meta = _lookup(ecosystem, name)
+                    reached_any = True
+                except RegistryUnreachable:
+                    continue
+                if meta is None:
+                    # The index said it exists and the registry says it does not:
+                    # unpublished since the index was built. Report it — an
+                    # unpublished name is exactly the one an attacker re-registers.
+                    findings.append(_finding(
+                        "valvur.dependency.nonexistent", ecosystem, name, source, "high",
+                        f"'{name}' no longer exists on {registry}",
+                        "This package was in the local index but the registry no longer "
+                        "has it. A name that has just been freed is the slopsquat target.",
+                    ))
+                    continue
             age = _age_days(ecosystem, meta)
             if age is not None and age < NEW_PACKAGE_DAYS:
                 findings.append(_finding(
@@ -105,25 +212,23 @@ class DependencyRealityCheck:
                     "slopsquat pattern. Confirm this is the package you meant.",
                 ))
 
-            # PyPI only. The near-miss comparison needs a corpus of popular names and
-            # only PyPI's ships in the image, so npm names are checked for existence
-            # and not for similarity. Declared in the Check's Coverage rather than
-            # left for a reader to infer from silence.
-            near = _near_miss(name, popular) if ecosystem == "pip" else None
-            if near:
-                findings.append(_finding(
-                    "valvur.dependency.near-miss", ecosystem, name, source, "medium",
-                    f"'{name}' is one character from the far more popular '{near}'",
-                    f"Typosquat pattern. Did you mean '{near}'?",
-                ))
+        return findings, reached_any, asked_any
 
-        if declared and not reached_any:
-            raise RegistryUnreachable(
-                f"No registry was reachable, so {len(declared)} dependency name(s) "
-                "could not be verified. They are NOT reported as clean. "
-                "Re-run with `--profile full`, which permits registry lookups."
-            )
-        return findings
+
+def _network_allowed() -> bool:
+    """Whether the runner launched this container with a network. The runner sets
+    the variable in exactly the case it omits `--network=none`, so the Check reads
+    the same decision the kernel enforces rather than probing for a socket."""
+    return os.environ.get(NETWORK_ENV) == "1"
+
+
+def _index_dir() -> Path:
+    return Path(os.environ.get(INDEX_ENV) or INDEX_MOUNT)
+
+
+def _index_form(ecosystem: str, name: str) -> str:
+    """The spelling the index stores: PEP 503 for PyPI, lowercase for npm."""
+    return canonical(name) if ecosystem == "pip" else name.lower()
 
 
 def _defined_locally(workspace: Path) -> set[tuple[str, str]]:

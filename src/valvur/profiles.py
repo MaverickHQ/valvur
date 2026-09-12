@@ -2,7 +2,9 @@
 
 Two profiles, split on the only line that matters to this product: whether anything
 leaves the machine. `offline` runs every Scanner that works under `--network=none`,
-which is all of them bar two. `full` adds the two that must reach out.
+which is all of them bar one. `full` adds osv-scanner, and lets the
+dependency-reality Check ask a registry for the one thing its local index cannot
+answer — a package's age (ADR-0018).
 
 The earlier `quick`/`standard`/`deep` split was drawn along speed while being
 described as a network boundary, and `deep` was byte-identical to `standard`. See
@@ -23,18 +25,27 @@ SCANNERS: dict[str, tuple[str, ...]] = {
     OFFLINE: (
         "gitleaks", "opengrep", "trivy", "checkov", "syft",
         "licence-file", "ai-artifact",
+        # Existence is answered from the package-name index in the host cache
+        # (ADR-0018), so the hallucination check runs with no socket at all.
+        "dependency-reality",
     ),
     FULL: (
         "gitleaks", "opengrep", "trivy", "checkov", "syft",
-        "licence-file", "ai-artifact",
-        # The only two that genuinely need a socket: osv-scanner queries api.osv.dev,
-        # and the dependency-reality Check asks public registries whether a package
-        # exists. Both send package NAMES, never source.
-        "osv-scanner", "dependency-reality",
+        "licence-file", "ai-artifact", "dependency-reality",
+        # The only Scanner that genuinely needs a socket: osv-scanner queries
+        # api.osv.dev with the names and versions in your lockfiles, never source.
+        "osv-scanner",
     ),
 }
 
 ALLOWS_NETWORK: dict[str, bool] = {OFFLINE: False, FULL: True}
+
+#: Scanners that run on BOTH Profiles and do less without a network — the network
+#: half of what they cover, in the reader's terms. dependency-reality checks existence
+#: and near-misses from local data and asks a registry only for first-publish age.
+NEEDS_NETWORK_FOR: dict[str, str] = {
+    "dependency-reality": "package age (newly-registered names)",
+}
 
 DEFAULT = OFFLINE
 """Offline by default. The target market cannot send code or dependency manifests
@@ -61,9 +72,11 @@ def scanners_for(profile: str) -> tuple[str, ...]:
 
 
 def select(adapters, profile: str):
-    """Filter a registry down to the Scanners this Profile runs."""
+    """Filter a registry down to the Scanners this Profile runs, each told what the
+    Profile permits. This is the only place a network is granted to an adapter."""
     wanted = scanners_for(profile)
-    return [a for a in adapters if a.name in wanted]
+    network = ALLOWS_NETWORK[resolve(profile)]
+    return [a.for_profile(network=network) for a in adapters if a.name in wanted]
 
 
 def not_run(profile: str) -> tuple[str, ...]:
@@ -91,15 +104,18 @@ def not_run(profile: str) -> tuple[str, ...]:
 _ADDS: dict[str, str] = {
     "checkov": "infrastructure misconfiguration",
     "syft": "the SBOM and dependency licences",
-    "dependency-reality": "hallucinated and typosquatted packages",
     "osv-scanner": "a second dependency-advisory source",
 }
 
 
 def gaps_in_prose(profile: str) -> str:
     """The coverage a Profile lacks, described by what is missing rather than by
-    which binary did not run."""
+    which binary did not run — including what a Scanner that DID run could not do
+    without a network."""
     missing = [_ADDS[s] for s in not_run(profile) if s in _ADDS]
+    name = resolve(profile)
+    if name in SCANNERS and not ALLOWS_NETWORK[name]:
+        missing += [NEEDS_NETWORK_FOR[s] for s in SCANNERS[name] if s in NEEDS_NETWORK_FOR]
     if not missing:
         return "nothing else"
     if len(missing) == 1:

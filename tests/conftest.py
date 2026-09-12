@@ -1,4 +1,5 @@
 import json
+import os
 import platform
 import shutil
 import tempfile
@@ -7,6 +8,147 @@ from pathlib import Path
 import pytest
 
 from valvur.adapters.base import ScannerAdapter
+
+#: The real `urlopen`, for the two falsifiability tests that poison the socket
+#: layer themselves and need the HTTP layer to actually try (see `record_connections`).
+REAL_URLOPEN = None
+
+# ------------------------------------------------ the package-name index (ADR-0018)
+
+#: npm names the default test index says exist. PyPI's come from the popular list
+#: shipped in the image (3,000 real names); npm has no such list, so a few real ones
+#: are enough for the fixtures. Anything else does not exist — which is the point.
+KNOWN_NPM = (
+    "react", "react-dom", "lodash", "express", "axios", "chalk", "typescript",
+    "eslint", "jest", "webpack", "vue", "next", "left-pad", "@types/node",
+    "@types/react", "commander", "debug", "moment", "uuid", "semver",
+)
+
+
+def write_name_index(directory: Path, *, pip=(), npm=(), built_at=None) -> Path:
+    """Write an index in the exact on-disk format `valvur update` produces, so tests
+    exercise the same reader against the same bytes."""
+    from valvur.checks.dependency_reality import canonical
+    from valvur.name_index import FILES, METADATA, _now
+
+    directory.mkdir(parents=True, exist_ok=True)
+    for ecosystem, names in (("pip", pip), ("npm", npm)):
+        form = canonical if ecosystem == "pip" else str.lower
+        ordered = sorted({form(n).encode() for n in names})
+        (directory / FILES[ecosystem]).write_bytes(b"".join(n + b"\n" for n in ordered))
+    stamp = built_at or _now()
+    (directory / METADATA).write_text(json.dumps({
+        "schema": 1,
+        "ecosystems": {
+            eco: {"built_at": stamp, "count": len(names), "source": "test"}
+            for eco, names in (("pip", pip), ("npm", npm))
+        },
+    }))
+    return directory
+
+
+@pytest.fixture(scope="session")
+def default_name_index(tmp_path_factory) -> Path:
+    from valvur.checks.dependency_reality import _popular
+
+    return write_name_index(
+        tmp_path_factory.mktemp("names"), pip=_popular().values(), npm=KNOWN_NPM
+    )
+
+
+@pytest.fixture(autouse=True)
+def _no_sockets_from_unit_tests(monkeypatch):
+    """The unit suite never opens a socket. Anything that needs one is `e2e`.
+
+    Made explicit after ADR-0018: the fake runners now run the dependency-reality
+    Check in-process with the network grant the Profile gives it, so a `full` scan
+    against a fake runner would otherwise reach PyPI from a unit test. It fails
+    loudly here instead — as `RegistryUnreachable`, which is what the Check does
+    with a dead network in production too.
+    """
+    import urllib.error
+    import urllib.request
+
+    global REAL_URLOPEN
+    REAL_URLOPEN = urllib.request.urlopen
+
+    def refuse(request, *args, **kwargs):
+        url = getattr(request, "full_url", request)
+        raise urllib.error.URLError(f"unit tests do not open sockets (tried {url})")
+
+    monkeypatch.setattr(urllib.request, "urlopen", refuse)
+
+
+@pytest.fixture(autouse=True)
+def _installed_name_index(default_name_index, monkeypatch):
+    """Every test runs as on a machine that has done `valvur update`: an index is
+    present, fresh, and the Check reads it. Without this, the dependency-reality
+    Check fails loudly on the offline Profile — correctly, and in every scan test.
+
+    The network grant is cleared too, so a developer's shell cannot leak one in.
+    """
+    from valvur import cache
+
+    monkeypatch.setenv("VALVUR_NAME_INDEX", str(default_name_index))
+    monkeypatch.delenv("VALVUR_NETWORK", raising=False)
+    monkeypatch.setattr(cache, "name_index", lambda: default_name_index)
+
+
+@pytest.fixture
+def name_index(tmp_path, monkeypatch):
+    """A test's own index: `name_index(pip=[...], npm=[...])` — those names exist and
+    nothing else does. Replaces the default for this test only."""
+    from valvur import cache
+
+    def build(*, pip=(), npm=(), built_at=None) -> Path:
+        directory = write_name_index(tmp_path / "names", pip=pip, npm=npm, built_at=built_at)
+        monkeypatch.setenv("VALVUR_NAME_INDEX", str(directory))
+        monkeypatch.setattr(cache, "name_index", lambda: directory)
+        return directory
+
+    return build
+
+
+@pytest.fixture
+def no_name_index(tmp_path, monkeypatch):
+    """A machine that has never run `valvur update`."""
+    from valvur import cache
+
+    empty = tmp_path / "no-names"
+    empty.mkdir()
+    monkeypatch.setenv("VALVUR_NAME_INDEX", str(empty))
+    monkeypatch.setattr(cache, "name_index", lambda: empty)
+    return empty
+
+
+@pytest.fixture
+def network_granted(monkeypatch):
+    """What the runner does to a container on the `full` Profile."""
+    monkeypatch.setenv("VALVUR_NETWORK", "1")
+
+
+def run_check_in_process(name: str, workspace: Path, *, network: bool):
+    """Run one of valvur's Checks here rather than in a container, telling it what
+    the runner would have told it: whether it was given a network (ADR-0018)."""
+    from valvur.checks import REGISTRY
+    from valvur.runner import ScannerOutput
+
+    check = REGISTRY.get(name)
+    if check is None:
+        return ScannerOutput(name, "0.1.0.dev0", "[]", "", 0)
+    previous = os.environ.get("VALVUR_NETWORK")
+    if network:
+        os.environ["VALVUR_NETWORK"] = "1"
+    else:
+        os.environ.pop("VALVUR_NETWORK", None)
+    try:
+        payload = json.dumps(check.run(workspace))
+    finally:
+        if previous is None:
+            os.environ.pop("VALVUR_NETWORK", None)
+        else:
+            os.environ["VALVUR_NETWORK"] = previous
+    return ScannerOutput(name, "0.1.0.dev0", payload, "", 0)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -101,17 +243,9 @@ class FakeRunner:
         return self._quiet("opengrep", "1.29.0", '{"results": []}')
 
     def run_check(self, name: str, workspace: Path, *, network: bool = False):
-        """Runs valvur's own Checks in-process. They are pure functions of the
-        Workspace, so there is nothing at the container boundary worth faking."""
-        import json as _json
-
-        from valvur.checks import REGISTRY
-        from valvur.runner import ScannerOutput
-
-        check = REGISTRY.get(name)
-        payload = _json.dumps(check.run(workspace)) if check else "[]"
-        return ScannerOutput(tool=name, version="0.1.0.dev0", stdout=payload,
-                             stderr="", exit_code=0)
+        """Runs valvur's own Checks in-process. They are functions of the Workspace
+        and of what the runner tells them, so that is all the boundary to fake."""
+        return run_check_in_process(name, workspace, network=network)
 
 
 @pytest.fixture
@@ -221,11 +355,4 @@ class GoldenRunner:
         return self._out("opengrep")
 
     def run_check(self, name, workspace, *, network=False):
-        import json as _json
-
-        from valvur.checks import REGISTRY
-        from valvur.runner import ScannerOutput
-
-        check = REGISTRY.get(name)
-        return ScannerOutput(name, "0.1.0.dev0",
-                             _json.dumps(check.run(workspace)) if check else "[]", "", 0)
+        return run_check_in_process(name, workspace, network=network)

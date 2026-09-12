@@ -29,6 +29,10 @@ _Avoid_: tool, engine, plugin, analyser
 A detection valvur performs itself rather than delegating to a Scanner — the Dependency Reality Check, AI Artifact scan, pinning hygiene, and Licence Hygiene.
 _Avoid_: rule, test, custom scanner
 
+**Name Index**:
+The list of every package name on PyPI and npm, fetched by `valvur update` into the host cache beside the vulnerability database and mounted read-only into the container. What the Dependency Reality Check answers *existence* from, on every Profile, with no socket (ADR-0018). Exact, not probabilistic; plain text, one name per line.
+_Avoid_: package database, registry mirror, bloom filter, cache (that is the directory it lives in)
+
 ### Findings
 
 **Finding**:

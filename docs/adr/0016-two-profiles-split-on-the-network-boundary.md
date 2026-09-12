@@ -1,7 +1,16 @@
 # ADR-0016 — Two Profiles, split on the network boundary
 
-**Status:** accepted · **Date:** 2026-08-31 · **Supersedes:** the `quick` /
-`standard` / `deep` Profile set introduced in Phase 2.
+**Status:** accepted, amended · **Date:** 2026-08-31 · **Supersedes:** the `quick` /
+`standard` / `deep` Profile set introduced in Phase 2. · **Amended by:**
+[ADR-0018](0018-offline-package-name-index.md), 2026-09-12.
+
+> **Amendment (2026-09-12).** "The two that genuinely need a socket" is now one. The
+> dependency-reality Check answers *existence* — the hallucination check — from a
+> local index of package names and runs on **both** Profiles; only first-publish age
+> still needs a registry, and that is what `full` adds. The split is still drawn on
+> the network boundary; what moved is which side of it the headline check sits on.
+> Everything below is left as written, because the reasoning was right and the
+> Profile set is unchanged. See ADR-0018 for the numbers.
 
 ## Context
 

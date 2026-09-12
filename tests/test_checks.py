@@ -4,6 +4,8 @@ A Check is detection valvur performs itself, as opposed to a Scanner, which is a
 third-party tool we orchestrate. Checks run in the container exactly as Scanners do.
 """
 
+import pytest
+
 from valvur import scan
 from valvur.adapters import CheckAdapter
 from valvur.coverage import RULE as COVERAGE_GAP
@@ -202,60 +204,71 @@ def test_a_dependency_with_no_declared_licence_is_a_finding():
 
 # --------------------------------------------------------- 4.4 dependency reality
 
-def test_a_dependency_that_does_not_exist_is_a_finding():
+def test_a_dependency_that_does_not_exist_is_a_finding(name_index, monkeypatch):
     """F3.2 — the headline slopsquat behaviour, and the one NO advisory database can
-    catch: the package is new, not known-bad."""
+    catch: the package is new, not known-bad. Answered from the local index with no
+    network at all (ADR-0018): the registry is poisoned to prove it was not asked."""
+    import valvur.checks.dependency_reality as mod
     from valvur.checks.dependency_reality import DependencyRealityCheck
 
-    class Offline(DependencyRealityCheck):
-        pass
+    name_index(pip=["urllib3"])
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: pytest.fail(f"asked about {name}"))
 
-    import valvur.checks.dependency_reality as mod
-
-    real = mod._lookup
-    mod._lookup = lambda eco, name: None if name == "aws-helper-sdk" else {"releases": {}}
-    try:
-        found = Offline().run(_tmp_manifest("aws-helper-sdk==1.0.0\nurllib3==1.24.1\n"))
-    finally:
-        mod._lookup = real
+    found = DependencyRealityCheck().run(_tmp_manifest("aws-helper-sdk==1.0.0\nurllib3==1.24.1\n"))
 
     assert [f["rule"] for f in found] == ["valvur.dependency.nonexistent"]
+    assert "aws-helper-sdk" in found[0]["title"]
 
 
-def test_a_hallucinated_name_suggests_the_package_you_probably_meant():
+def test_a_hallucinated_name_suggests_the_package_you_probably_meant(name_index):
     """Reporting absence alone is unactionable; naming the near neighbour is not."""
-    import valvur.checks.dependency_reality as mod
     from valvur.checks.dependency_reality import DependencyRealityCheck
 
-    real = mod._lookup
-    mod._lookup = lambda eco, name: None
-    try:
-        found = DependencyRealityCheck().run(_tmp_manifest("reqeusts==2.31.0\n"))
-    finally:
-        mod._lookup = real
+    name_index(pip=["requests"])
+
+    found = DependencyRealityCheck().run(_tmp_manifest("reqeusts==2.31.0\n"))
 
     assert "did you mean 'requests'" in found[0]["title"]
 
 
-def test_with_no_registry_reachable_the_check_fails_rather_than_reporting_clean():
+def test_with_no_registry_reachable_the_check_fails_rather_than_reporting_clean(
+    no_name_index, network_granted, monkeypatch
+):
     """F3.5 — the honesty behaviour. Unverified is not the same as clean, and a
-    Check that quietly returns nothing would be the worst possible outcome."""
-    import pytest
-
+    Check that quietly returns nothing would be the worst possible outcome. The
+    registry path: a network was granted but no index has been fetched, so the
+    registry is the only source — and it is down."""
     import valvur.checks.dependency_reality as mod
     from valvur.checks.dependency_reality import DependencyRealityCheck, RegistryUnreachable
-
-    real = mod._lookup
 
     def unreachable(eco, name):
         raise RegistryUnreachable("no network")
 
-    mod._lookup = unreachable
-    try:
-        with pytest.raises(RegistryUnreachable):
-            DependencyRealityCheck().run(_tmp_manifest("urllib3==1.24.1\n"))
-    finally:
-        mod._lookup = real
+    monkeypatch.setattr(mod, "_lookup", unreachable)
+
+    with pytest.raises(RegistryUnreachable):
+        DependencyRealityCheck().run(_tmp_manifest("urllib3==1.24.1\n"))
+
+
+def test_with_the_index_answering_existence_an_unreachable_registry_still_fails_loudly(
+    name_index, network_granted, monkeypatch
+):
+    """On `full` the Profile promised package age. If the registry is down the
+    existence answer is real but the promise was not kept, and a run that quietly
+    delivered the offline result under the full Profile's name would be a silent
+    narrowing — inside the fix for silent narrowing."""
+    import valvur.checks.dependency_reality as mod
+    from valvur.checks.dependency_reality import DependencyRealityCheck, RegistryUnreachable
+
+    name_index(pip=["urllib3"])
+
+    def unreachable(eco, name):
+        raise RegistryUnreachable("no network")
+
+    monkeypatch.setattr(mod, "_lookup", unreachable)
+
+    with pytest.raises(RegistryUnreachable, match="age"):
+        DependencyRealityCheck().run(_tmp_manifest("urllib3==1.24.1\n"))
 
 
 def _tmp_manifest(body: str):

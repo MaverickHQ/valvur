@@ -64,6 +64,17 @@ class ScannerAdapter(Protocol):
         """
         return True, ""
 
+    def for_profile(self, *, network: bool) -> ScannerAdapter:
+        """This adapter, configured with what the Profile permits (ADR-0018).
+
+        The Profile decides whether anything leaves the machine; an adapter must not
+        decide that for itself. Most have no use for the answer and return
+        themselves. An adapter that behaves differently with a network returns a
+        configured copy, so the registry entry stays one immutable declaration and
+        the selection step is the only place a permission is granted.
+        """
+        return self
+
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
         """What this Scanner reads, what it deliberately does not, and where that
         bites in *this* Workspace (task 19.E.1).

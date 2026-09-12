@@ -98,6 +98,16 @@ def _provenance(run) -> str:
                     "stale": _db_is_stale(run),
                     "stale_after_days": _cache.DB_STALE_AFTER_DAYS,
                 },
+                # ADR-0018. The list of names that decides whether a dependency
+                # EXISTS, as the database decides whether a CVE does. `present` is
+                # false on a machine that has never run `valvur update`; then the
+                # dependency-reality Check failed and `complete` above says so.
+                "name_index": {
+                    "present": getattr(run, "name_index_age_days", None) is not None,
+                    "age_days": _round_or_none(getattr(run, "name_index_age_days", None)),
+                    "stale": _index_is_stale(run),
+                    "stale_after_days": _cache.NAME_INDEX_STALE_AFTER_DAYS,
+                },
                 "enrichment": {
                     "kev_source": getattr(run, "kev_source", ""),
                     "kev_age_days": round(getattr(run, "kev_age_days", None) or 0, 2),
@@ -110,11 +120,13 @@ def _provenance(run) -> str:
                         # non-exfiltration claim (§3), so a registry added without
                         # amending it would make the claim false — which is worse than
                         # never having made it. npm joined PyPI in task 19.D.1.
-                        "dependency package names (to PyPI and the npm registry, by "
-                        "the dependency-reality check), the dependency names and "
-                        "versions in your lockfiles (to api.osv.dev, by osv-scanner) "
-                        "and the CVE identifiers found in this workspace (to FIRST, "
-                        "for EPSS scores). Never source code."
+                        "the names of declared dependencies that the local index "
+                        "says exist (to PyPI and the npm registry, by the "
+                        "dependency-reality check, for their first-publish dates), "
+                        "the dependency names and versions in your lockfiles (to "
+                        "api.osv.dev, by osv-scanner) and the CVE identifiers found "
+                        "in this workspace (to FIRST, for EPSS scores). Never source "
+                        "code, and never a name the index already settled."
                         if getattr(run, "network_used", False)
                         else "nothing"
                     ),
@@ -167,9 +179,10 @@ MACHINE_HEADER = """<!-- valvur results. Read this file first; it is bounded by 
 > - `findings` — live problems were found in this repository. Work through them.
 > - `clean` — nothing live was found, by a scan that could support the claim. Any
 >   suppressed entries are risks this project already recorded a decision about.
-> - `inconclusive` — **nothing was found and that is not evidence.** Either the
->   vulnerability database was too old, or part of the repository was not inspected
->   at all. Never report this as clean; the reason is in `run.json`.
+> - `inconclusive` — **nothing was found and that is not evidence.** The
+>   vulnerability database or the package-name index was too old, or part of the
+>   repository was not inspected at all. Never report this as clean; the reason is
+>   in `run.json`.
 >
 > **Ranking basis:** worst-first by finding class, raised by real-world exploitation
 > evidence — CISA KEV membership, then FIRST EPSS probability. Not by severity label,
@@ -209,9 +222,10 @@ def _verdict(run) -> str:
             "clean result you can rely on for those files."
         )
     if run.status == "inconclusive":
+        stale = "The vulnerability database" if _db_is_stale(run) else "The package-name index"
         return (
             "**Nothing was found, and that is not evidence that there is nothing.** "
-            "The vulnerability database was too old for this result to mean anything. "
+            f"{stale} was too old for this result to mean anything. "
             "Run `valvur update` and scan again."
         )
     if suppressed:
@@ -264,6 +278,17 @@ def _summary(run) -> str:
                 f"{db_age:.0f} days of advisories are missing.",
             ]
         lines += [""]
+
+    if _index_is_stale(run):
+        index_age = getattr(run, "name_index_age_days", None)
+        lines += [
+            f"> ⚠ **The package-name index is {index_age:.0f} days old.** Run "
+            "`valvur update`. Dependencies were checked for existence against a list "
+            "that predates anything registered since — a real package newer than the "
+            "index may be reported as nonexistent, and \"no hallucinated packages\" is "
+            "a claim about that list, not about today's registry.",
+            "",
+        ]
 
     age = getattr(run, "kev_age_days", None)
     if age is not None and age > 30:
@@ -320,8 +345,12 @@ def _summary(run) -> str:
         )
         lines += [
             f"> {headline} Not run: {', '.join(absent)}.",
-            f"> `{run.profile}` does cover dependency CVEs, secrets, code patterns "
-            "and agent config. It does not cover "
+            # Hallucinated packages are named on the "does cover" side since
+            # ADR-0018 — the sentence used to put them on the other side, and a
+            # reader of the default Profile's output was told the headline check had
+            # not run when it had.
+            f"> `{run.profile}` does cover dependency CVEs, secrets, code patterns, "
+            "agent config and hallucinated packages. It does not cover "
             f"{_profiles.gaps_in_prose(run.profile)}.",
             "> Run `valvur scan --profile full` for full coverage.",
             "",
@@ -479,3 +508,10 @@ def _db_is_stale(run) -> bool:
 
     age = getattr(run, "db_age_days", None)
     return age is not None and age > _cache.DB_STALE_AFTER_DAYS
+
+
+def _index_is_stale(run) -> bool:
+    from . import cache as _cache
+
+    age = getattr(run, "name_index_age_days", None)
+    return age is not None and age > _cache.NAME_INDEX_STALE_AFTER_DAYS

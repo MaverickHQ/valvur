@@ -26,12 +26,23 @@ from .base import ScannerAdapter
 class CheckAdapter(ScannerAdapter):
     kind = "check"
 
-    def __init__(self, name: str, *, needs_network: bool = False):
+    def __init__(self, name: str, *, uses_network: bool = False, network: bool = False):
         self.name = name
-        self.needs_network = needs_network
+        #: Whether this Check does more WITH a network — not whether it needs one.
+        #: dependency-reality answers existence from the local index either way and
+        #: asks a registry for first-publish age only when allowed (ADR-0018).
+        self.uses_network = uses_network
+        #: What this instance was actually granted. False until `for_profile` says
+        #: otherwise, so an adapter taken straight from the registry never reaches out.
+        self.network = network
+
+    def for_profile(self, *, network: bool) -> CheckAdapter:
+        if not self.uses_network:
+            return self
+        return CheckAdapter(self.name, uses_network=True, network=network)
 
     def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_check(self.name, workspace, network=self.needs_network)
+        return runner.run_check(self.name, workspace, network=self.network)
 
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
         """Only dependency-reality has limits worth stating, and they are the ones
@@ -51,6 +62,10 @@ class CheckAdapter(ScannerAdapter):
         # ecosystems, but the near-miss typosquat comparison needs a corpus of popular
         # package names and only PyPI's ships in the image.
         ignores.append("npm: no typosquat near-miss comparison (no popular-npm corpus)")
+        if not self.network:
+            # The one question the local index cannot answer (ADR-0018).
+            ignores.append("first-publish age: not checked without a network "
+                           "(run `--profile full`)")
         return Coverage(
             inspects=tuple(sorted(reads)),
             ignores=tuple(sorted(ignores)),

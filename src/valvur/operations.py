@@ -122,16 +122,28 @@ def _staleness_note(workspace: str | None, *, found_nothing: bool) -> list[str]:
     An agent that reads "no findings" stops looking. Unlike a human it will not
     glance at `SUMMARY.md` for a caveat nobody told it to expect.
     """
-    database = _provenance(workspace).get("database") or {}
-    if not database.get("stale"):
+    provenance = _provenance(workspace)
+    database = provenance.get("database") or {}
+    index = provenance.get("name_index") or {}
+    if not database.get("stale") and not index.get("stale"):
         return []
 
-    age = database.get("age_days")
-    age_text = f"{age:.0f} days old" if isinstance(age, (int, float)) else "out of date"
-    note = [
-        "",
-        f"WARNING: the vulnerability database is {age_text}.",
-    ]
+    note = [""]
+    if database.get("stale"):
+        note.append(f"WARNING: the vulnerability database is {_age_text(database)}.")
+    if index.get("stale"):
+        # ADR-0018. Not a second copy of the database warning: the failure direction
+        # differs, and an agent told "advisories are missing" would draw the wrong
+        # conclusion about a dependency finding.
+        note.append(
+            f"WARNING: the package-name index is {_age_text(index)}. Dependency "
+            "existence was checked against a list that predates anything registered "
+            "since — a real package newer than the index may be reported as "
+            "nonexistent."
+        )
+        if not database.get("stale"):
+            note.append("Run `valvur update --if-stale` and scan again.")
+            return note
     if found_nothing:
         note += [
             "This scan found nothing, and that is NOT evidence that there is nothing.",
@@ -147,6 +159,11 @@ def _staleness_note(workspace: str | None, *, found_nothing: bool) -> list[str]:
         "Run `valvur update --if-stale` and scan again before relying on this result.",
     ]
     return note
+
+
+def _age_text(block: dict) -> str:
+    age = block.get("age_days")
+    return f"{age:.0f} days old" if isinstance(age, (int, float)) else "out of date"
 
 
 def list_findings(args: dict) -> str:
@@ -297,6 +314,11 @@ def scan_status(args: dict) -> str:
             lines.append(
                 "          ^ every Scanner ran; the data they ran against was too old "
                 "for a nil result to be evidence"
+            )
+        elif (data.get("name_index") or {}).get("stale"):
+            lines.append(
+                "          ^ every Scanner ran; the package-name index was too old for "
+                "\"no hallucinated packages\" to be a claim about today's registry"
             )
         else:
             lines.append(

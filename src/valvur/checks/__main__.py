@@ -24,7 +24,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"unknown check: {name}", file=sys.stderr)
         return 2
 
-    json.dump(check.run(Path(workspace)), sys.stdout)
+    try:
+        findings = check.run(Path(workspace))
+    except RuntimeError as exc:
+        # A Check's own refusal — no index, no reachable registry — is a sentence
+        # for the person reading `SUMMARY.md`, not a traceback for the runner to
+        # truncate at 200 characters with the fix cut off. Anything else is a bug
+        # and keeps its traceback.
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    json.dump(findings, sys.stdout)
     return 0
 
 
