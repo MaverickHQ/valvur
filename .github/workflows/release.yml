@@ -6,6 +6,13 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # A REHEARSAL, never a release (22.B.1). Dispatching this by hand runs every step
+  # against throwaway targets: a scratch GHCR package, TestPyPI, and a draft
+  # pre-release on a `rehearsal-N` tag that the job deletes on its way out. The
+  # version is suffixed `.devN` so nothing it publishes can be mistaken for, or
+  # collide with, a real one. Same steps, same permissions, same identity — the
+  # only way to find out what breaks before the first real tag does it in public.
+  workflow_dispatch:
 
 # Least privilege by default; every elevation is per-job and justified where it is
 # granted. ci.yml's top-level `contents: read` is the same rule.
@@ -26,14 +33,23 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/maverickhq/valvur
+  # One expression decides which world this run publishes into. Everything below
+  # reads IMAGE and REHEARSAL rather than re-deriving the event, so the two paths
+  # cannot drift apart in one step and not another.
+  REHEARSAL: ${{ github.event_name == 'workflow_dispatch' }}
+  IMAGE: ${{ github.event_name == 'workflow_dispatch' && 'ghcr.io/maverickhq/valvur-rehearsal' || 'ghcr.io/maverickhq/valvur' }}
 
 jobs:
   verify:
     name: the tag says what the tree says
     runs-on: ubuntu-latest
     outputs:
+      # `version` is what the tree declares and what the tests run against — F1.9
+      # compares the shim to the image label, so it must be the real one even in a
+      # rehearsal. `publish_version` is what leaves the runner: the same, or the
+      # rehearsal's `.devN` suffix.
       version: ${{ steps.version.outputs.version }}
+      publish_version: ${{ steps.version.outputs.publish_version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -45,14 +61,21 @@ jobs:
         # one moment a version mismatch is expensive. F1.9 compares the shim against
         # the image; if the tag and pyproject disagree, they are already wrong.
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
           DECLARED=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          if [ "$TAG" != "$DECLARED" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match pyproject.toml version ${DECLARED}."
-            exit 1
+          if [ "$REHEARSAL" = "true" ]; then
+            PUBLISH="${DECLARED}.dev${GITHUB_RUN_NUMBER}"
+            echo "REHEARSAL: tree declares $DECLARED; publishing $PUBLISH to throwaway targets"
+          else
+            TAG="${GITHUB_REF_NAME#v}"
+            if [ "$TAG" != "$DECLARED" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match pyproject.toml version ${DECLARED}."
+              exit 1
+            fi
+            PUBLISH="$DECLARED"
+            echo "releasing $DECLARED"
           fi
           echo "version=$DECLARED" >> "$GITHUB_OUTPUT"
-          echo "releasing $DECLARED"
+          echo "publish_version=$PUBLISH" >> "$GITHUB_OUTPUT"
 
       - run: uv venv --python 3.12
 
@@ -69,6 +92,25 @@ jobs:
             --build-arg VALVUR_VERSION="${{ steps.version.outputs.version }}" \
             -t valvur:dev .
 
+      - name: Restore the package-name index between runs
+        # ADR-0018: the first `valvur update` walks all of npm — 439 requests and
+        # about five minutes, measured. Restored from the last run it is an
+        # incremental refresh of seconds. Saved under a fresh key every run so the
+        # newest state is what the next run restores.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-${{ github.run_id }}
+          restore-keys: valvur-name-index-
+
+      - name: Fetch the vulnerability database and the name index
+        # Before the suite, not only before the self-scan: the e2e canary asserts a
+        # COMPLETE run on `full`, and since ADR-0018 the dependency-reality Check
+        # refuses to run offline without the index — so the tests need both.
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+
       - name: The whole suite, not just the fast half
         # verify.sh runs `-m "not e2e"` because it must work without a container.
         # Release is the one place that has one, so the e2e half runs here.
@@ -83,7 +125,6 @@ jobs:
         env:
           VALVUR_IMAGE: valvur:dev
         run: |
-          uv run valvur update
           uv run valvur scan . --profile full
           uv run python - <<'PY'
           import json, pathlib, sys
@@ -119,10 +160,21 @@ jobs:
       - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
       - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
+      - name: In a rehearsal, publish under a version nothing real can collide with
+        if: env.REHEARSAL == 'true'
+        env:
+          PUBLISH: ${{ needs.verify.outputs.publish_version }}
+        # The tree's version is what the tests ran against; the `.devN` suffix is
+        # applied only here, to what leaves the runner. `uv build` reads pyproject,
+        # so the file is rewritten in this checkout and never committed.
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${PUBLISH}\"/" pyproject.toml
+          grep -m1 '^version' pyproject.toml
+
       - name: Push the image, for both architectures
         id: push
         env:
-          VERSION: ${{ needs.verify.outputs.version }}
+          VERSION: ${{ needs.verify.outputs.publish_version }}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           # Both architectures, in one index. Published single-arch, valvur is
@@ -148,7 +200,7 @@ jobs:
         # wrong before: a --platform flag silently ignored, or a builder falling back
         # to the runner's own architecture, both produce a successful-looking push.
         env:
-          VERSION: ${{ needs.verify.outputs.version }}
+          VERSION: ${{ needs.verify.outputs.publish_version }}
         run: |
           PLATFORMS=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --raw \
             | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(sorted(f\"{m['platform']['os']}/{m['platform']['architecture']}\" for m in d.get('manifests', []) if m.get('platform',{}).get('architecture') != 'unknown')))")
@@ -179,7 +231,7 @@ jobs:
         # the base image carries GPL components and disclosure is the honest answer
         # to a claim no Linux container could satisfy.
         env:
-          VERSION: ${{ needs.verify.outputs.version }}
+          VERSION: ${{ needs.verify.outputs.publish_version }}
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             anchore/syft:v1.51.1 "$IMAGE:$VERSION" \
@@ -195,12 +247,21 @@ jobs:
         # Trusted publishing: an OIDC exchange rather than a long-lived API token, so
         # there is no secret to leak. Configured on PyPI against this repository and
         # this workflow file.
+        if: env.REHEARSAL != 'true'
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+
+      - name: Publish to TestPyPI (rehearsal)
+        # The same action, the same OIDC identity, a different index. Needs its own
+        # trusted publisher on test.pypi.org — see docs/RELEASING.md.
+        if: env.REHEARSAL == 'true'
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.verify.outputs.version }}
+          VERSION: ${{ needs.verify.outputs.publish_version }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           {
@@ -225,9 +286,33 @@ jobs:
             echo
             echo "See [CHANGELOG.md](https://github.com/MaverickHQ/valvur/blob/${GITHUB_REF_NAME}/CHANGELOG.md) for what changed."
           } > notes.md
-          gh release create "$GITHUB_REF_NAME" \
+          if [ "$REHEARSAL" = "true" ]; then
+            # A draft pre-release on a throwaway tag, so the command, the token's
+            # permissions and the asset upload are all exercised — and nothing is
+            # visible to a watcher of the repository. Deleted by the last step.
+            TAG="rehearsal-${GITHUB_RUN_NUMBER}"
+            EXTRA="--draft --prerelease --target ${GITHUB_SHA}"
+          else
+            TAG="$GITHUB_REF_NAME"
+            EXTRA=""
+          fi
+          # shellcheck disable=SC2086 # EXTRA is deliberately word-split
+          gh release create "$TAG" $EXTRA \
             --title "valvur $VERSION" \
             --notes-file notes.md \
             "valvur-$VERSION.cdx.json" \
             "valvur-$VERSION.spdx.json" \
             dist/*
+
+      - name: Remove the rehearsal's release and tag
+        # `always()`: a rehearsal that failed halfway must not leave a draft behind
+        # to be mistaken for a real one. The scratch image and the TestPyPI upload
+        # stay, deliberately — they are the evidence the rehearsal produces.
+        if: always() && env.REHEARSAL == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="rehearsal-${GITHUB_RUN_NUMBER}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null \
+            && echo "removed draft release $TAG" \
+            || echo "no release $TAG to remove"
