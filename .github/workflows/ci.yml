@@ -69,6 +69,24 @@ jobs:
           docker save valvur:dev | podman load
       - run: uv venv --python 3.12
       - run: uv sync --extra dev --locked
+      - name: Restore the package-name index between runs
+        # ADR-0018: the first `valvur update` walks all of npm — 439 requests and
+        # about five minutes, measured. Restored from the last run it is seconds.
+        # Saved under a fresh key every run so the newest state is what the next
+        # run restores; the cache has no way to update an existing key.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-${{ github.job }}-${{ github.run_id }}
+          restore-keys: valvur-name-index-
+      - name: Fetch the vulnerability database and the name index
+        # The e2e canary asserts a COMPLETE run on `full`, which needs the database;
+        # and since ADR-0018 the dependency-reality Check refuses to run offline
+        # without the index. Neither was fetched here before 22.B.1 — this job had
+        # not run since 2026-08-31, so nobody saw the canary fail for want of them.
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
       - name: End-to-end, against the image just built
         # Without VALVUR_IMAGE the tests run against the published GHCR tag, which
         # this job did not build and cannot pull while the package is private
@@ -158,6 +176,17 @@ jobs:
           print(f"published platforms: {sorted(got)}")
           PY
 
+      - name: Restore the package-name index between runs
+        # ADR-0018: the first `valvur update` walks all of npm — 439 requests and
+        # about five minutes, measured. Restored from the last run it is seconds.
+        # Saved under a fresh key every run so the newest state is what the next
+        # run restores; the cache has no way to update an existing key.
+        if: steps.reachable.outputs.reachable == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-${{ github.job }}-${{ github.run_id }}
+          restore-keys: valvur-name-index-
       - name: Scan a real repository with the PUBLISHED image
         # This runner is amd64. Every other job builds the image locally, which always
         # matches the machine that made it — the reason nobody noticed the published
@@ -198,7 +227,17 @@ jobs:
               --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
       - run: uv venv --python 3.12
       - run: uv sync --extra dev --locked
-      - name: Fetch the vulnerability database
+      - name: Restore the package-name index between runs
+        # ADR-0018: the first `valvur update` walks all of npm — 439 requests and
+        # about five minutes, measured. Restored from the last run it is seconds.
+        # Saved under a fresh key every run so the newest state is what the next
+        # run restores; the cache has no way to update an existing key.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-${{ github.job }}-${{ github.run_id }}
+          restore-keys: valvur-name-index-
+      - name: Fetch the vulnerability database and the name index
         env:
           VALVUR_IMAGE: valvur:dev
         run: uv run valvur update

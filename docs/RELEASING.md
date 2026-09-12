@@ -19,6 +19,42 @@ These cannot be automated, and the workflow fails without them.
 3. **The GHCR package must be public** (task 12a.1), or every user's first pull
    fails — measured 2026-08-31, and the failure surfaces as a confusing mount error
    rather than an authentication one.
+4. **TestPyPI trusted publishing, for rehearsals.** On test.pypi.org → the `valvur`
+   project (or a pending publisher, before it exists) → Publishing → the same GitHub
+   publisher as above: `MaverickHQ` / `valvur` / `release.yml` / environment
+   `release`. Without it the rehearsal's TestPyPI step fails with a clear
+   `invalid-publisher` error — which is a rehearsal doing its job, but not the one
+   you wanted.
+
+## Rehearse before you release
+
+`release.yml` runs every step against throwaway targets when dispatched by hand
+(22.B.1). Do this before every real tag; it is the only way to find out what broke
+since the last one without finding out in public.
+
+```bash
+gh workflow run release.yml --ref main
+gh run watch                       # or: gh run list --workflow release.yml
+```
+
+What a rehearsal does differently, and nothing else:
+
+| step | real release | rehearsal |
+|---|---|---|
+| version check | tag must equal `pyproject.toml` | no tag; publishes `<version>.dev<run-number>` |
+| image | `ghcr.io/maverickhq/valvur:<version>` and `:latest` | `ghcr.io/maverickhq/valvur-rehearsal:<version>.devN` and `:latest` |
+| signature, attestation, SBOM | on the image | on the scratch image — real Rekor entries, real attestations |
+| PyPI | `pypi.org` | `test.pypi.org` |
+| GitHub release | on the tag | a **draft** pre-release on `rehearsal-N`, deleted by the last step |
+
+Everything else — `verify.sh`, the image build, the whole test suite against it,
+the licence check, the self-scan gate, the multi-architecture push, the platform
+assertion — runs exactly as it will for the tag. The scratch image and the TestPyPI
+upload are left in place on purpose: they are what you inspect afterwards.
+
+> **Keyless signing is public.** Every `cosign sign` writes an entry to the Rekor
+> transparency log naming this repository and workflow, rehearsal or not. While the
+> repository is private that is the one thing a rehearsal makes visible outside it.
 
 ## Cutting a release
 
@@ -116,10 +152,33 @@ cosign verify ghcr.io/maverickhq/valvur:0.2.0 \
 gh attestation verify oci://ghcr.io/maverickhq/valvur:0.2.0 --repo MaverickHQ/valvur
 ```
 
-## If it fails partway
+## If it fails partway — the runbook
 
-The steps are ordered so the cheap, reversible things happen first. A failure after
-the image is pushed but before PyPI leaves a published image and no wheel: fix
-forward with a new patch version rather than deleting the tag. GHCR tags and PyPI
-versions are both effectively permanent, and a reused version number is worse than a
-skipped one.
+The steps are ordered so the cheap, reversible things happen first, and the rule
+throughout is **fix forward, never reuse a version**. GHCR tags can be overwritten
+and PyPI versions cannot; a version that means one thing on one index and another
+on the other is worse than a skipped number.
+
+Find where it stopped with `gh run view --log-failed`, then:
+
+| it stopped in | what exists | what to do |
+|---|---|---|
+| `verify` (any step) | nothing published | Fix the tree, commit, **move the tag** (`git tag -f vX.Y.Z && git push -f origin vX.Y.Z`). Nothing has left the runner, so the tag is still yours to move — this is the only case where re-running the same version is right. |
+| push (image) | possibly a partial push: one architecture, or a manifest without its layers | Re-run the job (`gh run rerun --failed`). A registry push is idempotent; a re-push of the same content produces the same digest. If the failure was the registry itself, wait and re-run. |
+| the platform assertion | `:X.Y.Z` and `:latest` point at a single-architecture index | Do not leave it. Re-run; if the multi-platform build cannot be made to pass, **re-point `latest`** at the previous release (`docker buildx imagetools create -t ghcr.io/maverickhq/valvur:latest ghcr.io/maverickhq/valvur:<previous>`) and delete the bad version tag from the package's versions page. Then fix forward under `X.Y.Z+1`. |
+| `cosign sign` | image pushed and reachable, **unsigned** | The dangerous state: an unsigned image under a real tag. Re-run the job first — signing is idempotent and the digest is in the push step's output. If it cannot be signed, delete the version tag from GHCR and re-point `latest` as above, before anything else. |
+| attestation, SBOM | signed image, no provenance or no SBOM asset yet | Re-run the failed job. Nothing downstream depends on these being first-time-right; the attestation step is idempotent and the SBOM is regenerated from the pushed image. |
+| PyPI | signed, attested image; **no wheel** | Re-run the job: the upload is the one step that is *not* idempotent, so a partial upload (`400 File already exists`) means PyPI has it — check `pip index versions valvur`. If PyPI rejected the release itself, fix forward: bump to `X.Y.Z+1`, tag, release. The image for `X.Y.Z` stays; document in `CHANGELOG.md` that `X.Y.Z` has no wheel. |
+| GitHub release | image and wheel published; no release page | `gh release create vX.Y.Z --notes-file notes.md dist/* ...` by hand from the run's artifacts, or re-run the job — `gh release create` fails cleanly if the release already exists. The release page is documentation of the other two; it is never what a user installs. |
+
+**When a tag has to be re-run.** `gh run rerun <id> --failed` re-runs only the
+jobs that failed, with the same tag and the same `GITHUB_SHA`, so the artifacts are
+built from the same tree. Re-running the whole workflow on a tag that already has a
+wheel on PyPI fails at the PyPI step — correctly. Never `git tag -f` a version that
+reached PyPI.
+
+**The `release` environment is the manual brake.** Adding a required reviewer to it
+(Settings → Environments → release) makes the `release` job wait for approval after
+`verify` passes and before anything is pushed. That is the right place for a human
+check if you want one; the tag push is the wrong place, because by then the workflow
+is already running.
