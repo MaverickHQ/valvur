@@ -13,10 +13,15 @@ list shipped in the image. Only first-publish age still asks a registry, and onl
 network is a loud failure with the command that fixes it, never a clean result (F3.5).
 
 Covers **Python** (`requirements*.txt`, and `pyproject.toml` in both PEP 621 and
-Poetry shapes) against PyPI, and **npm** (`package.json`) against the npm registry.
-Everything else is reported as missing coverage by `valvur.coverage` rather than
-passed over — which is the half that stays true however many ecosystems are added,
-because something is always uncovered.
+Poetry shapes) against PyPI, and **npm** (`package.json`) against the npm registry —
+both offline, from the index. **JVM** (`pom.xml`, Gradle build scripts and the
+version catalog) against Maven Central and **Go** (`go.mod`) against the module proxy
+are checked on `full` only: neither registry publishes a name list an index could be
+built from (ADR-0018 has the numbers), so on `offline` they are a stated Profile
+omission in the Coverage contract, not a failure and not a gap. Everything else is
+reported as missing coverage by `valvur.coverage` rather than passed over — which is
+the half that stays true however many ecosystems are added, because something is
+always uncovered.
 
 Direct manifests only, never lockfiles. A lockfile is a resolved transitive tree, and
 transitive dependencies are not the ones a language model invents: the hallucination
@@ -91,6 +96,13 @@ class DependencyRealityCheck:
 
         popular = _popular()
         network = _network_allowed()
+        if not network:
+            # Ecosystems with no offline index BY DESIGN (JVM, Go) are a Profile
+            # omission the Coverage contract states; dropping them here is what keeps
+            # that statement true. Not a failure: nothing was promised for them here.
+            declared = {d for d in declared if d[0] in _index.FILES}
+            if not declared:
+                return findings
         indexes = {eco: _index.open_index(_index_dir(), eco) for eco in {d[0] for d in declared}}
         try:
             unindexed = sorted(eco for eco, idx in indexes.items() if idx is None)
@@ -288,6 +300,16 @@ def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
         name = data.get("name") if isinstance(data, dict) else None
         if isinstance(name, str) and name:
             defined.add(("npm", name.lower()))
+    # A Maven reactor declares its own modules as dependencies of each other; a Go
+    # workspace `replace`s a module with a local path. Both are names the tree
+    # defines, and neither is on a registry.
+    for path in _manifests(workspace, "pom.xml"):
+        own = _pom_coordinates(path)
+        if own:
+            defined.add(("maven", own))
+    for path in _manifests(workspace, "go.mod"):
+        for module in _go_local_modules(path):
+            defined.add(("gomod", module))
     return defined
 
 
@@ -305,6 +327,15 @@ def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
         found |= _from_pyproject(path, workspace)
     for path in _manifests(workspace, "package.json"):
         found |= _from_package_json(path, workspace)
+    for path in _manifests(workspace, "pom.xml"):
+        found |= _from_pom(path, workspace)
+    for pattern in ("build.gradle", "build.gradle.kts"):
+        for path in _manifests(workspace, pattern):
+            found |= _from_gradle(path, workspace)
+    for path in _manifests(workspace, "gradle/libs.versions.toml"):
+        found |= _from_version_catalog(path, workspace)
+    for path in _manifests(workspace, "go.mod"):
+        found |= _from_go_mod(path, workspace)
 
     # Never asked about, not merely unreported. A workspace member's name leaving the
     # machine buys nothing, and §3 is about what we transmit as much as what we say.
@@ -411,8 +442,193 @@ def _from_package_json(path: Path, workspace: Path) -> set[tuple[str, str, str]]
     return found
 
 
+# ------------------------------------------------------------ JVM (22.A.4)
+
+#: A Maven coordinate as Gradle writes it: `group:artifact`, optionally `:version`
+#: and more. Both halves are the characters Maven allows; a leading colon — Gradle's
+#: `project(":lib")` — is a sibling module, not a coordinate, and does not match.
+_COORDINATE = re.compile(
+    r"""["']([A-Za-z0-9_.\-]+):([A-Za-z0-9_.\-]+)(?::[^"'\s]+)?["']"""
+)
+_PROPERTY = re.compile(r"\$\{[^}]*\}")
+
+
+def _xml_children(element, name: str):
+    """Namespace-agnostic child lookup: `pom.xml` files come with and without the
+    Maven namespace, and both are common."""
+    for child in element:
+        if isinstance(child.tag, str) and child.tag.rsplit("}", 1)[-1] == name:
+            yield child
+
+
+def _xml_text(element, name: str) -> str:
+    child = next(_xml_children(element, name), None)
+    return (child.text or "").strip() if child is not None else ""
+
+
+def _parse_pom(path: Path):
+    import xml.etree.ElementTree as ET
+
+    try:
+        root = ET.fromstring(_text(path))  # noqa: S314 — no entity expansion of interest
+    except ET.ParseError:
+        return None
+    return root if root.tag.rsplit("}", 1)[-1] == "project" else None
+
+
+def _pom_coordinates(path: Path) -> str | None:
+    """The `group:artifact` a pom defines. The group may be inherited from `<parent>`,
+    which is the usual shape of a reactor module."""
+    root = _parse_pom(path)
+    if root is None:
+        return None
+    group = _xml_text(root, "groupId") or _parent_group(root)
+    artifact = _xml_text(root, "artifactId")
+    return f"{group}:{artifact}".lower() if group and artifact else None
+
+
+def _parent_group(root) -> str:
+    parent = next(_xml_children(root, "parent"), None)
+    return _xml_text(parent, "groupId") if parent is not None else ""
+
+
+def _from_pom(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """`<dependencies>` and `<dependencyManagement>`; plugins are not read. A
+    coordinate carrying an unresolved `${property}` names nothing we can ask about —
+    except `${project.groupId}`, which is this pom's own group and is resolved."""
+    rel = str(path.relative_to(workspace))
+    root = _parse_pom(path)
+    if root is None:
+        return set()
+    own_group = _xml_text(root, "groupId") or _parent_group(root)
+
+    found: set[tuple[str, str, str]] = set()
+    blocks = list(_xml_children(root, "dependencies"))
+    for management in _xml_children(root, "dependencyManagement"):
+        blocks += list(_xml_children(management, "dependencies"))
+    for block in blocks:
+        for dependency in _xml_children(block, "dependency"):
+            group = _xml_text(dependency, "groupId").replace("${project.groupId}", own_group)
+            artifact = _xml_text(dependency, "artifactId")
+            if not group or not artifact or _PROPERTY.search(group + artifact):
+                continue
+            found.add(("maven", f"{group}:{artifact}".lower(), rel))
+    return found
+
+
+def _from_gradle(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """Every quoted `group:artifact[:version]` in a build script. Groovy and Kotlin
+    DSLs write coordinates the same way; what differs is around them."""
+    rel = str(path.relative_to(workspace))
+    found: set[tuple[str, str, str]] = set()
+    for line in _text(path).splitlines():
+        code = line.split("//")[0]
+        for group, artifact in _COORDINATE.findall(code):
+            if _PROPERTY.search(group + artifact):
+                continue
+            found.add(("maven", f"{group}:{artifact}".lower(), rel))
+    return found
+
+
+def _from_version_catalog(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """Gradle's `[libraries]` table, in its three shapes: a `module = "g:a"` key, a
+    `group`/`name` pair, or a bare `"g:a:v"` string."""
+    import tomllib
+
+    rel = str(path.relative_to(workspace))
+    try:
+        data = tomllib.loads(_text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+    found: set[tuple[str, str, str]] = set()
+    libraries = data.get("libraries") or {}
+    if not isinstance(libraries, dict):
+        return set()
+    for spec in libraries.values():
+        coordinate = ""
+        if isinstance(spec, str):
+            coordinate = ":".join(spec.split(":")[:2])
+        elif isinstance(spec, dict):
+            if isinstance(spec.get("module"), str):
+                coordinate = ":".join(spec["module"].split(":")[:2])
+            elif isinstance(spec.get("group"), str) and isinstance(spec.get("name"), str):
+                coordinate = f"{spec['group']}:{spec['name']}"
+        group, _, artifact = coordinate.partition(":")
+        if group and artifact and not _PROPERTY.search(coordinate):
+            found.add(("maven", coordinate.lower(), rel))
+    return found
+
+
+# -------------------------------------------------------------- Go (22.A.4)
+
+_GO_REQUIRE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._~\-/]*)\s+v[0-9][^\s]*(.*)$")
+
+
+def _go_lines(path: Path):
+    """`(directive, line)` pairs, with block directives expanded: `require (` ... `)`
+    yields each inner line under `require`."""
+    block = ""
+    for raw in _text(path).splitlines():
+        line = raw.split("//", 1)[0].rstrip()
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if block:
+            if stripped == ")":
+                block = ""
+                continue
+            yield block, stripped
+            continue
+        directive, _, rest = stripped.partition(" ")
+        if rest.strip() == "(":
+            block = directive
+            continue
+        yield directive, rest.strip()
+
+
+def _from_go_mod(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """Direct `require`s. `// indirect` lines are transitive — a lockfile's contents
+    in a manifest's clothing — and are not where a hallucinated import lands."""
+    rel = str(path.relative_to(workspace))
+    found: set[tuple[str, str, str]] = set()
+    raw_lines = {
+        line.split("//", 1)[0].strip(): "// indirect" in line
+        for line in _text(path).splitlines()
+    }
+    for directive, line in _go_lines(path):
+        if directive != "require":
+            continue
+        match = _GO_REQUIRE.match(line)
+        if not match or raw_lines.get(line.strip(), False):
+            continue
+        found.add(("gomod", match.group(1), rel))
+    return found
+
+
+def _go_local_modules(path: Path) -> set[str]:
+    """The module this file defines, and anything `replace`d with a local path."""
+    local: set[str] = set()
+    for directive, line in _go_lines(path):
+        if directive == "module" and line:
+            local.add(line.split()[0])
+        elif directive == "replace" and "=>" in line:
+            source, _, target = line.partition("=>")
+            target = target.strip()
+            if target.startswith((".", "/")):
+                local.add(source.split()[0])
+    return local
+
+
+def _escape_go(module: str) -> str:
+    """The module proxy's case encoding: an uppercase letter is `!` + lowercase."""
+    return "".join(f"!{c.lower()}" if c.isupper() else c for c in module)
+
+
 #: Where each ecosystem's names are verified, named as a reader would name it.
-_REGISTRY_NAME = {"pip": "PyPI", "npm": "the npm registry"}
+_REGISTRY_NAME = {
+    "pip": "PyPI", "npm": "the npm registry",
+    "maven": "Maven Central", "gomod": "the Go module proxy",
+}
 
 #: How many registry requests are in flight at once on `full`. Measured 2026-09-12
 #: against PyPI from this Check: serial, 159ms a name — 123s on a real monorepo, and
@@ -460,10 +676,22 @@ def _lookup(ecosystem: str, name: str) -> dict | None:
         # (Artifactory, Verdaccio, Nexus) are stricter than npmjs.org about the
         # encoded variant. This product's users are disproportionately behind one.
         return _fetch(f"https://registry.npmjs.org/{quote(name, safe='@/')}")
+    if ecosystem == "maven":
+        # Existence only: `maven-metadata.xml` exists for every artifact ever
+        # published and says nothing about first publication, so there is no age.
+        group, _, artifact = name.partition(":")
+        path = "/".join(quote(part, safe="") for part in group.split("."))
+        url = f"https://repo1.maven.org/maven2/{path}/{quote(artifact, safe='')}/maven-metadata.xml"
+        return _fetch(url, as_json=False)
+    if ecosystem == "gomod":
+        # The proxy fetches from the origin on demand, so a 404 here means `go get`
+        # would fail too. 410 is the proxy's "gone" and means the same for our purposes.
+        url = f"https://proxy.golang.org/{quote(_escape_go(name), safe='/!')}/@v/list"
+        return _fetch(url, as_json=False)
     return _fetch(f"https://pypi.org/pypi/{quote(name, safe='')}/json")
 
 
-def _fetch(url: str) -> dict | None:
+def _fetch(url: str, *, as_json: bool = True) -> dict | None:
     # Both callers build this from a literal https:// prefix and a percent-quoted
     # package name, so no caller-controlled scheme can reach here. Asserted rather
     # than assumed, because a scheme reaching urlopen is how a dependency name turns
@@ -473,10 +701,13 @@ def _fetch(url: str) -> dict | None:
     request = urllib.request.Request(url, headers=_UA)  # noqa: S310 — asserted above
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
+            if not as_json:
+                response.read()
+                return {}        # exists; the body carries nothing we use
             body = json.load(response)
             return body if isinstance(body, dict) else {}
     except urllib.error.HTTPError as exc:
-        if exc.code in (404, 405):
+        if exc.code in (404, 405, 410):
             return None          # definitively absent — the headline finding
         raise RegistryUnreachable(str(exc)) from exc
     except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:

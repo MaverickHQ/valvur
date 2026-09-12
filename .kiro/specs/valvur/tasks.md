@@ -3621,11 +3621,33 @@ answered from a local index of names; the refinements need a registry. Split the
   > failed lookup is one unverified name, not a failed Check. Four mutations —
   > serial, unbounded, nonexistent names sent, asked without a network — all caught.
 
-- [ ] **22.A.4** Extend existence checking to JVM and Go, the two ecosystems the
+- [x] **22.A.4** Extend existence checking to JVM and Go, the two ecosystems the
   stated market actually runs on. Maven Central is one registry with a name index;
   Go's proxy has a feed but no all-modules list, so Go may be `full`-only and should
   say so in its coverage contract rather than be promised. Whatever the answer, the
   coverage note for these two must change from *no existence check* to what is true.
+
+  > **Done 2026-09-12 — both `full`-only, and the task's premise about Maven was
+  > wrong.** Measured: Central's "name index" is the 3.24GB Lucene index; its search
+  > API has 661,801 coordinates at 200 a page. Go's `index.golang.org` is a version
+  > feed — 2,000 entries covered seventeen minutes of 2026-09-11 — with no module
+  > list. Neither becomes a file a user downloads. So: one request per name on
+  > `full` (`repo1.maven.org/.../maven-metadata.xml`, `proxy.golang.org/.../@v/list`,
+  > 410 treated as absent), verified live both ways. Parsed: `pom.xml`
+  > (`<dependencies>` and `<dependencyManagement>`, `${project.groupId}` resolved,
+  > other properties skipped, namespace-agnostic, reactor modules never asked
+  > about), `build.gradle`/`.kts` (every quoted `group:artifact`, comments stripped,
+  > `project(":x")` excluded), `gradle/libs.versions.toml` (all three shapes),
+  > `go.mod` (direct `require`s; `// indirect` and locally `replace`d modules never
+  > asked about; the proxy's `!` case escaping). On `offline` these are dropped
+  > before anything else and the Coverage contract says *"existence checked on
+  > `full` only (no offline index exists for this registry)"* — a Profile omission
+  > under F7.16's rule, so a JVM repository now reads `clean` with the omission named
+  > rather than `inconclusive` with a gap Finding. That is a deliberate trade and the
+  > public corpus (Block E) is where it gets re-examined. Proven in a real container
+  > on a pom + go.mod fixture with one invented coordinate each: both reported on
+  > `full`, neither failed on `offline`. Nine mutations, nine caught. No age for
+  > either — neither registry states first publication — and the contract says so.
 
 ### B — Prove the release pipeline before it runs for real
 

@@ -120,13 +120,15 @@ def _provenance(run) -> str:
                         # non-exfiltration claim (§3), so a registry added without
                         # amending it would make the claim false — which is worse than
                         # never having made it. npm joined PyPI in task 19.D.1.
-                        "the names of declared dependencies that the local index "
-                        "says exist (to PyPI and the npm registry, by the "
-                        "dependency-reality check, for their first-publish dates), "
-                        "the dependency names and versions in your lockfiles (to "
-                        "api.osv.dev, by osv-scanner) and the CVE identifiers found "
-                        "in this workspace (to FIRST, for EPSS scores). Never source "
-                        "code, and never a name the index already settled."
+                        "dependency names, by the dependency-reality check: for "
+                        "Python and npm only those the local index says exist (to "
+                        "PyPI and the npm registry, for their first-publish dates); "
+                        "for JVM and Go every declared coordinate (to Maven Central "
+                        "and proxy.golang.org, for existence). Also the dependency "
+                        "names and versions in your lockfiles (to api.osv.dev, by "
+                        "osv-scanner) and the CVE identifiers found in this "
+                        "workspace (to FIRST, for EPSS scores). Never source code, "
+                        "and never a Python or npm name the index already settled."
                         if getattr(run, "network_used", False)
                         else "nothing"
                     ),

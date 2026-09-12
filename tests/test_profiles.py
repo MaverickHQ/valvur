@@ -208,5 +208,12 @@ def test_the_coverage_contract_says_whether_package_age_was_checked(
     def ignores(run):
         return " ".join(run.coverage["dependency-reality"]["ignores"])
 
-    assert "first-publish age" in ignores(offline)
-    assert "first-publish age" not in ignores(full)
+    assert "first-publish age: not checked" in ignores(offline)
+    assert "first-publish age: not checked" not in ignores(full)
+    # And the two registries with no offline index (22.A.4): a Profile omission
+    # offline, inspected on full.
+    assert "JVM (Maven/Gradle): existence checked on `full` only" in ignores(offline)
+    assert "Go: existence checked on `full` only" in ignores(offline)
+    assert "existence checked on `full` only" not in ignores(full)
+    inspects = " ".join(full.coverage["dependency-reality"]["inspects"])
+    assert "JVM (Maven/Gradle): pom.xml" in inspects

@@ -51,13 +51,20 @@ class CheckAdapter(ScannerAdapter):
             return Coverage()
 
         from .. import ecosystems as _ecosystems
+        from ..name_index import FILES as _INDEXED
 
         reads, ignores = [], []
-        for manifests in _ecosystems.MANIFESTS.values():
-            if manifests.reads:
+        for key, manifests in _ecosystems.MANIFESTS.items():
+            if not manifests.reads:
+                ignores.append(f"{manifests.label}: no existence check")
+            elif key in _INDEXED or self.network:
                 reads.append(f"{manifests.label}: {', '.join(manifests.reads)}")
             else:
-                ignores.append(f"{manifests.label}: no existence check")
+                # Read, but only where a registry can be asked (22.A.4): neither
+                # Maven Central nor the Go proxy publishes a name list an offline
+                # index could be built from. A Profile omission, stated as one.
+                ignores.append(f"{manifests.label}: existence checked on `full` only "
+                               "(no offline index exists for this registry)")
         # Stated rather than left implicit: names are checked for existence in both
         # ecosystems, but the near-miss typosquat comparison needs a corpus of popular
         # package names and only PyPI's ships in the image.
@@ -66,6 +73,9 @@ class CheckAdapter(ScannerAdapter):
             # The one question the local index cannot answer (ADR-0018).
             ignores.append("first-publish age: not checked without a network "
                            "(run `--profile full`)")
+        else:
+            ignores.append("JVM and Go: existence only, no first-publish age "
+                           "(neither registry states first publication)")
         return Coverage(
             inspects=tuple(sorted(reads)),
             ignores=tuple(sorted(ignores)),

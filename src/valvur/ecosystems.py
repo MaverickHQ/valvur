@@ -85,10 +85,20 @@ MANIFESTS: dict[str, Manifests] = {
         sees=("package-lock.json", "pnpm-lock.yaml", "yarn.lock"),
     ),
     "cargo": Manifests("Rust (Cargo)", sees=("Cargo.toml", "Cargo.lock")),
-    "gomod": Manifests("Go", sees=("go.mod", "go.sum")),
+    # Read since 22.A.4, on `full` only: neither registry publishes a name list that
+    # could be fetched into the offline index (ADR-0018 records the numbers), so
+    # existence is asked of the registry per name. The Coverage contract says so on
+    # every Profile; on `offline` these are a stated Profile omission, not a gap.
+    "gomod": Manifests("Go", reads=("go.mod",), sees=("go.sum",)),
     # Maven and Gradle resolve from the same registry, so they are one ecosystem with
-    # two build tools — the distinction that produced the pnpm/yarn bug.
-    "maven": Manifests("JVM (Maven/Gradle)", sees=("pom.xml", "build.gradle", "build.gradle.kts")),
+    # two build tools — the distinction that produced the pnpm/yarn bug. The Gradle
+    # version catalog is read too: a project that declares everything there and
+    # references `libs.foo` from its build script would otherwise scan clean.
+    "maven": Manifests(
+        "JVM (Maven/Gradle)",
+        reads=("pom.xml", "build.gradle", "build.gradle.kts", "gradle/libs.versions.toml"),
+        sees=("settings.gradle", "settings.gradle.kts", "gradle.lockfile"),
+    ),
     "gem": Manifests("Ruby (Bundler)", sees=("Gemfile", "Gemfile.lock")),
     "composer": Manifests("PHP (Composer)", sees=("composer.json", "composer.lock")),
 }
