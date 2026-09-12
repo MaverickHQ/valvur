@@ -63,9 +63,10 @@ Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then P
 22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
 README); then the usability gate and `v1.0.0`.
 
-Roughly: 94 Python modules, 586 tests, 18 ADRs, 136 requirement IDs, **134 done and 12
-open** across 22 phases — 4 of the 12 are Phase 22, and 8 are Phase 21's owner actions
-and release tail. Traceability debt: zero, and a hard check since 22.C.2.
+Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **136 done and 10
+open** across 22 phases — 2 of the 10 are Phase 22 (the README, Kiro), and 8 are Phase
+21's owner actions and release tail. A public corpus of eleven real repositories runs
+weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
 task; the grouping and what each block found sits at the head of Phase 19 in
