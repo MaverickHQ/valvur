@@ -2841,7 +2841,7 @@ private vulnerability reporting.
 
 | Task | Why it stays alone |
 |---|---|
-| **10.2.5** | Paste the agent snippet into a real agent in a real repository. One sitting, but it is an observation, not an edit. |
+| ~~**10.2.5**~~ | ✅ Done 2026-09-11 — two real Claude Code runs; found three defects, fixed all three. |
 | **10.1.1**, **10.1.2** | Need a person who has never seen valvur. Cannot be batched, cannot be simulated, and participants cannot be reused — first impressions do not reset. |
 | **12a.7** (publish) → **12b.1** → **12b.2** → **12b.3** | A release ordering. Each step's input is the previous step's artifact. |
 
@@ -3396,10 +3396,15 @@ D2. 12b.1  act on what the gate found
     12b.2  re-run the constraint suite against the release artifact
     12b.3  tag v1.0.0
 
-C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS
-   10.4.12  what a human sees first in SUMMARY.md
-   10.2.5   the CLAUDE.md / AGENTS.md snippet, against a real agent
+C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS  — both done
+   10.4.12  what a human sees first in SUMMARY.md          ✅ Block 3
+   10.2.5   the CLAUDE.md / AGENTS.md snippet, against a real agent  ✅ 2026-09-11
 ```
+
+> **Where this stands on 2026-09-12.** PREREQUISITES and C are complete. Everything
+> left is A → D1 → B → D2, in that order, and every item in A is an action only the
+> repository owner can take at github.com or pypi.org. There is no remaining
+> engineering task that does not depend on one of them.
 
 ### A — Owner actions
 
@@ -3433,12 +3438,12 @@ Neither of these waits on the owner actions. They can proceed while the owner ac
 are pending, but still come after Phase 19 so the surface being tested is the hardened
 one.
 
-- **21.C.1** → [10.4.12](#104--error-messages-as-a-usability-surface). Decide what
+- ~~**21.C.1**~~ ✅ **Done 2026-09-10, Block 3.** → [10.4.12](#104--error-messages-as-a-usability-surface). Decide what
   a **human** sees first in `SUMMARY.md`. It is currently written for agents — the
   machine-facing block is first by design (F7.6) — and no one has asked whether that
   is right for the person who opens it in an editor. A genuine design decision, not a
   bug.
-- **21.C.2** → [10.2.5](#102--the-mcp-first-run-the-primary-path). Verify the
+- ~~**21.C.2**~~ ✅ **Done 2026-09-11.** → [10.2.5](#102--the-mcp-first-run-the-primary-path). Verify the
   copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a real agent in a real
   repository *(P6)*. Partly evidenced already — task 12a.4 confirmed `valvur-mcp`
   starts, reports its version and advertises four read-only tools — but nobody has
