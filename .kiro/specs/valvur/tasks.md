@@ -3605,11 +3605,21 @@ answered from a local index of names; the refinements need a registry. Split the
   > has `reqeusts` and `aws-helper-sdk` in `requirements-ai.txt`; on `offline`, today,
   > neither is reported. After this task both are, with no socket.
 
-- [ ] **22.A.3** Parallelise the `full` lookups. Measured: 123s on a monorepo, because
+- [x] **22.A.3** Parallelise the `full` lookups. Measured: 123s on a monorepo, because
   each registry call is serial and each carries a 10s timeout. The lookups are
   independent and I/O-bound. Bound the concurrency — this is the one code path that
   reaches the network, and a scanner that opens fifty connections to PyPI at once is a
   scanner that gets rate-limited and reports *unreachable* as if nothing was declared.
+
+  > **Done 2026-09-12.** `_verify` is two passes: existence from the index, then one
+  > bounded `ThreadPoolExecutor` (`LOOKUP_CONCURRENCY = 8`) for whatever the registry
+  > still has to answer — age for the names that exist, and existence too where
+  > there is no index — then findings built in declaration order so the output is
+  > byte-identical whatever order the answers arrived in. Measured in-process
+  > against live PyPI, 60 real names: **9.5s serial → 2.0s** at eight wide. A name
+  > the index settled as absent is never in the batch (asserted in Phase 11). One
+  > failed lookup is one unverified name, not a failed Check. Four mutations —
+  > serial, unbounded, nonexistent names sent, asked without a network — all caught.
 
 - [ ] **22.A.4** Extend existence checking to JVM and Go, the two ecosystems the
   stated market actually runs on. Maven Central is one registry with a name index;

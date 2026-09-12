@@ -131,24 +131,44 @@ class DependencyRealityCheck:
         return findings
 
     def _verify(self, declared, indexes, popular, network) -> tuple[list[dict], bool, bool]:
-        """The per-package decisions. Returns (findings, reached a registry, asked one)."""
-        findings: list[dict] = []
-        reached_any = asked_any = False
+        """The per-package decisions. Returns (findings, reached a registry, asked one).
 
-        for ecosystem, name, source in sorted(declared):
+        Two passes. The first decides existence from the index and collects what the
+        registry still has to be asked; the second asks it, concurrently; then the
+        findings are built in declaration order so the output is reproducible
+        whatever order the answers arrived in.
+        """
+        findings: list[dict] = []
+        ordered = sorted(declared)
+
+        # Existence, locally where there is an index. `None` means the registry has
+        # to answer it — no index for this ecosystem, and a network to ask with.
+        known: dict[tuple[str, str], bool | None] = {}
+        for ecosystem, name, _ in ordered:
             index = indexes[ecosystem]
+            known[(ecosystem, name)] = (
+                index.contains(_index_form(ecosystem, name)) if index is not None else None
+            )
+
+        # What still needs a registry: existence where there was no index, and age
+        # for every name that exists — asked only with a network, and never about a
+        # name the index has already settled as absent.
+        to_ask = [key for key, exists in known.items() if exists is not False] if network else []
+        answers = _lookup_many(to_ask)
+        asked_any = bool(to_ask)
+        reached_any = any(not isinstance(a, RegistryUnreachable) for a in answers.values())
+
+        for ecosystem, name, source in ordered:
+            key = (ecosystem, name)
+            exists = known[key]
             meta: dict | None = None
-            if index is not None:
-                exists = index.contains(_index_form(ecosystem, name))
-            else:
+            if exists is None:
                 # No index but a network: the registry answers existence as well as
                 # age, which is what this Check did before ADR-0018.
-                asked_any = True
-                try:
-                    meta = _lookup(ecosystem, name)
-                    reached_any = True
-                except RegistryUnreachable:
+                answer = answers.get(key)
+                if isinstance(answer, RegistryUnreachable):
                     continue
+                meta = answer
                 exists = meta is not None
 
             registry = _REGISTRY_NAME[ecosystem]
@@ -186,12 +206,10 @@ class DependencyRealityCheck:
             if not network:
                 continue
             if meta is None:
-                asked_any = True
-                try:
-                    meta = _lookup(ecosystem, name)
-                    reached_any = True
-                except RegistryUnreachable:
+                answer = answers.get(key)
+                if isinstance(answer, RegistryUnreachable):
                     continue
+                meta = answer
                 if meta is None:
                     # The index said it exists and the registry says it does not:
                     # unpublished since the index was built. Report it — an
@@ -395,6 +413,35 @@ def _from_package_json(path: Path, workspace: Path) -> set[tuple[str, str, str]]
 
 #: Where each ecosystem's names are verified, named as a reader would name it.
 _REGISTRY_NAME = {"pip": "PyPI", "npm": "the npm registry"}
+
+#: How many registry requests are in flight at once on `full`. Measured 2026-09-12
+#: against PyPI from this Check: serial, 159ms a name — 123s on a real monorepo, and
+#: each name carries a 10s timeout on top when the registry is slow. The lookups are
+#: independent and I/O-bound, so they overlap; the bound is what keeps this the one
+#: code path that reaches the network rather than the one that gets rate-limited and
+#: then reports "unreachable" as if nothing had been declared.
+LOOKUP_CONCURRENCY = 8
+
+
+Answer = dict | RegistryUnreachable | None
+
+
+def _lookup_many(keys: list[tuple[str, str]]) -> dict[tuple[str, str], Answer]:
+    """Every lookup in `keys`, `LOOKUP_CONCURRENCY` at a time, each answer or its
+    failure recorded under its key. Nothing is retried and nothing is dropped: a
+    name whose lookup failed is reported as unverified by the caller, not as clean."""
+    if not keys:
+        return {}
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(key):
+        try:
+            return key, _lookup(*key)
+        except RegistryUnreachable as exc:
+            return key, exc
+
+    with ThreadPoolExecutor(max_workers=min(LOOKUP_CONCURRENCY, len(keys))) as pool:
+        return dict(pool.map(one, keys))
 
 
 def _lookup(ecosystem: str, name: str) -> dict | None:
