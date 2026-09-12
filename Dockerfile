@@ -39,14 +39,14 @@ ARG OPENGREP_SHA256_ARM64=6cccb7466a98608e308204e17b259f4ca3a9028c6eb71e6b07ea21
 ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.29.0
 
 # 3.12-alpine3.22
-FROM python@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322 AS opengrep-amd64
+FROM python@sha256:e06cc1111ed84189e91866447f562b89faadbfbbb9937cd67e6bf4172cdb45df AS opengrep-amd64
 ARG OPENGREP_SHA256_AMD64
 ARG OPENGREP_URL
 ADD --chmod=755 ${OPENGREP_URL}/opengrep_musllinux_x86 /opengrep
 RUN echo "${OPENGREP_SHA256_AMD64}  /opengrep" | sha256sum -c -
 
 # 3.12-alpine3.22
-FROM python@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322 AS opengrep-arm64
+FROM python@sha256:e06cc1111ed84189e91866447f562b89faadbfbbb9937cd67e6bf4172cdb45df AS opengrep-arm64
 ARG OPENGREP_SHA256_ARM64
 ARG OPENGREP_URL
 ADD --chmod=755 ${OPENGREP_URL}/opengrep_musllinux_aarch64 /opengrep
@@ -65,7 +65,7 @@ FROM ghcr.io/google/osv-scanner@sha256:f7ba4be68bac8086b1f88fd598fdca1ca67239c79
 FROM anchore/syft@sha256:95fe0835e5bebc6f8b1f8acef68d47d63d594ef4c0f25c097ff853b23cbac74c AS syft
 
 # 3.12-alpine3.22
-FROM python@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322
+FROM python@sha256:e06cc1111ed84189e91866447f562b89faadbfbbb9937cd67e6bf4172cdb45df
 ARG VALVUR_VERSION=0.0.0-dev
 LABEL org.opencontainers.image.source="https://github.com/MaverickHQ/valvur"
 LABEL org.opencontainers.image.description="Fully offline security scanner for AI-generated code"
