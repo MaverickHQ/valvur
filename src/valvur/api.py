@@ -124,19 +124,49 @@ class ScanRun:
         """
         if self.active:
             return "findings"
+        return "inconclusive" if self.doubts else "clean"
+
+    @property
+    def doubts(self) -> list[str]:
+        """Every reason a nil result is not evidence, in the order they are checked.
+
+        Empty means `clean`. Each entry is one sentence a reader can act on, and
+        `status_reason` joins them — so the MCP `scan_status` message, `run.json`
+        and `SUMMARY.md` all say the same thing without any of them reconstructing
+        it from `database.stale` and `findings.not_covered` (task 22.D.4).
+        """
         from . import cache as _cache
 
+        reasons: list[str] = []
         age = self.db_age_days
         if age is not None and age > _cache.DB_STALE_AFTER_DAYS:
-            return "inconclusive"
+            reasons.append(
+                f"the vulnerability database is {age:.0f} days old "
+                f"(threshold {_cache.DB_STALE_AFTER_DAYS})"
+            )
         # The same rule for the name index (ADR-0018): "no hallucinated packages"
         # from a month-old list of names is not a claim about today's registry.
         index_age = self.name_index_age_days
         if index_age is not None and index_age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
-            return "inconclusive"
+            reasons.append(
+                f"the package-name index is {index_age:.0f} days old "
+                f"(threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS})"
+            )
         if self.coverage_notes:
-            return "inconclusive"
-        return "clean"
+            which = ", ".join(
+                n.title.replace(" were not checked for existence", "") for n in self.coverage_notes
+            )
+            reasons.append(f"not inspected at all: {which}")
+        return reasons
+
+    @property
+    def status_reason(self) -> str:
+        """One line that says why the Status is what it is."""
+        if self.status == "findings":
+            return f"{len(self.active)} active finding(s)"
+        if self.status == "inconclusive":
+            return "nothing was found, and that is not evidence: " + "; ".join(self.doubts)
+        return "nothing was found, by a scan able to support the claim"
 
 
 def _run_one(adapter, runner, workspace) -> tuple:

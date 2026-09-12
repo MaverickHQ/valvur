@@ -60,7 +60,7 @@ def _run_scan(workspace: Path, profile: str, progress) -> str:
     run = scan(workspace, runner=ContainerRunner(), profile=profile,
                on_progress=progress)
 
-    lines = [f"{run.status}: {len(run.findings)} finding(s)."]
+    lines = [f"{run.status}: {len(run.findings)} finding(s). {run.status_reason}."]
     if run.failures:
         lines += ["", "INCOMPLETE — these scanners did not run:"]
         lines += [f"  - {f.tool}: {f.reason}" for f in run.failures]
@@ -307,24 +307,15 @@ def scan_status(args: dict) -> str:
     # Scanner ran, and the data they ran against was too old for "nothing" to mean
     # anything.
     if data.get("status") == "inconclusive":
-        # Two different reasons produce this verdict and an agent must be told which.
-        # "Update the database" is useless advice when the real answer is that valvur
-        # has no existence check for the ecosystem in front of it.
-        if (data.get("database") or {}).get("stale"):
-            lines.append(
-                "          ^ every Scanner ran; the data they ran against was too old "
-                "for a nil result to be evidence"
-            )
-        elif (data.get("name_index") or {}).get("stale"):
-            lines.append(
-                "          ^ every Scanner ran; the package-name index was too old for "
-                "\"no hallucinated packages\" to be a claim about today's registry"
-            )
-        else:
-            lines.append(
-                "          ^ nothing live was found, but part of this repository was "
-                "not inspected at all — see `coverage` below"
-            )
+        # Three different causes produce this verdict and an agent must be told
+        # which. `run.json` says so in one field since 22.D.4; before that this
+        # code guessed from `database.stale` and `name_index.stale`, and a run
+        # with both stale and an uninspected ecosystem named only the first.
+        reason = data.get("status_reason") or (
+            "nothing live was found, and the reason is not recorded — a run.json "
+            "from before 22.D.4; rescan"
+        )
+        lines.append(f"          ^ {reason}")
     lines += ["", "Scanners:"]
     for scanner in data.get("scanners", []):
         mark = "ok" if scanner["ok"] else f"FAILED — {scanner['reason'][:80]}"

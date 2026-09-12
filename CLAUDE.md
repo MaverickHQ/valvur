@@ -63,8 +63,8 @@ Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then P
 22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
 README); then the usability gate and `v1.0.0`.
 
-Roughly: 92 Python modules, 567 tests, 18 ADRs, 136 requirement IDs, **130 done and 16
-open** across 22 phases — 8 of the 16 are Phase 22, and 8 are Phase 21's owner actions
+Roughly: 94 Python modules, 586 tests, 18 ADRs, 136 requirement IDs, **134 done and 12
+open** across 22 phases — 4 of the 12 are Phase 22, and 8 are Phase 21's owner actions
 and release tail. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -286,7 +286,11 @@ Rules that must hold:
   three from "never ran". Warning in `SUMMARY.md` alone is not enough: the contract
   tells agents to read it *bounded* and query `findings.json` for detail, so the
   consumer most likely to act on the verdict is the one least likely to see a caveat
-  explaining it means nothing. The verdict itself has to carry the claim.
+  explaining it means nothing. The verdict itself has to carry the claim — and since
+  22.D.4 so does **`status_reason`**: one line in `run.json` and `findings.json`,
+  the same words in `SUMMARY.md` and the MCP `scan_status` reply, naming every cause
+  (three exist: database age, index age, an ecosystem never inspected). No consumer
+  reconstructs it from `database.stale` and `findings.not_covered` any more.
 - **The verdict is about the code, not about valvur.** Only **active** findings —
   unsuppressed, and excluding valvur's own coverage notes — make a status `findings`.
   A suppressed finding is a decision this project already recorded; a coverage note is

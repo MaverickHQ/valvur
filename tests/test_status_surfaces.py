@@ -248,3 +248,54 @@ def test_the_offline_profile_discloses_nothing_leaving(tmp_path):
     )["network"]["what_left_the_machine"]
 
     assert disclosed == "nothing"
+
+
+# --------------------------------------------------------- 22.D.4 status_reason
+
+def test_status_reason_names_every_cause_not_just_the_first():
+    """Three causes of `inconclusive` exist since ADR-0018. The MCP surface used to
+    reconstruct the reason from `database.stale`, then `name_index.stale`, else
+    coverage — so a run with all three named one. The field names them all."""
+    run = ScanRun(findings=[_note()], profile="offline", db_age_days=9.0,
+                  name_index_age_days=40.0)
+
+    assert run.status == "inconclusive"
+    assert run.doubts == [
+        "the vulnerability database is 9 days old (threshold 7)",
+        "the package-name index is 40 days old (threshold 30)",
+        "not inspected at all: Rust (Cargo) dependencies",
+    ]
+    assert run.status_reason == (
+        "nothing was found, and that is not evidence: " + "; ".join(run.doubts)
+    )
+
+
+def test_status_reason_is_the_same_words_on_every_surface():
+    """One field, one line: `run.json`, `findings.json`, `SUMMARY.md` and the MCP
+    messages must not paraphrase each other."""
+    import json
+
+    from valvur import artifacts, results
+
+    run = ScanRun(findings=[], profile="offline", db_age_days=9.0)
+
+    provenance = json.loads(results._provenance(run))
+    findings_doc = json.loads(artifacts.findings_json(
+        run.findings, status=run.status, status_reason=run.status_reason, complete=True,
+    ))
+    summary = results._summary(run)
+
+    assert provenance["status_reason"] == run.status_reason
+    assert findings_doc["status_reason"] == run.status_reason
+    assert "the vulnerability database is 9 days old (threshold 7)" in summary
+
+
+def test_status_reason_for_the_other_two_statuses():
+    clean = "nothing was found, by a scan able to support the claim"
+    for run, expected in (
+        (ScanRun(findings=[_live()]), "1 active finding(s)"),
+        (ScanRun(findings=[]), clean),
+        (ScanRun(findings=[_accepted()]), clean),
+    ):
+        assert run.status_reason == expected
+        assert run.doubts == []

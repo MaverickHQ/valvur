@@ -33,6 +33,10 @@ def _scanned(tmp_path, *, status, findings=(), db_age_days=None, stale=False):
     }))
     (results / "run.json").write_text(json.dumps({
         "status": status,
+        "status_reason": (
+            f"nothing was found, and that is not evidence: the vulnerability database "
+            f"is {db_age_days:.0f} days old (threshold 7)" if stale else ""
+        ),
         "complete": True,
         "findings": len(findings),
         "scanners": [{"tool": "trivy", "ok": True, "reason": ""}],
@@ -76,8 +80,23 @@ def test_scan_status_explains_inconclusive_rather_than_only_reporting_it(tmp_pat
 
     answer = operations.scan_status({"workspace": str(workspace)})
 
-    assert "every Scanner ran" in answer
-    assert "60 days old" in answer
+    # The reason is `run.json`'s own `status_reason`, printed verbatim (22.D.4) —
+    # not reconstructed here from `database.stale`, which named only one cause.
+    assert "^ nothing was found, and that is not evidence" in answer
+    assert "database is 60 days old" in answer
+
+
+def test_a_run_json_without_a_reason_says_so_rather_than_guessing(tmp_path):
+    """A results folder written before 22.D.4 has no `status_reason`. Guessing one
+    from `database.stale` is what this field replaced; say it is missing instead."""
+    workspace = _scanned(tmp_path, status="inconclusive", db_age_days=60.0, stale=True)
+    run = json.loads((workspace / ".security-scan" / "run.json").read_text())
+    del run["status_reason"]
+    (workspace / ".security-scan" / "run.json").write_text(json.dumps(run))
+
+    answer = operations.scan_status({"workspace": str(workspace)})
+
+    assert "reason is not recorded" in answer and "rescan" in answer
 
 
 @pytest.mark.parametrize("tool", ["list_findings", "scan_status"])

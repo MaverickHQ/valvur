@@ -24,12 +24,14 @@ _SARIF_LEVEL = {
 }
 
 
-def findings_json(findings: list[Finding], *, status: str, complete: bool) -> str:
+def findings_json(findings: list[Finding], *, status: str, status_reason: str = "",
+                  complete: bool) -> str:
     return json.dumps(
         {
             "schema": SCHEMA,
             "fp_version": FP_VERSION,
             "status": status,
+            "status_reason": status_reason,
             "complete": complete,
             "findings": [_serialise(f) for f in findings],
         },

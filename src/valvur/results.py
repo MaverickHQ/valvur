@@ -33,7 +33,10 @@ def write(workspace: Path, run: ScanRun, scanner_artifacts=(), raw_outputs=()) -
     (folder / "SUMMARY.md").write_text(_summary(run), encoding="utf-8")
     complete = not run.failures
     (folder / "findings.json").write_text(
-        artifacts.findings_json(run.findings, status=run.status, complete=complete),
+        artifacts.findings_json(
+            run.findings, status=run.status, status_reason=run.status_reason,
+            complete=complete,
+        ),
         encoding="utf-8",
     )
     (folder / "results.sarif").write_text(
@@ -67,6 +70,8 @@ def _provenance(run: ScanRun) -> str:
                 # F5.3 / task 17.4: history was discarded because identity changed.
                 "identity_reset": list(run.identity_reset) if run.identity_reset else None,
                 "status": run.status,
+                # One line, one field, the same words on every surface (22.D.4).
+                "status_reason": run.status_reason,
                 # Which profile ran, and what it therefore did not look at. Without
                 # this, run.json cannot tell you a class was out of scope.
                 "profile": run.profile,
@@ -203,7 +208,7 @@ MACHINE_HEADER = """<!-- valvur results. Read this file first; it is bounded by 
 > - `inconclusive` — **nothing was found and that is not evidence.** The
 >   vulnerability database or the package-name index was too old, or part of the
 >   repository was not inspected at all. Never report this as clean; the reason is
->   in `run.json`.
+>   `status_reason` in `run.json`, one line, and it names every cause.
 >
 > **Ranking basis:** worst-first by finding class, raised by real-world exploitation
 > evidence — CISA KEV membership, then FIRST EPSS probability. Not by severity label,
@@ -220,7 +225,6 @@ def _verdict(run: ScanRun) -> str:
     """
     active = list(run.active)
     suppressed = list(run.suppressed)
-    notes = list(run.coverage_notes)
 
     if run.failures:
         names = ", ".join(f.tool for f in run.failures)
@@ -233,21 +237,16 @@ def _verdict(run: ScanRun) -> str:
             f"**{len(active)} active finding(s).** The most urgent is ranked first in "
             "[`REMEDIATION.md`](REMEDIATION.md); start there rather than here."
         )
-    if notes:
-        which = "; ".join(
-            n.title.replace(" were not checked for existence", "") for n in notes
-        )
-        return (
-            "**Nothing live was found — but part of this repository was not inspected "
-            f"at all:** {which}. That is missing coverage in valvur, so this is not a "
-            "clean result you can rely on for those files."
-        )
     if run.status == "inconclusive":
-        stale = "The vulnerability database" if _db_is_stale(run) else "The package-name index"
+        # The same words `run.json` and the MCP surface carry (22.D.4), so a reader
+        # who meets the verdict on any of the three is told the same reason.
+        fix = "Run `valvur update` and scan again." if run.doubts[0].startswith("the ") else (
+            "That is missing coverage in valvur, so this is not a clean result you can "
+            "rely on for those files."
+        )
         return (
-            "**Nothing was found, and that is not evidence that there is nothing.** "
-            f"{stale} was too old for this result to mean anything. "
-            "Run `valvur update` and scan again."
+            "**Nothing was found, and that is not evidence that there is nothing:** "
+            f"{'; '.join(run.doubts)}. {fix}"
         )
     if suppressed:
         return (

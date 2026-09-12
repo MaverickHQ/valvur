@@ -3832,27 +3832,63 @@ Three days of blocks added stages by inserting them. It works. It is also where 
 next ordering bug lives — Block 2 already had one, when exclusions were loaded after
 the coverage gap that needed them.
 
-- [ ] **22.D.1** Name the pipeline. `api.py::_scan_locked` is 120 lines of
+- [x] **22.D.1** Name the pipeline. `api.py::_scan_locked` is 120 lines of
   coverage → licence → vendored → configured → merge → gitcontext → enrich →
   suppress → rank → write, inline. Make it a list of named stages, and pin their
   order with a test that fails when one moves.
 
-- [ ] **22.D.2** `results.py` accepts a `ScanRun` and nothing else. `_summary` is
+  > **Done 2026-09-12.** `src/valvur/pipeline.py`: ten `Stage`s in a tuple, each a
+  > pure function of the Findings and a `Context`, each carrying `why_here` — the
+  > constraint its position encodes, kept beside the code because a constraint in a
+  > commit message is one the next insertion does not see. `write` is not a stage;
+  > `diff` is the last one, so Status is computed over the final set. Behaviour
+  > unchanged: the suite passed as-is after the switch. `tests/test_pipeline.py`
+  > pins the order outright, and pins the reasons: swapping `coverage`/`configured`
+  > fails the exclusions test Block 2's bug would have failed; swapping
+  > `vendored`/`merged` fails a duplicate that survives by merging. Five swaps
+  > mutated, five caught; two by the order test alone, which is what it is for.
+
+- [x] **22.D.2** `results.py` accepts a `ScanRun` and nothing else. `_summary` is
   190 lines with **34 `getattr(run, …, default)` calls**, defending against a
   dataclass whose fields are always populated — the tests pass duck-typed stubs, and
   the production code grew defensive against a case that cannot occur. Give the tests
   a real `ScanRun` and delete every `getattr`.
 
-- [ ] **22.D.3** Coverage belongs to the Check. `CheckAdapter.coverage()` special-cases
+  > **Done 2026-09-12.** 38, not 34, plus two in `cli.py`; all deleted, every entry
+  > point typed `run: ScanRun` (annotation-only import — `api` imports `results`).
+  > The premise was nearly right: 51 of 52 test call sites already built a real
+  > `ScanRun`; the one duck-typed `Run` was the ten-thousand-findings cap test, and
+  > it is the reason the defaults could never be removed before. The two `getattr`s
+  > on `runner` stay — fake runners are a real duck-typed boundary.
+
+- [x] **22.D.3** Coverage belongs to the Check. `CheckAdapter.coverage()` special-cases
   `if self.name != "dependency-reality"` — the adapter knows a Check's name, which is
   the boundary ADR-0013 drew being crossed in the wrong direction. Put `coverage()` on
   the Check protocol; the adapter forwards.
 
-- [ ] **22.D.4** `status_reason`. `inconclusive` now has two causes — a stale
+  > **Done 2026-09-12.** `Check.coverage(workspace, exclude, *, network)` with the
+  > empty default, inherited by the two Checks that declare nothing; dependency-
+  > reality's contract moved onto the Check; the adapter looks the Check up in the
+  > registry and forwards, network grant included. A test asserts the adapter's
+  > source names no Check. Host-side, like before: coverage is a static statement
+  > about files, and needs no container.
+
+- [x] **22.D.4** `status_reason`. `inconclusive` now has two causes — a stale
   database, an uninspected ecosystem — and after 22.A.2 a third, a stale index. An
   agent that wants to say *why* has to reconstruct it from `database.stale` and
   `findings.not_covered`. One field, one line, and the MCP `scan_status` message
   stops guessing.
+
+  > **Done 2026-09-12.** `ScanRun.doubts` — every reason a nil result is not
+  > evidence, as a list; `status` derives from it — and `ScanRun.status_reason`,
+  > one line for all three statuses. Carried in `run.json` and `findings.json`,
+  > used verbatim by the `SUMMARY.md` verdict sentence and the MCP `scan_status`
+  > and `start_scan` replies. The guessing it replaced was wrong in a case nobody
+  > had hit: a run with a stale database, a stale index *and* an uninspected
+  > ecosystem named only the first. A `run.json` from before this says "reason not
+  > recorded; rescan" rather than being guessed at. Verified on real scans: a
+  > Rust-only project reads the identical sentence in all three places. Three
+  > mutations, three caught.
 
 ### E — Corpus and rules
 

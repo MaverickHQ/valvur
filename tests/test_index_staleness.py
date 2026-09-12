@@ -89,10 +89,11 @@ def test_the_summary_names_the_index_and_its_failure_direction():
 
     assert f"package-name index is {STALE:.0f} days old" in text
     assert "valvur update" in text
-    # The verdict sentence blames the right dataset. Until this was checked it said
-    # "vulnerability database" for both, because the sentence had one cause in mind.
-    assert "The package-name index was too old" in text
-    assert "The vulnerability database was too old" not in text
+    # The verdict sentence blames the right dataset — the same words as
+    # `status_reason` (22.D.4). Until this was checked it said "vulnerability
+    # database" for both, because the sentence had one cause in mind.
+    assert f"the package-name index is {STALE:.0f} days old (threshold 30)" in text
+    assert "vulnerability database is" not in text.split("<!--")[0]
     assert "newer than the index may be reported as nonexistent" in text
 
 
@@ -141,8 +142,17 @@ def _scanned(tmp_path, *, index_stale: bool, db_stale: bool = False):
     (results / "findings.json").write_text(json.dumps({
         "schema": 1, "status": status, "findings": [],
     }))
+    reasons = []
+    if db_stale:
+        reasons.append("the vulnerability database is 60 days old (threshold 7)")
+    if index_stale:
+        reasons.append(f"the package-name index is {STALE:.0f} days old (threshold 30)")
     (results / "run.json").write_text(json.dumps({
         "status": status, "complete": True,
+        "status_reason": (
+            "nothing was found, and that is not evidence: " + "; ".join(reasons)
+            if reasons else "nothing was found, by a scan able to support the claim"
+        ),
         "findings": {"active": 0, "suppressed": 0, "not_covered": 0, "total": 0},
         "scanners": [{"tool": "dependency-reality", "ok": True, "reason": ""}],
         "network": {"what_left_the_machine": "nothing"},
@@ -173,7 +183,8 @@ def test_scan_status_explains_an_index_caused_inconclusive(tmp_path):
     answer = operations.scan_status({"workspace": str(workspace)})
 
     assert "inconclusive" in answer
-    assert "package-name index was too old" in answer
+    assert "^ nothing was found, and that is not evidence: " in answer
+    assert f"the package-name index is {STALE:.0f} days old" in answer
 
 
 def test_a_fresh_index_adds_nothing_to_the_mcp_answer(tmp_path):
