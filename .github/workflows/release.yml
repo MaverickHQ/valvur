@@ -338,11 +338,22 @@ jobs:
         if: always() && env.REHEARSAL == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # A draft has no tag yet, so `--cleanup-tag` fails after the delete has
+        # succeeded — the third rehearsal printed "no release to remove" for a draft
+        # it had just removed. Delete the release and the tag separately, and report
+        # each on its own evidence.
         run: |
           TAG="rehearsal-${GITHUB_RUN_NUMBER}"
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null \
-            && echo "removed draft release $TAG" \
-            || echo "no release $TAG to remove"
+          if gh release delete "$TAG" --yes 2>/dev/null; then
+            echo "removed draft release $TAG"
+          else
+            echo "no release $TAG to remove"
+          fi
+          if git push --delete origin "$TAG" 2>/dev/null; then
+            echo "removed tag $TAG"
+          else
+            echo "no tag $TAG to remove (a draft never creates one)"
+          fi
 
       - name: Rehearsal report
         # One place that says what was and was not proven. A step allowed to
