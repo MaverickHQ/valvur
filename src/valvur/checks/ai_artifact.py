@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 from ..defang import describe_invisible, is_invisible, neutralise
+from .base import Check
 
 # F3.6: the agent instruction and configuration files this Check reads.
 ARTIFACT_NAMES = {
@@ -35,7 +36,7 @@ BYPASS = re.compile(
 MUTABLE_REF = re.compile(r"git\+[^\s\"']+@(main|master|HEAD|develop)\b")
 
 
-class AiArtifactCheck:
+class AiArtifactCheck(Check):
     name = "ai-artifact"
 
     def run(self, workspace: Path) -> list[dict]:

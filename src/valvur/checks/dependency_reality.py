@@ -39,6 +39,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
+from ..coverage import Coverage
+from .base import Check
+
 TIMEOUT = 10
 #: F3.3's age half. design.md pairs it with "downloads < 1000/month"; adoption is
 #: NOT measured — PyPI publishes no download counts without a third-party service,
@@ -79,8 +82,45 @@ class IndexMissing(RuntimeError):
     instead. Raised so the run records this Check as failed, with the fix."""
 
 
-class DependencyRealityCheck:
+class DependencyRealityCheck(Check):
     name = "dependency-reality"
+
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = (),
+                 *, network: bool = False) -> Coverage:
+        """The one Check whose limits are worth stating, because nothing else in the
+        product substitutes for it. Host-side, static, per Profile."""
+        from .. import coverage as _coverage
+        from .. import ecosystems as _ecosystems
+        from ..name_index import FILES as _INDEXED
+
+        reads, ignores = [], []
+        for key, manifests in _ecosystems.MANIFESTS.items():
+            if not manifests.reads:
+                ignores.append(f"{manifests.label}: no existence check")
+            elif key in _INDEXED or network:
+                reads.append(f"{manifests.label}: {', '.join(manifests.reads)}")
+            else:
+                # Read, but only where a registry can be asked (22.A.4): neither
+                # Maven Central nor the Go proxy publishes a name list an offline
+                # index could be built from. A Profile omission, stated as one.
+                ignores.append(f"{manifests.label}: existence checked on `full` only "
+                               "(no offline index exists for this registry)")
+        # Stated rather than left implicit: names are checked for existence in both
+        # ecosystems, but the near-miss typosquat comparison needs a corpus of popular
+        # package names and only PyPI's ships in the image.
+        ignores.append("npm: no typosquat near-miss comparison (no popular-npm corpus)")
+        if not network:
+            # The one question the local index cannot answer (ADR-0018).
+            ignores.append("first-publish age: not checked without a network "
+                           "(run `--profile full`)")
+        else:
+            ignores.append("JVM and Go: existence only, no first-publish age "
+                           "(neither registry states first publication)")
+        return Coverage(
+            inspects=tuple(sorted(reads)),
+            ignores=tuple(sorted(ignores)),
+            gaps=tuple(_coverage.dependency_gaps(workspace, exclude)),
+        )
 
     def run(self, workspace: Path) -> list[dict]:
         # Coverage gaps are NOT reported here. They were, until a local corpus showed

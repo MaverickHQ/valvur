@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .base import Check
+
 CANDIDATES = ("LICENSE", "LICENCE", "COPYING", "LICENSE.md", "LICENCE.md", "LICENSE.txt")
 
 # Distinctive phrases, not whole texts. Enough to identify the family and catch a
@@ -32,7 +34,7 @@ DECLARED = (
 )
 
 
-class LicenceFileCheck:
+class LicenceFileCheck(Check):
     """Severities are stated, not defaulted (task 19.C.1, corpus defect C5).
 
     Every Finding from this Check and from `ai_artifact` arrived as `unknown`, which

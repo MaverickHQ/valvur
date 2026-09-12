@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .. import coverage as _coverage
 from .. import fingerprint as _fp
 from ..coverage import Coverage
 from ..findings import Finding
@@ -45,42 +44,16 @@ class CheckAdapter(ScannerAdapter):
         return runner.run_check(self.name, workspace, network=self.network)
 
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
-        """Only dependency-reality has limits worth stating, and they are the ones
-        that matter: it is the Check nothing else in the product substitutes for."""
-        if self.name != "dependency-reality":
+        """Forwarded to the Check, which is the only thing that knows (22.D.3). The
+        adapter used to answer this itself by testing `self.name` — ADR-0013's
+        boundary crossed the wrong way, and a second place a Check's limits could
+        be stated and drift from the first."""
+        from ..checks import REGISTRY
+
+        check = REGISTRY.get(self.name)
+        if check is None:
             return Coverage()
-
-        from .. import ecosystems as _ecosystems
-        from ..name_index import FILES as _INDEXED
-
-        reads, ignores = [], []
-        for key, manifests in _ecosystems.MANIFESTS.items():
-            if not manifests.reads:
-                ignores.append(f"{manifests.label}: no existence check")
-            elif key in _INDEXED or self.network:
-                reads.append(f"{manifests.label}: {', '.join(manifests.reads)}")
-            else:
-                # Read, but only where a registry can be asked (22.A.4): neither
-                # Maven Central nor the Go proxy publishes a name list an offline
-                # index could be built from. A Profile omission, stated as one.
-                ignores.append(f"{manifests.label}: existence checked on `full` only "
-                               "(no offline index exists for this registry)")
-        # Stated rather than left implicit: names are checked for existence in both
-        # ecosystems, but the near-miss typosquat comparison needs a corpus of popular
-        # package names and only PyPI's ships in the image.
-        ignores.append("npm: no typosquat near-miss comparison (no popular-npm corpus)")
-        if not self.network:
-            # The one question the local index cannot answer (ADR-0018).
-            ignores.append("first-publish age: not checked without a network "
-                           "(run `--profile full`)")
-        else:
-            ignores.append("JVM and Go: existence only, no first-publish age "
-                           "(neither registry states first publication)")
-        return Coverage(
-            inspects=tuple(sorted(reads)),
-            ignores=tuple(sorted(ignores)),
-            gaps=tuple(_coverage.dependency_gaps(workspace, exclude)),
-        )
+        return check.coverage(workspace, exclude, network=self.network)
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         findings = []
