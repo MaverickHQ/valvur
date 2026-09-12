@@ -1,4 +1,4 @@
-# The public corpus (task 22.E.1): real repositories, pinned, scanned weekly.
+# The public corpus (task 22.E.1): twelve real repositories, pinned, scanned weekly.
 #
 # The local corpus found three false positives in an hour — two introduced by the
 # block before, with every test green — and was then deleted because it held private
@@ -19,7 +19,7 @@
 #                                              a reviewer agreed and wrote it down here)
 #
 # Pinned by commit, not branch, so a run is reproducible and a failure is ours. Bump a
-# pin deliberately, and say what changed. The bytes are not committed: ten real
+# pin deliberately, and say what changed. The bytes are not committed: twelve real
 # projects are tens of megabytes of someone else's code in our history forever, and
 # every self-scan would have to exclude them. The pins and the expectations are the
 # corpus; the bytes follow from the pins.
@@ -78,7 +78,7 @@ name = "ripgrep"
 url = "https://github.com/BurntSushi/ripgrep"
 commit = "3fce3b5bb0236da2df6d99672afb8a719642eca7"
 licence = "Unlicense"
-why = "Rust: Cargo.toml and Cargo.lock; no existence check exists, so the gap must be named"
+why = "Rust: a Cargo workspace with many members and path dependencies — existence offline since 23.2.3, and every member must be recognised as local"
 
 [[repo]]
 name = "terraform-aws-vpc"
@@ -92,7 +92,14 @@ name = "sinatra"
 url = "https://github.com/sinatra/sinatra"
 commit = "cb22afd7902b566b6eaba6c4ea89739494a65d12"
 licence = "MIT"
-why = "Ruby: Gemfile and gemspecs; no existence check exists, so the gap must be named"
+why = "Ruby: a Gemfile with git: and github: sources, groups, and gemspecs — existence offline since 23.2.2"
+
+[[repo]]
+name = "monolog"
+url = "https://github.com/Seldaek/monolog"
+commit = "2dc40e8f3b76a0b657e0a25c932dc6edef215891"
+licence = "MIT"
+why = "PHP: composer.json with require, require-dev, platform packages and a lockfile — existence offline since 23.2.2"
 
 [[repo]]
 name = "awesome-cursorrules"

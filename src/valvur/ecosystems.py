@@ -103,7 +103,8 @@ MANIFESTS: dict[str, Manifests] = {
         reads=("package.json",),
         sees=("package-lock.json", "pnpm-lock.yaml", "yarn.lock"),
     ),
-    "cargo": Manifests("Rust (Cargo)", sees=("Cargo.toml", "Cargo.lock")),
+    # Read since 23.2.3: crates.io's list is streamed out of its database dump.
+    "cargo": Manifests("Rust (Cargo)", reads=("Cargo.toml",), sees=("Cargo.lock",)),
     # Read since 22.A.4, on `full` only: neither registry publishes a name list that
     # could be fetched into the offline index (ADR-0018 records the numbers), so
     # existence is asked of the registry per name. The Coverage contract says so on
@@ -118,6 +119,8 @@ MANIFESTS: dict[str, Manifests] = {
         reads=("pom.xml", "build.gradle", "build.gradle.kts", "gradle/libs.versions.toml"),
         sees=("settings.gradle", "settings.gradle.kts", "gradle.lockfile"),
     ),
-    "gem": Manifests("Ruby (Bundler)", sees=("Gemfile", "Gemfile.lock")),
-    "composer": Manifests("PHP (Composer)", sees=("composer.json", "composer.lock")),
+    # Read since 23.2.2: RubyGems and Packagist each publish their whole list in one
+    # request, and both are in the index.
+    "gem": Manifests("Ruby (Bundler)", reads=("Gemfile", "*.gemspec"), sees=("Gemfile.lock",)),
+    "composer": Manifests("PHP (Composer)", reads=("composer.json",), sees=("composer.lock",)),
 }

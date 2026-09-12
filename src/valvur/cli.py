@@ -77,28 +77,47 @@ def _database_needs_refresh() -> bool:
 
 
 def _name_index_needs_refresh() -> bool:
-    """Absent, unreadable, or past the threshold that makes a scan `inconclusive`.
-    Decided from one file read, like the database's check above (ADR-0018)."""
-    from . import cache
+    """Absent, unreadable, past the threshold that makes a scan `inconclusive`, or
+    missing an ecosystem this version indexes — a cache built before 23.2.2 has no
+    Ruby, PHP or Rust list, and a scan of a Ruby project would fail for want of one.
+    Decided from one directory listing, like the database's check above (ADR-0018)."""
+    from . import cache, name_index
 
     age = cache.name_index_age_days()
-    return age is None or age > cache.NAME_INDEX_STALE_AFTER_DAYS
+    if age is None or age > cache.NAME_INDEX_STALE_AFTER_DAYS:
+        return True
+    directory = cache.name_index()
+    return any(not (directory / filename).is_file() for filename in name_index.FILES.values())
 
 
-def _refresh_name_index() -> bool:
+def _refresh_name_index(*, build: bool = False) -> bool:
     """Refresh the package-name index into the host cache (ADR-0018).
 
+    From the published index first — one signed pull, seconds (23.2.1) — and from
+    the registries themselves when it is unreachable or when `build` says so.
     Under the same exclusive lock as the database: a scan reading the index waits
     for the rename, and never sees half of one. Returns False on failure, having
     said why — whatever was on disk before is still there and still valid.
     """
-    from . import cache, locking, name_index
+    from . import cache, locking, name_index, oci
 
-    print("Fetching the package-name index (PyPI and npm; about 30MB, or a few "
-          "hundred KB after the first time)...")
+    if build:
+        print("Building the package-name index from the registries (PyPI, npm, RubyGems, "
+              "Packagist and crates.io; about 550MB the first time, a few MB after)...")
+    else:
+        print("Fetching the package-name index (about 40MB, published daily; the registries "
+              "are walked only if it is unreachable)...")
     try:
         with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
-            name_index.refresh(cache.name_index(), progress=lambda msg: print(f"  {msg}"))
+            name_index.refresh(cache.name_index(), published=not build,
+                               progress=lambda msg: print(f"  {msg}"))
+    except oci.SignatureInvalid as exc:
+        # Not softened into the fallback and not swallowed: a refused signature on a
+        # supply-chain artifact is the one failure that must stop the command.
+        print(f"Name index refresh REFUSED: {exc}")
+        print("To build the index from the registries directly instead: "
+              "valvur update --build-index")
+        return False
     except name_index.IndexUnavailable as exc:
         print(f"Name index refresh failed: {exc}")
         if cache.name_index_present():
@@ -106,6 +125,22 @@ def _refresh_name_index() -> bool:
         else:
             print("Without it, the dependency-reality Check cannot verify package "
                   "existence offline and will report that rather than a clean result.")
+        return False
+    return True
+
+
+def _ensure_image_for_update(runner) -> bool:
+    """Pull the image if the runtime does not have it, saying what and how much."""
+    present = getattr(runner, "image_present", None)
+    if present is None or present():
+        return True
+    size = runner.pull_size_mb()
+    print(f"Pulling the image {runner.image}{f' (about {size}MB)' if size else ''} — "
+          "the first time only; the runtime keeps it...")
+    result = runner.pull_image(on_line=lambda line: print(f"  {line}"))
+    if result.exit_code != 0:
+        print(f"Image pull failed: {(result.stderr or result.stdout).strip()[-300:]}")
+        print(f"Fetch it yourself with: {runner.runtime} pull {runner.image}")
         return False
     return True
 
@@ -275,8 +310,8 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     update_cmd = sub.add_parser(
         "update",
-        help="Fetch the vulnerability database and the package-name index into the "
-        "local cache",
+        help="Pull the image if it is not local, and fetch the vulnerability database "
+        "and the package-name index into the local cache",
     )
     update_cmd.add_argument(
         "--if-stale",
@@ -284,6 +319,14 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         help="Do nothing unless the database or the index is actually out of date. "
         "Cheap enough to put in a pre-commit hook, a cron entry or CI — the "
         "freshness check needs no network at all.",
+    )
+    update_cmd.add_argument(
+        "--build-index",
+        action="store_true",
+        help="Build the package-name index from the registries themselves instead of "
+        "pulling the published one. Minutes rather than seconds; what the daily "
+        "workflow that publishes the index runs, and the fallback when it is "
+        "unreachable.",
     )
 
     # The same operations the MCP tools expose, so the two surfaces cannot drift
@@ -351,13 +394,20 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
             if not database_due:
                 # The database is fine and only the index is due: do that one thing.
                 # A 116MB download to refresh a 4MB list is not what --if-stale means.
-                return 0 if _refresh_name_index() else 1
+                return 0 if _refresh_name_index(build=args.build_index) else 1
 
+        runner = runner or ContainerRunner()
+        # The image first (23.2.4): the database update runs Trivy *inside* it, so
+        # a missing image was being pulled here anyway — silently, under Trivy's
+        # name, and again on the first scan if `update` was skipped. Said, sized
+        # from the registry when it can be, and streamed to the terminal.
+        if not _ensure_image_for_update(runner):
+            return 1
         # 116 MB compressed, measured 2026-09-05 against the published artifact. The
         # help text said 1.2GB for months — that is the UNCOMPRESSED size on disk,
         # and quoting it discouraged exactly the update this tool depends on.
         print("Fetching the vulnerability database (about 116MB)...")
-        result = (runner or ContainerRunner()).update_db()
+        result = runner.update_db()
         if result.exit_code != 0:
             print(f"Update failed: {result.stderr.strip()[-300:]}")
             return 1
@@ -367,7 +417,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         # The index is part of what "updated" means now (ADR-0018): a scan without
         # it fails its dependency check loudly. So its failure fails the command —
         # unlike KEV, which has a bundled snapshot to fall back on.
-        index_ok = _refresh_name_index()
+        index_ok = _refresh_name_index(build=args.build_index)
         print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
         return 0 if index_ok else 1
 
@@ -385,8 +435,16 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     workspace = Path(args.path).resolve()
     profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
+
+    def progress(message: str) -> None:
+        # The CLI prints its own per-Scanner lines already; the one progress event
+        # worth a line here is the image being pulled, which otherwise looks like a
+        # hang on the first run (23.2.4).
+        if message.startswith(("pulling ", "image pulled")):
+            print(f"  {message}", file=sys.stderr)
+
     try:
-        run = scan(workspace, runner=runner, profile=profile)
+        run = scan(workspace, runner=runner, profile=profile, on_progress=progress)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.

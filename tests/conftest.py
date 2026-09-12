@@ -9,41 +9,49 @@ import pytest
 
 from valvur.adapters.base import ScannerAdapter
 
-#: The real `urlopen`, for the two falsifiability tests that poison the socket
-#: layer themselves and need the HTTP layer to actually try (see `record_connections`).
+#: The real `urlopen` and opener, for the two falsifiability tests that poison the
+#: socket layer themselves and need the HTTP layer to actually try (see
+#: `record_connections`).
 REAL_URLOPEN = None
+REAL_OPENER_OPEN = None
 
 # ------------------------------------------------ the package-name index (ADR-0018)
 
-#: npm names the default test index says exist. PyPI's come from the popular list
-#: shipped in the image (3,000 real names); npm has no such list, so a few real ones
-#: are enough for the fixtures. Anything else does not exist — which is the point.
+#: Names the default test index says exist, per ecosystem. PyPI's come from the
+#: popular list shipped in the image (3,000 real names); the others have no such
+#: list, so a few real ones are enough for the fixtures. Anything else does not
+#: exist — which is the point.
 KNOWN_NPM = (
     "react", "react-dom", "lodash", "express", "axios", "chalk", "typescript",
     "eslint", "jest", "webpack", "vue", "next", "left-pad", "@types/node",
     "@types/react", "commander", "debug", "moment", "uuid", "semver",
 )
+KNOWN_GEMS = ("rails", "rack", "sinatra", "rspec", "puma", "nokogiri", "rake", "bundler")
+KNOWN_COMPOSER = ("monolog/monolog", "symfony/console", "laravel/framework",
+                  "guzzlehttp/guzzle", "phpunit/phpunit")
+KNOWN_CRATES = ("serde", "serde_json", "tokio", "clap", "anyhow", "regex", "rand")
 
 
-def write_name_index(directory: Path, *, pip=(), npm=(), built_at=None) -> Path:
+def write_name_index(directory: Path, *, built_at=None, **names) -> Path:
     """Write an index in the exact on-disk format `valvur update` produces, so tests
-    exercise the same reader against the same bytes."""
-    from valvur.checks.dependency_reality import canonical
+    exercise the same reader against the same bytes. `names` is per ecosystem
+    (`pip=[...]`, `gem=[...]`); every ecosystem's file is written, empty when not
+    given, so a Workspace declaring one is checked against nothing rather than
+    failing for want of an index."""
+    from valvur.checks.dependency_reality import _index_form
     from valvur.name_index import FILES, METADATA, _now
 
     directory.mkdir(parents=True, exist_ok=True)
-    for ecosystem, names in (("pip", pip), ("npm", npm)):
-        form = canonical if ecosystem == "pip" else str.lower
-        ordered = sorted({form(n).encode() for n in names})
-        (directory / FILES[ecosystem]).write_bytes(b"".join(n + b"\n" for n in ordered))
+    unknown = set(names) - set(FILES)
+    assert not unknown, f"no index for {unknown}"
     stamp = built_at or _now()
-    (directory / METADATA).write_text(json.dumps({
-        "schema": 1,
-        "ecosystems": {
-            eco: {"built_at": stamp, "count": len(names), "source": "test"}
-            for eco, names in (("pip", pip), ("npm", npm))
-        },
-    }))
+    entries = {}
+    for ecosystem, filename in FILES.items():
+        given = tuple(names.get(ecosystem, ()))
+        ordered = sorted({_index_form(ecosystem, n).encode() for n in given})
+        (directory / filename).write_bytes(b"".join(n + b"\n" for n in ordered))
+        entries[ecosystem] = {"built_at": stamp, "count": len(given), "source": "test"}
+    (directory / METADATA).write_text(json.dumps({"schema": 1, "ecosystems": entries}))
     return directory
 
 
@@ -52,7 +60,8 @@ def default_name_index(tmp_path_factory) -> Path:
     from valvur.checks.dependency_reality import _popular
 
     return write_name_index(
-        tmp_path_factory.mktemp("names"), pip=_popular().values(), npm=KNOWN_NPM
+        tmp_path_factory.mktemp("names"), pip=_popular().values(), npm=KNOWN_NPM,
+        gem=KNOWN_GEMS, composer=KNOWN_COMPOSER, cargo=KNOWN_CRATES,
     )
 
 
@@ -67,16 +76,32 @@ def _no_sockets_from_unit_tests(monkeypatch):
     with a dead network in production too.
     """
     import urllib.error
+    import urllib.parse
     import urllib.request
 
-    global REAL_URLOPEN
+    global REAL_URLOPEN, REAL_OPENER_OPEN
     REAL_URLOPEN = urllib.request.urlopen
+    REAL_OPENER_OPEN = urllib.request.OpenerDirector.open
 
     def refuse(request, *args, **kwargs):
         url = getattr(request, "full_url", request)
         raise urllib.error.URLError(f"unit tests do not open sockets (tried {url})")
 
     monkeypatch.setattr(urllib.request, "urlopen", refuse)
+
+    # The OCI client (`valvur.oci`) builds its own opener, for the redirect rule a
+    # registry needs, so `urlopen` above does not cover it. Openers may reach
+    # loopback and nothing else: the registry tests run a real `http.server` on
+    # 127.0.0.1, because a 401 challenge and a cross-host redirect are HTTP
+    # behaviour worth exercising for real, and loopback cannot leak anything.
+    def loopback_only(self, fullurl, *args, **kwargs):
+        url = getattr(fullurl, "full_url", fullurl)
+        host = urllib.parse.urlsplit(url).hostname
+        if host not in ("127.0.0.1", "localhost", "::1"):
+            raise urllib.error.URLError(f"unit tests do not open sockets (tried {url})")
+        return REAL_OPENER_OPEN(self, fullurl, *args, **kwargs)
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", loopback_only)
 
 
 @pytest.fixture(autouse=True)
@@ -100,8 +125,8 @@ def name_index(tmp_path, monkeypatch):
     nothing else does. Replaces the default for this test only."""
     from valvur import cache
 
-    def build(*, pip=(), npm=(), built_at=None) -> Path:
-        directory = write_name_index(tmp_path / "names", pip=pip, npm=npm, built_at=built_at)
+    def build(*, built_at=None, **names) -> Path:
+        directory = write_name_index(tmp_path / "names", built_at=built_at, **names)
         monkeypatch.setenv("VALVUR_NAME_INDEX", str(directory))
         monkeypatch.setattr(cache, "name_index", lambda: directory)
         return directory

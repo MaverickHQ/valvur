@@ -8,6 +8,7 @@ writes the Results Folder.
 from __future__ import annotations
 
 import contextlib
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -171,6 +172,30 @@ class ScanRun:
         return "nothing was found, by a scan able to support the claim"
 
 
+def _ensure_image(runner, on_progress) -> None:
+    from .runner import ImagePullFailed
+
+    present = getattr(runner, "image_present", None)
+    if present is None or present():
+        return
+    size = runner.pull_size_mb()
+    stated = f" ({size}MB)" if size else ""
+    if on_progress is not None:
+        on_progress(f"pulling {runner.image}{stated} — the first run only; the runtime "
+                    "keeps it")
+    started = time.monotonic()
+    result = runner.pull_image()
+    if result.exit_code != 0:
+        detail = (result.stderr.strip() or result.stdout.strip() or "(no output)")[-400:]
+        raise ImagePullFailed(
+            f"The image {runner.image} is not available locally and could not be pulled.\n"
+            f"The runtime said:\n  {detail}\n"
+            f"Fetch it yourself with: {runner.runtime} pull {runner.image}"
+        )
+    if on_progress is not None:
+        on_progress(f"image pulled ({time.monotonic() - started:.0f}s)")
+
+
 def _run_one(adapter, runner, workspace) -> tuple:
     """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
     # Part of the ScannerAdapter protocol (task 17.3) rather than a `getattr` the
@@ -254,6 +279,13 @@ def scan(
 
 
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRun:
+    # The image, if the runtime does not have it yet (10.2 claim 4). `run` would
+    # pull it silently, and a first scan that shows nothing for a minute looks hung —
+    # measured through Kiro (22.G.1): the pull happened on the first *scan*, with
+    # nothing on the status line to say so. Now it is said, with the size when the
+    # registry states one, and `valvur update` pulls it ahead of time.
+    _ensure_image(runner, on_progress)
+
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:

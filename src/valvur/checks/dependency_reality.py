@@ -13,10 +13,12 @@ list shipped in the image. Only first-publish age still asks a registry, and onl
 network is a loud failure with the command that fixes it, never a clean result (F3.5).
 
 Covers **Python** (`requirements*.txt`, and `pyproject.toml` in both PEP 621 and
-Poetry shapes) against PyPI, and **npm** (`package.json`) against the npm registry —
-both offline, from the index. **JVM** (`pom.xml`, Gradle build scripts and the
-version catalog) against Maven Central and **Go** (`go.mod`) against the module proxy
-are checked on `full` only: neither registry publishes a name list an index could be
+Poetry shapes) against PyPI, **npm** (`package.json`), **Ruby** (`Gemfile` and
+`*.gemspec`) against RubyGems, **PHP** (`composer.json`) against Packagist and
+**Rust** (`Cargo.toml`) against crates.io — all offline, from the index (Ruby, PHP
+and Rust since 23.2.2 and 23.2.3). **JVM** (`pom.xml`, Gradle build scripts and the version
+catalog) against Maven Central and **Go** (`go.mod`) against the module proxy are
+checked on `full` only: neither registry publishes a name list an index could be
 built from (ADR-0018 has the numbers), so on `offline` they are a stated Profile
 omission in the Coverage contract, not a failure and not a gap. Everything else is
 reported as missing coverage by `valvur.coverage` rather than passed over — which is
@@ -105,10 +107,11 @@ class DependencyRealityCheck(Check):
                 # index could be built from. A Profile omission, stated as one.
                 ignores.append(f"{manifests.label}: existence checked on `full` only "
                                "(no offline index exists for this registry)")
-        # Stated rather than left implicit: names are checked for existence in both
-        # ecosystems, but the near-miss typosquat comparison needs a corpus of popular
-        # package names and only PyPI's ships in the image.
-        ignores.append("npm: no typosquat near-miss comparison (no popular-npm corpus)")
+        # Stated rather than left implicit: names are checked for existence in every
+        # indexed ecosystem, but the near-miss typosquat comparison needs a corpus of
+        # popular package names and only PyPI's ships in the image.
+        ignores.append("typosquat near-miss comparison: PyPI only (no popular-name corpus "
+                       "for the other registries)")
         if not network:
             # The one question the local index cannot answer (ADR-0018).
             ignores.append("first-publish age: not checked without a network "
@@ -300,8 +303,19 @@ def _index_dir() -> Path:
 
 
 def _index_form(ecosystem: str, name: str) -> str:
-    """The spelling the index stores: PEP 503 for PyPI, lowercase for npm."""
-    return canonical(name) if ecosystem == "pip" else name.lower()
+    """The spelling the index stores, which is each registry's own idea of identity:
+    PEP 503 for PyPI; lowercase for npm and Packagist; lowercase with `-` folded to
+    `_` for crates.io; and exactly as written for RubyGems, which is case-sensitive
+    (`rails` exists, `Rails` does not — measured 2026-09-12)."""
+    if ecosystem == "pip":
+        return canonical(name)
+    if ecosystem == "cargo":
+        from ..name_index import crate_canonical
+
+        return crate_canonical(name)
+    if ecosystem == "gem":
+        return name
+    return name.lower()
 
 
 def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
@@ -353,6 +367,20 @@ def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
     for path in _manifests(workspace, "go.mod"):
         for module in _go_local_modules(path):
             defined.add(("gomod", module))
+    # A gemspec names the gem it describes; a `composer.json` names its package and
+    # may point `repositories` at path or VCS sources, whose packages are not on
+    # Packagist by construction; a `Cargo.toml` names its crate, and a workspace's
+    # members are each a `Cargo.toml` of their own in the tree.
+    for path in _manifests(workspace, "*.gemspec"):
+        match = _GEMSPEC_NAME.search(_text(path))
+        if match:
+            defined.add(("gem", match.group(1)))
+    for path in _manifests(workspace, "composer.json"):
+        defined |= {("composer", name) for name in _composer_local(path)}
+    for path in _manifests(workspace, "Cargo.toml"):
+        name = _cargo_package_name(path)
+        if name:
+            defined.add(("cargo", name))
     return defined
 
 
@@ -379,6 +407,14 @@ def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
         found |= _from_version_catalog(path, workspace)
     for path in _manifests(workspace, "go.mod"):
         found |= _from_go_mod(path, workspace)
+    for path in _manifests(workspace, "Gemfile"):
+        found |= _from_gemfile(path, workspace)
+    for path in _manifests(workspace, "*.gemspec"):
+        found |= _from_gemspec(path, workspace)
+    for path in _manifests(workspace, "composer.json"):
+        found |= _from_composer(path, workspace)
+    for path in _manifests(workspace, "Cargo.toml"):
+        found |= _from_cargo(path, workspace)
 
     # Never asked about, not merely unreported. A workspace member's name leaving the
     # machine buys nothing, and §3 is about what we transmit as much as what we say.
@@ -667,10 +703,190 @@ def _escape_go(module: str) -> str:
     return "".join(f"!{c.lower()}" if c.isupper() else c for c in module)
 
 
+# ------------------------------------------------------------- Ruby (23.2.2)
+
+#: `gem "name"` / `gem 'name', "~> 1.0", require: false`. The name is the first
+#: string argument; everything after it is options.
+_GEM_LINE = re.compile(r"""^\s*gem\s*\(?\s*["']([A-Za-z0-9_.\-]+)["'](.*)$""")
+#: Options that say the gem comes from somewhere other than a registry — a git
+#: repository, a path in the tree, a GitHub shorthand — in both hash syntaxes.
+_GEM_NOT_REGISTRY = re.compile(r"""(?:\b(?:git|github|path|source|gist|bitbucket)\s*:)|"""
+                               r"""(?::(?:git|github|path|source|gist|bitbucket)\s*=>)""")
+#: A block whose gems are not on RubyGems: a `source` other than rubygems.org, or a
+#: `path`/`git` block. `group :test do` and `platforms :jruby do` are neither.
+_GEM_PRIVATE_BLOCK = re.compile(
+    r"""^\s*(?:(?:path|git)\s*\(?\s*["'][^"']*["']|source\s*\(?\s*["'](?!https://rubygems\.org/?["'])[^"']*["'])"""
+    r"""[^#]*\bdo\b"""
+)
+_BLOCK_OPENS = re.compile(r"\bdo\b(?:\s*\|[^|]*\|)?\s*$")
+_GEMSPEC_DEPENDENCY = re.compile(
+    r"""\.add_(?:runtime_|development_)?dependency\s*\(?\s*["']([A-Za-z0-9_.\-]+)["']"""
+)
+_GEMSPEC_NAME = re.compile(r"""\.name\s*=\s*["']([A-Za-z0-9_.\-]+)["']""")
+
+
+def _from_gemfile(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """Every `gem` line outside a block that points somewhere other than RubyGems.
+
+    Ruby is not parsed; the lines are. A Gemfile is a DSL of one call per line, and
+    the shapes that matter — `gem` with a name, the options that make it
+    non-registry, and the `source`/`path`/`git ... do` blocks that make everything
+    inside non-registry — are regular. `group ... do` blocks are transparent.
+    """
+    rel = str(path.relative_to(workspace))
+    found: set[tuple[str, str, str]] = set()
+    stack: list[bool] = []          # per open block: is it a private source?
+    for raw in _text(path).splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped == "end" or stripped.startswith("end "):
+            if stack:
+                stack.pop()
+            continue
+        match = _GEM_LINE.match(line)
+        if match and not any(stack) and not _GEM_NOT_REGISTRY.search(match.group(2)):
+            found.add(("gem", match.group(1), rel))
+        if _BLOCK_OPENS.search(line):
+            stack.append(bool(_GEM_PRIVATE_BLOCK.match(line)))
+    return found
+
+
+def _from_gemspec(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """`add_dependency`, `add_runtime_dependency` and `add_development_dependency`
+    on whatever the spec object is called."""
+    rel = str(path.relative_to(workspace))
+    return {("gem", name, rel) for name in _GEMSPEC_DEPENDENCY.findall(_text(path))}
+
+
+# -------------------------------------------------------------- PHP (23.2.2)
+
+_COMPOSER_FIELDS = ("require", "require-dev")
+
+
+def _from_composer(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """`require` and `require-dev`. A platform package — `php`, `ext-json`,
+    `lib-curl`, `composer-plugin-api` — has no vendor and is not on Packagist;
+    every registry package is `vendor/name`, lowercase by Composer's own rule."""
+    rel = str(path.relative_to(workspace))
+    try:
+        data = json.loads(_text(path))
+    except (json.JSONDecodeError, ValueError):
+        return set()
+    if not isinstance(data, dict):
+        return set()
+    found: set[tuple[str, str, str]] = set()
+    for field in _COMPOSER_FIELDS:
+        table = data.get(field)
+        if not isinstance(table, dict):
+            continue
+        for name in table:
+            if isinstance(name, str) and "/" in name:
+                found.add(("composer", name.lower(), rel))
+    return found
+
+
+def _composer_local(path: Path) -> set[str]:
+    """The package this manifest defines, and every package its `repositories`
+    fetch from somewhere other than Packagist: a `path` or `vcs`/`git` repository
+    named by its URL's last two segments, or a `package` repository by its own
+    `name`. A private library required this way is not a hallucination."""
+    try:
+        data = json.loads(_text(path))
+    except (json.JSONDecodeError, ValueError):
+        return set()
+    if not isinstance(data, dict):
+        return set()
+    local: set[str] = set()
+    if isinstance(data.get("name"), str) and "/" in data["name"]:
+        local.add(data["name"].lower())
+    repositories = data.get("repositories")
+    entries = repositories.values() if isinstance(repositories, dict) else repositories
+    for entry in entries if isinstance(entries, list | type({}.values())) else []:
+        if not isinstance(entry, dict):
+            continue
+        kind = entry.get("type")
+        if kind == "package" and isinstance(entry.get("package"), dict):
+            name = entry["package"].get("name")
+            if isinstance(name, str) and "/" in name:
+                local.add(name.lower())
+        elif kind in ("vcs", "git", "github", "gitlab", "bitbucket", "path"):
+            url = entry.get("url")
+            if isinstance(url, str):
+                segments = [seg for seg in url.rstrip("/").split("/") if seg]
+                if len(segments) >= 2:
+                    name = f"{segments[-2]}/{segments[-1]}".removesuffix(".git").lower()
+                    local.add(name)
+    return local
+
+
+# ------------------------------------------------------------- Rust (23.2.3)
+
+_CARGO_DEPENDENCY_TABLES = ("dependencies", "dev-dependencies", "build-dependencies")
+
+
+def _from_cargo(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """`[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, the same
+    three under any `[target.<cfg>]`, and `[workspace.dependencies]`.
+
+    A table-valued entry with `path` or `git` comes from somewhere other than
+    crates.io; one with `workspace = true` is declared in the workspace table and
+    is read there; one with `package = "real-name"` renames a crate, and the real
+    name is the one that has to exist. An alternative `registry` is not crates.io
+    and is skipped.
+    """
+    import tomllib
+
+    rel = str(path.relative_to(workspace))
+    try:
+        data = tomllib.loads(_text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+
+    tables: list[dict] = []
+    for key in _CARGO_DEPENDENCY_TABLES:
+        tables.append(data.get(key) or {})
+    for target in (data.get("target") or {}).values():
+        if isinstance(target, dict):
+            for key in _CARGO_DEPENDENCY_TABLES:
+                tables.append(target.get(key) or {})
+    tables.append((data.get("workspace") or {}).get("dependencies") or {})
+
+    found: set[tuple[str, str, str]] = set()
+    for table in tables:
+        if not isinstance(table, dict):
+            continue
+        for alias, spec in table.items():
+            name = alias
+            if isinstance(spec, dict):
+                if spec.keys() & {"path", "git", "registry"} or spec.get("workspace") is True:
+                    continue
+                if isinstance(spec.get("package"), str):
+                    name = spec["package"]
+            elif not isinstance(spec, str):
+                continue
+            if isinstance(name, str) and name:
+                found.add(("cargo", name, rel))
+    return found
+
+
+def _cargo_package_name(path: Path) -> str | None:
+    import tomllib
+
+    try:
+        data = tomllib.loads(_text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return None
+    name = (data.get("package") or {}).get("name")
+    return name if isinstance(name, str) and name else None
+
+
 #: Where each ecosystem's names are verified, named as a reader would name it.
 _REGISTRY_NAME = {
     "pip": "PyPI", "npm": "the npm registry",
     "maven": "Maven Central", "gomod": "the Go module proxy",
+    "gem": "RubyGems", "composer": "Packagist", "cargo": "crates.io",
 }
 
 #: How many registry requests are in flight at once on `full`. Measured 2026-09-12
@@ -711,6 +927,18 @@ def _lookup(ecosystem: str, name: str) -> dict | None:
     ask* must never be reported as clean — and writing it twice is how the two answers
     end up drifting apart.
     """
+    url, as_json = _registry_url(ecosystem, name)
+    body = _fetch(url, as_json=as_json)
+    if isinstance(body, list):
+        # RubyGems answers with a bare list of versions; everything else with an
+        # object. Wrapped so the caller has one shape to read an age from.
+        return {"versions": body}
+    return body
+
+
+def _registry_url(ecosystem: str, name: str) -> tuple[str, bool]:
+    """Where a name's existence (and, where the registry states it, first
+    publication) is asked, and whether the answer is JSON worth reading."""
     if ecosystem == "npm":
         # `safe="@/"`: a scoped name is `@scope/name`, and the slash stays a slash.
         # Measured against registry.npmjs.org 2026-09-10, all of `@types/node`,
@@ -718,23 +946,34 @@ def _lookup(ecosystem: str, name: str) -> dict | None:
         # there. It is the canonical form npm itself uses, and private mirrors
         # (Artifactory, Verdaccio, Nexus) are stricter than npmjs.org about the
         # encoded variant. This product's users are disproportionately behind one.
-        return _fetch(f"https://registry.npmjs.org/{quote(name, safe='@/')}")
+        return f"https://registry.npmjs.org/{quote(name, safe='@/')}", True
     if ecosystem == "maven":
         # Existence only: `maven-metadata.xml` exists for every artifact ever
         # published and says nothing about first publication, so there is no age.
         group, _, artifact = name.partition(":")
         path = "/".join(quote(part, safe="") for part in group.split("."))
-        url = f"https://repo1.maven.org/maven2/{path}/{quote(artifact, safe='')}/maven-metadata.xml"
-        return _fetch(url, as_json=False)
+        return (f"https://repo1.maven.org/maven2/{path}/{quote(artifact, safe='')}"
+                "/maven-metadata.xml"), False
     if ecosystem == "gomod":
         # The proxy fetches from the origin on demand, so a 404 here means `go get`
         # would fail too. 410 is the proxy's "gone" and means the same for our purposes.
-        url = f"https://proxy.golang.org/{quote(_escape_go(name), safe='/!')}/@v/list"
-        return _fetch(url, as_json=False)
-    return _fetch(f"https://pypi.org/pypi/{quote(name, safe='')}/json")
+        return f"https://proxy.golang.org/{quote(_escape_go(name), safe='/!')}/@v/list", False
+    if ecosystem == "gem":
+        # Every version with its `created_at`; the gem endpoint itself only dates
+        # the latest. Case-sensitive, like the index (measured: `Rails.json` → 404).
+        return f"https://rubygems.org/api/v1/versions/{quote(name, safe='')}.json", True
+    if ecosystem == "composer":
+        # Composer's own metadata endpoint. Case-insensitive at the server; the
+        # index holds lowercase, so the name arrives lowercase.
+        return f"https://repo.packagist.org/p2/{quote(name, safe='/')}.json", True
+    if ecosystem == "cargo":
+        from ..name_index import crate_canonical
+
+        return f"https://crates.io/api/v1/crates/{quote(crate_canonical(name), safe='')}", True
+    return f"https://pypi.org/pypi/{quote(name, safe='')}/json", True
 
 
-def _fetch(url: str, *, as_json: bool = True) -> dict | None:
+def _fetch(url: str, *, as_json: bool = True) -> dict | list | None:
     # Both callers build this from a literal https:// prefix and a percent-quoted
     # package name, so no caller-controlled scheme can reach here. Asserted rather
     # than assumed, because a scheme reaching urlopen is how a dependency name turns
@@ -748,7 +987,7 @@ def _fetch(url: str, *, as_json: bool = True) -> dict | None:
                 response.read()
                 return {}        # exists; the body carries nothing we use
             body = json.load(response)
-            return body if isinstance(body, dict) else {}
+            return body if isinstance(body, dict | list) else {}
     except urllib.error.HTTPError as exc:
         if exc.code in (404, 405, 410):
             return None          # definitively absent — the headline finding
@@ -758,9 +997,19 @@ def _fetch(url: str, *, as_json: bool = True) -> dict | None:
 
 
 def _age_days(ecosystem: str, meta: dict) -> float | None:
+    """Days since first publication, from what each registry states about it."""
     stamps: list[str] = []
     if ecosystem == "npm":
         created = (meta.get("time") or {}).get("created")
+        if isinstance(created, str):
+            stamps = [created]
+    elif ecosystem == "gem":
+        stamps = [v["created_at"] for v in meta.get("versions") or []
+                  if isinstance(v, dict) and isinstance(v.get("created_at"), str)]
+    elif ecosystem == "composer":
+        stamps = _packagist_times(meta)
+    elif ecosystem == "cargo":
+        created = (meta.get("crate") or {}).get("created_at")
         if isinstance(created, str):
             stamps = [created]
     else:
@@ -777,6 +1026,24 @@ def _age_days(ecosystem: str, meta: dict) -> float | None:
         return (datetime.now(UTC) - datetime.fromisoformat(first)).days
     except ValueError:
         return None
+
+
+def _packagist_times(meta: dict) -> list[str]:
+    """Composer 2's `p2` metadata is *minified*: the first version carries every
+    field and each later one only what changed, so a missing `time` means "same
+    as the version before", not "unknown". Expanded here, or a package whose
+    versions share a timestamp would have no first-publish date at all."""
+    stamps: list[str] = []
+    for versions in (meta.get("packages") or {}).values():
+        carried: str | None = None
+        for version in versions if isinstance(versions, list) else []:
+            if not isinstance(version, dict):
+                continue
+            if isinstance(version.get("time"), str):
+                carried = version["time"]
+            if carried:
+                stamps.append(carried)
+    return stamps
 
 
 def _popular() -> dict[str, str]:

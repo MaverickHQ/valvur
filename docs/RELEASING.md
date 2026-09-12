@@ -16,9 +16,13 @@ These cannot be automated, and the workflow fails without them.
 2. **A `release` GitHub environment**, under Settings → Environments. Required by
    trusted publishing above, and the place to add a manual approval gate if you want
    one before anything is published.
-3. **The GHCR package must be public** (task 12a.1), or every user's first pull
-   fails — measured 2026-08-31, and the failure surfaces as a confusing mount error
-   rather than an authentication one.
+3. **The GHCR packages must be public** (task 12a.1) — `valvur`, the image, or every
+   user's first pull fails (measured 2026-08-31, and the failure surfaces as a
+   confusing mount error rather than an authentication one); and `valvur-index`, the
+   published package-name index (23.2.1), or every `valvur update` says *"the
+   registry demands credentials and valvur pulls anonymously"* and walks the five
+   registries itself for eight minutes instead. The index package is created private
+   by the first run of `index.yml`; make it public under the package's settings.
 4. **TestPyPI trusted publishing, for rehearsals.** On test.pypi.org → the `valvur`
    project (or a pending publisher, before it exists) → Publishing → the same GitHub
    publisher as above: `MaverickHQ` / `valvur` / `release.yml` / environment
@@ -186,6 +190,23 @@ jobs that failed, with the same tag and the same `GITHUB_SHA`, so the artifacts 
 built from the same tree. Re-running the whole workflow on a tag that already has a
 wheel on PyPI fails at the PyPI step — correctly. Never `git tag -f` a version that
 reached PyPI.
+
+## The daily index (23.2.1)
+
+`.github/workflows/index.yml` runs at 03:23 UTC every day and on dispatch. It walks
+the five registries with `python -m valvur.name_index build` — the same code as
+`valvur update --build-index` — pushes the result to `ghcr.io/maverickhq/valvur-index`
+under the day's date and `latest`, signs it keylessly under this repository's
+workflow identity, then **pulls it back with the shim's own client** (`… pull`),
+cosign included, and compares every file byte for byte with what it built. A
+failure there is loud and the tag has already moved: point `latest` at the previous
+day (`oras tag ghcr.io/maverickhq/valvur-index:<yesterday> latest`) and read the run.
+Nothing in a release depends on it; a user whose `valvur update` cannot reach it
+walks the registries, as before 23.2.1.
+
+The npm walk is incremental day to day because the workflow restores yesterday's
+index from the Actions cache; a cache miss costs a full walk (five and a half
+minutes) and nothing else.
 
 ## The air-gap recipe that was measured (22.B.3)
 

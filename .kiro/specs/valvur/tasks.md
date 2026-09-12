@@ -3392,8 +3392,8 @@ A. OWNER ACTIONS — nothing downstream can start
 D1. 12a.7 (second half)  publish 0.2.0  ← needs PyPI trusted publishing + a
                                            `release` environment, also owner actions
         ↓
-   Phase 23 Block 2  the published index   ← added 2026-09-12; the first ten
-   Phase 23 Block 3  valvur doctor            minutes, before a stranger measures them
+   Phase 23 Block 2  the published index   ✅ 2026-09-12 — the first ten minutes,
+   Phase 23 Block 3  valvur doctor            before a stranger measures them
         ↓
 B. NEEDS A PERSON WHO HAS NEVER SEEN VALVUR
    10.1.1 · 10.1.2   the usability gate
@@ -3509,7 +3509,7 @@ Block D  architecture sediment          ─┼─ independent; any order, after 
 Block E  corpus and rules               ─┤
 Block F  the first impression           ─┘
         ↓
-Phase 23 Blocks 2–3  (index, doctor)   ← added 2026-09-12, from the Kiro run
+Phase 23 Blocks 2–3  (index ✅, doctor)  ← added 2026-09-12, from the Kiro run
         ↓
 21.B / 21.D2  the usability gate → v1.0.0
 ```
@@ -4104,7 +4104,7 @@ index is built on every user's machine. The walk exists because we have not publ
 the index. The release pipeline exists now; this is the `trivy-db` pattern ADR-0018
 already named as the eventual answer.
 
-- [ ] **23.2.1** A daily workflow builds the index (PyPI simple, npm `_all_docs` once
+- [x] **23.2.1** A daily workflow builds the index (PyPI simple, npm `_all_docs` once
   then `_changes`, and the three below) and pushes it as an OCI artifact —
   `ghcr.io/maverickhq/valvur-index:latest` plus a dated tag — cosign-signed, with the
   `built_at` per ecosystem in its metadata. `valvur update` pulls it (30–50MB, seconds)
@@ -4113,23 +4113,121 @@ already named as the eventual answer.
   `VALVUR_DB_REPOSITORY` mirrors the database, and `docs/AIR-GAPPED.md` gains the row.
   **First run 8 min → about 1.**
 
-- [ ] **23.2.2** Ruby and PHP offline. `rubygems.org/names` (196,830 names, 2.8MB) and
+  > **Done 2026-09-12.** `index.yml` (daily 03:23 UTC, and on dispatch): `python -m
+  > valvur.name_index build` — the same code as `valvur update --build-index` — then
+  > `oras push` with `metadata.json` as the config blob and one gzip layer per
+  > ecosystem, `cosign sign` under the workflow identity, then the artifact is pulled
+  > back with the shim's own client and `cmp`'d file by file against what was built,
+  > with cosign on the runner so the identity regexp is proven daily. **The shim's
+  > client is `valvur/oci.py`**, zero dependencies: resolve, manifest, blob, the
+  > anonymous bearer challenge and the CDN redirect — both measured against GHCR
+  > with `trivy-db:2` before writing a line, and both reproduced by a real
+  > `http.server` on loopback in the tests rather than a monkeypatch. Every byte is
+  > digest-checked; every file is checked for the sorted-list invariant the reader
+  > bisects on, as it streams. **Measured**: the real index is 34MB compressed
+  > (npm 25MB); pulled from a local `registry:2` in **1.7s**; pushed with the exact
+  > `oras` command the workflow uses. That first real pull found a defect the unit
+  > fixtures could not: every name fragment straddling a 1MB chunk boundary was
+  > written twice — `cmp` caught it, and a 300,000-name fixture now pins it.
+  > **Signature**: verified with `cosign` when installed, stated on one line when
+  > not, and a cosign that refuses is `SignatureInvalid` — never a fallback; the
+  > same run against the unsigned local artifact was refused with the message that
+  > names `cosign copy`/`oras cp --recursive`. Why not verify keylessly in the shim
+  > itself, and why not a pinned key, is in ADR-0018's amendment. Anonymous only,
+  > pinned by a test: no credential store, no `GITHUB_TOKEN`. `VALVUR_INDEX_
+  > REPOSITORY` set explicitly is the only source tried; unset, an unreachable
+  > registry falls back to the walk, loudly — and the walk, being 400MB now, skips
+  > any registry it walked within twenty hours unless `--build-index` forces it,
+  > which is what keeps four CI jobs a push from re-streaming the crates dump.
+  > **Until the owner makes the package
+  > public (23.1.1), every user's update takes the fallback** — the workflow warns
+  > about exactly that and checks the round trip with authenticated tools instead.
+
+- [x] **23.2.2** Ruby and PHP offline. `rubygems.org/names` (196,830 names, 2.8MB) and
   `packagist.org/packages/list.json` (461,636, 12MB) are each one request and drop
   straight into `name_index.FILES`; a `Gemfile`/`*.gemspec` parser and a
   `composer.json` parser join `dependency_reality.py`. The coverage table goes from two
   ecosystems offline to four, and the corpus's sinatra note changes from "no existence
   check" to a checked project.
 
-- [ ] **23.2.3** Rust, through the published index only. crates.io's daily dump is
+  > **Done 2026-09-12.** Measured before deciding the stored form: RubyGems is
+  > **case-sensitive** (`rails.json` 200, `Rails.json` 404), so gem names are stored
+  > and looked up as spelled and `gem "Rails"` is reported nonexistent, which is what
+  > `bundle install` would say; Packagist is case-insensitive and lowercase by rule.
+  > The Gemfile parser reads lines, not Ruby: `gem` with its options (`git:`,
+  > `github:`, `path:`, `source:` and the `:git =>` spellings skip), and a block
+  > stack so gems inside `source "…" do` (a private server), `path … do` and
+  > `git … do` are skipped while `group`/`platforms` blocks are transparent;
+  > gemspecs contribute `add_dependency`/`add_runtime_dependency`/
+  > `add_development_dependency` and define their own gem. The composer parser
+  > reads `require`/`require-dev`, skips platform packages (no vendor), and treats
+  > the `repositories` a manifest points at — `vcs`/`git` by URL, `path`, `package`
+  > by name — as defined locally, because a private library required that way is
+  > not a hallucination. On `full`, age from every gem version's `created_at` and
+  > from Composer 2's minified `p2` metadata, expanded (a missing `time` means
+  > "same as before"). **Proven in the real image**: sinatra (git: and github:
+  > sources, groups, gemspecs) and monolog — added to the corpus as its first PHP
+  > project — scan offline with no false nonexistent; a workspace with
+  > `rails-ai-helper-sdk` and `acme/llm-composer-bridge` reports both, `what_left_
+  > the_machine: nothing`. Every assertion mutation-tested (nine killed).
+
+- [x] **23.2.3** Rust, through the published index only. crates.io's daily dump is
   1.86GB — fine for the workflow, impossible per user — and `crates.csv` inside it is
   the name list. `Cargo.toml` parser; `FILES["cargo"]`; the coverage contract says
   "offline, from the published index" and `valvur update` without the published index
   says Rust is unavailable rather than walking anything.
 
-- [ ] **23.2.4** `valvur update` pulls the image too, and `scan_status` says *"pulling
+  > **Done 2026-09-12 — and the premise was wrong, which measuring found.**
+  > `data/crates.csv` is the archive's *third* member, after 2MB of README and SQL,
+  > so a streaming reader reaches it at once and stops when it ends: **381MB read of
+  > the 1.86GB, 17.5 seconds, 91MB of memory, 332,494 names** (the CSV carries every
+  > crate's README — fields past the `csv` module's limit — and only the `name`
+  > column is kept). That is 2.6× npm's walk in bytes and a tenth of it in time, so
+  > Rust is walked like the other four: `valvur update --build-index` builds all
+  > five, there is no "published only" ecosystem, and the "unavailable" message this
+  > task specified was never needed. crates.io folds case and `-`/`_` (`Serde` and
+  > `serde-json` both answer with the underscore form) and the dump has no two
+  > names that collide under the fold, so `serde-json` in a manifest and
+  > `serde_json` in the index are the same crate. The parser reads `[dependencies]`,
+  > `[dev-dependencies]`, `[build-dependencies]`, the same under any `[target.…]`,
+  > and `[workspace.dependencies]`; `path`/`git`/`registry` entries and
+  > `workspace = true` skip; `package = "real"` names the crate that has to exist;
+  > every `[package].name` in the tree is local. **Proven in the real image**:
+  > ripgrep — a workspace of many members and path dependencies — scans offline with
+  > no false nonexistent, and `tokio-ai-agent-runtime` is reported. On `full`, age
+  > from `crate.created_at`.
+
+- [x] **23.2.4** `valvur update` pulls the image too, and `scan_status` says *"pulling
   ghcr.io/…:0.2.0 (240MB)"* when the image is not local — checked with
   `image inspect` before the first launch. Claim 4 of 10.2 becomes testable, and is
   tested: remove the local image, run the harness, read the status line.
+
+  > **Done 2026-09-12.** `ContainerRunner.image_present()` (`image inspect`, ms),
+  > `pull_size_mb()` (the registry's manifest through the same `oci.py` client —
+  > the platform's layers summed from the image index; measured against
+  > `ghcr.io/aquasecurity/trivy:0.65.0`, a real multi-platform image: 53MB for
+  > arm64 in 0.9s, anonymously; None rather than a guess when the registry cannot
+  > say, which a private package cannot) and `pull_image()` (`<runtime> pull`,
+  > streamed line by line to the terminal for `update`, captured for a scan).
+  > `api._scan_locked` asks first — *before* `compat.check`, which reads no label
+  > from a missing image and passes — and a scan over MCP reports `pulling <image>
+  > (<n>MB) — the first run only` as its own `Now:` line on `scan_status`, then
+  > `image pulled (Ns)` among the completed stages; the CLI prints the same two
+  > lines to stderr. `valvur update` pulls before the database, because the
+  > database update runs Trivy inside the image and was pulling it silently under
+  > Trivy's name. A failed pull is `ImagePullFailed` with the runtime's own words
+  > and the `pull` command to run by hand. **Measured as the task asked**: the
+  > image deleted (`docker rmi` + prune, 1.6GB reclaimed), `valvur-mcp` driven over
+  > stdio with `VALVUR_IMAGE` pointed at a registry on the Docker VM's own network
+  > — `image inspect` said absent, the pull ran, and the first `scan_status` (after
+  > its 15s wait) read `Completed so far: image pulled (2s), checkov: ok, …`. The
+  > pull took two seconds because the registry was VM-local; from GHCR at 100 Mbit
+  > it is ~26s, so the first poll would still be inside it and read `Now: pulling
+  > …` — that rendering is pinned by a unit test with a slow fake pull. The size
+  > was absent on that line, honestly: the shim on the Mac could not reach the
+  > VM-local registry's manifest, and the private GHCR package answers 401, so the
+  > sized form of the line is measured against trivy's public image and will show
+  > for valvur's the day the package is public.
 
 ### 3 — `valvur doctor`
 

@@ -66,6 +66,7 @@ a second. PyPI adds ~530 projects a day (RSS, 39 items over 1h47m).
 - An index valvur publishes itself, the `trivy-db` pattern — the right answer to the
   first-run cost, and deferred: it would stack on a release pipeline that has never
   run (Phase 22 Block B). Revisit once 22.B.4 has measured the true first run.
+  *Done, 23.2.1 — see the amendment below.*
 
 So: full pull from `_all_docs` when there is no index, incremental from `_changes`
 after that, both from `valvur update`, both into the host cache beside the
@@ -102,6 +103,66 @@ Neither registry states first publication, so there is no age for either. The
 eventual answer for both is the same as npm's first-run cost: an index valvur builds
 and publishes itself, once the release pipeline exists.
 
+## Amendment (2026-09-12, tasks 23.2.1–23.2.3): published, and five ecosystems
+
+**The index is now built once a day by a workflow in this repository and published
+as a signed OCI artifact**, `ghcr.io/maverickhq/valvur-index:latest` plus a dated
+tag — the `trivy-db` pattern the section above deferred. `valvur update` pulls it
+first: the artifact's config blob *is* the index's `metadata.json`, so two small
+requests establish what is there and how old it is, and when every file on disk
+already carries the published `built_at` nothing else moves. Otherwise each layer —
+one gzip file per ecosystem — streams through the shim's own registry client
+(`valvur/oci.py`, zero dependencies: resolve, manifest, blob, the anonymous bearer
+challenge GHCR issues and the CDN redirect it answers blobs with, both measured) and
+is checked as it lands: sha256 against the manifest, then the invariants the reader
+bisects on — sorted, no blank line — then renamed into place. **34MB on the wire,
+1.7 seconds from a local registry**, against thirty seconds to eight minutes for the
+walk. The walk stays: it is what the workflow itself runs, the fallback when the
+registry is unreachable, and `valvur update --build-index` on demand. As the
+fallback it is 400MB, so a registry walked within the last twenty hours is not
+walked again unless forced — a CI job restoring yesterday's cache, or a user running
+`update` twice while GHCR is down, pays it once a day at most.
+
+**Signature.** The artifact is signed keylessly, under the same workflow identity as
+the image. The shim verifies it with `cosign` when cosign is installed and says so
+on one line when it is not (`signature: not verified: cosign is not installed`,
+recorded in the metadata and so in `run.json`); a cosign that runs and *refuses* is
+`SignatureInvalid`, which stops the update outright — never a fallback, never
+"unverified". Three alternatives were rejected: reimplementing keyless verification
+(a Fulcio chain, a Rekor inclusion proof and an OIDC SAN) in a shim with no
+dependencies is the wrong trade for a security tool; a pinned-key signature
+verified by a home-made ECDSA would put crypto we wrote in the product and a key on
+the owner's desk; bundling cosign in the image adds ~90MB to make the verification
+depend on the runtime, and 23.4.6 is trying to make the image smaller. The
+vulnerability database this sits beside is pulled by Trivy with no signature at all
+(`trivy-db:2` has no `.sig` tag — checked), so this posture is the stronger of the
+two. `valvur doctor` (23.3.1) will name a missing cosign.
+
+**Mirrors.** `VALVUR_INDEX_REPOSITORY` names a copy in any registry, the way
+`VALVUR_DB_REPOSITORY` does for the database; `VALVUR_INDEX_INSECURE=1` is
+`--insecure` for it. Set explicitly, it is the only source tried — an operator who
+named a mirror wants to hear that the mirror failed, not watch the internet being
+tried from inside their air gap. `cosign copy` or `oras cp --recursive` carries the
+signature across; a copy made without it is refused by a cosign-equipped shim,
+which is the point. The static-file mirror (`VALVUR_NAME_INDEX_URL`) remains and
+wins over both.
+
+**Three more ecosystems, from the same measurement discipline.** RubyGems publishes
+`rubygems.org/names` (196,829 names, 2.8MB, one request; case-sensitive — `rails`
+answers 200 and `Rails` 404 — so names are stored as spelled). Packagist publishes
+`packages/list.json` (461,638 names, 3.6MB gzip-encoded; case-insensitive, stored
+lowercase). crates.io publishes nothing but a 1.86GB database dump — and the phase
+note that called that "impossible per user" was written before measuring it:
+`data/crates.csv` is the archive's third member, so a streaming read reaches it
+after 2MB and can stop when it ends. **381MB read, 17.5 seconds, 91MB of memory**,
+332,494 names; the CSV carries every crate's README, so the reader keeps the `name`
+column and nothing else. crates.io folds case and `-`/`_` (`Serde` and `serde-json`
+answer `serde` and `serde_json`), and no two names in the dump collide under that
+fold, so that is the stored form. All three are in `FILES`, all three are walked by
+`--build-index`, and all three are answered offline. The full walk of five
+registries measured **31.6 seconds** with npm incremental. What remains `full`-only
+is JVM and Go, for the reasons above.
+
 ## Consequences
 
 - The dependency-reality Check runs on **both** Profiles. On `offline` it answers
@@ -117,6 +178,7 @@ and publishes itself, once the release pipeline exists.
   `valvur update` fetches both.
 - `valvur update` gains ~30MB and, the first time only, ~5.5 minutes for npm. Both
   numbers belong in `EVALUATING.md` (22.B.4). Air-gapped mirroring of the index is
-  22.B.3's job, alongside the database's.
+  22.B.3's job, alongside the database's. *Since 23.2.1 the first run pulls 34MB
+  and the walk is the fallback.*
 - On the `full` Profile the registry is now asked only about names the index says
   exist, for their age — a nonexistent name is settled locally and never sent.

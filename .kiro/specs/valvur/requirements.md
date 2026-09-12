@@ -150,6 +150,13 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
    > every **Profile**. *"Each declared dependency"* is satisfied where we say it is,
    > and where it is not, the reader is told rather than left to infer coverage from
    > silence.
+   >
+   > **Extended 2026-09-12.** JVM and Go are read on `full` (22.A.4); Ruby
+   > (`Gemfile`, `*.gemspec`), PHP (`composer.json`) and Rust (`Cargo.toml`) are read
+   > offline from the **Name Index** (23.2.2, 23.2.3). What remains unread — a
+   > `Pipfile` or `setup.py` with nothing readable beside it, a lockfile alone — is
+   > still reported by `coverage.py` as before, and the mechanism is pinned against a
+   > hypothetical ecosystem with no parser so it cannot rot for want of a live case.
 
 2. F3.2 — WHEN a declared dependency does not exist on its registry, valvur SHALL
    raise a **Finding** of the highest severity tier.
@@ -169,9 +176,10 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
 
    > **Met for PyPI, by proxy (task 22.C.2).** "Substantially more popular" is
    > membership of the top-3,000 list shipped in the image, not the 100× download
-   > ratio `design.md` names, for the same reason as F3.3. npm has no such list in
-   > the image, so npm names are checked for existence and not for similarity — the
-   > Coverage contract says so on every run (19.E.1).
+   > ratio `design.md` names, for the same reason as F3.3. No other registry has such
+   > a list in the image, so npm, RubyGems, Packagist and crates.io names are checked
+   > for existence and not for similarity — the Coverage contract says so on every
+   > run (19.E.1).
 5. F3.5 — IF the Dependency Reality **Check** cannot reach a registry, THEN valvur
    SHALL record the **Check** as skipped in **Provenance** and SHALL NOT report its
    dependencies as clean.
@@ -455,6 +463,10 @@ of fixes, so that nothing changes my code without my decision.
    analysis. Disclosure is a better answer than an impossible claim.*
 5. F10.5 — valvur SHALL support retrieving vulnerability databases from a
    user-specified OCI registry for air-gapped operation.
+   *Extended 2026-09-12 (task 23.2.1): the **Name Index** is an OCI artifact too,
+   published daily and signed, and `VALVUR_INDEX_REPOSITORY` mirrors it the way
+   `VALVUR_DB_REPOSITORY` mirrors the database; the static-file mirror of 22.B.3
+   remains. `docs/AIR-GAPPED.md` is the measured recipe.*
 6. F10.6 — The host shim SHALL install without a compiler, without the **Scanners**
    present on the host, and with **no runtime dependencies at all** — including the
    MCP server, which is on the primary install path.

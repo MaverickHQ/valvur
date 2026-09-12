@@ -77,6 +77,7 @@ def record_connections(monkeypatch):
     # attempt to reach the poison — otherwise the falsifiability tests below would
     # see no connection for the wrong reason.
     monkeypatch.setattr(urllib.request, "urlopen", conftest.REAL_URLOPEN)
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", conftest.REAL_OPENER_OPEN)
 
     def deny(name):
         def blocked(*args, **kwargs):

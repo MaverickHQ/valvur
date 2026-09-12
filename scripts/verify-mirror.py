@@ -2,15 +2,19 @@
 """Prove an air-gapped configuration reaches only its mirrors.
 
     VALVUR_DB_REPOSITORY=mirror.internal:5000/trivy-db \\
-    VALVUR_NAME_INDEX_URL=http://mirror.internal:8080 \\
+    VALVUR_INDEX_REPOSITORY=mirror.internal:5000/valvur-index \\
     python3 scripts/verify-mirror.py [path-to-scan]
 
 Runs `valvur update` and then an `offline` scan with every connect path in this
 process poisoned — except to the hosts named in the mirror settings, and loopback.
 Any other destination is refused the way an air gap would refuse it, recorded, and
 fails the verdict at the end. That covers the host half of the claim (22.B.3): the
-shim fetches the package-name index and CISA KEV itself, from VALVUR_NAME_INDEX_URL
-and VALVUR_KEV_URL when set.
+shim fetches the package-name index and CISA KEV itself, from
+VALVUR_INDEX_REPOSITORY (an OCI mirror) or VALVUR_NAME_INDEX_URL (plain files) and
+VALVUR_KEV_URL when set. With the index on a mirror registry and cosign installed,
+the signature check runs `cosign`, a separate process this script does not poison;
+its Rekor lookups are cosign's own business, and `--offline` verification is not
+wired here (23.2.1 records why the shim does not verify keylessly itself).
 
 The container half is not this script's to prove. `valvur update` launches Trivy in
 a container with a network, pointed at VALVUR_DB_REPOSITORY; whether THAT container
@@ -66,10 +70,15 @@ def main() -> int:
 
     target = sys.argv[1] if len(sys.argv) > 1 else "."
     mirrors = {
-        name: os.environ.get(name, "") for name in ("VALVUR_NAME_INDEX_URL", "VALVUR_KEV_URL")
+        name: os.environ.get(name, "")
+        for name in ("VALVUR_NAME_INDEX_URL", "VALVUR_INDEX_REPOSITORY", "VALVUR_KEV_URL")
     }
-    for url in filter(None, mirrors.values()):
-        host = urlparse(url).hostname or ""
+    for value in mirrors.values():
+        if not value:
+            continue
+        # A repository is `host/name[:tag]` with no scheme; a URL has one.
+        host = (urlparse(value).hostname if "://" in value else value.split("/")[0]) or ""
+        host = host.rsplit(":", 1)[0] if host.count(":") == 1 and not host.startswith("[") else host
         allowed.add(host)
         try:
             allowed.update(info[4][0] for info in socket.getaddrinfo(host, None))
@@ -77,7 +86,8 @@ def main() -> int:
             pass
     print("Verifying that an air-gapped configuration reaches only its mirrors.")
     print(f"  database mirror : {os.environ.get('VALVUR_DB_REPOSITORY') or '(none — direct)'}")
-    print(f"  index mirror    : {mirrors['VALVUR_NAME_INDEX_URL'] or '(none — direct)'}")
+    index_mirror = mirrors["VALVUR_NAME_INDEX_URL"] or mirrors["VALVUR_INDEX_REPOSITORY"]
+    print(f"  index mirror    : {index_mirror or '(none — the published index, then direct)'}")
     print(f"  KEV mirror      : {mirrors['VALVUR_KEV_URL'] or '(none — direct)'}")
     print(f"  cache           : {cache.root()}")
     print(f"  permitted hosts : {', '.join(sorted(allowed))}\n")

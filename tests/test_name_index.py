@@ -169,7 +169,7 @@ def _npm_all_docs(names):
 
 
 def test_pypi_names_are_stored_in_pep_503_form(http, monkeypatch):
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", {"pip": 1, "npm": 1})
+    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
     http.routes[name_index.PYPI_SIMPLE] = _pypi(["Zope.Interface", "requests", "Django_Rest"])
 
     names = name_index.fetch_pypi()
@@ -215,7 +215,7 @@ def test_the_change_feed_adds_republished_names_and_removes_deleted_ones(http, m
 
 
 def test_refresh_is_incremental_once_an_index_exists_and_full_before(http, monkeypatch, tmp_path):
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", {"pip": 1, "npm": 1})
+    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
     http.routes[name_index.PYPI_SIMPLE] = _pypi(["requests"])
     http.routes[name_index.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(["a", "b"])
     http.routes[name_index.NPM_REPLICATE + "/"] = {"update_seq": 10}
@@ -223,20 +223,21 @@ def test_refresh_is_incremental_once_an_index_exists_and_full_before(http, monke
         "results": [{"seq": 11, "id": "c", "changes": [{"rev": "1-x"}]}], "last_seq": 11,
     }
 
-    first = name_index.refresh(tmp_path)
+    first = name_index.walk(tmp_path, ecosystems=("pip", "npm"))
     assert first["ecosystems"]["npm"]["update_seq"] == 10
     assert (tmp_path / "npm.txt").read_text() == "a\nb\n"
     assert any("_all_docs" in u for u in http.urls) and not any("_changes" in u for u in http.urls)
 
     http.urls.clear()
-    second = name_index.refresh(tmp_path)
+    # Forced: an index walked a moment ago is otherwise left alone for the day.
+    second = name_index.walk(tmp_path, ecosystems=("pip", "npm"), force=True)
     assert second["ecosystems"]["npm"]["update_seq"] == 11
     assert (tmp_path / "npm.txt").read_text() == "a\nb\nc\n"
     assert any("_changes" in u for u in http.urls) and not any("_all_docs" in u for u in http.urls)
 
 
 def test_an_index_older_than_the_repull_threshold_is_walked_in_full(http, monkeypatch, tmp_path):
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", {"pip": 1, "npm": 1})
+    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
     http.routes[name_index.PYPI_SIMPLE] = _pypi(["requests"])
     http.routes[name_index.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(["fresh"])
     http.routes[name_index.NPM_REPLICATE + "/"] = {"update_seq": 99}
@@ -246,7 +247,7 @@ def test_an_index_older_than_the_repull_threshold_is_walked_in_full(http, monkey
         "npm": {"built_at": "2020-01-01T00:00:00Z", "update_seq": 1},
     }}))
 
-    name_index.refresh(tmp_path)
+    name_index.walk(tmp_path, ecosystems=("pip", "npm"))
 
     assert (tmp_path / "npm.txt").read_text() == "fresh\n"
     assert not any("_changes" in u for u in http.urls)
@@ -344,8 +345,9 @@ class _Raw(bytes):
 def test_the_mirror_is_copied_verbatim_with_its_built_at_intact(http, monkeypatch, tmp_path):
     """A copy taken this morning of a list built in March is a March list, and the
     scan must say so (F6.11). The mirror's own metadata is what gets written."""
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", {"pip": 1, "npm": 1})
+    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
     source = write_name_index(tmp_path / "source", pip=["requests", "flask"], npm=["react"],
+                              gem=["rack"], composer=["a/b"], cargo=["serde"],
                               built_at="2026-03-01T00:00:00Z")
     _serve(http, "http://mirror.internal:8080", source)
     monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080/")

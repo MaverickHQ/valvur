@@ -212,7 +212,8 @@ def test_update_if_stale_refreshes_only_the_index_when_only_it_is_due(monkeypatc
     monkeypatch.setattr(cli, "_database_needs_refresh", lambda: False)
     monkeypatch.setattr(cli, "_name_index_needs_refresh", lambda: True)
     calls: list[str] = []
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda: calls.append("index") or True)
+    monkeypatch.setattr(cli, "_refresh_name_index",
+                        lambda **_: calls.append("index") or True)
 
     class NeverRunner:
         def update_db(self):
@@ -228,7 +229,7 @@ def test_update_if_stale_does_nothing_when_both_are_current(monkeypatch, capsys)
     monkeypatch.setattr(cli, "_database_needs_refresh", lambda: False)
     monkeypatch.setattr(cli, "_name_index_needs_refresh", lambda: False)
     monkeypatch.setattr(cache, "db_age_days", lambda: 1.0)
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda: pytest.fail("refreshed"))
+    monkeypatch.setattr(cli, "_refresh_name_index", lambda **_: pytest.fail("refreshed"))
 
     assert cli.main(["update", "--if-stale"], runner=None) == 0
     assert "Nothing to do" in capsys.readouterr().out
@@ -246,7 +247,7 @@ def test_a_failed_index_refresh_fails_the_update_command(monkeypatch, capsys):
             return ScannerOutput("trivy-db", "", "", "", 0)
 
     monkeypatch.setattr(cli, "_refresh_kev", lambda: None)
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda: False)
+    monkeypatch.setattr(cli, "_refresh_name_index", lambda **_: False)
 
     assert cli.main(["update"], runner=FineRunner()) == 1
 
@@ -256,7 +257,7 @@ def test_the_index_refresh_reports_a_failure_and_keeps_the_previous_index(
 ):
     from valvur import cli, name_index
 
-    def fail(directory, progress):
+    def fail(directory, *, published, progress):
         raise name_index.IndexUnavailable("pypi.org: timed out")
 
     monkeypatch.setattr(name_index, "refresh", fail)
@@ -278,3 +279,17 @@ def test_the_index_needs_a_refresh_when_absent_or_stale(monkeypatch):
     assert cli._name_index_needs_refresh()
     monkeypatch.setattr(cache, "name_index_age_days", lambda: 1.0)
     assert not cli._name_index_needs_refresh()
+
+
+def test_an_index_missing_an_ecosystem_this_version_reads_is_due(monkeypatch, name_index):
+    """A cache built before 23.2.2 holds PyPI and npm and nothing else. Fresh by
+    age and useless for a Ruby project: `--if-stale` has to see that."""
+    from valvur import cli
+    from valvur.name_index import FILES
+
+    directory = name_index(pip=["requests"])
+    assert not cli._name_index_needs_refresh()
+
+    (directory / FILES["gem"]).unlink()
+
+    assert cli._name_index_needs_refresh()

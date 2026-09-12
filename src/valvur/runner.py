@@ -198,6 +198,11 @@ class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
 
 
+class ImagePullFailed(RuntimeError):
+    """The image is not local and could not be fetched. The runtime's own words are
+    in the message: a private package, no network, a typo in `VALVUR_IMAGE`."""
+
+
 # Installers that do not touch PATH. Podman Desktop on macOS is the common case:
 # it puts a perfectly good runtime at /opt/podman/bin and leaves PATH alone, so
 # `shutil.which` finds nothing and we would tell a user to install what they already
@@ -396,6 +401,45 @@ class ContainerRunner:
         from . import compat
 
         compat.check(self.runtime, self.image)
+
+    # ------------------------------------------------------- the image itself
+
+    def image_present(self) -> bool:
+        """Whether the runtime already holds the image — asked before the first
+        launch, because `run` on a missing image pulls it silently, and a first
+        scan that sits for a minute with no output looks hung (10.2 claim 4)."""
+        proc = self._launch(
+            [self.runtime, "image", "inspect", self.image],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        return proc.returncode == 0
+
+    def pull_size_mb(self) -> int | None:
+        """What the pull will cost, from the registry, or None if it cannot say."""
+        from . import oci
+
+        size = oci.image_size(self.image)
+        return None if size is None else max(1, round(size / 1_000_000))
+
+    def pull_image(self, on_line=None) -> ScannerOutput:
+        """`<runtime> pull <image>`, its output line by line to `on_line` when given
+        (the terminal, for `valvur update`) and captured otherwise (a scan started
+        over MCP, whose status line says what is happening instead)."""
+        import subprocess
+
+        cmd = [self.runtime, "pull", self.image]
+        if on_line is None:
+            proc = self._launch(cmd, capture_output=True, text=True, timeout=1800, check=False)
+            return ScannerOutput("pull", "", proc.stdout, proc.stderr, proc.returncode)
+        with subprocess.Popen(  # noqa: S603 — the runtime found by detect_runtime
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        ) as proc:
+            lines: list[str] = []
+            for line in proc.stdout or []:
+                lines.append(line)
+                on_line(line.rstrip("\n"))
+            code = proc.wait(timeout=1800)
+        return ScannerOutput("pull", "", "".join(lines), "", code)
 
     @property
     def runtime(self) -> str:

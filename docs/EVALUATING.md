@@ -29,18 +29,19 @@ Apple-silicon Mac with Docker Desktop, so it is here before they do (22.B.4):
 | | bytes | wall-clock | what you are looking at |
 |---|---|---|---|
 | `pipx install valvur` | <1MB | seconds | pip |
-| image pull, once | **321MB** compressed as published (`0.1.0rc1`); ~240MB from the current tree | ~26s at 100 Mbit, ~52s at 50, ~105s at 25 | docker's layer bars |
-| `valvur update`, first time | **276MB**: vulnerability database 118MB, npm names 146MB in 439 requests, PyPI names 10MB, KEV 2MB | **6m27s** | Trivy's progress bar for ~20s, then `npm: 499,942 names so far` about every 40s for five and a half minutes |
-| `valvur update`, every later time | a few hundred KB | seconds | one line per source |
+| image pull, once — part of `valvur update` since 23.2.4, and said on the status line if a scan has to do it | **321MB** compressed as published (`0.1.0rc1`); ~240MB from the current tree | ~26s at 100 Mbit, ~52s at 50, ~105s at 25 | docker's layer bars; over MCP, `scan_status` reads *"Now: pulling ghcr.io/…:0.2.0 (240MB) — the first run only"* |
+| `valvur update`, first time | **154MB**: vulnerability database 118MB, the published name index 34MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | Trivy's ~20s, then **seconds** for the index (1.7s from a local registry, measured) | Trivy's progress bar, then one line per ecosystem with its build time and the signature's state |
+| `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
+| `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
 | first `valvur scan` | — | **45s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README | eight scanner names, each turning `ok` |
 
-**About eight minutes from nothing to a first result on a 100 Mbit connection, and
-most of it is npm.** The README once promised sixty seconds. It does not any more,
-and this table is why: npm publishes no list of its package names, so the first
-index build walks the registry's replication feed (ADR-0018). Every update after
-the first applies the change feed instead. A valvur-published index would cut the
-first run to a single download; it waits on the release pipeline having run at
-least once (Phase 22, Block B), and is the next thing that moves this number.
+**About a minute from nothing to a first result on a 100 Mbit connection — or about
+eight, on the day the published index cannot be reached.** The README once promised
+sixty seconds; then this table said eight minutes, because npm publishes no list of
+its package names and every machine walked the registry's replication feed itself.
+Since 23.2.1 a workflow in this repository does that walk once a day and publishes
+the result as a signed OCI artifact ([ADR-0018](adr/0018-offline-package-name-index.md),
+amended). The walk remains the fallback, and the second row is what it costs.
 
 If you are evaluating on a laptop with a metered or slow connection, run
 `valvur update` before the meeting.
@@ -84,6 +85,21 @@ gh attestation verify oci://ghcr.io/maverickhq/valvur:<version> --repo MaverickH
 
 Signed **by digest, not by tag** — a tag can be moved, and signing one certifies
 whatever it points at today.
+
+The package-name index is published the same way, under the same identity, and
+`valvur update` verifies it for you when `cosign` is on your PATH — the line
+`signature: verified` (or `not verified: cosign is not installed`) is printed and
+recorded in the index's metadata. A cosign that refuses stops the update. To check
+by hand:
+
+```bash
+cosign verify ghcr.io/maverickhq/valvur-index:latest \
+  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+For comparison, the vulnerability database beside it is pulled by Trivy with no
+signature at all — `ghcr.io/aquasecurity/trivy-db:2` publishes none.
 
 ## 3. Prove it does not phone home
 
@@ -156,16 +172,19 @@ Read this before the feature list, not after.
   `scan_and_fix` tool and a test asserts none exists in the registry, so adding one
   fails the build rather than merely failing review. An agent told to drive findings
   to zero has a cheaper path via deleting code than via correct fixes.
-- **The existence check is offline for Python and npm, `full`-only for JVM and
-  Go, and absent for Rust, Ruby and PHP.** `requirements*.txt` and `pyproject.toml`
-  (PEP 621 and Poetry) and `package.json` are checked against a local index of every
-  name on PyPI and npm — 890,000 and 4.4 million, exact, fetched by `valvur update`
+- **The existence check is offline for Python, npm, Ruby, PHP and Rust, and
+  `full`-only for JVM and Go.** `requirements*.txt` and `pyproject.toml` (PEP 621
+  and Poetry), `package.json`, `Gemfile` and `*.gemspec`, `composer.json` and
+  `Cargo.toml` are checked against a local index of every name on PyPI, npm,
+  RubyGems, Packagist and crates.io — 890,000, 4.4 million, 197,000, 462,000 and
+  332,000, exact, fetched by `valvur update`
   ([ADR-0018](adr/0018-offline-package-name-index.md)). `pom.xml`, Gradle scripts
   and `go.mod` are checked against Maven Central and the Go module proxy on `full`,
   because neither registry publishes a name list an offline index could be built
-  from (Maven Central's only one is 3.2GB; Go's is a feed of versions). Cargo, Ruby
-  and PHP have no check at all. Every case is stated in the run's coverage contract,
-  and the last two produce a coverage note rather than a clean result.
+  from (Maven Central's only one is 3.2GB; Go's is a feed of versions). A manifest
+  valvur recognises but does not read — a lone `Pipfile`, a lockfile with no
+  manifest beside it — produces a coverage note rather than a clean result. Every
+  case is stated in the run's coverage contract.
 - **Known-vulnerability scanning needs a lockfile.** Measured 2026-09-12: Trivy
   produces no result — not zero findings, no scan — for `package.json`,
   `pyproject.toml`, `Gemfile` or `Cargo.toml` without a lockfile (or a pinned

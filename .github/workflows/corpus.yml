@@ -1,6 +1,6 @@
 name: corpus
 
-# The public corpus, weekly (task 22.E.1): eleven real, permissively-licensed
+# The public corpus, weekly (task 22.E.1): twelve real, permissively-licensed
 # repositories at pinned commits, scanned on both Profiles and judged against the
 # 19.F.5 conditions — no Scanner failure, every omission named, no status that
 # contradicts its own counts, nothing suspect from valvur's own Checks. Unit tests
@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   corpus:
-    name: eleven real repositories, both Profiles
+    name: twelve real repositories, both Profiles
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

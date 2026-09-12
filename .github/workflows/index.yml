@@ -1,0 +1,160 @@
+name: index
+
+# The published package-name index (task 23.2.1, ADR-0018): every name on PyPI, npm,
+# RubyGems, Packagist and crates.io, built here once a day and pushed to GHCR as a
+# signed OCI artifact — the `trivy-db` pattern. `valvur update` pulls it in seconds;
+# without it every machine walks the five registries itself, which is about eight
+# minutes and 550MB the first time.
+#
+# The daily build IS the fallback path, run by the same code: `python -m
+# valvur.name_index build` is what `valvur update --build-index` calls. Then the
+# artifact is pulled back with `python -m valvur.name_index pull` — the client every
+# user runs, cosign included — and compared byte for byte with what was built, before
+# the `latest` tag is left pointing at it. A day's tag is kept beside `latest` so a
+# bad build can be pinned past.
+on:
+  schedule:
+    - cron: "23 3 * * *"     # 03:23 UTC — crates.io's dump is cut at 02:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REPOSITORY: ghcr.io/maverickhq/valvur-index
+
+jobs:
+  publish:
+    name: build, push, sign, and pull it back
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write       # push the artifact
+      id-token: write       # keyless signing
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
+      - uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+      - run: uv venv --python 3.12
+      - run: uv sync --locked
+
+      - name: Restore yesterday's index, so npm is walked from its change feed
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-publish-${{ github.run_id }}
+          restore-keys: valvur-name-index-publish-
+
+      - name: Build the index from the registries
+        run: |
+          uv run python -m valvur.name_index build ~/.cache/valvur/names
+          echo "## Built" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat ~/.cache/valvur/names/metadata.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package the layers
+        # One gzip layer per ecosystem file, `metadata.json` as the config blob.
+        # The shim gunzips as it streams and checks each file is the sorted list
+        # the reader bisects on; the workflow's job is only to compress.
+        run: |
+          set -eu
+          mkdir -p artifact && cd artifact
+          for f in pypi npm rubygems packagist crates; do
+            test -s ~/.cache/valvur/names/$f.txt
+            gzip -9 -n -c ~/.cache/valvur/names/$f.txt > $f.txt.gz
+          done
+          cp ~/.cache/valvur/names/metadata.json .
+          ls -l
+
+      - name: Push, under today's date and latest
+        id: push
+        run: |
+          set -eu
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+          DATE=$(date -u +%Y-%m-%d)
+          cd artifact
+          oras push "$REPOSITORY:$DATE,latest" \
+            --artifact-type application/vnd.valvur.name-index.v1 \
+            --config metadata.json:application/vnd.valvur.name-index.config.v1+json \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${{ github.sha }}" \
+            --annotation "org.opencontainers.image.description=valvur package-name index (ADR-0018)" \
+            pypi.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip \
+            npm.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip \
+            rubygems.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip \
+            packagist.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip \
+            crates.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip
+          DIGEST=$(oras resolve "$REPOSITORY:$DATE")
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "pushed $REPOSITORY:$DATE@$DIGEST"
+
+      - name: Sign, keylessly
+        # The same identity the image is signed under, and the same two values the
+        # shim verifies against (`valvur.oci.SIGNING_IDENTITY`, `SIGNING_ISSUER`).
+        run: cosign sign --yes "${REPOSITORY}@${{ steps.push.outputs.digest }}"
+
+      - name: Pull it back with the shim's own client, cosign included
+        # The client every `valvur update` runs, against the artifact just pushed:
+        # the manifest resolves, the signature verifies under the workflow identity,
+        # every layer streams, gunzips, passes the sorted-list check, and is byte
+        # for byte what was built. If any of that fails, the tag has already moved —
+        # so the failure is loud, and the previous day's tag is what to point at.
+        env:
+          VALVUR_INDEX_REPOSITORY: ${{ env.REPOSITORY }}:${{ steps.push.outputs.date }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if uv run python -m valvur.name_index pull /tmp/roundtrip 2>&1 | tee pull.log; then
+            for f in pypi npm rubygems packagist crates; do
+              cmp ~/.cache/valvur/names/$f.txt /tmp/roundtrip/$f.txt
+            done
+            python3 - <<'PY'
+          import json
+          meta = json.load(open("/tmp/roundtrip/metadata.json"))
+          for eco, entry in meta["ecosystems"].items():
+              state = entry["published"]["signature"]
+              print(f"{eco}: {entry['count']:,} names, built {entry['built_at']}, signature {state}")
+              assert state == "verified", f"{eco}: the signature did not verify: {state}"
+          PY
+          elif grep -q "pulls anonymously" pull.log; then
+            # The package is still private (owner action 12a.1 / 23.1.1): the shim
+            # pulls anonymously by design, so it cannot be the one to check this
+            # round trip yet. Check the same three things with the authenticated
+            # tools instead, and say loudly that users cannot pull it either.
+            echo "::warning::$REPOSITORY is private: every user's valvur update will walk the registries instead. Make the package public (docs/RELEASING.md, owner actions)."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            mkdir -p /tmp/authed && cd /tmp/authed
+            oras pull "$VALVUR_INDEX_REPOSITORY"
+            for f in pypi npm rubygems packagist crates; do
+              gunzip -c $f.txt.gz | cmp ~/.cache/valvur/names/$f.txt -
+            done
+            cosign verify "${REPOSITORY}@${DIGEST}" \
+              --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          else
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          DATE: ${{ steps.push.outputs.date }}
+        run: |
+          {
+            echo "## Published"
+            echo
+            echo "\`${REPOSITORY}:${DATE}\` = \`${REPOSITORY}:latest\` @ \`${DIGEST}\`"
+            echo
+            echo '```bash'
+            echo "cosign verify ${REPOSITORY}@${DIGEST} \\"
+            echo "  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo '```'
+            echo
+            du -sh artifact/* 2>/dev/null | sed 's/^/    /'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -46,9 +46,9 @@ what left the machine — on `offline`, the word `nothing`.
 - **Hallucinated dependencies (slopsquatting).** LLMs invent package names; attackers
   register them. No advisory database can catch it — the package is *new*, not
   known-bad. valvur checks that every declared dependency exists, **offline**, against
-  a local index of every name on PyPI and npm (890,000 and 4.4 million, exact). On
-  `full` it also asks how old each one is, and whether it is one edit from something
-  popular.
+  a local index of every name on PyPI, npm, RubyGems, Packagist and crates.io (6.3
+  million names, exact, published daily and signed). On `full` it also asks how old
+  each one is, and whether it is one edit from something popular.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.mcp.json`,
   skills and prompt files — scanned for injected directives, hidden Unicode
   (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket
@@ -60,13 +60,12 @@ What is covered, and what is not, is stated on every scan rather than left to in
 
 | ecosystem | exists? | known CVEs? |
 |---|---|---|
-| Python, npm | offline, from the index | needs `requirements*.txt`, `uv.lock`, `poetry.lock` / a lockfile |
+| Python, npm, Ruby, PHP, Rust | offline, from the index | needs `requirements*.txt`, `uv.lock`, `poetry.lock` / a lockfile |
 | JVM, Go | `full` only — no offline index exists for either registry | `pom.xml`, `go.mod` on their own |
-| Rust, Ruby, PHP | not checked — and the run says so | `Cargo.lock`, `Gemfile.lock`, `composer.lock` |
 
-A manifest with no lockfile beside it, or an ecosystem nothing here reads, is a
-**coverage note**: the run reads `inconclusive` rather than `clean`, and names why.
-That reporting is the part we consider non-optional.
+A manifest with no lockfile beside it, or a manifest nothing here reads (a lone
+`Pipfile`, say), is a **coverage note**: the run reads `inconclusive` rather than
+`clean`, and names why. That reporting is the part we consider non-optional.
 
 ### 3. Ten things that matter, not four hundred findings
 
@@ -107,13 +106,17 @@ rescan autonomously.
 
 ```bash
 pip install valvur          # or: uv tool install valvur
-valvur update               # the vulnerability database and the name index, once
+valvur update               # the image, the vulnerability database and the name index, once
 valvur scan                 # offline by default; --profile full adds the networked checks
 ```
 
-The first `valvur update` is the slow part — about eight minutes, most of it walking
-the npm registry for its names, once. Later updates take seconds; run
-`valvur update --if-stale` from a hook or cron, it costs one file read when current.
+The first `valvur update` pulls the image (about 240MB), the vulnerability database
+(118MB) and the name index (34MB, one signed artifact, built daily) — a minute or
+two. Later updates take seconds; run `valvur update --if-stale` from a hook or cron,
+it costs one file read when current. A scan that finds the image missing pulls it
+and says so — over MCP, `scan_status` reads *"pulling ghcr.io/…"* with the size —
+rather than sitting silent. If the published index cannot be reached, the five
+registries are walked directly instead, which takes about seven minutes once.
 
 Results land in `.security-scan/`:
 

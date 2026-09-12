@@ -58,6 +58,29 @@ a minor bump may break things until 1.0.
 
 ### Added
 
+- **The package-name index is published, and `valvur update` pulls it.** Every name
+  on PyPI, npm, RubyGems, Packagist and crates.io, built once a day by a workflow in
+  this repository and pushed to `ghcr.io/maverickhq/valvur-index` as a cosign-signed
+  OCI artifact — 34MB, seconds, instead of every machine walking the registries for
+  eight minutes. The signature is verified when `cosign` is installed and its state is
+  recorded; a refused signature stops the update. The walk remains as the fallback and
+  as `valvur update --build-index`. `VALVUR_INDEX_REPOSITORY` and
+  `VALVUR_INDEX_INSECURE` mirror it the way the database is mirrored
+  ([ADR-0018](docs/adr/0018-offline-package-name-index.md), amended).
+- **Ruby, PHP and Rust dependencies are checked for existence, offline.** `Gemfile`
+  and `*.gemspec` against RubyGems (case-sensitive, as the registry is),
+  `composer.json` against Packagist, `Cargo.toml` — every dependency table, workspace
+  members and `package =` renames included — against crates.io, whose list is
+  streamed out of its database dump. On `full` each also gets first-publish age.
+  Five ecosystems offline; JVM and Go stay `full`-only.
+- **`valvur update` pulls the image, and a scan that has to pull it says so.**
+  The image was fetched silently by the runtime on the first *scan* — measured
+  through Kiro, where the first tool call looked hung for as long as the pull took.
+  Now `update` pulls it first, streaming the runtime's progress; a scan that finds it
+  missing pulls it and reports *"pulling ghcr.io/…:0.2.0 (240MB) — the first run
+  only"* on `scan_status` and on the CLI, with the size read from the registry's
+  manifest when it states one. A failed pull is a named failure with the runtime's
+  words and the command that fetches it by hand.
 - **Checkov runs only where there is infrastructure to analyse.** It costs about ten
   seconds of fixed startup whatever it finds, so a repository with no Dockerfile,
   terraform, Kubernetes manifests, CI workflows or templates went from ~18s to ~7s.

@@ -273,13 +273,19 @@ def scan_status(args: dict) -> str:
         # returning instantly made it pay fourteen (task 10.2.5).
         job.wait()
     if job is not None and job.state == "running":
-        done = ", ".join(job.progress) or "starting"
-        return (
-            f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed.\n"
-            f"Completed so far: {done}\n"
-            f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
-            "do not report a result yet."
-        )
+        # An image pull in progress is the one stage that is not a Scanner
+        # completing, and the one that made a first run look hung (10.2 claim 4):
+        # it gets its own line, and disappears once "image pulled" follows it.
+        pulling = [p for p in job.progress if p.startswith("pulling ")]
+        settled = any(p.startswith("image pulled") for p in job.progress)
+        completed = [p for p in job.progress if not p.startswith("pulling ")]
+        lines = [f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed."]
+        if pulling and not settled:
+            lines.append(f"Now: {pulling[-1]}.")
+        lines.append(f"Completed so far: {', '.join(completed) or 'starting'}")
+        lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
+                     "do not report a result yet.")
+        return "\n".join(lines)
     if job is not None and job.state == "failed":
         return f"FAILED after {job.elapsed:.0f}s — {job.error}\nNo result to report."
 

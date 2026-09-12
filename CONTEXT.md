@@ -30,7 +30,7 @@ A detection valvur performs itself rather than delegating to a Scanner — the D
 _Avoid_: rule, test, custom scanner
 
 **Name Index**:
-The list of every package name on PyPI and npm, fetched by `valvur update` into the host cache beside the vulnerability database and mounted read-only into the container. What the Dependency Reality Check answers *existence* from, on every Profile, with no socket (ADR-0018). Exact, not probabilistic; plain text, one name per line.
+The list of every package name on PyPI, npm, RubyGems, Packagist and crates.io, fetched by `valvur update` into the host cache beside the vulnerability database and mounted read-only into the container. What the Dependency Reality Check answers *existence* from, on every Profile, with no socket (ADR-0018). Exact, not probabilistic; plain text, one name per line. Built daily and published as a signed OCI artifact (the **Published Index**); built from the registries directly (the **walk**) by the workflow that publishes it, and by any machine that cannot reach it.
 _Avoid_: package database, registry mirror, bloom filter, cache (that is the directory it lives in)
 
 ### Findings

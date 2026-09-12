@@ -108,7 +108,7 @@ def test_a_scoped_package_survives_the_url(monkeypatch):
     disproportionately behind one.
     """
     seen: list[str] = []
-    monkeypatch.setattr(mod, "_fetch", lambda url: seen.append(url) or {})
+    monkeypatch.setattr(mod, "_fetch", lambda url, *, as_json=True: seen.append(url) or {})
 
     mod._lookup("npm", "@types/node")
     mod._lookup("pip", "zope.interface")

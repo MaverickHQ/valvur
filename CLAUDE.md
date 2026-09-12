@@ -28,7 +28,8 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > never been run there. The intent is recorded, the claim is not.
 
 **Status (2026-09-12):** built, hardened, and rehearsed; `0.2.0` waits on owner
-actions and nothing else.
+actions and nothing else. Phase 23 Block 2 — the published index; Ruby, PHP and
+Rust offline; the image pulled by `update` and named on the status line — is done.
 
 `0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
 private**, so nobody outside this machine can install it. Phases 19 and 20 are
@@ -39,8 +40,9 @@ run *before* `0.2.0` publishes:
   detection ran only on `full` because it needed a registry — and `full` sends
   package names out, which target market #1 cannot do. "Fully offline" and
   "hallucinated-package detection" were both true and never at the same time. Now
-  *existence* is answered from a **Name Index** — every name on PyPI and npm,
-  exact, in the host cache beside the vulnerability database, mounted read-only —
+  *existence* is answered from a **Name Index** — every name on PyPI and npm (and,
+  since 23.2.2–3, RubyGems, Packagist and crates.io), exact, in the host cache
+  beside the vulnerability database, mounted read-only —
   on the default Profile with no socket; only first-publish age still needs `full`.
   ADR-0018, amending ADR-0016. Proven on the broken fixture in a real container:
   `reqeusts` and `aws-helper-sdk` reported offline, `what_left_the_machine: nothing`.
@@ -56,8 +58,8 @@ run *before* `0.2.0` publishes:
   `--internal` network, host poisoned to loopback — found the documented
   `VALVUR_DB_REPOSITORY` insufficient on its own: three settings that did not exist
   that morning (`VALVUR_DB_INSECURE`, `VALVUR_CONTAINER_NETWORK`, `VALVUR_KEV_URL`),
-  plus `VALVUR_NAME_INDEX_URL`. The true first run is **about eight minutes**, most
-  of it npm, and `EVALUATING.md` says so.
+  plus `VALVUR_NAME_INDEX_URL`. The true first run was **about eight minutes**, most
+  of it npm, and `EVALUATING.md` said so — until 23.2.1 published the index (below).
 
 **Phase 22 is complete (2026-09-12)**: the offline existence check, four release
 rehearsals, the image-staleness guard, the traceability ratchet at zero, the named
@@ -74,9 +76,9 @@ hash-locked, the Checks in one container, per-scanner timing, the shim carrying 
 build hash, and `.kiro/` — the primary client's own files — into the AI Artifact
 Check. Then the gate and `v1.0.0`.
 
-Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **138 done and 31
-open** across 23 phases — 23 of the 31 are Phase 23, and 8 are Phase 21's owner actions,
-release tail and usability gate. A public corpus of eleven real repositories runs
+Roughly: 96 Python modules, 686 tests, 18 ADRs, 136 requirement IDs, **142 done and 27
+open** across 23 phases — 19 of the 27 are Phase 23, and 8 are Phase 21's owner actions,
+release tail and usability gate. A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -88,15 +90,19 @@ were introduced by the block before, with tests passing.
 
 **One known gap, and one deliberate friction, worth knowing before proposing anything:**
 
-- **Slopsquat detection covers Python and npm offline, JVM and Go on `full`, and
-  nothing else.** `requirements*.txt` and `pyproject.toml` (PEP 621 and Poetry)
-  against the PyPI index; `package.json` against the npm index; `pom.xml`, Gradle
-  scripts and `libs.versions.toml` against Maven Central and `go.mod` against the Go
-  proxy, per name, `full` only — neither registry publishes a list an offline index
-  could be built from (22.A.4, ADR-0018), so on `offline` those two are a stated
-  Profile omission, not a gap. Cargo, Ruby and PHP have no existence check — a project
-  using one gets a **Finding** saying so, on every Profile, so the gap is stated
-  rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
+- **Slopsquat detection covers Python, npm, Ruby, PHP and Rust offline, JVM and Go
+  on `full`, and nothing else.** `requirements*.txt` and `pyproject.toml` (PEP 621
+  and Poetry), `package.json`, `Gemfile` and `*.gemspec`, `composer.json` and
+  `Cargo.toml` against the Name Index — every name on the five registries, 6.3
+  million, exact (23.2.2, 23.2.3); `pom.xml`, Gradle scripts and `libs.versions.toml`
+  against Maven Central and `go.mod` against the Go proxy, per name, `full` only —
+  neither registry publishes a list an offline index could be built from (22.A.4,
+  ADR-0018), so on `offline` those two are a stated Profile omission, not a gap. A
+  manifest valvur recognises but does not read — a lone `Pipfile`, a lockfile with
+  nothing beside it — gets a **Finding** saying so, on every Profile, so the gap is
+  stated rather than inferred from silence. Closed 19.D.1; the reporting half is
+  permanent, and pinned against a hypothetical ecosystem now that no real one is
+  unread.
 - **The eleven Opengrep rules are not the product.** Measured on the public corpus
   (22.E.2): 75 findings on eleven real repositories, 64 of them tag-pinned GitHub
   Actions and the other 11 rejected by a reviewer to the last one; the four
@@ -112,11 +118,15 @@ were introduced by the block before, with tests passing.
   (`valvur.dependency.vulnerabilities-unchecked`) and `inconclusive`, the same
   treatment as the existence gap. `ecosystems.VULNERABILITY_MANIFESTS` records what
   was measured.
-- **The first `valvur update` takes ~5.5 minutes.** npm publishes no list of its
-  package names, so the Name Index is walked from the registry's replication feed
-  the first time (439 requests, 146MB, measured) and updated from its change feed
-  afterwards (seconds). A valvur-published index — the `trivy-db` pattern — is the
-  eventual answer and waits on a release pipeline that has run at least once.
+- **The Name Index is published daily and pulled in seconds — once the package is
+  public.** `index.yml` walks the five registries every morning and pushes the
+  result to `ghcr.io/maverickhq/valvur-index` as a cosign-signed OCI artifact; the
+  shim's own registry client (`oci.py`, zero dependencies, anonymous only) pulls it
+  (34MB, 1.7s measured from a local registry) and verifies the signature with
+  `cosign` when installed (23.2.1, ADR-0018 amended). Until the owner makes that
+  package public (23.1.1) every user's `valvur update` says so and walks the
+  registries itself — about seven minutes, 700MB, five and a half of the minutes
+  npm — which is also `--build-index` and what the workflow runs.
 - **On SELinux-enforcing hosts, valvur refuses to scan until the developer acts.**
   Measured 2026-09-10 on Fedora CoreOS 44, native xfs under `$HOME`: a container may
   not read a `user_home_t` directory, so all three mounts were denied. valvur labels
