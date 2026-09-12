@@ -82,6 +82,26 @@ that `full` would have flagged as newly-registered anyway — not hallucinations
 reported as real. Names leave the registry at ~7 a day. The threshold is about
 keeping the answer's age visible, not about a cliff.
 
+## JVM and Go: no index exists, so `full` only
+
+Measured the same day, for task 22.A.4. **Maven Central** holds 661,801 coordinates;
+its only complete name list is the Lucene index at `repo1.maven.org/maven2/.index/`
+— **3.24GB** — and its search API pages 200 at a time. **Go** has no registry of
+modules at all: `index.golang.org` is a feed of *versions* (2,000 entries did not
+cover seventeen minutes of one day) with no distinct-module list, and a module path
+is a VCS location the proxy fetches on demand. Neither can be turned into a 30MB
+file a user downloads.
+
+So both are checked on `full` only, one request per name: Maven Central's
+`maven-metadata.xml` for the coordinate (200/404, 70–350ms) and the proxy's
+`@v/list` for the module (200/404, and 410 for a module it will not serve). On
+`offline` they are a **Profile omission, stated** — in the Coverage contract and the
+Summary's caveat — and neither a failure nor a gap Finding, by F7.16's rule: valvur
+*can* do the job on `full`, which is different from being unable to do it at all.
+Neither registry states first publication, so there is no age for either. The
+eventual answer for both is the same as npm's first-run cost: an index valvur builds
+and publishes itself, once the release pipeline exists.
+
 ## Consequences
 
 - The dependency-reality Check runs on **both** Profiles. On `offline` it answers

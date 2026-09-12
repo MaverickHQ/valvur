@@ -40,9 +40,7 @@ def _labels(gaps) -> list[str]:
 
 @pytest.mark.parametrize("manifest,label", [
     ("Cargo.toml", "Rust (Cargo)"),
-    ("go.mod", "Go"),
     ("Gemfile", "Ruby (Bundler)"),
-    ("pom.xml", "JVM (Maven/Gradle)"),
     ("composer.json", "PHP (Composer)"),
 ])
 def test_an_ecosystem_with_no_existence_check_says_so(tmp_path, manifest, label):
@@ -55,6 +53,10 @@ def test_an_ecosystem_with_no_existence_check_says_so(tmp_path, manifest, label)
 
 @pytest.mark.parametrize("manifest", [
     "requirements.txt", "requirements-dev.txt", "pyproject.toml", "package.json",
+    # Read since 22.A.4, on `full` only. On `offline` that is a Profile omission
+    # stated in the Coverage contract and the Summary's caveat (F7.16), not a gap
+    # Finding — the same rule osv-scanner follows.
+    "pom.xml", "build.gradle", "build.gradle.kts", "gradle/libs.versions.toml", "go.mod",
 ])
 def test_an_ecosystem_we_now_read_reports_no_gap(tmp_path, manifest):
     """The pair, and the one that had to change when 19.D.1 landed. A gap reported on
@@ -268,7 +270,7 @@ def test_a_gap_never_fails_someone_else_s_build(tmp_path):
     gate nobody can turn green is a gate that gets deleted."""
     from valvur.api import ScanRun
 
-    gaps = coverage.dependency_gaps(_repo(tmp_path, {"go.mod": "module x\n"}))
+    gaps = coverage.dependency_gaps(_repo(tmp_path, {"Cargo.toml": "[package]\n"}))
 
     assert ScanRun(findings=list(gaps)).active == []
     # But it is still reported, never hidden — that is the whole point of 19.D.3.

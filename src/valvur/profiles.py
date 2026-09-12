@@ -44,7 +44,9 @@ ALLOWS_NETWORK: dict[str, bool] = {OFFLINE: False, FULL: True}
 #: half of what they cover, in the reader's terms. dependency-reality checks existence
 #: and near-misses from local data and asks a registry only for first-publish age.
 NEEDS_NETWORK_FOR: dict[str, str] = {
-    "dependency-reality": "package age (newly-registered names)",
+    "dependency-reality": (
+        "package age (newly-registered names), or whether JVM and Go dependencies exist"
+    ),
 }
 
 DEFAULT = OFFLINE

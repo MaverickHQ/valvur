@@ -44,7 +44,8 @@ run *before* `0.2.0` publishes:
   on the default Profile with no socket; only first-publish age still needs `full`.
   ADR-0018, amending ADR-0016. Proven on the broken fixture in a real container:
   `reqeusts` and `aws-helper-sdk` reported offline, `what_left_the_machine: nothing`.
-  22.A.3 (parallel `full` lookups) and 22.A.4 (JVM, Go) remain.
+  **Block A is complete** (22.A.3 bounded concurrent lookups; 22.A.4 JVM and Go,
+  `full`-only because neither registry has a name list — measured, 3.2GB for Maven).
 - **Block B — prove the release pipeline.** `release.yml` has never run. Dry-run it on
   a throwaway tag before the first real one.
 
@@ -52,8 +53,8 @@ Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then P
 22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
 README); then the usability gate and `v1.0.0`.
 
-Roughly: 87 Python modules, 524 tests, 18 ADRs, 136 requirement IDs, **121 done and 25
-open** across 22 phases — 17 of the 25 are Phase 22, and 8 are Phase 21's owner actions
+Roughly: 88 Python modules, 546 tests, 18 ADRs, 136 requirement IDs, **123 done and 23
+open** across 22 phases — 15 of the 23 are Phase 22, and 8 are Phase 21's owner actions
 and release tail.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -65,12 +66,15 @@ were introduced by the block before, with tests passing.
 
 **One known gap, and one deliberate friction, worth knowing before proposing anything:**
 
-- **Slopsquat detection covers Python and npm, and nothing else.** `requirements*.txt`
-  and `pyproject.toml` (PEP 621 and Poetry) against PyPI; `package.json` against the
-  npm registry. Cargo, Go, Ruby, PHP and JVM have no existence check — but a project
-  using one now gets a **Finding** saying so, on every Profile, so the gap is stated
-  rather than inferred from silence. Closed 19.D.1; the reporting half is permanent;
-  22.A.4 adds JVM and possibly Go.
+- **Slopsquat detection covers Python and npm offline, JVM and Go on `full`, and
+  nothing else.** `requirements*.txt` and `pyproject.toml` (PEP 621 and Poetry)
+  against the PyPI index; `package.json` against the npm index; `pom.xml`, Gradle
+  scripts and `libs.versions.toml` against Maven Central and `go.mod` against the Go
+  proxy, per name, `full` only — neither registry publishes a list an offline index
+  could be built from (22.A.4, ADR-0018), so on `offline` those two are a stated
+  Profile omission, not a gap. Cargo, Ruby and PHP have no existence check — a project
+  using one gets a **Finding** saying so, on every Profile, so the gap is stated
+  rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
 - **The first `valvur update` takes ~5.5 minutes.** npm publishes no list of its
   package names, so the Name Index is walked from the registry's replication feed
   the first time (439 requests, 146MB, measured) and updated from its change feed
