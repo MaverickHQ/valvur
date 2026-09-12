@@ -219,11 +219,22 @@ jobs:
         run: cosign sign --yes "${IMAGE}@${{ steps.push.outputs.digest }}"
 
       - name: Attest build provenance (SLSA)
+        # Found by the first rehearsal (22.B.1, 2026-09-12): GitHub refuses to
+        # persist attestations for a user-owned PRIVATE repository — "make this
+        # repository public". A rehearsal on the private repository therefore skips
+        # this step and says so; a real release never skips it, because a release
+        # from a private repository is one nobody can pull anyway (task 12a.1).
+        if: env.REHEARSAL != 'true' || github.event.repository.visibility == 'public'
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         with:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      - name: Attestation not rehearsed on a private repository
+        if: env.REHEARSAL == 'true' && github.event.repository.visibility != 'public'
+        run: |
+          echo "::warning::Build provenance was NOT attested: GitHub does not persist attestations for a user-owned private repository. This step is unrehearsed until the repository is public."
 
       - name: SBOM of the image
         # Distinct from the sbom.cdx.json valvur writes for a scanned project: this
@@ -252,8 +263,12 @@ jobs:
 
       - name: Publish to TestPyPI (rehearsal)
         # The same action, the same OIDC identity, a different index. Needs its own
-        # trusted publisher on test.pypi.org — see docs/RELEASING.md.
+        # trusted publisher on test.pypi.org — see docs/RELEASING.md. Allowed to
+        # fail WITHOUT stopping the rehearsal, so the release step after it is still
+        # exercised; the report at the end turns the run red if it did.
+        id: testpypi
         if: env.REHEARSAL == 'true'
+        continue-on-error: true
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           repository-url: https://test.pypi.org/legacy/
@@ -316,3 +331,25 @@ jobs:
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null \
             && echo "removed draft release $TAG" \
             || echo "no release $TAG to remove"
+
+      - name: Rehearsal report
+        # One place that says what was and was not proven. A step allowed to
+        # continue on failure still fails the rehearsal here — it was allowed to
+        # continue so the steps after it could be exercised, not so it could pass.
+        if: always() && env.REHEARSAL == 'true'
+        env:
+          TESTPYPI: ${{ steps.testpypi.outcome }}
+          PUBLIC: ${{ github.event.repository.visibility == 'public' }}
+          VERSION: ${{ needs.verify.outputs.publish_version }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "## Rehearsal of release.yml"
+            echo "- image: \`$IMAGE:$VERSION\` @ \`$DIGEST\`"
+            echo "- attestation: $([ "$PUBLIC" = true ] && echo rehearsed || echo 'NOT rehearsed (private repository)')"
+            echo "- TestPyPI publish: $TESTPYPI"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TESTPYPI" != "success" ]; then
+            echo "::error::TestPyPI publish outcome was '$TESTPYPI'. Configure the trusted publisher on test.pypi.org (docs/RELEASING.md) and rehearse again."
+            exit 1
+          fi
