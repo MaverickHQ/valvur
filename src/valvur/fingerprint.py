@@ -8,7 +8,12 @@ byte-identical across machines and operating systems (F5.4). That matters becaus
 Suppressions reference fingerprints and are committed and shared.
 
 FP_VERSION is a compatibility surface from the first commit: changing the algorithm
-invalidates every Suppression in every project using valvur.
+invalidates every Suppression in every project using valvur. It travels on every
+Finding (F5.5), so a result written by one version can be recognised by the next.
+
+The Finding Class (F5.2) is the first part of every fingerprint below — `secret`,
+`dependency_vuln`, `iac`, `licence`, `dependency_reality`, `sast` — which is what
+keeps two classes that happen to share a rule and a path from colliding.
 """
 
 from __future__ import annotations

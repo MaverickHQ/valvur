@@ -241,10 +241,13 @@ because an exclusion the reader cannot see is indistinguishable from a scan that
 found nothing.
 
 Rules that must hold:
-- **Self-ignoring folder** is the guarantee results are never committed; a root
-  `.gitignore` entry is added too, as a visible signal to humans. The `.gitignore`
-  is written when the folder is *created*, not when a scan succeeds — an interrupted
-  run (routine since task 16.2) would otherwise leave a folder git can see.
+- **Self-ignoring folder** is the guarantee results are never committed, and the
+  only one valvur writes: it does **not** touch the scanned project's root
+  `.gitignore`, because that is a tracked file in the source tree (§10, moat item 2).
+  This line claimed otherwise for two weeks; F7.3 was retired on 2026-09-12 when the
+  traceability ratchet found no code behind it. The folder's `.gitignore` is written
+  when the folder is *created*, not when a scan succeeds — an interrupted run
+  (routine since task 16.2) would otherwise leave a folder git can see.
 - **One scan per Workspace at a time**, enforced by `flock` on `.security-scan/.lock`.
   Concurrent scans do not corrupt anything, but both read the same `state.json` and
   the last to finish wins — so the next run's new/fixed/regressed diff is computed

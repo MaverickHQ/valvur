@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ..defang import describe_invisible, is_invisible, neutralise
 
+# F3.6: the agent instruction and configuration files this Check reads.
 ARTIFACT_NAMES = {
     "CLAUDE.md", "AGENTS.md", "AGENT.md", ".cursorrules", ".windsurfrules",
     ".mcp.json", "SKILL.md", "copilot-instructions.md", "GEMINI.md",
@@ -25,6 +26,7 @@ INJECTION = re.compile(
     r"(instructions?|prompts?|rules?|directions?)",
     re.IGNORECASE,
 )
+# F3.9: blanket auto-approval (below, `autoApprove`) and permission-bypass directives.
 BYPASS = re.compile(
     r"(--dangerously-skip-permissions|bypassPermissions|--yolo|"
     r"disable\s+(all\s+)?(safety|guardrails|security))",

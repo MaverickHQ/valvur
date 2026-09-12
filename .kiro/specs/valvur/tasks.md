@@ -3789,11 +3789,37 @@ the first tag was going to be `0.2.0` in front of everyone.
   > install (reordered); and there was no `.dockerignore` — the build context was
   > 124MB, of which the Dockerfile copies under 1MB (added).
 
-- [ ] **22.C.2** Cite the 24 tolerated requirements and take the ratchet to zero. They
+- [x] **22.C.2** Cite the 24 tolerated requirements and take the ratchet to zero. They
   are mostly *core* — F2.1 (orchestrate the Scanners), F7.1 (write the Results
   Folder), F8.1 (read Suppressions), F10.2 (non-root) — uncited because nobody wrote
   `# F7.1` beside obvious code, not because they are unmet. A tolerated count that
   never shrinks is a number nobody reads.
+
+  > **Done 2026-09-12 — 0 uncited, 0 orphan ADRs, and the premise was wrong for
+  > three of the 24.** Twenty-one were exactly as described: obvious code nobody had
+  > annotated, now cited where the behaviour lives (the Finding model, the
+  > fingerprint classes, the status diff, the enrichment provider, the machine
+  > header, the results writer, the runner's container flags, the parity tests, the
+  > Dockerfile pin test). Three were not:
+  >
+  > - **F7.3 was uncited because it is unimplemented** — valvur does not add
+  >   `.security-scan/` to the scanned project's root `.gitignore`, and CLAUDE.md
+  >   section 7 said it did. It must not: that is a write to a tracked file in the
+  >   scanned tree (section 10, moat item 2). **Retired** in `requirements.md` with
+  >   the reason, the ID kept; CLAUDE.md corrected; ADR-0011's scope clarified (its
+  >   root-`.gitignore` layer is this repository's own hygiene, not something valvur
+  >   does to a Workspace).
+  > - **F3.3 is half met** — age yes, adoption no; PyPI has no download counts
+  >   without a third-party service (F1.7, ADR-0008). **F3.4 is met by proxy** —
+  >   top-3,000 membership, not a 100× download ratio, and PyPI only. Both cited by
+  >   the code implementing the half it implements, and both carry a note in
+  >   `requirements.md` saying which half, because the ratchet cannot tell.
+  >
+  > The eight orphan ADRs each gained a **Requirements** line naming what they
+  > decided about. Baseline re-recorded empty, so the ratchet is now a hard check:
+  > mutating one citation away fails it (`::error::new requirement cited nowhere:
+  > F8.1`). Rebuilt the image afterwards — the citations changed `src/valvur/`, and
+  > 22.C.1's guard said so before anything else did.
 
   > **What the ratchet cannot do, stated so nobody expects it to.** 19.D.1 proved that
   > citation is not satisfaction: F3.1 was cited by code implementing a tenth of it. The

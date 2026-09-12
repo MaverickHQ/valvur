@@ -40,6 +40,9 @@ from pathlib import Path
 from urllib.parse import quote
 
 TIMEOUT = 10
+#: F3.3's age half. design.md pairs it with "downloads < 1000/month"; adoption is
+#: NOT measured — PyPI publishes no download counts without a third-party service,
+#: and section 10 rules those out. The requirement says so since 22.C.2.
 NEW_PACKAGE_DAYS = 90
 
 #: Where the runner mounts the host cache's name index (ADR-0018), and the variable
@@ -759,7 +762,11 @@ def canonical(name: str) -> str:
 
 
 def _near_miss(name: str, popular: dict[str, str]) -> str | None:
-    """The nearest popular package, comparing PEP 503 canonical forms.
+    """The nearest popular package, comparing PEP 503 canonical forms (F3.4).
+
+    "Substantially more popular" is membership of the bundled top-3000 list, not the
+    100x download ratio design.md names — the ratio needs per-package download
+    counts, which is the same third-party dependency F3.3 declines. PyPI only.
 
     Measured on a real project before this: *"'discord.py' is one character from the
     far more popular 'discord-py'"* — the same package. Verified 2026-09-10 that PyPI

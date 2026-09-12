@@ -1,4 +1,4 @@
-"""The Finding model. Every Scanner and Check normalises into this."""
+"""The Finding model. Every Scanner and Check normalises into this (F5.1)."""
 
 from __future__ import annotations
 

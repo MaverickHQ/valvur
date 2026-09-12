@@ -1,5 +1,7 @@
 # Opengrep replaces Semgrep for static analysis
 
+**Requirements:** F2.1 (Opengrep is the static-analysis Scanner), P4 (every bundled Scanner credited with its licence — which is what the Semgrep rules licence would have made impossible to state cleanly).
+
 We bundle Opengrep (LGPL-2.1) rather than Semgrep. In December 2024 Semgrep moved
 its maintained rules to a licence permitting only internal, non-competing and
 non-SaaS use. valvur is a published scanning tool, which is plausibly a competing

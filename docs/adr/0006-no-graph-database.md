@@ -1,5 +1,7 @@
 # Findings are a table, not a graph
 
+**Requirements:** F7.4 (`sbom.cdx.json` carries the one graph-shaped thing, the dependency tree, for free), F7.5 and F7.6 (comprehension is served by bounded Markdown, not a query engine).
+
 We do not use a graph database. Findings form a flat collection keyed by file,
 package, rule and severity, and every query we need is known in advance.
 

@@ -1,5 +1,7 @@
 # Enrichment is internal, with no external prerequisites
 
+**Requirements:** F6.8 (the `EnrichmentProvider` interface with no platform behind it), F6.2 (KEV shipped in the image), F6.3 and F6.4 (EPSS when permitted, KEV alone when not), F1.7 (no account or key).
+
 > **Note (2026-08-31):** the Profile named here has been renamed. `quick` is now
 > `offline` and is the default; `standard` and `deep` are now the single `full`
 > Profile. See [ADR-0016](0016-two-profiles-split-on-the-network-boundary.md).

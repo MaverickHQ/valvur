@@ -1,5 +1,7 @@
 # Thin host shim with a read-only container engine
 
+**Requirements:** F1.1 (the Workspace mounted read-only — the mount is the jail), F1.9 (a shim and image that must agree), F10.1 (one image on Docker and Podman), F10.6 (a shim that installs without a compiler or the Scanners).
+
 The MCP server is a small host-side shim installed via `uvx`/`pipx`; every Scanner
 lives in one OCI image. The shim mounts the Workspace read-only, mounts a scratch
 directory read-write, invokes the image, and then writes the Results Folder itself

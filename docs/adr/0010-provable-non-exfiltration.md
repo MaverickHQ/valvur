@@ -1,5 +1,7 @@
 # Non-exfiltration is a hard constraint, not a policy
 
+**Requirements:** N2.1 (no network connection on the offline Profile, verified by a test that fails if one is made), F6.10 (what a lookup transmitted, recorded, with an opt-out), P5 (a documented command a reviewer can run to verify it).
+
 > **Note (2026-08-31):** the Profile named here has been renamed. `quick` is now
 > `offline` and is the default; `standard` and `deep` are now the single `full`
 > Profile. See [ADR-0016](0016-two-profiles-split-on-the-network-boundary.md).

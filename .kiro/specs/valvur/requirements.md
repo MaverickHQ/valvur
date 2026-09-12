@@ -155,8 +155,23 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
    raise a **Finding** of the highest severity tier.
 3. F3.3 — valvur SHALL flag a dependency as a possible **Slopsquat** WHEN it was
    first published recently AND has low adoption, per thresholds in `design.md`.
+
+   > **Partially met, stated 2026-09-12 (task 22.C.2).** The age half is implemented
+   > (`valvur.dependency.newly-registered`, 90 days, on `full`). The adoption half is
+   > **not**: PyPI publishes no download counts — they come from a third-party
+   > service, which F1.7 and ADR-0008 rule out — and npm's counts would give one
+   > ecosystem a signal the other cannot have. A package under 90 days old is
+   > reported without the adoption qualifier, which over-reports rather than
+   > under-reports. Cited by the code that implements the half it implements; the
+   > ratchet cannot tell the difference, and this note is what can.
 4. F3.4 — valvur SHALL flag a dependency whose name is within edit distance 1 of a
    substantially more popular package in the same ecosystem.
+
+   > **Met for PyPI, by proxy (task 22.C.2).** "Substantially more popular" is
+   > membership of the top-3,000 list shipped in the image, not the 100× download
+   > ratio `design.md` names, for the same reason as F3.3. npm has no such list in
+   > the image, so npm names are checked for existence and not for similarity — the
+   > Coverage contract says so on every run (19.E.1).
 5. F3.5 — IF the Dependency Reality **Check** cannot reach a registry, THEN valvur
    SHALL record the **Check** as skipped in **Provenance** and SHALL NOT report its
    dependencies as clean.
@@ -272,8 +287,17 @@ form, so that I can act on them without exhausting my context window.
 1. F7.1 — valvur SHALL write the **Results Folder** to `.security-scan/` in the
    **Workspace**.
 2. F7.2 — valvur SHALL write `.security-scan/.gitignore` containing `*`.
-3. F7.3 — valvur SHALL add `.security-scan/` to the **Workspace**'s root `.gitignore`
-   if absent, and SHALL NOT otherwise modify that file.
+3. F7.3 — **RETIRED 2026-09-12 (task 22.C.2), never implemented.** ~~valvur SHALL add
+   `.security-scan/` to the **Workspace**'s root `.gitignore` if absent, and SHALL
+   NOT otherwise modify that file.~~ Found by taking the traceability ratchet to
+   zero: this was the one requirement no code cited, and the reason was that no code
+   does it. Nor should any — editing a tracked file in the scanned tree is a write to
+   the **Workspace**'s source, which CLAUDE.md section 10 prohibits and moat item 2
+   makes structural (the container cannot; the host shim must not). The guarantee
+   this was reaching for is already F7.2's: the **Results Folder** ignores itself
+   from the moment it is created, and travels with that ignore file wherever it is
+   copied. CLAUDE.md section 7 claimed the root entry was added; it was corrected in
+   the same task. The ID stays; nothing else may reuse it.
 4. F7.4 — valvur SHALL write `SUMMARY.md`, `REMEDIATION.md`, `findings.json`,
    `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`.
 5. F7.5 — `SUMMARY.md` SHALL NOT exceed 200 lines regardless of **Finding** count.

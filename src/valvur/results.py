@@ -12,6 +12,9 @@ RESULTS_DIR = ".security-scan"
 
 
 def write(workspace: Path, run, scanner_artifacts=(), raw_outputs=()) -> Path:
+    """The Results Folder, `.security-scan/` in the Workspace (F7.1): SUMMARY.md,
+    REMEDIATION.md, findings.json, results.sarif, run.json, raw/, and sbom.cdx.json
+    when Syft produced one (F7.4)."""
     folder = workspace / RESULTS_DIR
     folder.mkdir(parents=True, exist_ok=True)
     # The folder ignores itself. This is THE guarantee that results are never
@@ -113,6 +116,8 @@ def _provenance(run) -> str:
                     "kev_age_days": round(getattr(run, "kev_age_days", None) or 0, 2),
                     "stale": (getattr(run, "kev_age_days", None) or 0) > 30,
                 },
+                # F6.10: what a network lookup transmitted, recorded exactly; the
+                # opt-out is the default Profile, and `--offline` forces it.
                 "network": {
                     "used": getattr(run, "network_used", False),
                     "what_left_the_machine": (
@@ -160,8 +165,13 @@ def _provenance(run) -> str:
 
 
 TOP_N = 15
+#: N1.3: SUMMARY.md and REMEDIATION.md together must fit a 200k-token context with
+#: room to work in. Two hundred lines is the budget design.md section 6 allocates.
 LINE_CAP = 200
 
+# The three documentation requirements, in the one place an agent cannot miss
+# them: never commit the folder (F9.7), suppressions need a human (F9.6), and a
+# Finding that disappeared is not a fix (F9.5).
 MACHINE_HEADER = """<!-- valvur results. Read this file first; it is bounded by design. -->
 > **If you are an AI agent working in this repository, read this block first.**
 >
