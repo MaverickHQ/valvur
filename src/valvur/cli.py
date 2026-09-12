@@ -76,6 +76,55 @@ def _database_needs_refresh() -> bool:
     return age is None or age > cache.DB_STALE_AFTER_DAYS
 
 
+def _name_index_needs_refresh() -> bool:
+    """Absent, unreadable, or past the threshold that makes a scan `inconclusive`.
+    Decided from one file read, like the database's check above (ADR-0018)."""
+    from . import cache
+
+    age = cache.name_index_age_days()
+    return age is None or age > cache.NAME_INDEX_STALE_AFTER_DAYS
+
+
+def _refresh_name_index() -> bool:
+    """Refresh the package-name index into the host cache (ADR-0018).
+
+    Under the same exclusive lock as the database: a scan reading the index waits
+    for the rename, and never sees half of one. Returns False on failure, having
+    said why — whatever was on disk before is still there and still valid.
+    """
+    from . import cache, locking, name_index
+
+    print("Fetching the package-name index (PyPI and npm; about 30MB, or a few "
+          "hundred KB after the first time)...")
+    try:
+        with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
+            name_index.refresh(cache.name_index(), progress=lambda msg: print(f"  {msg}"))
+    except name_index.IndexUnavailable as exc:
+        print(f"Name index refresh failed: {exc}")
+        if cache.name_index_present():
+            print("The previous index remains in use; its age is reported in run.json.")
+        else:
+            print("Without it, the dependency-reality Check cannot verify package "
+                  "existence offline and will report that rather than a clean result.")
+        return False
+    return True
+
+
+def _warn_if_name_index_stale(run) -> None:
+    """The index's counterpart to the warning above (ADR-0018). Its failure
+    direction is the opposite — an old index overstates rather than misses — so it
+    gets its own sentence rather than a copy of the database's."""
+    from . import cache
+
+    age = getattr(run, "name_index_age_days", None)
+    if age is None or age <= cache.NAME_INDEX_STALE_AFTER_DAYS:
+        return
+    print(f"  ! the package-name index is {age:.0f} days old. Run `valvur update`.",
+          file=sys.stderr)
+    print("  ! dependency existence was checked against a list that predates anything "
+          "registered since.", file=sys.stderr)
+
+
 def _warn_if_database_stale(run) -> None:
     """Tell them in the terminal, not only in a file they may never open.
 
@@ -212,14 +261,16 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     )
 
     update_cmd = sub.add_parser(
-        "update", help="Fetch the vulnerability database into the local cache"
+        "update",
+        help="Fetch the vulnerability database and the package-name index into the "
+        "local cache",
     )
     update_cmd.add_argument(
         "--if-stale",
         action="store_true",
-        help="Do nothing unless the database is actually out of date. Cheap enough "
-        "to put in a pre-commit hook, a cron entry or CI — the freshness check needs "
-        "no network at all.",
+        help="Do nothing unless the database or the index is actually out of date. "
+        "Cheap enough to put in a pre-commit hook, a cron entry or CI — the "
+        "freshness check needs no network at all.",
     )
 
     # The same operations the MCP tools expose, so the two surfaces cannot drift
@@ -277,10 +328,17 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         from . import cache
         from .runner import ContainerRunner
 
-        if getattr(args, "if_stale", False) and not _database_needs_refresh():
-            age = cache.db_age_days()
-            print(f"Database is {age:.1f} days old and current enough. Nothing to do.")
-            return 0
+        if getattr(args, "if_stale", False):
+            database_due = _database_needs_refresh()
+            index_due = _name_index_needs_refresh()
+            if not database_due and not index_due:
+                age = cache.db_age_days()
+                print(f"Database is {age:.1f} days old and current enough. Nothing to do.")
+                return 0
+            if not database_due:
+                # The database is fine and only the index is due: do that one thing.
+                # A 116MB download to refresh a 4MB list is not what --if-stale means.
+                return 0 if _refresh_name_index() else 1
 
         # 116 MB compressed, measured 2026-09-05 against the published artifact. The
         # help text said 1.2GB for months — that is the UNCOMPRESSED size on disk,
@@ -293,8 +351,12 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         from . import cache
 
         _refresh_kev()
+        # The index is part of what "updated" means now (ADR-0018): a scan without
+        # it fails its dependency check loudly. So its failure fails the command —
+        # unlike KEV, which has a bundled snapshot to fall back on.
+        index_ok = _refresh_name_index()
         print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
-        return 0
+        return 0 if index_ok else 1
 
     if runner is None:
         from .runner import ContainerRunner
@@ -337,6 +399,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     # And updating on the user's behalf is the same move as fixing on their behalf,
     # which section 4 refuses. So: say it, loudly, and let them decide.
     _warn_if_database_stale(run)
+    _warn_if_name_index_stale(run)
 
     # Active first, and counted separately (task 19.C.1). This line used to read
     # `findings: 4 finding(s)` for a scan whose four Findings were all accepted risks

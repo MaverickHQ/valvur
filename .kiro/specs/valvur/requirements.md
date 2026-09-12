@@ -160,6 +160,14 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
 5. F3.5 — IF the Dependency Reality **Check** cannot reach a registry, THEN valvur
    SHALL record the **Check** as skipped in **Provenance** and SHALL NOT report its
    dependencies as clean.
+
+   > **Amended 2026-09-12 (ADR-0018).** "Cannot reach a registry" now covers two
+   > sources. Existence is answered from the **Name Index** on every Profile, so the
+   > registry is needed only for first-publish age on `full`. The rule extends
+   > unchanged to the index: **no index on `offline` is a recorded failure with the
+   > fix named, never clean**, and a stale index makes a nil result `inconclusive`
+   > (F7.16) with its age in **Provenance** — the same treatment as the vulnerability
+   > database (F6.11).
 6. F3.6 — valvur SHALL implement an AI Artifact **Check** over agent instruction and
    configuration files, including `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
    `.github/copilot-instructions.md`, `.claude/`, `.mcp.json` and `SKILL.md` files.

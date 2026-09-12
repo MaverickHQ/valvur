@@ -46,6 +46,10 @@ class ScanRun:
     # decides how they rank. Until 2026-09-05 only the latter was instrumented.
     db_age_days: float | None = None
     db_overdue_days: float | None = None
+    #: The package-name index the dependency-reality Check answered existence from
+    #: (ADR-0018). None when there is no index — then the Check failed loudly and the
+    #: run says so; there is no staleness to report about something absent.
+    name_index_age_days: float | None = None
     #: (old, new) when the Fingerprint algorithm changed and history was discarded.
     identity_reset: tuple[object, int] | None = None
     vendored_dropped: int = 0
@@ -130,6 +134,11 @@ class ScanRun:
 
         age = self.db_age_days
         if age is not None and age > _cache.DB_STALE_AFTER_DAYS:
+            return "inconclusive"
+        # The same rule for the name index (ADR-0018): "no hallucinated packages"
+        # from a month-old list of names is not a claim about today's registry.
+        index_age = self.name_index_age_days
+        if index_age is not None and index_age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
             return "inconclusive"
         if self.coverage_notes:
             return "inconclusive"
@@ -269,8 +278,15 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
     # which the default `offline` Profile does not run — so the one message saying
     # "this scan could not help you" was missing exactly where it mattered most.
     configured = tuple(_exclusions.load_configured(workspace))
-    coverage_declared = _coverage.collect(DEFAULT_ADAPTERS, workspace, configured)
-    for adapter in DEFAULT_ADAPTERS:
+    # Every adapter, but each told what THIS Profile permits: dependency-reality's
+    # contract says whether package age was checked, and that depends on the
+    # network the Profile granted (ADR-0018), not on whether the adapter was run.
+    declaring = [
+        a.for_profile(network=_profiles.ALLOWS_NETWORK.get(profile, False))
+        for a in DEFAULT_ADAPTERS
+    ]
+    coverage_declared = _coverage.collect(declaring, workspace, configured)
+    for adapter in declaring:
         findings += list(adapter.coverage(workspace, configured).gaps)
 
     # Dependency licence policy reads the SBOM the fleet just produced (F4.4-F4.6).
@@ -325,6 +341,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
         identity_reset=identity_reset,
         db_age_days=_cache.db_age_days(),
         db_overdue_days=_cache.db_overdue_days(),
+        name_index_age_days=_cache.name_index_age_days(),
         kev_source=provider.kev_source,
         vendored_dropped=vendored_dropped,
         config_dropped=config_dropped,

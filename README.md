@@ -36,12 +36,13 @@ hidden Unicode directives, model output flowing into shells and interpreters.
 | | |
 |---|---|
 | Image download, once | **302MB compressed** — ~24s at 100 Mbit, ~48s at 50, ~97s at 25 |
+| `valvur update`, once | **~116MB** database, **~30MB** package-name index — and the index's first fetch walks the npm registry: **~5.5 minutes**, measured 2026-09-12 |
 | `offline` scan, application code | **~7s** |
 | `offline` scan, with infrastructure code | **~17s** |
 
-So the first run lands inside a minute on a 50 Mbit connection or better, and takes
-longer on a slower one. Every run after that is just the scan. We would rather give
-you the figure than a promise.
+So the image lands inside a minute on a 50 Mbit connection or better, and the first
+`valvur update` is the slow part — once. Every run after that is just the scan, and
+every later `update` is seconds. We would rather give you the figure than a promise.
 
 The difference between those two rows is Checkov, which costs about ten seconds of
 fixed startup whatever it finds. It runs only when there is infrastructure to
@@ -113,6 +114,13 @@ Checks no other scanner ships:
   > a finding saying so, on every profile, rather than a clean result it did not earn.
   > That reporting is the part we consider non-optional: a check that silently covers
   > nothing is worse than one that says it does not apply.
+  >
+  > **And it runs offline.** *Does this package exist?* is answered from a local index
+  > of every name on PyPI and npm — 890,000 and 4.4 million of them, exact, no bloom
+  > filter — fetched by `valvur update` into the same host cache as the vulnerability
+  > database and mounted read-only into the container. No package name leaves the
+  > machine on the default profile. Only *how old is it?* still needs a registry, and
+  > that is what `full` adds.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
   `.mcp.json`, skills and prompt files — scanned for injected directives, hidden
   Unicode (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket
@@ -126,15 +134,16 @@ Checks no other scanner ships:
 
 **On `offline` (the default): nothing.** There is no network interface inside the container.
 
-**On `full`**, two checks need the network: dependency reality sends
-**package names** — never source code, never file contents — to public registries to
-ask whether each dependency actually exists. That is how hallucinated packages are
-caught at all; no advisory database can do it, because the package is new rather than
-known-bad.
+**On `full`**, two things reach the network. OSV-Scanner sends the names and versions
+in your lockfiles to api.osv.dev for a second advisory source. The dependency-reality
+check sends **package names** — never source code, never file contents — to PyPI and
+the npm registry, to ask how old each one is; and only the names the local index has
+already confirmed exist, so a hallucinated name is settled on your machine and never
+sent anywhere. Enrichment sends the CVE identifiers it found to FIRST for EPSS scores.
 
 Every run records this in `run.json`, and `valvur scan --offline` disables it. We
-criticise competitors for being vague about exactly this, so: package names, to PyPI,
-on `full`, and nothing else, ever.
+criticise competitors for being vague about exactly this, so: package names, to PyPI
+and npm, on `full`, and nothing else, ever.
 
 ### 3. Ten things that matter, not four hundred findings
 
@@ -185,17 +194,21 @@ pip install valvur          # or: uv tool install valvur
 # interface inside any container, and nothing sent from the host either.
 valvur scan
 
-# Add the second advisory source and the slopsquat check. Both send dependency
-# package NAMES — never source — to public registries.
+# Add the second advisory source, and the age check on dependencies. Both send
+# dependency package NAMES — never source — to public registries.
 valvur scan --profile full
 ```
 
-Keep the vulnerability database current — the check costs nothing when it is, so
-this is safe in a pre-commit hook, a cron entry or CI:
+Keep the vulnerability database and the package-name index current — the check
+costs nothing when they are, so this is safe in a pre-commit hook, a cron entry or CI:
 
 ```bash
-valvur update --if-stale    # ~116MB when it is out of date, one file read when not
+valvur update --if-stale    # ~116MB database + ~30MB index when out of date; one file read when not
 ```
+
+The first `valvur update` walks the whole npm registry — about five minutes and
+146MB, measured — because npm publishes no list of its package names. Every later
+one applies the change feed instead: seconds, and a few hundred kilobytes.
 
 A scan with a database older than a week reports **`inconclusive`** rather than
 `clean` when it finds nothing. What was found is always real; only *absence* needs
@@ -327,6 +340,10 @@ valvur scan            # scans offline against the cached copy
 
 The database deliberately lives **outside** the image, so mirroring needs no special
 build — and a six-month-old image never implies six-month-old vulnerability data.
+
+The package-name index lives beside it (`~/.cache/valvur/names/`, two plain-text
+files, one name per line) and can be copied in from any machine that has run
+`valvur update`. A mirror setting for it is on the list, not yet built.
 
 ## Platforms
 

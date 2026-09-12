@@ -22,10 +22,11 @@ FIXTURE = Path(__file__).parent / "fixtures" / "monorepo"
 
 
 @pytest.fixture
-def registry(monkeypatch):
-    """A registry where nothing exists. The harshest setting: anything valvur asks
-    about comes back absent, so every name it *should not have asked about* becomes a
-    finding."""
+def registry(monkeypatch, no_name_index, network_granted):
+    """A registry where nothing exists, on the `full` Profile with no index fetched —
+    so the registry is the only source, and everything valvur asks about is recorded.
+    The harshest setting: anything asked about comes back absent, so every name it
+    *should not have asked about* becomes a finding."""
     asked: list[tuple[str, str]] = []
 
     def lookup(ecosystem: str, name: str):
@@ -34,6 +35,17 @@ def registry(monkeypatch):
 
     monkeypatch.setattr(mod, "_lookup", lookup)
     return asked
+
+
+def test_a_local_workspace_package_is_not_reported_as_hallucinated_offline(name_index):
+    """The same defect on the default Profile (ADR-0018), against an index that has
+    never heard of the workspace members — the exact situation of a real monorepo,
+    whose packages are on no registry."""
+    name_index(pip=["flask"], npm=["express"])
+
+    found = DependencyRealityCheck().run(FIXTURE)
+
+    assert [f["rule"] for f in found] == [], found
 
 
 # --------------------------------------------------- a workspace member is not a lie
@@ -84,7 +96,7 @@ def test_a_locally_defined_name_does_not_mask_a_different_package(tmp_path, regi
 
 # ------------------------------------------------- PEP 503 says these are one name
 
-def test_a_package_does_not_typosquat_itself(tmp_path, monkeypatch):
+def test_a_package_does_not_typosquat_itself(tmp_path, monkeypatch, name_index):
     """Measured on a real project: *"'discord.py' is one character from the far more
     popular 'discord-py'"*.
 
@@ -95,7 +107,7 @@ def test_a_package_does_not_typosquat_itself(tmp_path, monkeypatch):
     So the comparison was one edit apart on raw strings and zero apart in fact. Any
     package whose name contains a dot or an underscore could accuse itself.
     """
-    monkeypatch.setattr(mod, "_lookup", lambda eco, name: {"releases": {}})
+    name_index(pip=["discord.py", "zope.interface"])
     monkeypatch.setattr(mod, "_popular",
                         lambda: {"discord-py": "discord-py", "zope-interface": "zope-interface"})
     (tmp_path / "requirements.txt").write_text("discord.py==2.3.2\nzope.interface==6.1\n")
@@ -105,10 +117,12 @@ def test_a_package_does_not_typosquat_itself(tmp_path, monkeypatch):
     assert [f["rule"] for f in found] == [], f"self-typosquat reported: {found}"
 
 
-def test_a_genuine_typosquat_still_reports(tmp_path, monkeypatch):
+def test_a_genuine_typosquat_still_reports(tmp_path, monkeypatch, name_index):
     """The pair. Normalising must not disarm the check it protects — `reqeusts` is a
-    transposition, not a separator, and PEP 503 has nothing to say about it."""
-    monkeypatch.setattr(mod, "_lookup", lambda eco, name: {"releases": {}})
+    transposition, not a separator, and PEP 503 has nothing to say about it. The
+    index says `reqeusts` exists (someone registered the squat), so this is the
+    near-miss finding rather than the nonexistent one."""
+    name_index(pip=["reqeusts", "requests"])
     monkeypatch.setattr(mod, "_popular", lambda: {"requests": "requests"})
     (tmp_path / "requirements.txt").write_text("reqeusts==2.31.0\n")
 

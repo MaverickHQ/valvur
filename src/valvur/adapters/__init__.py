@@ -20,8 +20,9 @@ DEFAULT_ADAPTERS: tuple[ScannerAdapter, ...] = (
     SyftAdapter(),
     CheckAdapter("licence-file"),
     CheckAdapter("ai-artifact"),
-    # The only Check that needs the network, and only on standard/deep.
-    CheckAdapter("dependency-reality", needs_network=True),
+    # Runs on both Profiles: existence comes from the local name index (ADR-0018).
+    # With a network — `full` — it also asks the registry for first-publish age.
+    CheckAdapter("dependency-reality", uses_network=True),
 )
 
 __all__ = [

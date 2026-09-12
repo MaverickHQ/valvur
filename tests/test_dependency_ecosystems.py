@@ -22,12 +22,16 @@ from valvur.checks.dependency_reality import DependencyRealityCheck, RegistryUnr
 
 
 @pytest.fixture
-def registry(monkeypatch):
-    """A registry where everything exists except names starting `nope-`.
+def registry(monkeypatch, no_name_index, network_granted):
+    """A registry where everything exists except names starting `nope-`, on the
+    `full` Profile of a machine that has not fetched the index — so the registry is
+    the only source and every declared name reaches it.
 
     Returns the list of (ecosystem, name) pairs actually looked up, because the
-    load-bearing assertion in most of these tests is *which registry was asked*, not
-    what it answered.
+    load-bearing assertion in most of these tests is *which names were declared*,
+    observed as which registry was asked about them. With an index present the
+    offline path answers first and asks nothing (ADR-0018); that path has its own
+    tests below and in `test_constraints.py`.
     """
     asked: list[tuple[str, str]] = []
 
@@ -222,9 +226,12 @@ def test_a_vendored_manifest_is_not_this_project_s_dependency(tmp_path, registry
     assert _names(registry, "npm") == ["express"]
 
 
-def test_an_unreachable_registry_still_fails_loudly(tmp_path, monkeypatch):
+def test_an_unreachable_registry_still_fails_loudly(
+    tmp_path, monkeypatch, no_name_index, network_granted
+):
     """F3.5 survives the widening. Unverified is not clean, and the message names the
-    live Profile rather than the retired one (19.D.2)."""
+    thing that fixes it — since ADR-0018, the index that answers existence with no
+    registry at all — rather than a retired Profile (19.D.2)."""
     def unreachable(ecosystem, name):
         raise RegistryUnreachable("no network")
 
@@ -235,8 +242,100 @@ def test_an_unreachable_registry_still_fails_loudly(tmp_path, monkeypatch):
             "package.json": json.dumps({"dependencies": {"express": "^4"}})
         }))
 
-    assert "--profile full" in str(raised.value)
+    assert "valvur update" in str(raised.value)
     assert "standard" not in str(raised.value)
+
+
+# ------------------------------------------------------- the index path (ADR-0018)
+
+def test_an_npm_hallucination_is_found_offline_from_the_index(tmp_path, name_index, monkeypatch):
+    name_index(npm=["express"])
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: pytest.fail(f"asked about {name}"))
+
+    found = DependencyRealityCheck().run(_repo(tmp_path, {"package.json": json.dumps(
+        {"dependencies": {"nope-fake-sdk": "^1.0.0", "express": "^4.0.0"}}
+    )}))
+
+    assert [f["rule"] for f in found] == ["valvur.dependency.nonexistent"]
+    assert "nope-fake-sdk" in found[0]["title"]
+
+
+def test_a_scoped_npm_name_is_found_in_the_index_as_written(tmp_path, name_index):
+    """`@types/node` is stored with its `@` and `/`; the index form is lowercase and
+    nothing else, because npm names are case-insensitive and otherwise literal."""
+    name_index(npm=["@types/node"])
+
+    found = DependencyRealityCheck().run(_repo(tmp_path, {"package.json": json.dumps(
+        {"devDependencies": {"@Types/Node": "^20", "@types/nope-x": "^1"}}
+    )}))
+
+    assert [f["title"].split("'")[1] for f in found] == ["@types/nope-x"]
+
+
+def test_a_python_name_is_looked_up_in_pep_503_form(tmp_path, name_index):
+    """`Zope.Interface`, `zope_interface` and `zope-interface` are one PyPI project.
+    The index stores the canonical form and the Check asks in it, so a declared
+    spelling that differs only by separators or case is never reported as invented."""
+    name_index(pip=["zope.interface"])
+
+    found = DependencyRealityCheck().run(_repo(tmp_path, {
+        "requirements.txt": "Zope.Interface==6.1\nzope_interface\nzope-interface\n"
+    }))
+
+    assert found == []
+
+
+def test_on_full_only_names_that_exist_are_asked_for_their_age(
+    tmp_path, name_index, network_granted, monkeypatch
+):
+    """The registry is now asked one question, about names the index already
+    settled as real. A hallucinated name never leaves the machine."""
+    name_index(pip=["flask"])
+    asked: list[str] = []
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: asked.append(name) or {"releases": {}})
+
+    found = DependencyRealityCheck().run(_repo(tmp_path, {
+        "requirements.txt": "flask\nnope-invented-lib\n"
+    }))
+
+    assert asked == ["flask"]
+    assert [f["title"].split("'")[1] for f in found] == ["nope-invented-lib"]
+
+
+def test_a_package_unpublished_since_the_index_was_built_is_still_reported(
+    tmp_path, name_index, network_granted, monkeypatch
+):
+    """The index says it exists; the registry, asked for its age, says it is gone.
+    A just-freed name is precisely the slopsquat target, so `full` reports it."""
+    name_index(pip=["gone-lib"])
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: None)
+
+    found = DependencyRealityCheck().run(_repo(tmp_path, {"requirements.txt": "gone-lib\n"}))
+
+    assert [f["rule"] for f in found] == ["valvur.dependency.nonexistent"]
+    assert "no longer exists" in found[0]["title"]
+
+
+def test_a_newly_registered_package_is_reported_only_with_a_network(
+    tmp_path, name_index, monkeypatch
+):
+    """Age is the one question the index cannot answer. Offline, a package the
+    index knows is simply present; on `full` its first-publish date is checked."""
+    from datetime import UTC, datetime, timedelta
+
+    name_index(pip=["fresh-lib"])
+    recent = (datetime.now(UTC) - timedelta(days=3)).isoformat()
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: {
+        "releases": {"1.0": [{"upload_time_iso_8601": recent}]}
+    })
+    manifest = _repo(tmp_path, {"requirements.txt": "fresh-lib\n"})
+
+    offline = DependencyRealityCheck().run(manifest)
+    monkeypatch.setenv("VALVUR_NETWORK", "1")
+    full = DependencyRealityCheck().run(manifest)
+
+    assert offline == []
+    assert [f["rule"] for f in full] == ["valvur.dependency.newly-registered"]
 
 
 def test_a_python_fingerprint_did_not_move(tmp_path, registry):

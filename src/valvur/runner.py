@@ -64,6 +64,8 @@ class WorkspaceUnreadable(RuntimeError):
 #: interface (ADR-0015) and has no command line, so a flag would fix this for the
 #: second-choice path only.
 RELABEL_ENV = "VALVUR_SELINUX_RELABEL"
+#: Set inside a container launched WITH a network, and only then (ADR-0018).
+NETWORK_ENV = "VALVUR_NETWORK"
 
 #: Named so a test can point it somewhere real. Patching `Path.read_text` wholesale
 #: could not tell "enforcing" from "SELinux is absent" — both end up False — so the
@@ -403,6 +405,8 @@ class ContainerRunner:
 
         db = cache.trivy_db()
         db.mkdir(parents=True, exist_ok=True)
+        names = cache.name_index()
+        names.mkdir(parents=True, exist_ok=True)
         enforcing = selinux_enforcing()
         own_label = ":z" if enforcing else ""
         ws_label = ",z" if enforcing and _relabel_workspace() else ""
@@ -428,10 +432,17 @@ class ContainerRunner:
             "-v", f"{workspace}:/workspace:ro{ws_label}",   # F1.1 - source read-only
             "-v", f"{scratch}:/results{own_label}",
             "-v", f"{db}:/cache/trivy{own_label}",  # ADR-0012 - DB outside the image
+            # ADR-0018 - the package-name index, beside the database and for the
+            # same reason. Read-only: the Check only ever asks it questions.
+            "-v", f"{names}:/cache/names:ro{own_label and ',z'}",
         ]
         if not network:
             flags.append("--network=none")           # N2.1 - no interface at all
         else:
+            # Told, not probed. The dependency-reality Check asks a registry only
+            # when this is set, and it is set in exactly the case `--network=none`
+            # is omitted — one decision, read by the Check and enforced by the kernel.
+            flags += ["--env", f"{NETWORK_ENV}=1"]
             mirror = db_repository()
             if mirror:
                 flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
@@ -596,10 +607,25 @@ class ContainerRunner:
     def run_check(self, name: str, workspace: Path, *, network: bool = False) -> ScannerOutput:
         """Run one of valvur's own Checks inside the container (ADR-0013).
 
-        `network` is opt-in per Check. Only dependency-reality needs it, and on the
-        quick Profile it is denied regardless — so F3.5's honest degradation is
-        enforced by the container, not by a code path someone could later change.
+        `network` is decided by the Profile, never by the Check: `profiles.select`
+        hands each adapter the Profile's permission, and only dependency-reality ever
+        uses it — for first-publish age, on `full`. On `offline` the container has
+        no interface, so F3.5's honest degradation is enforced by the kernel, not by
+        a code path someone could later change.
         """
+        from . import cache
+
+        if name == "dependency-reality" and not network and not cache.name_index_present():
+            # The same refusal Trivy gets without its database, decided here so the
+            # message leads with the fix rather than arriving as a container's
+            # stderr. The Check refuses too (in case the mount is empty or partial);
+            # this is the version a first-time user actually reads.
+            raise RuntimeError(
+                "Package-name index not present, so dependency existence cannot be "
+                "checked offline. Fetch it once with:\n"
+                "  valvur update\n"
+                "Scans then verify package names against the cached index (ADR-0018)."
+            )
         return self._capture(
             workspace,
             ["python", "-m", "valvur.checks", name, "/workspace"],

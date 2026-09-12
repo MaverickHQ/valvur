@@ -211,8 +211,10 @@ def test_a_narrower_profile_does_not_claim_bare_clean():
     # Named by what is missing, not by which binary did not run: quick does not run
     # osv-scanner, but Trivy covers dependency CVEs, so listing the tool alone reads
     # as "dependencies unchecked" — which is exactly the false alarm this avoids.
-    assert "hallucinated and typosquatted packages" in text
-    assert "does cover dependency CVEs" in text
+    # Since ADR-0018 hallucinated packages are on the COVERED side of the sentence.
+    assert "package age" in text
+    assert "It does not cover" in text and "hallucinated" not in text.split("It does not cover")[1]
+    assert "does cover dependency CVEs" in text and "hallucinated packages" in text
 
 
 def test_full_coverage_clean_carries_no_caveat():

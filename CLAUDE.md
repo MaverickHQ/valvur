@@ -27,20 +27,24 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-12):** built and hardened; one product change and one rehearsal
-stand between it and `0.2.0`.
+**Status (2026-09-12):** built and hardened; the product move is in, and one
+rehearsal stands between it and `0.2.0`.
 
 `0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
 private**, so nobody outside this machine can install it. Phases 19 and 20 are
 complete. A critical review on 2026-09-12 became **Phase 22**, and its first two blocks
 run *before* `0.2.0` publishes:
 
-- **Block A — the offline existence check.** Slopsquat detection, the check this
-  product is most distinctive for, runs only on `full` because it needs a registry —
-  and `full` sends package names out, which target market #1 cannot do. "Fully
-  offline" and "hallucinated-package detection" are both true and not at the same
-  time. A local index of package names moves *existence* to the default Profile;
-  age and near-miss stay `full`-only. This amends ADR-0016.
+- **Block A — the offline existence check. Done, 22.A.1–2 (2026-09-12).** Slopsquat
+  detection ran only on `full` because it needed a registry — and `full` sends
+  package names out, which target market #1 cannot do. "Fully offline" and
+  "hallucinated-package detection" were both true and never at the same time. Now
+  *existence* is answered from a **Name Index** — every name on PyPI and npm,
+  exact, in the host cache beside the vulnerability database, mounted read-only —
+  on the default Profile with no socket; only first-publish age still needs `full`.
+  ADR-0018, amending ADR-0016. Proven on the broken fixture in a real container:
+  `reqeusts` and `aws-helper-sdk` reported offline, `what_left_the_machine: nothing`.
+  22.A.3 (parallel `full` lookups) and 22.A.4 (JVM, Go) remain.
 - **Block B — prove the release pipeline.** `release.yml` has never run. Dry-run it on
   a throwaway tag before the first real one.
 
@@ -48,8 +52,8 @@ Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then P
 22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
 README); then the usability gate and `v1.0.0`.
 
-Roughly: 84 Python modules, 443 tests, 17 ADRs, 136 requirement IDs, **119 done and 27
-open** across 22 phases — 19 of the 27 are Phase 22, and 8 are Phase 21's owner actions
+Roughly: 87 Python modules, 524 tests, 18 ADRs, 136 requirement IDs, **121 done and 25
+open** across 22 phases — 17 of the 25 are Phase 22, and 8 are Phase 21's owner actions
 and release tail.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -65,7 +69,13 @@ were introduced by the block before, with tests passing.
   and `pyproject.toml` (PEP 621 and Poetry) against PyPI; `package.json` against the
   npm registry. Cargo, Go, Ruby, PHP and JVM have no existence check — but a project
   using one now gets a **Finding** saying so, on every Profile, so the gap is stated
-  rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
+  rather than inferred from silence. Closed 19.D.1; the reporting half is permanent;
+  22.A.4 adds JVM and possibly Go.
+- **The first `valvur update` takes ~5.5 minutes.** npm publishes no list of its
+  package names, so the Name Index is walked from the registry's replication feed
+  the first time (439 requests, 146MB, measured) and updated from its change feed
+  afterwards (seconds). A valvur-published index — the `trivy-db` pattern — is the
+  eventual answer and waits on a release pipeline that has run at least once.
 - **On SELinux-enforcing hosts, valvur refuses to scan until the developer acts.**
   Measured 2026-09-10 on Fedora CoreOS 44, native xfs under `$HOME`: a container may
   not read a `user_home_t` directory, so all three mounts were denied. valvur labels
@@ -112,7 +122,9 @@ rejected, however useful it seems.
    The claim has **two halves**, and the flag only covers one. The Scanners run in
    containers with no network interface; the **host shim does not**, and it has a
    reason to reach out — enrichment fetches EPSS from FIRST on `full`, gated by a
-   single condition. `scripts/verify-offline.py` checks both. On Linux
+   single condition. And since ADR-0018 one Check with a reason to reach a registry
+   runs on `offline` too, told by the runner whether it has a network and never
+   guessing. `scripts/verify-offline.py` checks all three. On Linux
    `unshare -rn valvur scan --profile offline` proves both at the OS level, without
    privileges, because the container runtime is reached over a unix socket. macOS has
    no equivalent; say so rather than implying one.
@@ -182,7 +194,8 @@ new argument.
 | [013](docs/adr/0013-checks-run-inside-the-container.md) | **valvur's own Checks run inside the container**, like Scanners. Host-side would put the Dependency Reality Check's registry calls outside `--network=none`, turning ADR-0010's guarantee back into a policy. No new orchestrator protocol was needed: Checks emit JSON and fit the existing adapter contract. |
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
 | [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `offline` stays offline. |
-| [016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md) | **Two Profiles, split on the network boundary.** `offline` (the default) runs every Scanner that completes under `--network=none` — which is all of them bar two. `full` adds `osv-scanner` and the dependency-reality Check, the only two needing a socket. The old set was drawn along *speed* while being described as a network boundary, and `deep` was byte-identical to `standard` — it promised more and delivered exactly `standard`. Retired names still resolve. |
+| [016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md) | **Two Profiles, split on the network boundary.** `offline` (the default) runs every Scanner that completes under `--network=none`. `full` adds `osv-scanner` — and, since ADR-0018 amended this, lets the dependency-reality Check ask a registry for the one thing its local index cannot answer. The old set was drawn along *speed* while being described as a network boundary, and `deep` was byte-identical to `standard` — it promised more and delivered exactly `standard`. Retired names still resolve. |
+| [018](docs/adr/0018-offline-package-name-index.md) | **An exact index of package names, from primary sources, in the host cache.** Existence — the hallucination check — is answered offline from every name on PyPI (890k) and npm (4.4M): 29MB on the wire, exact rather than a bloom filter because a false positive there is a *missed hallucination*, and a binary search over the memory-mapped file costs 8µs a name. PyPI is one request; npm is walked from the registry's replication database once and its change feed after. `all-the-package-names` was rejected on measurement, not only principle: 140,823 names it lists do not exist. Stale past 30 days → `inconclusive`. Amends ADR-0016. |
 | [017](docs/adr/0017-selinux-relabelling-is-opt-in.md) | **SELinux relabelling of the source tree is opt-in.** Measured on a native enforcing host: all three mounts are denied, so valvur was unusable on RHEL — the primary target market. Its **own** scratch and cache mounts are labelled `:z` unconditionally; the **Workspace is not**, unless `VALVUR_SELINUX_RELABEL=1`, because `:z` rewrites the SELinux context of every file in the scanned tree and that outlives the scan (§10, moat item 2). `:Z` is impossible rather than merely undesirable — it stamps a private MCS category and valvur runs its Scanners concurrently against one mount, so the second is denied. The accepted cost is a failed first run on RHEL. |
 | [010](docs/adr/0010-provable-non-exfiltration.md) | **Provable non-exfiltration is a hard constraint.** Not a policy — a testable property, with a regression test that fails if the `offline` profile touches a socket. This is the product; see §3. |
 

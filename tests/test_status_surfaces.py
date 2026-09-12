@@ -124,7 +124,9 @@ def test_the_profile_caveat_survives_a_finding_being_present():
 
     for summary in (noisy, quiet):
         assert "did not run every Scanner" in summary
-        assert "dependency-reality" in summary
+        # osv-scanner rather than dependency-reality: the latter runs on both
+        # Profiles since ADR-0018, and the caveat names what did not.
+        assert "osv-scanner" in summary
 
 
 def test_a_coverage_note_is_reported_separately_from_a_profile_omission():

@@ -73,7 +73,7 @@ Non-root user, read-only root filesystem, all capabilities dropped (F10.2).
 | Checkov | — | ✓ | ✓ |
 | Syft | — | ✓ | ✓ |
 | Licence hygiene | ✓ (F4.1–4.3) | ✓ (all) | ✓ + copyright |
-| Dependency Reality | offline heuristics | ✓ | ✓ |
+| Dependency Reality | existence + near-miss, from the Name Index (ADR-0018) | + first-publish age | + first-publish age |
 | AI Artifact | ✓ | ✓ | ✓ |
 | LLM-sink, Pinning | — | ✓ | ✓ |
 | Enrichment | bundled KEV | KEV + EPSS | KEV + EPSS |

@@ -16,6 +16,11 @@ Non-exfiltration has two halves, and one flag only covers one of them.
      Checked here by poisoning every connect path in the process and running a real
      scan.
 
+  3. The dependency-reality Check runs on `offline` since ADR-0018, answering
+     existence from the local package-name index. It is the one Check with a reason
+     to reach a registry, so it is run here in-process, against the real index and
+     the real target, with the same poison in place — and must ask nothing.
+
 What this does NOT prove: that a determined adversary could not bypass a check
 running inside their own interpreter. For a proof the process cannot influence, run
 the scan under an OS that denies it the network outright — on Linux:
@@ -68,11 +73,52 @@ def check_containers_have_no_network() -> bool:
     return ok
 
 
-def check_host_opens_no_connection(target: str) -> bool:
+def _poison() -> None:
     socket.socket.connect = _deny("connect")
     socket.socket.connect_ex = _deny("connect_ex")
     socket.create_connection = _deny("create_connection")
     socket.getaddrinfo = _deny("getaddrinfo")
+
+
+def check_the_dependency_check_asks_nothing(target: str) -> bool:
+    """ADR-0018: existence from the index, no registry. In production this Check
+    runs inside a container with no interface; here it runs in this process, where
+    the poison can see it, against the same index the container would be given."""
+    import os
+
+    from valvur import cache, profiles
+    from valvur.adapters import DEFAULT_ADAPTERS
+    from valvur.checks.dependency_reality import DependencyRealityCheck
+
+    granted = [a.name for a in profiles.select(DEFAULT_ADAPTERS, profiles.OFFLINE)
+               if getattr(a, "network", False)]
+    if granted:
+        print(f"  [FAIL] the offline Profile granted a network to: {', '.join(granted)}")
+        return False
+    print("  [PASS] the offline Profile grants no adapter a network")
+
+    if not cache.name_index_present():
+        print("  [SKIP] no package-name index in the cache; run `valvur update` first")
+        return True
+    os.environ["VALVUR_NAME_INDEX"] = str(cache.name_index())
+    os.environ.pop("VALVUR_NETWORK", None)
+    _poison()
+    before = len(attempts)
+    try:
+        found = DependencyRealityCheck().run(Path(target).resolve())
+    except Connected as exc:
+        print(f"  [FAIL] the dependency-reality Check tried to connect: {exc}")
+        return False
+    if len(attempts) > before:
+        print("  [FAIL] the dependency-reality Check attempted a connection")
+        return False
+    print(f"  [PASS] the dependency-reality Check asked no registry "
+          f"({len(found)} finding(s) from the local index)")
+    return True
+
+
+def check_host_opens_no_connection(target: str) -> bool:
+    _poison()
 
     from valvur.cli import main
 
@@ -97,10 +143,11 @@ def main() -> int:
     print("Verifying that an offline scan sends nothing.\n")
 
     containers_ok = check_containers_have_no_network()
+    check_ok = check_the_dependency_check_asks_nothing(target)
     host_ok = check_host_opens_no_connection(target)
 
     print()
-    if containers_ok and host_ok:
+    if containers_ok and check_ok and host_ok:
         print("VERIFIED: nothing left this machine.")
         print("Stronger still, on Linux: unshare -rn valvur scan --profile offline")
         return 0
