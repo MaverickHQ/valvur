@@ -3691,11 +3691,22 @@ the first tag was going to be `0.2.0` in front of everyone.
   > includes the hallucination check. Recipe in `docs/RELEASING.md`; settings in the
   > README's air-gap section.
 
-- [ ] **22.B.4** Measure the true first run and publish the least flattering number.
+- [x] **22.B.4** Measure the true first run and publish the least flattering number.
   From a clean machine: bytes downloaded (image, database, index), wall-clock to the
   first result, and what the user is staring at while it happens. Put it in
   `EVALUATING.md`. The honesty document should carry the number a competitor would
   quote, before they do.
+
+  > **Done 2026-09-12.** From an empty cache on this Mac: image 321MB compressed as
+  > published (`0.1.0rc1`, and single-arch — the known defect) or ~240MB from the
+  > current tree; `valvur update` **6m27s** and **276MB** (Trivy DB 118,357,868
+  > bytes by its manifest, npm names 146MB in 439 requests, PyPI 10MB, KEV 2MB);
+  > first scan **45s** on `broken-repo` (Checkov runs — Terraform is present;
+  > measured identical with the pre-Block-A image, so not a Block A cost). **About
+  > eight minutes to a first result on 100 Mbit, most of it npm.** In `EVALUATING.md`
+  > §1 as a table with the "what you are staring at" column the task asked for, and
+  > the one sentence that matters: a valvur-published index is what moves this
+  > number next, and it waits on Block B.
 
 ### C — Build guards
 
