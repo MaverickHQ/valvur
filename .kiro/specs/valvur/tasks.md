@@ -3759,12 +3759,35 @@ the first tag was going to be `0.2.0` in front of everyone.
 
 ### C — Build guards
 
-- [ ] **22.C.1** A local image-staleness guard. The rebuild trap bit four times in
+- [x] **22.C.1** A local image-staleness guard. The rebuild trap bit four times in
   three days: Checks and rules ship *inside* the image (ADR-0013), so unit tests pass
   while a real scan runs yesterday's code. CONTRIBUTING documents it; documentation
   is not a guard. `scripts/verify.sh image` hashes `src/valvur/checks/`, `rules/` and
   the `Dockerfile`, compares against a label baked into the local image at build
   time, and fails with the rebuild command.
+
+  > **Done 2026-09-12 — a fifth bite first.** During Block B the previous image,
+  > run with the new shim, crashed its Check in-container; F1.9 saw two identical
+  > versions. Two deviations from the task as written, both for the same reason:
+  > **one module computes the digest on both sides.** `src/valvur/tree_hash.py` runs
+  > inside the Dockerfile (`python -m valvur.tree_hash --image`, stored at
+  > `/etc/valvur/inputs.sha256`) and on the host over the tree, so the two can only
+  > disagree because the inputs do — a label cannot be computed during a build, and a
+  > `--build-arg` at every call site is the 19.A.3 drift again. And the digest covers
+  > all of `src/valvur/`, not only `checks/`: the Check imports `name_index`,
+  > `exclusions`, `ecosystems`, all of which ship in the image. Keyed by label, not
+  > path, so `src/valvur/x.py` and its site-packages copy hash alike; `__pycache__`
+  > and `.pyc` excluded on both sides (the image strips them, the host has them
+  > everywhere). Verified: in-image and tree digests identical on a fresh build; a
+  > one-line edit to a rule fails with the rebuild command; an image predating the
+  > guard fails as such. Two consumers: `scripts/verify.sh image` (opt-in, needs a
+  > runtime; the script says when it was not run) and the first e2e test, which is
+  > where the trap bites — CI's e2e job passes it because it builds what it tests.
+  > A test pins the input set to exactly the Dockerfile's `COPY` lines, so a new
+  > `COPY` widens the guard or fails the suite. Two things found on the way: the
+  > checkov layer sat *after* our `COPY`s, so every Check edit re-ran a 60-second pip
+  > install (reordered); and there was no `.dockerignore` — the build context was
+  > 124MB, of which the Dockerfile copies under 1MB (added).
 
 - [ ] **22.C.2** Cite the 24 tolerated requirements and take the ratchet to zero. They
   are mostly *core* — F2.1 (orchestrate the Scanners), F7.1 (write the Results

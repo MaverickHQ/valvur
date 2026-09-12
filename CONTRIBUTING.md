@@ -38,14 +38,20 @@ install's metadata goes stale, and that is a real bug we shipped for six days.
 
 **Rules and Checks ship *inside* the image** (ADR-0013), so editing
 `src/valvur/checks/` or `rules/` changes nothing about a real scan until you rebuild.
-Unit tests exercise your new code; `valvur scan` runs the image's copy. This has
-caught us twice — a new Opengrep rule (12a.6) and a new coverage report (19.D.3) —
-both times as a change that passed every test and did nothing in practice:
+Unit tests exercise your new code; `valvur scan` runs the image's copy. This caught
+us five times in four days — a new Opengrep rule (12a.6), a new coverage report
+(19.D.3), and three times during Phase 22 — every time as a change that passed every
+test and did nothing in practice. So the image now records what it was built from,
+and two things check it (22.C.1):
 
 ```bash
-docker buildx build --load --build-arg VALVUR_VERSION="$(uv run python -c 'import valvur; print(valvur.__version__)')" -t valvur:dev .
-VALVUR_IMAGE=valvur:dev uv run valvur scan .
+./scripts/verify.sh image        # compares the local image's digest with this tree
+VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e   # the first e2e test does the same
 ```
+
+Both fail with the rebuild command when `src/valvur/`, `rules/` or the `Dockerfile`
+changed after the image was built. `verify.sh image` is opt-in because it needs a
+container; the e2e test is not, because that is exactly where a stale image lies.
 
 ## How the work is organised
 
