@@ -80,15 +80,9 @@ COPY --from=osv      /osv-scanner             /usr/local/bin/osv-scanner
 COPY --from=syft     /syft                    /usr/local/bin/syft
 COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 
-# Our own rules, licensed with the project. Bundling the community registry would
-# reintroduce exactly the licensing problem ADR-0004 exists to avoid.
-COPY rules /opt/valvur-rules
-
-# valvur's own Checks run in the container, like Scanners (ADR-0013), so the package
-# ships in the image. Last layer: check code changes rebuild only this.
-COPY src/valvur /usr/local/lib/python3.12/site-packages/valvur
-
 # Checkov is Python. Installed into the system environment; no compiler is kept.
+# Before our own files, so that editing a Check or a rule rebuilds only the layers
+# below and never this one — it used to sit after them and re-ran on every edit.
 RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && pip install --no-cache-dir checkov==3.2.517 \
  && apk del .build \
@@ -101,6 +95,22 @@ ENV TRIVY_CACHE_DIR=/cache/trivy \
     PYTHONDONTWRITEBYTECODE=1 \
     CHECKOV_DISABLE_UPDATE_CHECK=true \
     HOME=/tmp
+
+# Our own rules, licensed with the project. Bundling the community registry would
+# reintroduce exactly the licensing problem ADR-0004 exists to avoid.
+COPY rules /opt/valvur-rules
+
+# valvur's own Checks run in the container, like Scanners (ADR-0013), so the package
+# ships in the image. Last content layer: check code changes rebuild only this.
+COPY src/valvur /usr/local/lib/python3.12/site-packages/valvur
+
+# The image records what it was built from (22.C.1): a digest over exactly the
+# files copied above and this Dockerfile, computed by the same module the host uses
+# to check it. `scripts/check_image.py` and the e2e suite refuse a stale image with
+# the rebuild command, instead of running yesterday's Checks against today's tests.
+COPY Dockerfile /etc/valvur/Dockerfile
+RUN python3 -m valvur.tree_hash --image > /etc/valvur/inputs.sha256 \
+ && chmod 0444 /etc/valvur/inputs.sha256
 
 RUN adduser -D -u 10001 valvur
 USER 10001:10001

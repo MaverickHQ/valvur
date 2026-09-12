@@ -10,8 +10,9 @@
 # Everything a container is required for lives in the e2e suite and is NOT run here.
 # This is the fast half: the checks worth having before every push.
 #
-#   scripts/verify.sh              # everything
+#   scripts/verify.sh              # everything that needs no container
 #   scripts/verify.sh lint types   # just those
+#   scripts/verify.sh image        # the local image was built from this tree (22.C.1)
 #
 set -uo pipefail
 
@@ -55,9 +56,12 @@ run() {
 # the bottom exists because of that: a verifier that can pass vacuously is worse than
 # no verifier, which is the whole argument of this repository.
 SELECTED=" $* "
+OPT_IN=" image "
 want() {
   case "$SELECTED" in
-    "  ") return 0 ;;
+    # No arguments means everything — except the checks that need a container,
+    # which run only when named.
+    "  ") case "$OPT_IN" in *" $1 "*) return 1 ;; *) return 0 ;; esac ;;
     *" $1 "*) return 0 ;;
     *) return 1 ;;
   esac
@@ -79,9 +83,16 @@ want traceability && run "traceability" uv run python scripts/check_traceability
 want tests        && run "tests"        uv run pytest -q -m "not e2e"
 want build        && run "build"        uv build --out-dir "${TMPDIR:-/tmp}/valvur-verify-dist"
 
+# Opt-in by name, because it needs a container runtime and a local image, and this
+# script must pass on a machine with neither (CI's lint job runs it). It is the guard
+# against the rebuild trap (22.C.1): Checks and rules ship inside the image, so an
+# edit to either passes every check above while a real scan runs the old code. The
+# e2e suite runs the same comparison unconditionally — that is where the trap bites.
+want image        && run "image"        uv run python scripts/check_image.py
+
 printf '\n'
 if [ "$RAN" -eq 0 ]; then
-  printf '\033[31mno checks ran\033[0m — %s matched nothing. Known checks: lint types traceability tests build\n' "${*:-(no arguments)}"
+  printf '\033[31mno checks ran\033[0m — %s matched nothing. Known checks: lint types traceability tests build image\n' "${*:-(no arguments)}"
   exit 1
 fi
 if [ "${#FAILED[@]}" -ne 0 ]; then
@@ -89,3 +100,6 @@ if [ "${#FAILED[@]}" -ne 0 ]; then
   exit 1
 fi
 printf '\033[32m%s check(s) passed\033[0m — e2e (container) tests were not run; CI runs those.\n' "$RAN"
+if ! want image; then
+  printf 'image staleness not checked: run \033[1mscripts/verify.sh image\033[0m before trusting a real scan against a local build.\n'
+fi

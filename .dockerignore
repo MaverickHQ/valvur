@@ -1,0 +1,13 @@
+# The build context is what `docker build .` uploads to the daemon before the first
+# instruction runs. Without this file it was 124MB, of which the Dockerfile copies
+# under 1MB — and host byte-code caches went into the image only to be deleted.
+.git
+.venv
+.security-scan
+tests
+docs
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
