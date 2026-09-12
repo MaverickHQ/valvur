@@ -3738,7 +3738,7 @@ the first tag was going to be `0.2.0` in front of everyone.
   > "`full`-equivalent" is the wrong phrase: `full` reaches api.osv.dev and FIRST by
   > definition; what an air-gapped site runs is `offline`, which since 22.A.2
   > includes the hallucination check. Recipe in `docs/RELEASING.md`; settings in the
-  > README's air-gap section.
+  > README's air-gap section (moved to `docs/AIR-GAPPED.md` in 22.F.1).
 
 - [x] **22.B.4** Measure the true first run and publish the least flattering number.
   From a clean machine: bytes downloaded (image, database, index), wall-clock to the
@@ -3961,11 +3961,26 @@ the coverage gap that needed them.
 
 ### F — The first impression
 
-- [ ] **22.F.1** Halve the README. It is 408 lines. The record of being wrong in
+- [x] **22.F.1** Halve the README. It is 408 lines. The record of being wrong in
   public is persuasive to exactly the right reader and a wall to everyone else.
   `EVALUATING.md` is the audit; the README should be the introduction, and point
   there. Keep the three claims, the two snippets, the platform table and the
   what-it-is-not list. Move the rest.
+
+  > **Done 2026-09-12: 464 → 190 lines.** It had grown to 464 since the task was
+  > written — Blocks A, B and E each added a blockquote. Kept: the three claims,
+  > each with the one command that verifies it; the MCP config and the agent
+  > snippet; the results tree; the scanner credit table (P4); what-it-is-not; the
+  > platform table. The five coverage blockquotes under claim 2 became one
+  > three-row table — *exists? / known CVEs?* per ecosystem — which says the same
+  > thing in a tenth of the space and leads with the Checks, as 22.E.2 concluded it
+  > should. Moved: the air-gap recipe and its five settings to a new
+  > `docs/AIR-GAPPED.md`; the comparison table, the corrected coverage detail
+  > (existence offline / JVM-Go on full / the lockfile gap), the SELinux commands,
+  > the Fargate non-claim and the agent-snippet lesson into `EVALUATING.md`, whose
+  > §5 had gone stale on all of them. The first-run table was already there.
+  > Nothing was deleted; every sentence that left the README has a home the README
+  > points at.
 
 ### G — Environment-gated
 

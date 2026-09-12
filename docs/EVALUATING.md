@@ -145,17 +145,49 @@ Read this before the feature list, not after.
   `scan_and_fix` tool and a test asserts none exists in the registry, so adding one
   fails the build rather than merely failing review. An agent told to drive findings
   to zero has a cheaper path via deleting code than via correct fixes.
-- **Dependency-reality covers Python and npm only.** `requirements*.txt` and
-  `pyproject.toml` against PyPI; `package.json` against the npm registry. Cargo, Go,
-  Ruby, PHP and JVM have **no existence check** — and a repository using one gets a
-  finding saying so on every profile, rather than a clean result it did not earn.
+- **The existence check is offline for Python and npm, `full`-only for JVM and
+  Go, and absent for Rust, Ruby and PHP.** `requirements*.txt` and `pyproject.toml`
+  (PEP 621 and Poetry) and `package.json` are checked against a local index of every
+  name on PyPI and npm — 890,000 and 4.4 million, exact, fetched by `valvur update`
+  ([ADR-0018](adr/0018-offline-package-name-index.md)). `pom.xml`, Gradle scripts
+  and `go.mod` are checked against Maven Central and the Go module proxy on `full`,
+  because neither registry publishes a name list an offline index could be built
+  from (Maven Central's only one is 3.2GB; Go's is a feed of versions). Cargo, Ruby
+  and PHP have no check at all. Every case is stated in the run's coverage contract,
+  and the last two produce a coverage note rather than a clean result.
+- **Known-vulnerability scanning needs a lockfile.** Measured 2026-09-12: Trivy
+  produces no result — not zero findings, no scan — for `package.json`,
+  `pyproject.toml`, `Gemfile` or `Cargo.toml` without a lockfile (or a pinned
+  `requirements.txt`) beside it. Express commits no lockfile and read `clean` with
+  thirty dependencies unchecked, until the public corpus found it. Now it is a
+  coverage note and the run is `inconclusive`. Direct manifests are read for
+  *existence* precisely because that is where a hallucinated name is written;
+  lockfiles are read for *vulnerabilities* because that is where the versions are.
+- **The Opengrep rules are a supplement, not the product.** Measured on eleven real
+  repositories (task 22.E.2): 75 findings, 64 of them tag-pinned GitHub Actions and
+  the other 11 rejected by a reviewer to the last one; the four LLM-output-to-sink
+  rules fired zero times, including on an LLM tool. They are all ranked `low` now,
+  bar the ones that have never fired on real code. The AI-specific claim is carried
+  by the Checks above.
 - **On SELinux-enforcing hosts valvur refuses to scan until you act.** Measured on
   Fedora CoreOS 44, native xfs under `$HOME`: the container may not read a
   `user_home_t` directory. valvur fails loudly rather than reporting a false clean,
   and will not relabel your source tree unless you set `VALVUR_SELINUX_RELABEL=1` —
   `:z` persists after the scan, and rewriting the labels of the code you asked us not
   to touch is not a thing to do quietly. That means a first run on RHEL fails, and
-  that is a deliberate trade rather than an oversight.
+  that is a deliberate trade rather than an oversight. To do it yourself, once:
+  `chcon -R -t container_file_t .`, undone with `restorecon -R -F .` (the `-F` is
+  required; `container_file_t` is a customizable type and restorecon skips those
+  unless forced). `:Z` is deliberately not offered: it stamps a private MCS category,
+  and valvur runs its scanners concurrently against one mount.
+- **It has not been run on a serverless container platform, and does not claim to.**
+  The image is a plain OCI artifact with no cloud-specific code paths, so it pushes
+  to any registry and runs wherever a container runs. But valvur is a thin host shim
+  that *launches* scanner containers
+  ([ADR-0001](adr/0001-thin-host-shim-read-only-container.md)), so wherever it runs
+  must give it a container runtime to talk to. A build agent, a VM or ECS on EC2 can;
+  AWS Fargate exposes no Docker socket and no privileged mode, and we have not run it
+  there. Local is the default and always will be.
 - **It is not a pen-test tool.** No DAST, no exploitation, no scanning of deployed
   systems.
 
@@ -176,8 +208,32 @@ does when it cannot find anything.
   see is indistinguishable from a scan that found nothing.
 - A **fingerprint algorithm change** is announced, because otherwise every finding
   silently reappears as new and every committed suppression stops matching.
+- The **agent snippet was tested against an agent**, not just written. The first
+  version said only *"Run `valvur scan`"*, and Claude Code did exactly that — two
+  turns of `which valvur` and a not-found error before it looked for the MCP tool it
+  already had. The snippet in the README names the tool first, because the agent
+  will do what the text says, in the order it says it.
 
-## 7. Read the record
+## 7. How it compares
+
+| | Where code is processed | Account | Fully offline | Residency | AI-code checks |
+|---|---|---|---|---|---|
+| **valvur** | **Your machine** | **No** | **Yes** | **Never leaves** | **Yes** |
+| Snyk CLI | Snyk servers | Required | No | Vendor-controlled | Partial, SaaS-coupled |
+| AWS Transform custom | AWS Batch/Fargate | Required | No | us-east-1, eu-central-1 only | No |
+| SonarQube (self-hosted CE) | Your infrastructure | No | Largely | Yours | No |
+| GitHub Advanced Security | GitHub | Required | No | GitHub-controlled | No |
+
+Stated fairly: **AWS Transform custom** performs static analysis and does not modify
+your code; your repository is *ephemerally cloned into AWS*, processed, and purged,
+with customer-managed KMS keys and PrivateLink available. PrivateLink keeps your code
+off the public internet — it does not keep it on your hardware, and it ships in two
+regions. **Self-hosted SonarQube CE** keeps code on your infrastructure; our
+differences there are scope and prioritisation, not residency. On SAST depth alone,
+Snyk and SonarQube have deeper engines on mainstream languages and we do not claim
+otherwise.
+
+## 8. Read the record
 
 The repository keeps its own audit trail, and it is not flattering by design.
 
