@@ -59,13 +59,17 @@ run *before* `0.2.0` publishes:
   plus `VALVUR_NAME_INDEX_URL`. The true first run is **about eight minutes**, most
   of it npm, and `EVALUATING.md` says so.
 
-Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then Phase
-22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
-README); then the usability gate and `v1.0.0`.
+**Phase 22 is complete (2026-09-12)**: the offline existence check, four release
+rehearsals, the image-staleness guard, the traceability ratchet at zero, the named
+pipeline, the public corpus (which found the Express lockfile gap on its first run),
+the halved README, and Kiro verified — which found that the published `0.1.0rc1`
+shim looks for a local `valvur:dev` image and can never have worked for anyone.
+What remains is [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`,
+then the usability gate and `v1.0.0`.
 
-Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **137 done and 9
-open** across 22 phases — 1 of the 9 is Phase 22 (Kiro, environment-gated), and 8 are
-Phase 21's owner actions and release tail. A public corpus of eleven real repositories runs
+Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **138 done and 8
+open** across 22 phases — **Phase 22 is complete**; the 8 are Phase 21's owner actions
+and release tail, and the usability gate. A public corpus of eleven real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by

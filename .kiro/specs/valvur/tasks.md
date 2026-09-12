@@ -3984,8 +3984,39 @@ the coverage gap that needed them.
 
 ### G — Environment-gated
 
-- [ ] **22.G.1** Kiro. Named as a primary client in every document; never run. Task
+- [x] **22.G.1** Kiro. Named as a primary client in every document; never run. Task
   10.2's claim 1. Needs Kiro installed; the harness from 10.2.5 is reusable as-is.
+
+  > **Done 2026-09-12 — claim 1 holds, and the run found a defect in the published
+  > rc.** Kiro 0.12.333 was installed after all. A scratch copy of `broken-repo` with
+  > the README's exact block in `.kiro/settings/mcp.json`; the harness was not
+  > reusable (Kiro has no `-p`), so the owner sent one prompt and the record was read
+  > from Kiro's logs and session store. **Before sign-in nothing happens**: the agent,
+  > and with it every MCP server, does not initialise (`No valid token found`); the
+  > user setting `kiroAgent.configureMCP: Disabled` would also have stopped it, and a
+  > workspace `.vscode/settings.json` overrides that — both now in `EVALUATING.md`.
+  > **1.6s after sign-in:** `uvx --from valvur valvur-mcp` spawned (PyPI `0.1.0rc1`,
+  > resolved through Kiro's login-shell PATH), *"Connected to server with transport:
+  > stdio … Successfully connected and synced tools"*. Then: `scan` (consent asked,
+  > then auto-approved) → `scan_status` ×10 → `list_findings` → a correct answer that
+  > led with **"Status: INCOMPLETE (one scanner failed)"**, named the injection, the
+  > hidden Unicode and the KEV-listed Pillow CVE, and asked before doing more. 58s
+  > scan, 13 model calls, 1.00 credit.
+  >
+  > **What it found.** The rc's shim has `IMAGE = "valvur:dev"` hard-coded — it never
+  > pulls the published image, so a fresh install's first scan fails "not found";
+  > here it picked up today's dev build, a shim/image mismatch F1.9 could not see
+  > (both say `0.1.0rc1`), and dependency-reality failed with the new `IndexMissing`
+  > message inside the old shim. 12a.2 fixed the derivation without ever naming the
+  > published consequence; the CHANGELOG does now. And the ten polls: 0.65 of the
+  > 1.00 credit — two thirds of the scan's cost was `scan_status` returning
+  > instantly, the same defect 10.2.5 measured in Claude Code (14 polls), now
+  > measured in a second client and priced. The agent also chose `profile:
+  > "standard"` — the retired name, which is what the rc's schema offers; it
+  > resolves (ADR-0016). Cosmetic: uvx's *"Installed 1 package"* on stderr shows as
+  > a warning in Kiro's MCP log. Claim 4 (the image-pull message) stays untested —
+  > the image was local. Claim 3 gains evidence: Kiro surfaces a server's stderr, so
+  > a server that died at startup would be visible there.
 
 - [x] **22.G.2** Confirm Dependabot's `uv` ecosystem actually opens a pull request.
   Switched from `pip` in Block 1 on the strength of documentation; cannot run until

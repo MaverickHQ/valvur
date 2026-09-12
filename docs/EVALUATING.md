@@ -54,6 +54,17 @@ As an MCP tool, which is the primary path:
 `valvur-mcp --help` describes the four tools it exposes. All four are read-only with
 respect to your source.
 
+**In Kiro**, the same block goes in `.kiro/settings/mcp.json` (workspace) or
+`~/.kiro/settings/mcp.json` (user). Kiro starts the server the moment the file is
+saved and logs it under *Kiro – MCP Logs*; each tool asks for consent on first use.
+Two things that stop it silently: MCP has to be enabled (`kiroAgent.configureMCP`
+— a workspace `.vscode/settings.json` can set it), and Kiro has to be signed in,
+because the agent, and with it every MCP server, does not initialise until it is.
+Verified 2026-09-12: server connected 1.6s after sign-in, and the agent ran `scan`,
+polled `scan_status`, called `list_findings`, and reported the planted injection,
+the hidden Unicode and the KEV-listed CVE — with the one failed Scanner named as
+such rather than folded into a clean-looking summary.
+
 ## 2. Verify the image before you trust it
 
 The signature is keyless, so there is no key to trust — only a public transparency-log

@@ -76,6 +76,20 @@ a minor bump may break things until 1.0.
 
 ### Fixed
 
+- **`0.1.0rc1` could not find its own image.** The published shim had the image name
+  hard-coded as `valvur:dev` — a local development tag nobody else has — and never
+  pulled the published `ghcr.io/maverickhq/valvur:0.1.0rc1`. A fresh install's first
+  scan failed with "image not found". Found on 2026-09-12 by running the rc through
+  Kiro on a machine that happened to have a `valvur:dev`: it used that, months newer
+  than the shim, and the version check passed because both said `0.1.0rc1`. The tag
+  is now derived from the shim's version (task 12a.2), and the image records what it
+  was built from so a mismatch is caught (22.C.1).
+
+- **`scan_status` no longer returns instantly.** It waits up to fifteen seconds for
+  the scan to settle before answering, because an agent polls exactly as fast as the
+  tool lets it: Claude Code polled fourteen times, and Kiro ten — **two thirds of
+  what a scan cost in model credits was polling**, measured against the rc.
+
 - **Dependency findings now say what to upgrade to.** `fixed_version` was declared
   and never populated, so the remediation proposal restated that a vulnerability
   existed without saying what to do about it. It now names the *minimal* upgrade —
