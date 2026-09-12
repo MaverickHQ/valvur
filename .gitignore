@@ -26,3 +26,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# The public corpus is fetched at pinned commits, never committed (22.E.1).
+tests/corpus/.checkouts/
+tests/corpus/report.json

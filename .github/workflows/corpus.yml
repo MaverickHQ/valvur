@@ -1,0 +1,96 @@
+name: corpus
+
+# The public corpus, weekly (task 22.E.1): eleven real, permissively-licensed
+# repositories at pinned commits, scanned on both Profiles and judged against the
+# 19.F.5 conditions — no Scanner failure, every omission named, no status that
+# contradicts its own counts, nothing suspect from valvur's own Checks. Unit tests
+# cannot find what this finds: the private corpus caught three false positives in an
+# hour, two of them introduced by the previous block with every test green, and the
+# public one found the Express lockfile gap on its first run.
+#
+# Weekly rather than per-push because it takes twenty minutes and its failures are
+# ours to read, not a contributor's to fix before merging. Dispatch it by hand after
+# any change to a Check, a rule, an adapter or the pipeline.
+on:
+  schedule:
+    - cron: "17 6 * * 1"     # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    name: eleven real repositories, both Profiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Build the image from this tree
+        run: |
+          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          docker buildx build --load \
+              --cache-from type=gha --cache-to type=gha,mode=max \
+              --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+
+      - name: Restore the package-name index between runs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-corpus-${{ github.run_id }}
+          restore-keys: valvur-name-index-
+      - name: Fetch the vulnerability database and the name index
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+
+      - name: Fetch the corpus at its pins
+        run: uv run python scripts/corpus.py fetch
+
+      - name: Scan and judge, offline
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          uv run python scripts/corpus.py run --profile offline | tee corpus-offline.txt
+          cp tests/corpus/report.json report-offline.json
+
+      - name: Scan and judge, full
+        # The registries are asked here — package age, JVM and Go existence — so
+        # the false-positive condition is tested where it can actually fail.
+        if: always()
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          uv run python scripts/corpus.py run --profile full | tee corpus-full.txt
+          cp tests/corpus/report.json report-full.json
+
+      - name: Per-rule hits (task 22.E.2)
+        if: always()
+        run: uv run python scripts/corpus.py rules | tee corpus-rules.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Corpus — offline"
+            echo '```'; cat corpus-offline.txt; echo '```'
+            echo "## Corpus — full"
+            echo '```'; cat corpus-full.txt; echo '```'
+            echo "## Rule hits"
+            echo '```'; cat corpus-rules.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: corpus-reports
+          path: |
+            report-offline.json
+            report-full.json
+            corpus-*.txt
+          retention-days: 90

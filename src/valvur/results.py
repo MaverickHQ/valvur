@@ -328,8 +328,8 @@ def _summary(run: ScanRun) -> str:
 
     # "Findings: 4" for four accepted risks read exactly like four live problems.
     # Active is the number that means "there is work here" (task 19.C.1).
-    notes = [f for f in findings if f.rule == _coverage.RULE]
-    active = [f for f in findings if f.rule != _coverage.RULE]
+    notes = [f for f in findings if f.rule in _coverage.NOTE_RULES]
+    active = [f for f in findings if f.rule not in _coverage.NOTE_RULES]
     lines += [
         f"**Status:** {run.status}",
         f"**Active findings:** {len(active)}"

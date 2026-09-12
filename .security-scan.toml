@@ -14,7 +14,7 @@
 # Skipping every project's tests would hide real code from the people who most need
 # to see it.
 [scan]
-exclude = ["tests/fixtures"]
+exclude = ["tests/fixtures", "tests/corpus/.checkouts"]
 
 # valvur suppressions — committed deliberately, reviewed on expiry.
 #

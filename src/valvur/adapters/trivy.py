@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
+from ..coverage import Coverage
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
 from .base import ScannerAdapter, container_relative
@@ -22,6 +23,24 @@ class TrivyAdapter(ScannerAdapter):
 
     def run(self, runner, workspace: Path) -> ScannerOutput:
         return runner.run_trivy(workspace)
+
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
+        """What Trivy reads for known vulnerabilities, and the ecosystems present here
+        for which none of it exists (22.E.1). The corpus's first finding: Express
+        commits no lockfile, Trivy produced no result, and the run read `clean`."""
+        from .. import coverage as _coverage
+
+        reads = tuple(
+            f"{_ecosystems.MANIFESTS[key].label}: {', '.join(files)}"
+            for key, files in sorted(_ecosystems.VULNERABILITY_MANIFESTS.items())
+            if key in _ecosystems.MANIFESTS
+        )
+        return Coverage(
+            inspects=reads,
+            ignores=("a manifest with no lockfile beside it: package.json, "
+                     "pyproject.toml, Gemfile, Cargo.toml alone are not scanned",),
+            gaps=tuple(_coverage.vulnerability_gaps(workspace, exclude)),
+        )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         report = json.loads(output.stdout or "{}")

@@ -164,7 +164,10 @@ def test_a_licence_file_contradicting_package_metadata_is_a_finding(
 
     run = scan(ws, runner=runner_finding_nothing, adapters=[CheckAdapter("licence-file")])
 
-    assert [f.rule for f in run.findings] == ["valvur.licence.mismatch"]
+    # `active`, not `findings`: the fixture's pyproject.toml has no lockfile beside
+    # it, which since 22.E.1 is a coverage note — a statement about valvur, not a
+    # Finding about the fixture.
+    assert [f.rule for f in run.active] == ["valvur.licence.mismatch"]
 
 
 def test_a_copyleft_dependency_in_a_permissive_project_is_a_finding():

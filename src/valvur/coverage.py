@@ -34,6 +34,12 @@ from . import fingerprint as _fp
 from .findings import Finding
 
 RULE = "valvur.dependency.ecosystem-not-covered"
+#: Dependencies present, but nothing Trivy reads for vulnerabilities — no lockfile.
+#: Found by the public corpus on its first run: Express read `clean` (task 22.E.1).
+VULNERABILITY_RULE = "valvur.dependency.vulnerabilities-unchecked"
+#: Every rule that is a statement about valvur's coverage rather than about the
+#: scanned code. Never active; each one makes a nil result `inconclusive`.
+NOTE_RULES = frozenset({RULE, VULNERABILITY_RULE})
 
 
 @dataclass(frozen=True)
@@ -151,6 +157,42 @@ def dependency_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Find
             sources=("dependency-reality",),
         ))
 
+    return findings
+
+
+def vulnerability_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Finding]:
+    """One Finding per ecosystem present whose dependencies Trivy could not check.
+
+    The mirror of `dependency_gaps`, for the other question. Trivy needs a lockfile
+    for npm, Ruby and Rust and a pinned requirements file for Python; a repository
+    that commits only `package.json` has its thirty dependencies scanned by nothing,
+    and Trivy reports no result rather than an error. `ecosystems.VULNERABILITY_
+    MANIFESTS` records what was measured; this says when none of it is present.
+    """
+    findings: list[Finding] = []
+    for key, manifests in sorted(_ecosystems.MANIFESTS.items()):
+        present = _present(workspace, manifests.reads + manifests.sees, exclude)
+        if not present:
+            continue
+        readable = _ecosystems.VULNERABILITY_MANIFESTS.get(key, ())
+        if _present(workspace, readable, exclude):
+            continue
+        shown = ", ".join(present[:3])
+        findings.append(Finding(
+            rule=VULNERABILITY_RULE,
+            path=_representative(present, manifests.reads + manifests.sees),
+            line=0,
+            severity="low",
+            title=f"{manifests.label} dependencies were not checked for known vulnerabilities",
+            evidence=(
+                f"Found {shown}. Trivy reads {' or '.join(readable)} for this ecosystem "
+                "and none is present, so it reported nothing — not zero vulnerabilities, "
+                "no scan. Commit a lockfile (or a pinned requirements file) and rescan; "
+                "until then this is missing coverage, not a clean result."
+            ),
+            fingerprint=_fp.derive("trivy_gap", key),
+            sources=("trivy",),
+        ))
     return findings
 
 

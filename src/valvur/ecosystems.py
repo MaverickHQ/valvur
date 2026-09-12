@@ -65,6 +65,25 @@ class Manifests:
     sees: tuple[str, ...] = ()
 
 
+#: What Trivy reads for KNOWN VULNERABILITIES, per ecosystem — which is not the same
+#: set as what the dependency-reality Check reads for existence, and the difference is
+#: where a scan goes quiet. Measured 2026-09-12 with the image's Trivy 0.74 against a
+#: directory holding only the named file (task 22.E.1, the public corpus's first
+#: finding): `package.json` alone, `pyproject.toml` alone, `Gemfile` alone and
+#: `Cargo.toml` alone each produced NO RESULTS — not zero vulnerabilities, no scan —
+#: while `package-lock.json`, `requirements.txt`, `go.mod` and `pom.xml` each produced
+#: findings. Express, which commits no lockfile, read `clean` with thirty dependencies
+#: never checked. So the shim states this gap itself, as a coverage note.
+VULNERABILITY_MANIFESTS: dict[str, tuple[str, ...]] = {
+    "pip": ("requirements*.txt", "Pipfile.lock", "poetry.lock", "uv.lock"),
+    "npm": ("package-lock.json", "yarn.lock", "pnpm-lock.yaml"),
+    "cargo": ("Cargo.lock",),
+    "gomod": ("go.mod",),
+    "maven": ("pom.xml", "gradle.lockfile"),
+    "gem": ("Gemfile.lock",),
+    "composer": ("composer.lock",),
+}
+
 #: What a dependency manifest on disk means, per ecosystem.
 #:
 #: An ecosystem with an empty `reads` has no existence check at all — its presence in

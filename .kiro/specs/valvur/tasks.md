@@ -3892,7 +3892,7 @@ the coverage gap that needed them.
 
 ### E — Corpus and rules
 
-- [ ] **22.E.1** A public, committed corpus. The local corpus found three false
+- [x] **22.E.1** A public, committed corpus. The local corpus found three false
   positives in an hour — two of them introduced by the block before, with every test
   passing — and was then deleted because it held private repositories and a live
   credential. There is nothing between a future change and a user except seven small
@@ -3900,6 +3900,32 @@ the coverage gap that needed them.
   under `tests/corpus/`, and run them weekly in CI with the 19.F.5 success conditions:
   no Scanner failures, every omission named, no confusing status, no false positives
   from valvur itself.
+
+  > **Done 2026-09-12 — and it found a defect on its first run, like the private one
+  > did.** Eleven repositories, not ten: requests, flask, llm (AGENTS.md), express,
+  > fastify, cobra, gson, ripgrep, terraform-aws-vpc, sinatra, and awesome-cursorrules
+  > (hundreds of real `.cursorrules`, the AI Artifact Check's false-positive test).
+  > **Pinned by commit in `tests/corpus/corpus.toml`; the bytes are fetched, not
+  > committed** — `scripts/corpus.py fetch` does a depth-1 fetch of the SHA into an
+  > ignored, self-scan-excluded directory (38MB). Ten real projects in our history
+  > forever, and in every self-scan, is the wrong trade; the pins and the expectations
+  > are the corpus and the bytes follow from them. `scripts/corpus.py run` scans and
+  > judges the four conditions, names every failure, writes `report.json`;
+  > `.github/workflows/corpus.yml` runs it weekly on both Profiles and on dispatch.
+  >
+  > **The finding: Express read `clean` with thirty dependencies never checked.** It
+  > commits no lockfile, and Trivy produces no result — not zero, none — for
+  > `package.json` alone. Measured the same for `pyproject.toml`, `Gemfile` and
+  > `Cargo.toml`; `requirements.txt`, `go.mod` and `pom.xml` scan on their own.
+  > Now `ecosystems.VULNERABILITY_MANIFESTS` records what was measured, the Trivy
+  > adapter declares it through the coverage contract, and a manifest with nothing
+  > Trivy reads beside it is a coverage note (`valvur.dependency.vulnerabilities-
+  > unchecked`) that makes a nil result `inconclusive` — Express and fastify both
+  > read that way now, with the reason. The judge checks that condition too, and
+  > learned on the second run that an *empty* lockfile is not silence (awesome-
+  > cursorrules' `pnpm-lock.yaml`). Both Profiles pass: eleven of eleven, no
+  > suspect finding from any of valvur's own Checks on any real project, on `full`
+  > included — every Go module and Maven coordinate verified to exist.
 
 - [ ] **22.E.2** Measure the eleven rules. `rules/` holds 4 LLM-output-to-sink, 5
   Python and 2 pinning rules — the whole of *"targeted checks for AI-specific risks"*

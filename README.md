@@ -128,6 +128,14 @@ Checks no other scanner ships:
   > finding saying so, on every profile, rather than a clean result it did not earn.
   > That reporting is the part we consider non-optional: a check that silently covers
   > nothing is worse than one that says it does not apply.
+  >
+  > **Known-vulnerability scanning needs a lockfile.** Trivy reads `package-lock.json`,
+  > `yarn.lock` or `pnpm-lock.yaml` — never `package.json` alone — and likewise
+  > `Gemfile.lock`, `Cargo.lock`, and a pinned `requirements.txt` or `uv.lock` rather
+  > than `pyproject.toml`. A repository that commits none of them (Express, for one)
+  > has its dependencies checked by nothing, and Trivy says so by saying nothing. So
+  > valvur says it instead: a coverage note, and the run reads `inconclusive` rather
+  > than `clean`. Found by the public corpus on its first run.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
   `.mcp.json`, skills and prompt files — scanned for injected directives, hidden
   Unicode (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket

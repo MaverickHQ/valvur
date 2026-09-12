@@ -85,6 +85,14 @@ were introduced by the block before, with tests passing.
   Profile omission, not a gap. Cargo, Ruby and PHP have no existence check — a project
   using one gets a **Finding** saying so, on every Profile, so the gap is stated
   rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
+- **Known-vulnerability scanning needs a lockfile, and says so.** Measured
+  2026-09-12: Trivy produces no result at all — not zero findings, no scan — for
+  `package.json`, `pyproject.toml`, `Gemfile` or `Cargo.toml` without a lockfile
+  beside them. Express read `clean` with thirty dependencies never checked; the public
+  corpus (22.E.1) found it on its first run. Now a coverage note
+  (`valvur.dependency.vulnerabilities-unchecked`) and `inconclusive`, the same
+  treatment as the existence gap. `ecosystems.VULNERABILITY_MANIFESTS` records what
+  was measured.
 - **The first `valvur update` takes ~5.5 minutes.** npm publishes no list of its
   package names, so the Name Index is walked from the registry's replication feed
   the first time (439 requests, 146MB, measured) and updated from its change feed

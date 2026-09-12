@@ -275,3 +275,88 @@ def test_a_gap_never_fails_someone_else_s_build(tmp_path):
     assert ScanRun(findings=list(gaps)).active == []
     # But it is still reported, never hidden — that is the whole point of 19.D.3.
     assert ScanRun(findings=list(gaps)).coverage_notes
+
+
+# ------------------------------------ 22.E.1: the corpus's first finding, pinned
+
+def _vuln_gaps(tmp_path, files):
+    return [g.title for g in coverage.vulnerability_gaps(_repo(tmp_path, files))]
+
+
+@pytest.mark.parametrize("files,label", [
+    ({"package.json": "{}"}, "npm"),
+    ({"pyproject.toml": "[project]\nname='x'\n"}, "Python"),
+    ({"Gemfile": "gem 'rack'\n"}, "Ruby (Bundler)"),
+    ({"Cargo.toml": "[package]\n"}, "Rust (Cargo)"),
+    ({"composer.json": "{}"}, "PHP (Composer)"),
+    ({"build.gradle": "dependencies {}\n"}, "JVM (Maven/Gradle)"),
+])
+def test_a_manifest_with_no_lockfile_is_a_vulnerability_gap(tmp_path, files, label):
+    """Measured 2026-09-12 with the image's Trivy: each of these alone produces NO
+    RESULTS — not zero vulnerabilities, no scan. Express, which commits no lockfile,
+    read `clean` with thirty dependencies never checked; the public corpus found it
+    on its first run. Now it is a coverage note, and the run is `inconclusive`."""
+    titles = _vuln_gaps(tmp_path, files)
+
+    assert titles == [f"{label} dependencies were not checked for known vulnerabilities"]
+
+
+@pytest.mark.parametrize("files", [
+    {"package.json": "{}", "package-lock.json": "{}"},
+    {"package.json": "{}", "yarn.lock": ""},
+    {"package.json": "{}", "pnpm-lock.yaml": ""},
+    {"pyproject.toml": "", "requirements.txt": "x==1\n"},
+    {"pyproject.toml": "", "uv.lock": ""},
+    {"pyproject.toml": "", "poetry.lock": ""},
+    {"Gemfile": "", "Gemfile.lock": ""},
+    {"Cargo.toml": "", "Cargo.lock": ""},
+    {"go.mod": "module x\n"},
+    {"pom.xml": "<project/>"},
+    {"composer.json": "{}", "composer.lock": "{}"},
+])
+def test_what_trivy_reads_is_not_a_gap(tmp_path, files):
+    """The pair, from the same measurement: `package-lock.json`, `requirements.txt`,
+    `go.mod` and `pom.xml` each produced findings on their own."""
+    assert _vuln_gaps(tmp_path, files) == []
+
+
+def test_a_vendored_manifest_without_a_lockfile_is_not_our_gap(tmp_path):
+    assert _vuln_gaps(tmp_path, {"node_modules/x/package.json": "{}"}) == []
+
+
+def test_the_vulnerability_gap_is_a_note_that_makes_a_nil_result_inconclusive(tmp_path):
+    """Same rule as the existence gap (19.E.2): not active, not the user's defect,
+    and `clean` is not ours to claim over it."""
+    from valvur.api import ScanRun
+
+    gaps = coverage.vulnerability_gaps(_repo(tmp_path, {"package.json": "{}"}))
+    run = ScanRun(findings=list(gaps))
+
+    assert run.active == []
+    assert run.coverage_notes == gaps
+    assert run.status == "inconclusive"
+    assert "npm dependencies: known vulnerabilities" in run.status_reason
+
+
+def test_the_trivy_adapter_declares_the_gap_through_the_contract(tmp_path):
+    from valvur.adapters import TrivyAdapter
+
+    declared = TrivyAdapter().coverage(_repo(tmp_path, {"package.json": "{}"}))
+
+    assert any("npm: package-lock.json" in line for line in declared.inspects)
+    assert [g.rule for g in declared.gaps] == [coverage.VULNERABILITY_RULE]
+    assert declared.gaps[0].sources == ("trivy",)
+
+
+def test_both_gaps_can_stand_on_one_repository(tmp_path):
+    """A Ruby project without a lockfile has two different things nobody checked:
+    existence (no Check exists) and known vulnerabilities (no Gemfile.lock). Two
+    notes, two identities, both named in the reason."""
+    from valvur.api import ScanRun
+
+    ws = _repo(tmp_path, {"Gemfile": "gem 'rack'\n"})
+    notes = coverage.dependency_gaps(ws) + coverage.vulnerability_gaps(ws)
+    run = ScanRun(findings=list(notes))
+
+    assert len({n.fingerprint for n in notes}) == 2
+    assert run.status_reason.count("Ruby (Bundler) dependencies:") == 2

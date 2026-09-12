@@ -263,7 +263,7 @@ def test_status_reason_names_every_cause_not_just_the_first():
     assert run.doubts == [
         "the vulnerability database is 9 days old (threshold 7)",
         "the package-name index is 40 days old (threshold 30)",
-        "not inspected at all: Rust (Cargo) dependencies",
+        "not inspected — Rust (Cargo) dependencies: existence",
     ]
     assert run.status_reason == (
         "nothing was found, and that is not evidence: " + "; ".join(run.doubts)

@@ -19,7 +19,7 @@ from . import results
 from . import results as _results
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
-from .coverage import RULE as _COVERAGE_RULE
+from .coverage import NOTE_RULES as _NOTE_RULES
 from .findings import Finding
 from .provenance import ScannerRun
 
@@ -75,7 +75,7 @@ class ScanRun:
         make the verdict permanently negative for something they cannot fix, and would
         fail their CI for our missing feature.
         """
-        return [f for f in self.findings if not f.suppressed and f.rule != _COVERAGE_RULE]
+        return [f for f in self.findings if not f.suppressed and f.rule not in _NOTE_RULES]
 
     @property
     def suppressed(self) -> list[Finding]:
@@ -84,7 +84,7 @@ class ScanRun:
     @property
     def coverage_notes(self) -> list[Finding]:
         """What valvur did not inspect, as opposed to what it did not find."""
-        return [f for f in self.findings if f.rule == _COVERAGE_RULE and not f.suppressed]
+        return [f for f in self.findings if f.rule in _NOTE_RULES and not f.suppressed]
 
     @property
     def status(self) -> str:
@@ -153,10 +153,12 @@ class ScanRun:
                 f"(threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS})"
             )
         if self.coverage_notes:
-            which = ", ".join(
-                n.title.replace(" were not checked for existence", "") for n in self.coverage_notes
-            )
-            reasons.append(f"not inspected at all: {which}")
+            # Each note's title is "<what> were not checked for <question>"; the
+            # doubt keeps both halves, so "known vulnerabilities" and "existence"
+            # read as the different gaps they are.
+            which = "; ".join(n.title.replace(" were not checked for ", ": ")
+                              for n in self.coverage_notes)
+            reasons.append(f"not inspected — {which}")
         return reasons
 
     @property
