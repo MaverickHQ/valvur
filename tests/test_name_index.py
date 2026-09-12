@@ -123,7 +123,7 @@ class _FakeHTTP:
                 payload = body(url) if callable(body) else body
                 if isinstance(payload, Exception):
                     raise payload
-                raw = json.dumps(payload).encode()
+                raw = bytes(payload) if isinstance(payload, _Raw) else json.dumps(payload).encode()
                 headers = {"Content-Encoding": "gzip"}
                 return _Response(gzip.compress(raw), headers)
         raise urllib.error.HTTPError(url, 404, "not found", {}, None)
@@ -324,3 +324,67 @@ def test_no_index_has_no_age(tmp_path, monkeypatch):
     monkeypatch.setattr(cache, "name_index", lambda: tmp_path / "nothing")
     assert cache.name_index_age_days() is None
     assert not cache.name_index_present()
+
+
+# ------------------------------------------------------------ the mirror (22.B.3)
+
+def _serve(http, base: str, directory: Path, *, kev: bool = False):
+    """Route the fake HTTP at a directory, the way any static server would."""
+    def file_body(url):
+        name = url[len(base) + 1:]
+        return json.loads((directory / name).read_text()) if name.endswith(".json") else \
+            _Raw((directory / name).read_bytes())
+    http.routes[base + "/"] = file_body
+
+
+class _Raw(bytes):
+    """A body the fake serves as-is rather than JSON-encoding."""
+
+
+def test_the_mirror_is_copied_verbatim_with_its_built_at_intact(http, monkeypatch, tmp_path):
+    """A copy taken this morning of a list built in March is a March list, and the
+    scan must say so (F6.11). The mirror's own metadata is what gets written."""
+    monkeypatch.setattr(name_index, "MINIMUM_NAMES", {"pip": 1, "npm": 1})
+    source = write_name_index(tmp_path / "source", pip=["requests", "flask"], npm=["react"],
+                              built_at="2026-03-01T00:00:00Z")
+    _serve(http, "http://mirror.internal:8080", source)
+    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080/")
+
+    metadata = name_index.refresh(tmp_path / "cache")
+
+    assert (tmp_path / "cache" / "pypi.txt").read_text() == "flask\nrequests\n"
+    assert (tmp_path / "cache" / "npm.txt").read_text() == "react\n"
+    assert metadata["ecosystems"]["pip"]["built_at"] == "2026-03-01T00:00:00Z"
+    assert metadata["ecosystems"]["npm"]["mirror"] == "http://mirror.internal:8080"
+    assert not any("pypi.org" in u or "npmjs" in u for u in http.urls), http.urls
+
+
+def test_a_truncated_mirror_is_refused_like_a_truncated_registry(http, monkeypatch, tmp_path):
+    source = write_name_index(tmp_path / "source", pip=["only-one"], npm=["react"])
+    _serve(http, "http://mirror.internal:8080", source)
+    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080")
+    (tmp_path / "cache").mkdir()
+    (tmp_path / "cache" / "pypi.txt").write_text("previous\n")
+
+    with pytest.raises(name_index.IndexUnavailable, match="truncated"):
+        name_index.refresh(tmp_path / "cache", ecosystems=("pip",))
+
+    assert (tmp_path / "cache" / "pypi.txt").read_text() == "previous\n"
+
+
+def test_a_mirror_that_is_not_an_index_is_named_as_such(http, monkeypatch, tmp_path):
+    http.routes["http://mirror.internal:8080/"] = {"not": "an index"}
+    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080")
+
+    with pytest.raises(name_index.IndexUnavailable, match="carries no ecosystems"):
+        name_index.refresh(tmp_path)
+
+
+def test_only_the_mirror_url_may_be_plain_http(monkeypatch, tmp_path):
+    """The registries are always https. The mirror is operator-set and may be http —
+    and nothing else: a `file://` here would read the operator's disk."""
+    monkeypatch.setenv(name_index.MIRROR_ENV, "file:///etc")
+    with pytest.raises(name_index.IndexUnavailable, match="http"):
+        name_index.refresh(tmp_path)
+    with pytest.raises(name_index.IndexUnavailable, match="https"):
+        name_index._get("http://pypi.org/simple/")

@@ -47,6 +47,19 @@ _VERSION = __version__
 # registry rather than granting egress to ghcr.io. ADR-0012 already made this
 # reachable by keeping the DB out of the image, so mirroring needs no special build.
 DB_REPOSITORY_ENV = "VALVUR_DB_REPOSITORY"
+#: A mirror that speaks plain HTTP, or HTTPS with a certificate the container does
+#: not trust. Measured 2026-09-12 (22.B.3): against an internal `registry:2` the
+#: documented VALVUR_DB_REPOSITORY alone fails with "server gave HTTP response to
+#: HTTPS client", because Trivy (go-containerregistry underneath) assumes TLS for
+#: any host that is not localhost or a private-range IP literal. Trivy's own
+#: `--insecure` is the switch; this is how it is reached from a shim with no flags.
+DB_INSECURE_ENV = "VALVUR_DB_INSECURE"
+#: The runtime network a NETWORKED container joins — the update, and `full`'s
+#: Scanners. Unset, the runtime's default bridge. An air-gapped site whose mirror
+#: registry lives on a user-defined network (or an `--internal` one, which is how
+#: 22.B.3 proves the air gap structurally) names it here. Never applied to a
+#: container launched without a network: `--network=none` is not negotiable.
+CONTAINER_NETWORK_ENV = "VALVUR_CONTAINER_NETWORK"
 
 
 def db_repository() -> str | None:
@@ -223,8 +236,15 @@ def detect_runtime() -> str:
 
 
 def _db_repository_flags() -> list[str]:
+    import os
+
     mirror = db_repository()
-    return ["--db-repository", mirror] if mirror else []
+    if not mirror:
+        return []
+    flags = ["--db-repository", mirror]
+    if os.environ.get(DB_INSECURE_ENV) == "1":
+        flags.append("--insecure")
+    return flags
 
 
 def _user_flags(runtime: str) -> list[str]:
@@ -446,6 +466,9 @@ class ContainerRunner:
             mirror = db_repository()
             if mirror:
                 flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
+            joined = _os.environ.get(CONTAINER_NETWORK_ENV)
+            if joined:
+                flags.append(f"--network={joined}")
         return flags
 
     def update_db(self) -> ScannerOutput:

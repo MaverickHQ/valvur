@@ -101,8 +101,10 @@ jobs:
         # "Skipped" and "passed" must not look the same to a release gate.
         env:
           VALVUR_IMAGE: valvur:dev
+        # Only the tests parametrised over runtimes are parity tests; a skip
+        # elsewhere in the file is not what this guard is about (22.B.1).
         run: |
-          uv run pytest -q tests/test_runtimes.py -rs | tee parity.txt
+          uv run pytest -q tests/test_runtimes.py -k "docker or podman" -rs | tee parity.txt
           if grep -qE '[0-9]+ skipped' parity.txt; then
             echo "::error::Runtime parity tests were skipped. Dual-runtime support (F1) is unverified."
             exit 1

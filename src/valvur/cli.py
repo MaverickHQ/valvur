@@ -194,6 +194,10 @@ def _print_suppression(args) -> int:
     return 0
 
 
+KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+KEV_URL_ENV = "VALVUR_KEV_URL"
+
+
 def _refresh_kev() -> None:
     """Refresh CISA KEV into the host cache.
 
@@ -202,14 +206,23 @@ def _refresh_kev() -> None:
     dataset. A CVE added to KEV yesterday should be flagged today.
     """
     import json
+    import os
     import urllib.error
     import urllib.request
 
     from . import cache
 
-    url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    # The third thing `valvur update` fetches, and the third thing an air-gapped site
+    # has to mirror (22.B.3): the catalog is one JSON file, so the mirror is any
+    # static server holding a copy of it. Plain HTTP is accepted here because the
+    # URL is set by an operator, never derived from anything in a Workspace.
+    url = os.environ.get(KEV_URL_ENV, "").strip() or KEV_URL
+    if not url.startswith(("https://", "http://")):
+        print(f"KEV refresh skipped ({KEV_URL_ENV} is not an http(s) URL); "
+              "the bundled snapshot remains in use.")
+        return
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:
+        with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310 — checked above
             raw = json.load(response)
     except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:
         print(f"KEV refresh skipped ({exc}); the bundled snapshot remains in use.")
