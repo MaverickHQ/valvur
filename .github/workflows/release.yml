@@ -241,15 +241,27 @@ jobs:
         # one describes the released artifact. F10.4 requires publishing it, because
         # the base image carries GPL components and disclosure is the honest answer
         # to a claim no Linux container could satisfy.
+        #
+        # Straight from the registry, with the workflow's own token, and no Docker
+        # socket in the SBOM container. The second rehearsal (22.B.1) found the
+        # previous form — syft through the daemon's socket — failing `unauthorized`:
+        # the daemon had the runner's login, the syft container did not, and a
+        # freshly created GHCR package is private, so the anonymous fallback failed
+        # too. Pinned to one platform so the SBOM describes one image, not whichever
+        # child of the index the runner happens to match.
         env:
           VERSION: ${{ needs.verify.outputs.publish_version }}
+          SYFT_REGISTRY_AUTH_AUTHORITY: ghcr.io
+          SYFT_REGISTRY_AUTH_USERNAME: ${{ github.actor }}
+          SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            anchore/syft:v1.51.1 "$IMAGE:$VERSION" \
-            -o cyclonedx-json > "valvur-$VERSION.cdx.json"
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            anchore/syft:v1.51.1 "$IMAGE:$VERSION" \
-            -o spdx-json > "valvur-$VERSION.spdx.json"
+          for format in cyclonedx-json:cdx spdx-json:spdx; do
+            docker run --rm \
+              -e SYFT_REGISTRY_AUTH_AUTHORITY -e SYFT_REGISTRY_AUTH_USERNAME -e SYFT_REGISTRY_AUTH_PASSWORD \
+              anchore/syft:v1.51.1 "registry:$IMAGE:$VERSION" --platform linux/amd64 \
+              -o "${format%%:*}" > "valvur-$VERSION.${format##*:}.json"
+          done
+          ls -la valvur-"$VERSION".*.json
 
       - name: Build the Python distributions
         run: uv build

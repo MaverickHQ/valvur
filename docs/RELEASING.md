@@ -56,6 +56,16 @@ upload are left in place on purpose: they are what you inspect afterwards.
 > transparency log naming this repository and workflow, rehearsal or not. While the
 > repository is private that is the one thing a rehearsal makes visible outside it.
 
+> **Attestation cannot be rehearsed on a private repository.** Found by the first
+> rehearsal, 2026-09-12: GitHub refuses to persist artifact attestations for a
+> user-owned private repository — *"make this repository public"*. The rehearsal
+> skips the step with a warning and the report says so; a real release never skips
+> it. Until the repository is public (task 12a.1), SLSA provenance is the one step
+> of the pipeline that has not run.
+
+What the first two rehearsals proved, and what they found, is recorded under 22.B.1
+in [`tasks.md`](../.kiro/specs/valvur/tasks.md).
+
 ## Cutting a release
 
 ```bash
