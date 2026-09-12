@@ -9,24 +9,18 @@ from __future__ import annotations
 
 import contextlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import cache as _cache
-from . import coverage as _coverage
-from . import enrichment as _enrichment
-from . import exclusions as _exclusions
-from . import gitcontext as _gitcontext
-from . import licence_policy as _licence
+from . import pipeline as _pipeline
 from . import profiles as _profiles
-from . import ranking as _ranking
 from . import results
 from . import results as _results
 from . import state as _state
-from . import suppressions as _suppressions
 from .adapters import DEFAULT_ADAPTERS
 from .coverage import RULE as _COVERAGE_RULE
-from .findings import Finding, merge
+from .findings import Finding
 from .provenance import ScannerRun
 
 
@@ -271,87 +265,47 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
         detail = "; ".join(f"{s.tool}: {s.reason}" for s in scanners)
         raise ScannerFailed(f"Every scanner failed. Refusing to report a scan.\n{detail}")
 
-    # Coverage gaps, from the whole registry rather than this Profile's selection
-    # (task 19.E.1). Deliberately outside the Scanner fleet: a coverage limit is a
-    # static fact about the Workspace, needs no container and no socket, and stays
-    # true on every Profile. It used to live inside the dependency-reality Check,
-    # which the default `offline` Profile does not run — so the one message saying
-    # "this scan could not help you" was missing exactly where it mattered most.
-    configured = tuple(_exclusions.load_configured(workspace))
-    # Every adapter, but each told what THIS Profile permits: dependency-reality's
-    # contract says whether package age was checked, and that depends on the
-    # network the Profile granted (ADR-0018), not on whether the adapter was run.
-    declaring = [
-        a.for_profile(network=_profiles.ALLOWS_NETWORK.get(profile, False))
-        for a in DEFAULT_ADAPTERS
-    ]
-    coverage_declared = _coverage.collect(declaring, workspace, configured)
-    for adapter in declaring:
-        findings += list(adapter.coverage(workspace, configured).gaps)
-
-    # Dependency licence policy reads the SBOM the fleet just produced (F4.4-F4.6).
-    sbom = next((body for name, body in artifacts if name == "sbom.cdx.json"), "")
-    if sbom:
-        findings += _licence.evaluate(_licence.project_licence(workspace), sbom)
-
-    # Vendored and generated code is not the developer's to fix.
-    findings, vendored_dropped = _exclusions.filter_findings(findings)
-
-    # Paths this project chose not to scan, from its committed config. Never a
-    # built-in default: silently skipping a project's tests would hide real code.
-    findings, config_dropped = _exclusions.filter_configured(findings, configured)
-    excluded_paths = list(configured)
-
-    findings = merge(findings)
-
-    # A secret git is not carrying is a local credential, not a leak.
-    findings = _gitcontext.apply(workspace, findings)
-
-    # Exploit intelligence: what the world reports, as opposed to what a Scanner
-    # asserts. Network use is Profile-gated (F6.3, F6.4).
-    provider = _enrichment.LocalProvider()
-    findings = provider.enrich(findings, network=_profiles.ALLOWS_NETWORK.get(profile, False))
-    # Suppressions are a policy layer applied after detection and enrichment, and
-    # before ranking. They never touch the Fingerprint or the Status diff — a
-    # suppressed Finding is still present, and un-suppressing it must not read as new.
-    policy = _suppressions.load(workspace)
-    findings = _suppressions.apply(findings, policy)
-    findings += _suppressions.policy_findings(policy, findings)
-
-    findings = _ranking.apply(findings)
+    # Everything after the fleet is the named pipeline (22.D.1): each stage says
+    # why it sits where it does, and tests/test_pipeline.py pins the order.
+    network = _profiles.ALLOWS_NETWORK.get(profile, False)
+    ctx = _pipeline.Context(
+        workspace=workspace, profile=profile, network=network,
+        # Every adapter, but each told what THIS Profile permits: dependency-reality's
+        # contract says whether package age was checked, and that depends on the
+        # network the Profile granted (ADR-0018), not on whether the adapter was run.
+        declaring=[a.for_profile(network=network) for a in DEFAULT_ADAPTERS],
+        artifacts=artifacts,
+    )
+    findings = _pipeline.run(findings, ctx)
+    if ctx.provider is None:
+        # Cannot happen while `enrich` is in the pipeline; said out loud rather than
+        # left to an AttributeError three lines down.
+        raise RuntimeError("the enrich stage did not run")
 
     results_dir = workspace / results.RESULTS_DIR
-    previous, previously_fixed = _state.load(results_dir)
-    identity_reset = _state.take_reset()
-
-    findings = [
-        replace(f, status=_state.status_for(f.fingerprint, previous, previously_fixed))
-        for f in findings
-    ]
-
     current = {f.fingerprint: f.title for f in findings}
     # Name what was fixed, using the title remembered from the previous run.
-    fixed_now = [previous[fp] or fp for fp in previous if fp not in current]
+    fixed_now = [ctx.previous[fp] or fp for fp in ctx.previous if fp not in current]
     run = ScanRun(
         findings=findings,
         fixed=sorted(fixed_now),
         scanners=scanners,
-        network_used=_profiles.ALLOWS_NETWORK.get(profile, False),
-        kev_age_days=provider.kev_age_days,
-        identity_reset=identity_reset,
+        network_used=network,
+        kev_age_days=ctx.provider.kev_age_days,
+        identity_reset=ctx.identity_reset,
         db_age_days=_cache.db_age_days(),
         db_overdue_days=_cache.db_overdue_days(),
         name_index_age_days=_cache.name_index_age_days(),
-        kev_source=provider.kev_source,
-        vendored_dropped=vendored_dropped,
-        config_dropped=config_dropped,
-        excluded_paths=list(excluded_paths),
+        kev_source=ctx.provider.kev_source,
+        vendored_dropped=ctx.vendored_dropped,
+        config_dropped=ctx.config_dropped,
+        excluded_paths=list(ctx.configured),
         profile=profile,
-        coverage=coverage_declared,
+        coverage=ctx.coverage,
     )
 
     results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)
-    still_fixed = {fp for fp in previously_fixed if fp not in current}
-    still_fixed |= {fp for fp in previous if fp not in current}
+    still_fixed = {fp for fp in ctx.previously_fixed if fp not in current}
+    still_fixed |= {fp for fp in ctx.previous if fp not in current}
     _state.save(results_dir, current, still_fixed)
     return run
