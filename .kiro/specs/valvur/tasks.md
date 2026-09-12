@@ -3659,7 +3659,7 @@ the first tag was going to be `0.2.0` in front of everyone.
   TestPyPI and a scratch GHCR namespace, before `0.2.0`. Every step must succeed or
   fail *for a reason the log names*. Record what broke — something will.
 
-  > **Done 2026-09-12, three rehearsals, four things broke.** `release.yml` gained a
+  > **Done 2026-09-12, four rehearsals, four things broke.** `release.yml` gained a
   > `workflow_dispatch` rehearsal mode: same steps, same permissions, same OIDC
   > identity, throwaway targets (`ghcr.io/maverickhq/valvur-rehearsal`, TestPyPI, a
   > draft pre-release deleted on the way out) under `<version>.dev<run>`. But first:
@@ -3685,7 +3685,9 @@ the first tag was going to be `0.2.0` in front of everyone.
   >    stopping the rehearsal, so the release step after it runs; the report at the
   >    end turns the run red until it passes.
   > 4. **The cleanup step lied** — "no release to remove" for a draft it had just
-  >    removed, because a draft has no tag for `--cleanup-tag` to clean. Split.
+  >    removed, because a draft has no tag for `--cleanup-tag` to clean. Split;
+  >    the fourth rehearsal reported "removed draft release rehearsal-4" and "no
+  >    tag to remove (a draft never creates one)", and left nothing behind.
   >
   > **Proven:** verify job end to end (6m30s: `verify.sh`, image build, DB + index,
   > the whole suite including e2e, F10.4, the self-scan gate — clean); the
@@ -3694,7 +3696,7 @@ the first tag was going to be `0.2.0` in front of everyone.
   > verify` command, identity `release.yml@refs/heads/main`, Rekor entry present;
   > SBOMs in both formats; `uv build`; the GitHub release with all assets attached
   > (as a draft, then deleted, no tag left behind). Multi-arch build 4.5 minutes,
-  > whole rehearsal ~12. Three scratch image tags remain in
+  > whole rehearsal ~12. Four scratch image tags remain in
   > `ghcr.io/maverickhq/valvur-rehearsal` as evidence.
 
 - [x] **22.B.2** Write the partial-failure runbook into `docs/RELEASING.md`. The
