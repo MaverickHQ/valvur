@@ -3655,14 +3655,61 @@ answered from a local index of names; the refinements need a registry. Split the
 publishing, the `release` environment — all of it is theory until a tag pushes, and
 the first tag was going to be `0.2.0` in front of everyone.
 
-- [ ] **22.B.1** Dry-run the release workflow end to end on a throwaway tag against
+- [x] **22.B.1** Dry-run the release workflow end to end on a throwaway tag against
   TestPyPI and a scratch GHCR namespace, before `0.2.0`. Every step must succeed or
   fail *for a reason the log names*. Record what broke — something will.
 
-- [ ] **22.B.2** Write the partial-failure runbook into `docs/RELEASING.md`. The
+  > **Done 2026-09-12, three rehearsals, four things broke.** `release.yml` gained a
+  > `workflow_dispatch` rehearsal mode: same steps, same permissions, same OIDC
+  > identity, throwaway targets (`ghcr.io/maverickhq/valvur-rehearsal`, TestPyPI, a
+  > draft pre-release deleted on the way out) under `<version>.dev<run>`. But first:
+  > **the push itself found that CI had not run for twelve days and 68 commits**,
+  > and its last run had failed. Two tests were wrong on Linux — a macOS-only hint
+  > test that never said which platform it meant, and a runtime-detection test that
+  > looked only in macOS locations, whose skip the parity guard read as "dual-runtime
+  > unverified". Fixed; CI green for the first time since 2026-08-31. The e2e job
+  > and the self-scan gate had never fetched the database or the index; they do now,
+  > with the index cached between runs (restored: the update step took 21s instead
+  > of five minutes). Then the rehearsals:
+  >
+  > 1. **Attestation refused** — GitHub does not persist attestations for a
+  >    user-owned *private* repository. Skipped in rehearsals on a private repository,
+  >    with a warning; never skipped on a real release. **The one step still
+  >    unrehearsed**, until 12a.1 makes the repository public.
+  > 2. **SBOM `unauthorized`** — syft through the Docker socket had no credentials
+  >    for a fresh (private) GHCR package. Now the registry source with syft's own
+  >    auth variables, no socket, pinned to one platform. 2,227 components.
+  > 3. **TestPyPI `invalid-publisher`** — no trusted publisher exists there yet; an
+  >    owner action (`docs/RELEASING.md` §one-time setup, item 4), and the token's
+  >    claims to configure it against are in the run log. Allowed to fail without
+  >    stopping the rehearsal, so the release step after it runs; the report at the
+  >    end turns the run red until it passes.
+  > 4. **The cleanup step lied** — "no release to remove" for a draft it had just
+  >    removed, because a draft has no tag for `--cleanup-tag` to clean. Split.
+  >
+  > **Proven:** verify job end to end (6m30s: `verify.sh`, image build, DB + index,
+  > the whole suite including e2e, F10.4, the self-scan gate — clean); the
+  > multi-architecture push (4m36s, both platforms asserted on the published index);
+  > keyless signing — verified from this machine with the README's exact `cosign
+  > verify` command, identity `release.yml@refs/heads/main`, Rekor entry present;
+  > SBOMs in both formats; `uv build`; the GitHub release with all assets attached
+  > (as a draft, then deleted, no tag left behind). Multi-arch build 4.5 minutes,
+  > whole rehearsal ~12. Three scratch image tags remain in
+  > `ghcr.io/maverickhq/valvur-rehearsal` as evidence.
+
+- [x] **22.B.2** Write the partial-failure runbook into `docs/RELEASING.md`. The
   workflow pushes the image, then publishes to PyPI. State what to do when the image
   is pushed and PyPI fails, when PyPI succeeds and the GitHub release fails, and when
   a tag has to be re-run. There is currently no rollback story of any kind.
+
+  > **Done 2026-09-12.** A table by the step it stopped in: what exists, what to do.
+  > Fix forward throughout; the one case where moving the tag is right (nothing
+  > left the runner); the dangerous state named (an unsigned image under a real
+  > tag) with the order of operations to leave it; `gh run rerun --failed` as the
+  > re-run path and why a whole re-run of a tag that reached PyPI fails correctly;
+  > the `release` environment as the manual brake. Written before the rehearsals and
+  > checked against what they showed: the states in the table are the ones the
+  > workflow can actually stop in.
 
 - [x] **22.B.3** Stand up a real mirror and run air-gapped. `VALVUR_DB_REPOSITORY` is
   documented in two places and has never been exercised. Point it at a local OCI

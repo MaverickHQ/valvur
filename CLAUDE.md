@@ -27,8 +27,8 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-12):** built and hardened; the product move is in, and one
-rehearsal stands between it and `0.2.0`.
+**Status (2026-09-12):** built, hardened, and rehearsed; `0.2.0` waits on owner
+actions and nothing else.
 
 `0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
 private**, so nobody outside this machine can install it. Phases 19 and 20 are
@@ -46,15 +46,25 @@ run *before* `0.2.0` publishes:
   `reqeusts` and `aws-helper-sdk` reported offline, `what_left_the_machine: nothing`.
   **Block A is complete** (22.A.3 bounded concurrent lookups; 22.A.4 JVM and Go,
   `full`-only because neither registry has a name list — measured, 3.2GB for Maven).
-- **Block B — prove the release pipeline.** `release.yml` has never run. Dry-run it on
-  a throwaway tag before the first real one.
+- **Block B — prove the release pipeline. Done (2026-09-12).** The push that
+  started it found CI had not run for twelve days and 68 commits. Three rehearsals of
+  `release.yml` (its new `workflow_dispatch` mode: same steps, throwaway targets)
+  broke four things, all fixed; everything is proven except SLSA attestation, which
+  GitHub refuses on a private repository, and the TestPyPI upload, which needs the
+  owner's trusted publisher. The keyless signature on the rehearsal image verifies
+  with the README's own command. A real air-gapped run — mirror registry on an
+  `--internal` network, host poisoned to loopback — found the documented
+  `VALVUR_DB_REPOSITORY` insufficient on its own: three settings that did not exist
+  that morning (`VALVUR_DB_INSECURE`, `VALVUR_CONTAINER_NETWORK`, `VALVUR_KEV_URL`),
+  plus `VALVUR_NAME_INDEX_URL`. The true first run is **about eight minutes**, most
+  of it npm, and `EVALUATING.md` says so.
 
 Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then Phase
 22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
 README); then the usability gate and `v1.0.0`.
 
-Roughly: 88 Python modules, 546 tests, 18 ADRs, 136 requirement IDs, **123 done and 23
-open** across 22 phases — 15 of the 23 are Phase 22, and 8 are Phase 21's owner actions
+Roughly: 89 Python modules, 554 tests, 18 ADRs, 136 requirement IDs, **128 done and 18
+open** across 22 phases — 10 of the 18 are Phase 22, and 8 are Phase 21's owner actions
 and release tail.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
