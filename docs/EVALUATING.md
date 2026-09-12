@@ -21,6 +21,30 @@ Needs Docker or Podman. The shim is Python, stdlib only, no runtime dependencies
 the scanners live in one OCI image, so nothing is installed onto your machine beyond
 a ~200-line launcher.
 
+### The true first run, measured
+
+The number a competitor would quote, measured on 2026-09-12 from an empty cache on an
+Apple-silicon Mac with Docker Desktop, so it is here before they do (22.B.4):
+
+| | bytes | wall-clock | what you are looking at |
+|---|---|---|---|
+| `pipx install valvur` | <1MB | seconds | pip |
+| image pull, once | **321MB** compressed as published (`0.1.0rc1`); ~240MB from the current tree | ~26s at 100 Mbit, ~52s at 50, ~105s at 25 | docker's layer bars |
+| `valvur update`, first time | **276MB**: vulnerability database 118MB, npm names 146MB in 439 requests, PyPI names 10MB, KEV 2MB | **6m27s** | Trivy's progress bar for ~20s, then `npm: 499,942 names so far` about every 40s for five and a half minutes |
+| `valvur update`, every later time | a few hundred KB | seconds | one line per source |
+| first `valvur scan` | — | **45s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README | eight scanner names, each turning `ok` |
+
+**About eight minutes from nothing to a first result on a 100 Mbit connection, and
+most of it is npm.** The README once promised sixty seconds. It does not any more,
+and this table is why: npm publishes no list of its package names, so the first
+index build walks the registry's replication feed (ADR-0018). Every update after
+the first applies the change feed instead. A valvur-published index would cut the
+first run to a single download; it waits on the release pipeline having run at
+least once (Phase 22, Block B), and is the next thing that moves this number.
+
+If you are evaluating on a laptop with a metered or slow connection, run
+`valvur update` before the meeting.
+
 As an MCP tool, which is the primary path:
 
 ```json
