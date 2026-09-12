@@ -3386,6 +3386,9 @@ A. OWNER ACTIONS — nothing downstream can start
    12a.1  push · repo public · package public
    0.14   branch protection (needs the repo public first)
         ↓
+   Phase 22 Block A  offline existence check   ← added 2026-09-12; the default
+   Phase 22 Block B  prove the release pipeline    Profile must catch a hallucinated
+        ↓                                          package before anyone runs it
 D1. 12a.7 (second half)  publish 0.2.0  ← needs PyPI trusted publishing + a
                                            `release` environment, also owner actions
         ↓
@@ -3466,6 +3469,220 @@ one.
 build it, after Phases 19 and 20 removed the known reliability and portability debt.
 
 **Commit:** *(none — this phase only references others)*
+
+---
+
+## Phase 22 — The product move, and what the review found behind it
+
+**Goal:** make the headline feature usable by the market it is for, prove the release
+pipeline before it runs for real, and pay down the sediment three days of blocks left
+behind — in that order, because the first two decide whether publication goes well and
+the rest decide whether the next six months do.
+
+> **Added 2026-09-12 from a critical review of build, deploy, functionality,
+> architecture and product.** Phases 19 and 20 are complete and nothing technical
+> blocks publication. This phase is what the review said should happen *before*
+> `0.2.0` reaches anyone, and what should happen after.
+>
+> **The finding that shapes the order.** Slopsquat detection — the check this product
+> is most distinctive for — needs a registry, so it runs only on `full`. `full` sends
+> package names to PyPI and npm. Target market #1, regulated industries, is *defined*
+> by not being able to do that. So the tagline and the default profile disagree: "fully
+> offline" and "hallucinated-package detection" are both true, and not at the same
+> time. The first thing a regulated-industry reviewer will do is run the default
+> profile on a Java repository and read `not_covered: 1`. Block A exists so that they
+> read something else.
+
+```
+Block 6 (Phase 21 A: owner actions)  ─── any time; nothing here waits on it
+        ↓
+Block A  offline existence check        ─┐  BEFORE 0.2.0 publishes (21.D.1)
+Block B  prove the release pipeline     ─┘
+        ↓
+21.D.1  publish 0.2.0
+        ↓
+Block C  build guards                   ─┐
+Block D  architecture sediment          ─┼─ independent; any order, after publication
+Block E  corpus and rules               ─┤
+Block F  the first impression           ─┘
+        ↓
+21.B / 21.D2  the usability gate → v1.0.0
+```
+
+### A — The offline existence check
+
+The one product move. Existence — *does this package name exist at all?* — is the
+hallucination check. Age and near-miss similarity are refinements. Existence can be
+answered from a local index of names; the refinements need a registry. Split them.
+
+- [ ] **22.A.1** Design and measure the index before building it. Two decisions, each
+  with a number behind it, recorded as an ADR:
+
+  **Exact set or probabilistic?** A bloom filter is small (roughly a byte per name at
+  1% false positives), but a false positive here is a *missed hallucination* — the
+  headline finding, silently not reported one time in a hundred. An exact sorted list
+  compresses well and never lies. Measure both against the real name counts: PyPI is
+  in the high hundreds of thousands, npm in the low millions. If the exact form is
+  under ~20MB compressed it wins on principle; if not, say what rate was accepted and
+  why.
+
+  **Where the names come from, and how they are refreshed.** PyPI's simple index is
+  one request. npm has no cheap all-names endpoint; find what is actually maintained
+  (the replicate feed, a published dump) and measure how stale it can be before it
+  matters. Refresh belongs with `valvur update`, beside the vulnerability database
+  (ADR-0012): outside the image, in the host cache, mounted at scan time.
+
+  > **Not in the image.** Names change daily; image releases do not. The exact
+  > argument ADR-0012 made for the database, and the same answer.
+
+- [ ] **22.A.2** Implement it, and move existence to the default Profile. The
+  dependency-reality Check runs on `offline` against the index — existence only, under
+  `--network=none`, with `what_left_the_machine` still `nothing`. On `full` it adds
+  what needs a registry: first-publish age and the near-miss comparison.
+
+  > **This amends ADR-0016**, which says `full` adds *"the two that genuinely need a
+  > socket"*. After this, one of the two runs on both Profiles and only its
+  > refinements need the socket. `profiles.py`'s gap prose changes with it: `offline`
+  > no longer lacks "hallucinated and typosquatted packages", it lacks "package age and
+  > typosquat similarity". Every test that pins the Profile split moves; the Phase 11
+  > constraint suite must stay green, because the moat claim is what this touches.
+  >
+  > **A stale index is `inconclusive`, not `clean`.** The same rule as the database:
+  > record its age in `run.json`, and past a threshold the verdict carries the doubt.
+  > An index that quietly ages into uselessness would be the silent-narrowing class
+  > again, inside the fix for it.
+  >
+  > **The self-scan and the corpus fixtures prove it.** `tests/fixtures/broken-repo`
+  > has `reqeusts` and `aws-helper-sdk` in `requirements-ai.txt`; on `offline`, today,
+  > neither is reported. After this task both are, with no socket.
+
+- [ ] **22.A.3** Parallelise the `full` lookups. Measured: 123s on a monorepo, because
+  each registry call is serial and each carries a 10s timeout. The lookups are
+  independent and I/O-bound. Bound the concurrency — this is the one code path that
+  reaches the network, and a scanner that opens fifty connections to PyPI at once is a
+  scanner that gets rate-limited and reports *unreachable* as if nothing was declared.
+
+- [ ] **22.A.4** Extend existence checking to JVM and Go, the two ecosystems the
+  stated market actually runs on. Maven Central is one registry with a name index;
+  Go's proxy has a feed but no all-modules list, so Go may be `full`-only and should
+  say so in its coverage contract rather than be promised. Whatever the answer, the
+  coverage note for these two must change from *no existence check* to what is true.
+
+### B — Prove the release pipeline before it runs for real
+
+`release.yml` has never executed. Cosign, the SLSA attestation, PyPI trusted
+publishing, the `release` environment — all of it is theory until a tag pushes, and
+the first tag was going to be `0.2.0` in front of everyone.
+
+- [ ] **22.B.1** Dry-run the release workflow end to end on a throwaway tag against
+  TestPyPI and a scratch GHCR namespace, before `0.2.0`. Every step must succeed or
+  fail *for a reason the log names*. Record what broke — something will.
+
+- [ ] **22.B.2** Write the partial-failure runbook into `docs/RELEASING.md`. The
+  workflow pushes the image, then publishes to PyPI. State what to do when the image
+  is pushed and PyPI fails, when PyPI succeeds and the GitHub release fails, and when
+  a tag has to be re-run. There is currently no rollback story of any kind.
+
+- [ ] **22.B.3** Stand up a real mirror and run air-gapped. `VALVUR_DB_REPOSITORY` is
+  documented in two places and has never been exercised. Point it at a local OCI
+  registry, cut the network, and confirm `valvur update` and a `full`-equivalent scan
+  complete. After 22.A.2, the name index needs the same treatment.
+
+- [ ] **22.B.4** Measure the true first run and publish the least flattering number.
+  From a clean machine: bytes downloaded (image, database, index), wall-clock to the
+  first result, and what the user is staring at while it happens. Put it in
+  `EVALUATING.md`. The honesty document should carry the number a competitor would
+  quote, before they do.
+
+### C — Build guards
+
+- [ ] **22.C.1** A local image-staleness guard. The rebuild trap bit four times in
+  three days: Checks and rules ship *inside* the image (ADR-0013), so unit tests pass
+  while a real scan runs yesterday's code. CONTRIBUTING documents it; documentation
+  is not a guard. `scripts/verify.sh image` hashes `src/valvur/checks/`, `rules/` and
+  the `Dockerfile`, compares against a label baked into the local image at build
+  time, and fails with the rebuild command.
+
+- [ ] **22.C.2** Cite the 24 tolerated requirements and take the ratchet to zero. They
+  are mostly *core* — F2.1 (orchestrate the Scanners), F7.1 (write the Results
+  Folder), F8.1 (read Suppressions), F10.2 (non-root) — uncited because nobody wrote
+  `# F7.1` beside obvious code, not because they are unmet. A tolerated count that
+  never shrinks is a number nobody reads.
+
+  > **What the ratchet cannot do, stated so nobody expects it to.** 19.D.1 proved that
+  > citation is not satisfaction: F3.1 was cited by code implementing a tenth of it. The
+  > ratchet catches a requirement losing its last citation. It will never catch one
+  > that is cited and unmet. The corpus (Block E) is the tool for that.
+
+### D — Architecture sediment
+
+Three days of blocks added stages by inserting them. It works. It is also where the
+next ordering bug lives — Block 2 already had one, when exclusions were loaded after
+the coverage gap that needed them.
+
+- [ ] **22.D.1** Name the pipeline. `api.py::_scan_locked` is 120 lines of
+  coverage → licence → vendored → configured → merge → gitcontext → enrich →
+  suppress → rank → write, inline. Make it a list of named stages, and pin their
+  order with a test that fails when one moves.
+
+- [ ] **22.D.2** `results.py` accepts a `ScanRun` and nothing else. `_summary` is
+  190 lines with **34 `getattr(run, …, default)` calls**, defending against a
+  dataclass whose fields are always populated — the tests pass duck-typed stubs, and
+  the production code grew defensive against a case that cannot occur. Give the tests
+  a real `ScanRun` and delete every `getattr`.
+
+- [ ] **22.D.3** Coverage belongs to the Check. `CheckAdapter.coverage()` special-cases
+  `if self.name != "dependency-reality"` — the adapter knows a Check's name, which is
+  the boundary ADR-0013 drew being crossed in the wrong direction. Put `coverage()` on
+  the Check protocol; the adapter forwards.
+
+- [ ] **22.D.4** `status_reason`. `inconclusive` now has two causes — a stale
+  database, an uninspected ecosystem — and after 22.A.2 a third, a stale index. An
+  agent that wants to say *why* has to reconstruct it from `database.stale` and
+  `findings.not_covered`. One field, one line, and the MCP `scan_status` message
+  stops guessing.
+
+### E — Corpus and rules
+
+- [ ] **22.E.1** A public, committed corpus. The local corpus found three false
+  positives in an hour — two of them introduced by the block before, with every test
+  passing — and was then deleted because it held private repositories and a live
+  credential. There is nothing between a future change and a user except seven small
+  fixture directories. Assemble ten real-shaped, permissively-licensed repositories
+  under `tests/corpus/`, and run them weekly in CI with the 19.F.5 success conditions:
+  no Scanner failures, every omission named, no confusing status, no false positives
+  from valvur itself.
+
+- [ ] **22.E.2** Measure the eleven rules. `rules/` holds 4 LLM-output-to-sink, 5
+  Python and 2 pinning rules — the whole of *"targeted checks for AI-specific risks"*
+  in SAST form. Run them over the corpus and count hits, false positives and misses
+  against what a reviewer would expect. Then decide, with numbers: which to keep,
+  which to fix, and whether the positioning is carried by these or by the
+  agent-config and hidden-Unicode Checks, which are the genuinely novel ones.
+
+### F — The first impression
+
+- [ ] **22.F.1** Halve the README. It is 408 lines. The record of being wrong in
+  public is persuasive to exactly the right reader and a wall to everyone else.
+  `EVALUATING.md` is the audit; the README should be the introduction, and point
+  there. Keep the three claims, the two snippets, the platform table and the
+  what-it-is-not list. Move the rest.
+
+### G — Environment-gated
+
+- [ ] **22.G.1** Kiro. Named as a primary client in every document; never run. Task
+  10.2's claim 1. Needs Kiro installed; the harness from 10.2.5 is reusable as-is.
+
+- [ ] **22.G.2** Confirm Dependabot's `uv` ecosystem actually opens a pull request.
+  Switched from `pip` in Block 1 on the strength of documentation; cannot run until
+  the repository is public.
+
+**Exit:** the default Profile reports a hallucinated package with no socket; the
+release workflow has run once somewhere that does not matter; a stranger's first
+minute is measured and published; and the next silent regression is caught by a
+corpus, not a user.
+
+**Commit:** *(one per block, as before)*
 
 ---
 

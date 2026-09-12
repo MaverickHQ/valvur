@@ -27,19 +27,30 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-12):** built, hardened, and waiting on the owner to publish it.
+**Status (2026-09-12):** built and hardened; one product change and one rehearsal
+stand between it and `0.2.0`.
 
 `0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
-private**, so nobody outside this machine can install it. Phases 19 (reliability and
-portfolio hardening) and 20 (the F1.6 SELinux gap) are complete, and **no engineering
-task remains that does not depend on an owner action.** [Phase 21](.kiro/specs/valvur/tasks.md)
-is the ordered release sequence: push → repository public → package public → branch
-protection → PyPI trusted publishing → `0.2.0` → the usability gate → `v1.0.0`.
+private**, so nobody outside this machine can install it. Phases 19 and 20 are
+complete. A critical review on 2026-09-12 became **Phase 22**, and its first two blocks
+run *before* `0.2.0` publishes:
 
-Roughly: 84 Python modules, 443 tests, 17 ADRs, 136 requirement IDs, **119 done and 8
-open** across 21 phases. Every one of the 8 is either an owner action at github.com or
-pypi.org, or depends on one — including the usability gate, which needs a person who
-has never seen this tool and something public for them to install.
+- **Block A — the offline existence check.** Slopsquat detection, the check this
+  product is most distinctive for, runs only on `full` because it needs a registry —
+  and `full` sends package names out, which target market #1 cannot do. "Fully
+  offline" and "hallucinated-package detection" are both true and not at the same
+  time. A local index of package names moves *existence* to the default Profile;
+  age and near-miss stay `full`-only. This amends ADR-0016.
+- **Block B — prove the release pipeline.** `release.yml` has never run. Dry-run it on
+  a throwaway tag before the first real one.
+
+Then [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`; then Phase
+22's remaining blocks (build guards, architecture sediment, a public corpus, a shorter
+README); then the usability gate and `v1.0.0`.
+
+Roughly: 84 Python modules, 443 tests, 17 ADRs, 136 requirement IDs, **119 done and 27
+open** across 22 phases — 19 of the 27 are Phase 22, and 8 are Phase 21's owner actions
+and release tail.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
 task; the grouping and what each block found sits at the head of Phase 19 in
