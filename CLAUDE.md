@@ -85,6 +85,13 @@ were introduced by the block before, with tests passing.
   Profile omission, not a gap. Cargo, Ruby and PHP have no existence check — a project
   using one gets a **Finding** saying so, on every Profile, so the gap is stated
   rather than inferred from silence. Closed 19.D.1; the reporting half is permanent.
+- **The eleven Opengrep rules are not the product.** Measured on the public corpus
+  (22.E.2): 75 findings on eleven real repositories, 64 of them tag-pinned GitHub
+  Actions and the other 11 rejected by a reviewer to the last one; the four
+  LLM-output-to-sink rules fired zero times, including on an LLM tool. They are now
+  all `low` bar the ones that never fire on real code. What carries the AI-specific
+  positioning is the **Checks** — dependency-reality, the AI Artifact Check, the
+  coverage contract — and that is what the README should lead with (Block F).
 - **Known-vulnerability scanning needs a lockfile, and says so.** Measured
   2026-09-12: Trivy produces no result at all — not zero findings, no scan — for
   `package.json`, `pyproject.toml`, `Gemfile` or `Cargo.toml` without a lockfile

@@ -5,22 +5,38 @@
 # bundling the community registry would reintroduce the problem we solved.
 # This set is deliberately small and high-signal; Phase 4 extends it for
 # LLM-output-to-sink taint.
+#
+# Measured on the public corpus, 2026-09-12 (task 22.E.2): these five rules produced
+# eleven findings on eleven real projects, and a reviewer would have accepted none —
+# three code-execution sinks that ARE the feature (Flask loading config, `llm`
+# loading user-written tools), seven hashes used for cache keys and HMAC (three with
+# `usedforsecurity=False` written right there), one `shell=True` on a constant string.
+# The pattern-nots and the severities below are that measurement applied. The sinks
+# stay, at INFO, because the LLM-output rules in llm-output-sinks.yaml report the
+# FLOW into them and this file names the sink; on its own a sink is an inventory
+# entry, not a finding.
 
 rules:
   - id: valvur.python.dangerous-eval
     languages: [python]
-    severity: ERROR
+    severity: INFO
     message: >-
-      eval() on a non-literal expression. If the input can come from an LLM, the
-      network, or a file, this is remote code execution (OWASP LLM05).
+      A code-execution sink: eval() on a non-literal expression. Not a vulnerability
+      by itself — Flask evaluates PYTHONSTARTUP this way — but if model output,
+      network input, or a file the user did not write can reach it, it is remote
+      code execution (OWASP LLM05). The valvur.llm.* rules report that flow.
     patterns:
       - pattern: eval($X, ...)
       - pattern-not: eval("...", ...)
 
   - id: valvur.python.dangerous-exec
     languages: [python]
-    severity: ERROR
-    message: exec() on a non-literal expression is remote code execution.
+    severity: INFO
+    message: >-
+      A code-execution sink: exec() on a non-literal expression. Not a vulnerability
+      by itself — Flask loads config files this way — but if model output, network
+      input, or a file the user did not write can reach it, it is remote code
+      execution. The valvur.llm.* rules report that flow.
     patterns:
       - pattern: exec($X, ...)
       - pattern-not: exec("...", ...)
@@ -31,7 +47,11 @@ rules:
     message: >-
       subprocess with shell=True interpolates through a shell. Use the argument-list
       form so arguments cannot be reinterpreted as commands.
-    pattern: subprocess.$F(..., shell=True, ...)
+    patterns:
+      - pattern: subprocess.$F(..., shell=True, ...)
+      # A constant command has nothing to inject into. The corpus's one hit was
+      # `Popen("git describe --tags --always", shell=True)` in a docs build.
+      - pattern-not: subprocess.$F("...", ..., shell=True, ...)
 
   - id: valvur.python.insecure-yaml-load
     languages: [python]
@@ -43,12 +63,16 @@ rules:
 
   - id: valvur.python.weak-hash
     languages: [python]
-    severity: WARNING
+    severity: INFO
     message: >-
-      MD5 and SHA-1 are unsuitable for security purposes. Note that swapping the
-      algorithm invalidates every previously stored hash - this needs a migration,
-      not a one-line edit.
+      MD5 or SHA-1. Fine for a cache key or a content id; unsuitable where a
+      collision or preimage matters. Note that swapping the algorithm invalidates
+      every previously stored hash - this needs a migration, not a one-line edit.
     patterns:
       - pattern-either:
           - pattern: hashlib.md5(...)
           - pattern: hashlib.sha1(...)
+      # The standard library's own way of saying "not for security". Three of the
+      # corpus's seven hits carried it and were reported anyway.
+      - pattern-not: hashlib.md5(..., usedforsecurity=False, ...)
+      - pattern-not: hashlib.sha1(..., usedforsecurity=False, ...)

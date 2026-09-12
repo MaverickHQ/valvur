@@ -3927,12 +3927,37 @@ the coverage gap that needed them.
   > suspect finding from any of valvur's own Checks on any real project, on `full`
   > included — every Go module and Maven coordinate verified to exist.
 
-- [ ] **22.E.2** Measure the eleven rules. `rules/` holds 4 LLM-output-to-sink, 5
+- [x] **22.E.2** Measure the eleven rules. `rules/` holds 4 LLM-output-to-sink, 5
   Python and 2 pinning rules — the whole of *"targeted checks for AI-specific risks"*
   in SAST form. Run them over the corpus and count hits, false positives and misses
   against what a reviewer would expect. Then decide, with numbers: which to keep,
   which to fix, and whether the positioning is carried by these or by the
   agent-config and hidden-Unicode Checks, which are the genuinely novel ones.
+
+  > **Done 2026-09-12. The numbers, on eleven real projects:**
+  >
+  > | rule | hits | a reviewer would accept | verdict |
+  > |---|---|---|---|
+  > | `pinning.mutable-action-ref` | 64 | 64 — every one a tag-pinned action | true, and the majority of ALL findings on four repos (cobra 10/11, ripgrep 15/17); **WARNING → INFO** so it ranks last |
+  > | `python.weak-hash` | 7 | 0 — cache keys, content ids, HMAC-SHA1; **3 carried `usedforsecurity=False`** | **fixed** (pattern-not on the flag) and INFO; 7 → 4 |
+  > | `python.dangerous-eval` / `-exec` | 3 | 0 — Flask's PYTHONSTARTUP and config loader, `llm` loading user-written tools: the feature | **kept as a sink inventory at INFO**, reworded: the `valvur.llm.*` rules report the flow, this names the sink |
+  > | `python.subprocess-shell-true` | 1 | 0 — `Popen("git describe", shell=True)`, a constant | **fixed** (pattern-not on a literal command); 1 → 0 |
+  > | `python.insecure-yaml-load`, `pinning.mutable-git-ref`, `js.output-to-innerhtml`, the four `llm.output-to-*` | 0 | — | unmeasurable here: no true positive exists in the corpus, including in `simonw/llm`, which does not execute model output. Unchanged; the fixture proves they fire. |
+  >
+  > 75 rule findings became 71, every one of them now `low`, and the corpus produced
+  > **zero high- or medium-severity findings from our own rules** — because the only
+  > rules that stayed at ERROR are the ones that never fired on real code. The
+  > canary floor holds (broken-repo still yields 14).
+  >
+  > **The positioning is not carried by these rules.** Eleven repositories, and the
+  > SAST half produced no finding a reviewer would act on. What did carry it: the
+  > dependency-reality Check verified every declared dependency of every project,
+  > on both Profiles, and was right every time — silently, which is the point — and
+  > its coverage machinery found the Express lockfile gap (22.E.1); the AI Artifact
+  > Check read hundreds of real `.cursorrules` and one real `AGENTS.md` and reported
+  > nothing false. The rules are a small honest supplement — the sink half of a
+  > taint story whose flow half has no corpus evidence yet. `CLAUDE.md` §1 and the
+  > README say so now; the "eleven rules" are not the product.
 
 ### F — The first impression
 

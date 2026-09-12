@@ -30,14 +30,15 @@ rules:
   # thousands of repositories that had pinned nothing more specific than a version.
   # A commit SHA cannot be moved.
   #
-  # WARNING rather than ERROR: unpinned actions are near-universal, and a rule that
-  # fires on every repository's first workflow file teaches people to skip the
-  # category. Real, worth fixing, not an emergency.
+  # INFO, since the corpus measured it (22.E.2): 64 findings on six of eleven real
+  # projects, and the majority of ALL findings on four of them — cobra 10 of 11,
+  # ripgrep 15 of 17. Every one true, and together they buried the rest. Real, worth
+  # fixing, ranked last so the reader reaches it after the things that are on fire.
   - id: valvur.pinning.mutable-action-ref
     languages: [generic]
     paths:
       include: ["*.yml", "*.yaml"]
-    severity: WARNING
+    severity: INFO
     message: >-
       Action pinned to a mutable tag or branch. Tags can be moved to point at
       different code, so what you reviewed is not necessarily what runs — this is how
