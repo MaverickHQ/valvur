@@ -64,12 +64,19 @@ rehearsals, the image-staleness guard, the traceability ratchet at zero, the nam
 pipeline, the public corpus (which found the Express lockfile gap on its first run),
 the halved README, and Kiro verified — which found that the published `0.1.0rc1`
 shim looks for a local `valvur:dev` image and can never have worked for anyone.
-What remains is [Phase 21](.kiro/specs/valvur/tasks.md)'s owner actions and `0.2.0`,
-then the usability gate and `v1.0.0`.
 
-Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **138 done and 8
-open** across 22 phases — **Phase 22 is complete**; the 8 are Phase 21's owner actions
-and release tail, and the usability gate. A public corpus of eleven real repositories runs
+A second review, grounded in that Kiro run, became **Phase 23**: `0.2.0` first
+(Block 1, owner actions); then the **published name index** (first run 8 min → ~1,
+and Ruby, PHP and Rust offline) and **`valvur doctor`** (every first-run failure this
+project has met was a precondition it would have named) — both *before* the
+usability gate measures a stranger's first ten minutes; then Checkov isolated and
+hash-locked, the Checks in one container, per-scanner timing, the shim carrying its
+build hash, and `.kiro/` — the primary client's own files — into the AI Artifact
+Check. Then the gate and `v1.0.0`.
+
+Roughly: 95 Python modules, 607 tests, 18 ADRs, 136 requirement IDs, **138 done and 27
+open** across 23 phases — 19 of the 27 are Phase 23, and 8 are Phase 21's owner actions,
+release tail and usability gate. A public corpus of eleven real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by

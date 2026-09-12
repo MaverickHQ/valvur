@@ -3392,6 +3392,9 @@ A. OWNER ACTIONS — nothing downstream can start
 D1. 12a.7 (second half)  publish 0.2.0  ← needs PyPI trusted publishing + a
                                            `release` environment, also owner actions
         ↓
+   Phase 23 Block 2  the published index   ← added 2026-09-12; the first ten
+   Phase 23 Block 3  valvur doctor            minutes, before a stranger measures them
+        ↓
 B. NEEDS A PERSON WHO HAS NEVER SEEN VALVUR
    10.1.1 · 10.1.2   the usability gate
         ↓
@@ -3505,6 +3508,8 @@ Block C  build guards                   ─┐
 Block D  architecture sediment          ─┼─ independent; any order, after publication
 Block E  corpus and rules               ─┤
 Block F  the first impression           ─┘
+        ↓
+Phase 23 Blocks 2–3  (index, doctor)   ← added 2026-09-12, from the Kiro run
         ↓
 21.B / 21.D2  the usability gate → v1.0.0
 ```
@@ -4035,6 +4040,203 @@ the coverage gap that needed them.
 release workflow has run once somewhere that does not matter; a stranger's first
 minute is measured and published; and the next silent regression is caught by a
 corpus, not a user.
+
+**Commit:** *(one per block, as before)*
+
+---
+
+## Phase 23 — What the second client showed
+
+**Goal:** turn the record of one real agent driving the published rc — and the
+measurements taken around it — into the five moves that change what a stranger meets
+in their first ten minutes, in the order that each unblocks the next.
+
+> **Added 2026-09-12 from a review of build, deploy, operations, architecture and
+> functionality, grounded in the Kiro run (22.G.1).** The evidence, so the order is
+> auditable: 13 model calls, **1.00 credit, 0.65 of it polling**; 58s on a 12-file
+> fixture (28s with the current shim — Checkov 27.9s, Opengrep 18.4s, everything else
+> done by 11s); the failure reason truncated at 80 characters in `scan_status`; no
+> timing anywhere in provenance; no way for the agent to stop a scan; the image pulled
+> on the first *scan* rather than on `update` (claim 4, still untested); the Check
+> that exists for agent files unable to see `.kiro/` in a Kiro workspace; and a shim
+> on PyPI that looks for a local `valvur:dev` and can never have worked for anyone.
+> Measured the same evening: 191MB of the 576MB image is Checkov's site-packages,
+> installed unpinned into valvur's own interpreter; `rubygems.org/names` is 196,830
+> names in 2.8MB and Packagist's `list.json` 461,636 in 12MB, each one request —
+> two of the three "no existence check" ecosystems are an afternoon from offline.
+>
+> **Nothing here contradicts a locked decision.** Blocks 2 and 3 are the two that
+> change the first ten minutes, which is what 10.1 is about to measure — so they
+> come before the gate, and Block 1 comes before everything because until it lands
+> the only version anyone can install does not work.
+
+```
+Block 1  0.2.0                          ─── owner actions; unblocks everything
+        ↓
+Block 2  the published index            ─┐  BEFORE the usability gate (10.1):
+Block 3  valvur doctor                  ─┘  these two are the first ten minutes
+        ↓
+10.1.1 · 10.1.2  the usability gate
+        ↓
+Block 4  build and architecture         ─┬─ independent; any order
+Block 5  the primary client's own files ─┘
+        ↓
+12b.1–3  → v1.0.0
+```
+
+### 1 — `0.2.0`
+
+The published `0.1.0rc1` shim has `IMAGE = "valvur:dev"` hard-coded (found 22.G.1).
+It never pulls the published image; a fresh install's first scan fails "not found".
+Every day it is the only version on PyPI is a day the product is a broken link.
+
+- [ ] **23.1.1** The owner actions, in order: repository public, package public
+  (12a.1); PyPI and TestPyPI trusted publishers for `release.yml` / environment
+  `release` (12a.7); branch protection (0.14). Then one more rehearsal — the TestPyPI
+  and attestation steps go green the moment the repository is public — and the tag.
+  *This is 21.A and 21.D.1 restated with the reason the review added; nothing new to
+  build.*
+
+### 2 — The published index
+
+Eight minutes to a first result, five and a half of them walking npm, because the
+index is built on every user's machine. The walk exists because we have not published
+the index. The release pipeline exists now; this is the `trivy-db` pattern ADR-0018
+already named as the eventual answer.
+
+- [ ] **23.2.1** A daily workflow builds the index (PyPI simple, npm `_all_docs` once
+  then `_changes`, and the three below) and pushes it as an OCI artifact —
+  `ghcr.io/maverickhq/valvur-index:latest` plus a dated tag — cosign-signed, with the
+  `built_at` per ecosystem in its metadata. `valvur update` pulls it (30–50MB, seconds)
+  and verifies the signature; the direct walk stays as the fallback and as what the
+  workflow itself runs. `VALVUR_INDEX_REPOSITORY` mirrors it the way
+  `VALVUR_DB_REPOSITORY` mirrors the database, and `docs/AIR-GAPPED.md` gains the row.
+  **First run 8 min → about 1.**
+
+- [ ] **23.2.2** Ruby and PHP offline. `rubygems.org/names` (196,830 names, 2.8MB) and
+  `packagist.org/packages/list.json` (461,636, 12MB) are each one request and drop
+  straight into `name_index.FILES`; a `Gemfile`/`*.gemspec` parser and a
+  `composer.json` parser join `dependency_reality.py`. The coverage table goes from two
+  ecosystems offline to four, and the corpus's sinatra note changes from "no existence
+  check" to a checked project.
+
+- [ ] **23.2.3** Rust, through the published index only. crates.io's daily dump is
+  1.86GB — fine for the workflow, impossible per user — and `crates.csv` inside it is
+  the name list. `Cargo.toml` parser; `FILES["cargo"]`; the coverage contract says
+  "offline, from the published index" and `valvur update` without the published index
+  says Rust is unavailable rather than walking anything.
+
+- [ ] **23.2.4** `valvur update` pulls the image too, and `scan_status` says *"pulling
+  ghcr.io/…:0.2.0 (240MB)"* when the image is not local — checked with
+  `image inspect` before the first launch. Claim 4 of 10.2 becomes testable, and is
+  tested: remove the local image, run the harness, read the status line.
+
+### 3 — `valvur doctor`
+
+Every first-run failure this session was a precondition: rc1's missing image, no
+database, no index, Kiro's MCP disabled, Kiro not signed in, SELinux. Each surfaced
+as a failed scan, or as silence. A command that checks them in two seconds and names
+the fix for each is the difference between a stranger's first ten minutes and their
+last.
+
+- [ ] **23.3.1** `valvur doctor`: container runtime found and version; image present
+  and its build digest against the shim's (see 23.4.4); database present and age;
+  index present, age, ecosystems; SELinux enforcing and whether the tree is labelled;
+  which Profile can reach what (a DNS probe per registry, only when asked); MCP client
+  configuration detected — Claude Code (`.mcp.json`, `~/.claude.json`) and Kiro
+  (`.kiro/settings/mcp.json`, `kiroAgent.configureMCP`) — with the server named and
+  enabled or not. One line per check, the fix on the failing ones, exit non-zero if
+  any would fail a scan. Also an MCP tool, so an agent runs it *before* `scan` — and
+  the `scan_status` failure branch says so.
+
+- [ ] **23.3.2** `duration_s` on every `ScannerRun`, in `run.json` and in
+  `scan_status`, and *"slowest: checkov 27.9s"* in `SUMMARY.md`. The corpus report
+  gains a column. This is how users find the Checkov cost themselves, and how we
+  measure 23.4.2.
+
+- [ ] **23.3.3** `scan_cancel` as an MCP tool over the `kill_running` that already
+  exists; `scan_status` on a cancelled job says so. `--jobs N` on the CLI, honoured by
+  the fleet's executor, with a note in the platform docs about Docker Desktop's
+  default memory.
+
+- [ ] **23.3.4** No truncation of a failure reason on the MCP surface. `scan_status`
+  cut *"…no package-name index for PyPI, so"* at 80 characters; bound the number of
+  lines, never the sentence. And the `DONE` response names the next two moves:
+  `explain_finding <fingerprint>` for the top item, and `REMEDIATION.md`'s first
+  action — the agent never called `explain_finding` because nothing pointed at it.
+
+- [ ] **23.3.5** `valvur gate --fail-on high --no-inconclusive`: one exit code from
+  `run.json`, replacing the Python heredoc that `ci.yml` and `release.yml` each carry
+  a copy of, and what a `MaverickHQ/valvur-action` calls so that CI adoption is one
+  `uses:` line. `valvur cache` beside it: what is cached, how old, how large, `--clear`.
+
+### 4 — Build and architecture
+
+- [ ] **23.4.1** Checkov in its own virtual environment (`/opt/checkov`), installed
+  from a `requirements-checkov.txt` generated with `pip-compile --generate-hashes`.
+  Today it shares valvur's interpreter with 300+ transitive packages nobody pins, so
+  the image is not reproducible and the SBOM is mostly Checkov. Dependabot watches the
+  lock. Measure the image before and after.
+
+- [ ] **23.4.2** The three Checks in one container: `python -m valvur.checks all`,
+  nine container starts per scan become seven, and one 1.7s interpreter start instead
+  of three. Same isolation the Checks have today — they are our code, and they never
+  had a network to lose except dependency-reality's, which the batch keeps by running
+  it last with the grant the Profile gave. Measure with 23.3.2: expect ~4s off every
+  scan on a small repository.
+
+- [ ] **23.4.3** `docker buildx bake` with the version, labels and platforms in one
+  file. `CONTRIBUTING.md`, `ci.yml`, `release.yml` and `corpus.yml` carry four copies
+  of the build command today, and 19.A.3 already showed what copies do. The arm64 half
+  of the release build moves to a native arm64 runner and `imagetools create` merges;
+  4m36s under QEMU becomes a fraction.
+
+- [ ] **23.4.4** The shim carries the tree hash it was built beside. `release.yml`
+  builds the wheel and the image from one tree; put `tree_hash` of the inputs into the
+  wheel (a generated `_build.py`, never committed) and compare it to the image's
+  `/etc/valvur/inputs.sha256` at scan time, as `doctor` does. This closes the hole rc1
+  fell through — same version string, different code, and F1.9 content — as a warning
+  in `run.json` and `SUMMARY.md`, never a refusal: a mismatch is a diagnosis, not a
+  reason to hide results.
+
+- [ ] **23.4.5** Measure osv-scanner's marginal value on the corpus: findings on `full`
+  that Trivy did not report, per ecosystem, from the report `corpus.yml` already
+  writes. cobra went 11 → 132 on `full`; the fixture went 36 merged of 38. Keep it
+  with the number in the README's scanner table, or drop it from `full` — either is
+  fine; "a second advisory source" without a number is not.
+
+### 5 — The primary client's own files
+
+- [ ] **23.5.1** `.kiro/` into the AI Artifact Check: `steering/*.md` are agent
+  instructions; `settings/mcp.json` carries `autoApprove` (the key is already checked
+  under `.mcp.json`); **`hooks/` run shell commands on file events**, which is an
+  autonomous-execution surface and exactly §4's concern — a new rule,
+  `valvur.ai-artifact.hook-runs-command`, at high. With it the other clients the Check
+  does not know: `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml`. A Kiro
+  workspace was scanned today by the Check that exists for it, and it could not have
+  seen a poisoned steering file.
+
+- [ ] **23.5.2** Snapshot the MCP `tools/list` in a test — the JSON both clients see —
+  so a schema change is a deliberate diff. The rc offered `standard`, and nothing
+  would have shown the change from the profile rename until an agent chose it.
+
+- [ ] **23.5.3** Taint-mode LLM rules, or retire the word. The four `valvur.llm.*`
+  rules fired zero times on eleven real projects including an LLM tool; they are
+  pattern rules with no sources. Opengrep taint mode with real sources —
+  `openai.chat.completions.create(…).choices[0].message.content`,
+  `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the
+  sinks the INFO rules now inventory. A planted fixture proves they fire; the corpus
+  measures whether they ever fire on real code. If after that they still do not, the
+  README says "sink inventory" and stops saying taint.
+
+- [ ] **23.5.4** npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/`
+  is public and unauthenticated, so *newly registered AND under N downloads* — the
+  slopsquat signal design.md specified for F3.3 — is real for half the ecosystems.
+  PyPI stays stated as impossible without a third party.
+
+**Exit:** a stranger installs the published version, `valvur doctor` passes or tells
+them exactly why not, the first scan lands in about a minute, and the Check that
+exists for agent files can see the primary client's own.
 
 **Commit:** *(one per block, as before)*
 
