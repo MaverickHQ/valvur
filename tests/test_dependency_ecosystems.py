@@ -358,3 +358,108 @@ def test_a_hallucinated_dependency_outranks_a_missing_licence_file(tmp_path, reg
     )
 
     assert found[0]["severity"] == "high"
+
+
+# ------------------------------------------------- 22.A.3: the lookups overlap
+
+def _fresh_lib(days: int) -> dict:
+    from datetime import UTC, datetime, timedelta
+
+    stamp = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    return {"releases": {"1.0": [{"upload_time_iso_8601": stamp}]}}
+
+
+def test_registry_lookups_run_concurrently(tmp_path, name_index, network_granted, monkeypatch):
+    """Measured 2026-09-12: 159ms a name serial, 123s on a real monorepo. The
+    lookups are independent and I/O-bound; eight of them at 200ms each must not
+    take 1.6 seconds."""
+    import time
+
+    names = [f"lib-{i}" for i in range(8)]
+    name_index(pip=names)
+    monkeypatch.setattr(mod, "_lookup", lambda eco, name: time.sleep(0.2) or _fresh_lib(400))
+
+    started = time.monotonic()
+    DependencyRealityCheck().run(_repo(tmp_path, {"requirements.txt": "\n".join(names)}))
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.8, f"8 x 0.2s took {elapsed:.2f}s — the lookups serialised"
+
+
+def test_registry_concurrency_is_bounded(tmp_path, name_index, network_granted, monkeypatch):
+    """The one code path that reaches the network. Fifty connections at once to
+    PyPI is a scanner that gets rate-limited and then reports "unreachable" as if
+    nothing had been declared."""
+    import threading
+    import time
+
+    names = [f"lib-{i:02d}" for i in range(40)]
+    name_index(pip=names)
+    in_flight = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def lookup(eco, name):
+        nonlocal in_flight, peak
+        with lock:
+            in_flight += 1
+            peak = max(peak, in_flight)
+        time.sleep(0.02)
+        with lock:
+            in_flight -= 1
+        return _fresh_lib(400)
+
+    monkeypatch.setattr(mod, "_lookup", lookup)
+
+    DependencyRealityCheck().run(_repo(tmp_path, {"requirements.txt": "\n".join(names)}))
+
+    assert 1 < peak <= mod.LOOKUP_CONCURRENCY, peak
+
+
+def test_findings_arrive_in_declaration_order_whatever_order_the_answers_did(
+    tmp_path, name_index, network_granted, monkeypatch
+):
+    """Reproducible output: the same manifest gives byte-identical findings on every
+    run, or the rescan diff (F5) reports churn that never happened."""
+    import random
+    import time
+
+    names = [f"new-{i}" for i in range(12)]
+    name_index(pip=names)
+    rng = random.Random(7)  # noqa: S311 — jitter, not a secret
+
+    def lookup(eco, name):
+        time.sleep(rng.random() * 0.05)
+        return _fresh_lib(3)
+
+    monkeypatch.setattr(mod, "_lookup", lookup)
+    manifest = _repo(tmp_path, {"requirements.txt": "\n".join(reversed(names))})
+
+    first = DependencyRealityCheck().run(manifest)
+    second = DependencyRealityCheck().run(manifest)
+
+    assert first == second
+    assert [f["title"].split("'")[1] for f in first] == sorted(names)
+
+
+def test_one_failed_lookup_does_not_lose_the_others(
+    tmp_path, name_index, network_granted, monkeypatch
+):
+    """A registry hiccup on one name is one unverified name, not a failed Check:
+    the run stays complete, the other answers are kept, and nothing is retried
+    into a rate limit."""
+    name_index(pip=["fine-a", "flaky", "fine-b"])
+
+    def lookup(eco, name):
+        if name == "flaky":
+            raise RegistryUnreachable("timed out")
+        return _fresh_lib(2)
+
+    monkeypatch.setattr(mod, "_lookup", lookup)
+
+    found = DependencyRealityCheck().run(
+        _repo(tmp_path, {"requirements.txt": "fine-a\nflaky\nfine-b\n"})
+    )
+
+    assert [f["title"].split("'")[1] for f in found] == ["fine-a", "fine-b"]
+    assert all(f["rule"] == "valvur.dependency.newly-registered" for f in found)
