@@ -6,6 +6,12 @@ branch, not anywhere. Three layers enforce it: the folder self-ignores via its o
 signal, and a tracked `pre-commit` hook refuses any staged path under
 `.security-scan/`.
 
+> **Scope, clarified 2026-09-12.** The second and third layers are *this
+> repository's* — dogfooding. In a scanned **Workspace** valvur writes only the first:
+> the self-ignoring folder (F7.2). It never edits the project's root `.gitignore`;
+> F7.3, which asked it to, was retired unimplemented in task 22.C.2 because that is a
+> write to a tracked file in the scanned tree.
+
 ## Considered Options
 
 **Commit results on a build branch, publish a separate clean branch to the remote.**

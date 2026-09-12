@@ -1,5 +1,7 @@
 # No dependency may require an account, token or remote service
 
+**Requirements:** F1.7 (no account, API key, token or credential to perform a scan), N2.1 (the offline Profile makes no connection — a dependency that phones a vendor would break it by construction).
+
 valvur takes no dependency that needs credentials or transmits data to a third party
 in order to function.
 

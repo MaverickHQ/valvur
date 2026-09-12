@@ -1,5 +1,7 @@
 # Layered results contract with one consumer per artifact
 
+**Requirements:** F7.4 (the artifacts and their one consumer each), F7.5 (SUMMARY.md bounded), F7.6 (the machine-facing block first), N1.3 (readable inside a context window).
+
 The Results Folder holds several projections of a single in-memory findings model,
 each written for exactly one consumer: `SUMMARY.md` and `REMEDIATION.md` for humans
 and agents, `findings.json` for programmatic queries, `results.sarif` for IDEs and

@@ -1,4 +1,8 @@
-"""Scanner adapters. One per tool; the orchestrator knows only this list."""
+"""Scanner adapters. One per tool; the orchestrator knows only this list.
+
+This IS F2.1: Trivy, Gitleaks, OSV-Scanner, Opengrep, Checkov and Syft, orchestrated
+as Scanners — and valvur's own Checks beside them, on the same contract.
+"""
 
 from __future__ import annotations
 

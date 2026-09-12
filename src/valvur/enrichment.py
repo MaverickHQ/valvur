@@ -23,10 +23,12 @@ from . import cache
 from .findings import Finding
 
 STALE_AFTER_DAYS = 30
+#: F6.2: the KEV snapshot shipped in the image, ransomware-campaign flag included
+#: (`r` in each entry), refreshed into the host cache by `valvur update`.
 _BUNDLED = Path(__file__).resolve().parent / "data" / "kev.json"
 
 
-class EnrichmentProvider(Protocol):
+class EnrichmentProvider(Protocol):  # F6.8: the interface; no platform behind it
     def enrich(self, findings: list[Finding], *, network: bool) -> list[Finding]: ...
 
 
@@ -49,6 +51,8 @@ class LocalProvider:
         return self._kev_age is not None and self._kev_age > STALE_AFTER_DAYS
 
     def enrich(self, findings: list[Finding], *, network: bool) -> list[Finding]:
+        # F6.1: every Finding carrying a CVE gets its Exploit Signals — KEV always,
+        # EPSS when the Profile allows the lookup.
         cves = {
             f.exploit.cve for f in findings
             if f.exploit and f.exploit.cve.startswith("CVE-")

@@ -8,41 +8,9 @@
 
 # Requirement IDs cited in no source file, test, script, workflow or doc.
 uncited_requirements = [
-  "F2.1",
-  "F2.2",
-  "F3.3",
-  "F3.4",
-  "F3.6",
-  "F3.9",
-  "F5.1",
-  "F5.2",
-  "F5.5",
-  "F5.6",
-  "F6.1",
-  "F6.2",
-  "F6.8",
-  "F6.10",
-  "F7.1",
-  "F7.3",
-  "F7.4",
-  "F8.1",
-  "F9.5",
-  "F9.6",
-  "F9.7",
-  "F10.1",
-  "F10.2",
-  "N1.3",
 ]
 
 # ADRs that cite no requirement, so the decision cannot be traced to what it
 # was deciding about.
 adrs_citing_nothing = [
-  "0001-thin-host-shim-read-only-container",
-  "0002-layered-results-contract",
-  "0004-opengrep-not-semgrep",
-  "0006-no-graph-database",
-  "0007-internal-enrichment-no-external-platform",
-  "0008-no-saas-coupled-dependencies",
-  "0009-human-in-the-loop-remediation",
-  "0010-provable-non-exfiltration",
 ]

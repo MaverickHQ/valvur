@@ -693,7 +693,7 @@ def test_no_workflow_grants_write_permission_it_does_not_need():
     )
 
 
-def test_every_base_image_is_pinned_by_digest():
+def test_every_base_image_is_pinned_by_digest():  # F2.2, and 15.1's stronger form
     """Task 15.1, and the same rule we apply to actions.
 
     A tag is a mutable pointer. Every `FROM` here was pinned by tag while every

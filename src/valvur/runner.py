@@ -434,6 +434,8 @@ class ContainerRunner:
             self.runtime, "run", "--rm",
             "--name", _container_name(),
             *_user_flags(self.runtime),
+            # F10.2, with the Dockerfile's USER 10001: non-root, read-only root
+            # filesystem, every capability dropped.
             "--read-only",
             # A read-only root filesystem still needs scratch space. This tmpfs is in
             # memory, non-persistent and nosuid. `exec` is granted only to Scanners

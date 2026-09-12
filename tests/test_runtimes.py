@@ -87,7 +87,7 @@ def test_results_are_owned_by_the_invoking_user(workspace, runtime):
 
 @pytest.mark.e2e
 @pytest.mark.parametrize("runtime", RUNTIMES)
-def test_a_scan_finds_the_same_things_on_every_runtime(workspace, runtime):
+def test_a_scan_finds_the_same_things_on_every_runtime(workspace, runtime):  # F10.1
     """Portability is not just about permissions: the answer must match too."""
     run = scan(workspace, runner=ContainerRunner(runtime=_available(runtime)),
                adapters=[GitleaksAdapter()], profile="quick")

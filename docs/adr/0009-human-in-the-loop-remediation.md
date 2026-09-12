@@ -1,5 +1,7 @@
 # The developer chooses which fixes to apply and when to rescan
 
+**Requirements:** F9.2 (no MCP tool modifies the Workspace's source), F9.4 (no watchers, no save hooks, no automatic rescan), F9.5 and F9.6 (a vanished Finding is not a fix; a Suppression needs a human).
+
 valvur proposes; it never remediates. There is no `scan_and_fix` tool, no file
 watcher, no on-save hook, and no autonomous scan-fix-rescan loop. Rescanning is
 always an explicit call.

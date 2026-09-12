@@ -70,6 +70,7 @@ def save(results_dir: Path, present: dict[str, str], fixed: set[str]) -> None:
 
 
 def status_for(fingerprint: str, previous: dict[str, str], previously_fixed: set[str]) -> str:
+    # F5.6: new / persisting / fixed / regressed, against the previous run's state.
     if fingerprint in previous:
         return "persisting"
     if fingerprint in previously_fixed:

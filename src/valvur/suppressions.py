@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-SUPPRESSION_FILE = ".security-scan.toml"
+SUPPRESSION_FILE = ".security-scan.toml"   # F8.1: read from the Workspace root
 
 # Context is mandatory, not decorative. A pull request containing only a hash tells a
 # reviewer nothing about what is being accepted, which throws away the whole reason
