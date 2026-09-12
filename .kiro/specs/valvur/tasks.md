@@ -3411,15 +3411,23 @@ C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS  — both done
 > left is A → D1 → B → D2, in that order, and every item in A is an action only the
 > repository owner can take at github.com or pypi.org. There is no remaining
 > engineering task that does not depend on one of them.
+>
+> **Amended the same evening.** Phase 23 inserted two engineering blocks before the
+> gate. Block 2 (the published index; Ruby, PHP and Rust offline; the image pull
+> named) is **done**; Block 3 (`valvur doctor`, timing, cancel, the gate command, the
+> Action, the budget) is what remains before B. A gains one item from Block 2: the
+> `valvur-index` GHCR package public, beside the image's.
 
 ### A — Owner actions
 
 Only the repository owner can do these, and everything else waits behind them.
 
 - **21.A.1** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
-  ahead), make the **repository** public, then the **package**. In that order, or the
-  newly-public repo is missing every phase from 10.3b onward. Measured 2026-09-10:
-  repo API `404`, GHCR anonymous token `401`.
+  ahead), make the **repository** public, then the **packages** — `valvur`, the
+  image, and since 23.2.1 `valvur-index`, the daily name index. In that order, or
+  the newly-public repo is missing every phase from 10.3b onward. Measured
+  2026-09-10: repo API `404`, GHCR anonymous token `401` — and 2026-09-12 for the
+  index package, the same `401` from the shim's own client.
 - **21.A.2** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
   since 2026-08-30 because GitHub charges for it on private repositories; it becomes
   free the moment 21.A.1 lands, and guards nothing until then.
@@ -4075,7 +4083,7 @@ Block 1  0.2.0                          ─── owner actions; unblocks everyt
         ↓
 Block 2  the published index            ─┐  BEFORE the usability gate (10.1):
 Block 3  valvur doctor                  ─┘  these two are the first ten minutes
-        ↓
+        ↓                                    (Block 2 ✅ 2026-09-12)
 10.1.1 · 10.1.2  the usability gate
         ↓
 Block 4  build and architecture         ─┬─ independent; any order
@@ -4083,6 +4091,19 @@ Block 5  the primary client's own files ─┘
         ↓
 12b.1–3  → v1.0.0
 ```
+
+> **Where this stands on 2026-09-12, evening.** Block 2 is complete — the four
+> tasks below carry their notes — and was run out of order with Block 1 because it
+> needs nothing from the owner to *build*, only to *reach users*. It kept the
+> pattern of every block before it: the real environment found what the unit suite
+> could not. The first real pull of the 34MB artifact found a chunk-boundary write
+> defect in the streaming reader (`cmp` caught it; a 300,000-name fixture now pins
+> it); the Rust task's premise — *"impossible per user"* — was wrong by a factor of
+> five, because nobody had measured where `crates.csv` sits in the dump; and the
+> first workflow run showed the shim's anonymous pull refused by the private
+> package, which added one line to Block 1's list. **Next is Block 3** (`valvur
+> doctor` first — 23.3.1), the last engineering before the usability gate; Block 1
+> remains the owner's, and now has four items rather than three.
 
 ### 1 — `0.2.0`
 
@@ -4096,6 +4117,13 @@ Every day it is the only version on PyPI is a day the product is a broken link.
   and attestation steps go green the moment the repository is public — and the tag.
   *This is 21.A and 21.D.1 restated with the reason the review added; nothing new to
   build.*
+
+  > **One item added 2026-09-12, by Block 2:** the **`valvur-index` package must be
+  > made public too** — it was created private by the first run of `index.yml`. Until
+  > it is, every `valvur update` on every machine is refused anonymously and walks
+  > the five registries itself (the CI log on commit `6b372ae` shows it happening),
+  > so the "first run 8 min → about 1" that Block 2 built is not yet what anyone
+  > gets. Package settings → Danger Zone → Change visibility, as for the image.
 
 ### 2 — The published index
 
