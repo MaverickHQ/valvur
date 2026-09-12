@@ -3787,9 +3787,18 @@ the coverage gap that needed them.
 - [ ] **22.G.1** Kiro. Named as a primary client in every document; never run. Task
   10.2's claim 1. Needs Kiro installed; the harness from 10.2.5 is reusable as-is.
 
-- [ ] **22.G.2** Confirm Dependabot's `uv` ecosystem actually opens a pull request.
+- [x] **22.G.2** Confirm Dependabot's `uv` ecosystem actually opens a pull request.
   Switched from `pip` in Block 1 on the strength of documentation; cannot run until
   the repository is public.
+
+  > **Done 2026-09-12, and the premise was wrong: it did not need a public
+  > repository.** The first push in twelve days (22.B.1) triggered all three
+  > Dependabot ecosystems on the private repository. The `uv` job parsed `uv.lock`,
+  > checked pytest, ruff, mypy, jsonschema and hatchling against PyPI and reported
+  > "No update needed" for each — every pin was current, so no pull request, which
+  > is the correct outcome rather than a missing one. The `github_actions` and
+  > `docker` ecosystems opened three PRs the same minute, so the mechanism as a
+  > whole is proven; the `uv` half is proven up to the point of needing an update.
 
 **Exit:** the default Profile reports a hallucinated package with no socket; the
 release workflow has run once somewhere that does not matter; a stranger's first
