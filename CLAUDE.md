@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-10.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-12.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -27,27 +27,26 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-10):** built and tested; hardening before it is made obtainable.
+**Status (2026-09-12):** built, hardened, and waiting on the owner to publish it.
 
 `0.1.0rc1` is on PyPI. **The GitHub repository and the GHCR package are both still
-private**, so nobody outside this machine can install it. Publication is no longer the
-next step: it now waits behind **Phase 19** (reliability and portfolio hardening) and
-**Phase 20** (the F1.6 SELinux gap), because releasing first would publish the known
-debt rather than fix it. [Phase 21](.kiro/specs/valvur/tasks.md) is the ordered
-release sequence after those.
+private**, so nobody outside this machine can install it. Phases 19 (reliability and
+portfolio hardening) and 20 (the F1.6 SELinux gap) are complete, and **no engineering
+task remains that does not depend on an owner action.** [Phase 21](.kiro/specs/valvur/tasks.md)
+is the ordered release sequence: push → repository public → package public → branch
+protection → PyPI trusted publishing → `0.2.0` → the usability gate → `v1.0.0`.
 
 Roughly: 84 Python modules, 443 tests, 17 ADRs, 136 requirement IDs, **119 done and 8
-open** across 21 phases. Of the open work, most is Phase 19; the rest is three owner
-actions, the usability gate (which needs a person who has never seen this tool), and
-one design decision.
+open** across 21 phases. Every one of the 8 is either an owner action at github.com or
+pypi.org, or depends on one — including the usability gate, which needs a person who
+has never seen this tool and something public for them to install.
 
-The open tasks are **grouped into seven runnable blocks** at the head of Phase 19 in
-[`tasks.md`](.kiro/specs/valvur/tasks.md), rather than run one at a time. Blocks 0
-0 through 5 are done — **Phases 19 and 20 are complete, and nothing technical now
-blocks publication.** What remains is **Block 6**: the three owner actions at
-github.com (push, repository public, package public, branch protection, PyPI trusted
-publishing), and then the release tail — the usability gate, which needs a person who
-has never seen this tool, and `v1.0.0`.
+The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
+task; the grouping and what each block found sits at the head of Phase 19 in
+[`tasks.md`](.kiro/specs/valvur/tasks.md). The pattern that held across all six: every
+block found defects that unit tests could not — through a corpus of real repositories,
+a real enforcing SELinux host, and a real agent driving the MCP surface — and most
+were introduced by the block before, with tests passing.
 
 **One known gap, and one deliberate friction, worth knowing before proposing anything:**
 
