@@ -4142,6 +4142,15 @@ already named as the eventual answer.
   > **Until the owner makes the package
   > public (23.1.1), every user's update takes the fallback** — the workflow warns
   > about exactly that and checks the round trip with authenticated tools instead.
+  > **First run, dispatched the same evening** (run 34714322697): built in 4m28s
+  > (npm walked in full, no cache yet), pushed `ghcr.io/maverickhq/valvur-index:
+  > 2026-09-12` = `latest` @ `sha256:2788b2a6…`, signed; the shim's anonymous
+  > pull was refused as predicted (*"the registry demands credentials and valvur
+  > pulls anonymously (is the package public?)"*), the authenticated `oras pull`
+  > matched all five files byte for byte, and `cosign verify` bound the digest to
+  > `…/.github/workflows/index.yml@refs/heads/main` at commit `6b372ae`. The CI
+  > run on the same push shows the other side: `update` refused anonymously, fell
+  > back, and skipped every registry as walked within the day.
 
 - [x] **23.2.2** Ruby and PHP offline. `rubygems.org/names` (196,830 names, 2.8MB) and
   `packagist.org/packages/list.json` (461,636, 12MB) are each one request and drop
