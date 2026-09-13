@@ -87,8 +87,13 @@ COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 # refuses anything else. Until this, `pip install checkov==3.2.517` resolved those
 # 96 packages afresh on every build — the one input of the image we sign with our
 # identity that was not pinned by hash — and they shared valvur's interpreter.
-# Dependabot watches the lock. No compiler is kept. Before our own files, so that
-# editing a Check or a rule rebuilds only the layers below and never this one.
+# Dependabot watches the lock. `--no-deps` because the lock is complete — every
+# package, every hash — and because it carries one deliberate override
+# (`requirements-checkov.overrides`): Checkov pins an asteval with two sandbox-escape
+# advisories, and the lock ships the fixed release instead; pip's resolver would
+# refuse the pair, and the lock is the resolution. No compiler is kept. Before our
+# own files, so that editing a Check or a rule rebuilds only the layers below and
+# never this one.
 #
 # The trailing `find … || true` used to sit bare at the end of this `&&` chain,
 # which made `|| true` cover the whole chain: a failed `pip install` produced an
@@ -97,7 +102,7 @@ COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 COPY requirements-checkov.txt /opt/checkov-requirements.txt
 RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && python3 -m venv --without-pip /opt/checkov \
- && pip --python /opt/checkov/bin/python install --no-cache-dir \
+ && pip --python /opt/checkov/bin/python install --no-cache-dir --no-deps \
         --require-hashes -r /opt/checkov-requirements.txt \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \

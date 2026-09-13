@@ -36,7 +36,11 @@ a minor bump may break things until 1.0.
   packages and 191MB to valvur alone. Regenerate with `scripts/lock-checkov.sh`;
   Dependabot watches the lock. The image is the same 576MB. Found on the way: the
   Dockerfile's `… && find … || true` let a failed `pip install` produce an image
-  without Checkov and report success; scoped, and a test refuses the shape.
+  without Checkov and report success; scoped, and a test refuses the shape. And
+  found by the lock's first self-scan: Checkov pins `asteval==1.0.6`, which has
+  two sandbox-escape advisories fixed in 1.0.9 — the lock overrides it to 1.0.10
+  (`requirements-checkov.overrides`, with the reason), so the image ships a
+  Checkov that upstream's own users do not get.
 - **`MaverickHQ/valvur-action`.** A composite GitHub Action: install the shim (a
   PyPI pin, a git source, or the `valvur` on PATH), install cosign so the name
   index's signature is verified, restore the index from the Actions cache, `valvur

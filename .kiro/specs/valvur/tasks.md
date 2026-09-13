@@ -4637,7 +4637,21 @@ last.
   checkov` for as long as it existed. The `find` is scoped in a subshell, and
   `test_no_run_chain_in_the_dockerfile_can_swallow_its_own_failure` refuses the
   shape. Three constraint tests; four mutations, one survivor (a by-name install
-  hidden behind `--python`) pinned. F2.2 extended.
+  hidden behind `--python`) pinned. F2.2 extended. **And the lock's first day paid
+  for itself:** the PR's self-scan gate — valvur scanning its own tree — failed on
+  the new `requirements-checkov.txt`, because Checkov 3.2.517 pins `asteval==1.0.6`,
+  which carries two sandbox-escape advisories (CVE-2026-55244 / GHSA-89v8-rhwq-hf77,
+  GHSA-9w56-46f6-3qhx; fixed in 1.0.9), and every Checkov release through 3.2.533
+  pins the same. Until the lock existed that dependency was installed at build
+  time and appeared in no manifest valvur reads. Now `requirements-checkov.overrides`
+  forces `asteval==1.0.10` at lock time (`uv pip compile --override`, each
+  override with its reason and the condition for dropping it), the image installs
+  the lock with `--no-deps` because the lock *is* the resolution and pip would
+  refuse the pair, Checkov 3.2.517 runs on asteval 1.0.10 with the same 13
+  findings on the fixture, the self-scan gate reads `0 at or above any`, and the
+  constraint test requires every override to name its reason and the lock to
+  carry it. A Checkov user who installs it the ordinary way runs the vulnerable
+  asteval; ours does not.
 
 - [ ] **23.4.2** The three Checks in one container: `python -m valvur.checks all`,
   nine container starts per scan become seven, and one 1.7s interpreter start instead

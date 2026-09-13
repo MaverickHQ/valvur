@@ -851,9 +851,21 @@ def test_checkov_is_hash_locked_into_its_own_environment():
         "the runner reports a Checkov version the lock does not install"
     )
 
+    # An override is a transitive pin of Checkov's we refuse to ship — with the
+    # reason beside it, and the lock must carry exactly that version.
+    overrides = Path("requirements-checkov.overrides").read_text()
+    forced = re.findall(r"^([A-Za-z0-9_.\-]+)==(\S+)", overrides, re.M)
+    assert forced, "the overrides file is empty; asteval was overridden for a reason"
+    for name, version in forced:
+        assert dict(pinned).get(name) == version, (
+            f"{name} is overridden to {version} but the lock says {dict(pinned).get(name)}")
+        assert re.search(rf"^# {name}:", overrides, re.M), (
+            f"the override of {name} carries no reason")
+
     dockerfile = "\n".join(line for line in Path("Dockerfile").read_text().splitlines()
                            if not line.lstrip().startswith("#"))
     assert "--require-hashes -r /opt/checkov-requirements.txt" in dockerfile
+    assert "--no-deps" in dockerfile, "the lock is the resolution; pip must not resolve again"
     assert "python3 -m venv --without-pip /opt/checkov" in dockerfile
     assert not re.search(r"\bpip\b[^\n]*\binstall\b[^\n]*checkov==", dockerfile), (
         "Checkov is still installed by name, outside the lock"

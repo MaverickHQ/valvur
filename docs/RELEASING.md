@@ -282,5 +282,9 @@ with `--require-hashes`, into `/opt/checkov` (task 23.4.1). To move Checkov, edi
 version (`runner.run_checkov`) must match, and a test says so. The lock is part of
 the image's build digest, so a changed hash is a changed image, and Dependabot opens
 the update. A hash that no longer matches fails the build rather than installing
-whatever was served, which is the point.
+whatever was served, which is the point. `requirements-checkov.overrides` forces a
+transitive pin we refuse to ship — today `asteval`, which Checkov pins to a release
+with sandbox-escape advisories — each with its reason and the condition for
+dropping it; the image installs the lock with `--no-deps` because the lock is the
+resolution.
 

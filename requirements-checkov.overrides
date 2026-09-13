@@ -1,0 +1,8 @@
+# Overrides applied when locking (uv pip compile --override): a transitive pin
+# Checkov carries that we refuse to ship. Each line says why and until when.
+#
+# asteval: Checkov 3.2.517 through 3.2.533 pin asteval==1.0.6, which has two
+# sandbox-escape advisories (CVE-2026-55244 / GHSA-89v8-rhwq-hf77, GHSA-9w56-46f6-3qhx)
+# fixed in 1.0.9. Found by valvur scanning its own lock the day the lock existed
+# (23.4.1). Drop this once a Checkov release pins 1.0.9 or later.
+asteval==1.0.10

@@ -7,6 +7,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 uv pip compile --universal --generate-hashes --python-version 3.12 --no-header \
+    --override requirements-checkov.overrides \
     -o requirements-checkov.txt requirements-checkov.in
 printf '%s packages, %s hashes\n' \
     "$(grep -c '^[a-zA-Z0-9_.-]*==' requirements-checkov.txt)" \
