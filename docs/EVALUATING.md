@@ -273,6 +273,13 @@ does when it cannot find anything.
   Scanner is one that can silently stop running.
 - A Scanner the **profile did not run** is named on every scan, whether or not
   anything was found.
+- **How long each Scanner took** is in `run.json` (`duration_s`), on `scan_status`,
+  and as one line in `SUMMARY.md`: *"slowest: checkov 40.9s"*. The fleet runs
+  concurrently, so the slowest Scanner is about what the scan cost, and it is
+  usually Checkov — measured 2026-09-13 on the ten-file fixture, published image,
+  a loaded laptop: checkov 40.9s, opengrep 26.0s, syft 20.9s, the rest 8–16s, the
+  scan 44s. Ten minutes earlier the same scan on a quiet machine took 33s. The
+  number is on every run so you can see yours rather than trust ours.
 - An **ecosystem nothing inspects** produces a finding saying so.
 - **Excluded paths** are reported with the count they cost. An exclusion you cannot
   see is indistinguishable from a scan that found nothing.

@@ -168,6 +168,7 @@ def _provenance(run: ScanRun) -> str:
                         "version": s.version,
                         "ok": s.ok,
                         "reason": s.reason,
+                        "duration_s": round(s.duration_s, 1),
                     }
                     for s in run.scanners
                 ],
@@ -459,8 +460,26 @@ def _summary(run: ScanRun) -> str:
             lines.append(f"- _…and {len(run.fixed) - 10} more_")
         lines.append("")
 
+    slowest = _slowest(run.scanners)
+    if slowest is not None:
+        # The one timing line worth the bounded budget: the fleet runs concurrently,
+        # so this Scanner is roughly what the scan cost (23.3.2). Each Scanner's own
+        # time is in run.json.
+        lines += [
+            f"_Scanners ran concurrently; slowest: {slowest.tool} {slowest.duration_s:.1f}s. "
+            "Each one's time is in `run.json`._",
+            "",
+        ]
+
     text = "\n".join(lines) + "\n"
     return _enforce_cap(text)
+
+
+def _slowest(scanners):
+    """The Scanner that took longest, or None when nothing was timed — a ScanRun
+    built by an older valvur, or by a test, must not produce an invented number."""
+    ran = [s for s in scanners if not s.skipped and s.duration_s > 0]
+    return max(ran, key=lambda s: s.duration_s) if ran else None
 
 
 def _counts_table(findings) -> list[str]:

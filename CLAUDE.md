@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 24 of them now — and whose first engineering item was the audit's worst
+task** — 23 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -44,8 +44,11 @@ sells the LLM-output-to-sink rules as a capability. **Then `valvur doctor`
 than requested, the runtime found *and running*, the image present, compatible and
 started once, database and index present and current, the SELinux label, the MCP
 client configuration — one line each with the fix, exit 1 if a scan would fail, the
-same report as a `doctor` MCP tool that a FAILED `scan_status` now names. **Next:
-per-Scanner timing (23.3.2), then 24.3.** When "what is next" is asked, that list is the answer; the
+same report as a `doctor` MCP tool that a FAILED `scan_status` now names. **Then
+23.3.2**: `duration_s` on every Scanner, on every surface — which measured Checkov
+at 41–59s and the three Checks at 10–16s *each* for millisecond work, the numbers
+23.4.6 and 23.4.2 were waiting for. **Next: 24.3 (F1.10, N1.1, N1.4 with evidence),
+then 23.3.4.** When "what is next" is asked, that list is the answer; the
 sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
@@ -129,9 +132,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 97 Python modules, 740 tests, 18 ADRs, 136 requirement IDs, **149 done and 24
-open** across 24 phases — 17 of the 24 are Phase 23, 2 are Phase 24's audit, and 5
-are the usability gate and the `v1.0.0` tail. Three of the 24 are the owner's (yank
+Roughly: 97 Python modules, 751 tests, 18 ADRs, 136 requirement IDs, **150 done and 23
+open** across 24 phases — 16 of the 23 are Phase 23, 2 are Phase 24's audit, and 5
+are the usability gate and the `v1.0.0` tail. Three of the 23 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

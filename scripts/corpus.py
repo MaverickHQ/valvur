@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import time
 import tomllib
 from collections import Counter
 from pathlib import Path
@@ -92,6 +93,19 @@ def _scan(target: Path, profile: str) -> tuple[dict, list[dict]]:
     run = json.loads((results / "run.json").read_text(encoding="utf-8"))
     findings = json.loads((results / "findings.json").read_text(encoding="utf-8"))["findings"]
     return run, findings
+
+
+def _timings(run: dict) -> dict:
+    """Per-Scanner seconds from run.json and the slowest of them (23.3.2): how the
+    Checkov cost is found across real repositories, and how 23.4.2 is measured."""
+    seconds = {
+        s["tool"]: s["duration_s"]
+        for s in run.get("scanners", [])
+        if isinstance(s.get("duration_s"), int | float) and s["duration_s"] > 0
+    }
+    slowest = max(seconds.items(), key=lambda item: item[1]) if seconds else None
+    return {"duration_s": seconds,
+            "slowest": f"{slowest[0]} {slowest[1]:.1f}s" if slowest else ""}
 
 
 def _judge(entry: dict, run: dict, findings: list[dict]) -> list[str]:
@@ -179,15 +193,19 @@ def _judge(entry: dict, run: dict, findings: list[dict]) -> list[str]:
 def run(entries: list[dict], profile: str) -> int:
     report: dict = {"profile": profile, "repos": {}}
     any_failed = False
-    print(f"{'repo':<22} {'status':<13} {'active':>6} {'notes':>5} {'fails':>5}  problems")
+    print(f"{'repo':<22} {'status':<13} {'active':>6} {'notes':>5} {'fails':>5} "
+          f"{'scan':>6}  {'slowest':<18} problems")
     for entry in entries:
         target = CHECKOUTS / entry["name"]
         if not target.is_dir():
             sys.exit(f"{entry['name']} is not fetched; run `scripts/corpus.py fetch`")
+        started = time.monotonic()
         run_json, findings = _scan(target, profile)
+        scan_s = round(time.monotonic() - started, 1)
         failures = _judge(entry, run_json, findings)
         any_failed |= bool(failures)
         by_source = Counter(s for f in findings for s in f.get("sources", []))
+        timings = _timings(run_json)
         report["repos"][entry["name"]] = {
             "commit": entry["commit"],
             "status": run_json.get("status"),
@@ -197,11 +215,15 @@ def run(entries: list[dict], profile: str) -> int:
             "by_source": dict(by_source),
             "by_rule": dict(Counter(f["rule"] for f in findings)),
             "failures": failures,
+            # The scan's wall-clock (N1.1's number, for 24.3) and each Scanner's.
+            "scan_s": scan_s,
+            **timings,
         }
         counts = run_json.get("findings") or {}
         print(f"{entry['name']:<22} {run_json.get('status', '?'):<13} "
               f"{counts.get('active', 0):>6} {counts.get('not_covered', 0):>5} "
-              f"{len(failures):>5}  {'; '.join(failures)[:90]}")
+              f"{len(failures):>5} {scan_s:>5.1f}s  {timings['slowest']:<18} "
+              f"{'; '.join(failures)[:70]}")
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"\nreport: {REPORT}")
     if any_failed:

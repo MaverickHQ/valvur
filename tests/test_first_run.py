@@ -295,7 +295,8 @@ def test_a_stale_database_is_never_refreshed_by_a_scan(workspace, host_cache):
     run, said = _scan(workspace, runner)
 
     assert "db" not in runner.calls and "size" not in runner.calls
-    assert said == ["gitleaks: ok", "trivy: ok"] or said == ["trivy: ok", "gitleaks: ok"]
+    assert sorted(line.split(":")[0] for line in said) == ["gitleaks", "trivy"]
+    assert all(": ok (" in line for line in said), said
     assert run.db_age_days is not None and run.db_age_days > cache.DB_STALE_AFTER_DAYS
     assert not run.failures
 
@@ -323,7 +324,7 @@ def test_a_runner_without_the_ability_is_left_alone(workspace, host_cache):
              on_progress=said.append)
 
     assert not cache.db_present()
-    assert said == ["gitleaks: ok"]
+    assert len(said) == 1 and said[0].startswith("gitleaks: ok (")
 
 
 # -------------------------------------------- could not be fetched: said, not hidden

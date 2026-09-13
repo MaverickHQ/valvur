@@ -140,7 +140,7 @@ Results land in `.security-scan/`:
 ├── findings.json       ← complete, normalised, schema-versioned
 ├── results.sarif       ← SARIF 2.1.0 for your IDE
 ├── sbom.cdx.json       ← CycloneDX SBOM
-├── run.json            ← what ran, which versions, what was skipped and why
+├── run.json            ← what ran, which versions, how long each took, what was skipped and why
 └── raw/                ← untouched per-tool output, so you can verify us
 ```
 

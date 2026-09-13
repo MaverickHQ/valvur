@@ -4412,10 +4412,44 @@ last.
   *comparison* (23.4.4) and the DNS-only probe the task text imagined — a TCP
   connect is what a fetch does first, and proves more.
 
-- [ ] **23.3.2** `duration_s` on every `ScannerRun`, in `run.json` and in
+- [x] **23.3.2** `duration_s` on every `ScannerRun`, in `run.json` and in
   `scan_status`, and *"slowest: checkov 27.9s"* in `SUMMARY.md`. The corpus report
   gains a column. This is how users find the Checkov cost themselves, and how we
   measure 23.4.2.
+
+  **STATUS 2026-09-13:** ✅ `ScannerRun.duration_s`, stamped by `api._run_one`
+  around the whole attempt (`applies_to` through report read, so a skipped Scanner
+  shows the cost of deciding to skip). On every surface: `run.json` (`duration_s`,
+  to a tenth), `scan_status` (*"checkov: ok (40.9s)"* per line plus *"slowest:
+  checkov 40.9s — the fleet runs concurrently, so that is about what the scan
+  cost"*; a run.json from before this has no key and gets no invented number),
+  the progress line while a scan runs (*"Completed so far: gitleaks: ok (7.9s),
+  …"*, the surface an agent watches), and one line at the foot of `SUMMARY.md`
+  (skipped Scanners never win; an untimed run says nothing). `scripts/corpus.py`
+  records `scan_s` (the scan's wall-clock — N1.1's number, for 24.3) and
+  `duration_s` per Scanner per repository, prints `scan` and `slowest` columns.
+  **Measured, and the reason the task existed:** on the ten-file fixture with the
+  published `0.2.0` image, checkov 40.9s, opengrep 26.0s, syft 20.9s,
+  dependency-reality 15.8s, trivy 14.3s, licence-file 12.5s, ai-artifact 12.4s,
+  gitleaks 7.9s — scan 44s; the same scan against the freshly built `valvur:dev`
+  minutes earlier read checkov 59.1s, opengrep 46.7s, scan 60s, and the machine's
+  load average was 13.7 both times. The morning's 33s was a quiet machine. Three
+  things fall out: Checkov is the scan's length (23.4.6's case, now with numbers);
+  Opengrep's 26–47s on ten files is the second cost and worth a look; and the
+  three Checks cost 10–16s *each* for work that is milliseconds — three container
+  starts of a 576MB image — which is 23.4.2's whole argument, now measurable
+  before and after. **And the instrument's first reading on N1.1's own test
+  workspace** (this repository minus the venv: 3,404 files) on the same loaded
+  laptop: scan 91s — checkov 84.8s, opengrep 69.4s, dependency-reality 57.9s, syft
+  53.2s, gitleaks 43.5s, trivy 43.5s, ai-artifact 40.2s, licence-file 9.2s. Gitleaks
+  at 43s on 3,404 files is not Gitleaks; it is eight containers reading one
+  virtiofs bind mount at once on Docker Desktop while the host sat at load 8–10
+  (the constraint test read 60.6s, 94s and 75s over the day on this machine, and
+  passed under 60s on Linux CI for every PR). That is 24.3's question — N1.1 as
+  written names a line count and no machine — and it now has numbers per Scanner
+  per run rather than one wall-clock and a guess. 11 tests in
+  `tests/test_timing.py`, 9 mutations killed; the image rebuilt for e2e, 24 of 25
+  passing locally with N1.1's budget the one over, on that load.
 
 - [ ] **23.3.3** `scan_cancel` as an MCP tool over the `kill_running` that already
   exists; `scan_status` on a cancelled job says so. `--jobs N` on the CLI, honoured by
@@ -4581,7 +4615,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 |
 | 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 |
 | 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 |
-| 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | |
+| 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 |
 | 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | after 23.3.2 |
 | 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | |
 | 8 | 23.3.5 | `valvur gate`, `valvur cache` | |

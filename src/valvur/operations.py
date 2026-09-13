@@ -344,9 +344,20 @@ def scan_status(args: dict) -> str:
         )
         lines.append(f"          ^ {reason}")
     lines += ["", "Scanners:"]
+    timed: list[tuple[float, str]] = []
     for scanner in data.get("scanners", []):
         mark = "ok" if scanner["ok"] else f"FAILED — {scanner['reason'][:80]}"
+        # Each Scanner's own time (23.3.2); a run.json from before it has none, and
+        # no number is invented for it.
+        seconds = scanner.get("duration_s")
+        if isinstance(seconds, int | float) and seconds > 0:
+            timed.append((seconds, scanner["tool"]))
+            mark += f" ({seconds:.1f}s)"
         lines.append(f"  {scanner['tool']}: {mark}")
+    if timed:
+        seconds, tool = max(timed)
+        lines.append(f"  slowest: {tool} {seconds:.1f}s — the fleet runs concurrently, so "
+                     "that is about what the scan cost")
     # What did NOT run, and what nothing here reads even when it does. Two different
     # claims, both absent from this surface until task 19.C.1.
     not_run = data.get("scanners_not_run") or []

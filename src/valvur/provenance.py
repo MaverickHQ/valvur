@@ -21,6 +21,10 @@ class ScannerRun:
     # letting that look identical to "ran and found nothing" is how a conditional
     # Scanner silently stops working.
     skipped: bool = False
+    #: Wall-clock seconds this Scanner took, container start to report read (23.3.2).
+    #: The fleet runs concurrently, so a scan takes about as long as its slowest —
+    #: which is how a user finds the Checkov cost, and how 23.4.2 is measured.
+    duration_s: float = 0.0
 
     @property
     def failed(self) -> bool:

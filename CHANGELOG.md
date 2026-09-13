@@ -23,6 +23,12 @@ a minor bump may break things until 1.0.
   first run and `full` need, honouring every mirror setting; without it doctor opens
   no socket. A `scan_status` that reports FAILED now points at it.
 
+- **How long each Scanner took.** `duration_s` on every entry of `run.json`'s
+  `scanners`, on each line of `scan_status` (and on its "Completed so far" progress
+  while a scan runs), and one line in `SUMMARY.md`: *"slowest: checkov 40.9s"*. The
+  fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
+  corpus report gains `scan_s` and per-Scanner timings.
+
 ### Changed
 
 - **A first `scan` fetches what is absent, and says so.** Measured against `0.2.0`

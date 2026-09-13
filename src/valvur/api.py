@@ -279,7 +279,14 @@ def _say_why_unfetched(scanners: list[ScannerRun], unfetched: dict[str, str]) ->
 
 
 def _run_one(adapter, runner, workspace) -> tuple:
-    """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
+    """Run one Scanner, timed. One broken Scanner must never cost the others (F2.5)."""
+    started = time.monotonic()
+    scanner, findings, produced, raw = _attempt(adapter, runner, workspace)
+    timed = dataclasses.replace(scanner, duration_s=time.monotonic() - started)
+    return timed, findings, produced, raw
+
+
+def _attempt(adapter, runner, workspace) -> tuple:
     # Part of the ScannerAdapter protocol (task 17.3) rather than a `getattr` the
     # orchestrator hopes for. Every adapter inherits a default, so the call is
     # unconditional and an adapter that forgets the method is impossible.
@@ -400,7 +407,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             outcomes[futures[future]] = outcome
             if on_progress is not None:
                 status = 'ok' if outcome[0].ok else 'failed'
-                on_progress(f"{outcome[0].tool}: {status}")
+                on_progress(f"{outcome[0].tool}: {status} ({outcome[0].duration_s:.1f}s)")
 
     completed = [o for o in outcomes if o is not None]
     scanners = _say_why_unfetched([outcome[0] for outcome in completed], unfetched or {})
