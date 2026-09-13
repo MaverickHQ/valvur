@@ -250,45 +250,14 @@ jobs:
           VALVUR_IMAGE: valvur:dev
         run: uv run valvur scan . --profile full
       - name: Gate on the result
-        # Three failure conditions, not one. The CLI exits zero when findings exist
-        # (N3.2), so the gate reads the artifact rather than the exit code.
-        run: |
-          python3 - <<'EOF'
-          import json, sys, pathlib
-
-          results = pathlib.Path(".security-scan")
-          findings = json.loads((results / "findings.json").read_text())["findings"]
-          run = json.loads((results / "run.json").read_text())
-
-          failures = []
-
-          # 1. The scan must have completed. A Scanner that crashed makes "no
-          #    findings" meaningless, and that is how a clean result gets faked.
-          if not run.get("complete"):
-              failures.append("a Scanner did not complete, so this result proves nothing")
-
-          # 2. No unsuppressed findings (N2.5).
-          live = [f for f in findings if not f.get("suppressed")]
-          for f in live:
-              failures.append(f"{f['severity']}: {f['rule']} in {f['path']} - {f['title']}")
-
-          # 3. No expired suppressions. The lapse re-reports the finding, but if
-          #    nothing fails the build then "mandatory expiry" is decoration.
-          for f in findings:
-              if f["rule"] in {"valvur.suppression.expired", "valvur.suppression.stale"}:
-                  failures.append(f"{f['rule']}: {f['title']}")
-
-          excluded = run.get("excluded_by_config", {})
-          print(f"suppressed: {len(findings) - len(live)}  "
-                f"excluded: {excluded.get('findings_dropped', 0)} "
-                f"from {excluded.get('paths', [])}")
-
-          if failures:
-              for line in failures:
-                  print(f"::error::{line}")
-              sys.exit(1)
-          print("self-scan clean: no unsuppressed findings, no expired suppressions")
-          EOF
+        # Three failure conditions, not one — an incomplete run, an active finding
+        # (N2.5: any), a lapsed suppression — plus `inconclusive`, which passes by
+        # omission unless refused. The CLI exits zero when findings exist (N3.2), so
+        # the gate reads the artifacts; `valvur gate` is the heredoc this step used
+        # to carry, once, and the same command a user's CI runs (23.3.5).
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur gate . --fail-on any --no-inconclusive
       - name: Refuse to leave scan output behind (ADR-0011)
         if: always()
         run: |

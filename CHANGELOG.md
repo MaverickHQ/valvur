@@ -29,6 +29,18 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **`valvur gate` and `valvur cache`.** `gate [path] [--fail-on SEVERITY|any]
+  [--no-inconclusive]` reads the last scan's `run.json` and `findings.json` and
+  exits 1 if the result should not ship: an incomplete run, a lapsed suppression
+  (at every threshold), an active finding at or above the threshold (default
+  `high`; suppressed findings and coverage notes are never counted), or — asked for
+  — an `inconclusive` scan. Exit 2 when there are no results. Under GitHub Actions
+  each reason is a `::error::` annotation. It replaces the Python heredoc that
+  `ci.yml` and `release.yml` each carried a copy of; the self-scan gate is now
+  `valvur gate . --fail-on any --no-inconclusive`. `cache` lists the database, the
+  index (with each ecosystem's count) and the KEV copy with size and age;
+  `--clear` removes them under the exclusive cache lock, never the directory or
+  the lock file.
 - **`scan_status` names the next two moves.** After a scan with active findings:
   `explain_finding <fingerprint>` for the top-ranked one, with its location and
   title, and `REMEDIATION.md`'s first action (`action 1 of N: …`). An agent's

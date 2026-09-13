@@ -126,22 +126,7 @@ jobs:
           VALVUR_IMAGE: valvur:dev
         run: |
           uv run valvur scan . --profile full
-          uv run python - <<'PY'
-          import json, pathlib, sys
-          results = pathlib.Path(".security-scan")
-          findings = json.loads((results / "findings.json").read_text())["findings"]
-          run = json.loads((results / "run.json").read_text())
-          bad = []
-          if not run.get("complete"):
-              bad.append("a Scanner did not complete, so this result proves nothing")
-          bad += [f"{f['severity']}: {f['rule']} in {f['path']}"
-                  for f in findings if not f.get("suppressed")]
-          bad += [f"{f['rule']}: {f['title']}" for f in findings
-                  if f["rule"] in {"valvur.suppression.expired", "valvur.suppression.stale"}]
-          for line in bad:
-              print(f"::error::{line}")
-          sys.exit(1 if bad else 0)
-          PY
+          uv run valvur gate . --fail-on any --no-inconclusive
 
   release:
     name: sign, attest and publish

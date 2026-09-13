@@ -8,6 +8,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
 from .api import FETCH_ENDED, FETCH_STARTED, scan
@@ -127,6 +128,28 @@ def _refresh_name_index(*, build: bool = False) -> bool:
                   "existence offline and will report that rather than a clean result.")
         return False
     return True
+
+
+def _print_cache(*, clear: bool) -> int:
+    from . import cache
+
+    root = cache.root()
+    print(f"cache: {root}")
+    entries = cache.inventory()
+    for entry in entries:
+        if not entry.present:
+            print(f"  {entry.name:<9} absent")
+            continue
+        age = f"{entry.age_days:.1f} days old" if entry.age_days is not None else "age unknown"
+        detail = f" — {entry.detail}" if entry.detail else ""
+        print(f"  {entry.name:<9} {cache.human_size(entry.size):>9}  {age}{detail}")
+    print(f"  {'total':<9} {cache.human_size(sum(e.size for e in entries)):>9}")
+    if not clear:
+        return 0
+    removed = cache.clear()
+    print(f"cleared: {', '.join(removed) or 'nothing (already empty)'}")
+    print("The next scan fetches what it needs; `valvur update` fetches everything now.")
+    return 0
 
 
 def _ensure_image_for_update(runner) -> bool:
@@ -357,6 +380,32 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         "doctor opens no socket.",
     )
 
+    gate_cmd = sub.add_parser(
+        "gate",
+        help="Exit 1 if the last scan's results should not ship: an incomplete run, a "
+        "lapsed suppression, or an active finding at or above --fail-on. For CI.",
+    )
+    gate_cmd.add_argument("path", nargs="?", default=".", help="Workspace that was scanned")
+    gate_cmd.add_argument(
+        "--fail-on", default=_gate.DEFAULT_THRESHOLD, choices=_gate.THRESHOLDS,
+        help="Lowest severity of an active finding that fails the gate (default: high). "
+        "`any` is every active finding — what valvur's own release gate uses.",
+    )
+    gate_cmd.add_argument(
+        "--no-inconclusive", action="store_true",
+        help="Also fail an `inconclusive` scan: one whose data was too old to be "
+        "evidence, or that never inspected part of the tree.",
+    )
+
+    cache_cmd = sub.add_parser(
+        "cache", help="What is in the host cache, how old and how large; --clear removes it",
+    )
+    cache_cmd.add_argument(
+        "--clear", action="store_true",
+        help="Remove the vulnerability database, the package-name index and the KEV copy. "
+        "Waits for a running scan. The next scan fetches them again.",
+    )
+
     suppress_cmd = sub.add_parser(
         "suppress",
         help="Print a ready-to-paste suppression block for a finding (never writes)",
@@ -392,6 +441,17 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     if args.command == "suppress":
         return _print_suppression(args)
+
+    if args.command == "gate":
+        import os
+
+        verdict = _gate.evaluate(Path(args.path).resolve(), fail_on=args.fail_on,
+                                 no_inconclusive=args.no_inconclusive)
+        print(_gate.render(verdict, annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
+        return verdict.exit_code
+
+    if args.command == "cache":
+        return _print_cache(clear=args.clear)
 
     if args.command == "doctor":
         from . import doctor as _doctor

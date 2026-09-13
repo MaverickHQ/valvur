@@ -151,6 +151,20 @@ rescan** — there is no autonomous loop. Suppressions (with mandatory expiry da
 and `[scan] exclude` paths live in a committed `.security-scan.toml`, and every
 exclusion is reported with what it cost.
 
+In CI, `valvur scan` exits zero whenever the scan itself worked — findings are the
+job, not a failure — and `valvur gate` turns the result into one exit code:
+
+```bash
+valvur scan . && valvur gate . --fail-on high --no-inconclusive
+```
+
+The gate fails on an incomplete run, on a lapsed suppression, on an active finding
+at or above `--fail-on` (`any` is every one; it is what valvur's own release gate
+uses), and with `--no-inconclusive` on a scan whose data was too old to be
+evidence or that never inspected part of the tree. Under GitHub Actions each
+reason is an annotation. `valvur cache` says what is on disk, how old and how
+large; `valvur cache --clear` removes it.
+
 ## What actually does the scanning
 
 valvur builds no detection engine. Six open source scanners do that and deserve the

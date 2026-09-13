@@ -4482,9 +4482,36 @@ last.
   CLI's own *"! tool did not complete:"* line still prints a multi-line reason
   unindented — the terminal is the second surface, and it was never truncated.
 
-- [ ] **23.3.5** `valvur gate --fail-on high --no-inconclusive`: one exit code from
+- [x] **23.3.5** `valvur gate --fail-on high --no-inconclusive`: one exit code from
   `run.json`, replacing the Python heredoc that `ci.yml` and `release.yml` each carry
   a copy of. `valvur cache` beside it: what is cached, how old, how large, `--clear`.
+
+  **STATUS 2026-09-13:** ✅ `src/valvur/gate.py`: `evaluate(workspace, fail_on,
+  no_inconclusive) -> Verdict(failures, summary, exit_code)` with the heredocs'
+  three conditions and the threshold they never had — an incomplete run fails at
+  every threshold naming the Scanner and its reason; an active Finding (19.C.1's
+  word: not suppressed, not a coverage note) at or above `--fail-on`, `any` being
+  every one; a lapsed suppression (`valvur.suppression.expired`/`.stale`) at every
+  threshold, because if nothing fails the build then mandatory expiry is decoration
+  — plus `--no-inconclusive`, which the heredocs never asked. Exit 0/1, and 2 for
+  no results. Under `GITHUB_ACTIONS` each reason is a `::error::` annotation; the
+  summary counts what was let through (*"0 at or above any; 0 below; 4 suppressed;
+  194 excluded by .security-scan.toml"* on this repository's own self-scan, which
+  passes the exact command CI now runs). `ci.yml`'s selfscan job and
+  `release.yml`'s verify job each lost their heredoc for `valvur gate . --fail-on
+  any --no-inconclusive`, and a test pins that neither carries a `json.loads` gate
+  again. `valvur cache`: `cache.inventory()` — database, index (each ecosystem's
+  count), KEV — with size, age and detail, `human_size`, a total, and `--clear`,
+  which removes the three under the **exclusive** cache lock (a scan reading the
+  database finishes first, 16.3) and never the directory or the lock file. On this
+  machine: database 1.38 GB 1.5 days, index 121.9 MB 1.0 days, kev 78 kB, total
+  1.50 GB. 18 tests in `tests/test_gate_cache.py`; 16 mutations, all killed — and
+  one lesson for the mutation loop itself: a same-length mutation restored within
+  the same second leaves Python's `.pyc` (mtime+size) believing the mutated
+  bytecode is current, which showed up as `human_size` returning `2.9 MB` from a
+  source that said `3.0`; run mutation loops with `PYTHONDONTWRITEBYTECODE=1`, or
+  clear `__pycache__` after. No MCP tool: a gate is CI's question, not an agent's,
+  and the CLI-parity test is one-directional by design.
 
 - [ ] **23.3.6** `MaverickHQ/valvur-action`: a composite action that installs the
   shim, restores the database and index from the Actions cache (the pattern
@@ -4638,7 +4665,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 |
 | 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 |
 | 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 |
-| 8 | 23.3.5 | `valvur gate`, `valvur cache` | |
+| 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 |
 | 9 | 23.3.3 | `scan_cancel`, `--jobs` | |
 | 10 | 23.3.7 | a scan budget | |
 | 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | |

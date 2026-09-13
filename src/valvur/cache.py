@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 STALE_AFTER_DAYS = 30
@@ -137,3 +138,86 @@ def _metadata_time(marker: Path, field: str) -> float | None:
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return None
     return (datetime.now(UTC) - stamped).total_seconds() / 86400
+
+
+# ------------------------------------------------------------- `valvur cache`
+#
+# What is cached, how old, how large, and `--clear` (task 23.3.5). The image is the
+# runtime's to keep and is not here: `valvur doctor` says whether it is present.
+
+
+@dataclass(frozen=True)
+class Entry:
+    name: str
+    path: Path
+    present: bool
+    size: int
+    age_days: float | None
+    detail: str = ""
+
+
+def inventory() -> list[Entry]:
+    """The three things `valvur update` fetches, in the order it fetches them."""
+    import json
+
+    entries = [Entry("database", trivy_db(), db_present(), _tree_size(trivy_db()),
+                     db_age_days())]
+
+    names = name_index()
+    detail = ""
+    if name_index_present():
+        try:
+            ecosystems = json.loads((names / "metadata.json").read_text(encoding="utf-8"))
+            ecosystems = ecosystems.get("ecosystems") or {}
+        except (OSError, ValueError, AttributeError):
+            ecosystems = {}
+        detail = " · ".join(f"{eco} {int((entry or {}).get('count') or 0):,}"
+                            for eco, entry in ecosystems.items())
+    entries.append(Entry("index", names, name_index_present(), _tree_size(names),
+                         name_index_age_days(), detail))
+
+    kev = root() / "kev.json"
+    present = kev.is_file()
+    age = (time.time() - kev.stat().st_mtime) / 86400 if present else None
+    entries.append(Entry("kev", kev, present, kev.stat().st_size if present else 0, age))
+    return entries
+
+
+def clear() -> list[str]:
+    """Remove the cached data — never the directory, never the lock file — under the
+    exclusive cache lock, so a scan reading the database finishes first (16.3).
+    Returns what was removed."""
+    import shutil
+
+    from . import locking
+
+    removed: list[str] = []
+    with locking.held(locking.cache_lock(root()), exclusive=True, wait=True):
+        for entry in inventory():
+            if not entry.path.exists():
+                continue
+            if entry.path.is_dir():
+                shutil.rmtree(entry.path)
+            else:
+                entry.path.unlink()
+            removed.append(entry.name)
+    return removed
+
+
+def _tree_size(path: Path) -> int:
+    if path.is_file():
+        return path.stat().st_size
+    if not path.is_dir():
+        return 0
+    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
+
+
+def human_size(size: int) -> str:
+    """`1.35 GB`, `3.0 MB`, `900 B` — decimal, as the download sizes elsewhere are."""
+    if size >= 1_000_000_000:
+        return f"{size / 1_000_000_000:.2f} GB"
+    if size >= 1_000_000:
+        return f"{size / 1_000_000:.1f} MB"
+    if size >= 1_000:
+        return f"{size / 1_000:.0f} kB"
+    return f"{size} B"
