@@ -88,7 +88,10 @@ Add valvur to your agent's MCP configuration:
 ```
 
 Then ask it to scan. The server is **stdio only** — no listener, no port — and every
-tool it exposes is read-only: valvur can never change your code.
+tool it exposes is read-only: valvur can never change your code. Nothing has to run
+first: a first `scan` pulls the image, the vulnerability database and the name index
+itself and says so on `scan_status` — measured 2026-09-13 from an empty machine,
+**110 seconds** to a complete result, one tool call.
 
 Add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent uses what it has:
 
@@ -113,10 +116,13 @@ valvur scan                 # offline by default; --profile full adds the networ
 The first `valvur update` pulls the image (about 240MB), the vulnerability database
 (118MB) and the name index (34MB, one signed artifact, built daily) — a minute or
 two. Later updates take seconds; run `valvur update --if-stale` from a hook or cron,
-it costs one file read when current. A scan that finds the image missing pulls it
-and says so — over MCP, `scan_status` reads *"pulling ghcr.io/…"* with the size —
-rather than sitting silent. If the published index cannot be reached, the five
-registries are walked directly instead, which takes about seven minutes once.
+it costs one file read when current. It is optional before the first scan: a scan
+that finds any of the three **absent** fetches it and says so — on the terminal, and
+over MCP on `scan_status`, *"fetching the vulnerability database (119MB) — the first
+run only"* — rather than sitting silent or failing. A **stale** one is never
+refreshed by a scan; the warning stands and you decide. If the published index
+cannot be reached, `valvur update` walks the five registries directly instead, which
+takes about seven minutes once; a scan does not.
 
 Results land in `.security-scan/`:
 

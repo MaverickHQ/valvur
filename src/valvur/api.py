@@ -8,6 +8,7 @@ writes the Results Folder.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -196,6 +197,87 @@ def _ensure_image(runner, on_progress) -> None:
         on_progress(f"image pulled ({time.monotonic() - started:.0f}s)")
 
 
+#: What a first run says on `on_progress` while it fetches (23.2.4, 24.1): one line
+#: as each fetch starts, one as it ends. `scan_status` shows the current one as
+#: `Now:`; the CLI prints both kinds to stderr. Every other progress message is a
+#: Scanner finishing.
+FETCH_STARTED = ("pulling ", "fetching ")
+FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
+               "index fetched", "index not fetched")
+
+
+def _ensure_data(runner, on_progress) -> dict[str, str]:
+    """The vulnerability database and the package-name index, when ABSENT (24.1).
+
+    Task 14.2 decided valvur never refreshes on its own, and its three reasons were
+    about staleness: a download inside a scan the user asked to be fast, the
+    Profiles diverging, and refreshing on the user's behalf being the same move as
+    fixing on their behalf. Absence is a different case — without these there is no
+    scan at all, and the primary path, an agent over MCP, has no `valvur update` to
+    run. Measured 2026-09-13 against the published 0.2.0: the first `scan` finished
+    incomplete, each failure naming a command the agent could not run. So an absent
+    database or index is fetched here and announced like the image (23.2.4); a stale
+    one is never touched — the warning stands and the user decides.
+
+    Runs BEFORE `scan` takes the shared cache lock: both fetches take it
+    exclusively, and a shared lock already held on another descriptor of the same
+    file in this process would deadlock them. Returns what could not be fetched, by
+    the Scanner it costs, so that Scanner's failure says the fetch was tried and why
+    it failed rather than only naming `valvur update`.
+    """
+    update = getattr(runner, "update_db", None)
+    if update is None:
+        return {}          # the suite's fakes; the rule `_ensure_image` applies too
+    say = on_progress if on_progress is not None else (lambda _: None)
+    unfetched: dict[str, str] = {}
+
+    if not _cache.db_present():
+        say(f"fetching the vulnerability database{_mb(runner.db_size_mb())} — the first "
+            "run only")
+        started = time.monotonic()
+        result = update()
+        if result.exit_code != 0:
+            detail = (result.stderr.strip() or result.stdout.strip() or "(no output)")[-300:]
+            unfetched["trivy"] = f"the vulnerability database could not be fetched: {detail}"
+            say(f"database not fetched: {detail}")
+        else:
+            say(f"database fetched ({time.monotonic() - started:.0f}s)")
+
+    if not _cache.name_index_present():
+        from . import locking, name_index
+
+        say(f"fetching the package-name index{_mb(name_index.published_size_mb())} — the "
+            "first run only")
+        started = time.monotonic()
+        try:
+            with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
+                # `oci.SignatureInvalid` is deliberately not caught: a refused
+                # signature on a supply-chain artifact stops the scan (23.2.1).
+                name_index.refresh(_cache.name_index(), fallback=False)
+        except name_index.IndexUnavailable as exc:
+            unfetched["dependency-reality"] = (
+                f"the package-name index could not be fetched: {exc}")
+            say(f"index not fetched: {exc}")
+        else:
+            say(f"index fetched ({time.monotonic() - started:.0f}s)")
+    return unfetched
+
+
+def _mb(size: int | None) -> str:
+    return f" ({size}MB)" if size else ""
+
+
+def _say_why_unfetched(scanners: list[ScannerRun], unfetched: dict[str, str]) -> list[ScannerRun]:
+    """A Scanner that failed for want of data this run tried to fetch says so, ahead
+    of the runner's own refusal — which names `valvur update`, still the right fix
+    for a person, but not the whole story once a fetch has been tried (24.1)."""
+    return [
+        dataclasses.replace(s, reason=f"{unfetched[s.tool]}. {s.reason}")
+        if s.failed and s.tool in unfetched else s
+        for s in scanners
+    ]
+
+
 def _run_one(adapter, runner, workspace) -> tuple:
     """Run one Scanner. One broken Scanner must never cost the others (F2.5)."""
     # Part of the ScannerAdapter protocol (task 17.3) rather than a `getattr` the
@@ -255,7 +337,7 @@ def scan(
     # One scan per Workspace, one writer per database (task 16.3). Taken in a fixed
     # order — Workspace, then cache — so two scans can never deadlock against each
     # other. The cache lock is SHARED: any number of scans may read the database at
-    # once, and only `valvur update` excludes them.
+    # once, and only a writer — `valvur update`, or a first run — excludes them.
     from . import cache as _cache_mod
     from . import locking as _locking
 
@@ -269,23 +351,25 @@ def scan(
                 "state.json and silently spoil the next run's new/fixed diff."
             ),
         ))
+        # What a first run needs and does not have, in dependency order: the image
+        # (10.2 claim 4 — `run` would pull it silently, and a first scan that shows
+        # nothing for a minute looks hung, measured through Kiro in 22.G.1); then
+        # the database, which Trivy fetches from inside that image; then the index
+        # (24.1). Each is said on `on_progress`, and each happens here, before the
+        # shared cache lock, because the two data fetches take it exclusively.
+        _ensure_image(runner, on_progress)
+        unfetched = _ensure_data(runner, on_progress)
         _locks.enter_context(_locking.held(
             _locking.cache_lock(_cache_mod.root()), exclusive=False, wait=True,
         ))
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
-            on_progress=on_progress,
+            on_progress=on_progress, unfetched=unfetched,
         )
 
 
-def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRun:
-    # The image, if the runtime does not have it yet (10.2 claim 4). `run` would
-    # pull it silently, and a first scan that shows nothing for a minute looks hung —
-    # measured through Kiro (22.G.1): the pull happened on the first *scan*, with
-    # nothing on the status line to say so. Now it is said, with the size when the
-    # registry states one, and `valvur update` pulls it ahead of time.
-    _ensure_image(runner, on_progress)
-
+def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
+                 unfetched: dict[str, str] | None = None) -> ScanRun:
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:
@@ -319,7 +403,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress) -> ScanRu
                 on_progress(f"{outcome[0].tool}: {status}")
 
     completed = [o for o in outcomes if o is not None]
-    scanners = [outcome[0] for outcome in completed]
+    scanners = _say_why_unfetched([outcome[0] for outcome in completed], unfetched or {})
     findings = [f for outcome in completed for f in outcome[1]]
     artifacts = [o[2] for o in completed if o[2] is not None]
     raw_outputs = [(o[0].tool, o[3]) for o in completed if o[3]]

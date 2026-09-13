@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import locking as _locking
 from . import profiles as _profiles
-from .api import scan
+from .api import FETCH_ENDED, FETCH_STARTED, scan
 from .version import __version__
 
 
@@ -437,10 +437,10 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
 
     def progress(message: str) -> None:
-        # The CLI prints its own per-Scanner lines already; the one progress event
-        # worth a line here is the image being pulled, which otherwise looks like a
-        # hang on the first run (23.2.4).
-        if message.startswith(("pulling ", "image pulled")):
+        # The CLI prints its own per-Scanner lines already; what is worth a line here
+        # is a first run fetching — the image (23.2.4), the database and the index
+        # (24.1) — which otherwise looks like a hang.
+        if message.startswith(FETCH_STARTED + FETCH_ENDED):
             print(f"  {message}", file=sys.stderr)
 
     try:
@@ -469,6 +469,10 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     #
     # And updating on the user's behalf is the same move as fixing on their behalf,
     # which section 4 refuses. So: say it, loudly, and let them decide.
+    #
+    # All three are about STALENESS. An ABSENT database or index is fetched by the
+    # scan itself, and said (24.1, `api._ensure_data`): without them there is no
+    # scan at all, and the primary path has no shell to run `valvur update` in.
     _warn_if_database_stale(run)
     _warn_if_name_index_stale(run)
 

@@ -183,8 +183,27 @@ def open_index(directory: Path, ecosystem: str) -> NameIndex | None:
 
 # ----------------------------------------------------------------- building
 
+def repository() -> str:
+    """The OCI repository the published index is pulled from: the operator's mirror
+    when named, the one this project publishes otherwise."""
+    return os.environ.get(INDEX_REPOSITORY_ENV, "").strip() or DEFAULT_INDEX_REPOSITORY
+
+
+def published_size_mb() -> int | None:
+    """What pulling the published index will cost, from its manifest — for the line
+    that says a first scan is fetching it (24.1). None when the registry cannot say,
+    and for a static mirror, which has no manifest to ask."""
+    from . import oci
+
+    if os.environ.get(MIRROR_ENV, "").strip():
+        return None
+    size = oci.image_size(repository(), insecure=os.environ.get(INDEX_INSECURE_ENV) == "1")
+    return None if size is None else max(1, round(size / 1_000_000))
+
+
 def refresh(directory: Path, *, ecosystems: Iterable[str] | None = None,
-            progress: Progress = lambda _: None, published: bool = True) -> dict:
+            progress: Progress = lambda _: None, published: bool = True,
+            fallback: bool = True) -> dict:
     """Bring `directory` up to date from the first source that answers. Returns the
     metadata written.
 
@@ -192,11 +211,13 @@ def refresh(directory: Path, *, ecosystems: Iterable[str] | None = None,
     operator saying "here, and nowhere else". The published index is one pull. The
     registries are the fallback — a walk of five of them, minutes rather than
     seconds — and what the workflow that publishes the index runs. `published=False`
-    is that walk on demand (`valvur update --build-index`).
+    is that walk on demand (`valvur update --build-index`); `fallback=False` rules
+    it out, for a first scan fetching an absent index (24.1): seven minutes and
+    700MB is the download 14.2 called hostile inside a scan, and it stays out of one.
 
     Each file is written whole and renamed into place, so a scan reading the index
     while it is refreshed sees the old list or the new one, never a partial one. The
-    caller holds the cache lock (exclusive) around this; see `cli.py`.
+    caller holds the cache lock (exclusive) around this; see `cli.py` and `api.py`.
     """
     directory.mkdir(parents=True, exist_ok=True)
     mirror = os.environ.get(MIRROR_ENV, "").strip()
@@ -204,11 +225,11 @@ def refresh(directory: Path, *, ecosystems: Iterable[str] | None = None,
         return fetch_mirror(mirror, directory, ecosystems=ecosystems, progress=progress)
     if published:
         named = os.environ.get(INDEX_REPOSITORY_ENV, "").strip()
-        repository = named or DEFAULT_INDEX_REPOSITORY
         try:
-            return fetch_published(repository, directory, ecosystems=ecosystems, progress=progress)
+            return fetch_published(repository(), directory, ecosystems=ecosystems,
+                                   progress=progress)
         except IndexUnavailable as exc:
-            if named:
+            if named or not fallback:
                 raise      # an operator's mirror failed; the internet is not the answer
             progress(f"the published index is unavailable ({exc}); building it from the "
                      "registries directly instead")
@@ -725,9 +746,7 @@ def _main(argv: list[str]) -> int:
         if argv[0] == "build":
             walk(directory, ecosystems=ecosystems or tuple(FILES), progress=print, force=True)
         else:
-            named = os.environ.get(INDEX_REPOSITORY_ENV, "").strip()
-            fetch_published(named or DEFAULT_INDEX_REPOSITORY, directory,
-                            ecosystems=ecosystems, progress=print)
+            fetch_published(repository(), directory, ecosystems=ecosystems, progress=print)
     except IndexUnavailable as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

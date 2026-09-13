@@ -47,6 +47,11 @@ _VERSION = __version__
 # registry rather than granting egress to ghcr.io. ADR-0012 already made this
 # reachable by keeping the DB out of the image, so mirroring needs no special build.
 DB_REPOSITORY_ENV = "VALVUR_DB_REPOSITORY"
+#: Where Trivy fetches its database from when no mirror is named — the first of its
+#: own two defaults (`trivy image --help`, 0.74: this, then ghcr.io), and what a
+#: first scan sizes its "fetching" line from (24.1). Both answered 118.5MB in under
+#: a second, anonymously, measured 2026-09-13.
+DEFAULT_DB_REPOSITORY = "mirror.gcr.io/aquasec/trivy-db:2"
 #: A mirror that speaks plain HTTP, or HTTPS with a certificate the container does
 #: not trust. Measured 2026-09-12 (22.B.3): against an internal `registry:2` the
 #: documented VALVUR_DB_REPOSITORY alone fails with "server gave HTTP response to
@@ -419,6 +424,17 @@ class ContainerRunner:
         from . import oci
 
         size = oci.image_size(self.image)
+        return None if size is None else max(1, round(size / 1_000_000))
+
+    def db_size_mb(self) -> int | None:
+        """What fetching the vulnerability database will cost, from the registry
+        Trivy will pull it from, or None if it cannot say (24.1)."""
+        import os
+
+        from . import oci
+
+        size = oci.image_size(db_repository() or DEFAULT_DB_REPOSITORY,
+                              insecure=os.environ.get(DB_INSECURE_ENV) == "1")
         return None if size is None else max(1, round(size / 1_000_000))
 
     def pull_image(self, on_line=None) -> ScannerOutput:

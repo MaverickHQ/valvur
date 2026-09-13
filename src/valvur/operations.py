@@ -273,15 +273,23 @@ def scan_status(args: dict) -> str:
         # returning instantly made it pay fourteen (task 10.2.5).
         job.wait()
     if job is not None and job.state == "running":
-        # An image pull in progress is the one stage that is not a Scanner
-        # completing, and the one that made a first run look hung (10.2 claim 4):
-        # it gets its own line, and disappears once "image pulled" follows it.
-        pulling = [p for p in job.progress if p.startswith("pulling ")]
-        settled = any(p.startswith("image pulled") for p in job.progress)
-        completed = [p for p in job.progress if not p.startswith("pulling ")]
+        # A fetch in progress — the image (10.2 claim 4), the database or the index
+        # (24.1) — is the one kind of stage that is not a Scanner completing, and
+        # the kind that made a first run look hung: it gets its own line while it
+        # is the latest thing said, and the line goes once anything follows it.
+        from .api import FETCH_STARTED
+
+        now: str | None = None
+        completed: list[str] = []
+        for message in job.progress:
+            if message.startswith(FETCH_STARTED):
+                now = message
+            else:
+                now = None
+                completed.append(message)
         lines = [f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed."]
-        if pulling and not settled:
-            lines.append(f"Now: {pulling[-1]}.")
+        if now is not None:
+            lines.append(f"Now: {now}.")
         lines.append(f"Completed so far: {', '.join(completed) or 'starting'}")
         lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
                      "do not report a result yet.")

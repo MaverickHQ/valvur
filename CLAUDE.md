@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-12.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-13.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -32,12 +32,15 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 27 of them — and whose first engineering item is the audit's worst finding:
-over MCP, the primary path, a stranger's first `scan` finishes *incomplete* because
-the database and index are absent and the only fix named is a CLI command the agent
-cannot run (24.1). **That, then `valvur doctor`, is the next work.** When "what is
-next" is asked, that list is the answer; the sequencing diagrams in Phases 21 and 23
-are history.
+task** — 26 of them now — and whose first engineering item was the audit's worst
+finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
+because the database and index were absent and the only fix named was a CLI command
+the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
+*absent* — image, database, index, in that order, each announced on `scan_status` —
+and never touches what is *stale*; measured from an empty machine over stdio, one
+tool call, **110s to `complete: True`**. **Next: 24.2 (the README's LLM-sink claim),
+then `valvur doctor`.** When "what is next" is asked, that list is the answer; the
+sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -90,9 +93,10 @@ files — into the AI Artifact Check. Then the gate and `v1.0.0`.
 requirements against the published release — three measurements taken against the
 PyPI wheel and the GHCR image rather than the tree, and a pass over all 136
 requirement IDs asking *met?* rather than *cited?*. Its head is the single ordered
-list of everything open; its four tasks are the audit's findings. It also moved
-Checkov's hash-locking (23.4.1) ahead of the usability gate: it is the one input we
-sign with our identity that is not pinned by hash.
+list of everything open; its four tasks are the audit's findings, and the first of
+them, 24.1, closed that afternoon (below). It also moved Checkov's hash-locking
+(23.4.1) ahead of the usability gate: it is the one input we sign with our identity
+that is not pinned by hash.
 
 **Block 1 closed on 2026-09-13 with `v0.2.0`** — three rehearsals on the public
 repository first. The sixth found that `uv build` writes core metadata 2.5 and the
@@ -118,9 +122,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 96 Python modules, 686 tests, 18 ADRs, 136 requirement IDs, **146 done and 27
-open** across 24 phases — 18 of the 27 are Phase 23, 4 are Phase 24's audit, and 5
-are the usability gate and the `v1.0.0` tail. Three of the 27 are the owner's (yank
+Roughly: 96 Python modules, 704 tests, 18 ADRs, 136 requirement IDs, **147 done and 26
+open** across 24 phases — 18 of the 26 are Phase 23, 3 are Phase 24's audit, and 5
+are the usability gate and the `v1.0.0` tail. Three of the 26 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -133,15 +137,21 @@ were introduced by the block before, with tests passing.
 
 **Known gaps, and one deliberate friction, worth knowing before proposing anything:**
 
-- **The primary path's first run is incomplete (24.1, measured 2026-09-13 against
-  the published release).** Over MCP with an empty cache, `scan` finishes
-  `complete: False`: Trivy and the dependency-reality Check both fail, each saying
-  *"Fetch it once with: `valvur update`"* — which the agent has no tool for and the
-  README's snippet never mentions. P1 says one command; the primary path needs two.
-  14.2's rule that valvur never updates by itself was about *staleness*; absence is
-  a different case, and 23.2.4 already fetches the absent image from inside `scan`.
-  The fix is the same move for the database and the index, announced on
-  `scan_status`. Until it lands, an agent's first scan of a fresh install fails.
+- **A scan fetches what is absent and never what is stale (24.1, closed
+  2026-09-13).** Measured against the published release that morning, the primary
+  path's first run finished `complete: False`: Trivy and the dependency-reality
+  Check both failed, each saying *"Fetch it once with: `valvur update`"* — a command
+  the agent has no tool for. 14.2's rule that valvur never updates by itself was
+  about *staleness*; absence is a different case, and 23.2.4 had already fetched
+  the absent image from inside `scan`. Now `api._ensure_data` does the same for the
+  database and the index, before the shared cache lock (both fetches take it
+  exclusively), announced on `scan_status` and the terminal; the index fetch never
+  falls back to the seven-minute registry walk; a failed fetch costs only the
+  Scanner that needed it, and that Scanner's failure says why. The stale rule is
+  unchanged and now pinned by behaviour rather than by a word in `scan`'s source.
+  F10.8 amended. **The friction worth knowing:** a first run on a host with no
+  route to GHCR is *incomplete* with the cause named, not a hang and not a silent
+  clean.
 - **The LLM-output-to-sink rules are a claim the corpus does not support (24.2,
   F3.10).** Four Opengrep pattern rules, zero hits on twelve real repositories
   including an LLM tool. The README still lists them under claim 2; §10 says a

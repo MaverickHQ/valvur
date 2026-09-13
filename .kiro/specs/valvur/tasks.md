@@ -4530,7 +4530,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | # | task | what | who |
 |---|---|---|---|
 | 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click |
-| 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | |
+| 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 |
 | 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | |
 | 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | |
 | 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | |
@@ -4559,7 +4559,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 
 ### The audit's tasks
 
-- [ ] **24.1** **`scan` fetches what is absent on a first run, and says so.** Measured
+- [x] **24.1** **`scan` fetches what is absent on a first run, and says so.** Measured
   2026-09-13 against the published `0.2.0`: over MCP, with an empty cache, the first
   `scan` finishes incomplete — Trivy and the dependency-reality Check fail, each
   naming `valvur update`, which the agent cannot run and the README's snippet never
@@ -4576,6 +4576,50 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
   `valvur update` remains the way to refresh. Tested the way 23.2.4 was: empty
   cache, `valvur-mcp` over stdio, read `scan_status`. **P1 becomes true on the
   primary path.**
+
+  **STATUS 2026-09-13:** ✅ **Measured the way 23.2.4 was, from a stranger's state —
+  the image removed, an empty `VALVUR_CACHE`, `valvur-mcp` over stdio, one `scan`
+  call: `complete: True` in 110s**, 76 findings, `left this machine: nothing`.
+  `scan_status` read, in turn, *"Now: pulling ghcr.io/maverickhq/valvur:0.2.0
+  (223MB) — the first run only"*, *"Now: fetching the vulnerability database (119MB)
+  — the first run only"* (`Completed so far: image pulled (22s)`), *"Now: fetching
+  the package-name index (35MB)"* (`… database fetched (30s)`), then the eight
+  Scanners (`… index fetched (7s), gitleaks: ok, …`). The CLI with the image present:
+  four lines on stderr, 91s. **How:** `api._ensure_data` runs in `scan` after
+  `_ensure_image` and **before the shared cache lock** — both fetches take it
+  exclusively, and a shared lock already held on another descriptor of the same
+  file in this process would deadlock them (the image pull moved out of
+  `_scan_locked` for the same reason; the order test now goes through `scan`). The
+  database is `runner.update_db()`, the same call `valvur update` makes; the index
+  is `name_index.refresh(…, fallback=False)` — a new flag, because the seven-minute
+  registry walk is exactly the download 14.2 called hostile inside a scan, so a scan
+  pulls the published index or fails naming `valvur update`, which walks. Sizes come
+  from the registries' manifests through `oci.image_size` (which gained `insecure=`
+  for an operator's mirror): `ContainerRunner.db_size_mb()` against
+  `DEFAULT_DB_REPOSITORY` (`mirror.gcr.io/aquasec/trivy-db:2`, the first of Trivy's own two defaults; 118.5MB measured, 0.7s) and
+  `name_index.published_size_mb()` (35MB; None for a static mirror). The vocabulary
+  is two tuples in `api` — `FETCH_STARTED = ("pulling ", "fetching ")`,
+  `FETCH_ENDED` — that `operations.scan_status` uses for its `Now:` line (the latest
+  message, if it is a fetch, until anything follows it) and `cli` for what it
+  prints. **What a failure does:** a fetch that fails costs only the Scanner that
+  needed it (F2.5): the run is incomplete, `scan_status` records *"database not
+  fetched: <Trivy's words>"*, and `_say_why_unfetched` prefixes that Scanner's
+  failure with the reason, ahead of the runner's own refusal that names `valvur
+  update` — still the right fix for a person, but not the whole story once a fetch
+  has been tried. `oci.SignatureInvalid` is deliberately not caught: a refused index
+  signature stops the scan (23.2.1's rule). KEV is not fetched — the image carries
+  a snapshot as its floor (ADR-0007), so its absence costs nothing. **The stale case
+  is untouched**, and 14.2's pin changed shape: it inspected `scan`'s source for the
+  word `update_db`, which the new structure would have passed vacuously; it is now a
+  scan against a 45-day-old database with an `update_db` that fails the test if
+  called. 16 new tests in `tests/test_first_run.py` (the exclusive lock is proven by
+  asking for the shared one during the fetch and getting `Busy`); 16 mutations,
+  each killed; 678 unit tests; e2e unchanged (CI runs `valvur update` before it).
+  The image was rebuilt for the e2e suite because the tree-hash guard (22.C.1)
+  demanded it, as it does for any change under `src/valvur` — though nothing under
+  `checks/` or the index's reader half changed — and the measurement above used the
+  published `0.2.0` image, pulled by the scan itself. F10.8 amended and P1 annotated in `requirements.md`; README, EVALUATING
+  (a new first-run row) and CHANGELOG say what changed.
 
 - [ ] **24.2** **The README stops claiming the LLM-output-to-sink rules as a
   feature.** Claim 2's third bullet lists *"model output reaching `eval`, `exec`, a

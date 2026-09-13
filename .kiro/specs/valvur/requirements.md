@@ -482,18 +482,29 @@ of fixes, so that nothing changes my code without my decision.
    CI, most Linux desktops and every Intel Mac. Both workflows built locally and
    neither pulled what was published, so no test could see it.*
 8. F10.8 — valvur SHALL provide a means of refreshing the vulnerability database that
-   is a no-op when it is current, and SHALL NOT refresh it as a side effect of a
-   **Scan Run**. *Added 2026-09-05 (task 14.2). The check costs one file read, so it is
-   safe in a hook or a cron entry. Refreshing during a scan would start a 116MB
-   download the developer did not ask for, and would make the `offline` and `full`
-   **Profiles** scan different data.*
+   is a no-op when it is current, and SHALL NOT refresh a database it has as a side
+   effect of a **Scan Run**, however stale. A database or **Name Index** that is
+   *absent* SHALL be fetched by the first **Scan Run** that needs it, and the fetch
+   reported on every progress surface. *Added 2026-09-05 (task 14.2). The check costs
+   one file read, so it is safe in a hook or a cron entry. Refreshing during a scan
+   would start a 116MB download the developer did not ask for, and would make the
+   `offline` and `full` **Profiles** scan different data.* *Amended 2026-09-13 (task
+   24.1): absence is not staleness. Measured against the published `0.2.0`, the
+   primary path's first `scan` finished incomplete naming a CLI command the agent
+   could not run; without the data there is no scan at all, and 23.2.4 had already
+   fetched the absent image from inside one. The stale case is unchanged.*
 ## Non-functional requirements
 
 ### P — Positioning commitments
 Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 
 1. P1 — A first **Scan Run** SHALL require one command, no account, and SHALL complete
-   the `offline` **Profile** in under 60 seconds on a mid-sized repository.
+   the `offline` **Profile** in under 60 seconds on a mid-sized repository. *Note
+   2026-09-13 (task 24.1): "one command" is now true on the primary path — a first
+   `scan` over MCP with nothing run first fetches the image, the database and the
+   index itself, measured at 110s to a complete result from an empty machine. The
+   60s is the scan proper (33s on the fixture, 7–24s on small real projects); the
+   first run's fetches are stated separately in `docs/EVALUATING.md`.*
 2. P2 — Every **Finding** SHALL be traceable to the **Scanner** or **Check** and
    version that produced it.
 3. P3 — valvur SHALL emit SARIF and CycloneDX, and SHALL depend on no proprietary

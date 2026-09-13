@@ -7,6 +7,22 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **A first `scan` fetches what is absent, and says so.** Measured against `0.2.0`
+  over MCP with an empty cache, the first `scan` finished `complete: False` — Trivy
+  and the dependency-reality Check both failed, each naming `valvur update`, which
+  an agent cannot run. Now a scan that finds the vulnerability database or the
+  package-name index *absent* fetches it first — the way it already pulled an absent
+  image — and reports it on `scan_status` (*"Now: fetching the vulnerability
+  database (119MB) — the first run only"*) and on the terminal. Measured from an
+  empty machine: **110s** to a complete result, one tool call. A *stale* database
+  or index is still never refreshed by a scan; the warning stands and you decide.
+  `valvur update` is unchanged and remains the way to refresh. A fetch that fails
+  costs only the Scanner that needed it, and that Scanner's failure says what went
+  wrong; a scan never starts the seven-minute registry walk `valvur update` falls
+  back to. A refused index signature still stops the scan.
+
 ## [0.2.0] — 2026-09-13
 
 The first release anyone can install: the repository and both GHCR packages are

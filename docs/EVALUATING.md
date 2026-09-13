@@ -13,7 +13,7 @@ The [README](../README.md) is the introduction. This is the audit.
 
 ```bash
 pipx install valvur          # or: uv tool install valvur
-valvur update                # fetches the vulnerability database, once
+valvur update                # the image, the vulnerability database and the name index — optional: a first scan fetches what is absent
 valvur scan .
 ```
 
@@ -34,14 +34,21 @@ with Docker Desktop — so it is here before they do (22.B.4, re-measured for 23
 | `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
 | `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
 | first `valvur scan` | — | **33s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README | eight scanner names, each turning `ok` |
+| **first `scan` over MCP, nothing run first** — no image, empty cache, one tool call (24.1) | the same ~475MB | **110s** to `complete: True`: image pulled 22s, database fetched 30s, index fetched 7s, then the Scanners | `scan_status` reads *"Now: pulling ghcr.io/… (223MB) — the first run only"*, then *"fetching the vulnerability database (119MB)"*, then *"fetching the package-name index (35MB)"*, each gone once it is over |
 
-**A minute and a half from nothing to a first result, measured — or about eight
-minutes on the day the published index cannot be reached.** The README once promised
-sixty seconds; then this table said eight minutes, because npm publishes no list of
-its package names and every machine walked the registry's replication feed itself.
-Since 23.2.1 a workflow in this repository does that walk once a day and publishes
-the result as a signed OCI artifact ([ADR-0018](adr/0018-offline-package-name-index.md),
-amended). The walk remains the fallback, and the second row is what it costs.
+**A minute and a half from nothing to a first result, measured — two minutes over
+MCP with nothing run first — or about eight minutes on the day the published index
+cannot be reached.** The README once promised sixty seconds; then this table said
+eight minutes, because npm publishes no list of its package names and every machine
+walked the registry's replication feed itself. Since 23.2.1 a workflow in this
+repository does that walk once a day and publishes the result as a signed OCI
+artifact ([ADR-0018](adr/0018-offline-package-name-index.md), amended). The walk
+remains the fallback for `valvur update`, and the second row is what it costs; a
+scan that finds the index absent pulls the published one and, if it cannot, says
+so and names `valvur update` — it never starts a seven-minute walk on its own.
+`valvur update` is therefore optional before the first scan and remains the way to
+**refresh**: a scan fetches what is *absent*, and never touches what is *stale*
+(task 14.2) — the warning stands, and you decide.
 
 If you are evaluating on a laptop with a metered or slow connection, run
 `valvur update` before the meeting.
@@ -117,8 +124,13 @@ The claim is that source never leaves your machine, and it has two halves.
 a policy.
 
 **The host shim** is the half a `--network=none` flag cannot cover. It has one reason
-to reach out — fetching EPSS exploitation scores — and it is gated on the `full`
-profile only.
+to reach out during a scan — fetching EPSS exploitation scores — and it is gated on
+the `full` profile only. Before a scan, on a machine that has none of them, it
+fetches the image, the vulnerability database and the name index and says so
+(23.2.4, 24.1): three pulls of three fixed names, nothing from the workspace, and
+`valvur update` does the same ahead of time. Under `unshare -rn` on a fresh
+machine those fetches fail — loudly, naming each — so run `valvur update` first if
+you want that proof on a first run.
 
 ```bash
 scripts/verify-offline.py          # checks both halves

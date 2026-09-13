@@ -178,20 +178,41 @@ def test_the_cli_stays_quiet_when_the_database_is_fresh(capsys):
     assert capsys.readouterr().err == ""
 
 
-def test_valvur_never_updates_the_database_by_itself():
+def test_valvur_never_updates_a_database_it_has_by_itself(tmp_path, monkeypatch, workspace):
     """Decided in 14.2. A 1.2GB download started inside a scan is hostile; doing it
     on `full` alone would make the Profiles scan different data and break the
     equivalence asserted in Phase 11 cycle 3; and updating on the user's behalf is
-    the same move as fixing on their behalf, which section 4 refuses."""
-    import inspect
+    the same move as fixing on their behalf, which section 4 refuses.
 
-    from valvur import api
+    Narrowed by 24.1, not reversed: an ABSENT database is fetched by the first scan
+    (`test_first_run.py`), because without one there is no scan at all. A database
+    that is PRESENT, however stale, is never touched — this test is that line. Until
+    24.1 it inspected `scan`'s source for the word `update_db`; a behaviour is a
+    better pin than a word."""
+    from conftest import FakeRunner
 
-    source = inspect.getsource(api.scan)
+    from valvur import scan
+    from valvur.adapters import GitleaksAdapter
 
-    assert "update_db" not in source, (
-        "a scan now updates the database by itself — see task 14.2 for why it must not"
-    )
+    _database(tmp_path, updated_days_ago=45, next_update_days_ago=44)
+    (tmp_path / "trivy" / "db" / "trivy.db").write_bytes(b"bolt")
+    monkeypatch.setattr(cache, "trivy_db", lambda: tmp_path / "trivy")
+    monkeypatch.setattr(cache, "root", lambda: tmp_path)
+
+    class Runner(FakeRunner):
+        def image_present(self):
+            return True
+
+        def db_size_mb(self):
+            return 118
+
+        def update_db(self):
+            pytest.fail("a scan updated the database by itself — see task 14.2 for why "
+                        "it must not")
+
+    run = scan(workspace, runner=Runner(), adapters=[GitleaksAdapter()])
+
+    assert run.db_age_days is not None and run.db_age_days > cache.DB_STALE_AFTER_DAYS
 
 
 # ------------------------- the machine-readable claim, not just the prose (14.2)

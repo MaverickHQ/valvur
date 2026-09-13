@@ -276,18 +276,20 @@ def _request(url: str, headers: dict) -> urllib.request.Request:
 _ARCHITECTURES = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}
 
 
-def image_size(reference: str) -> int | None:
+def image_size(reference: str, *, insecure: bool = False) -> int | None:
     """Compressed bytes the runtime will pull for `reference` on this machine's
     architecture, or None when the registry cannot say — no answer is better than
     a made-up one on the line that tells an agent why nothing is happening yet
-    (10.2 claim 4). Two anonymous requests; a private image answers None."""
+    (10.2 claim 4). Two anonymous requests; a private image answers None. Works
+    for a plain artifact too — the database, the index (24.1) — whose manifest has
+    layers and no platforms. `insecure` is the operator's mirror setting."""
     import platform
 
     try:
         parsed = Reference.parse(reference)
         # Docker's own convention: loopback registries are allowed plain HTTP.
         local = parsed.host.split(":")[0] in ("localhost", "127.0.0.1")
-        registry = Registry(parsed, insecure=local, timeout=20)
+        registry = Registry(parsed, insecure=local or insecure, timeout=20)
         manifest = registry.manifest()
         if "manifests" in manifest.body:            # a multi-platform index
             wanted = _ARCHITECTURES.get(platform.machine().lower(), platform.machine().lower())

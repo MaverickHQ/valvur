@@ -105,7 +105,11 @@ def test_a_runner_without_the_ability_is_left_alone():
 
 def test_the_pull_happens_before_the_compatibility_check(tmp_path, monkeypatch):
     """`compat.check` inspects the image; on a missing image it reads no label and
-    passes, so it must not be the first thing to run."""
+    passes, so it must not be the first thing to run. (With the database and the
+    index absent too, the order is image, database, index — `test_first_run.py`.)"""
+    from valvur import cache
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     order: list[str] = []
 
     class Runner(_Runner):
@@ -122,8 +126,7 @@ def test_the_pull_happens_before_the_compatibility_check(tmp_path, monkeypatch):
             return ScannerOutput("pull", "", "", "", 0)
 
     with pytest.raises(RuntimeError, match="stop here"):
-        api._scan_locked(tmp_path, runner=Runner(present=False), adapters=[], profile="offline",
-                         on_progress=None)
+        api.scan(tmp_path / "ws", runner=Runner(present=False), adapters=[], profile="offline")
 
     assert order == ["inspect", "pull", "compat"]
 
