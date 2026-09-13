@@ -15,6 +15,13 @@ from .api import FETCH_ENDED, FETCH_STARTED, scan
 from .version import __version__
 
 
+def _positive(raw: str) -> int:
+    value = int(raw)
+    if value < 1:
+        raise argparse.ArgumentTypeError("--jobs must be at least 1")
+    return value
+
+
 def _stop_on_interrupt(runner) -> None:
     """Make Ctrl-C mean stop (F1.11, task 16.2).
 
@@ -330,6 +337,13 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         help="Force the offline Profile regardless of --profile. Checks needing a "
         "registry report as unverified rather than clean.",
     )
+    scan_cmd.add_argument(
+        "--jobs", type=_positive, default=None, metavar="N",
+        help="How many Scanners run at once (default: all of them). Docker Desktop's "
+        "default memory cannot always start eight containers together; two or "
+        "three at a time trades speed for not being killed. VALVUR_JOBS sets the "
+        "same default for the MCP server.",
+    )
 
     update_cmd = sub.add_parser(
         "update",
@@ -525,7 +539,8 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
             print(f"  {message}", file=sys.stderr)
 
     try:
-        run = scan(workspace, runner=runner, profile=profile, on_progress=progress)
+        run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
+                   jobs=args.jobs)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.

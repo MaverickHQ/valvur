@@ -108,7 +108,12 @@ entirely on my machine, so that my source code never reaches a third party.
     run as failed. *Added 2026-09-05 (task 16.2). Interruption is a third outcome:
     "a Scanner produced no report" is a failure path, and a cancelled scan must not
     be mistaken for one. Measured: `docker run` propagates no useful signal, so
-    containers must be named and killed explicitly.*
+    containers must be named and killed explicitly.* *Note 2026-09-13 (task 23.3.3):
+    held over MCP as well as on the CLI — `scan_cancel` kills that job's own
+    containers in one call, the scan checks the cancellation before the fleet, after
+    it and before it writes, and `scan_status` reads CANCELLED, never FAILED.
+    Measured over stdio: seven containers running, none two seconds after the call,
+    and a Results Folder holding only its `.gitignore` and `.lock`.*
 12. F1.12 — valvur SHALL permit only one **Scan Run** per **Workspace** at a time, and
     SHALL refuse a second with a message naming the cause. *Added 2026-09-05 (task
     16.3). Concurrent scans do not corrupt the artifacts — measured — but both read

@@ -15,6 +15,7 @@ from typing import Any
 from ..operations import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
+    cancel_scan,
     doctor,
     explain_finding,
     list_findings,
@@ -64,6 +65,10 @@ def registry() -> list[Tool]:
         Tool("scan_status", "What the last scan actually did: which scanners ran, "
                             "which failed, and whether the result is complete.",
              {"type": "object", "properties": workspace_arg}, scan_status),
+        Tool("scan_cancel", "Stop a running scan: its containers are killed, nothing "
+                            "is written, and the previous results (if any) stand. "
+                            "What Ctrl-C does on the command line.",
+             {"type": "object", "properties": workspace_arg}, cancel_scan),
         Tool("doctor", "Check that this machine can scan, before scanning: the "
                        "container runtime, the image, the vulnerability database, the "
                        "package-name index, SELinux, TLS trust, and which MCP client "

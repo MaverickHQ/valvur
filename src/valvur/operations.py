@@ -57,8 +57,11 @@ def _run_scan(workspace: Path, profile: str, progress) -> str:
     from .api import scan
     from .runner import ContainerRunner
 
-    run = scan(workspace, runner=ContainerRunner(), profile=profile,
-               on_progress=progress)
+    runner = ContainerRunner()
+    job = jobs.current(workspace)
+    if job is not None:
+        job.canceller = runner.kill      # `scan_cancel` stops this fleet, not another's
+    run = scan(workspace, runner=runner, profile=profile, on_progress=progress)
 
     lines = [f"{run.status}: {len(run.findings)} finding(s). {run.status_reason}."]
     if run.failures:
@@ -263,6 +266,22 @@ def explain_finding(args: dict) -> str:
     return "\n".join(lines)
 
 
+def cancel_scan(args: dict) -> str:
+    """Stop a running scan (23.3.3): the same outcome Ctrl-C gives the CLI (F1.11)
+    — containers stopped, nothing written, not a failure."""
+    workspace = Path(args.get("workspace") or ".").resolve()
+    job, stopped = jobs.cancel(workspace)
+    if job is None:
+        return f"No scan is running in {workspace}."
+    return (
+        f"Cancelling the {job.profile} scan of {workspace} after {job.elapsed:.0f}s — "
+        f"stopped {stopped} container(s).\n"
+        "No results are written for a cancelled scan; the previous results, if any, "
+        "stand. `scan_status` will read CANCELLED once the fleet has stopped; call "
+        "`scan` to start again."
+    )
+
+
 def doctor(args: dict) -> str:
     """Every precondition a scan has, checked and named before one runs (23.3.1).
     Read-only; opens no socket unless `network` is asked for."""
@@ -338,11 +357,18 @@ def scan_status(args: dict) -> str:
     workspace = Path(args.get("workspace") or ".").resolve()
 
     job = jobs.current(workspace)
-    if job is not None and job.state == "running":
+    if job is not None and job.state in ("running", "cancelling"):
         # Wait a bounded time before answering, so a poll covers seconds of scan
         # rather than milliseconds. The agent pays one turn per call either way;
         # returning instantly made it pay fourteen (task 10.2.5).
         job.wait()
+    if job is not None and job.state == "cancelling":
+        return (f"CANCELLING — the {job.profile} scan, {job.elapsed:.0f}s in; its containers "
+                "are being stopped. Call again; no result will follow.")
+    if job is not None and job.state == "cancelled":
+        return (f"CANCELLED after {job.elapsed:.0f}s — {job.error}\n"
+                "No result: a cancelled scan writes nothing, and the previous results, if "
+                "any, stand. Call `scan` to start again.")
     if job is not None and job.state == "running":
         # A fetch in progress — the image (10.2 claim 4), the database or the index
         # (24.1) — is the one kind of stage that is not a Scanner completing, and

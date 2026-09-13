@@ -326,7 +326,7 @@ def test_the_registry_exposes_exactly_the_expected_tools():
     from valvur.mcp.tools import registry
 
     assert {t.name for t in registry()} == {
-        "scan", "list_findings", "explain_finding", "scan_status", "doctor",
+        "scan", "list_findings", "explain_finding", "scan_status", "doctor", "scan_cancel",
     }
 
 
@@ -501,7 +501,7 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
     shared = {
         getattr(operations, name)
         for name in ("start_scan", "list_findings", "explain_finding", "scan_status",
-                     "doctor")
+                     "doctor", "cancel_scan")
     }
 
     for tool in registry():

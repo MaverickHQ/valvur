@@ -30,6 +30,18 @@ class ScannerFailed(RuntimeError):
     """A Scanner could not complete. Never downgraded to a clean result (F2.5)."""
 
 
+class ScanCancelled(RuntimeError):
+    """The developer stopped the scan (F1.11). Not a failure and not a result: the
+    containers were killed, and nothing is written. Deliberately not a
+    `ScannerFailed` — "every Scanner failed" is what killing them looks like."""
+
+
+#: The default number of Scanners the fleet runs at once, for every surface: the
+#: MCP server takes no flags, so a laptop whose Docker Desktop cannot start eight
+#: containers at once says so here, and `--jobs` overrides it on the CLI (23.3.3).
+JOBS_ENV = "VALVUR_JOBS"
+
+
 @dataclass
 class ScanRun:
     findings: list[Finding] = field(default_factory=list)
@@ -334,7 +346,7 @@ def _attempt(adapter, runner, workspace) -> tuple:
 
 def scan(
     workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
-    on_progress=None,
+    on_progress=None, jobs: int | None = None,
 ) -> ScanRun:
     # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
     # default, so a retired name like "standard" would quietly resolve to
@@ -371,12 +383,25 @@ def scan(
         ))
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
-            on_progress=on_progress, unfetched=unfetched,
+            on_progress=on_progress, unfetched=unfetched, jobs=jobs,
         )
 
 
+def _jobs_from_environment() -> int | None:
+    import os
+
+    raw = os.environ.get(JOBS_ENV, "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else None
+
+
+def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
+    if getattr(runner, "cancelled", False):
+        raise ScanCancelled(f"cancelled: {finished} of {total} Scanner(s) had finished; "
+                            "the rest were stopped and nothing was written")
+
+
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
-                 unfetched: dict[str, str] | None = None) -> ScanRun:
+                 unfetched: dict[str, str] | None = None, jobs: int | None = None) -> ScanRun:
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:
@@ -396,8 +421,11 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     # standard budget (F2.6, N1.2). Results are collected back into declaration
     # order so a Scan Run is reproducible regardless of which finished first.
     outcomes: list[tuple | None] = [None] * len(adapters)
+    _refuse_if_cancelled(runner, 0, len(adapters))
 
-    with ThreadPoolExecutor(max_workers=max(1, len(adapters))) as pool:
+    # `--jobs` bounds the fleet (23.3.3); the default is everything at once.
+    width = jobs if jobs is not None else (_jobs_from_environment() or len(adapters))
+    with ThreadPoolExecutor(max_workers=max(1, min(width, max(1, len(adapters))))) as pool:
         futures = {
             pool.submit(_run_one, adapter, runner, workspace): index
             for index, adapter in enumerate(adapters)
@@ -410,6 +438,9 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                 on_progress(f"{outcome[0].tool}: {status} ({outcome[0].duration_s:.1f}s)")
 
     completed = [o for o in outcomes if o is not None]
+    # A cancel that landed during the fleet (F1.11): the Scanners it stopped came
+    # back with no report, and the ones that finished are not a result either.
+    _refuse_if_cancelled(runner, sum(1 for o in completed if o[0].ok), len(adapters))
     scanners = _say_why_unfetched([outcome[0] for outcome in completed], unfetched or {})
     findings = [f for outcome in completed for f in outcome[1]]
     artifacts = [o[2] for o in completed if o[2] is not None]
@@ -432,6 +463,10 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         artifacts=artifacts,
     )
     findings = _pipeline.run(findings, ctx)
+    # And once more before anything is written: a kill that arrives between the
+    # last Scanner and the write must not leave a Results Folder from a run the
+    # developer said to stop.
+    _refuse_if_cancelled(runner, len(scanners), len(adapters))
     if ctx.provider is None:
         # Cannot happen while `enrich` is in the pipeline; said out loud rather than
         # left to an AttributeError three lines down.

@@ -111,10 +111,10 @@ Add it to your agent instead:
       }
     }
 
-Tools: doctor, scan, scan_status, list_findings, explain_finding — all read-only
-with respect to your source. There is no scan-and-fix tool and there will not be
-one (ADR-0009): you choose which fixes to apply. `doctor` checks this machine can
-scan before one is started.
+Tools: doctor, scan, scan_status, scan_cancel, list_findings, explain_finding — all
+read-only with respect to your source. There is no scan-and-fix tool and there will
+not be one (ADR-0009): you choose which fixes to apply. `doctor` checks this machine
+can scan before one is started; `scan_cancel` stops one, as Ctrl-C would.
 
   --help      this text
   --version   the version, which must match the container image

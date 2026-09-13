@@ -29,6 +29,14 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **`scan_cancel`, and `--jobs`.** A `scan_cancel` MCP tool stops a running scan
+  the way Ctrl-C does on the command line (F1.11): its containers are killed — one
+  `kill` for all of them, 2.7s for eight, measured — nothing is written, the
+  previous results stand, and `scan_status` reads CANCELLING then CANCELLED rather
+  than FAILED. A cancel stops that workspace's fleet, not another's. `valvur scan
+  --jobs N` bounds how many Scanners run at once, honoured by the fleet's executor;
+  `VALVUR_JOBS` sets the same default for the MCP server, for a Docker Desktop whose
+  memory cannot start eight containers together.
 - **`valvur gate` and `valvur cache`.** `gate [path] [--fail-on SEVERITY|any]
   [--no-inconclusive]` reads the last scan's `run.json` and `findings.json` and
   exits 1 if the result should not ship: an incomplete run, a lapsed suppression

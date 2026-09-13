@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -39,12 +40,15 @@ class Job:
     workspace: Path
     profile: str
     started: float
-    state: str = "running"          # running | done | failed
+    state: str = "running"          # running | cancelling | done | failed | cancelled
     finished: float | None = None
     summary: str = ""
     error: str = ""
     progress: list[str] = field(default_factory=list)
     settled: threading.Event = field(default_factory=threading.Event)
+    #: What stops this job's containers, registered by the work once it has a
+    #: runner (23.3.3). None until then: a cancel before that only sets the state.
+    canceller: Callable[[], int] | None = None
 
     @property
     def elapsed(self) -> float:
@@ -81,15 +85,34 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
             job.summary = run(workspace, profile, job.progress.append)
             job.state = "done"
         except Exception as exc:
-            # A failed scan is a reportable outcome, not a crashed server.
-            job.state = "failed"
-            job.error = f"{type(exc).__name__}: {exc}"
+            if job.state == "cancelling":
+                # Whatever the fleet raised on its way down — the scan's own
+                # ScanCancelled, or "every Scanner failed", which is what killing
+                # them looks like — a job the agent cancelled is cancelled (F1.11).
+                job.state = "cancelled"
+                job.error = str(exc)
+            else:
+                # A failed scan is a reportable outcome, not a crashed server.
+                job.state = "failed"
+                job.error = f"{type(exc).__name__}: {exc}"
         finally:
             job.finished = time.monotonic()
             job.settled.set()
 
     threading.Thread(target=work, name=f"valvur-scan-{key}", daemon=True).start()
     return job
+
+
+def cancel(workspace: Path) -> tuple[Job | None, int]:
+    """Ask a running job to stop: mark it, then kill its containers. Returns the
+    job and how many containers were signalled; (None, 0) when nothing runs."""
+    with _lock:
+        job = _jobs.get(str(workspace))
+        if job is None or job.state != "running":
+            return None, 0
+        job.state = "cancelling"
+    stopped = job.canceller() if job.canceller is not None else 0
+    return job, stopped
 
 
 def reset() -> None:

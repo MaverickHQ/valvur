@@ -332,19 +332,25 @@ def kill_running(runtime: str | None = None) -> int:
     Best effort by construction: a container that has already exited is not an error,
     and refusing to exit because cleanup was imperfect would be worse than the mess.
     """
-    import subprocess
-
     with _live_lock:
         names = sorted(_live_containers)
+    return _kill(runtime, names)
+
+
+def _kill(runtime: str | None, names: list[str]) -> int:
+    """One `kill` for all of them: the runtime signals each and reports the ones
+    already gone without stopping — measured, one call per container cost an
+    agent's cancel six seconds for seven containers (23.3.3)."""
+    import subprocess
+
     if not names:
         return 0
     binary = runtime or detect_runtime()
-    for name in names:
-        with _suppress(Exception):
-            subprocess.run(  # noqa: S603
-                [binary, "kill", name],
-                capture_output=True, timeout=15, check=False,
-            )
+    with _suppress(Exception):
+        subprocess.run(  # noqa: S603
+            [binary, "kill", *names],
+            capture_output=True, timeout=30, check=False,
+        )
     return len(names)
 
 
@@ -354,6 +360,23 @@ class ContainerRunner:
     def __init__(self, image: str = IMAGE, runtime: str | None = None):
         self.image = image
         self._runtime = runtime
+        #: Containers THIS runner launched, so a cancel from one MCP job stops its
+        #: own fleet and not another workspace's (23.3.3). `kill_running` is the
+        #: process-wide version, for Ctrl-C.
+        self._mine: set[str] = set()
+        #: Set by `kill`. The scan checks it before it writes anything (F1.11).
+        self.cancelled = False
+
+    def kill(self) -> int:
+        """Stop the containers this runner started, and remember that the scan
+        was cancelled. Returns how many were signalled."""
+        self.cancelled = True
+        with _live_lock:
+            names = sorted(self._mine & _live_containers)
+        runtime = None
+        with _suppress(Exception):
+            runtime = self.runtime
+        return _kill(runtime, names)
 
     def verify_workspace_readable(self, workspace: Path) -> None:
         """Confirm the container can actually see the Workspace before trusting a
@@ -471,6 +494,7 @@ class ContainerRunner:
         if name:
             with _live_lock:
                 _live_containers.add(name)
+                self._mine.add(name)
         try:
             return subprocess.run(cmd, **kwargs)  # noqa: S603
         finally:

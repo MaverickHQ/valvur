@@ -205,6 +205,14 @@ auditable and mirrorable. No proprietary database; nothing to lock you in.
 **Air-gapped?** The database, the name index and KEV all live outside the image and
 each has a mirror setting, measured end to end. See [`docs/AIR-GAPPED.md`](docs/AIR-GAPPED.md).
 
+**Docker Desktop's memory.** A scan starts eight Scanner containers at once; the
+fleet peaks around 500 MB on Linux, but Docker Desktop's VM has its own limit, and
+a container it cannot fit is killed with exit 137 and reported as a failed Scanner.
+`valvur scan --jobs 2` runs two at a time; `VALVUR_JOBS=2` in the MCP server's
+environment does the same for an agent. A scan an agent no longer wants is stopped
+with the `scan_cancel` tool — containers killed, nothing written — as Ctrl-C does
+on the command line.
+
 ## Contributing, and reporting problems
 
 A finding you disagree with — especially one valvur *missed* — is a bug worth

@@ -4451,10 +4451,40 @@ last.
   `tests/test_timing.py`, 9 mutations killed; the image rebuilt for e2e, 24 of 25
   passing locally with N1.1's budget the one over, on that load.
 
-- [ ] **23.3.3** `scan_cancel` as an MCP tool over the `kill_running` that already
+- [x] **23.3.3** `scan_cancel` as an MCP tool over the `kill_running` that already
   exists; `scan_status` on a cancelled job says so. `--jobs N` on the CLI, honoured by
   the fleet's executor, with a note in the platform docs about Docker Desktop's
   default memory.
+
+  **STATUS 2026-09-13:** ✅ Not over `kill_running` as written — that stops every
+  container this *process* started, right for Ctrl-C and wrong for an MCP server
+  scanning two workspaces at once — but over a per-runner `ContainerRunner.kill()`:
+  `_launch` records each container on the runner as well as in the process-wide
+  set, `kill` signals its own live ones in **one** `<runtime> kill a b c…` (per
+  container it cost an agent's cancel 6s for seven; one call is 2.7s for eight,
+  measured) and sets `runner.cancelled`. `api.scan` reads that flag at three
+  points — before the fleet, after it, and once more before anything is written —
+  and raises `ScanCancelled`, deliberately not a `ScannerFailed` ("every Scanner
+  failed" is what killing them looks like), so a cancelled scan has F1.11's three
+  properties over MCP as over the CLI: containers stopped, no Results Folder (the
+  lock's `.gitignore` and `.lock` are all that exist), not a failure. `jobs.cancel`
+  marks the job *cancelling* and calls the canceller `_run_scan` registered
+  (`runner.kill`); whatever the fleet raises on its way down, a job in that state
+  ends *cancelled*; a cancel that arrives after the work finished is told "no scan
+  is running" and the result stands. `scan_status` waits on a cancelling job as on
+  a running one (10.2.5) and reads *CANCELLING — …* then *CANCELLED after Ns —
+  cancelled: 4 of 8 Scanner(s) had finished; the rest were stopped and nothing was
+  written*. **Measured over stdio against the real image:** 7 containers running,
+  `scan_cancel`, 0 running two seconds later, `.security-scan/` holding only
+  `.gitignore` and `.lock`. `--jobs N` (`_positive`, refuses 0) bounds the
+  `ThreadPoolExecutor`; `VALVUR_JOBS` is the default for every surface, because the
+  MCP server takes no flags, and a nonsense value is ignored rather than fatal;
+  the README's Platforms section says why (Docker Desktop's VM memory; exit 137
+  reported as a failed Scanner). No CLI `cancel` command: Ctrl-C is the CLI's, and
+  the parity test is one-directional. 19 tests in `tests/test_cancel_jobs.py`; 18
+  mutations, four survived the first round (the pre-fleet check, the post-fleet
+  count, the canceller registration, the cancelling wait) and were pinned. The
+  loop ran with `PYTHONDONTWRITEBYTECODE=1` after 23.3.5's lesson.
 
 - [x] **23.3.4** No truncation of a failure reason on the MCP surface. `scan_status`
   cut *"…no package-name index for PyPI, so"* at 80 characters; bound the number of
@@ -4666,7 +4696,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 |
 | 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 |
 | 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 |
-| 9 | 23.3.3 | `scan_cancel`, `--jobs` | |
+| 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 |
 | 10 | 23.3.7 | a scan budget | |
 | 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | |
 | 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | |

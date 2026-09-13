@@ -883,7 +883,7 @@ def test_interrupting_a_scan_stops_the_containers(monkeypatch):
 
     assert stopped == 2
     assert all(c[1] == "kill" for c in killed), killed
-    assert {c[2] for c in killed} == {"valvur-aaa", "valvur-bbb"}
+    assert {name for c in killed for name in c[2:]} == {"valvur-aaa", "valvur-bbb"}
 
 
 def test_every_container_launch_carries_a_name_to_kill_it_by(monkeypatch, tmp_path):
