@@ -534,7 +534,7 @@ wheels = [
 
 [[package]]
 name = "valvur"
-version = "0.1.0rc1"
+version = "0.2.0"
 source = { editable = "." }
 
 [package.optional-dependencies]

@@ -7,6 +7,13 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-13
+
+The first release anyone can install: the repository and both GHCR packages are
+public, the image is published for `linux/amd64` and `linux/arm64`, and the shim
+pulls the published image rather than a local development tag. Everything below was
+on `main` between the release candidate and this tag.
+
 ### Changed — BREAKING
 
 - **A scan can now report `inconclusive`.** Previously `status` was `findings` or
