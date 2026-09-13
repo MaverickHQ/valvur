@@ -170,13 +170,22 @@ def test_the_default_threshold_is_high_and_inconclusive_passes_unless_asked(tmp_
 
 
 def test_the_workflows_use_the_gate_rather_than_a_heredoc():
-    """The two copies of the gate that ci.yml and release.yml carried are gone;
-    the self-scan step is one command, the same one a user runs."""
-    for name in ("ci.yml", "release.yml"):
-        text = Path(".github/workflows", name).read_text()
-        assert "valvur gate . --fail-on any --no-inconclusive" in text, name
-        selfscan = text.split("valvur gate")[0].rsplit("valvur scan . --profile full", 1)[-1]
-        assert "json.loads" not in selfscan, f"{name} still gates by heredoc"
+    """The two copies of the gate that ci.yml and release.yml carried are gone.
+    release.yml runs the command a user runs; ci.yml runs it through the action a
+    user's CI would use (23.3.6), so the release path never depends on a second
+    repository and the action is exercised on every commit."""
+    release = Path(".github/workflows/release.yml").read_text()
+    assert "valvur gate . --fail-on any --no-inconclusive" in release
+    selfscan = release.split("valvur gate")[0].rsplit("valvur scan . --profile full", 1)[-1]
+    assert "json.loads" not in selfscan, "release.yml still gates by heredoc"
+
+    ci = Path(".github/workflows/ci.yml").read_text()
+    action = ci.split("uses: MaverickHQ/valvur-action@", 1)
+    assert len(action) == 2, "ci.yml's self-scan does not use the action"
+    block = action[1][:600]
+    assert "fail-on: any" in block and 'no-inconclusive: "true"' in block
+    assert 'version: ""' in block, "the self-scan must run the tree's shim, not PyPI's"
+    assert "json.loads" not in ci.split("selfscan:", 1)[1]
 
 
 # --------------------------------------------------------------------- cache

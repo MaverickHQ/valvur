@@ -4543,12 +4543,39 @@ last.
   clear `__pycache__` after. No MCP tool: a gate is CI's question, not an agent's,
   and the CLI-parity test is one-directional by design.
 
-- [ ] **23.3.6** `MaverickHQ/valvur-action`: a composite action that installs the
+- [x] **23.3.6** `MaverickHQ/valvur-action`: a composite action that installs the
   shim, restores the database and index from the Actions cache (the pattern
   `ci.yml` uses), runs `valvur scan` and `valvur gate`, and uploads `results.sarif`
   to code scanning. CI adoption becomes one `uses:` line, and it is the first thing a
   team evaluating valvur will ask for. Dogfooded by this repository's own self-scan
   job, which replaces its heredoc with it.
+
+  **STATUS 2026-09-13:** ✅ [github.com/MaverickHQ/valvur-action](https://github.com/MaverickHQ/valvur-action),
+  public, `action.yml` composite: install (`version` — a PyPI pin, defaulting to
+  `0.3.0` because `gate`, `--budget` and `--jobs` are unreleased; a `git+https://…`
+  source; or `""` for the `valvur` on PATH), cosign via `sigstore/cosign-installer`
+  so the index signature verifies (`verify`, default on — the first run on a real
+  runner read *"not verified: cosign is not installed"*, which is the one thing
+  the action must not let stand), the index restored from the Actions cache
+  (`ci.yml`'s pattern; the 1.3GB database is refetched each run, ~30s), `valvur
+  update`, `valvur scan` with `profile`/`budget`/`jobs`, `run.json` read into
+  outputs (`status`, `complete`, `active`, `results`), `results.sarif` uploaded
+  through `github/codeql-action/upload-sarif` (`sarif`, needs `security-events:
+  write`), and `valvur gate` with `fail-on`/`no-inconclusive` (`gate`). Every input
+  reaches the shell through `env:`, never interpolated. Its own CI runs it against
+  a two-line fixture (PyYAML 5.1, urllib3 1.24.1): once where the gate must fail at
+  `critical` and the outputs say `findings`/`true`/≥5, once with the gate off and a
+  budget and jobs set, asserting `what_left_the_machine: nothing` — both green,
+  ~50s each (install 7s, update 24–28s, scan 7s). **Dogfooded:** `ci.yml`'s
+  self-scan job builds the image, puts the tree's venv on PATH, and `uses:
+  MaverickHQ/valvur-action@<sha>` with `version: ""`, `profile: full`, `fail-on:
+  any`, `no-inconclusive: "true"` — the job gains `security-events: write` for the
+  SARIF upload, so valvur's own findings (none, gated) would appear in code
+  scanning; `release.yml` keeps the direct commands so a release never depends on
+  the second repository, and the workflow test pins both shapes. Not done, by
+  design: the `v0` tag, which waits for valvur 0.3.0 on PyPI (the README example
+  uses `@v0`; until then the self-test installs from `git+…@main`); and the
+  database in the Actions cache — 1.3GB uncompressed is the wrong shape for it.
 
 - [x] **23.3.7** A scan budget. Each Scanner has a 600s timeout and the run has none;
   an agent session with a runaway Checkov waits ten minutes for one Scanner. `--budget`
@@ -4720,7 +4747,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 |
 | 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 |
 | 10 | 23.3.7 | a scan budget | ✅ 2026-09-13 |
-| 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | |
+| 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | ✅ 2026-09-13 |
 | 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | |
 | 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger |
 | 14 | 10.1.2 | they install it the way the README says | with 13 |

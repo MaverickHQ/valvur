@@ -219,6 +219,9 @@ jobs:
   selfscan:
     name: self-scan release gate (N2.5)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write      # the action uploads results.sarif to code scanning
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -231,33 +234,25 @@ jobs:
               --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
       - run: uv venv --python 3.12
       - run: uv sync --extra dev --locked
-      - name: Restore the package-name index between runs
-        # ADR-0018: the first `valvur update` walks all of npm — 439 requests and
-        # about five minutes, measured. Restored from the last run it is seconds.
-        # Saved under a fresh key every run so the newest state is what the next
-        # run restores; the cache has no way to update an existing key.
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: The tree's own shim, on PATH for the action
+        run: echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: Scan valvur with valvur, through the action a user's CI would use
+        # MaverickHQ/valvur-action, dogfooded (23.3.6): it restores the index from
+        # the Actions cache, runs `valvur update`, scans, uploads results.sarif to
+        # code scanning and runs `valvur gate` — three failure conditions (an
+        # incomplete run, an active finding at N2.5's `any`, a lapsed suppression)
+        # plus `inconclusive`, which passes by omission unless refused. `version: ""`
+        # is the shim from this tree; VALVUR_IMAGE is the image just built from it.
+        # Pinned by SHA like every action here (12a.6).
+        uses: MaverickHQ/valvur-action@465d0721b448e0adedd35a67d736eb510e1a5ecb # v0
+        env:
+          VALVUR_IMAGE: valvur:dev
         with:
-          path: ~/.cache/valvur/names
-          key: valvur-name-index-${{ github.job }}-${{ github.run_id }}
-          restore-keys: valvur-name-index-
-      - name: Fetch the vulnerability database and the name index
-        env:
-          VALVUR_IMAGE: valvur:dev
-        run: uv run valvur update
-      - name: Scan valvur with valvur
-        env:
-          VALVUR_IMAGE: valvur:dev
-        run: uv run valvur scan . --profile full
-      - name: Gate on the result
-        # Three failure conditions, not one — an incomplete run, an active finding
-        # (N2.5: any), a lapsed suppression — plus `inconclusive`, which passes by
-        # omission unless refused. The CLI exits zero when findings exist (N3.2), so
-        # the gate reads the artifacts; `valvur gate` is the heredoc this step used
-        # to carry, once, and the same command a user's CI runs (23.3.5).
-        env:
-          VALVUR_IMAGE: valvur:dev
-        run: uv run valvur gate . --fail-on any --no-inconclusive
+          path: .
+          profile: full
+          fail-on: any
+          no-inconclusive: "true"
+          version: ""
       - name: Refuse to leave scan output behind (ADR-0011)
         if: always()
         run: |

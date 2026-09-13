@@ -261,3 +261,15 @@ a third for the one fetch that had no mirror at all (`VALVUR_KEV_URL`).
 `verify` passes and before anything is pushed. That is the right place for a human
 check if you want one; the tag push is the wrong place, because by then the workflow
 is already running.
+
+## The action
+
+[`MaverickHQ/valvur-action`](https://github.com/MaverickHQ/valvur-action) is
+released separately and pinned to a valvur version: its `version` input defaults to
+the newest valvur on PyPI that has `gate`, `--budget` and `--jobs` (0.3.0 and
+later). When a valvur release changes the CLI the action uses, bump the default
+there and tag the action (`v0.N`, and move `v0`). `ci.yml`'s self-scan job uses
+the action with `version: ""` — the shim from the tree under test — so a change to
+the CLI that breaks the action is found here first; `release.yml` runs the
+commands directly, so a release never depends on the second repository.
+

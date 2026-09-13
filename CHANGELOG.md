@@ -29,6 +29,12 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **`MaverickHQ/valvur-action`.** A composite GitHub Action: install the shim (a
+  PyPI pin, a git source, or the `valvur` on PATH), install cosign so the name
+  index's signature is verified, restore the index from the Actions cache, `valvur
+  update`, `valvur scan`, read `run.json` into outputs, upload `results.sarif` to
+  code scanning, `valvur gate`. One `uses:` line for CI adoption; this repository's
+  own self-scan job uses it on every commit, with the shim from the tree under test.
 - **A scan budget.** Over MCP a scan has a 300-second budget unless the client
   passes `budget_s` (0 for none); on the CLI none unless `--budget SECONDS`. Past
   it no new Scanner starts, the running ones are stopped, and the result is

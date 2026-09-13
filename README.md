@@ -158,6 +158,16 @@ job, not a failure — and `valvur gate` turns the result into one exit code:
 valvur scan . && valvur gate . --fail-on high --no-inconclusive
 ```
 
+In GitHub Actions that is one line — [`MaverickHQ/valvur-action`](https://github.com/MaverickHQ/valvur-action)
+installs the shim, fetches and caches what a scan needs, scans, uploads
+`results.sarif` to code scanning and runs the gate; this repository's own release
+gate uses it on every commit:
+
+```yaml
+- uses: MaverickHQ/valvur-action@v0
+  with: { fail-on: high, no-inconclusive: "true" }
+```
+
 The gate fails on an incomplete run, on a lapsed suppression, on an active finding
 at or above `--fail-on` (`any` is every one; it is what valvur's own release gate
 uses), and with `--no-inconclusive` on a scan whose data was too old to be
