@@ -201,7 +201,16 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
 9. F3.9 — The AI Artifact **Check** SHALL detect blanket tool auto-approval and
    permission-bypass directives.
 10. F3.10 — valvur SHALL implement an LLM-Output-to-Sink **Check** detecting model
-    output reaching `eval`, `exec`, a shell, an SQL query, or `innerHTML`.
+    output reaching `eval`, `exec`, a shell, an SQL query, or `innerHTML`. *Note
+    2026-09-13 (task 24.2): implemented as four Opengrep rules in
+    `rules/llm-output-sinks.yaml`, three in taint mode with the OpenAI, Anthropic
+    and Gemini SDK calls as sources, one a plain string-built-SQL pattern. They fire
+    on the fixture
+    and have fired zero times on eleven real repositories including an LLM tool
+    (22.E.2) — no repository there executes model output, so the requirement is
+    cited and exercised, and whether it is* met *on real code is unmeasured. The
+    README and POSITIONING.md no longer present it as a held capability; 23.5.3
+    measures it with real sources or retires the word.*
 11. F3.11 — valvur SHALL implement a Pinning Hygiene **Check** detecting unpinned
     version ranges, absent lockfiles, and dependencies on mutable git references.
 12. F3.12 — valvur SHALL treat all **Workspace** content as data and SHALL NOT act on

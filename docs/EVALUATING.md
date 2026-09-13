@@ -213,12 +213,20 @@ Read this before the feature list, not after.
   coverage note and the run is `inconclusive`. Direct manifests are read for
   *existence* precisely because that is where a hallucinated name is written;
   lockfiles are read for *vulnerabilities* because that is where the versions are.
-- **The Opengrep rules are a supplement, not the product.** Measured on eleven real
-  repositories (task 22.E.2): 75 findings, 64 of them tag-pinned GitHub Actions and
-  the other 11 rejected by a reviewer to the last one; the four LLM-output-to-sink
-  rules fired zero times, including on an LLM tool. They are all ranked `low` now,
-  bar the ones that have never fired on real code. The AI-specific claim is carried
-  by the Checks above.
+- **The Opengrep rules are a supplement, not the product — and the LLM-output
+  rules are not a coverage claim.** Measured on eleven real repositories (task
+  22.E.2): 75 findings, 64 of them tag-pinned GitHub Actions and the other 11
+  rejected by a reviewer to the last one; the four LLM-output-to-sink rules fired
+  zero times, including on `simonw/llm`. Those four are what they are: taint rules
+  whose only sources are a completion call from the OpenAI, Anthropic or Gemini SDK
+  (`messages.create`, `chat.completions.create`, `generate_content`) flowing into
+  `eval`/`exec`, a shell or `innerHTML`, plus one plain rule for string-built SQL
+  with no model source at all. They fire on our fixture; whether they catch
+  anything in the wild is **unmeasured, not proven** — no repository in the corpus
+  executes model output, so a zero there is not a miss and not a hit. Until that is
+  measured (task 23.5.3), the README says so and the AI-specific claim rests on the
+  Checks above. They are all ranked `low` now, bar the ones that have never fired
+  on real code.
 - **On SELinux-enforcing hosts valvur refuses to scan until you act.** Measured on
   Fedora CoreOS 44, native xfs under `$HOME`: the container may not read a
   `user_home_t` directory. valvur fails loudly rather than reporting a false clean,

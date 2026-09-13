@@ -32,14 +32,15 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 26 of them now — and whose first engineering item was the audit's worst
+task** — 25 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
 *absent* — image, database, index, in that order, each announced on `scan_status` —
 and never touches what is *stale*; measured from an empty machine over stdio, one
-tool call, **110s to `complete: True`**. **Next: 24.2 (the README's LLM-sink claim),
-then `valvur doctor`.** When "what is next" is asked, that list is the answer; the
+tool call, **110s to `complete: True`**. **24.2 followed**: the README no longer
+sells the LLM-output-to-sink rules as a capability. **Next: `valvur doctor`
+(23.3.1), then per-Scanner timing (23.3.2).** When "what is next" is asked, that list is the answer; the
 sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
@@ -93,8 +94,8 @@ files — into the AI Artifact Check. Then the gate and `v1.0.0`.
 requirements against the published release — three measurements taken against the
 PyPI wheel and the GHCR image rather than the tree, and a pass over all 136
 requirement IDs asking *met?* rather than *cited?*. Its head is the single ordered
-list of everything open; its four tasks are the audit's findings, and the first of
-them, 24.1, closed that afternoon (below). It also moved Checkov's hash-locking
+list of everything open; its four tasks are the audit's findings, and the first
+two, 24.1 and 24.2, closed that afternoon (below). It also moved Checkov's hash-locking
 (23.4.1) ahead of the usability gate: it is the one input we sign with our identity
 that is not pinned by hash.
 
@@ -122,9 +123,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 96 Python modules, 704 tests, 18 ADRs, 136 requirement IDs, **147 done and 26
-open** across 24 phases — 18 of the 26 are Phase 23, 3 are Phase 24's audit, and 5
-are the usability gate and the `v1.0.0` tail. Three of the 26 are the owner's (yank
+Roughly: 96 Python modules, 704 tests, 18 ADRs, 136 requirement IDs, **148 done and 25
+open** across 24 phases — 18 of the 25 are Phase 23, 2 are Phase 24's audit, and 5
+are the usability gate and the `v1.0.0` tail. Three of the 25 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -152,11 +153,16 @@ were introduced by the block before, with tests passing.
   F10.8 amended. **The friction worth knowing:** a first run on a host with no
   route to GHCR is *incomplete* with the cause named, not a hang and not a silent
   clean.
-- **The LLM-output-to-sink rules are a claim the corpus does not support (24.2,
-  F3.10).** Four Opengrep pattern rules, zero hits on twelve real repositories
-  including an LLM tool. The README still lists them under claim 2; §10 says a
-  coverage claim we do not hold is prohibited, so the README is softened first
-  (24.2) and the rules are made real with taint mode or retired later (23.5.3).
+- **The LLM-output-to-sink rules are not a held claim, and the docs now say so
+  (24.2, closed 2026-09-13; F3.10 annotated).** Four Opengrep rules — three in taint
+  mode with the OpenAI, Anthropic and Gemini SDK calls as their only sources, one a
+  plain string-built-SQL pattern — zero hits on **eleven** real repositories
+  including an LLM tool (the last corpus run was eleven; the twelfth repository has
+  not been scanned by it yet, and the task text said twelve). No corpus repository
+  executes model output, so the zero is *unmeasured*, not a miss. The README lists
+  the rules with what they match and that they have never fired on real code; the
+  section is carried by the Checks; `POSITIONING.md` records it as a measured limit
+  on Claim 2. 23.5.3 widens the sources and measures, or retires the word.
 - **Three requirements the traceability ratchet cannot see through (24.3).** It
   proves an ID is *cited*, not *met*. F1.10 (AWS) has never been run; N1.1 (60s on
   ≤50k lines) has no measurement at that size; N1.4 (2GB) was measured once by hand.
@@ -181,7 +187,8 @@ were introduced by the block before, with tests passing.
   LLM-output-to-sink rules fired zero times, including on an LLM tool. They are now
   all `low` bar the ones that never fire on real code. What carries the AI-specific
   positioning is the **Checks** — dependency-reality, the AI Artifact Check, the
-  coverage contract — and that is what the README should lead with (Block F).
+  coverage contract — and that is what the README leads with (Block F; the rules
+  are listed as what they are since 24.2).
 - **Known-vulnerability scanning needs a lockfile, and says so.** Measured
   2026-09-12: Trivy produces no result at all — not zero findings, no scan — for
   `package.json`, `pyproject.toml`, `Gemfile` or `Cargo.toml` without a lockfile

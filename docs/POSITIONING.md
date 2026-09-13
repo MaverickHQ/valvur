@@ -97,6 +97,26 @@ Slopsquatting, agent-config auditing, hidden Unicode, LLM-output-to-sink taint.
 A new, unclaimed category. Competitors' entries into it inherit their trust
 model — the SaaS answer to an AI-code problem still ships your code offsite.
 
+### A measured limit on Claim 2, recorded 2026-09-13
+
+**"LLM-output-to-sink taint" is a rule set, not a demonstrated capability.** Four
+Opengrep rules ship for it. Measured on eleven real repositories, one of them an LLM
+tool (task 22.E.2), they fired zero times — because no repository in the corpus
+executes model output, which makes the result *unmeasured* rather than a pass or a
+fail. The rules' sources are three SDK call shapes; anything reaching a sink through
+LangChain, litellm, ollama, or a helper that unwraps `.choices[0].message.content` is
+outside them today (task 23.5.3).
+
+Consequences for what we say:
+- Claim 2 rests on **slopsquatting, agent-config auditing and hidden Unicode** —
+  each measured on real code and each carried by a Check that reports its own
+  coverage. Lead with those.
+- The rules may be **listed**, with what they match and that they have not fired on
+  real code (the README does this since 24.2). They may not be listed as a feature
+  a buyer is getting, until a corpus measurement shows them catching something.
+- §10 of CLAUDE.md applies: a coverage claim we do not hold is prohibited, and the
+  one in the README until 2026-09-13 was that.
+
 ### A measured limit on Claim 3, recorded 2026-08-30
 
 **CISA KEV barely covers application dependencies.** Measured directly: across

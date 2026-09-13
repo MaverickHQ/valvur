@@ -4461,7 +4461,11 @@ last.
 
 - [ ] **23.5.3** Taint-mode LLM rules, or retire the word. The four `valvur.llm.*`
   rules fired zero times on eleven real projects including an LLM tool; they are
-  pattern rules with no sources. Opengrep taint mode with real sources —
+  pattern rules with no sources. *Corrected 2026-09-13 (24.2): three of the four
+  ARE taint rules and have been since 2026-08-30 — their sources are the three SDK
+  call shapes below and nothing else; the fourth (`output-to-sql`) has no model
+  source. The task stands with its premise fixed: widen the sources, then measure.*
+  Opengrep taint mode with real sources —
   `openai.chat.completions.create(…).choices[0].message.content`,
   `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the
   sinks the INFO rules now inventory. A planted fixture proves they fire; the corpus
@@ -4531,7 +4535,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 |---|---|---|---|
 | 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click |
 | 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 |
-| 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | |
+| 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 |
 | 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | |
 | 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | |
 | 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | after 23.3.2 |
@@ -4621,7 +4625,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
   published `0.2.0` image, pulled by the scan itself. F10.8 amended and P1 annotated in `requirements.md`; README, EVALUATING
   (a new first-run row) and CHANGELOG say what changed.
 
-- [ ] **24.2** **The README stops claiming the LLM-output-to-sink rules as a
+- [x] **24.2** **The README stops claiming the LLM-output-to-sink rules as a
   feature.** Claim 2's third bullet lists *"model output reaching `eval`, `exec`, a
   shell, SQL or `innerHTML`"*; measured on the corpus (22.E.2) those four rules fired
   zero times on twelve real repositories, one of them an LLM tool. That is a
@@ -4629,6 +4633,30 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
   taint mode or retires them, the README and `docs/EVALUATING.md` say what is true:
   the rules exist, they are pattern rules, and on real code they have not fired.
   Ten minutes, and it should not wait for the gate.
+
+  **STATUS 2026-09-13:** ✅ Done, and the task's own text was wrong twice, which is
+  worth recording in a task about overclaiming. **(1) "twelve"**: the last corpus
+  run (34706225304, 2026-09-12 16:45) scanned *eleven* repositories — its job name
+  says so — and monolog, the twelfth, was added later that day; the twelve-repo
+  corpus has not run yet. Every sentence written today says eleven. **(2) "pattern
+  rules … made real with taint mode"**: `rules/llm-output-sinks.yaml` has used
+  `mode: taint` since 2026-08-30 for three of the four (sources: `messages.create`,
+  `chat.completions.create`, `generate_content`; sinks: `eval`/`exec`/`compile`,
+  `os.system`/`popen`/`subprocess(shell=True)`, `innerHTML`); the fourth,
+  `output-to-sql`, is a plain string-built-SQL pattern with no model source at all.
+  So 23.5.3's question is not "add taint mode" but "why do taint rules with these
+  sources never fire on real code" — the sources are three SDK call shapes, and a
+  helper that unwraps `.choices[0].message.content`, LangChain, litellm and ollama
+  are all outside them; its text is annotated below. **What changed:** the README
+  bullet now says what the rules are, that they fire on the fixture, that on eleven
+  real repositories including `simonw/llm` they have never fired, and that the
+  Checks carry the section; `docs/EVALUATING.md` says the zero is *unmeasured*
+  rather than a pass or a fail, since no corpus repository executes model output;
+  `docs/POSITIONING.md` gains *"A measured limit on Claim 2"* in the shape Claim 3
+  already had, with the rule that the rules may be listed but not sold; F3.10 is
+  annotated as cited and exercised, met-on-real-code unmeasured. Nothing in the
+  rules, the Scanners or the tests changed: this was a documentation defect, and
+  the constraint suite has no test for prose.
 
 - [ ] **24.3** **Requirements the ratchet cannot see through.** `check_traceability`
   proves every ID is *cited*; F3.1's own note records that a requirement was cited

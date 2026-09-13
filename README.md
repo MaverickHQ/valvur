@@ -53,8 +53,13 @@ what left the machine — on `offline`, the word `nothing`.
   skills and prompt files — scanned for injected directives, hidden Unicode
   (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket
   `autoApprove` and permission-bypass flags.
-- **A small set of Opengrep rules** for model output reaching `eval`, `exec`, a shell,
-  SQL or `innerHTML`, and for unpinned actions and mutable git refs.
+- **A small set of Opengrep rules, which are not the claim.** Two pinning rules
+  (tag-pinned actions, mutable git refs) that fire on most real repositories, and
+  four for model output reaching `eval`, `exec`, a shell or `innerHTML` — taint rules
+  whose sources are a completion call from the OpenAI, Anthropic or Gemini SDK, plus
+  one for string-built SQL. Those four fire on our fixture and, measured on eleven
+  real repositories including an LLM tool, **have never fired on real code**. They
+  ship ranked `low`; the checks above carry this section.
 
 What is covered, and what is not, is stated on every scan rather than left to infer:
 
