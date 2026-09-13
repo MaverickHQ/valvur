@@ -103,11 +103,12 @@ Add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent uses what it
 ```markdown
 ## Security scanning
 This project uses valvur. Scan with the `valvur` MCP tools if you have them:
-call `scan`, then `scan_status` until it reports DONE. Otherwise run
-`valvur scan`. Results appear in `.security-scan/`: read SUMMARY.md, then
-REMEDIATION.md. Never commit `.security-scan/`. Never add suppressions without
-explicit human approval. Propose fixes for approval — do not apply them and
-rescan autonomously.
+call `scan`, then `scan_status` until it reports DONE; if it reports FAILED,
+call `doctor` and relay what it says. Otherwise run `valvur scan`. Results
+appear in `.security-scan/`: read SUMMARY.md, then REMEDIATION.md. Never
+commit `.security-scan/`. Never add suppressions without explicit human
+approval. Propose fixes for approval — do not apply them and rescan
+autonomously.
 ```
 
 ## For developers
@@ -116,6 +117,7 @@ rescan autonomously.
 pip install valvur          # or: uv tool install valvur
 valvur update               # the image, the vulnerability database and the name index, once
 valvur scan                 # offline by default; --profile full adds the networked checks
+valvur doctor               # if anything above did not work: what this machine is missing, and the fix
 ```
 
 The first `valvur update` pulls the image (about 240MB), the vulnerability database

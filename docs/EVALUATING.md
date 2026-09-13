@@ -59,7 +59,19 @@ host-side fetch with `CERTIFICATE_VERIFY_FAILED`. `pip` works because it bundles
 own certificates; valvur has no dependencies and uses the interpreter's. The image
 and the database still arrive (the runtime and Trivy fetch those), KEV and the index
 do not, and the message names the cause. A Python from `uv`, Homebrew, pyenv or a
-Linux distribution has certificates; `valvur doctor` will check.
+Linux distribution has certificates. `valvur doctor` checks — it counts the roots
+the interpreter would verify against, and that number is 0 on python.org's build
+and 128 on every interpreter that worked — and every other precondition a first run
+has failed on for real: the runtime found and running, the image present,
+compatible and able to start, the database and the index present and current, the
+SELinux label on the tree, and which MCP client configuration names valvur. One
+line each, the fix on any that would fail a scan, exit 1 if one would; `--network`
+adds one bounded TCP connect per registry a first run and `full` need, and honours
+every mirror setting in [AIR-GAPPED.md](AIR-GAPPED.md). It is also the `doctor`
+MCP tool, so an agent whose scan failed has somewhere to go, and `scan_status`
+tells it so. Measured 2026-09-13: 3.4s on the CLI, 1.7s over MCP, 8.8s with
+`--network`; on this project's own machine it found Kiro's MCP switched off in the
+user settings, which no scan would have said.
 
 As an MCP tool, which is the primary path:
 

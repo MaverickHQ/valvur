@@ -326,7 +326,7 @@ def test_the_registry_exposes_exactly_the_expected_tools():
     from valvur.mcp.tools import registry
 
     assert {t.name for t in registry()} == {
-        "scan", "list_findings", "explain_finding", "scan_status",
+        "scan", "list_findings", "explain_finding", "scan_status", "doctor",
     }
 
 
@@ -500,7 +500,8 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
 
     shared = {
         getattr(operations, name)
-        for name in ("start_scan", "list_findings", "explain_finding", "scan_status")
+        for name in ("start_scan", "list_findings", "explain_finding", "scan_status",
+                     "doctor")
     }
 
     for tool in registry():
@@ -512,7 +513,7 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
 @pytest.mark.parametrize(
     ("command", "operation"),
     [("findings", "list_findings"), ("explain", "explain_finding"),
-     ("status", "scan_status"), ("scan", "start_scan")],
+     ("status", "scan_status"), ("scan", "start_scan"), ("doctor", "doctor")],
 )
 def test_each_mcp_tool_has_a_cli_equivalent(command, operation):
     """F9.3 — the CLI is the second way in, and must reach the same operations."""

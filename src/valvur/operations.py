@@ -263,6 +263,16 @@ def explain_finding(args: dict) -> str:
     return "\n".join(lines)
 
 
+def doctor(args: dict) -> str:
+    """Every precondition a scan has, checked and named before one runs (23.3.1).
+    Read-only; opens no socket unless `network` is asked for."""
+    from . import doctor as _doctor
+
+    workspace = Path(args.get("workspace") or ".").resolve()
+    checks = _doctor.run(workspace, network=bool(args.get("network")))
+    return _doctor.render(checks, workspace)
+
+
 def scan_status(args: dict) -> str:
     workspace = Path(args.get("workspace") or ".").resolve()
 
@@ -295,7 +305,10 @@ def scan_status(args: dict) -> str:
                      "do not report a result yet.")
         return "\n".join(lines)
     if job is not None and job.state == "failed":
-        return f"FAILED after {job.elapsed:.0f}s — {job.error}\nNo result to report."
+        return (f"FAILED after {job.elapsed:.0f}s — {job.error}\n"
+                "Run `doctor` (the tool; `valvur doctor` on a shell) before scanning "
+                "again: it names what this machine is missing and the fix.\n"
+                "No result to report.")
 
     path = _results(args.get("workspace")) / "run.json"
     if not path.is_file():

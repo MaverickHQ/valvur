@@ -4354,7 +4354,7 @@ as a failed scan, or as silence. A command that checks them in two seconds and n
 the fix for each is the difference between a stranger's first ten minutes and their
 last.
 
-- [ ] **23.3.1** `valvur doctor`: container runtime found and version; image present
+- [x] **23.3.1** `valvur doctor`: container runtime found and version; image present
   and its build digest against the shim's (see 23.4.4); database present and age;
   index present, age, ecosystems; SELinux enforcing and whether the tree is labelled;
   which Profile can reach what (a DNS probe per registry, only when asked); MCP client
@@ -4367,6 +4367,50 @@ last.
   line per check, the fix on the failing ones, exit non-zero if
   any would fail a scan. Also an MCP tool, so an agent runs it *before* `scan` — and
   the `scan_status` failure branch says so.
+
+  **STATUS 2026-09-13:** ✅ `src/valvur/doctor.py`: nine checks in the order a scan
+  meets them, each a probe small enough to test against the real thing once and a
+  report tested against a healthy machine with one thing broken at a time. **The
+  TLS check is a count, not a request:** `ssl.create_default_context()
+  .cert_store_stats()["x509_ca"]` — measured 0 on python.org's 3.10 and 3.12, 128 on
+  every interpreter that could fetch — so it needs no socket; it is `fail` when the
+  database or the index is absent (the first scan's fetch is next) and `warn` when
+  the cache is filled (this scan runs; `valvur update` will not). **The runtime
+  check runs `info`**, because `image inspect` fails the same way for a stopped
+  daemon as for a missing image, and a doctor that said "the first scan pulls it"
+  to someone whose Docker Desktop is closed would be wrong. **The image check
+  starts a container** (`--network=none`, `cat` of the build-digest file, 2–5s):
+  presence, the F1.9 version label against the shim's, and that the runtime, the
+  image and this architecture actually work together — the digest itself is
+  reported for information until 23.4.4 gives the shim one to compare. Database
+  and index: absent is `info` since 24.1 (the first scan fetches them), stale is
+  `warn` with the threshold that makes a scan `inconclusive`, and an index missing
+  an ecosystem's list names which. SELinux: on an enforcing host the tree's
+  context via `os.getxattr`, `fail` with 20.1's measured `chcon` line unless it is
+  `container_file_t` or `VALVUR_SELINUX_RELABEL=1`. MCP clients: `.mcp.json`,
+  `~/.claude.json` (top level and `projects[<this path>]`), `.claude/settings*.json`'s
+  `disabledMcpjsonServers`, `.kiro/settings/mcp.json` (workspace and user) with its
+  `disabled` flag, and `kiroAgent.configureMCP` in `.vscode/settings.json` and Kiro's
+  user settings — on this project's own machine it found the latter set to
+  *Disabled*, which no scan would ever have said. `--network` (MCP: `network: true`)
+  is one bounded 3s TCP connect per host, in two groups — what a first run and
+  `valvur update` reach (the image's registry, Trivy's first default `mirror.gcr.io`,
+  the index's `ghcr.io`, `www.cisa.gov`), each replaced by the operator's mirror
+  when `VALVUR_IMAGE`, `VALVUR_DB_REPOSITORY`, `VALVUR_INDEX_REPOSITORY` /
+  `VALVUR_NAME_INDEX_URL` or `VALVUR_KEV_URL` names one, and the nine hosts `full`
+  reaches — `fail` only when a first-run host is unreachable and a fetch is due.
+  `valvur doctor [path] [--network]` exits 1 on any `fail`; the `doctor` MCP tool
+  is the same `doctor.run`/`render` through `operations.doctor` (F9.3, the parity
+  tests extended); `scan_status`'s FAILED branch now says *"Run `doctor` (the tool;
+  `valvur doctor` on a shell) before scanning again"*. Read-only, no socket unless
+  asked — pinned by a test whose healthy fixture fails on any probe. **Measured:**
+  3.4s on the CLI, 1.7s over stdio, 8.8s with `--network` (all reachable); the
+  python.org interpreter with an empty `VALVUR_CACHE` reads `FAIL python: … 0
+  trusted roots` and `not ready`, with the cache filled `warn`. 34 tests in
+  `tests/test_doctor.py`; 26 mutations, two survived the first round (the `fix:`
+  line and the root count were unpinned) and were pinned. Not done: the build-digest
+  *comparison* (23.4.4) and the DNS-only probe the task text imagined — a TCP
+  connect is what a fetch does first, and proves more.
 
 - [ ] **23.3.2** `duration_s` on every `ScannerRun`, in `run.json` and in
   `scan_status`, and *"slowest: checkov 27.9s"* in `SUMMARY.md`. The corpus report
@@ -4536,7 +4580,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click |
 | 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 |
 | 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 |
-| 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | |
+| 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 |
 | 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | |
 | 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | after 23.3.2 |
 | 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | |

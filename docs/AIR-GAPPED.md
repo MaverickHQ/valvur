@@ -36,8 +36,9 @@ export VALVUR_DB_INSECURE=1              # only if the registry is plain HTTP or
 export VALVUR_INDEX_REPOSITORY=registry.internal/mirror/valvur-index
 export VALVUR_INDEX_INSECURE=1           # likewise
 export VALVUR_KEV_URL=http://mirror.internal/valvur-mirror/kev.json
-valvur update          # fetches from your mirrors, not the internet
-valvur scan            # scans offline against the cached copies
+valvur doctor --network   # one TCP connect per mirror named above, and nothing else
+valvur update             # fetches from your mirrors, not the internet
+valvur scan               # scans offline against the cached copies
 ```
 
 Without a registry, the index is also six plain files. Copy them from a machine that

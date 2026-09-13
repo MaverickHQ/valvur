@@ -32,15 +32,20 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 25 of them now — and whose first engineering item was the audit's worst
+task** — 24 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
 *absent* — image, database, index, in that order, each announced on `scan_status` —
 and never touches what is *stale*; measured from an empty machine over stdio, one
 tool call, **110s to `complete: True`**. **24.2 followed**: the README no longer
-sells the LLM-output-to-sink rules as a capability. **Next: `valvur doctor`
-(23.3.1), then per-Scanner timing (23.3.2).** When "what is next" is asked, that list is the answer; the
+sells the LLM-output-to-sink rules as a capability. **Then `valvur doctor`
+(23.3.1)**: nine checks in the order a scan meets them — TLS trust counted rather
+than requested, the runtime found *and running*, the image present, compatible and
+started once, database and index present and current, the SELinux label, the MCP
+client configuration — one line each with the fix, exit 1 if a scan would fail, the
+same report as a `doctor` MCP tool that a FAILED `scan_status` now names. **Next:
+per-Scanner timing (23.3.2), then 24.3.** When "what is next" is asked, that list is the answer; the
 sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
@@ -85,7 +90,8 @@ shim looks for a local `valvur:dev` image and can never have worked for anyone.
 A second review, grounded in that Kiro run, became **Phase 23**: `0.2.0` first
 (Block 1, owner actions); then the **published name index** and **`valvur doctor`**
 (every first-run failure this project has met was a precondition it would have
-named) — both *before* the usability gate measures a stranger's first ten minutes;
+named; both done 2026-09-13) — both *before* the usability gate measures a
+stranger's first ten minutes;
 then Checkov isolated and hash-locked, the Checks in one container, per-scanner
 timing, the shim carrying its build hash, and `.kiro/` — the primary client's own
 files — into the AI Artifact Check. Then the gate and `v1.0.0`.
@@ -123,9 +129,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 96 Python modules, 704 tests, 18 ADRs, 136 requirement IDs, **148 done and 25
-open** across 24 phases — 18 of the 25 are Phase 23, 2 are Phase 24's audit, and 5
-are the usability gate and the `v1.0.0` tail. Three of the 25 are the owner's (yank
+Roughly: 97 Python modules, 740 tests, 18 ADRs, 136 requirement IDs, **149 done and 24
+open** across 24 phases — 17 of the 24 are Phase 23, 2 are Phase 24's audit, and 5
+are the usability gate and the `v1.0.0` tail. Three of the 24 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

@@ -344,6 +344,19 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     status_cmd = sub.add_parser("status", help="What the last scan actually did")
     status_cmd.add_argument("path", nargs="?", default=".")
 
+    doctor_cmd = sub.add_parser(
+        "doctor",
+        help="Check that this machine can scan — runtime, image, database, index, "
+        "SELinux, TLS trust, MCP client configuration — and say what to fix",
+    )
+    doctor_cmd.add_argument("path", nargs="?", default=".", help="Workspace to check")
+    doctor_cmd.add_argument(
+        "--network", action="store_true",
+        help="Also probe whether the registries a first run and the full profile need "
+        "are reachable (one bounded TCP connect per host). Off by default: without it "
+        "doctor opens no socket.",
+    )
+
     suppress_cmd = sub.add_parser(
         "suppress",
         help="Print a ready-to-paste suppression block for a finding (never writes)",
@@ -379,6 +392,14 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     if args.command == "suppress":
         return _print_suppression(args)
+
+    if args.command == "doctor":
+        from . import doctor as _doctor
+
+        workspace = Path(args.path).resolve()
+        checks = _doctor.run(workspace, network=args.network)
+        print(_doctor.render(checks, workspace))
+        return 1 if _doctor.failed(checks) else 0
 
     if args.command == "update":
         from . import cache

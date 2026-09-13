@@ -15,6 +15,7 @@ from typing import Any
 from ..operations import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
+    doctor,
     explain_finding,
     list_findings,
     scan_status,
@@ -63,4 +64,17 @@ def registry() -> list[Tool]:
         Tool("scan_status", "What the last scan actually did: which scanners ran, "
                             "which failed, and whether the result is complete.",
              {"type": "object", "properties": workspace_arg}, scan_status),
+        Tool("doctor", "Check that this machine can scan, before scanning: the "
+                       "container runtime, the image, the vulnerability database, the "
+                       "package-name index, SELinux, TLS trust, and which MCP client "
+                       "configuration names valvur. One line per check with the fix on "
+                       "any that would fail a scan. Changes nothing.",
+             {"type": "object", "properties": {
+                 **workspace_arg,
+                 "network": {"type": "boolean",
+                             "description": "Also probe, with one bounded TCP connect "
+                             "per host, whether the registries a first run and the "
+                             "full profile need are reachable from here. Off by "
+                             "default: without it doctor opens no socket."},
+             }}, doctor),
     ]

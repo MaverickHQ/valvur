@@ -7,6 +7,22 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **`valvur doctor`, and a `doctor` MCP tool.** Every precondition a first run has
+  failed on for real, checked before a scan and named with the fix: the interpreter
+  can verify TLS (python.org's macOS build has no CA bundle until its certificate
+  script runs — 0 trusted roots, and every host-side fetch fails); the container
+  runtime is found *and running* (a stopped daemon looks like a missing image to
+  `image inspect`); the image is present, its version matches the shim's (F1.9), and
+  a container of it actually starts; the vulnerability database and the name index
+  are present and current, with each ecosystem's count; the SELinux label on the
+  tree on an enforcing host; which Claude Code or Kiro configuration names the
+  server, and whether it is disabled. One line per check, exit 1 if any would fail a
+  scan. `--network` (or `network: true`) adds one bounded TCP connect per host a
+  first run and `full` need, honouring every mirror setting; without it doctor opens
+  no socket. A `scan_status` that reports FAILED now points at it.
+
 ### Changed
 
 - **A first `scan` fetches what is absent, and says so.** Measured against `0.2.0`
