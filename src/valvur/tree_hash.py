@@ -27,6 +27,7 @@ from pathlib import Path
 IMAGE_DIGEST_FILE = "/etc/valvur/inputs.sha256"
 IMAGE_DOCKERFILE = "/etc/valvur/Dockerfile"
 IMAGE_RULES = "/opt/valvur-rules"
+IMAGE_CHECKOV_LOCK = "/opt/checkov-requirements.txt"
 
 #: Never part of the digest: byte-compiled caches differ per interpreter and are
 #: stripped from the image anyway; editor droppings are not inputs.
@@ -76,6 +77,8 @@ def tree_parts(repo: Path) -> dict[str, Path]:
         "Dockerfile": repo / "Dockerfile",
         "rules": repo / "rules",
         "valvur": repo / "src" / "valvur",
+        # The Checkov lock (23.4.1): a changed hash is a changed image.
+        "checkov-lock": repo / "requirements-checkov.txt",
     }
 
 
@@ -85,6 +88,7 @@ def image_parts() -> dict[str, Path]:
         "Dockerfile": Path(IMAGE_DOCKERFILE),
         "rules": Path(IMAGE_RULES),
         "valvur": Path(__file__).resolve().parent,
+        "checkov-lock": Path(IMAGE_CHECKOV_LOCK),
     }
 
 

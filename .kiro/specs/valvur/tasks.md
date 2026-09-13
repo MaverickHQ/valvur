@@ -4607,11 +4607,37 @@ last.
 
 ### 4 — Build and architecture
 
-- [ ] **23.4.1** Checkov in its own virtual environment (`/opt/checkov`), installed
+- [x] **23.4.1** Checkov in its own virtual environment (`/opt/checkov`), installed
   from a `requirements-checkov.txt` generated with `pip-compile --generate-hashes`.
   Today it shares valvur's interpreter with 300+ transitive packages nobody pins, so
   the image is not reproducible and the SBOM is mostly Checkov. Dependabot watches the
   lock. Measure the image before and after.
+
+  **STATUS 2026-09-13:** ✅ `requirements-checkov.in` (`checkov==3.2.517`) →
+  `requirements-checkov.txt` by `scripts/lock-checkov.sh` (`uv pip compile
+  --universal --generate-hashes`, uv being the project's tool; the task said
+  pip-compile): **96 packages, 1,866 sha256 hashes** — every published wheel and
+  sdist of each pin, so one lock serves amd64 and arm64 and musl. The Dockerfile
+  copies it before our own files, creates `/opt/checkov` with `--without-pip`,
+  installs through the system pip's `--python` with `--require-hashes`, asserts
+  the binary exists, symlinks `/usr/local/bin/checkov` so the runner's invocation
+  is unchanged, and drops the compiler as before. **Measured:** the image is the
+  same 576MB (the bytes moved, 191MB from the system site-packages to 185.5MB in
+  `/opt/checkov`); the system site-packages hold pip and valvur and nothing else,
+  where before they held 96 packages; the build layer takes 48s; Checkov 3.2.517
+  answers from the venv and finds 13 things on the fixture; the F10.4 licence
+  check reads 1,261 components added over the base and no GPL; the tree-hash guard
+  covers the lock (`tree_parts`/`image_parts` gain `checkov-lock`), so a changed
+  hash is a changed image. Dependabot gains a `pip` entry for the lock, grouped.
+  **The task's "300+ transitive packages" was 96**, counted. **Found on the way,
+  and worse than the task:** the Dockerfile's `RUN … && find … || true` put
+  `|| true` over the whole `&&` chain, so the first build of this layer — whose
+  `pip install` failed on a misplaced `--python` — produced an image *without
+  Checkov* and reported success; the same shape had covered the old `pip install
+  checkov` for as long as it existed. The `find` is scoped in a subshell, and
+  `test_no_run_chain_in_the_dockerfile_can_swallow_its_own_failure` refuses the
+  shape. Three constraint tests; four mutations, one survivor (a by-name install
+  hidden behind `--python`) pinned. F2.2 extended.
 
 - [ ] **23.4.2** The three Checks in one container: `python -m valvur.checks all`,
   nine container starts per scan become seven, and one 1.7s interpreter start instead
@@ -4748,7 +4774,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 |
 | 10 | 23.3.7 | a scan budget | ✅ 2026-09-13 |
 | 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | ✅ 2026-09-13 |
-| 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | |
+| 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | ✅ 2026-09-13 |
 | 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger |
 | 14 | 10.1.2 | they install it the way the README says | with 13 |
 | 15 | [12b.1](#12b--release) | act on what the gate found | |

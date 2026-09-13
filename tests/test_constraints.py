@@ -825,6 +825,65 @@ def test_every_base_image_is_pinned_by_digest():  # F2.2, and 15.1's stronger fo
     assert not unpinned, "base images pinned by mutable tag: " + "; ".join(unpinned)
 
 
+def test_checkov_is_hash_locked_into_its_own_environment():
+    """Task 23.4.1. `pip install checkov==3.2.517` pinned one package and resolved
+    the other ~95 afresh on every build — the one input of the image we sign with
+    our identity that was not pinned by hash. Now every one is, and the lock is
+    what the image installs from, into a venv that shares nothing with valvur's
+    interpreter."""
+    import re
+
+    lock = Path("requirements-checkov.txt").read_text()
+    pinned = re.findall(r"^([A-Za-z0-9_.\-]+)==([^ \\]+)", lock, re.M)
+    assert len(pinned) >= 80, f"only {len(pinned)} packages in the lock; Checkov needs ~96"
+    hashes = lock.count("--hash=sha256:")
+    assert hashes >= len(pinned), "a package in the lock carries no hash"
+    checkov = dict(pinned).get("checkov")
+    assert checkov, "the lock does not pin checkov itself"
+
+    wanted = re.search(r"^checkov==(\S+)", Path("requirements-checkov.in").read_text(), re.M)
+    assert wanted and wanted.group(1) == checkov, "the lock and its input disagree"
+    import inspect
+
+    from valvur.runner import ContainerRunner
+
+    assert f'version="{checkov}"' in inspect.getsource(ContainerRunner.run_checkov), (
+        "the runner reports a Checkov version the lock does not install"
+    )
+
+    dockerfile = "\n".join(line for line in Path("Dockerfile").read_text().splitlines()
+                           if not line.lstrip().startswith("#"))
+    assert "--require-hashes -r /opt/checkov-requirements.txt" in dockerfile
+    assert "python3 -m venv --without-pip /opt/checkov" in dockerfile
+    assert not re.search(r"\bpip\b[^\n]*\binstall\b[^\n]*checkov==", dockerfile), (
+        "Checkov is still installed by name, outside the lock"
+    )
+
+
+def test_no_run_chain_in_the_dockerfile_can_swallow_its_own_failure():
+    """Found by 23.4.1's first build: `a && b && c || true` makes `|| true` cover
+    the whole chain, so a failed `pip install` produced an image without Checkov
+    and the build reported success. A tolerated step must be scoped in a subshell."""
+    import re
+
+    dockerfile = Path("Dockerfile").read_text()
+    runs = re.findall(r"^RUN\b(.*?)(?=^\S|\Z)", dockerfile, re.M | re.S)
+    assert runs, "no RUN instructions found — this test is asserting nothing"
+    for run in runs:
+        joined = " ".join(line.strip().rstrip("\\").strip() for line in run.splitlines())
+        if "&&" in joined and re.search(r"&&[^()]*\|\|\s*true\s*$", joined):
+            raise AssertionError(f"a RUN chain ends in a bare `|| true`: {joined[:120]}…")
+
+
+def test_the_image_digest_covers_the_checkov_lock():
+    """A changed hash is a changed image; the staleness guard (22.C.1) must see it."""
+    from valvur import tree_hash
+
+    assert "checkov-lock" in tree_hash.tree_parts(Path("."))
+    assert tree_hash.image_parts()["checkov-lock"] == Path(tree_hash.IMAGE_CHECKOV_LOCK)
+    assert "requirements-checkov.txt" in Path("Dockerfile").read_text()
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""

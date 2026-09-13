@@ -127,6 +127,14 @@ that I do not maintain six toolchains myself.
 1. F2.1 — valvur SHALL orchestrate Trivy, Gitleaks, OSV-Scanner, Opengrep, Checkov
    and Syft as **Scanners**.
 2. F2.2 — valvur SHALL pin every **Scanner** to an exact version in the image.
+   *Extended 2026-09-13 (task 23.4.1): and every package a **Scanner** pulls in.
+   Checkov, the one Python Scanner, was pinned by version while its ~95 transitive
+   packages were resolved afresh on every build — the one input of the image we
+   sign with our identity that was not pinned by hash. Now `requirements-checkov.txt`
+   pins each by version and sha256, the image installs from it with
+   `--require-hashes` into its own virtual environment, the lock is part of the
+   image's build digest (22.C.1) and watched by Dependabot, and a test refuses a
+   Dockerfile that installs Checkov by name again.*
 3. F2.3 — valvur SHALL select **Scanners** by **Profile** per the table in
    `design.md`.
 4. F2.4 — WHEN a **Scanner** exits non-zero because it found issues, valvur SHALL

@@ -80,13 +80,29 @@ COPY --from=osv      /osv-scanner             /usr/local/bin/osv-scanner
 COPY --from=syft     /syft                    /usr/local/bin/syft
 COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 
-# Checkov is Python. Installed into the system environment; no compiler is kept.
-# Before our own files, so that editing a Check or a rule rebuilds only the layers
-# below and never this one — it used to sit after them and re-ran on every edit.
+# Checkov is Python, and the only Scanner that is. It goes into its own virtual
+# environment, hash-locked (task 23.4.1): `requirements-checkov.txt` pins every one
+# of its ~96 transitive packages by version and sha256, generated from
+# `requirements-checkov.in` by `scripts/lock-checkov.sh`, and `--require-hashes`
+# refuses anything else. Until this, `pip install checkov==3.2.517` resolved those
+# 96 packages afresh on every build — the one input of the image we sign with our
+# identity that was not pinned by hash — and they shared valvur's interpreter.
+# Dependabot watches the lock. No compiler is kept. Before our own files, so that
+# editing a Check or a rule rebuilds only the layers below and never this one.
+#
+# The trailing `find … || true` used to sit bare at the end of this `&&` chain,
+# which made `|| true` cover the whole chain: a failed `pip install` produced an
+# image without Checkov and the build reported success. Found by the first build
+# of this layer, whose pip error was swallowed exactly so. The subshell scopes it.
+COPY requirements-checkov.txt /opt/checkov-requirements.txt
 RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
- && pip install --no-cache-dir checkov==3.2.517 \
+ && python3 -m venv --without-pip /opt/checkov \
+ && pip --python /opt/checkov/bin/python install --no-cache-dir \
+        --require-hashes -r /opt/checkov-requirements.txt \
+ && test -x /opt/checkov/bin/checkov \
+ && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
  && apk del .build \
- && find /usr/local -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+ && (find /opt/checkov /usr/local -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true)
 
 # Checkov ships an update checker that calls out at startup and writes a cache.
 # Both are disabled explicitly: a scanner that phones home would break the central

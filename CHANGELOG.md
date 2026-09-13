@@ -29,6 +29,14 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **Checkov hash-locked, in its own virtual environment.** `requirements-checkov.txt`
+  pins Checkov and every one of its 96 transitive packages by version and sha256,
+  and the image installs from it with `--require-hashes` into `/opt/checkov`, which
+  shares nothing with valvur's interpreter — the system site-packages went from 96
+  packages and 191MB to valvur alone. Regenerate with `scripts/lock-checkov.sh`;
+  Dependabot watches the lock. The image is the same 576MB. Found on the way: the
+  Dockerfile's `… && find … || true` let a failed `pip install` produce an image
+  without Checkov and report success; scoped, and a test refuses the shape.
 - **`MaverickHQ/valvur-action`.** A composite GitHub Action: install the shim (a
   PyPI pin, a git source, or the `valvur` on PATH), install cosign so the name
   index's signature is verified, restore the index from the Actions cache, `valvur

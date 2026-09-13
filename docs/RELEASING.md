@@ -273,3 +273,14 @@ the action with `version: ""` — the shim from the tree under test — so a cha
 the CLI that breaks the action is found here first; `release.yml` runs the
 commands directly, so a release never depends on the second repository.
 
+## The Checkov lock
+
+Checkov is the one Python Scanner, and the image installs it from
+`requirements-checkov.txt` — every transitive package pinned by version and sha256 —
+with `--require-hashes`, into `/opt/checkov` (task 23.4.1). To move Checkov, edit
+`requirements-checkov.in` and run `scripts/lock-checkov.sh`; the runner's reported
+version (`runner.run_checkov`) must match, and a test says so. The lock is part of
+the image's build digest, so a changed hash is a changed image, and Dependabot opens
+the update. A hash that no longer matches fails the build rather than installing
+whatever was served, which is the point.
+

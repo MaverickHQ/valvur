@@ -42,6 +42,20 @@ updates:
         patterns: ["*"]
         applies-to: version-updates
 
+  - package-ecosystem: pip
+    # The Checkov lock (23.4.1): `requirements-checkov.txt`, every transitive
+    # package pinned by version and hash. Dependabot rewrites the hashes with the
+    # version; CI rebuilds the image from the lock and the e2e suite runs Checkov.
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies", "supply-chain"]
+    groups:
+      checkov:
+        patterns: ["*"]
+
   - package-ecosystem: docker
     directory: /
     schedule:
