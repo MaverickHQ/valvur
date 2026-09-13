@@ -270,8 +270,14 @@ jobs:
         # Trusted publishing: an OIDC exchange rather than a long-lived API token, so
         # there is no secret to leak. Configured on PyPI against this repository and
         # this workflow file.
+        #
+        # v1.14.2 or later, not older: `uv build` writes Metadata-Version 2.5 and the
+        # twine inside v1.14.0 refused it (`InvalidDistribution: '2.5' is not a
+        # valid metadata version`). Found by rehearsal #6, 2026-09-13 — the first
+        # rehearsal with a TestPyPI publisher, and the only step that runs twine's
+        # check — one PR before the real tag would have hit it.
         if: env.REHEARSAL != 'true'
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
       - name: Publish to TestPyPI (rehearsal)
         # The same action, the same OIDC identity, a different index. Needs its own
@@ -281,7 +287,7 @@ jobs:
         id: testpypi
         if: env.REHEARSAL == 'true'
         continue-on-error: true
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
 
