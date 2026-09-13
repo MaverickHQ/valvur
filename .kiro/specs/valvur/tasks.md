@@ -48,7 +48,7 @@ what actually breaks — do not pre-emptively expand this list.
 
 > **✅ COMPLETE 2026-08-30 — 18 of 19; 0.2 skipped as optional, 0.14 deferred to Phase 12.**
 > Repo: https://github.com/MaverickHQ/valvur (private) · ECR:
-> `<aws-account-id>.dkr.ecr.eu-north-1.amazonaws.com/valvur` · first commit `8d9674a`, signed and verified.
+> `<aws-account-id>.dkr.ecr.eu-north-1.amazonaws.com/valvur` · first commit `cc67403`, signed and verified.
 
 **Goal:** every account, credential, runtime and tool the plan depends on is verified
 working *before* any code exists. No implementation.
@@ -107,7 +107,7 @@ would be the worst possible opening line.
   **STATUS 2026-08-30:** ✅ `.githooks/commit-msg` — proven: rejected a non-conventional message
   already follow it, and it makes release notes generatable.
 - [x] **0.12** Make the initial commit and verify `git log --show-signature` confirms    
-  **STATUS 2026-08-30:** ✅ commit `8d9674a` — *Good git signature for MaverickHQ*, registered as a GitHub signing key.
+  **STATUS 2026-08-30:** ✅ commit `cc67403` — *Good git signature for MaverickHQ*, registered as a GitHub signing key.
   it is signed.
 
 ### GitHub
@@ -1597,6 +1597,25 @@ or cannot check the claims we make about it, is not testing the product.
   | `api.github.com/repos/MaverickHQ/valvur` | **404** anonymously |
   | `ghcr.io/token?scope=…valvur:pull` | **401** anonymously |
   | local commits ahead of `origin/main` | **17** |
+
+  > **Pre-public sweep, 2026-09-13.** gitleaks over all 155 commits: clean. A read
+  > of the tree found the AWS account ID, the IAM user name and the ECR registry
+  > host recorded in this file's Phase 0 notes since the second commit — not
+  > credentials, but an account ID beside a username is more than a public
+  > repository needs to carry. **History was rewritten** (`git filter-repo
+  > --replace-text`, the two strings → `<aws-account-id>` and `<iam-user>`), every
+  > one of the 155 commits re-signed with the same SSH key with its dates preserved
+  > (`git rebase --root -f --committer-date-is-author-date`; GitHub shows the new
+  > head verified), `v0.1.0rc1` recreated as a signed annotated tag on the rewritten
+  > rc commit with its original tagger date, and `main` and the tag force-pushed.
+  > The tree is byte-identical to the old head except the five redacted lines
+  > (`diff -r` over `git archive` of both). A mirror and a bundle of the old
+  > history are at `/private/tmp/valvur-tests/backup-before-rewrite-20260913.*`.
+  > Two things this does not do: GitHub keeps the old objects until it garbage
+  > collects, and the three closed Dependabot branches (#1–#3) still point at old
+  > commits — deleting those branches is the owner's click; and the Rekor entries
+  > from the rehearsals and the index workflow name the old SHAs forever, which is
+  > what a transparency log is for.
 
   The original task named only the package. The **repository** is private too, which
   matters more: the README now tells a reviewer to run
@@ -4121,7 +4140,7 @@ Every day it is the only version on PyPI is a day the product is a broken link.
   > **One item added 2026-09-12, by Block 2:** the **`valvur-index` package must be
   > made public too** — it was created private by the first run of `index.yml`. Until
   > it is, every `valvur update` on every machine is refused anonymously and walks
-  > the five registries itself (the CI log on commit `6b372ae` shows it happening),
+  > the five registries itself (the CI log on commit `051bdc7` shows it happening),
   > so the "first run 8 min → about 1" that Block 2 built is not yet what anyone
   > gets. Package settings → Danger Zone → Change visibility, as for the image.
 
@@ -4176,7 +4195,10 @@ already named as the eventual answer.
   > pull was refused as predicted (*"the registry demands credentials and valvur
   > pulls anonymously (is the package public?)"*), the authenticated `oras pull`
   > matched all five files byte for byte, and `cosign verify` bound the digest to
-  > `…/.github/workflows/index.yml@refs/heads/main` at commit `6b372ae`. The CI
+  > `…/.github/workflows/index.yml@refs/heads/main` at commit `6b372ae` — the
+  > Rekor entry names that SHA, which the history rewrite of 2026-09-13 (below,
+  > under 12a.1) replaced with `051bdc7`; the signature stays valid, the artifact
+  > digest is unchanged, and the old SHA is what the log will always say. The CI
   > run on the same push shows the other side: `update` refused anonymously, fell
   > back, and skipped every registry as walked within the day.
 
