@@ -119,7 +119,8 @@ for AWS execution.
   **STATUS 2026-08-30:** ✅ https://github.com/MaverickHQ/valvur (private), `origin` set
   authenticated as MaverickHQ. This also **reserves the name** while changing it is
   still free.
-- [ ] **0.14** Enable branch protection on `main`: require a passing CI check, and    
+- [x] **0.14** Enable branch protection on `main`: require a passing CI check, and    
+  **STATUS 2026-09-13:** ✅ **Done, the morning the repository went public.** Five required checks (every `ci.yml` job), signed commits required, linear history, no force-push or deletion, **enforced for administrators** — so every change since, this one included, arrives by pull request and lands on `main` only after the five checks pass. GitHub's merge button creates merge commits, which linear history forbids, so a PR lands by fast-forwarding `main` to its checked, signed head. Applied with two API calls; recorded under 23.1.1.
   **STATUS 2026-08-30:** ⏳ **DEFERRED to Phase 12.** GitHub returns 403 — branch protection on *private* repos needs GitHub Pro. It becomes free when the repo goes public at release, and it guards nothing on a solo private repo. Re-attempt immediately after [12a.1](#12a--make-it-obtainable-and-trustworthy) makes the repo public. *(Corrected 2026-09-10: this said "re-attempt at 12.5", a task number that stopped existing when Phase 12 split into 12a/12b.)*
   require signed commits.
 - [x] **0.15** Verify you can push a package to GHCR under this account, so the    
@@ -1581,8 +1582,11 @@ us — then release it.
 Nothing below is optional for the gate. A participant who cannot obtain the tool,
 or cannot check the claims we make about it, is not testing the product.
 
-- [ ] **12a.1** **Push, then make the repository public, then the package.**
-  *(F1.5, blocks 10.1 and 10.2)* — **owner action.**
+- [x] **12a.1** **Push, then make the repository public, then the package.**
+  *(F1.5, blocks 10.1 and 10.2)* — **owner action.** ✅ **Done 2026-09-13**: the
+  repository by API (after the sweep and history rewrite below), then the `valvur`
+  and `valvur-index` packages by the owner's click — anonymous API `200`, anonymous
+  GHCR tokens issued for both. The full account is under 23.1.1.
 
   > ⛔ **BLOCKED BY [Phase 13](#phase-13--portability), added 2026-09-05.** The
   > published image is `linux/arm64` only, so going public today hands every amd64
@@ -1844,8 +1848,12 @@ or cannot check the claims we make about it, is not testing the product.
   > dependency manifests would trade a false positive for a false negative. Not
   > worth that trade today; worth an issue.
 
-- [ ] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
-  ✅ **Automation done 2026-09-05. Publishing blocked on 12a.1 and owner setup.**
+- [x] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
+  ✅ **Automation done 2026-09-05. Published 2026-09-13** — `v0.2.0` tagged on
+  `fc5a221`, the exact commit rehearsal #7 had passed end to end an hour earlier;
+  `ghcr.io/maverickhq/valvur:0.2.0` for both architectures, signed and attested,
+  `valvur 0.2.0` on pypi.org, the GitHub release with wheel, sdist, both SBOMs and
+  the publish attestations. What the rehearsals found on the way is under 23.1.1.
 
   > ⛔ **ALSO BLOCKED BY [Phase 15](#phase-15--our-own-supply-chain).** This workflow
   > holds `id-token: write`. Every `FROM` is pinned by tag rather than digest and the
@@ -3436,21 +3444,25 @@ C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS  — both done
 > named) is **done**; Block 3 (`valvur doctor`, timing, cancel, the gate command, the
 > Action, the budget) is what remains before B. A gains one item from Block 2: the
 > `valvur-index` GHCR package public, beside the image's.
+>
+> **2026-09-13: A and D1 are done — `0.2.0` is published** (23.1.1 has the account).
+> What remains: Phase 23 Block 3, then B (the usability gate — now possible: there
+> is something to install), then D2.
 
 ### A — Owner actions
 
 Only the repository owner can do these, and everything else waits behind them.
 
-- **21.A.1** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
+- ~~**21.A.1**~~ ✅ **Done 2026-09-13.** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
   ahead), make the **repository** public, then the **packages** — `valvur`, the
   image, and since 23.2.1 `valvur-index`, the daily name index. In that order, or
   the newly-public repo is missing every phase from 10.3b onward. Measured
   2026-09-10: repo API `404`, GHCR anonymous token `401` — and 2026-09-12 for the
   index package, the same `401` from the shim's own client.
-- **21.A.2** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
+- ~~**21.A.2**~~ ✅ **Done 2026-09-13.** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
   since 2026-08-30 because GitHub charges for it on private repositories; it becomes
   free the moment 21.A.1 lands, and guards nothing until then.
-- **21.A.3** → the setup half of [12a.7](#12a--make-it-obtainable-and-trustworthy)
+- ~~**21.A.3**~~ ✅ **Done 2026-09-13** (PyPI and TestPyPI publishers by the owner; private vulnerability reporting enabled by API). → the setup half of [12a.7](#12a--make-it-obtainable-and-trustworthy)
   and [12a.5](#12a--make-it-obtainable-and-trustworthy): PyPI trusted publishing
   against `release.yml`, a `release` GitHub environment, and private vulnerability
   reporting. All three are documented in
@@ -3485,7 +3497,7 @@ one.
 
 ### D — Sequenced after
 
-- **21.D.1** → [12a.7](#12a--make-it-obtainable-and-trustworthy), publishing half.
+- ~~**21.D.1**~~ ✅ **Done 2026-09-13, `v0.2.0`.** → [12a.7](#12a--make-it-obtainable-and-trustworthy), publishing half.
   The automation is done and verified; tagging publishes `0.2.0`. Carries two
   corrections that only take effect on release: the **multi-arch build** (13.1 — the
   published image is still `arm64` only) and the **PyPI licence metadata**, which
@@ -4099,7 +4111,7 @@ in their first ten minutes, in the order that each unblocks the next.
 
 ```
 Block 1  0.2.0                          ─── owner actions; unblocks everything
-        ↓
+        ↓                                    (✅ 2026-09-13 — published)
 Block 2  the published index            ─┐  BEFORE the usability gate (10.1):
 Block 3  valvur doctor                  ─┘  these two are the first ten minutes
         ↓                                    (Block 2 ✅ 2026-09-12)
@@ -4130,12 +4142,51 @@ The published `0.1.0rc1` shim has `IMAGE = "valvur:dev"` hard-coded (found 22.G.
 It never pulls the published image; a fresh install's first scan fails "not found".
 Every day it is the only version on PyPI is a day the product is a broken link.
 
-- [ ] **23.1.1** The owner actions, in order: repository public, package public
+- [x] **23.1.1** The owner actions, in order: repository public, package public
   (12a.1); PyPI and TestPyPI trusted publishers for `release.yml` / environment
   `release` (12a.7); branch protection (0.14). Then one more rehearsal — the TestPyPI
   and attestation steps go green the moment the repository is public — and the tag.
   *This is 21.A and 21.D.1 restated with the reason the review added; nothing new to
   build.*
+
+  > **Done 2026-09-13 — `0.2.0` is published.** In the order it happened: a
+  > pre-public sweep found the AWS identifiers and led to the history rewrite
+  > (12a.1); the repository went public by API, the two packages by the owner's
+  > click; PyPI's publisher was configured by the owner and checked against the
+  > workflow's claims; branch protection and private vulnerability reporting by
+  > API. **Rehearsal #5**, the first on a public repository: SLSA attestation passed
+  > for the first time, TestPyPI said `invalid-publisher` — step 4 not yet done.
+  > **Rehearsal #6**, with the TestPyPI pending publisher in place: the OIDC
+  > exchange succeeded and the upload failed one line later — `InvalidDistribution:
+  > '2.5' is not a valid metadata version`. `uv build` writes core metadata 2.5 and
+  > the twine inside `pypa/gh-action-pypi-publish` v1.14.0 predates it; **the real
+  > release would have failed at its last step, after the image was pushed and
+  > signed.** The only step that runs twine's check is the TestPyPI upload, so the
+  > rehearsal that "was not really required" is the one that caught it. Fixed by
+  > pinning v1.14.2 (twine 7), folded into the release-prep PR because the required
+  > amd64 check cannot pass on a branch still declaring the arm64-only `0.1.0rc1`.
+  > GitHub then had a partial outage — dropped PR events, refused merges, a
+  > rehearsal stuck "queued" for 83 minutes and later reported as both queued and
+  > completed — so the prep landed by fast-forward and the rehearsal was
+  > re-dispatched once Actions recovered. **Rehearsal #7**: every step green,
+  > `valvur 0.2.0.dev11` on TestPyPI (which created the project and claimed the
+  > name), the image's signature and attestation re-verified from this machine,
+  > both architectures. Then the tag, on the owner's word: **`v0.2.0` on that same
+  > commit**, and the real run published in six minutes.
+  >
+  > **The stranger's first run, measured against the published release** (clean
+  > venv, empty cache, image removed, Apple silicon, Docker Desktop):
+  > `pip install valvur==0.2.0` **1.7s** · `valvur update` **53s** — the image
+  > (320MB, said and streamed), the database, KEV, and the published index pulled
+  > anonymously with `signature: verified` · first `valvur scan` of the broken
+  > fixture **33s**, 76 active findings, complete, `what_left_the_machine:
+  > nothing`. **About a minute and a half from nothing to a first result**, against
+  > eight minutes the day before Block 2. One thing the measurement found: on a
+  > Python without a CA bundle (python.org's macOS build before *Install
+  > Certificates.command*) every host-side fetch fails `CERTIFICATE_VERIFY_FAILED`
+  > — the image and database still arrive, because the runtime and Trivy fetch
+  > those, but KEV and the index do not, and the fallback walk fails the same way.
+  > The message names the cause; `valvur doctor` (23.3.1) gains the check.
 
   > **One item added 2026-09-12, by Block 2:** the **`valvur-index` package must be
   > made public too** — it was created private by the first run of `index.yml`. Until
@@ -4302,7 +4353,11 @@ last.
   which Profile can reach what (a DNS probe per registry, only when asked); MCP client
   configuration detected — Claude Code (`.mcp.json`, `~/.claude.json`) and Kiro
   (`.kiro/settings/mcp.json`, `kiroAgent.configureMCP`) — with the server named and
-  enabled or not. One line per check, the fix on the failing ones, exit non-zero if
+  enabled or not; and, added by the `0.2.0` first-run measurement (23.1.1), **whether
+  this interpreter can verify TLS at all** — python.org's macOS build has no CA
+  bundle until *Install Certificates.command* is run, and every host-side fetch
+  fails `CERTIFICATE_VERIFY_FAILED` while `pip` (which bundles certifi) works. One
+  line per check, the fix on the failing ones, exit non-zero if
   any would fail a scan. Also an MCP tool, so an agent runs it *before* `scan` — and
   the `scan_status` failure branch says so.
 

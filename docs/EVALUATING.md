@@ -23,20 +23,20 @@ a ~200-line launcher.
 
 ### The true first run, measured
 
-The number a competitor would quote, measured on 2026-09-12 from an empty cache on an
-Apple-silicon Mac with Docker Desktop, so it is here before they do (22.B.4):
+The number a competitor would quote, measured on **2026-09-13 against the published
+`0.2.0`** — a clean venv, an empty cache, the image removed, on an Apple-silicon Mac
+with Docker Desktop — so it is here before they do (22.B.4, re-measured for 23.1.1):
 
 | | bytes | wall-clock | what you are looking at |
 |---|---|---|---|
-| `pipx install valvur` | <1MB | seconds | pip |
-| image pull, once — part of `valvur update` since 23.2.4, and said on the status line if a scan has to do it | **321MB** compressed as published (`0.1.0rc1`); ~240MB from the current tree | ~26s at 100 Mbit, ~52s at 50, ~105s at 25 | docker's layer bars; over MCP, `scan_status` reads *"Now: pulling ghcr.io/…:0.2.0 (240MB) — the first run only"* |
-| `valvur update`, first time | **154MB**: vulnerability database 118MB, the published name index 34MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | Trivy's ~20s, then **seconds** for the index (1.7s from a local registry, measured) | Trivy's progress bar, then one line per ecosystem with its build time and the signature's state |
+| `pip install valvur` | <1MB | **1.7s** | pip |
+| `valvur update`, first time | **~475MB**: the image 320MB compressed (pulled here since 23.2.4, and said on the status line if a scan has to do it), vulnerability database 118MB, the published name index 34MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | **53s** | docker's layer bars, Trivy's progress bar, then one line per ecosystem with its build time and `signature: verified` |
 | `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
 | `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
-| first `valvur scan` | — | **45s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README | eight scanner names, each turning `ok` |
+| first `valvur scan` | — | **33s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README | eight scanner names, each turning `ok` |
 
-**About a minute from nothing to a first result on a 100 Mbit connection — or about
-eight, on the day the published index cannot be reached.** The README once promised
+**A minute and a half from nothing to a first result, measured — or about eight
+minutes on the day the published index cannot be reached.** The README once promised
 sixty seconds; then this table said eight minutes, because npm publishes no list of
 its package names and every machine walked the registry's replication feed itself.
 Since 23.2.1 a workflow in this repository does that walk once a day and publishes
@@ -45,6 +45,14 @@ amended). The walk remains the fallback, and the second row is what it costs.
 
 If you are evaluating on a laptop with a metered or slow connection, run
 `valvur update` before the meeting.
+
+One thing that measurement found: a Python **without a CA bundle** — python.org's
+macOS installer until you run its *Install Certificates.command* — fails every
+host-side fetch with `CERTIFICATE_VERIFY_FAILED`. `pip` works because it bundles its
+own certificates; valvur has no dependencies and uses the interpreter's. The image
+and the database still arrive (the runtime and Trivy fetch those), KEV and the index
+do not, and the message names the cause. A Python from `uv`, Homebrew, pyenv or a
+Linux distribution has certificates; `valvur doctor` will check.
 
 As an MCP tool, which is the primary path:
 

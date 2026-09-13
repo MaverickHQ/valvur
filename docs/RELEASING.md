@@ -9,6 +9,10 @@ parts are the one-time setup and the decision to release.
 
 These cannot be automated, and the workflow fails without them.
 
+> **All done on 2026-09-13** (task 23.1.1), the morning the repository went public.
+> Kept here because each is a thing that can be undone by accident and would need
+> redoing the same way.
+
 1. **PyPI trusted publishing.** On PyPI → `valvur` → Publishing → add a GitHub
    publisher: owner `MaverickHQ`, repository `valvur`, workflow `release.yml`,
    environment `release`. This replaces a stored API token with an OIDC exchange, so
@@ -28,7 +32,11 @@ These cannot be automated, and the workflow fails without them.
    publisher as above: `MaverickHQ` / `valvur` / `release.yml` / environment
    `release`. Without it the rehearsal's TestPyPI step fails with a clear
    `invalid-publisher` error — which is a rehearsal doing its job, but not the one
-   you wanted.
+   you wanted. **Not optional in practice**: the TestPyPI upload is the only step
+   that runs twine's metadata check, and rehearsal #6 (2026-09-13) found there that
+   the pinned publish action refused every wheel `uv build` produces — a failure the
+   real release would otherwise have met at its last step, after the image was
+   pushed and signed.
 
 ## Rehearse before you release
 
@@ -95,9 +103,19 @@ $EDITOR README.md                 # > **Status: `0.2.0`**
 #    one, so run that half too, against the image built below.
 VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 
+# 6. main is protected (0.14): required checks, signed commits, linear history,
+#    enforced for administrators. The prep lands by pull request, and a PR lands by
+#    fast-forwarding main to its head once the five checks pass — GitHub's merge
+#    button would create a merge commit, which linear history refuses.
+git checkout -b release/0.2.0
 git commit -am "chore: release 0.2.0"
-git tag v0.2.0                    # must match pyproject exactly; the workflow rejects a mismatch
-git push origin main --tags
+git push -u origin release/0.2.0
+gh pr create --fill                 # wait for the five checks
+git push origin release/0.2.0:main  # fast-forward; GitHub records the PR as merged
+
+# 7. Rehearse on that exact commit (above), then tag it. The tag is the publish.
+git tag -s v0.2.0 <that commit>   # must match pyproject exactly; the workflow rejects a mismatch
+git push origin v0.2.0
 ```
 
 ### The window between bumping and publishing

@@ -27,17 +27,19 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-12, evening):** built, hardened, and rehearsed; `0.2.0` waits on
-owner actions and nothing else. **Phase 23 Block 2 is done** — the published index,
-five ecosystems offline, the image pull named — and **Block 3 (`valvur doctor`) is
-the next engineering work**, the last before the usability gate.
+**Status (2026-09-13):** **`0.2.0` is published and public** — `pip install valvur`
+works for anyone, the image is on GHCR for both architectures, signed and attested,
+and a stranger's first run measures **about a minute and a half** from nothing to a
+first result. **Phase 23 Block 3 (`valvur doctor`) is the next engineering work**,
+the last before the usability gate, which is now possible.
 
-`0.1.0rc1` is on PyPI. **The GitHub repository and both GHCR packages — `valvur`,
-the image, and `valvur-index`, the daily name index — are still private**, so
-nobody outside this machine can install it, and every `valvur update` anywhere
-walks the registries instead of pulling the index. Phases 19 and 20 are complete. A
-critical review on 2026-09-12 became **Phase 22**, and its first two blocks ran
-*before* `0.2.0` publishes:
+The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
+the daily name index — went public on 2026-09-13, after a pre-public sweep that
+rewrote history to scrub two AWS identifiers (12a.1). `main` is protected: five
+required checks, signed commits, linear history, enforced for administrators — so
+**every change lands by pull request**, fast-forwarded onto `main` once the checks
+pass. Phases 19 and 20 are complete. A critical review on 2026-09-12 became
+**Phase 22**, and its first two blocks ran *before* `0.2.0` published:
 
 - **Block A — the offline existence check. Done, 22.A.1–2 (2026-09-12).** Slopsquat
   detection ran only on `full` because it needed a registry — and `full` sends
@@ -78,7 +80,16 @@ then Checkov isolated and hash-locked, the Checks in one container, per-scanner
 timing, the shim carrying its build hash, and `.kiro/` — the primary client's own
 files — into the AI Artifact Check. Then the gate and `v1.0.0`.
 
-**Block 2 landed the same evening (23.2.1–23.2.4).** `index.yml` walks PyPI, npm,
+**Block 1 closed on 2026-09-13 with `v0.2.0`** — three rehearsals on the public
+repository first. The sixth found that `uv build` writes core metadata 2.5 and the
+pinned publish action's twine refused it: the real release would have failed at its
+last step, after the image was pushed and signed. The TestPyPI upload is the only
+step that runs that check, which is the argument for rehearsing the step that
+"was not really required". The measured first run, and the one defect it found
+(a Python without a CA bundle fails every host-side fetch — a `doctor` check), are
+under 23.1.1.
+
+**Block 2 landed the evening before (23.2.1–23.2.4).** `index.yml` walks PyPI, npm,
 RubyGems, Packagist and crates.io daily and publishes the result to
 `ghcr.io/maverickhq/valvur-index` as a cosign-signed OCI artifact; `valvur update`
 pulls it through the shim's own zero-dependency registry client (`oci.py`) — 34MB,
@@ -93,9 +104,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 96 Python modules, 686 tests, 18 ADRs, 136 requirement IDs, **142 done and 27
-open** across 23 phases — 19 of the 27 are Phase 23, and 8 are Phase 21's owner actions,
-release tail and usability gate. A public corpus of twelve real repositories runs
+Roughly: 96 Python modules, 686 tests, 18 ADRs, 136 requirement IDs, **146 done and 23
+open** across 23 phases — 18 of the 23 are Phase 23, and 5 are the usability gate
+and the `v1.0.0` tail. A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -135,15 +146,15 @@ were introduced by the block before, with tests passing.
   (`valvur.dependency.vulnerabilities-unchecked`) and `inconclusive`, the same
   treatment as the existence gap. `ecosystems.VULNERABILITY_MANIFESTS` records what
   was measured.
-- **The Name Index is published daily and pulled in seconds — once the package is
-  public.** `index.yml` walks the five registries every morning and pushes the
-  result to `ghcr.io/maverickhq/valvur-index` as a cosign-signed OCI artifact; the
-  shim's own registry client (`oci.py`, zero dependencies, anonymous only) pulls it
-  (34MB, 1.7s measured from a local registry) and verifies the signature with
-  `cosign` when installed (23.2.1, ADR-0018 amended). Until the owner makes that
-  package public (23.1.1) every user's `valvur update` says so and walks the
-  registries itself — about seven minutes, 700MB, five and a half of the minutes
-  npm — which is also `--build-index` and what the workflow runs.
+- **The Name Index is published daily and pulled in seconds.** `index.yml` walks
+  the five registries every morning and pushes the result to
+  `ghcr.io/maverickhq/valvur-index` as a cosign-signed OCI artifact; the shim's own
+  registry client (`oci.py`, zero dependencies, anonymous only) pulls it — 34MB,
+  **7.8s from GHCR measured, `signature: verified`** — and verifies the signature
+  with `cosign` when installed (23.2.1, ADR-0018 amended). If the registry cannot
+  be reached, `valvur update` says so and walks the registries itself — about seven
+  minutes, 700MB, five and a half of the minutes npm — which is also
+  `--build-index` and what the workflow runs.
 - **On SELinux-enforcing hosts, valvur refuses to scan until the developer acts.**
   Measured 2026-09-10 on Fedora CoreOS 44, native xfs under `$HOME`: a container may
   not read a `user_home_t` directory, so all three mounts were denied. valvur labels
