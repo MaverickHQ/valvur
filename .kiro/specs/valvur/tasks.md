@@ -4456,11 +4456,31 @@ last.
   the fleet's executor, with a note in the platform docs about Docker Desktop's
   default memory.
 
-- [ ] **23.3.4** No truncation of a failure reason on the MCP surface. `scan_status`
+- [x] **23.3.4** No truncation of a failure reason on the MCP surface. `scan_status`
   cut *"…no package-name index for PyPI, so"* at 80 characters; bound the number of
   lines, never the sentence. And the `DONE` response names the next two moves:
   `explain_finding <fingerprint>` for the top item, and `REMEDIATION.md`'s first
   action — the agent never called `explain_finding` because nothing pointed at it.
+
+  **STATUS 2026-09-13:** ✅ `operations._whole_reason`: every line of a failure
+  reason, the continuation lines indented under the tool's name, and only the
+  count bounded — `REASON_LINES = 6`, then *"… N more line(s) in run.json"*.
+  Reproduced the 22.G.1 case for real (an index that cannot be fetched, via
+  `VALVUR_INDEX_REPOSITORY=registry.invalid/…`): the three-line reason, 24.1's
+  "could not be fetched" prefix included, reads whole on `valvur status`, which is
+  the same operation the MCP tool calls. `operations._next_moves`: after the
+  counts and before the Scanner list, a `Next:` block with `explain_finding
+  <fingerprint> — #rank path:line title` for the highest-ranked **active** Finding
+  (not a suppressed one, not a coverage note — 19.C.1's rule for what makes a
+  status `findings`) and *"REMEDIATION.md, action 1 of N: <heading>"* read from the
+  file's own `## 1.` line so the agent is pointed at exactly what it will find
+  there. Nothing when nothing is active; nothing invented for results an older
+  valvur wrote (no findings.json, no REMEDIATION.md, or one without numbered
+  actions — the second pinned after a mutation survived). The README's agent
+  snippet says *"then follow its `Next:` lines"*. 11 tests in `tests/test_mcp_done.py`;
+  10 mutations, two survived the first round and were pinned. Not changed: the
+  CLI's own *"! tool did not complete:"* line still prints a multi-line reason
+  unindented — the terminal is the second surface, and it was never truncated.
 
 - [ ] **23.3.5** `valvur gate --fail-on high --no-inconclusive`: one exit code from
   `run.json`, replacing the Python heredoc that `ci.yml` and `release.yml` each carry
@@ -4617,7 +4637,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 |
 | 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 |
 | 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 |
-| 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | |
+| 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 |
 | 8 | 23.3.5 | `valvur gate`, `valvur cache` | |
 | 9 | 23.3.3 | `scan_cancel`, `--jobs` | |
 | 10 | 23.3.7 | a scan budget | |

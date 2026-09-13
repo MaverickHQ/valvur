@@ -575,6 +575,8 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    reads `<runtime> stats` throughout a `full` scan of this repository, keeps the
    highest sum over every `valvur-*` container, adds the shim's own peak RSS, and
    fails the build above 2 GiB; the number it measured is printed on every CI run.
+   Its first: **505 MiB** on `ubuntu-latest`, 2026-09-13 — a 451 MiB fleet at the
+   peak (seven containers alive, the largest 253 MiB) and a 54 MiB shim.
    On macOS the same sampler read a 493 MiB fleet peak and a 38 MiB shim on the
    ten-file fixture (2026-09-13), but through Docker Desktop's VM that is the VM's
    view, so the assertion is Linux-only and macOS keeps the hand measurement.*

@@ -273,6 +273,67 @@ def doctor(args: dict) -> str:
     return _doctor.render(checks, workspace)
 
 
+#: How many lines of a failure reason `scan_status` shows. The bound is on LINES,
+#: never on the sentence (23.3.4): the Kiro run read *"…no package-name index for
+#: PyPI, so"* at an 80-character cut, which was the one sentence it needed whole.
+REASON_LINES = 6
+
+
+def _whole_reason(reason: str) -> str:
+    """A failure reason as the Scanner gave it, every sentence intact, continuation
+    lines indented under the tool's name, and only the count of lines bounded."""
+    shown = [line for line in reason.strip().splitlines()] or [""]
+    kept, rest = shown[:REASON_LINES], shown[REASON_LINES:]
+    out = kept[0]
+    for line in kept[1:]:
+        out += "\n         " + line
+    if rest:
+        out += f"\n         … {len(rest)} more line(s) in run.json"
+    return out
+
+
+def _next_moves(workspace: str | None) -> list[str]:
+    """The next two moves after a scan: the top active Finding, ready to hand to
+    `explain_finding`, and REMEDIATION.md's first action (23.3.4). Nothing when
+    nothing is active; nothing invented for results an older valvur wrote."""
+    from .coverage import NOTE_RULES
+
+    try:
+        findings = _load(workspace)["findings"]
+    except (FileNotFoundError, ValueError, KeyError):
+        return []
+    active = [f for f in findings if not f.get("suppressed") and f.get("rule") not in NOTE_RULES]
+    if not active:
+        return []
+    top = min(active, key=lambda f: f.get("rank") or 10**9)
+    where = f"{top['path']}:{top['line']}" if top.get("line") else top["path"]
+    moves = ["", "Next:",
+             f"  explain_finding {top['fingerprint']} — #{top.get('rank', '?')} {where} "
+             f"{top['title']}"]
+    action = _first_action(_results(workspace) / "REMEDIATION.md")
+    if action:
+        moves.append(f"  REMEDIATION.md, {action}")
+    return moves
+
+
+def _first_action(path: Path) -> str:
+    """`action 1 of N: <heading>` from REMEDIATION.md's own text, so the agent is
+    pointed at exactly the line it will read there; empty if the file has none."""
+    import re
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    total = re.search(r"\*\*(\d+) action\(s\)\*\*", text)
+    first = re.search(r"^## 1\. (.+)$", text, re.M)
+    if not first:
+        return ""
+    heading = first.group(1).replace("**", "").strip()
+    count = f" of {total.group(1)}" if total else ""
+    return f"action 1{count}: {heading}"
+
+
 def scan_status(args: dict) -> str:
     workspace = Path(args.get("workspace") or ".").resolve()
 
@@ -343,10 +404,13 @@ def scan_status(args: dict) -> str:
             "from before 22.D.4; rescan"
         )
         lines.append(f"          ^ {reason}")
+    # What to do first, before the list of what ran (23.3.4): the agent never called
+    # `explain_finding` in 22.G.1 because nothing pointed at it.
+    lines += _next_moves(args.get("workspace"))
     lines += ["", "Scanners:"]
     timed: list[tuple[float, str]] = []
     for scanner in data.get("scanners", []):
-        mark = "ok" if scanner["ok"] else f"FAILED — {scanner['reason'][:80]}"
+        mark = "ok" if scanner["ok"] else "FAILED — " + _whole_reason(scanner["reason"])
         # Each Scanner's own time (23.3.2); a run.json from before it has none, and
         # no number is invented for it.
         seconds = scanner.get("duration_s")

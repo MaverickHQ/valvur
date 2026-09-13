@@ -103,8 +103,9 @@ Add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent uses what it
 ```markdown
 ## Security scanning
 This project uses valvur. Scan with the `valvur` MCP tools if you have them:
-call `scan`, then `scan_status` until it reports DONE; if it reports FAILED,
-call `doctor` and relay what it says. Otherwise run `valvur scan`. Results
+call `scan`, then `scan_status` until it reports DONE, then follow its `Next:`
+lines; if it reports FAILED, call `doctor` and relay what it says. Otherwise
+run `valvur scan`. Results
 appear in `.security-scan/`: read SUMMARY.md, then REMEDIATION.md. Never
 commit `.security-scan/`. Never add suppressions without explicit human
 approval. Propose fixes for approval — do not apply them and rescan

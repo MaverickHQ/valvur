@@ -29,8 +29,18 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **`scan_status` names the next two moves.** After a scan with active findings:
+  `explain_finding <fingerprint>` for the top-ranked one, with its location and
+  title, and `REMEDIATION.md`'s first action (`action 1 of N: …`). An agent's
+  first scan (22.G.1) never called `explain_finding` because nothing pointed at it.
+
 ### Changed
 
+- **A failure reason on `scan_status` is never cut mid-sentence.** It was cut at
+  80 characters — *"…no package-name index for PyPI, so"* — which was the one
+  sentence the agent needed whole. Now every line of the reason is shown, indented
+  under the Scanner's name, and only the number of lines is bounded (six, then
+  "… N more line(s) in run.json").
 - **A first `scan` fetches what is absent, and says so.** Measured against `0.2.0`
   over MCP with an empty cache, the first `scan` finished `complete: False` — Trivy
   and the dependency-reality Check both failed, each naming `valvur update`, which
