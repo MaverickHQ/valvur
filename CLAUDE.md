@@ -29,9 +29,15 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 
 **Status (2026-09-13):** **`0.2.0` is published and public** — `pip install valvur`
 works for anyone, the image is on GHCR for both architectures, signed and attested,
-and a stranger's first run measures **about a minute and a half** from nothing to a
-first result. **Phase 23 Block 3 (`valvur doctor`) is the next engineering work**,
-the last before the usability gate, which is now possible.
+and a stranger's CLI first run measures **about a minute and a half** from nothing
+to a first result. An audit of the requirements against that release the same
+morning became **Phase 24**, whose head holds **the one ordered list of every open
+task** — 27 of them — and whose first engineering item is the audit's worst finding:
+over MCP, the primary path, a stranger's first `scan` finishes *incomplete* because
+the database and index are absent and the only fix named is a CLI command the agent
+cannot run (24.1). **That, then `valvur doctor`, is the next work.** When "what is
+next" is asked, that list is the answer; the sequencing diagrams in Phases 21 and 23
+are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -80,6 +86,14 @@ then Checkov isolated and hash-locked, the Checks in one container, per-scanner
 timing, the shim carrying its build hash, and `.kiro/` — the primary client's own
 files — into the AI Artifact Check. Then the gate and `v1.0.0`.
 
+**Phase 24 was written the same morning `0.2.0` shipped**, from an audit of the
+requirements against the published release — three measurements taken against the
+PyPI wheel and the GHCR image rather than the tree, and a pass over all 136
+requirement IDs asking *met?* rather than *cited?*. Its head is the single ordered
+list of everything open; its four tasks are the audit's findings. It also moved
+Checkov's hash-locking (23.4.1) ahead of the usability gate: it is the one input we
+sign with our identity that is not pinned by hash.
+
 **Block 1 closed on 2026-09-13 with `v0.2.0`** — three rehearsals on the public
 repository first. The sixth found that `uv build` writes core metadata 2.5 and the
 pinned publish action's twine refused it: the real release would have failed at its
@@ -104,9 +118,10 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 96 Python modules, 686 tests, 18 ADRs, 136 requirement IDs, **146 done and 23
-open** across 23 phases — 18 of the 23 are Phase 23, and 5 are the usability gate
-and the `v1.0.0` tail. A public corpus of twelve real repositories runs
+Roughly: 96 Python modules, 686 tests, 18 ADRs, 136 requirement IDs, **146 done and 27
+open** across 24 phases — 18 of the 27 are Phase 23, 4 are Phase 24's audit, and 5
+are the usability gate and the `v1.0.0` tail. Three of the 27 are the owner's (yank
+`0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -117,6 +132,25 @@ a real enforcing SELinux host, and a real agent driving the MCP surface — and 
 were introduced by the block before, with tests passing.
 
 **Known gaps, and one deliberate friction, worth knowing before proposing anything:**
+
+- **The primary path's first run is incomplete (24.1, measured 2026-09-13 against
+  the published release).** Over MCP with an empty cache, `scan` finishes
+  `complete: False`: Trivy and the dependency-reality Check both fail, each saying
+  *"Fetch it once with: `valvur update`"* — which the agent has no tool for and the
+  README's snippet never mentions. P1 says one command; the primary path needs two.
+  14.2's rule that valvur never updates by itself was about *staleness*; absence is
+  a different case, and 23.2.4 already fetches the absent image from inside `scan`.
+  The fix is the same move for the database and the index, announced on
+  `scan_status`. Until it lands, an agent's first scan of a fresh install fails.
+- **The LLM-output-to-sink rules are a claim the corpus does not support (24.2,
+  F3.10).** Four Opengrep pattern rules, zero hits on twelve real repositories
+  including an LLM tool. The README still lists them under claim 2; §10 says a
+  coverage claim we do not hold is prohibited, so the README is softened first
+  (24.2) and the rules are made real with taint mode or retired later (23.5.3).
+- **Three requirements the traceability ratchet cannot see through (24.3).** It
+  proves an ID is *cited*, not *met*. F1.10 (AWS) has never been run; N1.1 (60s on
+  ≤50k lines) has no measurement at that size; N1.4 (2GB) was measured once by hand.
+  Each gets the explicit treatment F7.3 got: retired, amended, or given evidence.
 
 - **Slopsquat detection covers Python, npm, Ruby, PHP and Rust offline, JVM and Go
   on `full`, and nothing else.** `requirements*.txt` and `pyproject.toml` (PEP 621

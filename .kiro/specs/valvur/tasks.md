@@ -3447,7 +3447,9 @@ C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS  — both done
 >
 > **2026-09-13: A and D1 are done — `0.2.0` is published** (23.1.1 has the account).
 > What remains: Phase 23 Block 3, then B (the usability gate — now possible: there
-> is something to install), then D2.
+> is something to install), then D2. **Superseded the same day by the one list at
+> the head of [Phase 24](#phase-24--the-audit-and-one-list-of-everything-that-remains)**,
+> which orders every open task; this diagram is history.
 
 ### A — Owner actions
 
@@ -4123,6 +4125,11 @@ Block 5  the primary client's own files ─┘
 12b.1–3  → v1.0.0
 ```
 
+> **Order superseded 2026-09-13.** The one list at the head of
+> [Phase 24](#phase-24--the-audit-and-one-list-of-everything-that-remains) now orders
+> every open task, this phase's included, and moved 23.4.1 ahead of the gate; the
+> diagram above is history.
+>
 > **Where this stands on 2026-09-12, evening.** Block 2 is complete — the four
 > tasks below carry their notes — and was run out of order with Block 1 because it
 > needs nothing from the owner to *build*, only to *reach users*. It kept the
@@ -4486,6 +4493,117 @@ exists for agent files can see the primary client's own.
 **Commit:** *(one per block, as before)*
 
 ---
+
+## Phase 24 — The audit, and one list of everything that remains
+
+**Goal:** close the gap between what the requirements say and what the published
+`0.2.0` does, found by auditing the one against the other the morning it shipped —
+and replace the sequencing notes scattered across Phases 21 and 23 with **one ordered
+list of every open task**, so "what is next" has exactly one answer.
+
+> **Added 2026-09-13, from an audit of the requirements against the published
+> release.** Three measurements were taken against `valvur==0.2.0` from PyPI and the
+> image from GHCR, not the tree. **(1)** A stranger's MCP first run — `scan` over stdio
+> with an empty cache, as the README's snippet instructs — finished `complete: False`
+> with Trivy and dependency-reality both failed, each saying *"Fetch it once with:
+> `valvur update`"*: a shell command the agent has no tool for, and one the snippet
+> never mentions. P1 says *one command*; the primary path needs two and hides the
+> second. **(2)** `uvx --from valvur valvur-mcp` — the README's primary install —
+> answers `serverInfo.version: 0.2.0`; that path is real for the first time.
+> **(3)** The CLI first run: `pip install` 1.7s, `valvur update` 53s, first scan 33s.
+> The requirements audit found three claims the traceability ratchet cannot see
+> through, because it proves an ID is *cited*, not *met*: F3.10 (four Opengrep rules
+> that fired zero times on twelve real repositories, still listed as a feature in
+> the README), F1.10 (never run on AWS), and N1.1/N1.4 (evidence thin: no timing on
+> a 50k-line repository, memory measured once by hand). And `0.1.0rc1`, the shim
+> that looks for `valvur:dev`, is still installable by pin.
+
+### The list — every open task, in the order it should be done
+
+**This list is authoritative for order.** Each task's own text remains authoritative
+for what it means. The diagrams in Phases 21 and 23 are history; where they disagree
+with this list, this list wins. Items marked *owner* need a person; everything else
+is engineering and proceeds in this order. The usability gate (13–14) needs a
+stranger and a calendar, so it is arranged while 1–12 are built and its findings
+(15) are acted on before Blocks 4 and 5.
+
+| # | task | what | who |
+|---|---|---|---|
+| 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click |
+| 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | |
+| 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | |
+| 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | |
+| 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | |
+| 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | after 23.3.2 |
+| 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | |
+| 8 | 23.3.5 | `valvur gate`, `valvur cache` | |
+| 9 | 23.3.3 | `scan_cancel`, `--jobs` | |
+| 10 | 23.3.7 | a scan budget | |
+| 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | |
+| 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | |
+| 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger |
+| 14 | 10.1.2 | they install it the way the README says | with 13 |
+| 15 | [12b.1](#12b--release) | act on what the gate found | |
+| 16 | 23.4.2 | the three Checks in one container | |
+| 17 | 23.4.3 | `buildx bake`, native arm64 | |
+| 18 | 23.4.4 | the shim carries its build hash | |
+| 19 | 23.4.5 | measure osv-scanner's marginal value | |
+| 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 |
+| 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | |
+| 22 | 23.5.2 | `tools/list` snapshot | |
+| 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good |
+| 24 | 23.5.4 | npm adoption on `full` | |
+| 25 | 23.5.5 | coverage statements counted active | |
+| 26 | 12b.2 | the constraint suite against the release artifact | |
+| 27 | 12b.3 | `v1.0.0` | **owner** |
+
+### The audit's tasks
+
+- [ ] **24.1** **`scan` fetches what is absent on a first run, and says so.** Measured
+  2026-09-13 against the published `0.2.0`: over MCP, with an empty cache, the first
+  `scan` finishes incomplete — Trivy and the dependency-reality Check fail, each
+  naming `valvur update`, which the agent cannot run and the README's snippet never
+  mentions. Task 14.2 decided valvur does not update by itself, and its three
+  reasons were about **staleness**: a hostile download inside a scan the user asked
+  to be fast, the Profiles diverging, and refreshing on the user's behalf being the
+  same move as fixing on their behalf. **Absence is a different case** — without the
+  database and the index there is no scan at all, and 23.2.4 already crossed this
+  line for the image, with the pull announced on `scan_status`. So: when the
+  database or the index is *absent*, `scan` fetches it first and reports it the same
+  way (*"fetching the vulnerability database (118MB) — the first run only"*), on the
+  CLI and over MCP; when either is *stale*, nothing changes — the warning stands and
+  the user decides. The README's agent snippet then needs no `update` line, and
+  `valvur update` remains the way to refresh. Tested the way 23.2.4 was: empty
+  cache, `valvur-mcp` over stdio, read `scan_status`. **P1 becomes true on the
+  primary path.**
+
+- [ ] **24.2** **The README stops claiming the LLM-output-to-sink rules as a
+  feature.** Claim 2's third bullet lists *"model output reaching `eval`, `exec`, a
+  shell, SQL or `innerHTML`"*; measured on the corpus (22.E.2) those four rules fired
+  zero times on twelve real repositories, one of them an LLM tool. That is a
+  coverage claim we do not hold (§10). Until 23.5.3 either makes them real with
+  taint mode or retires them, the README and `docs/EVALUATING.md` say what is true:
+  the rules exist, they are pattern rules, and on real code they have not fired.
+  Ten minutes, and it should not wait for the gate.
+
+- [ ] **24.3** **Requirements the ratchet cannot see through.** `check_traceability`
+  proves every ID is *cited*; F3.1's own note records that a requirement was cited
+  by code implementing a tenth of it. Three need the same explicit treatment F7.3
+  got: **F1.10** (identical image on AWS) has never been run there and CLAUDE.md
+  already says so — retire it, or defer it with the condition that would revive it;
+  **N1.1** (`offline` under 60s on ≤50k lines) has 33s on a twelve-file fixture and
+  7–24s on small real projects, and no measurement on a repository of that size —
+  23.3.2's `duration_s` on the corpus (ripgrep is the candidate) supplies it, and the
+  requirement is then either met with the number or amended; **N1.4** (2GB) was
+  measured once by hand at 344MiB and never asserted — record the measurement in
+  the requirement and assert it in the e2e suite on Linux, where `docker stats` can.
+
+- [ ] **24.4** **Yank `0.1.0rc1` on PyPI.** *Owner action.* The published rc shim has
+  `IMAGE = "valvur:dev"` hard-coded (22.G.1) and can never have worked for anyone;
+  it is still installable by anyone who pins it. A yanked release stays for people
+  who already pinned and stops resolvers choosing it. pypi.org → `valvur` → Manage →
+  release `0.1.0rc1` → *Yank*, with the reason *"looks for a local development
+  image; use 0.2.0"*.
 
 ## Traceability
 
