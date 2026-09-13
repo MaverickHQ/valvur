@@ -57,7 +57,7 @@ what left the machine — on `offline`, the word `nothing`.
   (tag-pinned actions, mutable git refs) that fire on most real repositories, and
   four for model output reaching `eval`, `exec`, a shell or `innerHTML` — taint rules
   whose sources are a completion call from the OpenAI, Anthropic or Gemini SDK, plus
-  one for string-built SQL. Those four fire on our fixture and, measured on eleven
+  one for string-built SQL. Those four fire on our fixture and, measured on twelve
   real repositories including an LLM tool, **have never fired on real code**. They
   ship ranked `low`; the checks above carry this section.
 

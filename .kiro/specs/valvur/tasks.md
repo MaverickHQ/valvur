@@ -4616,7 +4616,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 |
 | 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 |
 | 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 |
-| 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | after 23.3.2 |
+| 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 |
 | 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | |
 | 8 | 23.3.5 | `valvur gate`, `valvur cache` | |
 | 9 | 23.3.3 | `scan_cancel`, `--jobs` | |
@@ -4736,7 +4736,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
   rules, the Scanners or the tests changed: this was a documentation defect, and
   the constraint suite has no test for prose.
 
-- [ ] **24.3** **Requirements the ratchet cannot see through.** `check_traceability`
+- [x] **24.3** **Requirements the ratchet cannot see through.** `check_traceability`
   proves every ID is *cited*; F3.1's own note records that a requirement was cited
   by code implementing a tenth of it. Three need the same explicit treatment F7.3
   got: **F1.10** (identical image on AWS) has never been run there and CLAUDE.md
@@ -4747,6 +4747,41 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
   requirement is then either met with the number or amended; **N1.4** (2GB) was
   measured once by hand at 344MiB and never asserted — record the measurement in
   the requirement and assert it in the e2e suite on Linux, where `docker stats` can.
+
+  **STATUS 2026-09-13:** ✅ **F1.10** split into the half that holds and the half
+  that was never exercised: *no cloud-specific code path* is the requirement now,
+  asserted on every commit by `test_there_is_no_cloud_specific_code_path`; the
+  *targets AWS* clause is struck through and **deferred**, revived only by a
+  measured run on a host with a Docker socket (ECS-on-EC2, EC2 — not Fargate,
+  ADR-0001), and no document may say valvur runs on AWS until then. **N1.1**:
+  the corpus was dispatched on `main` with 23.3.2's timing (run 34764187516,
+  `ubuntu-latest`) — every application repository from 22k to 100k lines completes
+  `offline` in **14–18s, flat with size** (cobra 44k 14.4s, flask 47.5k 16.1s, llm
+  53k 15.2s, gson 64k 16.7s, ripgrep 80k 17.6s, fastify 100k 16.1s), because the
+  scan is Checkov's ~15s start-up and every other Scanner is 1–4s; and the one
+  infrastructure repository, `terraform-aws-vpc`, took **88.2s, Checkov 87.8s** —
+  so the 60s claim is *met with three times to spare on application code* and *not
+  held on IaC-heavy repositories*, and the requirement now says both, names the
+  machine class (this laptop through Docker Desktop read 60–94s on the same
+  workspace under load, a container start being 10–16s there against 2–3s on
+  Linux), and states that the data is present. **N1.2** annotated beside it: `full`
+  is `offline` plus 0–1s everywhere. **N1.4**: the self-skipping test is replaced
+  by a real one — `_FleetMemory` samples `<runtime> stats` in a thread throughout
+  a `full` scan of this repository, keeps the highest sum over every `valvur-*`
+  container, adds the shim's `ru_maxrss`, and fails above 2 GiB; Linux-only, where
+  the accounting is the kernel's (through Docker Desktop's VM the sampler works —
+  151 samples, fleet peak 493 MiB, shim 38 MiB on the ten-file fixture — but
+  describes the VM's view, so macOS keeps the hand measurement); `ci.yml` runs e2e
+  with `-rP` so the passing test's one printed number is in every CI log, and
+  `_parse_mem_usage` reads docker's `MiB` and podman's `MB` alike. The committed
+  `tests/corpus/report.json` is the run's `full` report, twelve repositories with
+  `scan_s` and `duration_s` per Scanner — and the four LLM rules are now zero on
+  twelve, so 24.2's "eleven" became "twelve" where it was written. Two findings
+  worth more than the task: **Checkov runs on every real repository** (they all
+  carry a workflow file, so applicability says yes) and is 85–95% of every scan on
+  Linux — 23.4.6's decision has its numbers; and **a container start on Docker
+  Desktop costs five times what it does on Linux**, which is most of what a Mac
+  user waits for and the whole of 23.4.2's case.
 
 - [ ] **24.4** **Yank `0.1.0rc1` on PyPI.** *Owner action.* The published rc shim has
   `IMAGE = "valvur:dev"` hard-coded (22.G.1) and can never have worked for anyone;

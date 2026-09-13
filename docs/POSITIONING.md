@@ -100,8 +100,8 @@ model — the SaaS answer to an AI-code problem still ships your code offsite.
 ### A measured limit on Claim 2, recorded 2026-09-13
 
 **"LLM-output-to-sink taint" is a rule set, not a demonstrated capability.** Four
-Opengrep rules ship for it. Measured on eleven real repositories, one of them an LLM
-tool (task 22.E.2), they fired zero times — because no repository in the corpus
+Opengrep rules ship for it. Measured on twelve real repositories, one of them an LLM
+tool (task 22.E.2; twelve since the corpus run of 2026-09-13), they fired zero times — because no repository in the corpus
 executes model output, which makes the result *unmeasured* rather than a pass or a
 fail. The rules' sources are three SDK call shapes; anything reaching a sink through
 LangChain, litellm, ollama, or a helper that unwraps `.choices[0].message.content` is

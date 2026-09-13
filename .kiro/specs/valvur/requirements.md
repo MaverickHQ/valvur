@@ -87,8 +87,21 @@ entirely on my machine, so that my source code never reaches a third party.
 8. F1.8 — valvur SHALL emit no telemetry under any **Profile**.
 9. F1.9 — IF the host shim's major version is incompatible with the image's, THEN
    valvur SHALL refuse to run and SHALL state both versions.
-10. F1.10 — WHEN a **Scan Run** targets AWS, valvur SHALL use the identical image
-    with no AWS-specific code path.
+10. F1.10 — valvur SHALL have no cloud-specific code path: one image and one shim,
+    behaving identically wherever a container runtime exists. **The AWS half is
+    DEFERRED 2026-09-13 (task 24.3), never exercised.** ~~WHEN a **Scan Run**
+    targets AWS, valvur SHALL use the identical image with no AWS-specific code
+    path.~~ The requirement had two halves and evidence for one. *No cloud-specific
+    code path* is asserted on every commit (`test_there_is_no_cloud_specific_code_path`
+    greps the source for cloud SDKs and platform branches) and is the property the
+    original was reaching for. *Targets AWS* has never been run there: ADR-0001's
+    shim launches containers, Fargate exposes no Docker socket (12a.4 corrected
+    CLAUDE.md's claim to that effect), and nobody has run it on ECS-on-EC2 or a plain
+    EC2 host, which is where it would work. The condition that revives the deferred
+    half is a measured run on such a host, recorded here with the date and the
+    numbers; until then the traceability ratchet counts the ID as cited by the
+    test of the half that holds, and no document may say valvur runs on AWS. The
+    ID stays; nothing else may reuse it.
 
 11. F1.11 — WHEN a **Scan Run** is interrupted, valvur SHALL stop the **Scanner**
     containers it started, SHALL write no **Results Folder**, and SHALL NOT report the
@@ -206,7 +219,7 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
     `rules/llm-output-sinks.yaml`, three in taint mode with the OpenAI, Anthropic
     and Gemini SDK calls as sources, one a plain string-built-SQL pattern. They fire
     on the fixture
-    and have fired zero times on eleven real repositories including an LLM tool
+    and have fired zero times on twelve real repositories including an LLM tool
     (22.E.2) — no repository there executes model output, so the requirement is
     cited and exercised, and whether it is* met *on real code is unmeasured. The
     README and POSITIONING.md no longer present it as a held capability; 23.5.3
@@ -527,11 +540,44 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 
 ### N1 — Performance
 1. N1.1 — `offline` **Profile** SHALL complete in under 60 seconds on a repository of
-   ≤50k lines.
-2. N1.2 — `full` **Profile** SHALL complete in under 5 minutes on the same.
+   ≤50k lines of application code, on a 2-vCPU Linux host with a native container
+   runtime, with the image and the data already present. *Amended 2026-09-13 (task
+   24.3), with the evidence the original lacked.* The requirement was cited by an
+   e2e test that scans this repository (38,697 lines on 2026-09-01: 23.4s) and by
+   nothing at the size it names. **Measured on the public corpus with 23.3.2's
+   per-Scanner timing, on GitHub's `ubuntu-latest` runner, 2026-09-13 (run
+   34764187516):** every application repository — cobra 44k lines 14.4s, flask
+   47.5k 16.1s, llm 53k 15.2s, gson 64k 16.7s, ripgrep 80k 17.6s, fastify 100k
+   16.1s, and the six smaller ones 14–17s — completes in **14–18 seconds, flat with
+   size**, because the scan is Checkov's ~15s fixed start-up and every other
+   Scanner takes 1–4s. Three amendments follow. **(a)** *Application code*: the one
+   corpus repository that is infrastructure, `terraform-aws-vpc` (22k lines), took
+   **88.2s — Checkov analysing it for 87.8s** — so the 60s claim is not held for
+   IaC-heavy repositories and this text says so; every run names its slowest
+   Scanner (23.3.2), and 23.4.6 decides Checkov's place. **(b)** *The host*: the
+   same 3,404-file workspace that meets 60s on the runner read 60.6s, 75s and 94s
+   on an Apple-silicon laptop through Docker Desktop at load 8–13, where a container
+   start costs 10–16s against 2–3s on Linux; the requirement names the machine
+   class it is met on rather than implying every laptop. **(c)** *Data present*: a
+   first run's fetches are stated separately (24.1, `docs/EVALUATING.md`).
+2. N1.2 — `full` **Profile** SHALL complete in under 5 minutes on the same. *Note
+   2026-09-13 (task 24.3): measured beside N1.1 on the same run — `full` is `offline`
+   plus 0–1s on every corpus repository (osv-scanner 0.9–1.9s), 15–17s on
+   application code and 88.2s on the Terraform module. Met with an order of
+   magnitude to spare.*
 3. N1.3 — `SUMMARY.md` SHALL be readable within a 200k-token context alongside
    `REMEDIATION.md`.
-4. N1.4 — Memory use SHALL remain under 2 GB for the `full` **Profile**.
+4. N1.4 — Memory use SHALL remain under 2 GB for the `full` **Profile** — the whole
+   fleet of Scanner containers at once, plus the shim. *Amended 2026-09-13 (task
+   24.3): measured by hand at 344 MiB peak container usage on 2026-09-01 and never
+   asserted — the test that cited this ID skipped itself. Now asserted in the e2e
+   suite on Linux (`test_a_full_scan_stays_within_its_memory_budget`): a sampler
+   reads `<runtime> stats` throughout a `full` scan of this repository, keeps the
+   highest sum over every `valvur-*` container, adds the shim's own peak RSS, and
+   fails the build above 2 GiB; the number it measured is printed on every CI run.
+   On macOS the same sampler read a 493 MiB fleet peak and a 38 MiB shim on the
+   ten-file fixture (2026-09-13), but through Docker Desktop's VM that is the VM's
+   view, so the assertion is Linux-only and macOS keeps the hand measurement.*
 
 ### N2 — Security
 1. N2.1 — The `offline` **Profile** SHALL make no network connection, verified by an

@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 23 of them now — and whose first engineering item was the audit's worst
+task** — 22 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -47,8 +47,10 @@ client configuration — one line each with the fix, exit 1 if a scan would fail
 same report as a `doctor` MCP tool that a FAILED `scan_status` now names. **Then
 23.3.2**: `duration_s` on every Scanner, on every surface — which measured Checkov
 at 41–59s and the three Checks at 10–16s *each* for millisecond work, the numbers
-23.4.6 and 23.4.2 were waiting for. **Next: 24.3 (F1.10, N1.1, N1.4 with evidence),
-then 23.3.4.** When "what is next" is asked, that list is the answer; the
+23.4.6 and 23.4.2 were waiting for. **Then 24.3**: the three requirements the ratchet could not see through, given
+evidence — N1.1 measured on the corpus on Linux at 14–18s for every application
+repository and 88s for a Terraform module, and amended to say both. **Next:
+23.3.4 (no truncation over MCP; DONE names the next two moves), then 23.3.5.** When "what is next" is asked, that list is the answer; the
 sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
@@ -132,9 +134,10 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 97 Python modules, 751 tests, 18 ADRs, 136 requirement IDs, **150 done and 23
-open** across 24 phases — 16 of the 23 are Phase 23, 2 are Phase 24's audit, and 5
-are the usability gate and the `v1.0.0` tail. Three of the 23 are the owner's (yank
+Roughly: 97 Python modules, 752 tests, 18 ADRs, 136 requirement IDs, **151 done and 22
+open** across 24 phases — 16 of the 22 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 22
+are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -165,17 +168,26 @@ were introduced by the block before, with tests passing.
 - **The LLM-output-to-sink rules are not a held claim, and the docs now say so
   (24.2, closed 2026-09-13; F3.10 annotated).** Four Opengrep rules — three in taint
   mode with the OpenAI, Anthropic and Gemini SDK calls as their only sources, one a
-  plain string-built-SQL pattern — zero hits on **eleven** real repositories
-  including an LLM tool (the last corpus run was eleven; the twelfth repository has
-  not been scanned by it yet, and the task text said twelve). No corpus repository
+  plain string-built-SQL pattern — zero hits on **twelve** real repositories
+  including an LLM tool (eleven when 24.2 was written; the corpus run of
+  2026-09-13 scanned the twelfth with the same result). No corpus repository
   executes model output, so the zero is *unmeasured*, not a miss. The README lists
   the rules with what they match and that they have never fired on real code; the
   section is carried by the Checks; `POSITIONING.md` records it as a measured limit
   on Claim 2. 23.5.3 widens the sources and measures, or retires the word.
-- **Three requirements the traceability ratchet cannot see through (24.3).** It
-  proves an ID is *cited*, not *met*. F1.10 (AWS) has never been run; N1.1 (60s on
-  ≤50k lines) has no measurement at that size; N1.4 (2GB) was measured once by hand.
-  Each gets the explicit treatment F7.3 got: retired, amended, or given evidence.
+- **Three requirements the ratchet could not see through now have evidence (24.3,
+  closed 2026-09-13).** F1.10's AWS half is deferred with the condition that
+  revives it (a measured run on a host with a Docker socket); the no-cloud-branch
+  half is asserted. N1.1 is measured on the corpus on GitHub's Linux runner —
+  **14–18s on every application repository from 22k to 100k lines, flat with
+  size**, and **88s on a Terraform module** (Checkov analysing it), which the
+  requirement now states as an exception rather than hides; it also names the
+  machine class, because the same workspace read 60–94s on a loaded laptop through
+  Docker Desktop, where a container start costs 10–16s against 2–3s on Linux. N1.4
+  is asserted on Linux CI by sampling `docker stats` through a `full` scan (344 MiB
+  by hand; the CI number is printed on every run). What the numbers also say:
+  Checkov runs on every real repository (they all carry a workflow file) and is
+  85–95% of every scan — 23.4.6's decision, with numbers.
 
 - **Slopsquat detection covers Python, npm, Ruby, PHP and Rust offline, JVM and Go
   on `full`, and nothing else.** `requirements*.txt` and `pyproject.toml` (PEP 621

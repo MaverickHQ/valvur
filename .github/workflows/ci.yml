@@ -93,7 +93,9 @@ jobs:
         # (task 12a.1). Every container test would fail on the pull.
         env:
           VALVUR_IMAGE: valvur:dev
-        run: uv run pytest -q -m e2e
+        # -rP shows the output of tests that PASSED and printed: the N1.4 memory
+        # measurement (24.3) is one number a passing run must still leave in the log.
+        run: uv run pytest -q -m e2e -rP
       - name: Runtime parity actually ran on both runtimes
         # The parity tests skip when a runtime has no local image. That is right
         # locally and wrong here: docker and podman both have it, so a skip means

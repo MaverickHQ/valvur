@@ -579,6 +579,14 @@ def test_the_host_scratch_is_removed_after_a_scan(mountable_tmp):
 #   full     25.2s   (N1.2 budget: 300s)
 #   peak container memory  344 MiB   (N1.4 budget: 2 GB)
 #
+# And 2026-09-13 (task 24.3) on the public corpus, on GitHub's ubuntu-latest, with
+# 23.3.2's per-Scanner timing: 14-18s offline on every application repository from
+# 22k to 100k lines — flat with size, because it is Checkov's ~15s start-up and
+# every other Scanner is 1-4s — and 88s on a 22k-line Terraform module, which is
+# Checkov analysing it. N1.1 was amended to say both. On this laptop through Docker
+# Desktop the same workspace read 60-94s under load, which is why the requirement
+# names the machine class; CI is the arbiter of this test.
+#
 # The budgets are asserted rather than the measurements: a test pinned to 23.4s
 # fails on a slower machine while telling nobody anything useful. A failure here
 # means the REQUIREMENT is at risk, which is the only reason to have it.
@@ -642,16 +650,111 @@ def test_the_full_profile_meets_its_time_budget(mountable_tmp):
     )
 
 
-@pytest.mark.skip(
-    reason="Needs Linux. N1.4 (2 GB) was measured by hand at 344 MiB peak container "
-    "usage on 2026-09-01, but asserting it continuously needs cgroup accounting the "
-    "container runtime exposes properly only on Linux; sampling `docker stats` from "
-    "a test races the scan and reports whatever it happened to catch. Enable in CI "
-    "with 11.7, where the runtime is native."
+# N1.4 — 2 GB, for the whole fleet together plus the shim. Measured by hand at
+# 344 MiB on 2026-09-01 and never asserted until task 24.3: the requirement was
+# cited by a test that skipped itself. Now sampled from `<runtime> stats` while a
+# `full` scan runs — on Linux, where the runtime's cgroup accounting is native;
+# through Docker Desktop's VM the same numbers are reported but describe the VM's
+# view, so macOS keeps the hand measurement and the skip says so.
+N1_4_BYTES = 2 * 1024**3
+
+_UNITS = {"b": 1, "kb": 1000, "mb": 1000**2, "gb": 1000**3,
+          "kib": 1024, "mib": 1024**2, "gib": 1024**3}
+
+
+def _parse_mem_usage(text: str) -> int:
+    """The bytes in use from a `stats` MemUsage cell: docker prints `123.4MiB /
+    15.6GiB`, podman `123.4MB / 15.6GB`. The first half is the usage."""
+    import re
+
+    used = text.split("/")[0].strip()
+    match = re.fullmatch(r"([0-9.]+)\s*([A-Za-z]+)", used)
+    if not match:
+        raise ValueError(f"unrecognised memory usage: {text!r}")
+    return int(float(match.group(1)) * _UNITS[match.group(2).lower()])
+
+
+class _FleetMemory:
+    """Samples every valvur container's memory while a scan runs and keeps the
+    highest sum seen. A sample is one `stats --no-stream`, about a second."""
+
+    def __init__(self, runtime: str):
+        self.runtime = runtime
+        self.peak = 0
+        self.peak_seen = ""
+        self.samples = 0
+        self._stop = False
+
+    def _sample(self) -> None:
+        proc = subprocess.run(
+            [self.runtime, "stats", "--no-stream", "--format", "{{.Name}}\t{{.MemUsage}}"],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        if proc.returncode != 0:
+            return
+        fleet = {}
+        for line in proc.stdout.splitlines():
+            name, _, usage = line.partition("\t")
+            if name.startswith("valvur-") and usage:
+                fleet[name] = _parse_mem_usage(usage)
+        self.samples += 1
+        if sum(fleet.values()) > self.peak:
+            self.peak = sum(fleet.values())
+            self.peak_seen = ", ".join(f"{n} {b // 2**20}MiB" for n, b in sorted(fleet.items()))
+
+    def run(self) -> None:
+        while not self._stop:
+            self._sample()
+
+    def stop(self) -> None:
+        self._stop = True
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    __import__("platform").system() != "Linux",
+    reason="N1.4 is asserted on Linux (CI), where the runtime's memory accounting is "
+    "the kernel's own. Measured by hand on macOS at 344 MiB on 2026-09-01.",
 )
-def test_a_scan_stays_within_its_memory_budget():
-    """N1.4 — 2 GB. Measured 344 MiB; unasserted from macOS."""
-    raise AssertionError("must be enabled in CI on Linux")
+def test_a_full_scan_stays_within_its_memory_budget(mountable_tmp):
+    """N1.4 — 2 GB: every container of the fleet at once, plus the shim itself."""
+    import os
+    import resource
+    import threading
+
+    from valvur.runner import ContainerRunner, detect_runtime
+
+    ws = _sizeable_workspace(mountable_tmp)
+    fleet = _FleetMemory(detect_runtime())
+    sampler = threading.Thread(target=fleet.run, daemon=True)
+    sampler.start()
+    try:
+        run = scan(ws, runner=ContainerRunner(), profile=profiles.FULL)
+    finally:
+        fleet.stop()
+        sampler.join(timeout=90)
+    shim = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024   # KiB on Linux
+    peak = fleet.peak + shim
+    report = (f"N1.4: peak {peak / 2**20:.0f} MiB of a {N1_4_BYTES / 2**30:.0f} GiB budget — "
+              f"fleet {fleet.peak / 2**20:.0f} MiB at most ({fleet.peak_seen}), shim "
+              f"{shim / 2**20:.0f} MiB, {fleet.samples} samples")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        Path(summary).open("a", encoding="utf-8").write(report + "\n")
+    print(report)
+
+    assert not run.failures, f"a Scanner failed, so the measurement is void: {run.failures}"
+    assert fleet.samples >= 3, f"stats answered {fleet.samples} time(s); the measurement is void"
+    assert peak < N1_4_BYTES, report
+
+
+def test_a_stats_cell_is_read_in_either_runtimes_units():
+    assert _parse_mem_usage("123.4MiB / 15.6GiB") == int(123.4 * 1024**2)
+    assert _parse_mem_usage("123.4MB / 15.6GB") == int(123.4 * 1000**2)
+    assert _parse_mem_usage("2.5GiB / 15.6GiB") == int(2.5 * 1024**3)
+    assert _parse_mem_usage("900kB / 1GB") == 900_000
+    with pytest.raises(ValueError):
+        _parse_mem_usage("-- / --")
 
 
 # ------------------------------------------------- our own supply chain (12a.6/7)

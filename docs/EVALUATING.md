@@ -33,7 +33,7 @@ with Docker Desktop — so it is here before they do (22.B.4, re-measured for 23
 | `valvur update`, first time | **~475MB**: the image 320MB compressed (pulled here since 23.2.4, and said on the status line if a scan has to do it), vulnerability database 118MB, the published name index 34MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | **53s** | docker's layer bars, Trivy's progress bar, then one line per ecosystem with its build time and `signature: verified` |
 | `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
 | `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
-| first `valvur scan` | — | **33s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README | eight scanner names, each turning `ok` |
+| first `valvur scan` | — | **33s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README. On GitHub's `ubuntu-latest` runner, the twelve-repository corpus: **14–18s** on every application repository from 22k to 100k lines, 88s on a Terraform module (Checkov analysing it) — run 34764187516, 2026-09-13 | eight scanner names, each turning `ok` |
 | **first `scan` over MCP, nothing run first** — no image, empty cache, one tool call (24.1) | the same ~475MB | **110s** to `complete: True`: image pulled 22s, database fetched 30s, index fetched 7s, then the Scanners | `scan_status` reads *"Now: pulling ghcr.io/… (223MB) — the first run only"*, then *"fetching the vulnerability database (119MB)"*, then *"fetching the package-name index (35MB)"*, each gone once it is over |
 
 **A minute and a half from nothing to a first result, measured — two minutes over
@@ -227,7 +227,7 @@ Read this before the feature list, not after.
   lockfiles are read for *vulnerabilities* because that is where the versions are.
 - **The Opengrep rules are a supplement, not the product — and the LLM-output
   rules are not a coverage claim.** Measured on eleven real repositories (task
-  22.E.2): 75 findings, 64 of them tag-pinned GitHub Actions and the other 11
+  22.E.2; twelve on the run of 2026-09-13, same result): 75 findings, 64 of them tag-pinned GitHub Actions and the other 11
   rejected by a reviewer to the last one; the four LLM-output-to-sink rules fired
   zero times, including on `simonw/llm`. Those four are what they are: taint rules
   whose only sources are a completion call from the OpenAI, Anthropic or Gemini SDK
@@ -278,8 +278,12 @@ does when it cannot find anything.
   concurrently, so the slowest Scanner is about what the scan cost, and it is
   usually Checkov — measured 2026-09-13 on the ten-file fixture, published image,
   a loaded laptop: checkov 40.9s, opengrep 26.0s, syft 20.9s, the rest 8–16s, the
-  scan 44s. Ten minutes earlier the same scan on a quiet machine took 33s. The
-  number is on every run so you can see yours rather than trust ours.
+  scan 44s. Ten minutes earlier the same scan on a quiet machine took 33s. On
+  GitHub's Linux runner the same day, across twelve real repositories: Checkov
+  14–17s on every one that has a workflow file to analyse (they all do), every
+  other Scanner 1–4s, and Checkov 88s on the one Terraform module — a container
+  start costs 2–3s there against 10–16s through Docker Desktop. The number is on
+  every run so you can see yours rather than trust ours.
 - An **ecosystem nothing inspects** produces a finding saying so.
 - **Excluded paths** are reported with the count they cost. An exclusion you cannot
   see is indistinguishable from a scan that found nothing.
