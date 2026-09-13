@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 19 of them now — and whose first engineering item was the audit's worst
+task** — 18 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -55,7 +55,10 @@ for the top active Finding and `REMEDIATION.md`'s first action. **Then 23.3.5**:
 `release.yml` each carried, once, with a threshold, and the same command a user's CI
 runs — and `valvur cache`. **Then 23.3.3**: `scan_cancel` — a per-runner kill, one call for the whole fleet,
 and F1.11's three properties over MCP: containers stopped, nothing written, not a
-failure — and `--jobs`/`VALVUR_JOBS`. **Next: 23.3.7 (a scan budget), then 23.3.6.** When "what is next" is asked, that list is the answer; the
+failure — and `--jobs`/`VALVUR_JOBS`. **Then 23.3.7**: a scan budget — 300s over MCP, none on the CLI unless asked —
+past which nothing new starts, the running Scanners are stopped, and the run is
+written incomplete with each cut named. **Next: 23.3.6 (`valvur-action`), then
+23.4.1 (Checkov hash-locked).** When "what is next" is asked, that list is the answer; the
 sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
@@ -139,9 +142,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 98 Python modules, 800 tests, 18 ADRs, 136 requirement IDs, **154 done and 19
-open** across 24 phases — 13 of the 19 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 19
+Roughly: 98 Python modules, 812 tests, 18 ADRs, 136 requirement IDs, **155 done and 18
+open** across 24 phases — 12 of the 18 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 18
 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.

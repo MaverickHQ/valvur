@@ -4550,11 +4550,33 @@ last.
   team evaluating valvur will ask for. Dogfooded by this repository's own self-scan
   job, which replaces its heredoc with it.
 
-- [ ] **23.3.7** A scan budget. Each Scanner has a 600s timeout and the run has none;
+- [x] **23.3.7** A scan budget. Each Scanner has a 600s timeout and the run has none;
   an agent session with a runaway Checkov waits ten minutes for one Scanner. `--budget`
   (default: none on the CLI, 300s over MCP — F2.6's figure) stops launching new
   Scanners past it, cancels the rest, and reports the run incomplete with the ones it
   cut named. Pairs with `scan_cancel`.
+
+  **STATUS 2026-09-13:** ✅ `api.scan(budget_s=)`: the fleet's `as_completed` gets
+  the budget as its timeout; on `TimeoutError` the queued futures are cancelled
+  (*"not started: the 20s budget was spent before its turn"*), the running ones
+  are stopped through `runner.stop_containers()` — 23.3.3's per-runner kill
+  **without** the cancelled flag, because a cut is not a cancel: the Scanners that
+  finished are a result and the run is written, incomplete — and each stopped one
+  is recorded *"cut by the 20s budget after 20s (exited 137 with no report …)"*.
+  A Scanner that finishes on its own between the timeout and the kill is a
+  result, not a casualty (pinned after a mutation survived). A runner that cannot
+  stop containers (the suite's fakes) still refuses what has not started. The
+  budget counts from the fleet's start, not the first run's fetches, which
+  announce themselves and have their own timeouts. `ScanRun.budget_s` /
+  `budget_cut`; `run.json` gains `budget: {seconds, cut}`; SUMMARY, `scan_status`
+  and `gate` report the cut through the failure paths they already had. Over MCP
+  `MCP_BUDGET_S = 300` unless the `scan` tool's `budget_s` says otherwise (0 for
+  none), bound into the job by `operations._scan_with_budget`; on the CLI none
+  unless `--budget SECONDS` (Ctrl-C is the CLI's), refusing 0. **Measured over
+  stdio against the real image with `budget_s: 20`:** six Scanners ok in 12–18s,
+  Opengrep and Checkov cut at 20s with exit 137, DONE in 26s, `complete: False`,
+  zero containers left. 12 tests in `tests/test_budget.py`; 12 mutations, one
+  survived and was pinned. F2.7 extended.
 
 ### 4 — Build and architecture
 
@@ -4697,7 +4719,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 |
 | 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 |
 | 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 |
-| 10 | 23.3.7 | a scan budget | |
+| 10 | 23.3.7 | a scan budget | ✅ 2026-09-13 |
 | 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | |
 | 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | |
 | 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger |

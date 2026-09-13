@@ -52,17 +52,38 @@ def _one_line(finding: dict) -> str:
 
 # ----------------------------------------------------------------- the tools
 
+#: The scan budget over MCP when the client names none (23.3.7): F2.6's five
+#: minutes. The CLI has none unless `--budget` is given — a person at a terminal
+#: can press Ctrl-C; an agent session with a runaway Scanner waited ten minutes.
+MCP_BUDGET_S = 300.0
+
+
+def _scan_with_budget(budget_s: float | None):
+    """The work a background job performs, with its budget bound in. Returns the
+    summary it will report. A budget of 0 means none."""
+    budget = float(budget_s) if budget_s else None
+
+    def run_scan(workspace: Path, profile: str, progress) -> str:
+        from .api import scan
+        from .runner import ContainerRunner
+
+        runner = ContainerRunner()
+        job = jobs.current(workspace)
+        if job is not None:
+            job.canceller = runner.kill      # `scan_cancel` stops this fleet, not another's
+        run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
+                   budget_s=budget)
+        return _summarise(workspace, run)
+
+    run_scan.budget_s = budget  # type: ignore[attr-defined]
+    return run_scan
+
+
 def _run_scan(workspace: Path, profile: str, progress) -> str:
-    """The work a background job performs. Returns the summary it will report."""
-    from .api import scan
-    from .runner import ContainerRunner
+    return _scan_with_budget(MCP_BUDGET_S)(workspace, profile, progress)
 
-    runner = ContainerRunner()
-    job = jobs.current(workspace)
-    if job is not None:
-        job.canceller = runner.kill      # `scan_cancel` stops this fleet, not another's
-    run = scan(workspace, runner=runner, profile=profile, on_progress=progress)
 
+def _summarise(workspace: Path, run) -> str:
     lines = [f"{run.status}: {len(run.findings)} finding(s). {run.status_reason}."]
     if run.failures:
         lines += ["", "INCOMPLETE — these scanners did not run:"]
@@ -94,7 +115,9 @@ def start_scan(args: dict) -> str:
             f"({existing.elapsed:.0f}s so far). Poll `scan_status`."
         )
 
-    jobs.start(workspace, profile, _run_scan)
+    budget = args.get("budget_s")
+    jobs.start(workspace, profile,
+               _scan_with_budget(MCP_BUDGET_S if budget is None else float(budget)))
     return (
         f"Started a {profile} scan of {workspace}.\n"
         "Scans take seconds to minutes depending on the project, so this returns "

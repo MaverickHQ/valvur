@@ -136,7 +136,14 @@ that I do not maintain six toolchains myself.
    `SUMMARY.md`, and SHALL continue with the remaining **Scanners**.
 6. F2.6 — valvur SHALL run independent **Scanners** concurrently.
 7. F2.7 — valvur SHALL enforce a per-**Scanner** timeout and SHALL record any timeout
-   as a failure under F2.5.
+   as a failure under F2.5. *Extended 2026-09-13 (task 23.3.7): and a budget for the
+   fleet as a whole — none on the CLI unless `--budget` is given, 300 seconds over
+   MCP unless the client names another (N1.2's figure) — past which no new
+   **Scanner** starts, the running ones are stopped, and each one cut is recorded
+   as a failure under F2.5 naming the budget, so the run reads incomplete on every
+   surface. A cut is not an interruption (F1.11): the **Scanners** that finished
+   are a result. Measured against the real image with a 20s budget: six Scanners
+   ok, Opengrep and Checkov cut at 20s, `complete: False`, no container left.*
 8. F2.8 — valvur SHALL preserve each **Scanner**'s unmodified output under `raw/`,
    subject to F5.7.
 

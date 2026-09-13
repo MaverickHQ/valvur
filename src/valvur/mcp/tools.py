@@ -45,6 +45,11 @@ def registry() -> list[Tool]:
                              "that works with no network access. full adds a second "
                              "advisory source and the dependency-reality Check, both "
                              "of which send package names to public registries."},
+                 "budget_s": {"type": "integer",
+                              "description": "Seconds the Scanners may take together "
+                              "(default 300). Past it, nothing new starts, what is "
+                              "running is stopped, and the result is reported "
+                              "incomplete with the cut Scanners named. 0 for none."},
              }}, start_scan),
         Tool("list_findings", "List findings from the last scan, worst first. "
                               "Bounded by default.",

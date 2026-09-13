@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -68,6 +68,11 @@ class ScanRun:
     #: not (task 19.E.1). Provenance, not findings — the gaps themselves arrive as
     #: Findings so they are ranked, fingerprinted and suppressible like anything else.
     coverage: dict = field(default_factory=dict)
+    #: The scan budget in force (23.3.7), and the Scanners it cut — stopped while
+    #: running, or never started. Each is also a failed ScannerRun naming the cut,
+    #: so every surface that reports an incomplete run reports this.
+    budget_s: float | None = None
+    budget_cut: list[str] = field(default_factory=list)
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -346,8 +351,10 @@ def _attempt(adapter, runner, workspace) -> tuple:
 
 def scan(
     workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
-    on_progress=None, jobs: int | None = None,
+    on_progress=None, jobs: int | None = None, budget_s: float | None = None,
 ) -> ScanRun:
+    if budget_s is not None and not budget_s > 0:
+        raise ValueError(f"the budget must be a positive number of seconds; got {budget_s!r}")
     # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
     # default, so a retired name like "standard" would quietly resolve to
     # ALLOWS_NETWORK's False and disable the network without saying so.
@@ -383,7 +390,7 @@ def scan(
         ))
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
-            on_progress=on_progress, unfetched=unfetched, jobs=jobs,
+            on_progress=on_progress, unfetched=unfetched, jobs=jobs, budget_s=budget_s,
         )
 
 
@@ -401,7 +408,8 @@ def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
 
 
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
-                 unfetched: dict[str, str] | None = None, jobs: int | None = None) -> ScanRun:
+                 unfetched: dict[str, str] | None = None, jobs: int | None = None,
+                 budget_s: float | None = None) -> ScanRun:
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:
@@ -425,17 +433,59 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
 
     # `--jobs` bounds the fleet (23.3.3); the default is everything at once.
     width = jobs if jobs is not None else (_jobs_from_environment() or len(adapters))
+    fleet_started = time.monotonic()
+    cut: list[str] = []
     with ThreadPoolExecutor(max_workers=max(1, min(width, max(1, len(adapters))))) as pool:
         futures = {
             pool.submit(_run_one, adapter, runner, workspace): index
             for index, adapter in enumerate(adapters)
         }
-        for future in as_completed(futures):
+
+        def collect(future) -> None:
             outcome = future.result()
             outcomes[futures[future]] = outcome
             if on_progress is not None:
                 status = 'ok' if outcome[0].ok else 'failed'
                 on_progress(f"{outcome[0].tool}: {status} ({outcome[0].duration_s:.1f}s)")
+
+        try:
+            for future in as_completed(futures, timeout=budget_s):
+                collect(future)
+        except TimeoutError:
+            # The budget (23.3.7): past it, nothing new starts, what is running is
+            # stopped, and the run is reported incomplete with each cut named. A cut
+            # is not a cancel — the Scanners that finished are a result (F1.11 is
+            # for the developer stopping the scan; this is the scan bounding itself).
+            spent = time.monotonic() - fleet_started
+            queued = [f for f in futures if f.cancel()]
+            running = [f for f in futures if not f.done() and f not in queued]
+            for future in queued:
+                adapter = adapters[futures[future]]
+                cut.append(adapter.name)
+                outcomes[futures[future]] = (ScannerRun(
+                    adapter.name, ok=False,
+                    reason=f"not started: the {budget_s:g}s budget was spent before its turn",
+                ), [], None, "")
+            stop = getattr(runner, "stop_containers", None)
+            if on_progress is not None:
+                on_progress(f"budget spent after {spent:.0f}s: stopping "
+                            f"{', '.join(adapters[futures[f]].name for f in running) or 'nothing'}"
+                            f"; not starting {', '.join(cut) or 'nothing'}")
+            if stop is not None and running:
+                stop()
+            # A stopped container comes back promptly with no report; a runner that
+            # cannot stop one is waited for, and its result is real.
+            wait(running)
+            for future in running:
+                adapter = adapters[futures[future]]
+                collect(future)
+                outcome = outcomes[futures[future]]
+                if outcome is not None and stop is not None and not outcome[0].ok:
+                    cut.append(adapter.name)
+                    outcomes[futures[future]] = (dataclasses.replace(
+                        outcome[0], reason=f"cut by the {budget_s:g}s budget after "
+                        f"{spent:.0f}s ({outcome[0].reason})",
+                    ), *outcome[1:])
 
     completed = [o for o in outcomes if o is not None]
     # A cancel that landed during the fleet (F1.11): the Scanners it stopped came
@@ -492,6 +542,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         excluded_paths=list(ctx.configured),
         profile=profile,
         coverage=ctx.coverage,
+        budget_s=budget_s,
+        budget_cut=cut,
     )
 
     results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)

@@ -99,6 +99,9 @@ def _provenance(run: ScanRun) -> str:
                 # What this project chose not to scan, and how much it cost. An
                 # exclusion the reader cannot see is indistinguishable from a
                 # scanner that found nothing.
+                # The scan budget in force and what it cut (23.3.7); None when none.
+                "budget": ({"seconds": run.budget_s, "cut": list(run.budget_cut)}
+                           if run.budget_s is not None else None),
                 "excluded_by_config": {
                     "paths": list(run.excluded_paths),
                     "findings_dropped": run.config_dropped,

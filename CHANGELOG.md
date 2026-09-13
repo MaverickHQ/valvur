@@ -29,6 +29,13 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **A scan budget.** Over MCP a scan has a 300-second budget unless the client
+  passes `budget_s` (0 for none); on the CLI none unless `--budget SECONDS`. Past
+  it no new Scanner starts, the running ones are stopped, and the result is
+  written incomplete with each cut Scanner named — *"cut by the 300s budget after
+  300s"* / *"not started: the 300s budget was spent before its turn"* — in
+  `run.json` (`budget: {seconds, cut}`), `SUMMARY.md`, `scan_status` and the gate.
+  A cut is not a cancel: the Scanners that finished are a result.
 - **`scan_cancel`, and `--jobs`.** A `scan_cancel` MCP tool stops a running scan
   the way Ctrl-C does on the command line (F1.11): its containers are killed — one
   `kill` for all of them, 2.7s for eight, measured — nothing is written, the

@@ -371,6 +371,11 @@ class ContainerRunner:
         """Stop the containers this runner started, and remember that the scan
         was cancelled. Returns how many were signalled."""
         self.cancelled = True
+        return self.stop_containers()
+
+    def stop_containers(self) -> int:
+        """Stop the containers this runner started — without cancelling the scan.
+        What the budget does (23.3.7): the Scanners that finished are a result."""
         with _live_lock:
             names = sorted(self._mine & _live_containers)
         runtime = None

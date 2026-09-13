@@ -22,6 +22,13 @@ def _positive(raw: str) -> int:
     return value
 
 
+def _positive_seconds(raw: str) -> float:
+    value = float(raw)
+    if not value > 0:
+        raise argparse.ArgumentTypeError("--budget must be a positive number of seconds")
+    return value
+
+
 def _stop_on_interrupt(runner) -> None:
     """Make Ctrl-C mean stop (F1.11, task 16.2).
 
@@ -338,6 +345,12 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         "registry report as unverified rather than clean.",
     )
     scan_cmd.add_argument(
+        "--budget", type=_positive_seconds, default=None, metavar="SECONDS",
+        help="Stop the Scanners past this many seconds: nothing new starts, what is "
+        "running is stopped, and the result is reported incomplete with the cut "
+        "Scanners named. Default: none here (Ctrl-C is yours); 300 over MCP.",
+    )
+    scan_cmd.add_argument(
         "--jobs", type=_positive, default=None, metavar="N",
         help="How many Scanners run at once (default: all of them). Docker Desktop's "
         "default memory cannot always start eight containers together; two or "
@@ -540,7 +553,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     try:
         run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                   jobs=args.jobs)
+                   jobs=args.jobs, budget_s=args.budget)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.
