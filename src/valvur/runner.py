@@ -694,7 +694,7 @@ class ContainerRunner:
              "--output-file-path", "/results", "--quiet", "--compact",
              # No network, ever: skip external data downloads outright.
              "--skip-download"],
-            "results_json.json", tool="checkov", version="3.2.517",
+            "results_json.json", tool="checkov", version="3.3.17",
         )
 
     def run_syft(self, workspace: Path) -> ScannerOutput:

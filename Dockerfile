@@ -84,7 +84,7 @@ COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 # environment, hash-locked (task 23.4.1): `requirements-checkov.txt` pins every one
 # of its ~96 transitive packages by version and sha256, generated from
 # `requirements-checkov.in` by `scripts/lock-checkov.sh`, and `--require-hashes`
-# refuses anything else. Until this, `pip install checkov==3.2.517` resolved those
+# refuses anything else. Until this, `pip install checkov==<version>` resolved those
 # 96 packages afresh on every build — the one input of the image we sign with our
 # identity that was not pinned by hash — and they shared valvur's interpreter.
 # Dependabot watches the lock. `--no-deps` because the lock is complete — every

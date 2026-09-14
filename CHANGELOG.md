@@ -29,6 +29,13 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **Checkov 3.2.517 → 3.3.17**, through the lock: `requirements-checkov.in` moved,
+  `scripts/lock-checkov.sh` regenerated the lock with the asteval override intact
+  (Dependabot's own regeneration had dropped it, restoring the vulnerable pin —
+  the self-scan gate refused that PR). Same 13 findings on the fixture. 3.3.17
+  pulls in python-ecdsa, whose Minerva timing advisory (CVE-2024-23342) has no fix
+  and none coming; accepted in `.security-scan.toml` with the reason and a
+  one-year expiry, since Checkov never signs anything in a scan. ruff 0.16.7.
 - **The three Checks run in one container.** `python -m valvur.checks batch` runs
   licence-file, ai-artifact and dependency-reality in one container start instead
   of three — nine container starts a scan became seven — with three ScannerRuns,

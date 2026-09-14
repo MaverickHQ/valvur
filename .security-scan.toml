@@ -53,3 +53,17 @@ rule = "CKV_DOCKER_7"
 path = "Dockerfile"
 expires = 2027-09-05
 reason = "Not a registry image: 'opengrep-${TARGETARCH}' names an internal build stage defined above, selected by the platform being built (task 15.4). There is no tag to pin, and the stages it resolves to are themselves pinned by digest. Checkov's dockerfile parser does not resolve inter-stage references through a build argument, so it reads the absent tag as 'latest'. Revisit if Checkov gains stage-aware parsing, or if this FROM ever names a real image."
+
+# Checkov 3.3.17 (2026-09-14) pulls in python-ecdsa, which carries an advisory with
+# no fix and none coming. The lock's own self-scan found it the day the lock moved,
+# which is what the lock is for; the decision is recorded here rather than by
+# dropping the package from the lock, because a transitive import that fails at an
+# unexpected moment is a failed Scanner, and that is worse than a known, reasoned
+# acceptance that comes back up for review.
+
+[[suppress]]
+fingerprint = "294fda748b07bf2886edd3273e2c9956"
+rule = "CVE-2024-23342"
+path = "requirements-checkov.txt"
+expires = 2027-09-14
+reason = "python-ecdsa's Minerva timing side-channel (CVE-2024-23342) has no fix and will not get one — its maintainers state side-channel resistance is out of scope. It reaches this image only as a transitive dependency of Checkov, which never signs or verifies anything in a valvur scan: Checkov runs read-only over the workspace with no network on offline and no platform integration on full. A timing attack needs an attacker measuring signing operations; nothing here performs any. Revisit if Checkov moves off python-ecdsa, or if a scan ever exercises it."
