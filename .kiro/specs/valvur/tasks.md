@@ -4699,11 +4699,38 @@ last.
   one by one as before; measured against the published `0.2.0` image, `complete:
   True`, all three Checks ok, three starts instead of one. Two more tests.
 
-- [ ] **23.4.3** `docker buildx bake` with the version, labels and platforms in one
+- [x] **23.4.3** `docker buildx bake` with the version, labels and platforms in one
   file. `CONTRIBUTING.md`, `ci.yml`, `release.yml` and `corpus.yml` carry four copies
   of the build command today, and 19.A.3 already showed what copies do. The arm64 half
   of the release build moves to a native arm64 runner and `imagetools create` merges;
   4m36s under QEMU becomes a fraction.
+
+  **STATUS 2026-09-14:** ✅ `docker-bake.hcl`: `dev` (this machine's architecture,
+  loaded, `VALVUR_VERSION` from the caller so the F1.9 label is the tree's — the
+  file cannot read pyproject and must not guess) and `release` (this runner's
+  architecture, pushed to `BAKE_IMAGE` by digest, untagged). The five copies —
+  `CONTRIBUTING.md`, `ci.yml` twice, `corpus.yml`, `release.yml`'s verify job —
+  all run `docker buildx bake` with the GHA cache passed as `--set` overrides so
+  the file itself works anywhere; the rebuild hints in `check_image.py`, the
+  tree-hash guard and RELEASING point at it; a constraint test refuses a workflow
+  that builds any other way, a release that installs QEMU, or one without the
+  arm64 runner. **The release:** a `build` matrix — `ubuntu-latest` and
+  `ubuntu-24.04-arm`, each `bake release` natively with a per-architecture cache
+  scope, the digest handed on as an artifact — then `release` writes one index
+  over the two with `docker buildx imagetools create`, and the platform assertion,
+  the signature, the attestation and the SBOM see that index's digest exactly as
+  before. **Measured by rehearsal from the branch** (run 34862131855): amd64 46s
+  and arm64 54s, side by side, **1m14s wall against 4m50s under QEMU on v0.2.0**;
+  the index 7s; sign 6s, attest 5s, SBOM 34s, TestPyPI 18s; the index carries
+  `linux/amd64` and `linux/arm64` (plus BuildKit's two `unknown/unknown`
+  attestation manifests, as v0.2.0's does), and `cosign verify` on the index
+  digest passes with the README's own command. **The first rehearsal failed**, and
+  it was the bake file's fault: bake reads its variables from the environment, so
+  the release workflow's own top-level `IMAGE` turned the verify job's test image
+  into `ghcr.io/…/valvur-rehearsal:dev`, a name nothing then found. The variables
+  are `BAKE_IMAGE`/`BAKE_TAG` now, and the release build job sets `BAKE_IMAGE`
+  from `IMAGE` explicitly. One more copy that could not drift: the `verify` job
+  used to spell the version into the build by hand; it is the same env now.
 
 - [ ] **23.4.4** The shim carries the tree hash it was built beside. `release.yml`
   builds the wheel and the image from one tree; put `tree_hash` of the inputs into the
@@ -4832,7 +4859,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 14 | 10.1.2 | they install it the way the README says | with 13 |
 | 15 | [12b.1](#12b--release) | act on what the gate found | |
 | 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 |
-| 17 | 23.4.3 | `buildx bake`, native arm64 | |
+| 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 |
 | 18 | 23.4.4 | the shim carries its build hash | |
 | 19 | 23.4.5 | measure osv-scanner's marginal value | |
 | 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 |

@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 15 of them now — and whose first engineering item was the audit's worst
+task** — 14 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -61,8 +61,9 @@ written incomplete with each cut named. **Then 23.3.6**: `MaverickHQ/valvur-acti
 self-scan job here uses it with the tree's own shim. **Then 23.4.1**: Checkov hash-locked — 96 packages, 1,866 hashes — into its own
 venv, and on the way the Dockerfile's `… || true` that had let a failed install
 report success. **Then 23.4.2** (2026-09-14): the three Checks in one container — nine starts a
-scan became seven, ~4s off every scan measured, three ScannerRuns kept. **Next: the
-usability gate (10.1.1–10.1.2, yours plus a stranger), then 23.4.3–23.4.6.** When "what is next" is asked, that list is the answer; the
+scan became seven, ~4s off every scan measured, three ScannerRuns kept. **Then 23.4.3**: one bake file, and the release builds each architecture on its
+own native runner — 1m14s against 4m50s under QEMU, proven by rehearsal. **Next: the
+usability gate (10.1.1–10.1.2, yours plus a stranger), then 23.4.4–23.4.6.** When "what is next" is asked, that list is the answer; the
 sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
@@ -146,9 +147,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 98 Python modules, 836 tests, 18 ADRs, 136 requirement IDs, **158 done and 15
-open** across 24 phases — 9 of the 15 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 15
+Roughly: 98 Python modules, 839 tests, 18 ADRs, 136 requirement IDs, **159 done and 14
+open** across 24 phases — 8 of the 14 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 14
 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
