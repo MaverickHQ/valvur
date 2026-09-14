@@ -193,6 +193,22 @@ def test_a_checks_own_error_in_the_report_is_that_checks_failure(monkeypatch, tm
     assert outputs["dependency-reality"].stdout == "[]"
 
 
+def test_an_image_from_before_the_batch_is_told_apart_from_a_failure(monkeypatch, tmp_path):
+    """Found by CI's published-image job: the tree's shim against the published
+    0.2.0 image, whose entry point knows one Check at a time. `usage:` and exit 2
+    is that image saying so, and it must not read as three failed Scanners."""
+    from valvur import cache
+    from valvur.runner import BatchUnsupported
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(
+        cmd, 2, "", "usage: python -m valvur.checks <check-name> <workspace>"))
+    runner = ContainerRunner(runtime="/usr/local/bin/docker")
+
+    with pytest.raises(BatchUnsupported, match="predates the Checks batch"):
+        runner.run_checks(CHECKS, tmp_path, network=False)
+
+
 def test_a_batch_container_that_fails_fails_every_check_with_the_runtimes_words(
     monkeypatch, tmp_path
 ):
@@ -321,6 +337,25 @@ def test_one_checks_failure_in_the_batch_costs_only_that_check(ws, no_name_index
     assert not by_tool["dependency-reality"].ok
     assert "valvur update" in by_tool["dependency-reality"].reason
     assert [f.tool for f in run.failures] == ["dependency-reality"]
+
+
+def test_an_image_without_the_batch_gets_the_checks_one_by_one(ws):
+    """The fallback the published-image job needs until 0.3.0's image exists: same
+    three ScannerRuns, same findings, three container starts instead of one."""
+    from valvur.runner import BatchUnsupported
+
+    class Older(_BatchRunner):
+        def run_checks(self, names, workspace, *, network=False):
+            self.batches.append((tuple(names), network))
+            raise BatchUnsupported("valvur:0.2.0 predates the Checks batch")
+
+    runner = Older()
+    run = api.scan(ws, runner=runner, adapters=[CheckAdapter(name) for name in CHECKS])
+
+    assert len(runner.batches) == 1
+    assert runner.singles == list(CHECKS)
+    assert [s.tool for s in run.scanners] == list(CHECKS)
+    assert all(s.ok for s in run.scanners)
 
 
 def test_a_runner_that_raises_on_the_batch_fails_the_checks_not_the_scan(ws):

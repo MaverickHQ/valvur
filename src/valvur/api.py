@@ -334,11 +334,18 @@ def _run_checks(adapters, runner, workspace) -> list[tuple]:
                 ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, "")
     outputs: dict = {}
     if wanted:
+        from .runner import BatchUnsupported
+
         try:
             outputs = runner.run_checks(
                 [a.name for a in wanted], workspace,
                 network=any(getattr(a, "network", False) for a in wanted),
             )
+        except BatchUnsupported:
+            # An image from before the batch — pinned by VALVUR_IMAGE, or the
+            # published one under a newer shim: the Checks run one by one, as they
+            # did, and the F1.9 version check is not asked to know about this.
+            return [_run_one(a, runner, workspace) for a in adapters]
         except Exception as exc:
             outputs = {a.name: None for a in wanted}
             failure = str(exc)

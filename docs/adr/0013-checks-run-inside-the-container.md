@@ -60,8 +60,10 @@ The isolation argument holds because the Checks are our code. The only network a
 of them ever had is dependency-reality's, on `full`; the batch container carries the
 Profile's grant — the widest any Check in it was given, which is that one's — and
 runs dependency-reality last. On `offline` the batch has no interface at all, as
-each Check's container had. A runner that cannot batch, or a scan with one Check
-selected, runs them one by one as before.
+each Check's container had. A runner that cannot batch, a scan with one Check
+selected, or an image from before the batch — it answers `usage:` to the entry
+point, and the runner raises `BatchUnsupported` — runs them one by one as before,
+so a pinned older image keeps working within the version series F1.9 accepts.
 
 "No new orchestrator protocol" still holds for adapters: `CheckAdapter` is unchanged.
 The orchestrator gained an internal notion — a task may answer for several adapters

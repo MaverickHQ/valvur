@@ -210,6 +210,12 @@ class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
 
 
+class BatchUnsupported(RuntimeError):
+    """The image predates the Checks batch (23.4.2): its entry point answered
+    `usage:` and exit 2. The fleet runs the Checks one by one instead — a pinned
+    older image keeps working, slower, rather than failing three Scanners."""
+
+
 class ImagePullFailed(RuntimeError):
     """The image is not local and could not be fetched. The runtime's own words are
     in the message: a private package, no network, a typo in `VALVUR_IMAGE`."""
@@ -776,6 +782,9 @@ class ContainerRunner:
             workspace, ["python", "-m", "valvur.checks", "batch", "/workspace", *names],
             None, tool="checks", version=_VERSION, network=network,
         )
+        if batch.exit_code == 2 and "usage:" in batch.stderr:
+            raise BatchUnsupported(
+                f"{self.image} predates the Checks batch; running the Checks one by one")
         try:
             report = json.loads(batch.stdout) if batch.exit_code == 0 else None
             if not isinstance(report, dict):

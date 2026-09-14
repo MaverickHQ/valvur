@@ -4689,7 +4689,15 @@ last.
   scan) pinned. One trap on the way: the new shim against the OLD image ran the
   batch entry point that did not exist there and reported the three Checks failed
   — exactly what the tree-hash guard (22.C.1) exists for, and the before/after
-  measurement had to pair each shim with its own image.
+  measurement had to pair each shim with its own image. **Then CI's published-image
+  job failed the same way** — the tree's shim against the published `0.2.0` image,
+  the one job pointed at what users get — and that is not a CI artefact: a
+  `VALVUR_IMAGE` pinned to an older image, or a newer shim on an older image within
+  the same 0.x minor, would have lost all three Checks while F1.9 called the pair
+  compatible. So the runner tells that image apart — its entry point answers
+  `usage:` and exit 2 — raises `BatchUnsupported`, and the fleet runs the Checks
+  one by one as before; measured against the published `0.2.0` image, `complete:
+  True`, all three Checks ok, three starts instead of one. Two more tests.
 
 - [ ] **23.4.3** `docker buildx bake` with the version, labels and platforms in one
   file. `CONTRIBUTING.md`, `ci.yml`, `release.yml` and `corpus.yml` carry four copies
