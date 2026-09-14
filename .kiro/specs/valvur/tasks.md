@@ -4772,11 +4772,33 @@ last.
   `doctor` still starts a container to read the digest rather than using the memo,
   because that start is the point of its image check.
 
-- [ ] **23.4.5** Measure osv-scanner's marginal value on the corpus: findings on `full`
+- [x] **23.4.5** Measure osv-scanner's marginal value on the corpus: findings on `full`
   that Trivy did not report, per ecosystem, from the report `corpus.yml` already
   writes. cobra went 11 → 132 on `full`; the fixture went 36 merged of 38. Keep it
   with the number in the README's scanner table, or drop it from `full` — either is
   fine; "a second advisory source" without a number is not.
+
+  **STATUS 2026-09-14:** ✅ Measured from the two reports of run 34764187516 (twelve
+  repositories, `ubuntu-latest`, 2026-09-13), by rule, `full` minus `offline`:
+  **cobra +121** — every one a Go standard-library advisory (`CVE-2022-1705` is
+  `GO-2022-0525`, net/http Transfer-Encoding; OSV lists 132 for `stdlib` 1.15.0,
+  osv-scanner reported 121), keyed on `go 1.15` in `go.mod`, which Trivy reports
+  only from compiled binaries and which describes the toolchain rather than the
+  repository's code; **flask +1** — `CVE-2026-7246`, a *disputed* Click advisory
+  Trivy's database does not carry; **the other ten +0**, across npm (express,
+  fastify), Ruby (sinatra), PHP (monolog), Rust (ripgrep), Java (gson), Python
+  (requests, llm), Terraform and the cursorrules corpus. So per ecosystem: Go is the
+  whole of it, Python one disputed entry, everything else nothing. **Kept, with the
+  number**: the Go toolchain gap is real for a Go application, it costs about a
+  second (0.9–1.9s per repository, 23.3.2), and OSV is the second primary source §3
+  names — but the README's scanner table now says exactly what it adds, and
+  EVALUATING says that a project with no Go will get nothing from it Trivy did not
+  give, at the price of its lockfile's names and versions leaving the machine
+  (`full` only). The measurement repeats with every corpus run: `scripts/corpus.py
+  compare report-offline.json report-full.json` prints per-repository advisories
+  added and the rest, and `corpus.yml` runs it and uploads `corpus-compare.txt`;
+  one test on the arithmetic, one mutation (a rule that shrank counted as added)
+  survived and was pinned. The task's own numbers held: cobra 11 → 132.
 
 - [ ] **23.4.6** Checkov on demand. It is 191MB of the image, the slowest Scanner by
   ten seconds, and `applies_to` already knows when there is nothing for it to read —
@@ -4893,7 +4915,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 |
 | 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 |
 | 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 |
-| 19 | 23.4.5 | measure osv-scanner's marginal value | |
+| 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 |
 | 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 |
 | 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | |
 | 22 | 23.5.2 | `tools/list` snapshot | |

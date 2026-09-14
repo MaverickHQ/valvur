@@ -180,3 +180,30 @@ def test_the_corpus_report_gains_the_timings_and_the_slowest():
                        "slowest": "checkov 27.9s"}
     assert corpus._timings({"scanners": [{"tool": "x", "ok": True}]}) == {
         "duration_s": {}, "slowest": ""}
+
+
+def test_the_corpus_compare_says_what_full_added_over_offline():
+    """Task 23.4.5: osv-scanner's marginal value, from the two reports the corpus
+    workflow writes — advisories apart from the rest, so the number is the one that
+    matters."""
+    corpus = _corpus_module()
+    offline = {"repos": {
+        "cobra": {"findings": {"total": 11}, "by_rule": {"valvur.pinning.mutable-action-ref": 10}},
+        "flask": {"findings": {"total": 3}, "by_rule": {"CVE-2020-1": 1, "gitleaks-aws": 2}},
+    }}
+    full = {"repos": {
+        "cobra": {"findings": {"total": 14}, "by_rule": {"valvur.pinning.mutable-action-ref": 10,
+                                                        "CVE-2022-1705": 1, "GO-2022-0525": 2}},
+        # gitleaks found one fewer on `full` (a redaction difference, say): a rule
+        # that shrank is not something `full` added.
+        "flask": {"findings": {"total": 3}, "by_rule": {"CVE-2020-1": 1, "gitleaks-aws": 1,
+                                                        "valvur.dependency.young": 1}},
+    }}
+
+    rows = corpus.compare(offline, full)
+
+    assert rows[0] == {"repo": "cobra", "offline": 11, "full": 14, "advisories_added": 3,
+                       "other_added": 0, "examples": ["CVE-2022-1705", "GO-2022-0525"]}
+    assert rows[1] == {"repo": "flask", "offline": 3, "full": 3, "advisories_added": 0,
+                       "other_added": 1, "examples": []}
+

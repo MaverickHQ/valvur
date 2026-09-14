@@ -225,6 +225,17 @@ Read this before the feature list, not after.
   coverage note and the run is `inconclusive`. Direct manifests are read for
   *existence* precisely because that is where a hallucinated name is written;
   lockfiles are read for *vulnerabilities* because that is where the versions are.
+- **OSV-Scanner's marginal value is measured, and small outside Go.** On the
+  twelve-repository corpus (task 23.4.5, run 34764187516): `full` added **121**
+  findings to `offline` on cobra — every one a Go standard-library advisory keyed on
+  `go 1.15` in `go.mod`, which Trivy reports only from compiled binaries, and which
+  describe the toolchain rather than the repository's code; **1** on flask (a
+  disputed Click advisory Trivy's database does not carry); and **0** on the other
+  ten, across npm, Ruby, PHP, Rust, Java, Python and Terraform. It stays on `full`
+  because the Go toolchain gap is real for a Go application, it costs about a second,
+  and it is the second primary source (§3 of CLAUDE.md) — but if you scan no Go, it
+  will find you nothing Trivy did not, and it sends your lockfile's names and
+  versions to api.osv.dev, which `offline` never does.
 - **The Opengrep rules are a supplement, not the product — and the LLM-output
   rules are not a coverage claim.** Measured on eleven real repositories (task
   22.E.2; twelve on the run of 2026-09-13, same result): 75 findings, 64 of them tag-pinned GitHub Actions and the other 11

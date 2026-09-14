@@ -4,6 +4,8 @@
     python3 scripts/corpus.py fetch                 # clone each repository at its pin
     python3 scripts/corpus.py run [--profile P]     # scan each, judge, write the report
     python3 scripts/corpus.py rules                 # per-rule hit counts (task 22.E.2)
+    python3 scripts/corpus.py compare OFF FULL      # what `full` adds over `offline`
+                                                    # (task 23.4.5), from two reports
 
 `tests/corpus/corpus.toml` is the corpus: pinned commits and expectations. The bytes
 live in `tests/corpus/.checkouts/`, ignored by git and by the self-scan. `run` writes
@@ -264,10 +266,57 @@ def rules(entries: list[dict]) -> int:
     return 0
 
 
+ADVISORY_PREFIXES = ("CVE-", "GHSA-", "PYSEC-", "GO-", "RUSTSEC-", "OSV-", "MAL-")
+
+
+def compare(offline: dict, full: dict) -> list[dict]:
+    """Per repository, what `full` reported that `offline` did not (task 23.4.5):
+    the marginal value of the networked Scanners — osv-scanner's second advisory
+    source, and dependency-reality's registry questions — as counts of rules that
+    grew, split into advisories and the rest. Measured, not argued: on the
+    twelve-repository corpus it was 121 Go standard-library advisories on the one Go
+    project, one disputed advisory on flask, and nothing on the other ten."""
+    rows = []
+    for name in sorted(offline["repos"]):
+        before = offline["repos"][name]["by_rule"]
+        after = (full["repos"].get(name) or {}).get("by_rule") or {}
+        added = {rule: count - before.get(rule, 0) for rule, count in after.items()
+                 if count > before.get(rule, 0)}
+        advisories = {r: c for r, c in added.items() if r.startswith(ADVISORY_PREFIXES)}
+        rows.append({
+            "repo": name,
+            "offline": offline["repos"][name]["findings"]["total"],
+            "full": (full["repos"].get(name) or {}).get("findings", {}).get("total", 0),
+            "advisories_added": sum(advisories.values()),
+            "other_added": sum(added.values()) - sum(advisories.values()),
+            "examples": sorted(advisories)[:3],
+        })
+    return rows
+
+
+def compare_command(paths: list[str]) -> int:
+    if len(paths) != 2:
+        sys.exit("usage: scripts/corpus.py compare report-offline.json report-full.json")
+    rows = compare(json.loads(Path(paths[0]).read_text(encoding="utf-8")),
+                   json.loads(Path(paths[1]).read_text(encoding="utf-8")))
+    print(f"{'repo':<22} {'offline':>7} {'full':>5} {'+advisories':>11} {'+other':>6}  examples")
+    for row in rows:
+        examples = ", ".join(row["examples"])
+        print(f"{row['repo']:<22} {row['offline']:>7} {row['full']:>5} "
+              f"{row['advisories_added']:>11} {row['other_added']:>6}  {examples}")
+    total = sum(r["advisories_added"] for r in rows)
+    where = [r["repo"] for r in rows if r["advisories_added"]]
+    print(f"\n`full` added {total} advisory finding(s) over `offline`, on "
+          f"{len(where)} of {len(rows)} repositories: {', '.join(where) or 'none'}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
-    if not argv or argv[0] not in {"fetch", "run", "rules"}:
+    if not argv or argv[0] not in {"fetch", "run", "rules", "compare"}:
         print(__doc__)
         return 2
+    if argv[0] == "compare":
+        return compare_command(argv[1:])
     entries = repos()
     if argv[0] == "fetch":
         return fetch(entries)

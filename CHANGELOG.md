@@ -108,6 +108,12 @@ a minor bump may break things until 1.0.
 
 ### Changed
 
+- **The README says what OSV-Scanner adds, measured.** On twelve real repositories
+  `full` added 121 Go standard-library advisories on the one Go project (keyed on
+  `go.mod`'s `go` directive, which Trivy reports only from binaries), one disputed
+  Python advisory, and nothing on the other ten. It stays on `full`, with that
+  number beside it; `scripts/corpus.py compare` repeats the measurement from any
+  two corpus reports, and the weekly corpus run uploads it.
 - **A failure reason on `scan_status` is never cut mid-sentence.** It was cut at
   80 characters — *"…no package-name index for PyPI, so"* — which was the one
   sentence the agent needed whole. Now every line of the reason is shown, indented

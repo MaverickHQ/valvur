@@ -72,6 +72,10 @@ jobs:
         if: always()
         run: uv run python scripts/corpus.py rules | tee corpus-rules.txt
 
+      - name: What `full` adds over `offline` (task 23.4.5)
+        if: always()
+        run: uv run python scripts/corpus.py compare report-offline.json report-full.json | tee corpus-compare.txt
+
       - name: Summary
         if: always()
         run: |
@@ -91,5 +95,6 @@ jobs:
           path: |
             report-offline.json
             report-full.json
+            corpus-compare.txt
             corpus-*.txt
           retention-days: 90
