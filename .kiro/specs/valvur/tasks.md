@@ -4732,13 +4732,45 @@ last.
   from `IMAGE` explicitly. One more copy that could not drift: the `verify` job
   used to spell the version into the build by hand; it is the same env now.
 
-- [ ] **23.4.4** The shim carries the tree hash it was built beside. `release.yml`
+- [x] **23.4.4** The shim carries the tree hash it was built beside. `release.yml`
   builds the wheel and the image from one tree; put `tree_hash` of the inputs into the
   wheel (a generated `_build.py`, never committed) and compare it to the image's
   `/etc/valvur/inputs.sha256` at scan time, as `doctor` does. This closes the hole rc1
   fell through — same version string, different code, and F1.9 content — as a warning
   in `run.json` and `SUMMARY.md`, never a refusal: a mismatch is a diagnosis, not a
   reason to hide results.
+
+  **STATUS 2026-09-14:** ✅ `hatch_build.py`, a hatchling build hook
+  (`[tool.hatch.build.hooks.custom]`): at every `uv build` it computes
+  `tree_hash.digest(tree_parts(root))` — the same module, the same inputs the
+  image hashes — writes `src/valvur/_build.py` with `INPUTS_SHA256`, force-includes
+  it into the wheel, and removes it in `finalize`; never committed (`.gitignore`),
+  never copied into the image (`.dockerignore`, where a host value would only be
+  stale), and never an input to the digest it holds (`tree_hash` skips the name —
+  it sits inside `src/valvur`, which is hashed). The sdist carries the inputs, so
+  a wheel built from one computes the same value; an editable install has no
+  file and `compat.shim_inputs()` hashes the checkout live, as the e2e guard does;
+  a wheel from before the hook answers None. **The image side**,
+  `compat.image_inputs(runtime, image)`: `image inspect --format {{.Id}}`
+  (milliseconds), then a memo under `~/.cache/valvur/image-inputs/<id>` — first
+  read by `cat` of `/etc/valvur/inputs.sha256` in a `--network=none` container
+  (2–5s on Docker Desktop, once per image), an image without the file remembered
+  as such, a container that did not start (exit 125) not remembered at all. The
+  runner's `build_provenance()` hands the pair to the scan; `ScanRun` carries
+  `shim_built_from`/`image_built_from`/`build_match` (None when either side is
+  unrecorded — nothing invented from nothing); `run.json` gains `build: {shim,
+  image, match}`; `SUMMARY.md` and `scan_status` warn on a mismatch with both
+  digests and the two fixes; `doctor`'s image line says *built from 958d10ca, the
+  tree this shim was built from* or warns with both. **Measured with a real wheel
+  in a clean venv:** `_build.py` = `shim_inputs()` = the tree = the image built
+  from it (958d10ca…); against the published `0.2.0` image, `match: False`, the
+  warning on all three surfaces, and the scan still complete — the diagnosis rc1
+  never had. 14 tests in `tests/test_build_hash.py`, one of them a real `uv build`
+  that opens the wheel; 13 mutations, two survivors pinned (a `cat` that printed
+  noise while failing; a container that did not start being remembered as an
+  answer). F1.9 extended. Not done: a *refusal* — deliberately, per the task; and
+  `doctor` still starts a container to read the digest rather than using the memo,
+  because that start is the point of its image check.
 
 - [ ] **23.4.5** Measure osv-scanner's marginal value on the corpus: findings on `full`
   that Trivy did not report, per ecosystem, from the report `corpus.yml` already
@@ -4860,7 +4892,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 15 | [12b.1](#12b--release) | act on what the gate found | |
 | 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 |
 | 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 |
-| 18 | 23.4.4 | the shim carries its build hash | |
+| 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 |
 | 19 | 23.4.5 | measure osv-scanner's marginal value | |
 | 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 |
 | 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | |

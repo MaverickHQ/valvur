@@ -73,6 +73,17 @@ class ScanRun:
     #: so every surface that reports an incomplete run reports this.
     budget_s: float | None = None
     budget_cut: list[str] = field(default_factory=list)
+    #: The tree the shim was built beside and the tree the image was built from
+    #: (23.4.4). Equal on a release; different is the rc1 hole — same version,
+    #: different code — reported as a warning, never a refusal. None: unrecorded.
+    shim_built_from: str | None = None
+    image_built_from: str | None = None
+
+    @property
+    def build_match(self) -> bool | None:
+        if self.shim_built_from is None or self.image_built_from is None:
+            return None
+        return self.shim_built_from == self.image_built_from
 
     @property
     def failures(self) -> list[ScannerRun]:
@@ -494,6 +505,10 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     if readable is not None:
         readable(workspace)
 
+    # The tree, not the version (23.4.4): recorded now, judged in the report.
+    provenance = getattr(runner, "build_provenance", None)
+    shim_built_from, image_built_from = provenance() if provenance is not None else (None, None)
+
     if adapters is None:
         adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
 
@@ -625,6 +640,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         coverage=ctx.coverage,
         budget_s=budget_s,
         budget_cut=cut,
+        shim_built_from=shim_built_from,
+        image_built_from=image_built_from,
     )
 
     results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)

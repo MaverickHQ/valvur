@@ -29,6 +29,13 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **The shim carries the tree hash it was built beside.** A build hook writes
+  `valvur/_build.py` into the wheel — the same digest over the same inputs the
+  image records in `/etc/valvur/inputs.sha256` — and a scan compares the two,
+  reading the image's once per image id. Different trees behind the same version
+  (the hole `0.1.0rc1` fell through, which F1.9's version label cannot see) is now
+  a warning in `run.json` (`build: {shim, image, match}`), `SUMMARY.md`,
+  `scan_status` and `doctor`'s image line — never a refusal.
 - **One bake file; each architecture built natively.** `docker-bake.hcl` is the
   one place the image build lives — `dev` for a local or CI image, `release` for a
   manifest pushed by digest — and `CONTRIBUTING.md`, `ci.yml`, `corpus.yml` and

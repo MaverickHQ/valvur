@@ -11,3 +11,7 @@ docs
 .pytest_cache
 .mypy_cache
 .ruff_cache
+
+# The wheel's own copy of the tree hash (23.4.4): the image computes its own from
+# the inputs, and a host-generated file here would only ever be stale.
+src/valvur/_build.py

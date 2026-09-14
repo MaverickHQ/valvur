@@ -49,6 +49,9 @@ def healthy(tmp_path, monkeypatch):
     monkeypatch.setattr(doctor, "_image_present", lambda runtime, image: True)
     monkeypatch.setattr(doctor, "_image_label", lambda runtime, image: __version__)
     monkeypatch.setattr(doctor, "_image_starts", lambda runtime, image: (True, "0be0b0f0456f7f"))
+    from valvur import compat
+
+    monkeypatch.setattr(compat, "shim_inputs", lambda: "0be0b0f0456f7f")   # the same tree (23.4.4)
     monkeypatch.setattr(doctor, "_selinux_enforcing", lambda: False)
     monkeypatch.setattr(doctor, "_platform", lambda: "Darwin")
     monkeypatch.setattr(doctor, "_reachable", lambda host, port=443: pytest.fail(f"probed {host}"))
@@ -85,7 +88,8 @@ def test_a_healthy_machine_is_ready_and_every_line_says_what_was_measured(health
     assert by["python"].detail.endswith("128 trusted roots")
     assert by["runtime"].detail == "Docker version 29.2.1 at /usr/local/bin/docker, running"
     assert by["image"].detail == (f"ghcr.io/maverickhq/valvur:{__version__}: version "
-                                  f"{__version__} matches the shim; starts (built from 0be0b0f0)")
+                                  f"{__version__} matches the shim; starts (built from 0be0b0f0, "
+                                  "the tree this shim was built from)")
     assert by["database"].detail == "0.3 days old"
     assert by["index"].detail.startswith(
         "0.0 days old — pip 1 · npm 1 · gem 1 · composer 1 · cargo 1")

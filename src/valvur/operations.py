@@ -483,6 +483,14 @@ def scan_status(args: dict) -> str:
     if ignores:
         lines += ["", "coverage: " + "; ".join(ignores)]
 
+    build = data.get("build") or {}
+    if build.get("match") is False:
+        lines += ["", "WARNING: the shim and the image were built from different trees "
+                  f"(shim {str(build.get('shim'))[:12]}, image {str(build.get('image'))[:12]}). "
+                  "Same version, different code — the image may lack a Check or a rule "
+                  "this shim expects. `docker pull` the image this version publishes, or "
+                  "`pip install -U valvur`."]
+
     network = data.get("network", {})
     lines += ["", f"left this machine: {network.get('what_left_the_machine', 'unknown')}"]
     if job is not None and job.state == "done":

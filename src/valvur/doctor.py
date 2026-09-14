@@ -266,8 +266,25 @@ def _check_image(runtime: str | None) -> tuple[Check, bool]:
             f"{runtime} run --rm {image} true — the runtime's own error is the diagnosis; "
             "an 'exec format error' means the image is for another architecture",
         ), True
-    built = f" (built from {digest[:8]})" if digest else ""
-    return Check("image", "ok", f"{image}: {label}; starts{built}"), True
+    # The tree, not the version (23.4.4): the one thing F1.9 cannot see.
+    from . import compat
+
+    mine = compat.shim_inputs()
+    if digest and mine and digest != mine:
+        return Check(
+            "image", "warn",
+            f"{image}: {label}; starts; built from {digest[:8]}; this shim was built from "
+            f"{mine[:8]} — same version, different code, the hole 0.1.0rc1 fell through",
+            f"pull the image this version publishes ({runtime} pull {image}) or "
+            "`pip install -U valvur`; a scan still runs, and says this in SUMMARY.md",
+        ), True
+    if digest and mine:
+        built = f"; starts (built from {digest[:8]}, the tree this shim was built from)"
+    elif digest:
+        built = f"; starts (built from {digest[:8]})"
+    else:
+        built = "; starts"
+    return Check("image", "ok", f"{image}: {label}{built}"), True
 
 
 def _check_database() -> Check:

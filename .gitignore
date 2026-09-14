@@ -3,6 +3,9 @@
 # but this entry is the visible signal to humans.
 .security-scan/
 
+# Generated into the wheel by hatch_build.py, never committed (task 23.4.4).
+src/valvur/_build.py
+
 # Python
 .venv/
 venv/

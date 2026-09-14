@@ -448,6 +448,14 @@ class ContainerRunner:
 
         compat.check(self.runtime, self.image)
 
+    def build_provenance(self) -> tuple[str | None, str | None]:
+        """(the tree this shim was built beside, the tree the image was built
+        from) — either None when unrecorded (23.4.4). Compared by the scan and
+        reported, never refused."""
+        from . import compat
+
+        return compat.shim_inputs(), compat.image_inputs(self.runtime, self.image)
+
     # ------------------------------------------------------- the image itself
 
     def image_present(self) -> bool:

@@ -176,7 +176,10 @@ lives; `ci.yml`, `corpus.yml`, `CONTRIBUTING.md` and `verify` build through it t
   `sbom.cdx.json` valvur writes for a scanned project. F10.4 requires it, because the
   base image carries GPL components as every Linux container does, and disclosure is
   the honest answer to a claim no container could satisfy.
-- Publishes to PyPI by trusted publishing.
+- Publishes to PyPI by trusted publishing. The wheel carries `valvur/_build.py`,
+  written by the build hook (`hatch_build.py`): the digest of the tree it was built
+  beside, the same digest the image records — so a user's scan can tell the pair
+  came from one tree, and says so when it did not (23.4.4).
 - Creates the GitHub release with the verification commands in the notes, so a
   sceptical reader does not have to find them.
 

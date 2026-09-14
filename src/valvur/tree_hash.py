@@ -30,10 +30,11 @@ IMAGE_RULES = "/opt/valvur-rules"
 IMAGE_CHECKOV_LOCK = "/opt/checkov-requirements.txt"
 
 #: Never part of the digest: byte-compiled caches differ per interpreter and are
-#: stripped from the image anyway; editor droppings are not inputs.
+#: stripped from the image anyway; editor droppings are not inputs; and the file
+#: the wheel build generates to CARRY this digest (23.4.4) cannot also move it.
 _SKIP_DIRS = {"__pycache__"}
 _SKIP_SUFFIXES = (".pyc", ".pyo")
-_SKIP_NAMES = {".DS_Store"}
+_SKIP_NAMES = {".DS_Store", "_build.py"}
 
 
 def digest(parts: dict[str, Path]) -> str:

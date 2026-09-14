@@ -102,6 +102,10 @@ def _provenance(run: ScanRun) -> str:
                 # The scan budget in force and what it cut (23.3.7); None when none.
                 "budget": ({"seconds": run.budget_s, "cut": list(run.budget_cut)}
                            if run.budget_s is not None else None),
+                # The tree the shim and the image were built from (23.4.4). `match`
+                # is None when either side is unrecorded — nothing to compare.
+                "build": {"shim": run.shim_built_from, "image": run.image_built_from,
+                          "match": run.build_match},
                 "excluded_by_config": {
                     "paths": list(run.excluded_paths),
                     "findings_dropped": run.config_dropped,
@@ -319,6 +323,19 @@ def _summary(run: ScanRun) -> str:
         lines += [
             f"> ⚠ Exploit intelligence is {age:.0f} days old. Run `valvur update`.",
             "> Confident answers from stale data are worse than no answer.",
+            "",
+        ]
+
+    if run.build_match is False:
+        # The rc1 hole, named (23.4.4): F1.9 saw two equal version labels, and the
+        # code behind them differed. A warning, not a refusal — the results below
+        # are real; what they mean is what this shim expects of that image.
+        lines += [
+            "> ⚠ **The shim and the image were built from different trees** — shim "
+            f"`{(run.shim_built_from or '')[:12]}`, image `{(run.image_built_from or '')[:12]}`. "
+            "Same version, different code: the image may lack a Check or a rule this "
+            "shim expects, or carry one it does not. `docker pull` the image this "
+            "version publishes, or `pip install -U valvur` to match the image.",
             "",
         ]
 
