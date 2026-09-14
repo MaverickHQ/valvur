@@ -896,6 +896,31 @@ def test_the_image_digest_covers_the_checkov_lock():
     assert "requirements-checkov.txt" in Path("Dockerfile").read_text()
 
 
+def test_every_image_build_goes_through_the_bake_file():
+    """Task 23.4.3. Four copies of the build command drifted the way 19.A.3's
+    copies did; now `docker-bake.hcl` is the one place, and the release builds each
+    architecture natively — no QEMU — merging with `imagetools create`."""
+    import re
+
+    bake = Path("docker-bake.hcl").read_text()
+    assert re.search(r'^target "dev"', bake, re.M) and re.search(r'^target "release"', bake, re.M)
+    assert "push-by-digest=true" in bake
+    assert 'VALVUR_VERSION = VALVUR_VERSION' in bake, "the version must reach the Dockerfile"
+
+    for name in ("ci.yml", "corpus.yml", "release.yml"):
+        text = Path(".github/workflows", name).read_text()
+        assert "docker buildx build" not in text, f"{name} still carries its own build command"
+        assert "docker buildx bake" in text, f"{name} does not build through the bake file"
+    contributing = Path("CONTRIBUTING.md").read_text()
+    assert "docker buildx bake" in contributing and "docker buildx build" not in contributing
+
+    release = Path(".github/workflows/release.yml").read_text()
+    assert "ubuntu-24.04-arm" in release, "the arm64 half is not built natively"
+    assert "setup-qemu-action" not in release, "QEMU is still installed for the release"
+    assert "docker buildx imagetools create" in release
+    assert 'needs: [verify, build]' in release
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""

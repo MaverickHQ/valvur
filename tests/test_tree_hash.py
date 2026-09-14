@@ -147,6 +147,6 @@ def test_the_image_under_test_was_built_from_this_tree():
     assert built_from == expected, (
         f"{IMAGE} was built from a different tree (image {built_from[:12]}, tree "
         f"{expected[:12]}). Rebuild it before trusting anything below:\n"
-        f"  docker buildx build --load --build-arg VALVUR_VERSION=... -t "
-        f"{os.environ.get('VALVUR_IMAGE', 'valvur:dev')} ."
+        f"  VALVUR_VERSION=... docker buildx bake   # → valvur:dev; VALVUR_IMAGE is "
+        f"{os.environ.get('VALVUR_IMAGE', 'valvur:dev')}"
     )

@@ -27,9 +27,7 @@ because it needs a container; CI runs it, and so should you before anything touc
 the runner, adapters or Checks:
 
 ```bash
-docker buildx build --load \
-  --build-arg VALVUR_VERSION="$(uv run python -c 'import valvur; print(valvur.__version__)')" \
-  -t valvur:dev .
+VALVUR_VERSION="$(uv run python -c 'import valvur; print(valvur.__version__)')" docker buildx bake
 VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 ```
 

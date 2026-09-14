@@ -57,9 +57,8 @@ jobs:
       - name: Build image (version label drives the F1.9 compatibility check)
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          docker buildx build --load \
-              --cache-from type=gha --cache-to type=gha,mode=max \
-              --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+          VALVUR_VERSION="$VER" docker buildx bake dev \
+              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
       - name: Make the image visible to podman
         # Podman keeps its own image store, so a docker build is invisible to it.
         # Transferring is far cheaper than building twice, and without it the podman
@@ -229,9 +228,8 @@ jobs:
       - name: Build image
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          docker buildx build --load \
-              --cache-from type=gha --cache-to type=gha,mode=max \
-              --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+          VALVUR_VERSION="$VER" docker buildx bake dev \
+              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
       - run: uv venv --python 3.12
       - run: uv sync --extra dev --locked
       - name: The tree's own shim, on PATH for the action

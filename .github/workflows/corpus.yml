@@ -32,9 +32,8 @@ jobs:
       - name: Build the image from this tree
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          docker buildx build --load \
-              --cache-from type=gha --cache-to type=gha,mode=max \
-              --build-arg VALVUR_VERSION="$VER" -t valvur:dev .
+          VALVUR_VERSION="$VER" docker buildx bake dev \
+              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
       - run: uv venv --python 3.12
       - run: uv sync --extra dev --locked
 
