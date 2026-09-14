@@ -6,8 +6,8 @@
 # tags, the platforms and the outputs live here.
 #
 #   VALVUR_VERSION=0.2.0 docker buildx bake            # valvur:dev, loaded locally
-#   docker buildx bake release                          # this runner's architecture,
-#                                                       # pushed to $IMAGE by digest
+#   BAKE_IMAGE=ghcr.io/… docker buildx bake release     # this runner's architecture,
+#                                                       # pushed to BAKE_IMAGE by digest
 #
 # The version is an argument the Dockerfile turns into the OCI version label that
 # the shim checks against its own (F1.9), so it must be the tree's — which is why
@@ -18,12 +18,15 @@ variable "VALVUR_VERSION" {
 }
 
 # Where the release pushes. The workflow sets it to the real package or the
-# rehearsal's throwaway one; `dev` never pushes.
-variable "IMAGE" {
+# rehearsal's throwaway one; `dev` never pushes. Named BAKE_* because bake reads
+# variables from the environment, and the first rehearsal (2026-09-14) found the
+# release workflow's own `IMAGE` variable turning the test image into
+# `ghcr.io/…/valvur-rehearsal:dev` — a name nothing then found.
+variable "BAKE_IMAGE" {
   default = "valvur"
 }
 
-variable "TAG" {
+variable "BAKE_TAG" {
   default = "dev"
 }
 
@@ -38,7 +41,7 @@ target "dev" {
   args = {
     VALVUR_VERSION = VALVUR_VERSION
   }
-  tags   = ["${IMAGE}:${TAG}"]
+  tags   = ["${BAKE_IMAGE}:${BAKE_TAG}"]
   output = ["type=docker"]
 }
 
@@ -51,5 +54,5 @@ target "dev" {
 target "release" {
   inherits = ["dev"]
   tags     = []
-  output   = ["type=image,name=${IMAGE},push=true,push-by-digest=true,name-canonical=true"]
+  output   = ["type=image,name=${BAKE_IMAGE},push=true,push-by-digest=true,name-canonical=true"]
 }

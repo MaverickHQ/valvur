@@ -28,7 +28,7 @@ def rebuild_command(image: str) -> str:
     """The bake file is the one place the build lives (23.4.3); `IMAGE:TAG` is
     what `dev` produces, so a non-default image name is split into the two."""
     name, _, tag = image.rpartition(":")
-    target = f"IMAGE={name} TAG={tag} " if name and image != "valvur:dev" else ""
+    target = f"BAKE_IMAGE={name} BAKE_TAG={tag} " if name and image != "valvur:dev" else ""
     return (
         f"{target}VALVUR_VERSION=\"$(uv run python -c 'import valvur; "
         "print(valvur.__version__)')\" docker buildx bake"

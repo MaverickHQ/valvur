@@ -155,6 +155,7 @@ jobs:
         id: build
         env:
           VALVUR_VERSION: ${{ needs.verify.outputs.publish_version }}
+          BAKE_IMAGE: ${{ env.IMAGE }}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           # No --platform: the builder's native one, which is the runner's. The

@@ -29,6 +29,12 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **One bake file; each architecture built natively.** `docker-bake.hcl` is the
+  one place the image build lives — `dev` for a local or CI image, `release` for a
+  manifest pushed by digest — and `CONTRIBUTING.md`, `ci.yml`, `corpus.yml` and
+  `release.yml` all build through it. The release builds amd64 and arm64 on their
+  own native runners side by side and merges them into one index with
+  `imagetools create`; QEMU is gone from the release.
 - **Checkov 3.2.517 → 3.3.17**, through the lock: `requirements-checkov.in` moved,
   `scripts/lock-checkov.sh` regenerated the lock with the asteval override intact
   (Dependabot's own regeneration had dropped it, restoring the vulnerable pin —

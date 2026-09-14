@@ -154,9 +154,18 @@ end-to-end must pass; valvur must add no GPL component (F10.4); and valvur must 
 itself clean, with no unsuppressed finding, no expired suppression and no scanner
 that failed to complete (N2.5).
 
+**`build` — each architecture, natively (23.4.3).** One job per architecture, on
+its own runner — `ubuntu-latest` and `ubuntu-24.04-arm` — each running `docker
+buildx bake release`: the runner's own architecture, no QEMU (which cost the amd64
+runner 4m50s for both on v0.2.0), pushed to the package by digest and untagged, the
+digest handed on as an artifact. `docker-bake.hcl` is the one place the build
+lives; `ci.yml`, `corpus.yml`, `CONTRIBUTING.md` and `verify` build through it too.
+
 **`release` — publishes, then proves what it published.**
 
-- Pushes `:$VERSION` and `:latest` to GHCR.
+- Writes one index over the two digests with `docker buildx imagetools create`,
+  tagged `:$VERSION` and `:latest`, and asserts the index carries both
+  architectures. That index's digest is what everything below signs and attests.
 - **Signs by digest, not by tag.** A tag can be moved to point at other code, which
   is the entire reason we pin actions to SHAs; signing one would carry that defect
   into our own supply chain. Keyless, via the workflow's OIDC identity, recorded in
