@@ -295,6 +295,67 @@ def _say_why_unfetched(scanners: list[ScannerRun], unfetched: dict[str, str]) ->
     ]
 
 
+def _plan(adapters, runner) -> list[tuple]:
+    """The fleet as tasks: `(work(runner, workspace) -> [outcome, …], [indices])`.
+
+    Every Scanner is its own task. valvur's own Checks are one task when there are
+    at least two of them and the runner can run a batch (23.4.2): one container,
+    one interpreter start, and still one outcome — one ScannerRun, one coverage
+    contract, one line of provenance — per Check. A runner without the ability
+    (the fakes of older tests) gets the Checks one by one, as before.
+    """
+    checks = [i for i, a in enumerate(adapters) if getattr(a, "kind", "") == "check"]
+    batched = len(checks) >= 2 and getattr(runner, "run_checks", None) is not None
+    tasks: list[tuple] = []
+    for index, adapter in enumerate(adapters):
+        if batched and index in checks:
+            if index == checks[0]:
+                members = [adapters[i] for i in checks]
+                tasks.append((lambda r, w, m=members: _run_checks(m, r, w), list(checks)))
+            continue
+        tasks.append((lambda r, w, a=adapter: [_run_one(a, r, w)], [index]))
+    return tasks
+
+
+def _run_checks(adapters, runner, workspace) -> list[tuple]:
+    """Several Checks, one container: each gets the outcome `_run_one` would have
+    given it, timed as the batch — what it cost the fleet — and the container gets
+    the widest grant any of them was given, which is dependency-reality's on
+    `full` and nothing otherwise."""
+    started = time.monotonic()
+    wanted = []
+    outcomes: dict[str, tuple] = {}
+    for adapter in adapters:
+        should_run, why = adapter.applies_to(workspace)
+        if should_run:
+            wanted.append(adapter)
+        else:
+            outcomes[adapter.name] = (
+                ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, "")
+    outputs: dict = {}
+    if wanted:
+        try:
+            outputs = runner.run_checks(
+                [a.name for a in wanted], workspace,
+                network=any(getattr(a, "network", False) for a in wanted),
+            )
+        except Exception as exc:
+            outputs = {a.name: None for a in wanted}
+            failure = str(exc)
+    for adapter in wanted:
+        output = outputs.get(adapter.name)
+        if output is None:
+            outcomes[adapter.name] = (
+                ScannerRun(adapter.name, ok=False, reason=failure), [], None, "")
+        else:
+            outcomes[adapter.name] = _outcome(adapter, output)
+    elapsed = time.monotonic() - started
+    return [
+        (dataclasses.replace(outcomes[a.name][0], duration_s=elapsed), *outcomes[a.name][1:])
+        for a in adapters
+    ]
+
+
 def _run_one(adapter, runner, workspace) -> tuple:
     """Run one Scanner, timed. One broken Scanner must never cost the others (F2.5)."""
     started = time.monotonic()
@@ -321,7 +382,12 @@ def _attempt(adapter, runner, workspace) -> tuple:
         output = adapter.run(runner, workspace)
     except Exception as exc:
         return ScannerRun(adapter.name, ok=False, reason=str(exc)), [], None, ""
+    return _outcome(adapter, output)
 
+
+def _outcome(adapter, output) -> tuple:
+    """A Scanner's output as the fleet records it: a failure with no report, or a
+    ScannerRun with its Findings and any artifact."""
     if output.exit_code != 0 and not output.stdout.strip():
         return (
             ScannerRun(
@@ -435,18 +501,25 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     width = jobs if jobs is not None else (_jobs_from_environment() or len(adapters))
     fleet_started = time.monotonic()
     cut: list[str] = []
-    with ThreadPoolExecutor(max_workers=max(1, min(width, max(1, len(adapters))))) as pool:
+    # One task per Scanner — except valvur's own Checks, which share one container
+    # (23.4.2) and so one task producing an outcome each. `futures` maps a task to
+    # the adapter indices it answers for.
+    tasks = _plan(adapters, runner)
+    with ThreadPoolExecutor(max_workers=max(1, min(width, max(1, len(tasks))))) as pool:
         futures = {
-            pool.submit(_run_one, adapter, runner, workspace): index
-            for index, adapter in enumerate(adapters)
+            pool.submit(work, runner, workspace): indices
+            for work, indices in tasks
         }
 
+        def names(future) -> str:
+            return ", ".join(adapters[i].name for i in futures[future])
+
         def collect(future) -> None:
-            outcome = future.result()
-            outcomes[futures[future]] = outcome
-            if on_progress is not None:
-                status = 'ok' if outcome[0].ok else 'failed'
-                on_progress(f"{outcome[0].tool}: {status} ({outcome[0].duration_s:.1f}s)")
+            for index, outcome in zip(futures[future], future.result(), strict=True):
+                outcomes[index] = outcome
+                if on_progress is not None:
+                    status = 'ok' if outcome[0].ok else 'failed'
+                    on_progress(f"{outcome[0].tool}: {status} ({outcome[0].duration_s:.1f}s)")
 
         try:
             for future in as_completed(futures, timeout=budget_s):
@@ -460,16 +533,17 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             queued = [f for f in futures if f.cancel()]
             running = [f for f in futures if not f.done() and f not in queued]
             for future in queued:
-                adapter = adapters[futures[future]]
-                cut.append(adapter.name)
-                outcomes[futures[future]] = (ScannerRun(
-                    adapter.name, ok=False,
-                    reason=f"not started: the {budget_s:g}s budget was spent before its turn",
-                ), [], None, "")
+                for index in futures[future]:
+                    cut.append(adapters[index].name)
+                    outcomes[index] = (ScannerRun(
+                        adapters[index].name, ok=False,
+                        reason=f"not started: the {budget_s:g}s budget was spent before "
+                        "its turn",
+                    ), [], None, "")
             stop = getattr(runner, "stop_containers", None)
             if on_progress is not None:
                 on_progress(f"budget spent after {spent:.0f}s: stopping "
-                            f"{', '.join(adapters[futures[f]].name for f in running) or 'nothing'}"
+                            f"{', '.join(names(f) for f in running) or 'nothing'}"
                             f"; not starting {', '.join(cut) or 'nothing'}")
             if stop is not None and running:
                 stop()
@@ -477,15 +551,15 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             # cannot stop one is waited for, and its result is real.
             wait(running)
             for future in running:
-                adapter = adapters[futures[future]]
                 collect(future)
-                outcome = outcomes[futures[future]]
-                if outcome is not None and stop is not None and not outcome[0].ok:
-                    cut.append(adapter.name)
-                    outcomes[futures[future]] = (dataclasses.replace(
-                        outcome[0], reason=f"cut by the {budget_s:g}s budget after "
-                        f"{spent:.0f}s ({outcome[0].reason})",
-                    ), *outcome[1:])
+                for index in futures[future]:
+                    outcome = outcomes[index]
+                    if outcome is not None and stop is not None and not outcome[0].ok:
+                        cut.append(adapters[index].name)
+                        outcomes[index] = (dataclasses.replace(
+                            outcome[0], reason=f"cut by the {budget_s:g}s budget after "
+                            f"{spent:.0f}s ({outcome[0].reason})",
+                        ), *outcome[1:])
 
     completed = [o for o in outcomes if o is not None]
     # A cancel that landed during the fleet (F1.11): the Scanners it stopped came

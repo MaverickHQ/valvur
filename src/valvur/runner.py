@@ -73,6 +73,13 @@ def db_repository() -> str | None:
     return os.environ.get(DB_REPOSITORY_ENV) or None
 _RUNTIMES = ("docker", "podman", "nerdctl")
 
+_INDEX_REFUSAL = (
+    "Package-name index not present, so dependency existence cannot be checked "
+    "offline. Fetch it once with:\n"
+    "  valvur update\n"
+    "Scans then verify package names against the cached index (ADR-0018)."
+)
+
 
 class WorkspaceUnreadable(RuntimeError):
     """The container cannot see the source. Never downgraded to a clean result."""
@@ -734,17 +741,63 @@ class ContainerRunner:
             # message leads with the fix rather than arriving as a container's
             # stderr. The Check refuses too (in case the mount is empty or partial);
             # this is the version a first-time user actually reads.
-            raise RuntimeError(
-                "Package-name index not present, so dependency existence cannot be "
-                "checked offline. Fetch it once with:\n"
-                "  valvur update\n"
-                "Scans then verify package names against the cached index (ADR-0018)."
-            )
+            raise RuntimeError(_INDEX_REFUSAL)
         return self._capture(
             workspace,
             ["python", "-m", "valvur.checks", name, "/workspace"],
             None, tool=name, version=_VERSION, network=network,
         )
+
+    def run_checks(self, names, workspace: Path, *, network: bool = False
+                   ) -> dict[str, ScannerOutput]:
+        """Run several of valvur's Checks in ONE container (23.4.2) and return each
+        one's output under its own name, as `run_check` would have.
+
+        The container carries the Profile's grant — `network` is True only when a
+        Check in the batch was granted one, which is dependency-reality on `full` —
+        and the batch runs that Check last. The same host-side refusal as
+        `run_check` applies to it: without an index and without a network it is
+        answered here, and the container is launched for the others.
+        """
+        import json
+
+        from . import cache
+
+        names = list(names)
+        outputs: dict[str, ScannerOutput] = {}
+        if "dependency-reality" in names and not network and not cache.name_index_present():
+            outputs["dependency-reality"] = ScannerOutput(
+                "dependency-reality", _VERSION, "", _INDEX_REFUSAL, 1)
+            names.remove("dependency-reality")
+        if not names:
+            return outputs
+
+        batch = self._capture(
+            workspace, ["python", "-m", "valvur.checks", "batch", "/workspace", *names],
+            None, tool="checks", version=_VERSION, network=network,
+        )
+        try:
+            report = json.loads(batch.stdout) if batch.exit_code == 0 else None
+            if not isinstance(report, dict):
+                report = None
+        except ValueError:
+            report = None
+        for name in names:
+            if report is None:
+                detail = batch.stderr.strip()[:300] or f"exit {batch.exit_code}"
+                outputs[name] = ScannerOutput(
+                    name, _VERSION, "",
+                    f"the Checks container produced no batch report ({detail})",
+                    batch.exit_code or 99,
+                )
+                continue
+            entry = report.get(name) or {"ok": False, "findings": [],
+                                         "error": "missing from the batch report"}
+            outputs[name] = ScannerOutput(
+                name, _VERSION, json.dumps(entry.get("findings") or []),
+                entry.get("error") or "", 0 if entry.get("ok") else 1,
+            )
+        return outputs
 
     def run_gitleaks(self, workspace: Path) -> ScannerOutput:
         import tempfile

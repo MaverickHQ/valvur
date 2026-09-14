@@ -29,6 +29,13 @@ a minor bump may break things until 1.0.
   fleet runs concurrently, so the slowest Scanner is roughly what a scan costs. The
   corpus report gains `scan_s` and per-Scanner timings.
 
+- **The three Checks run in one container.** `python -m valvur.checks batch` runs
+  licence-file, ai-artifact and dependency-reality in one container start instead
+  of three — nine container starts a scan became seven — with three ScannerRuns,
+  three coverage contracts and each Check's findings and failures its own, as
+  before. The batch carries the Profile's network grant (dependency-reality's on
+  `full`, none on `offline`) and runs that Check last. Measured on the fixture on
+  a loaded Mac: about four seconds off every scan.
 - **Checkov hash-locked, in its own virtual environment.** `requirements-checkov.txt`
   pins Checkov and every one of its 96 transitive packages by version and sha256,
   and the image installs from it with `--require-hashes` into `/opt/checkov`, which

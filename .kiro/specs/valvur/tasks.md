@@ -4653,12 +4653,43 @@ last.
   carry it. A Checkov user who installs it the ordinary way runs the vulnerable
   asteval; ours does not.
 
-- [ ] **23.4.2** The three Checks in one container: `python -m valvur.checks all`,
+- [x] **23.4.2** The three Checks in one container: `python -m valvur.checks all`,
   nine container starts per scan become seven, and one 1.7s interpreter start instead
   of three. Same isolation the Checks have today — they are our code, and they never
   had a network to lose except dependency-reality's, which the batch keeps by running
   it last with the grant the Profile gave. Measure with 23.3.2: expect ~4s off every
   scan on a small repository.
+
+  **STATUS 2026-09-14:** ✅ `python -m valvur.checks batch <workspace> <name>…`
+  (named for what it does rather than `all`, since it runs the Checks the Profile
+  selected): each Check isolated inside the container — its own findings, its own
+  error, its own seconds — and dependency-reality last whatever order was asked.
+  `ContainerRunner.run_checks(names, workspace, network)` launches it once, carries
+  the grant, keeps the host-side index refusal for dependency-reality (the
+  container is launched for the other two), and turns a container that fails or
+  answers nonsense into a failure for every Check with the runtime's words. The
+  orchestrator gained one internal notion, `api._plan`: a task may answer for
+  several adapters, so the fleet's futures map to index lists and the budget's cut
+  names every Check in the batch; `_run_checks` gives each Check the outcome
+  `_run_one` would have — skipped when it does not apply, failed with the reason
+  when the runner raises — timed as the batch, and the widest grant any of them
+  was given. `CheckAdapter` is unchanged, so ADR-0013's "no new adapter protocol"
+  holds (the ADR is amended to say what did change). A runner without the ability
+  — an older one, or a fake — gets the Checks one by one; the suite's fakes gained
+  `run_checks` so 806 tests run the production path, with `run_checks_in_process`
+  isolating per Check the way the container does. **Measured**, old shim + old
+  image against new shim + new image on the ten-file fixture, three runs each on a
+  Mac at load 5–7: scan **35.1–46.0s → 31.2–34.6s**; the Checks 7.4–8.4s each in
+  three containers → one batch of 7.6–8.1s; Checkov 33.4–43.6 → 29.8–32.7s and
+  Opengrep 20.8–24.2 → 17.7–20.3s, which is the two container starts they no
+  longer contend with; same 76 findings, `complete: True`. The local e2e suite
+  took 6m12s where it had taken 12–13 minutes all day. The task's ~4s held. 21
+  tests in `tests/test_checks_batch.py`; 12 mutations, two survivors (a per-Check
+  error in the report reported ok; a runner raising on the batch losing the whole
+  scan) pinned. One trap on the way: the new shim against the OLD image ran the
+  batch entry point that did not exist there and reported the three Checks failed
+  — exactly what the tree-hash guard (22.C.1) exists for, and the before/after
+  measurement had to pair each shim with its own image.
 
 - [ ] **23.4.3** `docker buildx bake` with the version, labels and platforms in one
   file. `CONTRIBUTING.md`, `ci.yml`, `release.yml` and `corpus.yml` carry four copies
@@ -4792,7 +4823,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger |
 | 14 | 10.1.2 | they install it the way the README says | with 13 |
 | 15 | [12b.1](#12b--release) | act on what the gate found | |
-| 16 | 23.4.2 | the three Checks in one container | |
+| 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 |
 | 17 | 23.4.3 | `buildx bake`, native arm64 | |
 | 18 | 23.4.4 | the shim carries its build hash | |
 | 19 | 23.4.5 | measure osv-scanner's marginal value | |

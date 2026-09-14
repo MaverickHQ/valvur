@@ -152,6 +152,20 @@ def network_granted(monkeypatch):
     monkeypatch.setenv("VALVUR_NETWORK", "1")
 
 
+def run_checks_in_process(names, workspace: Path, *, network: bool) -> dict:
+    """What the container's batch does, in-process: each Check isolated, so one
+    refusing costs nothing to the others (F2.5)."""
+    from valvur.runner import ScannerOutput
+
+    outputs = {}
+    for name in names:
+        try:
+            outputs[name] = run_check_in_process(name, workspace, network=network)
+        except RuntimeError as exc:
+            outputs[name] = ScannerOutput(name, "0.1.0.dev0", "", str(exc), 1)
+    return outputs
+
+
 def run_check_in_process(name: str, workspace: Path, *, network: bool):
     """Run one of valvur's Checks here rather than in a container, telling it what
     the runner would have told it: whether it was given a network (ADR-0018)."""
@@ -272,6 +286,11 @@ class FakeRunner:
         and of what the runner tells them, so that is all the boundary to fake."""
         return run_check_in_process(name, workspace, network=network)
 
+    def run_checks(self, names, workspace: Path, *, network: bool = False):
+        """The batch (23.4.2), so the suite exercises the production path: the
+        real runner runs these in one container; here they run in-process."""
+        return run_checks_in_process(names, workspace, network=network)
+
 
 @pytest.fixture
 def runner_finding_one_secret():
@@ -381,3 +400,6 @@ class GoldenRunner:
 
     def run_check(self, name, workspace, *, network=False):
         return run_check_in_process(name, workspace, network=network)
+
+    def run_checks(self, names, workspace, *, network=False):
+        return run_checks_in_process(names, workspace, network=network)

@@ -41,3 +41,29 @@ Checks return plain dicts rather than **Findings**, so **Redaction** and
 
 The cost is that changing Check code requires an image rebuild. The package is copied
 in the final layer, so that rebuild is seconds.
+
+## Amendment 2026-09-14 (task 23.4.2): the Checks share one container
+
+Measured with per-Scanner timing (23.3.2): each Check cost 12–16s on a Mac and
+2–3s on Linux for milliseconds of work — a container start of a 576MB image and an
+interpreter start, three times a scan. Now `python -m valvur.checks batch` runs the
+selected Checks in **one** container, and the orchestrator plans one task for them
+(`api._plan`) that yields one outcome per Check. Nothing about the contract above
+changes: three ScannerRuns, three lines of provenance, three coverage contracts, each
+Check's findings under its own name, each Check's failure its own (the batch keeps
+them apart, and a refusal inside it costs nothing to the others). What changes is
+the count of container starts — nine a scan became seven — and, measured on the
+fixture on a loaded Mac, about four seconds off every scan, most of it Checkov and
+Opengrep no longer contending with two more container starts.
+
+The isolation argument holds because the Checks are our code. The only network any
+of them ever had is dependency-reality's, on `full`; the batch container carries the
+Profile's grant — the widest any Check in it was given, which is that one's — and
+runs dependency-reality last. On `offline` the batch has no interface at all, as
+each Check's container had. A runner that cannot batch, or a scan with one Check
+selected, runs them one by one as before.
+
+"No new orchestrator protocol" still holds for adapters: `CheckAdapter` is unchanged.
+The orchestrator gained an internal notion — a task may answer for several adapters
+— and the runner gained `run_checks` beside `run_check`.
+
