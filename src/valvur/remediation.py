@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .coverage import NOTE_RULES
 from .findings import Finding
 from .versions import release_line, version_key
 
@@ -48,16 +49,32 @@ def _retarget(item: Item) -> None:
     """Name the upgrade that clears every CVE in this group, not whichever finding
     happened to be grouped first. Four CVEs on one release line have four different
     minimal fixes; only the highest resolves all four, and stopping at the lowest
-    leaves the developer believing they are done."""
-    fixes = [
-        f.dependency.fixed_version
-        for f in item.findings
-        if f.dependency and f.dependency.fixed_version
-    ]
-    if not fixes:
+    leaves the developer believing they are done.
+
+    Per package, since 23.5.5. A root group — "upgrade webpack" — holds findings on
+    several transitive packages, and the old rule took the highest fix across all
+    of them and wrote it after whichever package the first finding named: *"so
+    `json5` reaches 1.4.2"*, loader-utils' version on json5's name. One action, one
+    target per package it must reach."""
+    fixes: dict[str, str] = {}      # package, lowercased -> the highest fix named
+    names: dict[str, str] = {}      # -> the spelling to print
+    for f in item.findings:
+        d = f.dependency
+        if not (d and d.package and d.fixed_version):
+            continue
+        key = d.package.lower()
+        names.setdefault(key, d.package)
+        fixes[key] = max((fixes.get(key, "0"), d.fixed_version), key=version_key)
+    match = re.match(r"Upgrade `([^`]+)`", item.action)
+    if not fixes or not match:
         return
-    highest = max(fixes, key=version_key)
-    item.action = re.sub(r"\b\d[\w.+-]*$", highest, item.action)
+    target = match.group(1)
+    direct = fixes.pop(target.lower(), "")
+    reach = " and ".join(f"`{names[k]}` reaches {v}" for k, v in sorted(fixes.items()))
+    item.action = (
+        f"Upgrade `{target}`" + (f" to {direct}" if direct else "")
+        + (f" so {reach}" if reach else "")
+    )
 
 
 def _key(finding: Finding) -> tuple[str, str, str]:
@@ -98,6 +115,12 @@ def _key(finding: Finding) -> tuple[str, str, str]:
 
 
 def render(findings: list[Finding], *, top: int = 25) -> str:
+    # A coverage note is a statement about valvur — what it did not inspect or could
+    # not read — and nothing in the user's code resolves it, so it is not an action.
+    # Until 23.5.5 every note went through `_key`, and the lockfile gap came out as
+    # "Remove the hallucinated dependencies" on every repository without one.
+    notes = [f for f in findings if f.rule in NOTE_RULES]
+    findings = [f for f in findings if f.rule not in NOTE_RULES]
     items = group(findings)
     lines = [
         "# Remediation proposal",
@@ -110,11 +133,19 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
         "> correctly fixing it look identical from here.",
         "",
     ]
+    aside = (
+        f"_{len(notes)} coverage note(s) — what valvur did not inspect or could not "
+        "read — are not actions here; they are listed in `SUMMARY.md`._"
+    ) if notes else ""
     if not items:
         lines += ["No findings. Nothing to remediate.", ""]
+        if aside:
+            lines += [aside, ""]
         return "\n".join(lines)
 
     lines.append(f"**{len(items)} action(s)** resolve **{len(findings)} finding(s)**.")
+    if aside:
+        lines.append(aside)
     lines.append("")
 
     for number, item in enumerate(items[:top], start=1):

@@ -108,6 +108,32 @@ a minor bump may break things until 1.0.
 
 ### Changed
 
+- **A licence valvur could not read is a coverage note, and casts no doubt.**
+  `valvur.licence.dependencies-unreadable`, `dependency-unknown` and `unidentified`
+  were active, low Findings, so a project with nothing wrong in it read `findings`
+  — eight of the twelve corpus repositories carried one, and awesome-cursorrules
+  read `findings` on a `LICENSE` valvur has no signature for and nothing else. They
+  now join the coverage notes: never active, never seen by `valvur gate` at any
+  threshold, counted as `not covered`, listed in `SUMMARY.md` under *What valvur
+  could not read* — and, unlike the existence and lockfile gaps, they do not make a
+  nil result `inconclusive`: a licence we could not read is not a vulnerability we
+  did not look for. A missing licence file, a contradiction between `LICENSE` and
+  the package metadata, and a copyleft dependency in a permissive project are facts
+  about the project and stay Findings (task 23.5.5; F4.6 annotated).
+- **`REMEDIATION.md` proposes actions for Findings, never for coverage notes.**
+  Every note went through the action grouper, and the lockfile gap — *"npm
+  dependencies were not checked for known vulnerabilities"* — came out as **"Remove
+  the hallucinated dependencies"** on every repository without a lockfile, and from
+  there into `scan_status`'s *"REMEDIATION.md, action 1 of N"*. Notes are now counted
+  aside in one line and left to `SUMMARY.md`.
+- **One upgrade target per action, the minimal one.** Trivy reports a fix per
+  release line, comma-joined — `"2.2.2, 1.0.2"` for json5 1.0.1 — and the adapter
+  copied the string, so the proposal read *"so `json5` reaches 2.2.2, 2.2.2,
+  1.0.2"*. The adapter now takes the smallest fix above the installed version, as
+  OSV's already did; and a root upgrade names what *each* transitive package must
+  reach — *"Upgrade `webpack` so `json5` reaches 1.0.2 and `loader-utils` reaches
+  1.4.2"* — where it used to write the highest fix in the group after whichever
+  package the first finding named.
 - **The README lists the four LLM-output-to-sink rules as what they are** —
   three taint rules whose only sources are the OpenAI, Anthropic and Gemini SDK
   calls, and one string-built-SQL pattern, none of which has fired on twelve real

@@ -400,12 +400,25 @@ def _summary(run: ScanRun) -> str:
     # Distinct from the block above, and both can be true at once: that one says a
     # Scanner did not run, this one says nothing here reads a whole ecosystem even
     # when it does.
-    if notes:
+    gaps = [n for n in notes if n.rule in _coverage.DOUBT_RULES]
+    if gaps:
         lines += [
             "> ⚠ **Part of this repository was not inspected at all.**",
-            *[f">   - {n.title} (`{n.path}`)" for n in notes],
+            *[f">   - {n.title} (`{n.path}`)" for n in gaps],
             "> This is missing coverage in valvur, not a result about your code — and "
             "not something a different Profile fixes.",
+            "",
+        ]
+    # A third claim, kept apart from the second (23.5.5): a licence valvur could not
+    # read is a statement about its reach, and unlike a gap it casts no doubt on the
+    # verdict — "not inspected" is the gap's sentence and stays the gap's.
+    unread = [n for n in notes if n.rule not in _coverage.DOUBT_RULES]
+    if unread:
+        lines += [
+            "> **What valvur could not read:**",
+            *[f">   - {n.title} (`{n.path}`)" for n in unread],
+            "> Statements about valvur's reach, not findings in your code — not "
+            "counted in the verdict. Each one's detail is in `findings.json`.",
             "",
         ]
 

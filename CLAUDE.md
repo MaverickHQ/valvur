@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 12 of them now — and whose first engineering item was the audit's worst
+task** — 11 of them now — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -66,16 +66,21 @@ own native runner — 1m14s against 4m50s under QEMU, proven by rehearsal. **The
 says — never refuses — when the image's differs: rc1's hole, closed as a diagnosis.
 **Then 23.4.5**: OSV-Scanner's marginal value measured on the corpus — 121 Go
 standard-library advisories on the one Go project, one disputed advisory on flask,
-nothing on the other ten — kept on `full` with the number in the README. **Nothing
-has landed since (reviewed 2026-09-17): fifteen tasks closed after `0.2.0` shipped and
-none of them released** — a stranger who follows the README today installs `0.2.0`,
-without `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's
-`v0` tag waits on `0.3.0`. **Next, in the six batches recorded at the head of Phase
-24 on 2026-09-17: Batch 1 — 23.5.5, 23.5.1, 23.5.2, what a stranger's project
-reads — then the `0.3.0` release with 12b.2 inside it, then the usability gate on
-that release, with 23.5.3 and 23.5.4 measured on the corpus while the stranger is
-found; 23.4.6 and `v1.0.0` after.** When "what is next" is asked, that list and its
-batches are the answer; the sequencing diagrams in Phases 21 and 23 are history.
+nothing on the other ten — kept on `full` with the number in the README. **Then
+23.5.5** (2026-09-17, the first of Batch 1): a licence valvur could not read is a
+coverage note that casts no doubt — awesome-cursorrules went from `findings` to
+`clean: 0 active, 1 not covered` — and on the way, two older defects: every
+coverage note had been a `REMEDIATION.md` action (the lockfile gap read *"Remove
+the hallucinated dependencies"*), and Trivy's comma-joined fix list reached the
+proposal verbatim. **Sixteen tasks closed after `0.2.0` shipped and none of them
+released** — a stranger who follows the README today installs `0.2.0`, without
+`doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
+tag waits on `0.3.0`. **Next, in the six batches recorded at the head of Phase 24
+on 2026-09-17: the rest of Batch 1 — 23.5.1, 23.5.2 — then the `0.3.0` release with
+12b.2 inside it, then the usability gate on that release, with 23.5.3 and 23.5.4
+measured on the corpus while the stranger is found; 23.4.6 and `v1.0.0` after.**
+When "what is next" is asked, that list and its batches are the answer; the
+sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -161,9 +166,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 56 modules under `src/valvur`, 854 tests in 47 files, 18 ADRs, 136
-requirement IDs, **161 done and 12 open** across 24 phases — 6 of the 12 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 12
+Roughly: 56 modules under `src/valvur`, 884 tests in 48 files, 18 ADRs, 136
+requirement IDs, **162 done and 11 open** across 24 phases — 5 of the 11 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 11
 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
@@ -461,7 +466,14 @@ Rules that must hold:
   our missing feature. Counting either as a problem in the user's code makes a release
   gate go red for something they did not do and cannot fix, and a gate nobody can turn
   green is a gate that gets deleted. All three counts appear on every surface: the
-  terminal, `run.json`, `SUMMARY.md` and the MCP `scan_status` response.
+  terminal, `run.json`, `SUMMARY.md` and the MCP `scan_status` response. **Coverage
+  notes are two kinds since 23.5.5**: a *gap* (`coverage.DOUBT_RULES` — nothing reads
+  the ecosystem, no lockfile) makes a nil result `inconclusive`; a *licence statement*
+  (`coverage.LICENCE_STATEMENT_RULES` — dependency licences absent from a lockfile,
+  a `LICENSE` no signature matches) is listed, counted as `not covered`, and casts
+  no doubt, because a licence we could not read is not a vulnerability we did not
+  look for. Neither kind is ever a `REMEDIATION.md` action — nothing in the user's
+  code resolves a statement about valvur.
 - **A Scanner that did not run says so.** Checkov is skipped where there is no
   infrastructure to analyse — it costs ~10s of fixed startup whatever it finds — and
   the skip with its reason appears in `run.json` (`scanners_skipped`) and in

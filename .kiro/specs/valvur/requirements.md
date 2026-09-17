@@ -281,6 +281,18 @@ surfaced, so that I do not publish with a missing or contradictory licence.
 6. F4.6 — valvur SHALL raise a **Finding** for any dependency whose licence cannot be
    determined.
 
+   > **Amended 2026-09-17 (task 23.5.5).** Raised, and since 23.5.5 a **coverage
+   > note** — never active, never a gate failure, counted as `not covered` — because
+   > "cannot be determined" is a statement about what valvur could read, not a
+   > defect in the code (§7's rule that the verdict is about the code). Unlike the
+   > other notes it casts no doubt on the security verdict: `clean` stays `clean`.
+   > The same class holds F4.1's "could not be identified" and the collapsed
+   > "N dependencies have no licence recorded". A *missing* licence file (F4.2), a
+   > *contradiction* (F4.3) and a *copyleft conflict* (F4.5) are facts about the
+   > project and stay Findings in the ordinary sense. Measured on the public corpus
+   > before the change: a licence statement active on eight of twelve real
+   > repositories, one reading `findings` on nothing else.
+
 ## F5 — Findings model, identity and status
 
 **User Story:** As a developer fixing findings iteratively, I want the next scan to

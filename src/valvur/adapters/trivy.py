@@ -14,6 +14,7 @@ from .. import fingerprint as _fp
 from ..coverage import Coverage
 from ..findings import Dependency, Exploit, Finding
 from ..runner import ScannerOutput
+from ..versions import version_key
 from .base import ScannerAdapter, container_relative
 
 
@@ -69,7 +70,7 @@ class TrivyAdapter(ScannerAdapter):
             for vuln in result.get("Vulnerabilities") or []:
                 package = vuln["PkgName"]
                 installed = vuln.get("InstalledVersion", "")
-                fixed = vuln.get("FixedVersion") or ""
+                fixed = _minimal_fix(vuln.get("FixedVersion") or "", installed)
                 findings.append(
                     Finding(
                         rule=vuln["VulnerabilityID"],
@@ -153,6 +154,20 @@ def _path_to_root(pkg_id: str, parents: dict[str, str]) -> tuple[str, ...]:
         seen.add(current)
         chain.append(current)
     return tuple(reversed(chain))
+
+
+def _minimal_fix(fixed: str, installed: str) -> str:
+    """One target, the minimal one (23.5.5). Trivy reports a fix per release line,
+    comma-joined — `"2.2.2, 1.0.2"` for json5 1.0.1 — and copying the string put two
+    versions in one action, the major jump first. The smallest fix above the
+    installed version is the upgrade that works, the answer OSV's adapter already
+    gives from the same ordering. When nothing in the list is above the installed
+    version, Trivy's own words are kept: they are its claim, and `raw/` must agree."""
+    parts = [part.strip() for part in fixed.split(",") if part.strip()]
+    if len(parts) < 2:
+        return fixed
+    above = [part for part in parts if version_key(part) > version_key(installed)]
+    return min(above, key=version_key) if above else fixed
 
 
 def _advice(package: str, installed: str, fixed: str, parents: dict[str, str]) -> str:

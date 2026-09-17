@@ -184,7 +184,13 @@ Only **active** findings make a status `findings`. Two things deliberately do no
   a committed `.security-scan.toml` with a mandatory expiry date. They are always
   listed, never hidden, and always counted separately.
 - **Coverage notes** are valvur's own missing features, not defects in your code.
-  Counting them would fail your CI for something you cannot fix.
+  Counting them would fail your CI for something you cannot fix. Two kinds: a
+  *gap* — an ecosystem nothing here reads, a manifest with no lockfile — makes a
+  nil result `inconclusive`, because "clean" is not ours to claim over something we
+  did not look at; a *licence statement* — "licences could not be determined for
+  600 of 618 dependencies", a `LICENSE` no signature matches — is listed under
+  *What valvur could not read* and casts no doubt, because a licence we could not
+  read is not a vulnerability we did not look for.
 
 ```
 clean: 0 active, 4 suppressed

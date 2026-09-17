@@ -282,15 +282,23 @@ def test_grouping_loses_and_duplicates_nothing(workspace):
     Grouping is a partition, not a filter. Dropping one silently would hide a
     vulnerability behind a tidier-looking list, which is the worst possible failure
     for this feature.
+
+    Since 23.5.5 the partition is over the Findings that are *about the code*: a
+    coverage note — what valvur did not inspect or could not read — is not an action
+    and is counted aside, never silently. The `broken-repo` fixture carries one.
     """
+    from valvur.coverage import NOTE_RULES
 
     results = _full_scan(workspace)
     findings_data = json.loads((results / "findings.json").read_text())["findings"]
+    notes = [f for f in findings_data if f["rule"] in NOTE_RULES]
+    assert notes, "the fixture stopped producing a coverage note"
 
     remediation = (results / "REMEDIATION.md").read_text()
     counted = sum(int(n) for n in re.findall(r"Resolves (\d+) finding", remediation))
 
-    assert counted == len(findings_data)
+    assert counted == len(findings_data) - len(notes)
+    assert f"{len(notes)} coverage note(s)" in remediation
 
 
 # ------------------------------------------------------------------ 6.4 raw/

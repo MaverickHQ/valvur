@@ -70,7 +70,11 @@ What is covered, and what is not, is stated on every scan rather than left to in
 
 A manifest with no lockfile beside it, or a manifest nothing here reads (a lone
 `Pipfile`, say), is a **coverage note**: the run reads `inconclusive` rather than
-`clean`, and names why. That reporting is the part we consider non-optional.
+`clean`, and names why. That reporting is the part we consider non-optional. A
+licence valvur *could not read* — dependency licences absent from a lockfile, a
+`LICENSE` no signature matches — is a note too, listed and counted, but it casts no
+doubt: a security verdict of `clean` stays `clean` over it, and no gate threshold
+sees it.
 
 ### 3. Ten things that matter, not four hundred findings
 

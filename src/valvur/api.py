@@ -21,6 +21,7 @@ from . import results
 from . import results as _results
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
+from .coverage import DOUBT_RULES as _DOUBT_RULES
 from .coverage import NOTE_RULES as _NOTE_RULES
 from .findings import Finding
 from .provenance import ScannerRun
@@ -113,7 +114,9 @@ class ScanRun:
 
     @property
     def coverage_notes(self) -> list[Finding]:
-        """What valvur did not inspect, as opposed to what it did not find."""
+        """What valvur did not inspect or could not read, as opposed to what it did
+        not find. Two kinds: the gaps, which make a nil result `inconclusive`, and
+        the licence statements, which do not (`coverage.DOUBT_RULES`, 23.5.5)."""
         return [f for f in self.findings if f.rule in _NOTE_RULES and not f.suppressed]
 
     @property
@@ -182,12 +185,14 @@ class ScanRun:
                 f"the package-name index is {index_age:.0f} days old "
                 f"(threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS})"
             )
-        if self.coverage_notes:
-            # Each note's title is "<what> were not checked for <question>"; the
+        gaps = [n for n in self.coverage_notes if n.rule in _DOUBT_RULES]
+        if gaps:
+            # Each gap's title is "<what> were not checked for <question>"; the
             # doubt keeps both halves, so "known vulnerabilities" and "existence"
-            # read as the different gaps they are.
+            # read as the different gaps they are. A licence statement is a note
+            # too, and is not here: it casts no doubt (23.5.5).
             which = "; ".join(n.title.replace(" were not checked for ", ": ")
-                              for n in self.coverage_notes)
+                              for n in gaps)
             reasons.append(f"not inspected — {which}")
         return reasons
 

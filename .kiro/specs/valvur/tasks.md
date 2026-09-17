@@ -4844,7 +4844,7 @@ last.
   slopsquat signal design.md specified for F3.3 — is real for half the ecosystems.
   PyPI stays stated as impossible without a third party.
 
-- [ ] **23.5.5** Coverage statements that still count as active. The rc run showed
+- [x] **23.5.5** Coverage statements that still count as active. The rc run showed
   fifteen `valvur.licence.dependency-unknown` findings — one fact, since collapsed to
   one Finding — and the corpus shows `valvur.licence.dependencies-unreadable` on six
   of eleven real projects: *"licences could not be determined"* is a statement about
@@ -4856,6 +4856,50 @@ last.
   high/critical never sees them, and the README says so. The REMEDIATION wording that
   put two versions in one sentence — *"so `json5` reaches 2.2.2, 1.0.2"* — is fixed in
   passing: one target per action, the minimal one, as the CHANGELOG already promises.
+
+  **STATUS 2026-09-17:** ✅ **The first shape, with the flag.** Three rules —
+  `dependencies-unreadable`, `dependency-unknown`, `unidentified` — are
+  `coverage.LICENCE_STATEMENT_RULES`, in `NOTE_RULES` (never active, `not covered`
+  on every surface, invisible to `valvur gate` at every threshold) and *not* in the
+  new `coverage.DOUBT_RULES` (the two gaps, which alone make a nil result
+  `inconclusive`); `ScanRun.doubts` reads the second set, `SUMMARY.md` renders the
+  two kinds as two blocks — *"Part of this repository was not inspected at all"*
+  stays the gap's sentence, *"What valvur could not read"* is the statement's, ending
+  *not counted in the verdict*. The sets are pinned apart by test so a new note has
+  to choose. Missing licence file, contradiction, copyleft-in-permissive stay
+  Findings: facts about the project. F4.6 annotated. **Measured on the corpus
+  before the change** (`tests/corpus/report.json`, `full`): a licence statement
+  active on eight of twelve repositories; awesome-cursorrules — a CC0 `LICENSE`, no
+  signature — reading `findings` on it and nothing else. **Measured after, through a
+  rebuilt image, on the two repositories the change touches differently:**
+  awesome-cursorrules `findings` → **`clean: 0 active, 1 not covered`**, the
+  terminal line *`· could not read: Licence file present but its licence could not
+  be identified`*, `SUMMARY.md` listing it under *What valvur could not read*;
+  express unchanged at `inconclusive` — the lockfile gap still casts its doubt —
+  and its `REMEDIATION.md` no longer opens with *"Remove the hallucinated
+  dependencies"*. The full corpus is dispatched after landing; the report is
+  recommitted when the verdict column has moved.
+
+  **Two defects found on the way, both older than the task.** (1) `REMEDIATION.md`
+  was rendered from *every* Finding, so each coverage note went through `_key` —
+  and the lockfile gap, *"npm dependencies were not checked for known
+  vulnerabilities"*, came out as **"Remove the hallucinated dependencies"** on every
+  repository without a lockfile (express, on the corpus), and from there into
+  `scan_status`'s *"REMEDIATION.md, action 1 of N"* since 23.3.4. Notes are now
+  counted aside in one line and left to `SUMMARY.md`; the partition test counts
+  actions against Findings-about-the-code. (2) The sentence the task quotes was
+  worse than quoted — the golden fixture rendered *"so `json5` reaches 2.2.2,
+  2.2.2, 1.0.2"* — and had two causes: Trivy's `FixedVersion` is a comma-joined fix
+  per release line and the adapter copied it (now the smallest fix above the
+  installed version, OSV's rule, from the shared `versions.version_key`; Trivy's own
+  words kept when nothing is above), and `_retarget` wrote the highest fix *across
+  the whole root group* after whichever package the first finding named — with the
+  first cause fixed alone it read *"so `json5` reaches 1.4.2"*, loader-utils'
+  version on json5's name. Now per package: *"Upgrade `webpack` so `json5` reaches
+  1.0.2 and `loader-utils` reaches 1.4.2"*. 30 tests in
+  `tests/test_licence_statements.py`; fourteen mutations, all caught — including
+  the first loop, which reverted uncommitted work with `git checkout` and had to
+  be re-run from a baseline commit.
 
 **Exit:** a stranger installs the published version, `valvur doctor` passes or tells
 them exactly why not, the first scan lands in about a minute, and the Check that
@@ -4903,8 +4947,9 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Fifteen tasks have
-> closed since `0.2.0` shipped (2–12 and 16–19) and none is released; run against
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Sixteen tasks have
+> closed since `0.2.0` shipped (2–12, 16–19 and, on 2026-09-17, 25) and none is
+> released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
 > below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
@@ -4935,7 +4980,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 22 | 23.5.2 | `tools/list` snapshot | | 1 |
 | 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good | 4 |
 | 24 | 23.5.4 | npm adoption on `full` | | 4 |
-| 25 | 23.5.5 | coverage statements counted active | | 1 |
+| 25 | 23.5.5 | coverage statements counted active | ✅ 2026-09-17 | ✅ |
 | 26 | 12b.2 | the constraint suite against the release artifact | | 2 |
 | 27 | 12b.3 | `v1.0.0` | **owner** | 6 |
 

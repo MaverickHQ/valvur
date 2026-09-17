@@ -8,6 +8,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from . import coverage as _coverage
 from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
@@ -599,8 +600,10 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     for note in run.coverage_notes:
         # Named in the terminal, not only in a file. This is the sentence that says
         # the scan could not help with part of the repository, and a reader who never
-        # opens SUMMARY.md would otherwise see a bare "clean".
-        print(f"  · not checked: {note.title.replace(' were not checked for existence', '')}")
+        # opens SUMMARY.md would otherwise see a bare "clean". A licence statement
+        # is the other kind of note (23.5.5): could not read, rather than did not.
+        label = "not checked" if note.rule in _coverage.DOUBT_RULES else "could not read"
+        print(f"  · {label}: {note.title.replace(' were not checked for existence', '')}")
 
     print(f"results: {workspace / '.security-scan'}")
 
