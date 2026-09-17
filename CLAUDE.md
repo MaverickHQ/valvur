@@ -70,10 +70,12 @@ nothing on the other ten — kept on `full` with the number in the README. **Not
 has landed since (reviewed 2026-09-17): fifteen tasks closed after `0.2.0` shipped and
 none of them released** — a stranger who follows the README today installs `0.2.0`,
 without `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's
-`v0` tag waits on `0.3.0`. **Next: the usability gate (10.1.1–10.1.2, yours plus a
-stranger), then 12b.1 on what it finds, then 23.4.6 and Block 5.** When "what is
-next" is asked, that list is the answer; the sequencing diagrams in Phases 21 and 23
-are history.
+`v0` tag waits on `0.3.0`. **Next, in the six batches recorded at the head of Phase
+24 on 2026-09-17: Batch 1 — 23.5.5, 23.5.1, 23.5.2, what a stranger's project
+reads — then the `0.3.0` release with 12b.2 inside it, then the usability gate on
+that release, with 23.5.3 and 23.5.4 measured on the corpus while the stranger is
+found; 23.4.6 and `v1.0.0` after.** When "what is next" is asked, that list and its
+batches are the answer; the sequencing diagrams in Phases 21 and 23 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that

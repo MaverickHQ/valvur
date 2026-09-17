@@ -4906,38 +4906,154 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > `doctor`, the first-run fetch, the budget or `scan_cancel`. Fifteen tasks have
 > closed since `0.2.0` shipped (2–12 and 16–19) and none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
-> as `RELEASING.md` describes — is an owner action this list does not carry, and
-> `valvur-action`'s `v0` tag waits on the same release (23.3.6).
+> as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
+> below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
 
-| # | task | what | who |
-|---|---|---|---|
-| 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click |
-| 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 |
-| 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 |
-| 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 |
-| 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 |
-| 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 |
-| 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 |
-| 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 |
-| 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 |
-| 10 | 23.3.7 | a scan budget | ✅ 2026-09-13 |
-| 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | ✅ 2026-09-13 |
-| 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | ✅ 2026-09-13 |
-| 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger |
-| 14 | 10.1.2 | they install it the way the README says | with 13 |
-| 15 | [12b.1](#12b--release) | act on what the gate found | |
-| 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 |
-| 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 |
-| 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 |
-| 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 |
-| 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 |
-| 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | |
-| 22 | 23.5.2 | `tools/list` snapshot | |
-| 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good |
-| 24 | 23.5.4 | npm adoption on `full` | |
-| 25 | 23.5.5 | coverage statements counted active | |
-| 26 | 12b.2 | the constraint suite against the release artifact | |
-| 27 | 12b.3 | `v1.0.0` | **owner** |
+| # | task | what | who | batch |
+|---|---|---|---|---|
+| 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click | 2 |
+| 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 | ✅ |
+| 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 | ✅ |
+| 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 | ✅ |
+| 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 | ✅ |
+| 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 | ✅ |
+| 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 | ✅ |
+| 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 | ✅ |
+| 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 | ✅ |
+| 10 | 23.3.7 | a scan budget | ✅ 2026-09-13 | ✅ |
+| 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | ✅ 2026-09-13 | ✅ |
+| 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | ✅ 2026-09-13 | ✅ |
+| 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger | 3 |
+| 14 | 10.1.2 | they install it the way the README says | with 13 | 3 |
+| 15 | [12b.1](#12b--release) | act on what the gate found | | 3 |
+| 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 | ✅ |
+| 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 | ✅ |
+| 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 | ✅ |
+| 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 | ✅ |
+| 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 | 5 |
+| 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | | 1 |
+| 22 | 23.5.2 | `tools/list` snapshot | | 1 |
+| 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good | 4 |
+| 24 | 23.5.4 | npm adoption on `full` | | 4 |
+| 25 | 23.5.5 | coverage statements counted active | | 1 |
+| 26 | 12b.2 | the constraint suite against the release artifact | | 2 |
+| 27 | 12b.3 | `v1.0.0` | **owner** | 6 |
+
+### Run in batches — the 12 open tasks grouped, and the order re-cut
+
+> **Added 2026-09-17.** Twelve boxes remain, three of them the owner's. Run one at
+> a time they are twelve review cycles and — the expensive part — an image rebuild
+> and a corpus dispatch for most of the nine engineering ones. Grouped by what they
+> share, the nine collapse into **three batches with one corpus dispatch each**, and
+> the three owner-bound items become the checkpoints between them. As for Phases
+> 19–21: **a reading order, not a renumbering** — every task keeps its ID, and its
+> own text stays authoritative for what it means.
+>
+> **It re-cuts the table's order in three places, and from row 13 down this section
+> wins where the two disagree.** **(1)** Block 5's three that change what a first
+> run *reads* — 25, 21, 22 — move ahead of the gate: the stranger measures them or
+> finds them. **(2)** 12b.2 (26) moves from the tail into the release: it is a
+> `release.yml` job, and the rehearsal `0.3.0` needs anyway is the run that proves
+> it. **(3)** The `0.3.0` release itself, which no row carried, is Batch 2 — the
+> gate measures the published version, and today that is `0.2.0`.
+
+```
+Batch 1  what the stranger's project reads   23.5.5 · 23.5.1 · 23.5.2     one corpus dispatch
+              ↓
+Batch 2  release 0.3.0                        12b.2 · rehearsal · v0.3.0     owner + pipeline
+                                              · valvur-action v0 · 24.4
+              ↓
+Batch 3  the usability gate                   10.1.1 · 10.1.2 → 12b.1    ─┬─ owner + a stranger; a calendar
+Batch 4  claims measured on the corpus        23.5.3 · 23.5.4             ─┘  engineering, while 3 waits
+              ↓
+Batch 5  image shape                          23.4.6                        its own rehearsal; decided by 3
+              ↓
+Batch 6  v1.0.0                               12b.3                         owner
+```
+
+#### Batch 1 — What the stranger's project reads · 23.5.5, 23.5.1, 23.5.2
+
+Touches `src/valvur/checks/`, `coverage.py`, the AI Artifact rules, the REMEDIATION
+wording in `results.py`, and a snapshot test over `mcp/tools.py`. Each PR rebuilds
+the image — the tree-hash guard demands it — and **one corpus dispatch at the end
+judges all three**: the verdict shift and the new rule's hits arrive in one report.
+
+Together because all three decide what a first-time user *sees*, and the gate's
+stranger is the first person who will see it:
+
+- **23.5.5 first**, because it changes the verdict semantics the other two are
+  measured under. On the committed corpus report (`tests/corpus/report.json`, run
+  34764187516, `full`): `valvur.licence.dependencies-unreadable` is an active
+  Finding on **six of twelve** repositories, a licence *statement* of some kind is
+  active on eight, and one — awesome-cursorrules — reads `findings` on a
+  `licence.unidentified` note and nothing else. A stranger whose project reads
+  `findings` with nothing wrong in it is a gate finding already held; the gate's
+  ten minutes are for the ones that are not.
+- **23.5.1**: a Kiro workspace scanned by the Check that exists for it cannot see
+  `.kiro/steering` or `.kiro/hooks` — Block 5's exit criterion in so many words.
+  Needs a planted fixture; the corpus has no `.kiro/` and will report zero, which
+  is expected and is not evidence.
+- **23.5.2 last**: the `tools/list` snapshot is taken after the last change to the
+  MCP schema before `0.3.0` — and with `scan`'s `budget_s`, `scan_cancel` and
+  `doctor` this week, the schema has moved more than at any point since the rc.
+
+**Commits:** one per task, each with its CHANGELOG line under Unreleased.
+
+#### Batch 2 — Release `0.3.0` · 12b.2, then the owner's clicks
+
+Fifteen tasks closed since `0.2.0` and none released (rows 2–12 and 16–19), plus
+Batch 1. **12b.2 goes in first**: a job in `release.yml` after `release`, which
+installs the wheel from `dist/` into a clean venv, pulls the image **by the digest
+just pushed**, and runs the e2e suite and `valvur gate` against those two. The
+`verify` job runs the same suite and gate against `valvur:dev` *before* the push —
+that proves the tree, and N2.5 asks for the artifact. `ci.yml`'s `published` job
+already does half of this (the tree's shim against the published tag); 12b.2 is
+the other half, inside the release that produced the artifact.
+
+Then, in order, as `RELEASING.md` describes: one `workflow_dispatch` rehearsal —
+12b.2's job runs for the first time there, which is the point; the version bump
+and CHANGELOG date; tag `v0.3.0`; `valvur-action`'s `v0` tag on the commit whose
+`version` default is `0.3.0` (23.3.6); and **24.4**, the yank of `0.1.0rc1`, in the
+same sitting. Then the README's first-run numbers re-measured against the release,
+as 23.1.1 did for `0.2.0`.
+
+#### Batch 3 — The usability gate · 10.1.1, 10.1.2, then 12b.1
+
+Owner and a stranger, on `0.3.0`, installed the way the README says, MCP first.
+Nothing engineering waits on it except 12b.1 and Batch 5's decision. The reason in
+[the 6 that do not group](#the-6-that-do-not-group) still holds: first impressions
+do not reset, so this is the one batch that cannot be re-run.
+
+#### Batch 4 — Claims measured on the corpus · 23.5.3, 23.5.4 — while Batch 3 waits
+
+Together because both are *change it, dispatch the corpus, then decide what the
+README may say*: 23.5.3 is rules (`rules/`) plus a planted fixture that proves the
+widened sources fire; 23.5.4 is the dependency-reality Check on `full` — one more
+public, unauthenticated endpoint, `full` only, §10 untouched. Neither changes the
+first run or the MCP shape, so they land *behind* `0.3.0` without changing what
+the stranger installs. **One corpus dispatch judges both**, and the two steps that
+answer them already exist: `corpus.py rules` (22.E.2) prints per-rule hits,
+`corpus.py compare` (23.4.5) prints what `full` added. Each ends in a
+`POSITIONING.md`/README claim edit — *taint* kept or retired; *newly registered
+and under N downloads* held for npm or not.
+
+#### Batch 5 — Image shape · 23.4.6, alone, after the gate
+
+Alone because it is the one open task that changes the release pipeline again — a
+second image or a `slim` tag means the bake file, the `build` matrix,
+`_ensure_image` pulling mid-scan and the action's inputs — so it needs its own
+rehearsal cycle and should not ride on `0.3.0`'s. And 24.3's measurement already
+leans: every corpus repository carries a workflow file, so Checkov runs on all
+twelve; an on-demand `valvur-checkov` would be pulled by everyone on their first
+scan, and the smaller first-run number *for the common case* mostly disappears.
+What the numbers leave is a `slim` tag for people who opt out, or the decision that
+nothing here is worth an image — and whether the 223MB pull registered with the
+stranger at all is the input to decide with, which is why it waits for Batch 3.
+
+#### Batch 6 — `v1.0.0` · 12b.3
+
+Owner. After 12b.1's fixes land and 12b.2's job has gone green on a real release —
+which, by then, it has.
 
 ### The audit's tasks
 
