@@ -4877,8 +4877,14 @@ last.
   be identified`*, `SUMMARY.md` listing it under *What valvur could not read*;
   express unchanged at `inconclusive` — the lockfile gap still casts its doubt —
   and its `REMEDIATION.md` no longer opens with *"Remove the hallucinated
-  dependencies"*. The full corpus is dispatched after landing; the report is
-  recommitted when the verdict column has moved.
+  dependencies"*. **The full corpus after landing** (run 35269487234, both
+  Profiles `CORPUS PASSED`): awesome-cursorrules `findings` → `clean`, and the
+  active count fell by exactly one on each of the seven repositories that
+  carried a licence statement — cobra 132 → 131, fastify 5 → 4, flask 22 → 21,
+  gson 3 → 2, llm 16 → 15, requests 6 → 5, ripgrep 17 → 16 (its `licence.mismatch`
+  stays active, as it should) — with `not_covered` up by one on each; no other
+  verdict moved, no Scanner failed. `tests/corpus/report.json` is gitignored, so
+  the numbers live here.
 
   **Two defects found on the way, both older than the task.** (1) `REMEDIATION.md`
   was rendered from *every* Finding, so each coverage note went through `_key` —
