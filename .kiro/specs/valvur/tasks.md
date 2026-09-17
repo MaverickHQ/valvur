@@ -1793,11 +1793,14 @@ or cannot check the claims we make about it, is not testing the product.
         scanner failure, evidence that survives neutralisation, and anything leaving
         the machine on `offline`. Findings from the bundled Scanners are explicitly
         out of scope and pointed upstream.
-  - [ ] **Enable GitHub private vulnerability reporting** — ⚠️ **STILL OPEN, owner
-        action**, same category as 12a.1. `SECURITY.md` now points at
-        `/security/advisories/new`, and until the setting is on, that link 404s. A
-        disclosure route that does not exist is the security-tool equivalent of a
-        verification command that does not run — which is exactly what 11.0 found.
+  - [x] **Enable GitHub private vulnerability reporting** — ✅ **Done 2026-09-13**,
+        by API with the rest of Block 1 (21.A.3); this box was left unticked and
+        found on 2026-09-17, when `GET /repos/MaverickHQ/valvur/private-vulnerability-reporting`
+        answered `{"enabled": true}`. Was: ⚠️ owner action, same category as 12a.1.
+        `SECURITY.md` points at `/security/advisories/new`, and until the setting
+        was on, that link 404ed. A disclosure route that does not exist is the
+        security-tool equivalent of a verification command that does not run —
+        which is exactly what 11.0 found.
   - [x] `CONTRIBUTING.md` — setup, the spec/ADR/vocabulary conventions, and a
         **"what will be turned down"** section so the moat is stated before someone
         spends a weekend on a feature that sends code somewhere. Encodes the testing
@@ -4894,6 +4897,17 @@ with this list, this list wins. Items marked *owner* need a person; everything e
 is engineering and proceeds in this order. The usability gate (13–14) needs a
 stranger and a calendar, so it is arranged while 1–12 are built and its findings
 (15) are acted on before Blocks 4 and 5.
+
+> **Amended 2026-09-17.** Block 4's engineering (16–19) ran on 2026-09-14, ahead of
+> the gate: the stranger was not yet arranged, and none of the four changes what a
+> first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
+> on that this list does not name:** 10.1.2 has the stranger install *the way the
+> README says*, and the README installs from PyPI — which is `0.2.0`, without
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Fifteen tasks have
+> closed since `0.2.0` shipped (2–12 and 16–19) and none is released; run against
+> `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
+> as `RELEASING.md` describes — is an owner action this list does not carry, and
+> `valvur-action`'s `v0` tag waits on the same release (23.3.6).
 
 | # | task | what | who |
 |---|---|---|---|

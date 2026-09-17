@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-14.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-17.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -27,7 +27,7 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-13):** **`0.2.0` is published and public** — `pip install valvur`
+**Status (2026-09-17):** **`0.2.0` is published and public** — `pip install valvur`
 works for anyone, the image is on GHCR for both architectures, signed and attested,
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
@@ -66,9 +66,14 @@ own native runner — 1m14s against 4m50s under QEMU, proven by rehearsal. **The
 says — never refuses — when the image's differs: rc1's hole, closed as a diagnosis.
 **Then 23.4.5**: OSV-Scanner's marginal value measured on the corpus — 121 Go
 standard-library advisories on the one Go project, one disputed advisory on flask,
-nothing on the other ten — kept on `full` with the number in the README. **Next: the
-usability gate (10.1.1–10.1.2, yours plus a stranger), then 23.4.6.** When "what is next" is asked, that list is the answer; the
-sequencing diagrams in Phases 21 and 23 are history.
+nothing on the other ten — kept on `full` with the number in the README. **Nothing
+has landed since (reviewed 2026-09-17): fifteen tasks closed after `0.2.0` shipped and
+none of them released** — a stranger who follows the README today installs `0.2.0`,
+without `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's
+`v0` tag waits on `0.3.0`. **Next: the usability gate (10.1.1–10.1.2, yours plus a
+stranger), then 12b.1 on what it finds, then 23.4.6 and Block 5.** When "what is
+next" is asked, that list is the answer; the sequencing diagrams in Phases 21 and 23
+are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -116,14 +121,17 @@ named; both done 2026-09-13) — both *before* the usability gate measures a
 stranger's first ten minutes;
 then Checkov isolated and hash-locked, the Checks in one container, per-scanner
 timing, the shim carrying its build hash, and `.kiro/` — the primary client's own
-files — into the AI Artifact Check. Then the gate and `v1.0.0`.
+files — into the AI Artifact Check. Then the gate and `v1.0.0`. *(Block 4 ran
+ahead of the gate, on 2026-09-14 — it needed nothing from a stranger; only its
+Checkov-on-demand decision, 23.4.6, and Block 5 remain.)*
 
 **Phase 24 was written the same morning `0.2.0` shipped**, from an audit of the
 requirements against the published release — three measurements taken against the
 PyPI wheel and the GHCR image rather than the tree, and a pass over all 136
 requirement IDs asking *met?* rather than *cited?*. Its head is the single ordered
-list of everything open; its four tasks are the audit's findings, and the first
-two, 24.1 and 24.2, closed that afternoon (below). It also moved Checkov's hash-locking
+list of everything open; its four tasks are the audit's findings, and three of
+them — 24.1, 24.2 and 24.3 — closed the same day (below); the fourth is the owner's
+yank. It also moved Checkov's hash-locking
 (23.4.1) ahead of the usability gate: it is the one input we sign with our identity
 that is not pinned by hash.
 
@@ -151,8 +159,8 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 98 Python modules, 854 tests, 18 ADRs, 136 requirement IDs, **161 done and 12
-open** across 24 phases — 6 of the 12 are Phase 23, 1 is Phase 24's audit (the
+Roughly: 56 modules under `src/valvur`, 854 tests in 47 files, 18 ADRs, 136
+requirement IDs, **161 done and 12 open** across 24 phases — 6 of the 12 are Phase 23, 1 is Phase 24's audit (the
 owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 12
 are the owner's (yank
 `0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs

@@ -108,6 +108,11 @@ a minor bump may break things until 1.0.
 
 ### Changed
 
+- **The README lists the four LLM-output-to-sink rules as what they are** —
+  three taint rules whose only sources are the OpenAI, Anthropic and Gemini SDK
+  calls, and one string-built-SQL pattern, none of which has fired on twelve real
+  repositories including an LLM tool — rather than as a feature (task 24.2; F3.10
+  annotated; `POSITIONING.md` records the measured limit).
 - **The README says what OSV-Scanner adds, measured.** On twelve real repositories
   `full` added 121 Go standard-library advisories on the one Go project (keyed on
   `go.mod`'s `go` directive, which Trivy reports only from binaries), one disputed
