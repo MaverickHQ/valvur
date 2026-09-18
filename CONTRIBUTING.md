@@ -83,6 +83,13 @@ network activity" passes trivially against a repository with nothing to scan. So
 
 Run `pytest -q -m "not e2e"` constantly and the full suite before pushing.
 
+**The MCP surface is a committed snapshot.** `tests/fixtures/mcp/tools-list.json` is
+the `tools/list` reply byte for byte — the JSON every client sees. A change to a
+tool's name, description, schema or annotations fails
+`tests/test_mcp_snapshot.py` until you regenerate it deliberately with
+`UPDATE_MCP_SNAPSHOT=1 uv run pytest tests/test_mcp_snapshot.py` and commit both,
+so the schema change is a diff a reviewer reads rather than one an agent finds.
+
 ## Style
 
 `ruff` and `mypy` gate the build; run both. Beyond that, match the surrounding code.

@@ -4854,9 +4854,26 @@ last.
   which is now the case that makes it load-bearing. Not on `corpus.py`'s suspect
   list: a committed hook on a real project is what the rule is for.
 
-- [ ] **23.5.2** Snapshot the MCP `tools/list` in a test — the JSON both clients see —
+- [x] **23.5.2** Snapshot the MCP `tools/list` in a test — the JSON both clients see —
   so a schema change is a deliberate diff. The rc offered `standard`, and nothing
   would have shown the change from the profile rename until an agent chose it.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A2.** `tests/fixtures/mcp/tools-list.json` —
+  the `tools` array exactly as `valvur-mcp` answers `tools/list`, taken through the
+  real server over stdio rather than from the registry in memory, canonical form
+  (sorted keys, two-space indent, trailing newline) so every diff is a change. Six
+  tools, 4.5KB. `tests/test_mcp_snapshot.py` fails on any drift with the
+  regeneration command in the message (`UPDATE_MCP_SNAPSHOT=1 …`; the flag
+  rewrites the file and warns, never silently), and pins three things about the
+  file itself: the `scan` tool offers exactly `offline` and `full` and none of the
+  retired names appears anywhere — the rc's defect, now unrepeatable in either
+  direction, since regenerating with `standard` in the enum fails the second test;
+  every tool carries `readOnlyHint: true, destructiveHint: false` (ADR-0009 on the
+  wire); the set of tools equals what `--help` names. Four mutations — a retired
+  Profile offered, one word of a description, the destructive hint dropped, an
+  argument renamed — each caught by the snapshot. Taken after 23.5.1 and before
+  the rest of Block A, none of which touches the schema, so this is `0.3.0`'s
+  shape. CONTRIBUTING says how to move it.
 
 - [ ] **23.5.3** Taint-mode LLM rules, or retire the word. The four `valvur.llm.*`
   rules fired zero times on eleven real projects including an LLM tool; they are
@@ -4987,9 +5004,9 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Seventeen tasks have
-> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21) and none is
-> released; run against
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Eighteen tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21 and 22) and
+> none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
 > below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
@@ -5017,7 +5034,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 | ✅ |
 | 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 | 5 |
 | 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | ✅ 2026-09-18 | ✅ |
-| 22 | 23.5.2 | `tools/list` snapshot | | 1 |
+| 22 | 23.5.2 | `tools/list` snapshot | ✅ 2026-09-18 | ✅ |
 | 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good | 4 |
 | 24 | 23.5.4 | npm adoption on `full` | | 4 |
 | 25 | 23.5.5 | coverage statements counted active | ✅ 2026-09-17 | ✅ |
@@ -5343,7 +5360,7 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 | # | task | what | why here |
 |---|---|---|---|
 | A1 ✅ | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
-| A2 | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
+| A2 ✅ | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
 | A3 | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
 | A4 | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
 | A5 | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |

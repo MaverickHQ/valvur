@@ -23,6 +23,13 @@ a minor bump may break things until 1.0.
   and is reported with the command as fenced evidence. `.kiro/specs/` is
   deliberately not read: the project's own documents, and this repository's own
   spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
+- **The MCP `tools/list` reply is a committed snapshot.**
+  `tests/fixtures/mcp/tools-list.json` is the JSON both clients see — every tool's
+  name, description, input schema and read-only annotations — taken through the
+  real server over stdio, and a test fails on any change until the file is
+  regenerated deliberately (`UPDATE_MCP_SNAPSHOT=1`). The rc offered a `standard`
+  Profile in that schema and nothing showed the rename until an agent chose it;
+  now a schema change is a diff in review (task 23.5.2).
 - **`valvur doctor`, and a `doctor` MCP tool.** Every precondition a first run has
   failed on for real, checked before a scan and named with the fix: the interpreter
   can verify TLS (python.org's macOS build has no CA bundle until its certificate
