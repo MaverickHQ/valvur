@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 10 of them now, the release cut and the action's tag given IDs on
+task** — 9 of them now, the release cut and the action's tag given IDs on
 2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
@@ -87,7 +87,12 @@ model output, neither flow is seen: the model call and the `exec` sit in differe
 classes, Opengrep's taint is intra-procedural, and the INFO sink inventory names
 both. The word stays, the README says the inventory is what fires on real code,
 and smolagents is the corpus's thirteenth repository so the limit is measured
-weekly. **Nineteen tasks closed after `0.2.0` shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
+weekly. **Then 23.5.4**: npm adoption on `full` — a name the registry has dated
+under 90 days is asked api.npmjs.org for its last-month downloads, and *new and
+under 1,000* is the slopsquat signal at high, measured live on a 7-day-old package
+with 89 downloads; and `run.json`'s non-exfiltration sentence, found to have
+missed three registries since 23.2.2, now names every destination. **Twenty tasks
+closed after `0.2.0` shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
 `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
 tag waits on `0.3.0`. **Next: Phase 25, written 2026-09-18 — Block A, the six
 engineering tasks that wait on nobody (23.5.1, 23.5.2, 23.5.3, 23.5.4, 23.4.6,
@@ -112,7 +117,8 @@ pass. Phases 19 and 20 are complete. A critical review on 2026-09-12 became
   *existence* is answered from a **Name Index** — every name on PyPI and npm (and,
   since 23.2.2–3, RubyGems, Packagist and crates.io), exact, in the host cache
   beside the vulnerability database, mounted read-only —
-  on the default Profile with no socket; only first-publish age still needs `full`.
+  on the default Profile with no socket; only first-publish age — and, for npm since
+  23.5.4, last-month adoption — still needs `full`.
   ADR-0018, amending ADR-0016. Proven on the broken fixture in a real container:
   `reqeusts` and `aws-helper-sdk` reported offline, `what_left_the_machine: nothing`.
   **Block A is complete** (22.A.3 bounded concurrent lookups; 22.A.4 JVM and Go,
@@ -181,9 +187,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 56 modules under `src/valvur`, 924 tests in 50 files, 18 ADRs, 136
-requirement IDs, **165 done and 10 open** across 25 phases — 2 of the 10 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 10
+Roughly: 56 modules under `src/valvur`, 937 tests in 51 files, 18 ADRs, 136
+requirement IDs, **166 done and 9 open** across 25 phases — 1 of the 9 is Phase 23, 1 is Phase 24's audit (the
+owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 9
 are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

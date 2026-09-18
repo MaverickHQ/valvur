@@ -4924,10 +4924,40 @@ last.
   weekly rather than once. README, POSITIONING and F3.10 say all of this; 24.2 is
   resolved for good.
 
-- [ ] **23.5.4** npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/`
+- [x] **23.5.4** npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/`
   is public and unauthenticated, so *newly registered AND under N downloads* — the
   slopsquat signal design.md specified for F3.3 — is real for half the ecosystems.
   PyPI stays stated as impossible without a third party.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A4.** On `full`, an npm name the registry has
+  already dated under 90 days is asked for its last-month downloads — only those
+  names, so nothing leaves the machine that had not already gone to
+  registry.npmjs.org — and *new AND under 1,000 downloads* (design.md's row) is
+  `newly-registered` at **high**, both numbers in the title; new but adopted at
+  **low** with the count, listed because the age is not nothing; the API
+  unreachable keeps the age-only finding at medium and says which half is missing;
+  a 404 is a package too new for statistics, the least-adopted it can be. The
+  rule id and identity are unchanged, so no committed suppression moves. PyPI,
+  RubyGems, Packagist and crates.io stay age only, and the finding's evidence says
+  why. `_downloads` shares `_fetch` (https asserted, 404 → absent, everything else
+  raised), so the 404-versus-unreachable distinction F3.5 rests on is written once.
+  **Measured through the real container on `full`**, against a `package.json` of
+  four names found live: `@atlassian-test/non-sox-test` (7 days, 89 downloads) →
+  high; `@arcforges/proto` (6 days, 1,940) → low; `left-pad` asked for nothing;
+  the hallucinated fourth → nonexistent. The scoped names' slash survives the URL
+  as it does for the registry. **Found on the way:** `run.json`'s *what left the
+  machine* — the sentence that *is* the non-exfiltration claim — named PyPI and
+  npm and had not been amended when RubyGems, Packagist and crates.io joined the
+  age check in 23.2.2–3; it now names all five registries and api.npmjs.org, and
+  the test pins every destination. `valvur doctor --network` probes api.npmjs.org
+  with the rest; the Check's Coverage declares adoption under `inspects` and the
+  four age-only registries under `ignores`, and a mutation swapping the two
+  classes is caught. F3.3 annotated *met for npm*. 13 tests; nine mutations, all
+  caught. One measurement mistake worth recording: a first pass through `api.scan`
+  with an explicit adapter list reported no age findings at all — explicit
+  adapters bypass `profiles.select`, the only place a network is granted, so the
+  Check ran offline while `run.json` said `network.used: true`; the CLI path,
+  which is the user's, was right. That harness path is what every test uses.
 
 - [x] **23.5.5** Coverage statements that still count as active. The rc run showed
   fifteen `valvur.licence.dependency-unknown` findings — one fact, since collapsed to
@@ -5040,8 +5070,8 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Nineteen tasks have
-> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21–23) and
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21–24) and
 > none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
@@ -5072,7 +5102,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | ✅ 2026-09-18 | ✅ |
 | 22 | 23.5.2 | `tools/list` snapshot | ✅ 2026-09-18 | ✅ |
 | 23 | 23.5.3 | taint-mode LLM rules, or retire the word | ✅ 2026-09-18 — resolved 24.2 | ✅ |
-| 24 | 23.5.4 | npm adoption on `full` | | 4 |
+| 24 | 23.5.4 | npm adoption on `full` | ✅ 2026-09-18 | ✅ |
 | 25 | 23.5.5 | coverage statements counted active | ✅ 2026-09-17 | ✅ |
 | 26 | 12b.2 | the constraint suite against the release artifact | | 2 |
 | 27 | 12b.3 | `v1.0.0` | **owner** | 6 |
@@ -5398,7 +5428,7 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 | A1 ✅ | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
 | A2 ✅ | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
 | A3 ✅ | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
-| A4 | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
+| A4 ✅ | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
 | A5 | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
 | A6 | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |
 

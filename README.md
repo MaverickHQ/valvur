@@ -48,7 +48,10 @@ what left the machine — on `offline`, the word `nothing`.
   known-bad. valvur checks that every declared dependency exists, **offline**, against
   a local index of every name on PyPI, npm, RubyGems, Packagist and crates.io (6.3
   million names, exact, published daily and signed). On `full` it also asks how old
-  each one is, and whether it is one edit from something popular.
+  each one is, whether it is one edit from something popular, and — for npm, whose
+  download counts are public — whether a package under 90 days old has under 1,000
+  downloads a month: *new and unadopted*, the slopsquat signal itself, reported at
+  high. PyPI publishes no counts without a third party, so there it is age alone.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.mcp.json`,
   skills and prompt files, and the clients' own folders — `.kiro/` (steering, MCP
   settings, hooks), `.claude/`, `.cursor/`, `.roo/`, `.continue/`, `.clinerules`,

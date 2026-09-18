@@ -147,14 +147,17 @@ def _provenance(run: ScanRun) -> str:
                         # amending it would make the claim false — which is worse than
                         # never having made it. npm joined PyPI in task 19.D.1.
                         "dependency names, by the dependency-reality check: for "
-                        "Python and npm only those the local index says exist (to "
-                        "PyPI and the npm registry, for their first-publish dates); "
-                        "for JVM and Go every declared coordinate (to Maven Central "
-                        "and proxy.golang.org, for existence). Also the dependency "
+                        "Python, npm, Ruby, PHP and Rust only those the local index "
+                        "says exist (to PyPI, the npm registry, RubyGems, Packagist "
+                        "and crates.io, for their first-publish dates), and of those "
+                        "the npm names first published under 90 days ago (to "
+                        "api.npmjs.org, for last-month download counts); for JVM "
+                        "and Go every declared coordinate (to Maven Central and "
+                        "proxy.golang.org, for existence). Also the dependency "
                         "names and versions in your lockfiles (to api.osv.dev, by "
                         "osv-scanner) and the CVE identifiers found in this "
                         "workspace (to FIRST, for EPSS scores). Never source code, "
-                        "and never a Python or npm name the index already settled."
+                        "and never a name the index already settled as absent."
                         if run.network_used
                         else "nothing"
                     ),

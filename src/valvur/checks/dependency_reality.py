@@ -45,10 +45,14 @@ from ..coverage import Coverage
 from .base import Check
 
 TIMEOUT = 10
-#: F3.3's age half. design.md pairs it with "downloads < 1000/month"; adoption is
-#: NOT measured — PyPI publishes no download counts without a third-party service,
-#: and section 10 rules those out. The requirement says so since 22.C.2.
+#: F3.3's age half. design.md pairs it with "downloads < 1000/month". For PyPI
+#: adoption is NOT measured — it publishes no download counts without a third-party
+#: service, and section 10 rules those out; the requirement says so since 22.C.2.
+#: For npm it is (23.5.4): `api.npmjs.org` is public and unauthenticated, and is
+#: asked only about names the registry has already dated under the threshold, so
+#: nothing leaves the machine that had not already.
 NEW_PACKAGE_DAYS = 90
+NPM_UNADOPTED_DOWNLOADS = 1000
 
 #: Where the runner mounts the host cache's name index (ADR-0018), and the variable
 #: the runner sets when — and only when — the container was launched with a network.
@@ -119,6 +123,11 @@ class DependencyRealityCheck(Check):
         else:
             ignores.append("JVM and Go: existence only, no first-publish age "
                            "(neither registry states first publication)")
+            # F3.3's adoption half, where a registry publishes it (23.5.4).
+            reads.append("npm adoption: last-month downloads from api.npmjs.org, "
+                         "for names first published under 90 days ago")
+            ignores.append("adoption for PyPI, RubyGems, Packagist and crates.io: "
+                           "age only (no download counts without a third party)")
         return Coverage(
             inspects=tuple(sorted(reads)),
             ignores=tuple(sorted(ignores)),
@@ -281,14 +290,64 @@ class DependencyRealityCheck(Check):
                     continue
             age = _age_days(ecosystem, meta)
             if age is not None and age < NEW_PACKAGE_DAYS:
-                findings.append(_finding(
-                    "valvur.dependency.newly-registered", ecosystem, name, source, "medium",
-                    f"'{name}' was first published {int(age)} day(s) ago",
-                    "Recently registered packages matching a plausible name are the "
-                    "slopsquat pattern. Confirm this is the package you meant.",
-                ))
+                findings.append(_newly_registered(ecosystem, name, source, int(age)))
 
         return findings, reached_any, asked_any
+
+
+def _newly_registered(ecosystem: str, name: str, source: str, age: int) -> dict:
+    """F3.3: *first published recently AND low adoption*. Both halves for npm, whose
+    downloads API is public; the age half alone everywhere else, and the evidence
+    says which. A new package with real adoption is a new package, not the signal —
+    reported at low with the number, because the age is not nothing."""
+    title = f"'{name}' was first published {age} day(s) ago"
+    if ecosystem != "npm":
+        return _finding(
+            "valvur.dependency.newly-registered", ecosystem, name, source, "medium", title,
+            "Recently registered packages matching a plausible name are the slopsquat "
+            "pattern. Confirm this is the package you meant. Adoption is not "
+            "measured for PyPI, RubyGems, Packagist or crates.io: none publishes "
+            "download counts without a third party, which valvur does not use.",
+        )
+    try:
+        downloads = _downloads(name)
+    except RegistryUnreachable:
+        return _finding(
+            "valvur.dependency.newly-registered", ecosystem, name, source, "medium", title,
+            "Recently registered packages matching a plausible name are the slopsquat "
+            "pattern. Confirm this is the package you meant. Its adoption could not "
+            "be checked: api.npmjs.org did not answer.",
+        )
+    title += f" and had {downloads:,} downloads last month"
+    if downloads < NPM_UNADOPTED_DOWNLOADS:
+        return _finding(
+            "valvur.dependency.newly-registered", ecosystem, name, source, "high", title,
+            "New and unadopted is the slopsquat pattern: a plausible name registered "
+            "recently that almost nobody installs. Confirm this is the package you "
+            "meant before your next install runs its code.",
+        )
+    return _finding(
+        "valvur.dependency.newly-registered", ecosystem, name, source, "low", title,
+        "Recently registered, but adopted: the download count says others depend on "
+        "it too. Listed because the age is not nothing; not the slopsquat pattern.",
+    )
+
+
+def _downloads_url(name: str) -> str:
+    # The slash in a scoped name stays a slash, as it does for the registry itself
+    # (19.D.1): measured, `@types/node` answers here unencoded.
+    return f"https://api.npmjs.org/downloads/point/last-month/{quote(name, safe='@/')}"
+
+
+def _downloads(name: str) -> int:
+    """Last-month download count from npm's public statistics API. A 404 is a
+    package too new to have any — the least-adopted it can be — so it is zero;
+    an unreachable API is raised, and the caller keeps the age-only finding."""
+    body = _fetch(_downloads_url(name))
+    if body is None:
+        return 0
+    count = body.get("downloads") if isinstance(body, dict) else None
+    return int(count) if isinstance(count, int | float) else 0
 
 
 def _network_allowed() -> bool:

@@ -23,6 +23,19 @@ a minor bump may break things until 1.0.
   and is reported with the command as fenced evidence. `.kiro/specs/` is
   deliberately not read: the project's own documents, and this repository's own
   spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
+- **npm adoption on `full`: new AND unadopted is the slopsquat signal.** F3.3 asks
+  for *first published recently and low adoption*; the adoption half was stated
+  impossible because PyPI publishes no download counts without a third party. npm
+  does — `api.npmjs.org/downloads/point/last-month/` is public and unauthenticated —
+  so on `full` a name the registry has already dated under 90 days is asked for its
+  last-month downloads (only those names; nothing new leaves the machine), and
+  under 1,000 is reported at **high** with both numbers in the title; new but
+  adopted at low; the API unreachable keeps the age-only finding at medium. PyPI,
+  RubyGems, Packagist and crates.io stay age only and the evidence says why.
+  `run.json`'s *what left the machine* now names api.npmjs.org — and, found on the
+  way, RubyGems, Packagist and crates.io, which it had not named since their
+  registries joined the age check in 23.2.2–3; `valvur doctor --network` probes
+  api.npmjs.org with the rest (task 23.5.4).
 - **The LLM-output-to-sink rules know six SDK families, and the corpus knows a
   repository that executes model output.** Sources for Anthropic, OpenAI (chat
   completions, the Responses API, the pre-1.0 module), Gemini, LangChain

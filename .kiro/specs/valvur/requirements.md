@@ -213,6 +213,16 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
    > reported without the adoption qualifier, which over-reports rather than
    > under-reports. Cited by the code that implements the half it implements; the
    > ratchet cannot tell the difference, and this note is what can.
+   >
+   > **Met for npm, 2026-09-18 (task 23.5.4).** `api.npmjs.org/downloads/point/last-month/`
+   > is public and unauthenticated, so on `full` an npm name the registry has dated
+   > under 90 days is asked for its last-month downloads — only those names, so
+   > nothing leaves the machine that had not already — and *new AND under 1,000
+   > downloads* (design.md's threshold) is reported at **high**; new but adopted at
+   > low, with the count; the API unreachable falls back to the age-only finding at
+   > medium. Measured through the real container: a 7-day-old scoped package with
+   > 89 downloads, high; a 6-day-old one with 1,940, low. PyPI, RubyGems, Packagist
+   > and crates.io stay age only, and the finding's evidence says so.
 4. F3.4 — valvur SHALL flag a dependency whose name is within edit distance 1 of a
    substantially more popular package in the same ecosystem.
 

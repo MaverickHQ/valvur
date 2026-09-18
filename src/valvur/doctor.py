@@ -484,9 +484,9 @@ def _kiro_switched_off(workspace: Path, home: Path) -> str:
 #: What `full` reaches from the host and from the container: the five registries
 #: the dependency-reality Check asks for first-publish age, Maven Central and the
 #: Go proxy for existence, OSV for the second advisory source, FIRST for EPSS.
-FULL_HOSTS = ("pypi.org", "registry.npmjs.org", "rubygems.org", "repo.packagist.org",
-              "crates.io", "repo1.maven.org", "proxy.golang.org", "api.osv.dev",
-              "api.first.org")
+FULL_HOSTS = ("pypi.org", "registry.npmjs.org", "api.npmjs.org", "rubygems.org",
+              "repo.packagist.org", "crates.io", "repo1.maven.org", "proxy.golang.org",
+              "api.osv.dev", "api.first.org")
 
 
 def _first_run_hosts() -> list[tuple[str, int]]:
