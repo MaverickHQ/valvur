@@ -236,6 +236,19 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
 6. F3.6 — valvur SHALL implement an AI Artifact **Check** over agent instruction and
    configuration files, including `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
    `.github/copilot-instructions.md`, `.claude/`, `.mcp.json` and `SKILL.md` files.
+
+   > **Amended 2026-09-18 (task 23.5.1).** The list now includes the primary
+   > client's own folder — `.kiro/steering/`, `.kiro/settings/mcp.json`,
+   > `.kiro/hooks/` (and not `.kiro/specs/`, the project's own documents) — and the
+   > clients the Check did not read: `.clinerules` (file or directory), `.roo/`,
+   > `.continue/`, `.windsurf/`, `.roomodes`, `.aider.conf.yml`. And a second kind
+   > of surface: a **hook that runs a shell command on an event** — a Kiro hook of
+   > action type `command`, a Claude Code `type: command` handler in
+   > `.claude/settings.json`, aider's `lint-cmd`/`test-cmd` — is a Finding
+   > (`valvur.ai-artifact.hook-runs-command`, high) with the command as fenced
+   > evidence, because a committed hook makes every agent that opens the repository
+   > execute it unprompted (§4). A Kiro workspace was scanned on 2026-09-12 by the
+   > Check that exists for it and could not have seen a poisoned steering file.
 7. F3.7 — The AI Artifact **Check** SHALL detect zero-width, bidirectional and tag
    Unicode characters in those files.
 8. F3.8 — The AI Artifact **Check** SHALL detect MCP server definitions pinned to a

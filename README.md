@@ -50,9 +50,14 @@ what left the machine — on `offline`, the word `nothing`.
   million names, exact, published daily and signed). On `full` it also asks how old
   each one is, and whether it is one edit from something popular.
 - **Agent-config auditing.** `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.mcp.json`,
-  skills and prompt files — scanned for injected directives, hidden Unicode
-  (zero-width, bidi, tag characters), unpinned `@main` MCP refs, blanket
-  `autoApprove` and permission-bypass flags.
+  skills and prompt files, and the clients' own folders — `.kiro/` (steering, MCP
+  settings, hooks), `.claude/`, `.cursor/`, `.roo/`, `.continue/`, `.clinerules`,
+  `.aider.conf.yml` — scanned for injected directives, hidden Unicode (zero-width,
+  bidi, tag characters), unpinned `@main` MCP refs, blanket `autoApprove` and
+  permission-bypass flags, and **hooks that run a shell command on an event**: a
+  committed Kiro hook, Claude Code hook or aider `lint-cmd` makes every agent that
+  opens the repository execute it, and is reported at high with the command as
+  fenced evidence.
 - **A small set of Opengrep rules, which are not the claim.** Two pinning rules
   (tag-pinned actions, mutable git refs) that fire on most real repositories, and
   four for model output reaching `eval`, `exec`, a shell or `innerHTML` — taint rules

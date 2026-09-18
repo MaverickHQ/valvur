@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 13 of them now, the release cut and the action's tag given IDs on
+task** — 12 of them now, the release cut and the action's tag given IDs on
 2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
@@ -73,7 +73,12 @@ coverage note that casts no doubt — awesome-cursorrules went from `findings` t
 `clean: 0 active, 1 not covered` — and on the way, two older defects: every
 coverage note had been a `REMEDIATION.md` action (the lockfile gap read *"Remove
 the hallucinated dependencies"*), and Trivy's comma-joined fix list reached the
-proposal verbatim. **Sixteen tasks closed after `0.2.0` shipped and none of them
+proposal verbatim. **Then 23.5.1** (2026-09-18, Block A's first): the AI Artifact
+Check reads `.kiro/` — steering, MCP settings, hooks, and deliberately not `specs/`,
+where this repository's own task text would have failed its own gate — plus Cline,
+Roo, Continue, Windsurf and aider's files, and a new high rule for **a committed hook
+that runs a shell command on an event** (Kiro, Claude Code, aider), the command as
+fenced evidence. **Seventeen tasks closed after `0.2.0` shipped and none of them
 released** — a stranger who follows the README today installs `0.2.0`, without
 `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
 tag waits on `0.3.0`. **Next: Phase 25, written 2026-09-18 — Block A, the six
@@ -168,9 +173,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 56 modules under `src/valvur`, 884 tests in 48 files, 18 ADRs, 136
-requirement IDs, **162 done and 13 open** across 25 phases — 5 of the 13 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 13
+Roughly: 56 modules under `src/valvur`, 911 tests in 49 files, 18 ADRs, 136
+requirement IDs, **163 done and 12 open** across 25 phases — 4 of the 12 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 12
 are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

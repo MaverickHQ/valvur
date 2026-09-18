@@ -4813,7 +4813,7 @@ last.
 
 ### 5 — The primary client's own files
 
-- [ ] **23.5.1** `.kiro/` into the AI Artifact Check: `steering/*.md` are agent
+- [x] **23.5.1** `.kiro/` into the AI Artifact Check: `steering/*.md` are agent
   instructions; `settings/mcp.json` carries `autoApprove` (the key is already checked
   under `.mcp.json`); **`hooks/` run shell commands on file events**, which is an
   autonomous-execution surface and exactly §4's concern — a new rule,
@@ -4821,6 +4821,38 @@ last.
   does not know: `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml`. A Kiro
   workspace was scanned today by the Check that exists for it, and it could not have
   seen a poisoned steering file.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A1.** `.kiro/steering/`, `.kiro/settings/mcp.json`
+  and `.kiro/hooks/` are read (`KIRO_DIRS`; a `.kiro` below the root counts too), and
+  `.kiro/specs/` deliberately is not: the project's own documents — and this
+  repository's own `tasks.md` contains *"ignore previous instructions"* in the
+  sentence that specifies the injection rule, so reading `specs/` would have failed
+  our own gate with our own words, found by asking what the self-scan would do
+  before writing the code. **The new rule**, `valvur.ai-artifact.hook-runs-command`
+  (high, ranked with `permission-bypass`), fires on a hook whose *type* runs a shell
+  — a Kiro hook of action type `command`, in **both** formats Kiro has shipped (a
+  `hooks` list with `trigger`/`action`, and the older one-per-file `when`/`then`
+  with `runCommand`); a Claude Code `type: command` handler under `hooks` in
+  `.claude/settings.json` or `settings.local.json`, the other primary client's
+  identical surface; aider's `lint-cmd`/`test-cmd`, which run after every edit —
+  never on an agent/prompt-type hook, even one carrying a stray `command` key, since
+  the type decides what executes. Title names the event and the hook; the command
+  is the evidence, fenced (F3.13); identity is the file and the hook's name, so a
+  line shift does not move it. **The clients the Check did not know:** `.clinerules`
+  (file *and* directory form), `.roo/` (its `mcp.json` says `alwaysAllow` for what
+  Kiro calls `autoApprove` — one list of keys now), `.roomodes`, `.continue/`,
+  `.windsurf/`, `.aider.conf.yml` (`yes-always: true` is a permission bypass; read
+  by line, no YAML parser — the shim stays dependency-free). F3.6 amended, README
+  bullet rewritten. **Measured:** the real container on a Kiro workspace as Kiro
+  leaves it (steering with a directive, MCP settings with `autoApprove`, one command
+  hook, a spec carrying the directive) — three Findings, the spec silent, 0.9s in
+  the Check. The corpus has none of the new files, so its answer is "still zero on
+  hundreds of real `.cursorrules`"; Block A's dispatch confirms it. 27 tests in
+  `tests/test_ai_artifact_clients.py`, one of them e2e; twelve mutations, two of
+  which survived on the first pass — the hook-type gate was redundant with the
+  command-key gate until the tests planted a stray `command` on an agent-type hook,
+  which is now the case that makes it load-bearing. Not on `corpus.py`'s suspect
+  list: a committed hook on a real project is what the rule is for.
 
 - [ ] **23.5.2** Snapshot the MCP `tools/list` in a test — the JSON both clients see —
   so a schema change is a deliberate diff. The rc offered `standard`, and nothing
@@ -4955,8 +4987,8 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Sixteen tasks have
-> closed since `0.2.0` shipped (2–12, 16–19 and, on 2026-09-17, 25) and none is
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Seventeen tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21) and none is
 > released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
@@ -4984,7 +5016,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 | ✅ |
 | 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 | ✅ |
 | 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 | 5 |
-| 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | | 1 |
+| 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | ✅ 2026-09-18 | ✅ |
 | 22 | 23.5.2 | `tools/list` snapshot | | 1 |
 | 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good | 4 |
 | 24 | 23.5.4 | npm adoption on `full` | | 4 |
@@ -5310,7 +5342,7 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 
 | # | task | what | why here |
 |---|---|---|---|
-| A1 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
+| A1 ✅ | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
 | A2 | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
 | A3 | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
 | A4 | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |

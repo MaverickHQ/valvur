@@ -9,6 +9,20 @@ a minor bump may break things until 1.0.
 
 ### Added
 
+- **The AI Artifact Check reads the primary client's own files, and hooks.**
+  `.kiro/steering/*.md`, `.kiro/settings/mcp.json` (`autoApprove`, mutable refs)
+  and `.kiro/hooks/` join the list — a Kiro workspace was scanned by the Check that
+  exists for it and could not have seen a poisoned steering file — with the clients
+  the Check did not know: `.clinerules` (file or directory), `.roo/` (`alwaysAllow`
+  in its `mcp.json`), `.continue/`, `.windsurf/`, `.roomodes`, `.aider.conf.yml`
+  (`yes-always: true` is a permission bypass). And a new rule at high,
+  `valvur.ai-artifact.hook-runs-command`: a committed hook that runs a shell command
+  on an event — a Kiro hook of action type `command` (both hook formats), a Claude
+  Code `type: command` handler in `.claude/settings.json`, aider's `lint-cmd` or
+  `test-cmd` — makes every agent that opens the repository execute it unprompted,
+  and is reported with the command as fenced evidence. `.kiro/specs/` is
+  deliberately not read: the project's own documents, and this repository's own
+  spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
 - **`valvur doctor`, and a `doctor` MCP tool.** Every precondition a first run has
   failed on for real, checked before a scan and named with the fix: the interpreter
   can verify TLS (python.org's macOS build has no CA bundle until its certificate

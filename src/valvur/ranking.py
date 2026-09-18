@@ -21,6 +21,7 @@ CLASS_WEIGHT = {
     "valvur.ai-artifact.hidden-unicode": 0,
     "valvur.dependency.near-miss": 1,
     "valvur.ai-artifact.permission-bypass": 1,
+    "valvur.ai-artifact.hook-runs-command": 1,
     "valvur.ai-artifact.blanket-auto-approve": 2,
     "valvur.ai-artifact.mcp-mutable-ref": 2,
     "valvur.licence.missing": 3,
