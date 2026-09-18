@@ -4803,13 +4803,32 @@ last.
   one test on the arithmetic, one mutation (a rule that shrank counted as added)
   survived and was pinned. The task's own numbers held: cobra 11 → 132.
 
-- [ ] **23.4.6** Checkov on demand. It is 191MB of the image, the slowest Scanner by
+- [x] **23.4.6** Checkov on demand. It is 191MB of the image, the slowest Scanner by
   ten seconds, and `applies_to` already knows when there is nothing for it to read —
   yet every user pulls it and every scan of application code pays its startup. Two
   shapes to measure: a second image (`valvur-checkov`) pulled the first time
   `applies_to` says yes, or a `slim` tag of the main image without it. Either way the
   README's first-run table gets a smaller number for the common case, and 23.3.2's
   timing says exactly how much smaller. Decide with the measurement, not before.
+
+  **STATUS 2026-09-18:** ✅ **Decided by measurement — declined; [ADR-0019](../../../docs/adr/0019-one-image-checkov-included.md).**
+  Checkov's layer is 164MB uncompressed and **53MB compressed, 23% of the 223–233MB
+  pull**; a slim image would save about 5s of the measured 110s first run, beside
+  the 154MB of database and index every shape fetches anyway. Who it would reach:
+  `applies_to` runs Checkov on any repository with a workflow file, and **13 of 13
+  corpus repositories have one** — an on-demand second image would be pulled by
+  everyone on their first scan, and a `slim` tag serves a repository the corpus
+  cannot find (no IaC, no CI), whose runtime `applies_to` already protects. The
+  cost users actually pay is time, and it is unchanged by either shape: on GitHub's
+  Linux runner Checkov is **97–100% of every scan** (15–18s of 15–18s on twelve
+  application repositories; 107s of 108s on Terraform). One runtime lever was
+  measured on the way — `--framework github_actions` on a workflow-only repository,
+  9.3s → 7.0s on this Mac — and recorded in the ADR rather than built: two seconds
+  of a mostly-startup fifteen, at the price of moving Checkov's file detection into
+  valvur's. The ADR names what reopens the question (a measured user for whom 53MB
+  is the cost that matters; `applies_to` skipping on a real share of repositories;
+  a faster IaC scanner under an acceptable licence). No code; the Checkov layer
+  stays one `RUN` so the option is a Dockerfile edit away.
 
 ### 5 — The primary client's own files
 
@@ -5070,8 +5089,8 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty tasks have
-> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21–24) and
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-one tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24) and
 > none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
@@ -5098,7 +5117,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 | ✅ |
 | 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 | ✅ |
 | 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 | ✅ |
-| 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 | 5 |
+| 20 | 23.4.6 | Checkov on demand, or a slim image | ✅ 2026-09-18 — declined, ADR-0019 | ✅ |
 | 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | ✅ 2026-09-18 | ✅ |
 | 22 | 23.5.2 | `tools/list` snapshot | ✅ 2026-09-18 | ✅ |
 | 23 | 23.5.3 | taint-mode LLM rules, or retire the word | ✅ 2026-09-18 — resolved 24.2 | ✅ |
@@ -5429,7 +5448,7 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 | A2 ✅ | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
 | A3 ✅ | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
 | A4 ✅ | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
-| A5 | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
+| A5 ✅ | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
 | A6 | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |
 
 **Validation, once, at the end of the block:**

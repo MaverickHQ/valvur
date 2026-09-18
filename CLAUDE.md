@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 9 of them now, the release cut and the action's tag given IDs on
+task** — 8 of them now, the release cut and the action's tag given IDs on
 2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
@@ -91,7 +91,11 @@ weekly. **Then 23.5.4**: npm adoption on `full` — a name the registry has date
 under 90 days is asked api.npmjs.org for its last-month downloads, and *new and
 under 1,000* is the slopsquat signal at high, measured live on a 7-day-old package
 with 89 downloads; and `run.json`'s non-exfiltration sentence, found to have
-missed three registries since 23.2.2, now names every destination. **Twenty tasks
+missed three registries since 23.2.2, now names every destination. **Then 23.4.6**,
+decided by measurement and declined (ADR-0019): Checkov is 53MB of a 223MB pull, a
+slim image saves about 5s of a 110s first run and reaches a repository the corpus
+cannot find — 13 of 13 carry a workflow file — while the cost users pay, Checkov's
+runtime at 97–100% of every scan, is unchanged by either shape. **Twenty-one tasks
 closed after `0.2.0` shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
 `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
 tag waits on `0.3.0`. **Next: Phase 25, written 2026-09-18 — Block A, the six
@@ -150,8 +154,9 @@ stranger's first ten minutes;
 then Checkov isolated and hash-locked, the Checks in one container, per-scanner
 timing, the shim carrying its build hash, and `.kiro/` — the primary client's own
 files — into the AI Artifact Check. Then the gate and `v1.0.0`. *(Block 4 ran
-ahead of the gate, on 2026-09-14 — it needed nothing from a stranger; only its
-Checkov-on-demand decision, 23.4.6, and Block 5 remain.)*
+ahead of the gate, on 2026-09-14 — it needed nothing from a stranger — and closed
+with its Checkov-on-demand decision on 2026-09-18, declined by measurement; Block 5
+closed the same day.)*
 
 **Phase 24 was written the same morning `0.2.0` shipped**, from an audit of the
 requirements against the published release — three measurements taken against the
@@ -187,9 +192,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 56 modules under `src/valvur`, 937 tests in 51 files, 18 ADRs, 136
-requirement IDs, **166 done and 9 open** across 25 phases — 1 of the 9 is Phase 23, 1 is Phase 24's audit (the
-owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 9
+Roughly: 56 modules under `src/valvur`, 937 tests in 51 files, 19 ADRs, 136
+requirement IDs, **167 done and 8 open** across 25 phases — 1 is Phase 24's audit (the
+owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail; Phase 23 is complete. Five of the 8
 are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -241,7 +246,8 @@ were introduced by the block before, with tests passing.
   is asserted on Linux CI by sampling `docker stats` through a `full` scan (344 MiB
   by hand; the CI number is printed on every run). What the numbers also say:
   Checkov runs on every real repository (they all carry a workflow file) and is
-  85–95% of every scan — 23.4.6's decision, with numbers.
+  85–95% of every scan — which decided 23.4.6 (ADR-0019, 2026-09-18): one image,
+  Checkov in it, because the cost is time and no image shape changes it.
 
 - **Slopsquat detection covers Python, npm, Ruby, PHP and Rust offline, JVM and Go
   on `full`, and nothing else.** `requirements*.txt` and `pyproject.toml` (PEP 621
@@ -400,6 +406,7 @@ new argument.
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
 | [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `offline` stays offline. |
 | [016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md) | **Two Profiles, split on the network boundary.** `offline` (the default) runs every Scanner that completes under `--network=none`. `full` adds `osv-scanner` — and, since ADR-0018 amended this, lets the dependency-reality Check ask a registry for the one thing its local index cannot answer. The old set was drawn along *speed* while being described as a network boundary, and `deep` was byte-identical to `standard` — it promised more and delivered exactly `standard`. Retired names still resolve. |
+| [019](docs/adr/0019-one-image-checkov-included.md) | **One image, Checkov in it.** Decided by measurement (23.4.6): Checkov is 164MB uncompressed but **53MB of a 223–233MB pull**, a slim image saves about 5s of a 110s first run, and it would reach a repository the corpus cannot find — 13 of 13 carry a workflow file, so `applies_to` runs Checkov everywhere and an on-demand second image would be pulled by everyone. The cost users pay is Checkov's runtime, 97–100% of every scan on Linux CI, which no image shape changes. Reopened by a measured user for whom 53MB matters, `applies_to` skipping on a real share of repositories, or a faster IaC scanner under an acceptable licence. |
 | [018](docs/adr/0018-offline-package-name-index.md) | **An exact index of package names, from primary sources, in the host cache.** Existence — the hallucination check — is answered offline from every name on PyPI (890k), npm (4.4M) and, since 23.2.2–3, RubyGems (197k), Packagist (462k) and crates.io (332k): exact rather than a bloom filter because a false positive there is a *missed hallucination*, and a binary search over the memory-mapped file costs 8µs a name. **Published daily as a signed OCI artifact** (`valvur-index`, the `trivy-db` pattern; amendment of 2026-09-12) and pulled by a zero-dependency client in the shim — 34MB, seconds — with the registries walked directly only as the fallback. Signature verified by cosign when installed, never by a hand-rolled verifier; the alternatives are in the amendment. `all-the-package-names` was rejected on measurement, not only principle: 140,823 names it lists do not exist. Stale past 30 days → `inconclusive`. Amends ADR-0016. |
 | [017](docs/adr/0017-selinux-relabelling-is-opt-in.md) | **SELinux relabelling of the source tree is opt-in.** Measured on a native enforcing host: all three mounts are denied, so valvur was unusable on RHEL — the primary target market. Its **own** scratch and cache mounts are labelled `:z` unconditionally; the **Workspace is not**, unless `VALVUR_SELINUX_RELABEL=1`, because `:z` rewrites the SELinux context of every file in the scanned tree and that outlives the scan (§10, moat item 2). `:Z` is impossible rather than merely undesirable — it stamps a private MCS category and valvur runs its Scanners concurrently against one mount, so the second is denied. The accepted cost is a failed first run on RHEL. |
 | [010](docs/adr/0010-provable-non-exfiltration.md) | **Provable non-exfiltration is a hard constraint.** Not a policy — a testable property, with a regression test that fails if the `offline` profile touches a socket. This is the product; see §3. |
