@@ -203,7 +203,7 @@ checks under claim 2.
 |---|---|---|
 | [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Dependency vulnerabilities |
 | [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets, including git history |
-| [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Dependencies against OSV.dev (`full` only: it sends lockfile names and versions out). Measured on twelve real repositories: **121 Go standard-library advisories on the one Go project**, keyed on `go.mod`'s `go` directive, which Trivy reports only from binaries; **1** disputed advisory on a Python project; **0** on the other ten. About a second a scan. |
+| [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Dependencies against OSV.dev (`full` only: it sends lockfile names and versions out). Measured on twelve real repositories: **121 Go standard-library advisories on the one Go project**, keyed on `go.mod`'s `go` directive, which Trivy reports only from binaries; **1** disputed advisory on a Python project; **0** on the other ten; and on a thirteenth, **110 against the lower bounds of an unpinned `requirements.txt`** — versions nobody installs, which task 25.3 stops reporting. About a second a scan. |
 | [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis |
 | [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration |
 | [Syft](https://github.com/anchore/syft) | Apache-2.0 | SBOM, and the dependency licences read from it |

@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 7 of them now, the release cut and the action's tag given IDs on
+task** — 8 of them now, the release cut and the action's tag given IDs on
 2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
@@ -102,13 +102,20 @@ exists only in a wheel), the image by the digest just signed, the constraint sui
 the e2e suite and the gate through both. Three rehearsals to green, each finding
 something: the F10.4 licence test had only ever checked a literal `valvur:dev`, and
 a 2026-09-01 suppression matched only because the verify job's checkout carries a
-`.venv`. **Block A is complete. Twenty-two tasks closed after `0.2.0` shipped and
-none of them released** — a stranger who follows the README today installs `0.2.0`, without
+`.venv`. **Block A is complete**, and its corpus dispatch read as planned — zero AI
+Artifact findings on real instruction files, the taint rules zero with the inventory
+naming smolagents' `exec` — **and found one more thing**: on smolagents, `full`
+added 110 advisories that are OSV-Scanner evaluating a wholly unpinned
+`requirements.txt` at its lower bounds, while on `offline` the same file read as
+*checked* with Trivy correctly finding nothing for a range — a silent clean on the
+commonest Python manifest shape. That is **25.3**, before the release. **Twenty-two
+tasks closed after `0.2.0` shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
 `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
-tag waits on `0.3.0`. **Next: Phase 25's checkpoints, each needing a person —
-`0.3.0` (25.1, 25.2, 24.4: rehearsal 35393242074 is green on this tree with the
-artifact job in it), the usability gate on that release (10.1.1–10.1.2, then
-12b.1), `v1.0.0` (12b.3). Block A closed on 2026-09-18.** When "what is
+tag waits on `0.3.0`. **Next: 25.3, the one engineering task Block A's dispatch
+added; then Phase 25's checkpoints, each needing a person — `0.3.0` (25.1, 25.2,
+24.4: rehearsal 35393242074 is green with the artifact job in it), the usability
+gate on that release (10.1.1–10.1.2, then 12b.1), `v1.0.0` (12b.3). Block A closed
+on 2026-09-18.** When "what is
 next" is asked, Phase 25 is the answer; Phase 24's list keeps the rows and the
 numbers, and the sequencing diagrams in Phases 21, 23 and 24 are history.
 
@@ -199,8 +206,8 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 56 modules under `src/valvur`, 937 tests in 51 files, 19 ADRs, 136
-requirement IDs, **168 done and 7 open** across 25 phases — 1 is Phase 24's audit (the
-owner's yank), 2 are Phase 25's release checkpoint, and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete. Five of the 7
+requirement IDs, **168 done and 8 open** across 25 phases — 1 is Phase 24's audit (the
+owner's yank), 3 are Phase 25's (the release checkpoint, and 25.3 from Block A's corpus run), and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete. Five of the 8
 are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

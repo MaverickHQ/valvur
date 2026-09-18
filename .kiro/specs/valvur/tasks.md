@@ -4833,6 +4833,20 @@ last.
   one test on the arithmetic, one mutation (a rule that shrank counted as added)
   survived and was pinned. The task's own numbers held: cobra 11 → 132.
 
+  > **Amended 2026-09-18, by the Block A corpus run (35395409682) with smolagents as
+  > the thirteenth repository:** `full` added **110** advisories there — pypdf 41,
+  > transformers 26, torch 20, pillow 17 — and none of them is marginal value.
+  > They come from `examples/open_deep_research/requirements.txt`, 39 lines, **not
+  > one of them pinned** (`transformers>=4.46.0`, `torch>=2.2.2`); OSV-Scanner
+  > evaluates an unpinned range at its *lower bound* and reports every advisory
+  > since, so the 110 are findings against versions nobody installs today. Trivy,
+  > correctly, reports nothing for a range — and valvur's coverage note stays
+  > silent, because a `requirements.txt` exists and was read, so the `offline` run
+  > shows those dependencies as *checked* when the check was vacuous. Two defects
+  > in one file, and the second is the worse: it is a silent clean. Recorded as
+  > **25.3** in Phase 25, before the release. The README's OSV row now carries
+  > the number with its cause.
+
 - [x] **23.4.6** Checkov on demand. It is 191MB of the image, the slowest Scanner by
   ten seconds, and `applies_to` already knows when there is nothing for it to read —
   yet every user pulls it and every scan of application code pays its startup. Two
@@ -4896,7 +4910,9 @@ last.
   leaves it (steering with a directive, MCP settings with `autoApprove`, one command
   hook, a spec carrying the directive) — three Findings, the spec silent, 0.9s in
   the Check. The corpus has none of the new files, so its answer is "still zero on
-  hundreds of real `.cursorrules`"; Block A's dispatch confirms it. 27 tests in
+  hundreds of real `.cursorrules`"; **Block A's dispatch (35395409682) confirmed
+  it: zero AI Artifact findings on thirteen repositories**, awesome-cursorrules'
+  hundreds of real instruction files included. 27 tests in
   `tests/test_ai_artifact_clients.py`, one of them e2e; twelve mutations, two of
   which survived on the first pass — the hook-type gate was redundant with the
   command-key gate until the tests planted a stray `command` on an agent-type hook,
@@ -4971,7 +4987,9 @@ last.
   corpus's thirteenth repository (scanned: 8 active — 5 Checkov GHA, 2 pinning, the
   `exec` inventory entry — complete, nothing suspect), so the limit is measured
   weekly rather than once. README, POSITIONING and F3.10 say all of this; 24.2 is
-  resolved for good.
+  resolved for good. **Block A's dispatch (35395409682), thirteen repositories:**
+  the four taint rules zero, `python.dangerous-exec` naming smolagents' one `exec`
+  site — the division of labour exactly as predicted, now measured weekly.
 
 - [x] **23.5.4** npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/`
   is public and unauthenticated, so *newly registered AND under N downloads* — the
@@ -5007,6 +5025,9 @@ last.
   adapters bypass `profiles.select`, the only place a network is granted, so the
   Check ran offline while `run.json` said `network.used: true`; the CLI path,
   which is the user's, was right. That harness path is what every test uses.
+  **Block A's dispatch (35395409682):** no corpus dependency is under 90 days old,
+  so the downloads API was asked about nothing — the corpus cannot exercise this
+  signal, and the live measurement above is what stands.
 
 - [x] **23.5.5** Coverage statements that still count as active. The rc run showed
   fifteen `valvur.licence.dependency-unknown` findings — one fact, since collapsed to
@@ -5496,12 +5517,44 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 both green on the tree that will be tagged; `CHANGELOG.md`'s Unreleased section
 complete for everything since `0.2.0`.
 
+> **Block A closed 2026-09-18.** Six tasks in one day; the rehearsal (35393242074)
+> green with the artifact job in it; the corpus (35395409682) `CORPUS PASSED` on
+> both Profiles across thirteen repositories, and it read as planned: zero AI
+> Artifact findings on awesome-cursorrules' real instruction files (A1); the four
+> taint rules zero and the inventory naming smolagents' `exec` (A3); no dependency
+> under 90 days, so the adoption signal untouched (A4). **And it found one more
+> thing**, which is what a dispatch is for: on smolagents, `full` added 110
+> advisories that are not marginal value — OSV-Scanner evaluating a 39-line,
+> wholly unpinned `requirements.txt` at its lower bounds — while on `offline` the
+> same file read as *checked* with Trivy correctly finding nothing for a range.
+> That is a silent clean of the kind §7 calls worse than no scan, on the commonest
+> Python manifest shape there is, and a stranger's project is likelier to have it
+> than not. It is **25.3**, and it goes before the release.
+
+- [ ] **25.3** **Unpinned requirements are not a check.** Found by Block A's corpus
+  dispatch (2026-09-18) on smolagents' `examples/open_deep_research/requirements.txt`:
+  39 lines, none pinned. Two defects, one file. **(1)** On `offline`, Trivy reads the
+  file and reports nothing — correct, a range is not a version — and valvur's
+  lockfile coverage note stays silent because a `requirements*.txt` is present, so
+  the dependencies read as *checked* when nothing was. Treat a requirements file
+  with no `==` pins the way 22.E.1 treats a manifest with no lockfile: a coverage
+  note (`vulnerabilities-unchecked`, `DOUBT_RULES`), naming the file and saying
+  *pin them or commit a lockfile*, and the run `inconclusive`. A file that mixes
+  pinned and unpinned lines is *partly* checked; say which. **(2)** On `full`,
+  OSV-Scanner evaluates each unpinned range at its lower bound and reports every
+  advisory since — 110 on smolagents (pypdf 41, transformers 26, torch 20, pillow
+  17), against versions nobody installs today. Those findings must not stand as
+  the project's: drop OSV results for a package whose requirement line is a range,
+  and let the note from (1) say why the file was not checked. Measure on the
+  corpus (`compare` should then show smolagents +0) and pin both halves with the
+  fixture. Update the README's OSV row and EVALUATING's lockfile paragraph.
+
 **Commits:** one per task, Conventional Commits, each PR fast-forwarded onto `main`.
 
 ### Checkpoint B — Release `0.3.0` *(owner, one sitting)*
 
 Everything since `0.2.0` — sixteen tasks at the time of writing, twenty-two after
-Block A — and nothing of it released. The gate measures the published version, so
+Block A, twenty-three with 25.3 — and nothing of it released. The gate measures the published version, so
 this comes before Checkpoint C, not after.
 
 - [ ] **25.1** **Cut `0.3.0`.** In order, as `RELEASING.md` describes: confirm Block
