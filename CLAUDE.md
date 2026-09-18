@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-17.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-18.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -27,12 +27,13 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-17):** **`0.2.0` is published and public** — `pip install valvur`
+**Status (2026-09-18):** **`0.2.0` is published and public** — `pip install valvur`
 works for anyone, the image is on GHCR for both architectures, signed and attested,
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 11 of them now — and whose first engineering item was the audit's worst
+task** — 13 of them now, the release cut and the action's tag given IDs on
+2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -75,12 +76,13 @@ the hallucinated dependencies"*), and Trivy's comma-joined fix list reached the
 proposal verbatim. **Sixteen tasks closed after `0.2.0` shipped and none of them
 released** — a stranger who follows the README today installs `0.2.0`, without
 `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
-tag waits on `0.3.0`. **Next, in the six batches recorded at the head of Phase 24
-on 2026-09-17: the rest of Batch 1 — 23.5.1, 23.5.2 — then the `0.3.0` release with
-12b.2 inside it, then the usability gate on that release, with 23.5.3 and 23.5.4
-measured on the corpus while the stranger is found; 23.4.6 and `v1.0.0` after.**
-When "what is next" is asked, that list and its batches are the answer; the
-sequencing diagrams in Phases 21 and 23 are history.
+tag waits on `0.3.0`. **Next: Phase 25, written 2026-09-18 — Block A, the six
+engineering tasks that wait on nobody (23.5.1, 23.5.2, 23.5.3, 23.5.4, 23.4.6,
+12b.2) run as one block with one corpus dispatch and one release rehearsal at the
+end; then three checkpoints that each need a person — `0.3.0` (25.1, 25.2, 24.4),
+the usability gate (10.1.1–10.1.2, then 12b.1), `v1.0.0` (12b.3).** When "what is
+next" is asked, Phase 25 is the answer; Phase 24's list keeps the rows and the
+numbers, and the sequencing diagrams in Phases 21, 23 and 24 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -167,10 +169,9 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 56 modules under `src/valvur`, 884 tests in 48 files, 18 ADRs, 136
-requirement IDs, **162 done and 11 open** across 24 phases — 5 of the 11 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), and 5 are the usability gate and the `v1.0.0` tail. Three of the 11
-are the owner's (yank
-`0.1.0rc1`, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
+requirement IDs, **162 done and 13 open** across 25 phases — 5 of the 13 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 13
+are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by

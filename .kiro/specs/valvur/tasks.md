@@ -4941,7 +4941,9 @@ list of every open task**, so "what is next" has exactly one answer.
 
 ### The list — every open task, in the order it should be done
 
-**This list is authoritative for order.** Each task's own text remains authoritative
+**This list is authoritative for order** — *until 2026-09-18, when
+[Phase 25](#phase-25--one-block-to-the-release-then-the-three-checkpoints) took
+that over; every row and number here stands, and Phase 25 says when.* Each task's own text remains authoritative
 for what it means. The diagrams in Phases 21 and 23 are history; where they disagree
 with this list, this list wins. Items marked *owner* need a person; everything else
 is engineering and proceeds in this order. The usability gate (13–14) needs a
@@ -4992,6 +4994,11 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 
 ### Run in batches — the 12 open tasks grouped, and the order re-cut
 
+> **Superseded 2026-09-18 by [Phase 25](#phase-25--one-block-to-the-release-then-the-three-checkpoints).**
+> Batches 1, 4 and 5 and 12b.2 are its Block A, run as one block with one corpus
+> dispatch and one rehearsal; Batches 2, 3 and 6 are its three checkpoints. The
+> reasoning below stands; the order there wins.
+>
 > **Added 2026-09-17.** Twelve boxes remain, three of them the owner's. Run one at
 > a time they are twelve review cycles and — the expensive part — an image rebuild
 > and a corpus dispatch for most of the nine engineering ones. Grouped by what they
@@ -5256,6 +5263,113 @@ which, by then, it has.
   who already pinned and stops resolvers choosing it. pypi.org → `valvur` → Manage →
   release `0.1.0rc1` → *Yank*, with the reason *"looks for a local development
   image; use 0.2.0"*.
+
+## Phase 25 — One block to the release, then the three checkpoints
+
+**Goal:** run everything engineering that stands between here and `0.3.0` as **one
+block** — one stretch of work, one corpus dispatch, one release rehearsal — and leave
+the rest of the plan as three checkpoints that each need a person: the release, the
+gate, `v1.0.0`. Written 2026-09-18 from a review of the eleven open tasks.
+
+> **What the review found.** Every open task falls into one of two kinds. Six are
+> engineering that no person is waited on for — 23.5.1, 23.5.2, 23.5.3, 23.5.4,
+> 23.4.6 and 12b.2 — and each was scheduled apart from the others only because the
+> batches of 2026-09-17 sequenced them around a gate that has no date yet. Five need
+> a person: 24.4 and the `0.3.0` cut (the owner), 10.1.1–10.1.2 (the owner and a
+> stranger), 12b.1 (whatever they found), 12b.3 (the owner). The six share one
+> validation apparatus — a corpus dispatch judges 23.5.1, 23.5.3 and 23.5.4 in one
+> report; a release rehearsal proves 12b.2 and everything `0.3.0` will carry — so
+> running them as one block costs one dispatch and one rehearsal instead of three
+> and two, and puts every engineering change into the release the stranger measures.
+>
+> **This phase is now the one answer to "what is next".** The ordered list at the
+> head of Phase 24 keeps every row and every number; its batches of 2026-09-17 are
+> re-cut here into Block A and three checkpoints, and where the two disagree, this
+> phase wins. Task IDs and task text stay where they are and stay authoritative for
+> *what* each task means; this phase says *when*.
+
+```
+Block A   the pre-release block          23.5.1 → 23.5.2 → 23.5.3 → 23.5.4 → 23.4.6 → 12b.2
+          engineering, no person          one corpus dispatch · one release rehearsal
+               ↓
+Checkpoint B   release 0.3.0             25.1 rehearsal + tag · 25.2 valvur-action v0 · 24.4 yank
+               owner, one sitting
+               ↓
+Checkpoint C   the usability gate         10.1.1 · 10.1.2  →  12b.1 (engineering, on what they found)
+               owner + a stranger; a calendar
+               ↓
+Checkpoint D   v1.0.0                     12b.3
+               owner
+```
+
+### Block A — The pre-release block
+
+Six tasks, in this order, each landing by its own pull request; nothing in the block
+waits on a person. Every PR rebuilds the image (the tree-hash guard demands it) and
+runs the unit suite; the two real-world checks run **once, at the end**.
+
+| # | task | what | why here |
+|---|---|---|---|
+| A1 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
+| A2 | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
+| A3 | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
+| A4 | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
+| A5 | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
+| A6 | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |
+
+**Validation, once, at the end of the block:**
+
+1. **One corpus dispatch** (`corpus.yml`), read for three things in one report:
+   A1's new rule against awesome-cursorrules (zero expected — hundreds of real
+   `.cursorrules` are the false-positive test), A3's per-rule hits (`corpus.py
+   rules`), A4's `full`-over-`offline` delta (`corpus.py compare`). Both Profiles
+   must say `CORPUS PASSED`.
+2. **One release rehearsal** (`release.yml`, `workflow_dispatch`): every step against
+   throwaway targets, A6's job running for the first time. Green here is the block's
+   exit and Checkpoint B's entry.
+
+**Exit (Block A):** six tasks closed with their notes; the corpus and the rehearsal
+both green on the tree that will be tagged; `CHANGELOG.md`'s Unreleased section
+complete for everything since `0.2.0`.
+
+**Commits:** one per task, Conventional Commits, each PR fast-forwarded onto `main`.
+
+### Checkpoint B — Release `0.3.0` *(owner, one sitting)*
+
+Everything since `0.2.0` — sixteen tasks at the time of writing, twenty-two after
+Block A — and nothing of it released. The gate measures the published version, so
+this comes before Checkpoint C, not after.
+
+- [ ] **25.1** **Cut `0.3.0`.** In order, as `RELEASING.md` describes: confirm Block
+  A's rehearsal is the latest run of `release.yml` and green; bump `pyproject.toml`;
+  date the CHANGELOG section; tag `v0.3.0`; watch the tag's run to the end, and read
+  A6's job — the first time the constraint suite runs against a real release
+  artifact. Then re-measure the README's first-run numbers against the release, as
+  23.1.1 did for `0.2.0`, from a stranger's state.
+- [ ] **25.2** **Tag `valvur-action` `v0`** on the commit whose `version` default is
+  `0.3.0` (23.3.6 left `v0` waiting on exactly this), and switch `ci.yml`'s self-scan
+  job from `version: ""` to the tag. The action's README example then works for
+  anyone.
+- [ ] [**24.4**](#phase-24--the-audit-and-one-list-of-everything-that-remains) — yank
+  `0.1.0rc1`, in the same sitting.
+
+### Checkpoint C — The usability gate *(owner and a stranger; a calendar)*
+
+- [**10.1.1**](#101--the-usability-gate) · **10.1.2** — on `0.3.0`, installed the way
+  the README says, MCP first, protocol in `docs/usability-gate.md`. First
+  impressions do not reset; this is the one checkpoint that cannot be re-run.
+- [**12b.1**](#12b--release) — act on what they found. Phase 10's provisional items
+  (10.2–10.5) close here or are deferred with a reason. Engineering, sized by the
+  findings; may be a `0.3.1`.
+
+### Checkpoint D — `v1.0.0` *(owner)*
+
+- [**12b.3**](#12b--release) — after 12b.1's fixes land and A6's job has gone green on
+  a real release, which by then it has. Phase 17's precondition is met.
+
+**Exit (Phase 25):** `v1.0.0` released; someone who had never seen valvur installed
+it from the README and got a useful answer; every open task in the plan closed or
+deferred with a reason.
 
 ## Traceability
 

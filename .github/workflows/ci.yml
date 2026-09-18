@@ -242,7 +242,7 @@ jobs:
         # plus `inconclusive`, which passes by omission unless refused. `version: ""`
         # is the shim from this tree; VALVUR_IMAGE is the image just built from it.
         # Pinned by SHA like every action here (12a.6).
-        uses: MaverickHQ/valvur-action@465d0721b448e0adedd35a67d736eb510e1a5ecb # v0
+        uses: MaverickHQ/valvur-action@3e3cf19e532bfacfea04dae77275f7c2d2e72d31 # v0
         env:
           VALVUR_IMAGE: valvur:dev
         with:
