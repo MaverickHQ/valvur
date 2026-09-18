@@ -1945,8 +1945,38 @@ become the task list for 12b.** Everything below is provisional until it has.
 
 - [ ] **12b.1** Act on the usability gate's findings. Phase 10 tasks 10.1–10.5 close
   here or are explicitly deferred with a reason.
-- [ ] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
+- [x] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
   the release artifact rather than the working tree. *(N2.5)*
+
+  **STATUS 2026-09-18:** ✅ **Block A, A6 — a job, not a checklist.** `artifact`
+  is the last job of `release.yml`, after `release`: it installs the wheel from
+  `dist/` into a clean environment outside the checkout (inside it, the self-scan
+  would catalogue pytest's dependencies as the project's), with `src/` deliberately
+  off the path — and proves it, because `valvur._build` exists only in a built wheel
+  and its digest must equal the checkout's; pulls the image by the digest the
+  release job signed and verifies the signature; checks the pair's version label
+  and build digest against each other (F1.9, 23.4.4, on the release pair itself);
+  then runs the Phase 11 constraint suite, the whole e2e suite and the self-scan
+  gate through that wheel and that image. It cannot stop a release that has left;
+  it turns the run red and names why, which is the honest shape of a check on the
+  artifact. In a rehearsal it runs against the scratch image and the `.devN` wheel.
+  **Three rehearsals to green, and each found something.** The first: the F10.4
+  licence test asked Syft for a literal `valvur:dev` rather than the image under
+  test — so the *published* image's licence composition had never been the thing
+  checked; it reads `runner.IMAGE` now. The second: the gate failed on a *lapsed
+  suppression* — the `dependency-unknown` entry from 2026-09-01 matched only by
+  accident of environment. The verify job's checkout carries uv's `.venv`, from
+  which Syft reads licence metadata, so the note there is `dependency-unknown`; the
+  artifact job's checkout has no venv, Syft sees only `uv.lock`, 116 of 116
+  dependencies carry no licence, the note is `dependencies-unreadable`, and a
+  suppression matching nothing fails at every threshold. Since 23.5.5 both notes
+  are never active, so the entry suppressed nothing and is gone. The third, run
+  35393242074: green end to end — wheel from site-packages with the checkout's
+  digest, image pulled by digest and its signature verified, label and build
+  digest matching, 42 constraint tests and 24 e2e tests through the artifact, the
+  gate passed; the job takes seven minutes after `release`. N2.5 annotated;
+  `RELEASING.md` describes the job. **Block A is complete**; its corpus dispatch
+  is next, then Checkpoint B.
 - [ ] **12b.3** Tag `v1.0.0` — the first version claiming stability, and the first one
   a person outside this repository has successfully used.
 
@@ -5089,8 +5119,8 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-one tasks have
-> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24) and
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-two tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24 and 26) and
 > none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
@@ -5123,7 +5153,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 23 | 23.5.3 | taint-mode LLM rules, or retire the word | ✅ 2026-09-18 — resolved 24.2 | ✅ |
 | 24 | 23.5.4 | npm adoption on `full` | ✅ 2026-09-18 | ✅ |
 | 25 | 23.5.5 | coverage statements counted active | ✅ 2026-09-17 | ✅ |
-| 26 | 12b.2 | the constraint suite against the release artifact | | 2 |
+| 26 | 12b.2 | the constraint suite against the release artifact | ✅ 2026-09-18 | ✅ |
 | 27 | 12b.3 | `v1.0.0` | **owner** | 6 |
 
 ### Run in batches — the 12 open tasks grouped, and the order re-cut
@@ -5449,7 +5479,7 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 | A3 ✅ | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
 | A4 ✅ | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
 | A5 ✅ | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
-| A6 | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |
+| A6 ✅ | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |
 
 **Validation, once, at the end of the block:**
 

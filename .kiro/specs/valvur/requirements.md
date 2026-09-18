@@ -661,6 +661,15 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 5. N2.5 — valvur SHALL pass its own `full` **Profile** with no unsuppressed
    **Findings** as a release gate.
 
+   > **Amended 2026-09-18 (task 12b.2).** The gate runs twice in `release.yml`:
+   > in `verify`, against the tree (`valvur:dev`, `uv run`), before anything is
+   > pushed; and in `artifact`, after `release`, against the *release artifact* —
+   > the wheel from `dist/` installed into a clean environment with the tree off
+   > the path, driving the image by the digest the release job signed — together
+   > with the Phase 11 constraint suite and the whole e2e suite. The second run
+   > cannot stop a release that has left; it turns the run red and names why, which
+   > is the honest shape of a post-publication check. Proven by rehearsal first.
+
 6. N2.6 — valvur SHALL serialise writes to the vulnerability database cache against
    readers of it. *Added 2026-09-05 (task 16.3). Trivy takes no lock of its own —
    measured — and `trivy.db` is a 1.35GB file rewritten under live readers. Task 14.2

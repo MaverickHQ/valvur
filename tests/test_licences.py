@@ -67,10 +67,16 @@ def test_licences_reads_id_name_and_expression_forms():
 
 @pytest.mark.e2e
 def test_our_real_image_adds_no_gpl_component():
-    """F10.4 as corrected, against the actual image."""
+    """F10.4 as corrected, against the actual image — the one under test, not a
+    literal `valvur:dev`. Found by 12b.2's first rehearsal: the artifact job
+    points `VALVUR_IMAGE` at the signed release image, and this test went on
+    asking the daemon for a local build that was not there. Until then the
+    published image's licence composition had never been the thing checked."""
     from check_image_licences import added_components
 
-    added = added_components("valvur:dev", "python:3.12-alpine3.22")
+    from valvur.runner import IMAGE
+
+    added = added_components(IMAGE, "python:3.12-alpine3.22")
 
     assert added, "the diff found nothing added — the comparison is broken"
     assert offending(added) == []

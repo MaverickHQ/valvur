@@ -23,6 +23,15 @@ a minor bump may break things until 1.0.
   and is reported with the command as fenced evidence. `.kiro/specs/` is
   deliberately not read: the project's own documents, and this repository's own
   spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
+- **The release pipeline tests the artifact, not the tree.** A final `artifact`
+  job in `release.yml` installs the wheel from `dist/` into a clean environment
+  with the source tree off the path — and proves it: `valvur._build` exists only
+  in a built wheel — pulls the image by the digest the release job signed,
+  verifies the signature, checks the pair's version label and build digest against
+  each other, and runs the Phase 11 constraint suite, the whole e2e suite and the
+  self-scan gate through that wheel and that image (task 12b.2, N2.5). The
+  `verify` job still runs the same suite against the tree before anything is
+  pushed; this is the other half, on what a user gets, rehearsed before every tag.
 - **npm adoption on `full`: new AND unadopted is the slopsquat signal.** F3.3 asks
   for *first published recently and low adoption*; the adoption half was stated
   impossible because PyPI publishes no download counts without a third party. npm

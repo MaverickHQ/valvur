@@ -64,6 +64,17 @@ the licence check, the self-scan gate, the multi-architecture push, the platform
 assertion — runs exactly as it will for the tag. The scratch image and the TestPyPI
 upload are left in place on purpose: they are what you inspect afterwards.
 
+**The last job tests the artifact, not the tree** (12b.2, N2.5). `verify` runs the
+suite and the gate against `valvur:dev` before anything is pushed, which proves the
+tree the tag points at. `artifact` runs after `release`: it installs the wheel from
+`dist/` into a clean environment with `src/` deliberately off the path (and proves
+it — `valvur._build` exists only in a built wheel), pulls the image by the digest
+the release job signed, verifies the signature, checks the pair's version label and
+build digest against each other, and then runs the Phase 11 constraint suite, the
+whole e2e suite and the self-scan gate through that wheel and that image. It cannot
+stop a release that has left; it turns the run red and names why. In a rehearsal it
+runs against the scratch image and the `.devN` wheel, so it is proven before the tag.
+
 > **Keyless signing is public.** Every `cosign sign` writes an entry to the Rekor
 > transparency log naming this repository and workflow, rehearsal or not. While the
 > repository is private that is the one thing a rehearsal makes visible outside it.
