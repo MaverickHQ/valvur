@@ -4875,7 +4875,7 @@ last.
   the rest of Block A, none of which touches the schema, so this is `0.3.0`'s
   shape. CONTRIBUTING says how to move it.
 
-- [ ] **23.5.3** Taint-mode LLM rules, or retire the word. The four `valvur.llm.*`
+- [x] **23.5.3** Taint-mode LLM rules, or retire the word. The four `valvur.llm.*`
   rules fired zero times on eleven real projects including an LLM tool; they are
   pattern rules with no sources. *Corrected 2026-09-13 (24.2): three of the four
   ARE taint rules and have been since 2026-08-30 — their sources are the three SDK
@@ -4887,6 +4887,42 @@ last.
   sinks the INFO rules now inventory. A planted fixture proves they fire; the corpus
   measures whether they ever fire on real code. If after that they still do not, the
   README says "sink inventory" and stops saying taint.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A3 — the word stays, and the README says
+  which half fires on real code.** Sources widened to six SDK families — Anthropic;
+  OpenAI's chat completions, Responses API and pre-1.0 module (`$CLIENT.completions.create`
+  covers `client.chat.completions.create`, `$CLIENT` binding to `client.chat`; a
+  separate pattern was measured redundant by mutation); Gemini; LangChain
+  `invoke`/`ainvoke`/`predict`; litellm; ollama — **anchored once** for the three
+  Python rules, because written out three times a mutation test found a source
+  dropped from one rule unnoticed by a fixture exercising it on another. Sinks
+  widened to the INFO inventory's; `output-to-sql` became a taint rule and its
+  string-built pattern the inventory entry `python.string-built-sql`. **The
+  `innerHTML` rule had never had a fixture** — "those four fire on our fixture" was
+  true of three — and `chat.js` now plants six JavaScript flows. `llm_app.py` plants
+  one function per Python source, each into a different sink, and one shape the
+  rules do not see: `exec(ask(prompt))`, a helper returning the model's text, which
+  the tests assert is reported by the inventory and not by the taint rule. Fifteen
+  flows fire on the rebuilt image; the golden recaptured (14 → 32 results) and a
+  new e2e test pins the golden to the image, so a source removed from `rules/`
+  fails there rather than in a recapture nobody ran. Fourteen source and sink
+  mutations against that comparison, all caught after the anchor and the dedupe.
+
+  **Then the measurement the task asked for, and what it said.** All twelve
+  corpus repositories: zero, as before — none executes model output. So two real
+  projects that *do* were fetched: **smolagents** (`exec(tool_code, module.__dict__)`,
+  Apache-2.0) and **pandas-ai** (`exec(code, self._environment)`, MIT with an `ee/`
+  exception). In both, the model call and the `exec` sit in different classes;
+  Opengrep's taint tracking is intra-procedural; neither flow is reported, and both
+  `exec` sites are named by `python.dangerous-exec`. That is the honest division:
+  the taint rules are what they say — proven on fifteen flows — and detect the
+  single-function shape; the **inventory** is what fires on real code. The task's
+  either/or assumed zero would mean the rules were not tracking; the fixture shows
+  they are, and retiring the word would misdescribe them. smolagents is the
+  corpus's thirteenth repository (scanned: 8 active — 5 Checkov GHA, 2 pinning, the
+  `exec` inventory entry — complete, nothing suspect), so the limit is measured
+  weekly rather than once. README, POSITIONING and F3.10 say all of this; 24.2 is
+  resolved for good.
 
 - [ ] **23.5.4** npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/`
   is public and unauthenticated, so *newly registered AND under N downloads* — the
@@ -5004,8 +5040,8 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Eighteen tasks have
-> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21 and 22) and
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Nineteen tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 21–23) and
 > none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
@@ -5035,7 +5071,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 | 20 | 23.4.6 | Checkov on demand, or a slim image | decided by 5 | 5 |
 | 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | ✅ 2026-09-18 | ✅ |
 | 22 | 23.5.2 | `tools/list` snapshot | ✅ 2026-09-18 | ✅ |
-| 23 | 23.5.3 | taint-mode LLM rules, or retire the word | resolves 24.2 for good | 4 |
+| 23 | 23.5.3 | taint-mode LLM rules, or retire the word | ✅ 2026-09-18 — resolved 24.2 | ✅ |
 | 24 | 23.5.4 | npm adoption on `full` | | 4 |
 | 25 | 23.5.5 | coverage statements counted active | ✅ 2026-09-17 | ✅ |
 | 26 | 12b.2 | the constraint suite against the release artifact | | 2 |
@@ -5361,7 +5397,7 @@ runs the unit suite; the two real-world checks run **once, at the end**.
 |---|---|---|---|
 | A1 ✅ | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
 | A2 ✅ | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
-| A3 | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
+| A3 ✅ | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
 | A4 | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
 | A5 | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
 | A6 | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |

@@ -61,6 +61,20 @@ rules:
       - pattern: yaml.load($X)
       - pattern-not: yaml.load($X, Loader=yaml.SafeLoader)
 
+  - id: valvur.python.string-built-sql
+    languages: [python]
+    severity: INFO
+    message: >-
+      A query sink built by string formatting. Not a vulnerability by itself — the
+      interpolated value may be a constant — but if model output or user input can
+      reach it, it is SQL injection. valvur.llm.output-to-sql reports that flow;
+      parameterised queries remove the sink.
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute(f"...{$R}...")
+          - pattern: $CUR.execute("..." % $R)
+          - pattern: $CUR.execute("..." + $R)
+
   - id: valvur.python.weak-hash
     languages: [python]
     severity: INFO

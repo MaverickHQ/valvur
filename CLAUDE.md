@@ -32,7 +32,7 @@ works for anyone, the image is on GHCR for both architectures, signed and attest
 and a stranger's CLI first run measures **about a minute and a half** from nothing
 to a first result. An audit of the requirements against that release the same
 morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 11 of them now, the release cut and the action's tag given IDs on
+task** — 10 of them now, the release cut and the action's tag given IDs on
 2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
@@ -80,8 +80,14 @@ Roo, Continue, Windsurf and aider's files, and a new high rule for **a committed
 that runs a shell command on an event** (Kiro, Claude Code, aider), the command as
 fenced evidence. **Then 23.5.2**: the MCP `tools/list` reply is a committed
 snapshot, taken through the real server, so a schema change is a diff in review —
-the rc's `standard` Profile could not happen again. **Eighteen tasks closed after
-`0.2.0` shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
+the rc's `standard` Profile could not happen again. **Then 23.5.3**: the LLM
+taint rules know six SDK families and fifteen planted flows fire — the `innerHTML`
+rule had never had a fixture — and, measured on two real projects that execute
+model output, neither flow is seen: the model call and the `exec` sit in different
+classes, Opengrep's taint is intra-procedural, and the INFO sink inventory names
+both. The word stays, the README says the inventory is what fires on real code,
+and smolagents is the corpus's thirteenth repository so the limit is measured
+weekly. **Nineteen tasks closed after `0.2.0` shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
 `doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
 tag waits on `0.3.0`. **Next: Phase 25, written 2026-09-18 — Block A, the six
 engineering tasks that wait on nobody (23.5.1, 23.5.2, 23.5.3, 23.5.4, 23.4.6,
@@ -175,10 +181,10 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 56 modules under `src/valvur`, 918 tests in 50 files, 18 ADRs, 136
-requirement IDs, **164 done and 11 open** across 25 phases — 3 of the 11 are Phase 23, 1 is Phase 24's audit (the
-owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 11
-are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of twelve real repositories runs
+Roughly: 56 modules under `src/valvur`, 924 tests in 50 files, 18 ADRs, 136
+requirement IDs, **165 done and 10 open** across 25 phases — 2 of the 10 are Phase 23, 1 is Phase 24's audit (the
+owner's yank), 2 are Phase 25's release checkpoint, and 5 are the usability gate and the `v1.0.0` tail. Five of the 10
+are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -205,16 +211,18 @@ were introduced by the block before, with tests passing.
   F10.8 amended. **The friction worth knowing:** a first run on a host with no
   route to GHCR is *incomplete* with the cause named, not a hang and not a silent
   clean.
-- **The LLM-output-to-sink rules are not a held claim, and the docs now say so
-  (24.2, closed 2026-09-13; F3.10 annotated).** Four Opengrep rules — three in taint
-  mode with the OpenAI, Anthropic and Gemini SDK calls as their only sources, one a
-  plain string-built-SQL pattern — zero hits on **twelve** real repositories
-  including an LLM tool (eleven when 24.2 was written; the corpus run of
-  2026-09-13 scanned the twelfth with the same result). No corpus repository
-  executes model output, so the zero is *unmeasured*, not a miss. The README lists
-  the rules with what they match and that they have never fired on real code; the
-  section is carried by the Checks; `POSITIONING.md` records it as a measured limit
-  on Claim 2. 23.5.3 widens the sources and measures, or retires the word.
+- **The LLM-output-to-sink taint rules detect the single-function shape, and real
+  code does not take it (24.2, 2026-09-13; 23.5.3, 2026-09-18; F3.10 annotated).**
+  Four Opengrep taint rules with sources for six SDK families — Anthropic, OpenAI
+  (three call shapes), Gemini, LangChain, litellm, ollama — into the sinks the INFO
+  inventory names. Fifteen planted flows fire. On **thirteen** real repositories,
+  zero — and since 23.5.3 the zero is *measured*, not unmeasured: smolagents and
+  pandas-ai both execute model output, both route it across a class boundary, and
+  Opengrep's taint tracking is intra-procedural, so the flow is invisible to the
+  taint rules while the inventory names both `exec` sites. The README says the
+  inventory is what fires on real code and lists the taint rules as what they are;
+  the section is carried by the Checks; `POSITIONING.md` records the measurement.
+  smolagents is in the corpus so the limit is re-measured weekly.
 - **Three requirements the ratchet could not see through now have evidence (24.3,
   closed 2026-09-13).** F1.10's AWS half is deferred with the condition that
   revives it (a measured run on a host with a Docker socket); the no-cloud-branch

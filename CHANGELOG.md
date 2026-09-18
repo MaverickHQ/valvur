@@ -23,6 +23,23 @@ a minor bump may break things until 1.0.
   and is reported with the command as fenced evidence. `.kiro/specs/` is
   deliberately not read: the project's own documents, and this repository's own
   spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
+- **The LLM-output-to-sink rules know six SDK families, and the corpus knows a
+  repository that executes model output.** Sources for Anthropic, OpenAI (chat
+  completions, the Responses API, the pre-1.0 module), Gemini, LangChain
+  `invoke`/`predict`, litellm and ollama, anchored once for the three Python rules;
+  sinks widened to the INFO inventory's (`yaml.load` without a safe loader,
+  `pickle.loads`, `executemany`, `sqlalchemy.text`; `outerHTML`,
+  `insertAdjacentHTML`, `document.write`). `valvur.llm.output-to-sql` is now a
+  taint rule like the other three; the string-built-SQL pattern it used to be is the
+  INFO inventory entry `valvur.python.string-built-sql`. The `innerHTML` rule had no
+  fixture and had never fired anywhere; fifteen planted flows now fire across the
+  fixture's `llm_app.py` and a new `chat.js`, and one planted shape — a helper that
+  returns the model's text — is asserted *not* to fire, because Opengrep's taint
+  tracking is intra-procedural. Measured on two real projects that execute model
+  output, smolagents and pandas-ai: both route it across a class boundary, neither
+  flow is reported, both `exec` sites are named by the inventory. smolagents joins
+  the corpus as its thirteenth repository so that limit is measured weekly; the
+  README says the inventory is what fires on real code (task 23.5.3).
 - **The MCP `tools/list` reply is a committed snapshot.**
   `tests/fixtures/mcp/tools-list.json` is the JSON both clients see — every tool's
   name, description, input schema and read-only annotations — taken through the

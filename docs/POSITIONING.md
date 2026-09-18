@@ -107,6 +107,23 @@ fail. The rules' sources are three SDK call shapes; anything reaching a sink thr
 LangChain, litellm, ollama, or a helper that unwraps `.choices[0].message.content` is
 outside them today (task 23.5.3).
 
+> **Measured 2026-09-18 (task 23.5.3).** The sources were widened to six SDK
+> families — Anthropic; OpenAI's chat completions, Responses API and pre-1.0
+> module; Gemini; LangChain `invoke`/`predict`; litellm; ollama — and attribute and
+> subscript access propagates, so `.choices[0].message.content` needs no naming.
+> Fifteen planted flows fire, one per source per sink family (the `innerHTML` rule
+> had never had a fixture; now six). Then the corpus was given what it lacked: a
+> repository that *does* execute model output. **smolagents** (`exec(tool_code, …)`
+> in `tools.py`) is the thirteenth repository, and **pandas-ai** (`exec(code,
+> self._environment)`) was measured beside it. In both, the model call and the
+> `exec` are in different classes; Opengrep's taint tracking is intra-procedural;
+> neither flow is reported, and both `exec` sites are named by the INFO sink
+> inventory. So the word *taint* stays — it is what the rules are, proven on the
+> fixture — and the README now says which half fires on real code: the
+> **inventory**. The taint rules are a detector for the single-function shape, and
+> whether real code takes that shape is, after thirteen repositories, measured at
+> zero.
+
 Consequences for what we say:
 - Claim 2 rests on **slopsquatting, agent-config auditing and hidden Unicode** —
   each measured on real code and each carried by a Check that reports its own

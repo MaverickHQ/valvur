@@ -59,12 +59,18 @@ what left the machine — on `offline`, the word `nothing`.
   opens the repository execute it, and is reported at high with the command as
   fenced evidence.
 - **A small set of Opengrep rules, which are not the claim.** Two pinning rules
-  (tag-pinned actions, mutable git refs) that fire on most real repositories, and
-  four for model output reaching `eval`, `exec`, a shell or `innerHTML` — taint rules
-  whose sources are a completion call from the OpenAI, Anthropic or Gemini SDK, plus
-  one for string-built SQL. Those four fire on our fixture and, measured on twelve
-  real repositories including an LLM tool, **have never fired on real code**. They
-  ship ranked `low`; the checks above carry this section.
+  (tag-pinned actions, mutable git refs) that fire on most real repositories; a
+  **sink inventory** at INFO — `eval`, `exec`, `shell=True`, unsafe `yaml.load`,
+  string-built SQL — which is what fires on real code; and four **taint rules**
+  from a model call to those sinks and to `innerHTML`, with sources for the
+  Anthropic, OpenAI (chat completions, Responses API, pre-1.0), Gemini, LangChain,
+  litellm and ollama SDKs. The taint rules fire on every planted flow in our
+  fixture (fifteen, across those six families) and **have never fired on real
+  code**: measured on thirteen real repositories, including two that execute model
+  output — smolagents and pandas-ai route it across a class boundary, and
+  Opengrep's taint tracking is intra-procedural, so it does not see the flow while
+  the inventory names both `exec` sites. They ship ranked `low`; the checks above
+  carry this section.
 
 What is covered, and what is not, is stated on every scan rather than left to infer:
 

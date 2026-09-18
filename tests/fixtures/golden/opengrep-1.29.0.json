@@ -18,7 +18,7 @@
     "metavars": {},
     "message": "Action pinned to a mutable tag or branch. Tags can be moved to point at different code, so what you reviewed is not necessarily what runs \u2014 this is how the tj-actions/changed-files compromise reached tens of thousands of repositories. Pin to a full commit SHA and keep the tag in a trailing comment so Dependabot can still track it.",
     "metadata": {},
-    "severity": "WARNING",
+    "severity": "INFO",
     "fingerprint": "c5fb32d739f3d24d9e17d1fd54945af4e2383f44ce6934eccc5c44288547ed395ab9e566ad1787be72c400bfa13b080478a3b1bc7b0e09d17c0cc48909e2ed36_0",
     "lines": "      - uses: actions/checkout@v4",
     "is_ignored": false,
@@ -43,11 +43,723 @@
     "metavars": {},
     "message": "Action pinned to a mutable tag or branch. Tags can be moved to point at different code, so what you reviewed is not necessarily what runs \u2014 this is how the tj-actions/changed-files compromise reached tens of thousands of repositories. Pin to a full commit SHA and keep the tag in a trailing comment so Dependabot can still track it.",
     "metadata": {},
-    "severity": "WARNING",
+    "severity": "INFO",
     "fingerprint": "c5fb32d739f3d24d9e17d1fd54945af4e2383f44ce6934eccc5c44288547ed395ab9e566ad1787be72c400bfa13b080478a3b1bc7b0e09d17c0cc48909e2ed36_1",
     "lines": "      - uses: actions/setup-python@main",
     "is_ignored": false,
     "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.js.output-to-innerhtml",
+   "path": "/workspace/chat.js",
+   "start": {
+    "line": 15,
+    "col": 3,
+    "offset": 716
+   },
+   "end": {
+    "line": 15,
+    "col": 56,
+    "offset": 769
+   },
+   "extra": {
+    "metavars": {
+     "$CLIENT": {
+      "start": {
+       "line": 14,
+       "col": 28,
+       "offset": 615
+      },
+      "end": {
+       "line": 14,
+       "col": 34,
+       "offset": 621
+      },
+      "abstract_content": "openai",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 8,
+        "col": 16,
+        "offset": 347
+       },
+       "svalue_end": {
+        "line": 8,
+        "col": 28,
+        "offset": 359
+       },
+       "svalue_abstract_content": "new OpenAI()"
+      }
+     },
+     "$EL": {
+      "start": {
+       "line": 15,
+       "col": 3,
+       "offset": 716
+      },
+      "end": {
+       "line": 15,
+       "col": 6,
+       "offset": 719
+      },
+      "abstract_content": "out"
+     }
+    },
+    "message": "Model output assigned to innerHTML is stored XSS. Use textContent.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "7d744b22384b315a972e5e7b9413c2c011d9e346d0ef241d1f239b7192f068ab5cf86d8d167340161644c4755175db853fa3c2cce66ceb8397fb84ea68c78131_0",
+    "lines": "  out.innerHTML = completion.choices[0].message.content;",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 14,
+         "col": 22,
+         "offset": 609
+        },
+        "end": {
+         "line": 14,
+         "col": 125,
+         "offset": 712
+        }
+       },
+       "await openai.chat.completions.create({ model: \"gpt-5\", messages: [{ role: \"user\", content: prompt }] })"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 14,
+         "col": 9,
+         "offset": 596
+        },
+        "end": {
+         "line": 14,
+         "col": 19,
+         "offset": 606
+        }
+       },
+       "content": "completion"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 15,
+         "col": 3,
+         "offset": 716
+        },
+        "end": {
+         "line": 15,
+         "col": 56,
+         "offset": 769
+        }
+       },
+       "out.innerHTML = completion.choices[0].message.content"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.js.output-to-innerhtml",
+   "path": "/workspace/chat.js",
+   "start": {
+    "line": 20,
+    "col": 3,
+    "offset": 909
+   },
+   "end": {
+    "line": 20,
+    "col": 39,
+    "offset": 945
+   },
+   "extra": {
+    "metavars": {
+     "$CLIENT": {
+      "start": {
+       "line": 19,
+       "col": 26,
+       "offset": 847
+      },
+      "end": {
+       "line": 19,
+       "col": 32,
+       "offset": 853
+      },
+      "abstract_content": "openai",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 8,
+        "col": 16,
+        "offset": 347
+       },
+       "svalue_end": {
+        "line": 8,
+        "col": 28,
+        "offset": 359
+       },
+       "svalue_abstract_content": "new OpenAI()"
+      }
+     },
+     "$EL": {
+      "start": {
+       "line": 20,
+       "col": 3,
+       "offset": 909
+      },
+      "end": {
+       "line": 20,
+       "col": 6,
+       "offset": 912
+      },
+      "abstract_content": "out"
+     }
+    },
+    "message": "Model output assigned to innerHTML is stored XSS. Use textContent.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "7d744b22384b315a972e5e7b9413c2c011d9e346d0ef241d1f239b7192f068ab5cf86d8d167340161644c4755175db853fa3c2cce66ceb8397fb84ea68c78131_1",
+    "lines": "  out.innerHTML = response.output_text;",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 19,
+         "col": 20,
+         "offset": 841
+        },
+        "end": {
+         "line": 19,
+         "col": 84,
+         "offset": 905
+        }
+       },
+       "await openai.responses.create({ model: \"gpt-5\", input: prompt })"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 19,
+         "col": 9,
+         "offset": 830
+        },
+        "end": {
+         "line": 19,
+         "col": 17,
+         "offset": 838
+        }
+       },
+       "content": "response"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 20,
+         "col": 3,
+         "offset": 909
+        },
+        "end": {
+         "line": 20,
+         "col": 39,
+         "offset": 945
+        }
+       },
+       "out.innerHTML = response.output_text"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.js.output-to-innerhtml",
+   "path": "/workspace/chat.js",
+   "start": {
+    "line": 25,
+    "col": 3,
+    "offset": 1123
+   },
+   "end": {
+    "line": 25,
+    "col": 42,
+    "offset": 1162
+   },
+   "extra": {
+    "metavars": {
+     "$CLIENT": {
+      "start": {
+       "line": 24,
+       "col": 25,
+       "offset": 1019
+      },
+      "end": {
+       "line": 24,
+       "col": 34,
+       "offset": 1028
+      },
+      "abstract_content": "anthropic",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 9,
+        "col": 19,
+        "offset": 379
+       },
+       "svalue_end": {
+        "line": 9,
+        "col": 34,
+        "offset": 394
+       },
+       "svalue_abstract_content": "new Anthropic()"
+      }
+     },
+     "$EL": {
+      "start": {
+       "line": 25,
+       "col": 3,
+       "offset": 1123
+      },
+      "end": {
+       "line": 25,
+       "col": 6,
+       "offset": 1126
+      },
+      "abstract_content": "out"
+     }
+    },
+    "message": "Model output assigned to innerHTML is stored XSS. Use textContent.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "45b7de085ca62bf56453ceffa78769a6328c4460616fef23507ba5787d7a4fff8a28e5cbdc11a5c1655ed9f5d7e337cae38db208529e3b95bde05b1ed737ff5e_0",
+    "lines": "  out.innerHTML = message.content[0].text;",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 24,
+         "col": 19,
+         "offset": 1013
+        },
+        "end": {
+         "line": 24,
+         "col": 125,
+         "offset": 1119
+        }
+       },
+       "await anthropic.messages.create({ model: \"claude-opus-5\", messages: [{ role: \"user\", content: prompt }] })"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 24,
+         "col": 9,
+         "offset": 1003
+        },
+        "end": {
+         "line": 24,
+         "col": 16,
+         "offset": 1010
+        }
+       },
+       "content": "message"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 25,
+         "col": 3,
+         "offset": 1123
+        },
+        "end": {
+         "line": 25,
+         "col": 42,
+         "offset": 1162
+        }
+       },
+       "out.innerHTML = message.content[0].text"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.js.output-to-innerhtml",
+   "path": "/workspace/chat.js",
+   "start": {
+    "line": 30,
+    "col": 3,
+    "offset": 1269
+   },
+   "end": {
+    "line": 30,
+    "col": 41,
+    "offset": 1307
+   },
+   "extra": {
+    "metavars": {
+     "$MODEL": {
+      "start": {
+       "line": 29,
+       "col": 24,
+       "offset": 1235
+      },
+      "end": {
+       "line": 29,
+       "col": 30,
+       "offset": 1241
+      },
+      "abstract_content": "gemini",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 10,
+        "col": 16,
+        "offset": 411
+       },
+       "svalue_end": {
+        "line": 10,
+        "col": 103,
+        "offset": 498
+       },
+       "svalue_abstract_content": "new GoogleGenerativeAI(process.env.KEY).getGenerativeModel({model\"gemini-2.5-pro\"})"
+      }
+     },
+     "$EL": {
+      "start": {
+       "line": 30,
+       "col": 3,
+       "offset": 1269
+      },
+      "end": {
+       "line": 30,
+       "col": 6,
+       "offset": 1272
+      },
+      "abstract_content": "out"
+     }
+    },
+    "message": "Model output assigned to innerHTML is stored XSS. Use textContent.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "9d1e40efb2fc52c360d5296ee2a0fddff16c1f88932ddf8622d76e668774c326e708f4bbf4a3b4009e8bb09e9d44ca68b6c02eb97082bb8e997edd199293fdab_0",
+    "lines": "  out.innerHTML = result.response.text();",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 29,
+         "col": 18,
+         "offset": 1229
+        },
+        "end": {
+         "line": 29,
+         "col": 54,
+         "offset": 1265
+        }
+       },
+       "await gemini.generateContent(prompt)"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 29,
+         "col": 9,
+         "offset": 1220
+        },
+        "end": {
+         "line": 29,
+         "col": 15,
+         "offset": 1226
+        }
+       },
+       "content": "result"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 30,
+         "col": 3,
+         "offset": 1269
+        },
+        "end": {
+         "line": 30,
+         "col": 41,
+         "offset": 1307
+        }
+       },
+       "out.innerHTML = result.response.text()"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.js.output-to-innerhtml",
+   "path": "/workspace/chat.js",
+   "start": {
+    "line": 35,
+    "col": 3,
+    "offset": 1424
+   },
+   "end": {
+    "line": 35,
+    "col": 33,
+    "offset": 1454
+   },
+   "extra": {
+    "metavars": {
+     "$LLM": {
+      "start": {
+       "line": 34,
+       "col": 24,
+       "offset": 1386
+      },
+      "end": {
+       "line": 34,
+       "col": 29,
+       "offset": 1391
+      },
+      "abstract_content": "chain"
+     },
+     "$EL": {
+      "start": {
+       "line": 35,
+       "col": 3,
+       "offset": 1424
+      },
+      "end": {
+       "line": 35,
+       "col": 6,
+       "offset": 1427
+      },
+      "abstract_content": "out"
+     }
+    },
+    "message": "Model output assigned to innerHTML is stored XSS. Use textContent.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "6ec345be815da2b7d87398b30f0057bcfe3e1cb2e7a71a01c2cd5f207f8bd7f944928e4cf8d6039c797bb93a3cc116d642cf82b4aa0202af018e8fa31290a5bd_0",
+    "lines": "  out.innerHTML = answer.content;",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 34,
+         "col": 18,
+         "offset": 1380
+        },
+        "end": {
+         "line": 34,
+         "col": 58,
+         "offset": 1420
+        }
+       },
+       "await chain.invoke({ question: prompt })"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 34,
+         "col": 9,
+         "offset": 1371
+        },
+        "end": {
+         "line": 34,
+         "col": 15,
+         "offset": 1377
+        }
+       },
+       "content": "answer"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 35,
+         "col": 3,
+         "offset": 1424
+        },
+        "end": {
+         "line": 35,
+         "col": 33,
+         "offset": 1454
+        }
+       },
+       "out.innerHTML = answer.content"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.js.output-to-innerhtml",
+   "path": "/workspace/chat.js",
+   "start": {
+    "line": 40,
+    "col": 3,
+    "offset": 1609
+   },
+   "end": {
+    "line": 40,
+    "col": 40,
+    "offset": 1646
+   },
+   "extra": {
+    "metavars": {
+     "$OLLAMA": {
+      "start": {
+       "line": 39,
+       "col": 23,
+       "offset": 1526
+      },
+      "end": {
+       "line": 39,
+       "col": 29,
+       "offset": 1532
+      },
+      "abstract_content": "ollama"
+     },
+     "$EL": {
+      "start": {
+       "line": 40,
+       "col": 3,
+       "offset": 1609
+      },
+      "end": {
+       "line": 40,
+       "col": 6,
+       "offset": 1612
+      },
+      "abstract_content": "out"
+     }
+    },
+    "message": "Model output assigned to innerHTML is stored XSS. Use textContent.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "64ba6d039d24260eaacd06ebd777ade47836e2d422985f043a3378f1c02602035c3d8bb327ff4227f1342849734c737c5d7251cb86b4cfa55bad8bf3d511ad56_0",
+    "lines": "  out.innerHTML = reply.message.content;",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 39,
+         "col": 17,
+         "offset": 1520
+        },
+        "end": {
+         "line": 39,
+         "col": 102,
+         "offset": 1605
+        }
+       },
+       "await ollama.chat({ model: \"llama3\", messages: [{ role: \"user\", content: prompt }] })"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 39,
+         "col": 9,
+         "offset": 1512
+        },
+        "end": {
+         "line": 39,
+         "col": 14,
+         "offset": 1517
+        }
+       },
+       "content": "reply"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/chat.js",
+        "start": {
+         "line": 40,
+         "col": 3,
+         "offset": 1609
+        },
+        "end": {
+         "line": 40,
+         "col": 40,
+         "offset": 1646
+        }
+       },
+       "out.innerHTML = reply.message.content"
+      ]
+     ]
+    },
     "engine_kind": "OSS"
    }
   },
@@ -83,7 +795,7 @@
     "message": "subprocess with shell=True interpolates through a shell. Use the argument-list form so arguments cannot be reinterpreted as commands.",
     "metadata": {},
     "severity": "ERROR",
-    "fingerprint": "23d2c4d496b6b8914cc956e2ffd70f0bc5bd3b89a7b1258a499fa34012939860e98ed4562bcd3efb9217604f03300f005d44880e1bd5a50992d526dda5022d5d_0",
+    "fingerprint": "6ab56fb10675be54bf2ae368e83f38d7564ac67b9c6897fee212529822a488725b3aabd8e53131cef0c828d484193506df4e043c5a4e0b290d9b2de78e7b7afd_0",
     "lines": "    return subprocess.run(cmd, shell=True, capture_output=True)",
     "is_ignored": false,
     "validation_state": "NO_VALIDATOR",
@@ -119,9 +831,9 @@
       "abstract_content": "expression"
      }
     },
-    "message": "eval() on a non-literal expression. If the input can come from an LLM, the network, or a file, this is remote code execution (OWASP LLM05).",
+    "message": "A code-execution sink: eval() on a non-literal expression. Not a vulnerability by itself \u2014 Flask evaluates PYTHONSTARTUP this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution (OWASP LLM05). The valvur.llm.* rules report that flow.",
     "metadata": {},
-    "severity": "ERROR",
+    "severity": "INFO",
     "fingerprint": "d27c0c15e0f53d9502c23c1f08300e719e0f34992262da6553a0c6d5075b61c17d9bf5d9cc1976e63c9e1f6b49d1b28242c97739bacac63db2a6a62cbd25552d_0",
     "lines": "    return eval(expression)",
     "is_ignored": false,
@@ -158,9 +870,9 @@
       "abstract_content": "other"
      }
     },
-    "message": "eval() on a non-literal expression. If the input can come from an LLM, the network, or a file, this is remote code execution (OWASP LLM05).",
+    "message": "A code-execution sink: eval() on a non-literal expression. Not a vulnerability by itself \u2014 Flask evaluates PYTHONSTARTUP this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution (OWASP LLM05). The valvur.llm.* rules report that flow.",
     "metadata": {},
-    "severity": "ERROR",
+    "severity": "INFO",
     "fingerprint": "ee390cd522f0eb026d4ed38d9d90aff2034cd26c864d0d5d66cee72109329c470e3cffeb9e94f5331805df1ff30fda481d290ca68490b958d63a6f67cb409f1a_0",
     "lines": "    return eval(other)",
     "is_ignored": false,
@@ -222,10 +934,10 @@
    },
    "extra": {
     "metavars": {},
-    "message": "MD5 and SHA-1 are unsuitable for security purposes. Note that swapping the algorithm invalidates every previously stored hash - this needs a migration, not a one-line edit.",
+    "message": "MD5 or SHA-1. Fine for a cache key or a content id; unsuitable where a collision or preimage matters. Note that swapping the algorithm invalidates every previously stored hash - this needs a migration, not a one-line edit.",
     "metadata": {},
-    "severity": "WARNING",
-    "fingerprint": "345a80be7e174ea4e3cea62492ae63b7b0bef7180c780cf4423965ae6dfd005bdbf744f66f6273f73fb46b217886a22ef0af1ac2bccd2a027aceee5d4a2dd927_0",
+    "severity": "INFO",
+    "fingerprint": "58a82ec561559375256b30d8e38ffd851e9a0c87f04af3641865ef2e57a76c2a1fc5bf3cc41454172af081bcb43e7b70116a0642c8d25c5b822f4fe8ec7a81de_0",
     "lines": "    return hashlib.md5(value.encode()).hexdigest()",
     "is_ignored": false,
     "validation_state": "NO_VALIDATOR",
@@ -261,9 +973,9 @@
       "abstract_content": "user_input"
      }
     },
-    "message": "eval() on a non-literal expression. If the input can come from an LLM, the network, or a file, this is remote code execution (OWASP LLM05).",
+    "message": "A code-execution sink: eval() on a non-literal expression. Not a vulnerability by itself \u2014 Flask evaluates PYTHONSTARTUP this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution (OWASP LLM05). The valvur.llm.* rules report that flow.",
     "metadata": {},
-    "severity": "ERROR",
+    "severity": "INFO",
     "fingerprint": "907943dcf4d942a4322149ba66172bcec35a4a0d7502a539ada313af0cd688faab95c23f3d305220b7a7b233504e98578a41c9c59dc27638f1b9b6317938461f_0",
     "lines": "    return eval(user_input)",
     "is_ignored": false,
@@ -300,9 +1012,9 @@
       "abstract_content": "user_input"
      }
     },
-    "message": "eval() on a non-literal expression. If the input can come from an LLM, the network, or a file, this is remote code execution (OWASP LLM05).",
+    "message": "A code-execution sink: eval() on a non-literal expression. Not a vulnerability by itself \u2014 Flask evaluates PYTHONSTARTUP this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution (OWASP LLM05). The valvur.llm.* rules report that flow.",
     "metadata": {},
-    "severity": "ERROR",
+    "severity": "INFO",
     "fingerprint": "907943dcf4d942a4322149ba66172bcec35a4a0d7502a539ada313af0cd688faab95c23f3d305220b7a7b233504e98578a41c9c59dc27638f1b9b6317938461f_1",
     "lines": "    return eval(user_input)",
     "is_ignored": false,
@@ -314,39 +1026,39 @@
    "check_id": "opt.valvur-rules.valvur.llm.output-to-code-execution",
    "path": "/workspace/llm_app.py",
    "start": {
-    "line": 13,
+    "line": 32,
     "col": 12,
-    "offset": 314
+    "offset": 1006
    },
    "end": {
-    "line": 13,
+    "line": 32,
     "col": 42,
-    "offset": 344
+    "offset": 1036
    },
    "extra": {
     "metavars": {
      "$CLIENT": {
       "start": {
-       "line": 12,
+       "line": 31,
        "col": 16,
-       "offset": 209
+       "offset": 901
       },
       "end": {
-       "line": 12,
+       "line": 31,
        "col": 22,
-       "offset": 215
+       "offset": 907
       },
       "abstract_content": "client",
       "propagated_value": {
        "svalue_start": {
-        "line": 8,
+        "line": 23,
         "col": 10,
-        "offset": 138
+        "offset": 694
        },
        "svalue_end": {
-        "line": 8,
+        "line": 23,
         "col": 31,
-        "offset": 159
+        "offset": 715
        },
        "svalue_abstract_content": "anthropic.Anthropic()"
       }
@@ -355,7 +1067,7 @@
     "message": "Model output reaches code execution. The value is attacker-influenceable wherever any part of the prompt is (OWASP LLM05). Never execute generated code without a human deciding to run it.",
     "metadata": {},
     "severity": "ERROR",
-    "fingerprint": "70740c1facd515d741aa0736687087b91f46a6728e63444a450f4b02230befcf772b8385774fa27ea5159fa439e6d349a6be9f30ca6a2295c463b19b81b9e185_0",
+    "fingerprint": "981b4b3ca346463bcac580c2e76eb8716d8e2cde2ea161c47a2cc3b658cfa9b1a9c3fa2d4345a0b5d0be3f9278d774657d7f23a5512d84180757dffeabc22d89_0",
     "lines": "    return eval(response.content[0].text)",
     "is_ignored": false,
     "validation_state": "NO_VALIDATOR",
@@ -366,14 +1078,14 @@
        {
         "path": "/workspace/llm_app.py",
         "start": {
-         "line": 12,
+         "line": 31,
          "col": 16,
-         "offset": 209
+         "offset": 901
         },
         "end": {
-         "line": 12,
+         "line": 31,
          "col": 109,
-         "offset": 302
+         "offset": 994
         }
        },
        "client.messages.create(model=\"claude-opus-5\", messages=[{\"role\": \"user\", \"content\": prompt}])"
@@ -384,14 +1096,14 @@
        "location": {
         "path": "/workspace/llm_app.py",
         "start": {
-         "line": 12,
+         "line": 31,
          "col": 5,
-         "offset": 198
+         "offset": 890
         },
         "end": {
-         "line": 12,
+         "line": 31,
          "col": 13,
-         "offset": 206
+         "offset": 898
         }
        },
        "content": "response"
@@ -403,14 +1115,14 @@
        {
         "path": "/workspace/llm_app.py",
         "start": {
-         "line": 13,
+         "line": 32,
          "col": 12,
-         "offset": 314
+         "offset": 1006
         },
         "end": {
-         "line": 13,
+         "line": 32,
          "col": 42,
-         "offset": 344
+         "offset": 1036
         }
        },
        "eval(response.content[0].text)"
@@ -424,34 +1136,34 @@
    "check_id": "opt.valvur-rules.valvur.python.dangerous-eval",
    "path": "/workspace/llm_app.py",
    "start": {
-    "line": 13,
+    "line": 32,
     "col": 12,
-    "offset": 314
+    "offset": 1006
    },
    "end": {
-    "line": 13,
+    "line": 32,
     "col": 42,
-    "offset": 344
+    "offset": 1036
    },
    "extra": {
     "metavars": {
      "$X": {
       "start": {
-       "line": 13,
+       "line": 32,
        "col": 17,
-       "offset": 319
+       "offset": 1011
       },
       "end": {
-       "line": 13,
+       "line": 32,
        "col": 41,
-       "offset": 343
+       "offset": 1035
       },
       "abstract_content": "response.content[0].text"
      }
     },
-    "message": "eval() on a non-literal expression. If the input can come from an LLM, the network, or a file, this is remote code execution (OWASP LLM05).",
+    "message": "A code-execution sink: eval() on a non-literal expression. Not a vulnerability by itself \u2014 Flask evaluates PYTHONSTARTUP this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution (OWASP LLM05). The valvur.llm.* rules report that flow.",
     "metadata": {},
-    "severity": "ERROR",
+    "severity": "INFO",
     "fingerprint": "7149261bde3d2b0bd8bfe775d19556d08fb73ed1871c03d4cc4f2e212706e0690e28ec45802d9c64064302c92ad863637146b1cf416ef2d551ce7ced1103e024_0",
     "lines": "    return eval(response.content[0].text)",
     "is_ignored": false,
@@ -463,39 +1175,39 @@
    "check_id": "opt.valvur-rules.valvur.llm.output-to-shell",
    "path": "/workspace/llm_app.py",
    "start": {
-    "line": 18,
+    "line": 37,
     "col": 12,
-    "offset": 502
+    "offset": 1194
    },
    "end": {
-    "line": 18,
+    "line": 37,
     "col": 47,
-    "offset": 537
+    "offset": 1229
    },
    "extra": {
     "metavars": {
      "$CLIENT": {
       "start": {
-       "line": 17,
+       "line": 36,
        "col": 16,
-       "offset": 397
+       "offset": 1089
       },
       "end": {
-       "line": 17,
+       "line": 36,
        "col": 22,
-       "offset": 403
+       "offset": 1095
       },
       "abstract_content": "client",
       "propagated_value": {
        "svalue_start": {
-        "line": 8,
+        "line": 23,
         "col": 10,
-        "offset": 138
+        "offset": 694
        },
        "svalue_end": {
-        "line": 8,
+        "line": 23,
         "col": 31,
-        "offset": 159
+        "offset": 715
        },
        "svalue_abstract_content": "anthropic.Anthropic()"
       }
@@ -504,7 +1216,7 @@
     "message": "Model output reaches a shell. Use an argument list, and validate against an allowlist before running anything a model chose.",
     "metadata": {},
     "severity": "ERROR",
-    "fingerprint": "9e7f972e18825c1c8ece0b84b2cf7bbb745390e62d8e4b650863db59baa867e01975df7d7f8f8bfab71e0cb487311fe97cafea1004bc79adc22398bb8342c959_0",
+    "fingerprint": "c4c20deead2560e58822a50b2c91569575300f886af447791f31983b9f88ff716b3f48bf823c22e46b65b8bae65c481896233bd9f940bc5cf0957e29650afce2_0",
     "lines": "    return os.system(response.content[0].text)",
     "is_ignored": false,
     "validation_state": "NO_VALIDATOR",
@@ -515,14 +1227,14 @@
        {
         "path": "/workspace/llm_app.py",
         "start": {
-         "line": 17,
+         "line": 36,
          "col": 16,
-         "offset": 397
+         "offset": 1089
         },
         "end": {
-         "line": 17,
+         "line": 36,
          "col": 109,
-         "offset": 490
+         "offset": 1182
         }
        },
        "client.messages.create(model=\"claude-opus-5\", messages=[{\"role\": \"user\", \"content\": prompt}])"
@@ -533,14 +1245,14 @@
        "location": {
         "path": "/workspace/llm_app.py",
         "start": {
-         "line": 17,
+         "line": 36,
          "col": 5,
-         "offset": 386
+         "offset": 1078
         },
         "end": {
-         "line": 17,
+         "line": 36,
          "col": 13,
-         "offset": 394
+         "offset": 1086
         }
        },
        "content": "response"
@@ -552,14 +1264,14 @@
        {
         "path": "/workspace/llm_app.py",
         "start": {
-         "line": 18,
+         "line": 37,
          "col": 12,
-         "offset": 502
+         "offset": 1194
         },
         "end": {
-         "line": 18,
+         "line": 37,
          "col": 47,
-         "offset": 537
+         "offset": 1229
         }
        },
        "os.system(response.content[0].text)"
@@ -570,52 +1282,988 @@
    }
   },
   {
+   "check_id": "opt.valvur-rules.valvur.llm.output-to-code-execution",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 44,
+    "col": 5,
+    "offset": 1450
+   },
+   "end": {
+    "line": 44,
+    "col": 48,
+    "offset": 1493
+   },
+   "extra": {
+    "metavars": {
+     "$CLIENT": {
+      "start": {
+       "line": 43,
+       "col": 18,
+       "offset": 1356
+      },
+      "end": {
+       "line": 43,
+       "col": 20,
+       "offset": 1358
+      },
+      "abstract_content": "oa",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 24,
+        "col": 6,
+        "offset": 721
+       },
+       "svalue_end": {
+        "line": 24,
+        "col": 14,
+        "offset": 729
+       },
+       "svalue_abstract_content": "OpenAI()"
+      }
+     }
+    },
+    "message": "Model output reaches code execution. The value is attacker-influenceable wherever any part of the prompt is (OWASP LLM05). Never execute generated code without a human deciding to run it.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "e8de60e79e9943bc1cb649633e886c69e823189285113bf6403dcbd0c97c276c667625a2e7b8ff8432fd067be43301e7876d4407f94f4e6f8d756cef27dd05e9_0",
+    "lines": "    exec(completion.choices[0].message.content)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 43,
+         "col": 18,
+         "offset": 1356
+        },
+        "end": {
+         "line": 43,
+         "col": 107,
+         "offset": 1445
+        }
+       },
+       "oa.chat.completions.create(model=\"gpt-5\", messages=[{\"role\": \"user\", \"content\": prompt}])"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 43,
+         "col": 5,
+         "offset": 1343
+        },
+        "end": {
+         "line": 43,
+         "col": 15,
+         "offset": 1353
+        }
+       },
+       "content": "completion"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 44,
+         "col": 5,
+         "offset": 1450
+        },
+        "end": {
+         "line": 44,
+         "col": 48,
+         "offset": 1493
+        }
+       },
+       "exec(completion.choices[0].message.content)"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.python.dangerous-exec",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 44,
+    "col": 5,
+    "offset": 1450
+   },
+   "end": {
+    "line": 44,
+    "col": 48,
+    "offset": 1493
+   },
+   "extra": {
+    "metavars": {
+     "$X": {
+      "start": {
+       "line": 44,
+       "col": 10,
+       "offset": 1455
+      },
+      "end": {
+       "line": 44,
+       "col": 47,
+       "offset": 1492
+      },
+      "abstract_content": "completion.choices[0].message.content"
+     }
+    },
+    "message": "A code-execution sink: exec() on a non-literal expression. Not a vulnerability by itself \u2014 Flask loads config files this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution. The valvur.llm.* rules report that flow.",
+    "metadata": {},
+    "severity": "INFO",
+    "fingerprint": "636a9a0edae45b4c063fc9719de04e513dac111c4074dba0179a65a8d85418f9d933603dbb1843e0792f7d0091b1acdb1c1bb9311159a2fdfa23a33b83a43e12_0",
+    "lines": "    exec(completion.choices[0].message.content)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.llm.output-to-shell",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 49,
+    "col": 5,
+    "offset": 1594
+   },
+   "end": {
+    "line": 49,
+    "col": 53,
+    "offset": 1642
+   },
+   "extra": {
+    "metavars": {
+     "$CLIENT": {
+      "start": {
+       "line": 48,
+       "col": 16,
+       "offset": 1541
+      },
+      "end": {
+       "line": 48,
+       "col": 18,
+       "offset": 1543
+      },
+      "abstract_content": "oa",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 24,
+        "col": 6,
+        "offset": 721
+       },
+       "svalue_end": {
+        "line": 24,
+        "col": 14,
+        "offset": 729
+       },
+       "svalue_abstract_content": "OpenAI()"
+      }
+     },
+     "$F": {
+      "start": {
+       "line": 49,
+       "col": 16,
+       "offset": 1605
+      },
+      "end": {
+       "line": 49,
+       "col": 19,
+       "offset": 1608
+      },
+      "abstract_content": "run"
+     }
+    },
+    "message": "Model output reaches a shell. Use an argument list, and validate against an allowlist before running anything a model chose.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "192849b30c9058e4cd02f05f944dc61bddbf8d8dcf41c9dc55ef2fae186800a37f918ad13cb7f1cca927b4d8be66a83098190567c5a584ad858414c0159f8aa4_0",
+    "lines": "    subprocess.run(response.output_text, shell=True)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 48,
+         "col": 16,
+         "offset": 1541
+        },
+        "end": {
+         "line": 48,
+         "col": 64,
+         "offset": 1589
+        }
+       },
+       "oa.responses.create(model=\"gpt-5\", input=prompt)"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 48,
+         "col": 5,
+         "offset": 1530
+        },
+        "end": {
+         "line": 48,
+         "col": 13,
+         "offset": 1538
+        }
+       },
+       "content": "response"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 49,
+         "col": 5,
+         "offset": 1594
+        },
+        "end": {
+         "line": 49,
+         "col": 53,
+         "offset": 1642
+        }
+       },
+       "subprocess.run(response.output_text, shell=True)"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.python.subprocess-shell-true",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 49,
+    "col": 5,
+    "offset": 1594
+   },
+   "end": {
+    "line": 49,
+    "col": 53,
+    "offset": 1642
+   },
+   "extra": {
+    "metavars": {
+     "$F": {
+      "start": {
+       "line": 49,
+       "col": 16,
+       "offset": 1605
+      },
+      "end": {
+       "line": 49,
+       "col": 19,
+       "offset": 1608
+      },
+      "abstract_content": "run"
+     }
+    },
+    "message": "subprocess with shell=True interpolates through a shell. Use the argument-list form so arguments cannot be reinterpreted as commands.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "5ea715e4a5135189de0f6438fddb664a683c6fca775befd60d9d8b3beffdb2cf913da7d78f8aa0fc122a09628459519ae28540ca179e8ba69788f403be40d0c9_0",
+    "lines": "    subprocess.run(response.output_text, shell=True)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.llm.output-to-shell",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 54,
+    "col": 5,
+    "offset": 1780
+   },
+   "end": {
+    "line": 54,
+    "col": 56,
+    "offset": 1831
+   },
+   "extra": {
+    "metavars": {},
+    "message": "Model output reaches a shell. Use an argument list, and validate against an allowlist before running anything a model chose.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "882aef9bc935c4b641463ce3fdcad4ea9e49e4e17c5f886f7df0e6f3eb452b8c15bd1a9ebd06adbd06d7799c7f130fc516e213a0a1e00133b7319d162380acf6_0",
+    "lines": "    os.popen(reply[\"choices\"][0][\"message\"][\"content\"])",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 53,
+         "col": 13,
+         "offset": 1684
+        },
+        "end": {
+         "line": 53,
+         "col": 104,
+         "offset": 1775
+        }
+       },
+       "openai.ChatCompletion.create(model=\"gpt-4\", messages=[{\"role\": \"user\", \"content\": prompt}])"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 53,
+         "col": 5,
+         "offset": 1676
+        },
+        "end": {
+         "line": 53,
+         "col": 10,
+         "offset": 1681
+        }
+       },
+       "content": "reply"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 54,
+         "col": 5,
+         "offset": 1780
+        },
+        "end": {
+         "line": 54,
+         "col": 56,
+         "offset": 1831
+        }
+       },
+       "os.popen(reply[\"choices\"][0][\"message\"][\"content\"])"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.llm.output-to-code-execution",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 62,
+    "col": 12,
+    "offset": 2042
+   },
+   "end": {
+    "line": 62,
+    "col": 29,
+    "offset": 2059
+   },
+   "extra": {
+    "metavars": {
+     "$MODEL": {
+      "start": {
+       "line": 61,
+       "col": 14,
+       "offset": 2000
+      },
+      "end": {
+       "line": 61,
+       "col": 19,
+       "offset": 2005
+      },
+      "abstract_content": "model",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 60,
+        "col": 13,
+        "offset": 1947
+       },
+       "svalue_end": {
+        "line": 60,
+        "col": 52,
+        "offset": 1986
+       },
+       "svalue_abstract_content": "genai.GenerativeModel(\"gemini-2.5-pro\")"
+      }
+     }
+    },
+    "message": "Model output reaches code execution. The value is attacker-influenceable wherever any part of the prompt is (OWASP LLM05). Never execute generated code without a human deciding to run it.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "03d3b3f17739db6fa302590d9f8081ffa95ae0127f58ace42b031dde9eca3298491184496b60d9ebf0427ff687cb22a94f8e9f019f369dc5caf2b7f5cd95b73c_0",
+    "lines": "    return eval(result.text)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 61,
+         "col": 14,
+         "offset": 2000
+        },
+        "end": {
+         "line": 61,
+         "col": 44,
+         "offset": 2030
+        }
+       },
+       "model.generate_content(prompt)"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 61,
+         "col": 5,
+         "offset": 1991
+        },
+        "end": {
+         "line": 61,
+         "col": 11,
+         "offset": 1997
+        }
+       },
+       "content": "result"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 62,
+         "col": 12,
+         "offset": 2042
+        },
+        "end": {
+         "line": 62,
+         "col": 29,
+         "offset": 2059
+        }
+       },
+       "eval(result.text)"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.python.dangerous-eval",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 62,
+    "col": 12,
+    "offset": 2042
+   },
+   "end": {
+    "line": 62,
+    "col": 29,
+    "offset": 2059
+   },
+   "extra": {
+    "metavars": {
+     "$X": {
+      "start": {
+       "line": 62,
+       "col": 17,
+       "offset": 2047
+      },
+      "end": {
+       "line": 62,
+       "col": 28,
+       "offset": 2058
+      },
+      "abstract_content": "result.text"
+     }
+    },
+    "message": "A code-execution sink: eval() on a non-literal expression. Not a vulnerability by itself \u2014 Flask evaluates PYTHONSTARTUP this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution (OWASP LLM05). The valvur.llm.* rules report that flow.",
+    "metadata": {},
+    "severity": "INFO",
+    "fingerprint": "e529a9c1784a1282ca6379f1ec68263f842766f6657cc9837ceb8da05a1b6d2178fc538ec89cfd6bb507839e7f6962e52227047c0c653d8b3f44f2fc846b6653_0",
+    "lines": "    return eval(result.text)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
    "check_id": "opt.valvur-rules.valvur.llm.output-to-sql",
    "path": "/workspace/llm_app.py",
    "start": {
-    "line": 22,
+    "line": 70,
     "col": 12,
-    "offset": 574
+    "offset": 2251
    },
    "end": {
-    "line": 22,
+    "line": 70,
+    "col": 39,
+    "offset": 2278
+   },
+   "extra": {
+    "metavars": {
+     "$LLM": {
+      "start": {
+       "line": 69,
+       "col": 14,
+       "offset": 2221
+      },
+      "end": {
+       "line": 69,
+       "col": 17,
+       "offset": 2224
+      },
+      "abstract_content": "llm",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 68,
+        "col": 11,
+        "offset": 2182
+       },
+       "svalue_end": {
+        "line": 68,
+        "col": 36,
+        "offset": 2207
+       },
+       "svalue_abstract_content": "ChatOpenAI(model\"gpt-5\")"
+      }
+     },
+     "$CUR": {
+      "start": {
+       "line": 70,
+       "col": 12,
+       "offset": 2251
+      },
+      "end": {
+       "line": 70,
+       "col": 15,
+       "offset": 2254
+      },
+      "abstract_content": "cur",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 25,
+        "col": 7,
+        "offset": 736
+       },
+       "svalue_end": {
+        "line": 25,
+        "col": 41,
+        "offset": 770
+       },
+       "svalue_abstract_content": "sqlite3.connect(\"app.db\").cursor()"
+      }
+     }
+    },
+    "message": "Model output reaches a database query. Injection is injection regardless of whether a human or a model wrote the value \u2014 a model must never choose the query text; use parameterised queries with the model's answer as a value.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "3f18f0ca364d866b8ea4a23b8ba78df18bec3d6d520a69afae0a62109bafd50c4066905767e55833a86c713a7e3574d12ec012cf085e182820ad57115b9f0d4e_0",
+    "lines": "    return cur.execute(answer.content)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 69,
+         "col": 14,
+         "offset": 2221
+        },
+        "end": {
+         "line": 69,
+         "col": 32,
+         "offset": 2239
+        }
+       },
+       "llm.invoke(prompt)"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 69,
+         "col": 5,
+         "offset": 2212
+        },
+        "end": {
+         "line": 69,
+         "col": 11,
+         "offset": 2218
+        }
+       },
+       "content": "answer"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 70,
+         "col": 12,
+         "offset": 2251
+        },
+        "end": {
+         "line": 70,
+         "col": 39,
+         "offset": 2278
+        }
+       },
+       "cur.execute(answer.content)"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.llm.output-to-code-execution",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 77,
+    "col": 12,
+    "offset": 2496
+   },
+   "end": {
+    "line": 77,
+    "col": 55,
+    "offset": 2539
+   },
+   "extra": {
+    "metavars": {},
+    "message": "Model output reaches code execution. The value is attacker-influenceable wherever any part of the prompt is (OWASP LLM05). Never execute generated code without a human deciding to run it.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "ba473d853d845db43636446a61db5c81a349085ee68db8450711bcc1b6a2419bfb79d07026b0dc5ed095ac388220c218b738e99f190381175e3e5aaa2d02fb56_0",
+    "lines": "    return yaml.load(reply.choices[0].message.content)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 76,
+         "col": 13,
+         "offset": 2402
+        },
+        "end": {
+         "line": 76,
+         "col": 95,
+         "offset": 2484
+        }
+       },
+       "litellm.completion(model=\"gpt-4o\", messages=[{\"role\": \"user\", \"content\": prompt}])"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 76,
+         "col": 5,
+         "offset": 2394
+        },
+        "end": {
+         "line": 76,
+         "col": 10,
+         "offset": 2399
+        }
+       },
+       "content": "reply"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 77,
+         "col": 12,
+         "offset": 2496
+        },
+        "end": {
+         "line": 77,
+         "col": 55,
+         "offset": 2539
+        }
+       },
+       "yaml.load(reply.choices[0].message.content)"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.python.insecure-yaml-load",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 77,
+    "col": 12,
+    "offset": 2496
+   },
+   "end": {
+    "line": 77,
+    "col": 55,
+    "offset": 2539
+   },
+   "extra": {
+    "metavars": {
+     "$X": {
+      "start": {
+       "line": 77,
+       "col": 22,
+       "offset": 2506
+      },
+      "end": {
+       "line": 77,
+       "col": 54,
+       "offset": 2538
+      },
+      "abstract_content": "reply.choices[0].message.content"
+     }
+    },
+    "message": "yaml.load() without SafeLoader can instantiate arbitrary Python objects.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "ebef952afe1c635c266ceb38822a28098aba208fd94955919d74a13bffd43bf45e8c91098a4f1801fd022cb95f3f02006f1c352abafb2bc7b7bf6875289b4a94_0",
+    "lines": "    return yaml.load(reply.choices[0].message.content)",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.llm.output-to-shell",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 82,
+    "col": 12,
+    "offset": 2666
+   },
+   "end": {
+    "line": 82,
+    "col": 50,
+    "offset": 2704
+   },
+   "extra": {
+    "metavars": {},
+    "message": "Model output reaches a shell. Use an argument list, and validate against an allowlist before running anything a model chose.",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "882aef9bc935c4b641463ce3fdcad4ea9e49e4e17c5f886f7df0e6f3eb452b8c15bd1a9ebd06adbd06d7799c7f130fc516e213a0a1e00133b7319d162380acf6_1",
+    "lines": "    return os.system(reply[\"message\"][\"content\"])",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "dataflow_trace": {
+     "taint_source": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 81,
+         "col": 13,
+         "offset": 2579
+        },
+        "end": {
+         "line": 81,
+         "col": 88,
+         "offset": 2654
+        }
+       },
+       "ollama.chat(model=\"llama3\", messages=[{\"role\": \"user\", \"content\": prompt}])"
+      ]
+     ],
+     "intermediate_vars": [
+      {
+       "location": {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 81,
+         "col": 5,
+         "offset": 2571
+        },
+        "end": {
+         "line": 81,
+         "col": 10,
+         "offset": 2576
+        }
+       },
+       "content": "reply"
+      }
+     ],
+     "taint_sink": [
+      "CliLoc",
+      [
+       {
+        "path": "/workspace/llm_app.py",
+        "start": {
+         "line": 82,
+         "col": 12,
+         "offset": 2666
+        },
+        "end": {
+         "line": 82,
+         "col": 50,
+         "offset": 2704
+        }
+       },
+       "os.system(reply[\"message\"][\"content\"])"
+      ]
+     ]
+    },
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.python.string-built-sql",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 88,
+    "col": 12,
+    "offset": 2817
+   },
+   "end": {
+    "line": 88,
     "col": 69,
-    "offset": 631
+    "offset": 2874
    },
    "extra": {
     "metavars": {
      "$CUR": {
       "start": {
-       "line": 22,
+       "line": 88,
        "col": 12,
-       "offset": 574
+       "offset": 2817
       },
       "end": {
-       "line": 22,
+       "line": 88,
        "col": 15,
-       "offset": 577
+       "offset": 2820
       },
-      "abstract_content": "cur"
+      "abstract_content": "cur",
+      "propagated_value": {
+       "svalue_start": {
+        "line": 25,
+        "col": 7,
+        "offset": 736
+       },
+       "svalue_end": {
+        "line": 25,
+        "col": 41,
+        "offset": 770
+       },
+       "svalue_abstract_content": "sqlite3.connect(\"app.db\").cursor()"
+      }
      },
      "$R": {
       "start": {
-       "line": 22,
+       "line": 88,
        "col": 61,
-       "offset": 623
+       "offset": 2866
       },
       "end": {
-       "line": 22,
+       "line": 88,
        "col": 65,
-       "offset": 627
+       "offset": 2870
       },
       "abstract_content": "name"
      }
     },
-    "message": "String-built SQL. Injection is injection regardless of whether a human or a model wrote the value \u2014 use parameterised queries.",
+    "message": "A query sink built by string formatting. Not a vulnerability by itself \u2014 the interpolated value may be a constant \u2014 but if model output or user input can reach it, it is SQL injection. valvur.llm.output-to-sql reports that flow; parameterised queries remove the sink.",
     "metadata": {},
-    "severity": "ERROR",
-    "fingerprint": "4b0b9934be8244f1c9c36be912e1e3a13ee45ed13bfdc7b43db1fce0b6b92c2ea849157433ad1f3f7bee0ead6be7b3129530d24c69a2b0756c1a03a795fc8e63_0",
+    "severity": "INFO",
+    "fingerprint": "d09089fbe123c84a4a9e84ea74c6bfcefa799c4b0c6bf652662d22f06c848566757e243ebcf10a64a9cba02527deb36f092565a2631435ec1d9b316532c74f18_0",
     "lines": "    return cur.execute(f\"SELECT * FROM users WHERE name = '{name}'\")",
+    "is_ignored": false,
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "opt.valvur-rules.valvur.python.dangerous-exec",
+   "path": "/workspace/llm_app.py",
+   "start": {
+    "line": 98,
+    "col": 12,
+    "offset": 3139
+   },
+   "end": {
+    "line": 98,
+    "col": 29,
+    "offset": 3156
+   },
+   "extra": {
+    "metavars": {
+     "$X": {
+      "start": {
+       "line": 98,
+       "col": 17,
+       "offset": 3144
+      },
+      "end": {
+       "line": 98,
+       "col": 28,
+       "offset": 3155
+      },
+      "abstract_content": "ask(prompt)"
+     }
+    },
+    "message": "A code-execution sink: exec() on a non-literal expression. Not a vulnerability by itself \u2014 Flask loads config files this way \u2014 but if model output, network input, or a file the user did not write can reach it, it is remote code execution. The valvur.llm.* rules report that flow.",
+    "metadata": {},
+    "severity": "INFO",
+    "fingerprint": "11392954976e2eabd81721751741b0b4b9ca4bd3a7fa76a63ebd569d90e88c5d8d5f3d710ae3753f80e7d5a0ce134c78c52576a990fbb2fefa67ccfbc4ab8972_0",
+    "lines": "    return exec(ask(prompt))",
     "is_ignored": false,
     "validation_state": "NO_VALIDATOR",
     "engine_kind": "OSS"
@@ -667,6 +2315,7 @@
    "/workspace/.claude/settings.json",
    "/workspace/.github/workflows/ci.yml",
    "/workspace/.mcp.json",
+   "/workspace/chat.js",
    "/workspace/config.py",
    "/workspace/handler.py",
    "/workspace/llm_app.py",

@@ -1,4 +1,4 @@
-# The public corpus (task 22.E.1): twelve real repositories, pinned, scanned weekly.
+# The public corpus (task 22.E.1): thirteen real repositories, pinned, scanned weekly.
 #
 # The local corpus found three false positives in an hour — two introduced by the
 # block before, with every test green — and was then deleted because it held private
@@ -19,7 +19,7 @@
 #                                              a reviewer agreed and wrote it down here)
 #
 # Pinned by commit, not branch, so a run is reproducible and a failure is ours. Bump a
-# pin deliberately, and say what changed. The bytes are not committed: twelve real
+# pin deliberately, and say what changed. The bytes are not committed: thirteen real
 # projects are tens of megabytes of someone else's code in our history forever, and
 # every self-scan would have to exclude them. The pins and the expectations are the
 # corpus; the bytes follow from the pins.
@@ -111,3 +111,10 @@ why = "Hundreds of real .cursorrules files: the AI Artifact Check's false-positi
 # instructions" when they are ABOUT prompt injection. Anything the Check reports here
 # is reviewed and either fixed in the Check or accepted below, by rule, with a reason.
 # expect.accept = { "valvur.ai.injection" = "reason" }
+
+[[repo]]
+name = "smolagents"
+url = "https://github.com/huggingface/smolagents"
+commit = "30bb1161095dbae2271e6bc3cc4c219cc3897a57"
+licence = "Apache-2.0"
+why = "Python, Apache-2.0: an agent framework that EXECUTES model-generated tool code (`exec` in tools.py) — the repository the corpus lacked for F3.10. The flow crosses a class boundary, so the taint rules do not see it and the INFO sink inventory does; that limit is measured here weekly (task 23.5.3)"

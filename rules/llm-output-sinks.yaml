@@ -6,6 +6,26 @@
 #
 # Uses taint mode rather than sequential patterns: the source and sink are frequently
 # separated by helper calls and control flow, which a positional pattern misses.
+#
+# The sources (task 23.5.3): every SDK call shape a repository is likely to write —
+# Anthropic; OpenAI's chat completions, its Responses API and the pre-1.0 module
+# API; Gemini's two SDKs; LangChain's `invoke`/`predict`; litellm; ollama. Taint
+# reaches the sink through attribute and subscript access, so
+# `.choices[0].message.content` and `["message"]["content"]` are covered without
+# being named. What is NOT covered, stated rather than implied: Opengrep's taint
+# tracking is intra-procedural, so a helper that returns the model's text hides the
+# flow from its caller — `tests/fixtures/broken-repo/llm_app.py` carries that shape
+# and the tests assert it is not reported. Measured on two real projects that do
+# execute model output (smolagents, pandas-ai): both route it across a class
+# boundary, neither flow is seen here, and both exec sites are named by the INFO
+# inventory in python-security.yaml. On real code the inventory is what fires.
+#
+# The sinks are the ones `python-security.yaml` inventories at INFO: on its own a
+# sink is an inventory entry; the flow into it is the finding.
+#
+# One source list, anchored, for the three Python rules: a source is known to all
+# of them or to none. Written out three times, a mutation test found that dropping
+# a source from one rule went unnoticed by a fixture that exercises it on another.
 
 rules:
   - id: valvur.llm.output-to-code-execution
@@ -16,14 +36,30 @@ rules:
       Model output reaches code execution. The value is attacker-influenceable
       wherever any part of the prompt is (OWASP LLM05). Never execute generated
       code without a human deciding to run it.
-    pattern-sources:
+    pattern-sources: &python-model-sources
       - pattern: $CLIENT.messages.create(...)
-      - pattern: $CLIENT.chat.completions.create(...)
-      - pattern: $CLIENT.generate_content(...)
+      # Also `client.chat.completions.create(...)`: $CLIENT binds to `client.chat`.
+      # A separate chat.completions pattern was measured redundant by mutation.
+      - pattern: $CLIENT.completions.create(...)
+      - pattern: $CLIENT.responses.create(...)
+      - pattern: openai.ChatCompletion.create(...)
+      - pattern: openai.Completion.create(...)
+      - pattern: $MODEL.generate_content(...)
+      - pattern: $LLM.invoke(...)
+      - pattern: $LLM.ainvoke(...)
+      - pattern: $LLM.predict(...)
+      - pattern: litellm.completion(...)
+      - pattern: litellm.acompletion(...)
+      - pattern: ollama.chat(...)
+      - pattern: ollama.generate(...)
     pattern-sinks:
       - pattern: eval(...)
       - pattern: exec(...)
       - pattern: compile(...)
+      - patterns:
+          - pattern: yaml.load(...)
+          - pattern-not: yaml.load(..., Loader=yaml.SafeLoader)
+      - pattern: pickle.loads(...)
 
   - id: valvur.llm.output-to-shell
     mode: taint
@@ -32,25 +68,27 @@ rules:
     message: >-
       Model output reaches a shell. Use an argument list, and validate against an
       allowlist before running anything a model chose.
-    pattern-sources:
-      - pattern: $CLIENT.messages.create(...)
-      - pattern: $CLIENT.chat.completions.create(...)
+    pattern-sources: *python-model-sources
     pattern-sinks:
       - pattern: os.system(...)
       - pattern: os.popen(...)
       - pattern: subprocess.$F(..., shell=True, ...)
 
   - id: valvur.llm.output-to-sql
+    mode: taint
     languages: [python]
     severity: ERROR
     message: >-
-      String-built SQL. Injection is injection regardless of whether a human or a
-      model wrote the value — use parameterised queries.
-    patterns:
-      - pattern-either:
-          - pattern: $CUR.execute(f"...{$R}...")
-          - pattern: $CUR.execute("..." % $R)
-          - pattern: $CUR.execute("..." + $R)
+      Model output reaches a database query. Injection is injection regardless of
+      whether a human or a model wrote the value — a model must never choose the
+      query text; use parameterised queries with the model's answer as a value.
+    pattern-sources: *python-model-sources
+    pattern-sinks:
+      - pattern: $CUR.execute(...)
+      - pattern: $CUR.executemany(...)
+      - pattern: $CUR.executescript(...)
+      - pattern: sqlalchemy.text(...)
+      - pattern: text(...)
 
   - id: valvur.js.output-to-innerhtml
     mode: taint
@@ -59,6 +97,14 @@ rules:
     message: Model output assigned to innerHTML is stored XSS. Use textContent.
     pattern-sources:
       - pattern: await $CLIENT.messages.create(...)
-      - pattern: await $CLIENT.chat.completions.create(...)
+      - pattern: await $CLIENT.completions.create(...)   # and chat.completions
+      - pattern: await $CLIENT.responses.create(...)
+      - pattern: await $MODEL.generateContent(...)
+      - pattern: await $LLM.invoke(...)
+      - pattern: await $OLLAMA.chat(...)
+      - pattern: await $OLLAMA.generate(...)
     pattern-sinks:
       - pattern: $EL.innerHTML = ...
+      - pattern: $EL.outerHTML = ...
+      - pattern: $EL.insertAdjacentHTML(...)
+      - pattern: document.write(...)

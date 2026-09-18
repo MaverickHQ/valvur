@@ -265,7 +265,13 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
     (22.E.2) — no repository there executes model output, so the requirement is
     cited and exercised, and whether it is* met *on real code is unmeasured. The
     README and POSITIONING.md no longer present it as a held capability; 23.5.3
-    measures it with real sources or retires the word.*
+    measures it with real sources or retires the word.* *Measured 2026-09-18
+    (23.5.3): sources widened to six SDK families and fifteen planted flows fire,
+    `innerHTML` included; on two real projects that execute model output
+    (smolagents, now in the corpus; pandas-ai) the flow crosses a class boundary,
+    intra-procedural taint does not see it, and the INFO sink inventory names both
+    `exec` sites. The word stands as a description of the rules; the README says
+    the inventory is what fires on real code.*
 11. F3.11 — valvur SHALL implement a Pinning Hygiene **Check** detecting unpinned
     version ranges, absent lockfiles, and dependencies on mutable git references.
 12. F3.12 — valvur SHALL treat all **Workspace** content as data and SHALL NOT act on
