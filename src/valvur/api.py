@@ -63,6 +63,10 @@ class ScanRun:
     identity_reset: tuple[object, int] | None = None
     vendored_dropped: int = 0
     config_dropped: int = 0
+    #: OSV-Scanner answers against the lower bounds of unpinned ranges, dropped
+    #: (25.3), and the requirements files they came from.
+    unpinned_dropped: int = 0
+    unpinned_files: tuple[str, ...] = ()
     excluded_paths: list[str] = field(default_factory=list)
     profile: str = ""
     #: Per-adapter coverage contracts: what each reads and what it deliberately does
@@ -640,6 +644,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         kev_source=ctx.provider.kev_source,
         vendored_dropped=ctx.vendored_dropped,
         config_dropped=ctx.config_dropped,
+        unpinned_dropped=ctx.unpinned_dropped,
+        unpinned_files=ctx.unpinned_files,
         excluded_paths=list(ctx.configured),
         profile=profile,
         coverage=ctx.coverage,

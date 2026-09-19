@@ -231,6 +231,15 @@ Read this before the feature list, not after.
   coverage note and the run is `inconclusive`. Direct manifests are read for
   *existence* precisely because that is where a hallucinated name is written;
   lockfiles are read for *vulnerabilities* because that is where the versions are.
+  **A `requirements.txt` counts only for its pinned lines** (task 25.3, found by
+  the corpus on 2026-09-18): Trivy reads `==` and nothing else, so a file of
+  ranges — `transformers>=4.46.0` — is present and checks nothing, and read as
+  *checked* until the note learned to count pins. It now names the file and how
+  many of its lines are ranges, and the run is `inconclusive`; a mixed file is
+  *partly* checked and says so. On `full`, OSV-Scanner evaluates every range at its
+  lower bound and reports each advisory since — 193 raw on that one file, against
+  versions nothing installs — and those are dropped with the count in `run.json`
+  and `SUMMARY.md`, never shown as the project's.
 - **OSV-Scanner's marginal value is measured, and small outside Go.** On the
   twelve-repository corpus (task 23.4.5, run 34764187516): `full` added **121**
   findings to `offline` on cobra — every one a Go standard-library advisory keyed on

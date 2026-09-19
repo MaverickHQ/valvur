@@ -74,6 +74,10 @@ class Manifests:
 #: while `package-lock.json`, `requirements.txt`, `go.mod` and `pom.xml` each produced
 #: findings. Express, which commits no lockfile, read `clean` with thirty dependencies
 #: never checked. So the shim states this gap itself, as a coverage note.
+#:
+#: `requirements*.txt` is a check for its PINNED lines only (task 25.3): Trivy reads
+#: `==` and nothing else, so a file of ranges is "present" here and checks nothing.
+#: `coverage.vulnerability_gaps` reads the pins before trusting the name.
 VULNERABILITY_MANIFESTS: dict[str, tuple[str, ...]] = {
     "pip": ("requirements*.txt", "Pipfile.lock", "poetry.lock", "uv.lock"),
     "npm": ("package-lock.json", "yarn.lock", "pnpm-lock.yaml"),

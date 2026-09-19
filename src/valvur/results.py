@@ -110,6 +110,12 @@ def _provenance(run: ScanRun) -> str:
                     "paths": list(run.excluded_paths),
                     "findings_dropped": run.config_dropped,
                 },
+                # OSV-Scanner's answers against the lower bounds of unpinned ranges
+                # (25.3): not the project's Findings, and not silently gone either.
+                "excluded_unpinned": {
+                    "advisories_dropped": run.unpinned_dropped,
+                    "files": list(run.unpinned_files),
+                },
                 # Stated plainly, because we criticise competitors for being vague
                 # about exactly this. Package NAMES (never source) are sent to public
                 # registries by the dependency-reality Check, on `full` only.
@@ -456,6 +462,16 @@ def _summary(run: ScanRun) -> str:
             f"{where}.",
             "> Stated because an exclusion you cannot see is indistinguishable from "
             "a scan that found nothing.",
+            "",
+        ]
+
+    if run.unpinned_dropped:
+        where = ", ".join(f"`{p}`" for p in run.unpinned_files)
+        lines += [
+            f"> **{run.unpinned_dropped} OSV-Scanner advisories were not reported.** They "
+            f"are against the lower bound of unpinned ranges in {where} — versions "
+            "nothing installs. A range is not a version; the coverage note above says "
+            "those dependencies were not checked.",
             "",
         ]
 

@@ -49,6 +49,8 @@ class Context:
     coverage: dict = field(default_factory=dict)
     vendored_dropped: int = 0
     config_dropped: int = 0
+    unpinned_dropped: int = 0
+    unpinned_files: tuple[str, ...] = ()
     provider: _enrichment.LocalProvider | None = None
     previous: dict[str, str] = field(default_factory=dict)
     previously_fixed: set[str] = field(default_factory=set)
@@ -103,6 +105,34 @@ def configured(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Paths this project chose not to scan, from its committed config. Never a
     built-in default: silently skipping a project's tests would hide real code."""
     kept, ctx.config_dropped = _exclusions.filter_configured(findings, ctx.configured)
+    return kept
+
+
+def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """OSV-Scanner evaluates an unpinned requirement at its lower bound and reports
+    every advisory since — 110 on one real repository, against versions nobody
+    installs (task 25.3). A range is not a version, so those are not the project's
+    Findings: dropped, counted, and the files named, while the coverage note from
+    the first stage says the file was never a check. Trivy reads pinned lines only,
+    so only OSV-Scanner's answers are in question; a package the file does not
+    name is unknown, not unpinned, and stays."""
+    from . import requirements as _requirements
+
+    kept: list[Finding] = []
+    files: set[str] = set()
+    cache: dict[str, dict[str, bool]] = {}
+    for f in findings:
+        package = f.dependency.package if f.dependency else ""
+        if (f.sources == ("osv-scanner",) and package
+                and _requirements.is_requirements_file(f.path)):
+            if f.path not in cache:
+                cache[f.path] = _requirements.read(ctx.workspace / f.path)
+            if cache[f.path].get(_requirements.normalise(package)) is False:
+                files.add(f.path)
+                continue
+        kept.append(f)
+    ctx.unpinned_dropped = len(findings) - len(kept)
+    ctx.unpinned_files = tuple(sorted(files))
     return kept
 
 
@@ -163,6 +193,11 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("configured", configured,
           "Same as `vendored`, and after it so `config_dropped` counts only what "
           "the project's own config removed."),
+    Stage("unpinned", unpinned,
+          "After the path filters, so an excluded file's ranges are not counted "
+          "twice; before `merged`, because it reads each raw Finding's single "
+          "source — merged, an OSV answer on a range would hide inside a Trivy "
+          "one on a pin."),
     Stage("merged", merged,
           "After every filter and every source of Findings, so identity is settled "
           "once over the final set."),

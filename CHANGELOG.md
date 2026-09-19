@@ -23,6 +23,19 @@ a minor bump may break things until 1.0.
   and is reported with the command as fenced evidence. `.kiro/specs/` is
   deliberately not read: the project's own documents, and this repository's own
   spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
+- **Unpinned requirements are not a check.** Found by the corpus on its thirteenth
+  repository: a 39-line `requirements.txt` with no pins read as *checked* on
+  `offline` — Trivy reads `==` lines and nothing else, and correctly reported
+  nothing for a range — while on `full` OSV-Scanner evaluated every range at its
+  lower bound and reported 193 advisories (110 after merging) against versions
+  nothing installs. Now a requirements file counts only for its pinned lines: with
+  no lockfile beside it, a file of ranges is the lockfile coverage note
+  (`valvur.dependency.vulnerabilities-unchecked`, naming the file and how many of
+  its lines are ranges; a mixed file is *partly* checked and says so) and the run
+  is `inconclusive`; and OSV-Scanner's lower-bound advisories are dropped before
+  merging, counted in `run.json` (`excluded_unpinned`) and `SUMMARY.md`, never shown
+  as the project's. Options, comments, editable and direct references are neither
+  pinned nor ranges (task 25.3).
 - **The release pipeline tests the artifact, not the tree.** A final `artifact`
   job in `release.yml` installs the wheel from `dist/` into a clean environment
   with the source tree off the path — and proves it: `valvur._build` exists only

@@ -5140,9 +5140,9 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
 > on that this list does not name:** 10.1.2 has the stranger install *the way the
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
-> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-two tasks have
-> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24 and 26) and
-> none is released; run against
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-three tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24 and 26; on
+> 2026-09-19, 25.3) and none is released; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
 > below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
@@ -5531,7 +5531,7 @@ complete for everything since `0.2.0`.
 > Python manifest shape there is, and a stranger's project is likelier to have it
 > than not. It is **25.3**, and it goes before the release.
 
-- [ ] **25.3** **Unpinned requirements are not a check.** Found by Block A's corpus
+- [x] **25.3** **Unpinned requirements are not a check.** Found by Block A's corpus
   dispatch (2026-09-18) on smolagents' `examples/open_deep_research/requirements.txt`:
   39 lines, none pinned. Two defects, one file. **(1)** On `offline`, Trivy reads the
   file and reports nothing — correct, a range is not a version — and valvur's
@@ -5549,12 +5549,40 @@ complete for everything since `0.2.0`.
   corpus (`compare` should then show smolagents +0) and pin both halves with the
   fixture. Update the README's OSV row and EVALUATING's lockfile paragraph.
 
+  **STATUS 2026-09-19:** ✅ Both halves turn on one fact about a line, so it is
+  decided once — `valvur/requirements.py`: a line *pins* when it names one version
+  (`==1.2.3`, `===`), is a *range* otherwise (`>=`, `~=`, `<`, `!=`, a wildcard
+  `==1.*`, or no specifier at all — every version there is), and is *neither* when it
+  is an option, a comment, an editable or a direct reference (`name @ git+…`, which
+  the pinning rule already covers). Names PEP 503-normalised, last line wins, as
+  pip does. **(1)** `coverage.vulnerability_gaps` no longer trusts a
+  `requirements*.txt` by name: a lockfile beside it settles the ecosystem; without
+  one, a file with any ranges is the lockfile gap — same rule, same identity, so a
+  suppression travels between the two causes — and the evidence names each file
+  with *N of M lines are ranges*, so a mixed file is partly checked and says how
+  much. **(2)** A new pipeline stage, `unpinned`, after the path filters and
+  before `merged` (it reads each raw Finding's single source; merged, an OSV
+  answer on a range would hide inside a Trivy one on a pin): OSV-Scanner Findings
+  on a requirements file whose line for that package is a range are dropped;
+  unknown is not unpinned, so a package the file does not name stays; Trivy's are
+  never touched. The count and the files reach `run.json` (`excluded_unpinned`)
+  and `SUMMARY.md`. The `broken-repo` fixture is pins and one git reference, so
+  every golden and canary count stands. **Measured on smolagents through the
+  rebuilt image:** `offline` — the note appears, *examples/open_deep_research/
+  requirements.txt (39 of 39 lines are ranges)*; `full` — **193 raw OSV-Scanner
+  advisories dropped** (the 110 the corpus counted were post-merge), Findings
+  from OSV zero, the same 8 active as `offline`, the count on both surfaces. 36
+  tests; ten mutations, all caught. One environment note: the local database had
+  aged to the 7-day threshold overnight and turned the clean-fixture test
+  `inconclusive` on the host before any change here — `valvur update` was the
+  fix, and CI always fetches fresh.
+
 **Commits:** one per task, Conventional Commits, each PR fast-forwarded onto `main`.
 
 ### Checkpoint B — Release `0.3.0` *(owner, one sitting)*
 
 Everything since `0.2.0` — sixteen tasks at the time of writing, twenty-two after
-Block A, twenty-three with 25.3 — and nothing of it released. The gate measures the published version, so
+Block A, twenty-three with 25.3 (closed 2026-09-19) — and nothing of it released. The gate measures the published version, so
 this comes before Checkpoint C, not after.
 
 - [ ] **25.1** **Cut `0.3.0`.** In order, as `RELEASING.md` describes: confirm Block

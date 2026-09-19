@@ -190,25 +190,67 @@ def vulnerability_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[F
         if not present:
             continue
         readable = _ecosystems.VULNERABILITY_MANIFESTS.get(key, ())
-        if _present(workspace, readable, exclude):
-            continue
-        shown = ", ".join(present[:3])
+        found = _present(workspace, readable, exclude)
+        if found:
+            # Present is not the same as a check for Python (25.3): a requirements
+            # file of ranges is read by Trivy and reports nothing.
+            if key != "pip":
+                continue
+            evidence = _unpinned_requirements(workspace, found)
+            if evidence is None:
+                continue
+        else:
+            shown = ", ".join(present[:3])
+            evidence = (
+                f"Found {shown}. Trivy reads {' or '.join(readable)} for this ecosystem "
+                "and none is present, so it reported nothing — not zero vulnerabilities, "
+                "no scan. Commit a lockfile (or a pinned requirements file) and rescan; "
+                "until then this is missing coverage, not a clean result."
+            )
         findings.append(Finding(
             rule=VULNERABILITY_RULE,
             path=_representative(present, manifests.reads + manifests.sees),
             line=0,
             severity="low",
             title=f"{manifests.label} dependencies were not checked for known vulnerabilities",
-            evidence=(
-                f"Found {shown}. Trivy reads {' or '.join(readable)} for this ecosystem "
-                "and none is present, so it reported nothing — not zero vulnerabilities, "
-                "no scan. Commit a lockfile (or a pinned requirements file) and rescan; "
-                "until then this is missing coverage, not a clean result."
-            ),
+            evidence=evidence,
+            # The same identity as the lockfile gap: one note per ecosystem, and a
+            # suppression of it travels between the two causes.
             fingerprint=_fp.derive("trivy_gap", key),
             sources=("trivy",),
         ))
     return findings
+
+
+def _unpinned_requirements(workspace: Path, found: list[str]) -> str | None:
+    """The evidence for a Python gap that is not a missing file but an unpinned one
+    (task 25.3), or None when the files present are a check.
+
+    A lockfile is the resolved truth and settles it. Without one, a requirements
+    file is a check only for its pinned lines: Trivy reads those and no others, so
+    a file of ranges reads as checked while nothing was, and a mixed file is
+    *partly* checked — the note says how much, per file.
+    """
+    from . import requirements as _requirements
+
+    if any(not _requirements.is_requirements_file(rel) for rel in found):
+        return None                                   # a lockfile is present
+    unpinned: list[str] = []
+    for rel in found:
+        pinned, loose = _requirements.pins(workspace / rel)
+        if loose:
+            unpinned.append(f"{rel} ({loose} of {pinned + loose} lines are ranges)")
+    if not unpinned:
+        return None
+    shown = "; ".join(unpinned[:3])
+    more = f"; and {len(unpinned) - 3} more" if len(unpinned) > 3 else ""
+    return (
+        f"Unpinned: {shown}{more}. A range is not a version — Trivy checks pinned "
+        "lines only and reported nothing for these, and on `full` OSV-Scanner's "
+        "answers for them are evaluated at each range's lower bound and are not "
+        "shown. Pin them (`==`) or commit a lockfile and rescan; until then this is "
+        "missing coverage, not a clean result."
+    )
 
 
 def collect(adapters, workspace: Path, exclude: tuple[str, ...] = ()) -> dict[str, dict]:
