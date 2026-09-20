@@ -429,6 +429,24 @@ def _outcome(adapter, output) -> tuple:
             output.stdout,
         )
 
+    # F2.5's third clause: a report the adapter cannot read — a container killed
+    # mid-write, a format change, a stray line on stdout — is this Scanner's
+    # failure, with the raw text kept for `raw/` so the reader can see what was
+    # actually written. Until 26.0.1 this raised out of the fleet and took every
+    # other Scanner's result with it; measured with Trivy's JSON cut at character 50.
+    try:
+        findings = adapter.parse(output)
+    except Exception as exc:
+        return (
+            ScannerRun(
+                adapter.name, ok=False, version=output.version,
+                reason=f"report unreadable: {type(exc).__name__}: {str(exc)[:200]}",
+            ),
+            [],
+            None,
+            output.stdout,
+        )
+
     # An adapter may produce an artifact (an SBOM) instead of, or as well as, Findings.
     # Not on the protocol: see the note in adapters/base.py — a Protocol class
     # attribute's default is not inherited, only a method body is.
@@ -436,7 +454,7 @@ def _outcome(adapter, output) -> tuple:
     produced = (artifact, output.stdout) if artifact and output.stdout.strip() else None
     return (
         ScannerRun(adapter.name, ok=True, version=output.version),
-        adapter.parse(output),
+        findings,
         produced,
         output.stdout,
     )

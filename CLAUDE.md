@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 57 modules under `src/valvur`, 973 tests in 52 files, 19 ADRs, 136
-requirement IDs, **172 done and 18 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 14 are Phase 26's five tiers; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 18
+Roughly: 57 modules under `src/valvur`, 983 tests in 52 files, 19 ADRs, 136
+requirement IDs, **173 done and 17 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 13 are Phase 26's five tiers; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 17
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -251,10 +251,11 @@ were introduced by the block before, with tests passing.
 
 **Known gaps, and one deliberate friction, worth knowing before proposing anything:**
 
-- **Three safety defects are open today, found by the second review and measured
-  (Phase 26, Tier 0).** A Scanner that exits 0 with a report the adapter cannot
-  parse raises out of `api.scan` — the whole run fails and the other Scanners'
-  results go with it, which F2.5 forbids in so many words (26.0.1). A `scan_cancel`
+- **Two safety defects are open today, found by the second review and measured
+  (Phase 26, Tier 0); a third closed the same evening.** ~~A Scanner that exits 0
+  with a report the adapter cannot parse raises out of `api.scan`~~ — closed by
+  26.0.1: one failed Scanner, *report unreadable*, the raw text kept, F2.5's
+  third clause tested for the first time. A `scan_cancel`
   that lands before the job's runner is attached is confirmed to the agent and then
   dropped, and a second `scan` during `cancelling` replaces the first job in the
   registry (26.0.2). The Results Folder is seven sequential writes with no

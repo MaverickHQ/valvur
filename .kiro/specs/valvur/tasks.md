@@ -5796,7 +5796,7 @@ user sees also carries a measured number in its STATUS note.
 
 ### Tier 0 — Safety properties that affect correctness today
 
-- [ ] **26.0.1** **The parse failure boundary (F2.5).** A Scanner that exits 0 and
+- [x] **26.0.1** **The parse failure boundary (F2.5).** A Scanner that exits 0 and
   emits a report the adapter cannot parse — a container killed mid-write, a format
   change, a stray line on stdout — is *one failed Scanner*, recorded in Provenance
   with the reason (`report unreadable: JSONDecodeError: …`), surfaced at the top of
@@ -5816,6 +5816,24 @@ user sees also carries a measured number in its STATUS note.
   failure so `raw/` still gets it. Mutation: remove the `try` and watch three tests
   fail. Measured on the fixture through the CLI with `VALVUR_CACHE` scratch: the
   reason line as the user reads it. F2.5's test coverage gains the clause it lacked.
+
+  **STATUS 2026-09-20:** ✅ Tests first, four in `test_failures.py`, each failing
+  with the raised exception: Trivy exiting 0 with its JSON cut mid-write; Checkov
+  with valid JSON of the wrong shape (an `AttributeError`, not a decode error);
+  the summary and `raw/` for the first; and one unreadable Check report inside
+  23.4.2's batch. The fix is one `try` around `adapter.parse` in `api._outcome` —
+  the one place both the fleet and the batch pass through — returning the failed
+  `ScannerRun` with the raw text kept so `raw/` still gets it. Mutation: the `try`
+  removed, all four fail; restored from the committed baseline. **Measured on the
+  fixture with the fake, every surface:** `api.scan` returns `findings`,
+  `complete: False`; `run.json` carries `"ok": false, "reason": "report
+  unreadable: JSONDecodeError: Unterminated string starting at: line 1 column 66
+  (char 65)"`; `SUMMARY.md`'s *Scanners that did not complete* block names it
+  first; the MCP DONE line reads *INCOMPLETE — these scanners did not run: trivy:
+  report unreadable …*; `raw/trivy.json` is the truncated text, the evidence. 953
+  unit tests green; F2.5 annotated. What is *not* claimed: a real Scanner was not
+  made to write a bad report — the fake stands in for the container the e2e
+  harness cannot kill at a chosen byte.
 
 - [ ] **26.0.2** **Cancellation is atomic (F1.11, 23.3.3).** Three properties,
   each a test: **(a)** a cancel that lands before the work has a runner is honoured

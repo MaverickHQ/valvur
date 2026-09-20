@@ -150,7 +150,15 @@ that I do not maintain six toolchains myself.
    treat the **Scan Run** as successful.
 5. F2.5 — IF a **Scanner** crashes, times out, or emits unparseable output, THEN
    valvur SHALL record the failure in **Provenance**, SHALL surface it at the top of
-   `SUMMARY.md`, and SHALL continue with the remaining **Scanners**.
+   `SUMMARY.md`, and SHALL continue with the remaining **Scanners**. *Note
+   2026-09-20 (task 26.0.1): the third clause was unmet for as long as it existed —
+   `adapter.parse` was never wrapped, so a Scanner exiting 0 with a report the
+   adapter could not read raised out of the whole run, and every test citing this
+   requirement exercised a crash or a refusal. Measured with Trivy's JSON cut at
+   character 50, found by the second external review. Now one failed Scanner,
+   `report unreadable: <exception>: <message>`, its raw text kept under `raw/`;
+   four tests in `test_failures.py` cover a decode error, a shape change, the
+   summary and `raw/`, and one bad report inside the Checks' batch.*
 6. F2.6 — valvur SHALL run independent **Scanners** concurrently.
 7. F2.7 — valvur SHALL enforce a per-**Scanner** timeout and SHALL record any timeout
    as a failure under F2.5. *Extended 2026-09-13 (task 23.3.7): and a budget for the

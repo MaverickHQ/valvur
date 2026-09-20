@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A report the adapter cannot read is one failed Scanner (F2.5).** A Scanner
+  that exited 0 with a truncated or reshaped report — a container killed
+  mid-write, a format change — raised out of the whole run: over MCP a FAILED job,
+  on the CLI a traceback, the other Scanners' results thrown away, nothing
+  written. Now that Scanner is recorded *report unreadable: <exception>*, named
+  at the top of `SUMMARY.md` and on the MCP DONE line, its raw text kept under
+  `raw/`, and the run continues incomplete like any other failure. Found by the
+  second external review (26.0.1).
 - **`0.1.0rc1` is yanked on PyPI** (2026-09-20), with the reason *"looks for a
   local development image; use 0.3.0"*. It was the release whose shim looked for a
   local `valvur:dev` image and could never have worked for anyone (22.G.1, fixed
