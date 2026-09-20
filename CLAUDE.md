@@ -35,8 +35,8 @@ run measures **about a minute** from nothing to a first result on either path (C
 45s of fetches then a 19s scan; one `scan` call over MCP with nothing run first: 58s
 to `DONE`). The `0.2.0` story, which this release closes: an audit of the requirements
 against `0.2.0` the morning it shipped became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 6 of them now, the release cut and the action's tag given IDs on
-2026-09-18 — and whose first engineering item was the audit's worst
+task** — 4 of them now, the release cut and the action's tag given IDs on
+2026-09-18 and both closed with the yank on 2026-09-20 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
 the agent cannot run. **24.1 closed that the same afternoon**: a scan fetches what is
@@ -122,9 +122,10 @@ artifact; re-measured from a stranger's state, 58s over MCP against 110s. **Then
 25.2**, the same day: `valvur-action` tagged `v0.1` and `v0` — on a commit whose
 own self-test had just installed `0.3.0` from PyPI, the README example's path,
 green in 50s — so `uses: MaverickHQ/valvur-action@v0` works for anyone; `ci.yml`
-keeps the tree's shim and a SHA pin, now the tag's commit. **Next: 24.4 (the
-yank), then the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1), then
-`v1.0.0` (12b.3).** When "what is next" is asked, Phase 25 is the answer; Phase
+keeps the tree's shim and a SHA pin, now the tag's commit. **Then 24.4**: `0.1.0rc1`
+yanked, twenty days after it went up as a release nobody could run — Checkpoint B
+is complete. **Next: the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1),
+then `v1.0.0` (12b.3).** When "what is next" is asked, Phase 25 is the answer; Phase
 24's list keeps the rows and the numbers, and the sequencing diagrams in Phases
 21, 23 and 24 are history.
 
@@ -185,8 +186,8 @@ requirements against the published release — three measurements taken against 
 PyPI wheel and the GHCR image rather than the tree, and a pass over all 136
 requirement IDs asking *met?* rather than *cited?*. Its head is the single ordered
 list of everything open; its four tasks are the audit's findings, and three of
-them — 24.1, 24.2 and 24.3 — closed the same day (below); the fourth is the owner's
-yank. It also moved Checkov's hash-locking
+them — 24.1, 24.2 and 24.3 — closed the same day (below); the fourth, the owner's
+yank, on 2026-09-20. It also moved Checkov's hash-locking
 (23.4.1) ahead of the usability gate: it is the one input we sign with our identity
 that is not pinned by hash.
 
@@ -215,9 +216,9 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 57 modules under `src/valvur`, 973 tests in 52 files, 19 ADRs, 136
-requirement IDs, **171 done and 5 open** across 25 phases — 1 is Phase 24's audit (the
-owner's yank) and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete, `0.3.0` is out and the action is tagged. Three of the 5
-are the owner's (the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
+requirement IDs, **172 done and 4 open** across 25 phases — the usability gate and
+the `v1.0.0` tail; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
+are the owner's (the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by

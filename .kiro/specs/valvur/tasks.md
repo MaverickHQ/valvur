@@ -5152,7 +5152,7 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 
 | # | task | what | who | batch |
 |---|---|---|---|---|
-| 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | **owner**, one click | 2 |
+| 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | ✅ 2026-09-20 | ✅ |
 | 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 | ✅ |
 | 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 | ✅ |
 | 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 | ✅ |
@@ -5445,12 +5445,22 @@ which, by then, it has.
   Desktop costs five times what it does on Linux**, which is most of what a Mac
   user waits for and the whole of 23.4.2's case.
 
-- [ ] **24.4** **Yank `0.1.0rc1` on PyPI.** *Owner action.* The published rc shim has
+- [x] **24.4** **Yank `0.1.0rc1` on PyPI.** *Owner action.* The published rc shim has
   `IMAGE = "valvur:dev"` hard-coded (22.G.1) and can never have worked for anyone;
   it is still installable by anyone who pins it. A yanked release stays for people
   who already pinned and stops resolvers choosing it. pypi.org → `valvur` → Manage →
   release `0.1.0rc1` → *Yank*, with the reason *"looks for a local development
   image; use 0.2.0"*.
+
+  **STATUS 2026-09-20:** ✅ Yanked, the owner signed in and confirming the click,
+  with the reason *"looks for a local development image; use 0.3.0"* — `0.3.0`
+  being out by then. Verified from outside rather than from the page: the Simple
+  index pip reads (`application/vnd.pypi.simple.v1+json`) marks both files
+  `yanked` with that reason, and the JSON API agrees once its cache turned over
+  (the first read after the click still said `false` — the CDN, not the yank). A
+  resolver asked for `valvur<0.2` now finds no release and says pre-releases exist
+  but were not enabled; anyone pinning `==0.1.0rc1` still gets it, with the
+  reason on their terminal. Twenty days on PyPI as a release nobody could run.
 
 ## Phase 25 — One block to the release, then the three checkpoints
 
@@ -5649,8 +5659,8 @@ this comes before Checkpoint C, not after.
   action's README example pins `actions/checkout@v7`, the major it uses itself.
   Not done: a GitHub release for `v0.1` (a Marketplace listing needs one; the
   owner's call, and nothing in `uses:` needs it).
-- [ ] [**24.4**](#phase-24--the-audit-and-one-list-of-everything-that-remains) — yank
-  `0.1.0rc1`, in the same sitting.
+- [x] [**24.4**](#phase-24--the-audit-and-one-list-of-everything-that-remains) — yank
+  `0.1.0rc1`, in the same sitting. *Done 2026-09-20; Checkpoint B is complete.*
 
 ### Checkpoint C — The usability gate *(owner and a stranger; a calendar)*
 

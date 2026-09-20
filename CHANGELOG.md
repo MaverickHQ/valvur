@@ -7,6 +7,11 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **`0.1.0rc1` is yanked on PyPI** (2026-09-20), with the reason *"looks for a
+  local development image; use 0.3.0"*. It was the release whose shim looked for a
+  local `valvur:dev` image and could never have worked for anyone (22.G.1, fixed
+  in `0.2.0`); a resolver no longer chooses it, and anyone pinning it exactly sees
+  the reason.
 - **`MaverickHQ/valvur-action` is tagged.** `v0.1`, and `v0` following it, on
   2026-09-20 — on a commit whose own self-test installs the `version` default,
   `0.3.0`, from PyPI, so the README's `uses: MaverickHQ/valvur-action@v0` resolves
