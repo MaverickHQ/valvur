@@ -942,6 +942,48 @@ def test_every_image_build_goes_through_the_bake_file():
     assert 'needs: [verify, build]' in release
 
 
+def _release_jobs() -> dict[str, str]:
+    """release.yml's jobs, id → text, split at the two-space job headers."""
+    import re
+
+    text = Path(".github/workflows/release.yml").read_text()
+    body = text.split("\njobs:\n", 1)[1]
+    parts = re.split(r"^  ([a-z_-]+):\n", body, flags=re.M)
+    return {parts[i]: parts[i + 1] for i in range(1, len(parts) - 1, 2)}
+
+
+def test_the_release_promotes_only_after_the_artifact_is_validated():
+    """26.1.1. Until this, `release` pushed `:VERSION` and `:latest`, signed,
+    published to PyPI and created the GitHub release — and THEN the artifact job
+    validated the wheel/image pair, with a comment admitting it could not stop a
+    release that had left. Now `stage` pushes a candidate tag, signs, attests and
+    builds `dist/`; `artifact` validates; and the three things that cannot be
+    taken back — the PyPI upload, the `:VERSION` and `:latest` tags, the GitHub
+    release — live only in `promote`, which needs `artifact`. The candidate is
+    promoted by re-tagging the signed digest, so the signature and the
+    attestation hold."""
+    import re
+
+    jobs = _release_jobs()
+    assert {"verify", "build", "stage", "artifact", "promote"} <= set(jobs), sorted(jobs)
+
+    for irreversible in ("pypa/gh-action-pypi-publish", '"$IMAGE:latest"', "gh release create"):
+        owners = [job for job, text in jobs.items() if irreversible in text]
+        assert owners == ["promote"], f"{irreversible!r} is in {owners}, not only promote"
+    assert re.search(r"needs:\s*\[[^\]]*\bartifact\b", jobs["promote"]), "promote does not wait for artifact"
+    assert re.search(r"needs:\s*\[[^\]]*\bstage\b", jobs["artifact"]), "artifact does not follow stage"
+    assert "needs: [verify, build]" in jobs["stage"]
+    # The manual brake — a required reviewer on the environment — sits before the
+    # irreversible step, not before the candidate push.
+    assert "environment: release" in jobs["promote"]
+    assert "environment: release" not in jobs["stage"]
+    # stage never writes the version tag: a red artifact job leaves only a
+    # candidate, and the version number is not burned.
+    assert '"$IMAGE:$VERSION-candidate"' in jobs["stage"]
+    assert re.search(r'-t "\$IMAGE:\$VERSION"', jobs["stage"]) is None
+    assert 'promote by re-tagging' in jobs["promote"].lower() or '"$IMAGE@$DIGEST"' in jobs["promote"]
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""
