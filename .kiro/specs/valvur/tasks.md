@@ -5945,7 +5945,7 @@ user sees also carries a measured number in its STATUS note.
 
 ### Tier 1 — What the next release meets
 
-- [ ] **26.1.1** **Promote after validation (N2.5, 12b.2's other half).** The
+- [x] **26.1.1** **Promote after validation (N2.5, 12b.2's other half).** The
   pipeline becomes *stage → validate → promote*: `release` pushes the index at
   `:VERSION` only, signs and attests it, builds `dist/` and uploads it as an
   artifact — and stops. `artifact` validates exactly as today, against the digest
@@ -5964,6 +5964,40 @@ user sees also carries a measured number in its STATUS note.
   the `release` job's `imagetools create` carries no `:latest`; mutation is moving
   either back. Then the workflow, then **a rehearsal** (`workflow_dispatch`) read
   end to end. Measured: the rehearsal's timing — how much later `:latest` moves.
+
+  **STATUS 2026-09-20:** ✅ Test first — `test_the_release_promotes_only_after_
+  the_artifact_is_validated`, splitting `release.yml` at its job headers: the PyPI
+  publish, `"$IMAGE:latest"` and `gh release create` exist only in `promote`;
+  `promote` needs `artifact`; `artifact` needs `stage`; `stage` writes only the
+  candidate tag; the `release` environment is on `promote`, not `stage`. Three
+  mutations, each failing it: the publish back in `stage`, `promote` not waiting,
+  `stage` tagging the version. **One improvement on the task text:** `stage`
+  pushes the index as **`:$VERSION-candidate`**, never `:$VERSION` — the shim of
+  this version pulls `:$VERSION`, so that name must not exist until `artifact` is
+  green — and `promote` re-tags the signed digest as `:$VERSION` and `:latest`
+  (a manifest re-push; the signature and the attestation on the digest hold) and
+  asserts both tags resolve to the validated digest. So a red `artifact` job
+  leaves a candidate tag and nothing else, and **the version number is not
+  burned** — the cost the task text accepted is not paid. The SBOM is generated
+  from the digest and handed on as a run artifact, as `dist/` already was: one
+  build, tested by `artifact`, published by `promote`. **Rehearsed twice:** #1
+  (35537319392) stopped in `verify` at the lint — three lines of the new test over
+  100 characters, ruff never run on it; #2 (35537448968) **green, 15m36s**:
+  `verify` 6m26s · both builds ~1m · `stage` 50s, pushed
+  `valvur-rehearsal:0.3.0.dev24-candidate@sha256:68654f78…`, both platforms,
+  signed, attested · `artifact` 6m18s — the `.dev24` wheel from `dist/`, the
+  digest pulled and its signature verified, the pair's label and tree agreeing,
+  the constraint suite, the e2e suite and the gate · `promote` 43s —
+  `:0.3.0.dev24 → sha256:68654f78…`, `:latest → sha256:68654f78…`, TestPyPI
+  `0.3.0.dev24`, the draft release created and removed. **`:latest` moved 7m22s
+  after the candidate was pushed, and only after the validation.** The rehearsal
+  package now shows one digest carrying `0.3.0.dev24`, `0.3.0.dev24-candidate`
+  and `latest`, its signature beside it, and `cosign verify` on the promoted
+  *version* tag passes from this machine. `RELEASING.md`: the job descriptions,
+  the brake (a required reviewer on the environment now asks after the evidence
+  and before the irreversible step), and the failure table — two rows added,
+  three rewritten, the `re-point latest` recovery gone because `latest` no longer
+  moves before validation.
 
 - [ ] **26.1.2** **The arm64 image runs in the pipeline (F10.7).** `artifact` becomes
   a two-runner matrix, `ubuntu-24.04` and `ubuntu-24.04-arm`, each pulling the

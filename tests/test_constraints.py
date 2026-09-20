@@ -970,8 +970,10 @@ def test_the_release_promotes_only_after_the_artifact_is_validated():
     for irreversible in ("pypa/gh-action-pypi-publish", '"$IMAGE:latest"', "gh release create"):
         owners = [job for job, text in jobs.items() if irreversible in text]
         assert owners == ["promote"], f"{irreversible!r} is in {owners}, not only promote"
-    assert re.search(r"needs:\s*\[[^\]]*\bartifact\b", jobs["promote"]), "promote does not wait for artifact"
-    assert re.search(r"needs:\s*\[[^\]]*\bstage\b", jobs["artifact"]), "artifact does not follow stage"
+    assert re.search(r"needs:\s*\[[^\]]*\bartifact\b", jobs["promote"]), \
+        "promote does not wait for artifact"
+    assert re.search(r"needs:\s*\[[^\]]*\bstage\b", jobs["artifact"]), \
+        "artifact does not follow stage"
     assert "needs: [verify, build]" in jobs["stage"]
     # The manual brake — a required reviewer on the environment — sits before the
     # irreversible step, not before the candidate push.
@@ -981,7 +983,7 @@ def test_the_release_promotes_only_after_the_artifact_is_validated():
     # candidate, and the version number is not burned.
     assert '"$IMAGE:$VERSION-candidate"' in jobs["stage"]
     assert re.search(r'-t "\$IMAGE:\$VERSION"', jobs["stage"]) is None
-    assert 'promote by re-tagging' in jobs["promote"].lower() or '"$IMAGE@$DIGEST"' in jobs["promote"]
+    assert '"$IMAGE@$DIGEST"' in jobs["promote"], "promote does not re-tag the validated digest"
 
 
 def test_the_opengrep_binaries_are_checksum_pinned():

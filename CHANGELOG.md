@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A release is validated before it is promoted.** `release.yml` now runs
+  stage → validate → promote: the image is pushed under a candidate tag, signed
+  and attested; the wheel and that digest are tested together; and only then is
+  the digest re-tagged as the version and `latest`, the wheel uploaded to PyPI and
+  the GitHub release created. Until now PyPI and `latest` moved first and the
+  validation could only turn the run red afterwards. A failed validation leaves a
+  candidate tag and nothing a user can install; the version number is not burned.
+  Rehearsed end to end (26.1.1).
 - **The Results Folder is one generation (F7.4).** Every document is written
   whole beside its name and renamed into place in one loop, `run.json` last, so
   a file is never partial; `findings.json`, `run.json`, `state.json` and

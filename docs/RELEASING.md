@@ -19,7 +19,9 @@ These cannot be automated, and the workflow fails without them.
    there is no long-lived secret to leak.
 2. **A `release` GitHub environment**, under Settings → Environments. Required by
    trusted publishing above, and the place to add a manual approval gate if you want
-   one before anything is published.
+   one: since 26.1.1 the environment is on the `promote` job, so a required reviewer
+   is asked *after* the artifact has been validated and *before* anything a user can
+   install exists — the version tag, `:latest`, PyPI, the GitHub release.
 3. **The GHCR packages must be public** (task 12a.1) — `valvur`, the image, or every
    user's first pull fails (measured 2026-08-31, and the failure surfaces as a
    confusing mount error rather than an authentication one); and `valvur-index`, the
@@ -64,16 +66,18 @@ the licence check, the self-scan gate, the multi-architecture push, the platform
 assertion — runs exactly as it will for the tag. The scratch image and the TestPyPI
 upload are left in place on purpose: they are what you inspect afterwards.
 
-**The last job tests the artifact, not the tree** (12b.2, N2.5). `verify` runs the
-suite and the gate against `valvur:dev` before anything is pushed, which proves the
-tree the tag points at. `artifact` runs after `release`: it installs the wheel from
-`dist/` into a clean environment with `src/` deliberately off the path (and proves
-it — `valvur._build` exists only in a built wheel), pulls the image by the digest
-the release job signed, verifies the signature, checks the pair's version label and
-build digest against each other, and then runs the Phase 11 constraint suite, the
-whole e2e suite and the self-scan gate through that wheel and that image. It cannot
-stop a release that has left; it turns the run red and names why. In a rehearsal it
-runs against the scratch image and the `.devN` wheel, so it is proven before the tag.
+**The artifact is tested before it is promoted** (12b.2, N2.5, 26.1.1). `verify`
+runs the suite and the gate against `valvur:dev` before anything is pushed, which
+proves the tree the tag points at. `artifact` runs after `stage`: it installs the
+wheel from `dist/` into a clean environment with `src/` deliberately off the path
+(and proves it — `valvur._build` exists only in a built wheel), pulls the image by
+the digest `stage` signed, verifies the signature, checks the pair's version label
+and build digest against each other, and then runs the Phase 11 constraint suite,
+the whole e2e suite and the self-scan gate through that wheel and that image. Only
+then does `promote` run. Until 2026-09-20 this job ran *after* PyPI and `:latest`
+had moved, and its own comment said it could not stop a release that had left. In
+a rehearsal it runs against the scratch image and the `.devN` wheel, so it is
+proven before the tag.
 
 > **Keyless signing is public.** Every `cosign sign` writes an entry to the Rekor
 > transparency log naming this repository and workflow, rehearsal or not. While the
@@ -172,11 +176,15 @@ runner 4m50s for both on v0.2.0), pushed to the package by digest and untagged, 
 digest handed on as an artifact. `docker-bake.hcl` is the one place the build
 lives; `ci.yml`, `corpus.yml`, `CONTRIBUTING.md` and `verify` build through it too.
 
-**`release` — publishes, then proves what it published.**
+**`stage` — pushes a candidate, signs it, builds the wheel; nothing a user can
+name yet (26.1.1).**
 
 - Writes one index over the two digests with `docker buildx imagetools create`,
-  tagged `:$VERSION` and `:latest`, and asserts the index carries both
-  architectures. That index's digest is what everything below signs and attests.
+  tagged **`:$VERSION-candidate`** — never `:$VERSION`, which the shim of this
+  version pulls and which must not exist until the pair is validated — and asserts
+  the index carries both architectures. That index's digest is what everything
+  below signs, attests, tests and promotes; the candidate tag is for a person to
+  look at.
 - **Signs by digest, not by tag.** A tag can be moved to point at other code, which
   is the entire reason we pin actions to SHAs; signing one would carry that defect
   into our own supply chain. Keyless, via the workflow's OIDC identity, recorded in
@@ -187,12 +195,31 @@ lives; `ci.yml`, `corpus.yml`, `CONTRIBUTING.md` and `verify` build through it t
   `sbom.cdx.json` valvur writes for a scanned project. F10.4 requires it, because the
   base image carries GPL components as every Linux container does, and disclosure is
   the honest answer to a claim no container could satisfy.
-- Publishes to PyPI by trusted publishing. The wheel carries `valvur/_build.py`,
-  written by the build hook (`hatch_build.py`): the digest of the tree it was built
-  beside, the same digest the image records — so a user's scan can tell the pair
-  came from one tree, and says so when it did not (23.4.4).
-- Creates the GitHub release with the verification commands in the notes, so a
-  sceptical reader does not have to find them.
+- Builds `dist/` with `uv build`. The wheel carries `valvur/_build.py`, written by
+  the build hook (`hatch_build.py`): the digest of the tree it was built beside,
+  the same digest the image records — so a user's scan can tell the pair came from
+  one tree, and says so when it did not (23.4.4). The SBOM and `dist/` are handed
+  on as run artifacts: one build, tested by `artifact`, published by `promote`.
+
+**`artifact` — the pair, tested** (above).
+
+**`promote` — the three things that cannot be taken back, after the evidence.**
+
+- Re-tags the signed digest as `:$VERSION` and `:latest` — a manifest re-push, so
+  the signature and the attestation on the digest hold — and asserts each tag
+  resolves to the digest `artifact` tested. First because it is the cheapest to
+  undo: a tag can be re-pointed.
+- Publishes to PyPI by trusted publishing (TestPyPI in a rehearsal).
+- Creates the GitHub release with the SBOMs, `dist/` and the verification commands
+  in the notes, so a sceptical reader does not have to find them.
+
+The `release` environment sits on this job. **A red `artifact` job leaves a
+candidate tag on GHCR and nothing else** — no version tag, no `:latest` move, no
+wheel, no release page — and the version number is not burned: fix, move the tag
+(nothing public referenced it), and the candidate tag is re-pushed. The candidate
+tag stays after a successful promotion, pointing at the same digest as the
+version tag; it cannot be deleted on its own (GHCR deletes by version, which is the
+digest), and it is harmless.
 
 ## Verifying a release, as a user would
 
@@ -218,13 +245,15 @@ Find where it stopped with `gh run view --log-failed`, then:
 
 | it stopped in | what exists | what to do |
 |---|---|---|
-| `verify` (any step) | nothing published | Fix the tree, commit, **move the tag** (`git tag -f vX.Y.Z && git push -f origin vX.Y.Z`). Nothing has left the runner, so the tag is still yours to move — this is the only case where re-running the same version is right. |
+| `verify` (any step) | nothing published | Fix the tree, commit, **move the tag** (`git tag -f vX.Y.Z && git push -f origin vX.Y.Z`). Nothing has left the runner, so the tag is still yours to move. |
+| `stage` or `artifact` (any step) | at most a signed `:X.Y.Z-candidate` tag on GHCR; no version tag, no `:latest` move, no wheel, no release page | The same as `verify`: fix, commit, **move the tag**. Nothing a user can install or pull by the version's name exists, so the number is not burned (26.1.1). The old candidate is overwritten by the re-run. |
 | push (image) | possibly a partial push: one architecture, or a manifest without its layers | Re-run the job (`gh run rerun --failed`). A registry push is idempotent; a re-push of the same content produces the same digest. If the failure was the registry itself, wait and re-run. |
-| the platform assertion | `:X.Y.Z` and `:latest` point at a single-architecture index | Do not leave it. Re-run; if the multi-platform build cannot be made to pass, **re-point `latest`** at the previous release (`docker buildx imagetools create -t ghcr.io/maverickhq/valvur:latest ghcr.io/maverickhq/valvur:<previous>`) and delete the bad version tag from the package's versions page. Then fix forward under `X.Y.Z+1`. |
-| `cosign sign` | image pushed and reachable, **unsigned** | The dangerous state: an unsigned image under a real tag. Re-run the job first — signing is idempotent and the digest is in the push step's output. If it cannot be signed, delete the version tag from GHCR and re-point `latest` as above, before anything else. |
+| the platform assertion | `:X.Y.Z-candidate` points at a single-architecture index; nothing else moved | Re-run. `latest` and the version tag never moved, so there is nothing to re-point. If the multi-platform build cannot be made to pass, fix and move the tag. |
+| `cosign sign` | the candidate pushed and reachable, **unsigned** | Re-run the job — signing is idempotent and the digest is in the push step's output. The unsigned digest is under a candidate tag only; nothing a user resolves points at it. If it cannot be signed, delete the candidate version from the package's versions page. |
 | attestation, SBOM | signed image, no provenance or no SBOM asset yet | Re-run the failed job. Nothing downstream depends on these being first-time-right; the attestation step is idempotent and the SBOM is regenerated from the pushed image. |
-| PyPI | signed, attested image; **no wheel** | Re-run the job: the upload is the one step that is *not* idempotent, so a partial upload (`400 File already exists`) means PyPI has it — check `pip index versions valvur`. If PyPI rejected the release itself, fix forward: bump to `X.Y.Z+1`, tag, release. The image for `X.Y.Z` stays; document in `CHANGELOG.md` that `X.Y.Z` has no wheel. |
-| GitHub release | image and wheel published; no release page | `gh release create vX.Y.Z --notes-file notes.md dist/* ...` by hand from the run's artifacts, or re-run the job — `gh release create` fails cleanly if the release already exists. The release page is documentation of the other two; it is never what a user installs. |
+| `promote`: the re-tag | signed, attested, validated image under the candidate tag; possibly `:X.Y.Z` or `:latest` half-moved | Re-run the failed job: `imagetools create` is idempotent and the step asserts both tags resolve to the validated digest. |
+| `promote`: PyPI | `:X.Y.Z` and `:latest` moved to the validated image; **no wheel** | Re-run the job: the upload is the one step that is *not* idempotent, so a partial upload (`400 File already exists`) means PyPI has it — check `pip index versions valvur`. If PyPI rejected the release itself, fix forward: bump to `X.Y.Z+1`, tag, release. The image for `X.Y.Z` stays; document in `CHANGELOG.md` that `X.Y.Z` has no wheel. |
+| `promote`: GitHub release | image and wheel published; no release page | `gh release create vX.Y.Z --notes-file notes.md dist/* ...` by hand from the run's artifacts, or re-run the job — `gh release create` fails cleanly if the release already exists. The release page is documentation of the other two; it is never what a user installs. |
 
 **When a tag has to be re-run.** `gh run rerun <id> --failed` re-runs only the
 jobs that failed, with the same tag and the same `GITHUB_SHA`, so the artifacts are
@@ -280,10 +309,11 @@ one on its own did not work (`VALVUR_DB_INSECURE`, `VALVUR_CONTAINER_NETWORK`), 
 a third for the one fetch that had no mirror at all (`VALVUR_KEV_URL`).
 
 **The `release` environment is the manual brake.** Adding a required reviewer to it
-(Settings → Environments → release) makes the `release` job wait for approval after
-`verify` passes and before anything is pushed. That is the right place for a human
-check if you want one; the tag push is the wrong place, because by then the workflow
-is already running.
+(Settings → Environments → release) makes the `promote` job wait for approval after
+`artifact` has validated the pair and before anything a user can install exists
+(26.1.1; until then the brake was before the push, with the evidence still to come).
+That is the right place for a human check if you want one; the tag push is the wrong
+place, because by then the workflow is already running.
 
 ## The action
 

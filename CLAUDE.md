@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 57 modules under `src/valvur`, 992 tests in 52 files, 19 ADRs, 136
-requirement IDs, **175 done and 15 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 11 are Phase 26's tiers 1–5 (Tier 0 is closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 15
+Roughly: 57 modules under `src/valvur`, 993 tests in 52 files, 19 ADRs, 136
+requirement IDs, **176 done and 14 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 10 are Phase 26's tiers 1–5 (Tier 0 is closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 14
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -260,12 +260,15 @@ were introduced by the block before, with tests passing.
   flag is checked between a first run's fetches; measured over stdio, CANCELLED
   at 1.19s with nothing written (26.0.2). The Results Folder is one generation —
   staged writes renamed into place with `run.json` last, a `generation` id in
-  every JSON artifact and SARIF's guid, a stale SBOM removed (26.0.3). **What is
-  still open meets the next release (Tier 1):** `release.yml` publishes to PyPI and moves
-  `:latest` before the `artifact` job validates the wheel/image pair — its own
-  comment says it cannot stop a release that has left (26.1.1); the arm64 image is
-  built and listed but has never run in the pipeline (26.1.2). Until these land, a
-  reader should take "the release pipeline tests the artifact" to mean *after*.
+  every JSON artifact and SARIF's guid, a stale SBOM removed (26.0.3). **Tier 1
+  is under way:** ~~`release.yml` publishes to PyPI and moves `:latest` before the
+  `artifact` job validates the pair~~ — closed by 26.1.1 the same night: stage
+  pushes a *candidate* tag, `artifact` validates, and only `promote` re-tags the
+  signed digest as the version and `:latest`, publishes and releases; rehearsed
+  green, `:latest` moving 7m22s after the candidate and only after validation,
+  and a red `artifact` job now burns nothing. Still open: the arm64 image is
+  built and listed but has never run in the pipeline (26.1.2), and the pipeline
+  verifies no attestation it makes (26.1.3).
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality
