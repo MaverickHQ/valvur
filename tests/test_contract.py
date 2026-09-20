@@ -8,6 +8,8 @@ after this point is checked as it lands rather than five being reconciled at the
 import json
 import re
 
+import pytest
+
 from conftest import GoldenRunner, golden
 
 from valvur import scan
@@ -371,3 +373,124 @@ def test_raw_prunes_older_runs(workspace, tmp_path):
 
     archives = sorted(p for p in results.glob("raw-*") if p.is_dir())
     assert len(archives) == KEEP_RUNS
+
+
+# ------------------------------------------------ one generation, not seven writes (26.0.3)
+#
+# `results.write` wrote SUMMARY.md, findings.json, results.sarif, REMEDIATION.md,
+# run.json and any Scanner artifact one `write_text` at a time into the live folder,
+# and `state.save` wrote state.json after them. An interruption between any two left
+# a mixed generation — new findings beside the previous run's SARIF — that nothing
+# in the folder could detect, and a run in which Syft failed kept the previous
+# run's sbom.cdx.json. Found by the second external review.
+
+
+def _generations(results):
+    """The generation each JSON artifact says it belongs to."""
+    out = {}
+    for name in ("findings.json", "run.json", "state.json"):
+        out[name] = json.loads((results / name).read_text())["generation"]
+    sarif = json.loads((results / "results.sarif").read_text())
+    out["results.sarif"] = sarif["runs"][0]["automationDetails"]["guid"]
+    return out
+
+
+def test_every_json_artifact_carries_the_generation_run_json_names(workspace):
+    """F7.4 gains a field: one id, minted per Scan Run, in findings.json, run.json,
+    state.json and SARIF's own `automationDetails.guid`, so a reader who trusts
+    run.json can tell whether each sibling is from the same run."""
+    results = _full_scan(workspace)
+
+    seen = _generations(results)
+    assert len(set(seen.values())) == 1, seen
+    generation = seen["run.json"]
+    assert re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+                        generation), "SARIF's guid must be a UUID"
+
+
+def test_two_runs_have_two_generations(workspace):
+    first = _generations(_full_scan(workspace))["run.json"]
+    second = _generations(_full_scan(workspace))["run.json"]
+
+    assert first != second
+
+
+def test_an_optional_artifact_this_run_did_not_produce_is_removed(workspace):
+    """A failed or skipped Syft must not leave the previous run's SBOM in the folder
+    — the rule `rawoutput.write` already applies to raw/*.json."""
+    results = _full_scan(workspace)
+    (results / "sbom.cdx.json").write_text('{"bomFormat": "CycloneDX", "from": "last run"}')
+
+    _full_scan(workspace)          # no Syft in this fleet: no SBOM this run
+
+    assert not (results / "sbom.cdx.json").exists()
+
+
+def test_the_optional_artifacts_list_is_every_adapters_artifact():
+    """The names `write` prunes are the names an adapter can produce — a new
+    artifact that is not on the list would be the SBOM defect again."""
+    from valvur import results
+    from valvur.adapters import DEFAULT_ADAPTERS
+
+    produced = {getattr(a, "artifact", None) for a in DEFAULT_ADAPTERS} - {None}
+    assert produced, "no adapter produces an artifact — is `artifact` still the attribute?"
+    assert results.OPTIONAL_ARTIFACTS == frozenset(produced)
+
+
+def test_no_file_is_ever_partial_and_run_json_lands_last(workspace, monkeypatch):
+    """Every artifact is written whole beside its name and renamed into place,
+    run.json last. Interrupt the rename loop at every possible point: each file
+    present is a complete document, and whenever run.json is the new generation,
+    every sibling is too. The limit, stated: between the first rename and the last
+    a reader who ignores the generation can see old and new side by side — the
+    window is the rename loop, microseconds, against the whole scan before."""
+    import os
+
+    from valvur import results as results_module
+
+    results = _full_scan(workspace)
+    before = _generations(results)
+
+    real_replace = os.replace
+    total = 0
+
+    def counting(src, dst):
+        nonlocal total
+        total += 1
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", counting)
+    _full_scan(workspace)
+    renames = total
+    assert renames >= 6, renames
+
+    for stop_at in range(1, renames + 1):
+        calls = 0
+
+        def failing(src, dst, stop_at=stop_at):
+            nonlocal calls
+            calls += 1
+            if calls == stop_at:
+                raise KeyboardInterrupt(f"killed at rename {stop_at}")
+            return real_replace(src, dst)
+
+        monkeypatch.setattr(os, "replace", failing)
+        previous = _generations(results)
+        with pytest.raises(KeyboardInterrupt):
+            _full_scan(workspace)
+
+        for name in ("findings.json", "run.json", "state.json", "results.sarif"):
+            json.loads((results / name).read_text())          # complete, never partial
+        for name in ("SUMMARY.md", "REMEDIATION.md"):
+            assert (results / name).read_text().strip()
+        after = _generations(results)
+        if after["run.json"] != previous["run.json"]:
+            assert len(set(after.values())) == 1, (stop_at, after)
+        assert not list(results.glob("*.tmp")) or stop_at, "tmp files are the loop's"
+
+    monkeypatch.setattr(os, "replace", real_replace)
+    _full_scan(workspace)
+    assert not list(results.glob("*.tmp")), "a completed write leaves no .tmp behind"
+    assert len(set(_generations(results).values())) == 1
+    assert before["run.json"] != _generations(results)["run.json"]
+    assert results_module.RESULTS_DIR == ".security-scan"
