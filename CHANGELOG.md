@@ -7,6 +7,12 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **`MaverickHQ/valvur-action` is tagged.** `v0.1`, and `v0` following it, on
+  2026-09-20 — on a commit whose own self-test installs the `version` default,
+  `0.3.0`, from PyPI, so the README's `uses: MaverickHQ/valvur-action@v0` resolves
+  to something proven. This repository's self-scan pins the tagged commit by SHA
+  and keeps `version: ""`, the shim from the tree under test.
+
 ## [0.3.0] — 2026-09-20
 
 What a stranger's first ten minutes meet, fixed before a stranger measures them.

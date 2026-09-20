@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-19.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-20.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -118,11 +118,15 @@ OSV-Scanner's lower-bound advisories are dropped before merging with the count o
 every surface; 193 on smolagents. **Twenty-three tasks closed after `0.2.0`
 shipped — and released together as `0.3.0` on 2026-09-20 (25.1)**: a rehearsal on
 the exact tree, the tag, fifteen minutes to a green run whose last job tested the
-artifact; re-measured from a stranger's state, 58s over MCP against 110s. **Next:
-25.2 (the action's `v0` tag) and 24.4 (the yank), then the usability gate on `0.3.0`
-(10.1.1–10.1.2, then 12b.1), then `v1.0.0` (12b.3).** When "what is
-next" is asked, Phase 25 is the answer; Phase 24's list keeps the rows and the
-numbers, and the sequencing diagrams in Phases 21, 23 and 24 are history.
+artifact; re-measured from a stranger's state, 58s over MCP against 110s. **Then
+25.2**, the same day: `valvur-action` tagged `v0.1` and `v0` — on a commit whose
+own self-test had just installed `0.3.0` from PyPI, the README example's path,
+green in 50s — so `uses: MaverickHQ/valvur-action@v0` works for anyone; `ci.yml`
+keeps the tree's shim and a SHA pin, now the tag's commit. **Next: 24.4 (the
+yank), then the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1), then
+`v1.0.0` (12b.3).** When "what is next" is asked, Phase 25 is the answer; Phase
+24's list keeps the rows and the numbers, and the sequencing diagrams in Phases
+21, 23 and 24 are history.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -211,9 +215,9 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 57 modules under `src/valvur`, 973 tests in 52 files, 19 ADRs, 136
-requirement IDs, **170 done and 6 open** across 25 phases — 1 is Phase 24's audit (the
-owner's yank), 1 is the action's `v0` tag, and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete, and `0.3.0` is out. Four of the 6
-are the owner's (the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
+requirement IDs, **171 done and 5 open** across 25 phases — 1 is Phase 24's audit (the
+owner's yank) and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete, `0.3.0` is out and the action is tagged. Three of the 5
+are the owner's (the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by

@@ -291,10 +291,13 @@ is already running.
 released separately and pinned to a valvur version: its `version` input defaults to
 the newest valvur on PyPI that has `gate`, `--budget` and `--jobs` (0.3.0 and
 later). When a valvur release changes the CLI the action uses, bump the default
-there and tag the action (`v0.N`, and move `v0`). `ci.yml`'s self-scan job uses
-the action with `version: ""` — the shim from the tree under test — so a change to
-the CLI that breaks the action is found here first; `release.yml` runs the
-commands directly, so a release never depends on the second repository.
+there and tag the action (`v0.N`, and move `v0`) — on a commit whose self-test has
+gone green, because that test installs the default from PyPI and is the README
+example's path (`v0.1` = `v0` on 2026-09-20, the day `0.3.0` published; both
+signed). `ci.yml`'s self-scan job uses the action with `version: ""` — the shim
+from the tree under test — pinned by SHA to the tagged commit, so a change to the
+CLI that breaks the action is found here first; `release.yml` runs the commands
+directly, so a release never depends on the second repository.
 
 ## The Checkov lock
 

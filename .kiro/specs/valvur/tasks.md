@@ -4609,6 +4609,7 @@ last.
   design: the `v0` tag, which waits for valvur 0.3.0 on PyPI (the README example
   uses `@v0`; until then the self-test installs from `git+…@main`); and the
   database in the Actions cache — 1.3GB uncompressed is the wrong shape for it.
+  *Tagged 2026-09-20 (25.2), once the self-test had installed `0.3.0` from PyPI.*
 
 - [x] **23.3.7** A scan budget. Each Scanner has a 600s timeout and the run has none;
   an agent session with a runaway Checkov waits ten minutes for one Scanner. `--budget`
@@ -5146,7 +5147,8 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
 > below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
-> *Released 2026-09-20 (25.1): the gate now measures `0.3.0`.*
+> *Released 2026-09-20 (25.1): the gate now measures `0.3.0`. The action's `v0`
+> followed the same day (25.2).*
 
 | # | task | what | who | batch |
 |---|---|---|---|---|
@@ -5619,10 +5621,34 @@ this comes before Checkpoint C, not after.
   `CERTIFICATE_VERIFY_FAILED`, the scan completed with dependency-reality failed
   and the cause named — the case `valvur doctor` exists for. EVALUATING's table
   and the README carry the new numbers.
-- [ ] **25.2** **Tag `valvur-action` `v0`** on the commit whose `version` default is
+- [x] **25.2** **Tag `valvur-action` `v0`** on the commit whose `version` default is
   `0.3.0` (23.3.6 left `v0` waiting on exactly this), and switch `ci.yml`'s self-scan
   job from `version: ""` to the tag. The action's README example then works for
   anyone.
+
+  **STATUS 2026-09-20:** ✅ **`v0` and `v0.1`**, signed, on `6f90b88` — not on
+  `3e3cf19`, the commit the default had pointed at since 23.3.6, because the
+  action's own self-test still installed the shim from `git+…@main` *"until valvur
+  0.3.0 is on PyPI"*, so no commit had yet proven the path the README example
+  takes. One commit did that first: both jobs now install the default `version`,
+  and its run (35513651767) went green — `pipx install valvur==0.3.0` in 2s,
+  `valvur update` 30–35s pulling `ghcr.io/maverickhq/valvur:0.3.0` with the index
+  `signature: verified`, a 3s scan, the gate failing at `critical` with the two
+  PyYAML advisories as annotations and the outputs reading `findings` / `true` /
+  16, the other job `what_left_the_machine: nothing` — 43s and 50s end to end. The
+  tags went on that commit: `v0.1` immutable and `v0` following it, the `v0.N`
+  scheme `RELEASING.md` already described; GitHub reports both signatures valid.
+  **`ci.yml` keeps `version: ""` and the SHA, and the task text's "switch to the
+  tag" resolves to the tag's commit in the pin** (`@6f90b88… # v0.1`): the
+  self-scan's purpose is the shim *from the tree under test* — `version: 0.3.0`
+  would scan every commit with PyPI's shim, which `test_gate_cache` refuses in so
+  many words — and `@v0` would be an active finding under valvur's own
+  `mutable-action-ref` rule on a gate that fails at `any`. The self-scan on this
+  change is the tagged action exercising the tree's shim; the action's own CI is
+  the README's path on PyPI's; between them both shapes run on every commit. The
+  action's README example pins `actions/checkout@v7`, the major it uses itself.
+  Not done: a GitHub release for `v0.1` (a Marketplace listing needs one; the
+  owner's call, and nothing in `uses:` needs it).
 - [ ] [**24.4**](#phase-24--the-audit-and-one-list-of-everything-that-remains) — yank
   `0.1.0rc1`, in the same sitting.
 
