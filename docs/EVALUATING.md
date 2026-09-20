@@ -237,7 +237,8 @@ Read this before the feature list, not after.
   *checked* until the note learned to count pins. It now names the file and how
   many of its lines are ranges, and the run is `inconclusive`; a mixed file is
   *partly* checked and says so. On `full`, OSV-Scanner evaluates every range at its
-  lower bound and reports each advisory since — 193 raw on that one file, against
+  lower bound and reports each advisory since — 97 raw on that one file with
+  OSV-Scanner 2.6.0 (193 with 2.2.4, which read the file twice), against
   versions nothing installs — and those are dropped with the count in `run.json`
   and `SUMMARY.md`, never shown as the project's.
 - **OSV-Scanner's marginal value is measured, and small outside Go.** On the

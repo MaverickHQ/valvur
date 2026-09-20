@@ -28,7 +28,7 @@ class OsvAdapter(ScannerAdapter):
         report = json.loads(output.stdout or "{}")
         findings: list[Finding] = []
 
-        for result in report.get("results") or []:
+        for result in _one_block_per_path(report.get("results") or []):
             source = container_relative(str(result.get("source", {}).get("path", "")))
             for package in result.get("packages") or []:
                 info = package.get("package", {})
@@ -59,6 +59,24 @@ class OsvAdapter(ScannerAdapter):
                         )
                     )
         return findings
+
+
+def _one_block_per_path(results: list) -> list:
+    """OSV-Scanner 2.6.0 reports `requirements.txt` twice: the lockfile extractor's
+    block, and a second of `source.type: unknown` from the generic extractor with
+    PEP 440-normalised versions — `pyyaml 5.1` beside `pyyaml 5.1.0`, six advisories
+    each, two identities. Where a path has a typed block, the `unknown` one for the
+    same path is dropped; a path only the generic extractor read keeps its block.
+    Measured on the golden fixture, 2026-09-20 (2.2.4 → 2.6.0 by Dependabot)."""
+    typed = {
+        str((r.get("source") or {}).get("path", ""))
+        for r in results if (r.get("source") or {}).get("type") not in (None, "", "unknown")
+    }
+    return [
+        r for r in results
+        if not ((r.get("source") or {}).get("type") == "unknown"
+                and str((r.get("source") or {}).get("path", "")) in typed)
+    ]
 
 
 def _fixed_version(vuln: dict, name: str, version: str) -> str:

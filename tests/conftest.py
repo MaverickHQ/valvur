@@ -270,7 +270,7 @@ class FakeRunner:
         return self._quiet("trivy", "0.74.0", '{"Results": []}')
 
     def run_osv(self, workspace: Path):
-        return self._quiet("osv-scanner", "2.2.4", '{"results": []}')
+        return self._quiet("osv-scanner", "2.6.0", '{"results": []}')
 
     def run_checkov(self, workspace: Path):
         return self._quiet("checkov", "3.3.17", '{"results": {"failed_checks": []}}')
@@ -352,7 +352,7 @@ class CrashingAdapter(ScannerAdapter):
 # without recapturing, this mismatch fails loudly rather than silently re-baselining
 # parsing behaviour (task 3.4.1).
 PINNED_VERSIONS = {
-    "trivy": "0.74.0", "gitleaks": "8.30.1", "osv-scanner": "2.2.4",
+    "trivy": "0.74.0", "gitleaks": "8.30.1", "osv-scanner": "2.6.0",
     "checkov": "3.3.17", "syft": "1.51.1", "opengrep": "1.29.0",
 }
 

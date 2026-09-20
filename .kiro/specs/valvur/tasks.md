@@ -5570,7 +5570,8 @@ complete for everything since `0.2.0`.
   every golden and canary count stands. **Measured on smolagents through the
   rebuilt image:** `offline` — the note appears, *examples/open_deep_research/
   requirements.txt (39 of 39 lines are ranges)*; `full` — **193 raw OSV-Scanner
-  advisories dropped** (the 110 the corpus counted were post-merge), Findings
+  advisories dropped** (the 110 the corpus counted were post-merge; 97 with
+  OSV-Scanner 2.6.0 the next day, which no longer reads the file twice), Findings
   from OSV zero, the same 8 active as `offline`, the count on both surfaces. 36
   tests; ten mutations, all caught. One environment note: the local database had
   aged to the 7-day threshold overnight and turned the clean-fixture test

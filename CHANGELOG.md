@@ -23,6 +23,17 @@ a minor bump may break things until 1.0.
   and is reported with the command as fenced evidence. `.kiro/specs/` is
   deliberately not read: the project's own documents, and this repository's own
   spec contains the phrase the injection rule matches (task 23.5.1; F3.6 amended).
+- **OSV-Scanner 2.2.4 → 2.6.0**, by Dependabot's digest bump, completed: the
+  version the shim reports, the golden fixture recaptured from the new image, and
+  `--output-file` in place of the `--output` 2.6.0 deprecates. Two behaviour
+  changes measured on the fixture and handled: 2.6.0 reads `package-lock.json`
+  (2.2.4 reported nothing for it), and its findings land on Trivy's identities and
+  merge; and it reports `requirements.txt` twice — the lockfile extractor's block
+  and a second of `source.type: unknown` with PEP 440-normalised versions, `pyyaml
+  5.1` beside `pyyaml 5.1.0` — so the adapter drops the `unknown` block where a
+  typed one covers the same path, and keeps it where nothing else read the file.
+  On smolagents' unpinned requirements 2.6.0 still evaluates the lower bounds: 97
+  advisories dropped by 25.3, where 2.2.4's double read gave 193.
 - **Unpinned requirements are not a check.** Found by the corpus on its thirteenth
   repository: a 39-line `requirements.txt` with no pins read as *checked* on
   `offline` — Trivy reads `==` lines and nothing else, and correctly reported

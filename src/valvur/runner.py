@@ -691,8 +691,9 @@ class ContainerRunner:
         return self._capture(
             workspace,
             ["osv-scanner", "scan", "source", "--recursive",
-             "--format", "json", "--output", "/results/osv.json", "/workspace"],
-            "osv.json", tool="osv-scanner", version="2.2.4", network=True,
+             # `--output-file`: 2.6.0 deprecates `--output` with a warning.
+             "--format", "json", "--output-file", "/results/osv.json", "/workspace"],
+            "osv.json", tool="osv-scanner", version="2.6.0", network=True,
         )
 
     def run_checkov(self, workspace: Path) -> ScannerOutput:
