@@ -615,7 +615,8 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    24.3), with the evidence the original lacked.* The requirement was cited by an
    e2e test that scans this repository (38,697 lines on 2026-09-01: 23.4s) and by
    nothing at the size it names. **Measured on the public corpus with 23.3.2's
-   per-Scanner timing, on GitHub's `ubuntu-latest` runner, 2026-09-13 (run
+   per-Scanner timing, on GitHub's `ubuntu-latest` runner (Ubuntu 24.04; the
+   workflows name that image since 2026-09-20), 2026-09-13 (run
    34764187516):** every application repository — cobra 44k lines 14.4s, flask
    47.5k 16.1s, llm 53k 15.2s, gson 64k 16.7s, ripgrep 80k 17.6s, fastify 100k
    16.1s, and the six smaller ones 14–17s — completes in **14–18 seconds, flat with
@@ -645,7 +646,7 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    reads `<runtime> stats` throughout a `full` scan of this repository, keeps the
    highest sum over every `valvur-*` container, adds the shim's own peak RSS, and
    fails the build above 2 GiB; the number it measured is printed on every CI run.
-   Its first: **505 MiB** on `ubuntu-latest`, 2026-09-13 — a 451 MiB fleet at the
+   Its first: **505 MiB** on `ubuntu-latest` (Ubuntu 24.04), 2026-09-13 — a 451 MiB fleet at the
    peak (seven containers alive, the largest 253 MiB) and a 54 MiB shim.
    On macOS the same sampler read a 493 MiB fleet peak and a 38 MiB shim on the
    ten-file fixture (2026-09-13), but through Docker Desktop's VM that is the VM's

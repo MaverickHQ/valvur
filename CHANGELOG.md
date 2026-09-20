@@ -12,6 +12,12 @@ a minor bump may break things until 1.0.
   `0.3.0`, from PyPI, so the README's `uses: MaverickHQ/valvur-action@v0` resolves
   to something proven. This repository's self-scan pins the tagged commit by SHA
   and keeps `version: ""`, the shim from the tree under test.
+- **Every workflow names its runner image.** `ubuntu-24.04`, not `ubuntu-latest`,
+  which GitHub moves to 26.04 over a month from 2026-10-19: the runner was the one
+  input under the build still floating while every action is a SHA and every base
+  image a digest, and N1.1's and N1.4's numbers name it as the machine class they
+  were measured on. A test refuses a floating label; the move to 26.04 is a diff
+  that re-measures them. The action's own self-test runs on both images.
 
 ## [0.3.0] — 2026-09-20
 

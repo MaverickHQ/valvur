@@ -166,7 +166,7 @@ itself clean, with no unsuppressed finding, no expired suppression and no scanne
 that failed to complete (N2.5).
 
 **`build` — each architecture, natively (23.4.3).** One job per architecture, on
-its own runner — `ubuntu-latest` and `ubuntu-24.04-arm` — each running `docker
+its own runner — `ubuntu-24.04` and `ubuntu-24.04-arm` — each running `docker
 buildx bake release`: the runner's own architecture, no QEMU (which cost the amd64
 runner 4m50s for both on v0.2.0), pushed to the package by digest and untagged, the
 digest handed on as an artifact. `docker-bake.hcl` is the one place the build

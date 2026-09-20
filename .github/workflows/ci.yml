@@ -16,7 +16,7 @@ jobs:
     # A pre-commit hook lives on one machine and dies to --no-verify. CI cannot be
     # bypassed, so this is the real enforcement of ADR-0011.
     name: no scan output in tree
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Refuse any committed scan output
@@ -29,7 +29,7 @@ jobs:
 
   test:
     name: lint, types, tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -49,7 +49,7 @@ jobs:
 
   e2e:
     name: end-to-end (real container)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -123,7 +123,7 @@ jobs:
 
   published:
     name: the published image, on amd64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -217,7 +217,7 @@ jobs:
 
   selfscan:
     name: self-scan release gate (N2.5)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       security-events: write      # the action uploads results.sarif to code scanning

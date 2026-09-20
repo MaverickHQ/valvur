@@ -579,7 +579,7 @@ def test_the_host_scratch_is_removed_after_a_scan(mountable_tmp):
 #   full     25.2s   (N1.2 budget: 300s)
 #   peak container memory  344 MiB   (N1.4 budget: 2 GB)
 #
-# And 2026-09-13 (task 24.3) on the public corpus, on GitHub's ubuntu-latest, with
+# And 2026-09-13 (task 24.3) on the public corpus, on GitHub's ubuntu-latest (24.04), with
 # 23.3.2's per-Scanner timing: 14-18s offline on every application repository from
 # 22k to 100k lines — flat with size, because it is Checkov's ~15s start-up and
 # every other Scanner is 1-4s — and 88s on a 22k-line Terraform module, which is
@@ -780,6 +780,27 @@ def test_every_action_in_every_workflow_is_pinned_to_a_sha():
                 unpinned.append(f"{path.name}:{number} {match.group(1)}@{match.group(2)}")
 
     assert not unpinned, "actions pinned to a mutable tag: " + "; ".join(unpinned)
+
+
+def test_every_runner_in_every_workflow_is_a_named_image():
+    """The runner is the one input under the build that was still a floating
+    pointer. Every action is a SHA and every base image a digest, and the release
+    ran on whatever `ubuntu-latest` meant that week — which GitHub moves to a new
+    LTS every two years over a rollout of a month (24.04 → 26.04 from 2026-10-19,
+    actions/runner-images#14748), during which a rerun of one commit lands on
+    either image. What it costs here is not breakage — a kernel and a Docker
+    changing under N1.1's and N1.4's numbers, which name the runner as the
+    machine class they were measured on. So the image is named, and moving it is
+    a diff that re-measures them (2026-09-20)."""
+    import re
+
+    floating = []
+    for path in sorted(Path(".github/workflows").glob("*.yml")):
+        for number, line in enumerate(path.read_text().splitlines(), start=1):
+            if re.search(r"\b(ubuntu|macos|windows)-latest\b", line):
+                floating.append(f"{path.name}:{number} {line.strip()}")
+
+    assert not floating, "runners on a floating label: " + "; ".join(floating)
 
 
 def test_no_workflow_grants_write_permission_it_does_not_need():
