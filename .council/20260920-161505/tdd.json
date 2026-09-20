@@ -1,0 +1,65 @@
+{
+  "persona": "tdd",
+  "verdict": "issues",
+  "summary": "The suite has unusually strong behavior-level coverage for scanner outcomes, completeness, redaction, runtime parity on Linux, and artifact contracts, but its remaining gaps sit on the highest-risk seams: an interrupted result write can expose a mixed result set, the release artifact is proven only after publication, macOS is claimed as continuously tested without a macOS job, a cached unverified index is not tested through later verification, and MCP cancellation/process boundaries are not covered end to end.",
+  "findings": [
+    {
+      "lane": "tdd",
+      "severity": "high",
+      "file": "tests/test_contract.py",
+      "line": 74,
+      "summary": "Cross-artifact consistency is tested only after a successful write, not across interruption or filesystem failure boundaries.",
+      "evidence": "The success-path invariant at lines 74-80 and the deliberate post-write corruption check at lines 83-96 never inject a failure while publishing a run. `src/valvur/results.py:32-53` overwrites SUMMARY.md, findings.json, SARIF, remediation, run.json, raw output, and scanner artifacts one by one in the live results directory; `src/valvur/api.py:658-661` then saves state separately. A crash, ENOSPC, or permission failure at any boundary can therefore leave public readers combining new findings with old provenance/state, and no current test would fail.",
+      "recommendation": "Add a table-driven public `scan()` test that seeds a valid prior run, fault-injects each write/rename and state-save boundary, and asserts `scan_status`, `list_findings`, and direct artifact reads observe either the complete previous generation or the complete new generation, never a mixed or partially updated set. Use that failing test to drive staged generation writes plus one atomic commit boundary that includes state semantics."
+    },
+    {
+      "lane": "tdd",
+      "severity": "high",
+      "file": ".github/workflows/release.yml",
+      "line": 433,
+      "summary": "The installed wheel and signed image pair is behaviorally proven only after the immutable package version has already been published.",
+      "evidence": "The release job builds the distributions at lines 304-305, publishes to PyPI at lines 316-327, and creates the GitHub release at lines 341-385. Only the downstream `artifact` job at lines 433-445 installs the wheel into a clean environment and exercises it against the image; the workflow itself explicitly says this check cannot stop a release that has already left. `scripts/verify.sh:83-84` tests the source environment and merely builds archives, so omitted wheel files, broken console entry points, or wheel/image integration defects can pass every pre-publication gate.",
+      "recommendation": "Create a pre-promotion artifact acceptance test that installs the exact built wheel outside the checkout, invokes both console scripts, and scans through the exact image digest assembled from the two architectures. Make successful acceptance a dependency of version-tag promotion, PyPI upload, and GitHub release creation; retain a smaller post-publication smoke test to verify registry/index visibility."
+    },
+    {
+      "lane": "tdd",
+      "severity": "high",
+      "file": ".github/workflows/ci.yml",
+      "line": 50,
+      "summary": "A supported platform can remain broken while every required test passes because all real-runtime CI runs on Linux.",
+      "evidence": "README.md:227 claims macOS and Linux with Docker or Podman are supported and tested on every commit against both runtimes. The only real-container job starts at line 50 and runs on `ubuntu-24.04` at line 52; the Docker/Podman parity guard is therefore Linux-only. The macOS-facing checks are simulations such as `tests/test_portability.py:139-149`, which monkeypatch `platform.system`, and cannot exercise Docker Desktop/Podman VM mount sharing, macOS path handling, UID translation, or runtime discovery on the claimed platform.",
+      "recommendation": "Add a required macOS vertical smoke lane, on every commit if retaining the current wording or on a clearly documented release/scheduled cadence if cost requires narrowing the claim. Run an installed-wheel CLI scan through the supported macOS runtime(s), covering a spaced path, runtime discovery outside PATH, source read-only behavior, result ownership, and an explicit complete/non-clean canary; fail rather than skip when a claimed runtime is unavailable in that lane."
+    },
+    {
+      "lane": "tdd",
+      "severity": "medium",
+      "file": "tests/test_published_index.py",
+      "line": 223,
+      "summary": "The trust transition from an unverified cached index to an available verifier has no behavioral test.",
+      "evidence": "The current-index test fetches first with the `no_cosign` fixture, repeats the fetch, and asserts only that no name layer moves. In production, `src/valvur/name_index.py:337-346` returns early when `built_at` matches before `oci.verify_signature` is called at lines 348-350. Consequently an index cached as `not verified: cosign is not installed` is not reverified on a later `valvur update` after cosign becomes available, and the existing test both misses and implicitly preserves that trust-state behavior.",
+      "recommendation": "Add a public update/fetch transition test that seeds the cache while cosign is absent, makes a verifier available without changing the remote digest, and asserts the same digest is verified and metadata becomes `verified` (or the update is refused on a bad signature) without redownloading name layers. Also cover verifier timeout/error so the intended availability-versus-trust contract is explicit."
+    },
+    {
+      "lane": "tdd",
+      "severity": "medium",
+      "file": "tests/test_cancel_jobs.py",
+      "line": 255,
+      "summary": "The cancel-then-restart race is not tested through the public MCP operation.",
+      "evidence": "The cancelling-state test at lines 255-284 checks status before and after settlement but never requests another scan in between. `src/valvur/mcp/jobs.py:77-81` refuses only an existing `running` job, not `cancelling`, and `src/valvur/operations.py:111-120` applies the same predicate. A deterministic probe reproduced a second `done` job replacing the still-`cancelling` job in the registry (`same_object=False`, `current_is_second=True`), so status can lose the original cancellation and the replacement can contend on the workspace lock without any current test noticing.",
+      "recommendation": "Use Events/barriers, not sleeps, to drive `start_scan -> scan_cancel -> start_scan` while the original worker is still settling. Assert the second public call reports the existing cancelling job, creates no new worker/runner, preserves status/progress for the original job, and permits a new scan only after `settled` is set; repeat cancel and start concurrently to cover the lock boundary."
+    },
+    {
+      "lane": "tdd",
+      "severity": "medium",
+      "file": "tests/test_mcp.py",
+      "line": 17,
+      "summary": "The primary MCP interface has no process-level proof from the installed artifact.",
+      "evidence": "`_exchange` calls `protocol.serve(build(...))` directly with two `StringIO` objects in the test interpreter. `tests/test_mcp_snapshot.py:32-38` uses the same in-process seam despite describing it as the real server over stdio. This bypasses the `valvur-mcp` console entry point, installed-wheel contents, real pipe buffering and EOF/BrokenPipe behavior, stderr isolation, daemon job lifetime, and sequential client interaction; the release artifact job invokes only the `valvur` CLI, not `valvur-mcp`.",
+      "recommendation": "Add one vertical contract test that installs the built wheel in a clean environment, spawns `valvur-mcp` as a subprocess, exchanges newline-delimited initialize/tools-list/ping messages over real pipes, and asserts stdout contains JSON-RPC only. Extend the same harness with a controlled fake runtime to prove scan, poll, cancel, client EOF, and clean process shutdown without orphaned work."
+    }
+  ],
+  "notes": [
+    "The baseline non-e2e suite is broad and green; these findings concern behaviors that the passing suite does not exercise, not raw line coverage.",
+    "No production bug is reported independently of a missing behavioral test; each recommendation starts with a public-seam test that would expose the risk."
+  ]
+}

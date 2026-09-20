@@ -124,10 +124,31 @@ own self-test had just installed `0.3.0` from PyPI, the README example's path,
 green in 50s — so `uses: MaverickHQ/valvur-action@v0` works for anyone; `ci.yml`
 keeps the tree's shim and a SHA pin, now the tag's commit. **Then 24.4**: `0.1.0rc1`
 yanked, twenty days after it went up as a release nobody could run — Checkpoint B
-is complete. **Next: the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1),
-then `v1.0.0` (12b.3).** When "what is next" is asked, Phase 25 is the answer; Phase
-24's list keeps the rows and the numbers, and the sequencing diagrams in Phases
-21, 23 and 24 are history.
+is complete. **The same afternoon, a second external review** of the `0.3.0` tree
+became **Phase 26**: its verdict on what the project does well is below, and its
+four gaps were each checked against the code before becoming tasks — three of them
+measured as real today (a Scanner's unreadable report takes the whole run down,
+against F2.5's own words; a cancel can be confirmed and dropped; the Results Folder
+can hold a mixed generation), one arriving with the next release (PyPI is published
+*before* the artifact is validated). **Next: Phase 26's Tier 0 and Tier 1 — the
+engineering that waits on nobody — in parallel with the usability gate on `0.3.0`
+(10.1.1–10.1.2, then 12b.1); then Tiers 2–3, then `v1.0.0` (12b.3).** When "what
+is next" is asked, Phase 25 answers for the people and Phase 26 for the code; Phase
+24's list keeps the rows and the numbers, and the sequencing diagrams in Phases 21,
+23 and 24 are history.
+
+**The second review's verdict (2026-09-20), kept because it is the outside view:**
+supply-chain security is the strongest thing here — every action pinned by SHA,
+keyless cosign signing, SLSA provenance, OIDC publishing to PyPI, and a rehearsal
+mode that found real defects before every release; the domain model — per-class
+fingerprints, exploit-aware ranking, the offline name index — is well designed; and
+the ADRs are thorough and traceable to the incidents that caused them. The four
+gaps it found, and what measurement made of each, are the head of Phase 26; in one
+line each: release promotion timing (critical — validation after publication),
+two MCP cancellation races (high — both reproduced), result publication atomicity
+(high — seven writes, no generation), and architecture fragmentation (high —
+Scanner invocation split across `runner.py` and the adapters, six restatements of
+one egress decision, an implicit shim/image protocol).
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -216,9 +237,9 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 57 modules under `src/valvur`, 973 tests in 52 files, 19 ADRs, 136
-requirement IDs, **172 done and 4 open** across 25 phases — the usability gate and
-the `v1.0.0` tail; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
-are the owner's (the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
+requirement IDs, **172 done and 18 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 14 are Phase 26's five tiers; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 18
+are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -230,6 +251,20 @@ were introduced by the block before, with tests passing.
 
 **Known gaps, and one deliberate friction, worth knowing before proposing anything:**
 
+- **Three safety defects are open today, found by the second review and measured
+  (Phase 26, Tier 0).** A Scanner that exits 0 with a report the adapter cannot
+  parse raises out of `api.scan` — the whole run fails and the other Scanners'
+  results go with it, which F2.5 forbids in so many words (26.0.1). A `scan_cancel`
+  that lands before the job's runner is attached is confirmed to the agent and then
+  dropped, and a second `scan` during `cancelling` replaces the first job in the
+  registry (26.0.2). The Results Folder is seven sequential writes with no
+  generation id, so an interruption leaves a mix of two runs that nothing detects,
+  and a failed Syft leaves the previous run's SBOM in place (26.0.3). **And one
+  that meets the next release (Tier 1):** `release.yml` publishes to PyPI and moves
+  `:latest` before the `artifact` job validates the wheel/image pair — its own
+  comment says it cannot stop a release that has left (26.1.1); the arm64 image is
+  built and listed but has never run in the pipeline (26.1.2). Until these land, a
+  reader should take "the release pipeline tests the artifact" to mean *after*.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality

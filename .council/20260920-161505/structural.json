@@ -1,0 +1,74 @@
+{
+  "persona": "structural",
+  "verdict": "issues",
+  "summary": "The codebase has strong local boundaries around findings, adapters, and the post-scan pipeline, but its current topology is obscured by an obsolete architecture document and weakened by split ownership at three critical seams: scanner invocation, run-outcome projection, and package-index ecosystem policy. The delivery graph also verifies release pairs and the daily index only after canonical public references have moved, while scheduled correctness assets have no explicit operational owner or notification path.",
+  "findings": [
+    {
+      "lane": "structural",
+      "severity": "high",
+      "file": ".kiro/specs/valvur/design.md",
+      "line": 14,
+      "summary": "The approved architecture map describes a materially different trust-boundary topology from the implemented system.",
+      "evidence": "The diagram at lines 14-35 puts an orchestrator and normaliser inside one OCI image and shows normalised JSON returning through a scratch mount. In the implementation, host-side `api.py` plans the fleet at line 318, schedules separate adapter tasks at lines 538-543, runs the host pipeline at line 620, and writes results at line 658; `runner.py` constructs and launches a container per scanner around lines 657-686. The same document also says `full` is the default at lines 63-80 and records dependency-reality coverage at lines 167-183 that predates the current multi-ecosystem offline index. Reviewers and operators therefore have no reliable as-built map of the most security-sensitive boundaries.",
+      "recommendation": "Replace the stale diagram with a versioned as-built architecture document showing the host CLI/MCP surfaces, background-job boundary, host orchestrator, per-scanner container launches, cache and name-index mounts, post-fleet pipeline, result projections, and release/index publication flows. Mark the Kiro design as historical or update its status, link each boundary to the governing ADR, and make architecture-map updates part of changes that alter those boundaries."
+    },
+    {
+      "lane": "structural",
+      "severity": "high",
+      "file": "src/valvur/adapters/base.py",
+      "line": 1,
+      "summary": "Scanner invocation ownership is split between adapters and the container runner despite the declared adapter boundary.",
+      "evidence": "`adapters/base.py` lines 1-6 states that an adapter owns how its tool is invoked, but adapter `run` methods are only tool-named delegations such as `CheckovAdapter.run` at `adapters/checkov.py:33-34`. The 860-line `runner.py` owns Trivy, OSV, Checkov, Syft, Opengrep, checks, and Gitleaks command lines, versions, report paths, and tool-specific failure behavior at lines 613-860; Syft even pulls exclusion policy into the runtime boundary at lines 709-725. Adding or changing a scanner consequently requires coordinated edits across the adapter and the supposedly generic runtime boundary, while Gitleaks maintains a separate launch-policy path instead of the shared `_base_flags` topology.",
+      "recommendation": "Introduce a neutral `ExecutionSpec`/`ExecutionResult` contract. Let each adapter own argv, declared version, output contract, and requested capabilities; let `ContainerRunner` enforce the common security envelope, mounts, lifecycle, cancellation, and execution only. Keep image/database management in a separate runtime service. This makes dependency direction explicit and ensures a scanner addition is owned primarily by one adapter without duplicating container policy."
+    },
+    {
+      "lane": "structural",
+      "severity": "high",
+      "file": "src/valvur/api.py",
+      "line": 46,
+      "summary": "Run semantics and their user-facing projections have no single owner, creating a multi-module change hotspot around the false-clean boundary.",
+      "evidence": "`ScanRun` in `api.py` lines 46-210 owns findings, freshness, coverage, build compatibility, status, and doubt derivation. `results.py` then re-derives provenance, freshness warnings, profile gaps, counts, and verdict prose across lines 57-195 and 237-527; `operations.py` reopens the serialized dictionaries and independently reconstructs staleness and status messaging at lines 129-187 and 379-503; `cli.py` maintains another pair of freshness presenters at lines 186-230 and separate terminal counts at lines 564-608. Comments in these modules document earlier drift incidents, and a new status reason or coverage dimension currently fans out through four layers.",
+      "recommendation": "Move `ScanRun` out of the orchestration module into a domain-owned run model and add one canonical immutable `RunReport` projection containing completion, status/reasons, counts, freshness, coverage/profile gaps, build match, and scanner outcomes. Make JSON/Markdown, MCP, and CLI thin renderers of that projection, with compatibility parsing isolated at the serialization boundary. Preserve surface-specific wording only after the shared semantic fields have been computed once."
+    },
+    {
+      "lane": "structural",
+      "severity": "high",
+      "file": ".github/workflows/release.yml",
+      "line": 433,
+      "summary": "The release and index workflows lack a candidate-to-verification-to-promotion boundary.",
+      "evidence": "The release job applies public version and `latest` image tags at lines 215-257, publishes the wheel at lines 304-337, and creates the GitHub release at lines 341-385. Only afterward does the `artifact` job depend on `release` and validate the installed wheel/image pair; its own comment at lines 433-443 states that it cannot stop an artifact that has already left. The same topology exists in `index.yml`: the date and `latest` tags move at lines 72-93, while signature and client round-trip verification occur at lines 95-139. Both graphs make rollback/fix-forward an operational repair for what should be a promotion decision.",
+      "recommendation": "Reshape both workflows into explicit `build candidate -> verify candidate by immutable digest -> promote canonical references` DAGs. Build the wheel and untagged image/index digest first, exercise the clean-install pair and the real index client against those candidates, and only then let a narrowly privileged promotion job assign version/`latest` tags, publish PyPI, and create the GitHub release. Keep post-promotion smoke checks, but do not make them the first validation of published bytes."
+    },
+    {
+      "lane": "structural",
+      "severity": "medium",
+      "file": "src/valvur/checks/dependency_reality.py",
+      "line": 91,
+      "summary": "Dependency-reality is a god node with a bidirectional dependency on name-index infrastructure and distributed ecosystem ownership.",
+      "evidence": "The 1,205-line module combines check orchestration and classification at lines 91-297, seven ecosystems' manifest discovery/parsing at lines 380-941, registry transport at lines 963-1055, registry-specific age decoding at lines 1058-1105, and typosquat matching at lines 1108-1179. It imports and consumes `name_index` at lines 150-161 and 1029, while `name_index.py` imports `dependency_reality.canonical` at lines 466-475. Ecosystem truth is further distributed among `ecosystems.py` manifests, `name_index.py:74-80` index files, and `dependency_reality.py:944-1032` registry labels and endpoints. Supporting another ecosystem or changing normalization crosses several owners and deepens the bidirectional coupling.",
+      "recommendation": "Create an ecosystem domain registry that owns canonicalization, display name, readable manifests, index filename/capability, and registry metadata strategy. Split manifest parsers by ecosystem behind a small declaration-source interface, and split index reading/building from OCI distribution. Make both the Dependency Reality Check and index builder depend inward on that registry; neither should import the other. Leave the check responsible only for coordinating declarations, existence/age answers, and findings policy."
+    },
+    {
+      "lane": "structural",
+      "severity": "medium",
+      "file": ".github/workflows/corpus.yml",
+      "line": 11,
+      "summary": "Scheduled correctness assets have workflow schedules and recovery prose but no explicit operational owner or escalation edge.",
+      "evidence": "`corpus.yml` lines 11-17 explicitly says weekly failures are 'ours to read' and exposes only schedule/manual triggers; `index.yml` lines 15-18 does the same for the daily artifact that determines offline package existence. `docs/RELEASING.md` lines 235-250 explains manual recovery after the index tag has moved, but the reviewed tree has no CODEOWNERS file, named duty owner, freshness objective, or failure-notification path for either workflow. These assets affect whether a nil scan is trustworthy, yet their operational ownership ends at a red Actions run.",
+      "recommendation": "Declare a repository owner for the index publisher and corpus gate (CODEOWNERS plus a short operations section), define expected completion/freshness and escalation time, and add a GitHub-native failure/staleness notification path such as an automatically assigned issue. Link the alert to the existing rollback commands and expose last-success evidence in one operator-facing health summary."
+    },
+    {
+      "lane": "structural",
+      "severity": "medium",
+      "file": "src/valvur/doctor.py",
+      "line": 492,
+      "summary": "The diagnostic layer reaches upward into the CLI and duplicates runtime ownership instead of composing owned health probes.",
+      "evidence": "`doctor.py` contains its own runtime, daemon, image, SELinux, cache, MCP-client, and network probes across 584 lines. Its first-run host discovery imports `KEV_URL` and `KEV_URL_ENV` from the presentation-layer `cli.py` at line 498, while also rebuilding image selection at lines 170-175 and invoking low-level runtime commands directly at lines 65-130. This reverses the desired dependency direction and makes diagnostic truth a second implementation beside runner, cache, name-index, and update behavior.",
+      "recommendation": "Move data-source configuration such as KEV endpoints into source-owned configuration modules, and expose read-only health/capability probes from the runtime, cache, index, and enrichment owners. Make `doctor` an aggregator and renderer of those probes rather than a parallel implementation. This keeps CLI and MCP dependent on diagnostics, never the reverse, and gives each operational precondition one owner."
+    }
+  ],
+  "notes": [
+    "No Graphify output was present; this is a model-based structural review of the selected full-codebase set.",
+    "Findings are intentionally limited to ownership, dependency direction, layering, topology, and operational responsibility; line-level correctness and test-style concerns were excluded."
+  ]
+}

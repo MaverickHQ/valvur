@@ -1,0 +1,65 @@
+{
+  "persona": "design",
+  "verdict": "issues",
+  "summary": "The core domain model is thoughtful, but several load-bearing boundaries are only nominally centralized. The shim/image protocol is implicit, scanner invocation and container policy have competing seams, offline/egress metadata is reconstructed in several modules, and the post-scan/result contracts leak mutable or raw representations to callers. These are design risks because a single conceptual change must be coordinated across distant files to preserve security and reporting invariants.",
+  "findings": [
+    {
+      "lane": "design",
+      "severity": "high",
+      "file": "src/valvur/compat.py",
+      "line": 136,
+      "summary": "The separately distributed shim and image have no explicit, capability-versioned protocol contract.",
+      "evidence": "`compat.check` accepts any image in the same major/minor series and an unlabeled image outright (`src/valvur/compat.py:136-146`), while the real wire contract is inferred elsewhere: batch support is detected from exit code 2 plus the text `usage:` and then a particular JSON shape is assumed (`src/valvur/runner.py:790-817`). Check coverage is evaluated by importing the shim's local Check registry (`src/valvur/adapters/check.py:46-56`) even though detection executes the image's copy. Thus command availability, response schema, and claimed coverage can describe different builds without one boundary object stating what the image actually supports.",
+      "recommendation": "Define an image protocol manifest returned by a stable command, with an independent protocol version, supported commands/capabilities, Check names, result-schema versions, and coverage/egress declarations. Have compatibility and planning consume that manifest, replace stderr-based feature detection with declared capabilities, and derive host-side coverage claims from the executing image's declaration (or refuse protocol-incompatible pairs)."
+    },
+    {
+      "lane": "design",
+      "severity": "high",
+      "file": "src/valvur/adapters/base.py",
+      "line": 42,
+      "summary": "The adapter boundary is inverted: adapters parse results, but the runner owns every tool-specific invocation.",
+      "evidence": "The module contract says an adapter owns invocation and parsing, yet `ScannerAdapter.run` receives an untyped runner (`src/valvur/adapters/base.py:1-6,42-48`) and concrete adapters merely dispatch to runner-specific methods such as `runner.run_gitleaks` and `runner.run_trivy` (`src/valvur/adapters/gitleaks.py:19-20`, `src/valvur/adapters/trivy.py:25-26`). `ContainerRunner` consequently exposes a method per scanner (`src/valvur/runner.py:613-860`). Adding or changing one scanner therefore crosses its adapter, the runner, the default registry, and profile declarations instead of being local to one extension seam.",
+      "recommendation": "Make adapters produce a typed `ScannerInvocation` (argv, report path, version, network request, scratch/exec needs, and output policy) and parse the returned report. Give the runtime boundary one narrow `execute(invocation, workspace)` operation that applies invariant container policy. Model the first-party Check batch as an explicit composite invocation rather than runner method discovery."
+    },
+    {
+      "lane": "design",
+      "severity": "high",
+      "file": "src/valvur/runner.py",
+      "line": 820,
+      "summary": "Gitleaks bypasses the central container-policy seam and reconstructs a second launch policy.",
+      "evidence": "`_base_flags` is the nominal authority for non-root execution, read-only root, tmpfs policy, dropped capabilities, SELinux labels, mounts, and network isolation (`src/valvur/runner.py:531-584`), and `_capture` applies it to most scanners (`src/valvur/runner.py:657-686`). `run_gitleaks` instead rebuilds a `runtime run` command by hand (`src/valvur/runner.py:820-846`), including only a subset of those decisions and omitting the shared SELinux mount-label calculation. Every future isolation or portability change must therefore be remembered in two execution paths.",
+      "recommendation": "Route Gitleaks through the same invocation executor as every other scanner. Express only its genuine variations (arguments, report file, exit-code behavior, timeout) as data; keep user mapping, mount labels, read-only/capability/network policy, lifecycle tracking, and report retrieval sealed inside one container-launch function."
+    },
+    {
+      "lane": "design",
+      "severity": "high",
+      "file": "src/valvur/profiles.py",
+      "line": 22,
+      "summary": "The offline trust boundary and egress disclosure have multiple independent authorities.",
+      "evidence": "Scanner membership, global network allowance, degraded-without-network behavior, and user-facing coverage additions are separate name-keyed tables (`src/valvur/profiles.py:22-49,102-120`). First-party checks separately carry `uses_network` and a configured `network` boolean (`src/valvur/adapters/check.py:28-44`), runner methods independently choose network flags, and `run.json` hard-codes a long prose inventory of transmitted data and destinations (`src/valvur/results.py:146-168`). Adding an egressing scanner or changing a destination therefore requires coordinated edits across selection, execution, coverage, and disclosure, with no type or registry entry requiring them to agree.",
+      "recommendation": "Create one immutable `ScannerDefinition` registry that binds adapter factory, profile availability, required/degraded network capability, structured egress items/destinations, coverage contribution, and artifact behavior. Derive profile selection, kernel network grants, `scanners_not_run`, coverage prose, and run-manifest disclosure from those definitions; pass a typed `NetworkGrant` rather than a free boolean so offline execution cannot request undeclared egress."
+    },
+    {
+      "lane": "design",
+      "severity": "medium",
+      "file": "src/valvur/pipeline.py",
+      "line": 34,
+      "summary": "The pipeline returns findings while exporting most of its result through mutations to an all-purpose Context.",
+      "evidence": "`Context` combines stage inputs with eleven mutable output fields (`src/valvur/pipeline.py:34-57`), while `StageFn` and `run` expose only `list[Finding]` as the declared result (`src/valvur/pipeline.py:60-70,222-225`). The orchestrator must then know which stages populated which context slots, assert that enrichment set `provider`, and manually copy those slots into `ScanRun` (`src/valvur/api.py:625-656`). A stage-output change is consequently non-local and the stage interface does not reveal its actual effects.",
+      "recommendation": "Make `pipeline.run` return a typed `PipelineResult` containing findings, exclusion decisions, coverage, diff state, and enrichment provenance. Keep any working context private to the pipeline, and make stages return an updated state or a narrow stage result rather than mutating caller-visible out-parameters. Then construct `ScanRun` from the one declared result without reaching into stage internals."
+    },
+    {
+      "lane": "design",
+      "severity": "medium",
+      "file": "src/valvur/results.py",
+      "line": 65,
+      "summary": "The persisted result schemas have centralized writers but no shared, version-aware reader contract.",
+      "evidence": "`results._provenance` constructs the public `run.json` dictionary directly and writes `schema: 1` (`src/valvur/results.py:65-191`), while findings serialization is a separate writer-only function (`src/valvur/artifacts.py:27-48`). Internal consumers then parse raw dictionaries independently: operations has separate loaders and compatibility fallbacks (`src/valvur/operations.py:26-32,129-136,423-455`), and the release gate reloads both files and reconstructs active-finding semantics itself (`src/valvur/gate.py:53-87`). The schema number is not used to select validation or migration, so field evolution leaks into every caller.",
+      "recommendation": "Introduce a versioned results-contract module with typed `RunManifest` and `FindingDocument` models, `from_scan_run`, `to_json`, and `load`/migration functions. Put active/suppressed/not-covered queries on that model and make operations, the gate, and other readers consume it. Keep Markdown, SARIF, CLI, and MCP as projections so schema evolution and backward compatibility remain local to one boundary."
+    }
+  ],
+  "notes": [
+    "This lane intentionally excludes concurrency, exception handling, release atomicity, and test-coverage judgments except where they expose an interface-shape problem.",
+    "Strong existing seams worth preserving are the normalized immutable `Finding` model, explicit status/doubt vocabulary on `ScanRun`, and the named post-fleet stage order with recorded ordering rationale."
+  ]
+}

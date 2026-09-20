@@ -1,0 +1,83 @@
+{
+  "persona": "engineering",
+  "verdict": "issues",
+  "summary": "The implementation has disciplined failure vocabulary and a strong green baseline, but several failure paths can still violate the product's central promises. A malformed scanner report escapes fleet isolation, MCP cancellation has two races and no server-shutdown cleanup, result publication is neither atomic nor stale-artifact safe, and the package-index publisher can move a trusted production tag from an arbitrary workflow-dispatch ref before validation. The release pipeline also tests the exact wheel/image pair only after publication and does not execute the arm64 image it ships.",
+  "findings": [
+    {
+      "lane": "engineering",
+      "severity": "high",
+      "file": "src/valvur/api.py",
+      "line": 408,
+      "summary": "Malformed scanner output escapes the per-scanner failure boundary and aborts the whole scan.",
+      "evidence": "`_attempt` catches exceptions from `adapter.run` only (`src/valvur/api.py:408-412`); `adapter.parse(output)` executes later and outside that try block at line 439. The fleet collector calls `future.result()` directly at lines 548-550, so a JSON/schema/parser exception propagates out of the executor instead of becoming a failed `ScannerRun`. This contradicts the method's stated F2.5 invariant that one broken scanner must never cost the others. `tests/test_failures.py:14-62` covers a crashing `run` and a timeout, but not malformed output or a throwing parser.",
+      "recommendation": "Put invocation, report validation, and parsing inside one adapter outcome boundary. Convert any parse/validation exception into a failed `ScannerRun` with a bounded diagnostic and retained redacted raw output, then continue collecting other scanners. Add a public `scan()` test with one malformed report and one valid finding, asserting an INCOMPLETE result that preserves the valid finding and names the broken scanner."
+    },
+    {
+      "lane": "engineering",
+      "severity": "high",
+      "file": "src/valvur/mcp/jobs.py",
+      "line": 106,
+      "summary": "An MCP cancellation can be lost before its runner is attached, and a replacement scan can overwrite a still-cancelling job.",
+      "evidence": "`cancel` changes the state to `cancelling` and invokes the canceller only when it is already non-null (`src/valvur/mcp/jobs.py:106-115`). `_scan_with_budget` attaches `runner.kill` later by direct assignment without checking that cancellation was already requested (`src/valvur/operations.py:70-75`), and successful work unconditionally changes the job to `done` (`src/valvur/mcp/jobs.py:83-86`). Separately, `start` refuses only an existing `running` job, not a `cancelling` one (`src/valvur/mcp/jobs.py:73-81`), so a second scan can replace the registry entry before the first settles. Existing tests install the canceller before cancellation and never restart during cancellation (`tests/test_cancel_jobs.py:198-227,255-315`).",
+      "recommendation": "Make job transitions atomic under the jobs lock. Add `attach_canceller` that immediately invokes a newly attached canceller when cancellation is pending; refuse replacement while any job is unsettled; and never permit successful return to overwrite `cancelling`. Drive the implementation with deterministic barrier tests for cancel-before-attach, cancel-versus-success, and cancel-then-restart."
+    },
+    {
+      "lane": "engineering",
+      "severity": "high",
+      "file": "src/valvur/results.py",
+      "line": 23,
+      "summary": "The live Results Folder can expose a mixed generation and can retain an SBOM from a previous run.",
+      "evidence": "`results.write` overwrites seven public artifacts one at a time in the live directory (`src/valvur/results.py:23-53`), while state is saved only afterward (`src/valvur/api.py:658-661`). Optional scanner artifacts are written only when produced; there is no removal of a previous `sbom.cdx.json` when Syft fails or is not selected. The raw-output writer explicitly deletes stale files from scanners that did not run (`src/valvur/rawoutput.py:55-63`), showing that this provenance hazard is handled for raw reports but not other optional artifacts. A crash, ENOSPC, or partial run can therefore pair new findings with old provenance/state/SBOM.",
+      "recommendation": "Publish each scan as an immutable staged generation: write and validate every artifact plus state under a run identifier, fsync where supported, then atomically switch one manifest/current pointer. At minimum use temp-file-plus-replace, remove absent optional artifacts, and write `run.json` last with a shared run ID. Test success-followed-by-Syft-failure and inject a failure at every publication boundary; readers must see either the complete old generation or the complete new one."
+    },
+    {
+      "lane": "engineering",
+      "severity": "high",
+      "file": ".github/workflows/index.yml",
+      "line": 15,
+      "summary": "The production package index can be published from an arbitrary dispatch ref, and `latest` moves before signature and round-trip validation.",
+      "evidence": "The workflow permits `workflow_dispatch` at lines 15-18 and grants the job `packages: write` plus `id-token: write` at lines 27-35, but has no `refs/heads/main` guard or protected deployment environment. The push step assigns both the date and `latest` tags at lines 72-93 before signing at line 98 and client round-trip verification at lines 100-139; its own comment acknowledges that a failure leaves the tag moved. Client verification accepts the broad identity regexp `^https://github.com/MaverickHQ/valvur/` (`src/valvur/oci.py:310-340`), so a signature from another workflow/ref in the repository is accepted.",
+      "recommendation": "Require the main ref and a protected `index-production` environment for the privileged promotion job. Build and push an immutable digest first, sign it, run the actual shim round trip by digest, then promote the date and `latest` tags. Bind verification to the exact index workflow identity on `refs/heads/main`, and add a workflow policy test that rejects dispatch from other refs."
+    },
+    {
+      "lane": "engineering",
+      "severity": "high",
+      "file": ".github/workflows/release.yml",
+      "line": 304,
+      "summary": "Release acceptance is post-publication and the arm64 image is shipped without a functional execution test.",
+      "evidence": "The release job rebuilds the Python distributions at lines 304-305, publishes them to PyPI at lines 316-327, creates the GitHub release at lines 341-385, and tags the image at lines 215-234. The exact installed wheel and signed image pair is first exercised by the downstream artifact job at lines 433-475, whose comment states that it cannot stop a release already published. The native arm64 build at lines 132-177 is checked only through manifest metadata at lines 236-251; all substantive scan/e2e and artifact jobs run on amd64. The image SBOM is likewise generated for linux/amd64 only and uses a mutable Syft tag (`release.yml:277-300`).",
+      "recommendation": "Build each distributable exactly once into immutable candidates. On both native architectures, execute a scanner/version smoke test against the candidate child digest; then install the candidate wheel outside the checkout and run the full wheel-to-multiarch-image acceptance suite before any public tag, PyPI upload, or GitHub release. Pin the SBOM generator by digest and emit/attach per-platform SBOMs before the promotion job."
+    },
+    {
+      "lane": "engineering",
+      "severity": "medium",
+      "file": "src/valvur/mcp/server.py",
+      "line": 154,
+      "summary": "MCP server exit does not cancel active background jobs or their containers.",
+      "evidence": "Jobs run on daemon threads (`src/valvur/mcp/jobs.py:102`) and Docker containers can outlive the launching process. `server.main` catches client disconnect and interrupt at lines 154-159 and returns without enumerating jobs, invoking cancellers, or waiting for settlement. A client EOF, BrokenPipe, server restart, or Ctrl-C can therefore leave scanner containers consuming resources and temporary scanner output alive without a client that can observe or cancel them.",
+      "recommendation": "Give the job registry an idempotent `cancel_all_and_wait(deadline)` shutdown operation and call it from a `finally` block around protocol serving. Stop all runners, wait a bounded interval for settlement, and emit diagnostics only on stderr. Add a subprocess-level MCP test that starts controlled work, closes stdin or interrupts the server, and proves no child work remains."
+    },
+    {
+      "lane": "engineering",
+      "severity": "medium",
+      "file": "pyproject.toml",
+      "line": 21,
+      "summary": "Python package builds are not hermetic and the release rebuilds bytes that were not the bytes accepted earlier.",
+      "evidence": "The isolated build backend permits any Hatchling release in `>=1.27,<2` (`pyproject.toml:21-26`), explicitly outside `uv.lock`. In this review, the sandboxed `uv build` could not resolve the backend without network; the approved rerun succeeded, proving a nominally offline verification build depends on live index resolution. `verify.sh` builds one throwaway distribution, while `release.yml:304-305` resolves the backend and builds again in another job, so dependency drift can make pre-release verification and published bytes differ without a source change.",
+      "recommendation": "Pin the backend exactly with a recorded hash and make the locked build environment explicit (or vendor/provision the backend and use no build isolation). Build wheel and sdist once, record their hashes, pass those immutable artifacts through clean-install acceptance, signing/attestation, and publication, and add a network-disabled reproducibility check that produces matching hashes from two clean builds."
+    },
+    {
+      "lane": "engineering",
+      "severity": "medium",
+      "file": "src/valvur/mcp/server.py",
+      "line": 21,
+      "summary": "Every MCP tool is advertised as read-only even when it writes results, pulls data, or kills containers.",
+      "evidence": "`Tool.describe` unconditionally emits `readOnlyHint: true` and `destructiveHint: false` for every registered operation (`src/valvur/mcp/server.py:21-39`). `scan` writes `.security-scan`, may fetch/cache image, database, and index data, and starts containers; `scan_cancel` changes job state and kills containers. Tests currently assert the misleading annotation for cancellation (`tests/test_cancel_jobs.py:317-324`). Clients can use these annotations for approval and policy decisions, so 'read-only with respect to source code' is not equivalent to MCP's side-effect hint.",
+      "recommendation": "Make annotations part of each Tool declaration. Mark list/status/explain/doctor operations read-only; mark scan/update and cancellation as side-effecting, with destructive/cancellation semantics represented accurately. Add a registry test that enumerates expected annotations per tool rather than asserting one global policy."
+    }
+  ],
+  "notes": [
+    "The authoritative verifier passed after rerunning outside sandbox network/socket restrictions: Ruff, mypy over 57 source files, traceability, 949 tests passed with 1 skipped and 29 deselected, plus wheel and sdist builds.",
+    "The local image verifier could not run because `valvur:dev` was not present; current GitHub CI, v0.3.0 release, and daily index runs were all green at review time."
+  ]
+}

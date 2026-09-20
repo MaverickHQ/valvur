@@ -5485,6 +5485,13 @@ gate, `v1.0.0`. Written 2026-09-18 from a review of the eleven open tasks.
 > re-cut here into Block A and three checkpoints, and where the two disagree, this
 > phase wins. Task IDs and task text stay where they are and stay authoritative for
 > *what* each task means; this phase says *when*.
+>
+> **Amended 2026-09-20.** Block A and Checkpoint B are complete. What is next
+> splits in two: the three checkpoints below wait on a person, and
+> [Phase 26](#phase-26--the-second-external-review-four-gaps-five-tiers) — written
+> from an external review the same afternoon — is the engineering that does not,
+> tiered by when its consequences arrive. Tier 0 and Tier 1 are what the next
+> release carries, with or before 12b.1; Tiers 2–3 land before 12b.3.
 
 ```
 Block A   the pre-release block          23.5.1 → 23.5.2 → 23.5.3 → 23.5.4 → 23.4.6 → 12b.2
@@ -5679,6 +5686,333 @@ this comes before Checkpoint C, not after.
 **Exit (Phase 25):** `v1.0.0` released; someone who had never seen valvur installed
 it from the README and got a useful answer; every open task in the plan closed or
 deferred with a reason.
+
+## Phase 26 — The second external review: four gaps, five tiers
+
+**Goal:** close the four gaps an external review of the `0.3.0` tree found on
+2026-09-20, in the order their consequences arrive — what is wrong *today* first,
+what is wrong *on the next release* second, what will compound *as the code grows*
+third, polish last — each task landing by its own pull request with the test
+written before the fix. Written 2026-09-20, the same afternoon.
+
+> **What the review said, and what measurement made of it.** The review's verdict
+> on what the project does well is recorded in `CLAUDE.md` §1 and not repeated here;
+> its four gaps were each checked against the tree before a task was written,
+> because a review reads a snapshot and a task list is authoritative. Five claims
+> hold exactly as stated; one holds *more* strongly than stated; one is stale as
+> written and has a real residue. In the review's own tiering:
+>
+> - **Tier 0 — safety properties that affect correctness today.** *(a)* **The parse
+>   failure boundary.** `api._run_one` wraps `adapter.run` in a `try` and records a
+>   failed Scanner; `adapter.parse` in `_outcome` is not wrapped, and
+>   `future.result()` in the fleet's `collect` re-raises. **Measured with a fake:
+>   Trivy exiting 0 with a report cut mid-write raises `JSONDecodeError` out of
+>   `api.scan`** — the whole run, not one Scanner; Gitleaks' result thrown away with
+>   it; over MCP a FAILED job, on the CLI a traceback, nothing written. **F2.5 says
+>   the opposite** — *"IF a Scanner … emits unparseable output, THEN valvur SHALL
+>   record the failure … and SHALL continue with the remaining Scanners"* — and every
+>   test citing it exercises a crash or a refusal, never a bad report. A requirement
+>   claimed met and not. *(b)* **Cancellation atomicity, two races.** `jobs.cancel`
+>   sets `cancelling` and calls `job.canceller` if one is attached; the work attaches
+>   it in `operations.run_scan` *after* `ContainerRunner()` exists. **Measured: a
+>   cancel that lands in that window returns `stopped=0`, the runner is never told,
+>   the scan runs to completion and the job settles `done`** — the cancel is dropped
+>   with a confirmation message. And `jobs.start` refuses only `state == "running"`:
+>   **a second `start` during `cancelling` is accepted and replaces the first job in
+>   the registry**, so the first job's `CANCELLED` is never reported and the second
+>   fails on the workspace lock with a message about a scan the agent thinks it
+>   stopped. A third, smaller: a cancel during a first run's fetches (up to ~45s of
+>   image, database, index) sets `runner.cancelled` and is honoured at the fleet
+>   boundary — *after* the fetches finish, not between them. *(c)* **Result
+>   publication.** `results.write` writes `.gitignore`, `SUMMARY.md`,
+>   `findings.json`, `results.sarif`, `REMEDIATION.md`, `run.json` and any Scanner
+>   artifact one `write_text` at a time into the live folder, and `state.save` writes
+>   `state.json` separately at the end of `api.scan`. An interruption between any two
+>   leaves a **mixed generation** — new findings beside the previous run's SARIF, or
+>   a `run.json` describing a run whose `SUMMARY.md` is the old one — with nothing
+>   in the folder saying so. `sbom.cdx.json` is an optional artifact and is never
+>   removed when Syft did not produce one this time, so a run in which Syft failed
+>   carries the previous run's SBOM. `rawoutput.write` already unlinks every stale
+>   `raw/*.json` before writing; the same rule was never applied to the folder.
+> - **Tier 1 — what the next release meets.** *(a)* **Release promotion order.**
+>   `release.yml`'s `release` job runs `imagetools create -t :VERSION -t :latest`,
+>   then signs, attests, builds `dist/`, **publishes to PyPI**, creates the GitHub
+>   release — and *then* the `artifact` job (12b.2) validates the wheel/image pair.
+>   Its own comment at line 439 says it: *"Nothing here can stop a release that has
+>   already left."* A failed validation is a red run beside a `pip install valvur`
+>   that already serves the version. *(b)* **arm64 is built, listed and never run.**
+>   The `build` matrix builds it natively on `ubuntu-24.04-arm`; `release` checks it
+>   is in the index; `verify`, `published` and `artifact` all run on amd64. The only
+>   place the arm64 image has ever executed is this laptop. F10.7's *"verify the
+>   published artifact"* is met for one architecture. *(c)* **"Public repo."** Stale
+>   as written — the repository went public 2026-09-13 (12a.1) — with two residues:
+>   both workflows still carry the private-repository branches (*"Attestation not
+>   rehearsed on a private repository"*, *"not publicly pullable"*), dead since; and
+>   the SLSA provenance the release attests is verified by nothing in the pipeline —
+>   the artifact job runs `cosign verify` and stops. Checked by hand today:
+>   `gh attestation verify oci://…:0.3.0` returns one `slsa.dev/provenance/v1`
+>   statement, valid. The pipeline should be the one saying that.
+> - **Tiers 2–3 — what compounds.** `runner.py` is 860 lines and owns every
+>   Scanner's command line (`run_trivy` … `run_gitleaks`, seven methods) while the
+>   adapters own only the parsing, so adding a Scanner or changing a flag is a change
+>   in two modules with no protocol between them. Network truth lives in
+>   `profiles.ALLOWS_NETWORK` (the decision), `runner.py:572/583` (the flag),
+>   `runner.py:832` (Gitleaks' own hard-coded `--network=none`), `compat.py:119` and
+>   `doctor.py:118` (the probes' own), `doctor.FULL_HOSTS` (what `full` reaches) and
+>   `results.py:150` (what `run.json` discloses) — one decision, six places that
+>   restate it, and 23.5.4 found the disclosure had lagged the truth for a week. The
+>   shim/image protocol — which paths, which entrypoints, which labels, which JSON
+>   shape the Checks emit — is implicit in `runner.py` and the `Dockerfile` and
+>   pinned only by the e2e suite exercising it. Manageable now; the review is right
+>   that it will not stay so, and `v1.0.0` is the last cheap moment to name it.
+> - **Tiers 4–5 — polish.** The review named none; two of each are listed because
+>   they fell out of reading the code for the tiers above, and none is invented.
+>
+> **Sequencing against Phase 25.** Nothing here waits on a person, and none of it
+> needs the stranger; Tier 0 and Tier 1 are the engineering that should reach users
+> next — either inside the `0.3.1` that 12b.1 may become, or as a `0.3.1` of their
+> own if the gate is slow. Tiers 2–3 land before 12b.3, because `v1.0.0` freezes
+> the protocol they make explicit. Tiers 4–5 have no gate. **One constraint until
+> the gate has run:** this Mac was reset to a stranger's state on 2026-09-20, so
+> local work here runs the unit suite freely and the e2e suite only with
+> `VALVUR_CACHE` pointed at a scratch directory — `~/.cache/valvur` and the `0.3.0`
+> image stay absent until the stranger has seen them absent.
+
+```
+Tier 0   safety today            26.0.1 parse boundary · 26.0.2 cancel atomicity · 26.0.3 atomic publication
+Tier 1   the next release        26.1.1 promote after validation · 26.1.2 arm64 runs · 26.1.3 public-repo residue
+Tier 2   what compounds          26.2.1 the adapter owns its command · 26.2.2 one egress authority
+Tier 3   before v1.0.0           26.3.1 the shim/image protocol, named · 26.3.2 the fleet's outcome is a type
+Tier 4   polish, code            26.4.1 job state is an enum · 26.4.2 a generation id on every artifact
+Tier 5   polish, record          26.5.1 ADR: promotion order · 26.5.2 design.md: the protocol
+```
+
+**The TDD shape every engineering task below follows**, stated once: the failing
+test first, against the behaviour the review named and the measurement confirmed;
+the fix; then a mutation pass — revert the fix's core line with the test in place and
+watch it fail — before the PR. Commit the baseline before mutating (twice this
+project has lost uncommitted work to `git checkout --`). A task that changes what a
+user sees also carries a measured number in its STATUS note.
+
+### Tier 0 — Safety properties that affect correctness today
+
+- [ ] **26.0.1** **The parse failure boundary (F2.5).** A Scanner that exits 0 and
+  emits a report the adapter cannot parse — a container killed mid-write, a format
+  change, a stray line on stdout — is *one failed Scanner*, recorded in Provenance
+  with the reason (`report unreadable: JSONDecodeError: …`), surfaced at the top of
+  `SUMMARY.md`, its raw output kept under `raw/` for the reader, and the fleet
+  continues; the run is `complete: False` like any other failure. Never a raised
+  exception out of `api.scan`.
+
+  **Tests first**, in `tests/test_failures.py` beside the F2.5 tests that exist: one
+  Scanner's fake returns exit 0 with truncated JSON → the run returns, that Scanner
+  is `ok=False` with `report unreadable` in its reason, every other Scanner's
+  Findings are present, `run.json` names it, `SUMMARY.md` leads with it; the same
+  for a parse that raises something other than `JSONDecodeError` (a `KeyError` on a
+  shape change — Checkov's and OSV's adapters index into their reports); and for the
+  Checks batch, where one unreadable Check report must not cost the other two
+  (23.4.2's one-container shape). Then the fix: wrap `adapter.parse` in `_outcome`
+  the way `adapter.run` is wrapped in `_run_one`, keeping the raw stdout on the
+  failure so `raw/` still gets it. Mutation: remove the `try` and watch three tests
+  fail. Measured on the fixture through the CLI with `VALVUR_CACHE` scratch: the
+  reason line as the user reads it. F2.5's test coverage gains the clause it lacked.
+
+- [ ] **26.0.2** **Cancellation is atomic (F1.11, 23.3.3).** Three properties,
+  each a test: **(a)** a cancel that lands before the work has a runner is honoured
+  the moment it has one — the job settles `cancelled`, nothing is written, the
+  agent's confirmation was true; **(b)** while a job is `cancelling`, a second
+  `scan` on the same workspace is refused with *"still stopping — poll `scan_status`
+  until CANCELLED"* and the registry keeps the first job; **(c)** a cancel during a
+  first run's fetches is honoured at the next boundary — after the image, after the
+  database, before the index — not after all three.
+
+  **Tests first**, in `tests/test_cancel_jobs.py`: for (a), a `run` that blocks on
+  an event before attaching its canceller (the fake in the review's measurement),
+  `cancel` before the event, release it, assert the final state and that the
+  runner's `kill` was called exactly once; for (b), `start` during `cancelling`
+  returns the existing job and `operations.start_scan` says so; for (c),
+  `_ensure_data` with a runner whose `cancelled` flips between fetches raises
+  `ScanCancelled` before the next fetch. Then the fix, in `jobs.py`: `Job.attach(
+  canceller)` and `cancel` under the one lock, so whichever runs second sees the
+  other's state and acts — attach calls the canceller at once when the state is
+  already `cancelling`; `start` refuses `running` *and* `cancelling`; `work()`
+  settles `cancelled` when the state was `cancelling` even if `run` returned
+  normally, and drops the result. In `api.py`, `_refuse_if_cancelled` between the
+  fetches. Mutation: put `state == "running"` back in `start` and watch (b) fail;
+  remove the attach-time check and watch (a) fail. Measured over stdio with the
+  real server: `scan`, `scan_cancel` within 100ms, `scan_status` → CANCELLED, no
+  `.security-scan/` written, zero containers.
+
+- [ ] **26.0.3** **Result publication is a generation, not seven writes (F7.1,
+  F7.4).** The folder never holds a mixed generation a reader cannot detect.
+  Design: every artifact is written to `<name>.tmp` in the folder, then renamed
+  into place with `os.replace` in one tight loop, `run.json` **last** — so any
+  single file is either the old one or the new one, never partial, and a `run.json`
+  that names this run's `generation` id means every sibling written before it
+  carries the same id. Optional artifacts this run did not produce (`sbom.cdx.json`
+  when Syft failed or was skipped) are **removed**, the rule `rawoutput.write`
+  already applies to `raw/*.json`. `state.json` joins the loop. Stated limit, in the
+  docstring and here: a multi-file swap is not atomic on POSIX without swapping the
+  directory, and the directory holds the flock and the `raw-*` archives, so the
+  window is the rename loop — microseconds, and detectable, against a window that
+  was the whole scan and invisible.
+
+  **Tests first**, in `tests/test_contract.py`: a `write` interrupted after the
+  third rename (monkeypatch `os.replace` to raise on the fourth) leaves no `.tmp`
+  file the next `write` will not clean, and every file present is a complete
+  document (JSON parses, Markdown non-empty); a run without Syft's artifact removes
+  a `sbom.cdx.json` the previous run left; every JSON artifact carries the same
+  `generation` as `run.json` (the id is F7.4's field list gaining one member —
+  extend the schema and its version note); `findings.json`'s `complete` and
+  `run.json`'s agree. Mutation: write `run.json` first instead of last and watch
+  the generation test fail. Measured: the e2e suite's SIGKILL of a scan mid-write
+  (16.2's harness) leaves either the previous generation or the new one, never
+  both — asserted by a new e2e case that kills at a random point in the write and
+  reads the folder.
+
+### Tier 1 — What the next release meets
+
+- [ ] **26.1.1** **Promote after validation (N2.5, 12b.2's other half).** The
+  pipeline becomes *stage → validate → promote*: `release` pushes the index at
+  `:VERSION` only, signs and attests it, builds `dist/` and uploads it as an
+  artifact — and stops. `artifact` validates exactly as today, against the digest
+  and the wheel from `dist/`. A new `promote` job, `needs: artifact`, does the three
+  things that cannot be taken back: `pypa/gh-action-pypi-publish`, `imagetools
+  create -t :latest $IMAGE@$DIGEST` (a re-tag of the signed digest, so the signature
+  and the attestation hold), and the GitHub release. A red `artifact` job now
+  leaves `:VERSION` on GHCR with no wheel on PyPI — which the STATUS note must say
+  is the accepted cost, with the recovery (delete the tag through the packages API,
+  or burn the number and tag the next) written in `RELEASING.md`. The rehearsal
+  mode runs the same three jobs against the throwaway targets, so the order is
+  proven before a real tag meets it.
+
+  **Tests first**: `test_constraints.py` gains a workflow-shape test — the PyPI
+  publish step and the `:latest` tag exist only in a job that `needs: artifact`, and
+  the `release` job's `imagetools create` carries no `:latest`; mutation is moving
+  either back. Then the workflow, then **a rehearsal** (`workflow_dispatch`) read
+  end to end. Measured: the rehearsal's timing — how much later `:latest` moves.
+
+- [ ] **26.1.2** **The arm64 image runs in the pipeline (F10.7).** `artifact` becomes
+  a two-runner matrix, `ubuntu-24.04` and `ubuntu-24.04-arm`, each pulling the
+  digest, verifying the signature, and running the constraint suite, the e2e suite
+  and the gate through the published wheel — the job as it is, twice. `promote`
+  needs both. `ci.yml`'s `published` job gains the same second leg so the published
+  image is exercised on both architectures on every commit, not only at release.
+
+  **Tests first**: the workflow-shape test asserts both `runs-on` values under
+  `artifact` and `published`. Then the workflow, then the rehearsal, whose STATUS
+  note records the arm64 leg's timings beside amd64's — the first pipeline numbers
+  for the architecture every Mac user is on.
+
+- [ ] **26.1.3** **The public-repository residue.** Remove both private-repository
+  branches (`release.yml`'s *"Attestation not rehearsed"* step and report line,
+  `ci.yml`'s *"not publicly pullable"* warning path) — dead since 2026-09-13 and
+  each a way for a real failure to be reported as an expected skip. Then make the
+  pipeline the thing that verifies the provenance it makes: `artifact` runs `gh
+  attestation verify oci://$IMAGE@$DIGEST --repo MaverickHQ/valvur` beside `cosign
+  verify`, and the wheel's PyPI attestation is checked after `promote` with
+  `pypi-attestations verify` (or the publish action's own output, whichever is the
+  primary source). F10.3 gains the sentence that the pipeline verifies what it
+  publishes, with the release run number.
+
+  **Tests first**: the workflow-shape test refuses the strings that name the
+  private-repository case, and requires `gh attestation verify` in `artifact`.
+
+### Tier 2 — What compounds as the code grows
+
+- [ ] **26.2.1** **The adapter owns its command; the runner runs containers.**
+  Today `runner.py` carries seven `run_<tool>` methods, each a command line, a
+  mount set and a network decision, and the adapter for the same tool carries the
+  parser — one Scanner, two homes, no contract between them. After: `ScannerAdapter`
+  gains `command(workspace) -> Invocation` (argv, mounts, `network`, timeout, the
+  stdout shape) and the runner has one `run(invocation) -> ScannerOutput`; the
+  Checks' one-container batch (23.4.2) is an `Invocation` too. `runner.py` keeps
+  runtime detection, mounts, SELinux, the kill registry, the compatibility check —
+  the container concerns — and loses the per-tool knowledge. Target measured, not
+  aspired: `runner.py` under 500 lines with no tool name in it except in tests.
+
+  **Tests first**: the existing adapter tests and goldens are the safety net — none
+  changes; a new `test_adapters_own_their_commands.py` asserts every adapter's
+  `Invocation` reproduces today's argv byte for byte (captured from the runner
+  before the move, one fixture per Scanner, the same trick 23.5.2 used for the MCP
+  schema), so the refactor is a diff in review and the image rebuild proves it
+  end to end. Land in three PRs — Trivy and Gitleaks first, then the rest, then the
+  Checks — each rebuilding the image and running the e2e suite.
+
+- [ ] **26.2.2** **One authority on egress (N2.1, ADR-0010).** A single `egress.py`:
+  `Egress.for_profile(profile)` answers `network` (bool), `container_flags()` (the
+  `--network=…` flag, or none), `hosts()` (what a Profile may reach — today's
+  `doctor.FULL_HOSTS`, plus the registries the dependency-reality Check and the
+  npm-adoption lookup name), and `disclosure()` (the `what_left_the_machine`
+  sentence). The runner's flag builder, Gitleaks' hard-coded flag, both probes,
+  `doctor`'s host list and `results.py`'s disclosure each become a call into it.
+  `scripts/verify-offline.py` reads the same object, so the claim it verifies and
+  the code it verifies against cannot drift the way 23.5.4 found they had.
+
+  **Tests first**: a table test — for each Profile, `container_flags()`,
+  `hosts()` and `disclosure()` agree with each other and with `profiles.
+  ALLOWS_NETWORK`; a grep test that no file outside `egress.py` and its tests
+  contains the literal `--network=` (mutation: put Gitleaks' back). F2.3's table
+  and `run.json`'s sentence are then generated from one place, and the README's
+  "provable" claim points at one module.
+
+### Tier 3 — Before `v1.0.0`
+
+- [ ] **26.3.1** **The shim/image protocol, named and versioned (F1.9, 23.4.4).**
+  Write down what the shim assumes of the image — the binaries and their paths, the
+  Checks entrypoint and its JSON contract, the labels (`org.opencontainers.image.
+  version`, the build-hash label), `/etc/valvur/inputs.sha256`, the non-root user,
+  the mount points — as `PROTOCOL.md` under `docs/` **and** as a single
+  `org.valvur.protocol` label carrying a major version. The compatibility check
+  (F1.9) compares protocol majors, not only versions: a `0.3.x` shim against a
+  `0.4.0` image with the same protocol major runs and *says* the versions differ
+  (23.4.4's rule); a different protocol major is the one thing it refuses, with the
+  sentence naming both. The e2e suite asserts every path and label `PROTOCOL.md`
+  lists against the built image, so the document cannot drift from the `Dockerfile`.
+
+  **Tests first**: the e2e assertion over the image; the unit test of the
+  compatibility decision table (same major → run and say; different → refuse and
+  say). `design.md` gains the section (26.5.2).
+
+- [ ] **26.3.2** **The fleet's outcome is a type, not a 4-tuple.** `_run_one` and
+  `_outcome` return `(ScannerRun, findings, artifact, raw)` tuples that `_scan_
+  locked` indexes by position in eleven places, including the budget-cut rewrite
+  that rebuilds one with `dataclasses.replace(outcome[0], …), *outcome[1:]`. A
+  `ScannerOutcome` dataclass with those four fields, and the fleet reads names. No
+  behaviour change; the tests are the existing fleet tests, which must not change.
+  Sequenced here because 26.0.1 adds a fifth thing (the unreadable report's raw
+  text) to that tuple and 26.2.1 moves the callers — do it once, after both.
+
+### Tier 4 — Polish, code
+
+- [ ] **26.4.1** **`Job.state` is an enum.** Five string literals compared in six
+  places across `jobs.py` and `operations.py`; 26.0.2 adds comparisons. A `State`
+  `StrEnum` (serialises the same, so `scan_status`'s text is unchanged) and a test
+  that every transition the docstring lists is the only one the code makes.
+- [ ] **26.4.2** **The generation id on every surface.** 26.0.3 puts a `generation`
+  in every JSON artifact; `SUMMARY.md`'s machine-facing block, `scan_status`'s
+  DONE line and `valvur gate` name it too, so an agent that reads `SUMMARY.md` and
+  then `findings.json` can tell they are the same run. One line each.
+
+### Tier 5 — Polish, record
+
+- [ ] **26.5.1** **ADR-0020 — promote after validation.** The order 26.1.1 lands
+  and the alternatives it declined: validating before pushing at all (needs the
+  digest, which needs the push), a candidate tag promoted by re-tag (chosen), a
+  candidate *package* (a second GHCR name, rejected: two names to sign and verify).
+  The accepted cost — a version number burned by a failed validation — recorded
+  as the cost.
+- [ ] **26.5.2** **`design.md` gains the protocol and the egress sections.** The
+  shim/image protocol from 26.3.1 and the one egress authority from 26.2.2, each
+  a page, each citing the test that keeps it true. `CLAUDE.md` §7 gains the
+  generation rule from 26.0.3 and §3 points at `egress.py`.
+
+**Exit (Phase 26):** Tier 0 and Tier 1 released — the first release whose PyPI
+upload followed its validation, on both architectures; Tiers 2–3 landed before
+`v1.0.0`; `runner.py` under 500 lines with no tool name in it; one `--network=`
+literal in the tree; a mixed-generation folder impossible to produce by the e2e
+harness's kill; every claim in the phase head re-measured in its task's STATUS
+note.
 
 ## Traceability
 
