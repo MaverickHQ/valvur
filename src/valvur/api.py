@@ -280,6 +280,7 @@ def _ensure_data(runner, on_progress) -> dict[str, str]:
         else:
             say(f"database fetched ({time.monotonic() - started:.0f}s)")
 
+    _stop_if_cancelled(runner, "during the first run's fetches")
     if not _cache.name_index_present():
         from . import locking, name_index
 
@@ -494,7 +495,9 @@ def scan(
         # the database, which Trivy fetches from inside that image; then the index
         # (24.1). Each is said on `on_progress`, and each happens here, before the
         # shared cache lock, because the two data fetches take it exclusively.
+        _stop_if_cancelled(runner, "before it began")
         _ensure_image(runner, on_progress)
+        _stop_if_cancelled(runner, "during the first run's fetches")
         unfetched = _ensure_data(runner, on_progress)
         _locks.enter_context(_locking.held(
             _locking.cache_lock(_cache_mod.root()), exclusive=False, wait=True,
@@ -516,6 +519,15 @@ def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
     if getattr(runner, "cancelled", False):
         raise ScanCancelled(f"cancelled: {finished} of {total} Scanner(s) had finished; "
                             "the rest were stopped and nothing was written")
+
+
+def _stop_if_cancelled(runner, where: str) -> None:
+    """The cancel checks before the fleet (26.0.2): a first run fetches the image,
+    the database and the index — up to ~45s measured — and a cancel that lands
+    during one was honoured only once all of them had finished. Now before each."""
+    if getattr(runner, "cancelled", False):
+        raise ScanCancelled(f"cancelled {where}: no Scanner had started and nothing "
+                            "was written")
 
 
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,

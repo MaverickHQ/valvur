@@ -129,8 +129,9 @@ def test_a_cancelled_scan_stops_writes_nothing_and_is_not_a_failure(tmp_path, mo
 
 
 def test_a_cancel_that_lands_before_the_fleet_starts_no_scanner(tmp_path, monkeypatch):
-    """A kill during the first run's fetches: the flag is checked before the fleet,
-    so eight containers are not started only to be killed."""
+    """A kill before the scan begins: the flag is checked before the fetches and
+    before the fleet (26.0.2 moved the first check ahead of the fetches), so
+    nothing is pulled and eight containers are not started only to be killed."""
     from valvur import cache
 
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
@@ -139,7 +140,7 @@ def test_a_cancel_that_lands_before_the_fleet_starts_no_scanner(tmp_path, monkey
     runner = _Runner()
     runner.cancelled = True
 
-    with pytest.raises(api.ScanCancelled, match="0 of 1"):
+    with pytest.raises(api.ScanCancelled, match="before it began"):
         api.scan(workspace, runner=runner, adapters=[GitleaksAdapter()])
 
     assert runner.calls == []

@@ -122,7 +122,7 @@ entirely on my machine, so that my source code never reaches a third party.
     containers in one call, the scan checks the cancellation before the fleet, after
     it and before it writes, and `scan_status` reads CANCELLED, never FAILED.
     Measured over stdio: seven containers running, none two seconds after the call,
-    and a Results Folder holding only its `.gitignore` and `.lock`.*
+    and a Results Folder holding only its `.gitignore` and `.lock`.* *Note 2026-09-20 (task 26.0.2): over MCP the property had two holes, both measured — a cancel that landed before the job's runner was attached was confirmed and dropped (the scan ran to completion), and a second `scan` during `cancelling` replaced the job in the registry. Attach and cancel now share one lock, `start` refuses a job still stopping, and the flag is checked before and between a first run's fetches, not only at the fleet.*
 12. F1.12 — valvur SHALL permit only one **Scan Run** per **Workspace** at a time, and
     SHALL refuse a second with a message naming the cause. *Added 2026-09-05 (task
     16.3). Concurrent scans do not corrupt the artifacts — measured — but both read

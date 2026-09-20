@@ -114,6 +114,12 @@ def start_scan(args: dict) -> str:
             f"A {existing.profile} scan is already running here "
             f"({existing.elapsed:.0f}s so far). Poll `scan_status`."
         )
+    if existing and existing.state == "cancelling":
+        return (
+            f"The previous {existing.profile} scan here is still stopping "
+            f"({existing.elapsed:.0f}s since it started). Poll `scan_status` until it "
+            "reads CANCELLED, then call `scan` again."
+        )
 
     budget = args.get("budget_s")
     jobs.start(workspace, profile,
@@ -296,9 +302,13 @@ def cancel_scan(args: dict) -> str:
     job, stopped = jobs.cancel(workspace)
     if job is None:
         return f"No scan is running in {workspace}."
+    containers = (
+        f"stopped {stopped} container(s)" if stopped
+        else "no container had started; the scan stops at its next step"
+    )
     return (
         f"Cancelling the {job.profile} scan of {workspace} after {job.elapsed:.0f}s — "
-        f"stopped {stopped} container(s).\n"
+        f"{containers}.\n"
         "No results are written for a cancelled scan; the previous results, if any, "
         "stand. `scan_status` will read CANCELLED once the fleet has stopped; call "
         "`scan` to start again."

@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **`scan_cancel` cannot be confirmed and dropped (F1.11).** Two races over MCP:
+  a cancel that landed before the job's runner existed was acknowledged and then
+  ignored — the scan ran to completion and reported DONE — and a second `scan`
+  while the first was still stopping replaced it, so its CANCELLED was never
+  reported. Now the cancel is honoured the moment the runner exists, a `scan`
+  during `cancelling` is refused with *"still stopping — poll `scan_status`"*,
+  and a cancel during a first run's fetches stops before the next fetch rather
+  than after all of them. The reply says *"no container had started; the scan
+  stops at its next step"* when that is what happened (26.0.2).
 - **A report the adapter cannot read is one failed Scanner (F2.5).** A Scanner
   that exited 0 with a truncated or reshaped report — a container killed
   mid-write, a format change — raised out of the whole run: over MCP a FAILED job,

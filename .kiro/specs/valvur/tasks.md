@@ -5835,7 +5835,7 @@ user sees also carries a measured number in its STATUS note.
   made to write a bad report — the fake stands in for the container the e2e
   harness cannot kill at a chosen byte.
 
-- [ ] **26.0.2** **Cancellation is atomic (F1.11, 23.3.3).** Three properties,
+- [x] **26.0.2** **Cancellation is atomic (F1.11, 23.3.3).** Three properties,
   each a test: **(a)** a cancel that lands before the work has a runner is honoured
   the moment it has one — the job settles `cancelled`, nothing is written, the
   agent's confirmation was true; **(b)** while a job is `cancelling`, a second
@@ -5860,6 +5860,34 @@ user sees also carries a measured number in its STATUS note.
   remove the attach-time check and watch (a) fail. Measured over stdio with the
   real server: `scan`, `scan_cancel` within 100ms, `scan_status` → CANCELLED, no
   `.security-scan/` written, zero containers.
+
+  **STATUS 2026-09-20:** ✅ Tests first, four: (a) a `run` that attaches its
+  canceller after an event, the cancel before it — failed with *"the runner was
+  never told to stop"*, the job `done`; (b) `start_scan` during `cancelling` —
+  failed by starting a second, real job; (c) in `test_first_run.py`, a database
+  fetch that flips the flag — failed by fetching the index anyway; and the reply's
+  wording when no container had started. The fix: `Job.canceller` is a property
+  whose setter takes the same lock `cancel` takes and, finding the job already
+  `cancelling`, calls the canceller itself — so the assignment every caller already
+  makes is the attach, and whichever of attach and cancel runs second sees the
+  first; `jobs.ACTIVE = ("running", "cancelling")` and `start` refuses both, with
+  `operations.start_scan` saying *"still stopping — poll `scan_status` until it
+  reads CANCELLED"*; `api._stop_if_cancelled` before the image, after it, and
+  between the database and the index, each naming where. One older test moved
+  with the check (its message is now *"cancelled before it began"*). Mutation,
+  three, each failing exactly its own test: the setter not calling a pending
+  canceller; `ACTIVE` back to `running` alone; the check between the fetches
+  removed. **Measured over stdio against the real server** (`VALVUR_CACHE` at
+  scratch, so a first run — the cancel lands in the fetches): `scan` at 0.98s;
+  `scan_cancel` at 1.08s → *"no container had started; the scan stops at its next
+  step"*; a second `scan` at 1.08s → *"still stopping … poll `scan_status`"*;
+  `scan_status` at 1.19s → **`CANCELLED after 0s — cancelled during the first
+  run's fetches: no Scanner had started and nothing was written`**; the folder
+  holds `.gitignore` and `.lock` only; zero containers; the scratch cache still
+  empty. F1.11 annotated. Not changed, deliberately: a cancel that lands after
+  the last check and during the write is still `done` — the result was written
+  and DONE is the truth; the window is the write itself, which 26.0.3 makes a
+  rename loop.
 
 - [ ] **26.0.3** **Result publication is a generation, not seven writes (F7.1,
   F7.4).** The folder never holds a mixed generation a reader cannot detect.
