@@ -5889,7 +5889,7 @@ user sees also carries a measured number in its STATUS note.
   and DONE is the truth; the window is the write itself, which 26.0.3 makes a
   rename loop.
 
-- [ ] **26.0.3** **Result publication is a generation, not seven writes (F7.1,
+- [x] **26.0.3** **Result publication is a generation, not seven writes (F7.1,
   F7.4).** The folder never holds a mixed generation a reader cannot detect.
   Design: every artifact is written to `<name>.tmp` in the folder, then renamed
   into place with `os.replace` in one tight loop, `run.json` **last** — so any
@@ -5915,6 +5915,33 @@ user sees also carries a measured number in its STATUS note.
   (16.2's harness) leaves either the previous generation or the new one, never
   both — asserted by a new e2e case that kills at a random point in the write and
   reads the folder.
+
+  **STATUS 2026-09-20:** ✅ Tests first, five in `test_contract.py`, all failing on
+  `KeyError: 'generation'` or the surviving SBOM. `ScanRun.generation` is a UUID4
+  minted once per run; `findings.json`, `run.json` and `state.json` carry it as
+  `generation`, `results.sarif` as its own `automationDetails.guid` (the field the
+  format has for a run's identity; the SARIF schema test still passes).
+  `results.write` renders every document first, writes each to `<name>.tmp`,
+  removes any `OPTIONAL_ARTIFACTS` this run did not produce — a constant a test
+  holds equal to every adapter's `artifact`, today `sbom.cdx.json` — and renames
+  them into place in one loop, `run.json` last; `state.json` joined the loop
+  (`state.render` produces the document, `api.scan` hands it to `write`; `save`
+  stays for any other caller, itself staged). Leftover `.tmp` files from an
+  interrupted write are removed before the next begins. **The interruption is
+  tested exhaustively, not randomly:** `os.replace` is made to raise at every
+  rename position in turn — seven positions on the fixture — and after each, every
+  JSON artifact parses, every Markdown one is non-empty, and whenever `run.json`
+  is the new generation every sibling is too. The task text asked for an e2e
+  case killing at a random point in the write; a random kill in a millisecond
+  window proves nothing on a miss, so the exhaustive in-process version stands
+  in, and the real path is measured instead. Mutation, three, each failing
+  exactly its test: `run.json` renamed first; the stale-artifact removal
+  dropped; the staging replaced by direct writes. **Measured through the CLI
+  against `valvur:dev` on the fixture** (`VALVUR_CACHE` at scratch): one
+  generation `00d411ae-…` across `findings.json`, `run.json`, `state.json` and
+  the SARIF guid; `sbom.cdx.json` present because Syft ran; no `.tmp` left.
+  F7.4 annotated with the field; `CLAUDE.md` §7 carries the rule (the part of
+  26.5.2 that belongs with the change). **Tier 0 is closed.**
 
 ### Tier 1 — What the next release meets
 

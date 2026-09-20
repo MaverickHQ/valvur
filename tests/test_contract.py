@@ -9,7 +9,6 @@ import json
 import re
 
 import pytest
-
 from conftest import GoldenRunner, golden
 
 from valvur import scan

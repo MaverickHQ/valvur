@@ -53,20 +53,31 @@ def load(results_dir: Path) -> tuple[dict[str, str], set[str]]:
     return present, set(data.get("fixed", []))
 
 
-def save(results_dir: Path, present: dict[str, str], fixed: set[str]) -> None:
-    (results_dir / STATE_FILE).write_text(
-        json.dumps(
-            {
-                "schema": SCHEMA,
-                "fp_version": FP_VERSION,
-                "present": dict(sorted(present.items())),
-                "fixed": sorted(fixed),
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+def render(present: dict[str, str], fixed: set[str], *, generation: str = "") -> str:
+    """The state document. Written by `results.write` in the same generation as
+    the artifacts it describes (26.0.3), so a state.json from one run beside a
+    findings.json from another is detectable rather than silent."""
+    return json.dumps(
+        {
+            "schema": SCHEMA,
+            "fp_version": FP_VERSION,
+            "generation": generation,
+            "present": dict(sorted(present.items())),
+            "fixed": sorted(fixed),
+        },
+        indent=2,
+    ) + "\n"
+
+
+def save(results_dir: Path, present: dict[str, str], fixed: set[str], *,
+         generation: str = "") -> None:
+    """Write the state document on its own — whole, then renamed into place."""
+    import os
+
+    target = results_dir / STATE_FILE
+    staged = target.with_name(target.name + ".tmp")
+    staged.write_text(render(present, fixed, generation=generation), encoding="utf-8")
+    os.replace(staged, target)
 
 
 def status_for(fingerprint: str, previous: dict[str, str], previously_fixed: set[str]) -> str:

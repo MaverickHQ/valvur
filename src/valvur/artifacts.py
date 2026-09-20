@@ -25,11 +25,14 @@ _SARIF_LEVEL = {
 
 
 def findings_json(findings: list[Finding], *, status: str, status_reason: str = "",
-                  complete: bool) -> str:
+                  complete: bool, generation: str = "") -> str:
     return json.dumps(
         {
             "schema": SCHEMA,
             "fp_version": FP_VERSION,
+            # The Scan Run this document belongs to; the same value is in run.json,
+            # state.json and results.sarif (26.0.3). Additive to schema 1.
+            "generation": generation,
             "status": status,
             "status_reason": status_reason,
             "complete": complete,
@@ -48,11 +51,12 @@ def _serialise(finding: Finding) -> dict:
     return record
 
 
-def sarif(findings: list[Finding], *, version: str) -> str:
+def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str:
     """SARIF 2.1.0 for IDEs and tooling.
 
     Fingerprints travel in `partialFingerprints`, so an IDE's suppression survives an
-    edit for exactly the reason ours does (ADR-0003).
+    edit for exactly the reason ours does (ADR-0003). The Scan Run's generation is
+    SARIF's own `automationDetails.guid` — the field the format has for it.
     """
     rules: dict[str, dict] = {}
     results = []
@@ -96,6 +100,8 @@ def sarif(findings: list[Finding], *, version: str) -> str:
                 "informationUri": "https://github.com/MaverickHQ/valvur",
                 "rules": list(rules.values()),
             }},
+            **({"automationDetails": {"id": f"valvur/{generation}", "guid": generation}}
+               if generation else {}),
             "results": results,
         }],
     }, indent=2) + "\n"

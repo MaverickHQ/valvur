@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -83,6 +84,11 @@ class ScanRun:
     #: different code — reported as a warning, never a refusal. None: unrecorded.
     shim_built_from: str | None = None
     image_built_from: str | None = None
+    #: One id per Scan Run, in every JSON artifact and SARIF's own
+    #: `automationDetails.guid` (26.0.3): a reader who trusts `run.json` can tell
+    #: whether each sibling was written by the same run. Minted here so every
+    #: projection reads one value.
+    generation: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     @property
     def build_match(self) -> bool | None:
@@ -657,7 +663,6 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         # left to an AttributeError three lines down.
         raise RuntimeError("the enrich stage did not run")
 
-    results_dir = workspace / results.RESULTS_DIR
     current = {f.fingerprint: f.title for f in findings}
     # Name what was fixed, using the title remembered from the previous run.
     fixed_now = [ctx.previous[fp] or fp for fp in ctx.previous if fp not in current]
@@ -685,8 +690,10 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         image_built_from=image_built_from,
     )
 
-    results.write(workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs)
     still_fixed = {fp for fp in ctx.previously_fixed if fp not in current}
     still_fixed |= {fp for fp in ctx.previous if fp not in current}
-    _state.save(results_dir, current, still_fixed)
+    results.write(
+        workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs,
+        state=_state.render(current, still_fixed, generation=run.generation),
+    )
     return run

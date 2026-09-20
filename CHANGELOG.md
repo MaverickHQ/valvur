@@ -7,6 +7,13 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The Results Folder is one generation (F7.4).** Every document is written
+  whole beside its name and renamed into place in one loop, `run.json` last, so
+  a file is never partial; `findings.json`, `run.json`, `state.json` and
+  `results.sarif` (as `automationDetails.guid`) carry one `generation` per scan,
+  so files from two runs side by side are detectable rather than silent; and an
+  `sbom.cdx.json` from a previous run no longer survives a run in which Syft did
+  not produce one. Additive to `findings.json`'s schema 1 (26.0.3).
 - **`scan_cancel` cannot be confirmed and dropped (F1.11).** Two races over MCP:
   a cancel that landed before the job's runner existed was acknowledged and then
   ignored — the scan ran to completion and reported DONE — and a second `scan`

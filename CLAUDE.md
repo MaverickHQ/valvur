@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 57 modules under `src/valvur`, 987 tests in 52 files, 19 ADRs, 136
-requirement IDs, **174 done and 16 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 12 are Phase 26's five tiers; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 16
+Roughly: 57 modules under `src/valvur`, 992 tests in 52 files, 19 ADRs, 136
+requirement IDs, **175 done and 15 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 11 are Phase 26's tiers 1–5 (Tier 0 is closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 15
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -251,19 +251,17 @@ were introduced by the block before, with tests passing.
 
 **Known gaps, and one deliberate friction, worth knowing before proposing anything:**
 
-- **One safety defect is open today, found by the second review and measured
-  (Phase 26, Tier 0); two closed the same evening.** ~~A Scanner that exits 0
-  with a report the adapter cannot parse raises out of `api.scan`~~ — closed by
-  26.0.1: one failed Scanner, *report unreadable*, the raw text kept, F2.5's
-  third clause tested for the first time. ~~A `scan_cancel` that lands before the
-  job's runner is attached is confirmed and dropped; a second `scan` during
-  `cancelling` replaces the job~~ — closed by 26.0.2: attach and cancel under one
-  lock, `start` refuses a job still stopping, the flag checked between a first
-  run's fetches; measured over stdio, CANCELLED at 1.19s with nothing written.
-  The Results Folder is seven sequential writes with no
-  generation id, so an interruption leaves a mix of two runs that nothing detects,
-  and a failed Syft leaves the previous run's SBOM in place (26.0.3). **And one
-  that meets the next release (Tier 1):** `release.yml` publishes to PyPI and moves
+- **The second review's three safety defects (Phase 26, Tier 0) were measured
+  and closed the same evening, 2026-09-20.** A Scanner that exits 0 with a report
+  the adapter cannot parse no longer raises out of `api.scan` — one failed
+  Scanner, *report unreadable*, the raw text kept, F2.5's third clause tested for
+  the first time (26.0.1). A `scan_cancel` can no longer be confirmed and dropped
+  — attach and cancel share one lock, `start` refuses a job still stopping, the
+  flag is checked between a first run's fetches; measured over stdio, CANCELLED
+  at 1.19s with nothing written (26.0.2). The Results Folder is one generation —
+  staged writes renamed into place with `run.json` last, a `generation` id in
+  every JSON artifact and SARIF's guid, a stale SBOM removed (26.0.3). **What is
+  still open meets the next release (Tier 1):** `release.yml` publishes to PyPI and moves
   `:latest` before the `artifact` job validates the wheel/image pair — its own
   comment says it cannot stop a release that has left (26.1.1); the arm64 image is
   built and listed but has never run in the pipeline (26.1.2). Until these land, a
@@ -523,6 +521,13 @@ Rules that must hold:
 - **Fail loudly.** If a scanner crashed, that appears at the top of
   `SUMMARY.md`. A silent failure manufactures false confidence and is worse
   than no scan.
+- **The folder is one generation (26.0.3).** Every document is written whole
+  beside its name and renamed into place in one loop, `run.json` last, and
+  `findings.json`, `run.json`, `state.json` and `results.sarif` (its
+  `automationDetails.guid`) carry one `generation` per Scan Run. A consumer who
+  reads `run.json` first can check each sibling against it; a mismatch is a run
+  interrupted mid-write, which before this was silent. An optional artifact the
+  run did not produce — Syft's SBOM — is removed, not inherited.
 - **Evidence is neutralised, never reproduced raw** (F3.13). An agent reads
   `SUMMARY.md` first and by instruction. If we quote an injection payload
   verbatim, we launder an attack out of a file the agent might never have

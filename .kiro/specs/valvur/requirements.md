@@ -407,7 +407,7 @@ form, so that I can act on them without exhausting my context window.
    copied. CLAUDE.md section 7 claimed the root entry was added; it was corrected in
    the same task. The ID stays; nothing else may reuse it.
 4. F7.4 — valvur SHALL write `SUMMARY.md`, `REMEDIATION.md`, `findings.json`,
-   `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`.
+   `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`. *Note 2026-09-20 (task 26.0.3): every document is written whole beside its name and renamed into place in one loop, `run.json` last, and `findings.json`, `run.json`, `state.json` and `results.sarif` (as `automationDetails.guid`) carry one `generation` per Scan Run — so a folder holding two runs' files is detectable, where before the seven sequential writes could leave it silently mixed. An optional artifact this run did not produce is removed.*
 5. F7.5 — `SUMMARY.md` SHALL NOT exceed 200 lines regardless of **Finding** count.
 6. F7.6 — `SUMMARY.md` SHALL open with a machine-facing block describing the folder,
    the **Status** values, the ranking basis, and the constraints in F9.5–F9.7.
