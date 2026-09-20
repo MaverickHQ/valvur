@@ -113,8 +113,8 @@ Add valvur to your agent's MCP configuration:
 Then ask it to scan. The server is **stdio only** — no listener, no port — and every
 tool it exposes is read-only: valvur can never change your code. Nothing has to run
 first: a first `scan` pulls the image, the vulnerability database and the name index
-itself and says so on `scan_status` — measured 2026-09-13 from an empty machine,
-**110 seconds** to a complete result, one tool call.
+itself and says so on `scan_status` — measured 2026-09-20 on `0.3.0` from an empty
+machine, **58 seconds** to a complete result, one tool call (110s on `0.2.0`).
 
 Add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent uses what it has:
 
