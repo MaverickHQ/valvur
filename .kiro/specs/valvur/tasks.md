@@ -5142,10 +5142,11 @@ stranger and a calendar, so it is arranged while 1–12 are built and its findin
 > README says*, and the README installs from PyPI — which is `0.2.0`, without
 > `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-three tasks have
 > closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24 and 26; on
-> 2026-09-19, 25.3) and none is released; run against
+> 2026-09-19, 25.3) — and released together as `0.3.0` on 2026-09-20; run against
 > `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
 > as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
 > below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
+> *Released 2026-09-20 (25.1): the gate now measures `0.3.0`.*
 
 | # | task | what | who | batch |
 |---|---|---|---|---|
@@ -5583,15 +5584,41 @@ complete for everything since `0.2.0`.
 ### Checkpoint B — Release `0.3.0` *(owner, one sitting)*
 
 Everything since `0.2.0` — sixteen tasks at the time of writing, twenty-two after
-Block A, twenty-three with 25.3 (closed 2026-09-19) — and nothing of it released. The gate measures the published version, so
+Block A, twenty-three with 25.3 (closed 2026-09-19) — released as `0.3.0` on 2026-09-20. The gate measures the published version, so
 this comes before Checkpoint C, not after.
 
-- [ ] **25.1** **Cut `0.3.0`.** In order, as `RELEASING.md` describes: confirm Block
+- [x] **25.1** **Cut `0.3.0`.** In order, as `RELEASING.md` describes: confirm Block
   A's rehearsal is the latest run of `release.yml` and green; bump `pyproject.toml`;
   date the CHANGELOG section; tag `v0.3.0`; watch the tag's run to the end, and read
   A6's job — the first time the constraint suite runs against a real release
   artifact. Then re-measure the README's first-run numbers against the release, as
   23.1.1 did for `0.2.0`, from a stranger's state.
+
+  **STATUS 2026-09-20:** ✅ **`v0.3.0` is published.** In the order written: a
+  rehearsal on the exact tree (35502966732, after 25.3 and the OSV-Scanner bump had
+  landed on top of the previous green one) — five jobs green including the artifact
+  job; the prep landed as `207be9d` (`pyproject.toml`, the README's stated version,
+  `[0.3.0] — 2026-09-20` in the CHANGELOG with a heading paragraph; `verify.sh` and
+  the e2e suite green locally against an image built at `0.3.0`); a signed tag on
+  that commit; the owner's go; the push. **The tag's run, 35504569709: every job
+  green, 15 minutes end to end** — and the artifact job, seven of them, ran the
+  constraint suite and the gate against the real release artifact for the first
+  time: the wheel from `dist/` at `0.3.0`, the image by its signed digest
+  `sha256:02bf33e9…`, both architectures in the index, the wheel and the image
+  agreeing on the tree they were built from. On PyPI: wheel and sdist, each with a
+  publish attestation; on the GitHub release the same plus the two SBOMs.
+  **Re-measured from a stranger's state** — clean venv, empty cache, image removed,
+  Apple-silicon Mac, Docker Desktop: install **0.9s** (uv) / 1.7s (pip); `valvur
+  update` first time **45s** (image, database 120MB, index); first `valvur scan` on
+  the ten-file fixture **19s** (33s on `0.2.0` — the three Checks in one
+  container); **and the primary path, one `scan` call over stdio with nothing run
+  first: 58s to `DONE`, `complete: True`** — image pulled 13s, database 18s, index
+  8s, then the Scanners — against 110s on `0.2.0`. The first attempt at the
+  measurement used the python.org Python, which trusts no CA, and reproduced
+  23.1.1's finding exactly: the index fetch failed with
+  `CERTIFICATE_VERIFY_FAILED`, the scan completed with dependency-reality failed
+  and the cause named — the case `valvur doctor` exists for. EVALUATING's table
+  and the README carry the new numbers.
 - [ ] **25.2** **Tag `valvur-action` `v0`** on the commit whose `version` default is
   `0.3.0` (23.3.6 left `v0` waiting on exactly this), and switch `ci.yml`'s self-scan
   job from `version: ""` to the tag. The action's README example then works for

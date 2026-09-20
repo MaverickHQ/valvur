@@ -23,22 +23,24 @@ a ~200-line launcher.
 
 ### The true first run, measured
 
-The number a competitor would quote, measured on **2026-09-13 against the published
-`0.2.0`** — a clean venv, an empty cache, the image removed, on an Apple-silicon Mac
-with Docker Desktop — so it is here before they do (22.B.4, re-measured for 23.1.1):
+The number a competitor would quote, measured on **2026-09-20 against the published
+`0.3.0`** — a clean venv, an empty cache, the image removed, on an Apple-silicon Mac
+with Docker Desktop — so it is here before they do (22.B.4; re-measured for 23.1.1
+against `0.2.0`, and again for 25.1; the `0.2.0` numbers are in brackets where they
+moved):
 
 | | bytes | wall-clock | what you are looking at |
 |---|---|---|---|
-| `pip install valvur` | <1MB | **1.7s** | pip |
-| `valvur update`, first time | **~475MB**: the image 320MB compressed (pulled here since 23.2.4, and said on the status line if a scan has to do it), vulnerability database 118MB, the published name index 34MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | **53s** | docker's layer bars, Trivy's progress bar, then one line per ecosystem with its build time and `signature: verified` |
+| `pip install valvur` | <1MB | **1.7s** with pip, 0.9s with uv | pip |
+| `valvur update`, first time | **~380MB**: the image 223MB compressed (pulled here since 23.2.4, and said on the status line if a scan has to do it), vulnerability database 120MB, the published name index 35MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | **45s** (53s) | docker's layer bars, Trivy's progress bar, then one line per ecosystem with its build time and `signature: verified` |
 | `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
 | `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
-| first `valvur scan` | — | **33s** on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs); 7–24s on the real projects in the README. On GitHub's `ubuntu-latest` runner, the twelve-repository corpus: **14–18s** on every application repository from 22k to 100k lines, 88s on a Terraform module (Checkov analysing it) — run 34764187516, 2026-09-13 | eight scanner names, each turning `ok` |
-| **first `scan` over MCP, nothing run first** — no image, empty cache, one tool call (24.1) | the same ~475MB | **110s** to `complete: True`: image pulled 22s, database fetched 30s, index fetched 7s, then the Scanners | `scan_status` reads *"Now: pulling ghcr.io/… (223MB) — the first run only"*, then *"fetching the vulnerability database (119MB)"*, then *"fetching the package-name index (35MB)"*, each gone once it is over |
+| first `valvur scan` | — | **19s** (33s) on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs; the three Checks in one container since 23.4.2); 7–24s on the real projects in the README. On GitHub's `ubuntu-latest` runner, the twelve-repository corpus: **14–18s** on every application repository from 22k to 100k lines, 88s on a Terraform module (Checkov analysing it) — run 34764187516, 2026-09-13 | eight scanner names, each turning `ok` |
+| **first `scan` over MCP, nothing run first** — no image, empty cache, one tool call (24.1) | the same ~380MB | **58s** (110s) to `DONE`, `complete: True`: image pulled 13s, database fetched 18s, index fetched 8s, then the Scanners | `scan_status` reads *"Now: pulling ghcr.io/… (223MB) — the first run only"*, then *"fetching the vulnerability database (119MB)"*, then *"fetching the package-name index (35MB)"*, each gone once it is over |
 
-**A minute and a half from nothing to a first result, measured — two minutes over
-MCP with nothing run first — or about eight minutes on the day the published index
-cannot be reached.** The README once promised sixty seconds; then this table said
+**About a minute from nothing to a first result, measured — the same over MCP with
+nothing run first — or about eight minutes on the day the published index cannot
+be reached.** The README once promised sixty seconds; then this table said
 eight minutes, because npm publishes no list of its package names and every machine
 walked the registry's replication feed itself. Since 23.2.1 a workflow in this
 repository does that walk once a day and publishes the result as a signed OCI

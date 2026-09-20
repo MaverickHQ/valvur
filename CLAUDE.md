@@ -27,12 +27,15 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-19):** **`0.2.0` is published and public** — `pip install valvur`
-works for anyone, the image is on GHCR for both architectures, signed and attested,
-and a stranger's CLI first run measures **about a minute and a half** from nothing
-to a first result. An audit of the requirements against that release the same
-morning became **Phase 24**, whose head holds **the one ordered list of every open
-task** — 7 of them now, the release cut and the action's tag given IDs on
+**Status (2026-09-20):** **`0.3.0` is published** (`v0.3.0`, 2026-09-20; `0.2.0` on
+2026-09-13) — `pip install valvur` works for anyone, the image is on GHCR for both
+architectures, signed and attested, the release pipeline's last job tested the
+published wheel and the signed image rather than the tree, and a stranger's first
+run measures **about a minute** from nothing to a first result on either path (CLI:
+45s of fetches then a 19s scan; one `scan` call over MCP with nothing run first: 58s
+to `DONE`). The `0.2.0` story, which this release closes: an audit of the requirements
+against `0.2.0` the morning it shipped became **Phase 24**, whose head holds **the one ordered list of every open
+task** — 6 of them now, the release cut and the action's tag given IDs on
 2026-09-18 — and whose first engineering item was the audit's worst
 finding: over MCP, the primary path, a stranger's first `scan` finished *incomplete*
 because the database and index were absent and the only fix named was a CLI command
@@ -113,12 +116,11 @@ requirements file counts only for its pinned lines — a file of ranges is the
 lockfile coverage note, naming the file and how many lines are ranges — and
 OSV-Scanner's lower-bound advisories are dropped before merging with the count on
 every surface; 193 on smolagents. **Twenty-three tasks closed after `0.2.0`
-shipped and none of them released** — a stranger who follows the README today installs `0.2.0`, without
-`doctor`, the first-run fetch, the budget or `scan_cancel`, and the action's `v0`
-tag waits on `0.3.0`. **Next: Phase 25's checkpoints, each needing a person —
-`0.3.0` (25.1, 25.2, 24.4; one rehearsal on the tree with 25.3 in it, then the
-tag), the usability gate on that release (10.1.1–10.1.2, then 12b.1), `v1.0.0`
-(12b.3). Nothing engineering remains before the release.** When "what is
+shipped — and released together as `0.3.0` on 2026-09-20 (25.1)**: a rehearsal on
+the exact tree, the tag, fifteen minutes to a green run whose last job tested the
+artifact; re-measured from a stranger's state, 58s over MCP against 110s. **Next:
+25.2 (the action's `v0` tag) and 24.4 (the yank), then the usability gate on `0.3.0`
+(10.1.1–10.1.2, then 12b.1), then `v1.0.0` (12b.3).** When "what is
 next" is asked, Phase 25 is the answer; Phase 24's list keeps the rows and the
 numbers, and the sequencing diagrams in Phases 21, 23 and 24 are history.
 
@@ -209,9 +211,9 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 57 modules under `src/valvur`, 973 tests in 52 files, 19 ADRs, 136
-requirement IDs, **169 done and 7 open** across 25 phases — 1 is Phase 24's audit (the
-owner's yank), 2 are Phase 25's release checkpoint, and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete. Five of the 7
-are the owner's (the `0.3.0` cut, the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
+requirement IDs, **170 done and 6 open** across 25 phases — 1 is Phase 24's audit (the
+owner's yank), 1 is the action's `v0` tag, and 4 are the usability gate and the `v1.0.0` tail; Phase 23 and Block A are complete, and `0.3.0` is out. Four of the 6
+are the owner's (the action's tag, the yank, the gate, the `v1.0.0` tag). A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
