@@ -7,6 +7,20 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-20
+
+What a stranger's first ten minutes meet, fixed before a stranger measures them.
+An audit of the requirements against `0.2.0` the morning it shipped (Phase 24)
+found the primary path's first `scan` finishing incomplete; this release makes a
+first `scan` fetch what is absent and say so, adds `valvur doctor`, a scan budget,
+`scan_cancel`, `valvur gate`, per-Scanner timing, a hash-locked Checkov in its own
+venv, one bake file with native arm64 builds, a shim that carries the tree hash it
+was built beside, the AI Artifact Check over the primary client's own files and
+over hooks, and a release pipeline that tests the artifact rather than the tree.
+Twenty-three tasks between `v0.2.0` and this tag, every one measured against a real
+image, a real runner or the public corpus — which grew to thirteen repositories and
+found two of the defects below on its own.
+
 ### Added
 
 - **The AI Artifact Check reads the primary client's own files, and hooks.**

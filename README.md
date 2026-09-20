@@ -2,7 +2,7 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `0.2.0`** — published and installable; `v1.0.0` follows the usability gate.
+> **Status: `0.3.0`** — published and installable; `v1.0.0` follows the usability gate.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 ---
