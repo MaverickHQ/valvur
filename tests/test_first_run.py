@@ -279,6 +279,38 @@ def test_both_absent_means_image_then_database_then_index_then_the_scanners(
     assert order == ["inspect", "pull", "db", "index", "compat"]
 
 
+def test_a_cancel_during_the_fetches_is_honoured_at_the_next_boundary(
+    workspace, host_cache, monkeypatch
+):
+    """26.0.2 (c). A cancel that lands during a first run's fetches — up to ~45s of
+    image, database and index — set the runner's flag and was honoured only at the
+    fleet, after every fetch had finished. Now it is honoured before the next one:
+    the database fetch flips the flag here, and the index is never fetched."""
+    order: list[str] = []
+
+    class Runner(_Runner):
+        cancelled = False
+
+        def update_db(self):
+            order.append("db")
+            result = super().update_db()
+            self.cancelled = True                # `kill()` landed mid-fetch
+            return result
+
+        def kill(self):
+            self.cancelled = True
+            return 0
+
+    monkeypatch.setattr(name_index, "refresh",
+                        lambda directory, **k: order.append("index") or {})
+
+    with pytest.raises(api.ScanCancelled, match="fetches"):
+        _scan(workspace, Runner(host_cache))
+
+    assert order == ["db"], order
+    assert not (workspace / ".security-scan" / "run.json").exists()
+
+
 # ------------------------------------------------------ stale: untouched (14.2)
 
 

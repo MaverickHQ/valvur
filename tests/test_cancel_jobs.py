@@ -284,6 +284,97 @@ def test_a_cancelling_job_is_shown_as_such_while_containers_stop(tmp_path, monke
     assert after.startswith("CANCELLED after ")
 
 
+def test_a_cancel_that_lands_before_the_runner_is_attached_is_honoured_when_it_is(
+    tmp_path, monkeypatch
+):
+    """26.0.2 (a). `jobs.cancel` calls the canceller if one is attached; the work
+    attaches it only once `ContainerRunner()` exists. Measured 2026-09-20: a cancel
+    in that window returned `stopped=0`, the runner was never told, the scan ran
+    to completion and the job settled `done` — a cancel confirmed and dropped.
+    Now attaching a canceller to a job already `cancelling` calls it at once."""
+    from valvur.mcp import jobs
+
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
+    runner_exists = threading.Event()
+    killed: list[int] = []
+
+    class Runner:
+        cancelled = False
+
+        def kill(self):
+            self.cancelled = True
+            killed.append(1)
+            return 0
+
+    def work(workspace, profile, progress):
+        runner_exists.wait(timeout=5)          # the fetches, before any runner
+        runner = Runner()
+        jobs.current(workspace).canceller = runner.kill
+        if runner.cancelled:                    # what api.scan's boundary check does
+            raise api.ScanCancelled("cancelled before the Scanners started")
+        return "scan finished normally"
+
+    job = jobs.start(tmp_path, "offline", work)
+    time.sleep(0.02)
+    cancelled, stopped = jobs.cancel(tmp_path)
+    runner_exists.set()
+    job.wait(2)
+
+    assert cancelled is job and stopped == 0
+    assert killed == [1], "the runner was never told to stop"
+    assert job.state == "cancelled", job.state
+    assert job.summary == ""
+
+
+def test_a_second_scan_while_the_first_is_still_stopping_is_refused_and_the_first_kept(
+    tmp_path, monkeypatch
+):
+    """26.0.2 (b). `jobs.start` refused only `running`; a job in `cancelling` was
+    replaced in the registry, so its CANCELLED was never reported and the second
+    scan failed on the workspace lock with a message about a scan the agent
+    thought it had stopped."""
+    from valvur.mcp import jobs
+    from valvur.operations import cancel_scan, scan_status, start_scan
+
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
+    let_go = threading.Event()
+
+    def work(workspace, profile, progress):
+        jobs.current(workspace).canceller = lambda: 2
+        let_go.wait(timeout=5)
+        raise api.ScanCancelled("cancelled: 1 of 8 Scanner(s) had finished")
+
+    first = jobs.start(tmp_path, "offline", work)
+    time.sleep(0.05)
+    cancel_scan({"workspace": str(tmp_path)})
+
+    reply = start_scan({"workspace": str(tmp_path), "profile": "offline"})
+    assert jobs.start(tmp_path, "offline", work) is first
+    assert jobs.current(tmp_path) is first
+    assert "still stopping" in reply and "CANCELLED" in reply, reply
+
+    let_go.set()
+    first.wait(2)
+    assert scan_status({"workspace": str(tmp_path)}).startswith("CANCELLED after ")
+
+
+def test_a_cancel_before_any_container_says_the_scan_stops_at_its_next_step(tmp_path, monkeypatch):
+    """The reply is true either way: containers stopped, or none had started and
+    the scan stops at its next boundary."""
+    from valvur.mcp import jobs
+    from valvur.operations import cancel_scan
+
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
+    let_go = threading.Event()
+    jobs.start(tmp_path, "offline", lambda w, p, progress: let_go.wait(5))
+    time.sleep(0.02)
+
+    reply = cancel_scan({"workspace": str(tmp_path)})
+    let_go.set()
+
+    assert "no container had started" in reply and "next step" in reply, reply
+
+
 def test_the_scan_job_registers_its_own_runner_as_the_canceller(tmp_path, monkeypatch):
     """`_run_scan` is where the runner exists; a cancel stops THAT fleet."""
     from valvur import api as api_module
