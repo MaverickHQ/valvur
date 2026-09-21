@@ -122,7 +122,7 @@ def default_trivy_db(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def _installed_name_index(default_name_index, default_trivy_db, monkeypatch):
+def _installed_name_index(request, default_name_index, default_trivy_db, monkeypatch):
     """Every test runs as on a machine that has done `valvur update`: an index and
     a database are present, fresh, and the Checks and Trivy read them. Without
     this, the dependency-reality Check fails loudly on the offline Profile —
@@ -131,13 +131,18 @@ def _installed_name_index(default_name_index, default_trivy_db, monkeypatch):
     The network grant is cleared too, so a developer's shell cannot leak one in.
     Pointing `trivy_db` at a temporary directory also stops a unit test that
     builds container flags from creating `~/.cache/valvur/trivy` on the machine.
+
+    The database stand-in is for the UNIT suite only: an e2e test mounts the
+    real cache into a real container, and a zero-byte `trivy.db` there is
+    Trivy's "old DB" refusal — which is what the first e2e run of 26.2.1 found.
     """
     from valvur import cache
 
     monkeypatch.setenv("VALVUR_NAME_INDEX", str(default_name_index))
     monkeypatch.delenv("VALVUR_NETWORK", raising=False)
     monkeypatch.setattr(cache, "name_index", lambda: default_name_index)
-    monkeypatch.setattr(cache, "trivy_db", lambda: default_trivy_db)
+    if request.node.get_closest_marker("e2e") is None:
+        monkeypatch.setattr(cache, "trivy_db", lambda: default_trivy_db)
 
 
 @pytest.fixture
