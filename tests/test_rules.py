@@ -151,12 +151,13 @@ def test_the_golden_matches_what_the_image_reports_on_the_fixture(mountable_tmp)
 
     from conftest import FIXTURES
 
+    from valvur.adapters import OpengrepAdapter
     from valvur.runner import ContainerRunner
 
     ws = mountable_tmp / "rules"
     shutil.copytree(FIXTURES / "broken-repo", ws)
 
-    live = json.loads(ContainerRunner().run_opengrep(ws).stdout)
+    live = json.loads(OpengrepAdapter().run(ContainerRunner(), ws).stdout)
     recorded = json.loads(golden("opengrep"))
 
     def hits(data):
