@@ -105,19 +105,39 @@ def _no_sockets_from_unit_tests(monkeypatch):
     monkeypatch.setattr(urllib.request.OpenerDirector, "open", loopback_only)
 
 
+@pytest.fixture(scope="session")
+def default_trivy_db(tmp_path_factory) -> Path:
+    """A vulnerability database that is *present* — an empty file where Trivy's
+    would be — so `cache.db_present()` answers True without a 1.3GB download.
+    Since 26.2.1 the Trivy adapter refuses before launching when the database is
+    absent, and that refusal reaches every fake; the first CI run of the move
+    found the unit job has no database and every Trivy fake answering the refusal
+    instead. A test about the absent database patches `cache.trivy_db` itself."""
+    root = tmp_path_factory.mktemp("trivy")
+    (root / "db").mkdir()
+    (root / "db" / "trivy.db").write_bytes(b"")
+    (root / "db" / "metadata.json").write_text(
+        '{"UpdatedAt": "2099-01-01T00:00:00Z", "NextUpdate": "2099-01-02T00:00:00Z"}')
+    return root
+
+
 @pytest.fixture(autouse=True)
-def _installed_name_index(default_name_index, monkeypatch):
-    """Every test runs as on a machine that has done `valvur update`: an index is
-    present, fresh, and the Check reads it. Without this, the dependency-reality
-    Check fails loudly on the offline Profile — correctly, and in every scan test.
+def _installed_name_index(default_name_index, default_trivy_db, monkeypatch):
+    """Every test runs as on a machine that has done `valvur update`: an index and
+    a database are present, fresh, and the Checks and Trivy read them. Without
+    this, the dependency-reality Check fails loudly on the offline Profile —
+    correctly, and in every scan test — and Trivy refuses before launching.
 
     The network grant is cleared too, so a developer's shell cannot leak one in.
+    Pointing `trivy_db` at a temporary directory also stops a unit test that
+    builds container flags from creating `~/.cache/valvur/trivy` on the machine.
     """
     from valvur import cache
 
     monkeypatch.setenv("VALVUR_NAME_INDEX", str(default_name_index))
     monkeypatch.delenv("VALVUR_NETWORK", raising=False)
     monkeypatch.setattr(cache, "name_index", lambda: default_name_index)
+    monkeypatch.setattr(cache, "trivy_db", lambda: default_trivy_db)
 
 
 @pytest.fixture
