@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "opengrep",
+    "scan",
+    "--config",
+    "/opt/valvur-rules",
+    "--json",
+    "--output",
+    "/results/opengrep.json",
+    "--quiet",
+    "--no-git-ignore",
+    "/workspace"
+  ],
+  "timeout": 600,
+  "network": false,
+  "allow_exec": true,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--read-only",
+    "--tmpfs",
+    "--cap-drop=ALL",
+    "--network=none"
+  ]
+}

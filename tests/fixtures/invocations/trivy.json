@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "trivy",
+    "fs",
+    "/workspace",
+    "--cache-dir",
+    "/cache/trivy",
+    "--skip-db-update",
+    "--skip-java-db-update",
+    "--format",
+    "json",
+    "--output",
+    "/results/trivy.json",
+    "--quiet",
+    "--scanners",
+    "vuln",
+    "--include-dev-deps"
+  ],
+  "timeout": 600,
+  "network": false,
+  "allow_exec": false,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--read-only",
+    "--tmpfs",
+    "--cap-drop=ALL",
+    "--network=none"
+  ]
+}

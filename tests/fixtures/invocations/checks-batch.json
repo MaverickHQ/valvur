@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "python",
+    "-m",
+    "valvur.checks",
+    "batch",
+    "/workspace",
+    "licence-file",
+    "ai-artifact",
+    "dependency-reality"
+  ],
+  "timeout": 600,
+  "network": true,
+  "allow_exec": false,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--read-only",
+    "--tmpfs",
+    "--cap-drop=ALL",
+    "--env"
+  ]
+}

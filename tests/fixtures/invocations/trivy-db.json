@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "trivy",
+    "image",
+    "--download-db-only",
+    "--cache-dir",
+    "/cache/trivy"
+  ],
+  "timeout": 900,
+  "network": true,
+  "allow_exec": false,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--read-only",
+    "--tmpfs",
+    "--cap-drop=ALL",
+    "--env"
+  ]
+}

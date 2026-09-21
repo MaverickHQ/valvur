@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "osv-scanner",
+    "scan",
+    "source",
+    "--recursive",
+    "--format",
+    "json",
+    "--output-file",
+    "/results/osv.json",
+    "/workspace"
+  ],
+  "timeout": 600,
+  "network": true,
+  "allow_exec": false,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--read-only",
+    "--tmpfs",
+    "--cap-drop=ALL",
+    "--env"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "gitleaks",
+    "dir",
+    "/workspace",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/results/gitleaks.json",
+    "--no-banner",
+    "--exit-code",
+    "0"
+  ],
+  "timeout": 300,
+  "network": false,
+  "allow_exec": false,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--network=none",
+    "--read-only",
+    "--cap-drop=ALL"
+  ]
+}

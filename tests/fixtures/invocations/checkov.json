@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "checkov",
+    "--directory",
+    "/workspace",
+    "--output",
+    "json",
+    "--output-file-path",
+    "/results",
+    "--quiet",
+    "--compact",
+    "--skip-download"
+  ],
+  "timeout": 600,
+  "network": false,
+  "allow_exec": false,
+  "flags_shape": [
+    "--rm",
+    "--user",
+    "--read-only",
+    "--tmpfs",
+    "--cap-drop=ALL",
+    "--network=none"
+  ]
+}
