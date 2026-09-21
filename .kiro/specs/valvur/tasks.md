@@ -6451,7 +6451,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   twelve seconds after the verification, and would not have moved without it.
   CHANGELOG; ADR-0018 amended.
 
-- [ ] **27.0.2** **The release SBOM by digest, on both architectures (T1.1;
+- [x] **27.0.2** **The release SBOM by digest, on both architectures (T1.1;
   F10.4).** `release.yml:309` generates the release SBOM with `anchore/syft:v1.51.1`
   — a tag — for `linux/amd64` only, while `Dockerfile:65` pins the same syft by
   digest and the image ships for two architectures. Use one digest in both places
@@ -6465,6 +6465,33 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   requires the digest equality, and requires both platforms in the SBOM step. Then
   a rehearsal: the STATUS note lists the rehearsal's release assets, two SBOMs
   each naming its platform, and the sizes.
+
+  **STATUS 2026-09-21:** ✅ PR #65, two rehearsals. Test first
+  (`test_the_release_sbom_is_made_by_the_pinned_syft_for_both_architectures`):
+  no `anchore/syft:<tag>` anywhere in the workflow — which caught the literal in
+  my own comment, rightly; the workflow's `sed` over the Dockerfile, run by the
+  test on the Dockerfile, yields the Dockerfile's own `FROM anchore/syft@sha256:…
+  AS syft` pin; both platforms in the step; four named assets on the release.
+  Mutations caught: the tag back, amd64 only, the wrong `FROM` stage extracted,
+  two assets. The pin is *read* from the Dockerfile rather than held equal to it
+  by a test, so a Dependabot bump to the Dockerfile moves the release's syft with
+  it and nothing can drift. Each file is checked to describe the child it
+  names: syft 1.51.1's CycloneDX metadata carries no architecture (measured with
+  the image's own syft on `alpine:3.20`), but every OS package's purl does.
+  **Rehearsal #1 (35633863756) found the assertion, not the SBOM:** four files
+  came out of the pinned syft — but the base image is Alpine, whose apk purls
+  spell the architecture `x86_64`/`aarch64`, and the check was written for
+  dpkg's `amd64`/`arm64`, so it failed on `{'noarch': 1, 'x86_64': 37}` — the
+  `aarch64` had been in the probe and was not connected. **Rehearsal #2
+  (35634850014), green in 16m50s:** *2,227 components, 37 purls naming amd64*
+  (`x86_64`) and *37 naming arm64* (`aarch64`), one `noarch` in each; CycloneDX
+  1.87MB and SPDX 3.06MB per architecture, the arm64 pair a few hundred bytes
+  from the amd64 pair — two children, genuinely different; the draft release
+  created with all four beside `dist/`, then removed. `promote` verified the
+  wheel's attestation as before. CHANGELOG; RELEASING.md's SBOM paragraph and
+  failure row; F10.4 extended. **Tier 0 is closed: the next real tag is the
+  first release whose index is tagged after verification and whose SBOM covers
+  both architectures.**
 
 ### Tier 1 — The primary surface
 
