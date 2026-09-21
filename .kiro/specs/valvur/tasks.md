@@ -6351,6 +6351,307 @@ note.
 > 12b.1's `0.3.1` or `v1.0.0`, will be the first release whose upload follows its
 > validation. That is the one line of this exit the owner's checkpoints still own.
 
+## Phase 27 — The third review: twenty items measured, seventeen stand
+
+**Goal:** close what a "Level 400" codebase analysis of the tree found on
+2026-09-21 — twenty items in five tiers, in
+[`docs/OPEN-ITEMS.md`](../../../docs/OPEN-ITEMS.md) — after each was measured
+against `main` at `ca13795` the same afternoon: one was already closed, two were
+wrong, one's premises were, and **seventeen stand** — sixteen tasks, two one-line
+deletions sharing one. Ordered here by consequence
+rather than by the analysis's tiers: what a user *receives* first, the primary
+surface second, the record third, refactors after the gate. Written 2026-09-21.
+
+> **What the analysis said, and what measurement made of it** — the detail is a
+> **Verdict** under every item in `OPEN-ITEMS.md`; this is the shape. *Closed
+> already:* the parse boundary (26.0.1, the evening before). *Wrong, measured:* a
+> root `__pycache__` in the build context — planted one, built `COPY . /ctx` under
+> the tree's `.dockerignore`, 1.30MB transferred and no cache at any level; and
+> `scan_status` showing no progress — it has answered `Now:` and `Completed so far:`
+> from `job.progress` since 24.1. *Premises wrong:* a red `index.yml` sends users
+> to the registry walk — it leaves yesterday's `latest` in place, and a scan never
+> walks. *Real and narrowed:* the index is tagged before it is verified (true;
+> forks cannot dispatch it); the README's macOS claim (true; a lane needs nested
+> virtualisation the runners do not offer); `design.md` (the diagram, §5.1 and §8
+> are stale; the default Profile is not); the unverified index (bounded by the next
+> daily build, not permanent). *Real as stated:* ten. **Found beyond the analysis:**
+> `.council/` — the second review's artefacts — is committed (`777c5ec`) and ships
+> in the sdist, measured with `uv build --sdist`; `design.md` §8 lists four MCP
+> tools of six; and `hatch_build.py` writes `valvur/_build.py` into the sdist at a
+> path nothing reads. None of the seventeen is a defect in a scan's result.
+>
+> **Sequencing against Phase 25.** Tier 0 lands before the next real tag (12b.1's
+> `0.3.1`, or `v1.0.0`) — it is the daily index and the release SBOM, what a user
+> receives. Tier 1 is the MCP surface, the primary path, and lands before the gate
+> if the calendar allows, after it if not; none changes what a first run meets.
+> Tier 2 has no gate. Tier 3 waits for the gate's findings (12b.1) and lands before
+> `v1.0.0`, because each moves a seam the release freezes. **The constraint from
+> Phase 26 stands:** this Mac stays a stranger's until the gate has run — local
+> tests only with `VALVUR_CACHE` on a scratch directory and `VALVUR_IMAGE=valvur:dev`,
+> and `tests/test_constraints.py` never without them, which is how it was re-warmed
+> twice on 2026-09-21.
+
+```
+Tier 0   what a user receives     27.0.1 the index: push, sign, verify, then tag (T0.2) · 27.0.2 the release SBOM by digest, both architectures (T1.1)
+Tier 1   the primary surface      27.1.1 the server stops what it started (T1.3) · 27.1.2 tool annotations tell the truth (T2.3) · 27.1.3 a cached index is re-verified when cosign appears (T2.2)
+Tier 2   the record is true       27.2.1 the README's platform row (T1.2) · 27.2.2 design.md as built (T1.4) · 27.2.3 what the sdist ships is a list (T4.1) · 27.2.4 SECURITY.md's versions (T4.3) · 27.2.5 RELEASING.md cites ADR-0020 (T4.4) · 27.2.6 dist/ and .security-scan/ cleared (T0.3, T4.2) · 27.2.7 a scheduled failure is an issue (T2.1)
+Tier 3   after the gate           27.3.1 doctor stops importing cli (T3.3) · 27.3.2 one ecosystem registry (T3.1) · 27.3.3 SUMMARY.md rendering out of results.py (T3.2) · 27.3.4 a typed pipeline result (T3.4)
+```
+
+**The TDD shape is Phase 26's**, stated there once: the failing test first, against
+the measured behaviour; the fix; a mutation pass with the baseline committed; a
+measured number in the STATUS note of any task that changes what a user sees. The
+`T` in brackets is the item in `OPEN-ITEMS.md`, whose Verdict is the measurement.
+
+### Tier 0 — What a user receives
+
+- [ ] **27.0.1** **The daily index: push, sign, verify, then tag (T0.2; ADR-0018,
+  the order of ADR-0020).** `index.yml` runs `oras push "$REPOSITORY:$DATE,latest"`
+  (line 79), *then* `cosign sign` (98), *then* the round-trip through the shim's
+  own client (104–139) — so a build that fails its own verification has already
+  moved `latest`, which the step's comment admits. Reorder to the release's shape:
+  push untagged (`oras push "$REPOSITORY" …` prints the digest; if oras insists on
+  a reference, push `:candidate` and treat it as 26.1.1 did), sign the digest, pull
+  it back and verify, and only then `oras tag "$REPOSITORY@$DIGEST" "$DATE" latest`.
+  Add `if: github.ref == 'refs/heads/main'` to the `publish` job, so a dispatch
+  from a branch builds and verifies but never publishes — scheduled runs are on
+  `main` by construction, so this costs nothing. A protected environment is the
+  owner's option and not required: the brake this workflow needs is the order.
+  Retire the comment about "the previous day's tag" — after this, a failed run
+  leaves `latest` exactly where it was.
+
+  **Tests first**, in the workflow-shape suite (`tests/test_constraints.py`): the
+  `publish` job carries the ref condition; no `oras push` argument names a tag;
+  `oras tag` comes after `cosign verify` in step order. Then the workflow, then
+  one dispatch from `main`: the STATUS note records the run and the order the log
+  shows, and the tag resolving to the verified digest.
+
+- [ ] **27.0.2** **The release SBOM by digest, on both architectures (T1.1;
+  F10.4).** `release.yml:309` generates the release SBOM with `anchore/syft:v1.51.1`
+  — a tag — for `linux/amd64` only, while `Dockerfile:65` pins the same syft by
+  digest and the image ships for two architectures. Use one digest in both places
+  and hold them together: a test that the workflow's `anchore/syft@sha256:` equals
+  the Dockerfile's `FROM anchore/syft@sha256:`, so Dependabot's bump to one is a
+  red test until the other follows. Generate one SBOM per child — `stage` has both
+  digests from the `build` matrix — named for its platform, both attached to the
+  release and both handed to `promote`.
+
+  **Tests first**: the shape test refuses `anchore/syft:` followed by a tag,
+  requires the digest equality, and requires both platforms in the SBOM step. Then
+  a rehearsal: the STATUS note lists the rehearsal's release assets, two SBOMs
+  each naming its platform, and the sizes.
+
+### Tier 1 — The primary surface
+
+- [ ] **27.1.1** **The server stops what it started (T1.3; F1.11).** `server.main`
+  (server.py:154–159) returns on `KeyboardInterrupt` or `BrokenPipeError` and
+  otherwise when `serve` returns at the client's EOF; scan jobs are daemon threads
+  (jobs.py:176) and die with the process; the containers they launched do not —
+  `runner.py:185` records that the daemon owns their lifecycle, which is why
+  `kill_running` and the `--name valvur-<id>` registry exist (23.3.3). Nothing on
+  the server's way out calls either. Wrap `serve` in `try/finally`: cancel every
+  active job through `jobs.cancel` (26.0.2 made that safe under the lock), wait
+  for each to settle up to a bounded deadline (10s), `kill_running` as the backstop
+  for anything the registry still names, one line each to stderr. `SIGTERM` — how
+  a client kills a server it did not `close()` — bypasses `finally` by default;
+  install a handler that raises `SystemExit` so the same path runs.
+
+  **Tests first**: a unit test with an event-gated fake job (26.4.1's shape) —
+  `main` returning from a fake `serve` calls the canceller and waits; and an e2e
+  test in `tests/test_cancel_jobs.py`'s shape — spawn `valvur-mcp` on a copy of the
+  fixture with `VALVUR_CACHE` on scratch, `initialize`, `tools/call scan`, close
+  stdin, and assert within 10s that `docker ps --filter name=valvur-` is empty and
+  the workspace lock is free; the same for `SIGTERM`. The STATUS note records the
+  measured seconds from EOF to no containers.
+
+- [ ] **27.1.2** **Tool annotations tell the truth (T2.3; F9.2).** `Tool.describe`
+  (server.py:38) answers `readOnlyHint: true, destructiveHint: false` for all six
+  tools; `scan` writes the Results Folder, pulls an image and starts containers,
+  `scan_cancel` stops them. Per-tool fields on `Tool`: `scan` and `scan_cancel`
+  are not read-only and not destructive (additive — a cancel writes nothing,
+  F1.11); `list_findings`, `explain_finding`, `scan_status` and `doctor` are
+  read-only. F9.2 stays true and the description says so — no tool touches the
+  source tree; the folder is not the tree — because a client that reads
+  `readOnlyHint: false` as "prompt the user" is now right to prompt for `scan`,
+  and that is the correct behaviour, not a regression.
+
+  **Tests first**: a table in the test — tool name → the two hints — held against
+  `registry()`; the `tools/list` snapshot (23.5.2) regenerated through the real
+  server, so the change is a diff in review, as the snapshot was built to make it.
+
+- [ ] **27.1.3** **A cached index is re-verified when cosign appears (T2.2;
+  ADR-0018).** `name_index.fetch_published` (name_index.py:337–346) returns before
+  `oci.verify_signature` when every wanted ecosystem's `built_at` matches and its
+  file exists, so an index cached as `"not verified: cosign is not installed"`
+  stays so after cosign is installed — until the next daily build is pulled, at
+  most the thirty days after which a scan is `inconclusive` anyway. When the
+  cache is current and any ecosystem's recorded signature is the cosign-absent
+  one and `shutil.which("cosign")` now answers: verify the recorded digest, no
+  layer fetched, and rewrite the metadata with the outcome; a failed verification
+  gets whatever a fresh pull's does.
+
+  **Tests first**, in `tests/test_published_index.py`: seed the metadata with the
+  unverified state, mock `shutil.which` and `oci.verify_signature`, and assert the
+  metadata reads `verified` with zero blob requests to the fake registry; the
+  inverse — cosign still absent — leaves the metadata untouched and calls
+  nothing. `valvur update`'s progress line says what happened.
+
+### Tier 2 — The record is true
+
+- [ ] **27.2.1** **The README's platform row (T1.2).** `README.md:227` puts macOS
+  and Linux in one row, *"tested on every commit against both runtimes"*. Linux is —
+  Docker and Podman on every commit (`ci.yml`'s parity job) and the published
+  image on amd64 and arm64. macOS is tested by hand: `0.3.0`'s first run was
+  measured on an Apple-silicon Mac through Docker Desktop, and the gate's stranger
+  runs there. Split the row and say each thing where it is true, with the date
+  and the machine for macOS. A macOS lane is the measured option, not a claim:
+  one dispatch of a probe workflow on the current Apple-silicon runner —
+  `brew install colima docker && colima start`, a five-minute cap — and the STATUS
+  note records whether a container ran at all and in how long; if it did, a
+  scheduled lane is a task of its own, if not, the row stands as written.
+
+  **Test first**: a claims ratchet beside the README tests in
+  `tests/test_constraints.py` — no row of the platform table naming macOS may say
+  "every commit" unless a workflow names a `macos-` runner.
+
+- [ ] **27.2.2** **`design.md` as built (T1.4).** Three things stale after 26.5.2
+  rewrote six sections: the architecture diagram (design.md:14–36) still draws
+  **Orchestrator** and **Normaliser** inside the OCI image — both are host-side
+  (`api.py` plans and collects the fleet, `ContainerRunner` runs each
+  `Invocation`, the adapters parse, `pipeline.py`'s stages, `results.write`) and
+  the image holds Scanners and Checks only; §5.1 Dependency Reality reads
+  *"`requirements*.txt` against PyPI, and nothing else … widening is task 19.D.1"*
+  and describes `offline` as edit-distance heuristics — two ADRs stale (ADR-0018,
+  23.2.2–3); §8's MCP table lists four tools of six (`scan_cancel`, `doctor`).
+  Redraw the diagram from the code; rewrite §5.1 from `dependency_reality.py`
+  and ADR-0018 — five ecosystems offline from the Name Index, JVM and Go on
+  `full`, the three signals, the coverage notes; §8 gains the two tools with
+  their arguments and, after 27.1.2, their annotations. Version 1.2.
+
+  **Test first**: in `tests/test_protocol.py`'s manner, §8's tool names parsed
+  from the table equal `registry()`'s, so the table cannot fall behind a third
+  time.
+
+- [ ] **27.2.3** **What the sdist ships is a list (T4.1).** `.council/` — the
+  second review's structured output, six files — was committed on `777c5ec` with
+  Phase 26's documents and `uv build --sdist` puts all six in `valvur-0.3.0.tar.gz`,
+  measured. Move it to `docs/council/` with a `README.md` naming its origin and
+  date (`/docs` is already excluded from the sdist; `OPEN-ITEMS.md`'s reference
+  moves with it). Found on the way: `hatch_build.py` runs for the sdist target
+  too and writes `valvur/_build.py` at the archive's root, where nothing reads it —
+  the wheel built from an sdist recomputes the hash, as the docstring says — so
+  the hook skips the sdist. Then the ratchet: the sdist's top-level entries are an
+  allowlist in a test.
+
+  **Tests first**: a test that builds the sdist into a temporary directory and
+  asserts its top-level entries are exactly the allowlist — what is there today
+  minus `.council` and the stray `valvur/` — so the next artefact committed at the
+  root is a red test, not a review finding.
+
+- [ ] **27.2.4** **`SECURITY.md`'s versions table (T4.3).** The policy is complete
+  — private vulnerability reporting, enabled on the repository and checked by API;
+  the email fallback; 5 and 15 working days; scope and out-of-scope — and its
+  *Supported versions* table says `0.1.x`. Say what the sentence above it already
+  does: the latest release, named, with a test in `tests/test_version.py` (which
+  already reads `RELEASING.md`) that the table names the current minor series.
+
+- [ ] **27.2.5** **`RELEASING.md` cites ADR-0020 (T4.4).** The document explains
+  the brake's placement three times (lines 20–22, 224, 319–324) and never says
+  `ADR-0020`. One sentence in the brake paragraph; no test — the traceability
+  ratchet holds ADRs to requirements, not documents to ADRs, and one citation does
+  not need a machine.
+
+- [ ] **27.2.6** **`dist/` and `.security-scan/` cleared (T0.3, T4.2).** Two
+  gitignored leftovers on this machine: `dist/` holds the `0.1.0rc1` wheel and
+  sdist from 2026-09-05 — the release builds `dist/` on a clean checkout, so
+  nothing published can pick them up, and a developer's `pip install dist/*.whl`
+  can; `.security-scan/` holds a `full` scan from 2026-09-19 with `build.match:
+  false`. `rm` both. **Not regenerated here until after the gate** — a local
+  scan re-warms the Mac the gate needs cold. A STATUS note, no PR.
+
+- [ ] **27.2.7** **A scheduled failure is an issue (T2.1's residue).** The
+  analysis's consequences were wrong — a red `index.yml` that fails before its
+  push leaves yesterday's `latest` in place (and after 27.0.1, one that fails
+  after it does too), a scan never walks the registries, and GitHub mails
+  scheduled failures to the workflow file's last committer. What holds: a failure
+  is an email, not a tracked thing. Add to `index.yml` and `corpus.yml` a final
+  step, `if: failure()`, that opens an issue — or comments on the open one with
+  the same title — carrying the run link and the recovery command, under
+  `issues: write`; and state in `index.yml`'s header the freshness rule ADR-0018
+  already imposes: an index over thirty days makes a scan `inconclusive`, so a red
+  day costs nothing and a red month costs the verdict. `CODEOWNERS` naming one
+  person on a one-person repository records nothing and is not added.
+
+  **Tests first**: the shape test asserts both scheduled workflows carry the
+  step and the permission.
+
+### Tier 3 — After the gate, before `v1.0.0`
+
+- [ ] **27.3.1** **`doctor` stops importing `cli` (T3.3).** `doctor.py:507` imports
+  `KEV_URL` and `KEV_URL_ENV` from `cli.py` (defined at 270–271), inside the KEV
+  check — a diagnostic module reaching up into the entry point. The constants
+  belong with the fetch in `enrichment.py`; `cli` and `doctor` both import from
+  there. Half an hour.
+
+  **Tests first**: `import valvur.doctor` in a subprocess asserts `valvur.cli` is
+  not in `sys.modules`; and a direction ratchet over the package's import graph
+  (`ast`, every module under `src/valvur`) — nothing but `__main__` and
+  `mcp/server` imports `cli`.
+
+- [ ] **27.3.2** **One ecosystem registry (T3.1).** `dependency_reality.py` is
+  1,206 lines — Check orchestration, seven manifest parsers, registry transport,
+  per-registry age decoding, typosquat matching — and imports `name_index`
+  lazily in three places while `name_index.py:468` imports
+  `dependency_reality.canonical` lazily back; `ecosystems.py` (130 lines) is the
+  third home of the same truth, and a new ecosystem is a coordinated edit in all
+  three. The split as the analysis drew it: `src/valvur/ecosystems/` as a package
+  whose registry owns each ecosystem's name, manifests, index file, registry host
+  and age strategy; a parser per ecosystem behind one interface; the Check as an
+  orchestrator that imports the registry and not the index; `name_index.FILES`
+  into the registry. The largest item in the phase; after the gate, because it
+  touches the Check the gate's stranger sees first.
+
+  **Tests first**: snapshot the Check's output on the broken fixture and the
+  corpus counts before the move and hold them after (26.2.1's method for argv);
+  an import test that loads each module alone in a subprocess; a registry test
+  that every ecosystem has a parser, an index file or a stated `full`-only reason,
+  and a registry host that `egress.SPOKEN_AS` names. The weekly corpus after
+  landing is the measurement; the STATUS note quotes its counts against the
+  previous week's.
+
+- [ ] **27.3.3** **`SUMMARY.md` rendering out of `results.py` (T3.2).** 642 lines,
+  of which `_summary` runs from 304 to 563 with `_verdict`, `_slowest`,
+  `_counts_table`, `_one_line` and `_enforce_cap` beside it — about three hundred
+  lines of prose in the module whose job is the atomic write (26.0.3). Extract
+  `summary.render(run, …) -> str`; the write loop calls it as it calls every other
+  document's renderer. Behaviour-preserving, `results.py` under 350 lines.
+
+  **Tests first**: `SUMMARY.md` on each fixture snapshotted before the move and
+  held byte-identical after; the existing summary tests move with the code.
+
+- [ ] **27.3.4** **A typed pipeline result (T3.4).** `pipeline.Context`
+  (pipeline.py:35–57) has fifteen fields; stages write `artifacts`, `coverage`,
+  the three `*_dropped` counts, `unpinned_files` and `identity_reset` into it
+  while `StageFn` is typed `list[Finding] -> list[Finding]`, and `api.py` copies
+  each into `ScanRun` by name. `pipeline.run` returns a `PipelineResult` — the
+  findings and every field a stage writes — and `api.py` builds `ScanRun` from
+  it; `Context` stays stage-local. The move 26.3.2 made for the fleet's tuple.
+  With 27.3.3, since both change how `api.py` assembles a `ScanRun`; lowest
+  priority in the phase.
+
+  **Tests first**: `test_pipeline.py` asserts the result's fields; the mutation
+  is a field dropped from the result with a test that compares `ScanRun`'s
+  populated fields to the result's.
+
+**Exit (Phase 27):** the daily index tagged only after its own verification, on
+a run whose log shows the order; the release SBOM by digest on both
+architectures, on a rehearsal; the MCP server leaving no container behind at EOF,
+Ctrl-C or SIGTERM, measured; six tools with six honest annotations; the sdist an
+allowlist; `design.md` drawn as built with a test on its tool table; and, after
+the gate, no import cycle in the package, `results.py` under 350 lines, one
+registry of ecosystems. Every claim in the phase head re-measured in its task's
+STATUS note.
+
 ## Traceability
 
 The not-cuttable set from `requirements.md` maps to: F1 → Phase 8 · N2.1 → Phase 11

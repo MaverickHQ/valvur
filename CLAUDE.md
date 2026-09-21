@@ -130,12 +130,14 @@ four gaps were each checked against the code before becoming tasks — three of 
 measured as real today (a Scanner's unreadable report takes the whole run down,
 against F2.5's own words; a cancel can be confirmed and dropped; the Results Folder
 can hold a mixed generation), one arriving with the next release (PyPI is published
-*before* the artifact is validated). **Next: Phase 26's Tier 0 and Tier 1 — the
-engineering that waits on nobody — in parallel with the usability gate on `0.3.0`
-(10.1.1–10.1.2, then 12b.1); then Tiers 2–3, then `v1.0.0` (12b.3).** When "what
-is next" is asked, Phase 25 answers for the people and Phase 26 for the code; Phase
-24's list keeps the rows and the numbers, and the sequencing diagrams in Phases 21,
-23 and 24 are history.
+*before* the artifact is validated). Phase 26 closed in one evening and one day
+(2026-09-21). **Next: Phase 27's Tier 0 — the daily index tagged only after its
+verification, the release SBOM by digest — before the next real tag, and Tier 1,
+the MCP surface, beside the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1);
+Phase 27's Tier 3 after the gate; then `v1.0.0` (12b.3).** When "what is next" is
+asked, Phase 25 answers for the people and Phase 27 for the code; Phase 24's list
+keeps the rows and the numbers, and the sequencing diagrams in Phases 21, 23 and
+24 are history.
 
 **The second review's verdict (2026-09-20), kept because it is the outside view:**
 supply-chain security is the strongest thing here — every action pinned by SHA,
@@ -166,9 +168,10 @@ also found two things the analysis had not: the review's own artefacts under
 `.council/` are committed and ship in the sdist, and `design.md`'s MCP table is two
 tools short. Seven of the seventeen are under an hour each, seven an afternoon,
 three are refactors for after the gate (`dependency_reality.py`'s split, `SUMMARY.md`
-rendering out of `results.py`, a typed pipeline result). **They are not yet tasks**:
-they become Phase 27 in `tasks.md` when the owner picks them up, and the counts
-below count them from then.
+rendering out of `results.py`, a typed pipeline result). **They are Phase 27** in
+`tasks.md` — sixteen tasks, ordered by consequence: the index and the release SBOM
+first (what a user receives), the MCP surface second, the record third, the three
+refactors after the gate and before `v1.0.0`.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -258,10 +261,9 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 60 modules under `src/valvur`, 1,051 tests in 57 files, 20 ADRs, 136
-requirement IDs, **186 done and 4 open** across 26 phases — the usability gate
-and the `v1.0.0` tail — plus the third review's seventeen measured items waiting in
-`docs/OPEN-ITEMS.md`, tasks once the owner picks them up; Phase 26 is complete (Tiers 0–5); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
-are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
+requirement IDs, **186 done and 20 open** across 27 phases — the usability gate,
+the `v1.0.0` tail, and Phase 27's sixteen from the third review; Phase 26 is complete (Tiers 0–5); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
+are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody, bar Phase 27's Tier 3, which waits for the gate's findings. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -317,8 +319,9 @@ were introduced by the block before, with tests passing.
   (12b.3) — the next real tag is the first release whose upload follows its
   validation. `main` has required the arm64 leg of the published-image job since
   2026-09-21 (six checks; PR #62 was the first to land under it).
-- **The third review's seventeen (2026-09-21), measured and waiting.** In
-  [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md) with a verdict each. Worth knowing
+- **The third review's seventeen (2026-09-21), measured — Phase 27.** In
+  [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md) with a verdict each, and in
+  `tasks.md` as sixteen tasks (27.0.1–27.3.4). Worth knowing
   before touching the areas: `index.yml` tags `latest` before it signs and verifies
   (T0.2 — the fix is ADR-0020's order, push by digest, then tag); `release.yml`'s
   SBOM step runs `anchore/syft:v1.51.1` by tag and for amd64 only (T1.1); the MCP

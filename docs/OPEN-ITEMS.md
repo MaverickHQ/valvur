@@ -28,9 +28,20 @@ generator is pinned by tag). What the analysis did not find, and this pass did: 
 review's own artefacts are committed and ship in the sdist (T4.1), and `design.md`'s
 MCP table is two tools short (under T1.4).
 
-**Not yet in `tasks.md`.** The task list is the authoritative record of open work
-(CLAUDE.md §1); these 17 become tasks there — a Phase 27, in the order above — when
-the owner picks them up, and are counted as open from then.
+**In `tasks.md` as Phase 27 since 2026-09-21** — sixteen tasks for the seventeen,
+ordered by consequence rather than by the tiers above; the task list is the
+authoritative record (CLAUDE.md §1) and each task cites its item here.
+
+| item | task | | item | task |
+|---|---|---|---|---|
+| T0.2 | 27.0.1 | | T4.1 | 27.2.3 |
+| T1.1 | 27.0.2 | | T4.3 | 27.2.4 |
+| T1.3 | 27.1.1 | | T4.4 | 27.2.5 |
+| T2.3 | 27.1.2 | | T0.3, T4.2 | 27.2.6 |
+| T2.2 | 27.1.3 | | T2.1 (residue) | 27.2.7 |
+| T1.2 | 27.2.1 | | T3.3 | 27.3.1 |
+| T1.4 | 27.2.2 | | T3.1 · T3.2 · T3.4 | 27.3.2 · 27.3.3 · 27.3.4 |
+| T0.1 · T1.5 · T2.4 | none — closed, wrong, wrong | | | |
 
 ---
 
