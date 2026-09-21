@@ -6136,7 +6136,7 @@ user sees also carries a measured number in its STATUS note.
   each PR: 93 active findings, every Scanner `ok`, the three Checks in one
   container. 1,014 tests; 59 modules.
 
-- [ ] **26.2.2** **One authority on egress (N2.1, ADR-0010).** A single `egress.py`:
+- [x] **26.2.2** **One authority on egress (N2.1, ADR-0010).** A single `egress.py`:
   `Egress.for_profile(profile)` answers `network` (bool), `container_flags()` (the
   `--network=…` flag, or none), `hosts()` (what a Profile may reach — today's
   `doctor.FULL_HOSTS`, plus the registries the dependency-reality Check and the
@@ -6152,6 +6152,34 @@ user sees also carries a measured number in its STATUS note.
   contains the literal `--network=` (mutation: put Gitleaks' back). F2.3's table
   and `run.json`'s sentence are then generated from one place, and the README's
   "provable" claim points at one module.
+
+  **STATUS 2026-09-21:** ✅ Twelve tests first in `test_egress.py`, all failing on
+  the missing module. `egress.py`: the four settings that were the runner's
+  (`NETWORK_ENV`, `CONTAINER_NETWORK_ENV`, `DB_REPOSITORY_ENV`,
+  `DEFAULT_DB_REPOSITORY`, `DB_INSECURE_ENV`, `db_repository()`), `SPOKEN_AS` —
+  every host `full` may reach paired with how the disclosure names it, with
+  `FULL_HOSTS` derived from it — `disclosure(used=)`, and `Egress(network)` with
+  `container_flags()` and `hosts()`; `NONE` for the two probes; `for_profile()`
+  reading `profiles.ALLOWS_NETWORK`, which stays the Profile table. The runner's
+  flag builder, `compat.image_inputs`, `doctor._image_starts`, `doctor.FULL_HOSTS`,
+  `results.py`'s sentence, Trivy's `db_flags` and the dependency-reality Check's
+  `NETWORK_ENV` all call in; the runner re-exports the settings under their old
+  names for one release. **Two tests hold the claim together**: every host in
+  `FULL_HOSTS` has a spoken name and every spoken name is in the sentence — the
+  drift 23.5.4 found is now a red test — and no file under `src/valvur` but
+  `egress.py` writes the `"--network=` literal. **`scripts/verify-offline.py`
+  keeps its literal on purpose** and additionally checks that egress agrees: the
+  task text had it read the same object, which would only ask egress whether
+  egress agrees with itself; the reviewer's check must stay independent, so the
+  grep test exempts it and the STATUS says why. Four mutations, each caught —
+  `offline` given an interface (four tests, including the N2.1 constraint test
+  that predates this), a host reached but unspoken, a probe writing the flag
+  itself, the sentence dropping Packagist. Measured: `runner.py` **485 lines** —
+  under 26.2.1's 500 target now that the settings are out — and
+  `verify-offline.py` against the fixture with the cache at scratch: all five
+  PASS, the new line reading *egress.for_profile('offline') says the same*.
+  `run.json`'s sentence is byte-identical to before. `CLAUDE.md` §3 names the
+  module. 1,026 tests, 60 modules. **Tier 2 is closed.**
 
 ### Tier 3 — Before `v1.0.0`
 

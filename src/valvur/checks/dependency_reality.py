@@ -41,6 +41,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
+from .. import egress as _egress
 from ..coverage import Coverage
 from .base import Check
 
@@ -58,7 +59,7 @@ NPM_UNADOPTED_DOWNLOADS = 1000
 #: the runner sets when — and only when — the container was launched with a network.
 INDEX_MOUNT = "/cache/names"
 INDEX_ENV = "VALVUR_NAME_INDEX"
-NETWORK_ENV = "VALVUR_NETWORK"
+NETWORK_ENV = _egress.NETWORK_ENV
 _UA = {"User-Agent": "valvur/0.1 (+https://github.com/MaverickHQ/valvur)"}
 
 REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")

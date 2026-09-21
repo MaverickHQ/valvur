@@ -64,6 +64,14 @@ def check_containers_have_no_network() -> bool:
     flags = runner._base_flags(probe, tempfile.mkdtemp(), network=False)
     ok = "--network=none" in flags
     print(f"  [{'PASS' if ok else 'FAIL'}] containers are launched with --network=none")
+    # The literal above is deliberate — this script is the independent check, and
+    # must not merely ask egress whether egress agrees with itself. But the
+    # authority every caller reads (26.2.2) must say the same thing.
+    from valvur import egress
+
+    agrees = egress.for_profile("offline").container_flags() == ["--network=none"]
+    print(f"  [{'PASS' if agrees else 'FAIL'}] egress.for_profile('offline') says the same")
+    ok = ok and agrees
     print(f"         Scanners on offline: {', '.join(profiles.SCANNERS[profiles.OFFLINE])}")
     # The check is only meaningful if it can fail: the networked path must differ.
     networked = runner._base_flags(probe, tempfile.mkdtemp(), network=True)

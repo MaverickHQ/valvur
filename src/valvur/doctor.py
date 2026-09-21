@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import cache as _cache
+from . import egress
 from .version import __version__
 
 #: What each level means, in the order they are worth reading.
@@ -115,8 +116,8 @@ def _image_starts(runtime: str, image: str) -> tuple[bool, str]:
 
     from .tree_hash import IMAGE_DIGEST_FILE
 
-    cmd = [runtime, "run", "--rm", "--network=none", "--entrypoint", "cat", image,
-           IMAGE_DIGEST_FILE]
+    cmd = [runtime, "run", "--rm", *egress.NONE.container_flags(), "--entrypoint", "cat",
+           image, IMAGE_DIGEST_FILE]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120,  # noqa: S603
                               check=False)
@@ -481,12 +482,8 @@ def _kiro_switched_off(workspace: Path, home: Path) -> str:
 
 # --------------------------------------------------------------------- network
 
-#: What `full` reaches from the host and from the container: the five registries
-#: the dependency-reality Check asks for first-publish age, Maven Central and the
-#: Go proxy for existence, OSV for the second advisory source, FIRST for EPSS.
-FULL_HOSTS = ("pypi.org", "registry.npmjs.org", "api.npmjs.org", "rubygems.org",
-              "repo.packagist.org", "crates.io", "repo1.maven.org", "proxy.golang.org",
-              "api.osv.dev", "api.first.org")
+#: What `full` reaches, from the one table (26.2.2).
+FULL_HOSTS = egress.FULL_HOSTS
 
 
 def _first_run_hosts() -> list[tuple[str, int]]:
@@ -496,7 +493,7 @@ def _first_run_hosts() -> list[tuple[str, int]]:
 
     from . import name_index, oci
     from .cli import KEV_URL, KEV_URL_ENV
-    from .runner import DEFAULT_DB_REPOSITORY, db_repository
+    from .egress import DEFAULT_DB_REPOSITORY, db_repository
 
     hosts: list[tuple[str, int]] = []
 

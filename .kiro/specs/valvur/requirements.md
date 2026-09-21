@@ -669,7 +669,7 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 
 ### N2 — Security
 1. N2.1 — The `offline` **Profile** SHALL make no network connection, verified by an
-   automated test that fails on any socket attempt (ADR-0010).
+   automated test that fails on any socket attempt (ADR-0010). *Note 2026-09-21 (task 26.2.2): the decision is written once, in `egress.py` — the flag, the hosts and the disclosure sentence derive from it, and a test refuses the flag literal anywhere else under `src/valvur`; `scripts/verify-offline.py` keeps its own literal as the independent check.*
 2. N2.2 — valvur SHALL never write outside the **Results Folder** and the host
    scratch directory.
 3. N2.3 — No **Workspace**-derived value SHALL reach a shell interpreter.

@@ -19,7 +19,6 @@ import pytest
 
 from valvur import egress, profiles
 
-
 # ---------------------------------------------------------------- one table
 
 
@@ -82,9 +81,12 @@ def test_the_disclosure_names_every_host_full_may_reach():
 
 
 def test_no_code_outside_egress_carries_the_network_flag_literal():
-    """The flag is written in one place. A second copy is a second decision."""
+    """The flag is written in one place. A second copy is a second decision.
+    `scripts/verify-offline.py` is exempt on purpose: it is the reviewer's
+    independent check and must keep the literal, or it would only be asking
+    egress whether egress agrees with itself."""
     offenders = []
-    for path in [*Path("src/valvur").rglob("*.py"), *Path("scripts").glob("*.py")]:
+    for path in Path("src/valvur").rglob("*.py"):
         if path.name == "egress.py":
             continue
         for number, line in enumerate(path.read_text().splitlines(), start=1):
@@ -103,8 +105,10 @@ def test_the_runner_and_both_probes_launch_with_egress_flags(monkeypatch, tmp_pa
         launched.append(list(cmd))
         return subprocess.CompletedProcess(cmd, 0, "abc\n", "")
 
+    from valvur import cache
+
     monkeypatch.setattr(subprocess, "run", capture)
-    monkeypatch.setattr(compat.cache, "root", lambda: tmp_path / "cache")
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
 
     runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
     runner._base_flags(tmp_path, str(tmp_path / "scratch"), network=False)

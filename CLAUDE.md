@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 59 modules under `src/valvur`, 1,014 tests in 53 files, 19 ADRs, 136
-requirement IDs, **179 done and 11 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 7 are Phase 26's tiers 2–5 (Tiers 0 and 1 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 11
+Roughly: 60 modules under `src/valvur`, 1,026 tests in 54 files, 19 ADRs, 136
+requirement IDs, **180 done and 10 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 6 are Phase 26's tiers 3–5 (Tiers 0–2 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 10
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -273,8 +273,12 @@ were introduced by the block before, with tests passing.
   `runner.py` 860 → 517 lines naming no tool, every argv held to a snapshot
   captured before the move — and the move found a Check that failed inside the
   batch being recorded ok with its error dropped, latent since 23.4.2, and
-  Gitleaks' container missing the SELinux label every other Scanner's had. What
-  remains of the review: 26.2.2 (one egress authority) and Tiers 3–5.
+  Gitleaks' container missing the SELinux label every other Scanner's had. **Then
+  26.2.2**: one authority on egress — `egress.py` answers the network, the flags,
+  the hosts and the disclosure, six restatements became calls, and `runner.py`
+  crossed the 500-line target at 485. **Tier 2 is closed.** What remains of the
+  review: Tiers 3–5 — the shim/image protocol named, the fleet's outcome typed,
+  and the polish.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality
@@ -403,7 +407,12 @@ rejected, however useful it seems.
    reason to reach out — enrichment fetches EPSS from FIRST on `full`, gated by a
    single condition. And since ADR-0018 one Check with a reason to reach a registry
    runs on `offline` too, told by the runner whether it has a network and never
-   guessing. `scripts/verify-offline.py` checks all three. On Linux
+   guessing. **The decision is written in one place, `src/valvur/egress.py`**
+   (26.2.2): whether a Profile has a network, the container flag that enforces
+   it, the hosts `full` may reach, and the `run.json` sentence that names them —
+   the runner, both image probes, `doctor` and the results writer call in, and a
+   test refuses the flag literal anywhere else. `scripts/verify-offline.py`
+   checks all three halves independently, with the literal, on purpose. On Linux
    `unshare -rn valvur scan --profile offline` proves both at the OS level, without
    privileges, because the container runtime is reached over a unix socket. macOS has
    no equivalent; say so rather than implying one.

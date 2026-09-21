@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from . import artifacts, rawoutput, remediation
 from . import coverage as _coverage
+from . import egress as _egress
 from .version import __version__ as _VERSION
 
 if TYPE_CHECKING:
@@ -193,26 +194,7 @@ def _provenance(run: ScanRun) -> str:
                 # opt-out is the default Profile, and `--offline` forces it.
                 "network": {
                     "used": run.network_used,
-                    "what_left_the_machine": (
-                        # Enumerated exactly, and kept exact. This sentence IS the
-                        # non-exfiltration claim (§3), so a registry added without
-                        # amending it would make the claim false — which is worse than
-                        # never having made it. npm joined PyPI in task 19.D.1.
-                        "dependency names, by the dependency-reality check: for "
-                        "Python, npm, Ruby, PHP and Rust only those the local index "
-                        "says exist (to PyPI, the npm registry, RubyGems, Packagist "
-                        "and crates.io, for their first-publish dates), and of those "
-                        "the npm names first published under 90 days ago (to "
-                        "api.npmjs.org, for last-month download counts); for JVM "
-                        "and Go every declared coordinate (to Maven Central and "
-                        "proxy.golang.org, for existence). Also the dependency "
-                        "names and versions in your lockfiles (to api.osv.dev, by "
-                        "osv-scanner) and the CVE identifiers found in this "
-                        "workspace (to FIRST, for EPSS scores). Never source code, "
-                        "and never a name the index already settled as absent."
-                        if run.network_used
-                        else "nothing"
-                    ),
+                    "what_left_the_machine": _egress.disclosure(used=run.network_used),
                 },
                 # Broken out rather than a single total (task 19.C.1). One number
                 # made an accepted risk, a live problem and a note about our own

@@ -8,11 +8,19 @@ import uuid as _uuid
 from contextlib import suppress as _suppress
 from pathlib import Path
 
+from . import egress
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .selinux import RELABEL_ENV, _relabel_workspace, _selinux_hint, selinux_enforcing
 from .version import __version__, default_image
 
 __all__ = ["NOTHING_TO_SCAN", "RELABEL_ENV", "Invocation", "ScannerOutput", "selinux_enforcing"]
+# The egress settings lived here until 26.2.2; readers moved to `egress`.
+DB_REPOSITORY_ENV = egress.DB_REPOSITORY_ENV
+DB_INSECURE_ENV = egress.DB_INSECURE_ENV
+DEFAULT_DB_REPOSITORY = egress.DEFAULT_DB_REPOSITORY
+NETWORK_ENV = egress.NETWORK_ENV
+CONTAINER_NETWORK_ENV = egress.CONTAINER_NETWORK_ENV
+db_repository = egress.db_repository
 
 # The published image. A fresh install has no local build, so this must be pullable
 # by anyone — pointing at a local tag would make the first run fail for every user
@@ -25,42 +33,11 @@ def _is_empty_result(stderr: str, phrases: tuple[str, ...]) -> bool:
     return any(phrase in lowered for phrase in phrases)
 _VERSION = __version__
 
-# Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
-# registry rather than granting egress to ghcr.io. ADR-0012 already made this
-# reachable by keeping the DB out of the image, so mirroring needs no special build.
-DB_REPOSITORY_ENV = "VALVUR_DB_REPOSITORY"
-#: Where Trivy fetches its database from when no mirror is named — the first of its
-#: own two defaults (`trivy image --help`, 0.74: this, then ghcr.io), and what a
-#: first scan sizes its "fetching" line from (24.1). Both answered 118.5MB in under
-#: a second, anonymously, measured 2026-09-13.
-DEFAULT_DB_REPOSITORY = "mirror.gcr.io/aquasec/trivy-db:2"
-#: A mirror that speaks plain HTTP, or HTTPS with a certificate the container does
-#: not trust. Measured 2026-09-12 (22.B.3): against an internal `registry:2` the
-#: documented VALVUR_DB_REPOSITORY alone fails with "server gave HTTP response to
-#: HTTPS client", because Trivy (go-containerregistry underneath) assumes TLS for
-#: any host that is not localhost or a private-range IP literal. Trivy's own
-#: `--insecure` is the switch; this is how it is reached from a shim with no flags.
-DB_INSECURE_ENV = "VALVUR_DB_INSECURE"
-#: The runtime network a NETWORKED container joins — the update, and `full`'s
-#: Scanners. Unset, the runtime's default bridge. An air-gapped site whose mirror
-#: registry lives on a user-defined network (or an `--internal` one, which is how
-#: 22.B.3 proves the air gap structurally) names it here. Never applied to a
-#: container launched without a network: `--network=none` is not negotiable.
-CONTAINER_NETWORK_ENV = "VALVUR_CONTAINER_NETWORK"
-
-
-def db_repository() -> str | None:
-    import os
-
-    return os.environ.get(DB_REPOSITORY_ENV) or None
 _RUNTIMES = ("docker", "podman", "nerdctl")
 
 class WorkspaceUnreadable(RuntimeError):
     """The container cannot see the source. Never downgraded to a clean result."""
 
-
-#: Set inside a container launched WITH a network, and only then (ADR-0018).
-NETWORK_ENV = "VALVUR_NETWORK"
 
 
 def _unreadable_hint(runtime: str, workspace) -> str:
@@ -361,8 +338,8 @@ class ContainerRunner:
 
         from . import oci
 
-        size = oci.image_size(db_repository() or DEFAULT_DB_REPOSITORY,
-                              insecure=os.environ.get(DB_INSECURE_ENV) == "1")
+        size = oci.image_size(egress.db_repository() or egress.DEFAULT_DB_REPOSITORY,
+                              insecure=os.environ.get(egress.DB_INSECURE_ENV) == "1")
         return None if size is None else max(1, round(size / 1_000_000))
 
     def pull_image(self, on_line=None) -> ScannerOutput:
@@ -447,19 +424,10 @@ class ContainerRunner:
             # same reason. Read-only: the Check only ever asks it questions.
             "-v", f"{names}:/cache/names:ro{own_label and ',z'}",
         ]
-        if not network:
-            flags.append("--network=none")           # N2.1 - no interface at all
-        else:
-            # Told, not probed. The Check that asks a registry does so only when
-            # this is set, and it is set in exactly the case `--network=none` is
-            # omitted — one decision, read by the Check and enforced by the kernel.
-            flags += ["--env", f"{NETWORK_ENV}=1"]
-            mirror = db_repository()
-            if mirror:
-                flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
-            joined = _os.environ.get(CONTAINER_NETWORK_ENV)
-            if joined:
-                flags.append(f"--network={joined}")
+        # Whether this container has an interface at all is the one decision this
+        # module does not make: egress answers it, and the kernel enforces what
+        # egress says (N2.1, 26.2.2).
+        flags += egress.Egress(network=network).container_flags()
         return flags
 
     def update_db(self) -> ScannerOutput:

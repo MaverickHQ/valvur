@@ -33,13 +33,13 @@ def db_flags() -> list[str]:
     runner names; the flags are Trivy's and so are here."""
     import os
 
-    from .. import runner as _runner
+    from .. import egress
 
-    mirror = _runner.db_repository()
+    mirror = egress.db_repository()
     if not mirror:
         return []                    # the default path is TLS to ghcr.io; never insecure
     flags = ["--db-repository", mirror]
-    if os.environ.get(_runner.DB_INSECURE_ENV) == "1":
+    if os.environ.get(egress.DB_INSECURE_ENV) == "1":
         flags.append("--insecure")
     return flags
 
