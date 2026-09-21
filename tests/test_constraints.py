@@ -986,6 +986,52 @@ def test_the_release_promotes_only_after_the_artifact_is_validated():
     assert '"$IMAGE@$DIGEST"' in jobs["promote"], "promote does not re-tag the validated digest"
 
 
+def test_the_published_artifact_runs_on_both_architectures():
+    """26.1.2, F10.7. The arm64 image was built natively, listed in the index and
+    never executed by the pipeline: `verify`, `published` and `artifact` all ran
+    on amd64, and the only machine that had ever run the arm64 image was a
+    laptop. Now `artifact` in release.yml and `published` in ci.yml are each a
+    two-runner matrix, and `promote` waits for both legs."""
+    import re
+
+    jobs = _release_jobs()
+    artifact = jobs["artifact"]
+    assert re.search(r"runner:\s*\[ubuntu-24\.04, ubuntu-24\.04-arm\]", artifact), \
+        "artifact does not run on both architectures"
+    assert "runs-on: ${{ matrix.runner }}" in artifact
+
+    ci = Path(".github/workflows/ci.yml").read_text()
+    published = ci.split("\n  published:\n", 1)[1].split("\n  selfscan:\n", 1)[0]
+    assert re.search(r"runner:\s*ubuntu-24\.04-arm", published), \
+        "ci.yml's published job does not run the published image on arm64"
+    assert re.search(r"runner:\s*ubuntu-24\.04\n", published)
+    # The amd64 leg keeps the name main's branch protection requires.
+    assert "name: the published image, on ${{ matrix.arch }}" in published
+
+
+def test_the_pipeline_verifies_the_provenance_it_publishes_and_has_no_private_repo_branch():
+    """26.1.3, F10.3. The repository went public on 2026-09-13; both workflows
+    still carried the private-repository branches — an attestation step skipped
+    with a warning, a `published` job that skipped with a warning when the
+    package could not be pulled anonymously — each a way for a real failure to
+    read as an expected skip. And the SLSA provenance the release attested was
+    verified by nothing in the pipeline: `artifact` ran `cosign verify` and
+    stopped. Now `artifact` verifies the image's attestation and `promote`
+    verifies the wheel's on the index it published to."""
+    release = Path(".github/workflows/release.yml").read_text()
+    ci = Path(".github/workflows/ci.yml").read_text()
+    for dead in ("private repository", "not publicly pullable", "repository.visibility"):
+        assert dead not in release, f"release.yml still has the private-repository case: {dead!r}"
+        assert dead not in ci, f"ci.yml still has the private-repository case: {dead!r}"
+
+    jobs = _release_jobs()
+    assert "gh attestation verify oci://" in jobs["artifact"], \
+        "artifact does not verify the image's build provenance"
+    assert "pypi-attestations verify pypi" in jobs["promote"], \
+        "promote does not verify the wheel's attestation on the index"
+    assert "gh attestation verify" not in jobs["stage"]
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""
