@@ -44,6 +44,28 @@ class ScanCancelled(RuntimeError):
 JOBS_ENV = "VALVUR_JOBS"
 
 
+@dataclass(frozen=True)
+class ScannerOutcome:
+    """One Scanner's result as the fleet records it (26.3.2): the ScannerRun, its
+    Findings, the artifact it produced (an SBOM: file name and content) and the
+    raw text of its report for `raw/`. Was a 4-tuple the fleet indexed by
+    position in eleven places."""
+
+    scanner: ScannerRun
+    findings: list = field(default_factory=list)
+    artifact: tuple[str, str] | None = None
+    raw: str = ""
+
+    def timed(self, seconds: float) -> ScannerOutcome:
+        return dataclasses.replace(
+            self, scanner=dataclasses.replace(self.scanner, duration_s=seconds))
+
+    def cut(self, reason: str) -> ScannerOutcome:
+        """The same outcome, its ScannerRun's reason rewritten — what the budget
+        does to a Scanner it stopped (23.3.7)."""
+        return dataclasses.replace(self, scanner=dataclasses.replace(self.scanner, reason=reason))
+
+
 @dataclass
 class ScanRun:
     findings: list[Finding] = field(default_factory=list)
@@ -346,21 +368,21 @@ def _plan(adapters, runner) -> list[tuple]:
     return tasks
 
 
-def _run_checks(adapters, runner, workspace) -> list[tuple]:
+def _run_checks(adapters, runner, workspace) -> list[ScannerOutcome]:
     """Several Checks, one container: each gets the outcome `_run_one` would have
     given it, timed as the batch — what it cost the fleet — and the container gets
     the widest grant any of them was given, which is dependency-reality's on
     `full` and nothing otherwise."""
     started = time.monotonic()
     wanted = []
-    outcomes: dict[str, tuple] = {}
+    outcomes: dict[str, ScannerOutcome] = {}
     for adapter in adapters:
         should_run, why = adapter.applies_to(workspace)
         if should_run:
             wanted.append(adapter)
         else:
-            outcomes[adapter.name] = (
-                ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, "")
+            outcomes[adapter.name] = ScannerOutcome(
+                ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
     outputs: dict = {}
     if wanted:
         from .adapters.check import BatchUnsupported, run_batch
@@ -381,26 +403,21 @@ def _run_checks(adapters, runner, workspace) -> list[tuple]:
     for adapter in wanted:
         output = outputs.get(adapter.name)
         if output is None:
-            outcomes[adapter.name] = (
-                ScannerRun(adapter.name, ok=False, reason=failure), [], None, "")
+            outcomes[adapter.name] = ScannerOutcome(
+                ScannerRun(adapter.name, ok=False, reason=failure))
         else:
             outcomes[adapter.name] = _outcome(adapter, output)
     elapsed = time.monotonic() - started
-    return [
-        (dataclasses.replace(outcomes[a.name][0], duration_s=elapsed), *outcomes[a.name][1:])
-        for a in adapters
-    ]
+    return [outcomes[a.name].timed(elapsed) for a in adapters]
 
 
-def _run_one(adapter, runner, workspace) -> tuple:
+def _run_one(adapter, runner, workspace) -> ScannerOutcome:
     """Run one Scanner, timed. One broken Scanner must never cost the others (F2.5)."""
     started = time.monotonic()
-    scanner, findings, produced, raw = _attempt(adapter, runner, workspace)
-    timed = dataclasses.replace(scanner, duration_s=time.monotonic() - started)
-    return timed, findings, produced, raw
+    return _attempt(adapter, runner, workspace).timed(time.monotonic() - started)
 
 
-def _attempt(adapter, runner, workspace) -> tuple:
+def _attempt(adapter, runner, workspace) -> ScannerOutcome:
     # Part of the ScannerAdapter protocol (task 17.3) rather than a `getattr` the
     # orchestrator hopes for. Every adapter inherits a default, so the call is
     # unconditional and an adapter that forgets the method is impossible.
@@ -412,20 +429,20 @@ def _attempt(adapter, runner, workspace) -> tuple:
     if not should_run:
         # Not a failure: the Scan Run stays complete. Recorded so the reader can tell
         # "had nothing to look at" from "looked and found nothing".
-        return ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, ""
+        return ScannerOutcome(ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
 
     try:
         output = adapter.run(runner, workspace)
     except Exception as exc:
-        return ScannerRun(adapter.name, ok=False, reason=str(exc)), [], None, ""
+        return ScannerOutcome(ScannerRun(adapter.name, ok=False, reason=str(exc)))
     return _outcome(adapter, output)
 
 
-def _outcome(adapter, output) -> tuple:
+def _outcome(adapter, output) -> ScannerOutcome:
     """A Scanner's output as the fleet records it: a failure with no report, or a
     ScannerRun with its Findings and any artifact."""
     if output.exit_code != 0 and not output.stdout.strip():
-        return (
+        return ScannerOutcome(
             ScannerRun(
                 adapter.name,
                 ok=False,
@@ -433,9 +450,7 @@ def _outcome(adapter, output) -> tuple:
                 reason=f"exited {output.exit_code} with no report: "
                 f"{output.stderr.strip()[:200]}",
             ),
-            [],
-            None,
-            output.stdout,
+            raw=output.stdout,
         )
 
     # F2.5's third clause: a report the adapter cannot read — a container killed
@@ -446,14 +461,12 @@ def _outcome(adapter, output) -> tuple:
     try:
         findings = adapter.parse(output)
     except Exception as exc:
-        return (
+        return ScannerOutcome(
             ScannerRun(
                 adapter.name, ok=False, version=output.version,
                 reason=f"report unreadable: {type(exc).__name__}: {str(exc)[:200]}",
             ),
-            [],
-            None,
-            output.stdout,
+            raw=output.stdout,
         )
 
     # An adapter may produce an artifact (an SBOM) instead of, or as well as, Findings.
@@ -461,11 +474,9 @@ def _outcome(adapter, output) -> tuple:
     # attribute's default is not inherited, only a method body is.
     artifact = getattr(adapter, "artifact", None)
     produced = (artifact, output.stdout) if artifact and output.stdout.strip() else None
-    return (
+    return ScannerOutcome(
         ScannerRun(adapter.name, ok=True, version=output.version),
-        findings,
-        produced,
-        output.stdout,
+        findings=findings, artifact=produced, raw=output.stdout,
     )
 
 
@@ -563,7 +574,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     # they run concurrently. Serially, six Scanners will not meet the 5-minute
     # standard budget (F2.6, N1.2). Results are collected back into declaration
     # order so a Scan Run is reproducible regardless of which finished first.
-    outcomes: list[tuple | None] = [None] * len(adapters)
+    outcomes: list[ScannerOutcome | None] = [None] * len(adapters)
     _refuse_if_cancelled(runner, 0, len(adapters))
 
     # `--jobs` bounds the fleet (23.3.3); the default is everything at once.
@@ -587,8 +598,9 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             for index, outcome in zip(futures[future], future.result(), strict=True):
                 outcomes[index] = outcome
                 if on_progress is not None:
-                    status = 'ok' if outcome[0].ok else 'failed'
-                    on_progress(f"{outcome[0].tool}: {status} ({outcome[0].duration_s:.1f}s)")
+                    run = outcome.scanner
+                    status = 'ok' if run.ok else 'failed'
+                    on_progress(f"{run.tool}: {status} ({run.duration_s:.1f}s)")
 
         try:
             for future in as_completed(futures, timeout=budget_s):
@@ -604,11 +616,11 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             for future in queued:
                 for index in futures[future]:
                     cut.append(adapters[index].name)
-                    outcomes[index] = (ScannerRun(
+                    outcomes[index] = ScannerOutcome(ScannerRun(
                         adapters[index].name, ok=False,
                         reason=f"not started: the {budget_s:g}s budget was spent before "
                         "its turn",
-                    ), [], None, "")
+                    ))
             stop = getattr(runner, "stop_containers", None)
             if on_progress is not None:
                 on_progress(f"budget spent after {spent:.0f}s: stopping "
@@ -623,21 +635,20 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                 collect(future)
                 for index in futures[future]:
                     outcome = outcomes[index]
-                    if outcome is not None and stop is not None and not outcome[0].ok:
+                    if outcome is not None and stop is not None and not outcome.scanner.ok:
                         cut.append(adapters[index].name)
-                        outcomes[index] = (dataclasses.replace(
-                            outcome[0], reason=f"cut by the {budget_s:g}s budget after "
-                            f"{spent:.0f}s ({outcome[0].reason})",
-                        ), *outcome[1:])
+                        outcomes[index] = outcome.cut(
+                            f"cut by the {budget_s:g}s budget after {spent:.0f}s "
+                            f"({outcome.scanner.reason})")
 
     completed = [o for o in outcomes if o is not None]
     # A cancel that landed during the fleet (F1.11): the Scanners it stopped came
     # back with no report, and the ones that finished are not a result either.
-    _refuse_if_cancelled(runner, sum(1 for o in completed if o[0].ok), len(adapters))
-    scanners = _say_why_unfetched([outcome[0] for outcome in completed], unfetched or {})
-    findings = [f for outcome in completed for f in outcome[1]]
-    artifacts = [o[2] for o in completed if o[2] is not None]
-    raw_outputs = [(o[0].tool, o[3]) for o in completed if o[3]]
+    _refuse_if_cancelled(runner, sum(1 for o in completed if o.scanner.ok), len(adapters))
+    scanners = _say_why_unfetched([o.scanner for o in completed], unfetched or {})
+    findings = [f for o in completed for f in o.findings]
+    artifacts = [o.artifact for o in completed if o.artifact is not None]
+    raw_outputs = [(o.scanner.tool, o.raw) for o in completed if o.raw]
 
     # Total failure is a failed Scan Run (N3.2). Partial failure is a reported one.
     if scanners and all(s.failed for s in scanners):
