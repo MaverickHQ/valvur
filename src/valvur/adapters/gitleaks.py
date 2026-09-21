@@ -8,16 +8,28 @@ from pathlib import Path
 from .. import fingerprint as _fp
 from .. import redact as _redact
 from ..findings import Finding
-from ..runner import ScannerOutput
+from ..invocation import Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
+
+VERSION = "8.30.1"
 
 
 class GitleaksAdapter(ScannerAdapter):
     kind = "scanner"
     name = "gitleaks"
+    version = VERSION
 
-    def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_gitleaks(workspace)
+    def command(self, workspace: Path) -> Invocation:
+        # `--exit-code 0`: gitleaks exits 1 when it finds something, which is a
+        # successful run (F2.4); the report says what it found.
+        return Invocation(
+            tool=self.name, version=VERSION,
+            argv=("gitleaks", "dir", "/workspace",
+                  "--report-format", "json",
+                  "--report-path", "/results/gitleaks.json",
+                  "--no-banner", "--exit-code", "0"),
+            report="gitleaks.json", timeout=300,
+        )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         findings = []

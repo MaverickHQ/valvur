@@ -156,10 +156,13 @@ def test_nothing_to_scan_is_not_a_scan_failure():
     """OSV-Scanner reads lockfiles only, so a pyproject-without-lockfile makes it
     exit 128 saying 'No package sources found'. Reporting that as a failure marked
     the whole scan incomplete and made every lockfile-less project look broken."""
-    from valvur.runner import _is_nothing_to_scan
+    from valvur.invocation import NOTHING_TO_SCAN
+    from valvur.runner import _is_empty_result
 
-    assert _is_nothing_to_scan("No package sources found, --help for usage")
-    assert not _is_nothing_to_scan("permission denied reading /workspace")
+    assert _is_empty_result("No package sources found, --help for usage", NOTHING_TO_SCAN)
+    assert not _is_empty_result("permission denied reading /workspace", NOTHING_TO_SCAN)
+    # An adapter that never says such a thing gets no allowance (26.2.1).
+    assert not _is_empty_result("No package sources found", ())
 
 
 def test_fixed_version_is_the_minimal_upgrade_not_the_first_listed():
@@ -485,7 +488,9 @@ def test_trivy_is_asked_for_dev_dependencies(monkeypatch, tmp_path):
     monkeypatch.setattr(cache, "db_present", lambda: True)
     monkeypatch.setattr(subprocess, "run", capture)
 
-    ContainerRunner(runtime="/usr/local/bin/docker").run_trivy(tmp_path)
+    from valvur.adapters import TrivyAdapter
+
+    TrivyAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
 
     assert "--include-dev-deps" in seen["cmd"]
 

@@ -13,17 +13,80 @@ from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..coverage import Coverage
 from ..findings import Dependency, Exploit, Finding
-from ..runner import ScannerOutput
+from ..invocation import Invocation, ScannerOutput
 from ..versions import version_key
 from .base import ScannerAdapter, container_relative
+
+VERSION = "0.74.0"
+
+DB_REFUSAL = (
+    "Trivy vulnerability database not present. Fetch it once with:\n"
+    "  valvur update\n"
+    "Scans then run fully offline against the cached database."
+)
+
+
+def db_flags() -> list[str]:
+    """Trivy's own switches for a mirrored database (F10.5, 22.B.3): where to
+    fetch it from, and `--insecure` for a mirror that speaks plain HTTP or a
+    certificate the container does not trust. Read from the two settings the
+    runner names; the flags are Trivy's and so are here."""
+    import os
+
+    from .. import runner as _runner
+
+    mirror = _runner.db_repository()
+    if not mirror:
+        return []                    # the default path is TLS to ghcr.io; never insecure
+    flags = ["--db-repository", mirror]
+    if os.environ.get(_runner.DB_INSECURE_ENV) == "1":
+        flags.append("--insecure")
+    return flags
+
+
+def database_fetch() -> Invocation:
+    """`valvur update`'s fetch of the vulnerability database: Trivy, told to
+    download its database and nothing else, with a network. The runner runs it
+    under the cache lock (task 16.3); the command is Trivy's (26.2.1)."""
+    return Invocation(
+        tool="trivy-db", version="",
+        argv=("trivy", "image", "--download-db-only", "--cache-dir", "/cache/trivy",
+              *db_flags()),
+        report=None, network=True, timeout=900,
+    )
 
 
 class TrivyAdapter(ScannerAdapter):
     kind = "scanner"
     name = "trivy"
+    version = VERSION
 
-    def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_trivy(workspace)
+    def command(self, workspace: Path) -> Invocation:
+        from .. import cache
+
+        if not cache.db_present():
+            # Refused here, before a container starts, so the message leads with
+            # the fix rather than arriving as Trivy's stderr.
+            raise RuntimeError(DB_REFUSAL)
+        return Invocation(
+            tool=self.name, version=VERSION,
+            argv=(
+                "trivy", "fs", "/workspace",
+                "--cache-dir", "/cache/trivy",
+                *db_flags(),
+                "--skip-db-update", "--skip-java-db-update",
+                "--format", "json", "--output", "/results/trivy.json",
+                "--quiet", "--scanners", "vuln",
+                # Trivy excludes dev dependencies by default; OSV-Scanner includes
+                # them. Measured on a real Electron app: without this the quick
+                # profile found 0 CVEs and standard found 24 — the same 24, in the
+                # same lockfile, differing only by this flag. Build and test tooling
+                # runs on the developer's machine and in CI, which is precisely the
+                # supply-chain surface this product exists to cover.
+                "--include-dev-deps",
+            ),
+            report="trivy.json", timeout=600,
+        )
 
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
         """What Trivy reads for known vulnerabilities, and the ecosystems present here

@@ -6,41 +6,22 @@ import os as _os
 import threading as _threading
 import uuid as _uuid
 from contextlib import suppress as _suppress
-from dataclasses import dataclass
 from pathlib import Path
 
+from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .version import __version__, default_image
 
-
-@dataclass(frozen=True)
-class ScannerOutput:
-    tool: str
-    version: str
-    stdout: str
-    stderr: str
-    exit_code: int
-
+__all__ = ["NOTHING_TO_SCAN", "Invocation", "ScannerOutput"]
 
 # The published image. A fresh install has no local build, so this must be pullable
 # by anyone — pointing at a local tag would make the first run fail for every user
 # who is not us.
 IMAGE = _os.environ.get("VALVUR_IMAGE") or default_image()
 
-# A Scanner that finds nothing to analyse has not failed. OSV-Scanner reads lockfiles
-# only, so a project with a pyproject.toml and no lockfile makes it exit 128 saying
-# "No package sources found" — a normal condition we were reporting as a failure,
-# which marked the whole scan incomplete and made every lockfile-less project look
-# broken. The mirror of the Phase 8 lesson: there, missing output WAS a failure.
-NOTHING_TO_SCAN = (
-    "no package sources found",
-    "no such file or directory",
-    "no files to scan",
-)
 
-
-def _is_nothing_to_scan(stderr: str) -> bool:
+def _is_empty_result(stderr: str, phrases: tuple[str, ...]) -> bool:
     lowered = stderr.lower()
-    return any(phrase in lowered for phrase in NOTHING_TO_SCAN)
+    return any(phrase in lowered for phrase in phrases)
 _VERSION = __version__
 
 # Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
@@ -256,18 +237,6 @@ def detect_runtime() -> str:
         "  Linux:  install docker or podman from your distribution\n"
         "Then re-run: valvur scan"
     )
-
-
-def _db_repository_flags() -> list[str]:
-    import os
-
-    mirror = db_repository()
-    if not mirror:
-        return []
-    flags = ["--db-repository", mirror]
-    if os.environ.get(DB_INSECURE_ENV) == "1":
-        flags.append("--insecure")
-    return flags
 
 
 def _user_flags(runtime: str) -> list[str]:
@@ -594,81 +563,33 @@ class ContainerRunner:
             return self._update_db_locked()
 
     def _update_db_locked(self) -> ScannerOutput:
+        # The one place the runner asks an adapter for a command: the database is
+        # Trivy's, fetched by Trivy, and the adapter knows how (26.2.1).
+        from .adapters.trivy import database_fetch
+
+        return self.run(database_fetch(), Path.cwd())
+
+    def run(self, invocation: Invocation, workspace: Path) -> ScannerOutput:
+        """Run one Invocation — any Scanner's — and read its report from the
+        scratch mount. The container concerns are this method's; the tool's are
+        the Invocation's (26.2.1). `check=False` throughout: a Scanner exiting
+        non-zero because it found issues is a successful run (F2.4), and the exit
+        code is interpreted by the caller."""
         import tempfile
 
+        tool, version = invocation.tool, invocation.version
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
             cmd = [
-                *self._base_flags(Path.cwd(), scratch, network=True),
-                self.image,
-                "trivy", "image", "--download-db-only", "--cache-dir", "/cache/trivy",
-                *_db_repository_flags(),
-            ]
-
-            # externally-derived value is a path passed as a single argv element.
-            proc = self._launch(
-                cmd, capture_output=True, text=True, timeout=900, check=False
-            )
-        return ScannerOutput("trivy-db", "", proc.stdout, proc.stderr, proc.returncode)
-
-    def run_trivy(self, workspace: Path) -> ScannerOutput:
-        import tempfile
-
-        from . import cache
-
-        if not cache.db_present():
-            raise RuntimeError(
-                "Trivy vulnerability database not present. Fetch it once with:\n"
-                "  valvur update\n"
-                "Scans then run fully offline against the cached database."
-            )
-
-        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
-            cmd = [
-                *self._base_flags(workspace, scratch),
-                self.image,
-                "trivy", "fs", "/workspace",
-                "--cache-dir", "/cache/trivy",
-                *_db_repository_flags(),
-                "--skip-db-update", "--skip-java-db-update",
-                "--format", "json", "--output", "/results/trivy.json",
-                "--quiet", "--scanners", "vuln",
-                # Trivy excludes dev dependencies by default; OSV-Scanner includes
-                # them. Measured on a real Electron app: without this the quick
-                # profile found 0 CVEs and standard found 24 — the same 24, in the
-                # same lockfile, differing only by this flag. Build and test tooling
-                # runs on the developer's machine and in CI, which is precisely the
-                # supply-chain surface this product exists to cover.
-                "--include-dev-deps",
+                *self._base_flags(workspace, scratch, network=invocation.network,
+                                  allow_exec=invocation.allow_exec),
+                self.image, *invocation.argv,
             ]
             proc = self._launch(
-                cmd, capture_output=True, text=True, timeout=600, check=False
+                cmd, capture_output=True, text=True, timeout=invocation.timeout, check=False
             )
-            report = Path(scratch) / "trivy.json"
-            if not report.exists():
-                return ScannerOutput(
-                    "trivy", "0.74.0", "",
-                    f"trivy produced no report. stderr: {proc.stderr.strip()[:300]}",
-                    proc.returncode or 99,
-                )
-            stdout = report.read_text(encoding="utf-8")
-
-        return ScannerOutput("trivy", "0.74.0", stdout, proc.stderr, proc.returncode)
-
-    def _capture(self, workspace, argv, outfile, *, tool, version, network=False,
-                 timeout=600, allow_exec=False):
-        """Run one Scanner and read its report from the scratch mount."""
-        import tempfile
-
-        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
-            cmd = [
-                *self._base_flags(workspace, scratch, network=network, allow_exec=allow_exec),
-                self.image, *argv,
-            ]
-            proc = self._launch(
-                cmd, capture_output=True, text=True, timeout=timeout, check=False
-            )
-            report = Path(scratch) / outfile if outfile else None
-            if report is not None and not report.exists() and _is_nothing_to_scan(proc.stderr):
+            report = Path(scratch) / invocation.report if invocation.report else None
+            if (report is not None and not report.exists()
+                    and _is_empty_result(proc.stderr, invocation.empty_when)):
                 # Nothing to analyse: an empty result, honestly earned.
                 return ScannerOutput(tool, version, "", "", 0)
             if report is not None and not report.exists():
@@ -678,12 +599,21 @@ class ContainerRunner:
                 # as clean. Surfaced as a failure so the run is marked incomplete.
                 return ScannerOutput(
                     tool, version, "",
-                    f"{tool} produced no report at {outfile}. "
+                    f"{tool} produced no report at {invocation.report}. "
                     f"stderr: {proc.stderr.strip()[:300]}",
                     proc.returncode or 99,
                 )
             stdout = report.read_text(encoding="utf-8") if report is not None else proc.stdout
         return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode)
+
+    def _capture(self, workspace, argv, outfile, *, tool, version, network=False,
+                 timeout=600, allow_exec=False):
+        """The pre-26.2.1 shape, kept for the Scanners PR 2 and PR 3 move."""
+        return self.run(Invocation(
+            tool=tool, version=version, argv=tuple(argv), report=outfile,
+            network=network, timeout=timeout, allow_exec=allow_exec,
+            empty_when=NOTHING_TO_SCAN,
+        ), workspace)
 
     def run_osv(self, workspace: Path) -> ScannerOutput:
         # OSV queries api.osv.dev, so it is a standard/deep Scanner only - it is
@@ -816,45 +746,3 @@ class ContainerRunner:
                 entry.get("error") or "", 0 if entry.get("ok") else 1,
             )
         return outputs
-
-    def run_gitleaks(self, workspace: Path) -> ScannerOutput:
-        import tempfile
-
-        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
-            cmd = [
-                self.runtime, "run", "--rm",
-                "--name", _container_name(),
-                # Run as the invoking user so the scratch mount is writable.
-                # Docker Desktop translates UIDs for us; rootful Linux Docker does
-                # not, so without this the container cannot write its report and the
-                # scan silently returns nothing. Found by CI on Linux, not locally.
-                *_user_flags(self.runtime),
-                "--network=none",                      # N2.1 — no interface at all
-                "--read-only",
-                "--cap-drop=ALL",
-                "-v", f"{workspace}:/workspace:ro",    # F1.1 — source is read-only
-                "-v", f"{scratch}:/results",
-                self.image,
-                "gitleaks", "dir", "/workspace",
-                "--report-format", "json",
-                "--report-path", "/results/gitleaks.json",
-                "--no-banner", "--exit-code", "0",
-            ]
-            # check=False: a scanner exiting non-zero because it found issues is a
-            # successful run (F2.4). We interpret exit codes ourselves.
-            proc = self._launch(
-                cmd, capture_output=True, text=True, timeout=300, check=False
-            )
-            report = Path(scratch) / "gitleaks.json"
-            if not report.exists():
-                return ScannerOutput(
-                    "gitleaks", "8.30.1", "",
-                    f"gitleaks produced no report. stderr: {proc.stderr.strip()[:300]}",
-                    proc.returncode or 99,
-                )
-            stdout = report.read_text(encoding="utf-8")
-
-        return ScannerOutput(
-            tool="gitleaks", version="8.30.1",
-            stdout=stdout, stderr=proc.stderr, exit_code=proc.returncode,
-        )

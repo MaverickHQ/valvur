@@ -13,7 +13,7 @@ from typing import Protocol, runtime_checkable
 
 from ..coverage import Coverage
 from ..findings import Finding
-from ..runner import ScannerOutput
+from ..invocation import Invocation, ScannerOutput
 
 CONTAINER_WORKSPACE = "/workspace"
 
@@ -35,13 +35,28 @@ def container_relative(path: str) -> str:
     return path.lstrip("/")
 
 
+def _undeclared(name: str) -> Invocation:
+    """The default until every adapter declares its command (26.2.1 lands in
+    three PRs); an adapter that still overrides `run` never reaches it."""
+    raise NotImplementedError(f"{name} declares no command")
+
+
 @runtime_checkable
 class ScannerAdapter(Protocol):
     name: str
 
+    def command(self, workspace: Path) -> Invocation:
+        """How to invoke this Scanner: its argv, report file, timeout and grants
+        (26.2.1). The adapter's, because the adapter is the one thing that knows
+        the tool; the runner adds the container and nothing else. An adapter that
+        must refuse before launching — Trivy without its database — raises here,
+        with the message that leads with the fix."""
+        return _undeclared(self.name)
+
     def run(self, runner, workspace: Path) -> ScannerOutput:
-        """Invoke this Scanner through the container-runtime boundary."""
-        ...
+        """Invoke this Scanner through the container-runtime boundary: one call,
+        with what `command` describes."""
+        return runner.run(self.command(workspace), workspace)
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         """Normalise this Scanner's output into Findings."""

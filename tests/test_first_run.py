@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import ClassVar
 
 import pytest
-from conftest import write_name_index
+from conftest import LegacyDispatch, write_name_index
 from fake_registry import FakeRegistry
 
 from valvur import api, cache, locking, name_index, oci
@@ -68,7 +68,7 @@ TRIVY_REFUSAL = (
 )
 
 
-class _Runner:
+class _Runner(LegacyDispatch):
     """A runtime that has the image and can fetch the database, recording what it
     was asked. `update_db` does what Trivy does: the database appears in the cache."""
 

@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
+from conftest import LegacyDispatch
 
 from valvur import api
 from valvur.adapters import GitleaksAdapter
@@ -75,7 +76,7 @@ def test_a_launch_is_tracked_on_the_runner_as_well_as_the_process(monkeypatch):
 # ---------------------------------------------------- a cancelled scan writes nothing
 
 
-class _Runner:
+class _Runner(LegacyDispatch):
     """A fake that can be cancelled the way the real one is: `kill()` sets the
     flag, and the Scanners that were running come back with no report."""
 
@@ -111,6 +112,9 @@ def test_a_cancelled_scan_stops_writes_nothing_and_is_not_a_failure(tmp_path, mo
     from valvur.adapters import TrivyAdapter
 
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    # Trivy's adapter refuses without its database before any container starts
+    # (26.2.1 moved that check from the runner, which the fake bypassed).
+    monkeypatch.setattr(cache, "db_present", lambda: True)
     workspace = tmp_path / "ws"
     workspace.mkdir()
     (workspace / "app.py").write_text("print('hi')\n")

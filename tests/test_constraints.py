@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from conftest import LegacyDispatch
 
 from valvur import profiles
 from valvur.api import scan
@@ -41,7 +42,7 @@ TRIVY_ONE_CVE = json.dumps({"Results": [{
 }]})
 
 
-class CveRunner:
+class CveRunner(LegacyDispatch):
     """A runner whose findings reach the enrichment path."""
 
     def _out(self, tool, payload=""):
@@ -674,7 +675,7 @@ def _parse_mem_usage(text: str) -> int:
     return int(float(match.group(1)) * _UNITS[match.group(2).lower()])
 
 
-class _FleetMemory:
+class _FleetMemory(LegacyDispatch):
     """Samples every valvur container's memory while a scan runs and keeps the
     highest sum seen. A sample is one `stats --no-stream`, about a second."""
 
@@ -1137,7 +1138,9 @@ def test_a_launch_stops_being_tracked_once_it_finishes(monkeypatch, tmp_path):
         subprocess, "run",
         lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "{}", ""),
     )
-    ContainerRunner(runtime="/usr/local/bin/docker").run_gitleaks(tmp_path)
+    from valvur.adapters import GitleaksAdapter
+
+    GitleaksAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
 
     with runner_module._live_lock:
         assert runner_module._live_containers == set()

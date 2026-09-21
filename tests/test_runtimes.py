@@ -270,7 +270,7 @@ def test_the_real_image_declares_a_version_the_shim_accepts():
 def test_a_mirrored_database_registry_is_passed_to_trivy(monkeypatch):
     """F10.5 — the hardest enterprise requirement. An air-gapped organisation
     mirrors the DB internally rather than granting egress to ghcr.io."""
-    from valvur.runner import _db_repository_flags
+    from valvur.adapters.trivy import db_flags as _db_repository_flags
 
     monkeypatch.setenv("VALVUR_DB_REPOSITORY", "registry.internal/mirror/trivy-db")
 
@@ -281,7 +281,7 @@ def test_a_mirrored_database_registry_is_passed_to_trivy(monkeypatch):
 
 def test_no_mirror_configured_adds_no_flag(monkeypatch):
     """The default path must stay exactly as it was."""
-    from valvur.runner import _db_repository_flags
+    from valvur.adapters.trivy import db_flags as _db_repository_flags
 
     monkeypatch.delenv("VALVUR_DB_REPOSITORY", raising=False)
     monkeypatch.delenv("VALVUR_DB_INSECURE", raising=False)
@@ -294,7 +294,7 @@ def test_a_plain_http_mirror_needs_the_insecure_flag_and_gets_it_only_when_asked
     internal `registry:2`, the documented setting alone fails with "server gave HTTP
     response to HTTPS client". Trivy's `--insecure` is the switch, and it is never
     applied to the default ghcr.io path, where TLS is the point."""
-    from valvur.runner import _db_repository_flags
+    from valvur.adapters.trivy import db_flags as _db_repository_flags
 
     monkeypatch.setenv("VALVUR_DB_REPOSITORY", "mirror.internal:5000/trivy-db")
     monkeypatch.setenv("VALVUR_DB_INSECURE", "1")
@@ -327,8 +327,10 @@ def test_a_container_network_applies_only_to_networked_containers(monkeypatch, t
     monkeypatch.setenv("VALVUR_CONTAINER_NETWORK", "airgap")
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
+    from valvur.adapters import GitleaksAdapter
+
     runner.update_db()
-    runner.run_gitleaks(tmp_path)
+    GitleaksAdapter().run(runner, tmp_path)
 
     update, scan = launched
     assert "--network=airgap" in update and "--network=none" not in update

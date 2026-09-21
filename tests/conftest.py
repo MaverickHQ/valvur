@@ -4,6 +4,7 @@ import platform
 import shutil
 import tempfile
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -241,7 +242,24 @@ GITLEAKS_ONE_SECRET = json.dumps([
 ])
 
 
-class FakeRunner:
+class LegacyDispatch:
+    """The fakes' `run_<tool>(workspace)` methods, reached through the one
+    `run(invocation, workspace)` the adapters call since 26.2.1. A fake keeps
+    describing what a tool answers; this maps the Invocation to that answer."""
+
+    _BY_TOOL: ClassVar[dict[str, str]] = {
+        "gitleaks": "run_gitleaks", "trivy": "run_trivy", "osv-scanner": "run_osv",
+        "checkov": "run_checkov", "syft": "run_syft", "opengrep": "run_opengrep",
+    }
+
+    def run(self, invocation, workspace):
+        method = self._BY_TOOL.get(invocation.tool)
+        if method is None:
+            raise AssertionError(f"this fake answers no Invocation for {invocation.tool!r}")
+        return getattr(self, method)(workspace)
+
+
+class FakeRunner(LegacyDispatch):
     """Stands in for the container runtime — a system boundary, so faking is fair game.
 
     SDK-style: one method per scanner operation, each returning one shape.
@@ -368,7 +386,7 @@ def golden(tool: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-class GoldenRunner:
+class GoldenRunner(LegacyDispatch):
     """Serves captured real Scanner output, so adapters are tested against reality."""
 
     def __init__(self, **by_tool):

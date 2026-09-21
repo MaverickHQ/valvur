@@ -16,6 +16,8 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+from conftest import LegacyDispatch
+
 from valvur import compat, tree_hash
 
 REPO = Path(__file__).resolve().parent.parent
@@ -177,7 +179,7 @@ def test_a_runtime_that_cannot_answer_is_none_not_an_error(monkeypatch, tmp_path
 # ---------------------------------------------------------------- the surfaces
 
 
-class _Runner:
+class _Runner(LegacyDispatch):
     image = "ghcr.io/maverickhq/valvur:9.9.9"
     runtime = "/usr/local/bin/docker"
 
