@@ -120,12 +120,12 @@ VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 
 # 6. main is protected (0.14): required checks, signed commits, linear history,
 #    enforced for administrators. The prep lands by pull request, and a PR lands by
-#    fast-forwarding main to its head once the five checks pass — GitHub's merge
+#    fast-forwarding main to its head once the six checks pass — GitHub's merge
 #    button would create a merge commit, which linear history refuses.
 git checkout -b release/0.2.0
 git commit -am "chore: release 0.2.0"
 git push -u origin release/0.2.0
-gh pr create --fill                 # wait for the five checks
+gh pr create --fill                 # wait for the six checks
 git push origin release/0.2.0:main  # fast-forward; GitHub records the PR as merged
 
 # 7. Rehearse on that exact commit (above), then tag it. The tag is the publish.

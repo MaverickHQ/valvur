@@ -152,8 +152,9 @@ one egress decision, an implicit shim/image protocol).
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
-rewrote history to scrub two AWS identifiers (12a.1). `main` is protected: five
-required checks, signed commits, linear history, enforced for administrators — so
+rewrote history to scrub two AWS identifiers (12a.1). `main` is protected: six
+required checks (every `ci.yml` job, the published image on both architectures
+since 2026-09-21), signed commits, linear history, enforced for administrators — so
 **every change lands by pull request**, fast-forwarded onto `main` once the checks
 pass. Phases 19 and 20 are complete. A critical review on 2026-09-12 became
 **Phase 22**, and its first two blocks ran *before* `0.2.0` published:

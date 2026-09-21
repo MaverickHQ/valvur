@@ -6018,7 +6018,8 @@ user sees also carries a measured number in its STATUS note.
   shape; each leg logs the child it pulled (*"pulled the arm64 child of … on
   aarch64"*). The amd64 leg of `published` keeps the exact name main's branch
   protection requires; the arm64 leg is a new check, **`the published image, on
-  arm64`**, which the owner should add to the required list. Mutations: each
+  arm64`** — **added to main's required checks the same afternoon**, the sixth,
+  so a change that breaks the arm64 image cannot land. Mutations: each
   matrix back to one runner, both caught. **Measured on the rehearsal
   (35581573388 and 35583391242), the first time the arm64 image ran anywhere
   but this laptop:** `artifact` on arm64 **6m06s–6m30s** against amd64's
