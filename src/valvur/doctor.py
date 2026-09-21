@@ -108,6 +108,12 @@ def _image_label(runtime: str, image: str) -> str | None:
     return image_version(runtime, image)
 
 
+def _image_protocol(runtime: str, image: str) -> int | None:
+    from .compat import image_protocol
+
+    return image_protocol(runtime, image)
+
+
 def _image_starts(runtime: str, image: str) -> tuple[bool, str]:
     """Start the image once, with no network, to read the digest of the tree it was
     built from. The digest is information; that a container *started* is the
@@ -238,7 +244,7 @@ def _check_runtime() -> tuple[str | None, Check]:
 
 def _check_image(runtime: str | None) -> tuple[Check, bool]:
     """Returns the check and whether the image is local."""
-    from .compat import _series
+    from . import compat
 
     image = _image_reference()
     if runtime is None:
@@ -249,18 +255,24 @@ def _check_image(runtime: str | None) -> tuple[Check, bool]:
             "on the status line (about 220MB compressed)",
         ), False
     declared = _image_label(runtime, image)
+    protocol = _image_protocol(runtime, image)
     ours = __version__
-    if declared is not None and _series(declared) != _series(ours):
+    reason = compat.verdict(ours, declared, protocol)
+    if reason is not None:
         return Check(
             "image", "fail",
-            f"{image}: version {declared} does not match the shim's {ours} (F1.9) — a "
-            "scan refuses the pair",
+            f"{image}: {reason} (F1.9) — a scan refuses the pair",
             f"update both: pip install -U valvur && {runtime} pull {image}; or pin the "
             f"image to the shim: VALVUR_IMAGE=ghcr.io/maverickhq/valvur:{ours}",
         ), True
     started, digest = _image_starts(runtime, image)
-    label = (f"version {declared} matches the shim" if declared is not None
-             else "no version label (predates the F1.9 check)")
+    if protocol is not None:
+        label = (f"protocol {protocol}, version {declared}" if declared is not None
+                 else f"protocol {protocol}")
+    elif declared is not None:
+        label = f"version {declared} matches the shim"
+    else:
+        label = "no version label (predates the F1.9 check)"
     if not started:
         return Check(
             "image", "fail", f"{image}: {label}; does not start: {digest}",

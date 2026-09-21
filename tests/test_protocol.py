@@ -67,12 +67,14 @@ def test_doctor_says_what_compat_says(monkeypatch, tmp_path):
     from valvur import doctor
 
     monkeypatch.setattr(doctor, "_image_present", lambda r, i: True)
-    monkeypatch.setattr(compat, "incompatibility",
-                        lambda r, i: "protocol 9 is not the shim's protocol 1")
+    monkeypatch.setattr(doctor, "_image_label", lambda r, i: "0.4.0")
+    monkeypatch.setattr(doctor, "_image_protocol", lambda r, i: 9)
+    monkeypatch.setattr(compat, "verdict",
+                        lambda ours, declared, theirs: "protocol 9 is not the shim's protocol 1")
 
     check, _ = doctor._check_image("/usr/local/bin/docker")
 
-    assert check.status == "fail"
+    assert check.level == "fail"
     assert "protocol 9 is not the shim's protocol 1" in check.detail
 
 
@@ -87,11 +89,11 @@ def test_the_dockerfile_declares_the_protocol_the_shim_speaks():
 # ------------------------------------------------- the document is the contract
 
 
-def _protocol_rows(kind: str) -> list[str]:
-    """First cells of the rows in PROTOCOL.md's tables, for the table whose header
-    names `kind` — `path`, `label`, `binary` or `env`."""
+def _protocol_table(kind: str) -> list[list[str]]:
+    """The rows of the PROTOCOL.md table whose header's first cell is `kind` —
+    `path`, `label` or `binary` — each row as its cells, backticks stripped."""
     text = PROTOCOL_MD.read_text()
-    rows: list[str] = []
+    rows: list[list[str]] = []
     active = False
     for line in text.splitlines():
         if line.startswith("|"):
@@ -102,11 +104,20 @@ def _protocol_rows(kind: str) -> list[str]:
             if active and cells and set(cells[0]) <= {"-"}:
                 continue
             if active:
-                rows.append(cells[0])
+                rows.append(cells)
         else:
             active = False
     assert rows, f"PROTOCOL.md has no `{kind}` table"
     return rows
+
+
+def _protocol_rows(kind: str) -> list[str]:
+    return [row[0] for row in _protocol_table(kind)]
+
+
+def _image_paths() -> list[str]:
+    """The path rows the image provides — not the mounts the shim does."""
+    return [row[0] for row in _protocol_table("path") if row[1].startswith("the image")]
 
 
 def test_protocol_md_lists_every_path_the_adapters_and_the_runner_assume(tmp_path, monkeypatch):
@@ -171,7 +182,8 @@ def test_the_built_image_honours_protocol_md():
             capture_output=True, text=True, timeout=120, check=False,
         )
 
-    paths = [p for p in _protocol_rows("path") if p != "/results" and p != "/workspace"]
+    paths = _image_paths()
+    assert len(paths) >= 5, paths
     probe = '; do [ -e "$p" ] && echo "ok $p" || echo "MISSING $p"; done'
     listing = run("for p in " + " ".join(paths) + probe)
     missing = [line for line in listing.stdout.splitlines() if line.startswith("MISSING")]

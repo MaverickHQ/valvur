@@ -48,6 +48,7 @@ def healthy(tmp_path, monkeypatch):
     monkeypatch.setattr(doctor, "_runtime_running", lambda runtime: (True, ""))
     monkeypatch.setattr(doctor, "_image_present", lambda runtime, image: True)
     monkeypatch.setattr(doctor, "_image_label", lambda runtime, image: __version__)
+    monkeypatch.setattr(doctor, "_image_protocol", lambda runtime, image: None)
     monkeypatch.setattr(doctor, "_image_starts", lambda runtime, image: (True, "0be0b0f0456f7f"))
     from valvur import compat
 
@@ -208,6 +209,7 @@ def test_an_absent_image_is_information_not_failure_since_the_first_scan_pulls_i
     healthy, monkeypatch
 ):
     monkeypatch.setattr(doctor, "_image_label", lambda runtime, image: None)
+    monkeypatch.setattr(doctor, "_image_protocol", lambda runtime, image: None)
     monkeypatch.setattr(doctor, "_image_present", lambda runtime, image: False)
 
     checks = doctor.run(healthy)

@@ -16,6 +16,14 @@ from .version import __version__
 
 LABEL = "org.opencontainers.image.version"
 
+#: The shim/image protocol this shim speaks (26.3.1): what it assumes of the image
+#: — binaries, paths, the Checks' entry point and its JSON, the labels, the user —
+#: written down in docs/PROTOCOL.md and carried by the image as one label. A change
+#: that breaks anything on that page bumps this; an addition does not. The
+#: Dockerfile declares the same number, and a test holds the two together.
+PROTOCOL = 1
+PROTOCOL_LABEL = "org.valvur.protocol"
+
 
 class IncompatibleImage(RuntimeError):
     """Raised with both versions named, because 'incompatible' alone is unactionable."""
@@ -26,17 +34,28 @@ def shim_version() -> str:
     return __version__
 
 
-def image_version(runtime: str, image: str) -> str | None:
-    """Read the image's declared version. None if it does not declare one."""
+def _label(runtime: str, image: str, name: str) -> str | None:
     try:
         result = subprocess.run(  # noqa: S603
-            [runtime, "inspect", "--format", f"{{{{index .Config.Labels \"{LABEL}\"}}}}", image],
+            [runtime, "inspect", "--format", f"{{{{index .Config.Labels \"{name}\"}}}}", image],
             capture_output=True, text=True, timeout=30, check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None
     label = result.stdout.strip()
     return label or None
+
+
+def image_version(runtime: str, image: str) -> str | None:
+    """Read the image's declared version. None if it does not declare one."""
+    return _label(runtime, image, LABEL)
+
+
+def image_protocol(runtime: str, image: str) -> int | None:
+    """The protocol major the image declares. None for an image from before the
+    label — `0.3.0` and earlier — which the version rule serves instead."""
+    raw = _label(runtime, image, PROTOCOL_LABEL)
+    return int(raw) if raw is not None and raw.isdigit() else None
 
 
 def _series(raw: str) -> tuple[int, int]:
@@ -134,15 +153,42 @@ def image_inputs(runtime: str, image: str) -> str | None:
     return digest or None
 
 
-def check(runtime: str, image: str) -> None:
-    """Refuse an incompatible pair, naming both versions (F1.9)."""
-    declared = image_version(runtime, image)
+def verdict(ours: str, declared: str | None, theirs: int | None) -> str | None:
+    """Why a shim of version `ours` cannot use an image declaring version
+    `declared` and protocol `theirs`, or None when it can — the one rule `check`
+    raises on and `doctor` reports (F1.9, 26.3.1).
+
+    A labelled image is judged by its protocol major alone: the same major runs
+    whatever the versions say — a different tree is a diagnosis the scan makes
+    (23.4.4), never a refusal — and a different major is the one thing refused.
+    An image without the label predates protocol 1, and the version-series rule
+    that served it keeps serving it.
+    """
+    if theirs is not None:
+        if theirs == PROTOCOL:
+            return None
+        return (f"the image speaks protocol {theirs}; this shim ({ours}) speaks protocol "
+                f"{PROTOCOL} (the image says it is version {declared or 'unknown'})")
     if declared is None:
-        return                        # an image without the label predates the check
-    ours = shim_version()
+        return None                   # neither label: an image from before the check
     if _series(ours) != _series(declared):
-        raise IncompatibleImage(
-            f"Shim version {ours} cannot use image version {declared}.\n"
-            f"  Update both: pip install -U valvur && {runtime} pull {image}\n"
-            f"  Or pin the image: VALVUR_IMAGE=valvur:{ours} valvur scan"
-        )
+        return f"Shim version {ours} cannot use image version {declared}"
+    return None
+
+
+def incompatibility(runtime: str, image: str) -> str | None:
+    """`verdict`, with both labels read from the image."""
+    return verdict(shim_version(), image_version(runtime, image), image_protocol(runtime, image))
+
+
+def check(runtime: str, image: str) -> None:
+    """Refuse an incompatible pair, naming both sides and the fix (F1.9)."""
+    reason = incompatibility(runtime, image)
+    if reason is None:
+        return
+    ours = shim_version()
+    raise IncompatibleImage(
+        f"{reason}.\n"
+        f"  Update both: pip install -U valvur && {runtime} pull {image}\n"
+        f"  Or pin the image: VALVUR_IMAGE=valvur:{ours} valvur scan"
+    )
