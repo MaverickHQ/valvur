@@ -1,6 +1,6 @@
 # valvur — Design
 
-**Status:** approved for implementation · **Version:** 1.0 · **Date:** 2026-08-30
+**Status:** approved for implementation · **Version:** 1.1 · **Date:** 2026-08-30, revised 2026-09-21 (tasks 26.2.1–26.5.2)
 
 Implements [requirements.md](./requirements.md). Decisions marked ADR-NNNN are
 recorded in [docs/adr/](../../../docs/adr/); this document does not re-argue them.
@@ -49,8 +49,17 @@ translation, invoking the image, reading normalised results from scratch, writin
 loading (F8.1), **Status** diffing against `state.json` (F5.6), and the MCP/CLI
 surface (F9).
 
-Version compatibility is checked on every invocation; a major mismatch refuses to run
-(F1.9).
+Compatibility is checked on every invocation, by protocol major (F1.9; §1.3): a
+different major refuses to run, a different version with the same major runs and
+is reported.
+
+Since task 26.2.1 the shim is two halves with one contract between them: each
+**Scanner**'s adapter owns its command — `ScannerAdapter.command(workspace)` returns
+an `Invocation` (argv after the image, the report file under `/results`, timeout,
+the network and exec grants) — and `ContainerRunner.run(invocation, workspace)`
+owns the container: runtime, mounts, user, read-only root, SELinux labels, the
+kill registry. `runner.py` names no tool; a snapshot per Scanner under
+`tests/fixtures/invocations/` holds every argv to what it was before the split.
 
 ### 1.2 Container image
 
@@ -58,28 +67,79 @@ Multi-stage. Go binaries (trivy, gitleaks, osv-scanner, syft) copied from pinned
 upstream release stages; Python layer for opengrep, checkov and the **Checks**.
 Non-root user, read-only root filesystem, all capabilities dropped (F10.2).
 
+### 1.3 The shim/image protocol (F1.9, task 26.3.1)
+
+Everything the shim assumes of the image is one document, `docs/PROTOCOL.md`, and
+one label the image carries, `org.valvur.protocol`, whose value is a **major
+version and only a major** — `compat.PROTOCOL` on the shim's side, with a test
+holding the Dockerfile to the same number:
+
+| the image says | the shim does |
+|---|---|
+| the same major | runs; a different version is reported (`build.match`, 23.4.4), never refused |
+| a different major | refuses, naming both protocols and both versions and the fix — the one thing refused |
+| no label | an image from before protocol 1 (`0.3.0` and earlier): the version-series rule as before |
+
+The document lists every path (four are mounts the shim provides — `/workspace`
+read-only, `/results`, `/cache/trivy`, `/cache/names` — plus the `/tmp` tmpfs; the
+rest are the image's), every binary and its pin, the Checks' entry point
+(`python -m valvur.checks <name>` and `batch`) with both JSON shapes, the labels,
+and the process (user 10001, `--read-only`, `--cap-drop=ALL`, `--network=none`
+unless granted, no `ENTRYPOINT`). It is held to the code in both directions: a
+unit test asserts every absolute path any `Invocation` names is a row; an e2e
+test asserts every row the image is said to provide exists in the built image, on
+both architectures. A change that breaks anything on the page bumps the major; an
+addition does not. `check` and `doctor` share one verdict.
+
 ---
 
-## 2. Profiles
+## 2. Profiles (F2.3, ADR-0016)
 
-| | `offline` | `full` (default) | `full` |
-|---|---|---|---|
-| Budget (N1) | <60s | <5min | unbounded |
-| Network | **none** | registry + EPSS | + image registries |
-| Opengrep | fast ruleset | full | full |
-| Gitleaks | working tree | + git history | + git history |
-| Trivy | fs | fs + config | + image scan |
-| OSV-Scanner | — | ✓ | ✓ |
-| Checkov | — | ✓ | ✓ |
-| Syft | — | ✓ | ✓ |
-| Licence hygiene | ✓ (F4.1–4.3) | ✓ (all) | ✓ + copyright |
-| Dependency Reality | existence + near-miss, from the Name Index (ADR-0018) | + first-publish age | + first-publish age |
-| AI Artifact | ✓ | ✓ | ✓ |
-| LLM-sink, Pinning | — | ✓ | ✓ |
-| Enrichment | bundled KEV | KEV + EPSS | KEV + EPSS |
+Two, split on the only line that matters to this product: whether anything leaves
+the machine. The earlier `quick`/`standard`/`deep` split was drawn along speed while
+being described as a network boundary; the old names still resolve (`quick` →
+`offline`, `standard` and `deep` → `full`).
 
-`offline` is the offline guarantee (F1.2, N2.1). The AI Artifact **Check** runs in every
-**Profile** because it is pure static inspection and cheap.
+| | `offline` (the default) | `full` |
+|---|---|---|
+| Budget | N1.1: under 60s | N1.2: under 5 minutes; 300s over MCP unless the client says otherwise |
+| Network | **none**: every container `--network=none`, the host shim opens no socket | the registries and OSV below, EPSS from FIRST |
+| Gitleaks, Opengrep, Trivy, Checkov, Syft | ✓ | ✓ |
+| OSV-Scanner | — (needs api.osv.dev) | ✓, a second advisory source |
+| Licence, AI Artifact | ✓ | ✓ |
+| Dependency Reality | existence and near-misses, from the Name Index (ADR-0018) | + first-publish age from the five registries, npm adoption from api.npmjs.org, JVM and Go existence from Maven Central and the Go proxy |
+| Enrichment | bundled KEV | KEV + EPSS |
+
+`profiles.select` is the only place a network is granted to an adapter; `offline`
+is the offline guarantee (F1.2, N2.1). What each Profile does *not* look at is stated
+in `SUMMARY.md` and `run.json` (`profiles.gaps_in_prose`), never left to be inferred.
+
+## 2a. Egress — one authority (N2.1, ADR-0010, task 26.2.2)
+
+The decision above is written once, in `egress.py`, and everything that acts on it
+calls in:
+
+- `egress.for_profile(profile).network` — the boolean, read from
+  `profiles.ALLOWS_NETWORK`, which stays the Profile table.
+- `Egress.container_flags()` — `["--network=none"]`, or with a network: `--env
+  VALVUR_NETWORK=1` (the Check that asks a registry does so only when it sees this,
+  ADR-0018), the database mirror for Trivy if one is named, and the user-defined
+  network to join if there is one (`VALVUR_CONTAINER_NETWORK`, F10.5). The runner's
+  flag builder and both image probes (`compat`, `doctor`) use it; `egress.NONE` is
+  the probe's no-interface launch.
+- `Egress.hosts()` — nothing, or `FULL_HOSTS`: every host `full` may reach, derived
+  from `SPOKEN_AS`, which pairs each host with how the disclosure sentence names it.
+  `doctor --network` probes this list.
+- `egress.disclosure(used=)` — `run.json`'s `what_left_the_machine`: the one word
+  `nothing`, or the one sentence that names every destination and what is sent to
+  it. This sentence **is** the non-exfiltration claim (§3 of CLAUDE.md); 23.5.4 found
+  it had lagged the truth by three registries for a week, so a test now holds every
+  host to a spoken name and every spoken name to the sentence.
+
+A test refuses the `"--network=` literal anywhere under `src/valvur` but
+`egress.py`. `scripts/verify-offline.py` keeps its own literal on purpose — it is the
+reviewer's independent check and must not merely ask egress whether egress agrees
+with itself — and asks egress as well.
 
 ---
 
@@ -283,7 +343,22 @@ would leave the other unsigned, which is the same defect as signing a mutable ta
 
 CI tests the **published** artifact, not a local build. Both workflows built locally
 and neither pulled what was published, which is why `0.1.0rc1` shipped `arm64`-only
-and no test could see it.
+and no test could see it. Since 26.1.2 it tests it on **both** architectures: the
+release's `artifact` job and CI's published-image job are each a two-runner matrix,
+and the pipeline verifies the signature, the SLSA provenance and each
+distribution's attestation read back from the index (26.1.3, F10.3).
+
+## 6d. The release: stage, validate, promote (N2.5, ADR-0020)
+
+`release.yml` runs `verify → build ×2 → stage → artifact → promote`. `stage` pushes
+the index under a **candidate** tag, signs and attests the digest, builds `dist/`;
+`artifact` validates the wheel and that digest together; only `promote`, after it,
+re-tags the same digest as the version and `latest`, publishes to PyPI and creates
+the GitHub release. A failed validation leaves a candidate tag and nothing a user
+can install; the version number is not burned. The `release` environment — and any
+required reviewer on it — sits on `promote`, after the evidence and before the
+irreversible step. Rehearsed by `workflow_dispatch` against throwaway targets
+before every real tag.
 
 
 ## 7. Error handling

@@ -6300,16 +6300,39 @@ user sees also carries a measured number in its STATUS note.
 
 ### Tier 5 — Polish, record
 
-- [ ] **26.5.1** **ADR-0020 — promote after validation.** The order 26.1.1 lands
+- [x] **26.5.1** **ADR-0020 — promote after validation.** The order 26.1.1 lands
   and the alternatives it declined: validating before pushing at all (needs the
   digest, which needs the push), a candidate tag promoted by re-tag (chosen), a
   candidate *package* (a second GHCR name, rejected: two names to sign and verify).
   The accepted cost — a version number burned by a failed validation — recorded
   as the cost.
-- [ ] **26.5.2** **`design.md` gains the protocol and the egress sections.** The
+
+  **STATUS 2026-09-21:** ✅ With 26.5.2, one PR.
+  [`docs/adr/0020-promote-after-validation.md`](../../../docs/adr/0020-promote-after-validation.md):
+  the context (the artifact job's own admission, and 24.4's yank as the reminder
+  that PyPI cannot be undone), the three jobs in the order the evidence arrives,
+  four alternatives with why each was rejected — including the task text's own
+  shape, "push `:version` and accept a burned number", which the candidate tag
+  made unnecessary, so the cost the task said to record is recorded as *not
+  paid* — the consequences with the measured 7m22s, and what reopens it. Cites
+  N2.5, F10.3, F10.7; the traceability ratchet holds.
+- [x] **26.5.2** **`design.md` gains the protocol and the egress sections.** The
   shim/image protocol from 26.3.1 and the one egress authority from 26.2.2, each
   a page, each citing the test that keeps it true. `CLAUDE.md` §7 gains the
   generation rule from 26.0.3 and §3 points at `egress.py`.
+
+  **STATUS 2026-09-21:** ✅ `design.md` 1.1 (the two halves and the `Invocation`
+  contract, 26.2.1), **1.3 The shim/image protocol** (the label, the rule as a
+  table, what the document lists, the two tests that hold it), **2a. Egress — one
+  authority** (the four answers `egress.py` gives and who calls in, the two tests,
+  and why `verify-offline.py` keeps its own literal), 6c (both architectures, the
+  provenance verified) and **6d. The release: stage, validate, promote**. **Found
+  on the way:** §2's Profile table was the pre-ADR-0016 one — three columns,
+  `full (default)`, Checkov and Syft absent from `offline`, "fast ruleset" and
+  "git history" distinctions that no longer exist — a joining reader's first
+  wrong fact; rewritten from `profiles.py` as it is. `CLAUDE.md` §7 and §3 were
+  done with 26.0.3 and 26.2.2; §6 gains the ADR-020 row. Version 1.1 of the
+  document. **Tier 5 is closed, and with it Phase 26's engineering.**
 
 **Exit (Phase 26):** Tier 0 and Tier 1 released — the first release whose PyPI
 upload followed its validation, on both architectures; Tiers 2–3 landed before
@@ -6317,6 +6340,15 @@ upload followed its validation, on both architectures; Tiers 2–3 landed before
 literal in the tree; a mixed-generation folder impossible to produce by the e2e
 harness's kill; every claim in the phase head re-measured in its task's STATUS
 note.
+
+> **2026-09-21:** every task closed — fourteen, in eleven PRs and four rehearsals,
+> over one evening and one day. Met: `runner.py` at 485 lines naming no tool; the
+> `"--network=` literal in `egress.py` alone (and, on purpose, in
+> `verify-offline.py`); the mixed generation tested at every rename position
+> rather than by a random kill; every claim re-measured. **Not yet met, and not
+> engineering:** "Tier 0 and Tier 1 *released*" — the next real tag, which is
+> 12b.1's `0.3.1` or `v1.0.0`, will be the first release whose upload follows its
+> validation. That is the one line of this exit the owner's checkpoints still own.
 
 ## Traceability
 

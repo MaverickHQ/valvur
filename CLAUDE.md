@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 60 modules under `src/valvur`, 1,051 tests in 57 files, 19 ADRs, 136
-requirement IDs, **184 done and 6 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 2 are Phase 26's records, Tier 5 (Tiers 0–4 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 6
+Roughly: 60 modules under `src/valvur`, 1,051 tests in 57 files, 20 ADRs, 136
+requirement IDs, **186 done and 4 open** across 26 phases — the usability gate
+and the `v1.0.0` tail; Phase 26 is complete (Tiers 0–5); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -287,9 +287,13 @@ were introduced by the block before, with tests passing.
   **Then Tier 4** (26.4.1, 26.4.2): a job's five states are an enum with a
   transition table the code cannot leave, and the generation id is on every
   surface an agent reads in order — `SUMMARY.md`'s machine block, the DONE line,
-  the gate — measured as one id across all three on one real scan. **Tiers 0–4
-  are closed.** What remains of the review is its record, Tier 5: ADR-0020 and
-  the `design.md` sections.
+  the gate — measured as one id across all three on one real scan. **Then Tier
+  5**: ADR-0020 and `design.md`'s protocol, egress and release sections — which
+  found the design's Profile table three ADRs stale. **Phase 26 is complete:
+  fourteen tasks, eleven PRs, four rehearsals, one evening and one day.** Next:
+  the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1), then `v1.0.0`
+  (12b.3) — the next real tag is the first release whose upload follows its
+  validation.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality
@@ -494,6 +498,7 @@ new argument.
 | [011](docs/adr/0011-scan-output-never-enters-git.md) | **Scan output never enters git history, on any branch.** Self-ignoring folder + root `.gitignore` + a tracked `pre-commit` hook that refuses staged `.security-scan/` paths (`.gitignore` does not stop `git add -f`). A separate "clean publish branch" was rejected: git objects are repo-wide, so committing on any branch puts results on the remote. |
 | [012](docs/adr/0012-vulnerability-db-lives-outside-the-image.md) | **The vulnerability DB lives outside the image.** Baking Trivy's DB in took the image from 187MB to 1.52GB *and* tied advisory freshness to image release cadence. It now lives in a host cache, mounted at scan time; scans run `--skip-db-update` so `offline` stays offline. |
 | [016](docs/adr/0016-two-profiles-split-on-the-network-boundary.md) | **Two Profiles, split on the network boundary.** `offline` (the default) runs every Scanner that completes under `--network=none`. `full` adds `osv-scanner` — and, since ADR-0018 amended this, lets the dependency-reality Check ask a registry for the one thing its local index cannot answer. The old set was drawn along *speed* while being described as a network boundary, and `deep` was byte-identical to `standard` — it promised more and delivered exactly `standard`. Retired names still resolve. |
+| [020](docs/adr/0020-promote-after-validation.md) | **Promote after validation.** The release is stage → validate → promote (26.1.1): the image is pushed under a *candidate* tag, signed and attested; the wheel and that digest are tested together on both architectures; only then is the digest re-tagged as the version and `latest`, the wheel uploaded to PyPI, the release created. A failed validation leaves a candidate tag and nothing a user can install — the version number is not burned. Rejected: validating before pushing (the digest needs the push), pushing the version tag and burning the number on failure (the task's own shape), a candidate *package* (two names to sign). The `release` environment's brake sits after the evidence and before the irreversible step. |
 | [019](docs/adr/0019-one-image-checkov-included.md) | **One image, Checkov in it.** Decided by measurement (23.4.6): Checkov is 164MB uncompressed but **53MB of a 223–233MB pull**, a slim image saves about 5s of a 110s first run, and it would reach a repository the corpus cannot find — 13 of 13 carry a workflow file, so `applies_to` runs Checkov everywhere and an on-demand second image would be pulled by everyone. The cost users pay is Checkov's runtime, 97–100% of every scan on Linux CI, which no image shape changes. Reopened by a measured user for whom 53MB matters, `applies_to` skipping on a real share of repositories, or a faster IaC scanner under an acceptable licence. |
 | [018](docs/adr/0018-offline-package-name-index.md) | **An exact index of package names, from primary sources, in the host cache.** Existence — the hallucination check — is answered offline from every name on PyPI (890k), npm (4.4M) and, since 23.2.2–3, RubyGems (197k), Packagist (462k) and crates.io (332k): exact rather than a bloom filter because a false positive there is a *missed hallucination*, and a binary search over the memory-mapped file costs 8µs a name. **Published daily as a signed OCI artifact** (`valvur-index`, the `trivy-db` pattern; amendment of 2026-09-12) and pulled by a zero-dependency client in the shim — 34MB, seconds — with the registries walked directly only as the fallback. Signature verified by cosign when installed, never by a hand-rolled verifier; the alternatives are in the amendment. `all-the-package-names` was rejected on measurement, not only principle: 140,823 names it lists do not exist. Stale past 30 days → `inconclusive`. Amends ADR-0016. |
 | [017](docs/adr/0017-selinux-relabelling-is-opt-in.md) | **SELinux relabelling of the source tree is opt-in.** Measured on a native enforcing host: all three mounts are denied, so valvur was unusable on RHEL — the primary target market. Its **own** scratch and cache mounts are labelled `:z` unconditionally; the **Workspace is not**, unless `VALVUR_SELINUX_RELABEL=1`, because `:z` rewrites the SELinux context of every file in the scanned tree and that outlives the scan (§10, moat item 2). `:Z` is impossible rather than merely undesirable — it stamps a private MCS category and valvur runs its Scanners concurrently against one mount, so the second is denied. The accepted cost is a failed first run on RHEL. |
