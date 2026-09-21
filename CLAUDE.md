@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 60 modules under `src/valvur`, 1,035 tests in 55 files, 19 ADRs, 136
-requirement IDs, **181 done and 9 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 5 are Phase 26's tiers 3–5 (Tiers 0–2 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 9
+Roughly: 60 modules under `src/valvur`, 1,039 tests in 56 files, 19 ADRs, 136
+requirement IDs, **182 done and 8 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 4 are Phase 26's polish, Tiers 4–5 (Tiers 0–3 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 8
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -281,8 +281,12 @@ were introduced by the block before, with tests passing.
   as `org.valvur.protocol`; F1.9 now compares protocol majors — the same major
   runs whatever the versions say, a different major is the one thing refused —
   held to the code in both directions by a unit test over the document and an
-  e2e test over the image. What remains of the review: 26.3.2 (the fleet's
-  outcome typed) and the polish, Tiers 4–5.
+  e2e test over the image. **Then 26.3.2**: the fleet's 4-tuple is a
+  `ScannerOutcome` with named fields — no behaviour change, and a mutation that
+  survived (the budget cut dropping everything but the ScannerRun) pinned.
+  **Tiers 0–3 are closed.** What remains of the review is the polish, Tiers 4–5:
+  a state enum, the generation id on every surface, ADR-0020, the `design.md`
+  sections.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality

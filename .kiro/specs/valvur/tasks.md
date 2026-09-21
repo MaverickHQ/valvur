@@ -6236,7 +6236,7 @@ user sees also carries a measured number in its STATUS note.
   fixture is copied, never scanned in place. F1.9 annotated. `design.md`'s
   section is 26.5.2's.
 
-- [ ] **26.3.2** **The fleet's outcome is a type, not a 4-tuple.** `_run_one` and
+- [x] **26.3.2** **The fleet's outcome is a type, not a 4-tuple.** `_run_one` and
   `_outcome` return `(ScannerRun, findings, artifact, raw)` tuples that `_scan_
   locked` indexes by position in eleven places, including the budget-cut rewrite
   that rebuilds one with `dataclasses.replace(outcome[0], …), *outcome[1:]`. A
@@ -6244,6 +6244,23 @@ user sees also carries a measured number in its STATUS note.
   behaviour change; the tests are the existing fleet tests, which must not change.
   Sequenced here because 26.0.1 adds a fifth thing (the unreadable report's raw
   text) to that tuple and 26.2.1 moves the callers — do it once, after both.
+
+  **STATUS 2026-09-21:** ✅ Four tests first in `test_outcome.py` (the fields, a
+  failure keeping its raw text and no artifact, the budget cut keeping
+  everything but the reason, and a grep refusing `outcome[n]`/`o[n]`/`*outcome`
+  in `api.py`). `ScannerOutcome(scanner, findings, artifact, raw)`, frozen,
+  with `timed(seconds)` and `cut(reason)` — the two rewrites the fleet made by
+  position; `_run_one`, `_attempt`, `_outcome`, `_run_checks` return it and the
+  fleet, the budget and the tail of `_scan_locked` read names. One test moved
+  with it (`test_timing.py` unpacked the tuple; it reads `.scanner`). The
+  existing fleet, budget, contract and failure suites are unchanged and green.
+  **A mutation survived and was pinned:** `cut()` rebuilt from the ScannerRun
+  alone — dropping findings, artifact and raw — passed, because the cut test's
+  outcome was a killed Scanner with nothing to drop; it now cuts an unreadable
+  report (26.0.1's shape, `not ok` with its raw text) and asserts the raw text
+  survives. Two more mutations caught: an unreadable report forgetting its raw
+  text, a positional read returning. No behaviour change: 1,039 tests. **Tier 3
+  is closed.**
 
 ### Tier 4 — Polish, code
 
