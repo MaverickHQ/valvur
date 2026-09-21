@@ -219,3 +219,58 @@ def test_the_runner_names_no_tool(monkeypatch):
     for method in ("run_trivy", "run_gitleaks", "run_osv", "run_checkov", "run_syft",
                    "run_opengrep", "_capture"):
         assert f"def {method}" not in source, f"runner.py still has {method}"
+
+
+# ------------------------------------------------------------------ PR 3: the Checks
+
+
+def test_a_single_check_reproduces_the_runners_argv(tmp_path):
+    from valvur.adapters import CheckAdapter
+
+    _assert_matches(CheckAdapter("licence-file").command(tmp_path), "licence-file")
+    granted = CheckAdapter("dependency-reality", uses_network=True, network=True)
+    _assert_matches(granted.command(tmp_path), "dependency-reality")
+
+
+def test_the_checks_batch_reproduces_the_runners_argv(tmp_path):
+    from valvur.adapters.check import batch_command
+
+    invocation, refused = batch_command(
+        ["licence-file", "ai-artifact", "dependency-reality"], network=True)
+
+    assert refused == {}
+    _assert_matches(invocation, "checks-batch")
+
+
+def test_dependency_reality_is_refused_before_launching_without_an_index_or_a_network(
+    tmp_path, monkeypatch
+):
+    """The host-side refusal that leads with the fix, now the adapter's: single
+    and batch alike, and the batch still launches for the others."""
+    from valvur.adapters import CheckAdapter
+    from valvur.adapters.check import batch_command
+
+    monkeypatch.setattr(cache, "name_index_present", lambda: False)
+
+    with pytest.raises(RuntimeError, match="valvur update"):
+        CheckAdapter("dependency-reality", uses_network=True).command(tmp_path)
+    invocation, refused = batch_command(["licence-file", "dependency-reality"], network=False)
+    assert list(refused) == ["dependency-reality"]
+    assert "valvur update" in refused["dependency-reality"].stderr
+    assert invocation is not None and invocation.argv[-1] == "licence-file"
+    # Granted a network, the registry can answer instead: no refusal.
+    assert batch_command(["dependency-reality"], network=True)[1] == {}
+
+
+def test_the_runner_names_no_tool_at_all():
+    """The target the task set: the container boundary knows containers. Every
+    Scanner's and every Check's name is gone from `runner.py`; the one call into
+    an adapter is the database fetch, which is Trivy's by nature. The line count
+    is measured in the task's STATUS note rather than pinned here — 860 to 517 —
+    because a number about to move (26.2.2 takes the network settings out) is a
+    test that fails for a reason nobody cares about."""
+    source = Path("src/valvur/runner.py").read_text()
+    for name in ("valvur.checks", "def run_check", "BatchUnsupported", "dependency-reality",
+                 "licence-file", "ai-artifact", '"gitleaks"', '"osv-scanner"', '"checkov"',
+                 '"syft"', '"opengrep"'):
+        assert name not in source, f"runner.py still carries {name!r}"

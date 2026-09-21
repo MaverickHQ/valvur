@@ -284,8 +284,10 @@ def test_the_networked_containers_are_told_and_the_offline_ones_are_not(monkeypa
     monkeypatch.setattr(subprocess, "run", capture)
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    runner.run_check("dependency-reality", tmp_path, network=False)
-    runner.run_check("dependency-reality", tmp_path, network=True)
+    from valvur.adapters import CheckAdapter
+
+    CheckAdapter("dependency-reality", uses_network=True, network=False).run(runner, tmp_path)
+    CheckAdapter("dependency-reality", uses_network=True, network=True).run(runner, tmp_path)
 
     offline, full = launched
     assert "--network=none" in offline and f"{NETWORK_ENV}=1" not in offline
@@ -307,7 +309,9 @@ def test_the_index_is_mounted_read_only_into_every_container(monkeypatch, tmp_pa
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(subprocess, "run", capture)
-    ContainerRunner(runtime="/usr/local/bin/docker").run_check("licence-file", tmp_path)
+    from valvur.adapters import CheckAdapter
+
+    CheckAdapter("licence-file").run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
 
     mounts = [launched[0][i + 1] for i, flag in enumerate(launched[0]) if flag == "-v"]
     index_mount = next(m for m in mounts if m.endswith("/cache/names:ro"))
@@ -1152,7 +1156,8 @@ def test_without_an_index_the_runner_refuses_before_launching_and_names_the_fix(
     """The first-run experience. Measured 2026-09-12 with an empty cache: the Check
     failed inside the container and the reason reached `SUMMARY.md` as a traceback
     truncated at 200 characters, with `valvur update` cut off. Trivy already refuses
-    host-side with the fix first; the Check gets the same treatment."""
+    host-side with the fix first — in the adapter since 26.2.1; the Check gets the
+    same treatment."""
     from valvur import cache
     from valvur.runner import ContainerRunner
 
@@ -1161,14 +1166,16 @@ def test_without_an_index_the_runner_refuses_before_launching_and_names_the_fix(
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: launched.append(cmd))
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
+    from valvur.adapters import CheckAdapter
+
     with pytest.raises(RuntimeError, match="valvur update"):
-        runner.run_check("dependency-reality", tmp_path, network=False)
+        CheckAdapter("dependency-reality", uses_network=True, network=False).run(runner, tmp_path)
 
     assert launched == [], "a container was launched with nothing to check against"
     # With a network the registry can answer instead, so no refusal.
     monkeypatch.setattr(subprocess, "run",
                         lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "[]", ""))
-    runner.run_check("dependency-reality", tmp_path, network=True)
+    CheckAdapter("dependency-reality", uses_network=True, network=True).run(runner, tmp_path)
 
 
 def test_the_check_entry_point_turns_its_own_refusal_into_one_line(capsys, tmp_path):

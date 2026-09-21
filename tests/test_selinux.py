@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from valvur import runner
+from valvur import runner, selinux
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def test_enforcing_is_read_from_the_kernel_not_guessed(monkeypatch, tmp_path,
     """
     enforce = tmp_path / "enforce"
     enforce.write_text(contents)
-    monkeypatch.setattr(runner, "SELINUX_ENFORCE", enforce)
+    monkeypatch.setattr(selinux, "SELINUX_ENFORCE", enforce)
 
     assert runner.selinux_enforcing() is expected
 

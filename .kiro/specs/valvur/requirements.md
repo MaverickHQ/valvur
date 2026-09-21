@@ -158,7 +158,7 @@ that I do not maintain six toolchains myself.
    character 50, found by the second external review. Now one failed Scanner,
    `report unreadable: <exception>: <message>`, its raw text kept under `raw/`;
    four tests in `test_failures.py` cover a decode error, a shape change, the
-   summary and `raw/`, and one bad report inside the Checks' batch.*
+   summary and `raw/`, and one bad report inside the Checks' batch.* *Note 2026-09-21 (task 26.2.1): a second unmet case, latent since 23.4.2 — a Check that raised inside the Checks' batch was recorded ok with zero findings and its error dropped, because the batch gave it an empty report with a non-zero exit and that is what a Scanner that found nothing looks like. Found by the refactor's fakes reproducing the real report shape; fixed in `check.split_batch`, a fleet-level test pins it.*
 6. F2.6 — valvur SHALL run independent **Scanners** concurrently.
 7. F2.7 — valvur SHALL enforce a per-**Scanner** timeout and SHALL record any timeout
    as a failure under F2.5. *Extended 2026-09-13 (task 23.3.7): and a budget for the

@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A Check that fails inside the Checks' batch is a failed Check (F2.5).** Since
+  the three Checks began sharing one container (0.3.0), a Check that raised
+  inside it was recorded ok with zero findings and its error dropped — the batch
+  handed the fleet an empty report with a non-zero exit, which is what a Scanner
+  that found nothing looks like. Now it is a failure with the Check's own error
+  as the reason, at the top of `SUMMARY.md` like any other. Found by 26.2.1.
+- **Gitleaks runs in the same container as every other Scanner.** Its container
+  had been built from its own flag list — no scratch tmpfs, no cache mounts and,
+  on an SELinux-enforcing host, no label on its results mount. Unified (26.2.1).
 - **The release pipeline runs the arm64 image, and verifies the provenance it
   makes.** The artifact job and CI's published-image job each run on both
   architectures natively; the pipeline verifies the image's signature and its

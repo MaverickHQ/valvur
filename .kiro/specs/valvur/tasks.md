@@ -6072,7 +6072,7 @@ user sees also carries a measured number in its STATUS note.
 
 ### Tier 2 — What compounds as the code grows
 
-- [ ] **26.2.1** **The adapter owns its command; the runner runs containers.**
+- [x] **26.2.1** **The adapter owns its command; the runner runs containers.**
   Today `runner.py` carries seven `run_<tool>` methods, each a command line, a
   mount set and a network decision, and the adapter for the same tool carries the
   parser — one Scanner, two homes, no contract between them. After: `ScannerAdapter`
@@ -6090,6 +6090,51 @@ user sees also carries a measured number in its STATUS note.
   schema), so the refactor is a diff in review and the image rebuild proves it
   end to end. Land in three PRs — Trivy and Gitleaks first, then the rest, then the
   Checks — each rebuilding the image and running the e2e suite.
+
+  **STATUS 2026-09-21:** ✅ Three PRs, as planned, each on top of the last. **The
+  safety net first**: every tool's argv, timeout, network and exec grant captured
+  from the runner into `tests/fixtures/invocations/<tool>.json` before a line
+  moved (the first commit of PR 1), and `test_adapters_own_their_commands.py`
+  holding each adapter's `Invocation` to its snapshot byte for byte — nineteen
+  tests by the end, three mutations per PR each failing its own. **The contract**:
+  `valvur.invocation.Invocation` (argv after the image, the report file, timeout,
+  `network`, `allow_exec`, `empty_when`) and `ScannerOutput` beside it;
+  `ScannerAdapter.command(workspace)`; one `ContainerRunner.run(invocation,
+  workspace)`. **PR 1** (#54) moved Trivy and Gitleaks and the database fetch,
+  which is Trivy's command (`trivy.database_fetch()`; the runner runs it under
+  the cache lock and no longer knows it). **PR 2** (#55) the other four. **PR 3**
+  the Checks: `check.single_command`, `batch_command` (with the host-side
+  refusal of dependency-reality without an index or a network), `split_batch`,
+  `run_batch`, and `BatchUnsupported` — the runner's capability probe for the
+  batch gone with them, since any runner runs any Invocation and only an image
+  can decline. SELinux — enforcing, the relabel opt-in, the hint — to
+  `selinux.py`, a host concern the runner reads. **Measured: `runner.py` 860 →
+  517 lines, naming no tool** (a test refuses every Scanner's and Check's name in
+  it); the target said under 500, and the 17 are the network settings 26.2.2
+  takes out — recorded rather than trimmed for the number. **Three things the
+  move found.** (1) `run_gitleaks` built its own flag list: no tmpfs, no cache
+  mounts and *no SELinux label on its scratch mount* on an enforcing host, while
+  every other Scanner's flags came from `_base_flags` — unified; the old shape is
+  in the snapshot, a test pins the new one, unmeasured on an enforcing host (none
+  at hand). (2) **A Check that failed inside the batch was recorded ok with zero
+  findings and its error dropped** — latent since 23.4.2: `run_checks` gave a
+  failed entry `"[]"` as stdout with exit 1, and a non-empty report with a
+  non-zero exit is what a Scanner that found nothing looks like to `_outcome`.
+  The fakes never reached it because they answered per Check with empty stdout;
+  the bridge that lets them speak the new contract reproduced the real report
+  shape and the budget-cut test failed on it. Fixed in `split_batch` (a failed
+  Check gets no report and its error as the reason); a fleet-level test and the
+  older shape test — which had asserted the `"[]"` — say so. (3) Trivy's refusal
+  without its database, once the runner's and bypassed by every fake, is the
+  adapter's and reaches them — which CI's unit job, having no database, found
+  first: every unit test now has a present (empty) database the way it already
+  had an index, for the unit suite only, since an e2e test mounts the real cache
+  and a zero-byte `trivy.db` is Trivy's "old DB" refusal — found by PR 1's first
+  e2e run. The fakes: one `LegacyDispatch` mixin in `conftest.py` maps an
+  Invocation to the `run_<tool>` the fake already answers; what they fake is
+  unchanged. Measured through the CLI against `valvur:dev` on the fixture after
+  each PR: 93 active findings, every Scanner `ok`, the three Checks in one
+  container. 1,014 tests; 59 modules.
 
 - [ ] **26.2.2** **One authority on egress (N2.1, ADR-0010).** A single `egress.py`:
   `Egress.for_profile(profile)` answers `network` (bool), `container_flags()` (the

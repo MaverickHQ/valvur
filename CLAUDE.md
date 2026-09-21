@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 57 modules under `src/valvur`, 995 tests in 52 files, 19 ADRs, 136
-requirement IDs, **178 done and 12 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 8 are Phase 26's tiers 2–5 (Tiers 0 and 1 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 12
+Roughly: 59 modules under `src/valvur`, 1,014 tests in 53 files, 19 ADRs, 136
+requirement IDs, **179 done and 11 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 7 are Phase 26's tiers 2–5 (Tiers 0 and 1 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 11
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -268,7 +268,13 @@ were introduced by the block before, with tests passing.
   leg (26.1.2); the pipeline verifies the signature, the SLSA provenance and
   each distribution's attestation read back from the index, and the
   private-repository branches are gone (26.1.3). Four rehearsals across the
-  three, each one finding something. What remains of the review is Tiers 2–5.
+  three, each one finding something. **Tier 2 began the same day with 26.2.1**:
+  the adapter owns its command — one `Invocation` contract, one `runner.run`,
+  `runner.py` 860 → 517 lines naming no tool, every argv held to a snapshot
+  captured before the move — and the move found a Check that failed inside the
+  batch being recorded ok with its error dropped, latent since 23.4.2, and
+  Gitleaks' container missing the SELinux label every other Scanner's had. What
+  remains of the review: 26.2.2 (one egress authority) and Tiers 3–5.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality

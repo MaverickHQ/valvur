@@ -137,7 +137,7 @@ def _platform() -> str:
 
 
 def _selinux_enforcing() -> bool:
-    from .runner import selinux_enforcing
+    from .selinux import selinux_enforcing
 
     return selinux_enforcing()
 
@@ -357,7 +357,7 @@ def _check_kev() -> Check:
 
 
 def _check_selinux(workspace: Path) -> Check:
-    from .runner import RELABEL_ENV
+    from .selinux import RELABEL_ENV
 
     system = _platform()
     if system != "Linux":

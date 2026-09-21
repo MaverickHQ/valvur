@@ -326,13 +326,15 @@ def _plan(adapters, runner) -> list[tuple]:
     """The fleet as tasks: `(work(runner, workspace) -> [outcome, …], [indices])`.
 
     Every Scanner is its own task. valvur's own Checks are one task when there are
-    at least two of them and the runner can run a batch (23.4.2): one container,
-    one interpreter start, and still one outcome — one ScannerRun, one coverage
-    contract, one line of provenance — per Check. A runner without the ability
-    (the fakes of older tests) gets the Checks one by one, as before.
+    at least two of them (23.4.2): one container, one interpreter start, and still
+    one outcome — one ScannerRun, one coverage contract, one line of provenance —
+    per Check.
     """
     checks = [i for i, a in enumerate(adapters) if getattr(a, "kind", "") == "check"]
-    batched = len(checks) >= 2 and getattr(runner, "run_checks", None) is not None
+    # Two or more Checks batch. Until 26.2.1 this also asked whether the RUNNER
+    # could — a capability the old split put on the container side; now any
+    # runner runs any Invocation, and an image that cannot says so (BatchUnsupported).
+    batched = len(checks) >= 2
     tasks: list[tuple] = []
     for index, adapter in enumerate(adapters):
         if batched and index in checks:
@@ -361,11 +363,11 @@ def _run_checks(adapters, runner, workspace) -> list[tuple]:
                 ScannerRun(adapter.name, ok=True, skipped=True, reason=why), [], None, "")
     outputs: dict = {}
     if wanted:
-        from .runner import BatchUnsupported
+        from .adapters.check import BatchUnsupported, run_batch
 
         try:
-            outputs = runner.run_checks(
-                [a.name for a in wanted], workspace,
+            outputs = run_batch(
+                runner, [a.name for a in wanted], workspace,
                 network=any(getattr(a, "network", False) for a in wanted),
             )
         except BatchUnsupported:

@@ -19,6 +19,7 @@ from conftest import FakeRunner, run_check_in_process, run_checks_in_process
 
 from valvur import api
 from valvur.adapters import CheckAdapter, GitleaksAdapter
+from valvur.adapters.check import run_batch
 from valvur.runner import ContainerRunner, ScannerOutput
 
 CHECKS = ("licence-file", "ai-artifact", "dependency-reality")
@@ -109,7 +110,7 @@ def test_the_runner_launches_one_container_for_all_the_checks(monkeypatch, tmp_p
     monkeypatch.setattr(subprocess, "run", capture)
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    outputs = runner.run_checks(CHECKS, tmp_path, network=False)
+    outputs = run_batch(runner, CHECKS, tmp_path, network=False)
 
     assert len(launched) == 1
     [cmd] = launched
@@ -136,8 +137,8 @@ def test_the_batch_carries_the_profiles_grant(monkeypatch, tmp_path):
                         subprocess.CompletedProcess(cmd, 0, reply, ""))
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    runner.run_checks(CHECKS, tmp_path, network=False)
-    runner.run_checks(CHECKS, tmp_path, network=True)
+    run_batch(runner, CHECKS, tmp_path, network=False)
+    run_batch(runner, CHECKS, tmp_path, network=True)
 
     offline, full = launched
     assert "--network=none" in offline and f"{NETWORK_ENV}=1" not in offline
@@ -159,7 +160,7 @@ def test_the_runner_refuses_dependency_reality_without_an_index_and_runs_the_res
                             "licence-file": [], "ai-artifact": []}), ""))
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    outputs = runner.run_checks(CHECKS, tmp_path, network=False)
+    outputs = run_batch(runner, CHECKS, tmp_path, network=False)
 
     [cmd] = launched
     assert cmd[cmd.index("batch") + 2:] == ["licence-file", "ai-artifact"]
@@ -185,12 +186,38 @@ def test_a_checks_own_error_in_the_report_is_that_checks_failure(monkeypatch, tm
                         lambda cmd, **k: subprocess.CompletedProcess(cmd, 0, reply, ""))
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    outputs = runner.run_checks(["licence-file", "dependency-reality"], tmp_path, network=True)
+    outputs = run_batch(runner, ["licence-file", "dependency-reality"], tmp_path, network=True)
 
     assert outputs["licence-file"].exit_code == 0
     assert outputs["dependency-reality"].exit_code == 1
     assert outputs["dependency-reality"].stderr.startswith("No registry was reachable")
-    assert outputs["dependency-reality"].stdout == "[]"
+    # No report for a failed Check. This asserted `== "[]"` until 26.2.1 — and a
+    # non-empty report with a non-zero exit is what a Scanner that found nothing
+    # looks like to the fleet, so the failure below was recorded as ok.
+    assert outputs["dependency-reality"].stdout == ""
+
+
+def test_a_check_that_fails_inside_the_batch_is_a_failed_scanner_run_with_its_error(ws):
+    """The fleet's view of the report above. Latent since 23.4.2, found by 26.2.1:
+    `run_checks` gave a failed Check `"[]"` as stdout with exit 1, `_outcome` read
+    a non-empty report as success, and the Check's own error was dropped — a
+    Check that raised inside the batch was recorded ok with zero findings. The
+    fakes never reached it: they answered per Check with empty stdout."""
+    class Failing(_BatchRunner):
+        def run_checks(self, names, workspace, *, network=False):
+            outputs = run_checks_in_process(names, workspace, network=network)
+            good = outputs["ai-artifact"]
+            outputs["ai-artifact"] = ScannerOutput(
+                good.tool, good.version, "[]", "boom: the Check raised", 1)
+            return outputs
+
+    run = api.scan(ws, runner=Failing(), adapters=[CheckAdapter(name) for name in CHECKS])
+
+    by_tool = {s.tool: s for s in run.scanners}
+    assert not by_tool["ai-artifact"].ok
+    assert "boom: the Check raised" in by_tool["ai-artifact"].reason
+    assert by_tool["licence-file"].ok and by_tool["dependency-reality"].ok
+    assert [f.tool for f in run.failures] == ["ai-artifact"]
 
 
 def test_an_image_from_before_the_batch_is_told_apart_from_a_failure(monkeypatch, tmp_path):
@@ -198,7 +225,7 @@ def test_an_image_from_before_the_batch_is_told_apart_from_a_failure(monkeypatch
     0.2.0 image, whose entry point knows one Check at a time. `usage:` and exit 2
     is that image saying so, and it must not read as three failed Scanners."""
     from valvur import cache
-    from valvur.runner import BatchUnsupported
+    from valvur.adapters.check import BatchUnsupported
 
     monkeypatch.setattr(cache, "db_present", lambda: True)
     monkeypatch.setattr(subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(
@@ -206,7 +233,7 @@ def test_an_image_from_before_the_batch_is_told_apart_from_a_failure(monkeypatch
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
     with pytest.raises(BatchUnsupported, match="predates the Checks batch"):
-        runner.run_checks(CHECKS, tmp_path, network=False)
+        run_batch(runner, CHECKS, tmp_path, network=False)
 
 
 def test_a_batch_container_that_fails_fails_every_check_with_the_runtimes_words(
@@ -219,7 +246,7 @@ def test_a_batch_container_that_fails_fails_every_check_with_the_runtimes_words(
                         subprocess.CompletedProcess(cmd, 137, "", "Killed"))
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    outputs = runner.run_checks(CHECKS, tmp_path, network=False)
+    outputs = run_batch(runner, CHECKS, tmp_path, network=False)
 
     for name in CHECKS:
         assert outputs[name].exit_code == 137
@@ -234,7 +261,7 @@ def test_a_batch_that_answers_nonsense_is_a_failure_not_a_clean_result(monkeypat
                         subprocess.CompletedProcess(cmd, 0, "not json", ""))
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    outputs = runner.run_checks(CHECKS, tmp_path, network=False)
+    outputs = run_batch(runner, CHECKS, tmp_path, network=False)
 
     assert all(o.exit_code != 0 for o in outputs.values())
     assert "no batch report" in outputs["licence-file"].stderr
@@ -307,23 +334,10 @@ def test_a_single_check_is_not_batched(ws):
     assert runner.batches == [] and runner.singles == ["licence-file"]
 
 
-def test_a_runner_without_the_ability_runs_the_checks_one_by_one(ws):
-    """The single-Check path stays: a runner from before the batch, or a fake."""
-    class Old:
-        def __init__(self):
-            self.singles: list[str] = []
-
-        def run_check(self, name, workspace, *, network=False):
-            self.singles.append(name)
-            return run_check_in_process(name, workspace, network=network)
-
-    runner = Old()
-    adapters = [CheckAdapter(name) for name in CHECKS]
-
-    run = api.scan(ws, runner=runner, adapters=adapters)
-
-    assert runner.singles == list(CHECKS)
-    assert [s.tool for s in run.scanners] == list(CHECKS)
+# `test_a_runner_without_the_ability_runs_the_checks_one_by_one` was retired by
+# 26.2.1: "can this runner run a batch" was a capability the old split put on the
+# container side. Any runner runs any Invocation now; the one thing that can still
+# decline a batch is an image from before it, and that case is tested below.
 
 
 def test_one_checks_failure_in_the_batch_costs_only_that_check(ws, no_name_index):
@@ -342,7 +356,7 @@ def test_one_checks_failure_in_the_batch_costs_only_that_check(ws, no_name_index
 def test_an_image_without_the_batch_gets_the_checks_one_by_one(ws):
     """The fallback the published-image job needs until 0.3.0's image exists: same
     three ScannerRuns, same findings, three container starts instead of one."""
-    from valvur.runner import BatchUnsupported
+    from valvur.adapters.check import BatchUnsupported
 
     class Older(_BatchRunner):
         def run_checks(self, names, workspace, *, network=False):

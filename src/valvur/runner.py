@@ -9,9 +9,10 @@ from contextlib import suppress as _suppress
 from pathlib import Path
 
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
+from .selinux import RELABEL_ENV, _relabel_workspace, _selinux_hint, selinux_enforcing
 from .version import __version__, default_image
 
-__all__ = ["NOTHING_TO_SCAN", "Invocation", "ScannerOutput"]
+__all__ = ["NOTHING_TO_SCAN", "RELABEL_ENV", "Invocation", "ScannerOutput", "selinux_enforcing"]
 
 # The published image. A fresh install has no local build, so this must be pullable
 # by anyone — pointing at a local tag would make the first run fail for every user
@@ -54,97 +55,12 @@ def db_repository() -> str | None:
     return os.environ.get(DB_REPOSITORY_ENV) or None
 _RUNTIMES = ("docker", "podman", "nerdctl")
 
-_INDEX_REFUSAL = (
-    "Package-name index not present, so dependency existence cannot be checked "
-    "offline. Fetch it once with:\n"
-    "  valvur update\n"
-    "Scans then verify package names against the cached index (ADR-0018)."
-)
-
-
 class WorkspaceUnreadable(RuntimeError):
     """The container cannot see the source. Never downgraded to a clean result."""
 
 
-#: Opt-in, and an environment variable rather than a CLI flag: MCP is the primary
-#: interface (ADR-0015) and has no command line, so a flag would fix this for the
-#: second-choice path only.
-RELABEL_ENV = "VALVUR_SELINUX_RELABEL"
 #: Set inside a container launched WITH a network, and only then (ADR-0018).
 NETWORK_ENV = "VALVUR_NETWORK"
-
-#: Named so a test can point it somewhere real. Patching `Path.read_text` wholesale
-#: could not tell "enforcing" from "SELinux is absent" — both end up False — so the
-#: test proved only one of the two directions it claimed to.
-SELINUX_ENFORCE = Path("/sys/fs/selinux/enforce")
-
-
-def selinux_enforcing() -> bool:
-    """Whether the HOST kernel is enforcing SELinux.
-
-    The host, not the container, because the mount sources are host paths and it is
-    the host's labels that decide whether the container may read them.
-
-    `permissive` returns False deliberately: it logs the denial and allows the access,
-    so relabelling would be a write to someone's tree in exchange for nothing.
-    """
-    try:
-        return SELINUX_ENFORCE.read_text().strip() == "1"
-    except OSError:
-        return False          # not Linux, or SELinux absent
-
-
-def _relabel_workspace() -> bool:
-    """Whether the developer has asked us to relabel their source tree.
-
-    **Off by default, and that is a deliberate cost.** `:z` rewrites the SELinux
-    context of every file in the Workspace to `container_file_t`, which persists after
-    the scan. CLAUDE.md section 10 prohibits any feature that writes to the scanned
-    source tree without explicit owner approval, and a security tool whose first
-    promise is that it cannot touch your code should not quietly rewrite its labels.
-
-    valvur's OWN directories — the scratch mount and the database cache — are
-    relabelled unconditionally on an enforcing host. They are a temporary directory we
-    created and a cache we own; nothing about them is the developer's, and without the
-    label the container cannot write its results at all.
-    """
-    return _os.environ.get(RELABEL_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _selinux_hint(workspace) -> str:
-    """What to do about it, in the reader's terms.
-
-    Every claim here was measured on Fedora CoreOS 44, xfs, SELinux enforcing, both
-    rootful and rootless Podman (task 20.1).
-    """
-    return "\n".join([
-        "SELinux is enforcing on this host, and the container may not read the "
-        "workspace.",
-        "  A directory under $HOME is labelled user_home_t or admin_home_t, which a",
-        "  container process is not permitted to read.",
-        "",
-        "  valvur does not relabel your source tree unless you ask it to: that is a "
-        "write",
-        "  to the code it is scanning. Choose one:",
-        "",
-        f"    {RELABEL_ENV}=1 valvur scan {workspace}",
-        "      Adds :z to the mount. The tree is relabelled container_file_t; the "
-        "label",
-        "      persists after the scan, and is shared, so other containers can read "
-        "it too.",
-        "",
-        f"    chcon -R -t container_file_t {workspace}",
-        "      The same change, made by you, once.",
-        f"      Undo with: restorecon -R -F {workspace}",
-        "      The -F is required. container_file_t is a customizable type, and",
-        "      restorecon skips those unless forced - measured, plain restorecon -R",
-        "      leaves the relabelled tree exactly as it was.",
-        "",
-        "  :Z is deliberately not offered. It stamps a private MCS category, and "
-        "valvur",
-        "  runs its Scanners concurrently against one mount - measured, the second",
-        "  container is denied.",
-    ])
 
 
 def _unreadable_hint(runtime: str, workspace) -> str:
@@ -189,12 +105,6 @@ class ContainerStartFailed(RuntimeError):
 
 class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
-
-
-class BatchUnsupported(RuntimeError):
-    """The image predates the Checks batch (23.4.2): its entry point answered
-    `usage:` and exit 2. The fleet runs the Checks one by one instead — a pinned
-    older image keeps working, slower, rather than failing three Scanners."""
 
 
 class ImagePullFailed(RuntimeError):
@@ -540,9 +450,9 @@ class ContainerRunner:
         if not network:
             flags.append("--network=none")           # N2.1 - no interface at all
         else:
-            # Told, not probed. The dependency-reality Check asks a registry only
-            # when this is set, and it is set in exactly the case `--network=none`
-            # is omitted — one decision, read by the Check and enforced by the kernel.
+            # Told, not probed. The Check that asks a registry does so only when
+            # this is set, and it is set in exactly the case `--network=none` is
+            # omitted — one decision, read by the Check and enforced by the kernel.
             flags += ["--env", f"{NETWORK_ENV}=1"]
             mirror = db_repository()
             if mirror:
@@ -605,81 +515,3 @@ class ContainerRunner:
                 )
             stdout = report.read_text(encoding="utf-8") if report is not None else proc.stdout
         return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode)
-
-    def run_check(self, name: str, workspace: Path, *, network: bool = False) -> ScannerOutput:
-        """Run one of valvur's own Checks inside the container (ADR-0013).
-
-        `network` is decided by the Profile, never by the Check: `profiles.select`
-        hands each adapter the Profile's permission, and only dependency-reality ever
-        uses it — for first-publish age, on `full`. On `offline` the container has
-        no interface, so F3.5's honest degradation is enforced by the kernel, not by
-        a code path someone could later change.
-        """
-        from . import cache
-
-        if name == "dependency-reality" and not network and not cache.name_index_present():
-            # The same refusal Trivy gets without its database, decided here so the
-            # message leads with the fix rather than arriving as a container's
-            # stderr. The Check refuses too (in case the mount is empty or partial);
-            # this is the version a first-time user actually reads.
-            raise RuntimeError(_INDEX_REFUSAL)
-        return self.run(Invocation(
-            tool=name, version=_VERSION,
-            argv=("python", "-m", "valvur.checks", name, "/workspace"),
-            report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
-        ), workspace)
-
-    def run_checks(self, names, workspace: Path, *, network: bool = False
-                   ) -> dict[str, ScannerOutput]:
-        """Run several of valvur's Checks in ONE container (23.4.2) and return each
-        one's output under its own name, as `run_check` would have.
-
-        The container carries the Profile's grant — `network` is True only when a
-        Check in the batch was granted one, which is dependency-reality on `full` —
-        and the batch runs that Check last. The same host-side refusal as
-        `run_check` applies to it: without an index and without a network it is
-        answered here, and the container is launched for the others.
-        """
-        import json
-
-        from . import cache
-
-        names = list(names)
-        outputs: dict[str, ScannerOutput] = {}
-        if "dependency-reality" in names and not network and not cache.name_index_present():
-            outputs["dependency-reality"] = ScannerOutput(
-                "dependency-reality", _VERSION, "", _INDEX_REFUSAL, 1)
-            names.remove("dependency-reality")
-        if not names:
-            return outputs
-
-        batch = self.run(Invocation(
-            tool="checks", version=_VERSION,
-            argv=("python", "-m", "valvur.checks", "batch", "/workspace", *names),
-            report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
-        ), workspace)
-        if batch.exit_code == 2 and "usage:" in batch.stderr:
-            raise BatchUnsupported(
-                f"{self.image} predates the Checks batch; running the Checks one by one")
-        try:
-            report = json.loads(batch.stdout) if batch.exit_code == 0 else None
-            if not isinstance(report, dict):
-                report = None
-        except ValueError:
-            report = None
-        for name in names:
-            if report is None:
-                detail = batch.stderr.strip()[:300] or f"exit {batch.exit_code}"
-                outputs[name] = ScannerOutput(
-                    name, _VERSION, "",
-                    f"the Checks container produced no batch report ({detail})",
-                    batch.exit_code or 99,
-                )
-                continue
-            entry = report.get(name) or {"ok": False, "findings": [],
-                                         "error": "missing from the batch report"}
-            outputs[name] = ScannerOutput(
-                name, _VERSION, json.dumps(entry.get("findings") or []),
-                entry.get("error") or "", 0 if entry.get("ok") else 1,
-            )
-        return outputs

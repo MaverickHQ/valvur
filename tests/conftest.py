@@ -9,6 +9,7 @@ from typing import ClassVar
 import pytest
 
 from valvur.adapters.base import ScannerAdapter
+from valvur.runner import ScannerOutput
 
 #: The real `urlopen` and opener, for the two falsifiability tests that poison the
 #: socket layer themselves and need the HTTP layer to actually try (see
@@ -279,9 +280,30 @@ class LegacyDispatch:
 
     def run(self, invocation, workspace):
         method = self._BY_TOOL.get(invocation.tool)
-        if method is None:
-            raise AssertionError(f"this fake answers no Invocation for {invocation.tool!r}")
-        return getattr(self, method)(workspace)
+        if method is not None:
+            return getattr(self, method)(workspace)
+        argv = list(invocation.argv)
+        if argv[:3] == ["python", "-m", "valvur.checks"]:
+            if argv[3] == "batch":
+                # A fake's `run_checks` answers per Check; the batch report is
+                # what one container would have printed for them.
+                names = argv[5:]
+                answers = self.run_checks(names, workspace, network=invocation.network)
+
+                def findings(out):
+                    try:
+                        return json.loads(out.stdout or "[]")
+                    except ValueError:      # a fake's unreadable report, as written
+                        return out.stdout
+
+                report = {
+                    name: {"ok": out.exit_code == 0, "findings": findings(out),
+                           "error": out.stderr}
+                    for name, out in answers.items()
+                }
+                return ScannerOutput("checks", "0", json.dumps(report), "", 0)
+            return self.run_check(argv[3], workspace, network=invocation.network)
+        raise AssertionError(f"this fake answers no Invocation for {invocation.tool!r}")
 
 
 class FakeRunner(LegacyDispatch):
