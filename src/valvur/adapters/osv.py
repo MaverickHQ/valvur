@@ -12,17 +12,29 @@ from pathlib import Path
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding
-from ..runner import ScannerOutput
+from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from ..versions import version_key as _version_key
 from .base import ScannerAdapter, container_relative
+
+VERSION = "2.6.0"
 
 
 class OsvAdapter(ScannerAdapter):
     kind = "scanner"
     name = "osv-scanner"
+    version = VERSION
 
-    def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_osv(workspace)
+    def command(self, workspace: Path) -> Invocation:
+        # OSV queries api.osv.dev, so it is a `full` Scanner only — absent from
+        # `offline`, which must stay offline (N2.1). `network=True` here is what
+        # the Profile grants by selecting it at all.
+        return Invocation(
+            tool=self.name, version=VERSION,
+            argv=("osv-scanner", "scan", "source", "--recursive",
+                  # `--output-file`: 2.6.0 deprecates `--output` with a warning.
+                  "--format", "json", "--output-file", "/results/osv.json", "/workspace"),
+            report="osv.json", network=True, timeout=600, empty_when=NOTHING_TO_SCAN,
+        )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         report = json.loads(output.stdout or "{}")

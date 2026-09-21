@@ -186,7 +186,9 @@ def test_the_networked_scanner_is_not_launched_with_no_network(monkeypatch, tmp_
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(subprocess, "run", capture)
-    ContainerRunner(runtime="/usr/local/bin/docker").run_osv(tmp_path)
+    from valvur.adapters import OsvAdapter
+
+    OsvAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
 
     assert launched
     assert "--network=none" not in launched[0]
@@ -865,12 +867,10 @@ def test_checkov_is_hash_locked_into_its_own_environment():
 
     wanted = re.search(r"^checkov==(\S+)", Path("requirements-checkov.in").read_text(), re.M)
     assert wanted and wanted.group(1) == checkov, "the lock and its input disagree"
-    import inspect
+    from valvur.adapters import CheckovAdapter
 
-    from valvur.runner import ContainerRunner
-
-    assert f'version="{checkov}"' in inspect.getsource(ContainerRunner.run_checkov), (
-        "the runner reports a Checkov version the lock does not install"
+    assert CheckovAdapter.version == checkov, (
+        "the adapter reports a Checkov version the lock does not install"
     )
 
     # An override is a transitive pin of Checkov's we refuse to ship — with the

@@ -7,13 +7,16 @@ from pathlib import Path
 
 from .. import fingerprint as _fp
 from ..findings import Finding
-from ..runner import ScannerOutput
+from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
+
+VERSION = "3.3.17"
 
 
 class CheckovAdapter(ScannerAdapter):
     kind = "scanner"
     name = "checkov"
+    version = VERSION
 
     def applies_to(self, workspace: Path) -> tuple[bool, str]:
         """Checkov costs 11.2s of fixed startup — measured 2026-09-05, more than
@@ -30,8 +33,15 @@ class CheckovAdapter(ScannerAdapter):
             return True, evidence
         return False, "no Dockerfile, terraform, Kubernetes, CI or template files found"
 
-    def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_checkov(workspace)
+    def command(self, workspace: Path) -> Invocation:
+        return Invocation(
+            tool=self.name, version=VERSION,
+            argv=("checkov", "--directory", "/workspace", "--output", "json",
+                  "--output-file-path", "/results", "--quiet", "--compact",
+                  # No network, ever: skip external data downloads outright.
+                  "--skip-download"),
+            report="results_json.json", timeout=600, empty_when=NOTHING_TO_SCAN,
+        )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         report = json.loads(output.stdout or "{}")

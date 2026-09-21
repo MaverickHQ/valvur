@@ -606,70 +606,6 @@ class ContainerRunner:
             stdout = report.read_text(encoding="utf-8") if report is not None else proc.stdout
         return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode)
 
-    def _capture(self, workspace, argv, outfile, *, tool, version, network=False,
-                 timeout=600, allow_exec=False):
-        """The pre-26.2.1 shape, kept for the Scanners PR 2 and PR 3 move."""
-        return self.run(Invocation(
-            tool=tool, version=version, argv=tuple(argv), report=outfile,
-            network=network, timeout=timeout, allow_exec=allow_exec,
-            empty_when=NOTHING_TO_SCAN,
-        ), workspace)
-
-    def run_osv(self, workspace: Path) -> ScannerOutput:
-        # OSV queries api.osv.dev, so it is a standard/deep Scanner only - it is
-        # absent from the quick Profile, which must stay offline (N2.1).
-        return self._capture(
-            workspace,
-            ["osv-scanner", "scan", "source", "--recursive",
-             # `--output-file`: 2.6.0 deprecates `--output` with a warning.
-             "--format", "json", "--output-file", "/results/osv.json", "/workspace"],
-            "osv.json", tool="osv-scanner", version="2.6.0", network=True,
-        )
-
-    def run_checkov(self, workspace: Path) -> ScannerOutput:
-        return self._capture(
-            workspace,
-            ["checkov", "--directory", "/workspace", "--output", "json",
-             "--output-file-path", "/results", "--quiet", "--compact",
-             # No network, ever: skip external data downloads outright.
-             "--skip-download"],
-            "results_json.json", tool="checkov", version="3.3.17",
-        )
-
-    def run_syft(self, workspace: Path) -> ScannerOutput:
-        from . import exclusions
-
-        # The SBOM is a release artifact, so a configured exclusion has to reach it,
-        # not just the findings derived from it. Without this, valvur's own published
-        # SBOM would list aws-helper-sdk and locktest — packages its test fixtures
-        # invent precisely because they do not exist.
-        excluded = [
-            arg
-            for prefix in exclusions.load_configured(workspace)
-            for arg in ("--exclude", f"./{prefix}/**")
-        ]
-        return self._capture(
-            workspace,
-            ["syft", "scan", "dir:/workspace", "-o", "cyclonedx-json=/results/sbom.json",
-             "-q", *excluded],
-            "sbom.json", tool="syft", version="1.51.1",
-        )
-
-    def run_opengrep(self, workspace: Path) -> ScannerOutput:
-        # Our own bundled rules only (ADR-0004). No registry fetch, so no network
-        # and no licence question.
-        return self._capture(
-            workspace,
-            ["opengrep", "scan", "--config", "/opt/valvur-rules",
-             "--json", "--output", "/results/opengrep.json",
-             "--quiet", "--no-git-ignore", "/workspace"],
-            "opengrep.json", tool="opengrep", version="1.29.0",
-            # Opengrep unpacks and execs opengrep-core. Granted only here: the root
-            # filesystem stays read-only, the container stays non-root and
-            # capability-less, and the exec surface is in-memory and non-persistent.
-            allow_exec=True,
-        )
-
     def run_check(self, name: str, workspace: Path, *, network: bool = False) -> ScannerOutput:
         """Run one of valvur's own Checks inside the container (ADR-0013).
 
@@ -687,11 +623,11 @@ class ContainerRunner:
             # stderr. The Check refuses too (in case the mount is empty or partial);
             # this is the version a first-time user actually reads.
             raise RuntimeError(_INDEX_REFUSAL)
-        return self._capture(
-            workspace,
-            ["python", "-m", "valvur.checks", name, "/workspace"],
-            None, tool=name, version=_VERSION, network=network,
-        )
+        return self.run(Invocation(
+            tool=name, version=_VERSION,
+            argv=("python", "-m", "valvur.checks", name, "/workspace"),
+            report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
+        ), workspace)
 
     def run_checks(self, names, workspace: Path, *, network: bool = False
                    ) -> dict[str, ScannerOutput]:
@@ -717,10 +653,11 @@ class ContainerRunner:
         if not names:
             return outputs
 
-        batch = self._capture(
-            workspace, ["python", "-m", "valvur.checks", "batch", "/workspace", *names],
-            None, tool="checks", version=_VERSION, network=network,
-        )
+        batch = self.run(Invocation(
+            tool="checks", version=_VERSION,
+            argv=("python", "-m", "valvur.checks", "batch", "/workspace", *names),
+            report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
+        ), workspace)
         if batch.exit_code == 2 and "usage:" in batch.stderr:
             raise BatchUnsupported(
                 f"{self.image} predates the Checks batch; running the Checks one by one")

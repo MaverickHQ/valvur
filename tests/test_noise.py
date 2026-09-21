@@ -658,7 +658,9 @@ def test_the_sbom_respects_configured_exclusions(monkeypatch, tmp_path):
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(subprocess, "run", capture)
-    ContainerRunner(runtime="/usr/local/bin/docker").run_syft(tmp_path)
+    from valvur.adapters import SyftAdapter
+
+    SyftAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
 
     assert "--exclude" in seen["cmd"]
     assert "./tests/fixtures/**" in seen["cmd"]

@@ -12,16 +12,31 @@ from pathlib import Path
 
 from .. import fingerprint as _fp
 from ..findings import Finding
-from ..runner import ScannerOutput
+from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
+
+VERSION = "1.29.0"
 
 
 class OpengrepAdapter(ScannerAdapter):
     kind = "scanner"
     name = "opengrep"
+    version = VERSION
 
-    def run(self, runner, workspace: Path) -> ScannerOutput:
-        return runner.run_opengrep(workspace)
+    def command(self, workspace: Path) -> Invocation:
+        # Our own bundled rules only (ADR-0004). No registry fetch, so no network
+        # and no licence question.
+        return Invocation(
+            tool=self.name, version=VERSION,
+            argv=("opengrep", "scan", "--config", "/opt/valvur-rules",
+                  "--json", "--output", "/results/opengrep.json",
+                  "--quiet", "--no-git-ignore", "/workspace"),
+            report="opengrep.json", timeout=600, empty_when=NOTHING_TO_SCAN,
+            # Opengrep unpacks and execs opengrep-core. Granted only here: the root
+            # filesystem stays read-only, the container stays non-root and
+            # capability-less, and the exec surface is in-memory and non-persistent.
+            allow_exec=True,
+        )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         report = json.loads(output.stdout or "{}")

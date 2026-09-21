@@ -95,6 +95,66 @@ def test_gitleaks_reproduces_the_runners_argv(tmp_path):
     assert invocation.version == "8.30.1"
 
 
+# ------------------------------------------ PR 2: osv-scanner, checkov, syft, opengrep
+
+
+@pytest.mark.parametrize("tool, adapter_name, report", [
+    ("osv-scanner", "OsvAdapter", "osv.json"),
+    ("checkov", "CheckovAdapter", "results_json.json"),
+    ("syft", "SyftAdapter", "sbom.json"),
+    ("opengrep", "OpengrepAdapter", "opengrep.json"),
+])
+def test_the_other_four_reproduce_the_runners_argv(tmp_path, tool, adapter_name, report):
+    from valvur import adapters
+
+    invocation = getattr(adapters, adapter_name)().command(tmp_path)
+
+    _assert_matches(invocation, tool)
+    assert invocation.report == report
+    assert invocation.version == __import__("conftest").PINNED_VERSIONS[tool]
+    # These four opt into the empty-result allowance the runner gave them; Trivy
+    # and Gitleaks never had it and still do not.
+    assert invocation.empty_when == __import__("valvur.invocation").invocation.NOTHING_TO_SCAN
+
+
+def test_only_opengrep_is_granted_an_executable_scratch(tmp_path, monkeypatch):
+    """Least privilege per Scanner: `exec` on /tmp is Opengrep's alone, because it
+    unpacks and runs opengrep-core. A second adapter asking for it is a review
+    question, not a default."""
+    from valvur import adapters
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    granted = {
+        a.name: a.command(tmp_path).allow_exec
+        for a in adapters.DEFAULT_ADAPTERS if getattr(a, "kind", "") == "scanner"
+    }
+
+    assert granted == {"gitleaks": False, "trivy": False, "osv-scanner": False,
+                       "opengrep": True, "checkov": False, "syft": False}
+
+
+def test_only_osv_scanner_asks_for_a_network_among_the_scanners(tmp_path, monkeypatch):
+    from valvur import adapters
+
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    networked = sorted(
+        a.name for a in adapters.DEFAULT_ADAPTERS
+        if getattr(a, "kind", "") == "scanner" and a.command(tmp_path).network
+    )
+
+    assert networked == ["osv-scanner"]
+
+
+def test_syfts_command_carries_the_configured_exclusions(tmp_path):
+    """The SBOM is a release artifact, so an exclusion has to reach it."""
+    from valvur.adapters import SyftAdapter
+
+    (tmp_path / ".security-scan.toml").write_text('[scan]\nexclude = ["tests/fixtures"]\n')
+    argv = SyftAdapter().command(tmp_path).argv
+
+    assert argv[-2:] == ("--exclude", "./tests/fixtures/**")
+
+
 # ------------------------------------------------------------------ the runner's half
 
 
@@ -153,7 +213,9 @@ def test_the_runner_names_no_tool(monkeypatch):
     import re
 
     source = Path("src/valvur/runner.py").read_text()
-    # PR 1 of three: Trivy and Gitleaks. The tuple grows with each PR.
-    for tool in ("gitleaks",):
+    # PR 2 of three: the six Scanners. The Checks follow in PR 3.
+    for tool in ("gitleaks", "osv-scanner", "checkov", "syft", "opengrep"):
         assert not re.search(rf'"{tool}"', source), f"runner.py still names {tool}"
-    assert "def run_trivy" not in source and "def run_gitleaks" not in source
+    for method in ("run_trivy", "run_gitleaks", "run_osv", "run_checkov", "run_syft",
+                   "run_opengrep", "_capture"):
+        assert f"def {method}" not in source, f"runner.py still has {method}"
