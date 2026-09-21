@@ -8,10 +8,19 @@ name: index
 #
 # The daily build IS the fallback path, run by the same code: `python -m
 # valvur.name_index build` is what `valvur update --build-index` calls. Then the
-# artifact is pulled back with `python -m valvur.name_index pull` — the client every
-# user runs, cosign included — and compared byte for byte with what was built, before
-# the `latest` tag is left pointing at it. A day's tag is kept beside `latest` so a
-# bad build can be pinned past.
+# artifact is pushed under a `candidate` tag, signed, pulled back with `python -m
+# valvur.name_index pull` — the client every user runs, cosign included — and
+# compared byte for byte with what was built; ONLY THEN is the verified digest
+# tagged with the day and `latest` (task 27.0.1, the order of ADR-0020). Until
+# 2026-09-21 the tags were written first and a build that failed its own round trip
+# had already moved `latest`. Now a red run leaves `latest` where it was, and the
+# `candidate` tag pointing at whatever failed, for reading. A day's tag is kept
+# beside `latest` so a bad build can be pinned past.
+#
+# Freshness (ADR-0018): a scan reads an index over 30 days old as `inconclusive`,
+# so a red day costs users nothing and a red month costs them the verdict. A
+# dispatch from a branch builds the index and stops: nothing is pushed, signed or
+# tagged off main.
 on:
   schedule:
     - cron: "23 3 * * *"     # 03:23 UTC — crates.io's dump is cut at 02:00
@@ -69,14 +78,19 @@ jobs:
           cp ~/.cache/valvur/names/metadata.json .
           ls -l
 
-      - name: Push, under today's date and latest
+      - name: Push, under the candidate tag only
+        # Not the date and not latest: neither exists until the round trip below
+        # has verified this digest. `candidate` is one moving tag nobody resolves —
+        # the shim's client refuses digest references for a moving index, so the
+        # pull-back needs a tag to pull.
         id: push
+        if: github.ref == 'refs/heads/main'
         run: |
           set -eu
           echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
           DATE=$(date -u +%Y-%m-%d)
           cd artifact
-          oras push "$REPOSITORY:$DATE,latest" \
+          oras push "$REPOSITORY:candidate" \
             --artifact-type application/vnd.valvur.name-index.v1 \
             --config metadata.json:application/vnd.valvur.name-index.config.v1+json \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
@@ -87,68 +101,87 @@ jobs:
             rubygems.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip \
             packagist.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip \
             crates.txt.gz:application/vnd.valvur.name-index.layer.v1+gzip
-          DIGEST=$(oras resolve "$REPOSITORY:$DATE")
+          DIGEST=$(oras resolve "$REPOSITORY:candidate")
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
-          echo "pushed $REPOSITORY:$DATE@$DIGEST"
+          echo "pushed $REPOSITORY:candidate@$DIGEST"
 
       - name: Sign, keylessly
         # The same identity the image is signed under, and the same two values the
         # shim verifies against (`valvur.oci.SIGNING_IDENTITY`, `SIGNING_ISSUER`).
+        # Signed by digest, so the signature holds through the re-tag below.
+        if: github.ref == 'refs/heads/main'
         run: cosign sign --yes "${REPOSITORY}@${{ steps.push.outputs.digest }}"
 
       - name: Pull it back with the shim's own client, cosign included
-        # The client every `valvur update` runs, against the artifact just pushed:
-        # the manifest resolves, the signature verifies under the workflow identity,
-        # every layer streams, gunzips, passes the sorted-list check, and is byte
-        # for byte what was built. If any of that fails, the tag has already moved —
-        # so the failure is loud, and the previous day's tag is what to point at.
+        # The client every `valvur update` runs, against the candidate just pushed:
+        # the manifest resolves to the digest that was pushed and signed, the
+        # signature verifies under the workflow identity, every layer streams,
+        # gunzips, passes the sorted-list check, and is byte for byte what was
+        # built. If any of that fails, nothing has moved: `candidate` points at the
+        # bad build, `latest` and every day's tag stand. The package went public on
+        # 2026-09-13, so a pull that fails is a failure and not an expected skip.
+        if: github.ref == 'refs/heads/main'
         env:
-          VALVUR_INDEX_REPOSITORY: ${{ env.REPOSITORY }}:${{ steps.push.outputs.date }}
+          VALVUR_INDEX_REPOSITORY: ${{ env.REPOSITORY }}:candidate
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           set -euo pipefail
-          if uv run python -m valvur.name_index pull /tmp/roundtrip 2>&1 | tee pull.log; then
-            for f in pypi npm rubygems packagist crates; do
-              cmp ~/.cache/valvur/names/$f.txt /tmp/roundtrip/$f.txt
-            done
-            python3 - <<'PY'
-          import json
+          uv run python -m valvur.name_index pull /tmp/roundtrip
+          for f in pypi npm rubygems packagist crates; do
+            cmp ~/.cache/valvur/names/$f.txt /tmp/roundtrip/$f.txt
+          done
+          python3 - <<'PY'
+          import json, os
           meta = json.load(open("/tmp/roundtrip/metadata.json"))
           for eco, entry in meta["ecosystems"].items():
-              state = entry["published"]["signature"]
-              print(f"{eco}: {entry['count']:,} names, built {entry['built_at']}, signature {state}")
-              assert state == "verified", f"{eco}: the signature did not verify: {state}"
+              published = entry["published"]
+              print(f"{eco}: {entry['count']:,} names, built {entry['built_at']}, "
+                    f"signature {published['signature']}, digest {published['digest'][:19]}")
+              assert published["signature"] == "verified", \
+                  f"{eco}: the signature did not verify: {published['signature']}"
+              assert published["digest"] == os.environ["DIGEST"], \
+                  f"{eco}: the shim resolved {published['digest']}, not the digest pushed"
           PY
-          elif grep -q "pulls anonymously" pull.log; then
-            # The package is still private (owner action 12a.1 / 23.1.1): the shim
-            # pulls anonymously by design, so it cannot be the one to check this
-            # round trip yet. Check the same three things with the authenticated
-            # tools instead, and say loudly that users cannot pull it either.
-            echo "::warning::$REPOSITORY is private: every user's valvur update will walk the registries instead. Make the package public (docs/RELEASING.md, owner actions)."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            mkdir -p /tmp/authed && cd /tmp/authed
-            oras pull "$VALVUR_INDEX_REPOSITORY"
-            for f in pypi npm rubygems packagist crates; do
-              gunzip -c $f.txt.gz | cmp ~/.cache/valvur/names/$f.txt -
-            done
-            cosign verify "${REPOSITORY}@${DIGEST}" \
-              --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
-              --certificate-oidc-issuer https://token.actions.githubusercontent.com
-          else
-            exit 1
-          fi
+
+      - name: Tag the verified digest with today's date and latest
+        # The one step users see. A manifest re-tag, so the digest — and the
+        # signature on it — is exactly what the round trip verified.
+        id: tag
+        if: github.ref == 'refs/heads/main'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          DATE: ${{ steps.push.outputs.date }}
+        run: |
+          set -eu
+          oras tag "$REPOSITORY@$DIGEST" "$DATE" latest
+          for t in "$DATE" latest; do
+            resolved=$(oras resolve "$REPOSITORY:$t")
+            test "$resolved" = "$DIGEST" || { echo "::error::$REPOSITORY:$t resolves to $resolved, not $DIGEST"; exit 1; }
+          done
+          echo "tagged $REPOSITORY:$DATE and :latest @ $DIGEST"
 
       - name: Summary
         if: always()
         env:
           DIGEST: ${{ steps.push.outputs.digest }}
           DATE: ${{ steps.push.outputs.date }}
+          TAGGED: ${{ steps.tag.outcome }}
         run: |
           {
-            echo "## Published"
-            echo
-            echo "\`${REPOSITORY}:${DATE}\` = \`${REPOSITORY}:latest\` @ \`${DIGEST}\`"
+            if [ "$TAGGED" = "success" ]; then
+              echo "## Published"
+              echo
+              echo "\`${REPOSITORY}:${DATE}\` = \`${REPOSITORY}:latest\` @ \`${DIGEST}\`"
+            elif [ "${{ github.ref }}" != "refs/heads/main" ]; then
+              echo "## Built, not published"
+              echo
+              echo "Dispatched from \`${{ github.ref }}\`: the index was built and nothing was pushed, signed or tagged."
+            else
+              echo "## Not published"
+              echo
+              echo "\`latest\` and every day's tag stand where they were. \`${REPOSITORY}:candidate\` @ \`${DIGEST:-not pushed}\` is the build that failed, for reading."
+            fi
             echo
             echo '```bash'
             echo "cosign verify ${REPOSITORY}@${DIGEST} \\"

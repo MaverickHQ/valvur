@@ -1040,6 +1040,70 @@ def test_the_pipeline_verifies_the_provenance_it_publishes_and_has_no_private_re
     assert "gh attestation verify" not in jobs["stage"]
 
 
+def _index_steps() -> list[tuple[str, str]]:
+    """index.yml's `publish` steps in order, name → text, split at the step
+    headers. A step with no name is keyed by its `uses:` or `run:` line."""
+    import re
+
+    text = Path(".github/workflows/index.yml").read_text()
+    body = text.split("\n    steps:\n", 1)[1]
+    parts = re.split(r"^      - (name: .+|uses: .+|run: .+)$", body, flags=re.M)
+    return [(parts[i].partition(": ")[2].strip(), parts[i + 1])
+            for i in range(1, len(parts) - 1, 2)]
+
+
+def test_the_daily_index_is_tagged_only_after_it_is_verified():
+    """27.0.1, ADR-0018 in ADR-0020's order. `index.yml` pushed the day's index
+    under `:$DATE` and `:latest` FIRST, then signed it, then pulled it back through
+    the shim's own client to verify — so a build that failed its own verification
+    had already moved `latest`, which the step's comment admitted ("the tag has
+    already moved"). Now the push is to a candidate tag; the signature, the round
+    trip and the digest comparison come next; `oras tag` writes the date and
+    `latest` last, and only from `main`. A red run leaves `latest` where it was."""
+    import re
+
+    text = Path(".github/workflows/index.yml").read_text()
+    steps = _index_steps()
+    names = [name for name, _ in steps]
+
+    def index_of(fragment: str) -> int:
+        owners = [i for i, (_, body) in enumerate(steps) if fragment in body]
+        assert len(owners) == 1, f"{fragment!r} is in {len(owners)} steps: {owners}"
+        return owners[0]
+
+    push, sign = index_of("oras push"), index_of("cosign sign")
+    verify, tag = index_of("valvur.name_index pull"), index_of("oras tag")
+    assert push < sign < verify < tag, (
+        f"the order is push={names[push]!r}, sign={names[sign]!r}, "
+        f"verify={names[verify]!r}, tag={names[tag]!r}"
+    )
+
+    # The push names no tag a user resolves; the date and latest exist only from
+    # `oras tag`, on the digest the round trip verified.
+    assert re.search(r'oras push "\$REPOSITORY:candidate"', steps[push][1]), \
+        "the push is not to the candidate tag"
+    assert re.search(r'oras push "\$REPOSITORY:[^"]*(\$DATE|latest)', text) is None, \
+        "the push still names the date or latest"
+    assert re.search(r'oras tag "\$REPOSITORY@\$DIGEST" "\$DATE" latest', steps[tag][1]), \
+        "the date and latest are not written by re-tagging the verified digest"
+    # The round trip checks the digest the shim resolved is the one about to be
+    # tagged — not merely that some artifact under the candidate tag verifies.
+    assert 'os.environ["DIGEST"]' in steps[verify][1], \
+        "the round trip does not compare the resolved digest with the pushed one"
+
+    # Nothing is pushed, signed or tagged from a branch: a dispatch there proves
+    # the build and stops. Scheduled runs are on main by construction.
+    guard = "if: github.ref == 'refs/heads/main'"
+    for step in (push, sign, verify, tag):
+        assert guard in steps[step][1], f"{names[step]!r} runs off main"
+
+    # The private-repository branch, dead since 2026-09-13 (26.1.3's class): a
+    # failed anonymous pull is a failure, not an expected skip with a warning.
+    for dead in ("pulls anonymously", "is private", "repository.visibility"):
+        assert dead not in text, f"index.yml still has the private-repository case: {dead!r}"
+    assert "the tag has already moved" not in text
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""
