@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The shim/image protocol is written down and versioned (F1.9).**
+  `docs/PROTOCOL.md` is the contract — paths, binaries, the Checks' entry point,
+  labels, the process — and the image carries it as one label,
+  `org.valvur.protocol`. Compatibility is now decided by that label: a shim and
+  an image that speak the same protocol run together whatever their versions
+  say (a different tree is still reported, never refused), and a different
+  protocol is the one thing refused, with both sides named. Images from `0.3.0`
+  and earlier carry no label and are judged by the version rule as before
+  (26.3.1).
 - **A Check that fails inside the Checks' batch is a failed Check (F2.5).** Since
   the three Checks began sharing one container (0.3.0), a Check that raised
   inside it was recorded ok with zero findings and its error dropped — the batch

@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 60 modules under `src/valvur`, 1,026 tests in 54 files, 19 ADRs, 136
-requirement IDs, **180 done and 10 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 6 are Phase 26's tiers 3–5 (Tiers 0–2 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 10
+Roughly: 60 modules under `src/valvur`, 1,035 tests in 55 files, 19 ADRs, 136
+requirement IDs, **181 done and 9 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 5 are Phase 26's tiers 3–5 (Tiers 0–2 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 9
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -276,9 +276,13 @@ were introduced by the block before, with tests passing.
   Gitleaks' container missing the SELinux label every other Scanner's had. **Then
   26.2.2**: one authority on egress — `egress.py` answers the network, the flags,
   the hosts and the disclosure, six restatements became calls, and `runner.py`
-  crossed the 500-line target at 485. **Tier 2 is closed.** What remains of the
-  review: Tiers 3–5 — the shim/image protocol named, the fleet's outcome typed,
-  and the polish.
+  crossed the 500-line target at 485. **Tier 2 is closed.** **Then 26.3.1**: the
+  shim/image protocol written down (`docs/PROTOCOL.md`) and carried by the image
+  as `org.valvur.protocol`; F1.9 now compares protocol majors — the same major
+  runs whatever the versions say, a different major is the one thing refused —
+  held to the code in both directions by a unit test over the document and an
+  e2e test over the image. What remains of the review: 26.3.2 (the fleet's
+  outcome typed) and the polish, Tiers 4–5.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality

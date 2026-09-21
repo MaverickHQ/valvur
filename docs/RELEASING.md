@@ -323,6 +323,15 @@ a third for the one fetch that had no mirror at all (`VALVUR_KEV_URL`).
 That is the right place for a human check if you want one; the tag push is the wrong
 place, because by then the workflow is already running.
 
+## The protocol
+
+`docs/PROTOCOL.md` is what the shim assumes of the image, and the image carries its
+major as `org.valvur.protocol` (26.3.1). **A release that breaks anything on that
+page bumps `compat.PROTOCOL` and the Dockerfile's label together** — a test holds
+them equal — and adds a line to the page's history. A release that only adds to it
+does not. A shim and an image with the same major run together whatever their
+versions say; the artifact job proves the pair it publishes.
+
 ## The action
 
 [`MaverickHQ/valvur-action`](https://github.com/MaverickHQ/valvur-action) is

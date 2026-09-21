@@ -6183,7 +6183,7 @@ user sees also carries a measured number in its STATUS note.
 
 ### Tier 3 — Before `v1.0.0`
 
-- [ ] **26.3.1** **The shim/image protocol, named and versioned (F1.9, 23.4.4).**
+- [x] **26.3.1** **The shim/image protocol, named and versioned (F1.9, 23.4.4).**
   Write down what the shim assumes of the image — the binaries and their paths, the
   Checks entrypoint and its JSON contract, the labels (`org.opencontainers.image.
   version`, the build-hash label), `/etc/valvur/inputs.sha256`, the non-root user,
@@ -6198,6 +6198,43 @@ user sees also carries a measured number in its STATUS note.
   **Tests first**: the e2e assertion over the image; the unit test of the
   compatibility decision table (same major → run and say; different → refuse and
   say). `design.md` gains the section (26.5.2).
+
+  **STATUS 2026-09-21:** ✅ Ten tests first in `test_protocol.py`, all failing on
+  the missing names. **`docs/PROTOCOL.md`** — protocol 1: the version rule (same
+  major runs, whatever the versions; a different major is the one thing refused;
+  no label is `0.3.0` and earlier, served by the version-series rule as before);
+  every path, marked *the shim's* (four mounts and the tmpfs) or *the image's*
+  (the rules, Checkov's venv, the package, the digest file, the Dockerfile copy);
+  every binary with its source and pin; the Checks' entry point and both JSON
+  shapes, `usage:`/exit 2, `VALVUR_NETWORK`, `VALVUR_DB_REPOSITORY`; the four
+  labels; the process (user 10001, read-only, no capabilities, the tmpfs, the
+  network flag, the name, no ENTRYPOINT). **Held to the code in both
+  directions:** every absolute path any `Invocation` names and every mount the
+  runner makes must be a row (a unit test, parsing the tables); every row the
+  image is said to provide must exist in the built image, every binary on its
+  PATH, every label present, `id -u` 10001 (an e2e test, parsing the same
+  tables). `compat.PROTOCOL = 1`, `PROTOCOL_LABEL`, `image_protocol()`, and one
+  pure **`verdict(ours, declared, theirs)`** that `check` raises on and `doctor`
+  reports — `doctor` had re-derived the version comparison with `_series` and
+  now reads the same verdict through its own seams. The Dockerfile declares
+  `org.valvur.protocol="1"` and a test holds it to `compat.PROTOCOL`. **Measured
+  against the rebuilt image:** `doctor` reads *protocol 1, version 0.3.0; starts
+  (built from …, the tree this shim was built from)*; the image re-labelled
+  protocol 2 and asked — `doctor`: *FAIL image: the image speaks protocol 2; this
+  shim (0.3.0) speaks protocol 1 (the image says it is version 0.3.0) (F1.9) — a
+  scan refuses the pair*; `valvur scan`: `IncompatibleImage` with the same
+  sentence and the two fixes. Four mutations each caught: a different major no
+  longer refused, the same major still judged by version, the Dockerfile
+  declaring 2, a path the adapters assume dropped from the document. **Found on
+  the way, twice:** the five F1.9 version-rule tests in `test_runtimes.py`
+  patched `image_version` and not the daemon, so a labelled `valvur:dev` on the
+  machine — the one just built — changed their outcome; they now pin an
+  unlabelled image. And a `verify-offline.py` run pointed at
+  `tests/fixtures/broken-repo` *itself* had left a `.security-scan/` inside the
+  fixture (gitignored, so `git status` said clean), which made every first-ever
+  scan read `persisting` and a cancel test find a `run.json` — removed; the
+  fixture is copied, never scanned in place. F1.9 annotated. `design.md`'s
+  section is 26.5.2's.
 
 - [ ] **26.3.2** **The fleet's outcome is a type, not a 4-tuple.** `_run_one` and
   `_outcome` return `(ScannerRun, findings, artifact, raw)` tuples that `_scan_

@@ -95,7 +95,7 @@ entirely on my machine, so that my source code never reaches a third party.
    committed) and the image records the same digest over the same inputs
    (`/etc/valvur/inputs.sha256`, 22.C.1); a scan compares them, reading the
    image's once per image id. A mismatch is a diagnosis: the results are real, and
-   what they mean is what this shim expects of that image.*
+   what they mean is what this shim expects of that image.* *Note 2026-09-21 (task 26.3.1): "incompatible" is now a protocol major, not a version — the image carries `org.valvur.protocol` and `docs/PROTOCOL.md` is the contract; the same major runs whatever the versions say (a different tree is 23.4.4's diagnosis), a different major is the one thing refused, and an image without the label (`0.3.0` and earlier) is judged by the version-series rule as before. `check` and `doctor` share one verdict.*
 10. F1.10 — valvur SHALL have no cloud-specific code path: one image and one shim,
     behaving identically wherever a container runtime exists. **The AWS half is
     DEFERRED 2026-09-13 (task 24.3), never exercised.** ~~WHEN a **Scan Run**

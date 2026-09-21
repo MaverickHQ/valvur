@@ -209,6 +209,7 @@ def test_a_mismatched_shim_and_image_are_refused(monkeypatch):
 
     monkeypatch.setattr(compat, "shim_version", lambda: "0.3.0")
     monkeypatch.setattr(compat, "image_version", lambda r, i: "0.1.0")
+    monkeypatch.setattr(compat, "image_protocol", lambda r, i: None)  # the version rule
 
     with pytest.raises(compat.IncompatibleImage) as excinfo:
         compat.check("docker", "valvur:dev")
@@ -223,6 +224,7 @@ def test_a_patch_difference_is_compatible(monkeypatch):
 
     monkeypatch.setattr(compat, "shim_version", lambda: "0.1.4")
     monkeypatch.setattr(compat, "image_version", lambda r, i: "0.1.9")
+    monkeypatch.setattr(compat, "image_protocol", lambda r, i: None)  # the version rule
 
     compat.check("docker", "valvur:dev")
 
@@ -233,6 +235,7 @@ def test_a_minor_difference_breaks_compatibility_while_below_1_0(monkeypatch):
 
     monkeypatch.setattr(compat, "shim_version", lambda: "0.1.0")
     monkeypatch.setattr(compat, "image_version", lambda r, i: "0.2.0")
+    monkeypatch.setattr(compat, "image_protocol", lambda r, i: None)  # the version rule
 
     with pytest.raises(compat.IncompatibleImage):
         compat.check("docker", "valvur:dev")
@@ -243,6 +246,7 @@ def test_a_minor_difference_is_compatible_once_past_1_0(monkeypatch):
 
     monkeypatch.setattr(compat, "shim_version", lambda: "1.1.0")
     monkeypatch.setattr(compat, "image_version", lambda r, i: "1.4.2")
+    monkeypatch.setattr(compat, "image_protocol", lambda r, i: None)  # the version rule
 
     compat.check("docker", "valvur:dev")
 
@@ -252,6 +256,7 @@ def test_an_image_without_the_label_is_not_refused(monkeypatch):
     from valvur import compat
 
     monkeypatch.setattr(compat, "image_version", lambda r, i: None)
+    monkeypatch.setattr(compat, "image_protocol", lambda r, i: None)  # the version rule
 
     compat.check("docker", "valvur:dev")
 
