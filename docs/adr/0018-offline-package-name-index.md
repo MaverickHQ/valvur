@@ -182,3 +182,17 @@ is JVM and Go, for the reasons above.
   and the walk is the fallback.*
 - On the `full` Profile the registry is now asked only about names the index says
   exist, for their age — a nonexistent name is settled locally and never sent.
+
+## Amendment (2026-09-21, task 27.0.1): published in ADR-0020's order
+
+The daily workflow wrote `:<date>` and `:latest` first and verified the artifact
+afterwards — the shape the release pipeline had until 26.1.1, with the same flaw:
+a build that failed its own round trip had already moved `latest`. Now the index
+is pushed under one moving `candidate` tag, signed by digest, pulled back through
+the shim's own client (which must resolve exactly the digest that was pushed, and
+verify its signature, and match every file byte for byte), and only then
+re-tagged with the date and `latest`. A red run leaves `latest` and every day's
+tag where they were, with `candidate` pointing at the failed build for reading.
+The candidate is a tag rather than a digest because `oci.Reference` refuses digest
+references for a moving index on purpose. Nothing is pushed, signed or tagged
+unless the workflow runs on `main`.

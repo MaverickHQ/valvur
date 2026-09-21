@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The daily name index is tagged only after it is verified.** `index.yml` used
+  to write the day's tag and `latest` first and verify afterwards, so a build
+  that failed its own round trip had already moved `latest`. Now the index is
+  pushed under a `candidate` tag, signed, pulled back through the shim's own
+  client — which must resolve the very digest that was pushed — and only then
+  tagged with the date and `latest`; a red run leaves `latest` where it was.
+  Nothing is pushed, signed or tagged from a branch. The order the release
+  pipeline adopted in 26.1.1 (ADR-0020), applied to the index (27.0.1).
 - **The generation id is on every surface.** `SUMMARY.md`'s machine block,
   `scan_status`'s DONE line and `valvur gate`'s count line name the run's
   `generation`, so an agent that reads the summary and then `findings.json` can
