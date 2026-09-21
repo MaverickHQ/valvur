@@ -53,7 +53,7 @@ class _Adapter:
 
 @pytest.mark.parametrize("ending", ["ok", "crash", "no-report", "skipped"])
 def test_every_outcome_carries_how_long_the_scanner_took(ending, tmp_path):
-    scanner, *_ = api._run_one(_Adapter(ending=ending), None, tmp_path)
+    scanner = api._run_one(_Adapter(ending=ending), None, tmp_path).scanner
 
     assert isinstance(scanner, ScannerRun)
     if ending == "skipped":
