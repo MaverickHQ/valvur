@@ -324,20 +324,25 @@ jobs:
           ls -la valvur-"$VERSION".*.json
           # Each SBOM must describe the child it names, not whichever one syft
           # matched. Syft's CycloneDX metadata does not carry the architecture
-          # (measured, 1.51.1), but every Debian package's purl does — `arch=amd64`
-          # or `arch=arm64` — so the file for one architecture must name it and
-          # never the other.
+          # (measured, 1.51.1), but every OS package's purl does — Alpine's apk
+          # spells it `arch=x86_64` / `arch=aarch64`, Debian's dpkg `amd64` /
+          # `arm64` (the first rehearsal of 27.0.2 found the assertion written for
+          # the wrong one) — so the file for one architecture must carry its
+          # spellings and never the other's. `noarch` packages belong to both.
           for arch in amd64 arm64; do
             python3 - "$arch" "valvur-$VERSION.linux-$arch.cdx.json" <<'PY'
           import collections, json, re, sys
           arch, path = sys.argv[1], sys.argv[2]
+          spellings = {"amd64": {"amd64", "x86_64"}, "arm64": {"arm64", "aarch64"}}
           doc = json.load(open(path))
           seen = collections.Counter(
               m.group(1) for c in doc.get("components", [])
               for m in [re.search(r"[?&]arch=([^&]+)", c.get("purl", ""))] if m)
           other = {"amd64": "arm64", "arm64": "amd64"}[arch]
-          assert seen[arch] and not seen[other], f"{path}: purl architectures {dict(seen)}, expected {arch}"
-          print(f"{path}: {len(doc['components'])} components, {seen[arch]} purls naming {arch}")
+          own = sum(seen[a] for a in spellings[arch])
+          foreign = sum(seen[a] for a in spellings[other])
+          assert own and not foreign, f"{path}: purl architectures {dict(seen)}, expected {arch}"
+          print(f"{path}: {len(doc['components'])} components, {own} purls naming {arch}, {dict(seen)}")
           PY
           done
 
