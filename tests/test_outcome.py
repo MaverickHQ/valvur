@@ -56,16 +56,26 @@ def test_a_failure_keeps_the_raw_text_and_no_artifact(tmp_path):
     assert outcome.findings == [] and outcome.artifact is None and outcome.raw == ""
 
 
+class _Unreadable(_Adapter):
+    def parse(self, output):
+        raise ValueError("cut mid-write")
+
+
 def test_the_budget_cut_rewrites_the_scanner_and_keeps_the_rest(tmp_path):
-    """What `dataclasses.replace(outcome[0], …), *outcome[1:]` did, by name."""
-    outcome = api._run_one(_Adapter(ScannerOutput("probe", "1", "", "killed", 137)), None, tmp_path)
+    """What `dataclasses.replace(outcome[0], …), *outcome[1:]` did, by name. The
+    outcome cut here is a failed one that still carries its raw text — a report
+    the adapter could not read (26.0.1) — so a cut that rebuilt the outcome from
+    the ScannerRun alone would be seen to drop it."""
+    outcome = api._run_one(
+        _Unreadable(ScannerOutput("probe", "1", '{"Results": [{"Vuln', "", 0)), None, tmp_path)
+    assert not outcome.scanner.ok and outcome.raw == '{"Results": [{"Vuln'
 
     cut = outcome.cut("cut by the 20s budget after 20s")
 
     assert cut.scanner.reason.startswith("cut by the 20s budget")
     assert cut.scanner.ok is outcome.scanner.ok
-    kept = (cut.findings, cut.artifact, cut.raw)
-    assert kept == (outcome.findings, outcome.artifact, outcome.raw)
+    assert cut.raw == '{"Results": [{"Vuln', "the cut dropped the raw text"
+    assert (cut.findings, cut.artifact) == (outcome.findings, outcome.artifact)
 
 
 def test_the_fleet_reads_names_not_positions():
