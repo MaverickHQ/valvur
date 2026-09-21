@@ -191,10 +191,15 @@ name yet (26.1.1).**
   the public Rekor transparency log — there is no key to store, rotate or leak.
 - Attests SLSA build provenance, so the image can be traced to this workflow and
   this commit.
-- Publishes an SBOM of the **image** in CycloneDX and SPDX. Distinct from the
-  `sbom.cdx.json` valvur writes for a scanned project. F10.4 requires it, because the
-  base image carries GPL components as every Linux container does, and disclosure is
-  the honest answer to a claim no container could satisfy.
+- Publishes an SBOM of the **image** in CycloneDX and SPDX — **one per
+  architecture** (27.0.2), four files, each named for the child it describes and
+  checked to describe it (every Debian package's purl carries `arch=`). Generated
+  by the syft the image was built with: the Dockerfile's digest pin, read from the
+  Dockerfile at run time rather than copied, so a pin bump is one edit and a test
+  refuses a syft named by tag. Distinct from the `sbom.cdx.json` valvur writes for
+  a scanned project. F10.4 requires it, because the base image carries GPL
+  components as every Linux container does, and disclosure is the honest answer
+  to a claim no container could satisfy.
 - Builds `dist/` with `uv build`. The wheel carries `valvur/_build.py`, written by
   the build hook (`hatch_build.py`): the digest of the tree it was built beside,
   the same digest the image records — so a user's scan can tell the pair came from
@@ -258,7 +263,7 @@ Find where it stopped with `gh run view --log-failed`, then:
 | push (image) | possibly a partial push: one architecture, or a manifest without its layers | Re-run the job (`gh run rerun --failed`). A registry push is idempotent; a re-push of the same content produces the same digest. If the failure was the registry itself, wait and re-run. |
 | the platform assertion | `:X.Y.Z-candidate` points at a single-architecture index; nothing else moved | Re-run. `latest` and the version tag never moved, so there is nothing to re-point. If the multi-platform build cannot be made to pass, fix and move the tag. |
 | `cosign sign` | the candidate pushed and reachable, **unsigned** | Re-run the job — signing is idempotent and the digest is in the push step's output. The unsigned digest is under a candidate tag only; nothing a user resolves points at it. If it cannot be signed, delete the candidate version from the package's versions page. |
-| attestation, SBOM | signed image, no provenance or no SBOM asset yet | Re-run the failed job. Nothing downstream depends on these being first-time-right; the attestation step is idempotent and the SBOM is regenerated from the pushed image. |
+| attestation, SBOM | signed image, no provenance or no SBOM asset yet | Re-run the failed job. Nothing downstream depends on these being first-time-right; the attestation step is idempotent and the SBOMs are regenerated from the pushed image. An SBOM whose purls name the wrong architecture means syft matched the wrong child of the index — check `--platform` reached it. |
 | `promote`: the re-tag | signed, attested, validated image under the candidate tag; possibly `:X.Y.Z` or `:latest` half-moved | Re-run the failed job: `imagetools create` is idempotent and the step asserts both tags resolve to the validated digest. |
 | `promote`: PyPI | `:X.Y.Z` and `:latest` moved to the validated image; **no wheel** | Re-run the job: the upload is the one step that is *not* idempotent, so a partial upload (`400 File already exists`) means PyPI has it — check `pip index versions valvur`. If PyPI rejected the release itself, fix forward: bump to `X.Y.Z+1`, tag, release. The image for `X.Y.Z` stays; document in `CHANGELOG.md` that `X.Y.Z` has no wheel. |
 | `promote`: GitHub release | image and wheel published; no release page | `gh release create vX.Y.Z --notes-file notes.md dist/* ...` by hand from the run's artifacts, or re-run the job — `gh release create` fails cleanly if the release already exists. The release page is documentation of the other two; it is never what a user installs. |
