@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import profiles as _profiles
 from .mcp import jobs
+from .mcp.jobs import State
 from .results import RESULTS_DIR
 
 DEFAULT_LIMIT = 20
@@ -109,12 +110,12 @@ def start_scan(args: dict) -> str:
     profile = _profiles.resolve(args.get("profile") or _profiles.DEFAULT)
 
     existing = jobs.current(workspace)
-    if existing and existing.state == "running":
+    if existing and existing.state is State.RUNNING:
         return (
             f"A {existing.profile} scan is already running here "
             f"({existing.elapsed:.0f}s so far). Poll `scan_status`."
         )
-    if existing and existing.state == "cancelling":
+    if existing and existing.state is State.CANCELLING:
         return (
             f"The previous {existing.profile} scan here is still stopping "
             f"({existing.elapsed:.0f}s since it started). Poll `scan_status` until it "
@@ -390,19 +391,19 @@ def scan_status(args: dict) -> str:
     workspace = Path(args.get("workspace") or ".").resolve()
 
     job = jobs.current(workspace)
-    if job is not None and job.state in ("running", "cancelling"):
+    if job is not None and job.state in jobs.ACTIVE:
         # Wait a bounded time before answering, so a poll covers seconds of scan
         # rather than milliseconds. The agent pays one turn per call either way;
         # returning instantly made it pay fourteen (task 10.2.5).
         job.wait()
-    if job is not None and job.state == "cancelling":
+    if job is not None and job.state is State.CANCELLING:
         return (f"CANCELLING — the {job.profile} scan, {job.elapsed:.0f}s in; its containers "
                 "are being stopped. Call again; no result will follow.")
-    if job is not None and job.state == "cancelled":
+    if job is not None and job.state is State.CANCELLED:
         return (f"CANCELLED after {job.elapsed:.0f}s — {job.error}\n"
                 "No result: a cancelled scan writes nothing, and the previous results, if "
                 "any, stand. Call `scan` to start again.")
-    if job is not None and job.state == "running":
+    if job is not None and job.state is State.RUNNING:
         # A fetch in progress — the image (10.2 claim 4), the database or the index
         # (24.1) — is the one kind of stage that is not a Scanner completing, and
         # the kind that made a first run look hung: it gets its own line while it
@@ -424,7 +425,7 @@ def scan_status(args: dict) -> str:
         lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
                      "do not report a result yet.")
         return "\n".join(lines)
-    if job is not None and job.state == "failed":
+    if job is not None and job.state is State.FAILED:
         return (f"FAILED after {job.elapsed:.0f}s — {job.error}\n"
                 "Run `doctor` (the tool; `valvur doctor` on a shell) before scanning "
                 "again: it names what this machine is missing and the fix.\n"
@@ -503,8 +504,10 @@ def scan_status(args: dict) -> str:
 
     network = data.get("network", {})
     lines += ["", f"left this machine: {network.get('what_left_the_machine', 'unknown')}"]
-    if job is not None and job.state == "done":
-        lines = [f"DONE in {job.elapsed:.0f}s.", "", *lines]
+    if job is not None and job.state is State.DONE:
+        generation = data.get("generation")
+        stamp = f" Generation {generation}." if generation else ""
+        lines = [f"DONE in {job.elapsed:.0f}s.{stamp}", "", *lines]
     if not data.get("complete"):
         lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
     lines += _staleness_note(

@@ -236,9 +236,9 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 60 modules under `src/valvur`, 1,039 tests in 56 files, 19 ADRs, 136
-requirement IDs, **182 done and 8 open** across 26 phases — 4 are the usability
-gate and the `v1.0.0` tail, 4 are Phase 26's polish, Tiers 4–5 (Tiers 0–3 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 8
+Roughly: 60 modules under `src/valvur`, 1,051 tests in 57 files, 19 ADRs, 136
+requirement IDs, **184 done and 6 open** across 26 phases — 4 are the usability
+gate and the `v1.0.0` tail, 2 are Phase 26's records, Tier 5 (Tiers 0–4 are closed); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 6
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -284,9 +284,12 @@ were introduced by the block before, with tests passing.
   e2e test over the image. **Then 26.3.2**: the fleet's 4-tuple is a
   `ScannerOutcome` with named fields — no behaviour change, and a mutation that
   survived (the budget cut dropping everything but the ScannerRun) pinned.
-  **Tiers 0–3 are closed.** What remains of the review is the polish, Tiers 4–5:
-  a state enum, the generation id on every surface, ADR-0020, the `design.md`
-  sections.
+  **Then Tier 4** (26.4.1, 26.4.2): a job's five states are an enum with a
+  transition table the code cannot leave, and the generation id is on every
+  surface an agent reads in order — `SUMMARY.md`'s machine block, the DONE line,
+  the gate — measured as one id across all three on one real scan. **Tiers 0–4
+  are closed.** What remains of the review is its record, Tier 5: ADR-0020 and
+  the `design.md` sections.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality
@@ -553,7 +556,9 @@ Rules that must hold:
   `automationDetails.guid`) carry one `generation` per Scan Run. A consumer who
   reads `run.json` first can check each sibling against it; a mismatch is a run
   interrupted mid-write, which before this was silent. An optional artifact the
-  run did not produce — Syft's SBOM — is removed, not inherited.
+  run did not produce — Syft's SBOM — is removed, not inherited. The id is also
+  on the three surfaces an agent reads before the JSON (26.4.2): `SUMMARY.md`'s
+  machine block, `scan_status`'s DONE line and `valvur gate`'s count line.
 - **Evidence is neutralised, never reproduced raw** (F3.13). An agent reads
   `SUMMARY.md` first and by instruction. If we quote an injection payload
   verbatim, we launder an attack out of a file the agent might never have

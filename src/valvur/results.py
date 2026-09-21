@@ -316,7 +316,13 @@ def _summary(run: ScanRun) -> str:
     # machine block still comes before any Finding, which is what F7.6 and F7.7 are
     # protecting; one sentence of plain English does not defeat that, and its absence
     # made the file feel like it was not written for the person who opened it.
-    lines = ["# Security scan summary", "", _verdict(run), "", MACHINE_HEADER]
+    lines = ["# Security scan summary", "", _verdict(run), "", MACHINE_HEADER.rstrip("\n"),
+             # The run this file belongs to (26.0.3, 26.4.2): the same id is in
+             # findings.json, run.json, state.json and results.sarif, and run.json
+             # is written last — a sibling with a different one is another run.
+             f"> **This is generation `{run.generation}`.** Every JSON file in this "
+             "folder carries the same `generation`; one that does not is from another "
+             "run.", ""]
 
     # The database first, and above the exploit-intelligence warning below it. KEV
     # decides how findings RANK; this decides whether they exist. For six days this

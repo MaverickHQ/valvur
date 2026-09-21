@@ -14,6 +14,7 @@ the MCP server is a long-lived process spawned by the client.
 
 from __future__ import annotations
 
+import enum
 import threading
 import time
 from collections.abc import Callable
@@ -35,12 +36,46 @@ from typing import Any
 STATUS_WAIT_SECONDS = 15.0
 
 
+class State(enum.StrEnum):
+    """A job's five states (26.4.1). A `StrEnum`, so every surface that printed
+    the word still prints the word, and a test that compared `"done"` still can.
+
+        RUNNING ──► CANCELLING ──► CANCELLED
+           │             │
+           ├──► DONE ◄───┘   (a cancel that landed during the write: too late,
+           │                  the result was written, DONE is the truth — 26.0.2)
+           └──► FAILED
+
+    Every other move is refused by `Job.transition`.
+    """
+
+    RUNNING = "running"
+    CANCELLING = "cancelling"
+    DONE = "done"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+#: The moves the diagram draws — the only ones the code makes.
+TRANSITIONS: dict[State, frozenset[State]] = {
+    State.RUNNING: frozenset({State.CANCELLING, State.DONE, State.FAILED}),
+    State.CANCELLING: frozenset({State.CANCELLED, State.DONE}),
+    State.DONE: frozenset(),
+    State.FAILED: frozenset(),
+    State.CANCELLED: frozenset(),
+}
+
+
+class IllegalTransition(RuntimeError):
+    """A move the diagram does not draw."""
+
+
 @dataclass
 class Job:
     workspace: Path
     profile: str
     started: float
-    state: str = "running"          # running | cancelling | done | failed | cancelled
+    state: State = State.RUNNING
     finished: float | None = None
     summary: str = ""
     error: str = ""
@@ -67,9 +102,16 @@ class Job:
         `ContainerRunner()`), which is why it was never seen by hand."""
         with _lock:
             self._canceller = stop
-            pending = self.state == "cancelling"
+            pending = self.state is State.CANCELLING
         if pending:
             stop()
+
+    def transition(self, to: State) -> None:
+        """Move to `to`, or refuse: the table is the API, and no state is assigned
+        anywhere else (a test says so)."""
+        if to not in TRANSITIONS[self.state]:
+            raise IllegalTransition(f"a job cannot go {self.state.value} → {to.value}")
+        self.state = to
 
     @property
     def elapsed(self) -> float:
@@ -95,7 +137,7 @@ def current(workspace: Path) -> Job | None:
 #: `start` refuses both — a `cancelling` job replaced in the registry (26.0.2)
 #: could never report CANCELLED, and its successor failed on the workspace lock
 #: with a message about a scan the agent believed it had stopped.
-ACTIVE = ("running", "cancelling")
+ACTIVE = (State.RUNNING, State.CANCELLING)
 
 
 def start(workspace: Path, profile: str, run: Any) -> Job:
@@ -112,18 +154,21 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
     def work() -> None:
         try:
             job.summary = run(workspace, profile, job.progress.append)
-            job.state = "done"
+            with _lock:
+                job.transition(State.DONE)
         except Exception as exc:
-            if job.state == "cancelling":
-                # Whatever the fleet raised on its way down — the scan's own
-                # ScanCancelled, or "every Scanner failed", which is what killing
-                # them looks like — a job the agent cancelled is cancelled (F1.11).
-                job.state = "cancelled"
-                job.error = str(exc)
-            else:
-                # A failed scan is a reportable outcome, not a crashed server.
-                job.state = "failed"
-                job.error = f"{type(exc).__name__}: {exc}"
+            with _lock:
+                if job.state is State.CANCELLING:
+                    # Whatever the fleet raised on its way down — the scan's own
+                    # ScanCancelled, or "every Scanner failed", which is what
+                    # killing them looks like — a job the agent cancelled is
+                    # cancelled (F1.11).
+                    job.transition(State.CANCELLED)
+                    job.error = str(exc)
+                else:
+                    # A failed scan is a reportable outcome, not a crashed server.
+                    job.transition(State.FAILED)
+                    job.error = f"{type(exc).__name__}: {exc}"
         finally:
             job.finished = time.monotonic()
             job.settled.set()
@@ -141,9 +186,9 @@ def cancel(workspace: Path) -> tuple[Job | None, int]:
     `Job.canceller`). The kill itself runs outside the lock — it is I/O."""
     with _lock:
         job = _jobs.get(str(workspace))
-        if job is None or job.state != "running":
+        if job is None or job.state is not State.RUNNING:
             return None, 0
-        job.state = "cancelling"
+        job.transition(State.CANCELLING)
         stop = job._canceller
     stopped = stop() if stop is not None else 0
     return job, stopped

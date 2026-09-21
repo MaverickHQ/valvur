@@ -7,6 +7,11 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The generation id is on every surface.** `SUMMARY.md`'s machine block,
+  `scan_status`'s DONE line and `valvur gate`'s count line name the run's
+  `generation`, so an agent that reads the summary and then `findings.json` can
+  tell they are the same run (26.4.2). Over MCP a job's state is an enum with a
+  fixed transition table; the words it prints are unchanged (26.4.1).
 - **The shim/image protocol is written down and versioned (F1.9).**
   `docs/PROTOCOL.md` is the contract — paths, binaries, the Checks' entry point,
   labels, the process — and the image carries it as one label,

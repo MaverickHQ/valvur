@@ -35,10 +35,12 @@ def test_the_states_are_an_enum_that_serialises_as_the_old_words():
 
 def test_a_new_job_is_running_and_settles_through_the_table(tmp_path, monkeypatch):
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
-    job = jobs.start(tmp_path, "offline", lambda w, p, progress: "fine")
+    let_go = threading.Event()
+    job = jobs.start(tmp_path, "offline", lambda w, p, progress: let_go.wait(5) and "fine")
     assert job.state is State.RUNNING
+    let_go.set()
     job.wait(2)
-    assert job.state is State.DONE
+    assert job.state is State.DONE and job.summary == "fine"
 
 
 @pytest.mark.parametrize("frm, to", [

@@ -6264,14 +6264,39 @@ user sees also carries a measured number in its STATUS note.
 
 ### Tier 4 — Polish, code
 
-- [ ] **26.4.1** **`Job.state` is an enum.** Five string literals compared in six
+- [x] **26.4.1** **`Job.state` is an enum.** Five string literals compared in six
   places across `jobs.py` and `operations.py`; 26.0.2 adds comparisons. A `State`
   `StrEnum` (serialises the same, so `scan_status`'s text is unchanged) and a test
   that every transition the docstring lists is the only one the code makes.
-- [ ] **26.4.2** **The generation id on every surface.** 26.0.3 puts a `generation`
+
+  **STATUS 2026-09-21:** ✅ With 26.4.2, one PR. `jobs.State` (RUNNING, CANCELLING,
+  DONE, FAILED, CANCELLED — a `StrEnum`, so every surface prints the same word and
+  the older tests that compared `"done"` still pass unchanged), `TRANSITIONS` —
+  the diagram in the docstring: RUNNING → CANCELLING | DONE | FAILED, CANCELLING →
+  CANCELLED | DONE (the too-late cancel of 26.0.2, drawn on purpose), the three
+  terminal states with no exit — `Job.transition(to)` refusing anything else with
+  `IllegalTransition("a job cannot go done → running")`, and every state change in
+  the code going through it under the registry lock (a test greps for any other
+  assignment, and for any literal comparison in `operations.py`). Five refused
+  moves tested by table; the too-late cancel tested as DONE. Mutations: a settled
+  job allowed to run again, the table not consulted — both caught.
+- [x] **26.4.2** **The generation id on every surface.** 26.0.3 puts a `generation`
   in every JSON artifact; `SUMMARY.md`'s machine-facing block, `scan_status`'s
   DONE line and `valvur gate` name it too, so an agent that reads `SUMMARY.md` and
   then `findings.json` can tell they are the same run. One line each.
+
+  **STATUS 2026-09-21:** ✅ One line each: `SUMMARY.md`'s machine block ends
+  *"This is generation `<id>`. Every JSON file in this folder carries the same
+  `generation`; one that does not is from another run"*; `scan_status`'s first
+  line reads *DONE in Ns. Generation <id>.*; `valvur gate`'s count line ends
+  *"; generation <id>"* — each from `run.json`, the file written last. Three
+  tests, one per surface, each asserting the id it sees is the run's. Mutations:
+  the DONE line and the gate each losing it — caught. Measured over stdio against
+  `valvur:dev` on the fixture, one scan, three surfaces, one id: `scan_status` →
+  *DONE in 45s. Generation 5032f9c2-5695-41c8-ba5d-4b4aa810e804.*; `SUMMARY.md` →
+  *This is generation `5032f9c2-…`*; `valvur gate .` → *gate: 56 finding(s) at or
+  above high; … ; generation 5032f9c2-…* — and `run.json` says the same. **Tier 4
+  is closed.**
 
 ### Tier 5 — Polish, record
 
