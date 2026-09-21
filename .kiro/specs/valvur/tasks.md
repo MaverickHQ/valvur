@@ -6405,7 +6405,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
 
 ### Tier 0 — What a user receives
 
-- [ ] **27.0.1** **The daily index: push, sign, verify, then tag (T0.2; ADR-0018,
+- [x] **27.0.1** **The daily index: push, sign, verify, then tag (T0.2; ADR-0018,
   the order of ADR-0020).** `index.yml` runs `oras push "$REPOSITORY:$DATE,latest"`
   (line 79), *then* `cosign sign` (98), *then* the round-trip through the shim's
   own client (104–139) — so a build that fails its own verification has already
@@ -6425,6 +6425,31 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   `oras tag` comes after `cosign verify` in step order. Then the workflow, then
   one dispatch from `main`: the STATUS note records the run and the order the log
   shows, and the tag resolving to the verified digest.
+
+  **STATUS 2026-09-21:** ✅ PR #64. Test first
+  (`test_the_daily_index_is_tagged_only_after_it_is_verified`): step order push <
+  sign < pull-back < tag; the push names only `candidate`; the date and `latest`
+  come only from `oras tag` on `$DIGEST`; the pull-back compares the digest the
+  shim resolved with the one pushed; each of the four steps guarded to `main`; no
+  private-repository strings. Mutations caught: tag before verify, `latest` on
+  the push, each guard dropped in turn (the first attempt at that mutation did
+  nothing — `sed 0,/re/` is GNU-only — redone in Python, four failures). The
+  candidate is a *tag* because `oci.Reference` refuses digest references for a
+  moving index on purpose, so the shim needs a tag to pull back. **Found on the
+  way:** the pull-back still carried the *"pulls anonymously"* private-repository
+  branch, dead since 2026-09-13 and outside 26.1.3's test, which covered `ci.yml`
+  and `release.yml` only — gone, and the new test refuses it here. The header
+  now states ADR-0018's thirty-day freshness rule, which was half of 27.2.7.
+  **Measured twice.** A dispatch from the branch (run 35632921687): the index
+  built in 56s from the restored cache and every publish step `skipped`; GHCR's
+  newest version was still the morning's `2026-09-21`/`latest`. A dispatch from
+  `main` after landing (run 35633928952): candidate pushed 17:45:22–25, signed
+  17:45:25–29, pulled back 17:45:29–34 with all five ecosystems *signature
+  verified, digest sha256:cc25acd75abc…* — the digest pushed — and tagged at
+  17:45:34: *tagged …:2026-09-21 and :latest @ sha256:cc25acd7…*; GHCR lists
+  `candidate`, `2026-09-21` and `latest` on that one digest. `latest` moved
+  twelve seconds after the verification, and would not have moved without it.
+  CHANGELOG; ADR-0018 amended.
 
 - [ ] **27.0.2** **The release SBOM by digest, on both architectures (T1.1;
   F10.4).** `release.yml:309` generates the release SBOM with `anchore/syft:v1.51.1`
