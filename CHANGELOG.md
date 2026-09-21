@@ -7,6 +7,12 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The release pipeline runs the arm64 image, and verifies the provenance it
+  makes.** The artifact job and CI's published-image job each run on both
+  architectures natively; the pipeline verifies the image's signature and its
+  SLSA provenance on each, and each distribution's attestation read back from
+  PyPI after upload. The private-repository branches both workflows carried
+  since before 2026-09-13 are gone (26.1.2, 26.1.3).
 - **A release is validated before it is promoted.** `release.yml` now runs
   stage → validate → promote: the image is pushed under a candidate tag, signed
   and attested; the wheel and that digest are tested together; and only then is

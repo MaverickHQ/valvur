@@ -548,7 +548,11 @@ of fixes, so that nothing changes my code without my decision.
 2. F10.2 — The image SHALL run as a non-root user with a read-only root filesystem and
    all capabilities dropped.
 3. F10.3 — valvur SHALL publish a signed image, an SBOM, and build provenance per
-   release.
+   release. *Note 2026-09-21 (task 26.1.3): and the pipeline SHALL verify what it
+   publishes — the image's signature and its SLSA provenance in `artifact`, on
+   both architectures, and each distribution's attestation read back from the
+   index in `promote`. Until then the attestation was made and never checked by
+   the pipeline; the second external review found it.*
 4. F10.4 — **CORRECTED 2026-08-30.** ~~The image SHALL contain no GPL- or
    AGPL-licensed component.~~ valvur SHALL add no GPL- or AGPL-licensed component
    **as a Scanner, Check or library it deliberately installs** (ADR-0005), and SHALL
@@ -580,7 +584,10 @@ of fixes, so that nothing changes my code without my decision.
    SHALL verify the published artifact rather than a locally built one. *Added
    2026-09-05 (task 13.1). `0.1.0rc1` was published `arm64` only, unusable for most
    CI, most Linux desktops and every Intel Mac. Both workflows built locally and
-   neither pulled what was published, so no test could see it.*
+   neither pulled what was published, so no test could see it.* *Note 2026-09-21
+   (task 26.1.2): "verify" had meant amd64 — the arm64 image was built, listed
+   and never run by the pipeline. Now `artifact` and `published` each run on both
+   architectures natively; measured, the arm64 leg is the faster and leaner.*
 8. F10.8 — valvur SHALL provide a means of refreshing the vulnerability database that
    is a no-op when it is current, and SHALL NOT refresh a database it has as a side
    effect of a **Scan Run**, however stale. A database or **Name Index** that is

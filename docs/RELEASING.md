@@ -201,7 +201,12 @@ name yet (26.1.1).**
   one tree, and says so when it did not (23.4.4). The SBOM and `dist/` are handed
   on as run artifacts: one build, tested by `artifact`, published by `promote`.
 
-**`artifact` — the pair, tested** (above).
+**`artifact` — the pair, tested** (above) — **on both architectures** (26.1.2):
+one leg on `ubuntu-24.04`, one on `ubuntu-24.04-arm`, each pulling its own child
+of the signed digest and verifying both claims on it, the signature and the SLSA
+provenance (26.1.3). `promote` waits for both. Measured on the first rehearsal
+with the arm64 leg: 6m06s against amd64's 7m02s, and a peak of 391–410 MiB
+against 511–528 MiB.
 
 **`promote` — the three things that cannot be taken back, after the evidence.**
 
@@ -209,7 +214,10 @@ name yet (26.1.1).**
   the signature and the attestation on the digest hold — and asserts each tag
   resolves to the digest `artifact` tested. First because it is the cheapest to
   undo: a tag can be re-pointed.
-- Publishes to PyPI by trusted publishing (TestPyPI in a rehearsal).
+- Publishes to PyPI by trusted publishing (TestPyPI in a rehearsal), then reads
+  each distribution's attestation back from the index and verifies the local
+  file against it (`pypi-attestations verify pypi --repository …`) — the
+  pipeline verifies what it publishes (26.1.3).
 - Creates the GitHub release with the SBOMs, `dist/` and the verification commands
   in the notes, so a sceptical reader does not have to find them.
 

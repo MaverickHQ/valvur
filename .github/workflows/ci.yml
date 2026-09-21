@@ -122,17 +122,32 @@ jobs:
         run: uv run python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
 
   published:
-    name: the published image, on amd64
-    runs-on: ubuntu-24.04
+    name: the published image, on ${{ matrix.arch }}
+    # Both architectures, natively (26.1.2, F10.7). Every other job builds the
+    # image locally, which always matches the machine that made it — the reason
+    # nobody noticed the published one was arm64-only. This job is the only thing
+    # pointed at what users get, and until 2026-09-21 it looked only from amd64.
+    # The amd64 leg keeps the name main's branch protection requires.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
-      - name: Can an anonymous client even pull it?
+      - name: Is it published yet?
         id: reachable
-        # While the package is private (task 12a.1) this job cannot test anything.
-        # It skips LOUDLY rather than passing: a skip that reads as a pass is exactly
-        # how a single-arch image shipped unnoticed for a week.
+        # The package has been public since 2026-09-13 (12a.1); an anonymous pull
+        # token that cannot be had is an error now, not the expected skip it was
+        # while the package was private (26.1.3).
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           echo "reachable=false" >> "$GITHUB_OUTPUT"
@@ -140,8 +155,8 @@ jobs:
           TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io" \
             | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
           if [ -z "$TOKEN" ]; then
-            echo "::warning::ghcr.io/maverickhq/valvur is not publicly pullable (task 12a.1). The published artifact is UNVERIFIED on amd64."
-            exit 0
+            echo "::error::ghcr.io/maverickhq/valvur gave no anonymous pull token; the package is meant to be public (12a.1)"
+            exit 1
           fi
 
           # Reachable is not the same as published. A release-prep commit bumps
@@ -161,7 +176,7 @@ jobs:
             echo "::notice::ghcr.io/maverickhq/valvur:$VERSION is not published yet (HTTP $CODE). Nothing to verify on this commit; release.yml verifies the artifact it pushes."
           fi
 
-      - name: The published index must carry amd64
+      - name: The published index must carry both architectures
         if: steps.reachable.outputs.reachable == 'true'
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
@@ -191,9 +206,6 @@ jobs:
           key: valvur-name-index-${{ github.job }}-${{ github.run_id }}
           restore-keys: valvur-name-index-
       - name: Scan a real repository with the PUBLISHED image
-        # This runner is amd64. Every other job builds the image locally, which always
-        # matches the machine that made it — the reason nobody noticed the published
-        # one was arm64-only. This job is the only thing pointed at what users get.
         if: steps.reachable.outputs.reachable == 'true'
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
@@ -201,18 +213,20 @@ jobs:
           uv sync --extra dev --locked
           export VALVUR_IMAGE="ghcr.io/maverickhq/valvur:$VERSION"
           uv run valvur update
+          docker image inspect "$VALVUR_IMAGE" --format 'pulled the {{ .Architecture }} child on '"$(uname -m)"
           uv run valvur scan tests/fixtures/broken-repo --profile offline
           uv run python - <<'PY'
-          import json, pathlib, sys
+          import json, os, pathlib, sys
+          arch = os.environ["ARCH"]
           run = json.loads(pathlib.Path("tests/fixtures/broken-repo/.security-scan/run.json").read_text())
           findings = json.loads(pathlib.Path("tests/fixtures/broken-repo/.security-scan/findings.json").read_text())["findings"]
           if not run.get("complete"):
-              print("::error::the published image could not complete a scan on amd64")
+              print(f"::error::the published image could not complete a scan on {arch}")
               sys.exit(1)
           if len(findings) < 20:
               print(f"::error::only {len(findings)} findings from the published image; the fixture yields far more")
               sys.exit(1)
-          print(f"published image scanned cleanly on amd64: {len(findings)} findings")
+          print(f"published image scanned cleanly on {arch}: {len(findings)} findings")
           PY
 
   selfscan:

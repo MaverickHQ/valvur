@@ -5999,7 +5999,7 @@ user sees also carries a measured number in its STATUS note.
   three rewritten, the `re-point latest` recovery gone because `latest` no longer
   moves before validation.
 
-- [ ] **26.1.2** **The arm64 image runs in the pipeline (F10.7).** `artifact` becomes
+- [x] **26.1.2** **The arm64 image runs in the pipeline (F10.7).** `artifact` becomes
   a two-runner matrix, `ubuntu-24.04` and `ubuntu-24.04-arm`, each pulling the
   digest, verifying the signature, and running the constraint suite, the e2e suite
   and the gate through the published wheel — the job as it is, twice. `promote`
@@ -6011,7 +6011,26 @@ user sees also carries a measured number in its STATUS note.
   note records the arm64 leg's timings beside amd64's — the first pipeline numbers
   for the architecture every Mac user is on.
 
-- [ ] **26.1.3** **The public-repository residue.** Remove both private-repository
+  **STATUS 2026-09-21:** ✅ Done with 26.1.3 in one PR and one rehearsal. Test
+  first: both runners under `artifact` and under `published`, `promote` waiting
+  on the matrix. `artifact` and `published` are each an `include` matrix of
+  `amd64`/`ubuntu-24.04` and `arm64`/`ubuntu-24.04-arm`, the `build` job's
+  shape; each leg logs the child it pulled (*"pulled the arm64 child of … on
+  aarch64"*). The amd64 leg of `published` keeps the exact name main's branch
+  protection requires; the arm64 leg is a new check, **`the published image, on
+  arm64`**, which the owner should add to the required list. Mutations: each
+  matrix back to one runner, both caught. **Measured on the rehearsal
+  (35581573388 and 35583391242), the first time the arm64 image ran anywhere
+  but this laptop:** `artifact` on arm64 **6m06s–6m30s** against amd64's
+  7m02s–7m12s — the constraint suite 128s against 159s, the e2e suite 169s
+  against 207s, N1.4's peak **391–410 MiB against 511–528 MiB**; the gate passed
+  on both, 0 findings at `any`, 4 suppressed. The arm64 hosted runner is the
+  faster and the leaner of the two. On `ci.yml`, `the published image, on
+  arm64` passed on its first run: the published `0.3.0` pulled its arm64 child
+  and scanned the fixture complete. F10.7's "verify the published artifact" is
+  now true of both architectures it names.
+
+- [x] **26.1.3** **The public-repository residue.** Remove both private-repository
   branches (`release.yml`'s *"Attestation not rehearsed"* step and report line,
   `ci.yml`'s *"not publicly pullable"* warning path) — dead since 2026-09-13 and
   each a way for a real failure to be reported as an expected skip. Then make the
@@ -6024,6 +6043,32 @@ user sees also carries a measured number in its STATUS note.
 
   **Tests first**: the workflow-shape test refuses the strings that name the
   private-repository case, and requires `gh attestation verify` in `artifact`.
+
+  **STATUS 2026-09-21:** ✅ With 26.1.2. Test first: neither workflow names the
+  private-repository case; `artifact` runs `gh attestation verify`; `promote`
+  runs `pypi-attestations verify pypi`. Both dead branches gone: the attestation
+  step is unconditional (its skip-with-a-warning outlived the repository going
+  public by eight days), and `published` treats a missing anonymous pull token
+  as an error, not the expected skip it was. `artifact` now verifies **both
+  claims** the release notes tell a user to verify — `cosign verify` and `gh
+  attestation verify oci://$IMAGE@$DIGEST --repo MaverickHQ/valvur
+  --predicate-type https://slsa.dev/provenance/v1` — on each architecture.
+  `promote` reads each distribution's provenance back from the index it just
+  published to (`/integrity/valvur/<version>/<file>/provenance` on pypi.org, or
+  test.pypi.org in a rehearsal; a six-attempt wait for the bundle to appear) and
+  verifies the local `dist/` file against it with `pypi-attestations verify
+  pypi --repository https://github.com/MaverickHQ/valvur` (0.0.30, through
+  `uvx`) — a shape proven first by hand against `0.3.0` on PyPI and the previous
+  night's `0.3.0.dev24` on TestPyPI. Mutations: the image check dropped, the
+  wheel check dropped, the private-repository `if:` restored — each caught.
+  **Rehearsed twice.** #1 (35581573388): both `artifact` legs verified the
+  provenance; `promote` verified the wheel (`OK: valvur-0.3.0.dev25-py3-none-
+  any.whl`) and then asked the index for the provenance *of an attestation* —
+  the publish action leaves each file's bundle beside it as
+  `<file>.publish.attestation`, and `dist/*` was too wide. #2 (35583391242),
+  the loop over `*.whl` and `*.tar.gz` only: **green, 17m19s**; `promote` 38s,
+  `OK:` on the wheel and the sdist, both read back from TestPyPI. F10.3 gains
+  the sentence: the pipeline verifies what it publishes. **Tier 1 is closed.**
 
 ### Tier 2 — What compounds as the code grows
 

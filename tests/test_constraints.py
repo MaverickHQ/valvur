@@ -996,8 +996,9 @@ def test_the_published_artifact_runs_on_both_architectures():
 
     jobs = _release_jobs()
     artifact = jobs["artifact"]
-    assert re.search(r"runner:\s*\[ubuntu-24\.04, ubuntu-24\.04-arm\]", artifact), \
-        "artifact does not run on both architectures"
+    runners = set(re.findall(r"runner:\s*(\S+)", artifact))
+    assert runners == {"ubuntu-24.04", "ubuntu-24.04-arm"}, \
+        f"artifact does not run on both architectures: {sorted(runners)}"
     assert "runs-on: ${{ matrix.runner }}" in artifact
 
     ci = Path(".github/workflows/ci.yml").read_text()
@@ -1018,6 +1019,8 @@ def test_the_pipeline_verifies_the_provenance_it_publishes_and_has_no_private_re
     verified by nothing in the pipeline: `artifact` ran `cosign verify` and
     stopped. Now `artifact` verifies the image's attestation and `promote`
     verifies the wheel's on the index it published to."""
+    import re
+
     release = Path(".github/workflows/release.yml").read_text()
     ci = Path(".github/workflows/ci.yml").read_text()
     for dead in ("private repository", "not publicly pullable", "repository.visibility"):
@@ -1025,7 +1028,7 @@ def test_the_pipeline_verifies_the_provenance_it_publishes_and_has_no_private_re
         assert dead not in ci, f"ci.yml still has the private-repository case: {dead!r}"
 
     jobs = _release_jobs()
-    assert "gh attestation verify oci://" in jobs["artifact"], \
+    assert re.search(r'gh attestation verify "?oci://', jobs["artifact"]), \
         "artifact does not verify the image's build provenance"
     assert "pypi-attestations verify pypi" in jobs["promote"], \
         "promote does not verify the wheel's attestation on the index"
