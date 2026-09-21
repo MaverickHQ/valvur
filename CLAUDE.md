@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-20.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-21.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -150,6 +150,26 @@ two MCP cancellation races (high — both reproduced), result publication atomic
 Scanner invocation split across `runner.py` and the adapters, six restatements of
 one egress decision, an implicit shim/image protocol).
 
+**A third review (2026-09-21)** — a "Level 400" codebase analysis of the tree with
+Phase 26's Tiers 0–2 in it — listed twenty items in five tiers, and each was
+measured against `main` the same afternoon: [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md)
+holds the list with a verdict under every item. One was already closed (the parse
+boundary, 26.0.1); two were wrong by measurement (a root `__pycache__` the
+`.dockerignore` already excludes — 1.30MB of context, no cache at any level; and
+`scan_status` progress, shown since 24.1); one's premises were wrong (a red
+`index.yml` leaves yesterday's index in place, it does not send users to the
+registry walk); **seventeen stand**, none a defect in a scan's result. The two that
+touch what a user receives: the daily index is tagged `latest` *before* it is signed
+and verified — `index.yml` lacks ADR-0020's order — and the release SBOM is generated
+by a syft pinned by tag while the `Dockerfile` pins the same syft by digest. The pass
+also found two things the analysis had not: the review's own artefacts under
+`.council/` are committed and ship in the sdist, and `design.md`'s MCP table is two
+tools short. Seven of the seventeen are under an hour each, seven an afternoon,
+three are refactors for after the gate (`dependency_reality.py`'s split, `SUMMARY.md`
+rendering out of `results.py`, a typed pipeline result). **They are not yet tasks**:
+they become Phase 27 in `tasks.md` when the owner picks them up, and the counts
+below count them from then.
+
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
 rewrote history to scrub two AWS identifiers (12a.1). `main` is protected: six
@@ -239,7 +259,8 @@ diagrams and the notes are at the head of Phase 23 in
 
 Roughly: 60 modules under `src/valvur`, 1,051 tests in 57 files, 20 ADRs, 136
 requirement IDs, **186 done and 4 open** across 26 phases — the usability gate
-and the `v1.0.0` tail; Phase 26 is complete (Tiers 0–5); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
+and the `v1.0.0` tail — plus the third review's seventeen measured items waiting in
+`docs/OPEN-ITEMS.md`, tasks once the owner picks them up; Phase 26 is complete (Tiers 0–5); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
 are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -294,7 +315,25 @@ were introduced by the block before, with tests passing.
   fourteen tasks, eleven PRs, four rehearsals, one evening and one day.** Next:
   the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1), then `v1.0.0`
   (12b.3) — the next real tag is the first release whose upload follows its
-  validation.
+  validation. `main` has required the arm64 leg of the published-image job since
+  2026-09-21 (six checks; PR #62 was the first to land under it).
+- **The third review's seventeen (2026-09-21), measured and waiting.** In
+  [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md) with a verdict each. Worth knowing
+  before touching the areas: `index.yml` tags `latest` before it signs and verifies
+  (T0.2 — the fix is ADR-0020's order, push by digest, then tag); `release.yml`'s
+  SBOM step runs `anchore/syft:v1.51.1` by tag and for amd64 only (T1.1); the MCP
+  server exits without stopping a running scan's containers, which the daemon then
+  owns (T1.3); every MCP tool declares `readOnlyHint: true`, `scan` included (T2.3);
+  an index cached without cosign is not re-verified when cosign appears, until the
+  next daily build is pulled (T2.2); the README's platform row says macOS is tested
+  on every commit and it is tested by hand (T1.2); `design.md`'s diagram still draws
+  the orchestrator inside the image, §5.1 predates ADR-0018 and §8 lists four of six
+  tools (T1.4); `.council/` is tracked and in the sdist (T4.1); `dist/` holds the
+  rc1 wheel and `.security-scan/` a stale scan (T0.3, T4.2); `SECURITY.md`'s
+  versions table says `0.1.x` (T4.3); `RELEASING.md` explains the brake without
+  citing ADR-0020 (T4.4); `doctor.py` imports two constants from `cli.py` (T3.3);
+  and three refactors (T3.1, T3.2, T3.4). Two items were wrong and one's premises
+  were; the file says which and what was measured.
 - **A scan fetches what is absent and never what is stale (24.1, closed
   2026-09-13).** Measured against the published release that morning, the primary
   path's first run finished `complete: False`: Trivy and the dependency-reality
