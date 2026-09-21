@@ -294,8 +294,14 @@ jobs:
         # previous form — syft through the daemon's socket — failing `unauthorized`:
         # the daemon had the runner's login, the syft container did not, and a
         # freshly created GHCR package is private, so the anonymous fallback failed
-        # too. Pinned to one platform so the SBOM describes one image, not whichever
-        # child of the index the runner happens to match.
+        # too. One SBOM per child of the index, each naming its platform: the image
+        # ships for two architectures and until 27.0.2 only amd64 was described.
+        #
+        # The syft that reads the image is the syft the image was built with — the
+        # Dockerfile's digest pin, read from the Dockerfile here rather than copied,
+        # so there is one pin and nothing to drift. Until 27.0.2 this ran syft by
+        # its version TAG — the one floating pointer left in a pipeline where every
+        # action is a SHA and every base image a digest.
         env:
           VERSION: ${{ needs.verify.outputs.publish_version }}
           DIGEST: ${{ steps.push.outputs.digest }}
@@ -303,13 +309,37 @@ jobs:
           SYFT_REGISTRY_AUTH_USERNAME: ${{ github.actor }}
           SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for format in cyclonedx-json:cdx spdx-json:spdx; do
-            docker run --rm \
-              -e SYFT_REGISTRY_AUTH_AUTHORITY -e SYFT_REGISTRY_AUTH_USERNAME -e SYFT_REGISTRY_AUTH_PASSWORD \
-              anchore/syft:v1.51.1 "registry:$IMAGE@$DIGEST" --platform linux/amd64 \
-              -o "${format%%:*}" > "valvur-$VERSION.${format##*:}.json"
+          set -eu
+          SYFT=$(sed -n 's/^FROM \(anchore\/syft@sha256:[0-9a-f]\{64\}\) AS syft$/\1/p' Dockerfile)
+          test -n "$SYFT" || { echo "::error::the Dockerfile has no digest-pinned syft stage"; exit 1; }
+          echo "syft: $SYFT"
+          for platform in linux/amd64 linux/arm64; do
+            for format in cyclonedx-json:cdx spdx-json:spdx; do
+              docker run --rm \
+                -e SYFT_REGISTRY_AUTH_AUTHORITY -e SYFT_REGISTRY_AUTH_USERNAME -e SYFT_REGISTRY_AUTH_PASSWORD \
+                "$SYFT" "registry:$IMAGE@$DIGEST" --platform "$platform" \
+                -o "${format%%:*}" > "valvur-$VERSION.${platform/\//-}.${format##*:}.json"
+            done
           done
           ls -la valvur-"$VERSION".*.json
+          # Each SBOM must describe the child it names, not whichever one syft
+          # matched. Syft's CycloneDX metadata does not carry the architecture
+          # (measured, 1.51.1), but every Debian package's purl does — `arch=amd64`
+          # or `arch=arm64` — so the file for one architecture must name it and
+          # never the other.
+          for arch in amd64 arm64; do
+            python3 - "$arch" "valvur-$VERSION.linux-$arch.cdx.json" <<'PY'
+          import collections, json, re, sys
+          arch, path = sys.argv[1], sys.argv[2]
+          doc = json.load(open(path))
+          seen = collections.Counter(
+              m.group(1) for c in doc.get("components", [])
+              for m in [re.search(r"[?&]arch=([^&]+)", c.get("purl", ""))] if m)
+          other = {"amd64": "arm64", "arm64": "amd64"}[arch]
+          assert seen[arch] and not seen[other], f"{path}: purl architectures {dict(seen)}, expected {arch}"
+          print(f"{path}: {len(doc['components'])} components, {seen[arch]} purls naming {arch}")
+          PY
+          done
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # For `promote` to attach to the GitHub release: the SBOM of the digest it
@@ -574,7 +604,7 @@ jobs:
             echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
             echo '```'
             echo
-            echo 'Build provenance, and the SBOM attached below:'
+            echo 'Build provenance, and the SBOMs attached below — one per architecture:'
             echo
             echo '```bash'
             echo "gh attestation verify oci://${IMAGE}:${VERSION} --repo MaverickHQ/valvur"
@@ -598,8 +628,10 @@ jobs:
           gh release create "$TAG" $EXTRA \
             --title "valvur $VERSION" \
             --notes-file notes.md \
-            "valvur-$VERSION.cdx.json" \
-            "valvur-$VERSION.spdx.json" \
+            "valvur-$VERSION.linux-amd64.cdx.json" \
+            "valvur-$VERSION.linux-arm64.cdx.json" \
+            "valvur-$VERSION.linux-amd64.spdx.json" \
+            "valvur-$VERSION.linux-arm64.spdx.json" \
             dist/*
 
       - name: Remove the rehearsal's release and tag
