@@ -172,9 +172,35 @@ def test_the_pipeline_hands_back_everything_its_stages_recorded():
     )
 
 
-def test_a_real_run_carries_each_recorded_field_out_of_the_pipeline(tmp_path):
-    """Not merely declared — carried. The result's values are the Context's after
-    the last stage, so a field added to both and wired to neither is still caught."""
+def test_every_recorded_value_is_carried_out_of_the_pipeline(tmp_path, monkeypatch):
+    """Not merely declared — carried, with a value that could not arrive by
+    accident. Written first against a real run, where most recorded fields hold
+    their defaults, so forcing one to `()` on the way out changed nothing and the
+    test passed against the defect. One stage that marks every field distinctly
+    is the honest form: each marker has to appear on the far side."""
+    markers = {name: f"marker-for-{name}" for name in pipeline.RECORDED_BY_STAGES}
+
+    def mark(findings, ctx):
+        for name, value in markers.items():
+            setattr(ctx, name, value)
+        return findings
+
+    monkeypatch.setattr(pipeline, "PIPELINE",
+                        (pipeline.Stage("mark", mark, "the only stage under test"),))
+    ctx = pipeline.Context(workspace=tmp_path, profile="offline", network=False,
+                           declaring=[])
+
+    result = pipeline.run([], ctx)
+
+    carried = {name: getattr(result, name) for name in pipeline.RECORDED_BY_STAGES}
+    assert carried == markers, (
+        "these were recorded by a stage and did not reach the result: "
+        f"{sorted(n for n, v in carried.items() if v != markers[n])}"
+    )
+
+
+def test_a_real_run_agrees_with_the_context_it_used(tmp_path):
+    """And the same over the real pipeline, which is where the values come from."""
     (tmp_path / "requirements.txt").write_text("requests==2.31.0\n")
     ctx = pipeline.Context(
         workspace=tmp_path, profile="offline", network=False,
@@ -184,6 +210,4 @@ def test_a_real_run_carries_each_recorded_field_out_of_the_pipeline(tmp_path):
     result = pipeline.run([], ctx)
 
     for name in pipeline.RECORDED_BY_STAGES:
-        assert getattr(result, name) == getattr(ctx, name), (
-            f"{name} was recorded by a stage and not carried out of the pipeline"
-        )
+        assert getattr(result, name) == getattr(ctx, name), name
