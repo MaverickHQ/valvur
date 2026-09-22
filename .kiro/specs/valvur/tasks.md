@@ -6760,7 +6760,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
 
 ### Tier 3 — After the gate, before `v1.0.0`
 
-- [ ] **27.3.1** **`doctor` stops importing `cli` (T3.3).** `doctor.py:507` imports
+- [x] **27.3.1** **`doctor` stops importing `cli` (T3.3).** `doctor.py:507` imports
   `KEV_URL` and `KEV_URL_ENV` from `cli.py` (defined at 270–271), inside the KEV
   check — a diagnostic module reaching up into the entry point. The constants
   belong with the fetch in `enrichment.py`; `cli` and `doctor` both import from
@@ -6770,6 +6770,23 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   not in `sys.modules`; and a direction ratchet over the package's import graph
   (`ast`, every module under `src/valvur`) — nothing but `__main__` and
   `mcp/server` imports `cli`.
+
+  **STATUS 2026-09-22:** ✅ `KEV_URL` and `KEV_URL_ENV` now live in
+  `enrichment.py`, which does the fetching; `cli.py` names them beside
+  `_refresh_kev`, its one user, and `doctor` imports from the owner. Test first,
+  two: a subprocess that asks `doctor` for the first-run hosts and then finds
+  `valvur.cli` absent from `sys.modules`, and a ratchet over the package's own
+  import graph — `ast` over every module under `src/valvur`, where only
+  `__main__` and `cli` itself may import `cli`. The task text expected
+  `mcp/server` to be a third exception; it is not, and the ratchet is stronger
+  for it. Mutations: `doctor` pointed back at `cli`, and an unrelated module
+  (`gate.py`) made to import it — both red. **The subprocess test passed against
+  the defect when first written:** the KEV import was lazy, inside the check, so
+  importing the module was never enough to see it — the hosts have to be *asked
+  for* before `sys.modules` is worth reading. Half an hour, as estimated.
+  **Sequencing note:** Tier 3 is meant to wait for the gate, and this one does
+  not touch anything a stranger's first run meets — two constants between
+  modules, no behaviour.
 
 - [ ] **27.3.2** **One ecosystem registry (T3.1).** `dependency_reality.py` is
   1,206 lines — Check orchestration, seven manifest parsers, registry transport,
