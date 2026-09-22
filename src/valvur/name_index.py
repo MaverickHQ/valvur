@@ -28,6 +28,7 @@ import io
 import json
 import mmap
 import os
+import shutil
 import tarfile
 import time
 import urllib.error
@@ -58,6 +59,11 @@ MIRROR_ENV = "VALVUR_NAME_INDEX_URL"
 #: and name it here. Set explicitly, it is the only source tried; an operator who
 #: named a mirror wants to hear that the mirror failed, not watch a fallback try
 #: the internet.
+#: The one verdict that can improve without the index changing: cosign absent when
+#: the index was pulled, installed by the time of the next `update` (27.1.3). Matched
+#: as a prefix because `oci.verify_signature` appends the fix to it.
+_COSIGN_ABSENT = "not verified: cosign is not installed"
+
 INDEX_REPOSITORY_ENV = "VALVUR_INDEX_REPOSITORY"
 DEFAULT_INDEX_REPOSITORY = "ghcr.io/maverickhq/valvur-index:latest"
 #: `VALVUR_DB_INSECURE`'s counterpart: TLS without verification, or plain HTTP, for
@@ -343,7 +349,8 @@ def fetch_published(repository: str, directory: Path, *, ecosystems: Iterable[st
     if len(current) == len(wanted):
         progress(f"the index is already the published one ({manifest.digest[:19]}); "
                  "nothing to fetch")
-        return metadata
+        return _reverify(directory, metadata, wanted, reference, manifest.digest,
+                         insecure=insecure, progress=progress)
 
     verification = oci.verify_signature(f"{reference.repository}@{manifest.digest}",
                                         insecure=insecure)
@@ -376,6 +383,41 @@ def fetch_published(repository: str, directory: Path, *, ecosystems: Iterable[st
         metadata["ecosystems"][ecosystem] = entry
         _write_metadata(directory, metadata)
         progress(f"{ecosystem}: {count:,} names, built {entry.get('built_at', '?')}")
+    return metadata
+
+
+def _reverify(directory: Path, metadata: dict, wanted: list[str], reference,
+              digest: str, *, insecure: bool, progress: Progress) -> dict:
+    """Check the signature of an index already on disk, when the verdict recorded
+    for it was "cosign is not installed" and cosign now is (task 27.1.3).
+
+    The shortcut above is what makes a daily `update` free on a current machine,
+    and it returned before the signature was ever looked at — so an index pulled
+    without cosign kept that verdict for as long as that build stayed published,
+    a trust state the user could not improve by installing the tool the message
+    named. Only the recorded digest is verified: no layer moves, and a verdict
+    already recorded for this digest is not paid for twice.
+
+    A refusal is `oci.SignatureInvalid` out of `verify_signature`, uncaught, as
+    everywhere else. The files stay as they are — this path fetched nothing, so
+    there is nothing of this run's to undo, and a half-deleted index would leave
+    the machine worse than the one it distrusts.
+    """
+    from . import oci
+
+    stale = [e for e in wanted
+             if ((metadata["ecosystems"].get(e) or {}).get("published") or {})
+             .get("signature", "").startswith(_COSIGN_ABSENT)]
+    if not stale or shutil.which("cosign") is None:
+        return metadata
+
+    verification = oci.verify_signature(f"{reference.repository}@{digest}", insecure=insecure)
+    progress(f"signature: {verification}")
+    if verification.startswith(_COSIGN_ABSENT):     # it went away between the two calls
+        return metadata
+    for ecosystem in stale:
+        metadata["ecosystems"][ecosystem]["published"]["signature"] = verification
+    _write_metadata(directory, metadata)
     return metadata
 
 

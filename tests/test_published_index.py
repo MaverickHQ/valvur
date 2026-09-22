@@ -326,6 +326,89 @@ def test_with_cosign_installed_the_signature_is_verified_against_the_workflow_id
     assert metadata["ecosystems"]["pip"]["published"]["signature"] == "verified"
 
 
+def test_an_index_cached_without_cosign_is_verified_once_cosign_appears(
+    registry, source, tmp_path, tiny, no_cosign, cosign
+):
+    """27.1.3, ADR-0018. The current-cache shortcut returned before the signature
+    was ever checked, so an index pulled on a machine without cosign kept
+    `"not verified: cosign is not installed"` for as long as that build stayed
+    published — a trust state that could not improve by installing the tool it
+    named. Now the same `update` that finds nothing to fetch verifies what is
+    already on disk, by its recorded digest, with no layer moved."""
+    digest = registry.push_index("acme/idx", "latest", source)
+    cache = tmp_path / "cache"
+    first = name_index.fetch_published(registry.reference("acme/idx"), cache)
+    assert first["ecosystems"]["pip"]["published"]["signature"].startswith("not verified")
+
+    log = cosign(exit_code=0)                      # the user installs cosign
+    registry.requests.clear()
+    said: list[str] = []
+
+    metadata = name_index.fetch_published(registry.reference("acme/idx"), cache,
+                                          progress=said.append)
+
+    for ecosystem in metadata["ecosystems"].values():
+        assert ecosystem["published"]["signature"] == "verified"
+    assert json.loads((cache / "metadata.json").read_text()) == metadata, \
+        "the verdict has to survive the process that learned it"
+    args = log.read_text().split("\n")
+    assert args[1] == f"{registry.host}/acme/idx@{digest}", "the digest it recorded"
+    assert [r for r in registry.requests if "/blobs/" in r] == \
+        [r for r in registry.requests if "/blobs/" in r][:1], "only the config blob"
+    assert not any("names, built" in line for line in said), "a layer was fetched"
+    assert any("signature: verified" in line for line in said), said
+
+
+def test_a_current_index_is_not_re_verified_when_cosign_is_still_absent(
+    registry, source, tmp_path, tiny, no_cosign
+):
+    """The common case stays two requests and no work: nothing to fetch, nothing
+    to re-check, and the metadata is not rewritten to say the same thing."""
+    registry.push_index("acme/idx", "latest", source)
+    cache = tmp_path / "cache"
+    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    stamp = (cache / "metadata.json").stat().st_mtime_ns
+    said: list[str] = []
+
+    name_index.fetch_published(registry.reference("acme/idx"), cache, progress=said.append)
+
+    assert (cache / "metadata.json").stat().st_mtime_ns == stamp, "the metadata was rewritten"
+    assert any("nothing to fetch" in line for line in said), said
+
+
+def test_a_current_index_already_verified_is_not_verified_again(
+    registry, source, tmp_path, tiny, cosign
+):
+    """cosign costs a Rekor round trip; a verdict already recorded for this digest
+    stands until the digest changes."""
+    log = cosign(exit_code=0)
+    registry.push_index("acme/idx", "latest", source)
+    cache = tmp_path / "cache"
+    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    log.unlink()
+
+    name_index.fetch_published(registry.reference("acme/idx"), cache)
+
+    assert not log.exists(), "cosign ran again for a signature already verified"
+
+
+def test_a_cached_index_whose_signature_cosign_refuses_is_not_used(
+    registry, source, tmp_path, tiny, no_cosign, cosign
+):
+    """The re-check is a real verification, so its refusal is the real refusal
+    (`SignatureInvalid`, never softened) — and the files it refuses stay on disk
+    untouched rather than being half-removed by a path that fetched nothing."""
+    registry.push_index("acme/idx", "latest", source)
+    cache = tmp_path / "cache"
+    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    before = (cache / "pypi.txt").read_bytes()
+    cosign(exit_code=1)
+
+    with pytest.raises(oci.SignatureInvalid, match="REFUSED"):
+        name_index.fetch_published(registry.reference("acme/idx"), cache)
+    assert (cache / "pypi.txt").read_bytes() == before
+
+
 def test_a_refused_signature_stops_everything_and_writes_nothing(
     registry, source, tmp_path, tiny, cosign
 ):
