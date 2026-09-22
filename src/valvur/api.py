@@ -666,45 +666,49 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         declaring=[a.for_profile(network=network) for a in DEFAULT_ADAPTERS],
         artifacts=artifacts,
     )
-    findings = _pipeline.run(findings, ctx)
+    # One value out, with every field a stage recorded (27.3.4): the ScanRun below
+    # is assembled from it rather than by reaching into the Context the stages
+    # shared, which `StageFn`'s type could not describe.
+    outcome = _pipeline.run(findings, ctx)
+    findings = outcome.findings
     # And once more before anything is written: a kill that arrives between the
     # last Scanner and the write must not leave a Results Folder from a run the
     # developer said to stop.
     _refuse_if_cancelled(runner, len(scanners), len(adapters))
-    if ctx.provider is None:
+    if outcome.provider is None:
         # Cannot happen while `enrich` is in the pipeline; said out loud rather than
         # left to an AttributeError three lines down.
         raise RuntimeError("the enrich stage did not run")
 
     current = {f.fingerprint: f.title for f in findings}
     # Name what was fixed, using the title remembered from the previous run.
-    fixed_now = [ctx.previous[fp] or fp for fp in ctx.previous if fp not in current]
+    fixed_now = [outcome.previous[fp] or fp for fp in outcome.previous if fp not in current]
     run = ScanRun(
         findings=findings,
         fixed=sorted(fixed_now),
         scanners=scanners,
         network_used=network,
-        kev_age_days=ctx.provider.kev_age_days,
-        identity_reset=ctx.identity_reset,
+        kev_age_days=outcome.provider.kev_age_days,
+        identity_reset=outcome.identity_reset,
         db_age_days=_cache.db_age_days(),
         db_overdue_days=_cache.db_overdue_days(),
         name_index_age_days=_cache.name_index_age_days(),
-        kev_source=ctx.provider.kev_source,
-        vendored_dropped=ctx.vendored_dropped,
-        config_dropped=ctx.config_dropped,
-        unpinned_dropped=ctx.unpinned_dropped,
-        unpinned_files=ctx.unpinned_files,
-        excluded_paths=list(ctx.configured),
+        kev_source=outcome.provider.kev_source,
+        vendored_dropped=outcome.vendored_dropped,
+        config_dropped=outcome.config_dropped,
+        unpinned_dropped=outcome.unpinned_dropped,
+        unpinned_files=outcome.unpinned_files,
+        excluded_paths=list(outcome.configured),
         profile=profile,
-        coverage=ctx.coverage,
+        coverage=outcome.coverage,
         budget_s=budget_s,
         budget_cut=cut,
         shim_built_from=shim_built_from,
         image_built_from=image_built_from,
     )
 
-    still_fixed = {fp for fp in ctx.previously_fixed if fp not in current}
-    still_fixed |= {fp for fp in ctx.previous if fp not in current}
+    still_fixed = {fp for fp in outcome.previously_fixed if fp not in current}
+    still_fixed |= {fp for fp in outcome.previous if fp not in current}
     results.write(
         workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs,
         state=_state.render(current, still_fixed, generation=run.generation),

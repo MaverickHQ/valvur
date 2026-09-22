@@ -30,10 +30,27 @@ from . import state as _state
 from . import suppressions as _suppressions
 from .findings import Finding, merge
 
+#: What a stage records for the Scan Run being assembled afterwards — as against
+#: the inputs above it, which the pipeline is given (task 27.3.4). `StageFn` is
+#: typed `list[Finding] -> list[Finding]`, so a stage's real outputs were invisible
+#: to the interface: `api` read each of these off the Context by name, one line
+#: each, and a new one was invisible to everything until someone remembered to add
+#: a line. Naming them here makes `PipelineResult` derivable and the omission
+#: catchable; `tests/test_pipeline.py` holds `Context` and `PipelineResult` to it.
+RECORDED_BY_STAGES: tuple[str, ...] = (
+    "configured", "coverage", "vendored_dropped", "config_dropped",
+    "unpinned_dropped", "unpinned_files", "provider", "previous",
+    "previously_fixed", "identity_reset",
+)
+
 
 @dataclass
 class Context:
-    """Everything a stage may need, and everything it may leave behind."""
+    """Everything a stage may need, and everything it may leave behind.
+
+    Stage-local since 27.3.4: `api` builds its `ScanRun` from the `PipelineResult`
+    `run` returns, not by reaching into this.
+    """
 
     workspace: Path
     profile: str
@@ -55,6 +72,30 @@ class Context:
     previous: dict[str, str] = field(default_factory=dict)
     previously_fixed: set[str] = field(default_factory=set)
     identity_reset: tuple[object, int] | None = None
+
+
+@dataclass(frozen=True)
+class PipelineResult:
+    """What the pipeline produces: the Findings, and everything its stages
+    recorded on the way (27.3.4).
+
+    The shape 26.3.2 gave the fleet's outcome, given to the pipeline's: a named
+    field per value, so `api` assembles a `ScanRun` from one object instead of
+    knowing which stage left what on a shared bag. Every name in
+    `RECORDED_BY_STAGES` appears here, and a test says so.
+    """
+
+    findings: list[Finding]
+    configured: tuple[str, ...]
+    coverage: dict
+    vendored_dropped: int
+    config_dropped: int
+    unpinned_dropped: int
+    unpinned_files: tuple[str, ...]
+    provider: _enrichment.LocalProvider | None
+    previous: dict[str, str]
+    previously_fixed: set[str]
+    identity_reset: tuple[object, int] | None
 
 
 StageFn = Callable[[list[Finding], Context], list[Finding]]
@@ -219,7 +260,11 @@ PIPELINE: tuple[Stage, ...] = (
 )
 
 
-def run(findings: list[Finding], ctx: Context) -> list[Finding]:
+def run(findings: list[Finding], ctx: Context) -> PipelineResult:
+    """Every stage in order, then everything they recorded, as one value."""
     for stage in PIPELINE:
         findings = stage.apply(findings, ctx)
-    return findings
+    return PipelineResult(
+        findings=findings,
+        **{name: getattr(ctx, name) for name in RECORDED_BY_STAGES},
+    )

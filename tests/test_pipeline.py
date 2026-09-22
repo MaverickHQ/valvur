@@ -57,10 +57,10 @@ def test_configured_exclusions_are_loaded_before_anything_reads_them(tmp_path):
 
     out = pipeline.run([_finding("vendor-ish/lib.rs"), _finding("src/app.py")], ctx)
 
-    assert ctx.configured == ("vendor-ish",)
-    assert [f.path for f in out] == ["src/app.py"], "the excluded path survived"
-    assert ctx.config_dropped == 1
-    assert not any("Cargo" in f.title for f in out), "the gap ignored the exclusion"
+    assert out.configured == ("vendor-ish",)
+    assert [f.path for f in out.findings] == ["src/app.py"], "the excluded path survived"
+    assert out.config_dropped == 1
+    assert not any("Cargo" in f.title for f in out.findings), "the gap ignored the exclusion"
 
 
 def test_filters_run_before_merge_so_a_vendored_duplicate_cannot_survive_by_merging(tmp_path):
@@ -76,9 +76,9 @@ def test_filters_run_before_merge_so_a_vendored_duplicate_cannot_survive_by_merg
 
     out = pipeline.run([copy, real], ctx)
 
-    assert [f.path for f in out] == ["src/a.py"]
-    assert ctx.vendored_dropped == 1
-    assert out[0].sources == ("trivy",), "the vendored copy's source merged in"
+    assert [f.path for f in out.findings] == ["src/a.py"]
+    assert out.vendored_dropped == 1
+    assert out.findings[0].sources == ("trivy",), "the vendored copy's source merged in"
 
 
 def test_diff_is_last_so_status_is_computed_over_the_final_set(tmp_path, monkeypatch):
@@ -95,7 +95,7 @@ def test_diff_is_last_so_status_is_computed_over_the_final_set(tmp_path, monkeyp
 
     out = pipeline.run([_finding("src/app.py"), _finding("src/new.py")], ctx)
 
-    statuses = {f.path: f.status for f in out}
+    statuses = {f.path: f.status for f in out.findings}
     assert statuses == {"src/app.py": "persisting", "src/new.py": "new"}
     assert ctx.previous == {"fp-CVE-2020-1-src/app.py": "old title"}
 
@@ -109,7 +109,18 @@ def test_a_stage_that_is_not_a_pure_function_of_its_inputs_is_caught(tmp_path):
     first = pipeline.run(list(findings), _ctx(tmp_path))
     second = pipeline.run(list(findings), _ctx(tmp_path))
 
-    assert first == second
+    # Everything the result carries except `provider`, which is a freshly
+    # constructed LocalProvider each run and compares by identity — its *readings*
+    # (the KEV age and source) are what a Scan Run takes, and they are equal.
+    assert first.findings == second.findings
+    for name in pipeline.RECORDED_BY_STAGES:
+        if name == "provider":
+            continue
+        assert getattr(first, name) == getattr(second, name), name
+    assert first.provider.kev_source == second.provider.kev_source
+    # The age is read from the clock, so two runs differ in the microseconds —
+    # equal to the tenth `run.json` records, which is the number that is published.
+    assert round(first.provider.kev_age_days, 1) == round(second.provider.kev_age_days, 1)
 
 
 @pytest.mark.parametrize("earlier,later", [
@@ -120,3 +131,59 @@ def test_the_pairwise_constraints_the_reasons_name(earlier, later):
     """Each `why_here` names a stage it must precede or follow. Spelled out so the
     reason and the order cannot drift apart."""
     assert ORDER.index(earlier) < ORDER.index(later)
+
+# ------------------------------------------- what the pipeline hands back (27.3.4)
+
+
+def test_every_field_a_stage_records_is_named_in_one_place():
+    """27.3.4. `Context` carried fifteen fields: the inputs a stage may read, and —
+    mixed in with them — the things stages write for `api` to copy into the
+    `ScanRun` afterwards, by name, one line each. `StageFn` is typed
+    `list[Finding] -> list[Finding]`, so a stage's real outputs were invisible to
+    the interface and a new one was invisible to everything until someone
+    remembered to copy it.
+
+    `RECORDED_BY_STAGES` is now the list, and this test holds `Context` to it: a
+    field is either an input the pipeline is given or a result it produces, and
+    adding one means saying which."""
+    import dataclasses
+
+    fields = {f.name for f in dataclasses.fields(pipeline.Context)}
+    inputs = {"workspace", "profile", "network", "declaring", "artifacts"}
+
+    assert fields == inputs | set(pipeline.RECORDED_BY_STAGES), (
+        "a Context field is neither a declared input nor declared as recorded by a "
+        f"stage: {sorted(fields - inputs - set(pipeline.RECORDED_BY_STAGES))}"
+    )
+
+
+def test_the_pipeline_hands_back_everything_its_stages_recorded():
+    """The result is the contract `StageFn` could not express. A stage that starts
+    recording something new has to widen this, rather than `api` growing another
+    `ctx.<field>` line that nothing checks."""
+    import dataclasses
+
+    carried = {f.name for f in dataclasses.fields(pipeline.PipelineResult)}
+
+    assert "findings" in carried
+    assert set(pipeline.RECORDED_BY_STAGES) <= carried, (
+        "the pipeline records these and does not hand them back: "
+        f"{sorted(set(pipeline.RECORDED_BY_STAGES) - carried)}"
+    )
+
+
+def test_a_real_run_carries_each_recorded_field_out_of_the_pipeline(tmp_path):
+    """Not merely declared — carried. The result's values are the Context's after
+    the last stage, so a field added to both and wired to neither is still caught."""
+    (tmp_path / "requirements.txt").write_text("requests==2.31.0\n")
+    ctx = pipeline.Context(
+        workspace=tmp_path, profile="offline", network=False,
+        declaring=[a.for_profile(network=False) for a in DEFAULT_ADAPTERS],
+    )
+
+    result = pipeline.run([], ctx)
+
+    for name in pipeline.RECORDED_BY_STAGES:
+        assert getattr(result, name) == getattr(ctx, name), (
+            f"{name} was recorded by a stage and not carried out of the pipeline"
+        )
