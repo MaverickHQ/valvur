@@ -10,9 +10,12 @@ name: macos probe
 # hand on a Mac", which is true, and a continuous lane would be better if one can
 # exist at all.
 #
-# GitHub's macOS runners are virtual machines on Apple silicon and do not offer
-# nested virtualisation, which is what a container runtime needs there. This
-# workflow finds out, rather than assuming: install Colima, start it with a short
+# GitHub's macOS runners are virtual machines on Apple silicon — measured on the
+# first run of this probe: `Apple M1 (Virtual)`, and `kern.hv_vmm_present: 1`,
+# which says this machine is ITSELF running under a hypervisor. Whether a second
+# level is available to Lima's VM is the question, and it is the one a container
+# runtime's existence there depends on. This workflow finds out, rather than
+# assuming: install Colima, start it with a short
 # deadline, and run the smallest possible container. Its outcome is recorded in
 # 27.2.1's STATUS note either way — a green run makes a scheduled lane worth a
 # task of its own, a red one is the evidence the README's row is as good as it
@@ -55,12 +58,26 @@ jobs:
           set -eu
           start=$(date +%s)
           # Five minutes is the task's cap: past that, a developer's first run is
-          # not what this workflow would be measuring.
-          if timeout 300 colima start --cpu 2 --memory 4 --disk 20; then
+          # not what this workflow would be measuring. Bounded by hand rather than
+          # with `timeout`, which is GNU coreutils and is not on macOS — the first
+          # run of this probe measured nothing at all because of that, and reported
+          # "did not start within 300s" when nothing had been started.
+          colima start --cpu 2 --memory 4 --disk 20 &
+          colima_pid=$!
+          deadline=$(( start + 300 ))
+          while kill -0 "$colima_pid" 2>/dev/null && [ "$(date +%s)" -lt "$deadline" ]; do
+            sleep 5
+          done
+          if kill -0 "$colima_pid" 2>/dev/null; then
+            kill "$colima_pid" 2>/dev/null || true
+            echo "::warning::colima had not started after $(( $(date +%s) - start ))s"
+            echo "up=false" >> "$GITHUB_OUTPUT"
+          elif wait "$colima_pid"; then
             echo "started in $(( $(date +%s) - start ))s"
+            colima status || true
             echo "up=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::colima did not start within 300s"
+            echo "::warning::colima exited non-zero after $(( $(date +%s) - start ))s"
             echo "up=false" >> "$GITHUB_OUTPUT"
           fi
 
