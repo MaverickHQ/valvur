@@ -34,11 +34,11 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable
-
-from . import ecosystems as _ecosystems
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlencode
+
+from . import ecosystems as _ecosystems
 
 PYPI_SIMPLE = "https://pypi.org/simple/"
 NPM_REPLICATE = "https://replicate.npmjs.com"

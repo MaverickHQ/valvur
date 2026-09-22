@@ -106,3 +106,90 @@ def test_the_broken_fixture_reads_the_same_as_before(tmp_path):
     assert declared == json.loads(path.read_text())
     assert ["pip", "reqeusts", "requirements-ai.txt"] in declared, \
         "the planted hallucination is no longer read at all"
+
+
+# ----------------------------------------------------- the registry is complete
+
+
+def test_every_ecosystem_can_answer_existence_or_says_why_it_cannot():
+    """An ecosystem valvur READS is one it can be asked about — from the offline
+    index, or from a registry with the reason there is no index stated. Silence is
+    the failure mode this project keeps finding: a Check that says nothing is
+    indistinguishable from one that found nothing (F3.5)."""
+    from valvur import ecosystems
+
+    for e in ecosystems.ECOSYSTEMS:
+        assert e.reads, f"{e.key} is in the registry and reads nothing"
+        assert e.index_file or e.no_index_because, (
+            f"{e.key} has no offline index and does not say why, so a user on "
+            "`offline` would be told nothing at all"
+        )
+        assert e.registry and e.host, f"{e.key} names no registry to ask"
+        assert e.label and e.key
+
+
+def test_every_registry_host_is_one_the_disclosure_names():
+    """CLAUDE.md §3: a host this Check can reach is a destination `run.json`
+    discloses. 23.5.4 found that sentence three registries out of date for a week,
+    which is the reason the two are held together rather than reviewed."""
+    from valvur import ecosystems, egress
+
+    for e in ecosystems.ECOSYSTEMS:
+        assert e.host in egress.SPOKEN_AS, (
+            f"{e.key} asks {e.host}, which `egress.SPOKEN_AS` does not name — so a "
+            "`full` scan would reach a host `run.json` never mentions"
+        )
+
+
+def test_the_index_files_are_the_indexed_ecosystems_in_the_order_users_see():
+    """`valvur doctor` and `valvur update` print this order, so it is text a user
+    reads. It differed from the manifest table's order before 27.3.2, and deriving
+    one from the other silently reordered the line."""
+    from valvur import ecosystems, name_index
+
+    assert name_index.FILES == ecosystems.INDEX_FILES
+    assert tuple(ecosystems.INDEX_FILES) == ecosystems.registry.INDEX_ORDER
+    assert set(ecosystems.INDEX_FILES) == {
+        e.key for e in ecosystems.ECOSYSTEMS if e.index_file
+    }
+
+
+def test_the_name_index_and_the_check_no_longer_import_each_other(tmp_path):
+    """They imported each other, lazily, in both directions: `name_index` wanted
+    the Check's PEP 503 canonicalisation and the Check wanted `name_index`'s crate
+    form. Both live in the registry now, and neither module reaches for the other
+    to get them."""
+    import subprocess
+    import sys
+
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "import sys\n"
+        "import valvur.name_index as ni\n"
+        "assert 'valvur.checks.dependency_reality' not in sys.modules, "
+        "'name_index pulled in the Check'\n"
+        "assert ni.FILES and ni.crate_canonical('A-B') == 'a_b'\n"
+        "print('ok')\n"
+    )
+    done = subprocess.run([sys.executable, str(probe)], capture_output=True, text=True,
+                          timeout=60, check=False)
+
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "ok"
+
+
+def test_the_registry_holds_what_the_three_modules_each_held_a_piece_of():
+    """The point of the move, asserted: one entry answers what `MANIFESTS`,
+    `name_index.FILES` and a chain of `if ecosystem == …` in the Check each knew
+    separately."""
+    from valvur import ecosystems
+    from valvur.checks import dependency_reality
+
+    pip = ecosystems.get("pip")
+    assert pip.reads == ecosystems.MANIFESTS["pip"].reads      # was ecosystems.py
+    assert pip.index_file == "pypi.txt"                        # was name_index.FILES
+    assert pip.registry == "PyPI"                              # was _REGISTRY_NAME
+    assert dependency_reality._index_form("pip", "Flask_Login") == "flask-login"
+    assert dependency_reality._index_form("gem", "Rails") == "Rails", "RubyGems is case-sensitive"
+    assert dependency_reality._index_form("cargo", "serde-json") == "serde_json"
+    assert ecosystems.get("gomod").near_miss is False and pip.near_miss is True

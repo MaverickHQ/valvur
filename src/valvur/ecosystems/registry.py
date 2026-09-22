@@ -149,7 +149,7 @@ INDEX_ORDER: tuple[str, ...] = ("pip", "npm", "gem", "composer", "cargo")
 #: The index files, by ecosystem — what `name_index` builds and pulls. Derived from
 #: the entries above, so the two cannot disagree; it was a second table until 27.3.2.
 INDEX_FILES: dict[str, str] = {
-    key: BY_KEY[key].index_file for key in INDEX_ORDER if BY_KEY[key].index_file
+    key: name for key in INDEX_ORDER if (name := BY_KEY[key].index_file) is not None
 }
 
 

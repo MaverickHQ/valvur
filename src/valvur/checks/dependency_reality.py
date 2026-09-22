@@ -41,6 +41,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
+from .. import ecosystems as _ecosystems
 from .. import egress as _egress
 from ..coverage import Coverage
 from .base import Check
@@ -97,8 +98,7 @@ class DependencyRealityCheck(Check):
         """The one Check whose limits are worth stating, because nothing else in the
         product substitutes for it. Host-side, static, per Profile."""
         from .. import coverage as _coverage
-        from .. import ecosystems as _ecosystems
-        from ..name_index import FILES as _INDEXED
+        _INDEXED = _ecosystems.INDEX_FILES
 
         reads, ignores = [], []
         for key, manifests in _ecosystems.MANIFESTS.items():
@@ -244,7 +244,8 @@ class DependencyRealityCheck(Check):
                 # A nonexistent name that is one edit from a popular package is
                 # almost always a typo, and saying so is far more useful than
                 # reporting absence alone.
-                suggestion = _near_miss(name, popular) if ecosystem == "pip" else None
+                suggestion = (_near_miss(name, popular)
+                              if _ecosystems.get(ecosystem).near_miss else None)
                 findings.append(_finding(
                     "valvur.dependency.nonexistent", ecosystem, name, source, "high",
                     f"'{name}' does not exist on {registry}"
@@ -259,7 +260,7 @@ class DependencyRealityCheck(Check):
             # and not for similarity. Declared in the Check's Coverage rather than
             # left for a reader to infer from silence. Local: it never needed a
             # registry, and until ADR-0018 it was withheld offline for no reason.
-            near = _near_miss(name, popular) if ecosystem == "pip" else None
+            near = _near_miss(name, popular) if _ecosystems.get(ecosystem).near_miss else None
             if near:
                 findings.append(_finding(
                     "valvur.dependency.near-miss", ecosystem, name, source, "medium",
@@ -363,19 +364,9 @@ def _index_dir() -> Path:
 
 
 def _index_form(ecosystem: str, name: str) -> str:
-    """The spelling the index stores, which is each registry's own idea of identity:
-    PEP 503 for PyPI; lowercase for npm and Packagist; lowercase with `-` folded to
-    `_` for crates.io; and exactly as written for RubyGems, which is case-sensitive
-    (`rails` exists, `Rails` does not — measured 2026-09-12)."""
-    if ecosystem == "pip":
-        return canonical(name)
-    if ecosystem == "cargo":
-        from ..name_index import crate_canonical
-
-        return crate_canonical(name)
-    if ecosystem == "gem":
-        return name
-    return name.lower()
+    """The spelling the index stores — each registry's own idea of identity, held
+    by the ecosystem registry since 27.3.2 rather than by a chain of `if`s here."""
+    return _ecosystems.index_form(ecosystem, name)
 
 
 def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
@@ -942,12 +933,9 @@ def _cargo_package_name(path: Path) -> str | None:
     return name if isinstance(name, str) and name else None
 
 
-#: Where each ecosystem's names are verified, named as a reader would name it.
-_REGISTRY_NAME = {
-    "pip": "PyPI", "npm": "the npm registry",
-    "maven": "Maven Central", "gomod": "the Go module proxy",
-    "gem": "RubyGems", "composer": "Packagist", "cargo": "crates.io",
-}
+#: Where each ecosystem's names are verified, named as a reader would name it —
+#: from the ecosystem registry (27.3.2), which owns the host beside the name.
+_REGISTRY_NAME = {e.key: e.registry for e in _ecosystems.ECOSYSTEMS}
 
 #: How many registry requests are in flight at once on `full`. Measured 2026-09-12
 #: against PyPI from this Check: serial, 159ms a name — 123s on a real monorepo, and
@@ -1027,9 +1015,8 @@ def _registry_url(ecosystem: str, name: str) -> tuple[str, bool]:
         # index holds lowercase, so the name arrives lowercase.
         return f"https://repo.packagist.org/p2/{quote(name, safe='/')}.json", True
     if ecosystem == "cargo":
-        from ..name_index import crate_canonical
-
-        return f"https://crates.io/api/v1/crates/{quote(crate_canonical(name), safe='')}", True
+        return (f"https://crates.io/api/v1/crates/"
+                f"{quote(_ecosystems.index_form('cargo', name), safe='')}"), True
     return f"https://pypi.org/pypi/{quote(name, safe='')}/json", True
 
 
@@ -1125,7 +1112,9 @@ _SEPARATORS = re.compile(r"[-_.]+")
 
 
 def canonical(name: str) -> str:
-    return _SEPARATORS.sub("-", name).lower()
+    """PEP 503, from the ecosystem registry. Kept as a name here because the
+    near-miss comparison below and its tests have always called it this."""
+    return _ecosystems.registry.pep503(name)
 
 
 def _near_miss(name: str, popular: dict[str, str]) -> str | None:
