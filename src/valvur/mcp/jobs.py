@@ -194,6 +194,14 @@ def cancel(workspace: Path) -> tuple[Job | None, int]:
     return job, stopped
 
 
+def active() -> list[Path]:
+    """Every workspace with a job that has not settled, newest first — what the
+    server's exit has to stop (27.1.1). A list, taken under the lock, so a job
+    settling while the caller works through it changes nothing."""
+    with _lock:
+        return [Path(key) for key, job in reversed(_jobs.items()) if job.state in ACTIVE]
+
+
 def reset() -> None:
     """Test seam. Never called in normal operation."""
     with _lock:

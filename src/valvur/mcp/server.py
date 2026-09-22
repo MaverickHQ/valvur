@@ -8,14 +8,65 @@ reporting on itself.
 
 from __future__ import annotations
 
+import contextlib
+import signal
 import sys
 from collections.abc import Callable
 from typing import Any
 
-from . import protocol
+from . import jobs, protocol
 from .protocol import PROTOCOL_VERSION, SUPPORTED_VERSIONS, RpcError
 
 SERVER_NAME = "valvur"
+
+#: How long the exit waits for each cancelled job to settle (task 27.1.1). Long
+#: enough for a `docker kill` of a full fleet and the scan's own unwinding —
+#: measured at about a second (26.0.2: CANCELLED at 1.19s) — and short enough that
+#: a job which will never settle does not hold a client's restart. Read at call
+#: time so a test can shorten it.
+SHUTDOWN_SECONDS = 10.0
+
+
+class _Terminated(SystemExit):
+    """SIGTERM, raised into the serve loop so the exit path runs.
+
+    The default disposition ends the process without unwinding, so the `finally`
+    below never runs and the fleet is orphaned — which is how a client that kills
+    its server rather than closing stdin left containers behind (27.1.1).
+    """
+
+
+def shutdown(out=None) -> None:
+    """Stop every scan this process started, on the way out.
+
+    A scan job is a daemon thread and dies with the process; the containers it
+    launched are the runtime's children and do not (`runner.py`, 23.3.3). So the
+    same path a `scan_cancel` takes is taken for each active job — the mark, the
+    runner's kill, the wait — and `kill_running` sweeps up anything no job owns:
+    a fleet whose job has already been replaced, or a container started between
+    the cancel and the kill. Nothing here raises: a server that cannot clean up
+    must still exit.
+    """
+    from .. import runner
+
+    stream = out or sys.stderr
+    for workspace in jobs.active():
+        job, stopped = jobs.cancel(workspace)
+        if job is None:
+            continue
+        print(f"valvur-mcp: stopping the {job.profile} scan of {workspace} "
+              f"({stopped} container(s))", file=stream, flush=True)
+        if not job.wait(SHUTDOWN_SECONDS):
+            print(f"valvur-mcp: the scan of {workspace} had not stopped after "
+                  f"{SHUTDOWN_SECONDS:.0f}s; leaving it", file=stream, flush=True)
+    try:
+        swept = runner.kill_running()
+    except Exception as exc:   # broad: a server that cannot clean up must still exit
+        print(f"valvur-mcp: could not stop remaining containers: {exc}",
+              file=stream, flush=True)
+        return
+    if swept:
+        print(f"valvur-mcp: stopped {swept} container(s) with no job", file=stream, flush=True)
 
 
 class Tool:
@@ -76,7 +127,7 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
             text = tool.handler(params.get("arguments") or {})
         except RpcError:
             raise
-        except Exception as exc:
+        except Exception as exc:   # broad: a server that cannot clean up must still exit
             # A tool failing is a result, not a protocol error: the agent should see
             # what went wrong rather than a transport-level fault.
             return {
@@ -151,12 +202,25 @@ def main(argv: list[str] | None = None) -> int:
     if warning := unsupported_platform_warning():
         print(warning, file=sys.stderr, flush=True)
 
+    def terminated(signum, frame):      # the handler's signature; neither is used
+        raise _Terminated
+
+    with contextlib.suppress(ValueError):     # not the main thread: a test, or an embedder
+        signal.signal(signal.SIGTERM, terminated)
+
     try:
         protocol.serve(build(registry()))
     except KeyboardInterrupt:
         pass
     except BrokenPipeError:
         pass                      # the client went away; that is a normal end
+    except _Terminated:
+        pass                      # SIGTERM; the same end, and the same cleanup
+    finally:
+        # Every way out of `serve` — stdin closed, Ctrl-C, a broken pipe, SIGTERM
+        # — leaves through here, because a scan the client can no longer read is
+        # a scan nobody wants running (27.1.1, F1.11).
+        shutdown()
     return 0
 
 
