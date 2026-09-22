@@ -1230,8 +1230,16 @@ def test_the_platform_table_claims_only_the_testing_that_exists():
         if re.search(r"^\s*(push|pull_request):", triggers, re.M):
             continuous |= set(re.findall(r"runs-on:\s*(macos-\S+)", text))
 
+    # A row that DENIES the claim is not making it — "not on every commit" is the
+    # honest form and has to survive this test, so the denial is removed before
+    # the claim is looked for. (Written the other way first, and the corrected
+    # row failed its own ratchet.)
+    def claims_continuous(row: str) -> bool:
+        without_denial = re.sub(r"not on every commit", "", row, flags=re.I)
+        return "every commit" in without_denial
+
     claiming = [r for r in rows
-                if re.search(r"\bmac ?os\b", r, re.I) and "every commit" in r]
+                if re.search(r"\bmac ?os\b", r, re.I) and claims_continuous(r)]
     assert not claiming or continuous, (
         "the platform table says macOS is tested on every commit, and no workflow "
         f"runs a macos- runner on push or pull_request: {claiming}"

@@ -227,7 +227,8 @@ auditable and mirrorable. No proprietary database; nothing to lock you in.
 
 | | |
 |---|---|
-| macOS, Linux — Docker or Podman | **Supported**, tested on every commit against both runtimes |
+| Linux — Docker **and** Podman | **Supported**, and tested on every commit against both runtimes, on `amd64` and `arm64` |
+| macOS — Docker Desktop or Podman | **Supported**, and tested by hand on an Apple-silicon Mac at each release — most recently `0.3.0`, 2026-09-20, where a first run measured 58s over MCP. Not on every commit: a container runtime needs nested virtualisation, which GitHub's macOS runners do not offer |
 | `linux/amd64` and `linux/arm64` | Both, **from 0.2.0**. `0.1.0rc1` was published `arm64` only — a defect, not a policy |
 | Windows via **WSL2** | Supported — inside WSL valvur is running on Linux |
 | Native Windows | **Not claimed.** Untested, and valvur says so at startup |
