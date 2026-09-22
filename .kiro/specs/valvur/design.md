@@ -1,6 +1,6 @@
 # valvur — Design
 
-**Status:** approved for implementation · **Version:** 1.1 · **Date:** 2026-08-30, revised 2026-09-21 (tasks 26.2.1–26.5.2)
+**Status:** approved for implementation · **Version:** 1.2 · **Date:** 2026-08-30, revised 2026-09-22 (tasks 26.2.1–26.5.2, 27.1.2, 27.2.2)
 
 Implements [requirements.md](./requirements.md). Decisions marked ADR-NNNN are
 recorded in [docs/adr/](../../../docs/adr/); this document does not re-argue them.
@@ -14,25 +14,40 @@ Two artifacts, versioned together (ADR-0001).
 ```mermaid
 flowchart LR
   subgraph host["Host — developer's machine"]
-    agent["MCP client<br/>(Claude Code, IDE)"]
-    shim["valvur shim<br/>Python, stdlib-only<br/>MCP server + CLI"]
+    agent["MCP client<br/>(Claude Code, Kiro)"]
+    api["api.scan — plans the fleet,<br/>collects each outcome"]
+    adapters["Adapters<br/>command() → Invocation<br/>parse() → Findings"]
+    runner["ContainerRunner<br/>one container per Invocation"]
+    pipe["pipeline — normalise, fingerprint,<br/>enrich, suppress, rank"]
+    results["results.write<br/>one generation, renamed into place"]
     ws[("Workspace")]
     rf[("Results Folder<br/>.security-scan/")]
+    cache[("Host cache<br/>trivy db · name index")]
   end
-  subgraph img["OCI image — no network on offline"]
-    orch["Orchestrator"]
+  subgraph img["OCI image — one container per Scanner, no network on offline"]
     sc["Scanners<br/>trivy · gitleaks · osv<br/>opengrep · checkov · syft"]
-    ck["Checks<br/>dep-reality · ai-artifact<br/>llm-sink · pinning · licence"]
-    norm["Normaliser → Finding model"]
+    ck["Checks, one batch<br/>dep-reality · ai-artifact · licence"]
   end
-  agent -->|stdio| shim
-  shim -->|"run --network=none<br/>-v ws:/workspace:ro<br/>-v scratch:/results:rw"| orch
-  orch --> sc --> norm
-  orch --> ck --> norm
-  norm -->|"JSON to /results"| shim
-  shim -->|writes as invoking user| rf
-  ws -.->|read-only| orch
+  agent -->|stdio| api
+  api --> adapters --> runner
+  runner -->|"--network=none --read-only --cap-drop=ALL<br/>-v ws:/workspace:ro -v scratch:/results:rw"| sc
+  runner --> ck
+  sc -.->|report under /results| adapters
+  ck -.->|JSON on stdout| adapters
+  api --> pipe --> results --> rf
+  ws -.->|read-only mount| img
+  cache -.->|read-only mount| img
 ```
+
+**The orchestrator is host-side, and so is everything that reads a report.** The
+image holds the Scanners, the Checks and nothing that decides: `api.scan` plans the
+fleet and collects it, each adapter owns its tool's command line and its parser
+(26.2.1), `ContainerRunner` owns the container, `pipeline.py`'s stages normalise and
+rank, and `results.write` publishes one generation (26.0.3). This diagram drew the
+orchestrator and the normaliser *inside* the image until task 27.2.2 — which was
+never true of the shipped code and is the opposite of ADR-0001's reason for
+existing: the shim writes, because a container-written file lands with broken
+ownership on every runtime.
 
 **Why the shim writes, not the container:** container-written files land with broken
 ownership differently on every runtime — root-owned under rootful Docker,
@@ -225,22 +240,40 @@ half, so `offline` loses less than it appears.
 ## 5. Checks
 
 ### 5.1 Dependency Reality (F3.1–F3.5)
-Parse manifests → query registry metadata per package. Thresholds:
 
-> **Coverage today, and it is narrower than "manifests" suggests:** `requirements*.txt`
-> against PyPI, and nothing else. Not `pyproject.toml`, Poetry, npm, pnpm, Cargo or Go.
-> An unsupported ecosystem currently produces silence rather than a recorded gap —
-> F3.5's skip condition is "cannot reach a registry", which is a different case. See
-> the note on F3.1 in `requirements.md`; widening is task 19.D.1.
+Read every declared dependency from the manifests on disk; answer *does this name
+exist* from the **Name Index** in the host cache (ADR-0018), with no socket; ask a
+registry only for what the index cannot answer, and only on `full`.
+
+| ecosystem | manifests read | seen but not read | existence |
+|---|---|---|---|
+| Python | `requirements*.txt`, `pyproject.toml` | `Pipfile`, `setup.py`, `setup.cfg`, `poetry.lock`, `uv.lock` | index, offline |
+| npm | `package.json` | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` | index, offline |
+| Ruby (Bundler) | `Gemfile`, `*.gemspec` | `Gemfile.lock` | index, offline |
+| PHP (Composer) | `composer.json` | `composer.lock` | index, offline |
+| Rust (Cargo) | `Cargo.toml` | `Cargo.lock` | index, offline |
+| JVM (Maven/Gradle) | `pom.xml`, `build.gradle[.kts]`, `gradle/libs.versions.toml` | `settings.gradle[.kts]`, `gradle.lockfile` | Maven Central, **`full` only** |
+| Go | `go.mod` | `go.sum` | the Go proxy, **`full` only** |
+
+Maven and the Go proxy publish no name list an offline index could be built from
+(22.A.4), so on `offline` those two are a **stated Profile omission** rather than
+silence. A manifest in the *seen* column with nothing readable beside it is a
+**coverage note**, so a gap is reported rather than inferred from a clean result.
 
 | Signal | Rule | Class |
 |---|---|---|
-| Not on registry | absent | **critical** — hallucinated (F3.2) |
-| New and unadopted | published <90d AND downloads <1000/mo | **high** — possible slopsquat (F3.3) |
-| Near-miss | edit distance ≤1 from a package with ≥100× downloads | **high** — typosquat (F3.4) |
+| Not on the registry | absent from the index (or, on `full`, from Maven Central or the Go proxy) | **high** — hallucinated (F3.2) |
+| Near-miss | edit distance ≤1 from a popular Python package (`_near_miss`, pip only) | **medium** — typosquat (F3.4) |
+| Newly registered | first published <90 days ago (`NEW_PACKAGE_DAYS`) — `full` only | **medium**, and **high** for an npm name with <1,000 downloads last month (`NPM_UNADOPTED_DOWNLOADS`, 23.5.4) | 
 
-Offline (`offline`), only edit-distance and pinning heuristics run; the network portion
-is recorded as skipped and its packages are **not** reported clean (F3.5).
+All three are `valvur.dependency.*` rules; the identity is `(ecosystem,
+package_name)` (§8 of `CLAUDE.md`). An index older than thirty days makes a nil
+result `inconclusive` rather than `clean` (ADR-0018).
+
+*This section read "`requirements*.txt` against PyPI, and nothing else" until task
+27.2.2 — written before ADR-0018 and two Block-2 tasks made it false. The table
+above is generated from nothing, so a test holds its ecosystems to
+`ecosystems.MANIFESTS`.*
 
 ### 5.2 AI Artifact (F3.6–F3.9)
 Static inspection of agent instruction and configuration files: hidden Unicode

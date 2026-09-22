@@ -1139,6 +1139,74 @@ def test_the_release_sbom_is_made_by_the_pinned_syft_for_both_architectures():
         assert f"valvur-$VERSION.{name}" in promote, f"the release does not attach {name}"
 
 
+# ------------------------------------------- the design says what the code does
+
+
+DESIGN_MD = Path(__file__).resolve().parent.parent / ".kiro" / "specs" / "valvur" / "design.md"
+
+
+def _design_table(header: str) -> list[list[str]]:
+    """Rows of the `design.md` table whose header's first cell is `header`, each
+    row as its cells with backticks stripped."""
+    rows: list[list[str]] = []
+    active = False
+    for line in DESIGN_MD.read_text().splitlines():
+        if line.startswith("|"):
+            cells = [c.strip().strip("`") for c in line.strip("|").split("|")]
+            if cells and cells[0].lower() == header:
+                active = True
+                continue
+            if active and cells and set(cells[0]) <= {"-"}:
+                continue
+            if active:
+                rows.append(cells)
+        else:
+            active = False
+    assert rows, f"design.md has no table headed `{header}`"
+    return rows
+
+
+def test_the_designs_mcp_table_names_every_tool_and_no_others():
+    """27.2.2. §8 listed four tools of six for the nine days since `scan_cancel`
+    and `doctor` shipped (23.3.3, 23.3.1) — a joining reader's first picture of
+    the MCP surface, two tools short. The table is now held to the registry."""
+    from valvur.mcp.tools import registry
+
+    listed = [row[0] for row in _design_table("tool")]
+
+    assert set(listed) == {tool.name for tool in registry()}, \
+        "design.md §8 and the MCP registry disagree about which tools exist"
+    assert len(listed) == len(set(listed)), f"§8 lists a tool twice: {listed}"
+
+
+def test_the_designs_dependency_reality_table_names_every_ecosystem():
+    """27.2.2. §5.1 said `requirements*.txt` against PyPI and nothing else, two
+    ADRs after that stopped being true (ADR-0018; five ecosystems offline since
+    23.2.2 and 23.2.3, JVM and Go on `full` since 22.A.4). The ecosystems are now read
+    from the table and held to `ecosystems.MANIFESTS`, so the next one added has
+    to appear here."""
+    from valvur import ecosystems
+
+    listed = {row[0] for row in _design_table("ecosystem")}
+
+    assert listed == {m.label for m in ecosystems.MANIFESTS.values()}, \
+        "design.md §5.1 and ecosystems.MANIFESTS disagree about what is read"
+
+
+def test_the_design_states_the_version_it_describes():
+    """Every rewrite of this document has moved its version; a reader comparing
+    two copies needs that to be true."""
+    import re
+
+    stated = re.search(r"\*\*Version:\*\* (\d+\.\d+)", DESIGN_MD.read_text())
+
+    assert stated, "design.md no longer states a version"
+    assert stated.group(1) >= "1.2", (
+        "design.md was rewritten as built in 27.2.2; a later change should move "
+        "the version again"
+    )
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""
