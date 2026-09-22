@@ -7,6 +7,13 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The source distribution ships an allowlist.** `0.3.0`'s sdist carried six
+  files of an external review's output, and a one-file `valvur/` directory holding
+  the wheel's generated build hash — both because the packaging config named what
+  to *exclude* and nothing named what the archive should contain. The review's
+  artefacts moved under `docs/`, the build hook runs for the wheel only, and a
+  test now holds the sdist's top level to a list in both directions: something new
+  at the root fails, and so does something missing (27.2.3).
 - **The MCP tool annotations say what each tool does.** All six declared
   `readOnlyHint: true`, `scan` included — which writes the Results Folder, pulls an
   image and starts containers, while `scan_cancel` kills them. MCP's hint means
