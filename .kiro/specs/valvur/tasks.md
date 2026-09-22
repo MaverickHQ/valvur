@@ -6610,7 +6610,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
 
 ### Tier 2 — The record is true
 
-- [ ] **27.2.1** **The README's platform row (T1.2).** `README.md:227` puts macOS
+- [x] **27.2.1** **The README's platform row (T1.2).** `README.md:227` puts macOS
   and Linux in one row, *"tested on every commit against both runtimes"*. Linux is —
   Docker and Podman on every commit (`ci.yml`'s parity job) and the published
   image on amd64 and arm64. macOS is tested by hand: `0.3.0`'s first run was
@@ -6625,6 +6625,30 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   **Test first**: a claims ratchet beside the README tests in
   `tests/test_constraints.py` — no row of the platform table naming macOS may say
   "every commit" unless a workflow names a `macos-` runner.
+
+  **STATUS 2026-09-22:** ✅ The row is split: Linux keeps the continuous claim,
+  which is true of it (docker *and* podman on every commit, amd64 and arm64), and
+  macOS gets its own — tested by hand on an Apple-silicon Mac at each release,
+  most recently `0.3.0` on 2026-09-20 with a 58s first run over MCP — with the
+  reason it is not continuous. The ratchet asks for a `macos-` runner in a job a
+  **push or a pull request** starts, so a dispatch-only probe cannot re-legitimise
+  the claim; mutation, the old row restored, red. **The ratchet failed its own
+  corrected row first:** *"Not on every commit"* contains "every commit", so a
+  test matching words rather than claims punished the honest phrasing — it now
+  strips the denial before looking for the claim.
+
+  **The probe, measured rather than assumed** (`macos-probe.yml`, dispatch-only).
+  **Run 1 (35756578871) measured nothing**: `timeout` is GNU coreutils and macOS
+  does not have it, so colima was never started while the step reported *"did not
+  start within 300s"* about a command that had not run — bounded by a background
+  process and a polled deadline instead. **Run 2 (35757706987) answered it:** on
+  `macos-15` (`Apple M1 (Virtual)`, `kern.hv_vmm_present: 1` — the runner is
+  itself a guest), colima installed in **5s**, started Lima's `vz` driver, and
+  died **10s** in: `level=fatal msg="error starting vm: error at 'creating and
+  starting': exit status 1"`, the VM exiting before boot. **No container runs on
+  a GitHub macOS runner**, so a scheduled macOS lane is not a task waiting to be
+  written — the README's row is as good as it can get, and the probe stays in the
+  tree as the evidence, to be re-dispatched when GitHub's runner images change.
 
 - [x] **27.2.2** **`design.md` as built (T1.4).** Three things stale after 26.5.2
   rewrote six sections: the architecture diagram (design.md:14–36) still draws

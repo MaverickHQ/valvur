@@ -20,6 +20,11 @@ name: macos probe
 # 27.2.1's STATUS note either way — a green run makes a scheduled lane worth a
 # task of its own, a red one is the evidence the README's row is as good as it
 # can get.
+# **Answered 2026-09-22 (run 35757706987): no.** colima installs in 5s and Lima's
+# `vz` driver starts, then the VM exits before boot — `error starting vm: error at
+# 'creating and starting': exit status 1`, 10s in. So there is no macOS lane to
+# schedule, and the README's platform row says what is true instead. Kept, and
+# worth re-dispatching when GitHub's macOS runner images change.
 on:
   workflow_dispatch:
 
