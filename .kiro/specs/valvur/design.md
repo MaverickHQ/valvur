@@ -382,14 +382,23 @@ scan.
 
 ## 8. MCP tool contracts (F9)
 
-| Tool | Args | Returns |
-|---|---|---|
-| `scan` | `path`, `profile?` | Run summary, counts by status, folder location |
-| `list_findings` | `path`, `status?`, `class?`, `limit?` | Ranked **Findings**, no evidence bodies |
-| `explain_finding` | `path`, `fingerprint` | Evidence, **Exploit Signals**, **Dependency Path**, source (F9.8) |
-| `scan_status` | `path` | Last-run **Provenance** |
+Six, and `readOnlyHint` is what each says about itself on the wire (27.1.2): the
+four readers declare `true`, and `scan` and `scan_cancel` declare `false` because
+they act on the machine — a results folder, an image pull, containers started and
+stopped. The annotation is narrower than F9.2 and does not weaken it.
+
+| Tool | Args | Returns | `readOnlyHint` |
+|---|---|---|---|
+| `scan` | `workspace`, `profile?`, `budget_s?` | Run summary, counts by status, folder location | `false` |
+| `scan_status` | `workspace` | Last-run **Provenance**, or a running scan's progress | `true` |
+| `scan_cancel` | `workspace` | What was stopped; nothing is written (F1.11) | `false` |
+| `list_findings` | `workspace`, `status?`, `class?`, `limit?` | Ranked **Findings**, no evidence bodies | `true` |
+| `explain_finding` | `workspace`, `fingerprint` | Evidence, **Exploit Signals**, **Dependency Path**, source (F9.8) | `true` |
+| `doctor` | `workspace?` | Every precondition a scan needs, with the fix for each (23.3.1) | `true` |
 
 No tool mutates the **Workspace** (F9.2). No tool triggers a scan implicitly (F9.4).
+No tool is destructive, and a test over the registry asserts it. `tools/list` is a
+committed snapshot (23.5.2), so any change to this table is a diff in review.
 
 ---
 

@@ -6539,7 +6539,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   CHANGELOG; `PROTOCOL.md`'s `--name` line now names the exit as well as the
   cancel.
 
-- [ ] **27.1.2** **Tool annotations tell the truth (T2.3; F9.2).** `Tool.describe`
+- [x] **27.1.2** **Tool annotations tell the truth (T2.3; F9.2).** `Tool.describe`
   (server.py:38) answers `readOnlyHint: true, destructiveHint: false` for all six
   tools; `scan` writes the Results Folder, pulls an image and starts containers,
   `scan_cancel` stops them. Per-tool fields on `Tool`: `scan` and `scan_cancel`
@@ -6553,6 +6553,26 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   **Tests first**: a table in the test — tool name → the two hints — held against
   `registry()`; the `tools/list` snapshot (23.5.2) regenerated through the real
   server, so the change is a diff in review, as the snapshot was built to make it.
+
+  **STATUS 2026-09-22:** ✅ Test first: one `ANNOUNCED` table in
+  `tests/test_mcp.py` — six tools, two hints each — asserted against `registry()`
+  and, by the snapshot test importing the same table, against the bytes that
+  leave the process; `tests/fixtures/mcp/tools-list.json` regenerated through
+  the real server, two lines changed, which is exactly the diff-in-review 23.5.2
+  was built for. `Tool` takes `read_only` and `destructive` keyword-only, both
+  defaulting to the *safe* answer, so a new tool that acts has to say so; `scan`
+  and `scan_cancel` declare `read_only=False`. Mutations, all caught: each
+  declaration reverted in turn, the default flipped to acting, and a
+  `destructive=True` scan. **What the annotation is not:** F9.2 and ADR-0009 are
+  about the user's *source*, and are untouched — the tree is mounted read-only
+  and no fix/apply/remediate tool exists; a second test asserts both over the
+  registry, and that `scan`'s description still carries the sentence, because
+  that is where a client now reads the claim. The three places that said *every
+  tool is read-only* are corrected: `README.md`'s MCP block, `EVALUATING.md`
+  (which also said **four** tools, and there have been six since 23.3.1 and
+  23.3.3), and `design.md` §8 — whose table gains the two missing tools, the
+  real argument names and a `readOnlyHint` column, closing that half of 27.2.2
+  early. CHANGELOG.
 
 - [ ] **27.1.3** **A cached index is re-verified when cosign appears (T2.2;
   ADR-0018).** `name_index.fetch_published` (name_index.py:337–346) returns before

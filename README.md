@@ -110,8 +110,11 @@ Add valvur to your agent's MCP configuration:
 { "mcpServers": { "valvur": { "command": "uvx", "args": ["--from", "valvur", "valvur-mcp"] } } }
 ```
 
-Then ask it to scan. The server is **stdio only** — no listener, no port — and every
-tool it exposes is read-only: valvur can never change your code. Nothing has to run
+Then ask it to scan. The server is **stdio only** — no listener, no port — and no
+tool it exposes can change your code: your tree is mounted read-only and there is no
+fix, apply or remediate tool to call. `scan` and `scan_cancel` do act on your machine
+— a results folder, an image pull, containers started and stopped — and say so in
+their MCP annotations, so a client that asks before running them is right to. Nothing has to run
 first: a first `scan` pulls the image, the vulnerability database and the name index
 itself and says so on `scan_status` — measured 2026-09-20 on `0.3.0` from an empty
 machine, **58 seconds** to a complete result, one tool call (110s on `0.2.0`).

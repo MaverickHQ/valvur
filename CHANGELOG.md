@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The MCP tool annotations say what each tool does.** All six declared
+  `readOnlyHint: true`, `scan` included — which writes the Results Folder, pulls an
+  image and starts containers, while `scan_cancel` kills them. MCP's hint means
+  "does not modify its environment", which is a narrower claim than valvur's: your
+  *source* is untouched either way. The four readers still declare `true`; `scan`
+  and `scan_cancel` declare `false`, so a client that asks before running them is
+  right to. Nothing valvur exposes is destructive, and a test over the registry
+  says so (27.1.2, F9.2).
 - **The MCP server stops the scans it started.** When the client went away —
   stdin closed, Ctrl-C, a broken pipe, or a SIGTERM — the server returned and its
   scan jobs died with it, but the containers those jobs had launched belong to the

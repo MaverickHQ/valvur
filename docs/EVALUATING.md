@@ -81,8 +81,12 @@ As an MCP tool, which is the primary path:
 { "mcpServers": { "valvur": { "command": "valvur-mcp" } } }
 ```
 
-`valvur-mcp --help` describes the four tools it exposes. All four are read-only with
-respect to your source.
+`valvur-mcp --help` describes the six tools it exposes. None of them can change your
+source: it is mounted read-only and no tool writes, fixes or applies anything
+(ADR-0009). Four only read what a scan left — `scan_status`, `list_findings`,
+`explain_finding`, `doctor` — and declare `readOnlyHint: true`; `scan` and
+`scan_cancel` act on your machine (a results folder, an image pull, containers
+started and stopped) and declare `false`, so a client may ask before running them.
 
 **In Kiro**, the same block goes in `.kiro/settings/mcp.json` (workspace) or
 `~/.kiro/settings/mcp.json` (user). Kiro starts the server the moment the file is
