@@ -201,7 +201,7 @@ def test_a_narrower_profile_does_not_claim_bare_clean():
     CVEs in the same lockfile in the same minute. Quick must stay offline (N2.1), so
     the honest fix is to state the gap rather than widen the profile."""
     from valvur.api import ScanRun
-    from valvur.results import _summary
+    from valvur.summary import render as _summary
 
     text = _summary(ScanRun(findings=[], profile="offline"))
 
@@ -224,7 +224,7 @@ def test_full_coverage_clean_carries_no_caveat():
     """The caveat must mean something. A profile that ran everything earns a plain
     clean, or the warning becomes noise a reader learns to skip."""
     from valvur.api import ScanRun
-    from valvur.results import _summary
+    from valvur.summary import render as _summary
 
     assert "did not run every Scanner" not in _summary(ScanRun(findings=[], profile="full"))
 
@@ -628,7 +628,8 @@ def test_an_exclusion_reports_what_it_cost():
     import json as _json
 
     from valvur.api import ScanRun
-    from valvur.results import _provenance, _summary
+    from valvur.results import _provenance
+    from valvur.summary import render as _summary
 
     run = ScanRun(findings=[], profile="offline",
                   config_dropped=61, excluded_paths=["tests/fixtures"])

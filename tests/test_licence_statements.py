@@ -23,6 +23,7 @@ import pytest
 from valvur import coverage
 from valvur.api import ScanRun
 from valvur.findings import Dependency, Finding
+from valvur.summary import render as render_summary
 
 
 def _statement(rule):
@@ -117,9 +118,8 @@ def test_the_summary_keeps_what_it_could_not_read_apart_from_what_it_did_not_ins
     """Two blocks, two claims. "Part of this repository was not inspected at all" is
     the gap's sentence and stays the gap's; a licence statement gets its own, and it
     says the verdict does not turn on it."""
-    from valvur import results
 
-    summary = results._summary(ScanRun(findings=[_statement(STATEMENTS[0]), _gap()]))
+    summary = render_summary(ScanRun(findings=[_statement(STATEMENTS[0]), _gap()]))
 
     inspected = summary.index("not inspected at all")
     unread = summary.index("could not read")
@@ -132,9 +132,8 @@ def test_the_summary_keeps_what_it_could_not_read_apart_from_what_it_did_not_ins
 
 
 def test_the_summary_without_a_gap_has_no_not_inspected_block_for_a_statement():
-    from valvur import results
 
-    summary = results._summary(ScanRun(findings=[_statement(STATEMENTS[2])]))
+    summary = render_summary(ScanRun(findings=[_statement(STATEMENTS[2])]))
 
     assert "Part of this repository was not inspected at all" not in summary
     assert "could not read" in summary

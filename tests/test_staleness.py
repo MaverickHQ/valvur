@@ -22,7 +22,8 @@ import pytest
 
 from valvur import cache
 from valvur.api import ScanRun
-from valvur.results import _provenance, _summary
+from valvur.results import _provenance
+from valvur.summary import render as _summary
 
 
 def _database(tmp_path, *, updated_days_ago: float, next_update_days_ago: float = 0.0):

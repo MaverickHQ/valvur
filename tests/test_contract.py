@@ -182,7 +182,8 @@ def test_the_summary_stays_within_its_cap_given_ten_thousand_findings(tmp_path):
     as forgiving as our fixture."""
     from valvur.api import ScanRun
     from valvur.findings import Finding
-    from valvur.results import LINE_CAP, write
+    from valvur.results import write
+    from valvur.summary import LINE_CAP
 
     # A real ScanRun, not a stub: this was the one duck-typed `Run` in the suite,
     # and the reason results.py carried 38 defensive `getattr`s (22.D.2).

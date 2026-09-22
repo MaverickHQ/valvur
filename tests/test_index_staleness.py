@@ -15,7 +15,8 @@ import pytest
 
 from valvur import cache, operations
 from valvur.api import ScanRun
-from valvur.results import _provenance, _summary
+from valvur.results import _provenance
+from valvur.summary import render as _summary
 
 STALE = cache.NAME_INDEX_STALE_AFTER_DAYS + 5.0
 

@@ -130,7 +130,8 @@ def test_a_skipped_scanner_is_not_a_failure_and_is_reported(workspace, runner_fi
     run must never look like one that ran and found nothing."""
     from valvur.adapters.base import ScannerAdapter
     from valvur.api import scan
-    from valvur.results import _provenance, _summary
+    from valvur.results import _provenance
+    from valvur.summary import render as _summary
 
     class NothingApplies(ScannerAdapter):
         kind = "scanner"

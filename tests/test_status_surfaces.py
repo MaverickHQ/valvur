@@ -16,6 +16,7 @@ import json
 from valvur import coverage
 from valvur.api import ScanRun
 from valvur.findings import Finding
+from valvur.summary import render as render_summary
 
 
 def _live(rule="aws-access-token", **kw):
@@ -77,9 +78,8 @@ def test_a_stale_database_still_outranks_everything_it_used_to():
 # ------------------------------------------------------------------- 19.C.1
 
 def test_the_summary_separates_active_from_suppressed(tmp_path):
-    from valvur import results
 
-    summary = results._summary(ScanRun(findings=[_live(), _accepted(), _note()]))
+    summary = render_summary(ScanRun(findings=[_live(), _accepted(), _note()]))
 
     assert "**Active findings:** 1" in summary
     assert "**suppressed:** 1" in summary
@@ -89,9 +89,8 @@ def test_the_summary_separates_active_from_suppressed(tmp_path):
 def test_the_summary_leads_with_a_sentence_a_human_can_act_on():
     """10.4.12. A human opening this in an editor met twelve lines of instructions
     addressed to somebody else before anything about their own repository."""
-    from valvur import results
 
-    summary = results._summary(ScanRun(findings=[_live()]))
+    summary = render_summary(ScanRun(findings=[_live()]))
     head = summary.split("<!-- valvur results")[0]
 
     assert "active finding" in head
@@ -104,7 +103,7 @@ def test_the_machine_block_explains_what_the_statuses_mean():
     """F7.6 requires the block to describe *the Status values and the ranking basis*.
     It never did — and after 19.E.2 changed what they mean, an agent reading
     `inconclusive` had nothing telling it not to report that as clean."""
-    from valvur.results import MACHINE_HEADER
+    from valvur.summary import MACHINE_HEADER
 
     for status in ("findings", "clean", "inconclusive"):
         assert f"`{status}`" in MACHINE_HEADER
@@ -117,10 +116,9 @@ def test_the_profile_caveat_survives_a_finding_being_present():
     """**C3.** This was gated on `not findings`, so one missing-licence finding was
     enough to suppress the notice that dependency-reality never ran. The reader was
     told least about missing coverage exactly when there was most else on screen."""
-    from valvur import results
 
-    noisy = results._summary(ScanRun(findings=[_live()], profile="offline"))
-    quiet = results._summary(ScanRun(findings=[], profile="offline"))
+    noisy = render_summary(ScanRun(findings=[_live()], profile="offline"))
+    quiet = render_summary(ScanRun(findings=[], profile="offline"))
 
     for summary in (noisy, quiet):
         assert "did not run every Scanner" in summary
@@ -132,9 +130,8 @@ def test_the_profile_caveat_survives_a_finding_being_present():
 def test_a_coverage_note_is_reported_separately_from_a_profile_omission():
     """**C2.** Two different claims, both true at once: one says a Scanner did not
     run, the other says nothing here reads a whole ecosystem even when it does."""
-    from valvur import results
 
-    summary = results._summary(ScanRun(findings=[_note()], profile="offline"))
+    summary = render_summary(ScanRun(findings=[_note()], profile="offline"))
 
     assert "did not run every Scanner" in summary
     assert "not inspected at all" in summary
@@ -283,7 +280,7 @@ def test_status_reason_is_the_same_words_on_every_surface():
     findings_doc = json.loads(artifacts.findings_json(
         run.findings, status=run.status, status_reason=run.status_reason, complete=True,
     ))
-    summary = results._summary(run)
+    summary = render_summary(run)
 
     assert provenance["status_reason"] == run.status_reason
     assert findings_doc["status_reason"] == run.status_reason

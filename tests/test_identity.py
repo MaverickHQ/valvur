@@ -202,7 +202,7 @@ def test_a_fingerprint_version_change_says_so(tmp_path):
     import json
 
     from valvur.api import ScanRun
-    from valvur.results import _summary
+    from valvur.summary import render as _summary
 
     text = _summary(ScanRun(findings=[], identity_reset=(1, 2)))
 
@@ -219,6 +219,6 @@ def test_an_ordinary_scan_says_nothing_about_identity(tmp_path):
     """The pair. A notice on every scan is one nobody reads, and this one must mean
     something on the rare occasion it appears."""
     from valvur.api import ScanRun
-    from valvur.results import _summary
+    from valvur.summary import render as _summary
 
     assert "Finding identity changed" not in _summary(ScanRun(findings=[]))

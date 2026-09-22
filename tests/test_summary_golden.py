@@ -72,9 +72,9 @@ for _i, _name in enumerate(sorted(CASES), start=1):
 
 
 def _render(run: ScanRun) -> str:
-    from valvur import results
+    from valvur import summary
 
-    return results._summary(run)
+    return summary.render(run)
 
 
 @pytest.mark.parametrize("name", sorted(CASES))
