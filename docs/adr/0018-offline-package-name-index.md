@@ -196,3 +196,17 @@ tag where they were, with `candidate` pointing at the failed build for reading.
 The candidate is a tag rather than a digest because `oci.Reference` refuses digest
 references for a moving index on purpose. Nothing is pushed, signed or tagged
 unless the workflow runs on `main`.
+
+## Amendment (2026-09-22, task 27.1.3): the verdict is not frozen by the cache
+
+`valvur update` returns early when every ecosystem on disk already carries the
+published `built_at` — the shortcut that makes a daily update free — and it did so
+*before* the signature was verified. An index first pulled on a machine without
+cosign therefore kept `"not verified: cosign is not installed"` for as long as that
+build stayed published, which is a trust state the user could not improve by
+installing the tool the message told them to install. The shortcut now verifies the
+digest it recorded when, and only when, that is the recorded verdict and cosign is
+on PATH: no layer is fetched, a verdict already recorded is not paid for twice
+(cosign costs a Rekor round trip), and a refusal is the same uncaught
+`SignatureInvalid` as on a fresh pull — with the files left exactly as they are,
+because this path fetched nothing to undo.

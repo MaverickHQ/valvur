@@ -122,8 +122,10 @@ whatever it points at today.
 The package-name index is published the same way, under the same identity, and
 `valvur update` verifies it for you when `cosign` is on your PATH — the line
 `signature: verified` (or `not verified: cosign is not installed`) is printed and
-recorded in the index's metadata. A cosign that refuses stops the update. To check
-by hand:
+recorded in the index's metadata. **Install cosign later and the next `valvur
+update` checks the index you already have** (27.1.3): it verifies the digest it
+recorded, prints the new verdict and keeps it, without fetching a byte. A cosign
+that refuses stops the update. To check by hand:
 
 ```bash
 cosign verify ghcr.io/maverickhq/valvur-index:latest \

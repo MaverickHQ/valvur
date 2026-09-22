@@ -15,6 +15,13 @@ a minor bump may break things until 1.0.
   and `scan_cancel` declare `false`, so a client that asks before running them is
   right to. Nothing valvur exposes is destructive, and a test over the registry
   says so (27.1.2, F9.2).
+- **An index pulled without cosign is verified once cosign is installed.**
+  `valvur update` skips everything when the index on disk is already the published
+  build — and that skip happened before the signature was looked at, so an index
+  first pulled on a machine without cosign kept *"not verified: cosign is not
+  installed"* until a newer index was published: a trust state the user could not
+  improve by installing the tool the message named. The next `update` now verifies
+  the recorded digest and keeps the new verdict, fetching nothing (27.1.3).
 - **The MCP server stops the scans it started.** When the client went away —
   stdin closed, Ctrl-C, a broken pipe, or a SIGTERM — the server returned and its
   scan jobs died with it, but the containers those jobs had launched belong to the

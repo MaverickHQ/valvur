@@ -6574,7 +6574,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   real argument names and a `readOnlyHint` column, closing that half of 27.2.2
   early. CHANGELOG.
 
-- [ ] **27.1.3** **A cached index is re-verified when cosign appears (T2.2;
+- [x] **27.1.3** **A cached index is re-verified when cosign appears (T2.2;
   ADR-0018).** `name_index.fetch_published` (name_index.py:337–346) returns before
   `oci.verify_signature` when every wanted ecosystem's `built_at` matches and its
   file exists, so an index cached as `"not verified: cosign is not installed"`
@@ -6590,6 +6590,23 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   metadata reads `verified` with zero blob requests to the fake registry; the
   inverse — cosign still absent — leaves the metadata untouched and calls
   nothing. `valvur update`'s progress line says what happened.
+
+  **STATUS 2026-09-22:** ✅ Test first, four cases in
+  `tests/test_published_index.py`: the verdict improving (every ecosystem reads
+  `verified`, the metadata on disk holds it, cosign asked for the *recorded*
+  digest, one blob request — the config — and no layer line printed); cosign
+  still absent (nothing done, and the metadata file's mtime unchanged, so it is
+  not rewritten to say the same thing); already verified (cosign not run a second
+  time — it costs a Rekor round trip); and a refusal, which is the same uncaught
+  `SignatureInvalid` as on a fresh pull, with the cached files left byte for byte
+  as they were, because this path fetched nothing to undo. `_reverify` runs
+  inside the current-cache shortcut and is gated on both conditions: the recorded
+  verdict is the cosign-absent one (matched as a prefix, since
+  `verify_signature` appends the fix to it) and `shutil.which("cosign")` now
+  answers. Mutations, all caught: the call removed, the gate removed, the
+  metadata not written, and the staleness test made vacuous. `EVALUATING.md` says
+  installing cosign later re-checks what you have; ADR-0018 amended; CHANGELOG.
+  **Tier 1 is closed.**
 
 ### Tier 2 — The record is true
 
