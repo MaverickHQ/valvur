@@ -12,6 +12,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import registry as _registry
+from .registry import (  # noqa: F401 — the package's surface
+    BY_KEY,
+    ECOSYSTEMS,
+    INDEX_FILES,
+    Ecosystem,
+    get,
+    index_form,
+)
+
 # Lockfile formats and scanner spellings, mapped to the ecosystem they describe.
 _CANONICAL: dict[str, str] = {
     # npm — the format is not the ecosystem
@@ -93,38 +103,10 @@ VULNERABILITY_MANIFESTS: dict[str, tuple[str, ...]] = {
 #: An ecosystem with an empty `reads` has no existence check at all — its presence in
 #: a Workspace is reported as missing coverage rather than passed over, because a
 #: Check that says nothing is indistinguishable from one that found nothing.
+#: What a dependency manifest on disk means, per ecosystem — derived from the
+#: registry (27.3.2), which is where the rest of an ecosystem's truth lives too.
+#: This was a second hand-maintained table until then, and the comments that
+#: explained each entry are now beside the entry itself in `registry.py`.
 MANIFESTS: dict[str, Manifests] = {
-    "pip": Manifests(
-        "Python",
-        reads=("requirements*.txt", "pyproject.toml"),
-        # Pipfile and setup.py declare dependencies in shapes we do not parse; the
-        # lockfiles carry resolved transitive trees, which are not where hallucinated
-        # names appear. Both are only a gap when nothing readable sits beside them.
-        sees=("Pipfile", "setup.py", "setup.cfg", "poetry.lock", "uv.lock"),
-    ),
-    "npm": Manifests(
-        "npm",
-        reads=("package.json",),
-        sees=("package-lock.json", "pnpm-lock.yaml", "yarn.lock"),
-    ),
-    # Read since 23.2.3: crates.io's list is streamed out of its database dump.
-    "cargo": Manifests("Rust (Cargo)", reads=("Cargo.toml",), sees=("Cargo.lock",)),
-    # Read since 22.A.4, on `full` only: neither registry publishes a name list that
-    # could be fetched into the offline index (ADR-0018 records the numbers), so
-    # existence is asked of the registry per name. The Coverage contract says so on
-    # every Profile; on `offline` these are a stated Profile omission, not a gap.
-    "gomod": Manifests("Go", reads=("go.mod",), sees=("go.sum",)),
-    # Maven and Gradle resolve from the same registry, so they are one ecosystem with
-    # two build tools — the distinction that produced the pnpm/yarn bug. The Gradle
-    # version catalog is read too: a project that declares everything there and
-    # references `libs.foo` from its build script would otherwise scan clean.
-    "maven": Manifests(
-        "JVM (Maven/Gradle)",
-        reads=("pom.xml", "build.gradle", "build.gradle.kts", "gradle/libs.versions.toml"),
-        sees=("settings.gradle", "settings.gradle.kts", "gradle.lockfile"),
-    ),
-    # Read since 23.2.2: RubyGems and Packagist each publish their whole list in one
-    # request, and both are in the index.
-    "gem": Manifests("Ruby (Bundler)", reads=("Gemfile", "*.gemspec"), sees=("Gemfile.lock",)),
-    "composer": Manifests("PHP (Composer)", reads=("composer.json",), sees=("composer.lock",)),
+    e.key: Manifests(e.label, reads=e.reads, sees=e.sees) for e in _registry.ECOSYSTEMS
 }

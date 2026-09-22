@@ -34,6 +34,8 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable
+
+from . import ecosystems as _ecosystems
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlencode
@@ -77,13 +79,7 @@ LAYER_TYPE = "application/vnd.valvur.name-index.layer.v1+gzip"
 #: One file per ecosystem, keyed by the ecosystem name the Check already uses for
 #: Finding identity (ADR-0003) — so the Check can go from a declared package to a file
 #: without a second table that could disagree with the first.
-FILES: dict[str, str] = {
-    "pip": "pypi.txt",
-    "npm": "npm.txt",
-    "gem": "rubygems.txt",
-    "composer": "packagist.txt",
-    "cargo": "crates.txt",
-}
+FILES: dict[str, str] = dict(_ecosystems.INDEX_FILES)
 METADATA = "metadata.json"
 
 #: The replication server's page cap, measured 2026-09-12: 10,000 rows per request
@@ -507,7 +503,7 @@ def fetch_mirror(base: str, directory: Path, *, ecosystems: Iterable[str] | None
 
 def fetch_pypi(progress: Progress = lambda _: None) -> set[str]:
     """Every project on PyPI, in PEP 503 canonical form. One request (PEP 691)."""
-    from .checks.dependency_reality import canonical
+    from .ecosystems.registry import pep503 as canonical
 
     progress("PyPI: fetching the simple index (about 10MB)")
     body = _get(PYPI_SIMPLE, accept="application/vnd.pypi.simple.v1+json")
@@ -593,7 +589,9 @@ def fetch_crates(progress: Progress = lambda _: None) -> set[str]:
 
 
 def crate_canonical(name: str) -> str:
-    return name.lower().replace("-", "_")
+    """crates.io's identity, from the ecosystem registry (27.3.2). Kept as a name
+    here because the index builder and its tests have always called it this."""
+    return _ecosystems.registry.crate(name)
 
 
 class _Readable(io.RawIOBase):
