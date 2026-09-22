@@ -2,7 +2,7 @@
   {
     "annotations": {
       "destructiveHint": false,
-      "readOnlyHint": true
+      "readOnlyHint": false
     },
     "description": "Run a security scan of a project. Writes results into .security-scan/ and never modifies your source.",
     "inputSchema": {
@@ -104,7 +104,7 @@
   {
     "annotations": {
       "destructiveHint": false,
-      "readOnlyHint": true
+      "readOnlyHint": false
     },
     "description": "Stop a running scan: its containers are killed, nothing is written, and the previous results (if any) stand. What Ctrl-C does on the command line.",
     "inputSchema": {

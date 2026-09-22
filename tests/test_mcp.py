@@ -118,15 +118,32 @@ def test_an_unhandled_exception_never_reaches_stdout_as_a_traceback(capsys):
 
 # ------------------------------------------------------------------- tools
 
-def test_tools_are_advertised_as_read_only():
-    """F9.2 — a client can show the user that nothing here touches their code."""
-    tool = Tool("scan", "Scan a workspace", {"type": "object"}, lambda a: "ok")
+def test_a_tool_is_read_only_unless_it_says_otherwise():
+    """The default is the safe one: a tool that declares nothing is advertised as
+    read-only, so a new tool has to state that it acts (27.1.2)."""
+    tool = Tool("scan_status", "What the last scan did", {"type": "object"}, lambda a: "ok")
 
     responses = _exchange(_request("tools/list"), tools=[tool])
 
     described = responses[0]["result"]["tools"][0]
     assert described["annotations"]["readOnlyHint"] is True
     assert described["annotations"]["destructiveHint"] is False
+
+
+def test_a_tool_that_acts_says_so_on_the_wire():
+    """`readOnlyHint` is the MCP spec's word for "does not modify its
+    environment". A tool that writes a folder, pulls an image and starts
+    containers modifies plenty; only the *source tree* is untouched, and that is
+    F9.2's claim, not this annotation's (27.1.2)."""
+    tool = Tool("scan", "Scan a workspace", {"type": "object"}, lambda a: "ok",
+                read_only=False)
+
+    responses = _exchange(_request("tools/list"), tools=[tool])
+
+    described = responses[0]["result"]["tools"][0]
+    assert described["annotations"]["readOnlyHint"] is False
+    assert described["annotations"]["destructiveHint"] is False, \
+        "a scan adds; it destroys nothing of the user's (F1.11, ADR-0009)"
 
 
 def test_calling_an_unknown_tool_is_an_invalid_params_error():
@@ -311,14 +328,45 @@ def test_listing_before_scanning_says_so_rather_than_returning_nothing(tmp_path)
     assert "Run the `scan` tool first" in result["content"][0]["text"]
 
 
-def test_every_registered_tool_is_read_only():
-    """F9.2 — asserted over the whole registry, so a future tool cannot quietly
-    break it."""
+#: What each tool actually does to the machine it runs on, as `tools/list` states
+#: it (27.1.2). Until then every one of the six said `readOnlyHint: true`, `scan`
+#: included — which writes the Results Folder, pulls an image and starts
+#: containers. A client may use these to decide what to run without asking, so a
+#: wrong `true` here is the annotation being worse than no annotation.
+ANNOUNCED = {
+    "scan":            {"readOnlyHint": False, "destructiveHint": False},
+    "scan_cancel":     {"readOnlyHint": False, "destructiveHint": False},
+    "scan_status":     {"readOnlyHint": True, "destructiveHint": False},
+    "list_findings":   {"readOnlyHint": True, "destructiveHint": False},
+    "explain_finding": {"readOnlyHint": True, "destructiveHint": False},
+    "doctor":          {"readOnlyHint": True, "destructiveHint": False},
+}
+
+
+def test_every_registered_tool_announces_what_it_does():
+    """One table, held against the registry, so a new tool has to appear here and
+    a changed one is a diff in review."""
     from valvur.mcp.tools import registry
 
+    tools = registry()
+    assert {tool.name for tool in tools} == set(ANNOUNCED), \
+        "a tool was added or removed without saying what it does"
+    for tool in tools:
+        assert tool.describe()["annotations"] == ANNOUNCED[tool.name], tool.name
+
+
+def test_no_tool_is_ever_destructive_and_none_touches_the_source_tree():
+    """F9.2 and ADR-0009, which are about the user's *code* and are unchanged by
+    27.1.2: `scan` writes only `.security-scan/`, a cancel writes nothing at all
+    (F1.11), and no tool in the registry can edit, apply or remediate."""
+    from valvur.mcp.tools import FORBIDDEN, registry
+
     for tool in registry():
-        assert tool.describe()["annotations"]["readOnlyHint"] is True
-        assert tool.describe()["annotations"]["destructiveHint"] is False
+        assert tool.describe()["annotations"]["destructiveHint"] is False, tool.name
+        assert not any(word in tool.name for word in FORBIDDEN), tool.name
+    scan = next(t for t in registry() if t.name == "scan")
+    assert "never modifies your source" in scan.description, \
+        "the description is where F9.2 is stated to a client, now that the hint is false"
 
 
 def test_the_registry_exposes_exactly_the_expected_tools():

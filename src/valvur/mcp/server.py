@@ -70,23 +70,39 @@ def shutdown(out=None) -> None:
 
 
 class Tool:
-    """One exposed tool. Every tool valvur exposes is read-only (F9.2, ADR-0009)."""
+    """One exposed tool, and what it does to the machine it runs on.
+
+    No tool touches the **source tree** — that is F9.2 and ADR-0009, structural
+    and unchanged. `readOnlyHint` is a narrower claim in MCP's own words, "does
+    not modify its environment", and until 27.1.2 all six tools declared it true:
+    `scan` writes the Results Folder, pulls an image and starts containers, and
+    `scan_cancel` kills them. A client may use these annotations to decide what
+    to run without asking, so a hint that is wrong is worse than none — a prompt
+    before a scan is the correct behaviour, not a regression.
+    """
 
     def __init__(self, name: str, description: str, schema: dict,
-                 handler: Callable[[dict], str]):
+                 handler: Callable[[dict], str], *, read_only: bool = True,
+                 destructive: bool = False):
         self.name = name
         self.description = description
         self.schema = schema
         self.handler = handler
+        #: The default is the safe one: a tool says nothing and is advertised as
+        #: read-only, so a tool that ACTS has to declare it.
+        self.read_only = read_only
+        #: Nothing valvur exposes is destructive, and a test over the registry
+        #: says so: a scan only adds, and a cancel writes nothing at all (F1.11).
+        #: The field exists so the claim is stated rather than assumed.
+        self.destructive = destructive
 
     def describe(self) -> dict:
         return {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.schema,
-            # Advertised so a client can show the user that nothing here mutates
-            # their code. ADR-0009 is a safety property, not a preference.
-            "annotations": {"readOnlyHint": True, "destructiveHint": False},
+            "annotations": {"readOnlyHint": self.read_only,
+                            "destructiveHint": self.destructive},
         }
 
 

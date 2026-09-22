@@ -410,14 +410,17 @@ def test_the_scan_job_registers_its_own_runner_as_the_canceller(tmp_path, monkey
     assert seen["canceller"].__self__ is seen["runner"]
 
 
-def test_the_tool_is_registered_read_only_and_shared_with_the_operation():
+def test_the_tool_is_registered_as_acting_and_shared_with_the_operation():
+    """A cancel kills containers and moves a job's state, so it is not read-only
+    (27.1.2) — and it writes nothing, of ours or the user's, so it is not
+    destructive either (F1.11)."""
     from valvur.mcp.tools import registry
     from valvur.operations import cancel_scan
 
     [tool] = [t for t in registry() if t.name == "scan_cancel"]
 
     assert tool.handler is cancel_scan
-    assert tool.describe()["annotations"]["readOnlyHint"] is True
+    assert tool.describe()["annotations"] == {"readOnlyHint": False, "destructiveHint": False}
     assert "workspace" in tool.schema["properties"]
 
 

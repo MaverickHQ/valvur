@@ -6,6 +6,12 @@ cannot drift (F9.3).
 Every tool is read-only with respect to the **Workspace**. There is no `scan_and_fix`,
 no `apply`, no `write` and no `remediate`, and a test asserts their absence, because
 ADR-0009 is a safety property rather than a preference.
+
+That is about the user's *source*. What each tool does to the machine — `scan`
+writes the Results Folder, pulls an image and starts containers; `scan_cancel`
+kills them; the other four read what a scan left — is declared per tool below and
+reaches the client as `readOnlyHint` (27.1.2). The four readers say nothing and
+take the safe default.
 """
 
 from __future__ import annotations
@@ -50,7 +56,7 @@ def registry() -> list[Tool]:
                               "(default 300). Past it, nothing new starts, what is "
                               "running is stopped, and the result is reported "
                               "incomplete with the cut Scanners named. 0 for none."},
-             }}, start_scan),
+             }}, start_scan, read_only=False),
         Tool("list_findings", "List findings from the last scan, worst first. "
                               "Bounded by default.",
              {"type": "object", "properties": {
@@ -73,7 +79,8 @@ def registry() -> list[Tool]:
         Tool("scan_cancel", "Stop a running scan: its containers are killed, nothing "
                             "is written, and the previous results (if any) stand. "
                             "What Ctrl-C does on the command line.",
-             {"type": "object", "properties": workspace_arg}, cancel_scan),
+             {"type": "object", "properties": workspace_arg}, cancel_scan,
+             read_only=False),
         Tool("doctor", "Check that this machine can scan, before scanning: the "
                        "container runtime, the image, the vulnerability database, the "
                        "package-name index, SELinux, TLS trust, and which MCP client "

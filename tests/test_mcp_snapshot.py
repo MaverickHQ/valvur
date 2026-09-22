@@ -114,11 +114,19 @@ def test_the_snapshot_offers_only_the_profiles_that_exist():
         assert f'"{retired}"' not in text
 
 
-def test_every_tool_in_the_snapshot_is_advertised_read_only():
-    """ADR-0009 on the wire: a client can show the user that nothing here mutates
-    their code, and the snapshot makes removing that hint a visible diff."""
+def test_the_snapshot_says_on_the_wire_what_each_tool_does():
+    """ADR-0009 on the wire, in the form a client actually reads. The snapshot is
+    where a change to these becomes a visible diff — which is how 27.1.2's own
+    change arrived: `scan` and `scan_cancel` went from `readOnlyHint: true`, which
+    was never true of either, to false. `tests/test_mcp.py` holds the same table
+    against the registry; this one holds it against the bytes that leave the
+    process. Nothing valvur exposes is destructive, and that is asserted for every
+    tool rather than listed."""
+    from test_mcp import ANNOUNCED  # tests are not a package; pytest puts them on the path
+
     for tool in _recorded():
-        assert tool["annotations"] == {"readOnlyHint": True, "destructiveHint": False}, tool["name"]
+        assert tool["annotations"] == ANNOUNCED[tool["name"]], tool["name"]
+        assert tool["annotations"]["destructiveHint"] is False, tool["name"]
 
 
 def test_the_snapshot_holds_exactly_the_tools_the_help_text_names():
