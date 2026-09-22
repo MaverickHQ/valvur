@@ -6495,7 +6495,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
 
 ### Tier 1 — The primary surface
 
-- [ ] **27.1.1** **The server stops what it started (T1.3; F1.11).** `server.main`
+- [x] **27.1.1** **The server stops what it started (T1.3; F1.11).** `server.main`
   (server.py:154–159) returns on `KeyboardInterrupt` or `BrokenPipeError` and
   otherwise when `serve` returns at the client's EOF; scan jobs are daemon threads
   (jobs.py:176) and die with the process; the containers they launched do not —
@@ -6515,6 +6515,29 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   stdin, and assert within 10s that `docker ps --filter name=valvur-` is empty and
   the workspace lock is free; the same for `SIGTERM`. The STATUS note records the
   measured seconds from EOF to no containers.
+
+  **STATUS 2026-09-22:** ✅ Test first, `tests/test_mcp_shutdown.py`, six unit
+  cases and one e2e: the plain EOF, `KeyboardInterrupt`, `BrokenPipeError`,
+  SIGTERM, a job that never settles (the wait is bounded, the exit is not held),
+  and silence when nothing runs. `server.main` now runs `protocol.serve` inside a
+  `try/finally` whose `shutdown()` cancels each workspace `jobs.active()` names —
+  the same path `scan_cancel` takes, so 26.0.2's lock discipline covers it —
+  waits `SHUTDOWN_SECONDS` (10) for each to settle, then sweeps with
+  `runner.kill_running()`; a SIGTERM handler raises `SystemExit` so the `finally`
+  runs at all, and is installed only when this is the main thread. **Measured
+  over stdio against the real image** (dev image, scratch cache): a scan started
+  through the MCP surface, its first container live at 1.2s, stdin closed — the
+  server exits 0 and the container is **gone 0.3s later**, saying *"valvur-mcp:
+  stopping the offline scan of … (1 container(s))"*. **The test found two
+  defects in itself, both by being run:** the scan tool's argument is
+  `workspace`, and `path` — what the task text said — silently scanned the
+  server's own directory, so the first green run measured another tree entirely
+  (it now asserts the reply names the workspace it was given); and a 30s window
+  for the containers to go is met by an orphan *finishing* — measured **22.0s**
+  against 0.3s — so the bound is 8s, which only a kill meets, with the server's
+  stderr asserted beside it. Mutation: the `finally` removed, e2e red at 24.18s.
+  CHANGELOG; `PROTOCOL.md`'s `--name` line now names the exit as well as the
+  cancel.
 
 - [ ] **27.1.2** **Tool annotations tell the truth (T2.3; F9.2).** `Tool.describe`
   (server.py:38) answers `readOnlyHint: true, destructiveHint: false` for all six

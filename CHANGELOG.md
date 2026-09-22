@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The MCP server stops the scans it started.** When the client went away —
+  stdin closed, Ctrl-C, a broken pipe, or a SIGTERM — the server returned and its
+  scan jobs died with it, but the containers those jobs had launched belong to the
+  container runtime and kept running with nobody to read their result. Now every
+  way out cancels each active scan the way `scan_cancel` does, waits briefly for it
+  to settle and sweeps up anything left; measured over stdio against a real image,
+  the containers are gone 0.3s after the client disconnects, where before they ran
+  to completion (27.1.1, F1.11).
 - **The daily name index is tagged only after it is verified.** `index.yml` used
   to write the day's tag and `latest` first and verify afterwards, so a build
   that failed its own round trip had already moved `latest`. Now the index is

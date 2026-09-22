@@ -105,8 +105,8 @@ The shim launches every container the same way (`runner._base_flags`,
 - **`--read-only`**, **`--cap-drop=ALL`**, the tmpfs above, and **`--network=none`**
   unless the Profile grants a network — in which case `VALVUR_NETWORK=1` is set and
   the container may join `VALVUR_CONTAINER_NETWORK`;
-- with `--name valvur-<id>`, so a cancel can stop exactly the containers it started
-  (F1.11);
+- with `--name valvur-<id>`, so a cancel — or the MCP server's own exit (27.1.1) —
+  can stop exactly the containers it started (F1.11);
 - with **no `ENTRYPOINT`** in the image: the adapter's argv is the whole command.
 
 `CHECKOV_DISABLE_UPDATE_CHECK=true` and `PYTHONDONTWRITEBYTECODE=1` are set in the
