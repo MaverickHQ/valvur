@@ -1207,6 +1207,44 @@ def test_the_design_states_the_version_it_describes():
     )
 
 
+def test_a_scheduled_workflows_failure_becomes_an_issue():
+    """27.2.7. `index.yml` (daily) and `corpus.yml` (weekly) carry the work nobody
+    is watching: a red index means the published name index stopped being rebuilt,
+    and a red corpus means a rule change's false positives ship unnoticed. GitHub
+    mails a scheduled failure to the workflow file's last committer and does
+    nothing else, so the record of it is one person's inbox. Each now opens an
+    issue — reusing the open one rather than filing a second — under
+    `issues: write`, with the run link, so the failure is a tracked thing."""
+    import re
+
+    scheduled = []
+    for path in sorted(Path(".github/workflows").glob("*.yml")):
+        text = path.read_text()
+        if re.search(r"^\s*schedule:", text.split("\njobs:", 1)[0], re.M):
+            scheduled.append((path.name, text))
+
+    assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml"}, \
+        f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
+
+    for name, text in scheduled:
+        assert re.search(r"^\s*issues:\s*write", text, re.M), \
+            f"{name} cannot open an issue: no issues: write"
+        failure_steps = [block for block in text.split("      - name: ")
+                         if re.search(r"^\s*if:\s*failure\(\)", block, re.M)]
+        assert failure_steps, f"{name} has no `if: failure()` step"
+        [step] = failure_steps
+        assert "gh issue" in step, f"{name}'s failure step does not use `gh issue`"
+        assert "github.run_id" in step and "$RUN" in step, \
+            f"{name}'s issue does not carry a link to the run that failed"
+        # One issue, not one per run: a job broken for a week is one problem.
+        assert "gh issue comment" in step and "gh issue list" in step, \
+            f"{name} files a new issue for every failure"
+        # The permission is per job, not repository-wide: `contents: read` at the
+        # top of the file is what a pull request from a fork gets.
+        assert re.search(r"^permissions:\n  contents: read\n", text, re.M), \
+            f"{name} grants more than read at the top level"
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""
