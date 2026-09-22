@@ -6626,7 +6626,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   `tests/test_constraints.py` — no row of the platform table naming macOS may say
   "every commit" unless a workflow names a `macos-` runner.
 
-- [ ] **27.2.2** **`design.md` as built (T1.4).** Three things stale after 26.5.2
+- [x] **27.2.2** **`design.md` as built (T1.4).** Three things stale after 26.5.2
   rewrote six sections: the architecture diagram (design.md:14–36) still draws
   **Orchestrator** and **Normaliser** inside the OCI image — both are host-side
   (`api.py` plans and collects the fleet, `ContainerRunner` runs each
@@ -6643,6 +6643,25 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   **Test first**: in `tests/test_protocol.py`'s manner, §8's tool names parsed
   from the table equal `registry()`'s, so the table cannot fall behind a third
   time.
+
+  **STATUS 2026-09-22:** ✅ Test first, three ratchets in `test_constraints.py`
+  over a `design.md` table parser in `test_protocol.py`'s manner: §8's tools
+  equal the MCP registry's (green on arrival — 27.1.2 had already fixed that
+  table), §5.1's ecosystems equal `ecosystems.MANIFESTS`' labels, and the
+  document states a version of at least 1.2. Red on the missing §5.1 table and
+  on `1.1`. The **diagram** now draws what runs where — `api.scan` plans and
+  collects, the adapter owns its command and its parser, `ContainerRunner` owns
+  the container, `pipeline` normalises and ranks, `results.write` publishes one
+  generation, and the image holds Scanners and Checks and nothing that decides —
+  with a paragraph saying the old picture was the opposite of ADR-0001's reason
+  for existing. **§5.1** is rewritten from `dependency_reality.py` and
+  `ecosystems.py`: the seven ecosystems with what is read, what is seen but not
+  read, and where existence is answered; the stated-omission rule for Maven and
+  Go; and the three signals with the thresholds the code actually holds
+  (`NEW_PACKAGE_DAYS`, `NPM_UNADOPTED_DOWNLOADS`, near-miss pip-only) — the old
+  table's *critical* and *high* classes were wrong as well as its coverage.
+  Mutations, all caught: an ecosystem row dropped, a tool row dropped, the
+  version reverted, a label renamed. Version 1.2.
 
 - [x] **27.2.3** **What the sdist ships is a list (T4.1).** `.council/` — the
   second review's structured output, six files — was committed on `777c5ec` with
