@@ -22,6 +22,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from . import parsers as _parsers
+
 _SEPARATORS = re.compile(r"[-_.]+")
 
 
@@ -55,8 +57,11 @@ class Ecosystem:
     key: str
     #: How a reader is told which ecosystem this is.
     label: str
-    #: The manifests the dependency-reality Check READS for declared names.
-    reads: tuple[str, ...] = ()
+    #: The manifests this ecosystem declares dependencies in, each with the parser
+    #: that reads it: `(pattern, parse)`, where `parse(path, workspace)` answers
+    #: `{(ecosystem, name, source)}`. One place, so a new ecosystem is an entry
+    #: here and a function in `parsers.py` — it was three tables before 27.3.2.
+    parsers: tuple[tuple[str, Callable], ...] = ()
     #: Manifests valvur recognises and does not read — either because another
     #: manifest covers them (a lockfile's transitive tree is not where a language
     #: model invents a name) or because nothing parses the shape. Their presence
@@ -79,26 +84,33 @@ class Ecosystem:
     #: popularity data behind it (F3.4).
     near_miss: bool = False
 
+    @property
+    def reads(self) -> tuple[str, ...]:
+        """The manifest patterns, in the order they are read — what the coverage
+        contract lists and what `MANIFESTS` carries."""
+        return tuple(pattern for pattern, _ in self.parsers)
+
 
 #: Every ecosystem valvur reads, in the order a reader meets them.
 ECOSYSTEMS: tuple[Ecosystem, ...] = (
     Ecosystem(
         key="pip", label="Python",
-        reads=("requirements*.txt", "pyproject.toml"),
+        parsers=(("requirements*.txt", _parsers.from_requirements),
+                 ("pyproject.toml", _parsers.from_pyproject)),
         sees=("Pipfile", "setup.py", "setup.cfg", "poetry.lock", "uv.lock"),
         index_file="pypi.txt", registry="PyPI", host="pypi.org",
         index_form=pep503, near_miss=True,
     ),
     Ecosystem(
         key="npm", label="npm",
-        reads=("package.json",),
+        parsers=(("package.json", _parsers.from_package_json),),
         sees=("package-lock.json", "pnpm-lock.yaml", "yarn.lock"),
         index_file="npm.txt", registry="the npm registry", host="registry.npmjs.org",
     ),
     # Read since 23.2.3: crates.io's list is streamed out of its database dump.
     Ecosystem(
         key="cargo", label="Rust (Cargo)",
-        reads=("Cargo.toml",), sees=("Cargo.lock",),
+        parsers=(("Cargo.toml", _parsers.from_cargo),), sees=("Cargo.lock",),
         index_file="crates.txt", registry="crates.io", host="crates.io",
         index_form=crate,
     ),
@@ -107,7 +119,7 @@ ECOSYSTEMS: tuple[Ecosystem, ...] = (
     # existence is asked of the registry per name.
     Ecosystem(
         key="gomod", label="Go",
-        reads=("go.mod",), sees=("go.sum",),
+        parsers=(("go.mod", _parsers.from_go_mod),), sees=("go.sum",),
         no_index_because="the Go module proxy publishes no list of modules",
         registry="the Go module proxy", host="proxy.golang.org",
     ),
@@ -117,7 +129,10 @@ ECOSYSTEMS: tuple[Ecosystem, ...] = (
     # references `libs.foo` from its build script would otherwise scan clean.
     Ecosystem(
         key="maven", label="JVM (Maven/Gradle)",
-        reads=("pom.xml", "build.gradle", "build.gradle.kts", "gradle/libs.versions.toml"),
+        parsers=(("pom.xml", _parsers.from_pom),
+                 ("build.gradle", _parsers.from_gradle),
+                 ("build.gradle.kts", _parsers.from_gradle),
+                 ("gradle/libs.versions.toml", _parsers.from_version_catalog)),
         sees=("settings.gradle", "settings.gradle.kts", "gradle.lockfile"),
         no_index_because="Maven Central publishes no list of coordinates",
         registry="Maven Central", host="repo1.maven.org",
@@ -126,13 +141,14 @@ ECOSYSTEMS: tuple[Ecosystem, ...] = (
     # request, and both are in the index.
     Ecosystem(
         key="gem", label="Ruby (Bundler)",
-        reads=("Gemfile", "*.gemspec"), sees=("Gemfile.lock",),
+        parsers=(("Gemfile", _parsers.from_gemfile),
+                 ("*.gemspec", _parsers.from_gemspec)), sees=("Gemfile.lock",),
         index_file="rubygems.txt", registry="RubyGems", host="rubygems.org",
         index_form=as_written,
     ),
     Ecosystem(
         key="composer", label="PHP (Composer)",
-        reads=("composer.json",), sees=("composer.lock",),
+        parsers=(("composer.json", _parsers.from_composer),), sees=("composer.lock",),
         index_file="packagist.txt", registry="Packagist", host="repo.packagist.org",
     ),
 )
