@@ -7,6 +7,11 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A scheduled workflow's failure is a tracked thing.** The daily name-index
+  build and the weekly corpus run are the work nobody is watching, and GitHub
+  mails their failures to one person and does nothing else. Each now opens an
+  issue — reusing the open one, so a week of failures is one problem — with the
+  run link, what the failure costs a user, and the recovery (27.2.7).
 - **The source distribution ships an allowlist.** `0.3.0`'s sdist carried six
   files of an external review's output, and a one-file `valvur/` directory holding
   the wheel's generated build hash — both because the packaging config named what
