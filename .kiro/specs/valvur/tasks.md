@@ -6883,7 +6883,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   moves seams the release freezes; this one changes no behaviour and is held to
   that by bytes.
 
-- [ ] **27.3.4** **A typed pipeline result (T3.4).** `pipeline.Context`
+- [x] **27.3.4** **A typed pipeline result (T3.4).** `pipeline.Context`
   (pipeline.py:35–57) has fifteen fields; stages write `artifacts`, `coverage`,
   the three `*_dropped` counts, `unpinned_files` and `identity_reset` into it
   while `StageFn` is typed `list[Finding] -> list[Finding]`, and `api.py` copies
@@ -6896,6 +6896,27 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   **Tests first**: `test_pipeline.py` asserts the result's fields; the mutation
   is a field dropped from the result with a test that compares `ScanRun`'s
   populated fields to the result's.
+
+  **STATUS 2026-09-22:** ✅ `RECORDED_BY_STAGES` names the ten once;
+  `PipelineResult` carries each with a type; `pipeline.run` returns it and
+  `api.py` builds the `ScanRun` from `outcome.<field>` rather than reaching into
+  the Context the stages share. Test first, three: every `Context` field is
+  either a declared input or declared as recorded (so a new one has to say
+  which), `PipelineResult` carries everything recorded, and every recorded value
+  is *carried out* — the last against a one-stage pipeline that marks each field
+  distinctly. **That third test was written against a real run first and passed
+  against the defect**: most recorded fields hold their defaults on a small
+  workspace, so forcing `unpinned_files` to `()` on the way out changed nothing;
+  a comparison of defaults with defaults proves only that both are empty. The
+  real-pipeline comparison stays beside the marker test. Mutations, all four
+  caught: a field dropped from the result, a field dropped from the list, a
+  value not carried out, and a new `Context` field left undeclared. **Found on
+  the way:** two existing tests read `ctx.<field>` after the run and one compared
+  whole results — `provider` is a fresh `LocalProvider` per run and compares by
+  identity, and `kev_age_days` is read from the clock, so the purity test now
+  compares its *readings* to the tenth `run.json` publishes. 1,053 unit tests
+  pass. **Phase 27's engineering is complete bar 27.3.2**, which the gate still
+  gates.
 
 **Exit (Phase 27):** the daily index tagged only after its own verification, on
 a run whose log shows the order; the release SBOM by digest on both
