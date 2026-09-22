@@ -147,8 +147,11 @@ def test_the_index_files_are_the_indexed_ecosystems_in_the_order_users_see():
     one from the other silently reordered the line."""
     from valvur import ecosystems, name_index
 
+    # The literal order, not `INDEX_ORDER` — the dict is built FROM that constant,
+    # so comparing the two says only that a loop works. What a user reads is this
+    # sequence, unchanged since `name_index.FILES` first held it.
+    assert tuple(ecosystems.INDEX_FILES) == ("pip", "npm", "gem", "composer", "cargo")
     assert name_index.FILES == ecosystems.INDEX_FILES
-    assert tuple(ecosystems.INDEX_FILES) == ecosystems.registry.INDEX_ORDER
     assert set(ecosystems.INDEX_FILES) == {
         e.key for e in ecosystems.ECOSYSTEMS if e.index_file
     }
