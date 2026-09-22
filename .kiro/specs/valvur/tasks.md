@@ -6742,7 +6742,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   unchanged by the removal. Not regenerated on this machine until the gate has
   run. No PR of its own — it rides with 27.2.4 and 27.2.5.
 
-- [ ] **27.2.7** **A scheduled failure is an issue (T2.1's residue).** The
+- [x] **27.2.7** **A scheduled failure is an issue (T2.1's residue).** The
   analysis's consequences were wrong — a red `index.yml` that fails before its
   push leaves yesterday's `latest` in place (and after 27.0.1, one that fails
   after it does too), a scan never walks the registries, and GitHub mails
@@ -6757,6 +6757,26 @@ measured number in the STATUS note of any task that changes what a user sees. Th
 
   **Tests first**: the shape test asserts both scheduled workflows carry the
   step and the permission.
+
+  **STATUS 2026-09-22:** ✅ Test first
+  (`test_a_scheduled_workflows_failure_becomes_an_issue`): the two scheduled
+  workflows are exactly `index.yml` and `corpus.yml` — a third would have to
+  appear in this test — each carrying `issues: write` **on the job**, an
+  `if: failure()` step naming `github.run_id`, and `gh issue list` before `gh
+  issue create`, so a job broken for a week is one issue rather than seven; the
+  file's top-level `permissions` stays `contents: read`, which is what a fork's
+  pull request gets. Mutations, all caught: the corpus step removed, the
+  permission dropped, `failure()` weakened to `always()`, the reuse lookup
+  removed. Each issue carries what the failure costs a *user*, which is the part
+  worth writing down: a red index leaves the last published one in place and
+  costs nothing until thirty days pass (ADR-0018); a red corpus costs nobody
+  anything they can see, and loses the only check that catches a rule change's
+  false positives before a user meets them. **Not done, deliberately:**
+  `CODEOWNERS` naming one person on a one-person repository records nothing, and
+  the freshness rule the analysis asked for was already in `index.yml`'s header
+  from 27.0.1. **The test found one thing about itself:** it first asserted the
+  run link as `$GITHUB_SERVER_URL`, which is not how a workflow names a run —
+  `${{ github.run_id }}` is — so it was failing the step for the wrong reason.
 
 ### Tier 3 — After the gate, before `v1.0.0`
 
