@@ -28,6 +28,11 @@ from valvur.mcp import jobs, server
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
+#: A container the server killed is gone in well under a second (measured 0.3s);
+#: one left to finish takes as long as its Scanner does (measured 22.0s for the
+#: first of this fixture, minutes for a real fleet). The bound separates them.
+KILLED_WITHIN_S = 8.0
+
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
@@ -169,33 +174,53 @@ def test_a_real_server_leaves_no_container_behind_when_its_client_disconnects(mo
 
     before = set(live())
     server_process = subprocess.Popen(
-        [sys.executable, "-m", "valvur.mcp"],
+        # The console script's own entry point, `valvur-mcp` (pyproject), reached
+        # without depending on the script being installed on PATH.
+        [sys.executable, "-c", "from valvur.mcp.server import main; raise SystemExit(main())"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
     try:
+        replies = []
         for message in (
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-             "params": {"name": "scan", "arguments": {"path": str(workspace)}}},
+             "params": {"name": "scan", "arguments": {"workspace": str(workspace)}}},
         ):
             server_process.stdin.write(json.dumps(message) + "\n")
             server_process.stdin.flush()
-            server_process.stdout.readline()
+            replies.append(server_process.stdout.readline())
+        # The argument is `workspace` (tools.py). Named wrongly it defaults to the
+        # process's own directory and the scan runs somewhere else entirely — which
+        # is how this test first "passed" while measuring another tree.
+        assert str(workspace) in replies[-1], replies[-1]
 
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + 180
         while time.monotonic() < deadline and not (set(live()) - before):
-            time.sleep(0.5)
+            time.sleep(0.2)
         started = set(live()) - before
         assert started, "no container ever started, so the test measures nothing"
 
+        closed = time.monotonic()
         server_process.stdin.close()                      # the client goes away
         assert server_process.wait(timeout=60) == 0
+        said = server_process.stderr.read()
+        gone = None
+        # KILLED, not merely finished: an orphaned Scanner also ends eventually —
+        # measured at 22.0s for the first container of this fixture, against 0.3s
+        # for a kill — so the bound has to be one only a kill can meet. This is
+        # the whole difference the task is about: work that continues with nobody
+        # to read it, against work that stops.
+        while time.monotonic() - closed < KILLED_WITHIN_S:
+            if not (set(live()) & started):
+                gone = time.monotonic() - closed
+                break
+            time.sleep(0.2)
+        print(f"27.1.1: {len(started)} container(s), gone {gone and f'{gone:.1f}s'} "
+              f"after the client closed stdin")
+        assert gone is not None, (
+            f"containers outlived the server by more than {KILLED_WITHIN_S}s — running, "
+            f"or left to finish on their own: {sorted(set(live()) & started)}")
+        assert "stopping the offline scan" in said, f"the server said nothing about it: {said!r}"
     finally:
         server_process.kill()
-
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline and (set(live()) & started):
-        time.sleep(0.5)
-    assert not (set(live()) & started), \
-        f"containers outlived the server: {sorted(set(live()) & started)}"
