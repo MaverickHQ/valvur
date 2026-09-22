@@ -2,7 +2,8 @@
 
 > Generated: 2026-09-21  
 > Source: Level 400 codebase analysis (fresh, post-v0.3.0 unreleased work)  
-> See also: `.council/20260920-161505/` for the full structured review findings.
+> See also: [`council/20260920-161505/`](council/20260920-161505/) for the full
+> structured findings of the *second* review (moved there from `.council/` by 27.2.3).
 > **Reviewed 2026-09-21 against `main` at `ca13795`:** every claim below was checked
 > against the code, the workflows and, where a claim was about behaviour, by running
 > it — the same treatment the second review's four gaps got at the head of Phase 26.
@@ -360,7 +361,7 @@ Add `/.council` to `[tool.hatch.build.targets.sdist] exclude` in `pyproject.toml
 
 **Files:** `pyproject.toml` (sdist excludes), optionally `.council/` → `docs/council/`
 
-**Verdict (2026-09-21, measured):** ⚠️ **Real — open, and worse than stated.** `.council/20260920-161505/` is not an untracked leftover: it was **committed** on `777c5ec` with Phase 26's documents, six files, and `uv build --sdist` on this tree puts all six in `valvur-0.3.0.tar.gz` — measured. Move it to `docs/council/` (already excluded from the sdist, and where the review it records is referenced from) rather than adding a fourth dot-path to the exclude list; the OPEN-ITEMS reference above changes with it.
+**Verdict (2026-09-21, measured):** ⚠️ **Real — open, and worse than stated.** *(Closed 2026-09-22 by 27.2.3: moved to `docs/council/`, and the sdist's top level is now an allowlist in a test.)* `.council/20260920-161505/` is not an untracked leftover: it was **committed** on `777c5ec` with Phase 26's documents, six files, and `uv build --sdist` on this tree puts all six in `valvur-0.3.0.tar.gz` — measured. Move it to `docs/council/` (already excluded from the sdist, and where the review it records is referenced from) rather than adding a fourth dot-path to the exclude list; the OPEN-ITEMS reference above changes with it.
 
 ---
 

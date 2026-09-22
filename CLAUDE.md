@@ -165,7 +165,8 @@ touch what a user receives: the daily index is tagged `latest` *before* it is si
 and verified — `index.yml` lacks ADR-0020's order — and the release SBOM is generated
 by a syft pinned by tag while the `Dockerfile` pins the same syft by digest. The pass
 also found two things the analysis had not: the review's own artefacts under
-`.council/` are committed and ship in the sdist, and `design.md`'s MCP table is two
+`.council/` are committed and ship in the sdist (both closed by 27.2.3), and
+`design.md`'s MCP table is two
 tools short. Seven of the seventeen are under an hour each, seven an afternoon,
 three are refactors for after the gate (`dependency_reality.py`'s split, `SUMMARY.md`
 rendering out of `results.py`, a typed pipeline result). **They are Phase 27** in
@@ -331,7 +332,7 @@ were introduced by the block before, with tests passing.
   next daily build is pulled (T2.2); the README's platform row says macOS is tested
   on every commit and it is tested by hand (T1.2); `design.md`'s diagram still draws
   the orchestrator inside the image, §5.1 predates ADR-0018 and §8 lists four of six
-  tools (T1.4); `.council/` is tracked and in the sdist (T4.1); `dist/` holds the
+  tools (T1.4, §8 done by 27.1.2); `.council/` is tracked and in the sdist (T4.1); `dist/` holds the
   rc1 wheel and `.security-scan/` a stale scan (T0.3, T4.2); `SECURITY.md`'s
   versions table says `0.1.x` (T4.3); `RELEASING.md` explains the brake without
   citing ADR-0020 (T4.4); `doctor.py` imports two constants from `cli.py` (T3.3);

@@ -11,7 +11,10 @@ strings agreed and the code did not.
 The file is generated here, added to the wheel, and removed again: never committed
 (`.gitignore`), never copied into the image (`.dockerignore`), never an input to the
 digest it holds (`tree_hash` skips it). An sdist carries the inputs, so a wheel
-built from one computes the same value.
+built from one computes the same value — and therefore needs no `_build.py` of its
+own. Until task 27.2.3 the hook ran for the sdist too and `force_include` put the
+file at `valvur/_build.py` in the archive, which for an sdist is not the package
+path (`src/valvur/`) but a one-file directory at the root that nothing reads.
 """
 
 from __future__ import annotations
@@ -28,6 +31,11 @@ class TreeHashHook(BuildHookInterface):
     PLUGIN_NAME = "custom"
 
     def initialize(self, version: str, build_data: dict) -> None:
+        # The wheel's, and only the wheel's: see the module docstring. A test
+        # asserts the sdist carries no `_build.py` and does carry `tree_hash.py`,
+        # which is what a wheel built from it recomputes the digest with.
+        if self.target_name != "wheel":
+            return
         root = Path(self.root)
         sys.path.insert(0, str(root / "src"))
         try:

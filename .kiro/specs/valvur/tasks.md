@@ -6644,7 +6644,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   from the table equal `registry()`'s, so the table cannot fall behind a third
   time.
 
-- [ ] **27.2.3** **What the sdist ships is a list (T4.1).** `.council/` — the
+- [x] **27.2.3** **What the sdist ships is a list (T4.1).** `.council/` — the
   second review's structured output, six files — was committed on `777c5ec` with
   Phase 26's documents and `uv build --sdist` puts all six in `valvur-0.3.0.tar.gz`,
   measured. Move it to `docs/council/` with a `README.md` naming its origin and
@@ -6659,6 +6659,24 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   asserts its top-level entries are exactly the allowlist — what is there today
   minus `.council` and the stray `valvur/` — so the next artefact committed at the
   root is a red test, not a review finding.
+
+  **STATUS 2026-09-22:** ✅ Test first, two in `tests/test_build_hash.py` (beside
+  the wheel-digest test, which already builds with `uv build`): the sdist's
+  top-level entries equal `SDIST_TOP_LEVEL` exactly — red on
+  `['.council', 'valvur']` — and the sdist carries no generated `_build.py` while
+  carrying the `tree_hash.py` a wheel recomputes the digest from. The allowlist
+  is both ways round: something new at the root fails, and something that
+  disappears fails too, because a distribution missing its LICENCE is the other
+  half of the same question. `.council/20260920-161505/` is now
+  `docs/council/20260920-161505/` with a README naming each review, what it
+  became, and that these are *inputs* rather than findings the project stands
+  behind — several claims did not survive being checked. `hatch_build.py` returns
+  early unless `self.target_name == "wheel"`. **Measured, and the first time this
+  claim has been:** `hatch_build.py` has always said a wheel built from an sdist
+  computes the same digest; built all three ways — from the tree, from the sdist,
+  and the sdist's own — the value is `78268aa5b1700e99…` each time. Mutations:
+  the hook's guard removed, an entry dropped from the allowlist, an extra file at
+  the root — each red.
 
 - [x] **27.2.4** **`SECURITY.md`'s versions table (T4.3).** The policy is complete
   — private vulnerability reporting, enabled on the repository and checked by API;

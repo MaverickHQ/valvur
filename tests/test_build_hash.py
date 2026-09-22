@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tarfile
 import zipfile
 from pathlib import Path
 
@@ -61,6 +62,69 @@ def test_a_built_wheel_carries_the_trees_digest(tmp_path):
     assert f'INPUTS_SHA256 = "{expected}"' in text
     assert not (REPO / "src" / "valvur" / "_build.py").exists(), (
         "the hook left its generated file in the source tree")
+
+
+#: Everything the source distribution may carry at its top level (27.2.3). A
+#: distribution is published under our identity, so what is in it is a decision,
+#: not a consequence of what happened to be committed: `.council/` — an external
+#: review's structured output — shipped in `0.3.0`'s sdist because nothing said it
+#: should not. `/tests`, `/.github`, `/.kiro`, `/docs`, `/scripts`, `/.githooks`
+#: and `/.gitleaks.toml` are excluded in `pyproject.toml` and so are absent here.
+SDIST_TOP_LEVEL = {
+    # What a build needs, and what a reader of the archive should find.
+    "PKG-INFO", "pyproject.toml", "hatch_build.py", "uv.lock", "src", "rules",
+    "Dockerfile", "docker-bake.hcl", ".dockerignore",
+    "requirements-checkov.in", "requirements-checkov.overrides", "requirements-checkov.txt",
+    # The documents a package should carry with it.
+    "LICENSE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md",
+    ".gitignore", ".gitattributes", ".security-scan.toml",
+}
+
+
+def test_the_source_distribution_ships_exactly_what_it_means_to(tmp_path):
+    """27.2.3. `uv build --sdist` on `0.3.0`'s tree put `.council/20260920-161505/`
+    — six files of an external review — into the archive, because the exclude list
+    names paths rather than the archive naming its contents. An allowlist inverts
+    that: the next thing committed at the repository root is a red test here
+    instead of a finding in someone's review."""
+    out = tmp_path / "dist"
+    subprocess.run(["uv", "build", "--sdist", "--out-dir", str(out)], cwd=REPO,
+                   check=True, capture_output=True, text=True, timeout=300)
+    [sdist] = out.glob("*.tar.gz")
+
+    with tarfile.open(sdist) as archive:
+        top = {name.split("/")[1] for name in archive.getnames()
+               if "/" in name and name.split("/")[1]}
+
+    unexpected = top - SDIST_TOP_LEVEL
+    assert not unexpected, (
+        f"the sdist ships {sorted(unexpected)}, which nothing declared. Add it to "
+        "SDIST_TOP_LEVEL if it belongs in a published distribution, or exclude it "
+        "in pyproject.toml if it does not."
+    )
+    missing = SDIST_TOP_LEVEL - top
+    assert not missing, f"the sdist no longer carries {sorted(missing)}"
+
+
+def test_the_sdist_carries_no_generated_build_file(tmp_path):
+    """The hook writes `valvur/_build.py` for the WHEEL, where it is the package's
+    own module. `force_include` applied to the sdist too, landing a one-file
+    `valvur/` directory at the archive root beside `src/` — read by nothing, and
+    wrong by construction: a wheel built from an sdist recomputes the digest from
+    the inputs the sdist carries, as `hatch_build.py` says."""
+    out = tmp_path / "dist"
+    subprocess.run(["uv", "build", "--sdist", "--out-dir", str(out)], cwd=REPO,
+                   check=True, capture_output=True, text=True, timeout=300)
+    [sdist] = out.glob("*.tar.gz")
+
+    with tarfile.open(sdist) as archive:
+        names = archive.getnames()
+
+    assert not [n for n in names if n.split("/")[1:2] == ["valvur"]], \
+        "the sdist carries the wheel's generated _build.py"
+    assert any(n.endswith("src/valvur/tree_hash.py") for n in names), \
+        "the sdist must carry the inputs a wheel recomputes the digest from"
 
 
 def test_the_shim_answers_from_the_generated_file_when_it_has_one(monkeypatch, tmp_path):
