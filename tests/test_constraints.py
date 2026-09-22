@@ -1207,6 +1207,37 @@ def test_the_design_states_the_version_it_describes():
     )
 
 
+def test_the_platform_table_claims_only_the_testing_that_exists():
+    """27.2.1. The README put macOS and Linux in one row — *"tested on every commit
+    against both runtimes"* — and that is true of Linux and not of macOS: every
+    real-container job runs on `ubuntu-24.04` or `ubuntu-24.04-arm`, and
+    `test_portability.py`'s macOS cases monkeypatch `platform.system()`, which
+    cannot exercise Docker Desktop's mount sharing, a Podman VM's paths, or UID
+    translation. A claim about continuous testing needs a workflow that runs
+    continuously: a `macos-` runner in a job a push or a pull request starts, not
+    one a human dispatches by hand."""
+    import re
+
+    readme = Path("README.md").read_text()
+    table = readme.split("## Platforms", 1)[1].split("\n\n**", 1)[0]
+    rows = [line for line in table.splitlines() if line.startswith("|")]
+    assert rows, "the README no longer has a platform table"
+
+    continuous = set()
+    for path in sorted(Path(".github/workflows").glob("*.yml")):
+        text = path.read_text()
+        triggers = text.split("\njobs:", 1)[0]
+        if re.search(r"^\s*(push|pull_request):", triggers, re.M):
+            continuous |= set(re.findall(r"runs-on:\s*(macos-\S+)", text))
+
+    claiming = [r for r in rows
+                if re.search(r"\bmac ?os\b", r, re.I) and "every commit" in r]
+    assert not claiming or continuous, (
+        "the platform table says macOS is tested on every commit, and no workflow "
+        f"runs a macos- runner on push or pull_request: {claiming}"
+    )
+
+
 def test_the_opengrep_binaries_are_checksum_pinned():
     """Task 15.2. They were fetched over HTTPS and trusted, with no verification of
     any kind, beside a comment noting that Opengrep publishes them signed."""

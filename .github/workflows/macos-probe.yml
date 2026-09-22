@@ -1,0 +1,88 @@
+name: macos probe
+
+# Not a lane, and not a claim: one question, asked by hand (task 27.2.1).
+#
+# The README says valvur is supported on macOS, and macOS is where the primary
+# client runs — but every real-container job in `ci.yml` is `ubuntu-24.04` or
+# `ubuntu-24.04-arm`, and `test_portability.py`'s macOS cases monkeypatch
+# `platform.system()`, which cannot exercise Docker Desktop's mount sharing, a
+# Podman VM's paths, or UID translation in a container. So the claim is "tested by
+# hand on a Mac", which is true, and a continuous lane would be better if one can
+# exist at all.
+#
+# GitHub's macOS runners are virtual machines on Apple silicon and do not offer
+# nested virtualisation, which is what a container runtime needs there. This
+# workflow finds out, rather than assuming: install Colima, start it with a short
+# deadline, and run the smallest possible container. Its outcome is recorded in
+# 27.2.1's STATUS note either way — a green run makes a scheduled lane worth a
+# task of its own, a red one is the evidence the README's row is as good as it
+# can get.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: can a container run on a macOS runner at all?
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: What this runner is
+        run: |
+          sw_vers
+          uname -m
+          sysctl -n machdep.cpu.brand_string || true
+          # The question under the question: nested virtualisation.
+          sysctl -a 2>/dev/null | grep -i "hv_support\|vmm" || echo "no hypervisor capability reported"
+
+      - name: Install a container runtime
+        id: install
+        run: |
+          set -eu
+          start=$(date +%s)
+          brew install colima docker
+          echo "installed in $(( $(date +%s) - start ))s"
+          colima version || true
+
+      - name: Start it, with a deadline
+        id: start
+        continue-on-error: true
+        run: |
+          set -eu
+          start=$(date +%s)
+          # Five minutes is the task's cap: past that, a developer's first run is
+          # not what this workflow would be measuring.
+          if timeout 300 colima start --cpu 2 --memory 4 --disk 20; then
+            echo "started in $(( $(date +%s) - start ))s"
+            echo "up=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::colima did not start within 300s"
+            echo "up=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the smallest possible container
+        if: steps.start.outputs.up == 'true'
+        continue-on-error: true
+        run: |
+          set -eu
+          start=$(date +%s)
+          docker run --rm alpine:3.20 echo "a container ran on a macOS runner"
+          echo "first container in $(( $(date +%s) - start ))s"
+
+      - name: Say what happened
+        if: always()
+        run: |
+          {
+            echo "## macOS probe (27.2.1)"
+            echo
+            echo "- runtime start: \`${{ steps.start.outputs.up }}\`"
+            echo "- runner: \`macos-15\`, $(uname -m)"
+            echo
+            echo "A green run means a scheduled macOS lane is possible and is worth a"
+            echo "task of its own. A red one means the README's row says what it can:"
+            echo "macOS is tested by hand, on a real Mac, at each release."
+          } >> "$GITHUB_STEP_SUMMARY"
