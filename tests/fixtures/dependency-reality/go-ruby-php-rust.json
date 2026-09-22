@@ -1,0 +1,22 @@
+[
+  [
+    "cargo",
+    "serde",
+    "Cargo.toml"
+  ],
+  [
+    "composer",
+    "monolog/monolog",
+    "composer.json"
+  ],
+  [
+    "gem",
+    "rack",
+    "Gemfile"
+  ],
+  [
+    "gomod",
+    "github.com/pkg/errors",
+    "go.mod"
+  ]
+]

@@ -1,0 +1,27 @@
+[
+  [
+    "pip",
+    "aws-helper-sdk",
+    "pyproject.toml"
+  ],
+  [
+    "pip",
+    "flask",
+    "requirements.txt"
+  ],
+  [
+    "pip",
+    "httpx",
+    "pyproject.toml"
+  ],
+  [
+    "pip",
+    "reqeusts",
+    "requirements.txt"
+  ],
+  [
+    "pip",
+    "requests",
+    "requirements.txt"
+  ]
+]

@@ -1,0 +1,12 @@
+[
+  [
+    "maven",
+    "com.google.guava:guava",
+    "pom.xml"
+  ],
+  [
+    "maven",
+    "org.slf4j:slf4j-api",
+    "build.gradle"
+  ]
+]

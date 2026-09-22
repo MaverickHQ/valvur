@@ -1,0 +1,32 @@
+[
+  [
+    "pip",
+    "aws-helper-sdk",
+    "requirements-ai.txt"
+  ],
+  [
+    "pip",
+    "pillow",
+    "requirements.txt"
+  ],
+  [
+    "pip",
+    "pyyaml",
+    "requirements.txt"
+  ],
+  [
+    "pip",
+    "reqeusts",
+    "requirements-ai.txt"
+  ],
+  [
+    "pip",
+    "urllib3",
+    "requirements-ai.txt"
+  ],
+  [
+    "pip",
+    "urllib3",
+    "requirements.txt"
+  ]
+]

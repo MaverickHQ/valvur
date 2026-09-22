@@ -1,0 +1,22 @@
+[
+  [
+    "npm",
+    "@types/node",
+    "package.json"
+  ],
+  [
+    "npm",
+    "jest",
+    "package.json"
+  ],
+  [
+    "npm",
+    "react",
+    "package.json"
+  ],
+  [
+    "npm",
+    "reakt",
+    "package.json"
+  ]
+]
