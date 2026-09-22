@@ -81,7 +81,11 @@ the record.
 
 | Version | Supported |
 |---|---|
-| `0.1.x` | ✅ latest only |
+| `0.3.x` | ✅ latest only |
+
+<!-- A test keeps this table on the released series (27.2.4): it said `0.1.x`
+     through 0.2.0 and 0.3.0, so a reporter checking whether their version was
+     supported read a series superseded twice. -->
 
 ## What valvur does with your code
 

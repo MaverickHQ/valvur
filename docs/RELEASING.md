@@ -321,7 +321,10 @@ loopback — and two settings that did not exist that morning, because the docum
 one on its own did not work (`VALVUR_DB_INSECURE`, `VALVUR_CONTAINER_NETWORK`), plus
 a third for the one fetch that had no mirror at all (`VALVUR_KEV_URL`).
 
-**The `release` environment is the manual brake.** Adding a required reviewer to it
+**The `release` environment is the manual brake**, and it sits on `promote` on
+purpose — [ADR-0020](adr/0020-promote-after-validation.md) records why, and moving
+it to `verify` or `stage` would put the human before the evidence and leave the
+irreversible steps ungated. Adding a required reviewer to it
 (Settings → Environments → release) makes the `promote` job wait for approval after
 `artifact` has validated the pair and before anything a user can install exists
 (26.1.1; until then the brake was before the push, with the evidence still to come).

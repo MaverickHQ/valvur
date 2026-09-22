@@ -6660,26 +6660,50 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   minus `.council` and the stray `valvur/` — so the next artefact committed at the
   root is a red test, not a review finding.
 
-- [ ] **27.2.4** **`SECURITY.md`'s versions table (T4.3).** The policy is complete
+- [x] **27.2.4** **`SECURITY.md`'s versions table (T4.3).** The policy is complete
   — private vulnerability reporting, enabled on the repository and checked by API;
   the email fallback; 5 and 15 working days; scope and out-of-scope — and its
   *Supported versions* table says `0.1.x`. Say what the sentence above it already
   does: the latest release, named, with a test in `tests/test_version.py` (which
   already reads `RELEASING.md`) that the table names the current minor series.
 
-- [ ] **27.2.5** **`RELEASING.md` cites ADR-0020 (T4.4).** The document explains
+  **STATUS 2026-09-22:** ✅ Test first
+  (`test_the_security_policy_names_the_series_it_supports`): the versions the
+  table lists must be exactly the released minor series, derived from
+  `pyproject.toml`, so the next bump that forgets this file is a red test rather
+  than a reporter's wrong answer. Red on `['0.1.x'] != ['0.3.x']`, then `0.3.x`.
+  The table had been wrong through two releases — a reporter checking whether
+  their version was supported read a series superseded twice — and a comment
+  beside it now says a test keeps it true.
+
+- [x] **27.2.5** **`RELEASING.md` cites ADR-0020 (T4.4).** The document explains
   the brake's placement three times (lines 20–22, 224, 319–324) and never says
   `ADR-0020`. One sentence in the brake paragraph; no test — the traceability
   ratchet holds ADRs to requirements, not documents to ADRs, and one citation does
   not need a machine.
 
-- [ ] **27.2.6** **`dist/` and `.security-scan/` cleared (T0.3, T4.2).** Two
+  **STATUS 2026-09-22:** ✅ One sentence in the brake paragraph
+  (`docs/RELEASING.md:325`): the environment sits on `promote` on purpose,
+  ADR-0020 records why, and moving it to `verify` or `stage` would put the human
+  before the evidence and leave the irreversible steps ungated — which is the
+  mistake the citation exists to prevent. No test, as the task said.
+
+- [x] **27.2.6** **`dist/` and `.security-scan/` cleared (T0.3, T4.2).** Two
   gitignored leftovers on this machine: `dist/` holds the `0.1.0rc1` wheel and
   sdist from 2026-09-05 — the release builds `dist/` on a clean checkout, so
   nothing published can pick them up, and a developer's `pip install dist/*.whl`
   can; `.security-scan/` holds a `full` scan from 2026-09-19 with `build.match:
   false`. `rm` both. **Not regenerated here until after the gate** — a local
   scan re-warms the Mac the gate needs cold. A STATUS note, no PR.
+
+  **STATUS 2026-09-22:** ✅ Both removed, after checking what they were: `dist/`
+  held only the two `0.1.0rc1` files from 2026-09-05 (the yanked release) and
+  `dist/.gitignore`, which stays — it is the `*` that keeps a build from being
+  committed; `.security-scan/` held a `full` scan from 2026-09-19 15:14 with
+  `build.match: false` and no `generation`, so it predated 26.0.3 as well. Both
+  were untracked and ignored, confirmed before deleting; `git status` is
+  unchanged by the removal. Not regenerated on this machine until the gate has
+  run. No PR of its own — it rides with 27.2.4 and 27.2.5.
 
 - [ ] **27.2.7** **A scheduled failure is an issue (T2.1's residue).** The
   analysis's consequences were wrong — a red `index.yml` that fails before its

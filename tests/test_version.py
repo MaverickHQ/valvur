@@ -58,6 +58,23 @@ def test_the_readme_states_the_version_it_ships():
     assert stated.group(1) == _declared()
 
 
+def test_the_security_policy_names_the_series_it_supports():
+    """27.2.4. `SECURITY.md` says pre-1.0 only the latest release is supported, and
+    its table said `0.1.x` through `0.2.0` and `0.3.0` — so a reporter checking
+    whether their version is supported read a series that had been superseded
+    twice. The table is generated from nothing; this test is what keeps it true."""
+    policy = (REPO / "SECURITY.md").read_text()
+    series = ".".join(_declared().split(".")[:2]) + ".x"
+
+    listed = re.findall(r"^\| `([^`]+)` \|", policy, re.M)
+
+    assert listed, "SECURITY.md no longer lists a supported version"
+    assert listed == [series], (
+        f"SECURITY.md supports {listed}; this release is {_declared()}, so the "
+        f"series is {series}"
+    )
+
+
 def test_the_default_image_carries_the_shim_version():
     """A shim that asks for whatever tag it was built alongside cannot drift from it."""
     from valvur.version import __version__, default_image
