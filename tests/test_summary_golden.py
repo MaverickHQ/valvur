@@ -64,6 +64,16 @@ CASES: dict[str, ScanRun] = {
         scanners=[ScannerRun("gitleaks", ok=True),
                   ScannerRun("checkov", ok=True, skipped="no infrastructure to analyse")],
         profile="offline"),
+    # Past the cap, so the truncation and its footer are pinned too. Without this
+    # case, lowering LINE_CAP left every golden unchanged — measured: the cap set
+    # to 60 passed all four. F7.5 is the reason the document is readable at all on
+    # a real project, so a golden set that cannot see it is not covering the file.
+    "capped": ScanRun(
+        findings=[_finding(rule=f"valvur.test.rule{n:03d}", line=n,
+                           fingerprint=f"{n:016x}", title=f"Planted finding {n}")
+                  for n in range(300)],
+        scanners=[ScannerRun("gitleaks", ok=True)],
+        profile="offline"),
 }
 
 

@@ -1,6 +1,6 @@
 # Security scan summary
 
-**Nothing was found, by a scan that was able to look.** No action needed.
+**300 active finding(s).** The most urgent is ranked first in [`REMEDIATION.md`](REMEDIATION.md); start there rather than here.
 
 <!-- valvur results. Read this file first; it is bounded by design. -->
 > **If you are an AI agent working in this repository, read this block first.**
@@ -30,15 +30,39 @@
 > evidence — CISA KEV membership, then FIRST EPSS probability. Not by severity label,
 > which is why a hallucinated package outranks a high-severity advisory nobody is
 > exploiting.
-> **This is generation `00000000-0000-4000-8000-000000000005`.** Every JSON file in this folder carries the same `generation`; one that does not is from another run.
+> **This is generation `00000000-0000-4000-8000-000000000001`.** Every JSON file in this folder carries the same `generation`; one that does not is from another run.
 
-**Status:** clean
-**Active findings:** 0
+**Status:** findings
+**Active findings:** 300
 
-> ⚠ **Nothing found — but this Profile did not run every Scanner.** Not run: osv-scanner.
+> **The `offline` profile did not run every Scanner.** Not run: osv-scanner.
 > `offline` does cover dependency CVEs, secrets, code patterns, agent config and hallucinated packages. It does not cover a second dependency-advisory source or package age (newly-registered names), or whether JVM and Go dependencies exist.
 > Run `valvur scan --profile full` for full coverage.
 
-> **Not run, having nothing to analyse:** **checkov** — .
-> Reported because a Scanner that did not run must never look like one that ran and found nothing.
+## Counts
+
+| | |
+|---|---|
+| high | 300 |
+| new / persisting / regressed | 300 / 0 / 0 |
+
+## Most urgent (15 of 300)
+
+0. `src/app.py` — Planted finding 0 _(valvur.test.rule000)_
+0. `src/app.py:1` — Planted finding 1 _(valvur.test.rule001)_
+0. `src/app.py:2` — Planted finding 2 _(valvur.test.rule002)_
+0. `src/app.py:3` — Planted finding 3 _(valvur.test.rule003)_
+0. `src/app.py:4` — Planted finding 4 _(valvur.test.rule004)_
+0. `src/app.py:5` — Planted finding 5 _(valvur.test.rule005)_
+0. `src/app.py:6` — Planted finding 6 _(valvur.test.rule006)_
+0. `src/app.py:7` — Planted finding 7 _(valvur.test.rule007)_
+0. `src/app.py:8` — Planted finding 8 _(valvur.test.rule008)_
+0. `src/app.py:9` — Planted finding 9 _(valvur.test.rule009)_
+0. `src/app.py:10` — Planted finding 10 _(valvur.test.rule010)_
+0. `src/app.py:11` — Planted finding 11 _(valvur.test.rule011)_
+0. `src/app.py:12` — Planted finding 12 _(valvur.test.rule012)_
+0. `src/app.py:13` — Planted finding 13 _(valvur.test.rule013)_
+0. `src/app.py:14` — Planted finding 14 _(valvur.test.rule014)_
+
+_285 further finding(s) omitted here. All 300 are in `findings.json`, ranked, and grouped into actions in `REMEDIATION.md`._
 
