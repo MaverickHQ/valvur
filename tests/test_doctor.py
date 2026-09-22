@@ -574,3 +574,60 @@ def test_doctor_writes_nothing_and_opens_no_socket_unless_asked(healthy, monkeyp
 
     assert sorted(p.relative_to(healthy) for p in healthy.rglob("*")) == before
     assert sorted(p.relative_to(cache.root()) for p in cache.root().rglob("*")) == cache_before
+
+
+# ------------------------------------------------- which way the imports point
+
+
+def test_doctor_imports_without_the_cli(tmp_path):
+    """27.3.1. `doctor` is a pre-flight diagnostic; `cli` is an entry point. The
+    KEV constants lived in `cli`, so `doctor` reached up into the layer above it
+    to answer which hosts a first run touches — and could not be imported without
+    dragging the whole CLI tree in. A subprocess, because `sys.modules` in this
+    one is full of everything the suite has already imported."""
+    import subprocess
+    import sys
+
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        # The KEV import was lazy, inside the check, so importing the module was
+        # never enough to see it: the hosts have to be ASKED for, and only then is
+        # `sys.modules` worth looking at. Written the other way round first, and it
+        # passed against the defect it was written for.
+        "import sys\n"
+        "import valvur.doctor\n"
+        "hosts = valvur.doctor._first_run_hosts()\n"
+        "assert hosts, 'the hosts are still answered'\n"
+        "assert any(h == 'www.cisa.gov' for h, _ in hosts), hosts\n"
+        "assert 'valvur.cli' not in sys.modules, 'asking doctor a question pulled in cli'\n"
+        "print('ok')\n"
+    )
+    done = subprocess.run([sys.executable, str(probe)], capture_output=True, text=True,
+                          timeout=60, check=False)
+
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "ok"
+
+
+def test_nothing_but_the_entry_points_imports_the_cli():
+    """The ratchet, over the package's own import graph: `cli` is where a person's
+    command line becomes calls, and a module that imports it has either put
+    presentation below the logic or taken a constant from the wrong home. The two
+    exceptions are the entry points themselves."""
+    import ast
+
+    source = Path(__file__).resolve().parent.parent / "src" / "valvur"
+    allowed = {"__main__.py", "cli.py"}
+    offenders = []
+    for path in sorted(source.rglob("*.py")):
+        if path.name in allowed:
+            continue
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").endswith("cli"):
+                offenders.append(f"{path.relative_to(source)}:{node.lineno}")
+            if isinstance(node, ast.Import):
+                offenders += [f"{path.relative_to(source)}:{node.lineno}"
+                              for alias in node.names if alias.name.endswith("valvur.cli")]
+
+    assert not offenders, f"these import the CLI: {offenders}"

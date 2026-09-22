@@ -504,8 +504,8 @@ def _first_run_hosts() -> list[tuple[str, int]]:
     from urllib.parse import urlsplit
 
     from . import name_index, oci
-    from .cli import KEV_URL, KEV_URL_ENV
     from .egress import DEFAULT_DB_REPOSITORY, db_repository
+    from .enrichment import KEV_URL, KEV_URL_ENV
 
     hosts: list[tuple[str, int]] = []
 

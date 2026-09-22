@@ -22,6 +22,21 @@ from typing import Protocol
 from . import cache
 from .findings import Finding
 
+#: CISA's catalog of vulnerabilities exploited in reality (F6.2). The image ships a
+#: snapshot as the offline floor; `valvur update` refreshes it into the host cache,
+#: because exploitation data changes daily and image releases do not — ADR-0012's
+#: argument applied to a second dataset.
+#:
+#: Here rather than in `cli.py`, where they lived until task 27.3.1: the fetch is
+#: this module's, and `doctor` needs the same two values to say which hosts a first
+#: run touches. A diagnostic reaching up into the entry point for a constant is the
+#: dependency pointing the wrong way, and it meant `doctor` could not be imported
+#: without the whole CLI behind it.
+KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+#: An air-gapped mirror of the catalog above: one JSON file, so any static server
+#: holding a copy of it will do (22.B.3, `docs/AIR-GAPPED.md`).
+KEV_URL_ENV = "VALVUR_KEV_URL"
+
 STALE_AFTER_DAYS = 30
 #: F6.2: the KEV snapshot shipped in the image, ransomware-campaign flag included
 #: (`r` in each entry), refreshed into the host cache by `valvur update`.

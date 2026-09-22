@@ -267,8 +267,10 @@ def _print_suppression(args) -> int:
     return 0
 
 
-KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-KEV_URL_ENV = "VALVUR_KEV_URL"
+#: Owned by `enrichment`, which does the fetching (27.3.1); named here because
+#: `_refresh_kev` below is `valvur update`'s third fetch and a reader of this file
+#: should see what it reaches for.
+from .enrichment import KEV_URL, KEV_URL_ENV  # noqa: E402 — beside its one user
 
 
 def _refresh_kev() -> None:
