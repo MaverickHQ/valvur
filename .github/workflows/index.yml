@@ -39,6 +39,7 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      issues: write         # open the one issue a failure gets (27.2.7)
       packages: write       # push the artifact
       id-token: write       # keyless signing
     steps:
@@ -191,3 +192,30 @@ jobs:
             echo
             du -sh artifact/* 2>/dev/null | sed 's/^/    /'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: A failure is a tracked thing, not an email
+        # GitHub mails a scheduled failure to the workflow file's last committer and
+        # does nothing else, so until task 27.2.7 the record of an index that stopped being rebuilt was one
+        # person's inbox. One open issue per workflow: a second failure comments on
+        # the first rather than filing another, because a job that has been broken
+        # for a week is one problem, not seven.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the daily name index stopped building
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "The scheduled \`index\` run failed: $RUN" \
+            "Users keep the last published index: valvur update still pulls it and scans still answer from it. An index over thirty days old makes a nil result inconclusive rather than clean (ADR-0018), so a red day costs nothing and a red month costs the verdict." \
+            "Recovery: re-run this workflow. Nothing is published until the round trip verifies the build, so a failed run left every tag where it was.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi
+

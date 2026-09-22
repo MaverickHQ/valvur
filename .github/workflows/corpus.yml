@@ -23,6 +23,9 @@ jobs:
   corpus:
     name: thirteen real repositories, both Profiles
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write         # open the one issue a failure gets (27.2.7)
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -98,3 +101,30 @@ jobs:
             corpus-compare.txt
             corpus-*.txt
           retention-days: 90
+      - name: A failure is a tracked thing, not an email
+        # GitHub mails a scheduled failure to the workflow file's last committer and
+        # does nothing else, so until task 27.2.7 the record of a corpus that stopped passing was one
+        # person's inbox. One open issue per workflow: a second failure comments on
+        # the first rather than filing another, because a job that has been broken
+        # for a week is one problem, not seven.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the weekly corpus run failed
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "The scheduled \`corpus\` run failed: $RUN" \
+            "Nothing users have changes: the corpus scans thirteen public repositories and publishes nothing. What is lost is the check itself, which is the only thing that sees a false positive from a rule or Check change before a user does." \
+            "Recovery: read the run summary for the repository and the condition that failed, then dispatch this workflow again after the fix.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi
+
