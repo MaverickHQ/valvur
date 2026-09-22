@@ -6832,7 +6832,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   not touch anything a stranger's first run meets — two constants between
   modules, no behaviour.
 
-- [ ] **27.3.2** **One ecosystem registry (T3.1).** `dependency_reality.py` is
+- [x] **27.3.2** **One ecosystem registry (T3.1).** `dependency_reality.py` is
   1,206 lines — Check orchestration, seven manifest parsers, registry transport,
   per-registry age decoding, typosquat matching — and imports `name_index`
   lazily in three places while `name_index.py:468` imports
@@ -6852,6 +6852,39 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   and a registry host that `egress.SPOKEN_AS` names. The weekly corpus after
   landing is the measurement; the STATUS note quotes its counts against the
   previous week's.
+
+  **STATUS 2026-09-22:** ✅ `dependency_reality.py` **1,206 → 643 lines**, and
+  the three tables an ecosystem lived in are one: `ecosystems/` is a package
+  whose `registry.py` holds, per ecosystem, the key, the label, the `(pattern,
+  parser)` pairs it reads, what it only sees, the index file *or* the reason
+  there can be none, the registry and its host, the spelling the index stores,
+  and whether the near-miss comparison applies. `MANIFESTS`, `name_index.FILES`
+  and `Ecosystem.reads` all derive from it; `parsers.py` holds the eleven
+  parsers behind one shape, so `_declared_packages` is a loop over the registry
+  rather than eleven hand-written calls. The Check's `_index_form` chain,
+  `_REGISTRY_NAME` table and two `ecosystem == "pip"` near-miss tests read from
+  the registry. **The circular import is gone**: `name_index` wanted the Check's
+  PEP 503 and the Check wanted `name_index`'s crate form; both are the
+  registry's, PEP 503 now has one definition in the tree, and a subprocess test
+  proves importing `name_index` no longer pulls in the Check. **Tests first**:
+  five goldens of what the parsers read — Python, npm, JVM, the
+  Go/Ruby/PHP/Rust set, and the repository's broken fixture — captured before
+  any code moved and byte-identical after; plus every ecosystem reads something
+  and can answer existence or says why not, every registry host is one
+  `egress.SPOKEN_AS` names (so a host this Check reaches is one `run.json`
+  discloses), and the index order. **Found on the way:** `MANIFESTS` and
+  `name_index.FILES` ordered their ecosystems *differently*, and `doctor` prints
+  the index order to a user — deriving one from the other silently reordered
+  that line, which three tests caught; `INDEX_ORDER` states it. Mutations, five,
+  all caught after the last was fixed: a parser unwired, an index file dropped,
+  a host `egress` does not name, the index form changed, and the order changed —
+  that last one passed at first, because the test compared the dict with the
+  constant it is built from, which says only that a loop works. **Measured:**
+  1,059 unit tests, and the **e2e suite against a rebuilt image, 25 passed in
+  4m03s** — the Check runs inside the container, so a package that imports
+  differently there is the failure this catches. The weekly corpus on Monday is
+  the last word; its counts belong beside the previous week's.
+  **Phase 27 is complete.**
 
 - [x] **27.3.3** **`SUMMARY.md` rendering out of `results.py` (T3.2).** 642 lines,
   of which `_summary` runs from 304 to 563 with `_verdict`, `_slowest`,

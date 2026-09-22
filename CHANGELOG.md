@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **One place to add an ecosystem.** What valvur knows about Python, npm, Ruby,
+  PHP, Rust, the JVM and Go was spread over three modules that had to be edited
+  together — which files to read, which index answers existence, and a chain of
+  per-ecosystem branches for the registry, the URL and the name form. It is one
+  registry entry each now, with the parsers beside it; the dependency-reality
+  Check is 1,206 lines lighter by half and no longer imports the index module
+  that imported it back. No behaviour changed, and five goldens taken before the
+  move say so (27.3.2).
 - **A scheduled workflow's failure is a tracked thing.** The daily name-index
   build and the weekly corpus run are the work nobody is watching, and GitHub
   mails their failures to one person and does nothing else. Each now opens an
