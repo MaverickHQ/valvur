@@ -6853,7 +6853,7 @@ measured number in the STATUS note of any task that changes what a user sees. Th
   landing is the measurement; the STATUS note quotes its counts against the
   previous week's.
 
-- [ ] **27.3.3** **`SUMMARY.md` rendering out of `results.py` (T3.2).** 642 lines,
+- [x] **27.3.3** **`SUMMARY.md` rendering out of `results.py` (T3.2).** 642 lines,
   of which `_summary` runs from 304 to 563 with `_verdict`, `_slowest`,
   `_counts_table`, `_one_line` and `_enforce_cap` beside it — about three hundred
   lines of prose in the module whose job is the atomic write (26.0.3). Extract
@@ -6862,6 +6862,26 @@ measured number in the STATUS note of any task that changes what a user sees. Th
 
   **Tests first**: `SUMMARY.md` on each fixture snapshotted before the move and
   held byte-identical after; the existing summary tests move with the code.
+
+  **STATUS 2026-09-22:** ✅ `results.py` **642 → 230 lines** and writes;
+  `summary.py` is 423 with one entry point, `render(run)`, which the write loop
+  calls as it calls every other document's renderer. **Found on the way:** the
+  two staleness predicates were used by *both* halves — `run.json`'s `stale`
+  flags and `SUMMARY.md`'s prose — so extracting the renderer alone would have
+  made one half import the other; they are `staleness.py` (28 lines) and both
+  callers import from there. Test first: five goldens in
+  `tests/fixtures/summary/`, generated from `results._summary` **before any code
+  moved** and byte-identical after, each case pinning its own generation id
+  (uuid4 per Scan Run, correct and fatal for a golden). Mutations: a heading
+  reworded (4 red), the counts table dropped (1 red). **The mutation pass found
+  a hole in the goldens themselves:** `LINE_CAP` lowered from 200 to 60 left all
+  four unchanged, because none rendered enough lines for the cap to bite — F7.5
+  is why the document stays readable on a real project, so a golden set blind to
+  it was not covering the file. A fifth case, 300 findings, pins the cut and the
+  *"285 further finding(s) omitted"* footer; the same mutation is now red. 1,046
+  unit tests pass. **Sequencing note:** Tier 3 waits for the gate because it
+  moves seams the release freezes; this one changes no behaviour and is held to
+  that by bytes.
 
 - [ ] **27.3.4** **A typed pipeline result (T3.4).** `pipeline.Context`
   (pipeline.py:35–57) has fifteen fields; stages write `artifacts`, `coverage`,
