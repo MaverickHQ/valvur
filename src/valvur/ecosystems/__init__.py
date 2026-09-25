@@ -11,7 +11,9 @@ because the fingerprints could not match.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
+from . import parsers as _parsers
 from . import registry as _registry
 from .registry import (  # noqa: F401 — the package's surface
     BY_KEY,
@@ -110,3 +112,27 @@ VULNERABILITY_MANIFESTS: dict[str, tuple[str, ...]] = {
 MANIFESTS: dict[str, Manifests] = {
     e.key: Manifests(e.label, reads=e.reads, sees=e.sees) for e in _registry.ECOSYSTEMS
 }
+
+
+def declared(workspace: Path) -> set[tuple[str, str, str]]:
+    """Every directly-declared dependency, as (ecosystem, name, manifest path).
+
+    Here rather than in `parsers.py` (28.0.5): this is the loop over the registry,
+    and a parser module that imported the registry that imported it was the tree's
+    only module-level cycle.
+
+    Ecosystem travels with the name because the same string is a different package in
+    two registries — and because the registry to ask is decided here, once, rather
+    than guessed later.
+    """
+    found: set[tuple[str, str, str]] = set()
+    for ecosystem in ECOSYSTEMS:
+        for pattern, parse in ecosystem.parsers:
+            for path in _parsers.manifests(workspace, pattern):
+                found |= parse(path, workspace)
+
+    # Never asked about, not merely unreported. A workspace member's name leaving the
+    # machine buys nothing, and §3 is about what we transmit as much as what we say.
+    local = _parsers._defined_locally(workspace)
+    return {(eco, name, src) for eco, name, src in found if (eco, name) not in local}
+

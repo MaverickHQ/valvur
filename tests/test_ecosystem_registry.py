@@ -196,3 +196,100 @@ def test_the_registry_holds_what_the_three_modules_each_held_a_piece_of():
     assert dependency_reality._index_form("gem", "Rails") == "Rails", "RubyGems is case-sensitive"
     assert dependency_reality._index_form("cargo", "serde-json") == "serde_json"
     assert ecosystems.get("gomod").near_miss is False and pip.near_miss is True
+
+
+# --------------------------------------------------- the import graph (28.0.5)
+
+
+def _import_graphs() -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    """Every module under `src/valvur` → the modules it imports. Two graphs: HARD
+    edges are module-level imports outside `if TYPE_CHECKING:`, which run at
+    import time and can only work in a cycle by Python's partial-module accident;
+    SOFT edges are everything, including lazy imports inside functions and
+    annotation-only ones, which are a design choice this project uses on purpose."""
+    import ast
+    import collections
+
+    root = Path(__file__).resolve().parent.parent / "src" / "valvur"
+    modules: dict[str, Path] = {}
+    for path in root.rglob("*.py"):
+        name = ".".join(path.relative_to(root.parent).with_suffix("").parts)
+        modules[name.removesuffix(".__init__")] = path
+
+    def resolve(name: str, path: Path, node: ast.ImportFrom) -> set[str]:
+        parts = name.split(".") + (["_"] if path.name == "__init__.py" else [])
+        base = parts[:-node.level] if node.level else []
+        module = [node.module] if node.module else []
+        target = ".".join(base + module) if node.level else node.module
+        found = set()
+        for alias in node.names:
+            candidate = f"{target}.{alias.name}"
+            found.add(candidate if candidate in modules else target)
+        return {f for f in found if f in modules}
+
+    def _internal(node: ast.ImportFrom) -> bool:
+        return bool(node.level) or (node.module or "").startswith("valvur")
+
+    hard: dict[str, set[str]] = collections.defaultdict(set)
+    soft: dict[str, set[str]] = collections.defaultdict(set)
+    for name, path in modules.items():
+        tree = ast.parse(path.read_text())
+        for node in tree.body:
+            if isinstance(node, ast.If) and getattr(node.test, "id", "") == "TYPE_CHECKING":
+                continue
+            if isinstance(node, ast.ImportFrom) and _internal(node):
+                hard[name] |= resolve(name, path, node)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and _internal(node):
+                soft[name] |= resolve(name, path, node)
+    return hard, soft
+
+
+def _cycles(graph: dict[str, set[str]]) -> set[tuple[str, ...]]:
+    found: set[tuple[str, ...]] = set()
+
+    def walk(node: str, stack: list[str], seen: set[str]) -> None:
+        seen.add(node)
+        stack.append(node)
+        for target in graph.get(node, ()):
+            if target in stack:
+                found.add(tuple(sorted(stack[stack.index(target):])))
+            elif target not in seen:
+                walk(target, stack, seen)
+        stack.pop()
+
+    for node in list(graph):
+        walk(node, [], set())
+    return found
+
+
+def test_no_module_level_import_cycles():
+    """28.0.5. 27.3.2 removed the lazy two-way import between `name_index` and the
+    Check and, one package down, introduced the tree's only HARD cycle:
+    `ecosystems.registry` imported the parser functions at module level and
+    `ecosystems.parsers.declared()` imported the registry at module level. It ran
+    only because `declared` touched the registry at call time. Zero, by ratchet."""
+    hard, _ = _import_graphs()
+
+    assert _cycles(hard) == set(), f"module-level import cycles: {sorted(_cycles(hard))}"
+
+
+def test_soft_cycles_are_the_ones_chosen_on_purpose():
+    """Lazy and annotation-only cycles are a design choice here — `api` and
+    `results` need each other's names, `mcp.server` and `mcp.tools` register each
+    other — and each is named so a new one is a decision, not an accident."""
+    _, soft = _import_graphs()
+    accepted = {
+        ("valvur.api", "valvur.results"),
+        ("valvur.api", "valvur.results", "valvur.summary"),
+        ("valvur.api", "valvur.results", "valvur.staleness"),
+        ("valvur.api", "valvur.pipeline", "valvur.results"),
+        ("valvur.api", "valvur.pipeline", "valvur.results", "valvur.summary"),
+        ("valvur.api", "valvur.pipeline", "valvur.results", "valvur.staleness"),
+        ("valvur.api", "valvur.pipeline", "valvur.results", "valvur.staleness", "valvur.summary"),
+        ("valvur.mcp.server", "valvur.mcp.tools"),
+        ("valvur", "valvur.api", "valvur.compat", "valvur.runner"),
+    }
+
+    new = _cycles(soft) - accepted
+    assert not new, f"a lazy or annotation-only import cycle nobody chose: {sorted(new)}"

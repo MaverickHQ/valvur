@@ -377,7 +377,7 @@ def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
     package since 27.3.2; this Check asks for the answer rather than holding
     eleven parsers and a hand-written list of which to call.
     """
-    return _parsers.declared(workspace)
+    return _ecosystems.declared(workspace)
 
 
 #: Where each ecosystem's names are verified, named as a reader would name it —

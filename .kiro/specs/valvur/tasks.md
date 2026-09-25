@@ -7021,7 +7021,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
 
 ### Tier 0 — The trust boundary, before the next tag
 
-- [ ] **28.0.1** **GitHub's own guards, on (O1).** Measured by API: `secret_scanning`,
+- [x] **28.0.1** **GitHub's own guards, on (O1).** Measured by API: `secret_scanning`,
   `secret_scanning_push_protection`, `dependabot_security_updates` and
   vulnerability alerts are all `disabled`; code scanning alone is on. The
   defences that exist — the gitleaks pre-commit hook, the per-PR self-scan — are
@@ -7034,6 +7034,25 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   network, so the unit suite stays sealed. The STATUS note records what secret
   scanning found on the history the moment it was switched on, because that is
   the number that says whether this mattered.
+
+  **STATUS 2026-09-25:** ✅ Test first (`tests/test_repository_guards.py`, two
+  `e2e` tests reading the repository's `security_and_analysis` and
+  `/vulnerability-alerts` through `gh`): red on all three names and the 404.
+  Enabled by API in the order the API requires — vulnerability alerts first,
+  since Dependabot security updates depend on them — and read back: all four
+  `enabled`, `automated_security_fixes=true`. **What they found on arrival:**
+  secret scanning, over the whole history, **two alerts** — an AWS Access Key
+  ID and Secret Access Key — both the planted fake in
+  `tests/fixtures/broken-repo/config.py` (chosen to avoid AWS's documentation
+  examples so scanners fire), referenced from four test files and the
+  `.gitleaks.toml` allowlist; resolved as *used in tests* with the reason,
+  zero open. Dependabot: **zero** open alerts on arrival — including nothing
+  for the python-ecdsa CVE code scanning already holds, so either Dependabot
+  does not read `requirements-checkov.txt` as a manifest or its first pass had
+  not run; re-checked at the phase's end. **The trade-off worth knowing:**
+  push protection will now block a push that adds a new planted credential to
+  a fixture — the bypass exists and asks for a reason, which is the right
+  friction for a repository that commits fake keys on purpose.
 
 - [ ] **28.0.2** **Write access is not release authority (D1).** Four measurements:
   `rulesets → []` and `tags/protection → 404`; `verify` checks only that the tag

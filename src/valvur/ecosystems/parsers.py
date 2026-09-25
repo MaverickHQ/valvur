@@ -8,9 +8,10 @@ that read a manifest and said nothing about it.
 
 Every parser has the same shape: `(path, workspace) -> {(ecosystem, name, source)}`,
 where `source` is the manifest's path relative to the Workspace. The registry pairs
-each with the filename pattern it reads, so `declared` below is a loop rather than
-eleven hand-written calls, and a new ecosystem is one registry entry plus one
-function here.
+each with the filename pattern it reads, and `ecosystems.declared` — the package's
+own function, not this module's — is the loop over both, so a new ecosystem is one
+registry entry plus one function here. This module imports nothing of the
+registry: it was the tree's only module-level import cycle until 28.0.5.
 
 A name that the Workspace itself defines — a monorepo package, a Gradle sibling, a
 Cargo workspace member — is removed at the end: asking a registry about it buys
@@ -23,8 +24,6 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-
-from ..ecosystems import registry as _registry
 
 REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")
 
@@ -110,23 +109,6 @@ def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
     return defined
 
 
-def declared(workspace: Path) -> set[tuple[str, str, str]]:
-    """Every directly-declared dependency, as (ecosystem, name, manifest path).
-
-    Ecosystem travels with the name because the same string is a different package in
-    two registries — and because the registry to ask is decided here, once, rather
-    than guessed later.
-    """
-    found: set[tuple[str, str, str]] = set()
-    for ecosystem in _registry.ECOSYSTEMS:
-        for pattern, parse in ecosystem.parsers:
-            for path in manifests(workspace, pattern):
-                found |= parse(path, workspace)
-
-    # Never asked about, not merely unreported. A workspace member's name leaving the
-    # machine buys nothing, and §3 is about what we transmit as much as what we say.
-    local = _defined_locally(workspace)
-    return {(eco, name, src) for eco, name, src in found if (eco, name) not in local}
 
 
 def manifests(workspace: Path, pattern: str):
