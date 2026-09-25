@@ -658,7 +658,11 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
 3. N1.3 — `SUMMARY.md` SHALL be readable within a 200k-token context alongside
    `REMEDIATION.md`.
 4. N1.4 — Memory use SHALL remain under 2 GB for the `full` **Profile** — the whole
-   fleet of Scanner containers at once, plus the shim. *Amended 2026-09-13 (task
+   fleet of Scanner containers at once, plus the shim. *Enforced 2026-09-25 (task
+   28.0.3): every container is launched under `--memory=2g` with no swap, a
+   512-PID limit and `no-new-privileges`, so the budget this requirement states
+   is a ceiling the kernel holds rather than a number CI reads — a container past
+   it is killed (exit 137, measured in 8 s) and reported as a failed Scanner.* *Amended 2026-09-13 (task
    24.3): measured by hand at 344 MiB peak container usage on 2026-09-01 and never
    asserted — the test that cited this ID skipped itself. Now asserted in the e2e
    suite on Linux (`test_a_full_scan_stays_within_its_memory_budget`): a sampler

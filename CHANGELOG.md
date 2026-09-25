@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Every Scanner's container has a ceiling.** Until now a container ran with a
+  read-only root, no capabilities and no network — and could still take every
+  byte of memory the host had: a pathological pattern for Opengrep, a
+  multi-gigabyte lockfile for Trivy. Each is now launched under `--memory=2g`
+  with no swap, a 512-PID limit and `no-new-privileges`; a container past the
+  ceiling is killed and reported as a failed Scanner rather than the host
+  swapping while the budget counts down. Rootless Podman on a cgroup v1 host
+  cannot take a memory limit and keeps the other two; `doctor` says so
+  (28.0.3, F3).
 - **One place to add an ecosystem.** What valvur knows about Python, npm, Ruby,
   PHP, Rust, the JVM and Go was spread over three modules that had to be edited
   together — which files to read, which index answers existence, and a chain of

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os as _os
+import platform
 import threading as _threading
 import uuid as _uuid
 from contextlib import suppress as _suppress
@@ -187,6 +188,48 @@ def unsupported_platform_warning() -> str:
 # kill` by name takes 0.24s, but valvur passed no `--name` and no `--cidfile`, so
 # there was no handle at all: a cancelled scan kept working, and the scratch mount
 # holding raw output with live credentials (F5.7) stayed alive with it.
+#: The ceiling on every container this process starts (task 28.0.3, F3). Sized
+#: from N1.4's measurement — 528 MiB peak on CI for the whole `full` fleet — with
+#: swap equal to memory, which is no swap at all: a container past the ceiling is
+#: killed (exit 137) rather than swapping the host while the budget counts down.
+#: 512 PIDs is ten times the widest fleet member (Checkov's worker pool).
+#: no-new-privileges closes setuid inside a `--cap-drop=ALL` box. One tuple, so 2g
+#: is 2g everywhere and a change is one diff — the way `egress.py` holds the
+#: network flag. Until 28.0.3 the fleet had a read-only root, no capabilities and
+#: no network, and could still take every byte of memory the host had.
+RESOURCE_LIMITS: tuple[str, ...] = (
+    "--memory=2g", "--memory-swap=2g", "--pids-limit=512", "--security-opt=no-new-privileges",
+)
+#: The two of those a rootless Podman on cgroup v1 refuses outright ("cgroup v1
+#: rootless: memory limit not supported") — refusing to start the container at
+#: all, which would turn a safety flag into a scan that cannot run.
+_MEMORY_LIMITS = tuple(flag for flag in RESOURCE_LIMITS if flag.startswith("--memory"))
+
+
+def _cgroup_v2() -> bool:
+    """Whether this Linux host runs cgroup v2, the one rootless Podman can apply a
+    memory limit under. macOS and Windows run a VM that is v2; only a Linux host
+    can answer no."""
+    if platform.system() != "Linux":
+        return True
+    return Path("/sys/fs/cgroup/cgroup.controllers").exists()
+
+
+def memory_ceiling_note(runtime: str) -> str | None:
+    """The one case the memory half of the ceiling is dropped, said in one line
+    for `doctor` and the run report — or None when the whole ceiling applies."""
+    if "podman" in runtime and not _cgroup_v2():
+        return ("memory ceiling not applied: rootless Podman on cgroup v1 refuses --memory; "
+                "the PID limit and no-new-privileges still hold")
+    return None
+
+
+def _resource_flags(runtime: str) -> list[str]:
+    if memory_ceiling_note(runtime) is not None:
+        return [flag for flag in RESOURCE_LIMITS if flag not in _MEMORY_LIMITS]
+    return list(RESOURCE_LIMITS)
+
+
 _live_containers: set[str] = set()
 _live_lock = _threading.Lock()
 
@@ -410,6 +453,8 @@ class ContainerRunner:
             "--tmpfs",
             f"/tmp:rw,{'exec' if allow_exec else 'noexec'},nosuid,size=512m",  # noqa: S108
             "--cap-drop=ALL",
+            # The memory, PID and privilege ceiling (28.0.3), from one tuple above.
+            *_resource_flags(self.runtime),
             # SELinux mount labelling (F1.6, task 20.2). Measured on an enforcing
             # host: without a label EVERY one of these three mounts is denied — the
             # source unreadable, the results unwritable, the cache unwritable.

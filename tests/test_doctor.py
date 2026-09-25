@@ -631,3 +631,29 @@ def test_nothing_but_the_entry_points_imports_the_cli():
                               for alias in node.names if alias.name.endswith("valvur.cli")]
 
     assert not offenders, f"these import the CLI: {offenders}"
+
+
+def test_doctor_names_a_memory_ceiling_it_could_not_apply(healthy, monkeypatch):
+    """28.0.3. Rootless Podman on cgroup v1 refuses `--memory`, so the runner drops
+    the memory half of the ceiling there; a user on such a host is told, in the
+    runtime line, rather than left to assume every Scanner is bounded."""
+    from valvur import doctor, runner
+
+    monkeypatch.setattr(runner, "memory_ceiling_note",
+                        lambda rt: "memory ceiling not applied: rootless Podman on cgroup v1 "
+                                   "refuses --memory; the PID limit and no-new-privileges "
+                                   "still hold")
+    _, check = doctor._check_runtime()
+
+    assert check.level == "ok"
+    assert "memory ceiling not applied" in check.detail
+    assert "PID limit" in check.detail
+
+
+def test_doctor_says_nothing_about_the_ceiling_where_it_applies(healthy, monkeypatch):
+    from valvur import doctor, runner
+
+    monkeypatch.setattr(runner, "memory_ceiling_note", lambda rt: None)
+    _, check = doctor._check_runtime()
+
+    assert check.level == "ok" and "ceiling" not in check.detail

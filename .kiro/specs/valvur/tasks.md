@@ -7099,6 +7099,24 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   failed rather than the host swapping; the Podman-refusal branch unit-tested
   with a fake runtime. The STATUS note records N1.4's peak against the ceiling.
 
+  **STATUS 2026-09-25:** ✅ `runner.RESOURCE_LIMITS` — `--memory=2g`,
+  `--memory-swap=2g`, `--pids-limit=512`, `--security-opt=no-new-privileges` —
+  one tuple, applied by `_base_flags` to every container including Trivy's
+  database fetch, the one with a network. Test first, six: every adapter's
+  launch carries all four; the ceiling is one authority (the literals appear
+  once); rootless Podman on cgroup v1 (`_cgroup_v2()` false on Linux) keeps the
+  PID limit and `no-new-privileges` and drops the memory pair — because Podman
+  refuses to *start* the container otherwise, which would turn a safety flag
+  into a scan that cannot run — and `doctor`'s runtime line says so; Docker and
+  cgroup-v2 Podman get the whole ceiling; the fetch container is held too.
+  **Measured against the real image:** a container asking for 3 GB inside the
+  2 GB box is **exit 137 after 8.1 s** — killed, not swapping — and the full e2e
+  suite runs green under the ceiling on every Scanner (25 passed; the one red
+  was the tree-hash guard catching an image built before the runner changed,
+  rebuilt and re-run). N1.4's CI peak against the ceiling: recorded from the
+  PR's e2e run below. `PROTOCOL.md`'s process section names the ceiling; N1.4
+  is annotated *enforced*, not only measured; CHANGELOG.
+
 - [ ] **28.0.4** **A first run's fetches are in the record (F2).** On `offline`, a
   first scan pulls the image from GHCR, the database from `mirror.gcr.io` and
   the index from GHCR — announced on `scan_status` and the terminal, and absent

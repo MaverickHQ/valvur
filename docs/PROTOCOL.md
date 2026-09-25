@@ -105,6 +105,11 @@ The shim launches every container the same way (`runner._base_flags`,
 - **`--read-only`**, **`--cap-drop=ALL`**, the tmpfs above, and **`--network=none`**
   unless the Profile grants a network — in which case `VALVUR_NETWORK=1` is set and
   the container may join `VALVUR_CONTAINER_NETWORK`;
+- under a **ceiling** (28.0.3, `runner.RESOURCE_LIMITS`): `--memory=2g` with swap
+  equal to memory, so a container past it is killed rather than swapping the host
+  — measured, 3 GB asked inside the box is an exit 137 in 8 s; `--pids-limit=512`;
+  `--security-opt=no-new-privileges`. Rootless Podman on a cgroup v1 host refuses
+  the memory half and gets the other two, and `doctor` says so;
 - with `--name valvur-<id>`, so a cancel — or the MCP server's own exit (27.1.1) —
   can stop exactly the containers it started (F1.11);
 - with **no `ENTRYPOINT`** in the image: the adapter's argv is the whole command.

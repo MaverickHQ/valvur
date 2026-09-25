@@ -239,7 +239,11 @@ def _check_runtime() -> tuple[str | None, Check]:
             "start it — Docker Desktop (or `open -a Docker`), `systemctl start docker`, "
             "or `podman machine start` — and run doctor again",
         )
-    return runtime, Check("runtime", "ok", f"{version} at {runtime}, running")
+    from .runner import memory_ceiling_note
+
+    note = memory_ceiling_note(runtime)
+    detail = f"{version} at {runtime}, running" + (f"; {note}" if note else "")
+    return runtime, Check("runtime", "ok", detail)
 
 
 def _check_image(runtime: str | None) -> tuple[Check, bool]:
