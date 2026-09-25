@@ -7054,7 +7054,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   a fixture — the bypass exists and asks for a reason, which is the right
   friction for a repository that commits fake keys on purpose.
 
-- [ ] **28.0.2** **Write access is not release authority (D1).** Four measurements:
+- [x] **28.0.2** **Write access is not release authority (D1).** Four measurements:
   `rulesets → []` and `tags/protection → 404`; `verify` checks only that the tag
   matches `pyproject.toml`, not that it is signed or on `main`; the `release`
   environment has zero reviewers, zero wait and no branch policy — the brake
@@ -7080,6 +7080,43 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   rehearsal (the identity change touches the artifact job's `cosign verify`),
   then the ruleset and the reviewer by API, read back. The STATUS note records
   the rehearsal run and the ruleset as the API returns it.
+
+  **STATUS 2026-09-25:** ✅ PR #85. Test first, six in
+  `tests/test_release_trust.py`: the shim's regex accepts the daily index's
+  identity and refuses four neighbours (a branch, the release workflow, the
+  probe, a fork); every command a user is given names the image identity and
+  none the broad one; `artifact` pins to this run's exact identity; `verify`
+  carries `tag -v` and `merge-base --is-ancestor`; the committed signers file
+  verifies HEAD's own signature; the ruleset as GitHub returns it. **(a)** The
+  identity is `release.yml@refs/tags/v` for the image (`EVALUATING.md`,
+  `RELEASING.md`, the release notes the pipeline writes) and
+  `index.yml@refs/heads/main` for the index (`oci.SIGNING_IDENTITY`, anchored at
+  both ends, and `EVALUATING.md`); the README, which has no command of its own,
+  is held to not growing a wider one. `artifact` verifies with
+  `--certificate-identity` at `github.ref` — exact, and true in a rehearsal and
+  a release alike. **(b)** Ruleset 24016563 *release tags*: `refs/tags/v*`,
+  creation, update and deletion restricted to the admin role, signatures
+  required, active. `verify` fetches `main` and the tag object, runs `git tag
+  -v` against `.github/allowed_signers` — the owner's SSH signing key, the one
+  every commit on `main` carries — and refuses a tag whose commit is not on
+  `main`; real tags only. **Measured locally:** a tag signed by the release key
+  verifies (rc 0); an unsigned annotated tag is refused (*no signature found*);
+  a signed tag against a file naming a stranger's key is refused (*No principal
+  matched*). **Rehearsal 36182155025, green in 17m05s:** the exact-identity
+  `cosign verify` passed on both architectures — a rehearsal signs from
+  `refs/heads/<branch>`, which the user-facing pattern refuses and the
+  pipeline's own check admits, which is the point — and the new tag step
+  reported `skipped`. Mutations, all caught: the shim's identity widened,
+  `RELEASING.md` back to the broad one, `artifact` back to a regexp, `tag -v`
+  removed, a stranger's key in the signers file. **(c), deferred to the phase's
+  last act with the reason:** a required reviewer on `release` gates *every*
+  deployment through that environment, rehearsals included — a deployment
+  branch policy does not exempt a ref, it blocks it — so set now it would stall
+  the rehearsals this phase still runs, or need the TestPyPI trusted publisher
+  moved to a second environment, which is the owner's. Set last, every
+  `promote` thereafter waits for the owner's click — where ADR-0020 put the
+  brake. **Found on the way:** the README never carried a verify command; the
+  third review's list said it did.
 
 - [ ] **28.0.3** **A ceiling on every container (F3).** Measured flags in
   `runner._base_flags`: `--read-only`, a 512m tmpfs, `--cap-drop=ALL`,
