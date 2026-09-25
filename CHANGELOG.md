@@ -7,6 +7,13 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The signature you are told to verify names one workflow and one ref.** The
+  identity in every verify command was the repository alone, which a signature
+  from any workflow on any branch satisfies. The image's is now the release
+  workflow on a version tag and the index's the index workflow on `main`; the
+  pipeline verifies its own image against its exact identity. A release tag must
+  now be signed by a known key and sit on `main`, and only the repository's
+  admins can create one (28.0.2).
 - **Every Scanner's container has a ceiling.** Until now a container ran with a
   read-only root, no capabilities and no network — and could still take every
   byte of memory the host had: a pathological pattern for Opengrep, a
