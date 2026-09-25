@@ -7154,7 +7154,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   fleet 467 MiB at most (PR #84's e2e run) — a quarter of the box. `PROTOCOL.md`'s process section names the ceiling; N1.4
   is annotated *enforced*, not only measured; CHANGELOG.
 
-- [ ] **28.0.4** **A first run's fetches are in the record (F2).** On `offline`, a
+- [x] **28.0.4** **A first run's fetches are in the record (F2).** On `offline`, a
   first scan pulls the image from GHCR, the database from `mirror.gcr.io` and
   the index from GHCR — announced on `scan_status` and the terminal, and absent
   from `run.json`, which says `network.used: false`,
@@ -7170,6 +7170,27 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   steady-state run asserts its absence; the `unshare -rn` proof in
   `verify-offline.py` is unchanged, because a first run was never the run it
   proves.
+
+  **STATUS 2026-09-25:** ✅ `_ensure_image` and `_ensure_data` return what
+  *arrived* — `_fetch_record`: what, source, size as the source stated it,
+  seconds to a tenth, and for the index the signature verdict its metadata
+  recorded — threaded through `_scan_locked` into `ScanRun.fetched` and out to
+  `run.json` under `network.fetched` (beside `used`, which stays the Profile's
+  own answer), `findings.json`'s top level, and one `SUMMARY.md` sentence,
+  *"This was a first run. Before any Scanner ran it fetched…"*, only when there
+  is something to say. Empty, not absent, on a steady-state run: a reader can
+  tell "nothing fetched" from "a valvur that did not record". A failed fetch is
+  on the Scanner it cost (24.1's reason line) and is not also a fetch. Test
+  first, five in `test_first_run.py`: the database record with its host
+  (`mirror.gcr.io/aquasec/trivy-db:2`) and size; the index record with its
+  signature; all three in the order they happen; the steady-state empty list on
+  every surface; the failed fetch absent. Mutations, all caught: the database
+  fetch not recorded, the record dropped at `ScanRun`, `run.json` without the
+  list, a failed fetch recorded anyway. **Found on the way:** two of my fakes
+  used `_write_index(d) or {...}`, and `_write_index` returns a Path, so the
+  dict was never returned — the signature read *not recorded* until the fakes
+  were functions. F10.8 extended; ADR-0010 amended; CHANGELOG. **Tier 0 is
+  closed.**
 
 - [x] **28.0.5** **The hard cycle, and a ratchet (A1).** 27.3.2 introduced the
   package's only module-level import cycle: `ecosystems.registry` imports the

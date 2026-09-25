@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A first run's fetches are in the record.** A first scan pulls the image, the
+  vulnerability database and the name index before any Scanner runs; that was
+  announced live and absent from `run.json`, which said `network.used: false` and
+  `what_left_the_machine: nothing` — true of the workspace, silent about the
+  three hosts reached. `run.json` (`network.fetched`), `findings.json` and
+  `SUMMARY.md` now list each fetch: what, from where, how large, how long, and
+  whether the index's signature verified. Empty, not absent, when nothing was
+  fetched (28.0.4).
 - **The signature you are told to verify names one workflow and one ref.** The
   identity in every verify command was the repository alone, which a signature
   from any workflow on any branch satisfies. The image's is now the release

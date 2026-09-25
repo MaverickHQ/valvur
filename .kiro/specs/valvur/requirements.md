@@ -604,6 +604,13 @@ of fixes, so that nothing changes my code without my decision.
    primary path's first `scan` finished incomplete naming a CLI command the agent
    could not run; without the data there is no scan at all, and 23.2.4 had already
    fetched the absent image from inside one. The stale case is unchanged.*
+   *Extended 2026-09-25 (task 28.0.4): what a first run fetched — the image, the
+   database, the index; from where, how large, how long, and the index's
+   signature verdict — is in `run.json` (`network.fetched`), `findings.json` and
+   `SUMMARY.md`. Empty, not absent, on a steady-state run. Until then a first
+   run's record said `network.used: false` about a run that had opened sockets
+   to three hosts — true of the Profile, silent about the fetches.*
+
 ## Non-functional requirements
 
 ### P — Positioning commitments

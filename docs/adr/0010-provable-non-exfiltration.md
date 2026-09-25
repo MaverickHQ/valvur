@@ -30,3 +30,17 @@ explicitly. ADR-0008 exists to stop it happening indirectly through a dependency
 
 Scan Runs on AWS use the identical image with no AWS-specific code path, so the
 guarantee does not weaken when the execution location changes.
+
+## Amendment (2026-09-25, task 28.0.4): a first run's fetches are disclosed
+
+The claim this ADR makes is about what leaves the machine, and a first run on
+`offline` reaches out three times before any Scanner runs — the image from GHCR,
+the database from `mirror.gcr.io`, the index from GHCR (24.1, 23.2.4). Nothing of
+the workspace goes with those requests, so `what_left_the_machine: nothing` was
+true; but `run.json` also said `network.used: false` and listed no fetch, so the
+record of a first run could not be told from a steady-state one, and a reviewer
+holding `run.json` to `unshare -rn` would have found a disagreement the file did
+not explain. `network.fetched` now lists each fetch — what, source, size, seconds,
+and the index's signature verdict — and is an empty list on every run that fetched
+nothing. The proof `scripts/verify-offline.py` runs is unchanged: it was never a
+first run's proof, and the file now says which kind of run it is.
