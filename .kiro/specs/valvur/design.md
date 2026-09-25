@@ -433,6 +433,16 @@ No tool mutates the **Workspace** (F9.2). No tool triggers a scan implicitly (F9
 No tool is destructive, and a test over the registry asserts it. `tools/list` is a
 committed snapshot (23.5.2), so any change to this table is a diff in review.
 
+**The handshake carries the rules, and the two readers answer in two forms
+(28.2.2).** `initialize` returns `instructions`: the five rules `SUMMARY.md`'s
+machine block opens with, from the same constant, so an agent that never opens the
+folder has them before its first call. `scan_status` and `list_findings` declare
+an `outputSchema` and answer `structuredContent` beside their text (MCP
+2025-06-18) — the verdict, the counts, the Scanners and the next moves as fields;
+the shown Findings as objects — computed in the same pass as the text, so the two
+cannot disagree, with F9.9's neutralisation on both. `initialize` is a committed
+snapshot too (`tests/fixtures/mcp/initialize.json`), version normalised.
+
 ---
 
 ## 9. Testing strategy

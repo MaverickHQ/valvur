@@ -119,7 +119,13 @@ first: a first `scan` pulls the image, the vulnerability database and the name i
 itself and says so on `scan_status` — measured 2026-09-20 on `0.3.0` from an empty
 machine, **58 seconds** to a complete result, one tool call (110s on `0.2.0`).
 
-Add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent uses what it has:
+The server's handshake carries the rules an agent needs — never commit the
+folder, work from `REMEDIATION.md`, never add a suppression without a human, a
+disappeared finding is not a fix — as MCP `instructions`, and `scan_status` and
+`list_findings` answer structured content beside their text, so an agent reads
+counts as fields rather than out of prose. For a client that does not show
+`instructions`, add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent
+uses what it has:
 
 ```markdown
 ## Security scanning

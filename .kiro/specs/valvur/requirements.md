@@ -522,7 +522,11 @@ they are reviewed rather than forgotten.
 of fixes, so that nothing changes my code without my decision.
 
 1. F9.1 — valvur SHALL expose MCP tools to run a **Scan Run**, list **Findings**,
-   explain one **Finding**, and report **Scan Run** status.
+   explain one **Finding**, and report **Scan Run** status. *Note 2026-09-26 (task
+   28.2.2): the `initialize` reply carries `instructions` — the machine block's
+   rules (F9.5–F9.7) from the same constant `SUMMARY.md` renders — and the two
+   reading tools answer `structuredContent` with a declared `outputSchema`
+   beside their text, built in one pass so the forms cannot disagree.*
 2. F9.2 — valvur SHALL NOT expose any tool that modifies the **Workspace**'s source.
 3. F9.3 — valvur SHALL provide equivalent CLI commands for every MCP tool.
 4. F9.4 — valvur SHALL NOT watch files, hook editor save events, or start a **Scan
@@ -537,7 +541,10 @@ of fixes, so that nothing changes my code without my decision.
 9. F9.9 — MCP responses SHALL carry neutralised evidence, per F3.13. *Rationale: an
    MCP response goes straight into an agent's context with no file in between. It is
    the most direct injection path valvur has, and the only one where the agent cannot
-   choose not to read it.*
+   choose not to read it.* *Note 2026-09-26 (task 28.2.2): "responses" means both
+   forms — the structured reply's title and evidence are neutralised on the way out,
+   idempotently, and a test plants the payload and reads the fence in the structured
+   form.*
 10. F9.10 — MCP responses SHALL be bounded by default and SHALL state what was
     omitted. *Rationale: returning several thousand **Findings** into an agent's
     context is the problem F7.5 solved for `SUMMARY.md`, arriving by another door.*

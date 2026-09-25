@@ -7338,7 +7338,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   both branches are tested, as every conditional Scanner is (§7). The corpus
   before and after is the measurement; the STATUS note quotes both tables.
 
-- [ ] **28.2.2** **The handshake carries the rules, and replies are structured (F4).**
+- [x] **28.2.2** **The handshake carries the rules, and replies are structured (F4).**
   The MCP surface is prose-only: no `instructions` in `initialize`, so the
   five rules of `SUMMARY.md`'s machine block reach an agent only if a human
   pasted the README's snippet into `CLAUDE.md`; no `outputSchema` or
@@ -7351,6 +7351,35 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   harness) carry the additions as a reviewed diff; the structured reply's
   counts equal the text's on every fixture; an injection payload in a Finding
   title is fenced in the structured form too.
+
+  **STATUS 2026-09-26:** ✅ PR #91. Tests first, seven, red then green:
+  `initialize` carries every rule of the machine block (`tools.instructions()`
+  is `summary.MACHINE_HEADER` with the blockquote furniture and the HTML comment
+  removed, one framing line in front — the same constant, so the two surfaces
+  cannot drift); `scan_status`'s `structuredContent` agrees with its text on
+  the scanned fixture — status, active count, `complete`, a 36-character
+  generation, every Scanner named — and a workspace with no scan answers
+  `{"scanned": false, "job": null, "results_dir": …}` in both forms;
+  `list_findings`' total/shown/omitted equal the text's and every shown
+  fingerprint is in the text; the planted prompt-injection Finding's evidence
+  carries the fence in the structured form (F9.9 on both); only the two readers
+  declare an `outputSchema`; and `initialize` is a second committed snapshot,
+  `serverInfo.version` normalised. **How:** `Tool` takes `output_schema` and a
+  handler that answers `str` or `(str, dict)`; `call_tool` adds
+  `structuredContent` when a dict comes back; `build(tools, instructions=…)`
+  defaults to the machine block. `operations.scan_status_reply` and
+  `list_findings_reply` build the dict in the same pass as the text — the
+  verdict, counts, Scanners, skipped/not-run, slowest, next moves, caveats,
+  network, build, database, index; each shown Finding with rank, status,
+  severity, path, line, title, rule, fingerprint, suppressed, exploit and
+  evidence, title and evidence neutralised on the way out (idempotent) and
+  evidence bounded at `defang.MAX_EVIDENCE` — and the text functions the CLI
+  and every existing caller use are `_text_of(reply)`, the reply's first
+  element by construction, naming `.reply` so F9.3's parity test still sees one
+  computation. The `tools/list` snapshot's diff is the two `outputSchema`
+  blocks and nothing else; `initialize.json` is new. `design.md` §8,
+  F9.1/F9.9 notes, the README's snippet paragraph, CHANGELOG. Unit 1,104,
+  ruff, mypy.
 
 ### Tier 3 — Hygiene
 

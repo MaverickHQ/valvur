@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The MCP handshake carries the rules, and the two readers answer structured
+  content.** `initialize` now returns `instructions` — the five rules `SUMMARY.md`
+  opens with, from the same constant — so an agent has them before its first call
+  rather than only if a human pasted the README's snippet into `CLAUDE.md`.
+  `scan_status` and `list_findings` declare an `outputSchema` and answer
+  `structuredContent` beside their text: the verdict, the counts, the Scanners
+  and the next moves as fields, each shown Finding as an object, neutralised like
+  the text. The text is unchanged; both snapshots are committed (28.2.2).
 - **Checkov starts in a third of the time.** Most of its fixed startup — the
   scan's wall clock on every repository with a workflow file, which is all of
   them — was the image's doing, not Checkov's: its update checker asked PyPI at
