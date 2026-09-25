@@ -23,8 +23,9 @@ the fastest way to the cause — check it for secrets first, as it may name path
 
 ### What to expect
 
-valvur is maintained by one person, so these are commitments we can actually keep
-rather than ones that read well:
+valvur is maintained by one person ([MAINTAINERS.md](MAINTAINERS.md) says what that
+means for you), so these are commitments we can actually keep rather than ones
+that read well:
 
 | | |
 |---|---|

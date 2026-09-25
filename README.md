@@ -251,7 +251,9 @@ A finding you disagree with — especially one valvur *missed* — is a bug wort
 reporting. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and the short list of
 things refused on principle; [SECURITY.md](SECURITY.md) is for suspected
 vulnerabilities, which for a security tool include a false clean result;
-[CHANGELOG.md](CHANGELOG.md) is what changed.
+[CHANGELOG.md](CHANGELOG.md) is what changed; [MAINTAINERS.md](MAINTAINERS.md) is
+who can change what ships — one person today — and what you can rely on if they
+cannot be reached.
 
 ## Licence
 

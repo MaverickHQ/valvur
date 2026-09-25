@@ -183,3 +183,18 @@ def test_a_release_tag_can_only_be_created_by_the_owner_and_must_be_signed():
     assert {"creation", "update", "deletion", "required_signatures"} <= rules, sorted(rules)
     actors = ruleset.get("bypass_actors") or []
     assert all(a["actor_type"] == "RepositoryRole" and a["actor_id"] == 5 for a in actors), actors
+
+
+def test_everyone_who_may_sign_a_release_is_named_as_a_maintainer():
+    """28.1.3. `.github/allowed_signers` decides whose tag releases; `MAINTAINERS.md`
+    says who that is and what to do if they cannot be reached. Held together: a
+    key added to one without a person added to the other fails here, in either
+    direction."""
+    maintainers = (REPO / "MAINTAINERS.md").read_text(encoding="utf-8")
+    principals = [line.split()[0] for line in ALLOWED_SIGNERS.read_text().splitlines()
+                  if line.strip() and not line.startswith("#")]
+
+    assert principals, "no signer at all"
+    for principal in principals:
+        assert principal in maintainers, f"{principal} may sign a release and is not a maintainer"
+    assert "unreachable" in maintainers.lower(), "MAINTAINERS.md does not say what to do then"

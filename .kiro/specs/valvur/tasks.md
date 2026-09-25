@@ -7298,6 +7298,24 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   maintainer is unreachable, and the gate (10.1.1) as a date on a calendar
   rather than a task on a list.
 
+  **STATUS 2026-09-26:** ⏳ *the document half is done; the person is the
+  owner's.* Measured first: the repository is **user-owned**, not an
+  organisation (`owner.type: User`), so "a second admin on the organisation"
+  is a collaborator with the admin role; the `release` environment has **no
+  required reviewer** (`/environments`: `reviewers: []`); 288 of 291 commits
+  are the maintainer's, 3 Dependabot's. `MAINTAINERS.md` written: who (one
+  row), what does *not* depend on them (the image, the wheel and the index are
+  reproducible from the tree; the signatures verify against a public log with no
+  key of theirs; the pipeline runs on a fork), what to do if unreachable (thirty
+  working days of silence on both channels → treat as unmaintained, fork,
+  rename, re-sign), and the five steps that add a second maintainer in the order
+  that matters — the `release` reviewer before anything else. A test holds
+  `.github/allowed_signers` to it: every principal that may sign a release is
+  named there, so a key without a person fails the build. `README.md` and
+  `SECURITY.md` link it. **Open until the owner does steps 1–5** — a real
+  second person with a real key — and puts the gate on a calendar; nothing in
+  the tree can do that.
+
 ### Tier 2 — What a user feels
 
 - [ ] **28.2.1** **Checkov's startup, measured (F1).** From the corpus of
