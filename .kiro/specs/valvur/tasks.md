@@ -7113,8 +7113,8 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   2 GB box is **exit 137 after 8.1 s** — killed, not swapping — and the full e2e
   suite runs green under the ceiling on every Scanner (25 passed; the one red
   was the tree-hash guard catching an image built before the runner changed,
-  rebuilt and re-run). N1.4's CI peak against the ceiling: recorded from the
-  PR's e2e run below. `PROTOCOL.md`'s process section names the ceiling; N1.4
+  rebuilt and re-run). **N1.4 on CI under the ceiling: 533 MiB of 2 GiB**, the
+  fleet 467 MiB at most (PR #84's e2e run) — a quarter of the box. `PROTOCOL.md`'s process section names the ceiling; N1.4
   is annotated *enforced*, not only measured; CHANGELOG.
 
 - [ ] **28.0.4** **A first run's fetches are in the record (F2).** On `offline`, a
