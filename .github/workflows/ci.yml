@@ -281,7 +281,7 @@ jobs:
         # Pinned by SHA like every action here (12a.6): the commit `v0.1` tags and
         # `v0` follows (25.2) — a tag would be an active finding under valvur's own
         # mutable-action-ref rule, and this gate fails on `any`.
-        uses: MaverickHQ/valvur-action@6f90b88ce906b3997e704c9298cc467c24c9311e # v0.1
+        uses: MaverickHQ/valvur-action@16b19e275f843419887873ed536a71f872607e24 # v0.2
         env:
           VALVUR_IMAGE: valvur:dev
         with:

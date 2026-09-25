@@ -7,6 +7,18 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The code-scanning upload leaves accepted risks out** (`valvur-action`
+  v0.2). GitHub does not read SARIF `suppressions` — measured: five suppressed
+  results uploaded on every push for thirteen days, five open alerts, none ever
+  dismissed — so a risk `.security-scan.toml` had recorded a decision about sat
+  in the Security tab as an open alert for as long as the decision stood. The
+  action now uploads `results.sarif` without its suppressed results; the file on
+  disk keeps every one of them (28.3.3).
+- **`NOTICE`.** The attribution the redistributed tools' licences ask for, at the
+  root and at `/usr/share/doc/valvur/NOTICE` in the image: each Scanner with its
+  licence and upstream, the base, the bundled data (28.3.5).
+- **Tested on Python 3.11 and 3.13** as well as 3.12, which is what
+  `requires-python = ">=3.11"` had claimed without evidence (28.3.4).
 - **The MCP handshake carries the rules, and the two readers answer structured
   content.** `initialize` now returns `instructions` — the five rules `SUMMARY.md`
   opens with, from the same constant — so an agent has them before its first call

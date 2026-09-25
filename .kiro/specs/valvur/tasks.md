@@ -7431,12 +7431,23 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   version. **Test first**: the shape test requires the job and its three
   policies. The STATUS note records the counts before and after its first run.
 
-- [ ] **28.3.2** **Stale branches (B4).** Five remote branches for closed PRs —
+- [x] **28.3.2** **Stale branches (B4).** Five remote branches for closed PRs —
   four Dependabot, one `fix/` — and Dependabot's dev-dependency bump #20 closed
   unmerged, so `uv.lock` has not moved since `0.3.0`. Delete them, switch on
   "automatically delete head branches", let the dev-dependency bump land.
 
-- [ ] **28.3.3** **SARIF suppressions GitHub honours (F5).** Five code-scanning
+  **STATUS 2026-09-26:** ✅ Measured before acting: the five branches the
+  review counted were already gone from the remote (`git fetch --prune`: `main`
+  and this session's own branches) — #39 and #40 merged, #21 (the Checkov
+  bump, superseded by 23.4.1's hash-lock), #5 and #20 closed. "Automatically
+  delete head branches" is on (`delete_branch_on_merge: true`, by API). #20
+  could not be reopened — Dependabot needs the branch, and it is gone — so the
+  bump it carried was done by hand: `uv lock --upgrade` moved ruff 0.16.7 →
+  0.16.9 and ast-serialize 0.11.1 → 0.11.2, the tree is clean under the new
+  ruff, and the lock has moved for the first time since `0.3.0`. Dependabot's
+  weekly run finds nothing to propose.
+
+- [x] **28.3.3** **SARIF suppressions GitHub honours (F5).** Five code-scanning
   alerts are open — including #7, CVE-2024-23342, high, since 2026-09-13 —
   every one suppressed in `.security-scan.toml` with an expiring, argued reason
   and emitted in `results.sarif` as `suppressions[kind=external]`. GitHub
@@ -7444,20 +7455,57 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   the five close; otherwise the Security tab of a security tool shows an open
   high CVE its own gate has answered. **Test first**: the SARIF golden.
 
-- [ ] **28.3.4** **The Python versions the claim names (B1).** `requires-python =
+  **STATUS 2026-09-26:** ✅ **The premise was wrong, measured.** `results.sarif`
+  has carried `"status": "accepted"` on every suppressed result since
+  2026-08-30 (d06d105; `tests/test_suppressions.py` pins it), and GitHub does
+  not read SARIF `suppressions` at all: five suppressed results uploaded on
+  every push since 2026-09-13 (`kind: external`, `status: accepted`), five open
+  alerts (#1–#4, #7), none ever dismissed (`state=dismissed`: 0), and the
+  SARIF-support page silent on the property. So the fix is not a field; it is
+  what goes to code scanning. **`valvur-action` v0.2** (`16b19e2`):
+  `upload_sarif.py` writes `results.upload.sarif` beside `results.sarif` with
+  the suppressed results left out and says how many; the upload step sends
+  that file; `results.sarif` on disk keeps every result and its suppression, as
+  the contract says. Its fixture now accepts one of its own advisories so the
+  self-test proves it — one left out of the upload, kept on disk — green on
+  24.04 and 26.04 before the tag; `v0` moved to it. `ci.yml` and the README
+  pin v0.2's commit. **After this lands**, the next upload from `main` carries
+  zero results and GitHub closes the five as fixed; the count after is recorded
+  under 28.3 in the closing note.
+
+- [x] **28.3.4** **The Python versions the claim names (B1).** `requires-python =
   ">=3.11"`; CI creates every venv with 3.12. No 3.12-only syntax in `src/`, so
   3.11 probably works — the kind of claim this project refuses elsewhere. A
   three-way matrix on the unit job (3.11, 3.12, 3.13; ~40 s each), or the claim
   narrowed to what is tested. **Test first**: the shape test requires the matrix
   to cover `requires-python`'s floor.
 
-- [ ] **28.3.5** **NOTICE (B2).** The image redistributes Opengrep (LGPL-2.1),
+  **STATUS 2026-09-26:** ✅ Measured first, locally, on CPython 3.11.14: the
+  unit suite passes in full. A `floor` job in `ci.yml` runs it on 3.11 and 3.13
+  (`uv venv --python`, `uv sync --locked`, the interpreter asserted), about
+  forty seconds each; lint, types and the package build stay on the one job.
+  `tests/test_python_versions.py` holds the matrix to the floor
+  `requires-python` names, in both directions. The two job names join `main`'s
+  required checks once they exist there (after this lands; noted under 28.3).
+
+- [x] **28.3.5** **NOTICE (B2).** The image redistributes Opengrep (LGPL-2.1),
   Gitleaks (MIT), Trivy, Syft, OSV-Scanner and Checkov (Apache-2.0); no `NOTICE`
   in the repository, no third-party file in the image. The SBOM discloses
   components; Apache §4(d) and LGPL redistribution expect attribution text. A
   `NOTICE` at the root and at `/usr/share/doc/valvur/NOTICE` in the image, each
   tool with its licence and upstream. **Test first**: every `FROM … AS` stage in
   the Dockerfile is named in it, so a new tool cannot arrive unattributed.
+
+  **STATUS 2026-09-26:** ✅ `NOTICE` at the root and at
+  `/usr/share/doc/valvur/NOTICE` in the image, byte for byte (an e2e test reads
+  it back): Opengrep (LGPL-2.1), Gitleaks (MIT), Trivy, OSV-Scanner, Syft and
+  Checkov (Apache-2.0), each with its upstream and copyright line; Python
+  (PSF-2.0) and Alpine (per package, as the SBOM records, ADR-0005 restated);
+  the bundled KEV snapshot (public domain) and EPSS (fetched, never bundled).
+  Tests first: every `FROM … AS` stage names a tool the file attributes — a
+  new stage fails until it is added to the file and the test's table — and
+  every tool names its licence and upstream. It is an input the image copies,
+  so `tree_hash` and the sdist allow-list name it.
 
 - [ ] **28.3.6** **Supportability (O2).** No `--verbose`, no `--debug`, no log
   file; `run.json` records each Scanner's version and duration and not the
@@ -7483,10 +7531,16 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   2026-11-19**, move all eleven `runs-on` to 26.04, dispatch the corpus, and
   record N1.1 and N1.4 against the 24.04 numbers in `requirements.md`.
 
-- [ ] **28.3.9** **The README's action pin (D4).** `ci.yml` pins
+- [x] **28.3.9** **The README's action pin (D4).** `ci.yml` pins
   `valvur-action@6f90b88…`; the README shows `@v0`, which valvur's own
   `mutable-action-ref` rule flags in a user's tree. Show the SHA form first,
   `@v0` as the convenience, with the sentence that says why.
+
+  **STATUS 2026-09-26:** ✅ The README's snippet pins the commit (v0.2's,
+  `16b19e2…`, the same pin `ci.yml` carries) with the sentence that says why —
+  a tag can move, valvur's own rule flags `@v0`, this repository's gate runs
+  on `any` — and offers `@v0` as the convenience, naming the finding it will
+  produce.
 
 ### Tier 4 — After the gate, before `v1.0.0`
 

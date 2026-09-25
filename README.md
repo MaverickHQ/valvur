@@ -194,7 +194,7 @@ installs the shim, fetches and caches what a scan needs, scans, uploads
 gate uses it on every commit:
 
 ```yaml
-- uses: MaverickHQ/valvur-action@6f90b88ce906b3997e704c9298cc467c24c9311e # v0.1
+- uses: MaverickHQ/valvur-action@16b19e275f843419887873ed536a71f872607e24 # v0.2
   with: { fail-on: high, no-inconclusive: "true" }
 ```
 
