@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Checkov starts in a third of the time.** Most of its fixed startup — the
+  scan's wall clock on every repository with a workflow file, which is all of
+  them — was the image's doing, not Checkov's: its update checker asked PyPI at
+  every start, because the variable set to stop it was one Checkov never reads,
+  and waited five seconds for DNS to fail with no network; and every start
+  compiled its 3,900 modules from source, because the image deleted the bytecode.
+  The check is off by the variable Checkov reads and the bytecode is in the image
+  (22 MB more to pull, once): 10.2–10.7 s → 3.0–3.3 s on a workflow-only tree,
+  measured as the runner runs it (28.2.1).
 - **The three refactors, reviewed.** An adversarial pass over the moves that
   produced `summary.py`, the typed pipeline result and the ecosystem registry —
   twenty-one findings, each measured — and what the goldens could not see, fixed:

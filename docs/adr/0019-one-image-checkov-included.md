@@ -90,3 +90,37 @@ named as Checkov's runtime, not its size. The README's first-run table does not 
 a smaller number for a case that does not occur. The Checkov layer stays where
 23.4.1 put it — its own hash-locked venv, one `RUN` — so the option is a
 Dockerfile edit away for anyone the numbers turn out to apply to.
+
+## Amendment 2026-09-26 (task 28.2.1) — the runtime measured, and most of it was the image's
+
+"Time, which is the cost that is real" above says most of Checkov's time is its
+own startup, loading every check, and records a two-second framework lever. Task
+28.2.1 was to measure that lever and an incremental skip on the corpus before
+either became a change. The lever re-measured at **0.1 s of 10.6 s** on a
+workflow-only tree, so a profile of the run (`cProfile` over `checkov.main`,
+Docker Desktop, `--network=none`) was taken instead, and 11.5 s broke down as:
+
+- **5.0 s in `getaddrinfo`.** `banner.py` calls the update checker at import and
+  it asks PyPI for the latest version. The Dockerfile's
+  `CHECKOV_DISABLE_UPDATE_CHECK=true` (23.4.1) is a variable this Checkov does not
+  read — `env_vars_config.py` reads `CKV_SKIP_PACKAGE_UPDATE_CHECK` — so every
+  start waited for DNS to fail under `--network=none`, and on `full` would have
+  reached pypi.org.
+- **2.6 s in `compile`.** The image deleted Checkov's `__pycache__` and runs it on
+  a read-only root as a non-root user with `PYTHONDONTWRITEBYTECODE=1`, so every
+  start compiled 3,913 modules from source: `checkov --version` 5.9 s cold, 1.3 s
+  with bytecode.
+- About 1.3 s of import proper, and under half a second of analysis.
+
+Both causes are the image's, not Checkov's, and both are fixed there: the variable
+Checkov reads, and `compileall` over the venv and the Checks' package with the
+stdlib's shipped bytecode kept. **Measured as the runner runs it** (non-root,
+read-only root, no network), the workflow-only tree took **10.2–10.7 s before and
+3.0–3.3 s after**; the e2e suite, which scans on every test, 216 s → 152 s. The
+corpus on Linux CI, before and after, is in 28.2.1's STATUS note.
+
+**The size trade runs the other way from the decision above.** The bytecode is 61
+MB uncompressed and **22 MB compressed: 220 → 242 MB**, about two seconds more on
+a first pull, once, against about seven seconds less on every scan. The decision
+stands — one image, Checkov in it — and one sentence of it is withdrawn: the cost
+users pay was *not* unchanged by every image shape. It was mostly ours.
