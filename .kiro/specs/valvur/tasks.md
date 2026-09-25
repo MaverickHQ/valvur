@@ -7118,7 +7118,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   brake. **Found on the way:** the README never carried a verify command; the
   third review's list said it did.
 
-- [ ] **28.0.3** **A ceiling on every container (F3).** Measured flags in
+- [x] **28.0.3** **A ceiling on every container (F3).** Measured flags in
   `runner._base_flags`: `--read-only`, a 512m tmpfs, `--cap-drop=ALL`,
   `--network=none`, user `10001` — and no `--memory`, `--pids-limit`, `--cpus`,
   no `--security-opt=no-new-privileges`. A hostile repository cannot reach the
@@ -7221,7 +7221,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
 
 ### Tier 1 — The release
 
-- [ ] **28.1.1** **The three refactors, reviewed (X2).** PRs #78 (`results.py` →
+- [x] **28.1.1** **The three refactors, reviewed (X2).** PRs #78 (`results.py` →
   `summary.py`), #80 (the typed pipeline result) and #81 (the ecosystem
   registry) moved about two thousand lines through the code that writes what a
   user reads and decides what a scan reports, each held behaviour-preserving by
@@ -7230,6 +7230,56 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   diffs — `/code-review` at high effort, or the owner's ultrareview — before
   `v1.0.0` freezes the seams. Findings become tasks here or are closed with a
   reason in the STATUS note.
+
+  **STATUS 2026-09-25:** ✅ PR #88. `/code-review` at extra-high effort over
+  each diff — twenty-one findings, seven a PR, every one measured against the
+  tree before it was reported — then fixed in one branch, tests first
+  (`tests/test_refactor_review.py`, and additions to `test_pipeline.py`,
+  `test_summary_golden.py`, `test_ecosystem_registry.py`; 15 new tests, 1,097).
+  **#78 (`summary.py`):** `ScanRun.doubts` carried its own copy of both staleness
+  predicates — it calls `staleness.py`'s, held by a test that patches the shared
+  one and watches the doubt follow; `run.json`'s renderer, 120 lines, was still
+  in `results.py`, the writer the task was clearing — `provenance.render`,
+  `results.py` 236 → 95 lines; the KEV/ransomware/EPSS badge was decided twice,
+  in `summary._one_line` and `operations._one_line`, and had drifted —
+  `findings.exploit_badge` decides once and each surface marks it; the five
+  goldens were rendered with every Finding at rank 0, a prefix no real run
+  produces — ranked from 1 now, regenerated, and a diff with the rank digits
+  stripped is empty; "four goldens" is five; `staleness` imported `cache` lazily
+  for a cycle that did not exist. *Closed by measurement:* `render` over 10,000
+  Findings is **3.3 ms** best of five, so the repeated `run.active` passes are
+  not worth a signature. **#80 (the typed result):** the frozen `PipelineResult`
+  was a view of the Context — measured, `out.coverage is ctx.coverage` was
+  `True`, and a write through the Context after `run()` showed in a result
+  `api` had copied into a `ScanRun` — `run` copies every mutable member out, and
+  the carrying test asserts equal *and not the same object*; `RECORDED_BY_STAGES`
+  was a third list of the same ten names — derived from the result's fields; the
+  generated `__eq__`/`__hash__` (`hash(result)` was `TypeError`) — `eq=False`, a
+  record; `excluded_paths` was rebuilt as a list from the tuple the pipeline had
+  frozen — a tuple end to end; the purity test rounded two clock readings to a
+  tenth of a day — a bound. *Declined:* stages still communicate through the
+  shared Context; a per-stage result object is a rewrite of eleven stages for
+  no user-visible change, and the typed copy-out is the contract `api` needed.
+  **#81 (the registry):** the hard `registry` ↔ `parsers` cycle — gone already
+  (28.0.5); five module constants left in the Check, each now defined twice —
+  deleted, with `import re`; `_defined_locally` was a second per-ecosystem table
+  of seven manifests outside the entry, so an ecosystem added by the documented
+  route would have had its own packages reported as hallucinated — `defines` is
+  on the `Ecosystem` entry, one reader per manifest, `ecosystems.defined_locally`
+  the loop, and a test holds every entry to name one whose pattern it reads; the
+  registry's docstring and the CHANGELOG said the URL and first-publication
+  decoding had moved and they had not — both say what stays in the Check and
+  why; the duplicated `MANIFESTS` header, one sentence of it describing a state
+  the registry test forbids — gone; the index-order test compared
+  `name_index.FILES` by dict equality — by order; the three one-line aliases
+  kept "because tests called them" (`canonical`, `_index_form`,
+  `crate_canonical`) — gone, the callers use the registry. **Found on the way:**
+  `test_release_trust.py`'s signer test verified `HEAD`, which on a
+  `pull_request` run is GitHub's own GPG-signed merge commit — every CI run of
+  the Tier 0 stack had failed on it; it verifies the PR's own commit (`HEAD^2`)
+  there. `provenance` joins the annotation-only component the ratchet names, for
+  the reason `staleness` is in it. e2e green on an image rebuilt from the tree;
+  no document a user reads changed.
 
 - [ ] **28.1.2** **`0.3.1` — the first real promote (D3).** *Owner.* Four
   rehearsals green; no real tag has met stage → validate → promote, the

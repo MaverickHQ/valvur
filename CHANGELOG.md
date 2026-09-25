@@ -7,6 +7,18 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The three refactors, reviewed.** An adversarial pass over the moves that
+  produced `summary.py`, the typed pipeline result and the ecosystem registry —
+  twenty-one findings, each measured — and what the goldens could not see, fixed:
+  the verdict's staleness doubts now use the same two predicates `run.json`'s
+  `stale` flags use rather than a copy; `run.json` is rendered by `provenance`,
+  not by the writer; the KEV / ransomware / EPSS badge is one decision for
+  `SUMMARY.md` and the CLI/MCP reply, which had drifted; the pipeline's result is
+  its own copy rather than a view of the mutable bag the stages write to; a
+  Workspace's own packages are named by the ecosystem entry (`defines`) rather
+  than by a second table an added ecosystem would have missed — and been reported
+  as hallucinating its own code for. The summary goldens are now rendered at real
+  ranks. No document a user reads changed (28.1.1).
 - **A first run's fetches are in the record.** A first scan pulls the image, the
   vulnerability database and the name index before any Scanner runs; that was
   announced live and absent from `run.json`, which said `network.used: false` and
@@ -34,8 +46,10 @@ a minor bump may break things until 1.0.
 - **One place to add an ecosystem.** What valvur knows about Python, npm, Ruby,
   PHP, Rust, the JVM and Go was spread over three modules that had to be edited
   together — which files to read, which index answers existence, and a chain of
-  per-ecosystem branches for the registry, the URL and the name form. It is one
-  registry entry each now, with the parsers beside it; the dependency-reality
+  per-ecosystem branches for the registry's name and the name form. It is one
+  registry entry each now, with the parsers beside it (the URL each registry
+  answers at, and how it dates a first publication, stay in the Check as the
+  transport they are); the dependency-reality
   Check is 1,206 lines lighter by half and no longer imports the index module
   that imported it back. No behaviour changed, and five goldens taken before the
   move say so (27.3.2).
