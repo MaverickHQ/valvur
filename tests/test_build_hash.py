@@ -77,7 +77,7 @@ SDIST_TOP_LEVEL = {
     "requirements-checkov.in", "requirements-checkov.overrides", "requirements-checkov.txt",
     # The documents a package should carry with it.
     "LICENSE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
-    "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md",
+    "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md", "MAINTAINERS.md",
     ".gitignore", ".gitattributes", ".security-scan.toml",
 }
 
