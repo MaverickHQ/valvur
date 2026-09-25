@@ -50,15 +50,19 @@ def test_the_repositorys_own_guards_are_on():
 
 @pytest.mark.e2e
 def test_vulnerability_alerts_are_on():
-    """`GET /vulnerability-alerts` answers 204 when on and 404 when off; `gh api`
-    exits non-zero on the 404, which `_gh` turns into a skip — so the assertion is
-    on the body's absence of an error, checked directly."""
+    """`GET /vulnerability-alerts` answers 204 when on and 404 when off. Both
+    endpoints here need an admin-scoped token: on CI the e2e job's `gh` has no
+    token at all (exit 4, measured on PR #83's first run) and its GITHUB_TOKEN is
+    `contents: read`, so there the answer is a skip, and the tests hold on a
+    maintainer's machine. Only the 404 — the guard actually off — is a failure."""
     gh = shutil.which("gh")
     if gh is None:
         pytest.skip("gh is not installed")
     done = subprocess.run([gh, "api", f"repos/{REPOSITORY}/vulnerability-alerts"],
                           capture_output=True, text=True, check=False, timeout=60)
 
+    if done.returncode != 0 and "404" not in done.stderr:
+        pytest.skip(f"gh could not ask GitHub: {done.stderr.strip()[:120]}")
     assert done.returncode == 0, (
         f"vulnerability alerts are off on {REPOSITORY}: {done.stderr.strip()[:120]}"
     )
