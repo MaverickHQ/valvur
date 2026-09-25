@@ -1,7 +1,7 @@
 """Checkov's startup, measured (task 28.2.1, F1).
 
-The fourth review found Checkov to be the scan's wall clock — 15.5–18.8 s of a
-16–19 s scan on every application repository in the corpus — and named two
+The fourth review found Checkov to be the scan's wall clock — 15.5 to 18.8 s of a
+16 to 19 s scan on every application repository in the corpus — and named two
 hypotheses to measure before either became a change: `--framework` narrowed to
 what is present, and an incremental skip. Measured on a workflow-only tree through
 Docker Desktop, `--framework github_actions` saved 0.1 s of 10.6 s. A profile of
