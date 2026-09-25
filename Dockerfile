@@ -99,10 +99,14 @@ COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 # own files, so that editing a Check or a rule rebuilds only the layers below and
 # never this one.
 #
-# The trailing `find … || true` used to sit bare at the end of this `&&` chain,
-# which made `|| true` cover the whole chain: a failed `pip install` produced an
-# image without Checkov and the build reported success. Found by the first build
-# of this layer, whose pip error was swallowed exactly so. The subshell scopes it.
+# Bytecode is compiled here and kept (28.2.1). Until then the layer ended by
+# deleting every `__pycache__` under `/opt/checkov` and `/usr/local` — and the
+# container runs on a read-only root as a non-root user with
+# `PYTHONDONTWRITEBYTECODE=1`, so every Checkov start compiled its 3,913 modules
+# from source: profiled at 2.6 s of `compile` per run, `checkov --version` 5.9 s
+# cold against 1.3 s with bytecode. The stdlib's bytecode, which the base image
+# ships, is kept for the same reason (0.35 s against 0.06 s for the imports a Check
+# makes). The size the bytecode costs is measured in 28.2.1's STATUS note.
 COPY requirements-checkov.txt /opt/checkov-requirements.txt
 RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && python3 -m venv --without-pip /opt/checkov \
@@ -111,14 +115,21 @@ RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
  && apk del .build \
- && (find /opt/checkov /usr/local -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true)
+ && /opt/checkov/bin/python -m compileall -q -j 0 /opt/checkov/lib
 
-# Checkov ships an update checker that calls out at startup and writes a cache.
-# Both are disabled explicitly: a scanner that phones home would break the central
-# claim in ADR-0010, and our read-only rootfs caught it only by accident.
+# Checkov ships an update checker that asks PyPI for the latest version at every
+# start and caches the answer under `$HOME`. A scanner that phones home would break
+# the central claim in ADR-0010, so it is switched off — by the variable this
+# Checkov actually reads. From 23.4.1 to 28.2.1 the line here set
+# `CHECKOV_DISABLE_UPDATE_CHECK`, which nothing in Checkov reads
+# (`env_vars_config.py` reads `CKV_SKIP_PACKAGE_UPDATE_CHECK`), so the check ran
+# at every start: under `--network=none` it waited 5.0 s for DNS to fail, profiled
+# in 28.2.1, and on `full` it would have reached pypi.org. `HOME=/tmp` keeps its
+# cache on the tmpfs, off the read-only root. `tests/test_checkov_startup.py` asks
+# the installed Checkov's own configuration whether the skip is read.
 ENV TRIVY_CACHE_DIR=/cache/trivy \
     PYTHONDONTWRITEBYTECODE=1 \
-    CHECKOV_DISABLE_UPDATE_CHECK=true \
+    CKV_SKIP_PACKAGE_UPDATE_CHECK=true \
     HOME=/tmp
 
 # Our own rules, licensed with the project. Bundling the community registry would
@@ -135,7 +146,8 @@ COPY src/valvur /usr/local/lib/python3.12/site-packages/valvur
 # the rebuild command, instead of running yesterday's Checks against today's tests.
 COPY Dockerfile /etc/valvur/Dockerfile
 RUN python3 -m valvur.tree_hash --image > /etc/valvur/inputs.sha256 \
- && chmod 0444 /etc/valvur/inputs.sha256
+ && chmod 0444 /etc/valvur/inputs.sha256 \
+ && python3 -m compileall -q /usr/local/lib/python3.12/site-packages/valvur
 
 RUN adduser -D -u 10001 valvur
 USER 10001:10001
