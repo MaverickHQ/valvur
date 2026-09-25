@@ -6960,6 +6960,341 @@ the gate, no import cycle in the package, `results.py` under 350 lines, one
 registry of ecosystems. Every claim in the phase head re-measured in its task's
 STATUS note.
 
+> **2026-09-22:** every task closed — sixteen, in fifteen PRs, one evening and two
+> days. Tier 3 ran ahead of the gate: each of its four moves was held to bytes
+> (goldens taken before the code moved) rather than to intent, and 27.3.2's e2e
+> run against a rebuilt image is the measurement. **One thing it left behind**,
+> found by the fourth review the next day: a module-level import cycle inside the
+> new `ecosystems` package — Phase 28's 28.0.5.
+
+## Phase 28 — The fourth review: the trust boundary, the latency, and what today left behind
+
+**Goal:** close the twenty-four actionable findings of a level-400 review of `main`
+at `2287dc7` — every claim in it measured against the tree, the workflows, the
+GitHub API or a run log on 2026-09-23, and written down in
+[`docs/REVIEW-2026-09-23.md`](../../../docs/REVIEW-2026-09-23.md) with the
+evidence beside each. Ordered by what an attacker can do first, what the next
+release depends on second, what a user feels third, hygiene fourth, and the
+architecture that waits for the gate last. Written 2026-09-25.
+
+> **What the review found, in one line each.** Not correctness in a scan — the
+> corpus and 1,059 tests hold that — but the edges. *Deploy:* four facts that are
+> fine alone and an open door together: no tag protection, `verify` checks only
+> that the tag matches the version, the `release` environment has no reviewer, and
+> the cosign identity `^https://github.com/MaverickHQ/valvur/` matches **every
+> workflow on every branch** — so a write-scoped token is release authority under
+> the identity users are told to trust. *Operations:* secret scanning, push
+> protection and Dependabot security updates are **off** on a security scanner's
+> public repository. *Functionality:* Checkov is **15.5–18.8 s of 16–19 s** on
+> every application repository in the corpus and 124.2 of 124.5 s on the
+> Terraform module — the scan's wall clock is one Scanner's startup; a first run
+> on `offline` opens sockets to three hosts and `run.json` records none of it;
+> a Scanner's container has no memory, PID or CPU ceiling. *Architecture:* one
+> hard import cycle, introduced the day before by 27.3.2 (`parsers ↔ registry`);
+> the domain vocabulary is `str`; three modules still carry two jobs. *Build:*
+> `>=3.11` claimed, 3.12 alone tested; no attribution file for the LGPL and Apache
+> tools the image redistributes; the image is not reproducible. *Cross-cutting:*
+> five tests in one day passed against the defect each was written for and were
+> caught only by hand mutation — a discipline that is one person's habit.
+> Two rows are informational (A5, O6) and have no task.
+>
+> **Sequencing against Phase 25.** Tier 0 is the trust boundary and lands
+> **before the next real tag**; none of it changes what a stranger's first run
+> meets, so it runs beside the gate. Tier 1 is the release itself and two owner
+> actions. Tier 2 changes what a user feels and is measured, not assumed. Tier 3
+> has no gate. Tier 4 moves seams the release freezes and waits for the gate's
+> findings, as Phase 27's Tier 3 did. **The constraint from Phases 26 and 27
+> stands:** this Mac stays a stranger's until the gate has run.
+
+```
+Tier 0   the trust boundary      28.0.1 GitHub's own guards on (O1) · 28.0.2 write access is not release authority (D1) · 28.0.3 a ceiling on every container (F3) · 28.0.4 a first run's fetches in the record (F2) · 28.0.5 the hard cycle, and a ratchet (A1)
+Tier 1   the release             28.1.1 the three refactors reviewed (X2) · 28.1.2 0.3.1 — the first real promote (D3) · 28.1.3 the bus factor, stated (O3)
+Tier 2   what a user feels       28.2.1 Checkov's startup, measured (F1) · 28.2.2 the MCP handshake carries the rules, and structured replies (F4)
+Tier 3   hygiene                 28.3.1 package retention (D2) · 28.3.2 stale branches (B4) · 28.3.3 SARIF suppressions GitHub honours (F5) · 28.3.4 the Python versions the claim names (B1) · 28.3.5 NOTICE (B2) · 28.3.6 supportability (O2) · 28.3.7 valvur cache --prune (O4) · 28.3.8 the runner move, dated (O5) · 28.3.9 the README's action pin (D4)
+Tier 4   after the gate          28.4.1 the vocabulary is typed (A2) · 28.4.2 three modules, one job each (A3) · 28.4.3 the constraint suite split (A4) · 28.4.4 mutation in CI (X1) · 28.4.5 a reproducible image (B3)
+```
+
+**The TDD shape is Phase 26's**, stated there once: the failing test first, against
+the measured behaviour; the fix; a mutation pass with the baseline committed; a
+measured number in the STATUS note of any task that changes what a user sees. The
+letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
+
+### Tier 0 — The trust boundary, before the next tag
+
+- [ ] **28.0.1** **GitHub's own guards, on (O1).** Measured by API: `secret_scanning`,
+  `secret_scanning_push_protection`, `dependabot_security_updates` and
+  vulnerability alerts are all `disabled`; code scanning alone is on. The
+  defences that exist — the gitleaks pre-commit hook, the per-PR self-scan — are
+  local, bypassable with `--no-verify`, cover the working tree and not the
+  history, and cannot revoke a leaked partner token. Enable all four through the
+  repository `PATCH` endpoint and confirm by reading them back.
+
+  **Test first**: a shape test that reads `security_and_analysis` through `gh
+  api` and requires all four `enabled` — marked `e2e`, since it needs the
+  network, so the unit suite stays sealed. The STATUS note records what secret
+  scanning found on the history the moment it was switched on, because that is
+  the number that says whether this mattered.
+
+- [ ] **28.0.2** **Write access is not release authority (D1).** Four measurements:
+  `rulesets → []` and `tags/protection → 404`; `verify` checks only that the tag
+  matches `pyproject.toml`, not that it is signed or on `main`; the `release`
+  environment has zero reviewers, zero wait and no branch policy — the brake
+  ADR-0020 placed is unplugged; and the cosign identity
+  `^https://github.com/MaverickHQ/valvur/` in `oci.SIGNING_IDENTITY`, the README
+  and both workflows matches every workflow on every branch. Together: a
+  write-scoped token pushes `v9.9.9` on any commit, the pipeline signs it under
+  the identity users are told to trust, and PyPI takes it. With one maintainer
+  the threat is a stolen token. In leverage order: **(a)** the identity becomes
+  the exact workflow and ref — `…/.github/workflows/release.yml@refs/tags/v` for
+  the image, `…/index.yml@refs/heads/main` for the index — in the shim, the
+  README, `release.yml` and `index.yml`, with one test holding the four equal;
+  **(b)** a `v*` tag ruleset: creation restricted to the owner, signed tags
+  required, and `verify` runs `git tag -v` and refuses a tag whose commit is not
+  on `main`; **(c)** a required reviewer on `release`, with a deployment branch
+  policy of tags only so rehearsals stay unattended. The rehearsal image is
+  signed by `release.yml@refs/heads/<branch>`, so (a)'s regex for the image must
+  admit the rehearsal identity in a rehearsal and refuse it everywhere else —
+  the README's verify command is the one users run, and it names tags only.
+
+  **Tests first**: the identity equality across the four files; `verify`'s
+  `git tag -v` and `merge-base --is-ancestor` steps in the shape test; then a
+  rehearsal (the identity change touches the artifact job's `cosign verify`),
+  then the ruleset and the reviewer by API, read back. The STATUS note records
+  the rehearsal run and the ruleset as the API returns it.
+
+- [ ] **28.0.3** **A ceiling on every container (F3).** Measured flags in
+  `runner._base_flags`: `--read-only`, a 512m tmpfs, `--cap-drop=ALL`,
+  `--network=none`, user `10001` — and no `--memory`, `--pids-limit`, `--cpus`,
+  no `--security-opt=no-new-privileges`. A hostile repository cannot reach the
+  network or write the tree, and can take the host's memory and CPU: a
+  pathological pattern for Opengrep, a multi-gigabyte lockfile for Trivy. N1.4
+  *measures* 2 GB (528 MiB peak on CI); nothing enforces it; the budget bounds
+  time only. Add `--memory=2g --memory-swap=2g --pids-limit=512
+  --security-opt=no-new-privileges` through `egress`-style single authority in
+  the runner, and let `doctor` drop the memory flag where rootless Podman on
+  cgroup v1 refuses it, saying so.
+
+  **Tests first**: the flags on every Invocation's argv (the snapshots under
+  `tests/fixtures/invocations/` move, deliberately, in review); an e2e test that
+  a container allocating past the ceiling is killed and the Scanner reported
+  failed rather than the host swapping; the Podman-refusal branch unit-tested
+  with a fake runtime. The STATUS note records N1.4's peak against the ceiling.
+
+- [ ] **28.0.4** **A first run's fetches are in the record (F2).** On `offline`, a
+  first scan pulls the image from GHCR, the database from `mirror.gcr.io` and
+  the index from GHCR — announced on `scan_status` and the terminal, and absent
+  from `run.json`, which says `network.used: false`,
+  `what_left_the_machine: nothing` and lists no fetch. True in the sentence's
+  sense — nothing of the workspace left — but the run opened sockets to three
+  hosts and the record cannot tell a first run from a steady-state one.
+  `api._ensure_data` already knows what it fetched and returns only what it
+  could not. Add a `fetched` block to `run.json` and `findings.json` — what,
+  from which host, how large, whether the signature verified — and a line in
+  `SUMMARY.md`'s provenance section; annotate ADR-0010 and F10.8.
+
+  **Tests first**: `test_first_run.py`'s fetch cases assert the block; a
+  steady-state run asserts its absence; the `unshare -rn` proof in
+  `verify-offline.py` is unchanged, because a first run was never the run it
+  proves.
+
+- [ ] **28.0.5** **The hard cycle, and a ratchet (A1).** 27.3.2 introduced the
+  package's only module-level import cycle: `ecosystems.registry` imports the
+  parser functions and `ecosystems.parsers.declared()` imports the registry —
+  it runs only because `declared` touches the registry at call time, which is
+  the partial-module dependence 27.3.2 existed to remove. `declared()` is
+  orchestration, not parsing; it belongs in `ecosystems/__init__.py`. Then the
+  detector written for the review — `ast` over every module, module-level
+  imports outside `TYPE_CHECKING` as hard edges, everything else soft — becomes
+  a test: hard cycles = 0, soft ≤ 7 and each named.
+
+  **Tests first**: the ratchet, red on `parsers ↔ registry`; then the move; the
+  five parser goldens from 27.3.2 unchanged.
+
+### Tier 1 — The release
+
+- [ ] **28.1.1** **The three refactors, reviewed (X2).** PRs #78 (`results.py` →
+  `summary.py`), #80 (the typed pipeline result) and #81 (the ecosystem
+  registry) moved about two thousand lines through the code that writes what a
+  user reads and decides what a scan reports, each held behaviour-preserving by
+  goldens their author wrote. Five tests that day passed against the defect
+  they were written for. An independent adversarial pass over those three
+  diffs — `/code-review` at high effort, or the owner's ultrareview — before
+  `v1.0.0` freezes the seams. Findings become tasks here or are closed with a
+  reason in the STATUS note.
+
+- [ ] **28.1.2** **`0.3.1` — the first real promote (D3).** *Owner.* Four
+  rehearsals green; no real tag has met stage → validate → promote, the
+  four-SBOM step, the attestation read-back or the index's verify-then-tag.
+  `[Unreleased]` holds twenty entries. A rehearsal on the exact tree, then the
+  tag — after Tier 0 lands, because 28.0.2 changes what the pipeline verifies.
+  The low-stakes tag to prove the path on, before `v1.0.0` stakes the stability
+  claim on it. `RELEASING.md` is the procedure; the STATUS note records the
+  run and the minutes to `:latest`.
+
+- [ ] **28.1.3** **The bus factor, stated (O3).** *Owner.* 273 of 276 commits by one
+  author; `SECURITY.md` commits five and fifteen working days on that one
+  person; 28.0.2's reviewer needs someone to click. Not fixable in code: a
+  second admin on the GitHub organisation who can approve the `release`
+  environment, a `MAINTAINERS.md` saying who that is and what happens if the
+  maintainer is unreachable, and the gate (10.1.1) as a date on a calendar
+  rather than a task on a list.
+
+### Tier 2 — What a user feels
+
+- [ ] **28.2.1** **Checkov's startup, measured (F1).** From the corpus of
+  2026-09-21 on `offline`: Checkov 15.5–18.8 s of a 16–19 s scan on all twelve
+  application repositories, 124.2 of 124.5 s on the Terraform module; every
+  other Scanner inside 1–2 s, concurrently. N1.1's "under 60 seconds" is met
+  because one Scanner's *fixed startup* is about sixteen seconds. ADR-0019
+  measured image size and rightly declined a slim image; it did not measure
+  time. Two hypotheses, measured on the corpus before either becomes a change:
+  **(1)** `--framework` narrowed to what is present — Checkov loads every
+  framework's checks at start, and eleven of the thirteen repositories carry
+  only a workflow file; **(2)** an incremental rule — Checkov skipped when no
+  IaC or workflow file changed since `state.json`'s run, *reported as a skip*
+  through the `scanners_skipped` the contract already carries. If (1) takes the
+  floor from sixteen seconds to five, "under 20 seconds" is the application
+  number and the README says so with the measurement.
+
+  **Tests first, for whichever wins**: the framework list derived from the
+  files present is a pure function with a table test; the skip is reported and
+  both branches are tested, as every conditional Scanner is (§7). The corpus
+  before and after is the measurement; the STATUS note quotes both tables.
+
+- [ ] **28.2.2** **The handshake carries the rules, and replies are structured (F4).**
+  The MCP surface is prose-only: no `instructions` in `initialize`, so the
+  five rules of `SUMMARY.md`'s machine block reach an agent only if a human
+  pasted the README's snippet into `CLAUDE.md`; no `outputSchema` or
+  `structuredContent` (MCP 2025-06-18), so an agent parses *"DONE in 58s. 3
+  active…"* out of text. `instructions` becomes the machine block's rules;
+  `scan_status` and `list_findings` answer `structuredContent` beside the text
+  they answer today, with F9.9's neutralisation applied to both forms.
+
+  **Tests first**: the `tools/list` and `initialize` snapshots (23.5.2's
+  harness) carry the additions as a reviewed diff; the structured reply's
+  counts equal the text's on every fixture; an injection payload in a Finding
+  title is fenced in the structured form too.
+
+### Tier 3 — Hygiene
+
+- [ ] **28.3.1** **Package retention (D2).** `valvur-rehearsal` holds 186
+  versions (~230 MB compressed each); `valvur-index` 39 and two more a day
+  since the candidate tag; nothing deletes. Storage is free; the cost is that
+  every old rehearsal image, with whatever CVEs its base had that week, stays
+  pullable under the organisation's name. A weekly retention job
+  (`actions/delete-package-versions`, SHA-pinned): rehearsal keep 5, index keep
+  30 dated tags plus `latest` and `candidate`, the image keep every tagged
+  version. **Test first**: the shape test requires the job and its three
+  policies. The STATUS note records the counts before and after its first run.
+
+- [ ] **28.3.2** **Stale branches (B4).** Five remote branches for closed PRs —
+  four Dependabot, one `fix/` — and Dependabot's dev-dependency bump #20 closed
+  unmerged, so `uv.lock` has not moved since `0.3.0`. Delete them, switch on
+  "automatically delete head branches", let the dev-dependency bump land.
+
+- [ ] **28.3.3** **SARIF suppressions GitHub honours (F5).** Five code-scanning
+  alerts are open — including #7, CVE-2024-23342, high, since 2026-09-13 —
+  every one suppressed in `.security-scan.toml` with an expiring, argued reason
+  and emitted in `results.sarif` as `suppressions[kind=external]`. GitHub
+  appears to need `"status": "accepted"` to dismiss. Add it, upload, confirm
+  the five close; otherwise the Security tab of a security tool shows an open
+  high CVE its own gate has answered. **Test first**: the SARIF golden.
+
+- [ ] **28.3.4** **The Python versions the claim names (B1).** `requires-python =
+  ">=3.11"`; CI creates every venv with 3.12. No 3.12-only syntax in `src/`, so
+  3.11 probably works — the kind of claim this project refuses elsewhere. A
+  three-way matrix on the unit job (3.11, 3.12, 3.13; ~40 s each), or the claim
+  narrowed to what is tested. **Test first**: the shape test requires the matrix
+  to cover `requires-python`'s floor.
+
+- [ ] **28.3.5** **NOTICE (B2).** The image redistributes Opengrep (LGPL-2.1),
+  Gitleaks (MIT), Trivy, Syft, OSV-Scanner and Checkov (Apache-2.0); no `NOTICE`
+  in the repository, no third-party file in the image. The SBOM discloses
+  components; Apache §4(d) and LGPL redistribution expect attribution text. A
+  `NOTICE` at the root and at `/usr/share/doc/valvur/NOTICE` in the image, each
+  tool with its licence and upstream. **Test first**: every `FROM … AS` stage in
+  the Dockerfile is named in it, so a new tool cannot arrive unattributed.
+
+- [ ] **28.3.6** **Supportability (O2).** No `--verbose`, no `--debug`, no log
+  file; `run.json` records each Scanner's version and duration and not the
+  command line that produced its raw output, though the Invocation holds it
+  and the snapshots prove it stable. `argv` per Scanner in `run.json`;
+  `VALVUR_DEBUG=1` echoes container commands to stderr; `valvur doctor
+  --bundle` writes a tarball of `run.json`, the doctor report and versions —
+  never source, never `raw/` — for an issue. **Tests first**: `run.json`'s
+  schema gains `argv`; the bundle's file list is asserted against an allowlist.
+
+- [ ] **28.3.7** **`valvur cache --prune` (O4).** `~/.cache/valvur` is never
+  pruned; each shim version pulls its own image tag and nothing removes
+  `:0.2.0` when `:0.3.0` arrives; `valvur cache` inventories and cannot clean.
+  A flag, never a default: `--prune` removes images not matching the shim's
+  version and index files the metadata no longer names, listing each first;
+  `doctor` names superseded images. **Tests first**: prune with a fake runtime
+  removes exactly the superseded set and refuses without the flag.
+
+- [ ] **28.3.8** **The runner move, dated (O5).** `ubuntu-latest` becomes 26.04
+  from 2026-10-19 (actions/runner-images#14748); every runner here is
+  `ubuntu-24.04`, and the follow-up — move, re-run the corpus, re-measure N1.1
+  and N1.4 — lives only in a STATUS note. This is that task: **after
+  2026-11-19**, move all eleven `runs-on` to 26.04, dispatch the corpus, and
+  record N1.1 and N1.4 against the 24.04 numbers in `requirements.md`.
+
+- [ ] **28.3.9** **The README's action pin (D4).** `ci.yml` pins
+  `valvur-action@6f90b88…`; the README shows `@v0`, which valvur's own
+  `mutable-action-ref` rule flags in a user's tree. Show the SHA form first,
+  `@v0` as the convenience, with the sentence that says why.
+
+### Tier 4 — After the gate, before `v1.0.0`
+
+- [ ] **28.4.1** **The vocabulary is typed (A2).** Profile is a `str` with retired
+  aliases resolved at runtime; ecosystem key, severity, finding status and
+  Scanner kind are `str`. 26.4.1 made the job state a `StrEnum` with a
+  transition table the code could not leave. The same for `Profile`, `Severity`
+  and `Status`, introduced at the boundaries — CLI and MCP parse to the enum —
+  with JSON output byte-identical. **Tests first**: the SUMMARY, SARIF and
+  findings goldens; mypy as the second test.
+
+- [ ] **28.4.2** **Three modules, one job each (A3).** `name_index.py` (799 lines)
+  is two products — the reader the scan needs and the builder only the workflow
+  runs, so the hot path imports `csv`, `tarfile` and five registry walkers;
+  `cli.py` (617) has `main()` at 292 lines; `api.py` (716) has `_scan_locked`
+  at 165 and `operations.scan_status` at 127. `name_index/{reader, published,
+  build}`; `cli.main` as a command table; `_scan_locked` as fetch, fleet,
+  assemble. 27.3.3's method: goldens first, then the move, byte-identical after.
+
+- [ ] **28.4.3** **The constraint suite, split (A4).** `tests/test_constraints.py`
+  is 1,442 lines — budgets, workflow shape, licences, memory and design
+  ratchets in one file, the god module moved into the tests. Split by subject;
+  the test count is unchanged and a test says so.
+
+- [ ] **28.4.4** **Mutation in CI (X1).** Five tests on 2026-09-22 passed against
+  the defect each was written for — a lazy import invisible to a module-level
+  probe, an orphaned container that merely finished inside the window, a scan
+  argument named `path` that scanned the wrong tree, goldens blind to their own
+  line cap, an order assertion comparing a dict with the constant it is built
+  from — and all five were caught by hand mutation, one person's habit. A
+  per-PR mutation check scoped to the diff (`mutmut` on changed files, or a
+  small harness that reverts each hunk's core line), non-required at first;
+  the STATUS note records its first month's catches, if any.
+
+- [ ] **28.4.5** **A reproducible image (B3).** No `SOURCE_DATE_EPOCH`, no
+  `rewrite-timestamp`; the same tree yields a different digest per build, so
+  trust rests on the OIDC identity and the tree hash rather than on anyone's
+  ability to rebuild and compare. `SOURCE_DATE_EPOCH` from the commit and
+  buildx `rewrite-timestamp=true`; then a test that two builds of one tree are
+  one digest. Honest caveat in the task: apk and pip may still defeat it, and
+  a partial result — the layers that matter reproducing — is recorded as what
+  it is.
+
+**Exit (Phase 28):** the cosign identity names one workflow and one ref pattern
+in four places held equal by a test; a `v*` tag needs the owner, a signature and
+`main`; the `release` environment has a reviewer; GitHub's four guards are on;
+every container has a memory and PID ceiling; a first run's fetches are in
+`run.json`; zero hard import cycles, by ratchet; `0.3.1` released through the
+promote path for real; Checkov's floor measured and either cut or stated; the
+MCP handshake carries the rules. Every number in the phase head re-measured in
+its task's STATUS note.
+
 ## Traceability
 
 The not-cuttable set from `requirements.md` maps to: F1 → Phase 8 · N2.1 → Phase 11

@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-21.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-25.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -131,11 +131,16 @@ measured as real today (a Scanner's unreadable report takes the whole run down,
 against F2.5's own words; a cancel can be confirmed and dropped; the Results Folder
 can hold a mixed generation), one arriving with the next release (PyPI is published
 *before* the artifact is validated). Phase 26 closed in one evening and one day
-(2026-09-21). **Next: Phase 27's Tier 0 — the daily index tagged only after its
-verification, the release SBOM by digest — before the next real tag, and Tier 1,
-the MCP surface, beside the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1);
-Phase 27's Tier 3 after the gate; then `v1.0.0` (12b.3).** When "what is next" is
-asked, Phase 25 answers for the people and Phase 27 for the code; Phase 24's list
+(2026-09-21). Phase 27 — the third review's seventeen — closed the next day, its
+Tier 3 held to bytes rather than waiting for the gate. **Next: Phase 28's Tier 0 —
+the trust boundary — before the next real tag: GitHub's own guards switched on,
+the signing identity narrowed to one workflow and one ref, a tag ruleset and a
+reviewer on `release`, a memory and PID ceiling on every container, a first run's
+fetches in `run.json`, and the one import cycle 27.3.2 left. Then `0.3.1` — the
+first real promote — beside the usability gate on `0.3.0` (10.1.1–10.1.2, then
+12b.1); Tier 2 (Checkov's startup measured, the MCP handshake) and Tier 3
+ungated; Tier 4 after the gate; then `v1.0.0` (12b.3).** When "what is next" is
+asked, Phase 25 answers for the people and Phase 28 for the code; Phase 24's list
 keeps the rows and the numbers, and the sequencing diagrams in Phases 21, 23 and
 24 are history.
 
@@ -173,6 +178,21 @@ rendering out of `results.py`, a typed pipeline result). **They are Phase 27** i
 `tasks.md` — sixteen tasks, ordered by consequence: the index and the release SBOM
 first (what a user receives), the MCP surface second, the record third, the three
 refactors after the gate and before `v1.0.0`.
+
+**A fourth review (2026-09-23)** — a level-400 pass over `main` at `2287dc7` by the
+agent that had just closed Phase 27, every claim measured against the tree, the
+workflows, the GitHub API or a run log — is
+[`docs/REVIEW-2026-09-23.md`](docs/REVIEW-2026-09-23.md): twenty-four actionable
+findings, two informational, in five lenses. Its verdict on the code is that the
+scan is right and the edges are not: **write access is release authority** (no tag
+protection, `verify` checking only the version, no reviewer on `release`, and a
+cosign identity that matches every workflow on every branch — four facts that are
+fine alone); **GitHub's own security features are off** on a security scanner's
+repository; **Checkov is the scan's wall clock** — 15.5–18.8 s of 16–19 s on every
+application repository in the corpus; a first run's three fetches are announced
+and never recorded; no container has a memory ceiling; and one hard import cycle
+that 27.3.2 introduced the day before. **They are Phase 28** in `tasks.md` —
+twenty-four tasks in five tiers, the trust boundary first and before any tag.
 
 The repository and both GHCR packages — `valvur`, the image, and `valvur-index`,
 the daily name index — went public on 2026-09-13, after a pre-public sweep that
@@ -261,10 +281,10 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 60 modules under `src/valvur`, 1,051 tests in 57 files, 20 ADRs, 136
-requirement IDs, **186 done and 20 open** across 27 phases — the usability gate,
-the `v1.0.0` tail, and Phase 27's sixteen from the third review; Phase 26 is complete (Tiers 0–5); Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
-are the owner's (the gate, the `v1.0.0` tag); the rest is engineering that waits on nobody, bar Phase 27's Tier 3, which waits for the gate's findings. A public corpus of thirteen real repositories runs
+Roughly: 64 modules under `src/valvur`, 1,059 tests in 62 files, 20 ADRs, 136
+requirement IDs, **202 done and 28 open** across 28 phases — the usability gate,
+the `v1.0.0` tail, and Phase 28's twenty-four from the fourth review; Phases 26 and 27 are complete; Phases 23 and 24, Block A and Checkpoint B are complete, `0.3.0` is out, the action is tagged and the rc is yanked. Two of the 4
+are the owner's (the gate, the `v1.0.0` tag), and two of Phase 28's (the `0.3.1` tag, the bus factor); the rest is engineering that waits on nobody, bar Phase 28's Tier 4, which waits for the gate's findings. A public corpus of thirteen real repositories runs
 weekly (`corpus.yml`); it found a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
 The work that closed Phases 19 and 20 was run as **six blocks** rather than task by
@@ -320,7 +340,25 @@ were introduced by the block before, with tests passing.
   (12b.3) — the next real tag is the first release whose upload follows its
   validation. `main` has required the arm64 leg of the published-image job since
   2026-09-21 (six checks; PR #62 was the first to land under it).
-- **The third review's seventeen (2026-09-21), measured — Phase 27.** In
+- **The fourth review's twenty-four (2026-09-23) — Phase 28.** In
+  [`docs/REVIEW-2026-09-23.md`](docs/REVIEW-2026-09-23.md) with the evidence
+  beside each. Worth knowing before touching the areas, until the task closes:
+  the cosign identity `^https://github.com/MaverickHQ/valvur/` verifies a
+  signature from *any* workflow on *any* branch, and nothing but the version
+  string guards a `v*` tag (D1 → 28.0.2); secret scanning, push protection and
+  Dependabot security updates are off (O1 → 28.0.1); a Scanner's container has
+  no `--memory`/`--pids-limit` (F3 → 28.0.3); `run.json` does not record a first
+  run's image/database/index fetches (F2 → 28.0.4); `ecosystems.parsers ↔
+  registry` is a module-level cycle (A1 → 28.0.5); Checkov's ~16 s startup is the
+  scan (F1 → 28.2.1); the MCP handshake carries no `instructions` and replies
+  are text only (F4 → 28.2.2); `valvur-rehearsal` holds 186 undeleted versions
+  (D2); five code-scanning alerts stay open though suppressed (F5); `>=3.11` is
+  claimed and 3.12 alone tested (B1); no `NOTICE` for the redistributed tools
+  (B2); no `--debug`, no `argv` in `run.json` (O2); nothing prunes the cache
+  (O4); and the three refactors of 2026-09-22 await an independent review before
+  `v1.0.0` (X2 → 28.1.1).
+- **The third review's seventeen (2026-09-21), measured — Phase 27, complete
+  2026-09-22.** In
   [`docs/OPEN-ITEMS.md`](docs/OPEN-ITEMS.md) with a verdict each, and in
   `tasks.md` as sixteen tasks (27.0.1–27.3.4). Worth knowing
   before touching the areas: `index.yml` tags `latest` before it signs and verifies
