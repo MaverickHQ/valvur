@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import cache as _cache
+from . import egress as _egress
 from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results
@@ -84,6 +85,14 @@ class ScanRun:
     name_index_age_days: float | None = None
     #: (old, new) when the Fingerprint algorithm changed and history was discarded.
     identity_reset: tuple[object, int] | None = None
+    #: What a first run fetched before the fleet — the image, the database, the
+    #: index — each as what/source/size_mb/seconds (and the index's signature
+    #: verdict). Empty on a steady-state run, and written empty on purpose: a
+    #: reader can tell "nothing fetched" from "a valvur that did not record". Until
+    #: 28.0.4 `run.json` said `network.used: false, what_left_the_machine: nothing`
+    #: about a run that had opened sockets to three hosts — true in the sentence's
+    #: sense and silent about the fetches (F10.8, ADR-0010).
+    fetched: list[dict] = field(default_factory=list)
     vendored_dropped: int = 0
     config_dropped: int = 0
     #: OSV-Scanner answers against the lower bounds of unpinned ranges, dropped
@@ -238,12 +247,13 @@ class ScanRun:
         return "nothing was found, by a scan able to support the claim"
 
 
-def _ensure_image(runner, on_progress) -> None:
+def _ensure_image(runner, on_progress) -> dict | None:
+    """Pull the image when absent (23.2.4). Returns the fetch record, or None."""
     from .runner import ImagePullFailed
 
     present = getattr(runner, "image_present", None)
     if present is None or present():
-        return
+        return None
     size = runner.pull_size_mb()
     stated = f" ({size}MB)" if size else ""
     if on_progress is not None:
@@ -258,8 +268,19 @@ def _ensure_image(runner, on_progress) -> None:
             f"The runtime said:\n  {detail}\n"
             f"Fetch it yourself with: {runner.runtime} pull {runner.image}"
         )
+    seconds = time.monotonic() - started
     if on_progress is not None:
-        on_progress(f"image pulled ({time.monotonic() - started:.0f}s)")
+        on_progress(f"image pulled ({seconds:.0f}s)")
+    return _fetch_record("image", runner.image, size, seconds)
+
+
+def _fetch_record(what: str, source: str, size_mb: int | None, seconds: float,
+                  **extra) -> dict:
+    """One fetch, for the record (28.0.4): what arrived, from where, how large as
+    the source stated it, how long. `seconds` rounded to a tenth like every other
+    duration `run.json` carries."""
+    return {"what": what, "source": source, "size_mb": size_mb,
+            "seconds": round(seconds, 1), **extra}
 
 
 #: What a first run says on `on_progress` while it fetches (23.2.4, 24.1): one line
@@ -271,7 +292,7 @@ FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
                "index fetched", "index not fetched")
 
 
-def _ensure_data(runner, on_progress) -> dict[str, str]:
+def _ensure_data(runner, on_progress) -> tuple[list[dict], dict[str, str]]:
     """The vulnerability database and the package-name index, when ABSENT (24.1).
 
     Task 14.2 decided valvur never refreshes on its own, and its three reasons were
@@ -292,13 +313,14 @@ def _ensure_data(runner, on_progress) -> dict[str, str]:
     """
     update = getattr(runner, "update_db", None)
     if update is None:
-        return {}          # the suite's fakes; the rule `_ensure_image` applies too
+        return [], {}      # the suite's fakes; the rule `_ensure_image` applies too
     say = on_progress if on_progress is not None else (lambda _: None)
+    fetched: list[dict] = []
     unfetched: dict[str, str] = {}
 
     if not _cache.db_present():
-        say(f"fetching the vulnerability database{_mb(runner.db_size_mb())} — the first "
-            "run only")
+        db_size = runner.db_size_mb()
+        say(f"fetching the vulnerability database{_mb(db_size)} — the first run only")
         started = time.monotonic()
         result = update()
         if result.exit_code != 0:
@@ -306,27 +328,46 @@ def _ensure_data(runner, on_progress) -> dict[str, str]:
             unfetched["trivy"] = f"the vulnerability database could not be fetched: {detail}"
             say(f"database not fetched: {detail}")
         else:
-            say(f"database fetched ({time.monotonic() - started:.0f}s)")
+            seconds = time.monotonic() - started
+            say(f"database fetched ({seconds:.0f}s)")
+            fetched.append(_fetch_record(
+                "vulnerability database",
+                _egress.db_repository() or _egress.DEFAULT_DB_REPOSITORY, db_size, seconds))
 
     _stop_if_cancelled(runner, "during the first run's fetches")
     if not _cache.name_index_present():
         from . import locking, name_index
 
-        say(f"fetching the package-name index{_mb(name_index.published_size_mb())} — the "
-            "first run only")
+        index_size = name_index.published_size_mb()
+        say(f"fetching the package-name index{_mb(index_size)} — the first run only")
         started = time.monotonic()
         try:
             with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
                 # `oci.SignatureInvalid` is deliberately not caught: a refused
                 # signature on a supply-chain artifact stops the scan (23.2.1).
-                name_index.refresh(_cache.name_index(), fallback=False)
+                metadata = name_index.refresh(_cache.name_index(), fallback=False)
         except name_index.IndexUnavailable as exc:
             unfetched["dependency-reality"] = (
                 f"the package-name index could not be fetched: {exc}")
             say(f"index not fetched: {exc}")
         else:
-            say(f"index fetched ({time.monotonic() - started:.0f}s)")
-    return unfetched
+            seconds = time.monotonic() - started
+            say(f"index fetched ({seconds:.0f}s)")
+            fetched.append(_fetch_record(
+                "package-name index", name_index.repository(), index_size, seconds,
+                signature=_index_signature(metadata)))
+    return fetched, unfetched
+
+
+def _index_signature(metadata: object) -> str:
+    """The verdict the pull recorded, from any ecosystem's entry — they are one
+    artifact, verified once (23.2.1)."""
+    ecosystems = metadata.get("ecosystems") if isinstance(metadata, dict) else None
+    for entry in (ecosystems or {}).values():
+        published = entry.get("published") if isinstance(entry, dict) else None
+        if isinstance(published, dict) and published.get("signature"):
+            return str(published["signature"])
+    return "not recorded"
 
 
 def _mb(size: int | None) -> str:
@@ -515,15 +556,20 @@ def scan(
         # (24.1). Each is said on `on_progress`, and each happens here, before the
         # shared cache lock, because the two data fetches take it exclusively.
         _stop_if_cancelled(runner, "before it began")
-        _ensure_image(runner, on_progress)
+        fetched: list[dict] = []
+        image = _ensure_image(runner, on_progress)
+        if image is not None:
+            fetched.append(image)
         _stop_if_cancelled(runner, "during the first run's fetches")
-        unfetched = _ensure_data(runner, on_progress)
+        data, unfetched = _ensure_data(runner, on_progress)
+        fetched += data
         _locks.enter_context(_locking.held(
             _locking.cache_lock(_cache_mod.root()), exclusive=False, wait=True,
         ))
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
-            on_progress=on_progress, unfetched=unfetched, jobs=jobs, budget_s=budget_s,
+            on_progress=on_progress, unfetched=unfetched, fetched=fetched, jobs=jobs,
+            budget_s=budget_s,
         )
 
 
@@ -550,8 +596,8 @@ def _stop_if_cancelled(runner, where: str) -> None:
 
 
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
-                 unfetched: dict[str, str] | None = None, jobs: int | None = None,
-                 budget_s: float | None = None) -> ScanRun:
+                 unfetched: dict[str, str] | None = None, fetched: list[dict] | None = None,
+                 jobs: int | None = None, budget_s: float | None = None) -> ScanRun:
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:
@@ -690,6 +736,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         network_used=network,
         kev_age_days=outcome.provider.kev_age_days,
         identity_reset=outcome.identity_reset,
+        fetched=list(fetched or []),
         db_age_days=_cache.db_age_days(),
         db_overdue_days=_cache.db_overdue_days(),
         name_index_age_days=_cache.name_index_age_days(),

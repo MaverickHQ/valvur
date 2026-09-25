@@ -72,7 +72,7 @@ def write(workspace: Path, run: ScanRun, scanner_artifacts=(), raw_outputs=(),
         ("SUMMARY.md", summary.render(run)),
         ("findings.json", artifacts.findings_json(
             run.findings, status=run.status, status_reason=run.status_reason,
-            complete=complete, generation=run.generation,
+            complete=complete, generation=run.generation, fetched=run.fetched,
         )),
         ("results.sarif", artifacts.sarif(run.findings, version=_VERSION,
                                           generation=run.generation)),
@@ -196,6 +196,12 @@ def _provenance(run: ScanRun) -> str:
                 "network": {
                     "used": run.network_used,
                     "what_left_the_machine": _egress.disclosure(used=run.network_used),
+                    # A first run's fetches (28.0.4): the image, the database, the
+                    # index — each what/source/size_mb/seconds. `used` above is the
+                    # Profile's own network; these are the sockets a first run
+                    # opened before any Scanner ran, and this is where they are
+                    # said. Empty, not absent, on a steady-state run.
+                    "fetched": run.fetched,
                 },
                 # Broken out rather than a single total (task 19.C.1). One number
                 # made an accepted risk, a live problem and a note about our own

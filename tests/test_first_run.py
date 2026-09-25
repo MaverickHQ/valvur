@@ -541,3 +541,113 @@ def test_the_cli_prints_each_fetch_to_stderr(workspace, host_cache, capsys, monk
     assert "  database fetched (" in err
     assert "  fetching the package-name index" in err
     assert "  index fetched (" in err
+
+
+# ------------------------------------------ the fetches are in the record (28.0.4)
+
+
+def _written(workspace: Path) -> tuple[dict, dict, str]:
+    import json
+
+    folder = workspace / ".security-scan"
+    return (json.loads((folder / "run.json").read_text()),
+            json.loads((folder / "findings.json").read_text()),
+            (folder / "SUMMARY.md").read_text())
+
+
+def test_a_fetched_database_is_in_the_record(workspace, host_cache):
+    """28.0.4. A first run on `offline` pulls the image, the database and the index
+    — announced live on `scan_status` and, until this, absent from `run.json`,
+    which said `network.used: false`, `what_left_the_machine: nothing` and listed
+    no fetch. True in the sentence's sense (nothing of the workspace left) and
+    unable to tell a first run from a steady-state one. Now each fetch is a record:
+    what, from where, how large, how long."""
+    _write_index(host_cache)
+    run, _ = _scan(workspace, _Runner(host_cache))
+
+    [fetched] = run.fetched
+    assert fetched["what"] == "vulnerability database"
+    assert fetched["source"] == "mirror.gcr.io/aquasec/trivy-db:2", "the host Trivy was sent to"
+    assert fetched["size_mb"] == 118
+    assert isinstance(fetched["seconds"], float)
+    provenance, findings, summary = _written(workspace)
+    assert provenance["network"]["fetched"] == run.fetched
+    assert provenance["network"]["used"] is False, "the Profile's own network is still offline"
+    assert findings["fetched"] == run.fetched
+    assert "fetched the vulnerability database from `mirror.gcr.io/aquasec/trivy-db:2`" in summary
+    assert "**This was a first run.**" in summary
+
+
+def test_a_fetched_index_records_the_signature_it_was_pulled_under(
+    workspace, host_cache, monkeypatch
+):
+    _write_db(host_cache)
+    monkeypatch.setattr(oci.shutil, "which", lambda _: None)
+    def refresh(directory, **k):
+        _write_index(directory)
+        return {"ecosystems": {"pip": {"published": {
+            "repository": "ghcr.io/maverickhq/valvur-index", "digest": "sha256:abc",
+            "signature": "not verified: cosign is not installed"}}}}
+
+    monkeypatch.setattr(name_index, "refresh", refresh)
+
+    run, _ = _scan(workspace, _Runner(host_cache))
+
+    [fetched] = run.fetched
+    assert fetched["what"] == "package-name index"
+    assert fetched["source"] == name_index.repository()
+    assert fetched["signature"].startswith("not verified: cosign is not installed")
+
+
+def test_all_three_fetches_are_recorded_in_the_order_they_happen(
+    workspace, host_cache, monkeypatch
+):
+    class Runner(_Runner):
+        def image_present(self):
+            return False
+
+        def pull_size_mb(self):
+            return 240
+
+        def pull_image(self, on_line=None):
+            return ScannerOutput("pull", "", "", "", 0)
+
+    def refresh(directory, **k):
+        _write_index(directory)
+        return {"ecosystems": {}}
+
+    monkeypatch.setattr(name_index, "refresh", refresh)
+
+    run, _ = _scan(workspace, Runner(host_cache))
+
+    assert [f["what"] for f in run.fetched] == [
+        "image", "vulnerability database", "package-name index"]
+    assert run.fetched[0]["source"] == "ghcr.io/maverickhq/valvur:9.9.9"
+    assert run.fetched[0]["size_mb"] == 240
+
+
+def test_a_steady_state_run_records_no_fetch(workspace, host_cache):
+    """The common case says so explicitly — an empty list, not an absent key — so
+    a reader can tell "nothing fetched" from "a valvur that did not record."""
+    _write_db(host_cache)
+    _write_index(host_cache)
+
+    run, said = _scan(workspace, _Runner(host_cache))
+
+    assert run.fetched == []
+    provenance, findings, summary = _written(workspace)
+    assert provenance["network"]["fetched"] == []
+    assert findings["fetched"] == []
+    assert "fetched" not in summary.lower()
+    assert not any(line.startswith("fetching") for line in said)
+
+
+def test_a_failed_fetch_is_not_recorded_as_one(workspace, host_cache):
+    """The record is of what arrived. A fetch that failed is already on the
+    Scanner it cost (24.1's reason line); it is not also a fetch."""
+    _write_index(host_cache)
+
+    run, _ = _scan(workspace, _Runner(host_cache, db_exit=1))
+
+    assert run.fetched == []
+    assert any("could not be fetched" in s.reason for s in run.scanners if s.failed)

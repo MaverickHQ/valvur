@@ -221,6 +221,21 @@ def render(run: ScanRun) -> str:
     # reader was told least about missing coverage exactly when there was most else on
     # screen — and `run.json` recorded it all along, in a file the contract tells
     # agents to read bounded.
+    if run.fetched:
+        # A first run (28.0.4). The same three hosts `scan_status` announced live;
+        # here so the document, read later, says this run reached out before any
+        # Scanner ran — and a steady-state run says nothing, by having nothing.
+        lines += [
+            "**This was a first run.** Before any Scanner ran it "
+            + "; ".join(
+                f"fetched the {f['what']} from `{f['source']}`"
+                + (f" ({f['size_mb']}MB, {f['seconds']:.0f}s)" if f.get("size_mb") else
+                   f" ({f['seconds']:.0f}s)")
+                for f in run.fetched)
+            + ". Nothing of this workspace left the machine; `run.json` carries the "
+            "same list under `network.fetched`.",
+            "",
+        ]
     absent = _profiles.not_run(run.profile)
     if absent:
         headline = (

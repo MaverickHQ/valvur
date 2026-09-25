@@ -25,7 +25,7 @@ _SARIF_LEVEL = {
 
 
 def findings_json(findings: list[Finding], *, status: str, status_reason: str = "",
-                  complete: bool, generation: str = "") -> str:
+                  complete: bool, generation: str = "", fetched: list[dict] | None = None) -> str:
     return json.dumps(
         {
             "schema": SCHEMA,
@@ -35,6 +35,7 @@ def findings_json(findings: list[Finding], *, status: str, status_reason: str = 
             "generation": generation,
             "status": status,
             "status_reason": status_reason,
+            "fetched": list(fetched or []),
             "complete": complete,
             "findings": [_serialise(f) for f in findings],
         },
