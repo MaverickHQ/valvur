@@ -310,7 +310,12 @@ def image_size(reference: str, *, insecure: bool = False) -> int | None:
 #: The identity every valvur artifact is signed under: a workflow in this repository,
 #: through GitHub's OIDC issuer. The same two values the README's own verification
 #: command uses for the image.
-SIGNING_IDENTITY = r"^https://github\.com/MaverickHQ/valvur/"
+#: The identity a signature on the INDEX must carry (28.0.2): the index workflow,
+#: run on main — one file, one ref. Until 28.0.2 this was the repository alone,
+#: which every workflow on every branch satisfies, so a branch's or a probe's
+#: signature verified as the daily index's. Anchored at both ends: the ref is the
+#: last thing in the SAN and `main` must be all of it.
+SIGNING_IDENTITY = r"^https://github\.com/MaverickHQ/valvur/\.github/workflows/index\.yml@refs/heads/main$"
 SIGNING_ISSUER = "https://token.actions.githubusercontent.com"
 
 Verification = str

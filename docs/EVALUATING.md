@@ -106,7 +106,7 @@ entry naming the workflow that built it:
 
 ```bash
 cosign verify ghcr.io/maverickhq/valvur@<digest> \
-  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
+  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/.github/workflows/release.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -129,7 +129,7 @@ that refuses stops the update. To check by hand:
 
 ```bash
 cosign verify ghcr.io/maverickhq/valvur-index:latest \
-  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
+  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/.github/workflows/index.yml@refs/heads/main$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

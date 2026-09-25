@@ -186,7 +186,7 @@ jobs:
             echo
             echo '```bash'
             echo "cosign verify ${REPOSITORY}@${DIGEST} \\"
-            echo "  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \\"
+            echo "  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/.github/workflows/index.yml@refs/heads/main$' \\"
             echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
             echo '```'
             echo

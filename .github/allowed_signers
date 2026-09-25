@@ -1,0 +1,7 @@
+# Keys that may sign a release tag (task 28.0.2). `release.yml`'s verify job runs
+# `git tag -v` against this file; a tag signed by any other key does not release.
+# The principal is the committer email every commit on main carries, and the key is
+# the SSH signing key on the owner's GitHub account — the same one branch protection
+# has required on every commit since 2026-09-13. A second maintainer is a second
+# line here, in a signed commit.
+MaverickHQ@users.noreply.github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP8x9RRHdS2bSga6DZK1WA7fZ5mhayIVz1fEVxZx6tPI

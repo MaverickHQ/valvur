@@ -77,6 +77,25 @@ jobs:
           echo "version=$DECLARED" >> "$GITHUB_OUTPUT"
           echo "publish_version=$PUBLISH" >> "$GITHUB_OUTPUT"
 
+      - name: A real tag is signed by a known key and sits on main
+        # 28.0.2. The version match above was the only thing that stood between a
+        # write-scoped token and a signed release. Now the tag object must carry a
+        # signature from a key named in .github/allowed_signers — the same key that
+        # signs every commit on main — and the commit it points at must be on main,
+        # so a tag on a branch cannot release that branch. A rehearsal has no tag
+        # and runs from a branch; both checks are for the real thing only.
+        if: env.REHEARSAL != 'true'
+        run: |
+          set -eu
+          git fetch --no-tags --depth=500 origin "+refs/heads/main:refs/remotes/origin/main"
+          git fetch --depth=1 origin "+refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          git -c gpg.ssh.allowedSignersFile=.github/allowed_signers tag -v "$GITHUB_REF_NAME"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main."
+            exit 1
+          fi
+          echo "${GITHUB_REF_NAME} is signed by a known key and is on main"
+
       - run: uv venv --python 3.12
 
       - name: Lint, types, traceability, unit tests, package build
@@ -455,8 +474,12 @@ jobs:
           docker pull "$IMAGE@$DIGEST"
           ARCH=$(docker image inspect "$IMAGE@$DIGEST" --format '{{ .Architecture }}')
           echo "pulled the $ARCH child of $IMAGE@$DIGEST on $(uname -m)"
+          # This run's own identity, exactly — release.yml at this ref — which is
+          # stricter than any pattern and true in a rehearsal (refs/heads/<branch>)
+          # and a release (refs/tags/vX.Y.Z) alike. The pattern users are given
+          # names tags only, so a rehearsal's image verifies here and nowhere else.
           cosign verify "$IMAGE@$DIGEST" \
-            --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
           echo "signature verified on $IMAGE@$DIGEST"
           gh attestation verify "oci://$IMAGE@$DIGEST" --repo MaverickHQ/valvur \
@@ -605,7 +628,7 @@ jobs:
             echo
             echo '```bash'
             echo "cosign verify ${IMAGE}@${DIGEST} \\"
-            echo "  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \\"
+            echo "  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/.github/workflows/release.yml@refs/tags/v' \\"
             echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
             echo '```'
             echo

@@ -241,7 +241,7 @@ work is worse than none — the README shipped one for weeks that failed twice:
 
 ```bash
 cosign verify ghcr.io/maverickhq/valvur:0.2.0 \
-  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/' \
+  --certificate-identity-regexp '^https://github.com/MaverickHQ/valvur/.github/workflows/release.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 gh attestation verify oci://ghcr.io/maverickhq/valvur:0.2.0 --repo MaverickHQ/valvur
