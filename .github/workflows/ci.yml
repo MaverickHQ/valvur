@@ -27,6 +27,25 @@ jobs:
           fi
           echo "clean: no .security-scan/ paths in the tree"
 
+  # The versions `requires-python` names, beyond the one everything else runs on
+  # (28.3.4, B1): `>=3.11` was claimed and 3.12 alone tested. The unit suite on
+  # the floor and on the newest, about forty seconds each; lint, types and the
+  # package build stay on the job above, once.
+  floor:
+    name: the tests on Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv venv --python "${{ matrix.python }}"
+      - run: uv sync --extra dev --locked
+      - run: uv run --no-sync python -c "import sys; assert sys.version_info[:2] == tuple(int(p) for p in '${{ matrix.python }}'.split('.')), sys.version"
+      - run: uv run --no-sync pytest -q -p no:cacheprovider -m "not e2e"
+
   test:
     name: lint, types, tests
     runs-on: ubuntu-24.04

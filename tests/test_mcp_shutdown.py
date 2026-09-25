@@ -195,10 +195,16 @@ def test_a_real_server_leaves_no_container_behind_when_its_client_disconnects(mo
         # is how this test first "passed" while measuring another tree.
         assert str(workspace) in replies[-1], replies[-1]
 
+        # The set that ends the wait is the set measured: a second `live()` after
+        # the loop saw nothing when the first container of the fleet had already
+        # finished in between — measured on 2026-09-26, once Checkov's startup
+        # dropped (28.2.1), the whole test ran 1.8s and asserted on an empty set.
         deadline = time.monotonic() + 180
-        while time.monotonic() < deadline and not (set(live()) - before):
-            time.sleep(0.2)
-        started = set(live()) - before
+        started: set[str] = set()
+        while time.monotonic() < deadline and not started:
+            started = set(live()) - before
+            if not started:
+                time.sleep(0.2)
         assert started, "no container ever started, so the test measures nothing"
 
         closed = time.monotonic()

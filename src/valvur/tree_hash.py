@@ -28,6 +28,7 @@ IMAGE_DIGEST_FILE = "/etc/valvur/inputs.sha256"
 IMAGE_DOCKERFILE = "/etc/valvur/Dockerfile"
 IMAGE_RULES = "/opt/valvur-rules"
 IMAGE_CHECKOV_LOCK = "/opt/checkov-requirements.txt"
+IMAGE_NOTICE = "/usr/share/doc/valvur/NOTICE"
 
 #: Never part of the digest: byte-compiled caches differ per interpreter and are
 #: stripped from the image anyway; editor droppings are not inputs; and the file
@@ -80,6 +81,8 @@ def tree_parts(repo: Path) -> dict[str, Path]:
         "valvur": repo / "src" / "valvur",
         # The Checkov lock (23.4.1): a changed hash is a changed image.
         "checkov-lock": repo / "requirements-checkov.txt",
+        # The attribution file (28.3.5), copied into the image like the rest.
+        "notice": repo / "NOTICE",
     }
 
 
@@ -90,6 +93,7 @@ def image_parts() -> dict[str, Path]:
         "rules": Path(IMAGE_RULES),
         "valvur": Path(__file__).resolve().parent,
         "checkov-lock": Path(IMAGE_CHECKOV_LOCK),
+        "notice": Path(IMAGE_NOTICE),
     }
 
 

@@ -76,7 +76,7 @@ SDIST_TOP_LEVEL = {
     "Dockerfile", "docker-bake.hcl", ".dockerignore",
     "requirements-checkov.in", "requirements-checkov.overrides", "requirements-checkov.txt",
     # The documents a package should carry with it.
-    "LICENSE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
+    "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md", "MAINTAINERS.md",
     ".gitignore", ".gitattributes", ".security-scan.toml",
 }

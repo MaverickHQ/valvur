@@ -1,0 +1,74 @@
+valvur
+Copyright (c) 2026 MaverickHQ
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This distribution — the source, the wheel and the container image
+`ghcr.io/maverickhq/valvur` — redistributes the following works, unmodified,
+each under its own licence. The image's SBOM (`sbom.cdx.json`, published with
+every release) lists every component the image contains; this file is the
+attribution the licences of the tools valvur orchestrates ask for (task 28.3.5).
+
+Scanners and Checks the image carries
+-------------------------------------
+
+Opengrep
+    https://github.com/opengrep/opengrep
+    GNU Lesser General Public License v2.1 (LGPL-2.1)
+    Copyright the Opengrep contributors; a fork of Semgrep's LGPL-2.1 engine.
+    Redistributed as the unmodified release binary; the source of the version
+    shipped is at the upstream tag the Dockerfile names.
+
+Gitleaks
+    https://github.com/gitleaks/gitleaks
+    MIT License
+    Copyright (c) 2019 Zachary Rice
+
+Trivy
+    https://github.com/aquasecurity/trivy
+    Apache License 2.0
+    Copyright 2019-2020 Aqua Security Software Ltd.
+
+OSV-Scanner
+    https://github.com/google/osv-scanner
+    Apache License 2.0
+    Copyright 2022 Google LLC
+
+Syft
+    https://github.com/anchore/syft
+    Apache License 2.0
+    Copyright 2020 Anchore, Inc.
+
+Checkov
+    https://github.com/bridgecrewio/checkov
+    Apache License 2.0
+    Copyright 2019 Bridgecrew (Palo Alto Networks); installed with its
+    hash-locked dependencies (`requirements-checkov.txt`), each under its own
+    licence as the SBOM records.
+
+Base image and runtime
+----------------------
+
+Python
+    https://www.python.org
+    Python Software Foundation License Version 2 (PSF-2.0)
+    Copyright (c) 2001 Python Software Foundation.
+
+Alpine Linux
+    https://alpinelinux.org
+    The base image's packages are each under their own licence — MIT, BSD,
+    GPL and others — as the image's SBOM records per package. ADR-0005: no
+    GPL-licensed tool is added to the image deliberately; the GPL components
+    present are the base operating system's.
+
+Data
+----
+
+CISA Known Exploited Vulnerabilities catalog
+    https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+    A work of the United States Government, in the public domain; a snapshot is
+    bundled in the image (ADR-0007).
+
+FIRST EPSS
+    https://www.first.org/epss
+    Fetched on demand on the `full` profile, never bundled.

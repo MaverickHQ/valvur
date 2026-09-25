@@ -194,9 +194,14 @@ installs the shim, fetches and caches what a scan needs, scans, uploads
 gate uses it on every commit:
 
 ```yaml
-- uses: MaverickHQ/valvur-action@v0
+- uses: MaverickHQ/valvur-action@6f90b88ce906b3997e704c9298cc467c24c9311e # v0.1
   with: { fail-on: high, no-inconclusive: "true" }
 ```
+
+Pinned by commit, because a tag can move and a scan of your own tree would say
+so: valvur's `mutable-action-ref` rule flags `@v0` as a finding, and this
+repository's own gate runs on `any`. `@v0` works and follows the latest `v0.x`;
+use it if you accept that, and expect the finding.
 
 The gate fails on an incomplete run, on a lapsed suppression, on an active finding
 at or above `--fail-on` (`any` is every one; it is what valvur's own release gate

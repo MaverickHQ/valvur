@@ -140,6 +140,12 @@ COPY rules /opt/valvur-rules
 # ships in the image. Last content layer: check code changes rebuild only this.
 COPY src/valvur /usr/local/lib/python3.12/site-packages/valvur
 
+# The attribution the redistributed tools' licences ask for (28.3.5): the same
+# file the repository carries at its root, at the path a reader of the image would
+# look. A test holds it to every `FROM … AS` stage above, so a tool cannot arrive
+# unattributed.
+COPY NOTICE /usr/share/doc/valvur/NOTICE
+
 # The image records what it was built from (22.C.1): a digest over exactly the
 # files copied above and this Dockerfile, computed by the same module the host uses
 # to check it. `scripts/check_image.py` and the e2e suite refuse a stale image with
