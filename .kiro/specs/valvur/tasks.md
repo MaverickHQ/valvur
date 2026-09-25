@@ -7116,7 +7116,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   `verify-offline.py` is unchanged, because a first run was never the run it
   proves.
 
-- [ ] **28.0.5** **The hard cycle, and a ratchet (A1).** 27.3.2 introduced the
+- [x] **28.0.5** **The hard cycle, and a ratchet (A1).** 27.3.2 introduced the
   package's only module-level import cycle: `ecosystems.registry` imports the
   parser functions and `ecosystems.parsers.declared()` imports the registry —
   it runs only because `declared` touches the registry at call time, which is
@@ -7128,6 +7128,20 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
 
   **Tests first**: the ratchet, red on `parsers ↔ registry`; then the move; the
   five parser goldens from 27.3.2 unchanged.
+
+  **STATUS 2026-09-25:** ✅ With 28.0.1, one PR. Test first: the detector from
+  the review as two tests in `test_ecosystem_registry.py` — `ast` over all 64
+  modules, module-level imports outside `TYPE_CHECKING` as hard edges — red on
+  `parsers ↔ registry`; and a second holding the soft cycles to the nine chosen
+  ones by name, so a lazy import that closes a new loop is a decision rather than
+  an accident. `declared()` moved to `ecosystems/__init__.py`, the loop beside
+  the registry it walks; `parsers.py` imports nothing of the registry. The five
+  parser goldens from 27.3.2 byte-identical; 1,065 unit tests. Mutations: the
+  module-level import put back — which now fails *at import time* with
+  `partially initialized module` rather than merely failing the ratchet,
+  because nothing in `parsers` needs the registry any more, so the accident
+  that let it run is gone too; and a lazy `doctor` import planted in
+  `staleness.py`, caught by the soft-cycle test.
 
 ### Tier 1 — The release
 
