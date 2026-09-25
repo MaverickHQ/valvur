@@ -7318,7 +7318,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
 
 ### Tier 2 — What a user feels
 
-- [ ] **28.2.1** **Checkov's startup, measured (F1).** From the corpus of
+- [x] **28.2.1** **Checkov's startup, measured (F1).** From the corpus of
   2026-09-21 on `offline`: Checkov 15.5–18.8 s of a 16–19 s scan on all twelve
   application repositories, 124.2 of 124.5 s on the Terraform module; every
   other Scanner inside 1–2 s, concurrently. N1.1's "under 60 seconds" is met
@@ -7337,6 +7337,44 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   files present is a pure function with a table test; the skip is reported and
   both branches are tested, as every conditional Scanner is (§7). The corpus
   before and after is the measurement; the STATUS note quotes both tables.
+
+  **STATUS 2026-09-26:** ✅ PR #89. **(1), measured and dead:** `--framework
+  github_actions` on a workflow-only tree saved **0.1 s of 10.6 s** (three runs
+  each way, Docker Desktop). **(2), not needed**, because a profile of the run
+  (`cProfile` over `checkov.main`, `--network=none`) said where the seconds
+  were, and neither was analysis: **5.0 s in `getaddrinfo`** — `banner.py`
+  calls the update checker at import, which asks PyPI for the latest version;
+  the Dockerfile's `CHECKOV_DISABLE_UPDATE_CHECK=true` (23.4.1) is a variable
+  this Checkov never reads (`env_vars_config.py`:
+  `CKV_SKIP_PACKAGE_UPDATE_CHECK`), so under `--network=none` every start
+  waited for DNS to fail, and on `full` it would have reached pypi.org; **2.6 s
+  in `compile`** — the image deleted Checkov's `__pycache__` and runs it
+  read-only, non-root, `PYTHONDONTWRITEBYTECODE=1`, so every start compiled
+  3,913 modules from source (`checkov --version` 5.9 s cold, 1.3 s with
+  bytecode, measured as root where `.pyc` could be written; the first warm run
+  as the container's user had measured only the page cache, 4.0 s). Both are
+  the image's and both are fixed there — the variable Checkov reads;
+  `compileall` over the venv and the Checks' package, the stdlib's shipped
+  bytecode kept (0.35 → 0.06 s for a Check's imports) — held by a test over the
+  Dockerfile's text and an e2e test that asks the installed Checkov's own
+  configuration whether the skip is read and counts the `.pyc` files.
+  **Measured as the runner runs it** (non-root, read-only root, no network,
+  Docker Desktop): the workflow-only tree **10.2–10.7 s → 3.0–3.3 s**; the e2e
+  suite, which scans on every test, 216 s → 152 s. **The corpus on GitHub's
+  Linux runner, `offline`, before (scheduled run 35601232995, 2026-09-21) →
+  after (run 36201214103, this branch):** requests 17.1 → 6.9 s, flask 18.1 →
+  8.5, llm 17.2 → 7.4, express 18.2 → 7.8, fastify 18.6 → 9.0, cobra 15.9 →
+  5.8, gson 19.4 → 8.8, ripgrep 19.2 → 9.1, sinatra 17.2 → 7.1, monolog 16.9 →
+  6.8, awesome-cursorrules 16.0 → 6.0, smolagents 18.7 → 8.3 — **every
+  application repository from 16–19 s to 6–9 s**, Checkov 15.5–18.8 → 5.4–8.8 s
+  and still the slowest Scanner on each; terraform-aws-vpc **124.5 → 107.8 s**
+  (the analysis is the analysis; the fixed part went). `full`: the same, plus
+  OSV-Scanner on smolagents 54.6 → 40.7 s, its own evaluation of the unpinned
+  file (25.3). Every status and every count identical across the two runs.
+  **The cost:** 61 MB uncompressed, **22 MB compressed (220 → 242 MB)** — about
+  two seconds more on a first pull, once — recorded as ADR-0019's amendment,
+  which withdraws its sentence that no image shape changed Checkov's runtime.
+  N1.1, `EVALUATING.md` and the README carry the new numbers.
 
 - [x] **28.2.2** **The handshake carries the rules, and replies are structured (F4).**
   The MCP surface is prose-only: no `instructions` in `initialize`, so the

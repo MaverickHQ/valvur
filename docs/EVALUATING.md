@@ -35,7 +35,7 @@ moved):
 | `valvur update`, first time | **~380MB**: the image 223MB compressed (pulled here since 23.2.4, and said on the status line if a scan has to do it), vulnerability database 120MB, the published name index 35MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | **45s** (53s) | docker's layer bars, Trivy's progress bar, then one line per ecosystem with its build time and `signature: verified` |
 | `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
 | `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
-| first `valvur scan` | — | **19s** (33s) on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs; the three Checks in one container since 23.4.2); 7–24s on the real projects in the README. On GitHub's `ubuntu-latest` runner (Ubuntu 24.04), the twelve-repository corpus: **14–18s** on every application repository from 22k to 100k lines, 88s on a Terraform module (Checkov analysing it) — run 34764187516, 2026-09-13 | eight scanner names, each turning `ok` |
+| first `valvur scan` | — | **19s** (33s) on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs; the three Checks in one container since 23.4.2); 7–24s on the real projects in the README. On GitHub's `ubuntu-latest` runner (Ubuntu 24.04), the twelve-repository corpus: **14–18s** on every application repository from 22k to 100k lines, 88s on a Terraform module (Checkov analysing it) — run 34764187516, 2026-09-13; **6–9s** and 108s after Checkov's startup was fixed in the image (28.2.1) — run 36201214103, 2026-09-26 | eight scanner names, each turning `ok` |
 | **first `scan` over MCP, nothing run first** — no image, empty cache, one tool call (24.1) | the same ~380MB | **58s** (110s) to `DONE`, `complete: True`: image pulled 13s, database fetched 18s, index fetched 8s, then the Scanners | `scan_status` reads *"Now: pulling ghcr.io/… (223MB) — the first run only"*, then *"fetching the vulnerability database (119MB)"*, then *"fetching the package-name index (35MB)"*, each gone once it is over |
 
 **About a minute from nothing to a first result, measured — the same over MCP with
@@ -317,8 +317,13 @@ does when it cannot find anything.
   GitHub's Linux runner the same day, across twelve real repositories: Checkov
   14–17s on every one that has a workflow file to analyse (they all do), every
   other Scanner 1–4s, and Checkov 88s on the one Terraform module — a container
-  start costs 2–3s there against 10–16s through Docker Desktop. The number is on
-  every run so you can see yours rather than trust ours.
+  start costs 2–3s there against 10–16s through Docker Desktop. Since 28.2.1
+  (2026-09-26) Checkov starts in a third of the time — its update check, which
+  had waited five seconds for DNS on every start, is off by the variable Checkov
+  reads, and its bytecode is in the image instead of compiled at every start —
+  and the same corpus reads **6–9s** on every application repository, Checkov
+  5–9s of it, 108s on the Terraform module. The number is on every run so you
+  can see yours rather than trust ours.
 - An **ecosystem nothing inspects** produces a finding saying so.
 - **Excluded paths** are reported with the count they cost. An exclusion you cannot
   see is indistinguishable from a scan that found nothing.

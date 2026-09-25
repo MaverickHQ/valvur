@@ -117,7 +117,10 @@ fix, apply or remediate tool to call. `scan` and `scan_cancel` do act on your ma
 their MCP annotations, so a client that asks before running them is right to. Nothing has to run
 first: a first `scan` pulls the image, the vulnerability database and the name index
 itself and says so on `scan_status` — measured 2026-09-20 on `0.3.0` from an empty
-machine, **58 seconds** to a complete result, one tool call (110s on `0.2.0`).
+machine, **58 seconds** to a complete result, one tool call (110s on `0.2.0`). A
+scan after that, measured on GitHub's Linux runner across twelve real application
+repositories: **6–9 seconds** (2026-09-26, after Checkov's startup was fixed in
+the image; it had been 16–19).
 
 The server's handshake carries the rules an agent needs — never commit the
 folder, work from `REMEDIATION.md`, never add a suppression without a human, a

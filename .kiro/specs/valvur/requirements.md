@@ -664,6 +664,13 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    start costs 10–16s against 2–3s on Linux; the requirement names the machine
    class it is met on rather than implying every laptop. **(c)** *Data present*: a
    first run's fetches are stated separately (24.1, `docs/EVALUATING.md`).
+   *Re-measured 2026-09-26 (task 28.2.1), after Checkov's startup was fixed in
+   the image — its update check switched off by the variable it reads, its
+   bytecode compiled in: every application repository **6–9 s**, flat with size
+   (cobra 5.8, awesome-cursorrules 6.0, monolog 6.8, requests 6.9, sinatra 7.1,
+   llm 7.4, express 7.8, smolagents 8.3, flask 8.5, gson 8.8, fastify 9.0,
+   ripgrep 9.1), Checkov 5.4–8.8 s of it; the Terraform module 107.8 s. Run
+   36201214103, `ubuntu-24.04`. The 60 s claim is met with a margin of six.*
 2. N1.2 — `full` **Profile** SHALL complete in under 5 minutes on the same. *Note
    2026-09-13 (task 24.3): measured beside N1.1 on the same run — `full` is `offline`
    plus 0–1s on every corpus repository (osv-scanner 0.9–1.9s), 15–17s on
