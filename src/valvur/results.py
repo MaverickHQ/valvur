@@ -6,10 +6,7 @@ import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from . import artifacts, rawoutput, remediation, summary
-from . import egress as _egress
-from .staleness import db_is_stale as _db_is_stale
-from .staleness import index_is_stale as _index_is_stale
+from . import artifacts, provenance, rawoutput, remediation, summary
 from .version import __version__ as _VERSION
 
 if TYPE_CHECKING:
@@ -79,7 +76,7 @@ def write(workspace: Path, run: ScanRun, scanner_artifacts=(), raw_outputs=(),
         ("REMEDIATION.md", remediation.render(run.findings)),
         *scanner_artifacts,
         *([("state.json", state)] if state is not None else []),
-        ("run.json", _provenance(run)),          # last: it vouches for the rest
+        ("run.json", provenance.render(run)),    # last: it vouches for the rest
     ]
 
     # raw/ first — it has its own stale-file rule and is not part of the swap; a
@@ -96,141 +93,3 @@ def write(workspace: Path, run: ScanRun, scanner_artifacts=(), raw_outputs=(),
     for name, _ in documents:
         os.replace(folder / f"{name}{STAGED}", folder / name)
     return folder
-
-
-def _provenance(run: ScanRun) -> str:
-    """What actually ran. Makes a clean result falsifiable (N3.1)."""
-    import json
-
-    from . import cache as _cache
-    from . import profiles as _profiles
-    from .fingerprint import FP_VERSION
-
-    return (
-        json.dumps(
-            {
-                "schema": 1,
-                "fp_version": FP_VERSION,
-                # This Scan Run's id; the same value in findings.json, state.json
-                # and results.sarif, and run.json is the last of them written, so
-                # a sibling with a different one is from another run (26.0.3).
-                "generation": run.generation,
-                # F5.3 / task 17.4: history was discarded because identity changed.
-                "identity_reset": list(run.identity_reset) if run.identity_reset else None,
-                "status": run.status,
-                # One line, one field, the same words on every surface (22.D.4).
-                "status_reason": run.status_reason,
-                # Which profile ran, and what it therefore did not look at. Without
-                # this, run.json cannot tell you a class was out of scope.
-                "profile": run.profile,
-                # Scanners that had nothing to analyse. Distinct from a failure —
-                # the run is still complete — and distinct from finding nothing.
-                "scanners_skipped": {
-                    s.tool: s.reason
-                    for s in run.scanners if s.skipped
-                },
-                "scanners_not_run": list(
-                    _profiles.not_run(run.profile)
-                ),
-                # What each Scanner and Check reads, and what it deliberately does
-                # not (task 19.E.1). Distinct from the two fields above: those say a
-                # Scanner did not run, this says what it does not look at even when
-                # it does. A reader asking "was my Cargo.toml checked?" has nowhere
-                # else to find out.
-                "coverage": run.coverage,
-                # An incomplete scan reporting "clean" would be a lie of omission.
-                # This is the single field an agent should check first.
-                "complete": not run.failures,
-                # Reported, not silent: a user who vendored a vulnerable copy
-                # deserves to know we skipped it.
-                "excluded_vendored": run.vendored_dropped,
-                # What this project chose not to scan, and how much it cost. An
-                # exclusion the reader cannot see is indistinguishable from a
-                # scanner that found nothing.
-                # The scan budget in force and what it cut (23.3.7); None when none.
-                "budget": ({"seconds": run.budget_s, "cut": list(run.budget_cut)}
-                           if run.budget_s is not None else None),
-                # The tree the shim and the image were built from (23.4.4). `match`
-                # is None when either side is unrecorded — nothing to compare.
-                "build": {"shim": run.shim_built_from, "image": run.image_built_from,
-                          "match": run.build_match},
-                "excluded_by_config": {
-                    "paths": list(run.excluded_paths),
-                    "findings_dropped": run.config_dropped,
-                },
-                # OSV-Scanner's answers against the lower bounds of unpinned ranges
-                # (25.3): not the project's Findings, and not silently gone either.
-                "excluded_unpinned": {
-                    "advisories_dropped": run.unpinned_dropped,
-                    "files": list(run.unpinned_files),
-                },
-                # Stated plainly, because we criticise competitors for being vague
-                # about exactly this. Package NAMES (never source) are sent to public
-                # registries by the dependency-reality Check, on `full` only.
-                # F7.17. The vulnerability database, distinct from the enrichment
-                # data below. This one determines whether findings exist at all, so a
-                # clean result cannot be judged without it.
-                "database": {
-                    "age_days": _round_or_none(run.db_age_days),
-                    "overdue_days": _round_or_none(run.db_overdue_days),
-                    "stale": _db_is_stale(run),
-                    "stale_after_days": _cache.DB_STALE_AFTER_DAYS,
-                },
-                # ADR-0018. The list of names that decides whether a dependency
-                # EXISTS, as the database decides whether a CVE does. `present` is
-                # false on a machine that has never run `valvur update`; then the
-                # dependency-reality Check failed and `complete` above says so.
-                "name_index": {
-                    "present": run.name_index_age_days is not None,
-                    "age_days": _round_or_none(run.name_index_age_days),
-                    "stale": _index_is_stale(run),
-                    "stale_after_days": _cache.NAME_INDEX_STALE_AFTER_DAYS,
-                },
-                "enrichment": {
-                    "kev_source": run.kev_source,
-                    "kev_age_days": round(run.kev_age_days or 0, 2),
-                    "stale": (run.kev_age_days or 0) > 30,
-                },
-                # F6.10: what a network lookup transmitted, recorded exactly; the
-                # opt-out is the default Profile, and `--offline` forces it.
-                "network": {
-                    "used": run.network_used,
-                    "what_left_the_machine": _egress.disclosure(used=run.network_used),
-                    # A first run's fetches (28.0.4): the image, the database, the
-                    # index — each what/source/size_mb/seconds. `used` above is the
-                    # Profile's own network; these are the sockets a first run
-                    # opened before any Scanner ran, and this is where they are
-                    # said. Empty, not absent, on a steady-state run.
-                    "fetched": run.fetched,
-                },
-                # Broken out rather than a single total (task 19.C.1). One number
-                # made an accepted risk, a live problem and a note about our own
-                # missing coverage indistinguishable to every machine consumer.
-                "findings": {
-                    "active": len(run.active),
-                    "suppressed": len(run.suppressed),
-                    "not_covered": len(run.coverage_notes),
-                    "total": len(run.findings),
-                },
-                "fixed": len(run.fixed),
-                "scanners": [
-                    {
-                        "tool": s.tool,
-                        "version": s.version,
-                        "ok": s.ok,
-                        "reason": s.reason,
-                        "duration_s": round(s.duration_s, 1),
-                    }
-                    for s in run.scanners
-                ],
-            },
-            indent=2,
-        )
-        + "\n"
-    )
-
-
-def _round_or_none(value: float | None) -> float | None:
-    """None is not zero. An unreadable database age must not read as "brand new" —
-    that is precisely the confident-wrong-answer this phase removes."""
-    return None if value is None else round(value, 2)

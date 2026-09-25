@@ -118,9 +118,11 @@ def test_a_stage_that_is_not_a_pure_function_of_its_inputs_is_caught(tmp_path):
             continue
         assert getattr(first, name) == getattr(second, name), name
     assert first.provider.kev_source == second.provider.kev_source
-    # The age is read from the clock, so two runs differ in the microseconds —
-    # equal to the tenth `run.json` records, which is the number that is published.
-    assert round(first.provider.kev_age_days, 1) == round(second.provider.kev_age_days, 1)
+    # The age is read from the clock, so two runs differ in the microseconds. The
+    # claim is that both read the same bundled snapshot — a bound on the
+    # difference, not equality after rounding, which fails on a run that straddles
+    # a rounding boundary and has nothing to do with purity.
+    assert abs(first.provider.kev_age_days - second.provider.kev_age_days) < 1e-3
 
 
 @pytest.mark.parametrize("earlier,later", [
@@ -211,3 +213,56 @@ def test_a_real_run_agrees_with_the_context_it_used(tmp_path):
 
     for name in pipeline.RECORDED_BY_STAGES:
         assert getattr(result, name) == getattr(ctx, name), name
+        # Equal, and not the same object where the object could change: a result
+        # that aliased the Context's dict would pass the line above by identity
+        # rather than by having been carried (the 28.1.1 review's finding).
+        if isinstance(getattr(ctx, name), dict | set | list):
+            assert getattr(result, name) is not getattr(ctx, name), f"{name} is aliased"
+
+
+def test_the_result_is_a_value_and_not_a_view_of_the_context(tmp_path):
+    """`frozen=True` stops rebinding a field; it does not stop the dict behind the
+    field changing. `run()` built the result with `getattr(ctx, name)`, so
+    `coverage`, `previous` and `previously_fixed` were the Context's own objects,
+    and a write through the Context after `run()` returned showed up in a result
+    `api` had already copied into a `ScanRun`. Measured before the fix:
+    `out.coverage is ctx.coverage` was True."""
+    (tmp_path / "requirements.txt").write_text("requests==2.31.0\n")
+    ctx = _ctx(tmp_path)
+
+    out = pipeline.run([_finding("src/app.py")], ctx)
+    coverage_before = dict(out.coverage)
+    findings_before = list(out.findings)
+
+    ctx.coverage["planted"] = "after the fact"
+    ctx.previous["planted"] = "after the fact"
+    ctx.previously_fixed.add("planted")
+    ctx.unpinned_files = ("planted",)
+
+    assert out.coverage == coverage_before
+    assert "planted" not in out.previous and "planted" not in out.previously_fixed
+    assert out.unpinned_files == ()
+    assert out.findings == findings_before
+
+
+def test_the_recorded_names_are_derived_from_the_result_not_listed_beside_it():
+    """The ten names existed three times — a tuple of strings, the result's
+    fields, the Context's fields — with tests holding the three equal. The tuple
+    is derived from the result now, so the dataclass is the one source and the
+    `**{...}` unpack in `run()` cannot name a field the result does not have."""
+    import dataclasses
+
+    assert pipeline.RECORDED_BY_STAGES == tuple(
+        f.name for f in dataclasses.fields(pipeline.PipelineResult) if f.name != "findings"
+    )
+
+
+def test_the_result_is_a_record_and_says_so(tmp_path):
+    """A frozen dataclass with `eq=True` generates `__eq__` over every field and a
+    `__hash__` that raised `TypeError: unhashable type: 'list'` — a type that
+    presented itself as a value and was not one (`provider` compares by
+    identity). It is a record: identity equality, hashable, no false promise."""
+    out = pipeline.run([], _ctx(tmp_path))
+
+    assert hash(out) == hash(out)
+    assert out == out and out != pipeline.run([], _ctx(tmp_path))

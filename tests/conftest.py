@@ -40,7 +40,7 @@ def write_name_index(directory: Path, *, built_at=None, **names) -> Path:
     (`pip=[...]`, `gem=[...]`); every ecosystem's file is written, empty when not
     given, so a Workspace declaring one is checked against nothing rather than
     failing for want of an index."""
-    from valvur.checks.dependency_reality import _index_form
+    from valvur.ecosystems import index_form as _index_form
     from valvur.name_index import FILES, METADATA, _now
 
     directory.mkdir(parents=True, exist_ok=True)

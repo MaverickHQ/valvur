@@ -22,7 +22,7 @@ import pytest
 
 from valvur import cache
 from valvur.api import ScanRun
-from valvur.results import _provenance
+from valvur.provenance import render as _provenance
 from valvur.summary import render as _summary
 
 

@@ -15,6 +15,7 @@ Workspace beyond reading files, and it never writes the Results Folder — that 
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -29,19 +30,6 @@ from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
 from .findings import Finding, merge
-
-#: What a stage records for the Scan Run being assembled afterwards — as against
-#: the inputs above it, which the pipeline is given (task 27.3.4). `StageFn` is
-#: typed `list[Finding] -> list[Finding]`, so a stage's real outputs were invisible
-#: to the interface: `api` read each of these off the Context by name, one line
-#: each, and a new one was invisible to everything until someone remembered to add
-#: a line. Naming them here makes `PipelineResult` derivable and the omission
-#: catchable; `tests/test_pipeline.py` holds `Context` and `PipelineResult` to it.
-RECORDED_BY_STAGES: tuple[str, ...] = (
-    "configured", "coverage", "vendored_dropped", "config_dropped",
-    "unpinned_dropped", "unpinned_files", "provider", "previous",
-    "previously_fixed", "identity_reset",
-)
 
 
 @dataclass
@@ -74,15 +62,21 @@ class Context:
     identity_reset: tuple[object, int] | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class PipelineResult:
     """What the pipeline produces: the Findings, and everything its stages
     recorded on the way (27.3.4).
 
     The shape 26.3.2 gave the fleet's outcome, given to the pipeline's: a named
     field per value, so `api` assembles a `ScanRun` from one object instead of
-    knowing which stage left what on a shared bag. Every name in
-    `RECORDED_BY_STAGES` appears here, and a test says so.
+    knowing which stage left what on a shared bag. `RECORDED_BY_STAGES` is
+    derived from these fields, and a test says so.
+
+    A record, not a value (`eq=False`, 28.1.1): the generated `__eq__` compared
+    `provider` by identity and the generated `__hash__` raised on the lists, so
+    the type promised a value semantics it could not keep. It is a value in the
+    other sense — `run` copies every mutable member out of the Context, so a
+    later write through the Context does not reach a result already handed on.
     """
 
     findings: list[Finding]
@@ -96,6 +90,19 @@ class PipelineResult:
     previous: dict[str, str]
     previously_fixed: set[str]
     identity_reset: tuple[object, int] | None
+
+
+#: What a stage records for the Scan Run being assembled afterwards — as against
+#: the inputs on `Context`, which the pipeline is given (task 27.3.4). `StageFn`
+#: is typed `list[Finding] -> list[Finding]`, so a stage's real outputs were
+#: invisible to the interface: `api` read each of these off the Context by name,
+#: one line each, and a new one was invisible to everything until someone
+#: remembered to add a line. Derived from `PipelineResult` (28.1.1) — it was a
+#: third list of the same ten names — so the result is the one source and
+#: `tests/test_pipeline.py` holds `Context` to it.
+RECORDED_BY_STAGES: tuple[str, ...] = tuple(
+    f.name for f in dataclasses.fields(PipelineResult) if f.name != "findings"
+)
 
 
 StageFn = Callable[[list[Finding], Context], list[Finding]]
@@ -265,6 +272,19 @@ def run(findings: list[Finding], ctx: Context) -> PipelineResult:
     for stage in PIPELINE:
         findings = stage.apply(findings, ctx)
     return PipelineResult(
-        findings=findings,
-        **{name: getattr(ctx, name) for name in RECORDED_BY_STAGES},
+        findings=list(findings),
+        **{name: _own(getattr(ctx, name)) for name in RECORDED_BY_STAGES},
     )
+
+
+def _own(value):
+    """The result's own copy of a mutable member. Measured before 28.1.1:
+    `out.coverage is ctx.coverage` was True, so `frozen=True` froze the name and
+    not the dict behind it."""
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, set):
+        return set(value)
+    if isinstance(value, list):
+        return list(value)
+    return value

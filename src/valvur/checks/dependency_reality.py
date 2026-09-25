@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime
@@ -45,6 +44,7 @@ from .. import ecosystems as _ecosystems
 from .. import egress as _egress
 from ..coverage import Coverage
 from ..ecosystems import parsers as _parsers
+from ..ecosystems.registry import pep503 as _pep503
 from .base import Check
 
 TIMEOUT = 10
@@ -63,24 +63,6 @@ INDEX_MOUNT = "/cache/names"
 INDEX_ENV = "VALVUR_NAME_INDEX"
 NETWORK_ENV = _egress.NETWORK_ENV
 _UA = {"User-Agent": "valvur/0.1 (+https://github.com/MaverickHQ/valvur)"}
-
-REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")
-
-#: `pyproject.toml` keys that hold dependency *names*, in the two shapes that are
-#: common in the wild. PEP 621 lists requirement strings; Poetry uses a table whose
-#: keys are the names. Both are parsed because both are everywhere, and a project
-#: using the one we skipped would scan clean for the wrong reason.
-_POETRY_SKIP = {"python"}
-
-#: `package.json` keys that declare registry dependencies. `peerDependencies` is
-#: included: a hallucinated peer is still a name someone can register.
-_NPM_FIELDS = ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")
-
-#: Specs that do not name a registry package — a local path, a git URL, a workspace
-#: sibling. Checking these against the registry would report every monorepo package as
-#: nonexistent, which is the false positive most likely to make a real finding ignored.
-_NOT_REGISTRY = ("file:", "link:", "workspace:", "git+", "git:", "http://", "https://", "portal:")
-
 
 class RegistryUnreachable(RuntimeError):
     """Raised so the run records this Check as failed rather than clean (F3.5)."""
@@ -216,7 +198,8 @@ class DependencyRealityCheck(Check):
         for ecosystem, name, _ in ordered:
             index = indexes[ecosystem]
             known[(ecosystem, name)] = (
-                index.contains(_index_form(ecosystem, name)) if index is not None else None
+                index.contains(_ecosystems.index_form(ecosystem, name))
+                if index is not None else None
             )
 
         # What still needs a registry: existence where there was no index, and age
@@ -362,12 +345,6 @@ def _network_allowed() -> bool:
 
 def _index_dir() -> Path:
     return Path(os.environ.get(INDEX_ENV) or INDEX_MOUNT)
-
-
-def _index_form(ecosystem: str, name: str) -> str:
-    """The spelling the index stores — each registry's own idea of identity, held
-    by the ecosystem registry since 27.3.2 rather than by a chain of `if`s here."""
-    return _ecosystems.index_form(ecosystem, name)
 
 
 def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
@@ -551,18 +528,7 @@ def _popular() -> dict[str, str]:
     path = Path(__file__).resolve().parent.parent / "data" / "popular-pypi.json"
     if not path.is_file():
         return {}
-    return {canonical(n): n.lower() for n in json.loads(path.read_text())["packages"]}
-
-
-#: PEP 503 name normalisation. Runs of `.`, `-` and `_` are one separator, and PyPI
-#: serves every spelling from a single project.
-_SEPARATORS = re.compile(r"[-_.]+")
-
-
-def canonical(name: str) -> str:
-    """PEP 503, from the ecosystem registry. Kept as a name here because the
-    near-miss comparison below and its tests have always called it this."""
-    return _ecosystems.registry.pep503(name)
+    return {_pep503(n): n.lower() for n in json.loads(path.read_text())["packages"]}
 
 
 def _near_miss(name: str, popular: dict[str, str]) -> str | None:
@@ -583,7 +549,7 @@ def _near_miss(name: str, popular: dict[str, str]) -> str | None:
     spelling — normalising it would move every existing fingerprint and invalidate
     every committed suppression on a dependency finding (ADR-0003).
     """
-    target = canonical(name)
+    target = _pep503(name)
     if target in popular:
         return None
     for candidate, original in popular.items():

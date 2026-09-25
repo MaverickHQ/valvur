@@ -21,6 +21,7 @@ from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results
 from . import results as _results
+from . import staleness as _staleness
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
 from .coverage import DOUBT_RULES as _DOUBT_RULES
@@ -99,7 +100,7 @@ class ScanRun:
     #: (25.3), and the requirements files they came from.
     unpinned_dropped: int = 0
     unpinned_files: tuple[str, ...] = ()
-    excluded_paths: list[str] = field(default_factory=list)
+    excluded_paths: tuple[str, ...] = ()
     profile: str = ""
     #: Per-adapter coverage contracts: what each reads and what it deliberately does
     #: not (task 19.E.1). Provenance, not findings — the gaps themselves arrive as
@@ -209,21 +210,20 @@ class ScanRun:
         and `SUMMARY.md` all say the same thing without any of them reconstructing
         it from `database.stale` and `findings.not_covered` (task 22.D.4).
         """
-        from . import cache as _cache
-
         reasons: list[str] = []
-        age = self.db_age_days
-        if age is not None and age > _cache.DB_STALE_AFTER_DAYS:
+        # The predicates are `staleness.py`'s, the same ones `run.json`'s `stale`
+        # flags use — this method carried its own copy of each comparison until
+        # 28.1.1, and two copies of a predicate agree only until one is edited.
+        if _staleness.db_is_stale(self):
             reasons.append(
-                f"the vulnerability database is {age:.0f} days old "
+                f"the vulnerability database is {self.db_age_days:.0f} days old "
                 f"(threshold {_cache.DB_STALE_AFTER_DAYS})"
             )
         # The same rule for the name index (ADR-0018): "no hallucinated packages"
         # from a month-old list of names is not a claim about today's registry.
-        index_age = self.name_index_age_days
-        if index_age is not None and index_age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
+        if _staleness.index_is_stale(self):
             reasons.append(
-                f"the package-name index is {index_age:.0f} days old "
+                f"the package-name index is {self.name_index_age_days:.0f} days old "
                 f"(threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS})"
             )
         gaps = [n for n in self.coverage_notes if n.rule in _DOUBT_RULES]
@@ -745,7 +745,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         config_dropped=outcome.config_dropped,
         unpinned_dropped=outcome.unpinned_dropped,
         unpinned_files=outcome.unpinned_files,
-        excluded_paths=list(outcome.configured),
+        excluded_paths=outcome.configured,
         profile=profile,
         coverage=outcome.coverage,
         budget_s=budget_s,

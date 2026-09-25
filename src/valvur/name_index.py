@@ -503,13 +503,12 @@ def fetch_mirror(base: str, directory: Path, *, ecosystems: Iterable[str] | None
 
 def fetch_pypi(progress: Progress = lambda _: None) -> set[str]:
     """Every project on PyPI, in PEP 503 canonical form. One request (PEP 691)."""
-    from .ecosystems.registry import pep503 as canonical
-
     progress("PyPI: fetching the simple index (about 10MB)")
     body = _get(PYPI_SIMPLE, accept="application/vnd.pypi.simple.v1+json")
     try:
         projects = json.loads(body)["projects"]
-        return {canonical(p["name"]) for p in projects if isinstance(p.get("name"), str)}
+        return {_ecosystems.registry.pep503(p["name"])
+                for p in projects if isinstance(p.get("name"), str)}
     except (KeyError, TypeError, ValueError) as exc:
         raise IndexUnavailable(f"PyPI returned an index this version cannot read: {exc}") from exc
 
@@ -581,17 +580,12 @@ def fetch_crates(progress: Progress = lambda _: None) -> set[str]:
                         raise IndexUnavailable("crates.io's dump has no `name` column in "
                                                "crates.csv")
                     column = header.index("name")
-                    return {crate_canonical(row[column]) for row in reader if len(row) > column}
+                    return {_ecosystems.registry.crate(row[column])
+                            for row in reader if len(row) > column}
     except (urllib.error.URLError, OSError, TimeoutError, EOFError, tarfile.TarError,
             csv.Error, UnicodeDecodeError) as exc:
         raise IndexUnavailable(f"{CRATES_DUMP}: {exc}") from exc
     raise IndexUnavailable("crates.io's dump holds no data/crates.csv")
-
-
-def crate_canonical(name: str) -> str:
-    """crates.io's identity, from the ecosystem registry (27.3.2). Kept as a name
-    here because the index builder and its tests have always called it this."""
-    return _ecosystems.registry.crate(name)
 
 
 class _Readable(io.RawIOBase):

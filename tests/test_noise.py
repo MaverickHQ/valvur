@@ -247,7 +247,7 @@ def test_run_json_records_the_profile_and_its_gaps():
     import json
 
     from valvur.api import ScanRun
-    from valvur.results import _provenance
+    from valvur.provenance import render as _provenance
 
     doc = json.loads(_provenance(ScanRun(findings=[], profile="offline")))
 
@@ -628,7 +628,7 @@ def test_an_exclusion_reports_what_it_cost():
     import json as _json
 
     from valvur.api import ScanRun
-    from valvur.results import _provenance
+    from valvur.provenance import render as _provenance
     from valvur.summary import render as _summary
 
     run = ScanRun(findings=[], profile="offline",

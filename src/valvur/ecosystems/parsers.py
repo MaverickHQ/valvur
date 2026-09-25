@@ -43,72 +43,58 @@ _NPM_FIELDS = ("dependencies", "devDependencies", "optionalDependencies", "peerD
 _NOT_REGISTRY = ("file:", "link:", "workspace:", "git+", "git:", "http://", "https://", "portal:")
 
 
-def _defined_locally(workspace: Path) -> set[tuple[str, str]]:
-    """Package names this Workspace *defines*, as (ecosystem, name).
+# What a manifest DEFINES — the package this tree owns — as against what it
+# declares. One reader per manifest that can, paired with its pattern on the
+# registry entry's `defines`; `ecosystems.defined_locally` is the loop.
 
-    A monorepo member is declared like any other dependency and resolved from the tree
-    beside it — `uv`, Poetry and Hatch all do this for a plain `"demo-core"` when a
-    member's `pyproject.toml` names it. Nothing in the dependency string says so, and
-    the npm markers we already skip (`workspace:*`, `file:`, `link:`) have no Python
-    equivalent.
-
-    Measured on a real local monorepo: **three high-severity findings**, each telling a
-    developer that a package they wrote was "almost certainly hallucinated". That is
-    the worst finding this product can emit — someone who is told their own code is a
-    supply-chain attack stops reading the report, and the real finding in it goes too.
-
-    Keyed on what a manifest *defines*, not on what appears in one: a dependency that
-    happens to share a name with something in the tree is still a dependency.
-    """
+def defines_pyproject(path: Path) -> set[str]:
+    """PEP 621's `project.name`, or Poetry's, lowercased as a declaration is."""
     import tomllib
 
-    defined: set[tuple[str, str]] = set()
-    for path in manifests(workspace, "pyproject.toml"):
-        try:
-            data = tomllib.loads(text(path))
-        except (tomllib.TOMLDecodeError, ValueError):
-            continue
-        for name in (
-            (data.get("project") or {}).get("name"),
-            ((data.get("tool") or {}).get("poetry") or {}).get("name"),
-        ):
-            if isinstance(name, str) and name:
-                defined.add(("pip", name.lower()))
-    for path in manifests(workspace, "package.json"):
-        try:
-            data = json.loads(text(path))
-        except (json.JSONDecodeError, ValueError):
-            continue
-        name = data.get("name") if isinstance(data, dict) else None
-        if isinstance(name, str) and name:
-            defined.add(("npm", name.lower()))
-    # A Maven reactor declares its own modules as dependencies of each other; a Go
-    # workspace `replace`s a module with a local path. Both are names the tree
-    # defines, and neither is on a registry.
-    for path in manifests(workspace, "pom.xml"):
-        own = _pom_coordinates(path)
-        if own:
-            defined.add(("maven", own))
-    for path in manifests(workspace, "go.mod"):
-        for module in _go_local_modules(path):
-            defined.add(("gomod", module))
-    # A gemspec names the gem it describes; a `composer.json` names its package and
-    # may point `repositories` at path or VCS sources, whose packages are not on
-    # Packagist by construction; a `Cargo.toml` names its crate, and a workspace's
-    # members are each a `Cargo.toml` of their own in the tree.
-    for path in manifests(workspace, "*.gemspec"):
-        match = _GEMSPEC_NAME.search(text(path))
-        if match:
-            defined.add(("gem", match.group(1)))
-    for path in manifests(workspace, "composer.json"):
-        defined |= {("composer", name) for name in _composer_local(path)}
-    for path in manifests(workspace, "Cargo.toml"):
-        name = _cargo_package_name(path)
-        if name:
-            defined.add(("cargo", name))
-    return defined
+    try:
+        data = tomllib.loads(text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+    names = ((data.get("project") or {}).get("name"),
+             ((data.get("tool") or {}).get("poetry") or {}).get("name"))
+    return {name.lower() for name in names if isinstance(name, str) and name}
 
 
+def defines_package_json(path: Path) -> set[str]:
+    try:
+        data = json.loads(text(path))
+    except (json.JSONDecodeError, ValueError):
+        return set()
+    name = data.get("name") if isinstance(data, dict) else None
+    return {name.lower()} if isinstance(name, str) and name else set()
+
+
+def defines_pom(path: Path) -> set[str]:
+    """A Maven reactor declares its own modules as dependencies of each other."""
+    own = _pom_coordinates(path)
+    return {own} if own else set()
+
+
+def defines_go_mod(path: Path) -> set[str]:
+    """The module, and anything `replace`d with a local path."""
+    return _go_local_modules(path)
+
+
+def defines_gemspec(path: Path) -> set[str]:
+    match = _GEMSPEC_NAME.search(text(path))
+    return {match.group(1)} if match else set()
+
+
+def defines_composer(path: Path) -> set[str]:
+    """The package, and everything its `repositories` fetch from somewhere other
+    than Packagist."""
+    return _composer_local(path)
+
+
+def defines_cargo(path: Path) -> set[str]:
+    """The crate; a workspace's members are each a `Cargo.toml` of their own."""
+    name = _cargo_package_name(path)
+    return {name} if name else set()
 
 
 def manifests(workspace: Path, pattern: str):

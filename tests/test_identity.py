@@ -210,8 +210,9 @@ def test_a_fingerprint_version_change_says_so(tmp_path):
     assert "not a regression" in text
     assert "suppressions" in text
 
-    document = json.loads(__import__("valvur.results", fromlist=["_provenance"])
-                          ._provenance(ScanRun(findings=[], identity_reset=(1, 2))))
+    from valvur import provenance
+
+    document = json.loads(provenance.render(ScanRun(findings=[], identity_reset=(1, 2))))
     assert document["identity_reset"] == [1, 2]
 
 

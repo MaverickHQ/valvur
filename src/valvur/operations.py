@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 from . import profiles as _profiles
+from .findings import exploit_badge as _exploit_badge
 from .mcp import jobs
 from .mcp.jobs import State
 from .results import RESULTS_DIR
@@ -34,14 +35,8 @@ def _load(workspace: str | None) -> dict:
 
 
 def _one_line(finding: dict) -> str:
-    exploit = finding.get("exploit") or {}
-    badge = ""
-    if exploit.get("ransomware"):
-        badge = " [KEV·RANSOMWARE]"
-    elif exploit.get("kev"):
-        badge = " [KEV]"
-    elif exploit.get("epss") and exploit["epss"] >= 0.10:
-        badge = f" [EPSS {exploit['epss']:.0%}]"
+    word = _exploit_badge(finding.get("exploit"))
+    badge = f" [{word}]" if word else ""
     suppressed = " [suppressed]" if finding.get("suppressed") else ""
     where = f"{finding['path']}:{finding['line']}" if finding.get("line") else finding["path"]
     return (

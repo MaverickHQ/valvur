@@ -121,18 +121,30 @@ def test_the_allowed_signers_file_verifies_the_tree_it_is_committed_to():
     git = shutil.which("git")
     if git is None or not (REPO / ".git").exists():
         pytest.skip("not a git checkout")
-    head = subprocess.run([git, "-C", str(REPO), "log", "-1", "--format=%G?"],
-                          capture_output=True, text=True, check=False).stdout.strip()
-    if head not in ("G", "U", "E", "N", "B", "X", "Y", "R", ""):
-        pytest.skip(f"unexpected signature status {head!r}")
-    if head == "N":
-        pytest.skip("HEAD is unsigned — a local work-in-progress commit")
+
+    def read(*fmt: str, ref: str = "HEAD") -> str:
+        return subprocess.run([git, "-C", str(REPO), "log", "-1", f"--format={' '.join(fmt)}", ref],
+                              capture_output=True, text=True, check=False).stdout.strip()
+
+    # On a `pull_request` run HEAD is the merge commit GitHub makes for the
+    # event, GPG-signed by GitHub and by nobody in the signers file — the commit
+    # the PR is about is its second parent. Measured on PR #86: verifying HEAD
+    # there failed every run of a stack whose own commits all verified.
+    target = "HEAD"
+    if read("%ce") == "noreply@github.com" and len(read("%P").split()) == 2:
+        target = "HEAD^2"
+    status = read("%G?", ref=target)
+    if status not in ("G", "U", "E", "N", "B", "X", "Y", "R", ""):
+        pytest.skip(f"unexpected signature status {status!r}")
+    if status == "N":
+        pytest.skip(f"{target} is unsigned — a local work-in-progress commit")
     done = subprocess.run(
         [git, "-C", str(REPO), "-c", f"gpg.ssh.allowedSignersFile={ALLOWED_SIGNERS}",
-         "verify-commit", "HEAD"],
+         "verify-commit", target],
         capture_output=True, text=True, check=False, timeout=30)
 
-    assert done.returncode == 0, f"HEAD does not verify with the committed signers: {done.stderr}"
+    assert done.returncode == 0, \
+        f"{target} does not verify with the committed signers: {done.stderr}"
 
 
 def _gh(*args: str) -> str:

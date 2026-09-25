@@ -2,7 +2,7 @@
 
 Extracted from `results.py`, which had three hundred lines of prose inside the
 module whose job is the atomic write (26.0.3): two responsibilities, one file, no
-boundary between them. Nothing about the document changed in the move — four
+boundary between them. Nothing about the document changed in the move — five
 committed goldens in `tests/fixtures/summary/` hold it byte for byte — and
 `results.write` now calls `render` as it calls every other document's renderer.
 
@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from . import coverage as _coverage
 from . import profiles as _profiles
+from .findings import exploit_badge as _exploit_badge
 from .staleness import db_is_stale as _db_is_stale
 from .staleness import index_is_stale as _index_is_stale
 
@@ -412,13 +413,8 @@ def _counts_table(findings) -> list[str]:
 
 def _one_line(f) -> str:
     """One line per finding. Full evidence lives in findings.json."""
-    badge = ""
-    if f.exploit and f.exploit.ransomware:
-        badge = " **[KEV·RANSOMWARE]**"
-    elif f.exploit and f.exploit.kev:
-        badge = " **[KEV]**"
-    elif f.exploit and f.exploit.epss is not None and f.exploit.epss >= 0.10:
-        badge = f" **[EPSS {f.exploit.epss:.0%}]**"
+    word = _exploit_badge(f.exploit)
+    badge = f" **[{word}]**" if word else ""
     scope = " _(dev-only)_" if f.dependency and f.dependency.scope == "development" else ""
     where = f"{f.path}:{f.line}" if f.line else f.path
     title = f.title if len(f.title) <= 110 else f.title[:107] + "…"

@@ -28,10 +28,13 @@ UPDATE = "UPDATE_SUMMARY_GOLDEN"
 
 
 def _finding(**kw) -> Finding:
+    # `rank` is 1 by default, never the dataclass's 0: a real run ranks every
+    # Finding after the `rank` stage, so a golden rendered at rank 0 pins a line
+    # no user sees and cannot notice a change to how ranks render (28.1.1).
     base = dict(
         rule="valvur.test.rule", severity="high", title="A planted finding",
         path="src/app.py", line=12, evidence="token = 'AKIA...'",
-        fingerprint="f" * 16, status="new", sources=("gitleaks",),
+        fingerprint="f" * 16, status="new", sources=("gitleaks",), rank=1,
     )
     base.update(kw)
     return Finding(**base)
@@ -55,7 +58,7 @@ CASES: dict[str, ScanRun] = {
     "findings": ScanRun(
         findings=[_finding(),
                   _finding(rule="valvur.test.other", severity="medium", line=44,
-                           fingerprint="a" * 16, title="Another one")],
+                           fingerprint="a" * 16, title="Another one", rank=2)],
         scanners=[ScannerRun("gitleaks", ok=True, duration_s=1.5),
                   ScannerRun("checkov", ok=True, duration_s=41.2)],
         profile="full"),
@@ -69,7 +72,7 @@ CASES: dict[str, ScanRun] = {
     # to 60 passed all four. F7.5 is the reason the document is readable at all on
     # a real project, so a golden set that cannot see it is not covering the file.
     "capped": ScanRun(
-        findings=[_finding(rule=f"valvur.test.rule{n:03d}", line=n,
+        findings=[_finding(rule=f"valvur.test.rule{n:03d}", line=n, rank=n + 1,
                            fingerprint=f"{n:016x}", title=f"Planted finding {n}")
                   for n in range(300)],
         scanners=[ScannerRun("gitleaks", ok=True)],
@@ -106,3 +109,17 @@ def test_the_summary_renders_what_it_rendered_before_the_move(name):
         f"SUMMARY.md changed for {name!r}. If that is intended, regenerate with "
         f"{UPDATE}=1; if it is not, the refactor moved more than code."
     )
+
+
+def test_every_golden_finding_carries_a_rank_a_real_run_would_give_it():
+    """The goldens were rendered with every Finding at the dataclass default,
+    rank 0 — a prefix no real run produces — so a regression in how the leading
+    number renders was invisible to all five. Each case ranks its Findings the
+    way the `rank` stage does: from 1, distinct, dense."""
+    for name, run in CASES.items():
+        ranks = [f.rank for f in run.findings]
+        assert ranks == list(range(1, len(ranks) + 1)), f"{name}: {ranks[:5]}"
+    for path in GOLDEN.glob("*.md"):
+        assert not any(line.startswith("0. ") for line in path.read_text().splitlines()), (
+            f"{path.name} renders a rank-0 line"
+        )

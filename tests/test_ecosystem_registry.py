@@ -151,7 +151,9 @@ def test_the_index_files_are_the_indexed_ecosystems_in_the_order_users_see():
     # so comparing the two says only that a loop works. What a user reads is this
     # sequence, unchanged since `name_index.FILES` first held it.
     assert tuple(ecosystems.INDEX_FILES) == ("pip", "npm", "gem", "composer", "cargo")
-    assert name_index.FILES == ecosystems.INDEX_FILES
+    # The order too, not dict equality, which ignores it: `name_index.FILES` is
+    # the dict `doctor` and `update` actually iterate (28.1.1).
+    assert tuple(name_index.FILES.items()) == tuple(ecosystems.INDEX_FILES.items())
     assert set(ecosystems.INDEX_FILES) == {
         e.key for e in ecosystems.ECOSYSTEMS if e.index_file
     }
@@ -171,7 +173,8 @@ def test_the_name_index_and_the_check_no_longer_import_each_other(tmp_path):
         "import valvur.name_index as ni\n"
         "assert 'valvur.checks.dependency_reality' not in sys.modules, "
         "'name_index pulled in the Check'\n"
-        "assert ni.FILES and ni.crate_canonical('A-B') == 'a_b'\n"
+        "from valvur.ecosystems.registry import crate\n"
+        "assert ni.FILES and crate('A-B') == 'a_b'\n"
         "print('ok')\n"
     )
     done = subprocess.run([sys.executable, str(probe)], capture_output=True, text=True,
@@ -192,9 +195,13 @@ def test_the_registry_holds_what_the_three_modules_each_held_a_piece_of():
     assert pip.reads == ecosystems.MANIFESTS["pip"].reads      # was ecosystems.py
     assert pip.index_file == "pypi.txt"                        # was name_index.FILES
     assert pip.registry == "PyPI"                              # was _REGISTRY_NAME
-    assert dependency_reality._index_form("pip", "Flask_Login") == "flask-login"
-    assert dependency_reality._index_form("gem", "Rails") == "Rails", "RubyGems is case-sensitive"
-    assert dependency_reality._index_form("cargo", "serde-json") == "serde_json"
+    assert ecosystems.index_form("pip", "Flask_Login") == "flask-login"
+    assert ecosystems.index_form("gem", "Rails") == "Rails", "RubyGems is case-sensitive"
+    assert ecosystems.index_form("cargo", "serde-json") == "serde_json"
+    # The Check no longer keeps its own names for the registry's functions (28.1.1).
+    for alias in ("_index_form", "canonical", "REQUIREMENT", "_POETRY_SKIP", "_NPM_FIELDS",
+                  "_NOT_REGISTRY", "_SEPARATORS"):
+        assert not hasattr(dependency_reality, alias), f"{alias} survives in the Check"
     assert ecosystems.get("gomod").near_miss is False and pip.near_miss is True
 
 
@@ -306,11 +313,17 @@ def test_soft_cycles_are_the_ones_chosen_on_purpose():
     `results` need each other's names, `mcp.server` and `mcp.tools` register each
     other — and each group is named so a module joining one is a decision, not an
     accident. Named as components, not cycles: one group of modules that can all
-    reach each other, whichever sub-cycle a walk happens to find first."""
+    reach each other, whichever sub-cycle a walk happens to find first.
+
+    `provenance` joined the first group with 28.1.1: `run.json`'s renderer moved
+    there from `results`, and it names `api.ScanRun` for typing exactly as
+    `staleness` and `summary` do, while `api` imports the record's type. An
+    annotation-only edge, chosen."""
     _, soft = _import_graphs()
     accepted = {
-        frozenset({"valvur", "valvur.api", "valvur.compat", "valvur.pipeline", "valvur.results",
-                   "valvur.runner", "valvur.staleness", "valvur.summary"}),
+        frozenset({"valvur", "valvur.api", "valvur.compat", "valvur.pipeline",
+                   "valvur.provenance", "valvur.results", "valvur.runner",
+                   "valvur.staleness", "valvur.summary"}),
         frozenset({"valvur.mcp.server", "valvur.mcp.tools"}),
     }
 
@@ -319,3 +332,43 @@ def test_soft_cycles_are_the_ones_chosen_on_purpose():
     assert not new, f"a lazy or annotation-only import cycle nobody chose: {sorted(new)}"
     gone = {tuple(sorted(c)) for c in accepted - found}
     assert not gone, f"an accepted cycle no longer exists; remove it from the list: {sorted(gone)}"
+
+
+def test_every_ecosystem_says_which_of_its_manifests_define_a_package():
+    """The registry's docstring says adding an ecosystem is one entry plus a
+    parser — and `_defined_locally` in `parsers.py` was a second table of seven
+    manifest names with a branch each, outside the entry, for what a Workspace
+    *defines*. An ecosystem added by the documented route had its own packages
+    asked of the registry and reported nonexistent: the finding the parsers'
+    docstring calls the worst this product can emit. `defines` is on the entry
+    now, iterated like `parsers`, and each of its manifests is one the entry reads."""
+    from valvur import ecosystems
+
+    for e in ecosystems.ECOSYSTEMS:
+        assert e.defines, f"{e.key} does not say which manifest defines a package"
+        for pattern, define in e.defines:
+            assert pattern in e.reads, f"{e.key} defines from {pattern}, which it does not read"
+            assert callable(define)
+
+
+def test_what_the_workspace_defines_is_never_asked_about(tmp_path):
+    """The same behaviour the goldens hold, stated once directly: a monorepo
+    member declared by its sibling is removed before anything is looked up."""
+    from valvur import ecosystems
+
+    _write(tmp_path, {
+        "packages/core/pyproject.toml": '[project]\nname = "demo-core"\n',
+        "packages/app/pyproject.toml": ('[project]\nname = "demo-app"\n'
+                                        'dependencies = ["demo-core", "httpx"]\n'),
+        "packages/web/package.json": json.dumps({
+            "name": "@demo/web", "dependencies": {"@demo/ui": "*", "react": "^18"},
+        }),
+        "packages/ui/package.json": json.dumps({"name": "@demo/ui"}),
+    })
+
+    declared = {(eco, name) for eco, name, _ in ecosystems.declared(tmp_path)}
+
+    assert declared == {("pip", "httpx"), ("npm", "react")}
+    assert ecosystems.defined_locally(tmp_path) == {
+        ("pip", "demo-core"), ("pip", "demo-app"), ("npm", "@demo/web"), ("npm", "@demo/ui"),
+    }

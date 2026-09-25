@@ -10,19 +10,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from . import cache as _cache
+
 if TYPE_CHECKING:
     from .api import ScanRun
 
 
 def db_is_stale(run: ScanRun) -> bool:
-    from . import cache as _cache
-
     age = run.db_age_days
     return age is not None and age > _cache.DB_STALE_AFTER_DAYS
 
 
 def index_is_stale(run: ScanRun) -> bool:
-    from . import cache as _cache
-
     age = run.name_index_age_days
     return age is not None and age > _cache.NAME_INDEX_STALE_AFTER_DAYS

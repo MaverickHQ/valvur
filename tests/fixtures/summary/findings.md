@@ -45,8 +45,8 @@
 
 ## Most urgent (2 of 2)
 
-0. `src/app.py:12` — A planted finding _(valvur.test.rule)_
-0. `src/app.py:44` — Another one _(valvur.test.other)_
+1. `src/app.py:12` — A planted finding _(valvur.test.rule)_
+2. `src/app.py:44` — Another one _(valvur.test.other)_
 
 _Scanners ran concurrently; slowest: checkov 41.2s. Each one's time is in `run.json`._
 

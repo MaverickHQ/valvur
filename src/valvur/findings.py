@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
 from .fingerprint import FP_VERSION
@@ -24,6 +25,30 @@ class Exploit:
     ransomware: bool = False
     epss: float | None = None
     epss_date: str = ""
+
+
+#: An EPSS score from here up earns a badge on the one-line surfaces.
+EPSS_BADGE_THRESHOLD = 0.10
+
+
+def exploit_badge(exploit: Exploit | Mapping[str, object] | None) -> str:
+    """The one word a reader gets beside a Finding about its exploitation: known
+    exploited and used by ransomware, known exploited, or a probability worth
+    saying. One decision for both one-line surfaces — `SUMMARY.md`'s Markdown and
+    the CLI/MCP reply's plain text — which each decided it alone until 28.1.1 and
+    had already drifted. The *mark* (bold, brackets) is the surface's; the word is
+    not. Empty when there is nothing to say."""
+    if exploit is None:
+        return ""
+    read = exploit.get if isinstance(exploit, Mapping) else lambda k: getattr(exploit, k, None)
+    if read("ransomware"):
+        return "KEV·RANSOMWARE"
+    if read("kev"):
+        return "KEV"
+    epss = read("epss")
+    if isinstance(epss, int | float) and epss >= EPSS_BADGE_THRESHOLD:
+        return f"EPSS {epss:.0%}"
+    return ""
 
 
 @dataclass(frozen=True)

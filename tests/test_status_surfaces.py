@@ -272,11 +272,12 @@ def test_status_reason_is_the_same_words_on_every_surface():
     messages must not paraphrase each other."""
     import json
 
-    from valvur import artifacts, results
+    from valvur import artifacts
+    from valvur import provenance as _provenance
 
     run = ScanRun(findings=[], profile="offline", db_age_days=9.0)
 
-    provenance = json.loads(results._provenance(run))
+    provenance = json.loads(_provenance.render(run))
     findings_doc = json.loads(artifacts.findings_json(
         run.findings, status=run.status, status_reason=run.status_reason, complete=True,
     ))

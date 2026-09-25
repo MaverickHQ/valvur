@@ -100,11 +100,6 @@ VULNERABILITY_MANIFESTS: dict[str, tuple[str, ...]] = {
     "composer": ("composer.lock",),
 }
 
-#: What a dependency manifest on disk means, per ecosystem.
-#:
-#: An ecosystem with an empty `reads` has no existence check at all — its presence in
-#: a Workspace is reported as missing coverage rather than passed over, because a
-#: Check that says nothing is indistinguishable from one that found nothing.
 #: What a dependency manifest on disk means, per ecosystem — derived from the
 #: registry (27.3.2), which is where the rest of an ecosystem's truth lives too.
 #: This was a second hand-maintained table until then, and the comments that
@@ -133,6 +128,34 @@ def declared(workspace: Path) -> set[tuple[str, str, str]]:
 
     # Never asked about, not merely unreported. A workspace member's name leaving the
     # machine buys nothing, and §3 is about what we transmit as much as what we say.
-    local = _parsers._defined_locally(workspace)
+    local = defined_locally(workspace)
     return {(eco, name, src) for eco, name, src in found if (eco, name) not in local}
+
+
+def defined_locally(workspace: Path) -> set[tuple[str, str]]:
+    """Package names this Workspace *defines*, as (ecosystem, name).
+
+    A monorepo member is declared like any other dependency and resolved from the tree
+    beside it — `uv`, Poetry and Hatch all do this for a plain `"demo-core"` when a
+    member's `pyproject.toml` names it. Nothing in the dependency string says so, and
+    the npm markers the parsers skip (`workspace:*`, `file:`, `link:`) have no Python
+    equivalent.
+
+    Measured on a real local monorepo: **three high-severity findings**, each telling a
+    developer that a package they wrote was "almost certainly hallucinated". That is
+    the worst finding this product can emit — someone who is told their own code is a
+    supply-chain attack stops reading the report, and the real finding in it goes too.
+
+    Keyed on what a manifest *defines*, not on what appears in one: a dependency that
+    happens to share a name with something in the tree is still a dependency. Which
+    manifest defines a package is the registry entry's `defines` (28.1.1) — it was a
+    second per-ecosystem table in `parsers.py`, outside the one place.
+    """
+    return {
+        (ecosystem.key, name)
+        for ecosystem in ECOSYSTEMS
+        for pattern, define in ecosystem.defines
+        for path in _parsers.manifests(workspace, pattern)
+        for name in define(path)
+    }
 

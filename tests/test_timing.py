@@ -18,7 +18,7 @@ import pytest
 from valvur import api
 from valvur.api import ScanRun
 from valvur.provenance import ScannerRun
-from valvur.results import _provenance
+from valvur.provenance import render as _provenance
 from valvur.runner import ScannerOutput
 from valvur.summary import render as _summary
 
