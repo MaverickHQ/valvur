@@ -245,21 +245,47 @@ def _import_graphs() -> tuple[dict[str, set[str]], dict[str, set[str]]]:
     return hard, soft
 
 
-def _cycles(graph: dict[str, set[str]]) -> set[tuple[str, ...]]:
-    found: set[tuple[str, ...]] = set()
+def _components(graph: dict[str, set[str]]) -> set[frozenset[str]]:
+    """The strongly connected components of size two or more — every group of
+    modules that can reach each other. Tarjan's algorithm, over sorted nodes and
+    edges, so the answer is the same on every filesystem: the first form of this
+    ratchet enumerated individual cycles by DFS in `rglob` order, which names one
+    set of sub-cycles on APFS and another on ext4, and failed on CI with a 4-node
+    sub-cycle the Mac had never produced. A component is the canonical object —
+    the same modules, whichever way round you walk them."""
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    found: set[frozenset[str]] = set()
+    counter = 0
 
-    def walk(node: str, stack: list[str], seen: set[str]) -> None:
-        seen.add(node)
+    def strong(node: str) -> None:
+        nonlocal counter
+        index[node] = low[node] = counter
+        counter += 1
         stack.append(node)
-        for target in graph.get(node, ()):
-            if target in stack:
-                found.add(tuple(sorted(stack[stack.index(target):])))
-            elif target not in seen:
-                walk(target, stack, seen)
-        stack.pop()
+        on_stack.add(node)
+        for target in sorted(graph.get(node, ())):
+            if target not in index:
+                strong(target)
+                low[node] = min(low[node], low[target])
+            elif target in on_stack:
+                low[node] = min(low[node], index[target])
+        if low[node] == index[node]:
+            component = set()
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                component.add(member)
+                if member == node:
+                    break
+            if len(component) > 1:
+                found.add(frozenset(component))
 
-    for node in list(graph):
-        walk(node, [], set())
+    for node in sorted(set(graph) | {t for ts in graph.values() for t in ts}):
+        if node not in index:
+            strong(node)
     return found
 
 
@@ -271,25 +297,25 @@ def test_no_module_level_import_cycles():
     only because `declared` touched the registry at call time. Zero, by ratchet."""
     hard, _ = _import_graphs()
 
-    assert _cycles(hard) == set(), f"module-level import cycles: {sorted(_cycles(hard))}"
+    tangled = {tuple(sorted(c)) for c in _components(hard)}
+    assert not tangled, f"module-level import cycles: {sorted(tangled)}"
 
 
 def test_soft_cycles_are_the_ones_chosen_on_purpose():
     """Lazy and annotation-only cycles are a design choice here — `api` and
     `results` need each other's names, `mcp.server` and `mcp.tools` register each
-    other — and each is named so a new one is a decision, not an accident."""
+    other — and each group is named so a module joining one is a decision, not an
+    accident. Named as components, not cycles: one group of modules that can all
+    reach each other, whichever sub-cycle a walk happens to find first."""
     _, soft = _import_graphs()
     accepted = {
-        ("valvur.api", "valvur.results"),
-        ("valvur.api", "valvur.results", "valvur.summary"),
-        ("valvur.api", "valvur.results", "valvur.staleness"),
-        ("valvur.api", "valvur.pipeline", "valvur.results"),
-        ("valvur.api", "valvur.pipeline", "valvur.results", "valvur.summary"),
-        ("valvur.api", "valvur.pipeline", "valvur.results", "valvur.staleness"),
-        ("valvur.api", "valvur.pipeline", "valvur.results", "valvur.staleness", "valvur.summary"),
-        ("valvur.mcp.server", "valvur.mcp.tools"),
-        ("valvur", "valvur.api", "valvur.compat", "valvur.runner"),
+        frozenset({"valvur", "valvur.api", "valvur.compat", "valvur.pipeline", "valvur.results",
+                   "valvur.runner", "valvur.staleness", "valvur.summary"}),
+        frozenset({"valvur.mcp.server", "valvur.mcp.tools"}),
     }
 
-    new = _cycles(soft) - accepted
+    found = _components(soft)
+    new = {tuple(sorted(c)) for c in found - accepted}
     assert not new, f"a lazy or annotation-only import cycle nobody chose: {sorted(new)}"
+    gone = {tuple(sorted(c)) for c in accepted - found}
+    assert not gone, f"an accepted cycle no longer exists; remove it from the list: {sorted(gone)}"
