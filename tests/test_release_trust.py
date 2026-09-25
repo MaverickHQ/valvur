@@ -129,10 +129,20 @@ def test_the_allowed_signers_file_verifies_the_tree_it_is_committed_to():
     # On a `pull_request` run HEAD is the merge commit GitHub makes for the
     # event, GPG-signed by GitHub and by nobody in the signers file — the commit
     # the PR is about is its second parent. Measured on PR #86: verifying HEAD
-    # there failed every run of a stack whose own commits all verified.
+    # there failed every run of a stack whose own commits all verified. The
+    # parents are read from the raw object: a shallow checkout grafts them away
+    # from `%P`, which is how the first version of this branch still verified
+    # HEAD (PR #88, the same failure).
     target = "HEAD"
-    if read("%ce") == "noreply@github.com" and len(read("%P").split()) == 2:
-        target = "HEAD^2"
+    raw = subprocess.run([git, "-C", str(REPO), "cat-file", "-p", "HEAD"],
+                         capture_output=True, text=True, check=False).stdout
+    parents = [line.split()[1] for line in raw.splitlines() if line.startswith("parent ")]
+    if read("%ce") == "noreply@github.com" and len(parents) == 2:
+        present = subprocess.run([git, "-C", str(REPO), "cat-file", "-e", parents[1]],
+                                 capture_output=True, check=False).returncode == 0
+        if not present:
+            pytest.skip("a shallow checkout of a merge ref: the PR's own commit is not here")
+        target = parents[1]
     status = read("%G?", ref=target)
     if status not in ("G", "U", "E", "N", "B", "X", "Y", "R", ""):
         pytest.skip(f"unexpected signature status {status!r}")
