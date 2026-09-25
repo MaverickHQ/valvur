@@ -82,12 +82,18 @@ class Tool:
     """
 
     def __init__(self, name: str, description: str, schema: dict,
-                 handler: Callable[[dict], str], *, read_only: bool = True,
-                 destructive: bool = False):
+                 handler: Callable[[dict], str | tuple[str, dict]], *,
+                 read_only: bool = True, destructive: bool = False,
+                 output_schema: dict | None = None):
         self.name = name
         self.description = description
         self.schema = schema
+        #: Answers the text every client renders — and, for a tool that declares
+        #: `output_schema`, the same answer as a dict beside it, which the reply
+        #: carries as `structuredContent` (MCP 2025-06-18; 28.2.2). One call
+        #: produces both, so the two forms cannot disagree.
         self.handler = handler
+        self.output_schema = output_schema
         #: The default is the safe one: a tool says nothing and is advertised as
         #: read-only, so a tool that ACTS has to declare it.
         self.read_only = read_only
@@ -97,13 +103,16 @@ class Tool:
         self.destructive = destructive
 
     def describe(self) -> dict:
-        return {
+        described = {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.schema,
             "annotations": {"readOnlyHint": self.read_only,
                             "destructiveHint": self.destructive},
         }
+        if self.output_schema is not None:
+            described["outputSchema"] = self.output_schema
+        return described
 
 
 def version() -> str:
@@ -112,7 +121,18 @@ def version() -> str:
     return shim_version()
 
 
-def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
+def _default_instructions() -> str:
+    # Lazy: `tools` imports `Tool` from here at module level. Both sit in the one
+    # soft component the cycle ratchet names for the MCP package.
+    from .tools import instructions
+
+    return instructions()
+
+
+def build(tools: list[Tool], *, instructions: str | None = None,
+          ) -> dict[str, Callable[[dict], Any]]:
+    """The handlers for one server. `instructions` is what `initialize` hands the
+    client; None means the machine block's rules, "" means none."""
     by_name = {tool.name: tool for tool in tools}
 
     def initialize(params: dict) -> dict:
@@ -120,11 +140,19 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
         # ours and let the client decide whether it can proceed.
         wanted = params.get("protocolVersion")
         agreed = wanted if wanted in SUPPORTED_VERSIONS else PROTOCOL_VERSION
-        return {
+        reply: dict[str, Any] = {
             "protocolVersion": agreed,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": SERVER_NAME, "version": version()},
         }
+        # The rules an agent is given before its first call (28.2.2): the same
+        # five `SUMMARY.md` opens with, so an agent that never opens the folder
+        # has them too. A client may show or ignore them; a server that never
+        # states them leaves it to whoever wrote the client's CLAUDE.md.
+        rules = instructions if instructions is not None else _default_instructions()
+        if rules:
+            reply["instructions"] = rules
+        return reply
 
     def list_tools(_: dict) -> dict:
         return {"tools": [tool.describe() for tool in tools]}
@@ -140,7 +168,7 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
                 f"unknown tool: {name}. Available: {', '.join(sorted(by_name)) or 'none'}",
             )
         try:
-            text = tool.handler(params.get("arguments") or {})
+            answer = tool.handler(params.get("arguments") or {})
         except RpcError:
             raise
         except Exception as exc:   # broad: a server that cannot clean up must still exit
@@ -150,7 +178,11 @@ def build(tools: list[Tool]) -> dict[str, Callable[[dict], Any]]:
                 "content": [{"type": "text", "text": f"{type(exc).__name__}: {exc}"}],
                 "isError": True,
             }
-        return {"content": [{"type": "text", "text": text}], "isError": False}
+        text, structured = (answer, None) if isinstance(answer, str) else answer
+        reply: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": False}
+        if structured is not None:
+            reply["structuredContent"] = structured
+        return reply
 
     return {
         "initialize": initialize,

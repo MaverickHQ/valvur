@@ -26,6 +26,10 @@ from valvur.mcp.server import build
 from valvur.mcp.tools import registry
 
 SNAPSHOT = Path(__file__).parent / "fixtures" / "mcp" / "tools-list.json"
+#: The `initialize` reply, the same way (28.2.2): it carries `instructions` now —
+#: the rules an agent is given before its first call — and a change to them is a
+#: diff in review. `serverInfo.version` is normalised, or every release would move it.
+INITIALIZE_SNAPSHOT = Path(__file__).parent / "fixtures" / "mcp" / "initialize.json"
 UPDATE_FLAG = "UPDATE_MCP_SNAPSHOT"
 
 
@@ -36,6 +40,21 @@ def tools_list() -> list[dict]:
     protocol.serve(build(registry()), stdin=stdin, stdout=stdout)
     [reply] = [json.loads(line) for line in stdout.getvalue().splitlines() if line.strip()]
     return reply["result"]["tools"]
+
+
+def initialize_reply() -> dict:
+    """The `initialize` result exactly as `valvur-mcp` answers it, version normalised."""
+    from valvur.mcp.tools import instructions
+
+    request = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+               "params": {"protocolVersion": protocol.PROTOCOL_VERSION}}
+    stdin = io.StringIO(json.dumps(request) + "\n")
+    stdout = io.StringIO()
+    protocol.serve(build(registry(), instructions=instructions()), stdin=stdin, stdout=stdout)
+    [reply] = [json.loads(line) for line in stdout.getvalue().splitlines() if line.strip()]
+    result = reply["result"]
+    result["serverInfo"]["version"] = "<version>"
+    return result
 
 
 def _canonical(tools: list[dict]) -> str:
@@ -143,3 +162,11 @@ def test_the_snapshot_is_the_canonical_form_so_a_diff_is_a_real_change():
     """Sorted keys, two-space indent, trailing newline: a re-serialisation with no
     change to the tools must be byte-identical, so every diff means something."""
     assert SNAPSHOT.read_text(encoding="utf-8") == _canonical(_recorded())
+
+
+
+def test_initialize_matches_the_committed_snapshot():
+    reason = check_snapshot(INITIALIZE_SNAPSHOT, initialize_reply(),
+                            update=bool(os.environ.get(UPDATE_FLAG)))
+
+    assert reason is None, reason

@@ -194,7 +194,25 @@ def _age_text(block: dict) -> str:
     return f"{age:.0f} days old" if isinstance(age, (int, float)) else "out of date"
 
 
-def list_findings(args: dict) -> str:
+def _text_of(reply):
+    """The text half of a reply, as its own function: what the CLI prints and
+    what every text-only caller gets, derived from the one computation the MCP
+    surface answers in both forms (28.2.2). `.reply` names that form, so the
+    parity test can see the two are one (F9.3)."""
+    def text(args: dict) -> str:
+        return reply(args)[0]
+
+    text.__name__ = reply.__name__.removesuffix("_reply")
+    text.__qualname__ = text.__name__
+    text.__doc__ = reply.__doc__
+    text.reply = reply  # type: ignore[attr-defined]
+    return text
+
+
+def list_findings_reply(args: dict) -> tuple[str, dict]:
+    """The text, and the same answer as a dict for `structuredContent` (28.2.2):
+    the counts an agent parsed out of the first line, and each shown Finding's
+    fields. One computation, so the two cannot disagree."""
     data = _load(args.get("workspace"))
     findings = data["findings"]
 
@@ -208,14 +226,20 @@ def list_findings(args: dict) -> str:
 
     limit = min(int(args.get("limit") or DEFAULT_LIMIT), MAX_LIMIT)
     shown, omitted = findings[:limit], max(0, len(findings) - limit)
+    caveats = _staleness_note(args.get("workspace"), found_nothing=not findings)
+    structured = {
+        "total": len(findings), "shown": len(shown), "omitted": omitted, "limit": limit,
+        "findings": [_structured_finding(f) for f in shown],
+        "caveats": caveats,
+    }
 
     if not findings:
         lines = [
             "No findings match. The scan itself may still have been incomplete — "
             "check `scan_status`."
         ]
-        lines += _staleness_note(args.get("workspace"), found_nothing=True)
-        return "\n".join(lines)
+        lines += caveats
+        return "\n".join(lines), structured
 
     lines = [f"{len(findings)} finding(s); showing {len(shown)}, worst first.", ""]
     lines += [_one_line(f) for f in shown]
@@ -226,8 +250,39 @@ def list_findings(args: dict) -> str:
             f"{omitted} more not shown. Raise `limit` (max {MAX_LIMIT}) or filter "
             "by `status`.",
         ]
-    lines += _staleness_note(args.get("workspace"), found_nothing=False)
-    return "\n".join(lines)
+    lines += caveats
+    return "\n".join(lines), structured
+
+
+list_findings = _text_of(list_findings_reply)
+
+
+def _structured_finding(finding: dict) -> dict:
+    """One Finding for the structured reply: what the one-line text shows, plus
+    severity, exploitation and the evidence. Title and evidence are neutralised
+    on the way out (F9.9) — idempotent on a `findings.json` this valvur wrote,
+    where the model boundary already did it, and a guard on one an older valvur
+    did. The reply is bounded by `limit` and by `defang.MAX_EVIDENCE` per entry."""
+    from . import defang
+
+    exploit = finding.get("exploit") or {}
+    evidence = str(finding.get("evidence") or "")
+    if defang.FENCE not in evidence and len(evidence) > defang.MAX_EVIDENCE:
+        evidence = evidence[: defang.MAX_EVIDENCE] + " …[truncated]"
+    return {
+        "rank": finding.get("rank", 0),
+        "status": finding.get("status", "?"),
+        "severity": finding.get("severity", "unknown"),
+        "path": finding["path"],
+        "line": finding.get("line") or None,
+        "title": defang.neutralise(str(finding.get("title") or "")),
+        "rule": finding["rule"],
+        "fingerprint": finding["fingerprint"],
+        "suppressed": bool(finding.get("suppressed")),
+        "exploit": {"kev": exploit.get("kev"), "ransomware": bool(exploit.get("ransomware")),
+                    "epss": exploit.get("epss")},
+        "evidence": defang.neutralise(evidence),
+    }
 
 
 def explain_finding(args: dict) -> str:
@@ -382,7 +437,21 @@ def _first_action(path: Path) -> str:
     return f"action 1{count}: {heading}"
 
 
-def scan_status(args: dict) -> str:
+def _job_fields(job, *, progress: bool = False) -> dict:
+    fields: dict = {"state": job.state.name, "profile": job.profile,
+                    "elapsed_s": round(job.elapsed, 1), "error": job.error or None}
+    if progress:
+        fields["progress"] = list(job.progress)
+    return fields
+
+
+def scan_status_reply(args: dict) -> tuple[str, dict]:
+    """The text, and the same answer as a dict for `structuredContent` (28.2.2).
+
+    An agent parsed *"DONE in 58s. 3 active…"* out of prose; the verdict, the
+    counts, the Scanners and the next moves are fields now, from the same
+    `run.json` and the same job, built in the same pass as the text.
+    """
     workspace = Path(args.get("workspace") or ".").resolve()
 
     job = jobs.current(workspace)
@@ -393,11 +462,13 @@ def scan_status(args: dict) -> str:
         job.wait()
     if job is not None and job.state is State.CANCELLING:
         return (f"CANCELLING — the {job.profile} scan, {job.elapsed:.0f}s in; its containers "
-                "are being stopped. Call again; no result will follow.")
+                "are being stopped. Call again; no result will follow."
+                ), {"scanned": False, "job": _job_fields(job)}
     if job is not None and job.state is State.CANCELLED:
         return (f"CANCELLED after {job.elapsed:.0f}s — {job.error}\n"
                 "No result: a cancelled scan writes nothing, and the previous results, if "
-                "any, stand. Call `scan` to start again.")
+                "any, stand. Call `scan` to start again."
+                ), {"scanned": False, "job": _job_fields(job)}
     if job is not None and job.state is State.RUNNING:
         # A fetch in progress — the image (10.2 claim 4), the database or the index
         # (24.1) — is the one kind of stage that is not a Scanner completing, and
@@ -419,16 +490,17 @@ def scan_status(args: dict) -> str:
         lines.append(f"Completed so far: {', '.join(completed) or 'starting'}")
         lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
                      "do not report a result yet.")
-        return "\n".join(lines)
+        return "\n".join(lines), {"scanned": False, "job": _job_fields(job, progress=True)}
     if job is not None and job.state is State.FAILED:
         return (f"FAILED after {job.elapsed:.0f}s — {job.error}\n"
                 "Run `doctor` (the tool; `valvur doctor` on a shell) before scanning "
                 "again: it names what this machine is missing and the fix.\n"
-                "No result to report.")
+                "No result to report."), {"scanned": False, "job": _job_fields(job)}
 
     path = _results(args.get("workspace")) / "run.json"
     if not path.is_file():
-        return f"No scan has run in this workspace ({path.parent})."
+        return f"No scan has run in this workspace ({path.parent}).", {
+            "scanned": False, "job": None, "results_dir": str(path.parent)}
     data = json.loads(path.read_text(encoding="utf-8"))
 
     # `findings` is a breakdown, not a total (task 19.C.1). An agent reading one
@@ -461,7 +533,8 @@ def scan_status(args: dict) -> str:
         lines.append(f"          ^ {reason}")
     # What to do first, before the list of what ran (23.3.4): the agent never called
     # `explain_finding` in 22.G.1 because nothing pointed at it.
-    lines += _next_moves(args.get("workspace"))
+    next_moves = _next_moves(args.get("workspace"))
+    lines += next_moves
     lines += ["", "Scanners:"]
     timed: list[tuple[float, str]] = []
     for scanner in data.get("scanners", []):
@@ -473,8 +546,10 @@ def scan_status(args: dict) -> str:
             timed.append((seconds, scanner["tool"]))
             mark += f" ({seconds:.1f}s)"
         lines.append(f"  {scanner['tool']}: {mark}")
+    slowest = None
     if timed:
         seconds, tool = max(timed)
+        slowest = {"tool": tool, "seconds": round(seconds, 1)}
         lines.append(f"  slowest: {tool} {seconds:.1f}s — the fleet runs concurrently, so "
                      "that is about what the scan cost")
     # What did NOT run, and what nothing here reads even when it does. Two different
@@ -505,9 +580,34 @@ def scan_status(args: dict) -> str:
         lines = [f"DONE in {job.elapsed:.0f}s.{stamp}", "", *lines]
     if not data.get("complete"):
         lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
-    lines += _staleness_note(
-        args.get("workspace"), found_nothing=not counts.get("active")
-    )
-    return "\n".join(lines)
+    caveats = _staleness_note(args.get("workspace"), found_nothing=not counts.get("active"))
+    lines += caveats
+    structured = {
+        "scanned": True,
+        "job": _job_fields(job) if job is not None else None,
+        "status": data.get("status"),
+        "status_reason": data.get("status_reason") or "",
+        "complete": bool(data.get("complete")),
+        "generation": data.get("generation"),
+        "profile": data.get("profile"),
+        "findings": {key: int(counts.get(key) or 0)
+                     for key in ("active", "suppressed", "not_covered", "total")},
+        "fixed": int(data.get("fixed") or 0),
+        "scanners": [{"tool": s.get("tool"), "ok": bool(s.get("ok")),
+                      "reason": s.get("reason") or "",
+                      "duration_s": s.get("duration_s") or 0}
+                     for s in data.get("scanners", [])],
+        "scanners_skipped": dict(skipped),
+        "scanners_not_run": list(not_run),
+        "slowest": slowest,
+        "next": list(next_moves),
+        "caveats": list(caveats),
+        "network": dict(network),
+        "build": dict(build),
+        "database": dict(data.get("database") or {}),
+        "name_index": dict(data.get("name_index") or {}),
+    }
+    return "\n".join(lines), structured
 
 
+scan_status = _text_of(scan_status_reply)
