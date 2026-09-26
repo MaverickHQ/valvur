@@ -252,6 +252,27 @@ jobs:
           print(f"published image scanned cleanly on {arch}: {len(findings)} findings")
           PY
 
+  # Every hunk of the change under src/valvur, reverted in turn, against the unit
+  # suite (28.4.4, X1): the hunks no test notices are the ones the change's own
+  # tests do not cover. Reports, does not gate — non-required at first; the
+  # STATUS note records its first month's catches.
+  mutation:
+    name: each hunk reverted, does a test notice (non-required)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+      - name: Revert each hunk and run the unit suite
+        run: |
+          git fetch -q origin "${{ github.base_ref }}"
+          uv run --no-sync python scripts/mutation_check.py --base "origin/${{ github.base_ref }}"
+
   selfscan:
     name: self-scan release gate (N2.5)
     runs-on: ubuntu-24.04

@@ -7646,7 +7646,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   needed, and the whole suite (unit and the nine e2e) ran green against the
   image.
 
-- [ ] **28.4.4** **Mutation in CI (X1).** Five tests on 2026-09-22 passed against
+- [x] **28.4.4** **Mutation in CI (X1).** Five tests on 2026-09-22 passed against
   the defect each was written for — a lazy import invisible to a module-level
   probe, an orphaned container that merely finished inside the window, a scan
   argument named `path` that scanned the wrong tree, goldens blind to their own
@@ -7655,6 +7655,25 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   per-PR mutation check scoped to the diff (`mutmut` on changed files, or a
   small harness that reverts each hunk's core line), non-required at first;
   the STATUS note records its first month's catches, if any.
+
+  **STATUS 2026-09-26:** ✅ The habit as a script: `scripts/mutation_check.py`
+  reads `base...HEAD`'s diff under `src/valvur` as hunks (`-U0`), reverts each
+  in turn with `git apply -R --unidiff-zero`, runs the unit suite, restores the
+  file, and names the verdict — *caught* (a test failed with the old lines
+  back), *survived* (none did: the change's own tests do not cover that hunk),
+  *no code change* (the two versions' ASTs are equal once docstrings are
+  dropped, so comments and docstrings never count) or *not applied*. A CI job,
+  `mutation`, runs it on every pull request with `continue-on-error: true` —
+  it reports, as a `::warning` per survivor and a step summary, and does not
+  gate; `--strict` exists for the day it should. Tests first, five, on a
+  throwaway repository shaped like this one: the hunk a test covers is caught,
+  the one none does survives, the docstring hunk is no code change, the tree
+  is restored to the byte, and the CI job's shape. Not `mutmut`: a per-mutant
+  run of a 30 s suite over every operator in a module is minutes per file,
+  while a per-hunk revert is the question the five defects actually asked —
+  *does any test notice this change is gone?* First month's catches: to be
+  recorded here from the PRs it runs on (this one has no `src/valvur` hunk, so
+  its own run reports none).
 
 - [ ] **28.4.5** **A reproducible image (B3).** No `SOURCE_DATE_EPOCH`, no
   `rewrite-timestamp`; the same tree yields a different digest per build, so
