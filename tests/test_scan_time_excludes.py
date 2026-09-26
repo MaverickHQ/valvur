@@ -83,6 +83,23 @@ def test_gitleaks_gets_a_config_that_keeps_the_defaults_and_allowlists_the_paths
     assert not skipped("/workspace/a.py")
 
 
+def test_gitleaks_keeps_the_projects_own_config_when_it_has_one(tmp_path):
+    """`--config` replaces the file Gitleaks would otherwise auto-load from the
+    scanned directory. Measured on this repository's self-scan (PR #113): its
+    `.gitleaks.toml` allowlists the planted test keys, and a generated config
+    that extended the defaults instead surfaced seven of them as critical —
+    136 findings against 117 with the project's file extended, the same 117
+    as with no config at all."""
+    from valvur import adapters
+
+    without = dict(adapters.GitleaksAdapter().command(tmp_path).files)["gitleaks.toml"]
+    assert tomllib.loads(without)["extend"] == {"useDefault": True}
+
+    (tmp_path / ".gitleaks.toml").write_text("[extend]\nuseDefault = true\n")
+    with_own = dict(adapters.GitleaksAdapter().command(tmp_path).files)["gitleaks.toml"]
+    assert tomllib.loads(with_own)["extend"] == {"path": "/workspace/.gitleaks.toml"}
+
+
 def test_every_adapters_command_carries_the_skips(tmp_path, monkeypatch):
     from valvur import adapters, cache
     from valvur.adapters import check as _check

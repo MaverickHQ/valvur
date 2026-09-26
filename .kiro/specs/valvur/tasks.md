@@ -8120,7 +8120,14 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   (Gitleaks 2.4, Trivy 26.7, Opengrep 31.3, Checkov 40.3, the Checks 1.4) —
   29.1.3's measurement: what is left of the wall clock on a 4 GB VM is
   contention, not walking. 88 s is inside the 300 s MCP default; the stdio
-  run on that tree is the phase's exit criteria, measured then.
+  run on that tree is the phase's exit criteria, measured then. **What the
+  self-scan gate caught on the PR:** `--config` stops Gitleaks auto-loading a
+  project's own `.gitleaks.toml`, and this repository's allowlists its planted
+  test keys — seven surfaced as critical. Measured on this tree: 117 findings
+  with no config, 136 with a generated config extending the defaults, 117 again
+  with it extending the project's file, which is what it does now when the
+  file exists. A `.gitleaksignore` was never affected: the image's working
+  directory is `/workspace`, Gitleaks's default for it.
 - [ ] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
   F1.11, F2.5).** Measured twice from Docker's event log in the record: a
   Gitleaks container ran 401 s after its 300 s timeout killed the client; a

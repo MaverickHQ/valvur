@@ -36,7 +36,9 @@ class GitleaksAdapter(ScannerAdapter):
                   # 3,892 hits inside an excluded archive, produced then dropped.
                   "--config", f"/results/{exclusions.GITLEAKS_CONFIG}"),
             report="gitleaks.json", timeout=300,
-            files=((exclusions.GITLEAKS_CONFIG, exclusions.gitleaks_config(prefixes)),),
+            files=((exclusions.GITLEAKS_CONFIG, exclusions.gitleaks_config(
+                prefixes,
+                project_config=(workspace / exclusions.PROJECT_GITLEAKS_CONFIG).is_file())),),
         )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
