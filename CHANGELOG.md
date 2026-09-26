@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Every base image names its tag beside its digest.** `FROM python@sha256:…`
+  pinned the bytes and told Dependabot nothing about which line to follow, so
+  it followed `latest`: on 2026-09-26 it proposed a Debian `python` (the build
+  failed at `apk`) and a newer `syft` than the adapter reports. Now
+  `python:3.12-alpine3.22@sha256:…`, `gitleaks:v8.30.1@…`, `trivy:0.74.0@…`,
+  `osv-scanner:v2.6.0@…` and `syft:v1.51.1@…` — every digest measured to be
+  that tag's — so a bump is a refresh of the tag we mean, and a test refuses a
+  digest with no tag beside it (29.4.1).
 - **The fleet's width follows the runtime's memory.** Eight containers in a
   default Docker Desktop VM contend: measured on a 3.8 GiB VM on the synthetic
   gate tree, eight at once 23.6 s, four 22.0 s, two 20.3 s, and at two every

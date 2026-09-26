@@ -98,6 +98,23 @@ def test_every_base_image_is_pinned_by_digest():  # F2.2, and 15.1's stronger fo
     assert not unpinned, "base images pinned by mutable tag: " + "; ".join(unpinned)
 
 
+def test_every_pinned_base_image_names_its_tag_beside_the_digest():
+    """29.4.1. A digest alone told Dependabot nothing about which tag to follow, so
+    it followed `latest`: on 2026-09-26 it proposed a Debian `python` (the build
+    failed at `apk`) and a newer `syft` than the adapter reports. `image:tag@sha256:…`
+    pins the bytes AND names the line to track, so a bump is a refresh of the tag
+    we mean — and the version comments the lines used to carry are the lines."""
+    import re
+
+    for number, line in enumerate(Path("Dockerfile").read_text().splitlines(), start=1):
+        match = re.match(r"^FROM\s+(\S+)", line)
+        if not match or "@sha256:" not in match.group(1):
+            continue
+        reference = match.group(1)
+        assert re.fullmatch(r"[^:@\s]+(?::\d+)?/?[^:@\s]*:[^@\s]+@sha256:[0-9a-f]{64}", reference), \
+            f"Dockerfile:{number} pins a digest with no tag beside it: {reference}"
+
+
 def test_checkov_is_hash_locked_into_its_own_environment():
     """Task 23.4.1. `pip install checkov==3.2.517` pinned one package and resolved
     the other ~95 afresh on every build — the one input of the image we sign with
@@ -369,7 +386,7 @@ def test_the_release_sbom_is_made_by_the_pinned_syft_for_both_architectures():
     assert extraction, "stage does not read the syft pin from the Dockerfile"
     found = subprocess.run(["sh", "-c", extraction.group(1)], capture_output=True,
                            text=True, check=True).stdout.strip()
-    pinned = re.search(r"^FROM (anchore/syft@sha256:[0-9a-f]{64}) AS syft$",
+    pinned = re.search(r"^FROM (anchore/syft:[^@\s]+@sha256:[0-9a-f]{64}) AS syft$",
                        Path("Dockerfile").read_text(), re.M)
     assert pinned and found == pinned.group(1), f"{found!r} != {pinned and pinned.group(1)!r}"
     assert '"$SYFT"' in stage, "the extracted pin is not the image syft runs as"

@@ -8469,7 +8469,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
 
 ### Tier 4 — Maintenance the morning left behind
 
-- [ ] **29.4.1** **The base images carry their tag beside the digest (Dependabot
+- [x] **29.4.1** **The base images carry their tag beside the digest (Dependabot
   #104).** Measured: `FROM python@sha256:…` names no tag, so Dependabot resolved
   `latest`, proposed a digest that is not an Alpine image, and the build failed
   at `apk` on three required jobs. `FROM python:3.12-alpine3.22@sha256:…` on
@@ -8479,6 +8479,21 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   reason; Dependabot re-opens against the right tag on its next run. **Held
   by:** a test over the Dockerfile that every `FROM` with a digest also names
   a tag.
+
+  **STATUS 2026-09-26:** ✅ Measured first: each of the five pinned digests
+  resolved (`docker buildx imagetools inspect`) to exactly the tag its comment
+  named — `python:3.12-alpine3.22`, `gitleaks:v8.30.1`, `trivy:0.74.0`,
+  `osv-scanner:v2.6.0`, `syft:v1.51.1` — and Dependabot's two proposals were
+  `python:latest` (Debian; the build failed at `apk`, #104) and
+  `syft:latest` (500e2d8…, not 1.51.1, #103). The tags now sit on the lines
+  (`image:tag@sha256:…`), the comments that carried them are gone, the release
+  workflow's syft extraction and its test accept the shape, and a new test
+  refuses a digest with no tag beside it. The image builds unchanged from the
+  same digests (verified locally, and the tree-hash check passes). #103 and
+  #104 closed with the reason; Dependabot re-proposes against the right tags
+  on its next run.
+
+
 - [ ] **29.4.2** **Checkov 3.3.19 (Dependabot #106, #107), and the two bumps
   that only needed the signer fix (#103, #105).** `scripts/lock-checkov.sh`
   regenerates the hash lock; `adapters/checkov.py`'s VERSION, `conftest.py`'s

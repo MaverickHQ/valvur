@@ -334,7 +334,7 @@ jobs:
           SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          SYFT=$(sed -n 's/^FROM \(anchore\/syft@sha256:[0-9a-f]\{64\}\) AS syft$/\1/p' Dockerfile)
+          SYFT=$(sed -n 's/^FROM \(anchore\/syft:[^@ ]*@sha256:[0-9a-f]\{64\}\) AS syft$/\1/p' Dockerfile)
           test -n "$SYFT" || { echo "::error::the Dockerfile has no digest-pinned syft stage"; exit 1; }
           echo "syft: $SYFT"
           for platform in linux/amd64 linux/arm64; do
