@@ -78,7 +78,7 @@ def test_the_progress_line_says_how_long_each_scanner_took(tmp_path, monkeypatch
     api.scan(tmp_path / "ws", runner=Runner(), adapters=[_Adapter(sleep=0.1)],
              on_progress=said.append)
 
-    [line] = [s for s in said if s.startswith("slowpoke")]
+    [line] = [s for s in said if s.startswith("slowpoke: ok")]
     assert line.startswith("slowpoke: ok (0.1s)") or line.startswith("slowpoke: ok (0.2s)"), line
 
 

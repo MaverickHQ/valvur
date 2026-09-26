@@ -8236,7 +8236,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   id only, measured on the diff. The gate's run 1 would now have read the
   budget sentence with the levers, and no `doctor`.
 
-- [ ] **29.0.4** **What is running has a line (B5; F9.9).** Measured: sixteen
+- [x] **29.0.4** **What is running has a line (B5; F9.9).** Measured: sixteen
   polls over 290 s answered *Completed so far: image pulled, database fetched,
   index fetched* and nothing else, because nothing finished. The fleet knows
   each Scanner's start; `scan_status` says *Now: gitleaks 120s, checkov 120s,
@@ -8245,6 +8245,23 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   progress line matches. **Held by:** the `scan_status` snapshot mid-fleet
   (a fake runner that holds one Scanner open) and the MCP `tools/list`
   snapshot unchanged.
+
+  **STATUS 2026-09-26:** ✅ Measured first: the fleet emitted a message at each
+  Scanner's *end* (`gitleaks: ok (2.7s)`) and none at its start, and the job
+  kept messages without their times, so the RUNNING reply could only list what
+  had finished — nothing, for 290 s at the gate. Now `_fleet` says `fleet: 8
+  Scanners, 8 at a time` once and `<tool>: started` when a task *begins* (not
+  when it is submitted — under `--jobs` a queued Scanner would otherwise read as
+  running), the job records a monotonic time beside every message
+  (`Job.note`, `progress_at`), and the reply adds *Now: slow 12s running — 1 of
+  2 finished: fast: ok (0.1s)* from those, keeping *Now: fetching …* for a fetch
+  in progress and *Completed so far* for the fetches; `structuredContent`
+  gains `running` (tool → seconds), `finished` and `fleet`. The CLI prints the
+  same lines. Held by three unit tests (the announcements and their order; the
+  reply mid-fleet with a Scanner held open, text and fields; the timestamps)
+  and the first-run tests, which now count a Scanner's end and not its start.
+  The `tools/list` snapshot is unchanged: `job` was an open object.
+
 
 ### Tier 1 — The numbers fit a real machine and a real tree
 

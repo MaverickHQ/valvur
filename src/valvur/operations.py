@@ -10,6 +10,7 @@ Each returns plain text: an agent reads it, and so does a person.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 from . import profiles as _profiles
@@ -479,19 +480,46 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
 
         now: str | None = None
         completed: list[str] = []
-        for message in job.progress:
+        # The fleet's own messages (29.0.4): its size, each Scanner's start —
+        # timestamped by the job on arrival — and each one's end.
+        started: dict[str, float] = {}
+        finished: list[str] = []
+        fleet: int | None = None
+        stamps = list(job.progress_at) + [job.elapsed + job.started] * len(job.progress)
+        for message, at in zip(job.progress, stamps, strict=False):
             if message.startswith(FETCH_STARTED):
                 now = message
-            else:
-                now = None
-                completed.append(message)
+                continue
+            now = None
+            if message.startswith("fleet: "):
+                fleet = int(message.split()[1])
+                continue
+            tool, sep, rest = message.partition(": ")
+            if sep and rest == "started":
+                started[tool] = at
+                continue
+            if sep and tool in started:
+                finished.append(message)
+                continue
+            completed.append(message)
         lines = [f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed."]
         if now is not None:
             lines.append(f"Now: {now}.")
+        done = {m.partition(": ")[0] for m in finished}
+        running = {tool: time.monotonic() - at for tool, at in started.items() if tool not in done}
+        if running:
+            # What an agent could not tell before: a running scan from a hung one.
+            names = ", ".join(f"{tool} {seconds:.0f}s" for tool, seconds in running.items())
+            total = fleet if fleet is not None else len(started)
+            lines.append(f"Now: {names} running — {len(finished)} of {total} finished: "
+                         f"{', '.join(finished) or 'none yet'}")
         lines.append(f"Completed so far: {', '.join(completed) or 'starting'}")
         lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
                      "do not report a result yet.")
-        return "\n".join(lines), {"scanned": False, "job": _job_fields(job, progress=True)}
+        fields = _job_fields(job, progress=True)
+        fields.update({"running": {tool: round(seconds, 1) for tool, seconds in running.items()},
+                       "finished": len(finished), "fleet": fleet})
+        return "\n".join(lines), {"scanned": False, "job": fields}
     if job is not None and job.state is State.FAILED:
         lines = [f"FAILED after {job.elapsed:.0f}s — {job.error}"]
         if job.doctor_may_help:

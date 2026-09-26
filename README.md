@@ -128,7 +128,9 @@ says so). Past it the running Scanners are stopped and the reply says which, for
 how long, and what to turn: exclude what is not source (`[scan] exclude` in
 `.security-scan.toml` — a data directory or a build tree costs a scan nothing
 once named), give it longer, or run fewer Scanners at once (`VALVUR_JOBS=2` in the
-server's environment, `--jobs 2` on the CLI) on a small Docker Desktop VM.
+server's environment, `--jobs 2` on the CLI) on a small Docker Desktop VM. While
+it runs, `scan_status` says which Scanners are running and for how long, and how
+many have finished.
 
 The server's handshake carries the rules an agent needs — never commit the
 folder, work from `REMEDIATION.md`, never add a suppression without a human, a

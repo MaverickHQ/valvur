@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **`scan_status` says what is running, and for how long.** At the first
+  usability gate sixteen polls over 290 s answered only *Completed so far:
+  image pulled, database fetched, index fetched*, because no Scanner had
+  finished — nothing to tell a running scan from a hung one. The fleet now
+  announces its size and each Scanner's start, and the reply reads *Now:
+  gitleaks 120s, checkov 120s running — 3 of 8 finished: syft: ok (4.1s), …*,
+  with the same as fields (`running`, `finished`, `fleet`) beside the text;
+  the CLI prints the same lines (29.0.4).
 - **A budget cut is its own message, and a failure says its cause.** At the
   first usability gate the 300 s default budget cut every Scanner and the
   reply read *every scanner failed — run doctor*, and `doctor` said *ready*.

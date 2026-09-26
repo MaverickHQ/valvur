@@ -83,6 +83,9 @@ class Job:
     #: refusal says no, everything else says yes.
     doctor_may_help: bool = True
     progress: list[str] = field(default_factory=list)
+    #: When each progress message arrived (monotonic), beside it (29.0.4): what
+    #: lets a status line say how long a Scanner has been running.
+    progress_at: list[float] = field(default_factory=list)
     settled: threading.Event = field(default_factory=threading.Event)
     #: What stops this job's containers, registered by the work once it has a
     #: runner (23.3.3) — through the `canceller` property, never this field.
@@ -120,6 +123,12 @@ class Job:
     def elapsed(self) -> float:
         return (self.finished or time.monotonic()) - self.started
 
+    def note(self, message: str) -> None:
+        """Record a progress message and when it arrived — the callback the scan
+        is given (29.0.4)."""
+        self.progress.append(message)
+        self.progress_at.append(time.monotonic())
+
     def wait(self, seconds: float | None = None) -> bool:
         """Block until the job settles or the wait runs out. True when settled.
 
@@ -156,7 +165,7 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
 
     def work() -> None:
         try:
-            job.summary = run(workspace, profile, job.progress.append)
+            job.summary = run(workspace, profile, job.note)
             with _lock:
                 job.transition(State.DONE)
         except Exception as exc:

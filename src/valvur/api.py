@@ -686,6 +686,9 @@ def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
 
     # `--jobs` bounds the fleet (23.3.3); the default is everything at once.
     width = jobs if jobs is not None else (_jobs_from_environment() or len(adapters))
+    if on_progress is not None:
+        # The size, so a status line can say "3 of 8" (29.0.4).
+        on_progress(f"fleet: {len(adapters)} Scanners, {min(width, len(adapters))} at a time")
     fleet_started = time.monotonic()
     cut: list[str] = []
     # One task per Scanner — except valvur's own Checks, which share one container
@@ -693,8 +696,20 @@ def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
     # the adapter indices it answers for.
     tasks = _plan(adapters, runner)
     with ThreadPoolExecutor(max_workers=max(1, min(width, max(1, len(tasks))))) as pool:
+        def announced(work, names):
+            # Said when the task BEGINS, not when it is submitted: under `--jobs`
+            # a submitted task waits, and a line that said "running" for a
+            # Scanner still in the queue would be the old silence in new words.
+            def run(r, w):
+                if on_progress is not None:
+                    for name in names:
+                        on_progress(f"{name}: started")
+                return work(r, w)
+            return run
+
         futures = {
-            pool.submit(work, runner, workspace): indices
+            pool.submit(announced(work, [adapters[i].name for i in indices]), runner, workspace):
+                indices
             for work, indices in tasks
         }
 

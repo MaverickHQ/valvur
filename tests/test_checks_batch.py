@@ -405,7 +405,12 @@ def test_the_progress_line_names_each_check(ws):
     api.scan(ws, runner=runner, adapters=[CheckAdapter(name) for name in CHECKS],
              on_progress=said.append)
 
-    assert [line.split(":")[0] for line in said] == list(CHECKS)
+    # The fleet's announcements (29.0.4) name the batch's members at its start;
+    # the ends, one per Check, are what this test has always counted.
+    ends = [line for line in said
+            if not line.startswith("fleet: ") and not line.endswith(": started")]
+    assert [line.split(":")[0] for line in ends] == list(CHECKS)
+    assert [line.split(":")[0] for line in said if line.endswith(": started")] == list(CHECKS)
 
 
 def test_a_budget_that_cuts_the_batch_names_every_check_in_it(ws, monkeypatch):
