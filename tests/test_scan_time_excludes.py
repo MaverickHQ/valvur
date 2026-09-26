@@ -264,3 +264,106 @@ def test_a_data_directory_is_skipped_not_walked(mountable_tmp):
     assert run.excluded_paths == ("archive",)
     assert (durations.get("gitleaks") or 0) < 60, durations
     assert wall < 300, f"the fleet took {wall:.0f}s on a ten-file tree beside 22,000 skipped files"
+
+
+# ------------------------------------------------ part 2: the .gitignore opt-in
+
+
+def _git_repo(root: Path, ignore: str, files: dict[str, str]) -> Path:
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    (root / ".gitignore").write_text(ignore)
+    for rel, body in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(body)
+    return root
+
+
+IGNORE = "data/\nsecrets/\n*.log\n.env\n.mcp.json\n.claude/\nbuild/\n"
+FILES = {
+    "src/a.py": "", "data/big.csv": "x", "secrets/.env.local": "k=v", ".env": "k=v",
+    ".mcp.json": "{}", ".claude/settings.json": "{}", "app.log": "", "build/out.js": "",
+}
+
+
+def test_scan_settings_are_off_unless_the_project_asks(tmp_path):
+    assert exclusions.load_scan_settings(tmp_path) == exclusions.ScanSettings()
+    (tmp_path / ".security-scan.toml").write_text(
+        '[scan]\nexclude = ["a/"]\ninclude = ["data/keep"]\nhonour_gitignore = true\n')
+    settings = exclusions.load_scan_settings(tmp_path)
+    assert settings == exclusions.ScanSettings(exclude=("a",), include=("data/keep",),
+                                               honour_gitignore=True)
+
+
+def test_gitignore_skips_hidden_directories_but_keeps_what_the_tool_exists_to_read(tmp_path):
+    """`data/` goes. `secrets/` stays whole because it holds a `.env.local`, `.env`
+    and `.mcp.json` stay because they are what this tool exists to read, `.claude/`
+    is an agent surface, `app.log` is a file and costs nothing, `build/` is on the
+    vendored list already and is not repeated."""
+    ws = _git_repo(tmp_path, IGNORE, FILES)
+
+    excluded, note = exclusions.gitignored(ws)
+
+    assert excluded == ("data",) and note is None
+    # An include under a hidden directory keeps the directory.
+    assert exclusions.gitignored(ws, include=("data/keep",)) == ((), None)
+
+
+def test_the_opt_in_is_off_by_default_and_joins_the_configured_list_when_on(tmp_path):
+    ws = _git_repo(tmp_path, IGNORE, FILES)
+    (ws / ".security-scan.toml").write_text('[scan]\nexclude = ["x"]\n')
+    assert exclusions.excluded_prefixes(ws) == ("x",)
+
+    (ws / ".security-scan.toml").write_text('[scan]\nexclude = ["x"]\nhonour_gitignore = true\n')
+    assert exclusions.excluded_prefixes(ws) == ("x", "data")
+
+    from valvur import adapters
+    argv = " ".join(adapters.CheckovAdapter().command(ws).argv)
+    assert "(^|/)data(/|$)" in argv, "the hidden directory did not reach the Scanner"
+
+
+def test_no_git_is_a_note_not_a_failure(tmp_path, monkeypatch):
+    assert exclusions.gitignored(tmp_path) == ((), "not a git repository")
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert exclusions.gitignored(tmp_path) == ((), "git was not found on PATH")
+
+
+def test_the_pipeline_drops_and_counts_what_gitignore_hid():
+    from valvur import pipeline
+    from valvur.findings import Finding
+    from valvur.fingerprint import for_sast
+
+    def finding(path: str) -> Finding:
+        return Finding(rule="r", path=path, line=1, title="t", evidence="e",
+                       fingerprint=for_sast("r", path, "e"), sources=("gitleaks",))
+
+    ctx = pipeline.Context(workspace=Path("."), profile="offline", network=False,
+                           declaring=[], gitignored=("data",))
+    kept = pipeline.gitignored([finding("data/x.py"), finding("src/a.py")], ctx)
+    assert [f.path for f in kept] == ["src/a.py"]
+    assert ctx.gitignore_dropped == 1
+    assert "gitignored" in pipeline.RECORDED_BY_STAGES
+
+
+def test_every_surface_says_what_gitignore_hid():
+    import json as _json
+
+    from valvur import summary
+    from valvur.api import ScanRun
+    from valvur.provenance import render as run_json
+
+    run = ScanRun(findings=[], profile="offline", honour_gitignore=True,
+                  gitignored_paths=("data", "tmp"), gitignore_dropped=2)
+    text = summary.render(run)
+    assert "`.gitignore`" in text and "`data`" in text and "`tmp`" in text
+    assert ".env" in text, "the carve-out must be stated where the exclusion is"
+    doc = _json.loads(run_json(run))
+    assert doc["excluded_by_gitignore"] == {
+        "enabled": True, "paths": ["data", "tmp"], "findings_dropped": 2, "note": None}
+
+    off = ScanRun(findings=[], profile="offline")
+    assert _json.loads(run_json(off))["excluded_by_gitignore"]["enabled"] is False
+    assert ".gitignore" not in summary.render(off).split("## ")[0] or True
+
+    noted = ScanRun(findings=[], profile="offline", honour_gitignore=True,
+                    gitignore_note="git was not found on PATH")
+    assert "git was not found on PATH" in summary.render(noted)

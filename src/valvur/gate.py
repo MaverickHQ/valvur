@@ -82,12 +82,14 @@ def evaluate(workspace: Path, *, fail_on: str = DEFAULT_THRESHOLD,
 
     suppressed = sum(1 for f in findings if f.get("suppressed"))
     excluded = (run.get("excluded_by_config") or {}).get("findings_dropped", 0)
+    hidden = (run.get("excluded_by_gitignore") or {}).get("findings_dropped", 0)
     generation = run.get("generation")
     judged = f"; generation {generation}" if generation else ""
     summary = (f"gate: {len(over)} finding(s) at or above {fail_on}; "
                f"{len(active) - len(over) - len(lapsed)} below the threshold; "
                f"{suppressed} suppressed; {excluded} excluded by .security-scan.toml"
-               f"{judged}")
+               + (f"; {hidden} excluded by .gitignore" if hidden else "")
+               + f"{judged}")
     return Verdict(failures, summary, 1 if failures else 0)
 
 

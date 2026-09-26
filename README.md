@@ -180,7 +180,10 @@ every artifact, `raw/` included. **You decide which fixes to apply and when to
 rescan** — there is no autonomous loop. Suppressions (with mandatory expiry dates)
 and `[scan] exclude` paths live in a committed `.security-scan.toml`; every Scanner
 is told to skip an excluded path before it reads it — a data directory costs a
-scan nothing — and every exclusion is reported.
+scan nothing — and every exclusion is reported. `honour_gitignore = true` (off
+unless asked) also skips the directories `.gitignore` hides, except that `.env*`
+files and agent instruction files are always read and a hidden directory holding
+one is scanned whole; `include = [...]` keeps a hidden path.
 
 In CI, `valvur scan` exits zero whenever the scan itself worked — findings are the
 job, not a failure — and `valvur gate` turns the result into one exit code:

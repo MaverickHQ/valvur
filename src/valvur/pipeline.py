@@ -51,6 +51,12 @@ class Context:
 
     # ---- recorded by stages, read when the ScanRun is assembled
     configured: tuple[str, ...] = ()
+    #: The `.gitignore` opt-in (29.0.1 part 2): asked for, what it hid, why it
+    #: could not be asked, and what a Scanner reported there anyway.
+    honour_gitignore: bool = False
+    gitignored: tuple[str, ...] = ()
+    gitignore_note: str | None = None
+    gitignore_dropped: int = 0
     coverage: dict = field(default_factory=dict)
     vendored_dropped: int = 0
     config_dropped: int = 0
@@ -81,6 +87,10 @@ class PipelineResult:
 
     findings: list[Finding]
     configured: tuple[str, ...]
+    honour_gitignore: bool
+    gitignored: tuple[str, ...]
+    gitignore_note: str | None
+    gitignore_dropped: int
     coverage: dict
     vendored_dropped: int
     config_dropped: int
@@ -129,9 +139,14 @@ def coverage(findings: list[Finding], ctx: Context) -> list[Finding]:
     did not run — so the one message saying "this scan could not help you" was
     missing exactly where it mattered.
     """
-    ctx.configured = tuple(_exclusions.load_configured(ctx.workspace))
-    ctx.coverage = _coverage.collect(ctx.declaring, ctx.workspace, ctx.configured)
-    gaps = [g for a in ctx.declaring for g in a.coverage(ctx.workspace, ctx.configured).gaps]
+    settings = _exclusions.load_scan_settings(ctx.workspace)
+    ctx.configured = settings.exclude
+    ctx.honour_gitignore = settings.honour_gitignore
+    if settings.honour_gitignore:
+        ctx.gitignored, ctx.gitignore_note = _exclusions.gitignored(ctx.workspace, settings.include)
+    skipped = ctx.configured + ctx.gitignored
+    ctx.coverage = _coverage.collect(ctx.declaring, ctx.workspace, skipped)
+    gaps = [g for a in ctx.declaring for g in a.coverage(ctx.workspace, skipped).gaps]
     return findings + gaps
 
 
@@ -153,6 +168,14 @@ def configured(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Paths this project chose not to scan, from its committed config. Never a
     built-in default: silently skipping a project's tests would hide real code."""
     kept, ctx.config_dropped = _exclusions.filter_configured(findings, ctx.configured)
+    return kept
+
+
+def gitignored(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """What `.gitignore` hid, when the project asked (29.0.1 part 2): every
+    Scanner was told to skip these too, so what is dropped here is what one
+    reported there anyway — counted, like the two filters above."""
+    kept, ctx.gitignore_dropped = _exclusions.filter_configured(findings, ctx.gitignored)
     return kept
 
 
@@ -241,6 +264,9 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("configured", configured,
           "Same as `vendored`, and after it so `config_dropped` counts only what "
           "the project's own config removed."),
+    Stage("gitignored", gitignored,
+          "After `configured`, so a path in both lists is counted once, against "
+          "the list the project wrote by hand."),
     Stage("unpinned", unpinned,
           "After the path filters, so an excluded file's ranges are not counted "
           "twice; before `merged`, because it reads each raw Finding's single "

@@ -108,6 +108,14 @@ def render(run: ScanRun) -> str:
                     "paths": list(run.excluded_paths),
                     "findings_dropped": run.config_dropped,
                 },
+                # The `.gitignore` opt-in (29.0.1 part 2): always present, so a
+                # reader can tell "off" from "on and nothing hidden".
+                "excluded_by_gitignore": {
+                    "enabled": run.honour_gitignore,
+                    "paths": list(run.gitignored_paths),
+                    "findings_dropped": run.gitignore_dropped,
+                    "note": run.gitignore_note,
+                },
                 # OSV-Scanner's answers against the lower bounds of unpinned ranges
                 # (25.3): not the project's Findings, and not silently gone either.
                 "excluded_unpinned": {

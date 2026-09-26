@@ -319,6 +319,25 @@ def render(run: ScanRun) -> str:
             "",
         ]
 
+    if run.honour_gitignore:
+        # The opt-in (29.0.1 part 2), and its carve-out stated where it applies.
+        if run.gitignore_note:
+            lines += [f"> **`honour_gitignore` had no effect:** {run.gitignore_note}.", ""]
+        else:
+            hidden = run.gitignored_paths
+            named = ", ".join(f"`{p}`" for p in hidden[:8])
+            more = f" and {len(hidden) - 8} more" if len(hidden) > 8 else ""
+            dropped = run.gitignore_dropped
+            lines += [
+                "> **`.gitignore` honoured** (`[scan] honour_gitignore`): "
+                + (f"{len(hidden)} hidden director(ies) excluded before the scan — "
+                   f"{named}{more}." if hidden else "it hides no directory a scan would skip.")
+                + (f" {dropped} finding(s) reported there anyway were dropped." if dropped else ""),
+                "> `.env*` files and agent instruction files are always read, and a hidden "
+                "directory holding one is scanned whole.",
+                "",
+            ]
+
     if run.unpinned_dropped:
         where = ", ".join(f"`{p}`" for p in run.unpinned_files)
         lines += [

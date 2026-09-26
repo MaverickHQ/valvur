@@ -12,7 +12,8 @@ not against the vendored copy, so excluding these directories loses nothing real
 
 from __future__ import annotations
 
-from pathlib import Path
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 
 # Directory names, matched as whole path segments. Substring matching would exclude a
 # legitimate `src/distribution/` for containing "dist".
@@ -75,6 +76,43 @@ def filter_findings(findings: list, extra: frozenset[str] = frozenset()) -> tupl
     return kept, len(findings) - len(kept)
 
 
+@dataclass(frozen=True)
+class ScanSettings:
+    """The `[scan]` table of `.security-scan.toml` — what the project chose."""
+
+    #: Repo-relative prefixes not to scan.
+    exclude: tuple[str, ...] = ()
+    #: Prefixes to keep even where `honour_gitignore` would hide them.
+    include: tuple[str, ...] = ()
+    #: Also skip the directories `.gitignore` hides (29.0.1, part 2). Off unless
+    #: asked, for the reason in the comment above `is_vendored`.
+    honour_gitignore: bool = False
+
+
+def _prefixes(entries) -> tuple[str, ...]:
+    return tuple(str(e).strip().strip("/") for e in entries or [] if str(e).strip().strip("/"))
+
+
+def load_scan_settings(workspace: Path) -> ScanSettings:
+    """The `[scan]` table, or the defaults when there is no file or it is
+    malformed — the suppression loader reads the same file and reports that."""
+    import tomllib
+
+    path = workspace / ".security-scan.toml"
+    if not path.is_file():
+        return ScanSettings()
+    try:
+        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError):
+        return ScanSettings()
+    scan = raw.get("scan") or {}
+    return ScanSettings(
+        exclude=_prefixes(scan.get("exclude")),
+        include=_prefixes(scan.get("include")),
+        honour_gitignore=bool(scan.get("honour_gitignore", False)),
+    )
+
+
 def load_configured(workspace: Path) -> tuple[str, ...]:
     """Repo-relative path prefixes the project has chosen not to scan.
 
@@ -87,21 +125,7 @@ def load_configured(workspace: Path) -> tuple[str, ...]:
     scanner. Putting it in the committed config makes the decision reviewable —
     someone can see it in the diff and ask why.
     """
-    import tomllib
-
-    path = workspace / ".security-scan.toml"
-    if not path.is_file():
-        return ()
-    try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, OSError):
-        # Malformed config is reported by the suppression loader, which reads the
-        # same file. Failing twice for one cause helps nobody.
-        return ()
-    entries = (raw.get("scan") or {}).get("exclude") or []
-    return tuple(
-        str(e).strip().strip("/") for e in entries if str(e).strip().strip("/")
-    )
+    return load_scan_settings(workspace).exclude
 
 
 def is_configured_out(path: str, prefixes: tuple[str, ...]) -> bool:
@@ -156,8 +180,73 @@ GITLEAKS_CONFIG = "gitleaks.toml"
 
 def excluded_prefixes(workspace: Path) -> tuple[str, ...]:
     """Every repo-relative prefix a scan skips before it starts: the committed
-    `[scan] exclude` list."""
-    return load_configured(workspace)
+    `[scan] exclude` list, and — only when the project asks — the directories
+    `.gitignore` hides."""
+    settings = load_scan_settings(workspace)
+    prefixes = settings.exclude
+    if settings.honour_gitignore:
+        hidden, _ = gitignored(workspace, settings.include)
+        prefixes += tuple(p for p in hidden if p not in prefixes)
+    return prefixes
+
+
+def _kept_when_ignored(rel: str) -> bool:
+    """A hidden file this tool exists to read: `.env*` (the reason the default is
+    off — a gitignored `.env` holds exactly the credentials a scan is for), and
+    every agent instruction or configuration file the AI Artifact Check knows
+    (a `.mcp.json` a project keeps out of git is still what its agent obeys)."""
+    from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
+
+    path = PurePosixPath(rel)
+    parents = set(path.parts[:-1])
+    return (path.name.startswith(".env") or path.name in ARTIFACT_NAMES
+            or bool(parents & ARTIFACT_DIRS) or ".kiro" in parents)
+
+
+def _overlaps(a: str, b: str) -> bool:
+    return a == b or a.startswith(b + "/") or b.startswith(a + "/")
+
+
+def gitignored(workspace: Path, include: tuple[str, ...] = (),
+               ) -> tuple[tuple[str, ...], str | None]:
+    """The directories `.gitignore` hides that a scan may skip, and a note when
+    git could not be asked. Opt-in (`[scan] honour_gitignore`, 29.0.1 part 2):
+    the project's own statement of what is not its source is the right signal
+    for a data directory, and the wrong one for a `.env` — so a hidden directory
+    that holds a file `_kept_when_ignored` names is **not** skipped, it is scanned
+    whole, and a hidden file on its own is never skipped (it costs nothing).
+    Directories the vendored list already names are left out, and anything a
+    `[scan] include` overlaps is kept. Measured on the gate's tree: the collapsed
+    listing 0.03 s, every hidden file (107,251 of them) 0.65 s."""
+    import shutil
+    import subprocess
+
+    git = shutil.which("git")
+    if git is None:
+        return (), "git was not found on PATH"
+    base = [git, "-C", str(workspace), "ls-files", "-z", "--others", "--ignored",
+            "--exclude-standard"]
+    # S603: git, found on PATH, over a fixed argument list; the workspace is the
+    # path the user asked to scan.
+    collapsed = subprocess.run([*base, "--directory"], capture_output=True, text=True,  # noqa: S603
+                               check=False, timeout=60)
+    if collapsed.returncode != 0:
+        return (), "not a git repository"
+    every = subprocess.run(base, capture_output=True, text=True, check=False,  # noqa: S603
+                           timeout=60)
+    files = [f for f in every.stdout.split("\0") if f]
+    excluded: list[str] = []
+    for entry in collapsed.stdout.split("\0"):
+        if not entry.endswith("/"):
+            continue
+        rel = entry.rstrip("/")
+        if is_vendored(rel) or any(_overlaps(rel, inc) for inc in include):
+            continue
+        under = rel + "/"
+        if any(f.startswith(under) and _kept_when_ignored(f) for f in files):
+            continue
+        excluded.append(rel)
+    return tuple(sorted(excluded)), None
 
 
 def exclude_env(prefixes: tuple[str, ...]) -> tuple[tuple[str, str], ...]:

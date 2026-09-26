@@ -20,7 +20,12 @@ a minor bump may break things until 1.0.
   `SUMMARY.md` says the paths were excluded before the scan. Measured on the
   gate's tree with its two-line exclude: **complete in 88 s** on the same
   Mac, nothing dropped, Gitleaks 6 s against 212 s and the three Checks 8 s
-  against 403 s (29.0.1).
+  against 403 s. And an opt-in: `[scan] honour_gitignore = true` skips the
+  directories `.gitignore` hides as well — except that `.env*` files and agent
+  instruction files are always read, and a hidden directory holding one is
+  scanned whole; `[scan] include` keeps a hidden path. Off unless asked, because
+  a gitignored `.env` holds exactly what a scan is for; `run.json` and
+  `SUMMARY.md` say what it hid (29.0.1).
 
 ## [0.4.0] — 2026-09-26
 

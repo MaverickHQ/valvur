@@ -8055,7 +8055,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
 
 ### Tier 0 — A first run on a real working tree finishes, or says why
 
-- [ ] **29.0.1** **Excludes at scan time, for every Scanner (B3; 10.3b claim 13;
+- [x] **29.0.1** **Excludes at scan time, for every Scanner (B3; 10.3b claim 13;
   F2.5).** Measured: the vendored list (`node_modules`, `.venv`, `vendor`, …) and
   `[scan] exclude` drop *findings* after every Scanner has walked the tree; on
   the gate's tree Gitleaks spent 211.7 s producing 3,892 hits inside `archive/`
@@ -8128,6 +8128,33 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   with it extending the project's file, which is what it does now when the
   file exists. A `.gitleaksignore` was never affected: the image's working
   directory is `/workspace`, Gitleaks's default for it.
+
+  **STATUS 2026-09-26 (part 2 of 2 — the `.gitignore` opt-in; ✅ the task):**
+  `[scan] honour_gitignore = true` asks git for what it hides — the collapsed
+  listing (`ls-files --others --ignored --exclude-standard --directory`, 0.03 s
+  on the gate's 107,544-file tree) for the directories, the full one (0.65 s,
+  107,251 entries) to know what each holds — and skips a hidden *directory*
+  unless it holds a file this tool exists to read: `.env*`, or any agent
+  instruction or configuration file the AI Artifact Check knows (a gitignored
+  `.mcp.json` is still what the agent obeys), in which case the directory is
+  scanned whole; a hidden file on its own is never skipped, it costs nothing;
+  what the vendored list names is not repeated; `[scan] include` keeps a hidden
+  path. Off unless asked, for the reason `exclusions.py` has carried since
+  2026-08-31. The names the Check reads moved to a leaf module,
+  `agent_surfaces.py`, because importing the Check from `exclusions` closed a
+  soft cycle the ratchet refused — the ratchet doing its job. The prefixes reach
+  every Scanner through the same `excluded_prefixes`; a `gitignored` pipeline
+  stage counts what a Scanner reported there anyway; `run.json` carries
+  `excluded_by_gitignore` always (`enabled`, `paths`, `findings_dropped`, and
+  a `note` when git could not be asked — not found, not a repository), so a
+  reader can tell *off* from *on and nothing hidden*; `SUMMARY.md` names the
+  directories and states the carve-out where it applies; `valvur gate` counts
+  the drops. Held by six unit tests. **Measured on the synthetic tree with a
+  `.gitignore` hiding `archive/` and no `[scan] exclude`:** on — wall 30 s,
+  Gitleaks 5.8 s, 95 findings, none under `archive/`, the hidden `.env` still
+  read; off — wall 135 s, Gitleaks 28 s, 20,095 findings, 20,000 of them the
+  archive's. The gate's tree, with the option on, would drop its two-line
+  exclude: `archive/`, `build/`, `.venv/` and `configs/` are all hidden there.
 - [ ] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
   F1.11, F2.5).** Measured twice from Docker's event log in the record: a
   Gitleaks container ran 401 s after its 300 s timeout killed the client; a

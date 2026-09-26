@@ -101,6 +101,12 @@ class ScanRun:
     unpinned_dropped: int = 0
     unpinned_files: tuple[str, ...] = ()
     excluded_paths: tuple[str, ...] = ()
+    #: The `.gitignore` opt-in (29.0.1 part 2): asked for, the directories it
+    #: hid, why git could not be asked, and what a Scanner reported there anyway.
+    honour_gitignore: bool = False
+    gitignored_paths: tuple[str, ...] = ()
+    gitignore_note: str | None = None
+    gitignore_dropped: int = 0
     profile: str = ""
     #: Per-adapter coverage contracts: what each reads and what it deliberately does
     #: not (task 19.E.1). Provenance, not findings — the gaps themselves arrive as
@@ -775,6 +781,10 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         unpinned_dropped=outcome.unpinned_dropped,
         unpinned_files=outcome.unpinned_files,
         excluded_paths=outcome.configured,
+        honour_gitignore=outcome.honour_gitignore,
+        gitignored_paths=outcome.gitignored,
+        gitignore_note=outcome.gitignore_note,
+        gitignore_dropped=outcome.gitignore_dropped,
         profile=profile,
         coverage=outcome.coverage,
         budget_s=budget_s,
