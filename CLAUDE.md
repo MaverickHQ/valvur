@@ -165,15 +165,23 @@ never reached a Scanner's argv — the per-Scanner skip flags were written on
 2026-08-31 and never called — so a data directory is walked by all eight and
 filtered afterwards; a Scanner past its timeout is abandoned; a budget cut is
 reported as *every scanner failed*; the README on `main` calls `0.4.0`
-published while the brake holds it. **Next, in this order: the `0.4.0` tag as
-rehearsed (28.1.2 — the findings are in `0.3.0` too, and the promote path is
-worth proving now); Phase 29's Tier 0 (a first run on a real tree finishes or
-says why), Tier 1 (the time goals re-stated for the working tree, the budget
-and jobs decided by measurement), Tier 2 (every agent's IDE by MCP — Claude
-Code, Kiro, Codex, Cursor, VS Code and the rest, each handshake measured),
-Tier 3 (the README's claim, the small things); `0.5.0`; the gate with a person
-(12b.3's ask); the second maintainer (28.1.3); `v1.0.0`; the runner move after
-2026-11-19 (28.3.8).** When "what is next" is asked,
+published while the brake holds it. **Phase 29 ran the same day as one
+unattended flow, after the owner's four answers: thirteen of its fourteen tasks
+in fifteen PRs (#113–#127).** Excludes reach every Scanner before it reads —
+the gate's tree went from failing at 300 s to complete in 88 s; a Scanner past
+its timeout is stopped by name; a budget cut names its cause and the three
+levers; `scan_status` says what is running; a scan counts what it will read and
+names the directory to exclude before the fleet starts; the fleet's width
+follows the runtime's memory; the time goals are for the working tree after
+exclusions; Dependabot's five sorted; every client's file in one table with the
+README held to it and `doctor` reading them all; the README's status line true
+on every day of a release; sizes and KEV say which; every MCP evidence fenced.
+one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **Open:** 29.2.3, blocked on `claude login`; the `0.4.0` tag, still
+the owner's click on run 36235113134. **Next, in this order: the `0.4.0` tag
+as rehearsed (28.1.2); 29.2.3 once the login exists; `0.5.0` — its prep starts
+after the `0.4.0` tag, not before; the gate with a person (12b.3's ask); the
+second maintainer (28.1.3); `v1.0.0`; the runner move after 2026-11-19
+(28.3.8).** When "what is next" is asked,
 Phase 25 answers for the people and Phase 28's three open rows for the code; the
 sequencing diagrams in Phases 21, 23 and 24 are history.
 
@@ -314,14 +322,14 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 68 modules under `src/valvur`, 1,203 tests in 82 files, 20 ADRs, 136
-requirement IDs, **235 done and 18 open** across 29 phases — Phase 29's thirteen
-(the first gate's findings), the `v1.0.0` tail, and Phase 28's three that wait on
-a person or a date; Phases 26, 27 and 28's engineering are complete, `0.4.0` is
-prepared and rehearsed, `0.3.0` is out, the action is at `v0.2`
-and the rc is yanked. Thirteen of the 18 are Phase 29's engineering; three are
-the owner's (the `0.4.0` tag, the second maintainer, the `v1.0.0` tag), one is
-dated (the runner move), and 12b.1 closes with Phase 29. A
+Roughly: 71 modules under `src/valvur`, 1,294 tests in 93 files, 20 ADRs, 136
+requirement IDs, **249 done and 6 open** across 29 phases — the `v1.0.0` tail
+(12b.1, 12b.3), Phase 28's three that wait on a person or a date, and 29.2.3,
+which waits on a login; Phases 26 to 29's engineering are complete, `0.4.0` is
+prepared and rehearsed, `0.3.0` is out, the action is at `v0.2` and the rc is
+yanked. Three of the 6 are the owner's (the `0.4.0` tag, the second maintainer,
+the `v1.0.0` tag), one is dated (the runner move), one is a login (29.2.3), and
+12b.1 closes with it. A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found
 a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
@@ -378,6 +386,21 @@ were introduced by the block before, with tests passing.
   (12b.3) — the next real tag is the first release whose upload follows its
   validation. `main` has required the arm64 leg of the published-image job since
   2026-09-21 (six checks; PR #62 was the first to land under it).
+- **The first gate's nine (2026-09-26) — Phase 29, engineering complete the same
+  day.** Worth knowing now that they are closed, eight things no task asked for:
+  the per-Scanner skip flags had been dead since 2026-08-31 and nothing noticed
+  because the finding filters hid the cost; Gitleaks's `--config` replaces the
+  project's own `.gitleaks.toml`, so a generated config must `extend` it — the
+  self-scan gate caught seven planted keys before it landed; `subprocess.run`'s
+  timeout kills the client and not the container, and `TimeoutExpired.stderr`
+  is bytes even in text mode; a `FROM image@sha256:…` with no tag beside the
+  digest makes Dependabot follow `latest`; a lock-only Checkov bump fails the
+  adapter's version test by design, so the bump needs its company; Claude Code
+  does not health-check an unapproved project server, so a wrong command shows
+  nothing until the approval; `docker info` costs 0.9 s on Docker Desktop, so
+  the runtime's memory is read once per process; and the release-gate
+  constraint suite is held to its forty-eight tests, so a new test that is not
+  a constraint lives in its own file.
 - **The fourth review's twenty-four (2026-09-23) — Phase 28, engineering complete
   2026-09-26.** In [`docs/REVIEW-2026-09-23.md`](docs/REVIEW-2026-09-23.md) with
   the evidence beside each, and in `tasks.md` with a STATUS note under every

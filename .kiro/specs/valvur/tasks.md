@@ -1968,6 +1968,12 @@ become the task list for 12b.** Everything below is provisional until it has.
   Nine findings, each measured; four tiers; Phase 10's provisional claims are
   each answered under 29.3.4. Closes when Phase 29's exit criteria are met, and
   reads `0.5.0`.
+
+  **STATUS 2026-09-26 (evening):** ⏳ thirteen of Phase 29's fourteen closed as
+  one flow (PRs #113–#127); what remains is 29.2.3, the agent-driven pass,
+  blocked on the owner's `claude login`. Every finding of the gate is fixed on
+  `main`; the measurement of a stranger's model on the fixed tree is the last
+  claim, and it is the one a person has to enable.
 - [x] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
   the release artifact rather than the working tree. *(N2.5)*
 
@@ -8637,6 +8643,30 @@ true on every day of a release; and the corpus dispatched once with the
 synthetic tree in it. Then `0.5.0`, and a person.
 
 **Commit:** one per task; the phase closes with `docs: Phase 29 closed — …`.
+
+**Closed 2026-09-26 (engineering), as one unattended flow.** Thirteen of
+fourteen tasks in fifteen pull requests (#113–#127), plus the flow's own three
+(#111, #112 and this one), each measured before it was written and green on
+the required checks before it landed, in the order the flow named: Tier 0,
+Tier 1, Tier 4, Tier 2, Tier 3. Against the exit criteria: the record's
+protocol re-run on the same tree — one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. A first scan of the gate's tree
+with its two-line exclude completes in 88 s at eight Scanners at once and
+83.5 s at two (29.0.1, 29.1.3), a Scanner past its timeout leaves no container
+(29.0.2, 4.4 s for a 2 s timeout), a budget cut says its cause and the three
+levers (29.0.3), and what is running has a line (29.0.4). The README's client
+section is rendered from one table and held to it, Claude Code and Kiro
+measured, nine documented and dated under the owner's decision not to launch
+IDEs, and `doctor` reads every one of those files (29.2.1, 29.2.2). The
+README's status line is true on every day of a release, and reads *release in
+progress* today, which is true (29.3.1). The corpus was dispatched once on the
+Tier 0 tree — 5.4–9.5 s on every application repository (29.1.1); the synthetic
+tree lives in the e2e suite on every pull request rather than in the corpus.
+**Two rows stay open and say why:** 29.2.3, blocked on the CLI login the flow's
+decision (2) named, its command written; and the release — `v0.4.0` was not
+tagged during the flow, so the `0.5.0` prep did not start, by the rule that a
+version is not bumped over an untagged one. 12b.1 closes with 29.2.3. The
+eight things the phase learned that no task asked for are in CLAUDE.md's
+Phase 29 bullet.
 
 
 ## Traceability
