@@ -5552,8 +5552,8 @@ Checkpoint B   release 0.3.0             ✅ 2026-09-20 — 25.1 rehearsal + tag
 Checkpoint E   release 0.4.0             ✅ 2026-09-26 — 28.1.2 prep PR · rehearsal 36235113134 · signed tag · run 36254809572 promoted
                the owner's one click at the brake; 25 minutes tag → :latest, 12 of them waiting for it
                ↓
-release 0.5.0  Phase 29 shipped                 prep #130 on 011ec09 (98 s on the gate's tree) · rehearsal 36257979480 at the brake
-               the owner: the signed tag on 011ec09, then the click
+release 0.5.0  Phase 29 shipped                 ✅ 2026-09-26 — prep #130 on 011ec09 (98 s on the gate's tree) · rehearsal 36257979480 · tag · run 36261443737 promoted
+               the owner's click at the brake; 94 minutes tag → :latest, 81 of them waiting for it
                ↓
 Checkpoint C   the usability gate         10.1.1 · 10.1.2 on 0.4.0  →  12b.1 (engineering, on what they found)
                owner + a stranger; a calendar; the machine reset first
@@ -8705,8 +8705,14 @@ from the tag to `:latest`); the `0.5.0` prep landed as #130 on `011ec09`,
 measured against the image built from it — one `scan` over stdio on the gate's
 tree with an empty cache root, **98 s to `DONE`, complete**, the database and
 the index fetched inside that time, Checkov the slowest at 38 s — and its
-rehearsal on that exact commit is run 36257979480, green through validation and
-held at the `release` brake; the tag is the owner's, as `0.4.0`'s was. The
+rehearsal on that exact commit was run 36257979480, green through validation and
+held at the `release` brake until the tag; then **`v0.5.0` released** on 2026-09-26 —
+the signed tag on `011ec09` pushed from the owner's session at their word, the
+rehearsal cancelled to free the group, run 36261443737 through stage and validation
+to the brake, the owner's click, promote: 94 minutes from the tag to
+`:latest`, 81 of them waiting for the click. Verified as a user would:
+`pip index versions valvur` lists `0.5.0`, `cosign verify` and `gh attestation
+verify` pass on `ghcr.io/maverickhq/valvur:0.5.0`. Phase 29 is shipped. The
 eight things the phase learned that no task asked for are in CLAUDE.md's
 Phase 29 bullet.
 
