@@ -236,7 +236,7 @@ def test_the_checks_batch_reproduces_the_runners_argv(tmp_path):
     from valvur.adapters.check import batch_command
 
     invocation, refused = batch_command(
-        ["licence-file", "ai-artifact", "dependency-reality"], network=True)
+        ["licence-file", "ai-artifact", "dependency-reality"], tmp_path, network=True)
 
     assert refused == {}
     _assert_matches(invocation, "checks-batch")
@@ -254,12 +254,13 @@ def test_dependency_reality_is_refused_before_launching_without_an_index_or_a_ne
 
     with pytest.raises(RuntimeError, match="valvur update"):
         CheckAdapter("dependency-reality", uses_network=True).command(tmp_path)
-    invocation, refused = batch_command(["licence-file", "dependency-reality"], network=False)
+    invocation, refused = batch_command(["licence-file", "dependency-reality"], tmp_path,
+                                        network=False)
     assert list(refused) == ["dependency-reality"]
     assert "valvur update" in refused["dependency-reality"].stderr
     assert invocation is not None and invocation.argv[-1] == "licence-file"
     # Granted a network, the registry can answer instead: no refusal.
-    assert batch_command(["dependency-reality"], network=True)[1] == {}
+    assert batch_command(["dependency-reality"], tmp_path, network=True)[1] == {}
 
 
 def test_the_runner_names_no_tool_at_all():

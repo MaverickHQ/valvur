@@ -15,10 +15,12 @@ Check that may reach out, runs last.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
+from .. import exclusions
 from . import REGISTRY
 
 #: Runs after every other Check in a batch: the one that may use a network.
@@ -27,8 +29,11 @@ LAST = "dependency-reality"
 
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
+    # What the scan excluded (29.0.1), one prefix per line, through the
+    # environment rather than the arguments so an older image ignores it.
+    exclude = exclusions.prefixes_from_env(os.environ.get(exclusions.EXCLUDE_ENV))
     if len(args) >= 3 and args[0] == "batch":
-        json.dump(batch(Path(args[1]), args[2:]), sys.stdout)
+        json.dump(batch(Path(args[1]), args[2:], exclude=exclude), sys.stdout)
         return 0
     if len(args) != 2:
         print("usage: python -m valvur.checks <check-name> <workspace>\n"
@@ -43,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        findings = check.run(Path(workspace))
+        findings = check.run(Path(workspace), exclude=exclude)
     except RuntimeError as exc:
         # A Check's own refusal — no index, no reachable registry — is a sentence
         # for the person reading `SUMMARY.md`, not a traceback for the runner to
@@ -56,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def batch(workspace: Path, names: list[str]) -> dict[str, dict]:
+def batch(workspace: Path, names: list[str], exclude: tuple[str, ...] = ()) -> dict[str, dict]:
     """Every named Check, each isolated, `LAST` last. The shape the runner reads:
     `{name: {ok, findings, error, duration_s}}`, in the order run."""
     ordered = [n for n in names if n != LAST] + [n for n in names if n == LAST]
@@ -69,7 +74,7 @@ def batch(workspace: Path, names: list[str]) -> dict[str, dict]:
             continue
         started = time.monotonic()
         try:
-            findings = check.run(workspace)
+            findings = check.run(workspace, exclude=exclude)
         except RuntimeError as exc:
             results[name] = {"ok": False, "findings": [], "error": str(exc),
                              "duration_s": round(time.monotonic() - started, 3)}

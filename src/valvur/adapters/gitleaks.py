@@ -20,15 +20,23 @@ class GitleaksAdapter(ScannerAdapter):
     version = VERSION
 
     def command(self, workspace: Path) -> Invocation:
+        from .. import exclusions
+
         # `--exit-code 0`: gitleaks exits 1 when it finds something, which is a
         # successful run (F2.4); the report says what it found.
+        prefixes = exclusions.excluded_prefixes(workspace)
         return Invocation(
             tool=self.name, version=VERSION,
             argv=("gitleaks", "dir", "/workspace",
                   "--report-format", "json",
                   "--report-path", "/results/gitleaks.json",
-                  "--no-banner", "--exit-code", "0"),
+                  "--no-banner", "--exit-code", "0",
+                  # What not to read (29.0.1): a generated config in the scratch
+                  # mount, since Gitleaks has no path flag. Measured before this:
+                  # 3,892 hits inside an excluded archive, produced then dropped.
+                  "--config", f"/results/{exclusions.GITLEAKS_CONFIG}"),
             report="gitleaks.json", timeout=300,
+            files=((exclusions.GITLEAKS_CONFIG, exclusions.gitleaks_config(prefixes)),),
         )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:

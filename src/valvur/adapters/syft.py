@@ -27,12 +27,9 @@ class SyftAdapter(ScannerAdapter):
         # The SBOM is a release artifact, so a configured exclusion has to reach
         # it, not just the findings derived from it. Without this, valvur's own
         # published SBOM would list aws-helper-sdk and locktest — packages its
-        # test fixtures invent precisely because they do not exist.
-        excluded = [
-            arg
-            for prefix in exclusions.load_configured(workspace)
-            for arg in ("--exclude", f"./{prefix}/**")
-        ]
+        # test fixtures invent precisely because they do not exist. Since 29.0.1
+        # the vendored directories are skipped the same way, by every Scanner.
+        excluded = exclusions.skip_args("syft", exclusions.excluded_prefixes(workspace))
         return Invocation(
             tool=self.name, version=VERSION,
             argv=("syft", "scan", "dir:/workspace", "-o", "cyclonedx-json=/results/sbom.json",

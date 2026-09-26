@@ -69,9 +69,9 @@ AIDER_COMMAND_KEYS = ("lint-cmd", "test-cmd")
 class AiArtifactCheck(Check):
     name = "ai-artifact"
 
-    def run(self, workspace: Path) -> list[dict]:
+    def run(self, workspace: Path, exclude: tuple[str, ...] = ()) -> list[dict]:
         findings: list[dict] = []
-        for path in _artifact_files(workspace):
+        for path in _artifact_files(workspace, exclude):
             rel = path.relative_to(workspace).as_posix()
             try:
                 text = path.read_text(encoding="utf-8")
@@ -91,11 +91,13 @@ class AiArtifactCheck(Check):
         return findings
 
 
-def _artifact_files(workspace: Path) -> list[Path]:
+def _artifact_files(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Path]:
+    from .. import exclusions
+
     found = []
-    for path in sorted(workspace.rglob("*")):
-        if not path.is_file():
-            continue
+    # A pruned walk (29.0.1): `rglob("*")` visited every file of a 107,544-file
+    # tree to find the dozen this Check reads.
+    for path in exclusions.walk_files(workspace, exclude):
         parts = path.relative_to(workspace).parts
         if (path.name in ARTIFACT_NAMES or set(parts[:-1]) & ARTIFACT_DIRS
                 or any(_under(parts, ".kiro", d) for d in KIRO_DIRS)):

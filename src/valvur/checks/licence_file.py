@@ -49,7 +49,7 @@ class LicenceFileCheck(Check):
 
     name = "licence-file"
 
-    def run(self, workspace: Path) -> list[dict]:
+    def run(self, workspace: Path, exclude: tuple[str, ...] = ()) -> list[dict]:
         licence_path = next(
             (workspace / c for c in CANDIDATES if (workspace / c).is_file()), None
         )

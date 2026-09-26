@@ -8083,6 +8083,44 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   gitignored `.env` is the finding) survives as a carve-out; off by default,
   documented beside `exclude`, and `SUMMARY.md` says which of the three lists
   excluded what.
+
+  **STATUS 2026-09-26 (part 1 of 2 — the skips; the `.gitignore` opt-in is
+  part 2):** measured first, inside the image on a planted tree (`a.py`,
+  `archive/deep/…`, `node_modules/…`): Trivy `--skip-dirs` takes globs; Checkov
+  `--skip-path` is a regex searched in `/archive/Dockerfile`, unanchored, so the
+  forms bind a segment; Syft `--exclude` takes globs; Opengrep `--exclude=` a
+  component or a run of them; OSV-Scanner `--experimental-exclude` a name
+  exactly or `r:` a regex — the `g:` forms and anchored regexes excluded
+  nothing; and Gitleaks, which has no path flag, a `--config` that extends the
+  defaults with an allowlist of path regexes (the bytes scanned halved on the
+  probe). Then: `exclusions.skip_args(kind, prefixes)` replaces the
+  never-called `scanner_skip_args`; `Invocation` gains `files` (written into
+  the scratch mount before launch — Gitleaks's config) and `env`
+  (`VALVUR_EXCLUDE`, one prefix per line: the Checks' walk, through the
+  environment so an older image ignores it where an argument would have been
+  read as a Check's name; PROTOCOL.md has the line); `exclusions.walk_files`
+  prunes vendored directories and excluded prefixes without entering them, and
+  the AI Artifact Check and manifest discovery — which `rglob`bed the whole
+  tree, five times over — use it. The argv snapshots re-taken deliberately:
+  Gitleaks 10 → 12 args, Trivy 15 → 131, Checkov 10 → 126, Syft 6 → 122,
+  Opengrep 10 → 68, OSV-Scanner 9 → 125 — the vendored list, once each. Held
+  by thirteen unit tests (each Scanner's form, the segment rule, the config as
+  TOML, every adapter's command, the runner's files and env, the walk, the
+  Checks' env, manifest discovery, the SUMMARY wording) and one e2e test on
+  the gate's tree in miniature: the broken fixture beside a 20,000-file
+  `archive/` of tokens Gitleaks flags — a planted one at the root proves the
+  form — and a 2,000-file `node_modules/`. **Measured, on this Mac through
+  Docker Desktop:** the synthetic tree with the exclude — wall 24 s, Gitleaks
+  3.6 s, the Checks 5.5 s; without it — wall 67 s, Gitleaks 28 s, the Checks
+  26 s, Opengrep 63 s. **The gate's own tree** (`occams-test-lab`, 107,544
+  files, its two-line exclude, every Scanner at once): **complete in 88 s,
+  8 findings, 0 dropped** — Gitleaks 6.4 s against 211.7 s at the gate, the
+  three Checks 7.8 s against 403 s, Checkov 48.3 s against never finishing.
+  At `--jobs 2`: 83.5 s wall, and every Scanner alone two to five times faster
+  (Gitleaks 2.4, Trivy 26.7, Opengrep 31.3, Checkov 40.3, the Checks 1.4) —
+  29.1.3's measurement: what is left of the wall clock on a 4 GB VM is
+  contention, not walking. 88 s is inside the 300 s MCP default; the stdio
+  run on that tree is the phase's exit criteria, measured then.
 - [ ] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
   F1.11, F2.5).** Measured twice from Docker's event log in the record: a
   Gitleaks container ran 401 s after its 300 s timeout killed the client; a

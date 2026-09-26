@@ -7,6 +7,21 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Excludes are skipped, not filtered.** The built-in list of vendored and
+  generated directories and a project's `[scan] exclude` used to be applied to
+  findings after every Scanner had walked the whole tree: at the first
+  usability gate, on a 107,544-file working tree, Gitleaks spent 212 s
+  producing 3,892 hits inside an excluded archive that were then dropped, and
+  Checkov never finished. Now every Scanner is told what to skip before it
+  reads — Trivy, Checkov, Syft, Opengrep and OSV-Scanner by their own flags,
+  Gitleaks by a generated config beside its report, valvur's Checks by a
+  pruned walk — each form measured inside the image. The finding filters stay,
+  so a Scanner that ignored its flag could not leak an excluded path, and
+  `SUMMARY.md` says the paths were excluded before the scan. Measured on the
+  gate's tree with its two-line exclude: **complete in 88 s** on the same
+  Mac, nothing dropped, Gitleaks 6 s against 212 s and the three Checks 8 s
+  against 403 s (29.0.1).
+
 ## [0.4.0] — 2026-09-26
 
 Three reviews of the `0.3.0` tree, six days, and every finding measured against

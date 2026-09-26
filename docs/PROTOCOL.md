@@ -85,6 +85,12 @@ python -m valvur.checks batch /workspace <name>...     several, one container (2
   a network, and only then; the dependency-reality Check asks a registry only when
   it sees it (ADR-0018). **`VALVUR_DB_REPOSITORY`** names a database mirror for
   Trivy's fetch (F10.5). Both are set by the shim from `egress.py`.
+- **`VALVUR_EXCLUDE`** (29.0.1) carries the repo-relative prefixes the scan
+  skips — the committed `[scan] exclude` list — one per line; the Checks' walk
+  never enters them, nor the vendored directories it always prunes. Through the
+  environment rather than the arguments so that an image from before it ignores
+  the variable, where the batch would have read `--exclude` as a Check's name.
+  Absent means nothing configured. An addition, not a major.
 
 ## Labels
 

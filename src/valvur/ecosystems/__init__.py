@@ -109,7 +109,7 @@ MANIFESTS: dict[str, Manifests] = {
 }
 
 
-def declared(workspace: Path) -> set[tuple[str, str, str]]:
+def declared(workspace: Path, exclude: tuple[str, ...] = ()) -> set[tuple[str, str, str]]:
     """Every directly-declared dependency, as (ecosystem, name, manifest path).
 
     Here rather than in `parsers.py` (28.0.5): this is the loop over the registry,
@@ -123,16 +123,16 @@ def declared(workspace: Path) -> set[tuple[str, str, str]]:
     found: set[tuple[str, str, str]] = set()
     for ecosystem in ECOSYSTEMS:
         for pattern, parse in ecosystem.parsers:
-            for path in _parsers.manifests(workspace, pattern):
+            for path in _parsers.manifests(workspace, pattern, exclude):
                 found |= parse(path, workspace)
 
     # Never asked about, not merely unreported. A workspace member's name leaving the
     # machine buys nothing, and §3 is about what we transmit as much as what we say.
-    local = defined_locally(workspace)
+    local = defined_locally(workspace, exclude)
     return {(eco, name, src) for eco, name, src in found if (eco, name) not in local}
 
 
-def defined_locally(workspace: Path) -> set[tuple[str, str]]:
+def defined_locally(workspace: Path, exclude: tuple[str, ...] = ()) -> set[tuple[str, str]]:
     """Package names this Workspace *defines*, as (ecosystem, name).
 
     A monorepo member is declared like any other dependency and resolved from the tree
@@ -155,7 +155,7 @@ def defined_locally(workspace: Path) -> set[tuple[str, str]]:
         (ecosystem.key, name)
         for ecosystem in ECOSYSTEMS
         for pattern, define in ecosystem.defines
-        for path in _parsers.manifests(workspace, pattern)
+        for path in _parsers.manifests(workspace, pattern, exclude)
         for name in define(path)
     }
 

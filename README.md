@@ -178,8 +178,9 @@ Results land in `.security-scan/`:
 The folder ignores itself, so results are never committed. Secrets are redacted in
 every artifact, `raw/` included. **You decide which fixes to apply and when to
 rescan** — there is no autonomous loop. Suppressions (with mandatory expiry dates)
-and `[scan] exclude` paths live in a committed `.security-scan.toml`, and every
-exclusion is reported with what it cost.
+and `[scan] exclude` paths live in a committed `.security-scan.toml`; every Scanner
+is told to skip an excluded path before it reads it — a data directory costs a
+scan nothing — and every exclusion is reported.
 
 In CI, `valvur scan` exits zero whenever the scan itself worked — findings are the
 job, not a failure — and `valvur gate` turns the result into one exit code:

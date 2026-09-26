@@ -97,11 +97,23 @@ def defines_cargo(path: Path) -> set[str]:
     return {name} if name else set()
 
 
-def manifests(workspace: Path, pattern: str):
+def manifests(workspace: Path, pattern: str, exclude: tuple[str, ...] = ()):
+    """Every manifest matching `pattern` by name, from a walk that never enters a
+    vendored directory or an excluded prefix (29.0.1) — `rglob` visited every
+    file of a 107,544-file tree, five times over, to find a handful."""
+    from fnmatch import fnmatch
+
     from .. import exclusions
 
-    for path in sorted(workspace.rglob(pattern)):
-        if path.is_file() and not exclusions.is_vendored(str(path.relative_to(workspace))):
+    # A pattern with a directory in it (`gradle/libs.versions.toml`) matches the
+    # tail of the relative path, as `rglob` did; a bare name matches the name.
+    nested = "/" in pattern
+    for path in exclusions.walk_files(workspace, exclude):
+        if nested:
+            rel = path.relative_to(workspace).as_posix()
+            if fnmatch(rel, pattern) or fnmatch(rel, f"*/{pattern}"):
+                yield path
+        elif fnmatch(path.name, pattern):
             yield path
 
 

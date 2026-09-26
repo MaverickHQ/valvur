@@ -634,7 +634,10 @@ def test_an_exclusion_reports_what_it_cost():
     run = ScanRun(findings=[], profile="offline",
                   config_dropped=61, excluded_paths=["tests/fixtures"])
 
-    assert "61 finding(s) were excluded" in _summary(run)
+    # Since 29.0.1 every Scanner is told to skip the paths; what it reports
+    # there anyway is dropped, and still counted.
+    assert "Excluded before the scan" in _summary(run)
+    assert "61 finding(s) reported there anyway were dropped" in _summary(run)
     assert "tests/fixtures" in _summary(run)
     doc = _json.loads(_provenance(run))
     assert doc["excluded_by_config"] == {

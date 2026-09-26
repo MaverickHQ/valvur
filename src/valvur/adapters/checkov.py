@@ -34,12 +34,16 @@ class CheckovAdapter(ScannerAdapter):
         return False, "no Dockerfile, terraform, Kubernetes, CI or template files found"
 
     def command(self, workspace: Path) -> Invocation:
+        from .. import exclusions
+
         return Invocation(
             tool=self.name, version=VERSION,
             argv=("checkov", "--directory", "/workspace", "--output", "json",
                   "--output-file-path", "/results", "--quiet", "--compact",
                   # No network, ever: skip external data downloads outright.
-                  "--skip-download"),
+                  "--skip-download",
+                  # Skipped before reading, not filtered after (29.0.1).
+                  *exclusions.skip_args("checkov", exclusions.excluded_prefixes(workspace))),
             report="results_json.json", timeout=600, empty_when=NOTHING_TO_SCAN,
         )
 

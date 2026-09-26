@@ -118,7 +118,7 @@ class DependencyRealityCheck(Check):
             gaps=tuple(_coverage.dependency_gaps(workspace, exclude)),
         )
 
-    def run(self, workspace: Path) -> list[dict]:
+    def run(self, workspace: Path, exclude: tuple[str, ...] = ()) -> list[dict]:
         # Coverage gaps are NOT reported here. They were, until a local corpus showed
         # the consequence: at the time this Check needed the network and did not run
         # on the default Profile at all, so the one message that says "this scan
@@ -127,7 +127,7 @@ class DependencyRealityCheck(Check):
         # unconditionally. See `valvur/coverage.py` (task 19.D.1, C1).
         findings: list[dict] = []
 
-        declared = _declared_packages(workspace)
+        declared = _declared_packages(workspace, exclude)
         if not declared:
             return findings
 
@@ -347,14 +347,14 @@ def _index_dir() -> Path:
     return Path(os.environ.get(INDEX_ENV) or INDEX_MOUNT)
 
 
-def _declared_packages(workspace: Path) -> set[tuple[str, str, str]]:
+def _declared_packages(workspace: Path, exclude: tuple[str, ...] = ()) -> set[tuple[str, str, str]]:
     """Every directly-declared dependency, as (ecosystem, name, manifest path).
 
     The parsers and the manifest patterns they read live in the ecosystem
     package since 27.3.2; this Check asks for the answer rather than holding
     eleven parsers and a hand-written list of which to call.
     """
-    return _ecosystems.declared(workspace)
+    return _ecosystems.declared(workspace, exclude=exclude)
 
 
 #: Where each ecosystem's names are verified, named as a reader would name it —

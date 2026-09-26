@@ -69,3 +69,12 @@ class Invocation:
     #: Stderr phrases that mean an empty result, honestly earned (see
     #: NOTHING_TO_SCAN). Empty: a missing report is always a failure.
     empty_when: tuple[str, ...] = ()
+    #: Files the runner writes into the scratch mount before the launch, as
+    #: (name, text): a generated config the tool reads at `/results/<name>`
+    #: (Gitleaks's allowlist, 29.0.1). The mount is the tool's to read and the
+    #: runner's to remove, so nothing is left on the host.
+    files: tuple[tuple[str, str], ...] = ()
+    #: Environment the container is launched with, as (name, value): the
+    #: excluded prefixes for the Checks (`exclusions.EXCLUDE_ENV`). The network
+    #: grant is not here — egress sets it, and nothing an adapter says can.
+    env: tuple[tuple[str, str], ...] = ()

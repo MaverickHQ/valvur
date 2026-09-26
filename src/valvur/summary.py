@@ -305,12 +305,15 @@ def render(run: ScanRun) -> str:
             "",
         ]
 
-    dropped = run.config_dropped
-    if dropped:
+    if run.excluded_paths:
+        # Since 29.0.1 every Scanner is told what to skip before it reads, so the
+        # dropped count is what a Scanner reported there anyway — normally nothing.
         where = ", ".join(f"`{p}`" for p in run.excluded_paths)
+        dropped = run.config_dropped
         lines += [
-            f"> **{dropped} finding(s) were excluded** by `.security-scan.toml`: "
-            f"{where}.",
+            f"> **Excluded before the scan** by `.security-scan.toml`: {where}. "
+            + (f"{dropped} finding(s) reported there anyway were dropped."
+               if dropped else "Every Scanner was told to skip them."),
             "> Stated because an exclusion you cannot see is indistinguishable from "
             "a scan that found nothing.",
             "",

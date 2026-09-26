@@ -510,9 +510,14 @@ class ContainerRunner:
 
         tool, version = invocation.tool, invocation.version
         with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
+            # What the adapter asked to find beside its report (29.0.1): written
+            # here, read by the tool at /results/<name>, gone with the scratch.
+            for name, text in invocation.files:
+                (Path(scratch) / name).write_text(text, encoding="utf-8")
             cmd = [
                 *self._base_flags(workspace, scratch, network=invocation.network,
                                   allow_exec=invocation.allow_exec),
+                *[flag for key, value in invocation.env for flag in ("--env", f"{key}={value}")],
                 self.image, *invocation.argv,
             ]
             proc = self._launch(

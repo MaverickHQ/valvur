@@ -20,8 +20,10 @@ from ..coverage import Coverage
 class Check(Protocol):
     name: str
 
-    def run(self, workspace: Path) -> list[dict]:
+    def run(self, workspace: Path, exclude: tuple[str, ...] = ()) -> list[dict]:
         """Inspect the Workspace and return JSON-serialisable finding records.
+        `exclude` is what the scan skips before reading (29.0.1): the committed
+        `[scan] exclude` prefixes, beside the vendored list every walk prunes.
 
         Returns plain dicts, not Findings: this runs in the container, and the host
         builds the Finding model so redaction and fingerprinting stay on one side of

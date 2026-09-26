@@ -47,15 +47,26 @@ def _refuses_offline(name: str, network: bool) -> bool:
     return name == "dependency-reality" and not network and not cache.name_index_present()
 
 
-def single_command(name: str, *, network: bool) -> Invocation:
+def _exclude_env(workspace: Path) -> tuple[tuple[str, str], ...]:
+    """The excluded prefixes for the Checks' walk (29.0.1), through the
+    environment: an image from before it ignores the variable, where an
+    argument would have been read as a Check's name."""
+    from .. import exclusions
+
+    return exclusions.exclude_env(exclusions.excluded_prefixes(workspace))
+
+
+def single_command(name: str, workspace: Path, *, network: bool) -> Invocation:
     return Invocation(
         tool=name, version=_VERSION,
         argv=("python", "-m", "valvur.checks", name, "/workspace"),
         report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
+        env=_exclude_env(workspace),
     )
 
 
-def batch_command(names, *, network: bool) -> tuple[Invocation | None, dict[str, ScannerOutput]]:
+def batch_command(names, workspace: Path, *, network: bool,
+                  ) -> tuple[Invocation | None, dict[str, ScannerOutput]]:
     """One container for several Checks (23.4.2): the Invocation for the ones
     that can run, and the outputs of the ones refused before launching. The
     container carries the Profile's grant — `network` is True only when a Check
@@ -72,6 +83,7 @@ def batch_command(names, *, network: bool) -> tuple[Invocation | None, dict[str,
         tool="checks", version=_VERSION,
         argv=("python", "-m", "valvur.checks", "batch", "/workspace", *remaining),
         report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
+        env=_exclude_env(workspace),
     ), refused
 
 
@@ -122,7 +134,7 @@ def run_batch(runner, names, workspace: Path, *, network: bool) -> dict[str, Sca
     composition the fleet uses. Raises BatchUnsupported for an image that knows
     one Check at a time."""
     names = list(names)
-    invocation, outputs = batch_command(names, network=network)
+    invocation, outputs = batch_command(names, workspace, network=network)
     if invocation is None:
         return outputs
     remaining = [name for name in names if name not in outputs]
@@ -151,7 +163,7 @@ class CheckAdapter(ScannerAdapter):
     def command(self, workspace: Path) -> Invocation:
         if _refuses_offline(self.name, self.network):
             raise RuntimeError(INDEX_REFUSAL)
-        return single_command(self.name, network=self.network)
+        return single_command(self.name, workspace, network=self.network)
 
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
         """Forwarded to the Check, which is the only thing that knows (22.D.3). The
