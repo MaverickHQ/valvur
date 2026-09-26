@@ -1143,13 +1143,30 @@ take, and participants cannot be re-used.
 
 ### 10.1 — The usability gate
 
-- [ ] **10.1.1** **Run it before any other task in this phase.** Protocol:
+- [x] **10.1.1** **Run it before any other task in this phase.** Protocol:
   [docs/usability-gate.md](../../../docs/usability-gate.md). A developer who has never
   seen valvur, repository URL only, no verbal help, scanning **their own** project.
   **The findings become the rest of this phase's task list**, so everything below is
   provisional until it has run. Moved here from Phase 1 task 1.12.
-- [ ] **10.1.2** Have them install it **the way the README says** — the MCP path
+
+  **STATUS 2026-09-26:** ✅ **run once, with an agent as the participant.** A
+  Claude Code agent given the README and nothing else, on the owner's own
+  project (`occams-test-lab`: 312 tracked files, 107,544 on disk), the MCP path
+  first, the record in
+  [`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-on-occams-test-lab.md)
+  and Gate 1 of the protocol file. **Thirty minutes to a first finding**, thirteen
+  to a failure that pointed the wrong way; nine findings, each measured against
+  `main` the same afternoon — [Phase 29](#phase-29--the-first-gate-a-real-working-tree-and-what-a-first-run-must-survive).
+  The participant was not a person: 12b.3's *a person outside this repository*
+  still wants one, and it runs on `0.5.0`, after Phase 29's Tier 0.
+- [x] **10.1.2** Have them install it **the way the README says** — the MCP path
   first, since that is now primary — rather than however we would do it.
+
+  **STATUS 2026-09-26:** ✅ done as the protocol says — `uvx --from valvur
+  valvur-mcp`, the README's JSON block saved as `.mcp.json`, the server driven
+  over stdio exactly as Kiro and Claude Code drive it, and Claude Code itself
+  connected from that block in under eight seconds. What the README did not
+  say — the file's name, the approval step — is B8, task 29.2.1.
 
 **Commit:** `docs: record usability gate findings`
 
@@ -1945,6 +1962,12 @@ become the task list for 12b.** Everything below is provisional until it has.
 
 - [ ] **12b.1** Act on the usability gate's findings. Phase 10 tasks 10.1–10.5 close
   here or are explicitly deferred with a reason.
+
+  **STATUS 2026-09-26:** ⏳ **the gate has run; this task is
+  [Phase 29](#phase-29--the-first-gate-a-real-working-tree-and-what-a-first-run-must-survive).**
+  Nine findings, each measured; four tiers; Phase 10's provisional claims are
+  each answered under 29.3.4. Closes when Phase 29's exit criteria are met, and
+  reads `0.5.0`.
 - [x] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
   the release artifact rather than the working tree. *(N2.5)*
 
@@ -7930,6 +7953,307 @@ real as far as a rehearsal goes and waits for the owner's tag (28.1.2). Three
 rows stay open and say why: the tag and the second maintainer are a person's,
 the runner move is a date's. The five things the phase learned that no task
 asked for are in CLAUDE.md's Phase 28 bullet.
+
+## Phase 29 — The first gate: a real working tree, and what a first run must survive
+
+**Goal:** close every finding of the first usability-gate run — nine, ranked, in
+[`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-on-occams-test-lab.md)
+— plus the two questions the run raised for the owner: whether the time goals
+and the 300 s budget fit a real working tree, and whether the MCP server works
+from every agent's IDE, not two. Written 2026-09-26, the afternoon after the run;
+every claim below was measured against `main` (`0add204`) before it became a
+task, and the measurements are in the head. Each task lands by its own pull
+request with the test written first; **12b.1 is this phase.**
+
+> **What the gate found, in one paragraph.** The participant — a Claude Code
+> agent given the README and nothing else — scanned the owner's own project:
+> 312 tracked files, **107,544 files on a 1.4 GB working tree** (103,251 in a
+> gitignored archive, 3,557 in `.venv`), on an Apple-silicon Mac with a 4 GB
+> Docker Desktop VM. Install took 13 s and `doctor` said *ready*. The first
+> `scan` over MCP fetched the image, the database and the index, announced each,
+> and then **failed at the 300 s default budget with every Scanner killed and no
+> report** — and the failure text sent the participant to `doctor`, which said
+> *ready* again. Thirteen minutes from the README. Only after reading the
+> source (`VALVUR_JOBS=2`, `budget_s: 900`, `[scan] exclude`) did a second scan
+> reach a finding: **30 minutes**, against the gate's five, and *incomplete*,
+> Checkov timed out. Containers ran on after both failures — one for 401 s, one
+> still at 92 % CPU when stopped by hand. What worked is credited in §2 of the
+> record: the install, `doctor`'s accuracy, the stdio server, the live fetch
+> lines, the self-ignoring folder, `run.json`'s *left this machine: nothing*,
+> and eight real findings correctly ranked low.
+>
+> **What measurement made of each finding (2026-09-26, against `main`):**
+>
+> | # | claim | measured | verdict |
+> |---|---|---|---|
+> | B1 | the budget failure points at `doctor` | `operations.py:496` says *Run doctor … it names what this machine is missing*, unconditionally; `api.py:731` raises *Every scanner failed* when the budget cut them all | **stands** |
+> | B2 | a Scanner past its timeout is abandoned | `runner.py:519` runs every Scanner under `subprocess.run(timeout=…)`; `TimeoutExpired` is caught nowhere in `runner.py` (only `oci.py`); the exit sweep (27.1.1) is the MCP server's, the CLI has none | **stands** |
+> | B3 | excludes filter findings, not files | worse than reported: `exclusions.scanner_skip_args` **has had no caller since it was written** (`d606285`, 2026-08-31); on `main` only Syft receives the configured `[scan] exclude` (`syft.py:31`), no Scanner receives the vendored list, and Opengrep passes `--no-git-ignore`; the vendored and configured lists are `pipeline.py` filters over findings (`:148`, `:155`) | **stands, and older** |
+> | B4 | the README calls `0.4.0` published | `README.md:5` since `10d2394`, this morning's prep commit, held at the brake; RELEASING.md step 4 bumps it before the tag | **stands, self-inflicted** |
+> | B5 | no progress during the Scanner phase | refined: finished Scanners are listed as they finish (`api.py:671`); what is *running* has no line, and in the gate's run nothing finished before the cut (`operations.py:489` — `Now:` is for fetches only) | **stands, narrower** |
+> | B6 | argv without a diagnosis | a killed Scanner reads *exited 137 with no report: … stderr:* (`runner.py:529`, `api.py:491`); nothing says *budget*, *timeout* or *memory*; `subprocess.run` drops what stderr it had on a timeout | **stands** |
+> | B7 | defaults do not fit Docker Desktop | `MCP_BUDGET_S = 300` (`operations.py:54`) equals Gitleaks's own timeout (300); jobs default to the whole fleet; the README's `VALVUR_JOBS=2` is at line 257, in Platforms; the README never mentions `budget_s` | **stands** |
+> | B8 | Claude Code's file is not named | `README.md:110` gives the JSON block and no file; `doctor.py:427` knows `.mcp.json` | **stands** |
+> | B9 | four inconsistencies | sizes: `doctor.py:323` *about 118MB* (transfer) against `valvur cache`'s bytes on disk (1.45 GB); KEV: `cache.py:186` *absent* against `doctor`'s *bundled*; `explain_finding` neutralises evidence (`operations.py:284`) but does not fence it, while `SUMMARY.md:48` says quoted text carries the markers; `usability-gate.md`'s Gate 1 and 2 templates are empty | **all four stand** |
+>
+> **And the two questions.** The time goals (P1, N1.1, N1.2) are stated for
+> *lines of application code* on a Linux runner *with the data present*, and
+> were measured on git clones — the corpus has no `.venv`, no data directory,
+> no archive. Nothing in the requirements says what happens to a working tree
+> that is 340 times its git index, and the 300 s budget is N1.2's figure for
+> `full` on a clone. The clients: the README names Kiro and Claude Code and
+> gives one JSON shape; `doctor` reads Claude Code's and Kiro's files; the
+> server negotiates the protocol versions it knows (`server.py:141`); nothing
+> here has been run from Codex, Cursor, VS Code, Windsurf, Cline, Continue,
+> Gemini CLI or Zed, four of which are installed on the owner's Mac.
+>
+> **Two decisions, made here.** *The `0.4.0` tag is not held for this phase*:
+> the rehearsed tree (`6973fbe`) is validated, the findings are all present in
+> `0.3.0` too, and a release that proves the promote path is worth more today
+> than one that carries Tier 0 in a week; **Phase 29 ships as `0.5.0`**, and the
+> gate's human run (12b.3's *a person outside this repository*) is on that.
+> *Tier 0 before anything else*: a first scan of a real project that fails,
+> points the wrong way and leaks containers is the primary path failing, and
+> no README sentence fixes it.
+
+```
+29.3.4  the record                ✅ this PR — the write-up in docs/gates, Gate 1 filled, 10.1.1–10.1.2 ticked, 12b.1 → here
+Tier 0  a first run finishes,     29.0.1 excludes at scan time, every Scanner  →  29.0.2 a timeout stops the container
+        or says why               →  29.0.3 the cut is its own message, the record diagnoses  →  29.0.4 what is running has a line
+Tier 1  the numbers               29.1.1 the time goals re-stated for the working tree  ·  29.1.2 the pre-flight count  ·  29.1.3 jobs from memory
+Tier 2  every agent's IDE         29.2.1 the client matrix, verified  ·  29.2.2 doctor knows every client  ·  29.2.3 the agent-driven pass
+Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  ·  29.3.2 sizes and KEV  ·  29.3.3 explain_finding fenced
+        things
+             ↓
+        the same protocol on the same tree, then a person (12b.3)
+```
+
+### Tier 0 — A first run on a real working tree finishes, or says why
+
+- [ ] **29.0.1** **Excludes at scan time, for every Scanner (B3; 10.3b claim 13;
+  F2.5).** Measured: the vendored list (`node_modules`, `.venv`, `vendor`, …) and
+  `[scan] exclude` drop *findings* after every Scanner has walked the tree; on
+  the gate's tree Gitleaks spent 211.7 s producing 3,892 hits inside `archive/`
+  that were then discarded, Checkov never finished, and the three Checks took
+  403 s against 1.5 s, 13.7 s and nothing on the 312 tracked files.
+  `exclusions.scanner_skip_args` was written for exactly this and never called.
+  The fix: both lists reach every Scanner's argv — Gitleaks by a generated
+  config in the scratch mount (`[extend] useDefault = true` plus allowlist
+  paths; it has no path flag), Trivy `--skip-dirs`, Checkov `--skip-path`,
+  Syft `--exclude` (the configured half exists; add the vendored), Opengrep
+  `--exclude`, OSV-Scanner by what it honours (measure), and the Checks' batch
+  by a list in its arguments so their walk skips the same paths — and the
+  finding filters stay, because a Scanner that ignores its flag must not leak
+  what the user excluded. The argv snapshots (26.2.1) change deliberately and
+  are re-taken. **Held by:** an e2e fixture generator that builds a tree with a
+  20,000-file `archive/` of planted secrets beside ten real files, excluded in
+  `.security-scan.toml`: every Scanner's raw output is small, Gitleaks under
+  5 s, and the excluded count on every surface says *excluded before the scan*
+  rather than *dropped after*. **Measured on the gate's tree** (the owner's
+  project, `archive/` and `.venv` excluded): the whole scan under N1.1's 60 s
+  on this Mac, recorded in the STATUS note with each Scanner's time. Then the
+  opt-in the record asked for: `[scan] honour_gitignore = true` excludes what
+  `.gitignore` covers **except `.env*`** and anything a `[scan] include` names,
+  because the reason the default stays *off* (`exclusions.py:53`, a secret in a
+  gitignored `.env` is the finding) survives as a carve-out; off by default,
+  documented beside `exclude`, and `SUMMARY.md` says which of the three lists
+  excluded what.
+- [ ] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
+  F1.11, F2.5).** Measured twice from Docker's event log in the record: a
+  Gitleaks container ran 401 s after its 300 s timeout killed the client; a
+  Checkov container was at 92 % CPU 90 s after the server had exited. Catch
+  `TimeoutExpired` where the Scanner is launched, kill by `--name` (the name
+  exists since 27.1.1), wait for the exit, and record *timed out after Ns and
+  was stopped* with the stderr read so far; give the CLI the exit sweep the
+  server has (27.1.1 — `atexit`, SIGINT, SIGTERM), so `Ctrl-C` on a scan leaves
+  nothing running. **Held by:** an e2e test that runs an Invocation of `sleep
+  600` under a 2 s timeout and asserts, from the runtime's own listing, that no
+  container named for the run exists two seconds later; and the same for a
+  budget cut, which already kills, now proven to wait. The requirement text
+  under F2.5 gains the clause.
+- [ ] **29.0.3** **A budget cut is its own message, and the failure record
+  diagnoses (B1, B6, B7; F2.6, F9.9).** Measured: *Every scanner failed.
+  Refusing to report a scan.* followed by *Run `doctor`* — and `doctor` says
+  *ready*. The fix has three parts. **The message:** when the budget cut
+  everything, the failure says so — *the 300 s budget ran out before any
+  Scanner finished: N cut (names, seconds run), M finished (names, times); the
+  workspace holds F files, the largest directories archive/ 103,251 and .venv
+  3,557 (29.1.2); to finish: `[scan] exclude` in `.security-scan.toml` for
+  what is not source, `budget_s` on the call (`--budget` on the CLI), or fewer
+  Scanners at once (`VALVUR_JOBS`, `--jobs`)* — and `doctor` is named only
+  when the failure is a precondition it checks. **The record:** every failed
+  ScannerRun's reason states the cause valvur knows — *cut by the budget after
+  Ns*, *timed out after Ns and was stopped* (29.0.2), *exit 137: killed by the
+  runtime — the container's memory ceiling (28.0.3) or the VM's* (when valvur
+  did not send the kill), or the exit code with the stderr it had — with the
+  argv kept in `run.json` (28.3.6) and out of the prose. **The docs:**
+  `budget_s`, `--budget`, `--jobs` and `[scan] exclude` in one README
+  paragraph in the first-run section, before Platforms. **Held by:** the
+  `scan_status` and `SUMMARY.md` goldens for a budget-cut run, a timed-out run
+  and a runtime-killed run, and a test that the `doctor` sentence appears only
+  for precondition failures.
+- [ ] **29.0.4** **What is running has a line (B5; F9.9).** Measured: sixteen
+  polls over 290 s answered *Completed so far: image pulled, database fetched,
+  index fetched* and nothing else, because nothing finished. The fleet knows
+  each Scanner's start; `scan_status` says *Now: gitleaks 120s, checkov 120s,
+  trivy 120s running — 3 of 8 finished: syft 4.1s, licence-file 4.1s,
+  ai-artifact 4.1s* from the same durations `run.json` records, and the CLI's
+  progress line matches. **Held by:** the `scan_status` snapshot mid-fleet
+  (a fake runner that holds one Scanner open) and the MCP `tools/list`
+  snapshot unchanged.
+
+### Tier 1 — The numbers fit a real machine and a real tree
+
+- [ ] **29.1.1** **The time goals, re-stated for the working tree (P1, N1.1,
+  N1.2, N1.4; the 300 s budget; the gate's five minutes).** Measured: every
+  number in the requirements is for *lines of application code* on a Linux
+  runner with the data present, taken on git clones; the gate's tree was 340
+  times its git index and the first scan failed at 300 s. Amend P1 and N1.1 to
+  say what they hold for — *the working tree after exclusions* — and that a
+  tree past a stated file count is named before the fleet starts (29.1.2);
+  keep the numbers, because after 29.0.1 they are the right numbers. Then
+  decide the MCP default budget **from measurement, after 29.0.1**: the largest
+  corpus repository and the synthetic tree, on the Linux runner and on this
+  Mac through Docker Desktop; keep 300 s if the excluded tree finishes under
+  N1.1 with a margin, raise it and say why if not. Re-examine each Scanner's
+  own timeout against the budget: Gitleaks 300 s equals it, Checkov's 600 s
+  exceeds it, so over MCP the budget always wins and the per-Scanner timeouts
+  are the CLI's guard — say so in `invocation.py` and F2.6, and set them to
+  what the corpus measured plus a margin rather than round numbers. The
+  gate's *five minutes* (P1's document) stays the target and gets a row in
+  `docs/EVALUATING.md`'s first-run table for a working tree with a data
+  directory: with and without the exclude, both measured.
+- [ ] **29.1.2** **The pre-flight count (B1, B7; P1).** Measured: 107,544
+  files were walked by eight Scanners before anyone counted them. One walk in
+  the shim (`os.scandir`, measured cost on that tree in the STATUS note),
+  before the fleet: the file count after exclusions and the three largest
+  directories, on the first `scan_status` line, the CLI's first line and in
+  `run.json`; above a threshold decided by 29.1.1's numbers, a sentence naming
+  the directory and the exclude that would drop it — *before* the budget is
+  spent, not after. `doctor` prints the same for its workspace, and the
+  runtime's memory and CPUs (`docker info`: 4 GB and 8 here) with 29.1.3's
+  recommendation. **Held by:** the goldens for a small tree and the synthetic
+  one, and `doctor`'s test with a fake runtime reporting 4 GB.
+- [ ] **29.1.3** **Concurrency from the runtime's memory (B7; N1.4).**
+  Measured: eight containers start at once inside a 4 GB VM; the README's
+  remedy is in Platforms, after the point of failure. Measure first, on this
+  Mac and the synthetic tree: `--jobs` 8, 4 and 2 against wall clock and
+  Docker Desktop's memory pressure; if a rule falls out (the fleet peaks at
+  ~500 MB on Linux, N1.4, but two Scanners on a large tree take more), the
+  default `--jobs` derives from `MemTotal` and is printed with the pre-flight
+  line; if not, `doctor` recommends one and says why. Either way the README's
+  Docker Desktop paragraph moves into the first-run section with the number
+  it measured. **Held by:** the rule's unit test over fake `docker info`
+  output, and the STATUS note's table.
+
+### Tier 2 — Every agent's IDE, by MCP
+
+- [ ] **29.2.1** **The client matrix, verified (B8; 10.2 claims 1–2; P6).**
+  Measured: the README gives one JSON block and names no file. The task: one
+  README section, *Add it to your agent*, with the file, the snippet and the
+  approval step for each of — Claude Code (`.mcp.json` at the project root,
+  then approve in an interactive `claude`; `--mcp-config` for headless and SDK
+  sessions), Kiro (`.kiro/settings/mcp.json`), **Codex** (`~/.codex/config.toml`,
+  `[mcp_servers.valvur]` with `command` and `args`, or `codex mcp add`),
+  Cursor (`.cursor/mcp.json`), VS Code's agent mode (`.vscode/mcp.json`, whose
+  key is `servers`, not `mcpServers`), Windsurf
+  (`~/.codeium/windsurf/mcp_config.json`), Cline and Roo (their settings
+  files), Continue (`config.yaml`), Gemini CLI (`~/.gemini/settings.json`) and
+  Zed (`context_servers` in settings). For every client that is installed here
+  — Claude Code 2.1.278, Cursor, VS Code, Kiro; Codex CLI installed for the
+  purpose with the owner's leave — the handshake is **measured**: the
+  `protocolVersion` the client sends against `SUPPORTED_VERSIONS`, the
+  `initialize` fields it requires, whether it shows `instructions`, and that
+  `tools/list` renders; for the rest, the documented shape and the date it was
+  read, marked as unverified. A stdio transcript per client goes under
+  `tests/fixtures/mcp/clients/` and a test holds the server's replies to
+  each recorded `initialize`. **Held by:** that test, and the README's snippets
+  parsed by a test so a typo in one is a red build.
+- [ ] **29.2.2** **`doctor` knows every client (B8; 10.2 claim 3).** Measured:
+  `_check_mcp` reads Claude Code's and Kiro's files. Extend it to every file in
+  29.2.1's matrix — configured, disabled, or a command that is not on `PATH`
+  — and give it a printer: `valvur doctor --client codex` (each name in the
+  matrix) writes the snippet for that client, from one table both the README
+  and `doctor` are generated from, so the two cannot disagree. Then claim 3:
+  a malformed `.mcp.json` and a `valvur-mcp` not on `PATH`, measured in Claude
+  Code (`claude mcp list` shows *failed*), Cursor and VS Code, with what each
+  shows recorded in the README's section, because an agent that swallows the
+  server's stderr shows the user nothing. **Held by:** `doctor`'s tests over
+  a fake home with each client's file, the snippet table's round-trip test.
+- [ ] **29.2.3** **The agent-driven pass, measured (10.2 claims 1–2, 10.5
+  claim 12; §5 of the record).** *Owner-assisted:* the record could not run
+  the model because the desktop app's session cannot be used by a child
+  process; it needs `claude login` in a terminal. After Tier 0 lands, on the
+  same project: `claude -p "Scan this project with valvur and tell me what it
+  found." --mcp-config .mcp.json --strict-mcp-config` with the six tools and
+  `Read` allowed — timed from the call to a correct report, the transcript
+  kept — and the same through Codex with the owner's login. The interesting
+  observation the record named: what the model does when a scan is cut and
+  what the message tells it. Both transcripts in `docs/gates/`, the minutes
+  in the STATUS note, and 10.5's five-minute claim answered with a number.
+
+### Tier 3 — The claim, and the small things
+
+- [ ] **29.3.1** **The README cannot be ahead of PyPI (B4).** Measured: the
+  README on `main` has said *`0.4.0` — published and installable* since the
+  prep commit, PyPI serves `0.3.0`, and the brake between them is a click that
+  can wait for days. Two changes: the prep commit's wording is *`0.4.0` —
+  tagged from this tree; `pip install valvur` serves `0.3.0` until the release
+  run's `promote` completes*, and the docs PR that closes the release row
+  (28.1.2 today) flips it to *published* — RELEASING.md step 4 and the window
+  section say so; and a scheduled, non-required workflow (`published.yml`,
+  daily and on dispatch) reads the README's status line and asks PyPI and GHCR
+  whether they serve that version, failing as a tracked issue the way the
+  index's and the corpus's schedules do. **Do this first in the tier**,
+  because `main` overclaims today. **Held by:** the version test extended to
+  accept the two wordings and refuse *published* without a matching tag in
+  the tree's history, and the workflow's shape held as text.
+- [ ] **29.3.2** **Sizes and the KEV line say which (B9).** Measured: `doctor`
+  and the README say 118 MB and 35 MB (what is fetched); `valvur cache` says
+  1.45 GB and 123 MB (what is on disk); `valvur cache` says `kev: absent` while
+  `doctor` says *bundled snapshot from the image*. Every surface says both
+  numbers with their names — *118 MB to fetch, about 1.4 GB on disk* — from
+  one table in `cache.py`, and the KEV row reads the same in both places:
+  *bundled in the image (snapshot dated …); `valvur update` fetches a fresher
+  copy into the cache; absent there means the image's snapshot is in use*.
+  **Held by:** the `doctor` and `cache` goldens.
+- [ ] **29.3.3** **`explain_finding`'s evidence is fenced (B9; F9.9, F3.13).**
+  Measured: `operations.py:284` neutralises the evidence (hidden Unicode
+  escaped) and does not wrap it in the markers `SUMMARY.md` promises; over
+  MCP that is the one path an agent cannot decline to read. `defang.fence()`
+  around the evidence in the reply and in `structuredContent`, the length
+  bound applied to the inside. **Held by:** the MCP snapshot and a test with
+  a planted directive in the evidence.
+- [x] **29.3.4** **The record (10.1.1, 10.1.2, 12b.1; B9's last).** The
+  write-up committed verbatim as
+  `docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`; Gate 1 in
+  `docs/usability-gate.md` filled with the date, the participant, the thirty
+  minutes and the link; 10.1.1 and 10.1.2 ticked with the participant stated
+  — an agent, not a person, and 12b.3's *a person outside this repository*
+  still wants one; 12b.1's STATUS points here; each of Phase 10's provisional
+  claims answered in its STATUS note. **STATUS 2026-09-26:** ✅ this pull
+  request. Claims: 1 (Kiro) was verified by 22.F.2 and 23.1.1; 2 (Claude Code)
+  measured — connected from the README's block in under eight seconds; 3 →
+  29.2.2; 4 measured — each fetch announced with its size; 5–7 (the CLI
+  first run) were measured by 23.1.1 on `0.2.0` and 25.1 on `0.3.0`, and 7's
+  budget is 29.1.1's; 8–11 (error messages) closed by 10.4's own tasks and
+  `doctor`; 12 (a useful result in five minutes, no question asked) — **not
+  met**: thirty minutes with the source read, and the answer is Tier 0, then
+  29.2.3 with a number; 13 (build and vendor directories excluded by default)
+  — true of findings, false of time, and 29.0.1's; 14 and 15 closed by
+  10.3b's own tasks.
+
+**Exit criteria (Phase 29):** the record's protocol re-run on the same tree —
+README to a first finding over MCP, one `scan` call, `archive/` and `.venv`
+named by the pre-flight and excluded by one line — **completes, under five
+minutes from the README, with no container left behind** when it fails and
+with the cause named when it does; the README's client section verified
+against Claude Code, Kiro, Cursor, VS Code and Codex; the README's status line
+true on every day of a release; and the corpus dispatched once with the
+synthetic tree in it. Then `0.5.0`, and a person.
+
+**Commit:** one per task; the phase closes with `docs: Phase 29 closed — …`.
+
 
 ## Traceability
 

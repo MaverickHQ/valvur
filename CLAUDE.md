@@ -155,13 +155,25 @@ the rehearsal on the exact tree, `6973fbe`, is run 36235113134, green through
 validation and held at the `release` brake for the owner's click; the number was
 `0.3.1` until 2026-09-26, and thirty-three entries with an additive MCP schema
 change are a minor by this project's precedent — a second maintainer is a
-person, and the runner move is dated after 2026-11-19. **Next, in this order (Phase 25, amended 2026-09-26):
-the `0.4.0` release — the prep PR and a rehearsal on it by engineering, the
-signed tag and the `release` approval by the owner (28.1.2); the usability gate
-on `0.4.0` (10.1.1–10.1.2), then 12b.1 on what it found; the second maintainer
-(28.1.3); then `v1.0.0` (12b.3); the runner move after 2026-11-19 (28.3.8).** The
-tag moved ahead of the gate because a participant cannot be reused and the tree
-they would meet on `0.3.0` is already superseded. When "what is next" is asked,
+person, and the runner move is dated after 2026-11-19. **The first gate ran on 2026-09-26** — a Claude Code agent as the participant,
+on the owner's own project, a 1.4 GB working tree of 107,544 files: **thirty
+minutes to a first finding**, thirteen to a failure at the 300 s budget that
+pointed at `doctor`, which said *ready*, and containers left running after it.
+Nine findings, each measured against `main` the same afternoon, are
+[**Phase 29**](.kiro/specs/valvur/tasks.md) (and `docs/gates/`): excludes have
+never reached a Scanner's argv — the per-Scanner skip flags were written on
+2026-08-31 and never called — so a data directory is walked by all eight and
+filtered afterwards; a Scanner past its timeout is abandoned; a budget cut is
+reported as *every scanner failed*; the README on `main` calls `0.4.0`
+published while the brake holds it. **Next, in this order: the `0.4.0` tag as
+rehearsed (28.1.2 — the findings are in `0.3.0` too, and the promote path is
+worth proving now); Phase 29's Tier 0 (a first run on a real tree finishes or
+says why), Tier 1 (the time goals re-stated for the working tree, the budget
+and jobs decided by measurement), Tier 2 (every agent's IDE by MCP — Claude
+Code, Kiro, Codex, Cursor, VS Code and the rest, each handshake measured),
+Tier 3 (the README's claim, the small things); `0.5.0`; the gate with a person
+(12b.3's ask); the second maintainer (28.1.3); `v1.0.0`; the runner move after
+2026-11-19 (28.3.8).** When "what is next" is asked,
 Phase 25 answers for the people and Phase 28's three open rows for the code; the
 sequencing diagrams in Phases 21, 23 and 24 are history.
 
@@ -302,12 +314,14 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 68 modules under `src/valvur`, 1,156 tests in 82 files, 20 ADRs, 136
-requirement IDs, **223 done and 7 open** across 28 phases — the usability gate,
-the `v1.0.0` tail, and Phase 28's three that wait on a person or a date; Phases
-26, 27 and 28's engineering are complete, `0.3.0` is out, the action is at `v0.2`
-and the rc is yanked. Four of the 7 are the owner's (the gate, the `0.4.0` tag,
-the second maintainer, the `v1.0.0` tag); one is dated (the runner move). A
+Roughly: 68 modules under `src/valvur`, 1,020 tests in 82 files, 20 ADRs, 136
+requirement IDs, **235 done and 18 open** across 29 phases — Phase 29's thirteen
+(the first gate's findings), the `v1.0.0` tail, and Phase 28's three that wait on
+a person or a date; Phases 26, 27 and 28's engineering are complete, `0.4.0` is
+prepared and rehearsed, `0.3.0` is out, the action is at `v0.2`
+and the rc is yanked. Thirteen of the 18 are Phase 29's engineering; three are
+the owner's (the `0.4.0` tag, the second maintainer, the `v1.0.0` tag), one is
+dated (the runner move), and 12b.1 closes with Phase 29. A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found
 a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

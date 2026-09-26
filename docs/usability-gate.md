@@ -71,12 +71,31 @@ Append findings here under a dated heading, then tick the corresponding task in
 
 ---
 
-## Gate 1 — Phase 1 (task 1.12)
+## Gate 1 — Phase 1 (task 1.12), run under Phase 10 (task 10.1.1)
 
-- **Date:**
-- **Participant:**
-- **Time to first useful result:**
-- **Findings:**
+- **Date:** 2026-09-26, on `0.3.0` from PyPI, the README at `main`.
+- **Participant:** a Claude Code agent (Claude Fable 5.1, desktop app) given
+  the README and one instruction: set it up the MCP way on this project and
+  report what breaks. Not a person — the protocol's ask stands for `v1.0.0`.
+  The project: the owner's `occams-test-lab`, 312 tracked files, 107,544 on
+  a 1.4 GB working tree; an Apple-silicon Mac, Docker Desktop with a 4 GB VM.
+- **Time to first useful result:** **30 minutes** (target: five). Install 13 s
+  and `doctor` *ready* at 6 min; the first `scan` over MCP failed at the 300 s
+  default budget at 13 min with every Scanner killed and the failure text
+  pointing at `doctor`, which said *ready*; a second scan after reading the
+  source (`VALVUR_JOBS=2`, `budget_s: 900`, `[scan] exclude`) reached a real
+  finding at 30 min, *incomplete*.
+- **Findings:** nine, ranked, with timings and Docker's event log, in
+  [`gates/2026-09-26-claude-code-on-occams-test-lab.md`](gates/2026-09-26-claude-code-on-occams-test-lab.md):
+  the budget failure points the wrong way; a Scanner past its timeout is
+  abandoned; excludes are applied after the scan; the README calls an
+  unreleased version published; no progress during the Scanner phase; the
+  failure record is argv without a diagnosis; the defaults do not fit Docker
+  Desktop; Claude Code's file is not named; four small inconsistencies. Each
+  was measured against `main` the same afternoon and became **Phase 29** in
+  `tasks.md`. What worked — the install, `doctor`'s accuracy, the stdio
+  server, the live fetch lines, the self-ignoring folder, *left this machine:
+  nothing*, eight real findings ranked low — is credited in the record's §2.
 
 ## Gate 2 — Phase 10 (task 10.8)
 
