@@ -5714,7 +5714,11 @@ amendment above. In order:
    required checks.
 2. **Engineering, unattended — the rehearsal** on that exact commit:
    `gh workflow run release.yml --ref main`. The run id goes in 28.1.2's STATUS
-   note, and nothing below starts until it is green.
+   note, and nothing below starts until it is green. With a reviewer on
+   `release`, the rehearsal's own `promote` job waits at the brake too (measured:
+   run 36235113134), so approving it is the first thing in step 3, and the tag
+   is not pushed while it waits — the concurrency group is one release at a
+   time.
 3. **Owner, one sitting of about thirty minutes:** `git tag -s v0.4.0 <that
    commit>` with the key in `.github/allowed_signers`, `git push origin v0.4.0`;
    when `promote` pauses on the `release` environment, approve it — the reviewer
@@ -7391,6 +7395,36 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   commit are engineering; the tag and the `release` approval are the owner's;
   `valvur-action` needs no retag — it installs PyPI's latest unless told a
   version.
+
+  **STATUS 2026-09-26 (Checkpoint E, steps 1 and 2 done — the tag is next):**
+  the prep landed as `10d2394` (`chore: release 0.4.0`: version, lock, `[0.4.0]`
+  over the thirty-three entries, the README's status line and macOS row, and
+  `SECURITY.md`'s series — a step RELEASING.md does not list, which 27.2.4's
+  test caught first). Verified here: `verify.sh` (1,160 unit tests), the e2e
+  suite against the image built from the tree (33 passed, 7m06s), and one `scan`
+  over stdio against an empty cache root with the image present — **39s to
+  DONE, complete** (`0.3.0`: 58s, of which a 13s pull; Checkov 10.3s). Then
+  `6973fbe`, a test-only fix found the same morning: Dependabot's five PRs
+  (#103–#107) all failed the required lint job on the signers test, which
+  verified the PR's own GPG-signed commit against an SSH signers file; it now
+  walks to `main`'s newest SSH-signed commit. **The second rehearsal is run
+  36235113134 on `6973fbe`:** six of seven jobs green in 11.5 minutes — the tag
+  check, both native builds, stage, the artifact on both architectures — and
+  `promote` **held at the `release` environment's reviewer**, the brake set the
+  night before, as the closing note said it would be. That hold is the owner's
+  first click and a rehearsal of the second: approve it (Actions → run
+  36235113134 → *Review deployments*), let `promote` finish against the throwaway
+  targets, then `git tag -s v0.4.0 6973fbe` and `git push origin v0.4.0`, and
+  approve again when the real run pauses. The concurrency group is one release
+  at a time, so a tag pushed while the rehearsal waits queues behind it —
+  approve or reject the rehearsal first. Afterwards: `cosign verify` as
+  RELEASING.md shows, the run id and the minutes to `:latest` here, this row
+  ticked. Not carried: the five Dependabot bumps — #103 and #105 need only a
+  rebase against the fixed test (a re-run checks out the old merge commit;
+  measured), #104's bumped `python` digest is not an Alpine image and fails at
+  `apk`, and #106/#107 (Checkov 3.3.19) need the adapter's VERSION,
+  `conftest.py`, `PROTOCOL.md` and the hash lock regenerated, then the floor
+  re-measured.
 
 - [ ] **28.1.3** **The bus factor, stated (O3).** *Owner.* 273 of 276 commits by one
   author; `SECURITY.md` commits five and fifteen working days on that one

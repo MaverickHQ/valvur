@@ -150,11 +150,12 @@ maintainers file, the SARIF upload without accepted risks (GitHub does not read
 in seven files, a per-PR mutation check, a **reproducible image** (two builds of
 one tree are one image, measured to the layer four times), the vocabulary typed,
 and `name_index`, `cli.main` and `_scan_locked` each one job. **Three stay open
-and say why:** `0.4.0`'s tag is the owner's (the rehearsal on the exact tree is
-run 36208551017, success in 14 minutes; the number was `0.3.1` until 2026-09-26 —
-thirty-three entries and an additive MCP schema change are a minor by this
-project's precedent), a second maintainer is a person, and the runner move is
-dated after 2026-11-19. **Next, in this order (Phase 25, amended 2026-09-26):
+and say why:** `0.4.0`'s tag is the owner's — the prep is on `main` (`10d2394`),
+the rehearsal on the exact tree, `6973fbe`, is run 36235113134, green through
+validation and held at the `release` brake for the owner's click; the number was
+`0.3.1` until 2026-09-26, and thirty-three entries with an additive MCP schema
+change are a minor by this project's precedent — a second maintainer is a
+person, and the runner move is dated after 2026-11-19. **Next, in this order (Phase 25, amended 2026-09-26):
 the `0.4.0` release — the prep PR and a rehearsal on it by engineering, the
 signed tag and the `release` approval by the owner (28.1.2); the usability gate
 on `0.4.0` (10.1.1–10.1.2), then 12b.1 on what it found; the second maintainer
@@ -372,8 +373,11 @@ were introduced by the block before, with tests passing.
   honour `SOURCE_DATE_EPOCH`, so the reproducibility check runs through a
   `docker-container` builder; a `monkeypatch` on a package's re-export reaches
   nothing, so every index test names the submodule; the mutation check reports
-  a behaviour-preserving rewrite as *survived*, which is what it is. What the
-  review had found, and where each went:
+  a behaviour-preserving rewrite as *survived*, which is what it is; and
+  Dependabot's commits are GPG-signed by GitHub, so a test that verifies a PR's
+  own commit against the SSH signers file fails every Dependabot PR (measured
+  2026-09-26 on five) — the test walks to `main`'s newest SSH-signed commit
+  instead. What the review had found, and where each went:
   the cosign identity `^https://github.com/MaverickHQ/valvur/` verifies a
   signature from *any* workflow on *any* branch, and nothing but the version
   string guards a `v*` tag (D1 → 28.0.2); secret scanning, push protection and
