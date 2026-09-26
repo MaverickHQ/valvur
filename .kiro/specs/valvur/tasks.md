@@ -7675,7 +7675,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   recorded here from the PRs it runs on (this one has no `src/valvur` hunk, so
   its own run reports none).
 
-- [ ] **28.4.5** **A reproducible image (B3).** No `SOURCE_DATE_EPOCH`, no
+- [x] **28.4.5** **A reproducible image (B3).** No `SOURCE_DATE_EPOCH`, no
   `rewrite-timestamp`; the same tree yields a different digest per build, so
   trust rests on the OIDC identity and the tree hash rather than on anyone's
   ability to rebuild and compare. `SOURCE_DATE_EPOCH` from the commit and
@@ -7683,6 +7683,31 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   one digest. Honest caveat in the task: apk and pip may still defeat it, and
   a partial result — the layers that matter reproducing — is recorded as what
   it is.
+
+  **STATUS 2026-09-26:** ✅ **Measured to the layer, four times, and fully
+  reproducible on the driver CI uses.** `docker-bake.hcl` takes
+  `SOURCE_DATE_EPOCH` (every caller passes the commit's, `git log -1
+  --format=%ct`; a test holds the four workflow builds and the contributor
+  command to it) and both outputs carry `rewrite-timestamp=true`. Then two
+  fresh builds (`--no-cache`) of one tree, layer by layer: **on Docker
+  Desktop's built-in worker, every built layer differed** — it does not honour
+  the epoch or the rewrite — so the rest was measured through a
+  `docker-container` builder, which is what `setup-buildx-action` gives CI. There:
+  17 of 18 layers identical, the Checkov layer not — all 5,533 `.pyc` files, and
+  nothing else. `--invalidation-mode unchecked-hash` changed nothing, because
+  pip had already written timestamp-mode bytecode and `compileall` without
+  `-f` reads the header, finds it current and leaves it (measured: flags 0,
+  mtime the wall clock, 53 s apart). Then `PYTHONHASHSEED=0` and serial
+  compilation, because marshalled constants follow the seed. Then pip
+  `--no-compile` and `compileall -f`: **one image id, 18 of 18 layers
+  identical, `.pyc` flags 1** (`9c2c5ab4…` twice). The test the task asks for
+  is a CI job, `reproducible`: two builds without cache on every change,
+  `test "$first" = "$second"`; unit tests hold the bake file, the workflows,
+  the contributor command and the compile flags. Honest caveats, as asked:
+  `apk` did not defeat it (the base layers and the `apk add … del` layer
+  reproduce), `pip` did until its bytecode was replaced, and the guarantee is
+  the driver's — a rebuild through Docker Desktop's own worker is not the
+  comparison; use a `docker buildx create --driver docker-container` builder.
 
 **Exit (Phase 28):** the cosign identity names one workflow and one ref pattern
 in four places held equal by a test; a `v*` tag needs the owner, a signature and

@@ -107,15 +107,24 @@ COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
 # cold against 1.3 s with bytecode. The stdlib's bytecode, which the base image
 # ships, is kept for the same reason (0.35 s against 0.06 s for the imports a Check
 # makes). The size the bytecode costs is measured in 28.2.1's STATUS note.
+# `--invalidation-mode unchecked-hash` and `PYTHONHASHSEED=0` (28.4.5): a `.pyc`
+# otherwise records its source's mtime, which is the build's wall clock, and
+# marshals its constants in an order the process's hash seed decides — measured:
+# with the mtime fixed and the seed random, all 5,533 `.pyc` files still differed
+# between two builds of one tree, and nothing else in the layer did. Serial, not
+# `-j 0`: the workers' own seeds are as random as the parent's. `-f`, and pip's
+# `--no-compile`: pip writes timestamp-mode `.pyc` as it installs, and compileall
+# without `-f` reads their header, finds them "current" and leaves them — which is
+# how the first two fixes changed nothing (measured: flags 0, mtime = wall clock).
 COPY requirements-checkov.txt /opt/checkov-requirements.txt
 RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && python3 -m venv --without-pip /opt/checkov \
- && pip --python /opt/checkov/bin/python install --no-cache-dir --no-deps \
+ && pip --python /opt/checkov/bin/python install --no-cache-dir --no-deps --no-compile \
         --require-hashes -r /opt/checkov-requirements.txt \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
  && apk del .build \
- && /opt/checkov/bin/python -m compileall -q -j 0 /opt/checkov/lib
+ && PYTHONHASHSEED=0 /opt/checkov/bin/python -m compileall -q -f --invalidation-mode unchecked-hash /opt/checkov/lib
 
 # Checkov ships an update checker that asks PyPI for the latest version at every
 # start and caches the answer under `$HOME`. A scanner that phones home would break
@@ -153,7 +162,7 @@ COPY NOTICE /usr/share/doc/valvur/NOTICE
 COPY Dockerfile /etc/valvur/Dockerfile
 RUN python3 -m valvur.tree_hash --image > /etc/valvur/inputs.sha256 \
  && chmod 0444 /etc/valvur/inputs.sha256 \
- && python3 -m compileall -q /usr/local/lib/python3.12/site-packages/valvur
+ && PYTHONHASHSEED=0 python3 -m compileall -q -f --invalidation-mode unchecked-hash /usr/local/lib/python3.12/site-packages/valvur
 
 RUN adduser -D -u 10001 valvur
 USER 10001:10001

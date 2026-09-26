@@ -109,6 +109,9 @@ jobs:
         env:
           VALVUR_VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # The commit's time for every file in every layer (28.4.5): two builds
+          # of one tree are one digest, here and on anyone's machine.
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
           docker buildx bake dev \
             --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
 
@@ -179,6 +182,8 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           # No --platform: the builder's native one, which is the runner's. The
           # cache is scoped per architecture so the two do not overwrite each other.
+          # The commit's time for every file in every layer (28.4.5).
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
           docker buildx bake release \
             --set "*.cache-from=type=gha,scope=release-${{ matrix.arch }}" \
             --set "*.cache-to=type=gha,mode=max,scope=release-${{ matrix.arch }}" \

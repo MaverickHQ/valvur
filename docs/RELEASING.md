@@ -144,7 +144,7 @@ different code — but it means during a release you either work from a local bu
 pin explicitly:
 
 ```bash
-VALVUR_VERSION=0.2.0 docker buildx bake      # valvur:dev, from docker-bake.hcl
+SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) VALVUR_VERSION=0.2.0 docker buildx bake  # valvur:dev, from docker-bake.hcl
 VALVUR_IMAGE=valvur:dev valvur scan .
 ```
 

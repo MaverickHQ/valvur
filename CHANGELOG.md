@@ -7,6 +7,12 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The image is reproducible.** Two builds of one commit are one image: the
+  commit's timestamp on every file in every layer (`SOURCE_DATE_EPOCH`,
+  `rewrite-timestamp`), and bytecode compiled in hash mode with a fixed seed.
+  Anyone can rebuild the tree a release names and compare digests, rather than
+  trust the signing identity alone; CI builds twice without cache on every
+  change and fails unless the two are one (28.4.5).
 - **Supportable.** `run.json` records each Scanner's command line (`argv`)
   beside its version and duration, so the raw output has its provenance;
   `VALVUR_DEBUG=1` echoes every container command to stderr as it runs; and

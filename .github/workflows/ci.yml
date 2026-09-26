@@ -80,7 +80,8 @@ jobs:
       - name: Build image (version label drives the F1.9 compatibility check)
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          VALVUR_VERSION="$VER" docker buildx bake dev \
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            VALVUR_VERSION="$VER" docker buildx bake dev \
               --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
       - name: Make the image visible to podman
         # Podman keeps its own image store, so a docker build is invisible to it.
@@ -272,6 +273,30 @@ jobs:
         run: |
           git fetch -q origin "${{ github.base_ref }}"
           uv run --no-sync python scripts/mutation_check.py --base "origin/${{ github.base_ref }}"
+  # Two builds of one tree are one digest (28.4.5, B3): the commit's timestamp on
+  # every file in every layer, hash-mode bytecode with a fixed seed, and no cache
+  # for either build so nothing is inherited. Through the docker-container driver,
+  # which honours SOURCE_DATE_EPOCH and rewrite-timestamp; Docker Desktop's
+  # built-in worker does not, and a rebuild there differs in every built layer.
+  reproducible:
+    name: two builds of one tree are one image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build twice, without cache, and compare
+        run: |
+          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          for tag in first second; do
+            VALVUR_VERSION="$VER" BAKE_TAG="$tag" docker buildx bake dev --no-cache
+          done
+          first=$(docker image inspect valvur:first --format '{{.Id}}')
+          second=$(docker image inspect valvur:second --format '{{.Id}}')
+          echo "first  $first"
+          echo "second $second"
+          test "$first" = "$second"
+          echo "reproducible: one tree, two builds, one image $first" >> "$GITHUB_STEP_SUMMARY"
 
   selfscan:
     name: self-scan release gate (N2.5)
@@ -286,7 +311,8 @@ jobs:
       - name: Build image
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          VALVUR_VERSION="$VER" docker buildx bake dev \
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            VALVUR_VERSION="$VER" docker buildx bake dev \
               --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
       - run: uv venv --python 3.12
       - run: uv sync --extra dev --locked

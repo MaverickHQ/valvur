@@ -30,6 +30,15 @@ variable "BAKE_TAG" {
   default = "dev"
 }
 
+# The one timestamp every file in every layer gets (28.4.5): the commit's, so two
+# builds of one tree are one digest and anyone can rebuild and compare. Every
+# caller passes it — `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)` — and a test
+# holds the workflows to that. The default is the epoch, which is reproducible
+# and obviously not a real date, rather than "now", which is neither.
+variable "SOURCE_DATE_EPOCH" {
+  default = "0"
+}
+
 group "default" {
   targets = ["dev"]
 }
@@ -40,9 +49,12 @@ target "dev" {
   dockerfile = "Dockerfile"
   args = {
     VALVUR_VERSION = VALVUR_VERSION
+    # BuildKit reads this one specially: files RUN and COPY create get this
+    # mtime, and `rewrite-timestamp` below gives the base layers' files the same.
+    SOURCE_DATE_EPOCH = SOURCE_DATE_EPOCH
   }
   tags   = ["${BAKE_IMAGE}:${BAKE_TAG}"]
-  output = ["type=docker"]
+  output = ["type=docker,rewrite-timestamp=true"]
 }
 
 # The release, one architecture at a time: each runner builds its own natively —
@@ -54,5 +66,5 @@ target "dev" {
 target "release" {
   inherits = ["dev"]
   tags     = []
-  output   = ["type=image,name=${BAKE_IMAGE},push=true,push-by-digest=true,name-canonical=true"]
+  output   = ["type=image,name=${BAKE_IMAGE},push=true,push-by-digest=true,name-canonical=true,rewrite-timestamp=true"]
 }
