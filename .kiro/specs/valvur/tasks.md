@@ -5549,8 +5549,8 @@ Block A   the pre-release block          23.5.1 → 23.5.2 → 23.5.3 → 23.5.4
 Checkpoint B   release 0.3.0             ✅ 2026-09-20 — 25.1 rehearsal + tag · 25.2 valvur-action v0 · 24.4 yank
                owner, one sitting
                ↓
-Checkpoint E   release 0.4.0             28.1.2 — prep PR + rehearsal (engineering, unattended)
-               then the owner: the signed tag and the release approval, one sitting
+Checkpoint E   release 0.4.0             ✅ 2026-09-26 — 28.1.2 prep PR · rehearsal 36235113134 · signed tag · run 36254809572 promoted
+               the owner's one click at the brake; 25 minutes tag → :latest, 12 of them waiting for it
                ↓
 Checkpoint C   the usability gate         10.1.1 · 10.1.2 on 0.4.0  →  12b.1 (engineering, on what they found)
                owner + a stranger; a calendar; the machine reset first
@@ -5759,6 +5759,22 @@ amendment above. In order:
 4. **`valvur-action` needs nothing:** it installs the latest release from PyPI
    unless its `version` input names one (`action.yml`, measured 2026-09-26), so
    `@v0` picks up `0.4.0` on its own.
+
+*Done 2026-09-26 — Checkpoint E is complete.* Steps 1 and 2 as PRs #108–#110 and
+run 36235113134, held at the brake through the afternoon while Phase 29 ran;
+step 3 in one sitting: the signed tag on `6973fbe`, run 36254809572, the owner's
+click at the brake, `promote` in 47 s — 25 minutes from the tag to `:latest`,
+12 of them waiting for the click. Verified from this machine with `pip index
+versions valvur` (`0.4.0`), the `cosign verify` command in `RELEASING.md` (two
+signatures, claims validated) and `gh attestation verify` on the tag; neither
+pulls the image nor writes `~/.cache/valvur`. Checked after: both were on the
+machine anyway — the `0.4.0` image at its promoted digest (`ea5d7d08…`), the
+database and the index, fetched 17:44–17:48 BST by a `valvur-mcp` served from
+the published wheel (`uvx --from valvur valvur-mcp`, still running) — the
+owner's own first run of the release over MCP from this machine, minutes after
+`promote`; the step 3 leftover is theirs to clear, and Checkpoint C has already
+run, so nothing waits on the reset. Step 4 is measured by the action's next
+scheduled self-test. Details under 28.1.2.
 
 ### Checkpoint C — The usability gate *(owner and a stranger; a calendar)*
 
@@ -7394,7 +7410,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   the reason `staleness` is in it. e2e green on an image rebuilt from the tree;
   no document a user reads changed.
 
-- [ ] **28.1.2** **`0.3.1` — the first real promote (D3).** *Owner.* Four
+- [x] **28.1.2** **`0.3.1` — the first real promote (D3).** *Owner.* Four
   rehearsals green; no real tag has met stage → validate → promote, the
   four-SBOM step, the attestation read-back or the index's verify-then-tag.
   `[Unreleased]` holds twenty entries. A rehearsal on the exact tree, then the
@@ -7454,6 +7470,22 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   `apk`, and #106/#107 (Checkov 3.3.19) need the adapter's VERSION,
   `conftest.py`, `PROTOCOL.md` and the hash lock regenerated, then the floor
   re-measured.
+
+  **STATUS 2026-09-26:** ✅ **`v0.4.0` released — the first real promote.** The tag,
+  signed by the key in `.github/allowed_signers` on `6973fbe`, pushed from the
+  owner's session at their request; run 36254809572: stage → validate on both
+  architectures → the brake, approved by the owner → promote — the signed
+  digest re-tagged as the version and `:latest`, the wheel on PyPI by trusted
+  publishing, the release with its four SBOMs — **25 minutes from the
+  tag to `:latest`, twelve of them waiting at the brake for the click, thirteen
+  of pipeline**, the `artifact` job testing the published wheel and the
+  signed image last. The rehearsal that had waited at the brake all day
+  (36235113134) was cancelled to free the one-release-at-a-time group; it had
+  already proven every job before the brake. Verified as a user would:
+  `pip index versions valvur` lists `0.4.0`, `cosign verify` on
+  `ghcr.io/maverickhq/valvur:0.4.0` against the release workflow's identity
+  passes. The README's status line flipped from *release in progress* to
+  *published and installable* in the same commit (29.3.1's rule).
 
 - [ ] **28.1.3** **The bus factor, stated (O3).** *Owner.* 273 of 276 commits by one
   author; `SECURITY.md` commits five and fifteen working days on that one

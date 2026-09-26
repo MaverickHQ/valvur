@@ -27,7 +27,8 @@ Packaged as one OCI container. Runs on Docker or Podman, locally by default.
 > containers, and Fargate exposes no Docker socket and no privileged mode. It has
 > never been run there. The intent is recorded, the claim is not.
 
-**Status (2026-09-20):** **`0.3.0` is published** (`v0.3.0`, 2026-09-20; `0.2.0` on
+**Status (2026-09-26):** **`0.4.0` is published** (`v0.4.0`, 2026-09-26, the first release
+promoted only after its own validation, ADR-0020; `0.3.0` on 2026-09-20; `0.2.0` on
 2026-09-13) — `pip install valvur` works for anyone, the image is on GHCR for both
 architectures, signed and attested, the release pipeline's last job tested the
 published wheel and the signed image rather than the tree, and a stranger's first
@@ -149,13 +150,15 @@ maintainers file, the SARIF upload without accepted risks (GitHub does not read
 `run.json`, `valvur doctor --bundle`, `valvur cache --prune`; the constraint suite
 in seven files, a per-PR mutation check, a **reproducible image** (two builds of
 one tree are one image, measured to the layer four times), the vocabulary typed,
-and `name_index`, `cli.main` and `_scan_locked` each one job. **Three stay open
-and say why:** `0.4.0`'s tag is the owner's — the prep is on `main` (`10d2394`),
-the rehearsal on the exact tree, `6973fbe`, is run 36235113134, green through
-validation and held at the `release` brake for the owner's click; the number was
-`0.3.1` until 2026-09-26, and thirty-three entries with an additive MCP schema
-change are a minor by this project's precedent — a second maintainer is a
-person, and the runner move is dated after 2026-11-19. **The first gate ran on 2026-09-26** — a Claude Code agent as the participant,
+and `name_index`, `cli.main` and `_scan_locked` each one job. **Two stay open
+and say why:** a second maintainer is a person, and the runner move is dated
+after 2026-11-19. The third, `0.4.0`'s tag, closed on 2026-09-26 (28.1.2): the
+prep on `main`, the rehearsal on the exact tree, `6973fbe`, held at the brake,
+then the signed tag and the real run, 36254809572 — the first release promoted
+only after its own validation, twenty-five minutes from the tag to `:latest`,
+twelve of them waiting for the owner's click; the number was `0.3.1` until
+that morning, and thirty-three entries with an additive MCP schema change are a
+minor by this project's precedent. **The first gate ran on 2026-09-26** — a Claude Code agent as the participant,
 on the owner's own project, a 1.4 GB working tree of 107,544 files: **thirty
 minutes to a first finding**, thirteen to a failure at the 300 s budget that
 pointed at `doctor`, which said *ready*, and containers left running after it.
@@ -176,13 +179,12 @@ follows the runtime's memory; the time goals are for the working tree after
 exclusions; Dependabot's five sorted; every client's file in one table with the
 README held to it and `doctor` reading them all; the README's status line true
 on every day of a release; sizes and KEV say which; every MCP evidence fenced.
-one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **Open:** 29.2.3, blocked on `claude login`; the `0.4.0` tag, still
-the owner's click on run 36235113134. **Next, in this order: the `0.4.0` tag
-as rehearsed (28.1.2); 29.2.3 once the login exists; `0.5.0` — its prep starts
-after the `0.4.0` tag, not before; the gate with a person (12b.3's ask); the
+one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **Open:** 29.2.3, blocked on `claude login`. `v0.4.0` was tagged and
+promoted on 2026-09-26 (run 36254809572). **Next, in this order: 29.2.3 once the login exists; `0.5.0`, whose prep and
+rehearsal follow the `0.4.0` release; the gate with a person (12b.3's ask); the
 second maintainer (28.1.3); `v1.0.0`; the runner move after 2026-11-19
 (28.3.8).** When "what is next" is asked,
-Phase 25 answers for the people and Phase 28's three open rows for the code; the
+Phase 25 answers for the people and Phase 28's two open rows for the code; the
 sequencing diagrams in Phases 21, 23 and 24 are history.
 
 **The second review's verdict (2026-09-20), kept because it is the outside view:**
@@ -323,13 +325,12 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 71 modules under `src/valvur`, 1,294 tests in 93 files, 20 ADRs, 136
-requirement IDs, **249 done and 6 open** across 29 phases — the `v1.0.0` tail
-(12b.1, 12b.3), Phase 28's three that wait on a person or a date, and 29.2.3,
+requirement IDs, **250 done and 5 open** across 29 phases — the `v1.0.0` tail
+(12b.1, 12b.3), Phase 28's two that wait on a person or a date, and 29.2.3,
 which waits on a login; Phases 26 to 29's engineering are complete, `0.4.0` is
-prepared and rehearsed, `0.3.0` is out, the action is at `v0.2` and the rc is
-yanked. Three of the 6 are the owner's (the `0.4.0` tag, the second maintainer,
-the `v1.0.0` tag), one is dated (the runner move), one is a login (29.2.3), and
-12b.1 closes with it. A
+out (2026-09-26), the action is at `v0.2` and the rc is yanked. Two of the 5
+are the owner's (the second maintainer, the `v1.0.0` tag), one is dated (the
+runner move), one is a login (29.2.3), and 12b.1 closes with it. A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found
 a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 
