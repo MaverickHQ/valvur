@@ -7290,6 +7290,15 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   claim on it. `RELEASING.md` is the procedure; the STATUS note records the
   run and the minutes to `:latest`.
 
+  **STATUS 2026-09-26:** ⏳ *the rehearsal half is done; the tag is the owner's.*
+  With every engineering task of the phase landed, `release.yml` was dispatched
+  on `main` at the exact tree: run 36208551017, **success in 14
+  minutes** — stage, validate on both architectures, the four-SBOM step, the
+  attestation read-back and the identity checks 28.0.2 narrowed, against the
+  rehearsal package and TestPyPI. `[Unreleased]` holds the entries the tag
+  will name. What is left is one signed tag on `main` by the key in
+  `.github/allowed_signers`, which nothing in the tree can create.
+
 - [ ] **28.1.3** **The bus factor, stated (O3).** *Owner.* 273 of 276 commits by one
   author; `SECURITY.md` commits five and fifteen working days on that one
   person; 28.0.2's reviewer needs someone to click. Not fixable in code: a
@@ -7718,9 +7727,14 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   is restored to the byte, and the CI job's shape. Not `mutmut`: a per-mutant
   run of a 30 s suite over every operator in a module is minutes per file,
   while a per-hunk revert is the question the five defects actually asked —
-  *does any test notice this change is gone?* First month's catches: to be
-  recorded here from the PRs it runs on (this one has no `src/valvur` hunk, so
-  its own run reports none).
+  *does any test notice this change is gone?* **First report, PR #99 (28.4.1),
+  thirty hunks:** thirteen caught (the enums, the imports, `resolve`), seventeen
+  survived — every one a `severity="high"` rewritten as `Severity.HIGH`, which
+  `Finding.__post_init__` makes equivalent, so reverting it changes nothing a
+  test could see. The verdict is right and the label is blunt: *survived* means
+  "no test distinguishes these two programs", and for a behaviour-preserving
+  rewrite that is the point. A hunk the harness cannot tell from a refactor is
+  one a reader should look at, which is what the warning asks.
 
 - [x] **28.4.5** **A reproducible image (B3).** No `SOURCE_DATE_EPOCH`, no
   `rewrite-timestamp`; the same tree yields a different digest per build, so
@@ -7764,6 +7778,25 @@ every container has a memory and PID ceiling; a first run's fetches are in
 promote path for real; Checkov's floor measured and either cut or stated; the
 MCP handshake carries the rules. Every number in the phase head re-measured in
 its task's STATUS note.
+
+**Closed 2026-09-26 (engineering).** Twenty-one of twenty-four tasks, seventeen
+PRs (#83–#100), one evening and one night, unattended: every task measured
+before it was written, every PR green on the eight required checks (nine and
+ten by the end — the Python floor and the reproducible image joined the set
+this phase) before it landed. Against the exit: the identity is one workflow
+and one ref in four places, by test (28.0.2); a `v*` tag needs the ruleset, a
+key in `allowed_signers` and `main` (28.0.2); the `release` environment has its
+reviewer — the owner, set by API on 2026-09-26 as the last act, after the
+rehearsal, because a required reviewer would have held the rehearsal's
+promote job too; the guards are on (28.0.1); every
+container has the ceiling (28.0.3); the fetches are in `run.json` (28.0.4);
+hard cycles are zero by ratchet (28.0.5); Checkov's floor was measured and
+**cut** — 16–19 s → 6–9 s on every application repository (28.2.1); the
+handshake carries the rules (28.2.2); `0.3.1` has run the promote path for
+real as far as a rehearsal goes and waits for the owner's tag (28.1.2). Three
+rows stay open and say why: the tag and the second maintainer are a person's,
+the runner move is a date's. The five things the phase learned that no task
+asked for are in CLAUDE.md's Phase 28 bullet.
 
 ## Traceability
 
