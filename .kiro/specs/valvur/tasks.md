@@ -5494,7 +5494,7 @@ gate, `v1.0.0`. Written 2026-09-18 from a review of the eleven open tasks.
 > release carries, with or before 12b.1; Tiers 2–3 land before 12b.3.
 >
 > **Amended 2026-09-26.** Phases 26, 27 and 28's engineering are complete —
-> forty-one tasks since `0.3.0` shipped — and the order below is re-cut once
+> fifty-one tasks since `0.3.0` shipped — and the order below is re-cut once
 > more, for three measured reasons. **The next tag moves ahead of the gate:** a
 > participant cannot be reused, and the tree a stranger would meet on `0.3.0` is
 > not the one they would install a week later — Checkov's floor is 6–9 s against
