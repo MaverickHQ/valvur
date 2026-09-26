@@ -8534,13 +8534,27 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   wording, changed deliberately.
 
 
-- [ ] **29.3.3** **`explain_finding`'s evidence is fenced (B9; F9.9, F3.13).**
+- [x] **29.3.3** **`explain_finding`'s evidence is fenced (B9; F9.9, F3.13).**
   Measured: `operations.py:284` neutralises the evidence (hidden Unicode
   escaped) and does not wrap it in the markers `SUMMARY.md` promises; over
   MCP that is the one path an agent cannot decline to read. `defang.fence()`
   around the evidence in the reply and in `structuredContent`, the length
   bound applied to the inside. **Held by:** the MCP snapshot and a test with
   a planted directive in the evidence.
+
+  **STATUS 2026-09-26:** ✅ Measured: `_structured_finding` called
+  `defang.neutralise(evidence)` — hidden characters escaped, the fence added
+  only when `needs_fencing` saw a directive — and the text reply printed the
+  evidence as `findings.json` held it. Now both call `neutralise(…,
+  always_fence=True)`: fenced always, bounded to `MAX_EVIDENCE` inside the
+  fence, and an already-fenced text is left alone, so a directive-shaped
+  finding is fenced once and a plain quoted line is fenced too — the markers
+  the machine block says quoted text carries. F9.9 carries the note. Held by
+  a test over the `scanned` fixture: the first non-directive finding's text and
+  structured evidence both start with the fence and hold it once, and every
+  listed evidence does.
+
+
 - [x] **29.3.4** **The record (10.1.1, 10.1.2, 12b.1; B9's last).** The
   write-up committed verbatim as
   `docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`; Gate 1 in

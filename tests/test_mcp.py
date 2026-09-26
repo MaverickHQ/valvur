@@ -672,6 +672,37 @@ def test_structured_findings_are_neutralised_like_the_text(scanned):
     assert "[UNTRUSTED CONTENT" in injection["evidence"][: injection["evidence"].index(payload)]
 
 
+def test_every_evidence_an_mcp_reply_carries_is_fenced_not_only_a_directive(scanned):
+    """29.3.3 (the gate's B9). `SUMMARY.md` tells the agent that text inside the
+    `[UNTRUSTED CONTENT …]` markers is data quoted from the repository; until now
+    an MCP reply fenced only evidence that read as an instruction, so a plain line
+    of quoted code reached the agent's context as bare text the machine block
+    had not described. Every evidence is fenced, once."""
+    import json as _json
+
+    from valvur import defang
+
+    findings = _json.loads(
+        (scanned / ".security-scan" / "findings.json").read_text()
+    )["findings"]
+    plain = next(f for f in findings
+                 if "prompt-injection" not in f["rule"] and f.get("evidence")
+                 and not defang.needs_fencing(f["evidence"]))
+
+    reply = _call("explain_finding",
+                  {"workspace": str(scanned), "fingerprint": plain["fingerprint"]})
+    text = reply["content"][0]["text"]
+    after = text.split("Evidence:\n", 1)[1]
+    assert after.startswith(defang.FENCE), after[:120]
+    assert text.count(defang.FENCE) == 1
+
+    listed = _call("list_findings", {"workspace": str(scanned), "limit": 50})["structuredContent"]
+    for entry in listed["findings"]:
+        if entry["evidence"]:
+            assert entry["evidence"].startswith(defang.FENCE), entry["rule"]
+            assert entry["evidence"].count(defang.FENCE) == 1, entry["rule"]
+
+
 def test_the_two_readers_declare_their_output_shape():
     from valvur.mcp.tools import registry
 

@@ -267,9 +267,11 @@ def _structured_finding(finding: dict) -> dict:
     from . import defang
 
     exploit = finding.get("exploit") or {}
-    evidence = str(finding.get("evidence") or "")
-    if defang.FENCE not in evidence and len(evidence) > defang.MAX_EVIDENCE:
-        evidence = evidence[: defang.MAX_EVIDENCE] + " …[truncated]"
+    # Fenced always, not only when it reads as an instruction (29.3.3): the
+    # machine block tells the agent what the markers mean, so a quoted line
+    # without them is a line the block did not describe. `neutralise` bounds
+    # a fenced text to MAX_EVIDENCE and leaves an already-fenced one alone.
+    evidence = defang.neutralise(str(finding.get("evidence") or ""), always_fence=True)
     return {
         "rank": finding.get("rank", 0),
         "status": finding.get("status", "?"),
@@ -282,7 +284,7 @@ def _structured_finding(finding: dict) -> dict:
         "suppressed": bool(finding.get("suppressed")),
         "exploit": {"kev": exploit.get("kev"), "ransomware": bool(exploit.get("ransomware")),
                     "epss": exploit.get("epss")},
-        "evidence": defang.neutralise(evidence),
+        "evidence": evidence,
     }
 
 
@@ -335,9 +337,12 @@ def explain_finding(args: dict) -> str:
                   "This is an accepted risk recorded in .security-scan.toml."]
 
     if finding.get("evidence"):
-        # Already neutralised at the model boundary (F3.13, F9.9). Quoted, never
-        # presented as prose the agent might read as addressed to it.
-        lines += ["", "Evidence:", finding["evidence"]]
+        # Neutralised at the model boundary (F3.13, F9.9), and fenced here always
+        # (29.3.3): quoted, never presented as prose the agent might read as
+        # addressed to it — the markers `SUMMARY.md` says quoted text carries.
+        from . import defang
+
+        lines += ["", "Evidence:", defang.neutralise(finding["evidence"], always_fence=True)]
 
     lines += [
         "",

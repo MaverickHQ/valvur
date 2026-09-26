@@ -7,6 +7,12 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Every evidence an MCP reply carries is fenced.** `SUMMARY.md`'s machine
+  block tells an agent that text inside the `[UNTRUSTED CONTENT …]` markers is
+  data quoted from the repository; `explain_finding` and `list_findings` fenced
+  only evidence that read as an instruction, so a plain quoted line reached the
+  agent's context bare. Fenced always now, once, in both the text and the
+  structured reply (29.3.3).
 - **Sizes and the KEV line say which.** `doctor` and the README said 118 MB and
   34 MB (what is fetched) while `valvur cache` said 1.45 GB and 123 MB (what is
   on disk), and `valvur cache` said *kev: absent* while `doctor` said *bundled

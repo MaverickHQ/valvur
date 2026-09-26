@@ -570,7 +570,11 @@ of fixes, so that nothing changes my code without my decision.
    choose not to read it.* *Note 2026-09-26 (task 28.2.2): "responses" means both
    forms — the structured reply's title and evidence are neutralised on the way out,
    idempotently, and a test plants the payload and reads the fence in the structured
-   form.*
+   form.* *Note 2026-09-26 (task 29.3.3): fenced always, not only when the text
+   reads as an instruction — `SUMMARY.md`'s machine block tells the agent what the
+   markers mean, so a quoted line without them was a line the block had not
+   described; the first gate found `explain_finding`'s evidence bare. Once: an
+   already-fenced text is left alone.*
 10. F9.10 — MCP responses SHALL be bounded by default and SHALL state what was
     omitted. *Rationale: returning several thousand **Findings** into an agent's
     context is the problem F7.5 solved for `SUMMARY.md`, arriving by another door.*
