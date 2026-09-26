@@ -8155,7 +8155,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   read; off — wall 135 s, Gitleaks 28 s, 20,095 findings, 20,000 of them the
   archive's. The gate's tree, with the option on, would drop its two-line
   exclude: `archive/`, `build/`, `.venv/` and `configs/` are all hidden there.
-- [ ] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
+- [x] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
   F1.11, F2.5).** Measured twice from Docker's event log in the record: a
   Gitleaks container ran 401 s after its 300 s timeout killed the client; a
   Checkov container was at 92 % CPU 90 s after the server had exited. Catch
@@ -8168,6 +8168,29 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   container named for the run exists two seconds later; and the same for a
   budget cut, which already kills, now proven to wait. The requirement text
   under F2.5 gains the clause.
+
+  **STATUS 2026-09-26:** ✅ Measured first, against `main`: `runner._launch`
+  ran every Scanner under `subprocess.run(timeout=…)`, which on expiry kills
+  the *client* — `docker run` — and raises `TimeoutExpired`; nothing caught it,
+  so `_attempt` recorded the Scanner failed with `str(exc)` as the reason (the
+  full command line, the gate's B6) while the container, the daemon's, ran on.
+  One correction to the record: the CLI *did* sweep on Ctrl-C (`_stop_on_interrupt`,
+  16.2) — what it lacked was SIGTERM, which a cancelled CI job sends. Now
+  `_launch` catches the expiry, stops the container by the name it gave it,
+  waits until the runtime no longer lists it (`_wait_gone`, polling `ps -a` by
+  exact name, 15 s bound), and `run` returns an output with `stopped_after` and
+  exit 124 (`timeout(1)`'s convention) carrying the stderr read so far
+  (`TimeoutExpired.stderr` is bytes even in text mode on 3.12 — decoded);
+  `_outcome` writes *timed out after Ns and was stopped — last stderr: …* with
+  the argv kept in `run.json` and out of the sentence. The budget path was
+  already right: `stop_containers` kills, and the client returns when the
+  container dies. Held by three unit tests (the stop-and-wait by name, the
+  reason without the argv, SIGTERM installed) and one e2e test: `sleep 600`
+  under a 2 s timeout — **the test completes in 4.4 s and the runtime lists
+  no container two seconds after** — against 401 s at the gate. F2.7 carries
+  the note. The tests live in `tests/test_scanner_timeout.py`, not the
+  interruption constraint suite: that suite is the release gate's, held to
+  the forty-eight 28.4.4 split, and a timeout is F2.7's case, not F1.11's.
 - [ ] **29.0.3** **A budget cut is its own message, and the failure record
   diagnoses (B1, B6, B7; F2.6, F9.9).** Measured: *Every scanner failed.
   Refusing to report a scan.* followed by *Run `doctor`* — and `doctor` says

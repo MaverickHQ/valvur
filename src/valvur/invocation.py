@@ -42,6 +42,10 @@ class ScannerOutput:
     #: raw output beside its version and duration (28.3.6). Empty when nothing
     #: was launched: a skip, an image pull, a fake.
     argv: tuple[str, ...] = ()
+    #: The per-Scanner timeout that fired, in seconds, when it did (29.0.2): the
+    #: runner stopped the container by name and this is what it read before.
+    #: None for a run that ended on its own.
+    stopped_after: float | None = None
 
 
 @dataclass(frozen=True)

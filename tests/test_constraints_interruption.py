@@ -141,3 +141,4 @@ def test_the_check_entry_point_turns_its_own_refusal_into_one_line(capsys, tmp_p
     assert captured.err.startswith("Run `valvur update`")
     assert "Traceback" not in captured.err
     assert captured.out == ""
+

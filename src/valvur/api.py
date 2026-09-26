@@ -488,6 +488,19 @@ def _attempt(adapter, runner, workspace) -> ScannerOutcome:
 def _outcome(adapter, output) -> ScannerOutcome:
     """A Scanner's output as the fleet records it: a failure with no report, or a
     ScannerRun with its Findings and any artifact."""
+    if output.stopped_after is not None:
+        # The timeout fired and the runner stopped the container (29.0.2). The
+        # cause and the seconds, then what it had said — the argv stays in
+        # `run.json`, not in the sentence a reader gets (the gate's B6).
+        tail = output.stderr.strip()
+        reason = f"timed out after {output.stopped_after:g}s and was stopped"
+        if tail:
+            reason += f" — last stderr: {tail[:200]}"
+        return ScannerOutcome(
+            ScannerRun(adapter.name, ok=False, version=output.version, reason=reason,
+                       argv=output.argv),
+            raw=output.stdout,
+        )
     if output.exit_code != 0 and not output.stdout.strip():
         return ScannerOutcome(
             ScannerRun(

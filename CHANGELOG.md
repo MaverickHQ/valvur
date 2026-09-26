@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A Scanner past its timeout is stopped, not abandoned.** The per-Scanner
+  timeout killed the `docker run` client and left the container to the daemon:
+  at the first usability gate a Gitleaks container ran 401 s past its 300 s
+  timeout and a Checkov one was still at 92 % CPU 90 s after the server had
+  exited. Now the container is stopped by name and waited for, and the record
+  says *timed out after Ns and was stopped* with the last of its stderr — not
+  the 1,500-character command line `str(TimeoutExpired)` used to leave there.
+  `valvur scan` stops its fleet on SIGTERM as well as Ctrl-C, so a cancelled CI
+  job leaves nothing running (29.0.2).
 - **Excludes are skipped, not filtered.** The built-in list of vendored and
   generated directories and a project's `[scan] exclude` used to be applied to
   findings after every Scanner had walked the whole tree: at the first

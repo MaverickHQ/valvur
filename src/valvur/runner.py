@@ -241,6 +241,50 @@ def _container_name() -> str:
     return f"valvur-{_uuid.uuid4().hex[:16]}"
 
 
+#: The exit code a Scanner's output carries when its timeout fired and the
+#: runner stopped it (29.0.2) — `timeout(1)`'s convention.
+TIMED_OUT = 124
+
+
+class _ScannerTimedOut(Exception):
+    """Raised inside `_launch` when the per-Scanner timeout fires, after the
+    container has been stopped: what `run` turns into an output that says so."""
+
+    def __init__(self, seconds: float, stderr: str):
+        super().__init__(f"timed out after {seconds:g}s and was stopped")
+        self.seconds = seconds
+        self.stderr = stderr
+
+
+def _wait_gone(runtime: str | None, name: str, timeout: float = 15.0) -> bool:
+    """Poll the runtime until it no longer lists the container, or `timeout`
+    passes. `docker kill` returns when the signal is sent; `--rm` removes the
+    container a moment later, and the point of stopping it is that nothing is
+    left behind."""
+    import subprocess
+    import time
+
+    binary = runtime or detect_runtime()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with _suppress(Exception):
+            listed = subprocess.run(  # noqa: S603
+                [binary, "ps", "-a", "-q", "--filter", f"name=^{name}$"],
+                capture_output=True, text=True, timeout=30, check=False,
+            ).stdout.strip()
+            if not listed:
+                return True
+        time.sleep(0.25)
+    return False
+
+
+def _text(raw) -> str:
+    """`TimeoutExpired.stderr` is bytes even in text mode (CPython 3.12)."""
+    if raw is None:
+        return ""
+    return raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
+
+
 def kill_running(runtime: str | None = None) -> int:
     """Stop every container this process started. Returns how many were signalled.
 
@@ -430,6 +474,16 @@ class ContainerRunner:
                 self._mine.add(name)
         try:
             return subprocess.run(cmd, **kwargs)  # noqa: S603
+        except subprocess.TimeoutExpired as exc:
+            # `subprocess.run` killed the CLIENT, `docker run`; the container is
+            # the daemon's and runs on — measured at the first gate (29.0.2): a
+            # Gitleaks container 401 s past its 300 s timeout, a Checkov one at
+            # 92 % CPU 90 s after the server had exited. Stop it by the name it
+            # was given, wait until the runtime no longer lists it, then say so.
+            if name:
+                _kill(self.runtime, [name])
+                _wait_gone(self.runtime, name)
+            raise _ScannerTimedOut(exc.timeout, _text(exc.stderr)) from exc
         finally:
             if name:
                 with _live_lock:
@@ -520,9 +574,15 @@ class ContainerRunner:
                 *[flag for key, value in invocation.env for flag in ("--env", f"{key}={value}")],
                 self.image, *invocation.argv,
             ]
-            proc = self._launch(
-                cmd, capture_output=True, text=True, timeout=invocation.timeout, check=False
-            )
+            try:
+                proc = self._launch(
+                    cmd, capture_output=True, text=True, timeout=invocation.timeout, check=False
+                )
+            except _ScannerTimedOut as stopped:
+                # Its own outcome (29.0.2): the record says timed out and stopped,
+                # with the stderr read so far, never the argv as the reason.
+                return ScannerOutput(tool, version, "", stopped.stderr, TIMED_OUT,
+                                     argv=invocation.argv, stopped_after=stopped.seconds)
             report = Path(scratch) / invocation.report if invocation.report else None
             if (report is not None and not report.exists()
                     and _is_empty_result(proc.stderr, invocation.empty_when)):

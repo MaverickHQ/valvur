@@ -161,7 +161,14 @@ that I do not maintain six toolchains myself.
    summary and `raw/`, and one bad report inside the Checks' batch.* *Note 2026-09-21 (task 26.2.1): a second unmet case, latent since 23.4.2 — a Check that raised inside the Checks' batch was recorded ok with zero findings and its error dropped, because the batch gave it an empty report with a non-zero exit and that is what a Scanner that found nothing looks like. Found by the refactor's fakes reproducing the real report shape; fixed in `check.split_batch`, a fleet-level test pins it.*
 6. F2.6 — valvur SHALL run independent **Scanners** concurrently.
 7. F2.7 — valvur SHALL enforce a per-**Scanner** timeout and SHALL record any timeout
-   as a failure under F2.5. *Extended 2026-09-13 (task 23.3.7): and a budget for the
+   as a failure under F2.5. *Note 2026-09-26 (task 29.0.2): the timeout was enforced
+   on the client — `subprocess.run(timeout=…)` killed `docker run` and the container,
+   the daemon's, ran on: measured at the first gate, a Gitleaks container 401 s past
+   its 300 s timeout and a Checkov one at 92 % CPU 90 s after the server had exited.
+   Now the runner stops the container by the name it gave it, waits until the runtime
+   no longer lists it, and the record reads `timed out after Ns and was stopped`
+   with the stderr read so far — never the command line as the reason. The CLI stops
+   its fleet on SIGTERM as well as SIGINT.* *Extended 2026-09-13 (task 23.3.7): and a budget for the
    fleet as a whole — none on the CLI unless `--budget` is given, 300 seconds over
    MCP unless the client names another (N1.2's figure) — past which no new
    **Scanner** starts, the running ones are stopped, and each one cut is recorded

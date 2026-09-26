@@ -65,6 +65,9 @@ def _stop_on_interrupt(runner) -> None:
 
     with contextlib.suppress(ValueError):   # not the main thread; nothing to install
         signal.signal(signal.SIGINT, handle)
+        # A cancelled CI job sends SIGTERM (29.0.2); until then only Ctrl-C stopped
+        # the fleet and a cancelled job left its containers to the daemon.
+        signal.signal(signal.SIGTERM, handle)
 
 
 def _database_needs_refresh() -> bool:
