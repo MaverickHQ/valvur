@@ -7,6 +7,16 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Add it to your agent: every client, its file, its shape.** The README gave
+  one JSON block and named no file, and the first gate's participant found
+  `.mcp.json` from `doctor`'s output. One table now renders the README's
+  client-by-client section — Claude Code, Kiro, Codex, Cursor, VS Code,
+  Windsurf, Cline, Roo Code, Continue, Gemini CLI, Zed — with the file each
+  reads, the snippet in its own shape (`mcpServers`, `servers`,
+  `context_servers`, TOML, YAML), what happens after the paste, and whether the
+  handshake was measured here or is the shape the client documents, dated. A
+  transcript per published protocol version, recorded through the real server,
+  pins what any client speaking that version gets back (29.2.1).
 - **Checkov 3.3.19**, hash-locked as before (97 packages, 1,868 hashes) — the
   bump Dependabot proposed twice (#106, #107) without the adapter's version,
   the test fixtures and the protocol table that go with it; its startup floor

@@ -8372,7 +8372,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
 
 ### Tier 2 — Every agent's IDE, by MCP
 
-- [ ] **29.2.1** **The client matrix, verified (B8; 10.2 claims 1–2; P6).**
+- [x] **29.2.1** **The client matrix, verified (B8; 10.2 claims 1–2; P6).**
   Measured: the README gives one JSON block and names no file. The task: one
   README section, *Add it to your agent*, with the file, the snippet and the
   approval step for each of — Claude Code (`.mcp.json` at the project root,
@@ -8393,6 +8393,27 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   `tests/fixtures/mcp/clients/` and a test holds the server's replies to
   each recorded `initialize`. **Held by:** that test, and the README's snippets
   parsed by a test so a typo in one is a red build.
+
+  **STATUS 2026-09-26:** ✅ Under the flow's decision (4) — no IDE launched — the
+  matrix is one module, `valvur.mcp.clients`: eleven clients, each with its
+  file(s), its shape, what happens after the paste, and how it was verified.
+  **Measured:** Claude Code (the gate's own run, connected from the block in
+  under eight seconds; and here, `claude mcp list` health-checks a project
+  server only once it is approved in an interactive `claude` — a click, so
+  recorded as one) and Kiro (22.F.2). **Documented shapes, dated 2026-09-26, not
+  run here:** Codex (`~/.codex/config.toml`, `[mcp_servers.valvur]`), Cursor,
+  VS Code (`servers`, not `mcpServers`), Windsurf, Cline, Roo Code, Continue
+  (YAML), Gemini CLI, Zed (`context_servers`). The README's *Add it to your
+  agent* section is rendered from the table and a test holds it there verbatim,
+  so a typo in one snippet is a red build; every JSON and TOML snippet is
+  parsed by a test and must put `uvx --from valvur valvur-mcp` under its
+  client's key. The handshake, measured through the real server: a transcript
+  for each published protocol version (`2025-06-18`, `2025-03-26`,
+  `2024-11-05`) under `tests/fixtures/mcp/clients/`, held by a test, and an
+  unknown version is answered with the server's own. `doctor` reading every
+  file in the table, and the snippet printer, are 29.2.2.
+
+
 - [ ] **29.2.2** **`doctor` knows every client (B8; 10.2 claim 3).** Measured:
   `_check_mcp` reads Claude Code's and Kiro's files. Extend it to every file in
   29.2.1's matrix — configured, disabled, or a command that is not on `PATH`
