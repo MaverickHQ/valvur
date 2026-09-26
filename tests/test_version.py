@@ -18,6 +18,8 @@ import tomllib
 from importlib.metadata import version as installed_version
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -69,7 +71,7 @@ def test_the_readme_does_not_call_a_version_published_before_its_tag_exists():
     import subprocess
 
     readme = (REPO / "README.md").read_text()
-    line = next(l for l in readme.splitlines() if "**Status: `" in l)
+    line = next(row for row in readme.splitlines() if "**Status: `" in row)
     published = "published and installable" in line
     assert published or "release in progress" in line, f"neither wording: {line}"
     if not published:
