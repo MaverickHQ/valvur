@@ -8460,9 +8460,23 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   what the message tells it. Both transcripts in `docs/gates/`, the minutes
   in the STATUS note, and 10.5's five-minute claim answered with a number.
 
+  **STATUS 2026-09-26:** ⏳ *blocked on the owner's login, not on engineering.*
+  The flow's decision (2) was the Claude Code pass only, after Tier 0, with
+  the CLI logged in — `claude auth status` still answers `loggedIn: false` at
+  the end of Tier 2 (a child process cannot use the desktop app's session).
+  Everything else is ready: Tier 0 is on `main`, the project is
+  `~/occams-test-lab` with its two-line exclude, and the command is the one in
+  the record — `claude -p "Scan this project with valvur and tell me what it
+  found." --mcp-config .mcp.json --strict-mcp-config --max-turns 40
+  --allowedTools "mcp__valvur__scan,mcp__valvur__scan_status,mcp__valvur__list_findings,mcp__valvur__explain_finding,mcp__valvur__doctor,mcp__valvur__scan_cancel,Read"`
+  — timed from the call to a correct report, the transcript kept under
+  `docs/gates/`. Runs the moment the login exists; the Codex pass stays
+  declined by the same decision.
+
+
 ### Tier 3 — The claim, and the small things
 
-- [ ] **29.3.1** **The README cannot be ahead of PyPI (B4).** Measured: the
+- [x] **29.3.1** **The README cannot be ahead of PyPI (B4).** Measured: the
   README on `main` has said *`0.4.0` — published and installable* since the
   prep commit, PyPI serves `0.3.0`, and the brake between them is a click that
   can wait for days. Two changes: the prep commit's wording is *`0.4.0` —
@@ -8476,6 +8490,25 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   because `main` overclaims today. **Held by:** the version test extended to
   accept the two wordings and refuse *published* without a matching tag in
   the tree's history, and the workflow's shape held as text.
+
+  **STATUS 2026-09-26:** ✅ Done first in the tier, as the row said: the README
+  on `main` had said *`0.4.0` — published and installable* since the prep
+  commit that morning while PyPI served `0.3.0` and the rehearsal waited at the
+  brake. **Two wordings:** *release in progress* until the release run has
+  promoted (the prep commit's), *published and installable* after (the closing
+  PR's, the one that closes 28.1.2); `test_version` holds the version to
+  `pyproject` as before and refuses *published* when the tree's tags are known
+  and `v<version>` is not among them (a shallow checkout without tags skips
+  that half and says why). **`published.yml`**, daily at 07:41 UTC and on
+  dispatch: reads the line, asks PyPI (`/pypi/valvur/<version>/json`) and GHCR
+  (`docker manifest inspect`), and fails in both directions — a claim ahead of
+  the registries, or *release in progress* still written after the release ran
+  — opening or commenting on the one issue (27.2.7's shape, from
+  `corpus.yml`). `RELEASING.md`'s step 4 says so. The README on `main` reads
+  *release in progress* from this commit, which is the truth today. Held by
+  three tests over the workflow's text and one over the README's wording.
+
+
 - [ ] **29.3.2** **Sizes and the KEV line say which (B9).** Measured: `doctor`
   and the README say 118 MB and 35 MB (what is fetched); `valvur cache` says
   1.45 GB and 123 MB (what is on disk); `valvur cache` says `kev: absent` while

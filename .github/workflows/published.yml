@@ -1,0 +1,78 @@
+name: published
+
+# The README's status line is the one claim about a release a stranger reads
+# first, and a release is stage → validate → promote with a human brake between
+# validation and promotion (ADR-0020). The prep commit bumps the line before
+# the tag, and the brake can be held for days: at the first usability gate the
+# README on `main` said "0.4.0 — published and installable" while PyPI served
+# 0.3.0 (task 29.3.1). So the line has two wordings — *release in progress*
+# until the release run has promoted, *published and installable* after — and
+# this workflow asks PyPI and GHCR every day whether the wording is true, and
+# opens the one issue a scheduled failure gets (27.2.7) when it is not.
+on:
+  schedule:
+    - cron: "41 7 * * *"     # daily, 07:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published:
+    name: the README's status line is true on PyPI and GHCR
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write         # open the one issue a failure gets (27.2.7)
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read the claim
+        id: claim
+        run: |
+          set -eu
+          line=$(grep -m1 -E '^> \*\*Status: `[^`]+`\*\*' README.md)
+          version=$(printf '%s' "$line" | sed -E 's/^> \*\*Status: `([^`]+)`.*/\1/')
+          case "$line" in
+            *"published and installable"*) wording=published ;;
+            *"release in progress"*)       wording=in-progress ;;
+            *) echo "::error::the README's status line is neither wording: $line"; exit 1 ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "wording=$wording" >> "$GITHUB_OUTPUT"
+          echo "README says $version is $wording"
+      - name: Ask PyPI and GHCR
+        env:
+          VERSION: ${{ steps.claim.outputs.version }}
+          WORDING: ${{ steps.claim.outputs.wording }}
+        run: |
+          set -eu
+          on_pypi=$(curl -fsS "https://pypi.org/pypi/valvur/$VERSION/json" >/dev/null 2>&1 && echo yes || echo no)
+          on_ghcr=$(docker manifest inspect "ghcr.io/maverickhq/valvur:$VERSION" >/dev/null 2>&1 && echo yes || echo no)
+          echo "PyPI: $on_pypi; GHCR: $on_ghcr; README: $WORDING"
+          if [ "$WORDING" = published ] && { [ "$on_pypi" != yes ] || [ "$on_ghcr" != yes ]; }; then
+            echo "::error::README says $VERSION is published; PyPI $on_pypi, GHCR $on_ghcr"; exit 1
+          fi
+          if [ "$WORDING" = in-progress ] && [ "$on_pypi" = yes ] && [ "$on_ghcr" = yes ]; then
+            echo "::error::README still says release in progress; $VERSION is on PyPI and GHCR — the closing PR is due"; exit 1
+          fi
+      - name: Open, or comment on, the one issue a failure gets (27.2.7)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the README's status line does not match PyPI and GHCR
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n' \
+            "The daily \`published\` check failed: $RUN" \
+            "Either the README says a version is published that PyPI or GHCR does not serve, or it still says release in progress after the release ran. Fix the one line (RELEASING.md, step 4) and dispatch this workflow again.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi

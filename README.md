@@ -2,7 +2,7 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `0.4.0`** — published and installable; `v1.0.0` follows the usability gate.
+> **Status: `0.4.0`** — release in progress: this tree is rehearsed and waits at the release brake; `pip install valvur` serves `0.3.0` until the run's `promote` completes. `v1.0.0` follows the usability gate.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 ---

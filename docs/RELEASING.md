@@ -105,8 +105,13 @@ uv sync --extra dev --locked
 # 3. Move [Unreleased] to [0.2.0] with today's date.
 $EDITOR CHANGELOG.md
 
-# 4. The README states the version it ships; a test enforces it.
-$EDITOR README.md                 # > **Status: `0.2.0`**
+# 4. The README states the version it ships; a test enforces it. Until the release
+#    run has promoted, the line reads "release in progress" — the brake can be held
+#    for days, and the README on main must not call a version published that PyPI
+#    does not serve (29.3.1). The closing PR after the release flips it to
+#    "published and installable"; published.yml checks the claim against PyPI and
+#    GHCR every day and opens an issue when the two disagree.
+$EDITOR README.md                 # > **Status: `0.2.0`** — release in progress: …
 
 # 5. Everything must be green BEFORE the tag. The workflow checks again, but
 #    finding out here is cheaper than finding out in a job that has already pushed.

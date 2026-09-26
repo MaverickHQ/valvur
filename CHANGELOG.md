@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The README cannot call a version published before it is.** Its status
+  line is bumped before the tag and the release brake can be held for days; at
+  the first gate it read *0.4.0 — published and installable* while PyPI served
+  0.3.0. Two wordings now — *release in progress* until the release run has
+  promoted, *published and installable* after, the closing PR flips it — a
+  test refuses *published* without the tag, and a daily `published` workflow
+  asks PyPI and GHCR whether the wording is true either way, opening the one
+  issue a scheduled failure gets when it is not (29.3.1).
 - **`valvur doctor` knows every client, and prints any client's snippet.** Its
   MCP check read Claude Code's and Kiro's files; it now reads every file in the
   client table — eleven clients, JSON in three shapes, TOML, YAML — says which
