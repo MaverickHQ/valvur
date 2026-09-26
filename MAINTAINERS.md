@@ -11,7 +11,7 @@ review measured the bus factor and it is one.
 | Maintainer | **MaverickHQ** — `MaverickHQ@users.noreply.github.com` |
 | Repository | user-owned (`MaverickHQ/valvur`), not an organisation; one collaborator, admin |
 | Can sign a release tag | the one SSH key in [`.github/allowed_signers`](.github/allowed_signers); `release.yml` refuses a `v*` tag any other key signed (28.0.2) |
-| Can approve the `release` environment | nobody is required to yet — the environment has no required reviewer, so the brake between validation and promotion (ADR-0020) is the maintainer's own tag |
+| Can approve the `release` environment | the maintainer, as its one required reviewer (set 2026-09-26, after the last rehearsal); self-review is allowed, so the brake between validation and promotion (ADR-0020) is the maintainer's own click, after the evidence — until step 2 below puts a second name beside theirs |
 | Commits | 288 of 291 by the maintainer, 3 by Dependabot (measured 2026-09-26) |
 
 A test holds the first row to the signers file: every principal that may sign a
@@ -56,7 +56,9 @@ The steps, in order, so that the second person can do the one thing that matters
 1. Invite them as a collaborator with the **admin** role (a user-owned repository
    has no organisation teams to add them to).
 2. Add them as a **required reviewer** on the `release` environment (Settings →
-   Environments → release), so a promotion needs a second click.
+   Environments → release), beside the maintainer, and turn on **prevent
+   self-review**, so a promotion needs a click the person who pushed the tag
+   cannot make.
 3. Add their SSH signing key to [`.github/allowed_signers`](.github/allowed_signers)
    and their row to the table above, in one commit; the test that ties the two
    together will refuse either alone.
@@ -64,5 +66,6 @@ The steps, in order, so that the second person can do the one thing that matters
    write access to the two GHCR packages.
 5. Put the usability gate (task 10.1.1) on a calendar with both names on it.
 
-Until step 2 is done, the `release` environment's reviewer list is empty and
-this file says so; the pipeline's brake is the tag itself.
+Until step 2 is done, the `release` environment's only reviewer is the maintainer
+and self-review is allowed, and this file says so; the brake between validation
+and promotion is one person's click, after the evidence.

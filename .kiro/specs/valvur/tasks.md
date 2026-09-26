@@ -5492,19 +5492,47 @@ gate, `v1.0.0`. Written 2026-09-18 from a review of the eleven open tasks.
 > from an external review the same afternoon — is the engineering that does not,
 > tiered by when its consequences arrive. Tier 0 and Tier 1 are what the next
 > release carries, with or before 12b.1; Tiers 2–3 land before 12b.3.
+>
+> **Amended 2026-09-26.** Phases 26, 27 and 28's engineering are complete —
+> forty-one tasks since `0.3.0` shipped — and the order below is re-cut once
+> more, for three measured reasons. **The next tag moves ahead of the gate:** a
+> participant cannot be reused, and the tree a stranger would meet on `0.3.0` is
+> not the one they would install a week later — Checkov's floor is 6–9 s against
+> 16–19 s (28.2.1), the MCP handshake carries the rules (28.2.2), and
+> `[Unreleased]` holds thirty-three entries; measuring a stranger on a release
+> already superseded spends the one measurement that cannot be repeated. **The
+> next tag is `0.4.0`, not `0.3.1`:** two new CLI flags, a new environment
+> variable, an additive MCP schema change and a scan two to three times faster
+> is a minor by this project's own precedent (`0.2.0` → `0.3.0` carried
+> twenty-three tasks); 28.1.2's text keeps its words and its STATUS note records
+> the number. **The second maintainer (28.1.3) is placed before `v1.0.0`:** the
+> fourth review measured the bus factor at one (O3), and a stability claim should
+> not be the first thing a project that one absence stops puts its name to. The
+> prep PR and the rehearsal for `0.4.0` are engineering and run unattended; the
+> tag, the environment approval, the stranger and the second person are the
+> owner's. Checkpoints keep their letters — E and F are new, and the letters
+> name them rather than order them.
 
 ```
 Block A   the pre-release block          23.5.1 → 23.5.2 → 23.5.3 → 23.5.4 → 23.4.6 → 12b.2
           engineering, no person          one corpus dispatch · one release rehearsal
                ↓
-Checkpoint B   release 0.3.0             25.1 rehearsal + tag · 25.2 valvur-action v0 · 24.4 yank
+Checkpoint B   release 0.3.0             ✅ 2026-09-20 — 25.1 rehearsal + tag · 25.2 valvur-action v0 · 24.4 yank
                owner, one sitting
                ↓
-Checkpoint C   the usability gate         10.1.1 · 10.1.2  →  12b.1 (engineering, on what they found)
-               owner + a stranger; a calendar
+Checkpoint E   release 0.4.0             28.1.2 — prep PR + rehearsal (engineering, unattended)
+               then the owner: the signed tag and the release approval, one sitting
+               ↓
+Checkpoint C   the usability gate         10.1.1 · 10.1.2 on 0.4.0  →  12b.1 (engineering, on what they found)
+               owner + a stranger; a calendar; the machine reset first
+               ↓
+Checkpoint F   the second maintainer      28.1.3 — MAINTAINERS.md steps 1–5
+               owner + a person
                ↓
 Checkpoint D   v1.0.0                     12b.3
                owner
+               ↓
+dated          the runner move            28.3.8 after 2026-11-19 (engineering)
 ```
 
 ### Block A — The pre-release block
@@ -5669,19 +5697,71 @@ this comes before Checkpoint C, not after.
 - [x] [**24.4**](#phase-24--the-audit-and-one-list-of-everything-that-remains) — yank
   `0.1.0rc1`, in the same sitting. *Done 2026-09-20; Checkpoint B is complete.*
 
+### Checkpoint E — Release `0.4.0` *(engineering to the rehearsal; the owner for the tag)*
+
+The first real promote (28.1.2): the first tag to meet stage → validate → promote,
+the four-SBOM step, the attestation read-back and the index's verify-then-tag on
+a real version. Inserted 2026-09-26, ahead of the gate, for the reasons in the
+amendment above. In order:
+
+1. **Engineering, unattended — the prep PR**, per `docs/RELEASING.md` "Cutting a
+   release": `version = "0.4.0"` in `pyproject.toml` and `uv sync --extra dev
+   --locked`; `[Unreleased]` becomes `[0.4.0] — <date>` with a paragraph naming
+   the release; the README's status line, and its macOS row re-measured by hand
+   against the image built from the prep commit (`valvur:dev`, run with
+   `VALVUR_CACHE` and `VALVUR_IMAGE` set so the gate machine stays a stranger's);
+   `./scripts/verify.sh` and the e2e suite locally; lands by pull request on the
+   required checks.
+2. **Engineering, unattended — the rehearsal** on that exact commit:
+   `gh workflow run release.yml --ref main`. The run id goes in 28.1.2's STATUS
+   note, and nothing below starts until it is green.
+3. **Owner, one sitting of about thirty minutes:** `git tag -s v0.4.0 <that
+   commit>` with the key in `.github/allowed_signers`, `git push origin v0.4.0`;
+   when `promote` pauses on the `release` environment, approve it — the reviewer
+   is the owner (set 2026-09-26; self-review is allowed, so it is one click);
+   afterwards `cosign verify` as `RELEASING.md` "Verifying a release, as a user
+   would" shows. Record the run and the minutes to `:latest` under 28.1.2 and
+   tick it. Then step 3's leftover: `~/.cache/valvur` and the published image are
+   now on this machine if the verification ran here — remove them before C.
+4. **`valvur-action` needs nothing:** it installs the latest release from PyPI
+   unless its `version` input names one (`action.yml`, measured 2026-09-26), so
+   `@v0` picks up `0.4.0` on its own.
+
 ### Checkpoint C — The usability gate *(owner and a stranger; a calendar)*
 
-- [**10.1.1**](#101--the-usability-gate) · **10.1.2** — on `0.3.0`, installed the way
-  the README says, MCP first, protocol in `docs/usability-gate.md`. First
-  impressions do not reset; this is the one checkpoint that cannot be re-run.
+- [**10.1.1**](#101--the-usability-gate) · **10.1.2** — on `0.4.0` (moved from
+  `0.3.0` by the 2026-09-26 amendment), installed the way the README says, MCP
+  first, protocol in `docs/usability-gate.md`. First impressions do not reset;
+  this is the one checkpoint that cannot be re-run.
+- **The machine, before the session.** A stranger's: `test -e ~/.cache/valvur`
+  false, no `ghcr.io/maverickhq/valvur:*`, no `valvur:*` scratch tag, and not the
+  `Dockerfile`'s pinned base image either — measured 2026-09-26, fourteen scratch
+  tags from earlier sessions and `python:3.12-alpine3.22` (53 MB, four layers the
+  published image shares) were on disk, so a pull here would have skipped them
+  and the timing would have read faster than a stranger's. Kiro's
+  `kiroAgent.configureMCP` is `Enabled` (checked). The reset is the last thing
+  engineering does before the date, and is verified on the day.
 - [**12b.1**](#12b--release) — act on what they found. Phase 10's provisional items
   (10.2–10.5) close here or are deferred with a reason. Engineering, sized by the
-  findings; may be a `0.3.1`.
+  findings; may be a `0.4.1`.
+
+### Checkpoint F — The second maintainer *(owner and a person)*
+
+- **28.1.3** — `MAINTAINERS.md`'s five steps, in its order: a collaborator with
+  admin; a required reviewer on `release` beside the owner, with *prevent
+  self-review* turned on so a promotion needs a click the tagger cannot make;
+  their key in `.github/allowed_signers` with a row in the table, one commit
+  (the test refuses either alone); the PyPI, TestPyPI and GHCR roles; the gate
+  on a calendar. Needs the person's GitHub handle and SSH signing key. Placed
+  before D because a stability claim with a bus factor of one is the finding
+  (O3) that raised the task; not a hard gate for D, but D should not pass it
+  without a stated reason.
 
 ### Checkpoint D — `v1.0.0` *(owner)*
 
-- [**12b.3**](#12b--release) — after 12b.1's fixes land and A6's job has gone green on
-  a real release, which by then it has. Phase 17's precondition is met.
+- [**12b.3**](#12b--release) — after 12b.1's fixes land, A6's job has gone green on
+  a real release (which E makes true), and F has happened or been declined with
+  a reason. Phase 17's precondition is met.
 
 **Exit (Phase 25):** `v1.0.0` released; someone who had never seen valvur installed
 it from the README and got a useful answer; every open task in the plan closed or
@@ -7299,6 +7379,19 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   will name. What is left is one signed tag on `main` by the key in
   `.github/allowed_signers`, which nothing in the tree can create.
 
+  **Amended 2026-09-26 (the number, and the order):** the tag is **`v0.4.0`**.
+  Thirty-three `[Unreleased]` entries, two new CLI flags (`cache --prune`,
+  `doctor --bundle`), a new environment variable (`VALVUR_DEBUG`), an additive
+  MCP schema change (`instructions`, `structuredContent`) and Checkov's floor
+  halved are a minor by this project's precedent — `0.2.0` → `0.3.0` for
+  twenty-three tasks; the title above keeps `0.3.1` because task text is not
+  rewritten, and this note is the number. And it moves **ahead of the usability
+  gate**, as Phase 25's Checkpoint E, so the stranger meets this tree rather
+  than one already superseded. The prep PR and a second rehearsal on the prep
+  commit are engineering; the tag and the `release` approval are the owner's;
+  `valvur-action` needs no retag — it installs PyPI's latest unless told a
+  version.
+
 - [ ] **28.1.3** **The bus factor, stated (O3).** *Owner.* 273 of 276 commits by one
   author; `SECURITY.md` commits five and fifteen working days on that one
   person; 28.0.2's reviewer needs someone to click. Not fixable in code: a
@@ -7324,6 +7417,12 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   `SECURITY.md` link it. **Open until the owner does steps 1–5** — a real
   second person with a real key — and puts the gate on a calendar; nothing in
   the tree can do that.
+
+  **Amended 2026-09-26:** the `release` environment's required reviewer is now
+  the owner — set by API after the rehearsal, with `prevent_self_review` off, so
+  a promotion is the owner's own click after the evidence — and step 2 puts the
+  second person beside them and turns self-review prevention on, rather than
+  filling an empty list. Sequenced as Phase 25's Checkpoint F, before `v1.0.0`.
 
 ### Tier 2 — What a user feels
 

@@ -150,13 +150,19 @@ maintainers file, the SARIF upload without accepted risks (GitHub does not read
 in seven files, a per-PR mutation check, a **reproducible image** (two builds of
 one tree are one image, measured to the layer four times), the vocabulary typed,
 and `name_index`, `cli.main` and `_scan_locked` each one job. **Three stay open
-and say why:** `0.3.1`'s tag is the owner's (the rehearsal on the exact tree is
-run 36208551017, success in 14 minutes), a second
-maintainer is a person, and the runner move is dated after 2026-11-19. **Next:
-the usability gate on `0.3.0` (10.1.1–10.1.2, then 12b.1), the `0.3.1` tag, then
-`v1.0.0` (12b.3).** When "what is next" is asked, Phase 25 answers for the people
-and Phase 28's three open rows for the code; the sequencing diagrams in Phases
-21, 23 and 24 are history.
+and say why:** `0.4.0`'s tag is the owner's (the rehearsal on the exact tree is
+run 36208551017, success in 14 minutes; the number was `0.3.1` until 2026-09-26 —
+thirty-three entries and an additive MCP schema change are a minor by this
+project's precedent), a second maintainer is a person, and the runner move is
+dated after 2026-11-19. **Next, in this order (Phase 25, amended 2026-09-26):
+the `0.4.0` release — the prep PR and a rehearsal on it by engineering, the
+signed tag and the `release` approval by the owner (28.1.2); the usability gate
+on `0.4.0` (10.1.1–10.1.2), then 12b.1 on what it found; the second maintainer
+(28.1.3); then `v1.0.0` (12b.3); the runner move after 2026-11-19 (28.3.8).** The
+tag moved ahead of the gate because a participant cannot be reused and the tree
+they would meet on `0.3.0` is already superseded. When "what is next" is asked,
+Phase 25 answers for the people and Phase 28's three open rows for the code; the
+sequencing diagrams in Phases 21, 23 and 24 are history.
 
 **The second review's verdict (2026-09-20), kept because it is the outside view:**
 supply-chain security is the strongest thing here — every action pinned by SHA,
@@ -299,7 +305,7 @@ Roughly: 68 modules under `src/valvur`, 1,156 tests in 82 files, 20 ADRs, 136
 requirement IDs, **223 done and 7 open** across 28 phases — the usability gate,
 the `v1.0.0` tail, and Phase 28's three that wait on a person or a date; Phases
 26, 27 and 28's engineering are complete, `0.3.0` is out, the action is at `v0.2`
-and the rc is yanked. Four of the 7 are the owner's (the gate, the `0.3.1` tag,
+and the rc is yanked. Four of the 7 are the owner's (the gate, the `0.4.0` tag,
 the second maintainer, the `v1.0.0` tag); one is dated (the runner move). A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found
 a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
