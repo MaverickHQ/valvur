@@ -314,7 +314,7 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 68 modules under `src/valvur`, 1,020 tests in 82 files, 20 ADRs, 136
+Roughly: 68 modules under `src/valvur`, 1,203 tests in 82 files, 20 ADRs, 136
 requirement IDs, **235 done and 18 open** across 29 phases — Phase 29's thirteen
 (the first gate's findings), the `v1.0.0` tail, and Phase 28's three that wait on
 a person or a date; Phases 26, 27 and 28's engineering are complete, `0.4.0` is
