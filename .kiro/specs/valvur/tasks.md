@@ -8110,8 +8110,8 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   the gate's tree in miniature: the broken fixture beside a 20,000-file
   `archive/` of tokens Gitleaks flags — a planted one at the root proves the
   form — and a 2,000-file `node_modules/`. **Measured, on this Mac through
-  Docker Desktop:** the synthetic tree with the exclude — wall 24 s, Gitleaks
-  3.6 s, the Checks 5.5 s; without it — wall 67 s, Gitleaks 28 s, the Checks
+  Docker Desktop:** the synthetic tree with the exclude — wall 23 s, Gitleaks
+  5.2 s, the Checks 6.8 s; without it — wall 67 s, Gitleaks 28 s, the Checks
   26 s, Opengrep 63 s. **The gate's own tree** (`occams-test-lab`, 107,544
   files, its two-line exclude, every Scanner at once): **complete in 88 s,
   8 findings, 0 dropped** — Gitleaks 6.4 s against 211.7 s at the gate, the
