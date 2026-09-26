@@ -7,6 +7,27 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-26
+
+Three reviews of the `0.3.0` tree, six days, and every finding measured against
+the tree before it became a task. The second review found what a release could
+do wrong — a Scanner's unreadable report took the whole run down, a cancel could
+be confirmed and dropped, the Results Folder could hold a mixed generation, and
+PyPI was published before the artifact was validated — and all four are closed:
+the release is now stage → validate → promote, and this tag is the first to take
+that path for real. The third found the edges of the record: the daily index
+tagged before it was verified, the release SBOM by a floating syft, an MCP server
+that left its scans running, `readOnlyHint` on `scan`. The fourth found that
+write access was release authority and that Checkov was the wall clock: the
+signing identity is now one workflow and one ref, a `v*` tag needs a key in
+`allowed_signers`, every container has a memory and PID ceiling, and Checkov
+starts in a third of the time — **6–9 s against 16–19 s** for a scan of every
+application repository in the corpus. Also here: the MCP handshake carries the
+rules and the readers answer structured content, the image is reproducible,
+Python 3.11 and 3.13 are tested, `NOTICE`, `valvur cache --prune`, `valvur
+doctor --bundle`, `argv` in `run.json`. Fifty-one tasks between `v0.3.0` and
+this tag; the entries below are the thirty-three a user can see.
+
 - **An unknown profile is refused at the door.** `--profile bogus`, or a `scan`
   call naming one, was passed along as a string and failed three calls later
   with a `KeyError`; it is refused where it arrives, naming the two that exist.
