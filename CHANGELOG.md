@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **The fleet's width follows the runtime's memory.** Eight containers in a
+  default Docker Desktop VM contend: measured on a 3.8 GiB VM on the synthetic
+  gate tree, eight at once 23.6 s, four 22.0 s, two 20.3 s, and at two every
+  Scanner two to five times faster alone. Below 6 GiB of runtime memory a scan
+  now runs two Scanners at a time unless `--jobs` or `VALVUR_JOBS` says
+  otherwise; the first status line says the width, and `valvur doctor` says
+  the runtime's memory and CPUs and what the default here will be. The
+  README's Docker Desktop advice moved from Platforms into the first-run
+  section (29.1.3).
 - **A scan counts what it will read before it starts.** One pruned walk
   before the fleet — 0.02 s on the gate's 107,544-file tree with its exclude,
   0.69 s without — puts the count and the three largest directories on the

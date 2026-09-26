@@ -127,8 +127,12 @@ the image; it had been 16–19).
 says so). Past it the running Scanners are stopped and the reply says which, for
 how long, and what to turn: exclude what is not source (`[scan] exclude` in
 `.security-scan.toml` — a data directory or a build tree costs a scan nothing
-once named), give it longer, or run fewer Scanners at once (`VALVUR_JOBS=2` in the
-server's environment, `--jobs 2` on the CLI) on a small Docker Desktop VM. A scan
+once named), give it longer, or run fewer Scanners at once (`VALVUR_JOBS`, or
+`--jobs` on the CLI). On a runtime with less than 6 GiB — a default Docker Desktop
+VM — valvur already runs two at a time: measured on a 3.8 GiB VM, eight at once
+contend and finish no sooner (23.6 s against 20.3 s), and a container the VM cannot
+fit is killed with exit 137 and reported as such. `valvur doctor` says what the
+default here will be. A scan
 counts what it will read before it starts — the first status line says how many
 files and which directories are largest, and past 20,000 files names the one to
 exclude — and while it runs, `scan_status` says which Scanners are running and for
@@ -271,13 +275,8 @@ auditable and mirrorable. No proprietary database; nothing to lock you in.
 **Air-gapped?** The database, the name index and KEV all live outside the image and
 each has a mirror setting, measured end to end. See [`docs/AIR-GAPPED.md`](docs/AIR-GAPPED.md).
 
-**Docker Desktop's memory.** A scan starts eight Scanner containers at once; the
-fleet peaks around 500 MB on Linux, but Docker Desktop's VM has its own limit, and
-a container it cannot fit is killed with exit 137 and reported as a failed Scanner.
-`valvur scan --jobs 2` runs two at a time; `VALVUR_JOBS=2` in the MCP server's
-environment does the same for an agent. A scan an agent no longer wants is stopped
-with the `scan_cancel` tool — containers killed, nothing written — as Ctrl-C does
-on the command line.
+A scan an agent no longer wants is stopped with the `scan_cancel` tool —
+containers killed, nothing written — as Ctrl-C does on the command line.
 
 ## Contributing, and reporting problems
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools as _functools
 import os as _os
 import platform
 import sys
@@ -226,6 +227,45 @@ def _cgroup_v2() -> bool:
     if platform.system() != "Linux":
         return True
     return Path("/sys/fs/cgroup/cgroup.controllers").exists()
+
+
+#: Below this much runtime memory the fleet runs two Scanners at a time by
+#: default (29.1.3). Measured on a 3.8 GiB Docker Desktop VM, on the synthetic
+#: gate tree: eight at once 23.6 s, four 22.0 s, two 20.3 s — and at two every
+#: Scanner two to five times faster alone (Checkov 15.7 → 7.2 s, the Checks
+#: 7.3 → 1.4 s); on the gate's own tree 88 s at eight against 83.5 s at two.
+#: Linux CI's 7 GiB runners run the whole fleet at 6 to 9 s and stay whole.
+SMALL_RUNTIME_BYTES = 6 * 2**30
+SMALL_RUNTIME_JOBS = 2
+
+
+@_functools.lru_cache(maxsize=8)
+def runtime_resources(runtime: str) -> tuple[int | None, int | None]:
+    """The runtime's memory in bytes and its CPUs, from `info` — Docker's
+    `MemTotal`/`NCPU`, Podman's `Host.MemTotal`/`Host.CPUs` — or (None, None)
+    when it cannot say. Cached per runtime path: `docker info` costs 0.9 s on
+    Docker Desktop, and the answer does not change under a process."""
+    import subprocess
+
+    template = ("{{.Host.MemTotal}} {{.Host.CPUs}}" if "podman" in runtime
+                else "{{.MemTotal}} {{.NCPU}}")
+    try:
+        proc = subprocess.run([runtime, "info", "--format", template],  # noqa: S603
+                              capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None, None
+    parts = proc.stdout.split()
+    if proc.returncode != 0 or len(parts) < 2 or not all(p.isdigit() for p in parts[:2]):
+        return None, None
+    return int(parts[0]), int(parts[1])
+
+
+def default_jobs(fleet: int, memory_bytes: int | None) -> int:
+    """How many Scanners run at once when nobody said: the whole fleet, unless
+    the runtime is small (29.1.3). Unknown is not small."""
+    if memory_bytes is not None and memory_bytes < SMALL_RUNTIME_BYTES:
+        return max(1, min(fleet, SMALL_RUNTIME_JOBS))
+    return max(1, fleet)
 
 
 def memory_ceiling_note(runtime: str) -> str | None:

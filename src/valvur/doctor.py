@@ -224,6 +224,14 @@ def _check_python(fetch_due: bool) -> Check:
     )
 
 
+def _default_fleet() -> tuple:
+    """The default Profile's Scanners — how wide the fleet is when nobody narrows it."""
+    from . import profiles
+    from .adapters import DEFAULT_ADAPTERS
+
+    return tuple(profiles.select(DEFAULT_ADAPTERS, profiles.DEFAULT))
+
+
 def _check_runtime() -> tuple[str | None, Check]:
     """Returns the runtime's path when it is found and running, else None."""
     try:
@@ -240,10 +248,17 @@ def _check_runtime() -> tuple[str | None, Check]:
             "start it — Docker Desktop (or `open -a Docker`), `systemctl start docker`, "
             "or `podman machine start` — and run doctor again",
         )
+    from . import runner as _runner
     from .runner import memory_ceiling_note
 
     note = memory_ceiling_note(runtime)
     detail = f"{version} at {runtime}, running" + (f"; {note}" if note else "")
+    memory, cpus = _runner.runtime_resources(runtime)
+    if memory is not None:
+        # What the fleet will do here by default (29.1.3), said before a scan.
+        width = _runner.default_jobs(len(_default_fleet()), memory)
+        detail += (f"; {memory / 2**30:.1f} GiB, {cpus} CPUs — scans run {width} Scanners "
+                   "at a time (VALVUR_JOBS, or --jobs, to change)")
     return runtime, Check("runtime", "ok", detail)
 
 

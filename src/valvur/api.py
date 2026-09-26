@@ -618,6 +618,19 @@ def scan(
         )
 
 
+def _default_width(runner, fleet: int) -> int:
+    """The fleet's width when neither `--jobs` nor `VALVUR_JOBS` said (29.1.3):
+    from the runtime's memory, through a runner that has one; a fake or a
+    runner that cannot say runs the fleet whole."""
+    from . import runner as _runner
+
+    runtime = getattr(runner, "runtime", None)
+    if not isinstance(runtime, str):
+        return fleet
+    memory, _ = _runner.runtime_resources(runtime)
+    return _runner.default_jobs(fleet, memory)
+
+
 def _jobs_from_environment() -> int | None:
     import os
 
@@ -703,7 +716,8 @@ def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
     _refuse_if_cancelled(runner, 0, len(adapters))
 
     # `--jobs` bounds the fleet (23.3.3); the default is everything at once.
-    width = jobs if jobs is not None else (_jobs_from_environment() or len(adapters))
+    width = jobs if jobs is not None else (_jobs_from_environment()
+                                           or _default_width(runner, len(adapters)))
     if on_progress is not None:
         # The size, so a status line can say "3 of 8" (29.0.4).
         on_progress(f"fleet: {len(adapters)} Scanners, {min(width, len(adapters))} at a time")

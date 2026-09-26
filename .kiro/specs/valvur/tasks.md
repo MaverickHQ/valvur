@@ -8316,7 +8316,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   29.1.3's.
 
 
-- [ ] **29.1.3** **Concurrency from the runtime's memory (B7; N1.4).**
+- [x] **29.1.3** **Concurrency from the runtime's memory (B7; N1.4).**
   Measured: eight containers start at once inside a 4 GB VM; the README's
   remedy is in Platforms, after the point of failure. Measure first, on this
   Mac and the synthetic tree: `--jobs` 8, 4 and 2 against wall clock and
@@ -8327,6 +8327,27 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   Docker Desktop paragraph moves into the first-run section with the number
   it measured. **Held by:** the rule's unit test over fake `docker info`
   output, and the STATUS note's table.
+
+  **STATUS 2026-09-26:** ✅ Measured first, on this Mac's 3.8 GiB Docker Desktop
+  VM (8 CPUs) on the synthetic gate tree with its archive excluded: `--jobs 8`
+  wall **23.6 s**, `4` **22.0 s**, `2` **20.3 s** — and at two, every Scanner
+  two to five times faster alone (Gitleaks 4.2 → 2.1 s, Trivy 7.2 → 2.6,
+  Checkov 15.7 → 7.2, Syft 8.6 → 2.8, the Checks 7.3 → 1.4); on the gate's own
+  tree 88 s at eight against 83.5 s at two (29.0.1's note). So a rule fell
+  out, measured at both ends: below 6 GiB the default is two at a time
+  (`runner.SMALL_RUNTIME_BYTES`, `default_jobs`); at or above, or when the
+  runtime cannot say, the whole fleet — Linux CI's 7 GiB runners run all eight
+  at 6–9 s. `runner.runtime_resources` reads `docker info --format
+  '{{.MemTotal}} {{.NCPU}}'` (Podman: `Host.MemTotal`, `Host.CPUs`), 0.9 s on
+  Docker Desktop and cached per runtime path for the process; `_fleet` takes
+  `--jobs`, then `VALVUR_JOBS`, then the rule, and its first line says the
+  width; `doctor`'s runtime line reads *3.8 GiB, 8 CPUs — scans run 2 Scanners
+  at a time (VALVUR_JOBS, or --jobs, to change)*. The README's Docker Desktop
+  paragraph moved from Platforms into the first-run section with the numbers.
+  Held by five unit tests over fake `info` output. Not changed: N1.4's 2 GiB
+  ceiling per container (28.0.3) — two containers under it fit a 4 GiB VM;
+  eight never did, which the exit-137 kills at the gate were.
+
 
 ### Tier 2 — Every agent's IDE, by MCP
 
