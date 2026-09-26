@@ -32,7 +32,7 @@ jobs:
       issues: write         # open the one issue a failure gets (27.2.7)
     steps:
       - name: valvur-rehearsal — about the last five rehearsals
-        uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5.0.0
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: valvur-rehearsal
           package-type: container
@@ -41,7 +41,7 @@ jobs:
           min-versions-to-keep: 25
 
       - name: valvur-index — about six weeks of daily builds
-        uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5.0.0
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: valvur-index
           package-type: container
