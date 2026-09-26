@@ -50,6 +50,7 @@ def healthy(tmp_path, monkeypatch):
     monkeypatch.setattr(doctor, "_image_label", lambda runtime, image: __version__)
     monkeypatch.setattr(doctor, "_image_protocol", lambda runtime, image: None)
     monkeypatch.setattr(doctor, "_image_starts", lambda runtime, image: (True, "0be0b0f0456f7f"))
+    monkeypatch.setattr(doctor, "_superseded_images", lambda runtime: [])   # 28.3.7
     from valvur import compat
 
     monkeypatch.setattr(compat, "shim_inputs", lambda: "0be0b0f0456f7f")   # the same tree (23.4.4)

@@ -145,7 +145,7 @@ def _refresh_name_index(*, build: bool = False) -> bool:
     return True
 
 
-def _print_cache(*, clear: bool) -> int:
+def _print_cache(*, clear: bool, prune: bool = False) -> int:
     from . import cache
 
     root = cache.root()
@@ -159,12 +159,38 @@ def _print_cache(*, clear: bool) -> int:
         detail = f" — {entry.detail}" if entry.detail else ""
         print(f"  {entry.name:<9} {cache.human_size(entry.size):>9}  {age}{detail}")
     print(f"  {'total':<9} {cache.human_size(sum(e.size for e in entries)):>9}")
+    if prune:
+        _prune_cache(cache)
     if not clear:
         return 0
     removed = cache.clear()
     print(f"cleared: {', '.join(removed) or 'nothing (already empty)'}")
     print("The next scan fetches what it needs; `valvur update` fetches everything now.")
     return 0
+
+
+def _prune_cache(cache) -> None:
+    """`--prune` (28.3.7): what would go is listed before anything goes, and
+    without the flag nothing ever does."""
+    from . import runner
+
+    try:
+        images = cache.local_images(runner.detect_runtime())
+    except Exception as exc:   # broad: no runtime is a reason, not a failure
+        images = None
+        print(f"  no container runtime found ({exc}); images not pruned")
+    superseded = cache.superseded_images(images) if images is not None else []
+    strays = cache.stray_index_files()
+    if not superseded and not strays:
+        print("prune: nothing to prune — only this shim's image and the files the index names")
+        return
+    for reference in superseded:
+        print(f"  removing image {reference}")
+    for path in strays:
+        print(f"  removing file {path}")
+    removed_images, removed_files = cache.prune(images)
+    print(f"pruned: {len(removed_images)} image{'' if len(removed_images) == 1 else 's'}, "
+          f"{len(removed_files)} file{'' if len(removed_files) == 1 else 's'}")
 
 
 def _ensure_image_for_update(runner) -> bool:
@@ -435,6 +461,12 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         help="Remove the vulnerability database, the package-name index and the KEV copy. "
         "Waits for a running scan. The next scan fetches them again.",
     )
+    cache_cmd.add_argument(
+        "--prune", action="store_true",
+        help="Remove the published image's local tags that are not this shim's version, "
+        "and index files the metadata no longer names — each listed first. Never the "
+        "database, never this shim's image. Waits for a running scan.",
+    )
 
     suppress_cmd = sub.add_parser(
         "suppress",
@@ -481,7 +513,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         return verdict.exit_code
 
     if args.command == "cache":
-        return _print_cache(clear=args.clear)
+        return _print_cache(clear=args.clear, prune=args.prune)
 
     if args.command == "doctor":
         from . import doctor as _doctor

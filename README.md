@@ -208,7 +208,10 @@ at or above `--fail-on` (`any` is every one; it is what valvur's own release gat
 uses), and with `--no-inconclusive` on a scan whose data was too old to be
 evidence or that never inspected part of the tree. Under GitHub Actions each
 reason is an annotation. `valvur cache` says what is on disk, how old and how
-large; `valvur cache --clear` removes it.
+large; `valvur cache --clear` removes it; `valvur cache --prune` removes only what
+is superseded — the image tags earlier shim versions pulled, and index files the
+index no longer names — listing each first, and `valvur doctor` says when there
+is something to prune.
 
 ## What actually does the scanning
 

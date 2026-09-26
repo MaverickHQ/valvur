@@ -7516,13 +7516,31 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   never source, never `raw/` — for an issue. **Tests first**: `run.json`'s
   schema gains `argv`; the bundle's file list is asserted against an allowlist.
 
-- [ ] **28.3.7** **`valvur cache --prune` (O4).** `~/.cache/valvur` is never
+- [x] **28.3.7** **`valvur cache --prune` (O4).** `~/.cache/valvur` is never
   pruned; each shim version pulls its own image tag and nothing removes
   `:0.2.0` when `:0.3.0` arrives; `valvur cache` inventories and cannot clean.
   A flag, never a default: `--prune` removes images not matching the shim's
   version and index files the metadata no longer names, listing each first;
   `doctor` names superseded images. **Tests first**: prune with a fake runtime
   removes exactly the superseded set and refuses without the flag.
+
+  **STATUS 2026-09-26:** ✅ Tests first, eleven (`tests/test_cache_prune.py`),
+  against a fake image store: superseded is every local tag of
+  `ghcr.io/maverickhq/valvur` but this shim's own (`<none>` excluded), the stray
+  index files are the ones `metadata.json` does not name, `prune` removes
+  exactly that set — the named index files, the database and the KEV copy
+  untouched — under the exclusive cache lock like `clear`, without a runtime it
+  still prunes the files, `valvur cache` without the flag removes nothing, and
+  with it lists each item before removing it and counts what went; `doctor`'s
+  image line ends *"superseded: 0.2.0, latest (valvur cache --prune)"* when
+  there is something and says nothing otherwise. **Measured on this machine,
+  the first real run:** `valvur cache --prune` listed and removed
+  `:0.1.0rc1`, `:0.2.0` and `:latest` — three tags from three earlier shims,
+  two to three weeks old — and touched neither `valvur:dev` nor any other
+  repository's image; `0 files`. The implementation keeps `cache.py` out of
+  the import component the ratchet holds closed (the runtime is detected by
+  the CLI, the index's file table read from `ecosystems`), which the ratchet
+  caught on the first draft. README's cache sentence, CHANGELOG.
 
 - [ ] **28.3.8** **The runner move, dated (O5).** `ubuntu-latest` becomes 26.04
   from 2026-10-19 (actions/runner-images#14748); every runner here is

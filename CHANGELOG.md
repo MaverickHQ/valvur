@@ -7,6 +7,12 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **`valvur cache --prune`.** Each shim version pulls its own image tag and
+  nothing removed the one before; `valvur cache` could inventory and not clean.
+  `--prune` removes the published image's local tags that are not this shim's
+  version and index files the index's metadata no longer names, listing each
+  first — never the database, never this shim's image, never any other
+  repository's images — and `valvur doctor` names what is superseded (28.3.7).
 - **The code-scanning upload leaves accepted risks out** (`valvur-action`
   v0.2). GitHub does not read SARIF `suppressions` — measured: five suppressed
   results uploaded on every push for thirteen days, five open alerts, none ever

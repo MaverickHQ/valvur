@@ -11,6 +11,10 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
+
+from . import ecosystems as _ecosystems
+from .version import IMAGE_REPOSITORY, __version__
 
 STALE_AFTER_DAYS = 30
 
@@ -202,6 +206,100 @@ def clear() -> list[str]:
                 entry.path.unlink()
             removed.append(entry.name)
     return removed
+
+
+# ------------------------------------------------------- `--prune` (task 28.3.7)
+#
+# Two things nothing removed: the published image's local tags from shims that
+# are gone — each shim version pulls its own tag, and `:0.2.0` stayed when
+# `:0.3.0` arrived — and files under the name index that its metadata no longer
+# names. A flag, never a default; each item is listed before it goes; this shim's
+# own image, the database and every named index file are never candidates.
+
+
+class LocalImages(Protocol):
+    """What the runtime holds for one repository, and how to drop one reference."""
+
+    def list(self, repository: str) -> list[str]: ...
+    def remove(self, reference: str) -> None: ...
+
+
+class RuntimeImages:
+    """The container runtime's image store, by its command line."""
+
+    def __init__(self, runtime: str):
+        self.runtime = runtime
+
+    def list(self, repository: str) -> list[str]:
+        import subprocess
+
+        proc = subprocess.run(  # noqa: S603 — the runtime found by detect_runtime
+            [self.runtime, "image", "ls", repository, "--format", "{{.Repository}}:{{.Tag}}"],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        if proc.returncode != 0:
+            return []
+        return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
+    def remove(self, reference: str) -> None:
+        import subprocess
+
+        subprocess.run([self.runtime, "image", "rm", reference],  # noqa: S603
+                       capture_output=True, text=True, timeout=120, check=True)
+
+
+def local_images(runtime: str) -> LocalImages:
+    return RuntimeImages(runtime)
+
+
+def superseded_images(images: LocalImages, *, keep: str | None = None) -> list[str]:
+    """The published image's local tags that are not this shim's, sorted. `<none>`
+    is a dangling layer the runtime owns, not a tag valvur pulled."""
+    current = f"{IMAGE_REPOSITORY}:{keep or __version__}"
+    return sorted(
+        ref for ref in images.list(IMAGE_REPOSITORY)
+        if ref != current and not ref.endswith(":<none>")
+    )
+
+
+def stray_index_files() -> list[Path]:
+    """Files under the name index that neither `metadata.json` nor the index's
+    own file table names: a retired ecosystem's list, a download that never
+    finished. The named files are what a scan reads and are never here."""
+    import json
+
+    # `ecosystems.INDEX_FILES` is what `name_index.FILES` is built from; read here
+    # rather than through `name_index`, which would put this module in the
+    # import component the cycle ratchet holds closed.
+    files = _ecosystems.INDEX_FILES
+    names = name_index()
+    if not names.is_dir():
+        return []
+    try:
+        metadata = json.loads((names / "metadata.json").read_text(encoding="utf-8"))
+        ecosystems = metadata.get("ecosystems") or {}
+    except (OSError, ValueError, AttributeError):
+        ecosystems = {}
+    named = {"metadata.json"} | {files[eco] for eco in ecosystems if eco in files}
+    return sorted(p for p in names.iterdir() if p.is_file() and p.name not in named)
+
+
+def prune(images: LocalImages | None) -> tuple[list[str], list[str]]:
+    """Remove the superseded images and the stray index files, under the exclusive
+    cache lock like `clear`. Returns (images removed, files removed). `images`
+    is None where no runtime was found: the files are still pruned."""
+    from . import locking
+
+    removed_images: list[str] = []
+    removed_files: list[str] = []
+    with locking.held(locking.cache_lock(root()), exclusive=True, wait=True):
+        for reference in superseded_images(images) if images is not None else []:
+            images.remove(reference)  # type: ignore[union-attr]
+            removed_images.append(reference)
+        for path in stray_index_files():
+            path.unlink()
+            removed_files.append(str(path))
+    return removed_images, removed_files
 
 
 def _tree_size(path: Path) -> int:

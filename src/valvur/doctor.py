@@ -301,7 +301,20 @@ def _check_image(runtime: str | None) -> tuple[Check, bool]:
         built = f"; starts (built from {digest[:8]})"
     else:
         built = "; starts"
+    # What this shim is not using and nothing removes (28.3.7): the tags earlier
+    # shims pulled. Named here; `valvur cache --prune` removes them.
+    superseded = _superseded_images(runtime)
+    if superseded:
+        tags = ", ".join(ref.rsplit(":", 1)[1] for ref in superseded)
+        built += f"; superseded: {tags} (valvur cache --prune)"
     return Check("image", "ok", f"{image}: {label}{built}"), True
+
+
+def _superseded_images(runtime: str) -> list[str]:
+    try:
+        return _cache.superseded_images(_cache.local_images(runtime))
+    except Exception:   # broad: a listing that fails names nothing, and says nothing
+        return []
 
 
 def _check_database() -> Check:
