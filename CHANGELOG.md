@@ -7,6 +7,25 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-26
+
+What the first usability gate found, fixed the same day. A Claude Code agent
+given the README scanned a real working tree — 312 tracked files, 107,544 on
+disk — and its first `scan` failed at the 300 s budget with every Scanner
+killed, the failure pointing at `doctor`, which said *ready*; thirty minutes
+to a first finding, and containers left running. Nine findings, each measured
+against the tree before it became a task, thirteen tasks in one unattended
+flow: excludes reach every Scanner before it reads (that tree: complete in
+88 s on the CLI, 119 s over MCP with the fetches inside, against a failure at
+300 s), a Scanner past its timeout is stopped, a budget cut names its cause
+and the three levers, `scan_status` says what is running, a scan counts what
+it will read and names the directory to exclude before it starts, the fleet's
+width follows the runtime's memory, every agent's client has its file and its
+snippet in one table that `doctor` reads too, the README's status line is
+checked daily against PyPI and GHCR, and every evidence an MCP reply carries
+is fenced. Also Checkov 3.3.19 and the base images with their tags beside
+their digests, so Dependabot follows the right lines.
+
 - **Every evidence an MCP reply carries is fenced.** `SUMMARY.md`'s machine
   block tells an agent that text inside the `[UNTRUSTED CONTENT …]` markers is
   data quoted from the repository; `explain_finding` and `list_findings` fenced
