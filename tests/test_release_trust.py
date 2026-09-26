@@ -109,45 +109,132 @@ def test_a_real_tag_must_be_signed_by_a_known_key_and_sit_on_main():
     assert "merge-base --is-ancestor" in verify, "verify does not check the tag is on main"
 
 
+SSH_SIGNATURE = "-----BEGIN SSH SIGNATURE-----"
+
+
+def _commit_object(git: str, repo: Path, ref: str) -> str:
+    """The commit as stored, or "" when the object is not here — a shallow clone."""
+    done = subprocess.run([git, "-C", str(repo), "cat-file", "-p", f"{ref}^{{commit}}"],
+                          capture_output=True, text=True, check=False)
+    return done.stdout if done.returncode == 0 else ""
+
+
+def _newest_ssh_signed(git: str, repo: Path, start: str, limit: int = 20) -> str | None:
+    """The first commit on `start`'s first-parent chain carrying an SSH signature —
+    the kind `.github/allowed_signers` can verify — as a full id, or None when the
+    chain runs out (a shallow clone) or `limit` commits pass without one.
+
+    A commit signed with GPG, or not signed, is passed over rather than failed.
+    Measured 2026-09-26 on PRs #103 to #107: Dependabot's commits are GPG-signed by
+    GitHub, and the required lint job failed all five on this test — the
+    repository's own dependency updates, which `dependabot.yml` calls necessary,
+    could not land. The signers file is a claim about the maintainer's key; a
+    commit by anyone else is nobody's claim about it.
+    """
+    ref = start
+    for _ in range(limit):
+        raw = _commit_object(git, repo, ref)
+        if not raw:
+            return None
+        header, _, _ = raw.partition("\n\n")
+        if SSH_SIGNATURE in header:
+            done = subprocess.run(
+                [git, "-C", str(repo), "rev-parse", "--verify", f"{ref}^{{commit}}"],
+                capture_output=True, text=True, check=False)
+            return done.stdout.strip() or None
+        parents = [line.split()[1] for line in header.splitlines() if line.startswith("parent ")]
+        if not parents:
+            return None
+        ref = parents[0]
+    return None
+
+
+def _git_or_skip() -> str:
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("git is not installed")
+    return git
+
+
+def test_the_walk_stops_at_the_newest_ssh_signed_commit_and_passes_over_the_rest(tmp_path):
+    """The helper the signers test relies on, on a repository built here: one
+    SSH-signed commit under two that are not. A commit that is not SSH-signed is
+    stepped over, not reported; a chain with none reports None rather than the
+    nearest thing."""
+    git = _git_or_skip()
+    keygen = shutil.which("ssh-keygen")
+    if keygen is None:
+        pytest.skip("ssh-keygen is not installed")
+    key = tmp_path / "key"
+    subprocess.run([keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def run(*args: str) -> str:
+        done = subprocess.run([git, "-C", str(repo), *args],
+                              capture_output=True, text=True, check=False)
+        assert done.returncode == 0, (args, done.stderr)
+        return done.stdout.strip()
+
+    run("init", "-q")
+    run("config", "user.email", "t@example.invalid")
+    run("config", "user.name", "t")
+    run("config", "gpg.format", "ssh")
+    run("config", "user.signingkey", str(key.with_suffix(".pub")))
+    (repo / "a").write_text("a")
+    run("add", "a")
+    run("commit", "-q", "--no-gpg-sign", "-m", "unsigned root")
+    assert _newest_ssh_signed(git, repo, "HEAD") is None, "an unsigned chain reported a commit"
+
+    (repo / "b").write_text("b")
+    run("add", "b")
+    run("commit", "-q", "-S", "-m", "signed")
+    signed = run("rev-parse", "HEAD")
+    assert SSH_SIGNATURE in _commit_object(git, repo, signed), "the fixture is not SSH-signed"
+
+    (repo / "c").write_text("c")
+    run("add", "c")
+    run("commit", "-q", "--no-gpg-sign", "-m", "unsigned tip — Dependabot's shape")
+
+    assert _newest_ssh_signed(git, repo, "HEAD") == signed
+    assert _newest_ssh_signed(git, repo, signed) == signed
+    assert _newest_ssh_signed(git, repo, "HEAD", limit=1) is None, "the limit did not hold"
+
+
 def test_the_allowed_signers_file_verifies_the_tree_it_is_committed_to():
-    """Not a literal: the same file, applied by the same git, must verify HEAD's own
-    signature — every commit on main is signed with the release key, so a file
-    that cannot verify HEAD could not verify a tag either."""
+    """Not a literal: the same file, applied by the same git, must verify a real
+    signature from this tree — the newest SSH-signed commit on `main`'s chain,
+    which is the maintainer's. A file that cannot verify that could not verify a
+    tag either.
+
+    On a `pull_request` run HEAD is the merge commit GitHub makes for the event,
+    GPG-signed by GitHub: its first parent is the base, its second the PR's
+    commit (read from the raw object — a shallow checkout grafts them away from
+    `%P`; PR #88). The base's chain is the target, the PR's the fallback: the
+    PR's own commit is deliberately not the claim under test, because a
+    contributor's key, or Dependabot's GPG signature, says nothing about the
+    release key — and until 2026-09-26 this test failed every Dependabot PR
+    (#103 to #107) for exactly that reason."""
     assert ALLOWED_SIGNERS.is_file(), "no .github/allowed_signers"
     lines = [line for line in ALLOWED_SIGNERS.read_text().splitlines()
              if line.strip() and not line.startswith("#")]
     assert lines and all(len(line.split()) >= 3 and "ssh-" in line for line in lines), lines
 
-    git = shutil.which("git")
-    if git is None or not (REPO / ".git").exists():
+    git = _git_or_skip()
+    if not (REPO / ".git").exists():
         pytest.skip("not a git checkout")
 
-    def read(*fmt: str, ref: str = "HEAD") -> str:
-        return subprocess.run([git, "-C", str(REPO), "log", "-1", f"--format={' '.join(fmt)}", ref],
-                              capture_output=True, text=True, check=False).stdout.strip()
+    head = _commit_object(git, REPO, "HEAD")
+    committer = re.search(r"^committer .*<([^>]*)>", head, re.M)
+    parents = [line.split()[1] for line in head.splitlines() if line.startswith("parent ")]
+    candidates = ["HEAD"]
+    if committer and committer.group(1) == "noreply@github.com" and len(parents) == 2:
+        candidates = [parents[0], parents[1]]
 
-    # On a `pull_request` run HEAD is the merge commit GitHub makes for the
-    # event, GPG-signed by GitHub and by nobody in the signers file — the commit
-    # the PR is about is its second parent. Measured on PR #86: verifying HEAD
-    # there failed every run of a stack whose own commits all verified. The
-    # parents are read from the raw object: a shallow checkout grafts them away
-    # from `%P`, which is how the first version of this branch still verified
-    # HEAD (PR #88, the same failure).
-    target = "HEAD"
-    raw = subprocess.run([git, "-C", str(REPO), "cat-file", "-p", "HEAD"],
-                         capture_output=True, text=True, check=False).stdout
-    parents = [line.split()[1] for line in raw.splitlines() if line.startswith("parent ")]
-    if read("%ce") == "noreply@github.com" and len(parents) == 2:
-        present = subprocess.run([git, "-C", str(REPO), "cat-file", "-e", parents[1]],
-                                 capture_output=True, check=False).returncode == 0
-        if not present:
-            pytest.skip("a shallow checkout of a merge ref: the PR's own commit is not here")
-        target = parents[1]
-    status = read("%G?", ref=target)
-    if status not in ("G", "U", "E", "N", "B", "X", "Y", "R", ""):
-        pytest.skip(f"unexpected signature status {status!r}")
-    if status == "N":
-        pytest.skip(f"{target} is unsigned — a local work-in-progress commit")
+    target = next((c for c in (_newest_ssh_signed(git, REPO, c) for c in candidates) if c), None)
+    if target is None:
+        pytest.skip("no SSH-signed commit within reach of HEAD — a shallow clone of "
+                    "GPG-signed or unsigned history")
     done = subprocess.run(
         [git, "-C", str(REPO), "-c", f"gpg.ssh.allowedSignersFile={ALLOWED_SIGNERS}",
          "verify-commit", target],
