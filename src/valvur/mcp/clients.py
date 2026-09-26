@@ -88,6 +88,48 @@ CLIENTS: tuple[Client, ...] = (
 )
 
 
+#: Where the files are on disk, per client, with `~` the home directory,
+#: `{code-storage}` VS Code's global storage (an extension's settings live there)
+#: and everything else relative to the workspace (29.2.2). Descriptive names in
+#: `files` above are for people; these are for `doctor`.
+LOOKUPS: dict[str, tuple[str, ...]] = {
+    "claude-code": (".mcp.json", "~/.claude.json"),
+    "kiro": (".kiro/settings/mcp.json", "~/.kiro/settings/mcp.json"),
+    "codex": ("~/.codex/config.toml",),
+    "cursor": (".cursor/mcp.json", "~/.cursor/mcp.json"),
+    "vscode": (".vscode/mcp.json",),
+    "windsurf": ("~/.codeium/windsurf/mcp_config.json",),
+    "cline": ("{code-storage}/saoudrizwan.claude-dev/settings/cline_mcp_settings.json",),
+    "roo": (".roo/mcp.json",),
+    "continue": (".continue/config.yaml", "~/.continue/config.yaml"),
+    "gemini-cli": (".gemini/settings.json", "~/.gemini/settings.json"),
+    "zed": ("~/.config/zed/settings.json",),
+}
+
+
+def code_storage(home, system: str):
+    """VS Code's global storage directory on this platform."""
+    if system == "Darwin":
+        return home / "Library" / "Application Support" / "Code" / "User" / "globalStorage"
+    if system == "Windows":
+        return home / "AppData" / "Roaming" / "Code" / "User" / "globalStorage"
+    return home / ".config" / "Code" / "User" / "globalStorage"
+
+
+def lookups(entry: Client, workspace, home, system: str):
+    """(label, path) pairs for `doctor`: the label as a person would write it."""
+    out = []
+    for pattern in LOOKUPS[entry.key]:
+        if pattern.startswith("~/"):
+            out.append((pattern, home / pattern[2:]))
+        elif pattern.startswith("{code-storage}/"):
+            tail = pattern[len("{code-storage}/"):]
+            out.append((f"VS Code global storage: {tail}", code_storage(home, system) / tail))
+        else:
+            out.append((pattern, workspace / pattern))
+    return out
+
+
 def client(key: str) -> Client:
     for entry in CLIENTS:
         if entry.key == key:

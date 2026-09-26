@@ -455,27 +455,28 @@ def _check_workspace(workspace: Path) -> Check:
 
 
 def _check_mcp(workspace: Path) -> Check:
-    """Which agent, if any, has been told about this server — Claude Code and Kiro,
-    the two clients the README's snippets address (P6)."""
+    """Which agent, if any, has been told about this server — every client in
+    `mcp.clients` (29.2.2), each file in its own shape, and whether the command
+    it names is on PATH (10.2's claim 3: a server that cannot start must not
+    look like one that does nothing)."""
+    from .mcp import clients as _clients
+
     home = Path.home()
     found: list[str] = []
 
     claude_disabled = _claude_disabled(workspace, home)
-    for shown, path, project in (
-        (".mcp.json", workspace / ".mcp.json", None),
-        ("~/.claude.json", home / ".claude.json", None),
-        ("~/.claude.json [this project]", home / ".claude.json", str(workspace)),
-    ):
-        found += _servers_in(shown, path, project=project, disabled_by=claude_disabled)
-    for shown, path in (
-        (".kiro/settings/mcp.json", workspace / ".kiro" / "settings" / "mcp.json"),
-        ("~/.kiro/settings/mcp.json", home / ".kiro" / "settings" / "mcp.json"),
-    ):
-        found += _servers_in(shown, path, project=None, disabled_by={})
+    for entry in _clients.CLIENTS:
+        for shown, path in _clients.lookups(entry, workspace, home, _platform()):
+            disabled_by = claude_disabled if entry.key == "claude-code" else {}
+            found += _configured_in(shown, path, entry.shape, disabled_by=disabled_by)
+            if entry.key == "claude-code" and shown == "~/.claude.json":
+                # Claude Code's user file also scopes servers to a project.
+                found += _servers_in("~/.claude.json [this project]", path,
+                                     project=str(workspace), disabled_by=claude_disabled)
     if not found:
         found.append("no MCP client configuration names valvur here (Claude Code: "
-                     ".mcp.json, ~/.claude.json; Kiro: .kiro/settings/mcp.json); the CLI "
-                     "needs none")
+                     ".mcp.json, ~/.claude.json; Kiro: .kiro/settings/mcp.json; nine more "
+                     "in `valvur doctor --client`); the CLI needs none")
     switched_off = _kiro_switched_off(workspace, home)
     if switched_off:
         found.append(f"kiroAgent.configureMCP is Disabled in {switched_off}, so Kiro "
@@ -496,7 +497,7 @@ def _read_json(path: Path) -> dict | None:
 
 
 def _servers_in(shown: str, path: Path, *, project: str | None,
-                disabled_by: dict[str, str]) -> list[str]:
+                disabled_by: dict[str, str], key: str = "mcpServers") -> list[str]:
     data = _read_json(path)
     if data is None:
         return []
@@ -504,12 +505,24 @@ def _servers_in(shown: str, path: Path, *, project: str | None,
         return [f"{shown}: unreadable (not JSON)"]
     if project is not None:
         data = (data.get("projects") or {}).get(project) or {}
-    servers = data.get("mcpServers") or {}
+    return _named(shown, data.get(key) or {}, disabled_by)
+
+
+def _named(shown: str, servers: dict, disabled_by: dict[str, str]) -> list[str]:
+    """The servers in a map that name valvur, each as one line — and whether the
+    program each names is on PATH (29.2.2)."""
+    import shutil
+
     out = []
     for name, spec in servers.items():
         if not isinstance(spec, dict):
             continue
-        command = " ".join([str(spec.get("command") or ""), *map(str, spec.get("args") or [])])
+        program = spec.get("command")
+        args = spec.get("args") or []
+        if isinstance(program, dict):   # Zed's older shape: command = {path, args}
+            args = program.get("args") or args
+            program = program.get("path")
+        command = " ".join([str(program or ""), *map(str, args)])
         if name != "valvur" and "valvur" not in command:
             continue
         line = f"{shown}: {name} ({command.strip()})"
@@ -517,8 +530,44 @@ def _servers_in(shown: str, path: Path, *, project: str | None,
             line += ", DISABLED"
         elif name in disabled_by:
             line += f", DISABLED in {disabled_by[name]}"
+        if program and shutil.which(str(program)) is None:
+            line += f", `{program}` is not on PATH"
         out.append(line)
     return out
+
+
+def _configured_in(shown: str, path: Path, shape: str, *,
+                   disabled_by: dict[str, str]) -> list[str]:
+    """One client's file, in its own shape (29.2.2)."""
+    if shape.startswith("json-"):
+        return _servers_in(shown, path, project=None, disabled_by=disabled_by,
+                           key=shape.split("-", 1)[1])
+    if shape == "toml":
+        import tomllib
+
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+        except OSError:
+            return []
+        except tomllib.TOMLDecodeError:
+            return [f"{shown}: unreadable (not TOML)"]
+        return _named(shown, data.get("mcp_servers") or {}, disabled_by)
+    # YAML, without a parser: Continue's list of `- name:` entries, read by line.
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    entries: dict[str, dict] = {}
+    current: dict | None = None
+    for raw in lines:
+        text = raw.strip()
+        if text.startswith("- name:"):
+            current = entries.setdefault(text.split(":", 1)[1].strip(), {"args": []})
+        elif current is not None and text.startswith("command:"):
+            current["command"] = text.split(":", 1)[1].strip()
+        elif current is not None and text.startswith("- ") and "args" in current:
+            current["args"].append(text[2:].strip())
+    return _named(shown, entries, disabled_by)
 
 
 def _claude_disabled(workspace: Path, home: Path) -> dict[str, str]:

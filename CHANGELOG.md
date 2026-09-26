@@ -7,6 +7,15 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **`valvur doctor` knows every client, and prints any client's snippet.** Its
+  MCP check read Claude Code's and Kiro's files; it now reads every file in the
+  client table — eleven clients, JSON in three shapes, TOML, YAML — says which
+  names valvur, which is switched off, and whether the program a server names
+  is on `PATH`; `valvur doctor --client codex` prints that client's file and
+  snippet from the same table the README renders from. Measured with Claude
+  Code's own CLI: a malformed `.mcp.json` is reported with its path, but a
+  server whose command is not on `PATH` shows only *pending approval* until
+  the project server is approved — `doctor` says it first (29.2.2).
 - **Add it to your agent: every client, its file, its shape.** The README gave
   one JSON block and named no file, and the first gate's participant found
   `.mcp.json` from `doctor`'s output. One table now renders the README's

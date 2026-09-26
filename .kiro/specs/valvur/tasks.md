@@ -8414,7 +8414,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   file in the table, and the snippet printer, are 29.2.2.
 
 
-- [ ] **29.2.2** **`doctor` knows every client (B8; 10.2 claim 3).** Measured:
+- [x] **29.2.2** **`doctor` knows every client (B8; 10.2 claim 3).** Measured:
   `_check_mcp` reads Claude Code's and Kiro's files. Extend it to every file in
   29.2.1's matrix — configured, disabled, or a command that is not on `PATH`
   — and give it a printer: `valvur doctor --client codex` (each name in the
@@ -8425,6 +8425,29 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   shows recorded in the README's section, because an agent that swallows the
   server's stderr shows the user nothing. **Held by:** `doctor`'s tests over
   a fake home with each client's file, the snippet table's round-trip test.
+
+  **STATUS 2026-09-26:** ✅ `_check_mcp` iterates `mcp.clients.CLIENTS` through
+  `lookups()` — the real paths, `~` and VS Code's global storage resolved per
+  platform — and reads each file in its shape: JSON under `mcpServers`,
+  `servers` or `context_servers` (Zed's older `command = {path, args}` too),
+  TOML under `mcp_servers`, Continue's YAML by a line scan without a parser;
+  Claude Code's user file keeps its per-project scope and its `disabled`
+  lists. Every server that names valvur is one line — file, name, command —
+  with *DISABLED* where the client says so and *`prog` is not on PATH* when
+  `shutil.which` cannot find the program (claim 3's half a scan can answer);
+  a file that will not parse reads *unreadable (not JSON/TOML)*. `valvur
+  doctor --client <name>` prints the file and the snippet from the table and
+  nothing else; the doctor help golden re-taken for the option. **Claim 3,
+  measured with Claude Code's CLI in a scratch project:** a malformed
+  `.mcp.json` → *[Failed to parse] … MCP config is not a valid JSON*, with the
+  path (diagnosable); a command not on PATH → *⏸ Pending approval (run `claude`
+  to approve)* and nothing else, because an unapproved project server is not
+  health-checked — the one case the README now names and `doctor` answers
+  before the approval. Held by fifteen tests: every client's file read in its
+  shape, the PATH line, the unreadable lines, the none-found sentence, and the
+  printer for each of the eleven.
+
+
 - [ ] **29.2.3** **The agent-driven pass, measured (10.2 claims 1–2, 10.5
   claim 12; §5 of the record).** *Owner-assisted:* the record could not run
   the model because the desktop app's session cannot be used by a child

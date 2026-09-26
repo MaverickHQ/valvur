@@ -106,8 +106,13 @@ path and the direct package to bump.
 
 Add valvur to your agent's MCP configuration — one server, `uvx --from valvur valvur-mcp`,
 no install step. Each client reads it from its own file, in its own shape. The two
-marked *measured* were run here; the rest are the shape each client documents, dated,
-and `valvur doctor` reads every one of these files.
+marked *measured* were run here; the rest are the shape each client documents, dated.
+`valvur doctor` reads every one of these files and says which names valvur, which is
+switched off, and whether the command it names is on `PATH`; `valvur doctor --client
+codex` prints the snippet for any of them. Measured with Claude Code's own CLI: a
+malformed `.mcp.json` is reported (*MCP config is not a valid JSON*, with the path),
+but a server whose command is not on `PATH` shows only *pending approval* until the
+project server is approved — `doctor` says it first.
 
 <!-- clients:start — rendered from valvur.mcp.clients; a test holds this block to it -->
 

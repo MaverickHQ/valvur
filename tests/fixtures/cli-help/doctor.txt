@@ -1,13 +1,16 @@
-usage: valvur doctor [-h] [--network] [--bundle [DIR]] [path]
+usage: valvur doctor [-h] [--network] [--client CLIENT] [--bundle [DIR]] [path]
 
 positional arguments:
-  path            Workspace to check
+  path             Workspace to check
 
 options:
-  -h, --help      show this help message and exit
-  --network       Also probe whether the registries a first run and the full profile need are
-                  reachable (one bounded TCP connect per host). Off by default: without it doctor
-                  opens no socket.
-  --bundle [DIR]  Also write a tarball for an issue into DIR (default: here): this report, the
-                  versions of everything involved, and the last scan's run.json. Never source,
-                  never raw output, never findings.
+  -h, --help       show this help message and exit
+  --network        Also probe whether the registries a first run and the full profile need are
+                   reachable (one bounded TCP connect per host). Off by default: without it doctor
+                   opens no socket.
+  --client CLIENT  Print the file and the snippet for one MCP client, and nothing else: claude-
+                   code, kiro, codex, cursor, vscode, windsurf, cline, roo, continue, gemini-cli,
+                   zed
+  --bundle [DIR]   Also write a tarball for an issue into DIR (default: here): this report, the
+                   versions of everything involved, and the last scan's run.json. Never source,
+                   never raw output, never findings.

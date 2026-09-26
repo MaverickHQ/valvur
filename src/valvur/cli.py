@@ -443,6 +443,13 @@ def build_parser() -> argparse.ArgumentParser:
         "are reachable (one bounded TCP connect per host). Off by default: without it "
         "doctor opens no socket.",
     )
+    from .mcp.clients import CLIENTS as _CLIENTS
+
+    doctor_cmd.add_argument(
+        "--client", choices=[c.key for c in _CLIENTS], metavar="CLIENT",
+        help="Print the file and the snippet for one MCP client, and nothing else: "
+        + ", ".join(c.key for c in _CLIENTS),
+    )
     doctor_cmd.add_argument(
         "--bundle", nargs="?", const=".", default=None, metavar="DIR",
         help="Also write a tarball for an issue into DIR (default: here): this report, "
@@ -542,6 +549,16 @@ def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
     """`doctor`: every precondition a scan needs, and `--bundle`."""
     from . import doctor as _doctor
 
+    if getattr(args, "client", None):
+        # The snippet a person pastes (29.2.2), from the one table the README
+        # renders from, so the two cannot disagree.
+        from .mcp import clients as _clients
+
+        entry = _clients.client(args.client)
+        print(f"{entry.name} reads {' or '.join(entry.files)}:\n")
+        print(_clients.snippet(entry))
+        print(f"Then: {entry.after}. ({entry.verified}.)")
+        return 0
     workspace = Path(args.path).resolve()
     checks = _doctor.run(workspace, network=args.network)
     print(_doctor.render(checks, workspace))
