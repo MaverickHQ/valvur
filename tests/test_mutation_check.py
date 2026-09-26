@@ -64,11 +64,12 @@ def test_a_diff_is_read_as_one_hunk_per_change(harness):
         ("src/valvur/b.py", "@@ -1,2 +1 @@"),
     ]
     assert hunks[0].body == ["-    return 1", "+    return 2"]
-    assert hunks[2].added == ["# new comment"] and hunks[2].removed == ["# old comment", "# another"]
+    assert hunks[2].added == ["# new comment"]
+    assert hunks[2].removed == ["# old comment", "# another"]
 
 
 def test_a_reverting_patch_is_that_hunk_alone_with_its_file_headers(harness):
-    [first, second, _] = harness.hunks(DIFF)
+    [_, second, _] = harness.hunks(DIFF)
 
     patch = harness.revert_patch(second)
 

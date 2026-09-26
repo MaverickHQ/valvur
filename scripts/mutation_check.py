@@ -154,8 +154,9 @@ def main(argv: list[str] | None = None) -> int:
                 "not applied": "skip"}[verdict]
         print(f"  {mark}  {hunk.path} {hunk.header.split(' @@')[0]}  {verdict}")
         if verdict == "survived":
-            print(f"::warning file={hunk.path}::reverting this hunk ({hunk.header.split(' @@')[0]}) "
-                  "fails no unit test — the change's own tests do not cover it")
+            where = hunk.header.split(" @@")[0]
+            print(f"::warning file={hunk.path}::reverting this hunk ({where}) fails no "
+                  "unit test — the change's own tests do not cover it")
     caught = sum(1 for _, v in report if v == "caught")
     print(f"mutation check: {caught} hunk(s) caught, {len(survivors)} survived, "
           f"{sum(1 for _, v in report if v == 'no code change')} documentation only, "
