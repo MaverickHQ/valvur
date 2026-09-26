@@ -1,0 +1,10 @@
+usage: valvur update [-h] [--if-stale] [--build-index]
+
+options:
+  -h, --help     show this help message and exit
+  --if-stale     Do nothing unless the database or the index is actually out of date. Cheap enough
+                 to put in a pre-commit hook, a cron entry or CI — the freshness check needs no
+                 network at all.
+  --build-index  Build the package-name index from the registries themselves instead of pulling
+                 the published one. Minutes rather than seconds; what the daily workflow that
+                 publishes the index runs, and the fallback when it is unreachable.

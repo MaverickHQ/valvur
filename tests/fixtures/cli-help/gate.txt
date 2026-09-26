@@ -1,0 +1,12 @@
+usage: valvur gate [-h] [--fail-on {critical,high,medium,low,any}] [--no-inconclusive] [path]
+
+positional arguments:
+  path                  Workspace that was scanned
+
+options:
+  -h, --help            show this help message and exit
+  --fail-on {critical,high,medium,low,any}
+                        Lowest severity of an active finding that fails the gate (default: high).
+                        `any` is every active finding — what valvur's own release gate uses.
+  --no-inconclusive     Also fail an `inconclusive` scan: one whose data was too old to be
+                        evidence, or that never inspected part of the tree.

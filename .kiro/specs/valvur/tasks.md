@@ -7638,13 +7638,39 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   first, six (`tests/test_vocabulary.py`); mypy the second test, clean; 1,145
   unit tests; e2e green on an image rebuilt from the tree.
 
-- [ ] **28.4.2** **Three modules, one job each (A3).** `name_index.py` (799 lines)
+- [x] **28.4.2** **Three modules, one job each (A3).** `name_index.py` (799 lines)
   is two products — the reader the scan needs and the builder only the workflow
   runs, so the hot path imports `csv`, `tarfile` and five registry walkers;
   `cli.py` (617) has `main()` at 292 lines; `api.py` (716) has `_scan_locked`
   at 165 and `operations.scan_status` at 127. `name_index/{reader, published,
   build}`; `cli.main` as a command table; `_scan_locked` as fetch, fleet,
   assemble. 27.3.3's method: goldens first, then the move, byte-identical after.
+
+  **STATUS 2026-09-26:** ✅ Three moves, three commits, one PR; every one
+  behaviour-preserving by a golden that was written first. **`name_index` is a
+  package:** `reader.py` (191 lines: the memory-mapped file, the on-disk
+  contract, the environment names — what a scan needs, importing nothing that
+  fetches), `published.py` (228: the signed OCI pull every `valvur update`
+  makes), `build.py` (410: the mirror and the five registry walkers, which only
+  the publishing workflow and the fallback run) and an `__init__` that
+  re-exports the surface; `python -m valvur.name_index` still builds and pulls.
+  Cross-module references go through the module object and every caller and
+  test names the module that defines what it patches — a `monkeypatch` on the
+  package's re-export reaches nothing, which the first run of the split's
+  goldens (the four index test files, 47 tests) showed twice, once for the
+  tests and once for `api`, `cli` and `doctor`. **`cli.main` is a table:**
+  ten goldens of `valvur --help` and every subcommand's, generated *before*
+  the move and byte for byte after it; `build_parser()`, seven `_cmd_*`
+  functions, `COMMANDS`, and a `main` of two lines — a test holds the table to
+  the parser's subcommands and `main` to its two lines. **`_scan_locked` is
+  three functions:** `_preflight` (F1.9, the mount, the tree hash),
+  `_fleet` (the pool and the budget), `_assemble` (the pipeline into one
+  ScanRun, written as one generation), cut at the seams the comments already
+  drew; the outcome, budget and first-run tests are its goldens. 1,156 unit
+  tests, mypy, ruff; e2e green on an image rebuilt from the tree.
+  `operations.scan_status`, 127 lines in the task's count, was not split:
+  28.2.2 made it the one pass that renders both forms of the reply, and two
+  functions would be two chances to disagree.
 
 - [x] **28.4.3** **The constraint suite, split (A4).** `tests/test_constraints.py`
   is 1,442 lines — budgets, workflow shape, licences, memory and design

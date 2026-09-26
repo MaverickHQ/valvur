@@ -1,0 +1,8 @@
+usage: valvur explain [-h] fingerprint [path]
+
+positional arguments:
+  fingerprint
+  path
+
+options:
+  -h, --help   show this help message and exit

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -345,7 +346,11 @@ def _refresh_kev() -> None:
     print(f"KEV refreshed: {len(entries)} entries (catalog {raw.get('catalogVersion','?')}).")
 
 
-def main(argv: list[str] | None = None, *, runner=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The nine commands and their arguments — what `valvur --help` prints, held
+    byte for byte by `tests/test_cli_help_golden.py` across the move that made
+    `main` a table (28.4.2)."""
+    parser = argparse.ArgumentParser(prog="valvur", description=__doc__)
     parser = argparse.ArgumentParser(prog="valvur", description=__doc__)
     # One issue template asks people to run this and it did not exist (task 16.4) —
     # the same class as the verification command found in 11.0, and found the same
@@ -484,96 +489,111 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
                               help="Days until the suppression expires (default: 90)")
     suppress_cmd.add_argument("--reason", default="", help="Why this risk is accepted")
 
-    args = parser.parse_args(argv)
+    return parser
 
-    if args.command in {"findings", "explain", "status"}:
-        from . import operations
 
-        handler = {
-            "findings": operations.list_findings,
-            "explain": operations.explain_finding,
-            "status": operations.scan_status,
-        }[args.command]
-        payload = {"workspace": args.path}
-        for field in ("status", "limit", "fingerprint"):
-            if getattr(args, field, None) is not None:
-                payload[field] = getattr(args, field)
-        if getattr(args, "include_suppressed", False):
-            payload["include_suppressed"] = True
-        try:
-            print(handler(payload))
-        except (FileNotFoundError, ValueError) as exc:
-            print(str(exc))
-            return 1
-        return 0
+def _cmd_read(args: argparse.Namespace, runner=None) -> int:
+    """`findings`, `explain`, `status`: the same operations the MCP tools call (F9.3)."""
+    from . import operations
 
-    if args.command == "suppress":
-        return _print_suppression(args)
+    handler = {
+        "findings": operations.list_findings,
+        "explain": operations.explain_finding,
+        "status": operations.scan_status,
+    }[args.command]
+    payload = {"workspace": args.path}
+    for field in ("status", "limit", "fingerprint"):
+        if getattr(args, field, None) is not None:
+            payload[field] = getattr(args, field)
+    if getattr(args, "include_suppressed", False):
+        payload["include_suppressed"] = True
+    try:
+        print(handler(payload))
+    except (FileNotFoundError, ValueError) as exc:
+        print(str(exc))
+        return 1
+    return 0
 
-    if args.command == "gate":
-        import os
 
-        verdict = _gate.evaluate(Path(args.path).resolve(), fail_on=args.fail_on,
-                                 no_inconclusive=args.no_inconclusive)
-        print(_gate.render(verdict, annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
-        return verdict.exit_code
+def _cmd_suppress(args: argparse.Namespace, runner=None) -> int:
+    """`suppress`: a ready-to-paste block; never writes."""
+    return _print_suppression(args)
 
-    if args.command == "cache":
-        return _print_cache(clear=args.clear, prune=args.prune)
 
-    if args.command == "doctor":
-        from . import doctor as _doctor
+def _cmd_gate(args: argparse.Namespace, runner=None) -> int:
+    """`gate`: exit 1 if the last scan should not ship."""
+    import os
 
-        workspace = Path(args.path).resolve()
-        checks = _doctor.run(workspace, network=args.network)
-        print(_doctor.render(checks, workspace))
-        if args.bundle is not None:
-            archive = _doctor.bundle(workspace, checks, Path(args.bundle))
-            print(f"bundle: {archive} — the report above, the versions, the last "
-                  "run.json; never source, never raw output. Attach it to an issue.")
-        return 1 if _doctor.failed(checks) else 0
+    verdict = _gate.evaluate(Path(args.path).resolve(), fail_on=args.fail_on,
+                             no_inconclusive=args.no_inconclusive)
+    print(_gate.render(verdict, annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
+    return verdict.exit_code
 
-    if args.command == "update":
-        from . import cache
-        from .runner import ContainerRunner
 
-        if getattr(args, "if_stale", False):
-            database_due = _database_needs_refresh()
-            index_due = _name_index_needs_refresh()
-            if not database_due and not index_due:
-                age = cache.db_age_days()
-                print(f"Database is {age:.1f} days old and current enough. Nothing to do.")
-                return 0
-            if not database_due:
-                # The database is fine and only the index is due: do that one thing.
-                # A 116MB download to refresh a 4MB list is not what --if-stale means.
-                return 0 if _refresh_name_index(build=args.build_index) else 1
+def _cmd_cache(args: argparse.Namespace, runner=None) -> int:
+    """`cache`: the inventory, `--clear`, `--prune`."""
+    return _print_cache(clear=args.clear, prune=args.prune)
 
-        runner = runner or ContainerRunner()
-        # The image first (23.2.4): the database update runs Trivy *inside* it, so
-        # a missing image was being pulled here anyway — silently, under Trivy's
-        # name, and again on the first scan if `update` was skipped. Said, sized
-        # from the registry when it can be, and streamed to the terminal.
-        if not _ensure_image_for_update(runner):
-            return 1
-        # 116 MB compressed, measured 2026-09-05 against the published artifact. The
-        # help text said 1.2GB for months — that is the UNCOMPRESSED size on disk,
-        # and quoting it discouraged exactly the update this tool depends on.
-        print("Fetching the vulnerability database (about 116MB)...")
-        result = runner.update_db()
-        if result.exit_code != 0:
-            print(f"Update failed: {result.stderr.strip()[-300:]}")
-            return 1
-        from . import cache
 
-        _refresh_kev()
-        # The index is part of what "updated" means now (ADR-0018): a scan without
-        # it fails its dependency check loudly. So its failure fails the command —
-        # unlike KEV, which has a bundled snapshot to fall back on.
-        index_ok = _refresh_name_index(build=args.build_index)
-        print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
-        return 0 if index_ok else 1
+def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
+    """`doctor`: every precondition a scan needs, and `--bundle`."""
+    from . import doctor as _doctor
 
+    workspace = Path(args.path).resolve()
+    checks = _doctor.run(workspace, network=args.network)
+    print(_doctor.render(checks, workspace))
+    if args.bundle is not None:
+        archive = _doctor.bundle(workspace, checks, Path(args.bundle))
+        print(f"bundle: {archive} — the report above, the versions, the last "
+              "run.json; never source, never raw output. Attach it to an issue.")
+    return 1 if _doctor.failed(checks) else 0
+
+
+def _cmd_update(args: argparse.Namespace, runner=None) -> int:
+    """`update`: the image, the database, the KEV copy and the index."""
+    from . import cache
+    from .runner import ContainerRunner
+
+    if getattr(args, "if_stale", False):
+        database_due = _database_needs_refresh()
+        index_due = _name_index_needs_refresh()
+        if not database_due and not index_due:
+            age = cache.db_age_days()
+            print(f"Database is {age:.1f} days old and current enough. Nothing to do.")
+            return 0
+        if not database_due:
+            # The database is fine and only the index is due: do that one thing.
+            # A 116MB download to refresh a 4MB list is not what --if-stale means.
+            return 0 if _refresh_name_index(build=args.build_index) else 1
+
+    runner = runner or ContainerRunner()
+    # The image first (23.2.4): the database update runs Trivy *inside* it, so
+    # a missing image was being pulled here anyway — silently, under Trivy's
+    # name, and again on the first scan if `update` was skipped. Said, sized
+    # from the registry when it can be, and streamed to the terminal.
+    if not _ensure_image_for_update(runner):
+        return 1
+    # 116 MB compressed, measured 2026-09-05 against the published artifact. The
+    # help text said 1.2GB for months — that is the UNCOMPRESSED size on disk,
+    # and quoting it discouraged exactly the update this tool depends on.
+    print("Fetching the vulnerability database (about 116MB)...")
+    result = runner.update_db()
+    if result.exit_code != 0:
+        print(f"Update failed: {result.stderr.strip()[-300:]}")
+        return 1
+    from . import cache
+
+    _refresh_kev()
+    # The index is part of what "updated" means now (ADR-0018): a scan without
+    # it fails its dependency check loudly. So its failure fails the command —
+    # unlike KEV, which has a bundled snapshot to fall back on.
+    index_ok = _refresh_name_index(build=args.build_index)
+    print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
+    return 0 if index_ok else 1
+
+
+def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
+    """`scan`: the Scan Run, from the terminal."""
     if runner is None:
         from .runner import ContainerRunner
 
@@ -653,6 +673,27 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
 
     # Findings never fail the run (N3.2). Only a failed Scan Run exits non-zero.
     return 0
+
+
+#: One command, one function (28.4.2): `main` was 292 lines of parsers and an
+#: `if args.command ==` chain, and the only way to find `doctor`'s behaviour was
+#: to read past `update`'s. A test holds this table to the parser's subcommands.
+COMMANDS: dict[str, Callable[[argparse.Namespace, object], int]] = {
+    "findings": _cmd_read,
+    "explain": _cmd_read,
+    "status": _cmd_read,
+    "suppress": _cmd_suppress,
+    "gate": _cmd_gate,
+    "cache": _cmd_cache,
+    "doctor": _cmd_doctor,
+    "update": _cmd_update,
+    "scan": _cmd_scan,
+}
+
+
+def main(argv: list[str] | None = None, *, runner=None) -> int:
+    args = build_parser().parse_args(argv)
+    return COMMANDS[args.command](args, runner)
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,0 +1,23 @@
+usage: valvur [-h] [--version]
+              {scan,update,findings,explain,status,doctor,gate,cache,suppress} ...
+
+Command line interface.
+
+positional arguments:
+  {scan,update,findings,explain,status,doctor,gate,cache,suppress}
+    scan                Scan a workspace
+    update              Pull the image if it is not local, and fetch the vulnerability database
+                        and the package-name index into the local cache
+    findings            List findings from the last scan
+    explain             Explain one finding in full
+    status              What the last scan actually did
+    doctor              Check that this machine can scan — runtime, image, database, index,
+                        SELinux, TLS trust, MCP client configuration — and say what to fix
+    gate                Exit 1 if the last scan's results should not ship: an incomplete run, a
+                        lapsed suppression, or an active finding at or above --fail-on. For CI.
+    cache               What is in the host cache, how old and how large; --clear removes it
+    suppress            Print a ready-to-paste suppression block for a finding (never writes)
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit

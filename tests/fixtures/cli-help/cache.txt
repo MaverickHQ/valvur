@@ -1,0 +1,9 @@
+usage: valvur cache [-h] [--clear] [--prune]
+
+options:
+  -h, --help  show this help message and exit
+  --clear     Remove the vulnerability database, the package-name index and the KEV copy. Waits
+              for a running scan. The next scan fetches them again.
+  --prune     Remove the published image's local tags that are not this shim's version, and index
+              files the metadata no longer names — each listed first. Never the database, never
+              this shim's image. Waits for a running scan.

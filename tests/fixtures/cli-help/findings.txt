@@ -1,0 +1,12 @@
+usage: valvur findings [-h] [--status {new,persisting,regressed}] [--limit LIMIT]
+                       [--include-suppressed]
+                       [path]
+
+positional arguments:
+  path
+
+options:
+  -h, --help            show this help message and exit
+  --status {new,persisting,regressed}
+  --limit LIMIT
+  --include-suppressed

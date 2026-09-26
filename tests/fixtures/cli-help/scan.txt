@@ -1,0 +1,21 @@
+usage: valvur scan [-h] [--profile {offline,full}] [--offline] [--budget SECONDS] [--jobs N]
+                   [path]
+
+positional arguments:
+  path                  Workspace to scan
+
+options:
+  -h, --help            show this help message and exit
+  --profile {offline,full}
+                        offline (default) runs every Scanner that works with --network=none. full
+                        adds osv-scanner and the dependency-reality Check, which send package
+                        names to public registries.
+  --offline             Force the offline Profile regardless of --profile. Checks needing a
+                        registry report as unverified rather than clean.
+  --budget SECONDS      Stop the Scanners past this many seconds: nothing new starts, what is
+                        running is stopped, and the result is reported incomplete with the cut
+                        Scanners named. Default: none here (Ctrl-C is yours); 300 over MCP.
+  --jobs N              How many Scanners run at once (default: all of them). Docker Desktop's
+                        default memory cannot always start eight containers together; two or three
+                        at a time trades speed for not being killed. VALVUR_JOBS sets the same
+                        default for the MCP server.

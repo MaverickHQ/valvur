@@ -1,0 +1,10 @@
+usage: valvur suppress [-h] [--days DAYS] [--reason REASON] fingerprint [path]
+
+positional arguments:
+  fingerprint      Fingerprint from findings.json
+  path             Workspace
+
+options:
+  -h, --help       show this help message and exit
+  --days DAYS      Days until the suppression expires (default: 90)
+  --reason REASON  Why this risk is accepted

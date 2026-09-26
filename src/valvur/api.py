@@ -600,6 +600,24 @@ def _stop_if_cancelled(runner, where: str) -> None:
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                  unfetched: dict[str, str] | None = None, fetched: list[dict] | None = None,
                  jobs: int | None = None, budget_s: float | None = None) -> ScanRun:
+    """One Scan Run, under the Workspace lock: preflight, the fleet, then the
+    assembly of the record — three functions since 28.4.2, one each."""
+    shim_built_from, image_built_from = _preflight(runner, workspace)
+    if adapters is None:
+        adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
+
+    outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress, jobs=jobs,
+                           budget_s=budget_s)
+    return _assemble(
+        outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
+        unfetched=unfetched, fetched=fetched, budget_s=budget_s,
+        shim_built_from=shim_built_from, image_built_from=image_built_from,
+    )
+
+
+def _preflight(runner, workspace) -> tuple[str | None, str | None]:
+    """What has to be true before a container starts (F1.9, the mount, 23.4.4).
+    Returns the tree the shim and the image were built from."""
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
     verify = getattr(runner, "verify_compatible", None)
     if verify is not None:
@@ -613,11 +631,13 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
 
     # The tree, not the version (23.4.4): recorded now, judged in the report.
     provenance = getattr(runner, "build_provenance", None)
-    shim_built_from, image_built_from = provenance() if provenance is not None else (None, None)
+    return provenance() if provenance is not None else (None, None)
 
-    if adapters is None:
-        adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
 
+
+def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
+    """Every Scanner, concurrently, under the budget (23.3.7): the outcomes in
+    declaration order, and the names the budget cut."""
     # Scanners are independent and I/O-bound — each is a container invocation — so
     # they run concurrently. Serially, six Scanners will not meet the 5-minute
     # standard budget (F2.6, N1.2). Results are collected back into declaration
@@ -689,6 +709,13 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                             f"cut by the {budget_s:g}s budget after {spent:.0f}s "
                             f"({outcome.scanner.reason})")
 
+    return outcomes, cut
+
+
+def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
+              budget_s, shim_built_from, image_built_from) -> ScanRun:
+    """The record: the fleet's outcomes through the named pipeline into one
+    ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
     # A cancel that landed during the fleet (F1.11): the Scanners it stopped came
     # back with no report, and the ones that finished are not a result either.
