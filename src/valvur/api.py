@@ -490,6 +490,7 @@ def _outcome(adapter, output) -> ScannerOutcome:
                 version=output.version,
                 reason=f"exited {output.exit_code} with no report: "
                 f"{output.stderr.strip()[:200]}",
+                argv=output.argv,
             ),
             raw=output.stdout,
         )
@@ -506,6 +507,7 @@ def _outcome(adapter, output) -> ScannerOutcome:
             ScannerRun(
                 adapter.name, ok=False, version=output.version,
                 reason=f"report unreadable: {type(exc).__name__}: {str(exc)[:200]}",
+                argv=output.argv,
             ),
             raw=output.stdout,
         )
@@ -516,7 +518,7 @@ def _outcome(adapter, output) -> ScannerOutcome:
     artifact = getattr(adapter, "artifact", None)
     produced = (artifact, output.stdout) if artifact and output.stdout.strip() else None
     return ScannerOutcome(
-        ScannerRun(adapter.name, ok=True, version=output.version),
+        ScannerRun(adapter.name, ok=True, version=output.version, argv=output.argv),
         findings=findings, artifact=produced, raw=output.stdout,
     )
 

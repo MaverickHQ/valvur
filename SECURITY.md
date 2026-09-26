@@ -17,7 +17,9 @@ Please **do not open a public issue** for a suspected vulnerability. Everything 
 belongs in an issue, and is welcome there.
 
 Include what you would want if you were fixing it: what you ran, what you expected,
-what happened, and the smallest repository or file that reproduces it. A scan's
+what happened, and the smallest repository or file that reproduces it. `valvur
+doctor --bundle` writes the facts of the machine and the run into one tarball —
+never your source, raw output or findings — for the report. A scan's
 `run.json` tells us the profile, scanner versions and database age, which is usually
 the fastest way to the cause — check it for secrets first, as it may name paths.
 

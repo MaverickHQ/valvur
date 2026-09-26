@@ -265,7 +265,10 @@ on the command line.
 ## Contributing, and reporting problems
 
 A finding you disagree with — especially one valvur *missed* — is a bug worth
-reporting. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and the short list of
+reporting; `valvur doctor --bundle` writes the tarball to attach — this machine's
+doctor report, the versions of everything involved and the last scan's
+`run.json`, which since 28.3.6 records each Scanner's command line — and never
+your source, raw output or findings. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and the short list of
 things refused on principle; [SECURITY.md](SECURITY.md) is for suspected
 vulnerabilities, which for a security tool include a false clean result;
 [CHANGELOG.md](CHANGELOG.md) is what changed; [MAINTAINERS.md](MAINTAINERS.md) is

@@ -593,6 +593,67 @@ def failed(checks: list[Check]) -> bool:
     return any(c.level == "fail" for c in checks)
 
 
+#: What `--bundle` may carry (28.3.6), and all it may carry: a test holds the
+#: archive to this set. Never source, never `raw/`, never `findings.json` — a
+#: bug report needs the facts of the machine and the run, not the repository.
+BUNDLE_MEMBERS = ("doctor.txt", "versions.txt", "run.json")
+
+
+def bundle(workspace: Path, checks: list[Check], out_dir: Path) -> Path:
+    """A tarball for an issue: the doctor report, the versions of everything
+    involved, and the last scan's `run.json` when there is one. Written to
+    `out_dir` as `valvur-doctor-<utc stamp>.tar.gz`, and returned."""
+    import io
+    import platform
+    import tarfile
+    from datetime import UTC, datetime
+
+    from . import cache as _cache_module
+    from .results import RESULTS_DIR
+
+    workspace = Path(workspace).resolve()
+    run_json = workspace / RESULTS_DIR / "run.json"
+    report = render(checks, workspace)
+    if not run_json.is_file():
+        report += "\nno scan has run in this workspace: run.json not included\n"
+    versions = "\n".join([
+        f"valvur {__version__}",
+        f"python {platform.python_version()} ({platform.python_implementation()})",
+        f"platform {platform.platform()}",
+        f"runtime {_runtime_line()}",
+        f"image {_image_reference()}",
+        f"database age_days {_cache_module.db_age_days()}",
+        f"index age_days {_cache_module.name_index_age_days()}",
+    ]) + "\n"
+    members: list[tuple[str, bytes]] = [
+        ("doctor.txt", report.encode("utf-8")),
+        ("versions.txt", versions.encode("utf-8")),
+    ]
+    if run_json.is_file():
+        members.append(("run.json", run_json.read_bytes()))
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    archive = out_dir / f"valvur-doctor-{stamp}.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        for name, data in members:
+            if name not in BUNDLE_MEMBERS:   # the allow-list is the contract, not a hope
+                raise ValueError(f"{name} is not a bundle member")
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mtime = int(datetime.now(UTC).timestamp())
+            tar.addfile(info, io.BytesIO(data))
+    return archive
+
+
+def _runtime_line() -> str:
+    runtime = _find_runtime()
+    if runtime is None:
+        return "none found"
+    return f"{runtime}: {_runtime_version(runtime) or 'version unknown'}"
+
+
 def render(checks: list[Check], workspace: Path | None = None) -> str:
     marks = {"fail": "FAIL", "warn": "warn", "info": "info", "ok": "ok", "skip": "skip"}
     lines = [f"valvur {__version__} doctor" + (f" — {workspace}" if workspace else "")]

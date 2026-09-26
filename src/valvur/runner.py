@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os as _os
 import platform
+import sys
 import threading as _threading
 import uuid as _uuid
 from contextlib import suppress as _suppress
@@ -27,6 +28,8 @@ db_repository = egress.db_repository
 # by anyone — pointing at a local tag would make the first run fail for every user
 # who is not us.
 IMAGE = _os.environ.get("VALVUR_IMAGE") or default_image()
+#: `VALVUR_DEBUG=1`: every container command echoed to stderr as it runs (28.3.6).
+DEBUG_ENV = "VALVUR_DEBUG"
 
 
 def _is_empty_result(stderr: str, phrases: tuple[str, ...]) -> bool:
@@ -415,6 +418,11 @@ class ContainerRunner:
         """Run a container command, tracking it so an interrupt can stop it."""
         import subprocess
 
+        if _os.environ.get(DEBUG_ENV) == "1":
+            # What is about to run, as it will run (28.3.6): the one line a bug
+            # report about a container needs. Stderr, so a client reading stdout
+            # over MCP never sees it.
+            print("valvur: " + " ".join(str(part) for part in cmd), file=sys.stderr, flush=True)
         name = cmd[cmd.index("--name") + 1] if "--name" in cmd else None
         if name:
             with _live_lock:
@@ -514,7 +522,7 @@ class ContainerRunner:
             if (report is not None and not report.exists()
                     and _is_empty_result(proc.stderr, invocation.empty_when)):
                 # Nothing to analyse: an empty result, honestly earned.
-                return ScannerOutput(tool, version, "", "", 0)
+                return ScannerOutput(tool, version, "", "", 0, argv=invocation.argv)
             if report is not None and not report.exists():
                 # The Scanner was asked for a report and produced none. Exiting 0
                 # while writing nothing means it could not write, not that it found
@@ -524,7 +532,8 @@ class ContainerRunner:
                     tool, version, "",
                     f"{tool} produced no report at {invocation.report}. "
                     f"stderr: {proc.stderr.strip()[:300]}",
-                    proc.returncode or 99,
+                    proc.returncode or 99, argv=invocation.argv,
                 )
             stdout = report.read_text(encoding="utf-8") if report is not None else proc.stdout
-        return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode)
+        return ScannerOutput(tool, version, stdout, proc.stderr, proc.returncode,
+                             argv=invocation.argv)

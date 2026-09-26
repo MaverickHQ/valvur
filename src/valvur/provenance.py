@@ -37,6 +37,10 @@ class ScannerRun:
     #: The fleet runs concurrently, so a scan takes about as long as its slowest —
     #: which is how a user finds the Checkov cost, and how 23.4.2 is measured.
     duration_s: float = 0.0
+    #: The command line the runner launched after the image name, from the
+    #: Invocation (28.3.6): what produced the raw output, beside its version and
+    #: duration. Empty when nothing was launched.
+    argv: tuple[str, ...] = ()
 
     @property
     def failed(self) -> bool:
@@ -166,6 +170,8 @@ def render(run: ScanRun) -> str:
                         "ok": s.ok,
                         "reason": s.reason,
                         "duration_s": round(s.duration_s, 1),
+                        # The command line behind `raw/<tool>` (28.3.6).
+                        "argv": list(s.argv),
                     }
                     for s in run.scanners
                 ],

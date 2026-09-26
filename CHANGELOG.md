@@ -7,6 +7,12 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Supportable.** `run.json` records each Scanner's command line (`argv`)
+  beside its version and duration, so the raw output has its provenance;
+  `VALVUR_DEBUG=1` echoes every container command to stderr as it runs; and
+  `valvur doctor --bundle` writes the tarball to attach to an issue — the doctor
+  report, the versions of everything involved, the last scan's `run.json` — and
+  never source, raw output or findings, which a test holds it to (28.3.6).
 - **`valvur cache --prune`.** Each shim version pulls its own image tag and
   nothing removed the one before; `valvur cache` could inventory and not clean.
   `--prune` removes the published image's local tags that are not this shim's

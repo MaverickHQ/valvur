@@ -37,6 +37,11 @@ class ScannerOutput:
     stdout: str
     stderr: str
     exit_code: int
+    #: The program and arguments the runner launched after the image name — the
+    #: Invocation's `argv`, carried back so `run.json` can say what produced the
+    #: raw output beside its version and duration (28.3.6). Empty when nothing
+    #: was launched: a skip, an image pull, a fake.
+    argv: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

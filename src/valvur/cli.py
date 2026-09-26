@@ -435,6 +435,12 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         "are reachable (one bounded TCP connect per host). Off by default: without it "
         "doctor opens no socket.",
     )
+    doctor_cmd.add_argument(
+        "--bundle", nargs="?", const=".", default=None, metavar="DIR",
+        help="Also write a tarball for an issue into DIR (default: here): this report, "
+        "the versions of everything involved, and the last scan's run.json. Never "
+        "source, never raw output, never findings.",
+    )
 
     gate_cmd = sub.add_parser(
         "gate",
@@ -521,6 +527,10 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         workspace = Path(args.path).resolve()
         checks = _doctor.run(workspace, network=args.network)
         print(_doctor.render(checks, workspace))
+        if args.bundle is not None:
+            archive = _doctor.bundle(workspace, checks, Path(args.bundle))
+            print(f"bundle: {archive} — the report above, the versions, the last "
+                  "run.json; never source, never raw output. Attach it to an issue.")
         return 1 if _doctor.failed(checks) else 0
 
     if args.command == "update":

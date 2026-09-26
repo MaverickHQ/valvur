@@ -7421,7 +7421,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
 
 ### Tier 3 — Hygiene
 
-- [ ] **28.3.1** **Package retention (D2).** `valvur-rehearsal` holds 186
+- [x] **28.3.1** **Package retention (D2).** `valvur-rehearsal` holds 186
   versions (~230 MB compressed each); `valvur-index` 39 and two more a day
   since the candidate tag; nothing deletes. Storage is free; the cost is that
   every old rehearsal image, with whatever CVEs its base had that week, stays
@@ -7430,6 +7430,25 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   30 dated tags plus `latest` and `candidate`, the image keep every tagged
   version. **Test first**: the shape test requires the job and its three
   policies. The STATUS note records the counts before and after its first run.
+
+  **STATUS 2026-09-26:** ✅ PR #93. `retention.yml`, Mondays and by hand,
+  `actions/delete-package-versions` pinned by commit (v5.0.0). **Kept by
+  count, newest first, not by tag** — measured why before writing the policy:
+  a multi-architecture image is several package versions pushed together (the
+  manifest list that carries the tag, one manifest per platform, the
+  attestations, all but the first untagged), so keeping N *tags* and deleting
+  the rest would delete the platform manifests under a tag that stays, a signed
+  image that no longer pulls. `valvur-rehearsal` keeps the newest 25 versions
+  (about the last five rehearsals whole); `valvur-index` the newest 90 (about
+  six weeks: the thirty dated tags, `latest` and `candidate` among them);
+  `valvur`, the published image, is **never named** — every tagged version is a
+  release and every untagged one a release's manifest or attestation — and the
+  shape test asserts the file never touches it, beside the pin and the two
+  policies. A failure opens the one issue (27.2.7; the constraint's set of
+  scheduled workflows widened). **Counts before → after the first run (run
+  36203725657):** `valvur-rehearsal` **197 → 97** — the action deletes at most a
+  hundred versions a run, so the next Monday reaches 25 — `valvur-index` 45 →
+  45 (under its 90), `valvur` 20 → 20.
 
 - [x] **28.3.2** **Stale branches (B4).** Five remote branches for closed PRs —
   four Dependabot, one `fix/` — and Dependabot's dev-dependency bump #20 closed
@@ -7469,9 +7488,14 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   the contract says. Its fixture now accepts one of its own advisories so the
   self-test proves it — one left out of the upload, kept on disk — green on
   24.04 and 26.04 before the tag; `v0` moved to it. `ci.yml` and the README
-  pin v0.2's commit. **After this lands**, the next upload from `main` carries
-  zero results and GitHub closes the five as fixed; the count after is recorded
-  under 28.3 in the closing note.
+  pin v0.2's commit. **After it landed (2026-09-26 00:08 UTC, run
+  36203583804):** the upload carried **1** result and GitHub closed **#1, #2,
+  #3 and #7 as fixed** at the same minute — CVE-2024-23342 among them. The one
+  that stays, #4, is not a suppressed result: it is valvur's own coverage note
+  (`valvur.licence.dependency-unknown`, level `note`), which the gate counts as
+  *not covered* rather than active. Whether valvur's statements about its own
+  coverage belong in a code-scanning list at all is a question for the gate's
+  findings, not this task; the high CVE the task named is gone.
 
 - [x] **28.3.4** **The Python versions the claim names (B1).** `requires-python =
   ">=3.11"`; CI creates every venv with 3.12. No 3.12-only syntax in `src/`, so
@@ -7507,7 +7531,7 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   every tool names its licence and upstream. It is an input the image copies,
   so `tree_hash` and the sdist allow-list name it.
 
-- [ ] **28.3.6** **Supportability (O2).** No `--verbose`, no `--debug`, no log
+- [x] **28.3.6** **Supportability (O2).** No `--verbose`, no `--debug`, no log
   file; `run.json` records each Scanner's version and duration and not the
   command line that produced its raw output, though the Invocation holds it
   and the snapshots prove it stable. `argv` per Scanner in `run.json`;
@@ -7515,6 +7539,29 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   --bundle` writes a tarball of `run.json`, the doctor report and versions —
   never source, never `raw/` — for an issue. **Tests first**: `run.json`'s
   schema gains `argv`; the bundle's file list is asserted against an allowlist.
+
+  **STATUS 2026-09-26:** ✅ Tests first, seven (`tests/test_supportability.py`).
+  **`argv`:** the runner carries the Invocation's `argv` back on every
+  `ScannerOutput` (the empty result, the missing report and the report all
+  three), `_outcome` puts it on the `ScannerRun` (ok, unreadable and
+  exited-with-nothing alike), the Checks' batch splits it to each Check, and
+  `run.json`'s `scanners[]` has `argv` beside `version` and `duration_s` —
+  `[]` for a Scanner that launched nothing. **`VALVUR_DEBUG=1`:** `_launch`,
+  the one place every container command goes through, echoes it to stderr as it
+  runs — stderr, so a client reading stdout over MCP never sees it — and is
+  silent otherwise. **`valvur doctor --bundle [DIR]`:** `doctor.bundle` writes
+  `valvur-doctor-<utc>.tar.gz` holding `doctor.txt` (the report; *"no scan has
+  run"* when there is none), `versions.txt` (shim, Python, platform, runtime,
+  image, database and index ages) and the last `run.json` when there is one;
+  `BUNDLE_MEMBERS` is the allow-list the archive is held to, and the test
+  plants a secret in the source and in `raw/` and reads neither back. README's
+  reporting paragraph and `SECURITY.md`'s "include" paragraph name it.
+  **Measured on a real scan of the broken fixture:** `VALVUR_DEBUG=1` printed
+  the image inspect and each `docker run … --name valvur-<id> --user 501:20
+  --read-only --tmpfs …` as it launched; `run.json`'s eight Scanners each carry
+  their argv — `gitleaks dir /workspace …`, `trivy fs /workspace …`, and the
+  three Checks the one batch command, `python -m valvur.checks batch`. e2e
+  green on an image rebuilt from the tree (32 passed).
 
 - [x] **28.3.7** **`valvur cache --prune` (O4).** `~/.cache/valvur` is never
   pruned; each shim version pulls its own image tag and nothing removes

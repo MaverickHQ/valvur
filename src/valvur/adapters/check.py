@@ -93,7 +93,7 @@ def split_batch(batch: ScannerOutput, names) -> dict[str, ScannerOutput]:
             outputs[name] = ScannerOutput(
                 name, _VERSION, "",
                 f"the Checks container produced no batch report ({detail})",
-                batch.exit_code or 99,
+                batch.exit_code or 99, argv=batch.argv
             )
             continue
         entry = report.get(name) or {"ok": False, "findings": [],
@@ -108,10 +108,12 @@ def split_batch(batch: ScannerOutput, names) -> dict[str, ScannerOutput]:
             # since 23.4.2, never reached by a test because the fakes answered
             # per Check with empty stdout.
             outputs[name] = ScannerOutput(
-                name, _VERSION, "", entry.get("error") or "the Check reported a failure", 1)
+                name, _VERSION, "", entry.get("error") or "the Check reported a failure", 1,
+                argv=batch.argv)
             continue
         outputs[name] = ScannerOutput(
-            name, _VERSION, json.dumps(entry.get("findings") or []), entry.get("error") or "", 0)
+            name, _VERSION, json.dumps(entry.get("findings") or []), entry.get("error") or "", 0,
+            argv=batch.argv)
     return outputs
 
 
