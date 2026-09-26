@@ -5552,6 +5552,9 @@ Checkpoint B   release 0.3.0             ✅ 2026-09-20 — 25.1 rehearsal + tag
 Checkpoint E   release 0.4.0             ✅ 2026-09-26 — 28.1.2 prep PR · rehearsal 36235113134 · signed tag · run 36254809572 promoted
                the owner's one click at the brake; 25 minutes tag → :latest, 12 of them waiting for it
                ↓
+release 0.5.0  Phase 29 shipped                 prep #130 on 011ec09 (98 s on the gate's tree) · rehearsal 36257979480 at the brake
+               the owner: the signed tag on 011ec09, then the click
+               ↓
 Checkpoint C   the usability gate         10.1.1 · 10.1.2 on 0.4.0  →  12b.1 (engineering, on what they found)
                owner + a stranger; a calendar; the machine reset first
                ↓
@@ -8693,10 +8696,17 @@ README's status line is true on every day of a release, and reads *release in
 progress* today, which is true (29.3.1). The corpus was dispatched once on the
 Tier 0 tree — 5.4–9.5 s on every application repository (29.1.1); the synthetic
 tree lives in the e2e suite on every pull request rather than in the corpus.
-**Two rows stay open and say why:** 29.2.3, blocked on the CLI login the flow's
-decision (2) named, its command written; and the release — `v0.4.0` was not
-tagged during the flow, so the `0.5.0` prep did not start, by the rule that a
-version is not bumped over an untagged one. 12b.1 closes with 29.2.3. The
+**One row stays open and says why:** 29.2.3, blocked on the CLI login the
+flow's decision (2) named, its command written; 12b.1 closes with it. The
+release step, which the flow had left at *`0.4.0` untagged* by the rule that a
+version is not bumped over an untagged one, ran the same evening once the
+owner's tag existed: `v0.4.0` promoted (28.1.2, run 36254809572, 25 minutes
+from the tag to `:latest`); the `0.5.0` prep landed as #130 on `011ec09`,
+measured against the image built from it — one `scan` over stdio on the gate's
+tree with an empty cache root, **98 s to `DONE`, complete**, the database and
+the index fetched inside that time, Checkov the slowest at 38 s — and its
+rehearsal on that exact commit is run 36257979480, green through validation and
+held at the `release` brake; the tag is the owner's, as `0.4.0`'s was. The
 eight things the phase learned that no task asked for are in CLAUDE.md's
 Phase 29 bullet.
 

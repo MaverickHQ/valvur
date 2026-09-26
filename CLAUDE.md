@@ -179,9 +179,10 @@ follows the runtime's memory; the time goals are for the working tree after
 exclusions; Dependabot's five sorted; every client's file in one table with the
 README held to it and `doctor` reading them all; the README's status line true
 on every day of a release; sizes and KEV say which; every MCP evidence fenced.
-one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **Open:** 29.2.3, blocked on `claude login`. `v0.4.0` was tagged and
-promoted on 2026-09-26 (run 36254809572). **Next, in this order: 29.2.3 once the login exists; `0.5.0`, whose prep and
-rehearsal follow the `0.4.0` release; the gate with a person (12b.3's ask); the
+one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **Open:** 29.2.3, blocked on `claude login`; the `0.5.0` tag, the owner's, on
+`011ec09` — rehearsed there as run 36257979480 and held at the brake. `v0.4.0`
+was tagged and promoted on 2026-09-26 (run 36254809572). **Next, in this order: the `0.5.0` tag as rehearsed — Phase 29, the first gate's
+findings, measured at 98 s on the gate's own tree; 29.2.3 once the login exists; the gate with a person (12b.3's ask); the
 second maintainer (28.1.3); `v1.0.0`; the runner move after 2026-11-19
 (28.3.8).** When "what is next" is asked,
 Phase 25 answers for the people and Phase 28's two open rows for the code; the
