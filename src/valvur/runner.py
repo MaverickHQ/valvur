@@ -203,6 +203,16 @@ def unsupported_platform_warning() -> str:
 RESOURCE_LIMITS: tuple[str, ...] = (
     "--memory=2g", "--memory-swap=2g", "--pids-limit=512", "--security-opt=no-new-privileges",
 )
+
+
+def memory_ceiling() -> str:
+    """The container's memory ceiling as the flag states it — `2g` — for the
+    sentence a killed Scanner's record carries (29.0.3)."""
+    # Read from the tuple, spelled nowhere else: the one-authority test counts
+    # the literal.
+    return _MEMORY_LIMITS[0].partition("=")[2]
+
+
 #: The two of those a rootless Podman on cgroup v1 refuses outright ("cgroup v1
 #: rootless: memory limit not supported") — refusing to start the container at
 #: all, which would turn a safety flag into a scan that cannot run.

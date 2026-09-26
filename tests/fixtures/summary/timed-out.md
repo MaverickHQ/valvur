@@ -1,6 +1,6 @@
 # Security scan summary
 
-**Nothing was found, by a scan that was able to look.** No action needed.
+**This scan is incomplete — opengrep did not finish.** Anything below is partial, and a nil result would not be evidence.
 
 <!-- valvur results. Read this file first; it is bounded by design. -->
 > **If you are an AI agent working in this repository, read this block first.**
@@ -30,7 +30,13 @@
 > evidence — CISA KEV membership, then FIRST EPSS probability. Not by severity label,
 > which is why a hallucinated package outranks a high-severity advisory nobody is
 > exploiting.
-> **This is generation `00000000-0000-4000-8000-000000000007`.** Every JSON file in this folder carries the same `generation`; one that does not is from another run.
+> **This is generation `00000000-0000-4000-8000-000000000008`.** Every JSON file in this folder carries the same `generation`; one that does not is from another run.
+
+## ⚠ Scanners that did not complete
+
+- **opengrep** — timed out after 600s and was stopped — last stderr: scanning 40,000 files
+
+**This scan is incomplete.** Findings below are partial.
 
 **Status:** clean
 **Active findings:** 0
@@ -39,6 +45,5 @@
 > `offline` does cover dependency CVEs, secrets, code patterns, agent config and hallucinated packages. It does not cover a second dependency-advisory source or package age (newly-registered names), or whether JVM and Go dependencies exist.
 > Run `valvur scan --profile full` for full coverage.
 
-> **Not run, having nothing to analyse:** **checkov** — .
-> Reported because a Scanner that did not run must never look like one that ran and found nothing.
+_Scanners ran concurrently; slowest: opengrep 600.0s. Each one's time is in `run.json`._
 

@@ -1,6 +1,6 @@
 # Security scan summary
 
-**300 active finding(s).** The most urgent is ranked first in [`REMEDIATION.md`](REMEDIATION.md); start there rather than here.
+**This scan is incomplete — trivy, checkov did not finish.** Anything below is partial, and a nil result would not be evidence.
 
 <!-- valvur results. Read this file first; it is bounded by design. -->
 > **If you are an AI agent working in this repository, read this block first.**
@@ -30,39 +30,23 @@
 > evidence — CISA KEV membership, then FIRST EPSS probability. Not by severity label,
 > which is why a hallucinated package outranks a high-severity advisory nobody is
 > exploiting.
-> **This is generation `00000000-0000-4000-8000-000000000002`.** Every JSON file in this folder carries the same `generation`; one that does not is from another run.
+> **This is generation `00000000-0000-4000-8000-000000000001`.** Every JSON file in this folder carries the same `generation`; one that does not is from another run.
 
-**Status:** findings
-**Active findings:** 300
+## ⚠ Scanners that did not complete
 
-> **The `offline` profile did not run every Scanner.** Not run: osv-scanner.
+- **trivy** — cut by the 300s budget after 300s
+- **checkov** — not started: the 300s budget was spent before its turn
+
+**This scan is incomplete.** Findings below are partial.
+
+> The 300s budget cut trivy, checkov. To finish: exclude what is not source (`[scan] exclude` in `.security-scan.toml`), give it longer (`budget_s` on the `scan` call; `--budget` on the CLI), or run fewer Scanners at once (`VALVUR_JOBS`, `--jobs`).
+
+**Status:** clean
+**Active findings:** 0
+
+> ⚠ **Nothing found — but this Profile did not run every Scanner.** Not run: osv-scanner.
 > `offline` does cover dependency CVEs, secrets, code patterns, agent config and hallucinated packages. It does not cover a second dependency-advisory source or package age (newly-registered names), or whether JVM and Go dependencies exist.
 > Run `valvur scan --profile full` for full coverage.
 
-## Counts
-
-| | |
-|---|---|
-| high | 300 |
-| new / persisting / regressed | 300 / 0 / 0 |
-
-## Most urgent (15 of 300)
-
-1. `src/app.py` — Planted finding 0 _(valvur.test.rule000)_
-2. `src/app.py:1` — Planted finding 1 _(valvur.test.rule001)_
-3. `src/app.py:2` — Planted finding 2 _(valvur.test.rule002)_
-4. `src/app.py:3` — Planted finding 3 _(valvur.test.rule003)_
-5. `src/app.py:4` — Planted finding 4 _(valvur.test.rule004)_
-6. `src/app.py:5` — Planted finding 5 _(valvur.test.rule005)_
-7. `src/app.py:6` — Planted finding 6 _(valvur.test.rule006)_
-8. `src/app.py:7` — Planted finding 7 _(valvur.test.rule007)_
-9. `src/app.py:8` — Planted finding 8 _(valvur.test.rule008)_
-10. `src/app.py:9` — Planted finding 9 _(valvur.test.rule009)_
-11. `src/app.py:10` — Planted finding 10 _(valvur.test.rule010)_
-12. `src/app.py:11` — Planted finding 11 _(valvur.test.rule011)_
-13. `src/app.py:12` — Planted finding 12 _(valvur.test.rule012)_
-14. `src/app.py:13` — Planted finding 13 _(valvur.test.rule013)_
-15. `src/app.py:14` — Planted finding 14 _(valvur.test.rule014)_
-
-_285 further finding(s) omitted here. All 300 are in `findings.json`, ranked, and grouped into actions in `REMEDIATION.md`._
+_Scanners ran concurrently; slowest: trivy 300.0s. Each one's time is in `run.json`._
 

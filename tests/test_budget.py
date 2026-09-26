@@ -96,7 +96,9 @@ def test_past_the_budget_running_scanners_are_stopped_and_queued_ones_never_star
     for tool in ("slow", "slow2"):
         assert not by_tool[tool].ok
         assert by_tool[tool].reason.startswith("cut by the 0.4s budget after ")
-        assert "exited 137" in by_tool[tool].reason
+        # The cut is the cause (29.0.3): the exit code the kill produced is not
+        # repeated inside it as if the runtime had done it.
+        assert "137" not in by_tool[tool].reason
     assert not by_tool["queued"].ok
     assert by_tool["queued"].reason == "not started: the 0.4s budget was spent before its turn"
     assert [f.tool for f in run.failures] == ["slow", "slow2", "queued"]

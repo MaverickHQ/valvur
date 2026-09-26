@@ -439,7 +439,8 @@ def _first_action(path: Path) -> str:
 
 def _job_fields(job, *, progress: bool = False) -> dict:
     fields: dict = {"state": job.state.name, "profile": job.profile,
-                    "elapsed_s": round(job.elapsed, 1), "error": job.error or None}
+                    "elapsed_s": round(job.elapsed, 1), "error": job.error or None,
+                    "doctor_may_help": job.doctor_may_help}
     if progress:
         fields["progress"] = list(job.progress)
     return fields
@@ -492,10 +493,14 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
                      "do not report a result yet.")
         return "\n".join(lines), {"scanned": False, "job": _job_fields(job, progress=True)}
     if job is not None and job.state is State.FAILED:
-        return (f"FAILED after {job.elapsed:.0f}s — {job.error}\n"
-                "Run `doctor` (the tool; `valvur doctor` on a shell) before scanning "
-                "again: it names what this machine is missing and the fix.\n"
-                "No result to report."), {"scanned": False, "job": _job_fields(job)}
+        lines = [f"FAILED after {job.elapsed:.0f}s — {job.error}"]
+        if job.doctor_may_help:
+            # Only when a precondition could be the cause (29.0.3): the budget's
+            # refusal carries its own levers, and `doctor` would say *ready*.
+            lines.append("Run `doctor` (the tool; `valvur doctor` on a shell) before scanning "
+                         "again: it names what this machine is missing and the fix.")
+        lines.append("No result to report.")
+        return "\n".join(lines), {"scanned": False, "job": _job_fields(job)}
 
     path = _results(args.get("workspace")) / "run.json"
     if not path.is_file():

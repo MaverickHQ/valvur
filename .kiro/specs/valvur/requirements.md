@@ -168,7 +168,14 @@ that I do not maintain six toolchains myself.
    Now the runner stops the container by the name it gave it, waits until the runtime
    no longer lists it, and the record reads `timed out after Ns and was stopped`
    with the stderr read so far — never the command line as the reason. The CLI stops
-   its fleet on SIGTERM as well as SIGINT.* *Extended 2026-09-13 (task 23.3.7): and a budget for the
+   its fleet on SIGTERM as well as SIGINT.* *Note 2026-09-26 (task 29.0.3): a budget
+   that cuts every Scanner is its own refusal — what ran and for how long, what never
+   started, and the three levers (`[scan] exclude`, `budget_s`/`--budget`,
+   `VALVUR_JOBS`/`--jobs`) — never *every scanner failed*, and `scan_status` names
+   `doctor` only when a precondition could be the cause; a Scanner's record says the
+   cause valvur knows — cut by the budget, timed out and stopped, or killed by the
+   runtime (exit 137, the container's ceiling or the VM's) — with the command line
+   kept in `run.json` and out of the sentence.* *Extended 2026-09-13 (task 23.3.7): and a budget for the
    fleet as a whole — none on the CLI unless `--budget` is given, 300 seconds over
    MCP unless the client names another (N1.2's figure) — past which no new
    **Scanner** starts, the running ones are stopped, and each one cut is recorded

@@ -71,6 +71,30 @@ CASES: dict[str, ScanRun] = {
     # case, lowering LINE_CAP left every golden unchanged — measured: the cap set
     # to 60 passed all four. F7.5 is the reason the document is readable at all on
     # a real project, so a golden set that cannot see it is not covering the file.
+    # 29.0.3: the three shapes a failure record takes now, each with its cause —
+    # the budget's cut beside the levers, a timeout stopped, a runtime kill.
+    "budget-cut": ScanRun(
+        findings=[],
+        scanners=[ScannerRun("gitleaks", ok=True, duration_s=1.5),
+                  ScannerRun("trivy", ok=False, duration_s=300.0,
+                             reason="cut by the 300s budget after 300s"),
+                  ScannerRun("checkov", ok=False,
+                             reason="not started: the 300s budget was spent before its turn")],
+        profile="offline", budget_s=300.0, budget_cut=["trivy", "checkov"]),
+    "timed-out": ScanRun(
+        findings=[],
+        scanners=[ScannerRun("gitleaks", ok=True, duration_s=1.5),
+                  ScannerRun("opengrep", ok=False, duration_s=600.0,
+                             reason="timed out after 600s and was stopped — last stderr: "
+                                    "scanning 40,000 files")],
+        profile="offline"),
+    "runtime-killed": ScanRun(
+        findings=[],
+        scanners=[ScannerRun("gitleaks", ok=True, duration_s=1.5),
+                  ScannerRun("checkov", ok=False, duration_s=48.3,
+                             reason="exit 137: killed by the runtime — the container's "
+                                    "memory ceiling (2g) or the VM's")],
+        profile="offline"),
     "capped": ScanRun(
         findings=[_finding(rule=f"valvur.test.rule{n:03d}", line=n, rank=n + 1,
                            fingerprint=f"{n:016x}", title=f"Planted finding {n}")

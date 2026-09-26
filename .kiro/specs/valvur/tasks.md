@@ -8191,7 +8191,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   the note. The tests live in `tests/test_scanner_timeout.py`, not the
   interruption constraint suite: that suite is the release gate's, held to
   the forty-eight 28.4.4 split, and a timeout is F2.7's case, not F1.11's.
-- [ ] **29.0.3** **A budget cut is its own message, and the failure record
+- [x] **29.0.3** **A budget cut is its own message, and the failure record
   diagnoses (B1, B6, B7; F2.6, F9.9).** Measured: *Every scanner failed.
   Refusing to report a scan.* followed by *Run `doctor`* — and `doctor` says
   *ready*. The fix has three parts. **The message:** when the budget cut
@@ -8212,6 +8212,30 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   `scan_status` and `SUMMARY.md` goldens for a budget-cut run, a timed-out run
   and a runtime-killed run, and a test that the `doctor` sentence appears only
   for precondition failures.
+
+  **STATUS 2026-09-26:** ✅ Measured first: `_assemble` raised *Every scanner
+  failed. Refusing to report a scan.* whenever all failed, budget or not;
+  `scan_status`'s FAILED branch appended *Run `doctor`* unconditionally; a
+  killed Scanner read *exited 137 with no report:* with nothing after the
+  colon; and `_fleet` rewrote a cut as *cut by the budget … (exited 137 …)*, the
+  kill it had sent itself reported as if the runtime had done it. Now, in one
+  leaf module (`levers.py`, so `api` and `summary` share one sentence and a test
+  holds the README to it): a budget that cut every Scanner raises
+  `BudgetExhausted` — *the 300s budget ran out before any Scanner finished: N
+  cut (gitleaks 300s, …); M not started (…); none finished.* and the three
+  levers; its `doctor_may_help` is False, the job records it, and `scan_status`
+  names `doctor` only when it is True (a precondition, which every other
+  failure may be); `SUMMARY.md` puts the levers beside a partial cut; a cut's
+  reason is the cut alone; an exit 137 valvur did not send reads *killed by the
+  runtime — the container's memory ceiling (2g) or the VM's*, the ceiling read
+  from `RESOURCE_LIMITS`, the stderr tail after it, the argv in `run.json` and
+  out of the sentence; the README's first-run section names the levers before
+  Platforms. The pre-flight count in the message is 29.1.2's, added there. Held
+  by five unit tests and three new `SUMMARY.md` goldens (a budget cut, a
+  timeout, a runtime kill); the existing goldens changed by their generation
+  id only, measured on the diff. The gate's run 1 would now have read the
+  budget sentence with the levers, and no `doctor`.
+
 - [ ] **29.0.4** **What is running has a line (B5; F9.9).** Measured: sixteen
   polls over 290 s answered *Completed so far: image pulled, database fetched,
   index fetched* and nothing else, because nothing finished. The fleet knows

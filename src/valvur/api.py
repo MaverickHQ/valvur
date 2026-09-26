@@ -31,7 +31,20 @@ from .provenance import ScannerRun
 
 
 class ScannerFailed(RuntimeError):
+    #: Whether `doctor` could name the cause (29.0.3). True for every failure
+    #: but the budget's: on a machine whose preconditions all hold, the one
+    #: sentence `scan_status` used to add sent the agent to a tool that said
+    #: *ready* (the first gate, B1).
+    doctor_may_help = True
+
     """A Scanner could not complete. Never downgraded to a clean result (F2.5)."""
+
+
+class BudgetExhausted(ScannerFailed):
+    """The budget cut every Scanner before one finished (29.0.3): its message is
+    `levers.budget_exhausted_message`, and `doctor` has nothing to add."""
+
+    doctor_may_help = False
 
 
 class ScanCancelled(RuntimeError):
@@ -502,15 +515,22 @@ def _outcome(adapter, output) -> ScannerOutcome:
             raw=output.stdout,
         )
     if output.exit_code != 0 and not output.stdout.strip():
+        tail = output.stderr.strip()[:200]
+        if output.exit_code == 137:
+            # SIGKILL, and valvur did not send it — the budget's and the timeout's
+            # kills are rewritten above and in `_fleet`. What is left is the
+            # runtime: the container's ceiling (28.0.3) or the VM's (29.0.3).
+            from . import runner as _runner
+
+            reason = ("exit 137: killed by the runtime — the container's memory ceiling "
+                      f"({_runner.memory_ceiling()}) or the VM's")
+            if tail:
+                reason += f" — last stderr: {tail}"
+        else:
+            reason = f"exited {output.exit_code} with no report: {tail}"
         return ScannerOutcome(
-            ScannerRun(
-                adapter.name,
-                ok=False,
-                version=output.version,
-                reason=f"exited {output.exit_code} with no report: "
-                f"{output.stderr.strip()[:200]}",
-                argv=output.argv,
-            ),
+            ScannerRun(adapter.name, ok=False, version=output.version, reason=reason,
+                       argv=output.argv),
             raw=output.stdout,
         )
 
@@ -724,11 +744,16 @@ def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
                     outcome = outcomes[index]
                     if outcome is not None and stop is not None and not outcome.scanner.ok:
                         cut.append(adapters[index].name)
+                        # The cut is the cause: the exit the kill produced is not
+                        # repeated inside it as if the runtime had done it (29.0.3).
                         outcomes[index] = outcome.cut(
-                            f"cut by the {budget_s:g}s budget after {spent:.0f}s "
-                            f"({outcome.scanner.reason})")
+                            f"cut by the {budget_s:g}s budget after {spent:.0f}s")
 
     return outcomes, cut
+
+
+def _budget_shaped(reason: str) -> bool:
+    return reason.startswith(("cut by the ", "not started: the "))
 
 
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
@@ -746,6 +771,13 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
 
     # Total failure is a failed Scan Run (N3.2). Partial failure is a reported one.
     if scanners and all(s.failed for s in scanners):
+        if budget_s is not None and all(_budget_shaped(s.reason) for s in scanners):
+            # Not "every scanner failed" — the budget ran out, which is what
+            # killing them looks like from inside (29.0.3). The message names
+            # what ran, what did not start, and the three levers.
+            from . import levers
+
+            raise BudgetExhausted(levers.budget_exhausted_message(scanners, budget_s))
         detail = "; ".join(f"{s.tool}: {s.reason}" for s in scanners)
         raise ScannerFailed(f"Every scanner failed. Refusing to report a scan.\n{detail}")
 

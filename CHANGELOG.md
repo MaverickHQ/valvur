@@ -7,6 +7,18 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A budget cut is its own message, and a failure says its cause.** At the
+  first usability gate the 300 s default budget cut every Scanner and the
+  reply read *every scanner failed — run doctor*, and `doctor` said *ready*.
+  Now that refusal says what ran and for how long, what never started, and the
+  three levers — `[scan] exclude`, `budget_s` (`--budget`), `VALVUR_JOBS`
+  (`--jobs`) — and `scan_status` names `doctor` only when a precondition could
+  be the cause; `SUMMARY.md` puts the same levers beside a partial cut. Each
+  failed Scanner's record now says the cause valvur knows: cut by the budget,
+  timed out and stopped, or *killed by the runtime — the container's memory
+  ceiling (2g) or the VM's* for an exit 137 valvur did not send — with the
+  command line in `run.json` and out of the sentence. The README's first-run
+  section names the levers (29.0.3).
 - **A Scanner past its timeout is stopped, not abandoned.** The per-Scanner
   timeout killed the `docker run` client and left the container to the daemon:
   at the first usability gate a Gitleaks container ran 401 s past its 300 s

@@ -122,6 +122,14 @@ scan after that, measured on GitHub's Linux runner across twelve real applicatio
 repositories: **6–9 seconds** (2026-09-26, after Checkov's startup was fixed in
 the image; it had been 16–19).
 
+**When a first scan does not finish.** Over MCP a scan has a 300-second budget
+(`budget_s` on the `scan` call sets another; the CLI has none unless `--budget`
+says so). Past it the running Scanners are stopped and the reply says which, for
+how long, and what to turn: exclude what is not source (`[scan] exclude` in
+`.security-scan.toml` — a data directory or a build tree costs a scan nothing
+once named), give it longer, or run fewer Scanners at once (`VALVUR_JOBS=2` in the
+server's environment, `--jobs 2` on the CLI) on a small Docker Desktop VM.
+
 The server's handshake carries the rules an agent needs — never commit the
 folder, work from `REMEDIATION.md`, never add a suppression without a human, a
 disappeared finding is not a fix — as MCP `instructions`, and `scan_status` and

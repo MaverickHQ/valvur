@@ -192,6 +192,12 @@ def render(run: ScanRun) -> str:
         lines += ["## ⚠ Scanners that did not complete", ""]
         lines += [f"- **{f.tool}** — {f.reason}" for f in failures]
         lines += ["", "**This scan is incomplete.** Findings below are partial.", ""]
+        if run.budget_cut and run.budget_s is not None:
+            # The cut and what to turn, in the same breath (29.0.3).
+            from . import levers
+
+            lines += [f"> The {run.budget_s:g}s budget cut {', '.join(run.budget_cut)}. "
+                      f"{levers.LEVERS}", ""]
 
     # "Findings: 4" for four accepted risks read exactly like four live problems.
     # Active is the number that means "there is work here" (task 19.C.1).

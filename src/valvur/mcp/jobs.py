@@ -79,6 +79,9 @@ class Job:
     finished: float | None = None
     summary: str = ""
     error: str = ""
+    #: Whether `doctor` could name the cause of a failure (29.0.3): the budget's
+    #: refusal says no, everything else says yes.
+    doctor_may_help: bool = True
     progress: list[str] = field(default_factory=list)
     settled: threading.Event = field(default_factory=threading.Event)
     #: What stops this job's containers, registered by the work once it has a
@@ -169,6 +172,7 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
                     # A failed scan is a reportable outcome, not a crashed server.
                     job.transition(State.FAILED)
                     job.error = f"{type(exc).__name__}: {exc}"
+                    job.doctor_may_help = bool(getattr(exc, "doctor_may_help", True))
         finally:
             job.finished = time.monotonic()
             job.settled.set()
