@@ -505,13 +505,13 @@ jobs:
         run: '"$VENV/bin/valvur" update'
 
       - name: The constraint suite and the whole e2e suite, against the artifact
-        # Phase 11's constraints (tests/test_constraints.py, test_not_cuttable.py)
+        # Phase 11's constraints (tests/test_constraints_*.py, test_not_cuttable.py)
         # in full, and every test marked e2e — through the wheel's code and the
         # signed image. `-rP` keeps N1.4's memory number in the log.
         env:
           VALVUR_IMAGE: ${{ env.IMAGE }}@${{ env.DIGEST }}
         run: |
-          "$VENV/bin/python" -m pytest -q -rP tests/test_constraints.py tests/test_not_cuttable.py
+          "$VENV/bin/python" -m pytest -q -rP tests/test_constraints_*.py tests/test_not_cuttable.py
           "$VENV/bin/python" -m pytest -q -rP -m e2e
 
       - name: The self-scan gate, against the artifact (N2.5)

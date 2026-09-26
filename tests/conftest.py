@@ -2,6 +2,7 @@ import json
 import os
 import platform
 import shutil
+import socket as socket_mod
 import tempfile
 from pathlib import Path
 from typing import ClassVar
@@ -468,3 +469,39 @@ class GoldenRunner(LegacyDispatch):
 
     def run_checks(self, names, workspace, *, network=False):
         return run_checks_in_process(names, workspace, network=network)
+
+
+# From test_constraints.py (28.4.3): the poison every exfiltration test needs.
+@pytest.fixture
+def record_connections(monkeypatch):
+    """Poison every outbound connect path in this process and record attempts.
+
+    Patches the connect methods rather than the socket class: creating a socket is
+    harmless, and `ssl` subclasses socket at import time, so replacing the class
+    breaks the interpreter instead of the network. Connecting is the exfiltration.
+    """
+    import urllib.request
+
+
+    attempts: list[str] = []
+    # The unit suite refuses at the HTTP layer (conftest). This fixture denies one
+    # layer down and records, so the real `urlopen` has to be in place for the
+    # attempt to reach the poison — otherwise the falsifiability tests below would
+    # see no connection for the wrong reason.
+    monkeypatch.setattr(urllib.request, "urlopen", REAL_URLOPEN)
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", REAL_OPENER_OPEN)
+
+    def deny(name):
+        def blocked(*args, **kwargs):
+            target = args[1] if len(args) > 1 else kwargs.get("address", "?")
+            attempts.append(f"{name} -> {target}")
+            raise OSError(f"blocked: {name} -> {target}")
+        return blocked
+
+    monkeypatch.setattr(socket_mod.socket, "connect", deny("connect"), raising=False)
+    monkeypatch.setattr(socket_mod.socket, "connect_ex", deny("connect_ex"), raising=False)
+    monkeypatch.setattr(socket_mod, "create_connection", deny("create_connection"))
+    monkeypatch.setattr(socket_mod, "getaddrinfo", deny("getaddrinfo"))
+    return attempts
+
+

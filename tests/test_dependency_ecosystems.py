@@ -31,7 +31,7 @@ def registry(monkeypatch, no_name_index, network_granted):
     load-bearing assertion in most of these tests is *which names were declared*,
     observed as which registry was asked about them. With an index present the
     offline path answers first and asks nothing (ADR-0018); that path has its own
-    tests below and in `test_constraints.py`.
+    tests below and in `test_constraints_exfiltration.py`.
     """
     asked: list[tuple[str, str]] = []
 

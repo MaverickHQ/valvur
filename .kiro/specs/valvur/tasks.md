@@ -7625,10 +7625,26 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   build}`; `cli.main` as a command table; `_scan_locked` as fetch, fleet,
   assemble. 27.3.3's method: goldens first, then the move, byte-identical after.
 
-- [ ] **28.4.3** **The constraint suite, split (A4).** `tests/test_constraints.py`
+- [x] **28.4.3** **The constraint suite, split (A4).** `tests/test_constraints.py`
   is 1,442 lines — budgets, workflow shape, licences, memory and design
   ratchets in one file, the god module moved into the tests. Split by subject;
   the test count is unchanged and a test says so.
+
+  **STATUS 2026-09-26:** ✅ Seven files, one subject each, cut at the file's own
+  section markers: `test_constraints_exfiltration.py` (N2.1's two halves and
+  the Check that runs on both sides, with the original docstring),
+  `_canary.py` (cycles 2–3), `_isolation.py` (cycle 4), `_budgets.py` (cycle
+  5), `_supply_chain.py` (12a.6/7 through the SBOM), `_design.py` (the design
+  tables, the platform claim, the scheduled workflows, the Opengrep checksums)
+  and `_interruption.py` (16.2). What they shared moved once: the one-CVE
+  runner to `tests/constraints_support.py`, the `record_connections` poison to
+  `conftest.py` beside the real `urlopen` it restores. **48 tests before, 48
+  after**, and `tests/test_constraint_suite.py` holds the count and the absence
+  of the old file. `release.yml`'s artifact job runs `tests/test_constraints_*.py`;
+  two docstrings that named the old file name the new one. Nothing in the
+  tests' bodies changed — ruff removed sixty-eight imports each file no longer
+  needed, and the whole suite (unit and the nine e2e) ran green against the
+  image.
 
 - [ ] **28.4.4** **Mutation in CI (X1).** Five tests on 2026-09-22 passed against
   the defect each was written for — a lazy import invisible to a module-level

@@ -101,7 +101,7 @@ def test_the_offline_profile_excludes_every_scanner_needing_network(
     """N2.1 — the offline Profile must stay offline, so nothing that reaches an
     advisory API may run in it. dependency-reality is no longer in that set: it
     answers existence from the local index and asks a registry only when the Profile
-    grants a network (ADR-0018) — asserted in test_constraints, in-process."""
+    grants a network (ADR-0018) — asserted in test_constraints_exfiltration, in-process."""
     from valvur.adapters import DEFAULT_ADAPTERS
     from valvur.profiles import ALLOWS_NETWORK, scanners_for, select
 
