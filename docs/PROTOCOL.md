@@ -59,7 +59,7 @@ together.
 | `osv-scanner` | `ghcr.io/google/osv-scanner` | 2.6.0 |
 | `syft` | `anchore/syft` | 1.51.1 |
 | `opengrep` | `opengrep/opengrep` | 1.29.0 |
-| `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.17 |
+| `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.19 |
 | `python` | the base image's Python 3.12 | with the Checks |
 
 ## The Checks' entry point

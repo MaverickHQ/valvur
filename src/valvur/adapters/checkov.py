@@ -10,7 +10,7 @@ from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
 
-VERSION = "3.3.17"
+VERSION = "3.3.19"
 
 
 class CheckovAdapter(ScannerAdapter):

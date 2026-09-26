@@ -342,7 +342,7 @@ class FakeRunner(LegacyDispatch):
         return self._quiet("osv-scanner", "2.6.0", '{"results": []}')
 
     def run_checkov(self, workspace: Path):
-        return self._quiet("checkov", "3.3.17", '{"results": {"failed_checks": []}}')
+        return self._quiet("checkov", "3.3.19", '{"results": {"failed_checks": []}}')
 
     def run_syft(self, workspace: Path):
         return self._quiet("syft", "1.51.1", "")
@@ -422,7 +422,7 @@ class CrashingAdapter(ScannerAdapter):
 # parsing behaviour (task 3.4.1).
 PINNED_VERSIONS = {
     "trivy": "0.74.0", "gitleaks": "8.30.1", "osv-scanner": "2.6.0",
-    "checkov": "3.3.17", "syft": "1.51.1", "opengrep": "1.29.0",
+    "checkov": "3.3.19", "syft": "1.51.1", "opengrep": "1.29.0",
 }
 
 

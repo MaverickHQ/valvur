@@ -7,6 +7,10 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Checkov 3.3.19**, hash-locked as before (97 packages, 1,868 hashes) — the
+  bump Dependabot proposed twice (#106, #107) without the adapter's version,
+  the test fixtures and the protocol table that go with it; its startup floor
+  re-measured on the same tree as 28.2.1 (29.4.2).
 - **Every base image names its tag beside its digest.** `FROM python@sha256:…`
   pinned the bytes and told Dependabot nothing about which line to follow, so
   it followed `latest`: on 2026-09-26 it proposed a Debian `python` (the build
