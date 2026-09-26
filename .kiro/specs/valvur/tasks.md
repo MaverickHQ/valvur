@@ -8015,6 +8015,31 @@ request with the test written first; **12b.1 is this phase.**
 > *Tier 0 before anything else*: a first scan of a real project that fails,
 > points the wrong way and leaks containers is the primary path failing, and
 > no README sentence fixes it.
+>
+> **The flow (2026-09-26, after the owner's four answers), so any session can
+> resume it without a question.** **(1)** `0.4.0` is tagged by the owner now, as
+> rehearsed (`6973fbe`); the flow closes 28.1.2 when the release run has
+> promoted and PyPI serves it, and ships Phase 29 as `0.5.0`. **(2)** 29.2.3
+> runs the Claude Code pass only, the owner having logged the CLI in; Codex is
+> documented from its config shape and marked unverified. **(3)** The five
+> Dependabot PRs are handled under the owner's account: rebase comments on
+> #103 and #105, #104 closed when the Dockerfile carries the tag Dependabot
+> should track (29.4.1), #106 and #107 closed for one measured Checkov 3.3.19
+> PR (29.4.2). **(4)** On the owner's Mac the flow scans `occams-test-lab` with
+> a local image and a scratch cache, writing only its `.security-scan/`, and
+> launches no IDE: Cursor, VS Code and Kiro are documented from their config
+> shapes and Kiro's earlier verification (22.F.2); handshakes are measured
+> through the stdio driver and the Claude Code CLI. The time targets stay —
+> five minutes to a first useful result (P1), 60 s for N1.1 on the tree after
+> exclusions — and the budget, the timeouts and the concurrency are decided by
+> measurement. **Order:** this note → Tier 0 (29.0.1 → 29.0.4) → Tier 1
+> (29.1.1 → 29.1.3, the corpus dispatched once) → Tier 4 (29.4.1, 29.4.2, the
+> Dependabot PRs) → Tier 2 (29.2.1 → 29.2.3) → Tier 3 (29.3.1 → 29.3.3) → the
+> `0.4.0` closure (28.1.2, once the tag and the run exist) → the `0.5.0` prep
+> and its rehearsal to the brake → the exit criteria measured on the same
+> tree → the closing docs. Each task one PR, test first, landed on the required
+> checks; nothing stops for a person except the brake, which is reported and
+> not waited on.
 
 ```
 29.3.4  the record                ✅ this PR — the write-up in docs/gates, Gate 1 filled, 10.1.1–10.1.2 ticked, 12b.1 → here
@@ -8242,6 +8267,27 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   29.2.3 with a number; 13 (build and vendor directories excluded by default)
   — true of findings, false of time, and 29.0.1's; 14 and 15 closed by
   10.3b's own tasks.
+
+### Tier 4 — Maintenance the morning left behind
+
+- [ ] **29.4.1** **The base images carry their tag beside the digest (Dependabot
+  #104).** Measured: `FROM python@sha256:…` names no tag, so Dependabot resolved
+  `latest`, proposed a digest that is not an Alpine image, and the build failed
+  at `apk` on three required jobs. `FROM python:3.12-alpine3.22@sha256:…` on
+  the three lines, and the same shape for every tool image that has a tag, so
+  a bump tracks the tag we mean; measure that a tag beside a digest changes
+  neither the tree hash nor the reproducibility check. Close #104 with the
+  reason; Dependabot re-opens against the right tag on its next run. **Held
+  by:** a test over the Dockerfile that every `FROM` with a digest also names
+  a tag.
+- [ ] **29.4.2** **Checkov 3.3.19 (Dependabot #106, #107), and the two bumps
+  that only needed the signer fix (#103, #105).** `scripts/lock-checkov.sh`
+  regenerates the hash lock; `adapters/checkov.py`'s VERSION, `conftest.py`'s
+  fixture version and `docs/PROTOCOL.md`'s table follow, held by
+  `test_constraints_supply_chain`; the startup floor re-measured with 28.2.1's
+  harness and recorded against 6–9 s; #106 and #107 closed for this PR. #103
+  and #105 rebased by comment and landed the moment they are green, `main`
+  held still for the fast-forward.
 
 **Exit criteria (Phase 29):** the record's protocol re-run on the same tree —
 README to a first finding over MCP, one `scan` call, `archive/` and `.venv`
