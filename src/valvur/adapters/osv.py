@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
-from ..findings import Dependency, Exploit, Finding
+from ..findings import Dependency, Exploit, Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from ..versions import version_key as _version_key
 from .base import ScannerAdapter, container_relative
@@ -131,11 +131,11 @@ def _normalise(value: str) -> str | None:
     return _OSV_SEVERITY.get(str(value).strip().upper())
 
 
-def _severity(vuln: dict) -> str:
+def _severity(vuln: dict) -> Severity:
     """OSV reports severity inconsistently across ecosystems; take what is there."""
     for entry in vuln.get("severity") or []:
         mapped = _normalise(entry.get("score", ""))
         if mapped:
-            return mapped
+            return Severity.parse(mapped)
     db = (vuln.get("database_specific") or {}).get("severity", "")
-    return _normalise(db) or "unknown"
+    return Severity.parse(_normalise(db))

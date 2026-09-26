@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .. import fingerprint as _fp
 from ..coverage import Coverage
-from ..findings import Finding
+from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from ..version import __version__ as _VERSION
 from .base import ScannerAdapter
@@ -181,7 +181,7 @@ class CheckAdapter(ScannerAdapter):
                     # Checks may state their own severity. Without this every Check
                     # finding ranked identically, so a coverage note and a
                     # hallucinated dependency arrived at the same weight.
-                    **({"severity": item["severity"]} if item.get("severity") else {}),
+                    severity=Severity.parse(item.get("severity")),
                 )
             )
         return findings

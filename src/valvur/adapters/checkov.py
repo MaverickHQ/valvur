@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from .. import fingerprint as _fp
-from ..findings import Finding
+from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
 
@@ -64,7 +64,7 @@ class CheckovAdapter(ScannerAdapter):
                         evidence=resource,
                         fingerprint=_fp.for_iac(check.get("check_id", ""), path, resource),
                         sources=(output.tool,),
-                        severity=str(check.get("severity") or "medium").lower(),
+                        severity=Severity.parse(check.get("severity") or "medium"),
                     )
                 )
         return findings

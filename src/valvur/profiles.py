@@ -13,8 +13,20 @@ ADR-0016. Old names still resolve so existing agent configuration keeps working.
 
 from __future__ import annotations
 
-OFFLINE = "offline"
-FULL = "full"
+from enum import StrEnum
+
+
+class Profile(StrEnum):
+    """The two Profiles (ADR-0016), typed (28.4.1): the CLI and MCP parse to this
+    at the boundary through `resolve`, and everything after it holds a member.
+    A `str`, so `run.json`'s `profile` and every comparison are unchanged."""
+
+    OFFLINE = "offline"
+    FULL = "full"
+
+
+OFFLINE = Profile.OFFLINE
+FULL = Profile.FULL
 
 # Scanner names per Profile. Names not yet implemented are simply absent from the
 # adapter registry and are skipped — the matrix is declared up front so that adding
@@ -57,20 +69,36 @@ the network is something a developer opts into, never something they get by typi
 
 # The 0.1.0rc1 names. Kept resolving so an agent config written against the rc does
 # not break; `deep` was identical to `standard`, so both land on `full`.
-ALIASES: dict[str, str] = {"quick": OFFLINE, "standard": FULL, "deep": FULL}
+ALIASES: dict[str, Profile] = {"quick": OFFLINE, "standard": FULL, "deep": FULL}
 
 
-def resolve(profile: str) -> str:
-    """Canonical Profile name, accepting the retired ones."""
-    name = (profile or "").strip().lower()
-    return ALIASES.get(name, name)
+def resolve(profile: str) -> Profile:
+    """The Profile a name means, accepting the retired ones. A name that is
+    neither is refused here, at the boundary, with the two that exist — rather
+    than passed on as a string for a `KeyError` three calls later."""
+    name = str(profile or "").strip().lower()
+    if name in ALIASES:
+        return ALIASES[name]
+    try:
+        return Profile(name)
+    except ValueError:
+        raise ValueError(
+            f"unknown profile {profile!r}; one of {', '.join(p.value for p in Profile)}"
+        ) from None
+
+
+def _known(profile: str) -> Profile | None:
+    """The Profile a recorded name means, or None for a name that is not one —
+    the readers below run on a `run.json` from any version and on a `ScanRun`
+    built without one, and must never fail over provenance we do not have."""
+    try:
+        return resolve(profile)
+    except ValueError:
+        return None
 
 
 def scanners_for(profile: str) -> tuple[str, ...]:
-    name = resolve(profile)
-    if name not in SCANNERS:
-        raise ValueError(f"Unknown profile {profile!r}. Choose one of: {', '.join(SCANNERS)}")
-    return SCANNERS[name]
+    return SCANNERS[resolve(profile)]
 
 
 def select(adapters, profile: str):
@@ -90,8 +118,8 @@ def not_run(profile: str) -> tuple[str, ...]:
     that turned out to be a missing Trivy flag rather than a Profile limit, but the
     lesson stands: state the gap rather than let the reader assume there is none.
     """
-    name = resolve(profile)
-    if name not in SCANNERS:
+    name = _known(profile)
+    if name is None:
         # An unrecorded profile is not evidence of a gap. Writing the artifacts must
         # never fail over provenance we simply do not have.
         return ()
@@ -115,8 +143,8 @@ def gaps_in_prose(profile: str) -> str:
     which binary did not run — including what a Scanner that DID run could not do
     without a network."""
     missing = [_ADDS[s] for s in not_run(profile) if s in _ADDS]
-    name = resolve(profile)
-    if name in SCANNERS and not ALLOWS_NETWORK[name]:
+    name = _known(profile)
+    if name is not None and not ALLOWS_NETWORK[name]:
         missing += [NEEDS_NETWORK_FOR[s] for s in SCANNERS[name] if s in NEEDS_NETWORK_FOR]
     if not missing:
         return "nothing else"

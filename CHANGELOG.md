@@ -7,6 +7,11 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **An unknown profile is refused at the door.** `--profile bogus`, or a `scan`
+  call naming one, was passed along as a string and failed three calls later
+  with a `KeyError`; it is refused where it arrives, naming the two that exist.
+  The retired names still resolve. Underneath, Profile, severity and finding
+  status are typed (28.4.1); every artifact is byte-identical.
 - **The image is reproducible.** Two builds of one commit are one image: the
   commit's timestamp on every file in every layer (`SOURCE_DATE_EPOCH`,
   `rewrite-timestamp`), and bytecode compiled in hash mode with a fixed seed.

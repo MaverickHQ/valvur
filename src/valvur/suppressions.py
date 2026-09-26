@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from .findings import Severity
+
 SUPPRESSION_FILE = ".security-scan.toml"   # F8.1: read from the Workspace root
 
 # Context is mandatory, not decorative. A pull request containing only a hash tells a
@@ -148,7 +150,7 @@ def policy_findings(policy: Policy, findings, *, today: date | None = None):
             title=f"Suppression rejected — {problem.detail}",
             evidence=f"fingerprint: {shown}",
             fingerprint=derive("suppression", "invalid", str(shown), problem.detail),
-            severity="medium",
+            severity=Severity.MEDIUM,
             sources=("valvur",),
         ))
 
@@ -163,7 +165,7 @@ def policy_findings(policy: Policy, findings, *, today: date | None = None):
             ),
             evidence=f"reason given: {lapsed.reason}",
             fingerprint=derive("suppression", "expired", lapsed.fingerprint),
-            severity="medium",
+            severity=Severity.MEDIUM,
             sources=("valvur",),
         ))
 
@@ -180,7 +182,7 @@ def policy_findings(policy: Policy, findings, *, today: date | None = None):
                 "silently accept a future finding that happens to match."
             ),
             fingerprint=derive("suppression", "stale", stale.fingerprint),
-            severity="low",
+            severity=Severity.LOW,
             sources=("valvur",),
         ))
 

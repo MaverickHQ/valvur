@@ -31,7 +31,7 @@ from pathlib import Path
 from . import ecosystems as _ecosystems
 from . import exclusions as _exclusions
 from . import fingerprint as _fp
-from .findings import Finding
+from .findings import Finding, Severity
 
 RULE = "valvur.dependency.ecosystem-not-covered"
 #: Dependencies present, but nothing Trivy reads for vulnerabilities — no lockfile.
@@ -158,7 +158,7 @@ def dependency_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Find
             rule=RULE,
             path=_representative(seen, manifests.sees),
             line=0,
-            severity="low",
+            severity=Severity.LOW,
             title=f"{manifests.label} dependencies were not checked for existence",
             evidence=(
                 f"Found {shown}{more}. {readable} No {manifests.label} dependency here "
@@ -211,7 +211,7 @@ def vulnerability_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[F
             rule=VULNERABILITY_RULE,
             path=_representative(present, manifests.reads + manifests.sees),
             line=0,
-            severity="low",
+            severity=Severity.LOW,
             title=f"{manifests.label} dependencies were not checked for known vulnerabilities",
             evidence=evidence,
             # The same identity as the lockfile gap: one note per ecosystem, and a

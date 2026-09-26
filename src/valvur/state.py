@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .findings import Status
 from .fingerprint import FP_VERSION
 
 STATE_FILE = "state.json"
@@ -80,10 +81,10 @@ def save(results_dir: Path, present: dict[str, str], fixed: set[str], *,
     os.replace(staged, target)
 
 
-def status_for(fingerprint: str, previous: dict[str, str], previously_fixed: set[str]) -> str:
+def status_for(fingerprint: str, previous: dict[str, str], previously_fixed: set[str]) -> Status:
     # F5.6: new / persisting / fixed / regressed, against the previous run's state.
     if fingerprint in previous:
-        return "persisting"
+        return Status.PERSISTING
     if fingerprint in previously_fixed:
-        return "regressed"
-    return "new"
+        return Status.REGRESSED
+    return Status.NEW

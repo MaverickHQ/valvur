@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .. import fingerprint as _fp
 from .. import redact as _redact
-from ..findings import Finding
+from ..findings import Finding, Severity
 from ..invocation import Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
 
@@ -47,7 +47,7 @@ class GitleaksAdapter(ScannerAdapter):
                     fingerprint=_fp.for_secret(item["RuleID"], path, secret),
                     sources=(output.tool,),
                     # A live credential in a repository is not a matter of degree.
-                    severity="critical",
+                    severity=Severity.CRITICAL,
                 )
             )
         return findings

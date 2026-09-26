@@ -15,6 +15,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from .findings import Severity
+
 
 def ignored_paths(workspace: Path, paths: list[str]) -> set[str]:
     """Which of these paths git is ignoring. Empty set when this is not a repo."""
@@ -71,7 +73,7 @@ def apply(workspace: Path, findings: list) -> list:
         if is_secret(finding) and finding.path in ignored and finding.path not in tracked:
             out.append(replace(
                 finding,
-                severity="medium",
+                severity=Severity.MEDIUM,
                 title=(
                     f"{finding.title} — in `{finding.path}`, which git is ignoring, "
                     "so it is not committed or pushed"

@@ -12,7 +12,7 @@ from pathlib import Path
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..coverage import Coverage
-from ..findings import Dependency, Exploit, Finding
+from ..findings import Dependency, Exploit, Finding, Severity
 from ..invocation import Invocation, ScannerOutput
 from ..versions import version_key
 from .base import ScannerAdapter, container_relative
@@ -145,7 +145,7 @@ class TrivyAdapter(ScannerAdapter):
                             ecosystem, package, installed, vuln["VulnerabilityID"]
                         ),
                         sources=(output.tool,),
-                        severity=str(vuln.get("Severity", "unknown")).lower(),
+                        severity=Severity.parse(vuln.get("Severity")),
                         exploit=Exploit(cve=vuln["VulnerabilityID"]),
                         dependency=Dependency(
                             ecosystem=ecosystem,

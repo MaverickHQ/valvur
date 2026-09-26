@@ -4,11 +4,46 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from enum import StrEnum
 
 from .fingerprint import FP_VERSION
 
-# Ordered worst-first. Scanners disagree on vocabulary, so adapters map onto this.
-SEVERITIES = ("critical", "high", "medium", "low", "info", "unknown")
+
+class Severity(StrEnum):
+    """What a Scanner asserts about a Finding, in one vocabulary (28.4.1). Ordered
+    worst-first; Scanners disagree on the words, so adapters `parse` onto this.
+    A `str`, so every JSON artifact and every comparison against the literal is
+    unchanged — the goldens hold it byte for byte."""
+
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    INFO = "info"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def parse(cls, text: object) -> Severity:
+        """A Scanner's word for it, or UNKNOWN — never a guess. `MODERATE` is not
+        `medium` until an adapter says so."""
+        try:
+            return cls(str(text or "").strip().lower())
+        except ValueError:
+            return cls.UNKNOWN
+
+
+class Status(StrEnum):
+    """A Finding's status against the previous run (F5.6). `fixed` is not here: a
+    fixed Finding is absent, and the run lists it by fingerprint."""
+
+    NEW = "new"
+    PERSISTING = "persisting"
+    REGRESSED = "regressed"
+
+
+# Ordered worst-first, as the enum is; kept as a name because `.index` is how the
+# ranking, the gate and the merge compare two severities.
+SEVERITIES = tuple(Severity)
 
 
 @dataclass(frozen=True)
@@ -72,12 +107,12 @@ class Finding:
     evidence: str = ""
     fingerprint: str = ""
     fp_version: int = FP_VERSION
-    status: str = "new"
+    status: Status = Status.NEW
     sources: tuple[str, ...] = ()
 
     # --- Enrichment. Additive only: none of it feeds the Fingerprint, because a
     # --- fingerprint shift would invalidate every shared Suppression (ADR-0003).
-    severity: str = "unknown"
+    severity: Severity = Severity.UNKNOWN
     rank: int = 0
     exploit: Exploit | None = None
     dependency: Dependency | None = None
@@ -96,6 +131,11 @@ class Finding:
 
         if self.evidence:
             object.__setattr__(self, "evidence", neutralise(self.evidence))
+        # The vocabulary, whatever a caller passed (28.4.1): a Scanner's word
+        # becomes the enum here, once, and an unknown status is an error rather
+        # than a string nothing downstream would recognise.
+        object.__setattr__(self, "severity", Severity.parse(self.severity))
+        object.__setattr__(self, "status", Status(self.status))
 
 
 def merge(findings: list[Finding]) -> list[Finding]:

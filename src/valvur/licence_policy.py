@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 from . import fingerprint as _fp
-from .findings import Finding
+from .findings import Finding, Severity
 
 COPYLEFT = re.compile(r"\b(AGPL|GPL|SSPL|OSL|EUPL)\b", re.IGNORECASE)
 PERMISSIVE = re.compile(r"\b(MIT|Apache|BSD|ISC|Unlicense|Zlib)\b", re.IGNORECASE)
@@ -87,7 +87,7 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
                 "lockfile. Install dependencies and rescan to resolve them."
             ),
             fingerprint=_fp.for_licence("<dependencies>", "unreadable"),
-            severity="low",
+            severity=Severity.LOW,
             sources=("valvur",),
         ))
     elif undeclared:
@@ -110,7 +110,7 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
                 "here. Check upstream before treating this as a compliance gap."
             ),
             fingerprint=_fp.for_licence("<dependencies>", "undeclared"),
-            severity="low",
+            severity=Severity.LOW,
             sources=("valvur",),
         ))
 

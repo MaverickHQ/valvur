@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 
 from .. import fingerprint as _fp
-from ..findings import Finding
+from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
 
@@ -85,6 +85,6 @@ def _short_rule(check_id: str) -> str:
 _OPENGREP_SEVERITY = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}
 
 
-def _severity(item: dict) -> str:
+def _severity(item: dict) -> Severity:
     raw = str(item.get("extra", {}).get("severity", "")).upper()
-    return _OPENGREP_SEVERITY.get(raw, "medium")
+    return Severity.parse(_OPENGREP_SEVERITY.get(raw, "medium"))

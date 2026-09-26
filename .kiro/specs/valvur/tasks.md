@@ -7609,13 +7609,34 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
 
 ### Tier 4 — After the gate, before `v1.0.0`
 
-- [ ] **28.4.1** **The vocabulary is typed (A2).** Profile is a `str` with retired
+- [x] **28.4.1** **The vocabulary is typed (A2).** Profile is a `str` with retired
   aliases resolved at runtime; ecosystem key, severity, finding status and
   Scanner kind are `str`. 26.4.1 made the job state a `StrEnum` with a
   transition table the code could not leave. The same for `Profile`, `Severity`
   and `Status`, introduced at the boundaries — CLI and MCP parse to the enum —
   with JSON output byte-identical. **Tests first**: the SUMMARY, SARIF and
   findings goldens; mypy as the second test.
+
+  **STATUS 2026-09-26:** ✅ Three `StrEnum`s, the shape 26.4.1 gave the job
+  state: `findings.Severity` (worst-first, `parse` for what a Scanner said —
+  a word it does not know is `UNKNOWN`, never a guess), `findings.Status` (the
+  three the diff produces; `fixed` is a run-level list and is refused as a
+  status), `profiles.Profile` (the two, with the retired names resolving).
+  **At the boundaries:** `profiles.resolve` returns a member or refuses the
+  name with the two that exist — the CLI's `--profile` and the MCP `scan`
+  argument both go through it — while the readers that run on a recorded
+  `run.json` or a `ScanRun` built without a profile (`not_run`,
+  `gaps_in_prose`) stay tolerant, because provenance we do not have is not a
+  reason to fail an artifact; every adapter's severity is `Severity.parse` of
+  what the tool said, the Checks' batch included, and every literal in the
+  tree is a member. `Finding.__post_init__` coerces whatever a caller passed,
+  so the hundreds of `severity="high"` in tests need no touch and a wrong
+  status is an error at construction. **Byte-identical:** `StrEnum` is a
+  `str`, so `json.dumps` writes the word, every `dict` keyed by the literal
+  still matches, and the SUMMARY, SARIF, findings and `tools/list` goldens
+  passed untouched; a test spot-checks the JSON and `str()` forms. Tests
+  first, six (`tests/test_vocabulary.py`); mypy the second test, clean; 1,145
+  unit tests; e2e green on an image rebuilt from the tree.
 
 - [ ] **28.4.2** **Three modules, one job each (A3).** `name_index.py` (799 lines)
   is two products — the reader the scan needs and the builder only the workflow
