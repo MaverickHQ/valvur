@@ -66,6 +66,13 @@ class Invocation:
     #: Whether the container is launched with a network interface. False is
     #: `--network=none`, and nothing the adapter says can change that (N2.1).
     network: bool = False
+    #: The CLI's guard against a Scanner that never returns; over MCP the fleet's
+    #: 300 s budget always fires first. Decided by measurement (29.1.1): each
+    #: adapter's value is five times its worst measured run or more — Checkov 600
+    #: against 107.8 s on the corpus's Terraform module, Trivy 600 against 65.7 s
+    #: and Opengrep 600 against 71.0 s contended on a 4 GiB VM, Gitleaks 300
+    #: against 6.4 s on the gate's tree once its archive was excluded — and past
+    #: it the container is stopped and the record says so (29.0.2).
     timeout: int = 600
     #: Whether `/tmp` may hold executables — Opengrep unpacks and runs
     #: opengrep-core. Granted per Scanner, never to the fleet.

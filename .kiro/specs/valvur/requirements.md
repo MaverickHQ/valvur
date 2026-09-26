@@ -175,7 +175,19 @@ that I do not maintain six toolchains myself.
    `doctor` only when a precondition could be the cause; a Scanner's record says the
    cause valvur knows — cut by the budget, timed out and stopped, or killed by the
    runtime (exit 137, the container's ceiling or the VM's) — with the command line
-   kept in `run.json` and out of the sentence.* *Extended 2026-09-13 (task 23.3.7): and a budget for the
+   kept in `run.json` and out of the sentence.* *Decided 2026-09-26 (task 29.1.1),
+   by measurement after 29.0.1: the MCP budget stays **300 s** — the gate's tree
+   88 s on this Mac at eight Scanners at once (83.5 s at two), the synthetic
+   22,000-file tree 20–24 s, the corpus 5.4–9.5 s on Linux and 96 s for the
+   Terraform module: a margin of three or more on the slowest real tree
+   measured. The per-Scanner timeouts are the CLI's guard (no budget there unless
+   `--budget`): Gitleaks 300 s equals the MCP budget, so over MCP the budget
+   always wins; Checkov 600 s against 107.8 s worst measured (the Terraform
+   module on Linux; 48.3 s on the gate's tree on this Mac); Trivy 600 s against
+   65.7 s (contended, this Mac); Opengrep 600 s against 71.0 s; Syft, OSV-Scanner
+   and the Checks 600 s against under 10 s. Each is five times its worst measured
+   run or more; kept, with the multiples recorded in `invocation.py` rather than
+   round numbers explained by nothing.* *Extended 2026-09-13 (task 23.3.7): and a budget for the
    fleet as a whole — none on the CLI unless `--budget` is given, 300 seconds over
    MCP unless the client names another (N1.2's figure) — past which no new
    **Scanner** starts, the running ones are stopped, and each one cut is recorded
@@ -643,7 +655,15 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    `scan` over MCP with nothing run first fetches the image, the database and the
    index itself, measured at 110s to a complete result from an empty machine. The
    60s is the scan proper (33s on the fixture, 7–24s on small real projects); the
-   first run's fetches are stated separately in `docs/EVALUATING.md`.*
+   first run's fetches are stated separately in `docs/EVALUATING.md`.* *Note
+   2026-09-26 (task 29.1.1): the number is for the working tree **after
+   exclusions** — the built-in vendored list, `[scan] exclude`, and what
+   `.gitignore` hides when `honour_gitignore` asks (29.0.1). The first gate's
+   tree was 340 times its git index (107,544 files on disk, 312 tracked), and its
+   first scan failed at the 300 s MCP budget with nothing excluded; with its
+   two-line exclude, after 29.0.1, it completes in 88 s on an Apple-silicon Mac
+   through Docker Desktop. A tree past 20,000 files to scan is named before the
+   fleet starts, with the one line that drops its largest directory (29.1.2).*
 2. P2 — Every **Finding** SHALL be traceable to the **Scanner** or **Check** and
    version that produced it.
 3. P3 — valvur SHALL emit SARIF and CycloneDX, and SHALL depend on no proprietary
@@ -685,6 +705,17 @@ Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
    llm 7.4, express 7.8, smolagents 8.3, flask 8.5, gson 8.8, fastify 9.0,
    ripgrep 9.1), Checkov 5.4–8.8 s of it; the Terraform module 107.8 s. Run
    36201214103, `ubuntu-24.04`. The 60 s claim is met with a margin of six.*
+   *Re-measured 2026-09-26 (task 29.1.1), after every Scanner is told what to
+   skip before it reads (29.0.1) — run 36250465513, `ubuntu-24.04`: every
+   application repository **5.4–9.5 s** (cobra 5.4, awesome-cursorrules 5.8,
+   monolog 6.4, requests 6.8, sinatra 6.9, llm 7.0, flask 7.5, express 7.5,
+   ripgrep 8.3, smolagents 8.7, fastify 8.8, gson 9.5), Checkov the slowest on
+   each; the Terraform module 96.3 s. The corpus is clean clones, so the change
+   cost them nothing; what it changed is the tree the requirement is for: **the
+   working tree after exclusions** — a working tree's data directory, build
+   tree or archive is walked by no Scanner once named, and is named before the
+   fleet starts past 20,000 files (29.1.2). On the first gate's tree the same
+   Mac read 88 s at eight Scanners at once and 83.5 s at two (29.1.3).*
 2. N1.2 — `full` **Profile** SHALL complete in under 5 minutes on the same. *Note
    2026-09-13 (task 24.3): measured beside N1.1 on the same run — `full` is `offline`
    plus 0–1s on every corpus repository (osv-scanner 0.9–1.9s), 15–17s on

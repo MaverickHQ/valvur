@@ -8265,7 +8265,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
 
 ### Tier 1 — The numbers fit a real machine and a real tree
 
-- [ ] **29.1.1** **The time goals, re-stated for the working tree (P1, N1.1,
+- [x] **29.1.1** **The time goals, re-stated for the working tree (P1, N1.1,
   N1.2, N1.4; the 300 s budget; the gate's five minutes).** Measured: every
   number in the requirements is for *lines of application code* on a Linux
   runner with the data present, taken on git clones; the gate's tree was 340
@@ -8284,6 +8284,27 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   gate's *five minutes* (P1's document) stays the target and gets a row in
   `docs/EVALUATING.md`'s first-run table for a working tree with a data
   directory: with and without the exclude, both measured.
+
+  **STATUS 2026-09-26:** ✅ Decided by measurement, after 29.0.1 landed. **The
+  corpus re-dispatched on the new tree** (run 36250465513, `ubuntu-24.04`):
+  every application repository 5.4–9.5 s, Checkov the slowest on each, the
+  Terraform module 96.3 s — unchanged from 28.2.1, because the corpus is clean
+  clones and the excludes cost them nothing. **The gate's tree**: failed at
+  300 s with nothing excluded; 88 s with its two-line exclude at eight Scanners
+  at once, 83.5 s at two (this Mac, Docker Desktop). **The synthetic
+  22,000-file tree**: 20–24 s. So: P1 and N1.1 now say what they hold for —
+  *the working tree after exclusions* — and that a tree past 20,000 files to
+  scan is named before the fleet starts (29.1.2's threshold, kept); the
+  numbers stay, being the right numbers for that tree. The MCP budget stays
+  **300 s**, a margin of three or more on the slowest real tree measured; the
+  per-Scanner timeouts stay at their values with the reason each carries now
+  written in `invocation.py` — five times the worst measured run or more, the
+  CLI's guard, and over MCP the budget always first (Gitleaks's 300 s equals
+  it). `docs/EVALUATING.md`'s first-run table gains the row a working tree
+  deserves: with and without the exclude, both measured. The gate's five
+  minutes stays the target for the stranger's next run, on `0.5.0`.
+
+
 - [x] **29.1.2** **The pre-flight count (B1, B7; P1).** Measured: 107,544
   files were walked by eight Scanners before anyone counted them. One walk in
   the shim (`os.scandir`, measured cost on that tree in the STATUS note),
