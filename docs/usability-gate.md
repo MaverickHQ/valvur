@@ -96,6 +96,17 @@ Append findings here under a dated heading, then tick the corresponding task in
   `tasks.md`. What worked — the install, `doctor`'s accuracy, the stdio
   server, the live fetch lines, the self-ignoring folder, *left this machine:
   nothing*, eight real findings ranked low — is credited in the record's §2.
+- **The agent-driven pass, the same day on `0.5.0` (task 29.2.3):** the half
+  the gate could not run — Claude Code's own model driving the tools — ran
+  once the owner had logged the CLI in. One headless `claude -p` with the
+  project's `.mcp.json`, one sentence, six tools and `Read`: **2 min 53 s from
+  the command to a correct report, no question asked**, the scan itself 95 s,
+  complete, nothing left behind. Warm, not a stranger, and said so in
+  [`gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`](gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md),
+  with the whole transcript. It found one thing (29.2.4): Claude Code hands
+  the model a structured reply's JSON and not its text, so the *call again;
+  do not report yet* sentence never arrived, and the model ended its turn with
+  the scan running; the harness's re-invocation produced the report.
 
 ## Gate 2 — Phase 10 (task 10.8)
 

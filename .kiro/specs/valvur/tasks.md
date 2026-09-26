@@ -1960,7 +1960,7 @@ become the task list for 12b.** Everything below is provisional until it has.
 
 ### 12b — Release
 
-- [ ] **12b.1** Act on the usability gate's findings. Phase 10 tasks 10.1–10.5 close
+- [x] **12b.1** Act on the usability gate's findings. Phase 10 tasks 10.1–10.5 close
   here or are explicitly deferred with a reason.
 
   **STATUS 2026-09-26:** ⏳ **the gate has run; this task is
@@ -1974,6 +1974,14 @@ become the task list for 12b.** Everything below is provisional until it has.
   blocked on the owner's `claude login`. Every finding of the gate is fixed on
   `main`; the measurement of a stranger's model on the fixed tree is the last
   claim, and it is the one a person has to enable.
+
+  **STATUS 2026-09-26 (night):** ✅ **closed with 29.2.3.** Phase 29 shipped
+  as `0.5.0`; its last row ran once the owner's login existed and answered
+  10.5's claim 12 with a number — 2 min 53 s from one headless call to a
+  correct report — and found one more thing, 29.2.4, which is open on its own
+  merits and not this task's. Phase 10's claims are each answered under
+  29.3.4's STATUS; 12b.3's *a person outside this repository* is the one ask
+  the gate has not met, and it stays with `v1.0.0`.
 - [x] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
   the release artifact rather than the working tree. *(N2.5)*
 
@@ -8525,7 +8533,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   printer for each of the eleven.
 
 
-- [ ] **29.2.3** **The agent-driven pass, measured (10.2 claims 1–2, 10.5
+- [x] **29.2.3** **The agent-driven pass, measured (10.2 claims 1–2, 10.5
   claim 12; §5 of the record).** *Owner-assisted:* the record could not run
   the model because the desktop app's session cannot be used by a child
   process; it needs `claude login` in a terminal. After Tier 0 lands, on the
@@ -8549,6 +8557,62 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   — timed from the call to a correct report, the transcript kept under
   `docs/gates/`. Runs the moment the login exists; the Codex pass stays
   declined by the same decision.
+
+  **STATUS 2026-09-26 (night):** ✅ **run once the login existed — 2 min 53 s
+  from the command to a correct report, no question asked.** The command
+  above, verbatim, at 21:00:40 BST on `0.5.0` as `uvx` resolves it; the
+  participant Claude Code 2.1.283 with `claude-fable-5-1`, and not a stranger:
+  the harness loaded the project's `CLAUDE.md` and the participant's own notes
+  from the morning's gate, which it read first and followed (`budget_s: 900`,
+  a `docker ps` for leftovers). It called `doctor` at 13 s, `scan` at 23 s,
+  polled `scan_status` twice, and reported at **173 s**: eight low findings on
+  the eight `uses:` lines, the coverage note as a gap and not a finding,
+  osv-scanner's omission on `offline`, *nothing left the machine*, the eight
+  lines verified with `grep` before they were repeated — correct in every
+  claim of substance, one loose phrase. **The scan: 95 s, complete, 327 files,
+  Checkov 46 s the slowest, two Scanners at a time, nine containers all exit 0
+  and none left** — against `FAILED` at 300 s and 829 s incomplete on the same
+  tree the morning of the gate. Warm, and said so: image, database and index
+  from the owner's own first run, the exclude in place; the gate's 45 s of
+  fetches and 13 s install make a first-ever run an *estimate* of 3 min 51 s.
+  **10.5 claim 12 answered with that number; 12b.3's person stands.** What the
+  record asked — what the model does when a scan is cut — could not be seen:
+  nothing was cut. **What was seen instead is 29.2.4**: Claude Code hands the
+  model a structured reply's JSON and not its text, so `scan_status`'s *call
+  again; do not report a result yet* never arrived, and the model built its
+  own wait and ended its turn with Checkov still running; the harness's
+  re-invocation on its Monitor is what produced the report. The record, with
+  the whole transcript, is
+  [`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md);
+  Gate 1 in `docs/usability-gate.md` carries the number. Codex declined by
+  decision (2).
+
+- [ ] **29.2.4** **Every reply's advice is a field, because Claude Code drops
+  the text (found by 29.2.3).** Measured in the pass's transcript: for all five
+  calls to the two tools that answer with `structuredContent` (28.2.2), Claude
+  Code 2.1.283 gave the model the JSON as a string and not the text block —
+  `doctor`, `scan` and `explain_finding`, text only, arrived as text. `DONE`
+  loses nothing (its dict carries `next`, and the model called
+  `explain_finding` on the fingerprint it named). **`RUNNING` loses its one
+  instruction** — *This call waited 15s for it. Call again; do not report a
+  result yet* (`operations.py:530`, 10.2.5) — and *Completed so far*; `FAILED`
+  loses *Run `doctor` …* and *No result to report* (only `doctor_may_help`
+  survives); `CANCELLING` and `CANCELLED` lose every sentence. The agent then
+  did what the sentence exists to prevent: three refused attempts at its own
+  wait, an old file read for context, and a turn ended with the scan running.
+  The task: the `RUNNING` reply gets `next` in the shape `DONE` has (*call
+  `scan_status` again; it waits up to 15 s and returns the moment the scan
+  finishes; do not report a result yet*) and `waited_s`; `FAILED`,
+  `CANCELLING` and `CANCELLED` get `next` with their sentences; the budget
+  cut's cause and three levers (29.0.3) are fields beside `job.error`, not
+  only inside it. Text unchanged, so the CLI and the parity test (F9.3) see
+  nothing. **Held by:** a test over every branch of `scan_status_reply` that
+  each sentence the text says after the state is present in the structured
+  reply, and the `tools/list` snapshot (23.5.2) if the output schema grows.
+  An hour; before `v1.0.0`, because the primary client is the one that drops
+  it. *(Recorded and not tasked beside it: A3 in the record, a bounded
+  `wait_s` for an agent that wants one wait, to decide once agents are told
+  the call waits.)*
 
 
 ### Tier 3 — The claim, and the small things
@@ -8647,7 +8711,8 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   budget is 29.1.1's; 8–11 (error messages) closed by 10.4's own tasks and
   `doctor`; 12 (a useful result in five minutes, no question asked) — **not
   met**: thirty minutes with the source read, and the answer is Tier 0, then
-  29.2.3 with a number; 13 (build and vendor directories excluded by default)
+  29.2.3 with a number — **which it gave that night: 2 min 53 s on `0.5.0`,
+  no question asked, warm, the participant an agent with notes**; 13 (build and vendor directories excluded by default)
   — true of findings, false of time, and 29.0.1's; 14 and 15 closed by
   10.3b's own tasks.
 
@@ -8732,8 +8797,15 @@ README's status line is true on every day of a release, and reads *release in
 progress* today, which is true (29.3.1). The corpus was dispatched once on the
 Tier 0 tree — 5.4–9.5 s on every application repository (29.1.1); the synthetic
 tree lives in the e2e suite on every pull request rather than in the corpus.
-**One row stays open and says why:** 29.2.3, blocked on the CLI login the
-flow's decision (2) named, its command written; 12b.1 closes with it. The
+**The last row closed that night:** 29.2.3 ran once the owner's login
+existed — one headless `claude -p` on the gate's tree, **2 min 53 s from the
+command to a correct report on `0.5.0`**, no question asked, the scan 95 s,
+nine containers all gone — and 12b.1 closed with it; its record with the whole
+transcript is `docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`.
+It found one thing, **29.2.4**, open: Claude Code hands the model a structured
+reply's JSON and drops its text, so `scan_status`'s *call again; do not report
+a result yet* never reached the agent, which ended its turn with the scan
+running. The
 release step, which the flow had left at *`0.4.0` untagged* by the rule that a
 version is not bumped over an untagged one, ran the same evening once the
 owner's tag existed: `v0.4.0` promoted (28.1.2, run 36254809572, 25 minutes
