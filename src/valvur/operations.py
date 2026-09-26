@@ -476,6 +476,7 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         # (24.1) — is the one kind of stage that is not a Scanner completing, and
         # the kind that made a first run look hung: it gets its own line while it
         # is the latest thing said, and the line goes once anything follows it.
+        from . import levers as _levers
         from .api import FETCH_STARTED
 
         now: str | None = None
@@ -485,6 +486,7 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         started: dict[str, float] = {}
         finished: list[str] = []
         fleet: int | None = None
+        workspace_lines: list[str] = []
         stamps = list(job.progress_at) + [job.elapsed + job.started] * len(job.progress)
         for message, at in zip(job.progress, stamps, strict=False):
             if message.startswith(FETCH_STARTED):
@@ -493,6 +495,11 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
             now = None
             if message.startswith("fleet: "):
                 fleet = int(message.split()[1])
+                continue
+            if message.startswith(_levers.WORKSPACE_PREFIX):
+                # The count and, past the threshold, the directory to exclude
+                # (29.1.2): said once, and not a completion.
+                workspace_lines.append("Workspace: " + message[len(_levers.WORKSPACE_PREFIX):])
                 continue
             tool, sep, rest = message.partition(": ")
             if sep and rest == "started":
@@ -503,6 +510,7 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
                 continue
             completed.append(message)
         lines = [f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed."]
+        lines += workspace_lines
         if now is not None:
             lines.append(f"Now: {now}.")
         done = {m.partition(": ")[0] for m in finished}

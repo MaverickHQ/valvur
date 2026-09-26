@@ -196,6 +196,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_index())
     checks.append(_check_kev())
     checks.append(_check_selinux(workspace))
+    checks.append(_check_workspace(workspace))
     checks.append(_check_mcp(workspace))
     checks.append(_check_network(network, fetch_due=fetch_due or not image_local))
     return checks
@@ -411,6 +412,28 @@ def _check_selinux(workspace: Path) -> Check:
         f"chcon -R -t container_file_t {workspace}   (undo: restorecon -R -F {workspace}) "
         f"— or {RELABEL_ENV}=1 valvur scan, which relabels for you and persists",
     )
+
+
+def _check_workspace(workspace: Path) -> Check:
+    """How much a scan here will read, and the directory that would drop most of
+    it (29.1.2). The first gate's tree held 107,544 files, 103,251 of them in
+    one gitignored archive, and nothing said so until the budget was spent."""
+    from . import exclusions
+
+    prefixes = exclusions.excluded_prefixes(workspace)
+    files, largest = exclusions.count_files(workspace, prefixes)
+    named = ", ".join(f"{d} {n:,}" for d, n in largest) or "none"
+    excluded = f"; excluded: {', '.join(prefixes)}" if prefixes else ""
+    if files >= exclusions.LARGE_TREE and largest and largest[0][0] != ".":
+        top, count = largest[0]
+        return Check(
+            "workspace", "warn",
+            f"{files:,} files to scan — {top} holds {count:,}{excluded}",
+            f'[scan] exclude = ["{top}"] in .security-scan.toml, if it is not source: a scan '
+            "reads every file it is not told to skip, and the first gate spent its whole "
+            "budget on one such directory",
+        )
+    return Check("workspace", "ok", f"{files:,} files to scan; largest {named}{excluded}")
 
 
 # ----------------------------------------------------------------- MCP clients

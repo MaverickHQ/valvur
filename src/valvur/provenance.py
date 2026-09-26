@@ -104,6 +104,10 @@ def render(run: ScanRun) -> str:
                 # is None when either side is unrecorded — nothing to compare.
                 "build": {"shim": run.shim_built_from, "image": run.image_built_from,
                           "match": run.build_match},
+                # The pre-flight count (29.1.2): what the Scanners were told to
+                # read, so a slow scan can be read against its tree.
+                "workspace": {"files": run.workspace_files,
+                              "largest": [[d, n] for d, n in run.largest_dirs]},
                 "excluded_by_config": {
                     "paths": list(run.excluded_paths),
                     "findings_dropped": run.config_dropped,

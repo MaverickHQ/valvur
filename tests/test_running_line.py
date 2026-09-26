@@ -22,7 +22,7 @@ from valvur import api
 def test_the_fleet_announces_its_size_and_each_start(workspace):
     _, said = _scan(workspace, _Runner(), [_Adapter("fast", 0.05), _Adapter("quick", 0.05)])
 
-    assert said[0] == "fleet: 2 Scanners, 2 at a time"
+    assert next(m for m in said if m.startswith("fleet: ")) == "fleet: 2 Scanners, 2 at a time"
     for tool in ("fast", "quick"):
         assert said.index(f"{tool}: started") < next(
             i for i, m in enumerate(said) if m.startswith(f"{tool}: ok"))

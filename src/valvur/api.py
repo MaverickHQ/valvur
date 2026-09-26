@@ -114,6 +114,10 @@ class ScanRun:
     unpinned_dropped: int = 0
     unpinned_files: tuple[str, ...] = ()
     excluded_paths: tuple[str, ...] = ()
+    #: The pre-flight count (29.1.2): files the Scanners were told to read, and
+    #: the three largest top-level directories by that count.
+    workspace_files: int = 0
+    largest_dirs: tuple[tuple[str, int], ...] = ()
     #: The `.gitignore` opt-in (29.0.1 part 2): asked for, the directories it
     #: hid, why git could not be asked, and what a Scanner reported there anyway.
     honour_gitignore: bool = False
@@ -645,12 +649,26 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     if adapters is None:
         adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
 
+    # The count (29.1.2), before a container starts: what the Scanners will read,
+    # the largest directories, and — past the threshold — the one line that
+    # would drop the largest, said before the budget is spent rather than after.
+    from . import exclusions as _exclusions
+    from . import levers as _levers
+
+    files, largest = _exclusions.count_files(workspace, _exclusions.excluded_prefixes(workspace))
+    if on_progress is not None:
+        on_progress(_levers.workspace_line(files, largest))
+        warning = _levers.large_tree_line(files, largest)
+        if warning is not None:
+            on_progress(warning)
+
     outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress, jobs=jobs,
                            budget_s=budget_s)
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
+        workspace_files=files, largest_dirs=largest,
     )
 
 
@@ -772,7 +790,8 @@ def _budget_shaped(reason: str) -> bool:
 
 
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
-              budget_s, shim_built_from, image_built_from) -> ScanRun:
+              budget_s, shim_built_from, image_built_from,
+              workspace_files: int = 0, largest_dirs=()) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -792,7 +811,8 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
             # what ran, what did not start, and the three levers.
             from . import levers
 
-            raise BudgetExhausted(levers.budget_exhausted_message(scanners, budget_s))
+            raise BudgetExhausted(levers.budget_exhausted_message(
+                scanners, budget_s, files=workspace_files, largest=largest_dirs))
         detail = "; ".join(f"{s.tool}: {s.reason}" for s in scanners)
         raise ScannerFailed(f"Every scanner failed. Refusing to report a scan.\n{detail}")
 
@@ -850,6 +870,8 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         budget_s=budget_s,
         budget_cut=cut,
         shim_built_from=shim_built_from,
+        workspace_files=workspace_files,
+        largest_dirs=tuple(largest_dirs),
         image_built_from=image_built_from,
     )
 

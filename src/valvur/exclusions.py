@@ -331,6 +331,35 @@ def gitleaks_config(prefixes: tuple[str, ...] = (), *, project_config: bool = Fa
     )
 
 
+#: Files a scan will read past which the pre-flight names the largest directory
+#: (29.1.2): the synthetic gate tree's archive is 20,000, the gate's own 103,251.
+LARGE_TREE = 20_000
+
+
+def count_files(workspace: Path, prefixes: tuple[str, ...] = (),
+                ) -> tuple[int, tuple[tuple[str, int], ...]]:
+    """How many files a scan will read, and the three largest top-level
+    directories by that count — the same pruned walk as `walk_files`, before the
+    fleet starts. Measured on the gate's tree: 0.02 s with its exclude (327
+    files), 0.69 s without (103,578; `archive` 103,251)."""
+    import os
+
+    total = 0
+    per_top: dict[str, int] = {}
+    for dirpath, dirnames, filenames in os.walk(workspace):
+        rel = Path(dirpath).relative_to(workspace)
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in VENDORED and not is_configured_out((rel / d).as_posix(), prefixes)
+        ]
+        kept = sum(1 for f in filenames if not is_configured_out((rel / f).as_posix(), prefixes))
+        total += kept
+        top = rel.parts[0] if rel.parts else "."
+        per_top[top] = per_top.get(top, 0) + kept
+    largest = sorted(((d, n) for d, n in per_top.items() if n), key=lambda dn: (-dn[1], dn[0]))
+    return total, tuple(largest[:3])
+
+
 def walk_files(workspace: Path, prefixes: tuple[str, ...] = ()):
     """Every file under the Workspace that is neither vendored nor under an
     excluded prefix — without descending into what is skipped, which is the

@@ -8284,7 +8284,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   gate's *five minutes* (P1's document) stays the target and gets a row in
   `docs/EVALUATING.md`'s first-run table for a working tree with a data
   directory: with and without the exclude, both measured.
-- [ ] **29.1.2** **The pre-flight count (B1, B7; P1).** Measured: 107,544
+- [x] **29.1.2** **The pre-flight count (B1, B7; P1).** Measured: 107,544
   files were walked by eight Scanners before anyone counted them. One walk in
   the shim (`os.scandir`, measured cost on that tree in the STATUS note),
   before the fleet: the file count after exclusions and the three largest
@@ -8295,6 +8295,27 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   runtime's memory and CPUs (`docker info`: 4 GB and 8 here) with 29.1.3's
   recommendation. **Held by:** the goldens for a small tree and the synthetic
   one, and `doctor`'s test with a fake runtime reporting 4 GB.
+
+  **STATUS 2026-09-26:** ✅ Measured first: the pruned walk (`os.walk`, the
+  same pruning as 29.0.1's `walk_files`) costs **0.02 s on the gate's tree with
+  its exclude (327 files) and 0.69 s without (103,578 files, `archive` 103,251)**
+  — cheap enough to run before every fleet. `exclusions.count_files` returns
+  the count and the three largest top-level directories; `_scan_locked` says
+  `workspace: 327 files to scan; largest: docs 108, occams 105, tests 64` as
+  the first progress line, and past `LARGE_TREE` (20,000 — the synthetic
+  archive's size; the gate's was 103,251) a second: *archive holds 103,251 of
+  them — if it is not source, `[scan] exclude = ["archive"]` in
+  `.security-scan.toml` drops it before the Scanners start*. `scan_status` gives
+  those lines their own place under RUNNING (not among the completions), the
+  CLI prints them, `run.json` carries `workspace: {files, largest}`, the budget's
+  refusal (29.0.3) says *The workspace holds N files (…)* before the levers, and
+  `valvur doctor` has a `workspace` check — ok with the count and the largest,
+  warn past the threshold with the exclude line as its fix, and the excluded
+  prefixes named either way. Held by seven unit tests. The threshold's number
+  is 29.1.1's to revisit with the corpus; the runtime's memory beside it is
+  29.1.3's.
+
+
 - [ ] **29.1.3** **Concurrency from the runtime's memory (B7; N1.4).**
   Measured: eight containers start at once inside a 4 GB VM; the README's
   remedy is in Platforms, after the point of failure. Measure first, on this

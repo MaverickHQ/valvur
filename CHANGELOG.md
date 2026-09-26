@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A scan counts what it will read before it starts.** One pruned walk
+  before the fleet — 0.02 s on the gate's 107,544-file tree with its exclude,
+  0.69 s without — puts the count and the three largest directories on the
+  first status line and in `run.json` (`workspace`), and past 20,000 files
+  names the directory and the one `[scan] exclude` line that would drop it,
+  *before* the budget is spent rather than after. The budget's refusal carries
+  the count, and `valvur doctor` has a `workspace` check that says the same
+  for the directory it is run in (29.1.2).
 - **`scan_status` says what is running, and for how long.** At the first
   usability gate sixteen polls over 290 s answered only *Completed so far:
   image pulled, database fetched, index fetched*, because no Scanner had

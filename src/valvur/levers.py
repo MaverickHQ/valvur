@@ -19,7 +19,35 @@ LEVERS = (
 )
 
 
-def budget_exhausted_message(scanners, budget_s: float) -> str:
+#: The pre-flight's messages start with this (29.1.2); `scan_status` gives them
+#: their own line rather than listing them as a completion.
+WORKSPACE_PREFIX = "workspace: "
+
+
+def _largest(largest) -> str:
+    return ", ".join(f"{d} {n:,}" for d, n in largest) or "none"
+
+
+def workspace_line(files: int, largest) -> str:
+    return f"{WORKSPACE_PREFIX}{files:,} files to scan; largest: {_largest(largest)}"
+
+
+def large_tree_line(files: int, largest) -> str | None:
+    """The sentence a first run needed before its budget was spent, not after:
+    the directory, its count, and the one line that drops it. None below the
+    threshold, or when the files are at the root."""
+    from .exclusions import LARGE_TREE
+
+    if files < LARGE_TREE or not largest or largest[0][0] == ".":
+        return None
+    top, count = largest[0]
+    return (f"{WORKSPACE_PREFIX}{top} holds {count:,} of them — if it is not source, "
+            f'`[scan] exclude = ["{top}"]` in `.security-scan.toml` drops it before the '
+            "Scanners start")
+
+
+def budget_exhausted_message(scanners, budget_s: float, files: int | None = None,
+                             largest=()) -> str:
     """The refusal when the budget cut every Scanner: what ran and for how long,
     what never started, and the levers — never *every scanner failed*, which is
     what killing them looks like from inside, and never *run doctor*, which says
@@ -31,4 +59,7 @@ def budget_exhausted_message(scanners, budget_s: float) -> str:
              f"{len(cut)} cut ({ran})"]
     if unstarted:
         parts.append(f"{len(unstarted)} not started ({', '.join(s.tool for s in unstarted)})")
-    return "; ".join(parts) + "; none finished. " + LEVERS
+    text = "; ".join(parts) + "; none finished."
+    if files is not None:
+        text += f" The workspace holds {files:,} files ({_largest(largest)})."
+    return text + " " + LEVERS

@@ -407,8 +407,8 @@ def test_the_progress_line_names_each_check(ws):
 
     # The fleet's announcements (29.0.4) name the batch's members at its start;
     # the ends, one per Check, are what this test has always counted.
-    ends = [line for line in said
-            if not line.startswith("fleet: ") and not line.endswith(": started")]
+    ends = [line for line in said if not line.startswith(("fleet: ", "workspace: "))
+            and not line.endswith(": started")]
     assert [line.split(":")[0] for line in ends] == list(CHECKS)
     assert [line.split(":")[0] for line in said if line.endswith(": started")] == list(CHECKS)
 
