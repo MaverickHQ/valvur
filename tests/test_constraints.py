@@ -1260,7 +1260,9 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
         if re.search(r"^\s*schedule:", text.split("\njobs:", 1)[0], re.M):
             scheduled.append((path.name, text))
 
-    assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml"}, \
+    # `retention.yml` (weekly) joined in 28.3.1: a red run there means the
+    # packages stopped being pruned, which nobody would notice for months.
+    assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:

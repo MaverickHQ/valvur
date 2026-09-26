@@ -1,0 +1,76 @@
+# Package retention (task 28.3.1, D2). Nothing deleted a package version until
+# this: `valvur-rehearsal` held 197 and `valvur-index` 45 on 2026-09-26, and
+# every old rehearsal image — with whatever CVEs its base had that week — stayed
+# pullable under this account's name. Storage is free; that is the cost.
+#
+# Versions are kept by count, newest first, because a multi-architecture image is
+# several package versions — the manifest list that carries the tag, one manifest
+# per platform and the attestations, all but the first untagged — and they are
+# pushed together. Keeping the newest N versions keeps whole images; keeping N
+# *tags* and deleting the rest would delete the platform manifests under a tag
+# that stays, which is a signed image that no longer pulls.
+#
+# `valvur`, the published image, is deliberately not named here. Every tagged
+# version of it is a release, and every untagged one is a release's platform
+# manifest or attestation; a test asserts this file never touches it.
+name: retention
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"          # Mondays, 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    name: old package versions, gone
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+      issues: write         # open the one issue a failure gets (27.2.7)
+    steps:
+      - name: valvur-rehearsal — about the last five rehearsals
+        uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5.0.0
+        with:
+          package-name: valvur-rehearsal
+          package-type: container
+          # A rehearsal pushes about five versions (manifest list, two platforms,
+          # two attestations); twenty-five keeps the last five rehearsals whole.
+          min-versions-to-keep: 25
+
+      - name: valvur-index — about six weeks of daily builds
+        uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5.0.0
+        with:
+          package-name: valvur-index
+          package-type: container
+          # A daily build pushes the artifact and its cosign signature: ninety
+          # versions is about forty-five days, which covers the thirty dated
+          # tags the task asks for, `latest` and `candidate` among them.
+          min-versions-to-keep: 90
+
+      - name: A failure is a tracked thing, not an email
+        # The rule every scheduled workflow here follows (27.2.7): GitHub mails a
+        # scheduled failure to the file's last committer and does nothing else.
+        # One open issue per workflow; a second failure comments on the first.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the weekly package retention run failed
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "The scheduled \`retention\` run failed: $RUN" \
+            "Nothing users have changes: old rehearsal images and old daily indexes stay pullable a week longer. What is lost is the pruning itself, and a package that grows without bound is the condition this workflow exists to end." \
+            "Recovery: read the run log for the package and the step that failed — usually a token without \`packages: write\` on that package — then dispatch this workflow again after the fix.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi
