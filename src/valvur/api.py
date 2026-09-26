@@ -338,14 +338,14 @@ def _ensure_data(runner, on_progress) -> tuple[list[dict], dict[str, str]]:
     if not _cache.name_index_present():
         from . import locking, name_index
 
-        index_size = name_index.published_size_mb()
+        index_size = name_index.published.published_size_mb()
         say(f"fetching the package-name index{_mb(index_size)} — the first run only")
         started = time.monotonic()
         try:
             with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
                 # `oci.SignatureInvalid` is deliberately not caught: a refused
                 # signature on a supply-chain artifact stops the scan (23.2.1).
-                metadata = name_index.refresh(_cache.name_index(), fallback=False)
+                metadata = name_index.build.refresh(_cache.name_index(), fallback=False)
         except name_index.IndexUnavailable as exc:
             unfetched["dependency-reality"] = (
                 f"the package-name index could not be fetched: {exc}")
@@ -354,7 +354,7 @@ def _ensure_data(runner, on_progress) -> tuple[list[dict], dict[str, str]]:
             seconds = time.monotonic() - started
             say(f"index fetched ({seconds:.0f}s)")
             fetched.append(_fetch_record(
-                "package-name index", name_index.repository(), index_size, seconds,
+                "package-name index", name_index.published.repository(), index_size, seconds,
                 signature=_index_signature(metadata)))
     return fetched, unfetched
 

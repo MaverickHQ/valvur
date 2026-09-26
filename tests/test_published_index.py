@@ -35,7 +35,8 @@ from valvur import name_index, oci
 @pytest.fixture
 def tiny(monkeypatch):
     """Every floor at one name, so a five-line fixture is a valid index."""
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
+    monkeypatch.setattr(name_index.reader, "MINIMUM_NAMES",
+                        dict.fromkeys(name_index.reader.FILES, 1))
 
 
 @pytest.fixture
@@ -76,7 +77,7 @@ def source(tmp_path):
 @pytest.fixture
 def registry(monkeypatch):
     with FakeRegistry() as fake:
-        monkeypatch.setenv(name_index.INDEX_INSECURE_ENV, "1")   # loopback is plain http
+        monkeypatch.setenv(name_index.reader.INDEX_INSECURE_ENV, "1")   # loopback is plain http
         yield fake
 
 
@@ -109,7 +110,7 @@ def test_the_bearer_challenge_is_answered_and_the_token_reused(registry, source,
     manifest = client.manifest()
     client.blob_bytes(manifest.body["config"]["digest"])
 
-    assert manifest.body["artifactType"] == name_index.ARTIFACT_TYPE
+    assert manifest.body["artifactType"] == name_index.published.ARTIFACT_TYPE
     assert sum(r.startswith("/token?") for r in registry.requests) == 1
     unauthorised = [r for r in registry.requests if r.startswith("/v2/")]
     assert len(unauthorised) == 3    # manifest (401), manifest again, blob
@@ -184,16 +185,16 @@ def test_the_published_index_is_pulled_gunzipped_and_written_in_place(
     digest = registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
 
-    metadata = name_index.fetch_published(registry.reference("acme/idx"), cache)
+    metadata = name_index.published.fetch_published(registry.reference("acme/idx"), cache)
 
-    for filename in name_index.FILES.values():
+    for filename in name_index.reader.FILES.values():
         assert (cache / filename).read_bytes() == (source / filename).read_bytes()
     entry = metadata["ecosystems"]["cargo"]
     assert entry["built_at"] == "2026-09-12T02:00:00Z", "the workflow's build time, not now"
     assert entry["published"]["digest"] == digest
     assert entry["published"]["repository"] == f"{registry.host}/acme/idx"
     assert entry["published"]["signature"].startswith("not verified: cosign is not installed")
-    with name_index.NameIndex(cache / "crates.txt") as crates:
+    with name_index.reader.NameIndex(cache / "crates.txt") as crates:
         assert crates.contains("serde_json") and not crates.contains("serde-json")
 
 
@@ -215,7 +216,7 @@ def test_a_layer_larger_than_one_chunk_round_trips_byte_for_byte(
                 if layer["annotations"]["org.opencontainers.image.title"] == "pypi.txt.gz")
     assert pypi["size"] > 2 * (1 << 20), "the fixture must span several chunks"
 
-    name_index.fetch_published(registry.reference("acme/idx"), cache, ecosystems=("pip",))
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache, ecosystems=("pip",))
 
     assert (cache / "pypi.txt").read_bytes() == (source / "pypi.txt").read_bytes()
 
@@ -227,11 +228,12 @@ def test_an_index_already_at_the_published_build_fetches_no_layer(
     daily `valvur update` cost nothing on a current machine."""
     registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     registry.requests.clear()
     said: list[str] = []
 
-    name_index.fetch_published(registry.reference("acme/idx"), cache, progress=said.append)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache,
+                                         progress=said.append)
 
     blobs = [r for r in registry.requests if "/blobs/" in r]
     assert len(blobs) == 1, "only the config blob"
@@ -243,7 +245,7 @@ def test_a_newer_published_build_replaces_only_what_changed(
 ):
     registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     # The workflow rebuilds PyPI only (say); the other files keep their stamp.
     meta = json.loads((source / "metadata.json").read_text())
     meta["ecosystems"]["pip"]["built_at"] = "2026-09-13T02:00:00Z"
@@ -252,7 +254,7 @@ def test_a_newer_published_build_replaces_only_what_changed(
     registry.push_index("acme/idx", "latest", source)
     registry.requests.clear()
 
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
 
     assert (cache / "pypi.txt").read_text() == "django\nflask\nrequests\n"
     layers = [r for r in registry.requests if "/blobs/" in r]
@@ -262,8 +264,8 @@ def test_a_newer_published_build_replaces_only_what_changed(
 def test_something_that_is_not_an_index_is_refused_by_type(registry, source, tmp_path, tiny):
     registry.push_index("acme/idx", "latest", source, artifact_type="application/vnd.other")
 
-    with pytest.raises(name_index.IndexUnavailable, match="not a valvur name index"):
-        name_index.fetch_published(registry.reference("acme/idx"), tmp_path / "cache")
+    with pytest.raises(name_index.reader.IndexUnavailable, match="not a valvur name index"):
+        name_index.published.fetch_published(registry.reference("acme/idx"), tmp_path / "cache")
     assert not (tmp_path / "cache" / "pypi.txt").exists()
 
 
@@ -276,8 +278,9 @@ def test_an_unsorted_published_file_is_refused_before_it_can_mislead_the_reader(
     registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
 
-    with pytest.raises(name_index.IndexUnavailable, match="not a sorted list"):
-        name_index.fetch_published(registry.reference("acme/idx"), cache, ecosystems=("pip",))
+    with pytest.raises(name_index.reader.IndexUnavailable, match="not a sorted list"):
+        name_index.published.fetch_published(registry.reference("acme/idx"), cache,
+                                             ecosystems=("pip",))
     assert not (cache / "pypi.txt").exists() and not (cache / "pypi.txt.tmp").exists()
 
 
@@ -285,8 +288,8 @@ def test_a_published_file_below_the_floor_is_refused(registry, source, tmp_path,
     """A registry serving five names under a valid signature is still not PyPI."""
     registry.push_index("acme/idx", "latest", source)
 
-    with pytest.raises(name_index.IndexUnavailable, match="far fewer"):
-        name_index.fetch_published(registry.reference("acme/idx"), tmp_path / "cache",
+    with pytest.raises(name_index.reader.IndexUnavailable, match="far fewer"):
+        name_index.published.fetch_published(registry.reference("acme/idx"), tmp_path / "cache",
                                    ecosystems=("pip",))
 
 
@@ -300,8 +303,9 @@ def test_a_tampered_layer_is_refused_and_nothing_is_written(
     registry.tamper[pypi["digest"]] = gzip.compress(b"a\nb\n")
     cache = tmp_path / "cache"
 
-    with pytest.raises(name_index.IndexUnavailable, match="hashed to"):
-        name_index.fetch_published(registry.reference("acme/idx"), cache, ecosystems=("pip",))
+    with pytest.raises(name_index.reader.IndexUnavailable, match="hashed to"):
+        name_index.published.fetch_published(registry.reference("acme/idx"), cache,
+                                             ecosystems=("pip",))
     assert not (cache / "pypi.txt").exists()
 
 
@@ -314,7 +318,8 @@ def test_with_cosign_installed_the_signature_is_verified_against_the_workflow_id
     log = cosign(exit_code=0)
     digest = registry.push_index("acme/idx", "latest", source)
 
-    metadata = name_index.fetch_published(registry.reference("acme/idx"), tmp_path / "cache")
+    metadata = name_index.published.fetch_published(registry.reference("acme/idx"),
+                                                    tmp_path / "cache")
 
     args = log.read_text().split("\n")
     assert args[0] == "verify"
@@ -337,14 +342,14 @@ def test_an_index_cached_without_cosign_is_verified_once_cosign_appears(
     already on disk, by its recorded digest, with no layer moved."""
     digest = registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
-    first = name_index.fetch_published(registry.reference("acme/idx"), cache)
+    first = name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     assert first["ecosystems"]["pip"]["published"]["signature"].startswith("not verified")
 
     log = cosign(exit_code=0)                      # the user installs cosign
     registry.requests.clear()
     said: list[str] = []
 
-    metadata = name_index.fetch_published(registry.reference("acme/idx"), cache,
+    metadata = name_index.published.fetch_published(registry.reference("acme/idx"), cache,
                                           progress=said.append)
 
     for ecosystem in metadata["ecosystems"].values():
@@ -366,11 +371,12 @@ def test_a_current_index_is_not_re_verified_when_cosign_is_still_absent(
     to re-check, and the metadata is not rewritten to say the same thing."""
     registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     stamp = (cache / "metadata.json").stat().st_mtime_ns
     said: list[str] = []
 
-    name_index.fetch_published(registry.reference("acme/idx"), cache, progress=said.append)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache,
+                                         progress=said.append)
 
     assert (cache / "metadata.json").stat().st_mtime_ns == stamp, "the metadata was rewritten"
     assert any("nothing to fetch" in line for line in said), said
@@ -384,10 +390,10 @@ def test_a_current_index_already_verified_is_not_verified_again(
     log = cosign(exit_code=0)
     registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     log.unlink()
 
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
 
     assert not log.exists(), "cosign ran again for a signature already verified"
 
@@ -400,12 +406,12 @@ def test_a_cached_index_whose_signature_cosign_refuses_is_not_used(
     untouched rather than being half-removed by a path that fetched nothing."""
     registry.push_index("acme/idx", "latest", source)
     cache = tmp_path / "cache"
-    name_index.fetch_published(registry.reference("acme/idx"), cache)
+    name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     before = (cache / "pypi.txt").read_bytes()
     cosign(exit_code=1)
 
     with pytest.raises(oci.SignatureInvalid, match="REFUSED"):
-        name_index.fetch_published(registry.reference("acme/idx"), cache)
+        name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     assert (cache / "pypi.txt").read_bytes() == before
 
 
@@ -419,7 +425,7 @@ def test_a_refused_signature_stops_everything_and_writes_nothing(
     cache = tmp_path / "cache"
 
     with pytest.raises(oci.SignatureInvalid, match="REFUSED"):
-        name_index.fetch_published(registry.reference("acme/idx"), cache)
+        name_index.published.fetch_published(registry.reference("acme/idx"), cache)
     assert not any(cache.glob("*.txt"))
     layers = [r for r in registry.requests if "/blobs/" in r]
     assert len(layers) == 1, "verified before a single layer was fetched"
@@ -429,11 +435,11 @@ def test_a_refused_signature_is_not_caught_by_refresh(registry, source, tmp_path
                                                        cosign, monkeypatch):
     cosign(exit_code=1)
     registry.push_index("acme/idx", "latest", source)
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
 
     with pytest.raises(oci.SignatureInvalid):
-        name_index.refresh(tmp_path / "cache")
+        name_index.build.refresh(tmp_path / "cache")
 
 
 def test_the_update_command_refuses_loudly_and_names_the_way_round(
@@ -444,8 +450,8 @@ def test_the_update_command_refuses_loudly_and_names_the_way_round(
 
     cosign(exit_code=1)
     registry.push_index("acme/idx", "latest", source)
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
     monkeypatch.setattr(_cache, "root", lambda: tmp_path)
     monkeypatch.setattr(_cache, "name_index", lambda: tmp_path / "names")
 
@@ -470,11 +476,12 @@ def test_the_published_index_is_tried_before_any_registry(
     registry, source, tmp_path, tiny, no_cosign, monkeypatch
 ):
     registry.push_index("acme/idx", "latest", source)
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    monkeypatch.setattr(name_index, "walk", lambda *a, **k: pytest.fail("walked the registries"))
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    monkeypatch.setattr(name_index.build, "walk",
+                        lambda *a, **k: pytest.fail("walked the registries"))
 
-    name_index.refresh(tmp_path / "cache")
+    name_index.build.refresh(tmp_path / "cache")
 
     assert (tmp_path / "cache" / "npm.txt").read_text() == "react\n"
 
@@ -482,49 +489,50 @@ def test_the_published_index_is_tried_before_any_registry(
 def test_an_unreachable_default_repository_falls_back_to_the_walk(tmp_path, monkeypatch):
     """The published index is a shortcut, not a dependency: until the package is
     public — and on any day GHCR is down — the registries still answer."""
-    monkeypatch.delenv(name_index.INDEX_REPOSITORY_ENV, raising=False)
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.INDEX_REPOSITORY_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
     walked: list[tuple] = []
-    monkeypatch.setattr(name_index, "walk", _recording_walk(walked))
+    monkeypatch.setattr(name_index.build, "walk", _recording_walk(walked))
     said: list[str] = []
 
-    name_index.refresh(tmp_path / "cache", progress=said.append)
+    name_index.build.refresh(tmp_path / "cache", progress=said.append)
 
-    assert walked == [tuple(name_index.FILES)]
+    assert walked == [tuple(name_index.reader.FILES)]
     assert any("unavailable" in line and "registries directly" in line for line in said)
 
 
 def test_an_operator_named_mirror_that_fails_does_not_fall_back(tmp_path, monkeypatch):
     """Someone who set `VALVUR_INDEX_REPOSITORY` wants to hear that their mirror is
     broken, not watch valvur try the internet from inside their air gap."""
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, "registry.internal/mirror/idx")
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    monkeypatch.setattr(name_index, "walk", lambda *a, **k: pytest.fail("walked the registries"))
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, "registry.internal/mirror/idx")
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    monkeypatch.setattr(name_index.build, "walk",
+                        lambda *a, **k: pytest.fail("walked the registries"))
 
-    with pytest.raises(name_index.IndexUnavailable):
-        name_index.refresh(tmp_path / "cache")
+    with pytest.raises(name_index.reader.IndexUnavailable):
+        name_index.build.refresh(tmp_path / "cache")
 
 
 def test_build_index_walks_and_never_looks_at_the_registry(tmp_path, monkeypatch):
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    monkeypatch.setattr(name_index, "fetch_published",
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    monkeypatch.setattr(name_index.published, "fetch_published",
                         lambda *a, **k: pytest.fail("pulled the published index"))
     walked: list[tuple] = []
-    monkeypatch.setattr(name_index, "walk", _recording_walk(walked))
+    monkeypatch.setattr(name_index.build, "walk", _recording_walk(walked))
 
-    name_index.refresh(tmp_path / "cache", published=False)
+    name_index.build.refresh(tmp_path / "cache", published=False)
 
-    assert walked == [tuple(name_index.FILES)]
+    assert walked == [tuple(name_index.reader.FILES)]
 
 
 def test_the_static_mirror_still_wins_over_everything(tmp_path, monkeypatch):
-    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal/idx")
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, "registry.internal/mirror/idx")
+    monkeypatch.setenv(name_index.reader.MIRROR_ENV, "http://mirror.internal/idx")
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, "registry.internal/mirror/idx")
     seen: list[str] = []
-    monkeypatch.setattr(name_index, "fetch_mirror",
+    monkeypatch.setattr(name_index.build, "fetch_mirror",
                         lambda base, directory, **k: seen.append(base) or {})
 
-    name_index.refresh(tmp_path / "cache")
+    name_index.build.refresh(tmp_path / "cache")
 
     assert seen == ["http://mirror.internal/idx"]
 
@@ -535,16 +543,16 @@ def test_the_module_entry_point_builds_and_pulls(tmp_path, monkeypatch, registry
     every user's `valvur update` runs, so the round trip is proven before the tag
     moves."""
     registry.push_index("acme/idx", "latest", source)
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
 
-    assert name_index._main(["pull", str(tmp_path / "pulled")]) == 0
+    assert name_index.build._main(["pull", str(tmp_path / "pulled")]) == 0
     assert (tmp_path / "pulled" / "rubygems.txt").read_text() == "rack\n"
 
     walked: list[tuple] = []
-    monkeypatch.setattr(name_index, "walk", _recording_walk(walked))
-    assert name_index._main(["build", str(tmp_path / "built"), "gem", "composer"]) == 0
+    monkeypatch.setattr(name_index.build, "walk", _recording_walk(walked))
+    assert name_index.build._main(["build", str(tmp_path / "built"), "gem", "composer"]) == 0
     assert walked == [("gem", "composer")]
-    assert name_index._main(["nonsense"]) == 2
+    assert name_index.build._main(["nonsense"]) == 2
 
 
 # ------------------------------------------------ the three new registries (23.2.2, 23.2.3)
@@ -580,18 +588,19 @@ class _Response(io.BytesIO):
 def test_rubygems_names_are_kept_exactly_as_spelled(monkeypatch):
     """`---` is YAML's document marker, not a gem. Case is identity on RubyGems."""
     monkeypatch.setattr(urllib.request, "urlopen", _Canned({
-        name_index.RUBYGEMS_NAMES: b"---\n_\nRails\nrails\nrack\n",
+        name_index.build.RUBYGEMS_NAMES: b"---\n_\nRails\nrails\nrack\n",
     }))
 
-    assert name_index.fetch_rubygems() == {"_", "Rails", "rails", "rack"}
+    assert name_index.build.fetch_rubygems() == {"_", "Rails", "rails", "rack"}
 
 
 def test_packagist_names_are_lowercase_vendor_slash_name(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", _Canned({
-        name_index.PACKAGIST_LIST: {"packageNames": ["Monolog/Monolog", "symfony/console", "php"]},
+        name_index.build.PACKAGIST_LIST: {"packageNames": ["Monolog/Monolog", "symfony/console",
+                                                           "php"]},
     }))
 
-    assert name_index.fetch_packagist() == {"monolog/monolog", "symfony/console"}
+    assert name_index.build.fetch_packagist() == {"monolog/monolog", "symfony/console"}
 
 
 def _crates_dump(names, *, readme_bytes=200_000) -> bytes:
@@ -638,7 +647,7 @@ def test_crates_are_streamed_out_of_the_dump_and_folded_to_canonical_form(monkey
     monkeypatch.setattr(urllib.request, "urlopen",
                         lambda request, timeout=None: Counting(dump))
 
-    names = name_index.fetch_crates()
+    names = name_index.build.fetch_crates()
 
     assert names == {"serde", "serde_json", "serde_yaml", "tokio"}
     assert sum(read) < len(dump), "stopped before the members after crates.csv"
@@ -653,23 +662,23 @@ def test_a_dump_without_the_crate_list_is_named_as_such(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen",
                         lambda request, timeout=None: _Response(buffer.getvalue()))
 
-    with pytest.raises(name_index.IndexUnavailable, match=r"crates\.csv"):
-        name_index.fetch_crates()
+    with pytest.raises(name_index.reader.IndexUnavailable, match=r"crates\.csv"):
+        name_index.build.fetch_crates()
 
 
 def test_the_walk_covers_every_ecosystem_the_check_reads(monkeypatch, tmp_path, tiny):
     """`FILES` is the contract: an ecosystem listed there has a fetcher, or the walk
     would raise on the day someone adds the file name and forgets the source."""
-    monkeypatch.setattr(name_index, "fetch_pypi", lambda progress=None: {"requests"})
-    monkeypatch.setattr(name_index, "fetch_npm_full", lambda progress=None: ({"react"}, 1))
-    monkeypatch.setattr(name_index, "fetch_rubygems", lambda progress=None: {"rack"})
-    monkeypatch.setattr(name_index, "fetch_packagist", lambda progress=None: {"a/b"})
-    monkeypatch.setattr(name_index, "fetch_crates", lambda progress=None: {"serde"})
+    monkeypatch.setattr(name_index.build, "fetch_pypi", lambda progress=None: {"requests"})
+    monkeypatch.setattr(name_index.build, "fetch_npm_full", lambda progress=None: ({"react"}, 1))
+    monkeypatch.setattr(name_index.build, "fetch_rubygems", lambda progress=None: {"rack"})
+    monkeypatch.setattr(name_index.build, "fetch_packagist", lambda progress=None: {"a/b"})
+    monkeypatch.setattr(name_index.build, "fetch_crates", lambda progress=None: {"serde"})
 
-    metadata = name_index.walk(tmp_path)
+    metadata = name_index.build.walk(tmp_path)
 
-    assert set(metadata["ecosystems"]) == set(name_index.FILES)
-    for ecosystem, filename in name_index.FILES.items():
+    assert set(metadata["ecosystems"]) == set(name_index.reader.FILES)
+    for ecosystem, filename in name_index.reader.FILES.items():
         assert (tmp_path / filename).read_text().endswith("\n")
         assert metadata["ecosystems"][ecosystem]["source"].startswith("https://")
 
@@ -681,36 +690,36 @@ def test_a_registry_walked_today_is_not_walked_again_unless_forced(monkeypatch, 
     from conftest import write_name_index
 
     calls: list[str] = []
-    monkeypatch.setattr(name_index, "fetch_pypi",
+    monkeypatch.setattr(name_index.build, "fetch_pypi",
                         lambda progress=None: calls.append("pip") or {"a"})
-    monkeypatch.setattr(name_index, "fetch_rubygems",
+    monkeypatch.setattr(name_index.build, "fetch_rubygems",
                         lambda progress=None: calls.append("gem") or {"b"})
     write_name_index(tmp_path, pip=["x"], gem=["y"])       # built just now
 
-    name_index.walk(tmp_path, ecosystems=("pip", "gem"))
+    name_index.build.walk(tmp_path, ecosystems=("pip", "gem"))
     assert calls == []
     assert (tmp_path / "pypi.txt").read_text() == "x\n"
 
-    name_index.walk(tmp_path, ecosystems=("pip", "gem"), force=True)
+    name_index.build.walk(tmp_path, ecosystems=("pip", "gem"), force=True)
     assert calls == ["pip", "gem"]
 
     meta = json.loads((tmp_path / "metadata.json").read_text())
     meta["ecosystems"]["pip"]["built_at"] = "2026-01-01T00:00:00Z"
     (tmp_path / "metadata.json").write_text(json.dumps(meta))
     calls.clear()
-    name_index.walk(tmp_path, ecosystems=("pip", "gem"))
+    name_index.build.walk(tmp_path, ecosystems=("pip", "gem"))
     assert calls == ["pip"], "old enough is walked; fresh is not"
 
 
 def test_build_index_forces_the_walk_and_the_fallback_does_not(tmp_path, monkeypatch):
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    monkeypatch.delenv(name_index.INDEX_REPOSITORY_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.INDEX_REPOSITORY_ENV, raising=False)
     seen: list[bool] = []
-    monkeypatch.setattr(name_index, "walk",
+    monkeypatch.setattr(name_index.build, "walk",
                         lambda directory, *, ecosystems, progress, force: seen.append(force) or {})
 
-    name_index.refresh(tmp_path, published=False)
-    name_index.refresh(tmp_path)          # the default repository is unreachable here
+    name_index.build.refresh(tmp_path, published=False)
+    name_index.build.refresh(tmp_path)          # the default repository is unreachable here
 
     assert seen == [True, False]
 
@@ -718,8 +727,8 @@ def test_build_index_forces_the_walk_and_the_fallback_does_not(tmp_path, monkeyp
 def test_every_indexed_ecosystem_has_a_floor_and_a_registry_name():
     from valvur.checks.dependency_reality import _REGISTRY_NAME
 
-    assert set(name_index.MINIMUM_NAMES) == set(name_index.FILES)
-    assert set(name_index.FILES) <= set(_REGISTRY_NAME)
+    assert set(name_index.reader.MINIMUM_NAMES) == set(name_index.reader.FILES)
+    assert set(name_index.reader.FILES) <= set(_REGISTRY_NAME)
 
 
 def test_the_index_directory_is_what_the_runner_mounts(monkeypatch):
@@ -729,8 +738,8 @@ def test_the_index_directory_is_what_the_runner_mounts(monkeypatch):
 
     monkeypatch.setenv(check.INDEX_ENV, "/somewhere")
     assert check._index_dir() == Path("/somewhere")
-    assert name_index.open_index(Path("/nonexistent"), "gem") is None
-    assert name_index.open_index(Path("/nonexistent"), "nuget") is None
+    assert name_index.reader.open_index(Path("/nonexistent"), "gem") is None
+    assert name_index.reader.open_index(Path("/nonexistent"), "nuget") is None
 
 
 def test_no_environment_token_reaches_the_registry(registry, source, tmp_path, tiny,
@@ -743,6 +752,6 @@ def test_no_environment_token_reaches_the_registry(registry, source, tmp_path, t
     registry.challenge = True
     registry.push_index("acme/idx", "latest", source)
 
-    name_index.fetch_published(registry.reference("acme/idx"), tmp_path / "cache")
+    name_index.published.fetch_published(registry.reference("acme/idx"), tmp_path / "cache")
 
     assert set(registry.authorizations) == {None, "Bearer anonymous-pull-token"}

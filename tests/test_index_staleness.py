@@ -259,9 +259,9 @@ def test_the_index_refresh_reports_a_failure_and_keeps_the_previous_index(
     from valvur import cli, name_index
 
     def fail(directory, *, published, progress):
-        raise name_index.IndexUnavailable("pypi.org: timed out")
+        raise name_index.reader.IndexUnavailable("pypi.org: timed out")
 
-    monkeypatch.setattr(name_index, "refresh", fail)
+    monkeypatch.setattr(name_index.build, "refresh", fail)
     monkeypatch.setattr(cache, "name_index", lambda: tmp_path)
     monkeypatch.setattr(cache, "root", lambda: tmp_path)
     monkeypatch.setattr(cache, "name_index_present", lambda: True)

@@ -70,7 +70,7 @@ def test_the_real_file_format_round_trips_through_the_reader(tmp_path):
     """Written by the builder's writer, read by the reader: the two halves agree on
     the bytes. Scoped npm names and PEP 503 forms included."""
     names = {"@types/node", "@scope/pkg", "zope-interface", "requests", "0", "a-b-c"}
-    name_index._write_names(tmp_path / "npm.txt", names)
+    name_index.reader._write_names(tmp_path / "npm.txt", names)
 
     with NameIndex(tmp_path / "npm.txt") as index:
         for name in names:
@@ -86,7 +86,7 @@ def test_membership_agrees_with_a_set_on_a_thousand_random_probes(tmp_path):
     rng = random.Random(1804)  # noqa: S311 — a seeded property check, not a secret
     alphabet = "abc-_.09"
     names = {"".join(rng.choices(alphabet, k=rng.randint(1, 6))) for _ in range(400)}
-    name_index._write_names(tmp_path / "i.txt", names)
+    name_index.reader._write_names(tmp_path / "i.txt", names)
 
     with NameIndex(tmp_path / "i.txt") as index:
         for _ in range(1000):
@@ -95,10 +95,10 @@ def test_membership_agrees_with_a_set_on_a_thousand_random_probes(tmp_path):
 
 
 def test_open_index_returns_none_for_an_unfetched_or_unknown_ecosystem(tmp_path):
-    assert name_index.open_index(tmp_path, "pip") is None
-    assert name_index.open_index(tmp_path, "cargo") is None
+    assert name_index.reader.open_index(tmp_path, "pip") is None
+    assert name_index.reader.open_index(tmp_path, "cargo") is None
     (tmp_path / "pypi.txt").write_text("a\n")
-    index = name_index.open_index(tmp_path, "pip")
+    index = name_index.reader.open_index(tmp_path, "pip")
     assert index is not None
     index.close()
 
@@ -146,7 +146,7 @@ class _Response(io.BytesIO):
 def http(monkeypatch):
     fake = _FakeHTTP({})
     monkeypatch.setattr(urllib.request, "urlopen", fake)
-    monkeypatch.setattr(name_index.time, "sleep", lambda _: None)
+    monkeypatch.setattr(name_index.build.time, "sleep", lambda _: None)
     return fake
 
 
@@ -162,20 +162,21 @@ def _npm_all_docs(names):
 
         query = parse_qs(urlparse(url).query)
         start = json.loads(query["start_key"][0]) if "start_key" in query else None
-        rows = [n for n in ordered if start is None or n >= start][: name_index.PAGE]
+        rows = [n for n in ordered if start is None or n >= start][: name_index.build.PAGE]
         return {"total_rows": len(ordered), "rows": [{"id": n, "key": n} for n in rows]}
 
     return page
 
 
 def test_pypi_names_are_stored_in_pep_503_form(http, monkeypatch):
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
-    http.routes[name_index.PYPI_SIMPLE] = _pypi(["Zope.Interface", "requests", "Django_Rest"])
+    monkeypatch.setattr(name_index.reader, "MINIMUM_NAMES",
+                        dict.fromkeys(name_index.reader.FILES, 1))
+    http.routes[name_index.build.PYPI_SIMPLE] = _pypi(["Zope.Interface", "requests", "Django_Rest"])
 
-    names = name_index.fetch_pypi()
+    names = name_index.build.fetch_pypi()
 
     assert names == {"zope-interface", "requests", "django-rest"}
-    assert http.urls == [name_index.PYPI_SIMPLE]
+    assert http.urls == [name_index.build.PYPI_SIMPLE]
 
 
 def test_a_full_npm_walk_pages_by_start_key_and_drops_the_repeated_boundary(http, monkeypatch):
@@ -183,21 +184,21 @@ def test_a_full_npm_walk_pages_by_start_key_and_drops_the_repeated_boundary(http
     after the first begins with the previous page's last key. Counting it twice is
     harmless; missing the first row of a page is not — and the sequence number must
     be read BEFORE the walk so the next refresh replays anything that changed."""
-    monkeypatch.setattr(name_index, "PAGE", 4)
+    monkeypatch.setattr(name_index.build, "PAGE", 4)
     everything = [f"pkg-{i:02d}" for i in range(10)] + ["@scope/x", "_design/app", "UPPER"]
-    http.routes[name_index.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(everything)
-    http.routes[name_index.NPM_REPLICATE + "/"] = {"update_seq": 777, "doc_count": 13}
+    http.routes[name_index.build.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(everything)
+    http.routes[name_index.build.NPM_REPLICATE + "/"] = {"update_seq": 777, "doc_count": 13}
 
-    names, seq = name_index.fetch_npm_full()
+    names, seq = name_index.build.fetch_npm_full()
 
     assert names == {f"pkg-{i:02d}" for i in range(10)} | {"@scope/x", "upper"}
     assert seq == 777
-    assert http.urls[0] == name_index.NPM_REPLICATE + "/", "sequence read after the walk"
+    assert http.urls[0] == name_index.build.NPM_REPLICATE + "/", "sequence read after the walk"
     assert all("skip=" not in u for u in http.urls), "the server refuses `skip`"
 
 
 def test_the_change_feed_adds_republished_names_and_removes_deleted_ones(http, monkeypatch):
-    http.routes[name_index.NPM_REPLICATE + "/_changes"] = {
+    http.routes[name_index.build.NPM_REPLICATE + "/_changes"] = {
         "results": [
             {"seq": 1, "id": "brand-new", "changes": [{"rev": "1-a"}]},
             {"seq": 2, "id": "Old-Spam", "changes": [{"rev": "3-b"}], "deleted": True},
@@ -207,7 +208,7 @@ def test_the_change_feed_adds_republished_names_and_removes_deleted_ones(http, m
         "last_seq": 4,
     }
 
-    names, last = name_index.fetch_npm_changes({"existing", "old-spam", "keep"}, since=0)
+    names, last = name_index.build.fetch_npm_changes({"existing", "old-spam", "keep"}, since=0)
 
     assert names == {"existing", "keep", "brand-new"}
     assert last == 4
@@ -215,39 +216,41 @@ def test_the_change_feed_adds_republished_names_and_removes_deleted_ones(http, m
 
 
 def test_refresh_is_incremental_once_an_index_exists_and_full_before(http, monkeypatch, tmp_path):
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
-    http.routes[name_index.PYPI_SIMPLE] = _pypi(["requests"])
-    http.routes[name_index.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(["a", "b"])
-    http.routes[name_index.NPM_REPLICATE + "/"] = {"update_seq": 10}
-    http.routes[name_index.NPM_REPLICATE + "/_changes"] = {
+    monkeypatch.setattr(name_index.reader, "MINIMUM_NAMES",
+                        dict.fromkeys(name_index.reader.FILES, 1))
+    http.routes[name_index.build.PYPI_SIMPLE] = _pypi(["requests"])
+    http.routes[name_index.build.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(["a", "b"])
+    http.routes[name_index.build.NPM_REPLICATE + "/"] = {"update_seq": 10}
+    http.routes[name_index.build.NPM_REPLICATE + "/_changes"] = {
         "results": [{"seq": 11, "id": "c", "changes": [{"rev": "1-x"}]}], "last_seq": 11,
     }
 
-    first = name_index.walk(tmp_path, ecosystems=("pip", "npm"))
+    first = name_index.build.walk(tmp_path, ecosystems=("pip", "npm"))
     assert first["ecosystems"]["npm"]["update_seq"] == 10
     assert (tmp_path / "npm.txt").read_text() == "a\nb\n"
     assert any("_all_docs" in u for u in http.urls) and not any("_changes" in u for u in http.urls)
 
     http.urls.clear()
     # Forced: an index walked a moment ago is otherwise left alone for the day.
-    second = name_index.walk(tmp_path, ecosystems=("pip", "npm"), force=True)
+    second = name_index.build.walk(tmp_path, ecosystems=("pip", "npm"), force=True)
     assert second["ecosystems"]["npm"]["update_seq"] == 11
     assert (tmp_path / "npm.txt").read_text() == "a\nb\nc\n"
     assert any("_changes" in u for u in http.urls) and not any("_all_docs" in u for u in http.urls)
 
 
 def test_an_index_older_than_the_repull_threshold_is_walked_in_full(http, monkeypatch, tmp_path):
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
-    http.routes[name_index.PYPI_SIMPLE] = _pypi(["requests"])
-    http.routes[name_index.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(["fresh"])
-    http.routes[name_index.NPM_REPLICATE + "/"] = {"update_seq": 99}
+    monkeypatch.setattr(name_index.reader, "MINIMUM_NAMES",
+                        dict.fromkeys(name_index.reader.FILES, 1))
+    http.routes[name_index.build.PYPI_SIMPLE] = _pypi(["requests"])
+    http.routes[name_index.build.NPM_REPLICATE + "/_all_docs"] = _npm_all_docs(["fresh"])
+    http.routes[name_index.build.NPM_REPLICATE + "/"] = {"update_seq": 99}
     write_name_index(tmp_path, pip=["requests"], npm=["stale"], built_at="2020-01-01T00:00:00Z")
     (tmp_path / "metadata.json").write_text(json.dumps({"schema": 1, "ecosystems": {
         "pip": {"built_at": "2020-01-01T00:00:00Z"},
         "npm": {"built_at": "2020-01-01T00:00:00Z", "update_seq": 1},
     }}))
 
-    name_index.walk(tmp_path, ecosystems=("pip", "npm"))
+    name_index.build.walk(tmp_path, ecosystems=("pip", "npm"))
 
     assert (tmp_path / "npm.txt").read_text() == "fresh\n"
     assert not any("_changes" in u for u in http.urls)
@@ -256,35 +259,35 @@ def test_an_index_older_than_the_repull_threshold_is_walked_in_full(http, monkey
 def test_a_truncated_registry_response_is_refused_and_the_old_index_kept(http, tmp_path):
     """A list of 200 names is not PyPI. Writing it would report every real package as
     hallucinated — the worst finding this product can emit, at scale."""
-    http.routes[name_index.PYPI_SIMPLE] = _pypi([f"p{i}" for i in range(200)])
+    http.routes[name_index.build.PYPI_SIMPLE] = _pypi([f"p{i}" for i in range(200)])
     (tmp_path / "pypi.txt").write_text("previous\n")
 
-    with pytest.raises(name_index.IndexUnavailable, match="truncated"):
-        name_index.refresh(tmp_path, ecosystems=("pip",))
+    with pytest.raises(name_index.reader.IndexUnavailable, match="truncated"):
+        name_index.build.refresh(tmp_path, ecosystems=("pip",))
 
     assert (tmp_path / "pypi.txt").read_text() == "previous\n"
     assert not (tmp_path / "metadata.json").exists()
 
 
 def test_a_network_failure_leaves_the_previous_index_untouched(http, tmp_path):
-    http.routes[name_index.PYPI_SIMPLE] = urllib.error.URLError("no route to host")
+    http.routes[name_index.build.PYPI_SIMPLE] = urllib.error.URLError("no route to host")
     (tmp_path / "pypi.txt").write_text("previous\n")
 
-    with pytest.raises(name_index.IndexUnavailable):
-        name_index.refresh(tmp_path, ecosystems=("pip",))
+    with pytest.raises(name_index.reader.IndexUnavailable):
+        name_index.build.refresh(tmp_path, ecosystems=("pip",))
 
     assert (tmp_path / "pypi.txt").read_text() == "previous\n"
 
 
 def test_a_non_https_source_is_refused():
-    with pytest.raises(name_index.IndexUnavailable, match="https"):
-        name_index._get("http://pypi.org/simple/")
+    with pytest.raises(name_index.reader.IndexUnavailable, match="https"):
+        name_index.build._get("http://pypi.org/simple/")
 
 
 def test_the_writer_produces_bytewise_sorted_lines_the_reader_bisects(tmp_path):
     """Sorted as BYTES, not as Python strings under a locale: `@types/x` before
     `a`, `Z` before `a`, and the reader's comparison is on bytes too."""
-    name_index._write_names(tmp_path / "i.txt", {"b", "@types/x", "a", "z", "0"})
+    name_index.reader._write_names(tmp_path / "i.txt", {"b", "@types/x", "a", "z", "0"})
 
     lines = (tmp_path / "i.txt").read_bytes().split(b"\n")[:-1]
     assert lines == sorted(lines)
@@ -298,7 +301,7 @@ def test_the_index_age_is_the_oldest_ecosystem(tmp_path, monkeypatch):
     PyPI list beside an old npm list is an old answer for a `package.json`."""
     monkeypatch.setattr(cache, "name_index", lambda: tmp_path)
     (tmp_path / "metadata.json").write_text(json.dumps({"schema": 1, "ecosystems": {
-        "pip": {"built_at": name_index._now()},
+        "pip": {"built_at": name_index.reader._now()},
         "npm": {"built_at": "2020-01-01T00:00:00Z"},
     }}))
 
@@ -345,14 +348,15 @@ class _Raw(bytes):
 def test_the_mirror_is_copied_verbatim_with_its_built_at_intact(http, monkeypatch, tmp_path):
     """A copy taken this morning of a list built in March is a March list, and the
     scan must say so (F6.11). The mirror's own metadata is what gets written."""
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
+    monkeypatch.setattr(name_index.reader, "MINIMUM_NAMES",
+                        dict.fromkeys(name_index.reader.FILES, 1))
     source = write_name_index(tmp_path / "source", pip=["requests", "flask"], npm=["react"],
                               gem=["rack"], composer=["a/b"], cargo=["serde"],
                               built_at="2026-03-01T00:00:00Z")
     _serve(http, "http://mirror.internal:8080", source)
-    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080/")
+    monkeypatch.setenv(name_index.reader.MIRROR_ENV, "http://mirror.internal:8080/")
 
-    metadata = name_index.refresh(tmp_path / "cache")
+    metadata = name_index.build.refresh(tmp_path / "cache")
 
     assert (tmp_path / "cache" / "pypi.txt").read_text() == "flask\nrequests\n"
     assert (tmp_path / "cache" / "npm.txt").read_text() == "react\n"
@@ -364,29 +368,29 @@ def test_the_mirror_is_copied_verbatim_with_its_built_at_intact(http, monkeypatc
 def test_a_truncated_mirror_is_refused_like_a_truncated_registry(http, monkeypatch, tmp_path):
     source = write_name_index(tmp_path / "source", pip=["only-one"], npm=["react"])
     _serve(http, "http://mirror.internal:8080", source)
-    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080")
+    monkeypatch.setenv(name_index.reader.MIRROR_ENV, "http://mirror.internal:8080")
     (tmp_path / "cache").mkdir()
     (tmp_path / "cache" / "pypi.txt").write_text("previous\n")
 
-    with pytest.raises(name_index.IndexUnavailable, match="truncated"):
-        name_index.refresh(tmp_path / "cache", ecosystems=("pip",))
+    with pytest.raises(name_index.reader.IndexUnavailable, match="truncated"):
+        name_index.build.refresh(tmp_path / "cache", ecosystems=("pip",))
 
     assert (tmp_path / "cache" / "pypi.txt").read_text() == "previous\n"
 
 
 def test_a_mirror_that_is_not_an_index_is_named_as_such(http, monkeypatch, tmp_path):
     http.routes["http://mirror.internal:8080/"] = {"not": "an index"}
-    monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal:8080")
+    monkeypatch.setenv(name_index.reader.MIRROR_ENV, "http://mirror.internal:8080")
 
-    with pytest.raises(name_index.IndexUnavailable, match="carries no ecosystems"):
-        name_index.refresh(tmp_path)
+    with pytest.raises(name_index.reader.IndexUnavailable, match="carries no ecosystems"):
+        name_index.build.refresh(tmp_path)
 
 
 def test_only_the_mirror_url_may_be_plain_http(monkeypatch, tmp_path):
     """The registries are always https. The mirror is operator-set and may be http —
     and nothing else: a `file://` here would read the operator's disk."""
-    monkeypatch.setenv(name_index.MIRROR_ENV, "file:///etc")
-    with pytest.raises(name_index.IndexUnavailable, match="http"):
-        name_index.refresh(tmp_path)
-    with pytest.raises(name_index.IndexUnavailable, match="https"):
-        name_index._get("http://pypi.org/simple/")
+    monkeypatch.setenv(name_index.reader.MIRROR_ENV, "file:///etc")
+    with pytest.raises(name_index.reader.IndexUnavailable, match="http"):
+        name_index.build.refresh(tmp_path)
+    with pytest.raises(name_index.reader.IndexUnavailable, match="https"):
+        name_index.build._get("http://pypi.org/simple/")

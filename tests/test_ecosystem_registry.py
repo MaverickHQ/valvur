@@ -3,7 +3,7 @@
 `dependency_reality.py` was 1,206 lines holding Check orchestration, seven manifest
 parsers, registry transport, per-registry age decoding and typosquat matching — and
 the truth about an ecosystem was spread over three modules that had to be edited
-together: `ecosystems.MANIFESTS` (what to read), `name_index.FILES` (which index),
+together: `ecosystems.MANIFESTS` (what to read), `name_index.reader.FILES` (which index),
 and a per-ecosystem `if` in the Check for the registry, the URL and the age. The two
 modules imported each other, lazily, in both directions.
 
@@ -149,11 +149,11 @@ def test_the_index_files_are_the_indexed_ecosystems_in_the_order_users_see():
 
     # The literal order, not `INDEX_ORDER` — the dict is built FROM that constant,
     # so comparing the two says only that a loop works. What a user reads is this
-    # sequence, unchanged since `name_index.FILES` first held it.
+    # sequence, unchanged since `name_index.reader.FILES` first held it.
     assert tuple(ecosystems.INDEX_FILES) == ("pip", "npm", "gem", "composer", "cargo")
-    # The order too, not dict equality, which ignores it: `name_index.FILES` is
+    # The order too, not dict equality, which ignores it: `name_index.reader.FILES` is
     # the dict `doctor` and `update` actually iterate (28.1.1).
-    assert tuple(name_index.FILES.items()) == tuple(ecosystems.INDEX_FILES.items())
+    assert tuple(name_index.reader.FILES.items()) == tuple(ecosystems.INDEX_FILES.items())
     assert set(ecosystems.INDEX_FILES) == {
         e.key for e in ecosystems.ECOSYSTEMS if e.index_file
     }
@@ -186,14 +186,14 @@ def test_the_name_index_and_the_check_no_longer_import_each_other(tmp_path):
 
 def test_the_registry_holds_what_the_three_modules_each_held_a_piece_of():
     """The point of the move, asserted: one entry answers what `MANIFESTS`,
-    `name_index.FILES` and a chain of `if ecosystem == …` in the Check each knew
+    `name_index.reader.FILES` and a chain of `if ecosystem == …` in the Check each knew
     separately."""
     from valvur import ecosystems
     from valvur.checks import dependency_reality
 
     pip = ecosystems.get("pip")
     assert pip.reads == ecosystems.MANIFESTS["pip"].reads      # was ecosystems.py
-    assert pip.index_file == "pypi.txt"                        # was name_index.FILES
+    assert pip.index_file == "pypi.txt"                        # was name_index.reader.FILES
     assert pip.registry == "PyPI"                              # was _REGISTRY_NAME
     assert ecosystems.index_form("pip", "Flask_Login") == "flask-login"
     assert ecosystems.index_form("gem", "Rails") == "Rails", "RubyGems is case-sensitive"

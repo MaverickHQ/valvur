@@ -38,8 +38,8 @@ def host_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(cache, "trivy_db", lambda: root / "trivy")
     monkeypatch.setattr(cache, "name_index", lambda: root / "names")
     monkeypatch.setenv("VALVUR_NAME_INDEX", str(root / "names"))
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    monkeypatch.delenv(name_index.INDEX_REPOSITORY_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.INDEX_REPOSITORY_ENV, raising=False)
     return root
 
 
@@ -156,10 +156,11 @@ def test_an_absent_index_is_pulled_by_the_first_scan_under_the_exclusive_lock(
     source = write_name_index(host_cache.parent / "source", pip=["requests", "flask"],
                               npm=["react"], gem=["rack"], composer=["monolog/monolog"],
                               cargo=["serde"], built_at="2026-09-12T02:00:00Z")
-    monkeypatch.setattr(name_index, "MINIMUM_NAMES", dict.fromkeys(name_index.FILES, 1))
+    monkeypatch.setattr(name_index.reader, "MINIMUM_NAMES",
+                        dict.fromkeys(name_index.reader.FILES, 1))
     monkeypatch.setattr(oci.shutil, "which", lambda _: None)      # no cosign here
     held_shared_during_fetch: list[bool] = []
-    real_fetch = name_index.fetch_published
+    real_fetch = name_index.published.fetch_published
 
     def fetch_and_probe(*args, **kwargs):
         # flock is per open file description, and `held` opens the file afresh, so
@@ -171,11 +172,11 @@ def test_an_absent_index_is_pulled_by_the_first_scan_under_the_exclusive_lock(
             held_shared_during_fetch.append(False)
         return real_fetch(*args, **kwargs)
 
-    monkeypatch.setattr(name_index, "fetch_published", fetch_and_probe)
+    monkeypatch.setattr(name_index.published, "fetch_published", fetch_and_probe)
     with FakeRegistry() as registry:
-        monkeypatch.setenv(name_index.INDEX_INSECURE_ENV, "1")
+        monkeypatch.setenv(name_index.reader.INDEX_INSECURE_ENV, "1")
         registry.push_index("acme/idx", "latest", source)
-        monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
+        monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
 
         run, said = _scan(workspace, _Runner(host_cache))
 
@@ -193,16 +194,16 @@ def test_the_index_size_comes_from_the_registry_and_a_static_mirror_has_none(
 ):
     source = write_name_index(tmp_path / "source", pip=["requests"], npm=["react"],
                               gem=["rack"], composer=["monolog/monolog"], cargo=["serde"])
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
     with FakeRegistry() as registry:
-        monkeypatch.setenv(name_index.INDEX_INSECURE_ENV, "1")
+        monkeypatch.setenv(name_index.reader.INDEX_INSECURE_ENV, "1")
         registry.push_index("acme/idx", "latest", source)
-        monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
+        monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, registry.reference("acme/idx"))
 
-        assert name_index.published_size_mb() == 1     # five tiny gzip layers, rounded up
+        assert name_index.published.published_size_mb() == 1     # five tiny gzip layers, rounded up
 
-        monkeypatch.setenv(name_index.MIRROR_ENV, "http://mirror.internal/idx")
-        assert name_index.published_size_mb() is None
+        monkeypatch.setenv(name_index.reader.MIRROR_ENV, "http://mirror.internal/idx")
+        assert name_index.published.published_size_mb() is None
 
 
 def test_the_database_size_comes_from_the_repository_trivy_will_use(monkeypatch, tmp_path):
@@ -233,10 +234,10 @@ def test_the_database_size_comes_from_the_repository_trivy_will_use(monkeypatch,
     ContainerRunner(image="x/y:1", runtime="/bin/false").db_size_mb()
     monkeypatch.delenv(runner_module.DB_INSECURE_ENV)
     ContainerRunner(image="x/y:1", runtime="/bin/false").db_size_mb()
-    monkeypatch.setenv(name_index.INDEX_INSECURE_ENV, "1")
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, "registry.internal/mirror/idx")
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    name_index.published_size_mb()
+    monkeypatch.setenv(name_index.reader.INDEX_INSECURE_ENV, "1")
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, "registry.internal/mirror/idx")
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    name_index.published.published_size_mb()
     assert asked == [("registry.invalid/nowhere/db:2", True),
                      ("registry.invalid/nowhere/db:2", False),
                      ("registry.internal/mirror/idx", True)]
@@ -270,7 +271,7 @@ def test_both_absent_means_image_then_database_then_index_then_the_scanners(
             order.append("compat")
             raise RuntimeError("stop here")
 
-    monkeypatch.setattr(name_index, "refresh",
+    monkeypatch.setattr(name_index.build, "refresh",
                         lambda directory, **k: order.append("index") or {})
 
     with pytest.raises(RuntimeError, match="stop here"):
@@ -301,7 +302,7 @@ def test_a_cancel_during_the_fetches_is_honoured_at_the_next_boundary(
             self.cancelled = True
             return 0
 
-    monkeypatch.setattr(name_index, "refresh",
+    monkeypatch.setattr(name_index.build, "refresh",
                         lambda directory, **k: order.append("index") or {})
 
     with pytest.raises(api.ScanCancelled, match="fetches"):
@@ -336,7 +337,7 @@ def test_a_stale_database_is_never_refreshed_by_a_scan(workspace, host_cache):
 def test_a_stale_index_is_never_refreshed_by_a_scan(workspace, host_cache, monkeypatch):
     _write_db(host_cache)
     _write_index(host_cache, built_at="2026-01-01T00:00:00Z")
-    monkeypatch.setattr(name_index, "refresh",
+    monkeypatch.setattr(name_index.build, "refresh",
                         lambda *a, **k: pytest.fail("the index was refreshed"))
 
     run, said = _scan(workspace, _Runner(host_cache))
@@ -390,9 +391,9 @@ def test_an_index_that_could_not_be_fetched_is_said_and_the_check_is_told(
     _write_db(host_cache)
 
     def unavailable(directory, **kwargs):
-        raise name_index.IndexUnavailable("ghcr.io: connection refused")
+        raise name_index.reader.IndexUnavailable("ghcr.io: connection refused")
 
-    monkeypatch.setattr(name_index, "refresh", unavailable)
+    monkeypatch.setattr(name_index.build, "refresh", unavailable)
 
     run, said = _scan(workspace, _Runner(host_cache))
 
@@ -407,10 +408,10 @@ def test_an_index_fetch_inside_a_scan_never_walks_the_registries(
     700MB (23.2.1). That is the download 14.2 called hostile inside a scan, and it
     stays out of one: the Check fails naming `valvur update`, which walks."""
     _write_db(host_cache)
-    monkeypatch.setattr(name_index, "fetch_published",
+    monkeypatch.setattr(name_index.published, "fetch_published",
                         lambda *a, **k: (_ for _ in ()).throw(
-                            name_index.IndexUnavailable("ghcr.io: connection refused")))
-    monkeypatch.setattr(name_index, "walk",
+                            name_index.reader.IndexUnavailable("ghcr.io: connection refused")))
+    monkeypatch.setattr(name_index.build, "walk",
                         lambda *a, **k: pytest.fail("walked the registries inside a scan"))
 
     _, said = _scan(workspace, _Runner(host_cache))
@@ -427,7 +428,7 @@ def test_a_refused_signature_stops_the_scan(workspace, host_cache, monkeypatch):
     def refused(directory, **kwargs):
         raise oci.SignatureInvalid("no matching signatures")
 
-    monkeypatch.setattr(name_index, "refresh", refused)
+    monkeypatch.setattr(name_index.build, "refresh", refused)
 
     with pytest.raises(oci.SignatureInvalid):
         _scan(workspace, _Runner(host_cache))
@@ -532,7 +533,8 @@ def test_the_cli_prints_each_fetch_to_stderr(workspace, host_cache, capsys, monk
         db_size = 118
         calls: ClassVar[list[str]] = []
 
-    monkeypatch.setattr(name_index, "refresh", lambda directory, **k: _write_index(host_cache))
+    monkeypatch.setattr(name_index.build, "refresh",
+                        lambda directory, **k: _write_index(host_cache))
 
     assert cli.main(["scan", str(workspace), "--offline"], runner=Runner()) == 0
 
@@ -589,13 +591,13 @@ def test_a_fetched_index_records_the_signature_it_was_pulled_under(
             "repository": "ghcr.io/maverickhq/valvur-index", "digest": "sha256:abc",
             "signature": "not verified: cosign is not installed"}}}}
 
-    monkeypatch.setattr(name_index, "refresh", refresh)
+    monkeypatch.setattr(name_index.build, "refresh", refresh)
 
     run, _ = _scan(workspace, _Runner(host_cache))
 
     [fetched] = run.fetched
     assert fetched["what"] == "package-name index"
-    assert fetched["source"] == name_index.repository()
+    assert fetched["source"] == name_index.published.repository()
     assert fetched["signature"].startswith("not verified: cosign is not installed")
 
 
@@ -616,7 +618,7 @@ def test_all_three_fetches_are_recorded_in_the_order_they_happen(
         _write_index(directory)
         return {"ecosystems": {}}
 
-    monkeypatch.setattr(name_index, "refresh", refresh)
+    monkeypatch.setattr(name_index.build, "refresh", refresh)
 
     run, _ = _scan(workspace, Runner(host_cache))
 

@@ -545,7 +545,7 @@ def _first_run_hosts() -> list[tuple[str, int]]:
     if mirror:
         url(mirror)
     else:
-        registry(name_index.repository())
+        registry(name_index.published.repository())
     url(os.environ.get(KEV_URL_ENV, "").strip() or KEV_URL)
     return list(dict.fromkeys(hosts))      # deduplicated, first occurrence's order
 

@@ -39,8 +39,8 @@ def healthy(tmp_path, monkeypatch):
     (tmp_path / "home").mkdir()
     monkeypatch.delenv("VALVUR_IMAGE", raising=False)
     monkeypatch.delenv("VALVUR_RUNTIME", raising=False)
-    monkeypatch.delenv(name_index.MIRROR_ENV, raising=False)
-    monkeypatch.delenv(name_index.INDEX_REPOSITORY_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.MIRROR_ENV, raising=False)
+    monkeypatch.delenv(name_index.reader.INDEX_REPOSITORY_ENV, raising=False)
 
     monkeypatch.setattr(doctor, "_trusted_roots", lambda: 128)
     monkeypatch.setattr(doctor, "_find_runtime", lambda: "/usr/local/bin/docker")
@@ -466,7 +466,7 @@ def test_mirrors_are_probed_in_place_of_the_public_hosts(healthy, monkeypatch):
     monkeypatch.setattr(doctor, "_reachable",
                         lambda host, port=443: probed.append((host, port)) or True)
     monkeypatch.setenv("VALVUR_DB_REPOSITORY", "registry.internal:5000/mirror/trivy-db:2")
-    monkeypatch.setenv(name_index.INDEX_REPOSITORY_ENV, "registry.internal:5000/mirror/idx")
+    monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, "registry.internal:5000/mirror/idx")
     monkeypatch.setenv("VALVUR_KEV_URL", "http://files.internal/kev.json")
     monkeypatch.setenv("VALVUR_IMAGE", "registry.internal:5000/mirror/valvur:0.2.0")
 

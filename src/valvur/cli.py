@@ -125,7 +125,7 @@ def _refresh_name_index(*, build: bool = False) -> bool:
               "are walked only if it is unreachable)...")
     try:
         with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
-            name_index.refresh(cache.name_index(), published=not build,
+            name_index.build.refresh(cache.name_index(), published=not build,
                                progress=lambda msg: print(f"  {msg}"))
     except oci.SignatureInvalid as exc:
         # Not softened into the fallback and not swallowed: a refused signature on a
