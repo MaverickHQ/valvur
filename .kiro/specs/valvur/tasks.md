@@ -8509,7 +8509,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   three tests over the workflow's text and one over the README's wording.
 
 
-- [ ] **29.3.2** **Sizes and the KEV line say which (B9).** Measured: `doctor`
+- [x] **29.3.2** **Sizes and the KEV line say which (B9).** Measured: `doctor`
   and the README say 118 MB and 35 MB (what is fetched); `valvur cache` says
   1.45 GB and 123 MB (what is on disk); `valvur cache` says `kev: absent` while
   `doctor` says *bundled snapshot from the image*. Every surface says both
@@ -8518,6 +8518,22 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   *bundled in the image (snapshot dated …); `valvur update` fetches a fresher
   copy into the cache; absent there means the image's snapshot is in use*.
   **Held by:** the `doctor` and `cache` goldens.
+
+  **STATUS 2026-09-26:** ✅ One table in `cache.py` — `FETCH_MB` (database 118,
+  index 34), `fetch_note()`, `KEV_ABSENT_MEANS`, `KEV_PRESENT_MEANS` — and every
+  surface reads from it: `doctor`'s database line is *0.3 days old; 1.45 GB on
+  disk (118 MB to fetch)* and, absent, *the first scan fetches it and says so
+  (118 MB to fetch, about 1.4 GB on disk)*; the index line ends *… on disk (34
+  MB to fetch)*; `valvur cache` appends *118 MB to fetch* to the database row
+  and *34 MB to fetch* to the index row, and an absent row says what absent
+  means — for `kev`, *the image's bundled snapshot is in use; `valvur update`
+  fetches a fresher copy into the cache*, the same sentence `doctor` prints;
+  present, both say *a fresher copy than the image's snapshot*. The README's
+  first-run paragraph says both numbers for both fetches, and a test holds it
+  to the table. Held by four tests and the two doctor tests that pinned the old
+  wording, changed deliberately.
+
+
 - [ ] **29.3.3** **`explain_finding`'s evidence is fenced (B9; F9.9, F3.13).**
   Measured: `operations.py:284` neutralises the evidence (hidden Unicode
   escaped) and does not wrap it in the markers `SUMMARY.md` promises; over

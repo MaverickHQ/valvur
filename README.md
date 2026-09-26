@@ -354,7 +354,8 @@ valvur doctor               # if anything above did not work: what this machine 
 ```
 
 The first `valvur update` pulls the image (about 240MB), the vulnerability database
-(118MB) and the name index (34MB, one signed artifact, built daily) — a minute or
+(118 MB to fetch, about 1.4 GB on disk) and the name index (34 MB to fetch, about
+120 MB on disk; one signed artifact, built daily) — a minute or
 two. Later updates take seconds; run `valvur update --if-stale` from a hook or cron,
 it costs one file read when current. It is optional before the first scan: a scan
 that finds any of the three **absent** fetches it and says so — on the terminal, and

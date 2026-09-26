@@ -336,7 +336,7 @@ def _superseded_images(runtime: str) -> list[str]:
 def _check_database() -> Check:
     if not _cache.db_present():
         return Check("database", "info", "not present; the first scan fetches it and says "
-                     "so (about 118MB)")
+                     f"so ({_cache.fetch_note('database')}, about 1.4 GB on disk)")
     age = _cache.db_age_days()
     if age is None:
         return Check("database", "warn", "present, but its age cannot be read; a scan "
@@ -349,7 +349,9 @@ def _check_database() -> Check:
             "valvur update — or `valvur update --if-stale` from a hook, which costs one "
             "file read when current",
         )
-    return Check("database", "ok", f"{age:.1f} days old")
+    on_disk = _cache.human_size(_cache._tree_size(_cache.trivy_db()))
+    return Check("database", "ok",
+                 f"{age:.1f} days old; {on_disk} on disk ({_cache.fetch_note('database')})")
 
 
 def _check_index() -> Check:
@@ -388,7 +390,9 @@ def _check_index() -> Check:
             "registered since is reported as nonexistent",
             "valvur update",
         )
-    return Check("index", "ok", f"{aged} — {counts}")
+    on_disk = _cache.human_size(_cache._tree_size(_cache.name_index()))
+    return Check("index", "ok",
+                 f"{aged} — {counts}; {on_disk} on disk ({_cache.fetch_note('index')})")
 
 
 def _check_kev() -> Check:
@@ -397,9 +401,8 @@ def _check_kev() -> Check:
     cached = _cache.root() / "kev.json"
     if cached.is_file():
         age = (time.time() - cached.stat().st_mtime) / 86400
-        return Check("kev", "info", f"host cache, {age:.1f} days old")
-    return Check("kev", "info", "bundled snapshot from the image; `valvur update` "
-                 "refreshes it")
+        return Check("kev", "info", f"host cache, {age:.1f} days old — {_cache.KEV_PRESENT_MEANS}")
+    return Check("kev", "info", _cache.KEV_ABSENT_MEANS)
 
 
 def _check_selinux(workspace: Path) -> Check:

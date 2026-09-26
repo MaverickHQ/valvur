@@ -7,6 +7,13 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Sizes and the KEV line say which.** `doctor` and the README said 118 MB and
+  34 MB (what is fetched) while `valvur cache` said 1.45 GB and 123 MB (what is
+  on disk), and `valvur cache` said *kev: absent* while `doctor` said *bundled
+  snapshot from the image* — both true, read as a contradiction at the first
+  gate. Every surface now says both numbers with their names, from one table
+  (*118 MB to fetch, about 1.4 GB on disk*), and the KEV row reads the same in
+  both places: absent means the image's bundled snapshot is in use (29.3.2).
 - **The README cannot call a version published before it is.** Its status
   line is bumped before the tag and the release brake can be held for days; at
   the first gate it read *0.4.0 — published and installable* while PyPI served

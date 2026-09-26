@@ -150,6 +150,23 @@ def _metadata_time(marker: Path, field: str) -> float | None:
 # runtime's to keep and is not here: `valvur doctor` says whether it is present.
 
 
+#: What each fetch costs, in the unit a download is quoted in (29.3.2). What it
+#: takes on disk is measured by `inventory()` — the database unpacks to about
+#: 1.4 GB, the index to about 120 MB — and every surface says both with their
+#: names, because 118 MB beside 1.45 GB read as a contradiction at the first gate.
+FETCH_MB: dict[str, int] = {"database": 118, "index": 34}
+
+#: The KEV row's one sentence for an absent cache copy, on `doctor` and on
+#: `valvur cache` alike: absent is not missing, the image carries a snapshot.
+KEV_ABSENT_MEANS = ("the image's bundled snapshot is in use; `valvur update` fetches a "
+                    "fresher copy into the cache")
+KEV_PRESENT_MEANS = "a fresher copy than the image's snapshot"
+
+
+def fetch_note(name: str) -> str:
+    return f"{FETCH_MB[name]} MB to fetch"
+
+
 @dataclass(frozen=True)
 class Entry:
     name: str

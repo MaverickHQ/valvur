@@ -157,10 +157,20 @@ def _print_cache(*, clear: bool, prune: bool = False) -> int:
     entries = cache.inventory()
     for entry in entries:
         if not entry.present:
-            print(f"  {entry.name:<9} absent")
+            # Absent is not the same thing twice (29.3.2): the KEV copy is a
+            # fresher copy of what the image carries; the data is a first-scan
+            # fetch.
+            means = (cache.KEV_ABSENT_MEANS if entry.name == "kev"
+                     else f"the first scan fetches it ({cache.fetch_note(entry.name)})")
+            print(f"  {entry.name:<9} absent — {means}")
             continue
         age = f"{entry.age_days:.1f} days old" if entry.age_days is not None else "age unknown"
-        detail = f" — {entry.detail}" if entry.detail else ""
+        notes = [entry.detail] if entry.detail else []
+        if entry.name in cache.FETCH_MB:
+            notes.append(cache.fetch_note(entry.name))
+        if entry.name == "kev":
+            notes.append(cache.KEV_PRESENT_MEANS)
+        detail = f" — {' · '.join(notes)}" if notes else ""
         print(f"  {entry.name:<9} {cache.human_size(entry.size):>9}  {age}{detail}")
     print(f"  {'total':<9} {cache.human_size(sum(e.size for e in entries)):>9}")
     if prune:
