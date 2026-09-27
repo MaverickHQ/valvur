@@ -158,6 +158,14 @@ def to_json(results: list[RepoResult], platform: dict) -> dict:
          "unexpected": r.verdict.unexpected} for r in results]}
 
 
+def discover(set_dir: Path, only: str | None = None) -> dict[str, Path]:
+    """The repositories in a set: directories carrying an `expected.toml`, and no
+    other — a probe's workspace or a clone left beside them is not one."""
+    return {p.name: p for p in sorted(set_dir.iterdir())
+            if p.is_dir() and (p / "expected.toml").is_file()
+            and (only is None or only in (p.name, p.name.split("-", 1)[0]))}
+
+
 def platform_info() -> dict:
     """The machine the run measured: the OS, and host swap, which decides whether a
     Mac time threshold counts (D17)."""
@@ -204,10 +212,8 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "acceptance"))
     import generate  # type: ignore[import-not-found]
 
-    repos = (generate.build(args.set, args.only) if args.generate else
-             {p.name: p for p in sorted(args.set.iterdir())
-              if p.is_dir() and not p.name.startswith(".")
-              and (args.only is None or args.only in (p.name, p.name.split("-", 1)[0]))})
+    repos = generate.build(args.set, args.only) if args.generate else discover(
+        args.set, args.only)
     results = [run_repo(root) for root in repos.values()]
     info = platform_info()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -219,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
 
         ticked_now = ticked((Path(__file__).resolve().parent.parent
                              / ".kiro/specs/valvur/tasks.md").read_text())
-        target = probes.workspace(args.set)
+        target = probes.workspace(args.out)       # never inside the set
         probe_results = [probes.probe(kind, target) for kind in probes.KINDS]
         report["probes"] = [{**vars(p), "ok": p.ok} for p in probe_results]
         table += "\n| probe | verdict | left after stop | left at next start | seconds |\n"

@@ -134,3 +134,13 @@ def test_the_report_has_a_row_per_repository_and_the_platform(tmp_path):
     assert "macOS 26.6.2" in table
     assert harness.to_json([passing, failing], {})["repositories"][1]["missing"] == [
         "aws-access-token at x"]
+
+
+def test_only_directories_with_expectations_are_repositories(tmp_path):
+    harness = _module()
+    for name in ("1-gate-shaped", "4-nested-names"):
+        _write_repo(tmp_path / name, "[run]\ncomplete = true\n")
+    (tmp_path / "probe-workspace").mkdir()          # left by a probe run
+    (tmp_path / ".terraform-aws-vpc-clone").mkdir()
+    assert list(harness.discover(tmp_path)) == ["1-gate-shaped", "4-nested-names"]
+    assert list(harness.discover(tmp_path, only="4")) == ["4-nested-names"]
