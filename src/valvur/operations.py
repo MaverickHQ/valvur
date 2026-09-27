@@ -57,6 +57,11 @@ def resolve_workspace(raw: str | None) -> Path:
         raise Refusal(f"{path} is a file, not a directory; name the project's folder.")
     return path
 
+
+def _checked(args: dict) -> dict:
+    """The call's arguments with its Workspace resolved and checked (R1.2)."""
+    return {**args, "workspace": str(resolve_workspace(args.get("workspace")))}
+
 def _results(workspace: str | None) -> Path:
     return Path(workspace or ".").resolve() / RESULTS_DIR
 
@@ -252,6 +257,7 @@ def list_findings_reply(args: dict) -> tuple[str, dict]:
     """The text, and the same answer as a dict for `structuredContent` (28.2.2):
     the counts an agent parsed out of the first line, and each shown Finding's
     fields. One computation, so the two cannot disagree."""
+    args = _checked(args)
     data = _load(args.get("workspace"))
     findings = data["findings"]
 
@@ -327,6 +333,7 @@ def _structured_finding(finding: dict) -> dict:
 
 
 def explain_finding(args: dict) -> str:
+    args = _checked(args)
     fingerprint = args.get("fingerprint")
     if not fingerprint:
         raise ValueError("fingerprint is required; list_findings reports it for each finding")
@@ -393,7 +400,7 @@ def explain_finding(args: dict) -> str:
 def cancel_scan(args: dict) -> str:
     """Stop a running scan (23.3.3): the same outcome Ctrl-C gives the CLI (F1.11)
     — containers stopped, nothing written, not a failure."""
-    workspace = Path(args.get("workspace") or ".").resolve()
+    workspace = resolve_workspace(args.get("workspace"))
     job, stopped = jobs.cancel(workspace)
     if job is None:
         return f"No scan is running in {workspace}."
@@ -415,7 +422,7 @@ def doctor(args: dict) -> str:
     Read-only; opens no socket unless `network` is asked for."""
     from . import doctor as _doctor
 
-    workspace = Path(args.get("workspace") or ".").resolve()
+    workspace = resolve_workspace(args.get("workspace"))
     checks = _doctor.run(workspace, network=bool(args.get("network")))
     return _doctor.render(checks, workspace)
 
@@ -520,6 +527,7 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
     counts, the Scanners and the next moves are fields now, from the same
     `run.json` and the same job, built in the same pass as the text.
     """
+    args = _checked(args)
     workspace = Path(args.get("workspace") or ".").resolve()
 
     job = jobs.current(workspace)

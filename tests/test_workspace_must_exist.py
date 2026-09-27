@@ -50,3 +50,25 @@ def test_a_relative_workspace_with_no_project_directory_is_refused(tmp_path, mon
     assert result["isError"] is True
     assert "absolute path" in _text(result)
     assert not (tmp_path / "relative").exists()
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("tool", ["list_findings", "explain_finding", "scan_status",
+                                  "scan_cancel", "doctor"])
+def test_every_tool_refuses_a_workspace_that_does_not_exist(tmp_path, tool):
+    missing = tmp_path / "no" / "such" / "place"
+    result = _call(tool, {"workspace": str(missing), "fingerprint": "x"})
+    assert result["isError"] is True, _text(result)
+    assert "no directory" in _text(result)
+    assert not (tmp_path / "no").exists()
+
+
+def test_a_file_named_as_the_workspace_is_refused(tmp_path):
+    readme = tmp_path / "README.md"
+    readme.write_text("# hi\n")
+    result = _call("scan", {"workspace": str(readme)})
+    assert result["isError"] is True
+    assert "is a file" in _text(result)
+    assert not (tmp_path / "README.md.security-scan").exists()
