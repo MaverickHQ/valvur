@@ -70,3 +70,13 @@ def test_a_large_ignored_directory_costs_a_bounded_search(tmp_path, monkeypatch)
     built = fileset.build(root)
     assert "config/.env" in built.files
     assert any(path == "data/" and "as far as 10 files" in why for path, why in built.skipped)
+
+
+def test_an_exclude_removes_the_top_level_path_only(tmp_path):
+    root = _repo(tmp_path, {"archive/a.py": "x\n", "src/archive/b.py": "y\n",
+                            "src/app.py": "z\n",
+                            ".security-scan.toml": '[scan]\nexclude = ["archive"]\n'})
+    built = fileset.build(root)
+    assert "archive/a.py" not in built.files
+    assert {"src/archive/b.py", "src/app.py"} <= set(built.files)
+    assert ("archive", "excluded by .security-scan.toml") in built.skipped

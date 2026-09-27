@@ -109,12 +109,26 @@ def _ignored(workspace: Path) -> tuple[list[str], list[tuple[str, str]]]:
     return kept, skipped
 
 
+def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
+    """The project's `[scan] exclude`, applied once, root-relative (ADR-0021)."""
+    from .exclusions import is_configured_out
+
+    if not prefixes:
+        return result
+    result.files = [f for f in result.files if not is_configured_out(f, prefixes)]
+    result.skipped += [(p, "excluded by .security-scan.toml") for p in prefixes]
+    return result
+
+
 def build(workspace: Path) -> FileSet:
+    from .exclusions import load_configured
+
+    prefixes = load_configured(workspace)
     view = git_view(workspace)
     if view is not None:
         kept, skipped = _ignored(workspace)
-        return FileSet(sorted(set(view) | set(kept)), "git", skipped)
-    return FileSet(walk(workspace), "tree")
+        return _excluded(FileSet(sorted(set(view) | set(kept)), "git", skipped), prefixes)
+    return _excluded(FileSet(walk(workspace), "tree"), prefixes)
 
 
 def files(workspace: Path) -> list[str]:
