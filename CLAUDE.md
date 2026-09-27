@@ -1,7 +1,7 @@
 # CLAUDE.md — long-term context for this repository
 
 > **Audience:** any AI agent or human joining this project with no prior context.
-> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-26.
+> Read this before proposing changes. Written 2026-08-29, last reviewed 2026-09-27.
 > **Name:** `valvur` (Estonian: *guard, watchman*) — settled, not provisional. It was
 > provisional only until first publish, and `0.1.0rc1` went to PyPI on 2026-08-31,
 > which claimed it (task 10.0.1).
@@ -180,10 +180,15 @@ exclusions; Dependabot's five sorted; every client's file in one table with the
 README held to it and `doctor` reading them all; the README's status line true
 on every day of a release; sizes and KEV say which; every MCP evidence fenced.
 one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **29.2.3 ran that night, once the login existed:** one headless `claude -p` on the gate's tree with the project's `.mcp.json`, **2 min 53 s from the command to a correct report**, no question asked, the scan 95 s, nine containers all gone — warm and not a stranger, and the record says so (`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`, the whole transcript in it); 12b.1 closed with it. It found **29.2.4**, closed the next morning: Claude Code hands the model a structured reply's JSON and drops its text, so `scan_status`'s *call again; do not report a result yet* never reached the agent, which built its own wait and ended its turn with Checkov running — the harness's re-invocation on its Monitor is what produced the report; every sentence the status text says after a job's state is a field of the structured reply now. A second pass from the other session the same night — two runs on the same tree, 200 s to a correct report with an empty cache, then a 30 s budget by prompt — found **29.0.5**: the cut run called the eight Findings nothing had looked for *fixed* and rewrote the state; closed the same night, and both transcripts are beside the record (`docs/gates/2026-09-26-claude-code-agent-pass-the-cut.md`). `v0.4.0` (run 36254809572) and
-`v0.5.0` (run 36261443737) were both tagged and promoted on 2026-09-26. **Next, in this order: the `v1.0.0` tag — prepared on `f7c19b1`, rehearsed as run
-36317791899 and held at the brake; the owner decided on 2026-09-27 that it ships
-without the gate with a person, recorded under 12b.3, after their own run of the
-candidate on the gate's tree; then the gate with a person on what shipped; the second maintainer, declined for `1.0.0` with the
+`v0.5.0` (run 36261443737) were both tagged and promoted on 2026-09-26. **`v1.0.0` is prepared on `f7c19b1` and rehearsed as run 36317791899, held at
+the brake; the owner decided on 2026-09-27 that it ships without the gate with a
+person (12b.3). Their own run of the candidate that evening is the second gate
+([`docs/gates/2026-09-27-…-1.0.0-candidate.md`](docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md)): 148 s cold to a correct report, all nine of
+the first gate's findings verified fixed — and nine new, [Phase 30](.kiro/specs/valvur/tasks.md),
+two of them blockers for a stability claim: a cancel that keeps launching
+Scanners and a scan that creates a nonexistent workspace inside the project.
+Next, in this order: Phase 30's Tier 0 (30.0.1–30.0.3), a fresh rehearsal on
+that commit, the `v1.0.0` tag; then the gate with a person on what shipped; the second maintainer, declined for `1.0.0` with the
 reason under 28.1.3 and the first thing after; the runner move after 2026-11-19
 (28.3.8).** When "what is next" is asked,
 Phase 25 answers for the people and Phase 28's two open rows for the code; the
@@ -326,15 +331,16 @@ private package refusing every anonymous pull, which is now on Block 1's list. B
 diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
-Roughly: 71 modules under `src/valvur`, 1,294 tests in 93 files, 20 ADRs, 136
-requirement IDs, **254 done and 3 open** across 29 phases — 12b.3 (`v1.0.0`)
-and Phase 28's two that wait on a person or a date; the agent-driven pass found
+Roughly: 71 modules under `src/valvur`, 1,308 tests in 95 files, 20 ADRs, 136
+requirement IDs, **254 done and 10 open** across 30 phases — 12b.3 (`v1.0.0`),
+Phase 28's two that wait on a person or a date, and Phase 30's seven from the
+second gate (three before the tag, four after); the agent-driven pass found
 two things, 29.0.5 (a cut run calling Findings nothing looked for *fixed*) and
 29.2.4 (the primary client hands the model a structured reply's fields and not
 its text), both closed within the day; Phases 26 to 29's engineering are
 complete, `0.5.0` is out (2026-09-26), the action is at `v0.2` and the rc is
 yanked. Two of the 3 are the owner's (the second maintainer, the `v1.0.0`
-tag), and one is dated (the runner move). A
+tag), one is dated (the runner move), and seven are Phase 30's. A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found
 a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

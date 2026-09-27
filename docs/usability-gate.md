@@ -108,6 +108,22 @@ Append findings here under a dated heading, then tick the corresponding task in
   do not report yet* sentence never arrived, and the model ended its turn with
   the scan running; the harness's re-invocation produced the report.
 
+## Gate 1, second run — the `1.0.0` candidate (2026-09-27)
+
+- **Date:** 2026-09-27, on the `1.0.0` candidate (the worktree at `23be2e2`,
+  `valvur:dev` from `87e760ea`, an empty cache), wired into the lab's
+  `.mcp.json` by the owner; PyPI served `0.5.0`.
+- **Participant:** the same Claude Code agent, from the owner's lab session,
+  running a headless pass with one sentence and the six tools plus `Read`;
+  then a stdio probe for the paths a model would not take. Not a person.
+- **Time to a correct report:** **148 s, cold** (target: five minutes) — the
+  database and the index fetched inside it, 16 turns, no question asked.
+- **Result:** all nine of the first run's findings verified fixed; nine new,
+  two serious (a cancel that keeps launching Scanners; a scan that creates a
+  nonexistent workspace). The record is
+  [`docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md`](gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md);
+  the tasks are Phase 30. The protocol's ask for a person stands, after the tag.
+
 ## Gate 2 — Phase 10 (task 10.8)
 
 - **Date:**

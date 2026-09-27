@@ -2053,6 +2053,22 @@ become the task list for 12b.** Everything below is provisional until it has.
   rehearsal's validation of the artifact on both architectures. Phase 25's
   exit is amended the same way.
 
+  **STATUS 2026-09-27 (evening): the owner's run happened, and it is the
+  second gate.** The lab reset to a stranger's — no results, no notes about
+  valvur, an empty cache — and `.mcp.json` pointed at the candidate (the
+  worktree at `23be2e2`, `valvur:dev` from `87e760ea`). The owner's lab
+  session ran a headless pass on that config: **148 s from one sentence to a
+  correct report, cold**, 16 turns, and every one of the first gate's nine
+  verified fixed on this build; then a probe on the paths a model would not
+  take. Nine new items, ranked, are
+  [Phase 30](#phase-30--the-second-gate-the-100-candidate-and-what-being-told-to-stop-must-mean),
+  and two of them — a cancel that keeps launching Scanners and reports
+  `CANCELLED` with a container up, and a `scan` that creates a nonexistent
+  workspace inside the project — are wrong in a way a stability claim cannot
+  carry. **Recommendation, recorded:** Phase 30's Tier 0 before the tag; the
+  version stays `1.0.0`, the fixes land, the rehearsal re-runs on that commit.
+  The held rehearsal 36317791899 stays at the brake until the owner decides.
+
 **Exit (12b):** v1.0.0 released. CI proves non-exfiltration on every commit, the
 self-scan is clean, the signature and SBOM are published, and someone who has never
 seen valvur has installed it and got a useful answer.
@@ -8903,6 +8919,154 @@ verify` pass on `ghcr.io/maverickhq/valvur:0.5.0`. Phase 29 is shipped. The
 eight things the phase learned that no task asked for are in CLAUDE.md's
 Phase 29 bullet.
 
+
+## Phase 30 — The second gate: the `1.0.0` candidate, and what being told to stop must mean
+
+**Goal:** close what the second usability-gate run found — nine items, ranked,
+in [`docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md`](../../../docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md)
+— before and after the `v1.0.0` tag, in the order their consequences arrive.
+Written 2026-09-27, the evening of the run. The report's measurements are a
+stdio probe's and a headless agent's, with every JSON-RPC line kept; the three
+Tier 0 items were also read against `main` (`2eec4e2`) before they became
+tasks, and the head says what the code does. Each task lands by its own pull
+request with the test written first.
+
+> **What the gate found, in one paragraph.** The same participant as the first
+> gate — a Claude Code agent on the owner's own project — ran the `1.0.0`
+> candidate the owner had wired into the lab's `.mcp.json` (the worktree at
+> `23be2e2`, `valvur:dev` from `87e760ea`, an empty cache): **148 s from one
+> headless sentence to a correct report, cold**, 16 turns, no question asked,
+> nothing changed, no container left; the agent read the structured `next`
+> field and polled correctly from the first reply. **All nine of the first
+> gate's findings verified fixed on this build**, the timeout path on a real
+> Scanner included (C8: both Scanners past 600 s *stopped*, no container
+> after). Then a probe took the paths a model would not: a 20 s budget, bad
+> inputs, a cancel watched for 75 s, a disconnect mid-scan, the tree without
+> its exclude. **Two things are wrong in a way a stability claim cannot
+> carry** — after `scan_cancel` the two-wide fleet keeps launching queued
+> Scanners and reports `CANCELLED` with a container still up, and a killed
+> client leaves the server's own process holding the workspace lock (C1);
+> and `scan` with a relative or nonexistent path creates that directory inside
+> the user's project and reports confidently on it (C2). The rest: input errors
+> asynchronous and in Python's words (C3), `doctor_may_help` true in every
+> state (C4), a session talking to an older server than its config names with
+> nothing saying so (C5), the agent misreporting the results folder as
+> unignored (C6), small things (C7), and 3,890 identical secret hits on a data
+> directory ranked above the eight real findings (C9).
+
+> **Read against `main` before tasking (2026-09-27).** C1: the fleet submits
+> every Scanner to the pool up front (`api.py`, the `ThreadPoolExecutor`
+> block); a cancel kills the running containers and sets `runner.cancelled`,
+> which `_refuse_if_cancelled` reads only *after* the pool drains — nothing
+> cancels the queued futures the way the budget's cut does (`f.cancel()` at
+> the deadline), so the next worker starts the next Scanner. Confirmed by
+> reading; the probe measured it twice. C2: `start_scan` resolves the
+> argument with `Path(...).resolve()` against the server's own directory and
+> `results.write` creates the folder with `mkdir(parents=True)`; nothing
+> checks the workspace exists. Confirmed by reading. C4: `Job.doctor_may_help`
+> defaults to true and is set only when a job fails; the field is emitted in
+> every state. Confirmed by reading. **Verdict for the tag:** Tier 0 first.
+> The rehearsal at the brake (run 36317791899) is on a tree that mishandles
+> being told to stop; the prep commit's version stays `1.0.0`, the three fixes
+> land on `main`, and a fresh rehearsal on that commit takes fifteen minutes.
+> The owner decides; this is the recommendation and it is recorded here.
+
+### Tier 0 — Before the tag: stop means stop, and a workspace must exist
+
+- [ ] **30.0.1** **`scan_cancel` stops the queue, and `CANCELLED` waits for the
+  last container (C1; F1.11).** Measured by the probe, twice: on the excluded
+  tree, cancel at 11 s answered *stopped 2 container(s)*, a new container was
+  up 18 s later with the job still `CANCELLING`, and at +36 s the job read
+  `CANCELLED` — *6 of 8 had finished* after a cancel that met two running —
+  with a container up 13 s at that moment; on the unexcluded tree two further
+  pairs launched after the cancel. And a client that dies takes the `uv`
+  wrapper with it while the server's Python survives, holding
+  `.security-scan/.lock` with two `docker run` children, so the next `scan` is
+  refused *Busy*. Three fixes in one task, because they are one property:
+  the scheduler checks the cancel flag before every launch and cancels the
+  queued futures the moment `kill` runs (the budget already does this at its
+  deadline — one path, not two); `CANCELLED` is reported only when the
+  runner's containers are gone (`_wait_gone` per name, bounded); and the
+  server's exit stops the queue before it waits on it, so a dead client
+  cannot leave a lock-holder behind. **Held by:** a test where a cancel
+  during a two-wide fleet of four launches nothing more and reports
+  `CANCELLED` with zero live containers; a test that the queued futures are
+  cancelled by `kill`; the e2e cancel test extended to *no container after*.
+  Before `v1.0.0`.
+- [ ] **30.0.2** **A workspace that does not exist is refused, never created
+  (C2; ADR-0001, moat item 2).** Measured: `scan` with `workspace:
+  "relative/path"` created `~/occams-test-lab/relative/path/.security-scan/`,
+  ran every Scanner over the empty directory and answered *DONE … 1 active:
+  No licence file found*; an absolute path under `$HOME` would do the same. A
+  typo becomes a directory in the user's project and a confident, wrong
+  report. Fix: at the call, before a job starts — the workspace must be an
+  existing directory, given absolutely or resolved against a directory the
+  reply names; otherwise `isError` with one sentence and nothing written. The
+  CLI's `scan` gets the same check. **Held by:** a test per shape — relative,
+  absolute-missing, a file — that nothing is created and the reply says why.
+  Before `v1.0.0`.
+- [ ] **30.0.3** **Input errors fail at the call, in plain words, and `doctor`
+  is named only for a precondition (C3, C4).** Measured: a file as workspace
+  and `budget_s: -5` each *Started …* then `FAILED after 0s —
+  NotADirectoryError …` / `ValueError …`, followed by *Run `doctor`*; `"ten"`
+  and `"bogus"` refused synchronously but as `ValueError: …`;
+  `explain_finding` on an unknown fingerprint the same; and
+  `doctor_may_help` reads true while RUNNING, on DONE, on a budget cut and on
+  the Busy refusal, so a client that reads fields is sent to `doctor` after
+  every scan. Fix: validate every argument where it arrives, one sentence
+  each with no exception class; `doctor_may_help` present only on a failure
+  and true only when the cause could be a precondition (runtime, image,
+  database, index, SELinux, TLS); the Busy refusal gets its own `next` —
+  *wait, then call `scan_status`* — and no `doctor`. **Held by:** a test over
+  every bad input that the reply is synchronous, `isError`, and free of
+  exception names; a test that the field is absent or false in every
+  non-failure state. Before `v1.0.0`.
+
+### Tier 1 — After the tag, in order of what a user meets
+
+- [ ] **30.1.1** **A flood of one rule on one directory is one Finding (C9).**
+  Measured on the unexcluded tree: gitleaks reported 3,890 `generic-api-key`
+  hits, one per hash-named JSON file under `archive/surveys/…/baselines/`,
+  and `REMEDIATION.md` and the `Next:` line opened with *Rotate the
+  credentials in … — action 1 of 3890*; the pre-flight had already named the
+  directory. Fix: collapse repeated hits of one rule under one directory into
+  a single Finding carrying the count and the exclude line (*generic-api-key
+  ×3,890 under `archive/surveys/…` — machine-written data; verify one, or
+  exclude the directory*), ranked below distinct Findings; the raw list stays
+  in `findings.json`. Identity: a collapsed Finding's fingerprint is the rule
+  and the directory, so a Suppression on it holds. **Held by:** a fixture of
+  a directory of identical hits, the summary and remediation goldens.
+- [ ] **30.1.2** **`doctor` says when the server a session talks to is not the
+  one `.mcp.json` names (C5).** Measured: the session's tools were the server
+  spawned at its start while `.mcp.json` had been changed; `doctor` printed
+  the config's command under its own version header and drew no conclusion.
+  Half Claude Code's (it keeps the server it spawned), half ours: `doctor`
+  knows its own version and executable and reads the config's command; when
+  they differ it says *this server is <version> at <path>; `.mcp.json` names
+  <command>; restart the client to use it*. **Held by:** a unit test over a
+  config naming another command.
+- [ ] **30.1.3** **The `scan` reply and the handshake say the folder ignores
+  itself (C6).** Measured: the agent, refused a `git status`, told the user
+  the folder *is not in `.gitignore`* and to add a line; the folder holds its
+  own `.gitignore`. One clause in both places: *the folder ignores itself;
+  there is nothing to add*. **Held by:** the initialize snapshot and the
+  `scan` reply test.
+- [ ] **30.1.4** **The small things (C7, C8's excerpt).** *Completed so far:
+  starting* on every RUNNING reply once Scanners have finished, and `now:
+  null` beside a text that says *Now: trivy 16s …* (29.0.4/29.2.4 left the
+  fetch line and the running line under different names — say which, once);
+  `list_findings` with `limit: 500` answers 100 without saying it clamped; a
+  partial budget cut's `job` carries no `budget` field, only a full cut's
+  (29.2.4); `scan` accepts and ignores unknown arguments; the server's exit
+  after stdin closes took 10.4 s on a healthy scan, and a client that kills
+  after 5 s orphans it (30.0.1's third fix bounds this); the timeout's *last
+  stderr* excerpt is cut mid-word and runs into the duration. Each a line and
+  a test.
+
+**Exit (Phase 30):** Tier 0 on `main`, the rehearsal re-run on that commit,
+`v1.0.0` tagged from it; Tier 1 in `1.0.x` releases; the report's §5 list —
+Kiro driven, `full`, Podman, `gate`, suppressions, `update` — is the third
+gate's script.
 
 ## Traceability
 
