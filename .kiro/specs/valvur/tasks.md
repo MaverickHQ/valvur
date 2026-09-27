@@ -64,20 +64,25 @@ Two mechanisms, armed by R0.1.
 **What a resuming session does:**
 
 1. **Is another executor alive?**
-   - *In a fresh session:* run `scripts/build_status.py`. If the newest commit on
-     `origin/main` or any `origin/build/r*` branch, or the newest change in the working tree,
-     is younger than eight hours, end the turn and do nothing.
-   - *In the session that was building:* if `origin` or the working tree holds commits this
-     session did not make, another executor has taken over. Delete this session's schedule
-     and end the turn.
+   A build commit is one whose subject carries a phase scope, `(r<n>` or `(r<n>.<m>`, on
+   `origin/main` or an `origin/build/r*` branch. Dependabot and the owner's own commits do
+   not count.
+   - *In a fresh session:* run `scripts/build_status.py`. If the newest build commit, or the
+     newest change in the working tree, is younger than eight hours, end the turn and do
+     nothing.
+   - *In the session that was building:* if a build branch holds build commits this session
+     did not make, another executor has taken over. Delete this session's schedule and end
+     the turn.
 2. **Where are we?** `git fetch --prune`, then `scripts/build_status.py` names the current
    phase, its branch `build/r<n>-<slug>`, and the first unchecked task. The current phase
    is the lowest-numbered one with an unchecked task, read from its branch if the branch
    exists on origin, otherwise from `main`. Check out the branch, creating it from `main`
    when absent.
-3. **Leave nothing half-done.** Stash any working-tree changes with
-   `git stash push -u -m "resume <UTC time>: partial slice"`. A partial slice is redone from
-   its last green commit, never trusted. If the unit suite is red on HEAD, fix that first.
+3. **Leave nothing half-done.** The session that was building keeps its own changes and
+   finishes its slice. A fresh session stashes any working-tree changes with
+   `git stash push -u -m "resume <UTC time>: partial slice"` and redoes that slice from its
+   last green commit, never trusting it. Either way, if the unit suite is red on HEAD, fix
+   that first.
 4. **Continue** with the first unchecked task, at its first behaviour without a passing test.
 5. **Re-arm** the in-session schedule if `CronList` shows none.
 6. **Finish.** When every task outside §8 is done, delete both schedules, write the build's
@@ -195,7 +200,8 @@ condition.
 - [ ] **R0.1** **Resuming, armed** (§2). Behaviours:
   1. `scripts/build_status.py`, test-first against a fixture `tasks.md` and a fixture git
      repository. It names the current phase, its branch and the first unchecked task. It
-     answers "alive" when the newest commit or file change is under eight hours old.
+     answers "alive" when the newest build commit or file change is under eight hours old,
+     and ignores commits without a phase scope.
   2. The in-session job exists: `CronList` shows it.
   3. The durable task exists: `list_scheduled_tasks` shows `valvur-build-resume`.
   4. From a fresh shell, `scripts/build_status.py` prints R0.2 as the next task and changes
