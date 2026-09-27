@@ -78,3 +78,4 @@ select = ["E", "F", "I", "UP", "B", "S", "RUF"]
 "src/valvur/gitcontext.py" = ["S607"]
 # The File Set asks git for its view by name (ADR-0021), as gitcontext does.
 "src/valvur/fileset.py" = ["S607"]
+"src/valvur/history.py" = ["S607"]   # `git`, found on PATH like fileset's
