@@ -74,3 +74,31 @@ def test_a_real_scan_container_reports_the_planted_secret(mountable_tmp, monkeyp
     api.scan(ws, runner=ContainerRuntime(), adapters=[GitleaksAdapter()])
     findings = json.loads((ws / ".security-scan" / "findings.json").read_text())["findings"]
     assert [(f["rule"], f["path"]) for f in findings] == [("aws-access-token", "config.py")]
+
+
+def _plan(*entries):
+    from valvur.invocation import Invocation
+
+    return [Invocation(tool=tool, version="0", argv=tuple(argv), report=report,
+                       timeout=timeout) for tool, argv, report, timeout in entries]
+
+
+def _run(tmp_path, plan, events=None):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    ws = _workspace(tmp_path)
+    LocalRuntime(FAKE_TOOLS).run(plan, snapshot(ws, ["config.py"]), scratch,
+                                 on_event=(events.append if events is not None else None))
+    return scratch, json.loads((scratch / "manifest.json").read_text())
+
+
+def test_the_tools_run_in_parallel(tmp_path):
+    import time
+
+    plan = _plan(("a", ["fake-sleep", "1", "/results/a.json"], "a.json", 30),
+                 ("b", ["fake-sleep", "1", "/results/b.json"], "b.json", 30),
+                 ("c", ["fake-sleep", "1", "/results/c.json"], "c.json", 30))
+    started = time.monotonic()
+    _scratch, manifest = _run(tmp_path, plan)
+    assert time.monotonic() - started < 2.5, "three one-second tools ran one after another"
+    assert sorted(e["tool"] for e in manifest["tools"]) == ["a", "b", "c"]

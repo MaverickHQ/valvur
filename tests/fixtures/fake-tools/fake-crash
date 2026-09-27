@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""`fake-crash`: fail at once with a message on stderr (R3.4)."""
+import sys
+
+sys.stderr.write("fatal: the tool could not start\n")
+sys.exit(2)

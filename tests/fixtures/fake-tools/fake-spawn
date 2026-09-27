@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""`fake-spawn PIDFILE`: start a grandchild that sleeps a minute, write its pid to
+PIDFILE, say something long on stderr, and sleep past any timeout (R3.4)."""
+import subprocess
+import sys
+import time
+
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    handle.write(str(child.pid))
+sys.stderr.write("scanning the workspace, which is taking a considerable while " * 50)
+sys.stderr.flush()
+time.sleep(60)

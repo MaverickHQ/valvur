@@ -11,6 +11,7 @@ them elsewhere to run the same engine as a host process in tests.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
@@ -56,28 +57,84 @@ def _mapped(argument: str, workspace: Path, results: Path) -> str:
                   lambda m: m.group(1) + where[m.group(2)], argument)
 
 
-def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
-    received = unpack(stream, workspace)
-    _event({"event": "received", "files": received})
-    plan = json.loads((results / "plan.json").read_text(encoding="utf-8"))
-    entries = []
-    for tool in plan["tools"]:
+#: `timeout(1)`'s convention for a tool the engine stopped at its timeout.
+TIMED_OUT = 124
+#: How much of a tool's stderr the manifest keeps.
+STDERR_KEPT = 2000
+
+
+def excerpt(text: str, limit: int) -> str:
+    """The last `limit` characters, starting at a word boundary: the second gate
+    read *… exclud (609.1s)*, a word cut in half and run into the duration."""
+    if len(text) <= limit:
+        return text.strip()
+    tail = text[-limit:]
+    cut = tail.find(" ")
+    return (tail[cut + 1:] if 0 <= cut < limit // 2 else tail).strip()
+
+
+class _Running:
+    """One tool, started in its own session and so its own process group: a
+    timeout kills the group, grandchildren included (R3.4)."""
+
+    def __init__(self, tool: dict, workspace: Path, results: Path, scratch: Path):
+        self.tool = tool
+        self.name = tool["tool"]
         for name, text in tool.get("files", []):
             (results / name).write_text(text, encoding="utf-8")
         argv = [_mapped(a, workspace, results) for a in tool["argv"]]
         env = {**os.environ, **dict(tool.get("env", []))}
-        _event({"event": "start", "tool": tool["tool"]})
-        started = time.monotonic()
-        proc = subprocess.run(argv, capture_output=True, text=True, env=env,  # noqa: S603
-                              check=False)
-        seconds = round(time.monotonic() - started, 1)
-        if not tool.get("report"):
-            (results / f"{tool['tool']}.stdout").write_text(proc.stdout, encoding="utf-8")
-        entries.append({"tool": tool["tool"], "exit_code": proc.returncode,
-                         "seconds": seconds, "timed_out": False,
-                         "stderr_tail": proc.stderr[-2000:]})
-        _event({"event": "end", "tool": tool["tool"], "exit_code": proc.returncode,
-                "seconds": seconds})
+        self.stderr_path = scratch / f"{self.name}.stderr"
+        stdout_path = results / f"{self.name}.stdout"
+        self.started = time.monotonic()
+        self.deadline = self.started + float(tool.get("timeout") or 600)
+        with open(stdout_path, "wb") as out, open(self.stderr_path, "wb") as err:
+            self.process = subprocess.Popen(  # noqa: S603 — the plan's own argv
+                argv, stdout=out, stderr=err, env=env, cwd=scratch,
+                start_new_session=True)
+        self.timed_out = False
+        _event({"event": "start", "tool": self.name})
+
+    def poll(self, now: float) -> bool:
+        """True once the tool has finished or been stopped."""
+        import signal
+
+        if self.process.poll() is not None:
+            return True
+        if now >= self.deadline:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(self.process.pid, signal.SIGKILL)
+            self.process.wait()
+            self.timed_out = True
+            return True
+        return False
+
+    def entry(self) -> dict:
+        seconds = round(time.monotonic() - self.started, 1)
+        stderr = self.stderr_path.read_text(encoding="utf-8", errors="replace")
+        code = TIMED_OUT if self.timed_out else self.process.returncode
+        _event({"event": "end", "tool": self.name, "exit_code": code, "seconds": seconds,
+                "timed_out": self.timed_out})
+        return {"tool": self.name, "exit_code": code, "seconds": seconds,
+                "timed_out": self.timed_out, "stderr_tail": excerpt(stderr, STDERR_KEPT)}
+
+
+def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
+    import tempfile
+
+    received = unpack(stream, workspace)
+    _event({"event": "received", "files": received})
+    plan = json.loads((results / "plan.json").read_text(encoding="utf-8"))
+    entries = []
+    with tempfile.TemporaryDirectory(prefix="valvur-engine-") as scratch_dir:
+        running = [_Running(tool, workspace, results, Path(scratch_dir))
+                   for tool in plan["tools"]]
+        while running:
+            now = time.monotonic()
+            for tool in [t for t in running if t.poll(now)]:
+                entries.append(tool.entry())
+                running.remove(tool)
+            time.sleep(0.05)
     (results / "manifest.json").write_text(
         json.dumps({"received": received, "tools": entries}), encoding="utf-8")
     return 0
