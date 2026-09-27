@@ -28,6 +28,9 @@ PROTOCOL_LABEL = "org.valvur.protocol"
 class IncompatibleImage(RuntimeError):
     """Raised with both versions named, because 'incompatible' alone is unactionable."""
 
+    #: A precondition `doctor` checks (R1.5).
+    doctor_may_help = True
+
 
 def shim_version() -> str:
     """The one version, derived in `version.py` so nothing here can disagree."""

@@ -303,13 +303,21 @@ The current engine, patched where `0.5.0` users can be misled today.
   (`excluded_builtin`), `SUMMARY.md`, the CLI and `scan_status`, text and field; the MCP
   snapshot is re-taken. Six tests in `tests/test_builtin_skips_named.py`. R3.2 removes the
   list itself.
-- [ ] **R1.5** **Input errors fail at the call, and `doctor` is suggested only when it can
+- [x] **R1.5** **Input errors fail at the call, and `doctor` is suggested only when it can
   help** (F9.10). Behaviours:
   1. Each bad argument is refused synchronously, in one plain sentence with no exception
      class name.
   2. `doctor_may_help` is true only for a precondition failure: runtime, image, database,
      index, SELinux or TLS.
   3. A Busy refusal carries `next` and does not mention `doctor`.
+  **STATUS 2026-09-27:** ✅ `profile`, `budget_s`, `limit` and `fingerprint` are checked at
+  the call and refused in one sentence without an exception class; a refused `scan` starts
+  no job; a number sent as a string is still a number. `doctor_may_help` defaults to false
+  and a precondition declares it: no runtime, a container that will not start, an
+  unreadable workspace, an image that will not pull or does not match, no index, TLS or a
+  connection. A busy workspace says to wait. Three older tests had faked a missing runtime
+  with a bare `RuntimeError`; they raise `NoContainerRuntime` now. Fourteen tests in
+  `tests/test_input_errors_at_the_call.py`.
 - [ ] **R1.6** **Trivy never reports to its vendor** (N2.1, ADR-0010). Behaviour: every
   Trivy argv, the database fetch included, carries `--disable-telemetry` and
   `--skip-version-check`, held by the argv snapshots.

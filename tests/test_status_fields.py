@@ -20,6 +20,7 @@ from valvur import api
 from valvur.levers import LEVERS
 from valvur.mcp import jobs
 from valvur.operations import scan_status_reply
+from valvur.runner import NoContainerRuntime
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +73,7 @@ def test_running_carries_the_instruction_the_text_gives(tmp_path):
 
 def test_failed_carries_the_doctor_sentence_only_when_doctor_may_help(tmp_path):
     def missing(workspace, profile, progress):
-        raise RuntimeError("No container runtime found.")
+        raise NoContainerRuntime("No container runtime found.")
 
     _settle(jobs.start(tmp_path, "offline", missing))
     text, fields = scan_status_reply({"workspace": str(tmp_path)})
@@ -163,7 +164,7 @@ def test_every_sentence_after_the_state_is_in_the_structured_reply(tmp_path):
         return ""
 
     def failed(workspace, profile, progress):
-        raise RuntimeError("No container runtime found.")
+        raise NoContainerRuntime("No container runtime found.")
 
     def cancelled(workspace, profile, progress):
         release.wait(5)

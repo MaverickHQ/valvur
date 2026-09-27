@@ -34,6 +34,12 @@ from pathlib import Path
 class Busy(RuntimeError):
     """Someone else holds the lock, and we chose not to wait."""
 
+    #: Not something `doctor` would name, and it knows what to do (R1.5): the
+    #: second gate saw *Run `doctor`* after a Busy refusal.
+    doctor_may_help = False
+    next_moves = ("Another scan holds this workspace: wait for it to finish, then call "
+                  "`scan` again; `scan_status` shows its progress.",)
+
 
 @contextmanager
 def held(path: Path, *, exclusive: bool = True, wait: bool = True,

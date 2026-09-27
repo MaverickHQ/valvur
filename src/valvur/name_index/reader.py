@@ -61,6 +61,9 @@ Progress = Callable[[str], None]
 class IndexUnavailable(RuntimeError):
     """The index could not be fetched. Whatever was on disk before is untouched."""
 
+    #: A precondition `doctor` checks (R1.5).
+    doctor_may_help = True
+
 
 # ------------------------------------------------------------------ reading
 

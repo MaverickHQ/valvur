@@ -79,9 +79,13 @@ class Job:
     finished: float | None = None
     summary: str = ""
     error: str = ""
-    #: Whether `doctor` could name the cause of a failure (29.0.3): the budget's
-    #: refusal says no, everything else says yes.
-    doctor_may_help: bool = True
+    #: Whether `doctor` could name the cause of a failure (29.0.3, R1.5): only a
+    #: precondition failure says yes — runtime, image, database, index, SELinux,
+    #: TLS. Running, done, a budget cut, a busy workspace or a bug say no.
+    doctor_may_help: bool = False
+    #: What to do next when the failure knows better than `doctor` (R1.5): a busy
+    #: workspace says to wait.
+    next_moves: tuple[str, ...] = ()
     #: The failure as fields, when the exception carried any (29.2.4): the budget
     #: cut's seconds, what it cut, what never started, and the levers.
     failure: dict | None = None
@@ -143,6 +147,19 @@ _jobs: dict[str, Job] = {}
 _lock = threading.Lock()
 
 
+def _doctor_may_help(exc: BaseException) -> bool:
+    """A precondition failure declares it (`doctor_may_help = True` on its class);
+    a TLS or connection failure is one by nature (`doctor` checks trust). Anything
+    else — a bug included — is not something `doctor` would name (R1.5)."""
+    import ssl
+    import urllib.error
+
+    declared = getattr(exc, "doctor_may_help", None)
+    if declared is not None:
+        return bool(declared)
+    return isinstance(exc, ssl.SSLError | urllib.error.URLError | ConnectionError)
+
+
 def current(workspace: Path) -> Job | None:
     with _lock:
         return _jobs.get(str(workspace))
@@ -184,7 +201,8 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
                     # A failed scan is a reportable outcome, not a crashed server.
                     job.transition(State.FAILED)
                     job.error = f"{type(exc).__name__}: {exc}"
-                    job.doctor_may_help = bool(getattr(exc, "doctor_may_help", True))
+                    job.doctor_may_help = _doctor_may_help(exc)
+                    job.next_moves = tuple(getattr(exc, "next_moves", ()) or ())
                     job.failure = getattr(exc, "fields", None) or None
         finally:
             job.finished = time.monotonic()

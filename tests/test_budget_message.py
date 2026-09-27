@@ -17,6 +17,7 @@ import pytest
 from test_budget import _Adapter, _Runner, _scan
 
 from valvur import api
+from valvur.runner import NoContainerRuntime
 
 LEVERS = ("[scan] exclude", "budget_s", "--budget", "VALVUR_JOBS", "--jobs")
 
@@ -71,7 +72,7 @@ def test_the_failed_reply_names_doctor_only_for_a_precondition(tmp_path, monkeyp
     assert fields["job"]["doctor_may_help"] is False
 
     def missing(workspace, profile, progress):
-        raise RuntimeError("No container runtime found.")
+        raise NoContainerRuntime("No container runtime found.")
 
     jobs.start(tmp_path, "offline", missing)
     time.sleep(0.2)

@@ -19,6 +19,7 @@ import pytest
 from conftest import write_name_index
 
 from valvur import cache, doctor, name_index
+from valvur.runner import NoContainerRuntime
 from valvur.version import __version__
 
 # ------------------------------------------------------------------ fixtures
@@ -562,7 +563,7 @@ def test_a_failed_scan_points_the_agent_at_doctor(tmp_path, monkeypatch):
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        raise RuntimeError("No container runtime found.")
+        raise NoContainerRuntime("No container runtime found.")
 
     jobs.start(tmp_path, "offline", work)
     time.sleep(0.2)

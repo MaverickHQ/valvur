@@ -14,6 +14,7 @@ import json
 
 import pytest
 
+from valvur import api
 from valvur.mcp import jobs, protocol
 from valvur.mcp.server import build
 from valvur.mcp.tools import registry
@@ -63,3 +64,73 @@ def test_a_readers_bad_argument_is_refused_in_one_plain_sentence(tmp_path, tool,
     text = _text(result)
     assert result["isError"] is True, text
     assert "Error:" not in text, text
+
+
+# ------------------------------------------------ doctor, only when it can help
+
+
+def _settled(tmp_path, work):
+    from valvur.operations import scan_status_reply
+
+    jobs.reset()
+    job = jobs.start(tmp_path, "offline", work)
+    assert job.wait(5)
+    text, fields = scan_status_reply({"workspace": str(tmp_path)})
+    jobs.reset()
+    return text, fields["job"]
+
+
+def test_a_running_scan_does_not_suggest_doctor(tmp_path, monkeypatch):
+    import threading
+
+    from valvur.operations import scan_status_reply
+
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.05)   # answer while it runs
+    jobs.reset()
+    release = threading.Event()
+    jobs.start(tmp_path, "offline", lambda ws, profile, progress: release.wait(5) and "")
+    _, fields = scan_status_reply({"workspace": str(tmp_path)})
+    release.set()
+    assert fields["job"]["doctor_may_help"] is False
+    jobs.reset()
+
+
+def test_a_finished_scan_does_not_suggest_doctor(tmp_path, runner_finding_nothing):
+    def work(ws, profile, progress):
+        api.scan(ws, runner=runner_finding_nothing)
+        return "clean: 0 finding(s)."
+
+    _, job = _settled(tmp_path, work)
+    assert job["doctor_may_help"] is False
+
+
+def test_a_missing_runtime_suggests_doctor(tmp_path):
+    from valvur.runner import NoContainerRuntime
+
+    def work(ws, profile, progress):
+        raise NoContainerRuntime("No container runtime found.")
+
+    text, job = _settled(tmp_path, work)
+    assert job["doctor_may_help"] is True
+    assert "doctor" in text
+
+
+def test_an_unexpected_failure_does_not_suggest_doctor(tmp_path):
+    def work(ws, profile, progress):
+        raise KeyError("a bug, not a missing precondition")
+
+    text, job = _settled(tmp_path, work)
+    assert job["doctor_may_help"] is False
+    assert "doctor" not in text
+
+
+def test_a_busy_workspace_says_to_wait_and_does_not_suggest_doctor(tmp_path):
+    from valvur.locking import Busy
+
+    def work(ws, profile, progress):
+        raise Busy("a scan is already running in this workspace")
+
+    text, job = _settled(tmp_path, work)
+    assert job["doctor_may_help"] is False
+    assert "doctor" not in text
+    assert any("wait" in move for move in job["next"]), job["next"]

@@ -645,8 +645,8 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         return "\n".join(lines), {"scanned": False, "job": fields}
     if job is not None and job.state is State.FAILED:
         lines = [f"FAILED after {job.elapsed:.0f}s — {job.error}"]
-        advice: list[str] = []
-        if job.doctor_may_help:
+        advice: list[str] = list(job.next_moves)
+        if job.doctor_may_help and not advice:
             # Only when a precondition could be the cause (29.0.3): the budget's
             # refusal carries its own levers, and `doctor` would say *ready*.
             advice.append(_DOCTOR_NEXT)

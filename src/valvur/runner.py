@@ -43,6 +43,9 @@ _RUNTIMES = ("docker", "podman", "nerdctl")
 class WorkspaceUnreadable(RuntimeError):
     """The container cannot see the source. Never downgraded to a clean result."""
 
+    #: A precondition `doctor` checks (R1.5).
+    doctor_may_help = True
+
 
 
 def _unreadable_hint(runtime: str, workspace) -> str:
@@ -84,14 +87,23 @@ class ContainerStartFailed(RuntimeError):
     runtime already said exactly what was wrong; we were throwing it away.
     """
 
+    #: A precondition `doctor` checks (R1.5).
+    doctor_may_help = True
+
 
 class NoContainerRuntime(RuntimeError):
     """Raised with remediation text — an error message is a usability surface (F1.5)."""
+
+    #: A precondition `doctor` checks (R1.5).
+    doctor_may_help = True
 
 
 class ImagePullFailed(RuntimeError):
     """The image is not local and could not be fetched. The runtime's own words are
     in the message: a private package, no network, a typo in `VALVUR_IMAGE`."""
+
+    #: A precondition `doctor` checks (R1.5).
+    doctor_may_help = True
 
 
 # Installers that do not touch PATH. Podman Desktop on macOS is the common case:
