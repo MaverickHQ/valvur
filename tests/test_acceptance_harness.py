@@ -67,3 +67,26 @@ def test_a_repository_that_allows_other_findings_is_judged_on_its_musts(tmp_path
     findings = [_finding("subprocess-shell-true", "src/app.py"),
                 _finding("CVE-2024-1", "requirements.txt", "critical")]
     assert _module().judge(_results(tmp_path, findings), expected, TASKS).ok is True
+
+
+def test_an_until_expectation_is_pending_until_its_task_is_ticked(tmp_path):
+    harness = _module()
+    expected = {"run": {"complete": True},
+                "must": [{"rule": "subprocess-shell-true", "path": "mypkg/build/steps.py",
+                          "until": "R3.2"}]}
+    verdict = harness.judge(_results(tmp_path / "a", []), expected, TASKS)
+    assert (verdict.ok, verdict.pending) == (True, ["subprocess-shell-true at "
+                                                    "mypkg/build/steps.py (until R3.2)"])
+    ticked = TASKS.replace("- [ ] **R3.2**", "- [x] **R3.2**")
+    verdict = harness.judge(_results(tmp_path / "b", []), expected, ticked)
+    assert verdict.ok is False and verdict.missing
+
+
+def test_a_forbidden_path_and_an_incomplete_run_fail(tmp_path):
+    harness = _module()
+    expected = {"run": {"complete": True}, "must_not": [{"path_prefix": "archive/"}]}
+    found = [_finding("subprocess-shell-true", "archive/app.py")]
+    verdict = harness.judge(_results(tmp_path / "a", found), expected, TASKS)
+    assert verdict.ok is False and verdict.forbidden == ["archive/app.py"]
+    verdict = harness.judge(_results(tmp_path / "b", [], complete=False), expected, TASKS)
+    assert verdict.ok is False and verdict.incomplete is True
