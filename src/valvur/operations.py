@@ -84,6 +84,19 @@ def _checked_budget(value) -> float | None:
     return float(value)
 
 
+def _checked_limit(value) -> int:
+    """`limit` as a whole number of at least 1, the default when absent, or a
+    Refusal (R1.5)."""
+    if value is None:
+        return DEFAULT_LIMIT
+    number = value
+    if isinstance(value, str) and value.strip().isdigit():
+        number = int(value)
+    if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+        raise Refusal(f"`limit` must be a whole number of 1 or more; got {value!r}.")
+    return number
+
+
 def _checked(args: dict) -> dict:
     """The call's arguments with its Workspace resolved and checked (R1.2)."""
     return {**args, "workspace": str(resolve_workspace(args.get("workspace")))}
@@ -95,9 +108,7 @@ def _results(workspace: str | None) -> Path:
 def _load(workspace: str | None) -> dict:
     path = _results(workspace) / "findings.json"
     if not path.is_file():
-        raise FileNotFoundError(
-            f"No scan results at {path}. Run the `scan` tool first."
-        )
+        raise Refusal(f"No scan results at {path}. Run the `scan` tool first.")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -284,6 +295,7 @@ def list_findings_reply(args: dict) -> tuple[str, dict]:
     the counts an agent parsed out of the first line, and each shown Finding's
     fields. One computation, so the two cannot disagree."""
     args = _checked(args)
+    limit = min(_checked_limit(args.get("limit")), MAX_LIMIT)
     data = _load(args.get("workspace"))
     findings = data["findings"]
 
@@ -295,7 +307,6 @@ def list_findings_reply(args: dict) -> tuple[str, dict]:
 
     findings.sort(key=lambda f: f.get("rank") or 10**9)
 
-    limit = min(int(args.get("limit") or DEFAULT_LIMIT), MAX_LIMIT)
     shown, omitted = findings[:limit], max(0, len(findings) - limit)
     caveats = _staleness_note(args.get("workspace"), found_nothing=not findings)
     structured = {
@@ -362,14 +373,15 @@ def explain_finding(args: dict) -> str:
     args = _checked(args)
     fingerprint = args.get("fingerprint")
     if not fingerprint:
-        raise ValueError("fingerprint is required; list_findings reports it for each finding")
+        raise Refusal("`fingerprint` is required; `list_findings` gives each finding's.")
 
     data = _load(args.get("workspace"))
     finding = next(
         (f for f in data["findings"] if f["fingerprint"] == fingerprint), None
     )
     if finding is None:
-        raise ValueError(f"No finding with fingerprint {fingerprint}")
+        raise Refusal(f"No finding with fingerprint {fingerprint} in the last scan; "
+                      "`list_findings` gives each finding's.")
 
     lines = [
         f"{finding['title']}",

@@ -49,3 +49,17 @@ def test_a_number_sent_as_a_string_is_still_a_number():
     from valvur.operations import _checked_budget
 
     assert _checked_budget("300") == 300.0
+
+
+@pytest.mark.parametrize("tool, arguments", [
+    ("list_findings", {"limit": "many"}),
+    ("list_findings", {"limit": 0}),
+    ("explain_finding", {}),
+    ("explain_finding", {"fingerprint": "no-such-fingerprint"}),
+    ("list_findings", {}),                       # no scan has run here yet
+])
+def test_a_readers_bad_argument_is_refused_in_one_plain_sentence(tmp_path, tool, arguments):
+    result = _call(tool, {"workspace": str(tmp_path), **arguments})
+    text = _text(result)
+    assert result["isError"] is True, text
+    assert "Error:" not in text, text
