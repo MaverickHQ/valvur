@@ -112,6 +112,8 @@ def lockfiles(root: Path) -> None:
     _expected(root, """
 [run]
 complete = true
+# The fixture is vulnerable by design: dozens of real CVEs beyond the ones named.
+unexpected = "allowed"
 
 [[must]]
 rule = "aws-access-token"
@@ -208,6 +210,8 @@ def infrastructure(root: Path) -> None:
     _expected(root, """
 [run]
 complete = true
+# A real module with real misconfigurations beyond the two rules named.
+unexpected = "allowed"
 
 [[must]]
 rule = "CKV2_AWS_12"
@@ -272,6 +276,11 @@ def malicious_dependency(root: Path) -> None:
 [run]
 complete = true
 
+# npm removed the package, so the Name Index answers that it does not exist: true
+# today (measured at R2.6), and what a user with it in a lockfile must be told.
+[[must]]
+rule = "valvur.dependency.nonexistent"
+path = "package.json"
 [[must]]
 rule = "{_mal}"
 path = "package-lock.json"

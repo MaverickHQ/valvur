@@ -107,7 +107,8 @@ def test_running_a_repository_measures_time_and_containers_and_judges_it(tmp_pat
         _results(workspace, [_finding("valvur.python.subprocess-shell-true", "src/app.py",
                                       "high")])
 
-    result = harness.run_repo(root, scan=fake_scan, containers=lambda: 0, tasks_text=TASKS)
+    result = harness.run_repo(root, scan=fake_scan, containers=lambda: 0, tasks_text=TASKS,
+                              platform={"platform": "Linux", "swap_gb": 0})
     assert result.name == "4-nested-names"
     assert result.verdict.ok is True
     assert result.seconds >= 0 and result.containers_after == 0
@@ -117,7 +118,7 @@ def test_a_container_left_behind_fails_the_repository(tmp_path):
     harness = _module()
     root = _write_repo(tmp_path / "1-gate", "[run]\ncomplete = true\n")
     result = harness.run_repo(root, scan=lambda ws: _results(ws, []), containers=lambda: 2,
-                              tasks_text=TASKS)
+                              tasks_text=TASKS, platform={"platform": "Linux", "swap_gb": 0})
     assert result.ok is False and result.containers_after == 2
 
 
@@ -129,8 +130,8 @@ def test_the_report_has_a_row_per_repository_and_the_platform(tmp_path):
                                  4.0, 0)
     table = harness.render_markdown([passing, failing], {"platform": "macOS 26.6.2",
                                                          "swap_gb": 11.9})
-    assert "| 2-lockfiles | pass | 12.3 | 0 | 0 | 0 | 0 |" in table
-    assert "| 3-history-secret | FAIL | 4.0 | 0 | 1 | 0 | 0 |" in table
+    assert "| 2-lockfiles | pass | 12.3 | none | 0 | 0 | 0 | 0 |" in table
+    assert "| 3-history-secret | FAIL | 4.0 | none | 0 | 1 | 0 | 0 |" in table
     assert "macOS 26.6.2" in table
     assert harness.to_json([passing, failing], {})["repositories"][1]["missing"] == [
         "aws-access-token at x"]
@@ -144,3 +145,19 @@ def test_only_directories_with_expectations_are_repositories(tmp_path):
     (tmp_path / ".terraform-aws-vpc-clone").mkdir()
     assert list(harness.discover(tmp_path)) == ["1-gate-shaped", "4-nested-names"]
     assert list(harness.discover(tmp_path, only="4")) == ["4-nested-names"]
+
+
+def test_a_mac_time_target_is_judged_only_on_a_mac_with_little_swap(tmp_path):
+    harness = _module()
+    expected = {"run": {"complete": True},
+                "timing": {"mac_warm_seconds": 30, "until": "R3.2"}}
+    quiet_mac = {"platform": "Darwin 25.6.0 arm64", "swap_gb": 1.0}
+    open_task = harness.judge_time(165.2, expected, TASKS, quiet_mac)
+    assert open_task == ("pending", "165.2 s against 30 s on the Mac (until R3.2)")
+    ticked = TASKS.replace("- [ ] **R3.2**", "- [x] **R3.2**")
+    assert harness.judge_time(165.2, expected, ticked, quiet_mac)[0] == "fail"
+    assert harness.judge_time(12.0, expected, ticked, quiet_mac)[0] == "pass"
+    swapping = {"platform": "Darwin 25.6.0 arm64", "swap_gb": 10.2}
+    assert harness.judge_time(165.2, expected, ticked, swapping)[0] == "recorded"
+    linux = {"platform": "Linux 6.8 x86_64", "swap_gb": 0.0}
+    assert harness.judge_time(165.2, expected, ticked, linux)[0] == "recorded"

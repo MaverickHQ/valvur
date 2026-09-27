@@ -87,16 +87,41 @@ def judge(results: Path, expected: dict, tasks_text: str) -> Verdict:
     return verdict
 
 
+#: Over this much host swap a Mac's times are recorded, not judged (D17).
+SWAP_LIMIT_GB = 4.0
+
+
+def judge_time(seconds: float, expected: dict, tasks_text: str,
+               platform: dict) -> tuple[str, str]:
+    """A repository's Mac time target: `pass`, `fail`, `pending` while its task is
+    open, or `recorded` off a Mac or under swap, where D17 judges on Linux instead."""
+    timing = expected.get("timing", {})
+    target = timing.get("mac_warm_seconds")
+    if target is None:
+        return "none", ""
+    until = timing.get("until")
+    line = f"{seconds} s against {target} s on the Mac"
+    if not str(platform.get("platform", "")).startswith("Darwin"):
+        return "recorded", line + " (not a Mac)"
+    if (platform.get("swap_gb") or 0) > SWAP_LIMIT_GB:
+        return "recorded", line + f" (host swap {platform.get('swap_gb')} GB, D17)"
+    if until and until not in ticked(tasks_text):
+        return "pending", line + f" (until {until})"
+    return ("pass" if seconds < target else "fail"), line
+
+
 @dataclass
 class RepoResult:
     name: str
     verdict: Verdict
     seconds: float
     containers_after: int
+    #: `judge_time`'s answer: the word and the sentence.
+    time: tuple[str, str] = ("none", "")
 
     @property
     def ok(self) -> bool:
-        return self.verdict.ok and self.containers_after == 0
+        return self.verdict.ok and self.containers_after == 0 and self.time[0] != "fail"
 
 
 def _cli_scan(workspace: Path) -> None:
@@ -119,7 +144,7 @@ def _containers_alive() -> int:
 
 
 def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
-             tasks_text: str | None = None) -> RepoResult:
+             tasks_text: str | None = None, platform: dict | None = None) -> RepoResult:
     """Scan one acceptance repository and judge it (R2.2)."""
     import time
     import tomllib
@@ -132,7 +157,10 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
     seconds = time.monotonic() - started
     expected = tomllib.loads((root / "expected.toml").read_text())
     verdict = judge(root / ".security-scan", expected, tasks_text)
-    return RepoResult(root.name, verdict, round(seconds, 1), containers())
+    seconds = round(seconds, 1)
+    time = judge_time(seconds, expected, tasks_text,
+                      platform if platform is not None else platform_info())
+    return RepoResult(root.name, verdict, seconds, containers(), time)
 
 
 def render_markdown(results: list[RepoResult], platform: dict) -> str:
@@ -140,18 +168,18 @@ def render_markdown(results: list[RepoResult], platform: dict) -> str:
     missing, pending and blocking-unexpected findings."""
     lines = [f"Platform: {platform.get('platform', 'unknown')}; host swap in use "
              f"{platform.get('swap_gb', '?')} GB.", "",
-             "| repository | verdict | seconds | containers left | missing | pending "
-             "| blocking |", "|---|---|---|---|---|---|---|"]
+             "| repository | verdict | seconds | time target | containers left | missing "
+             "| pending | blocking |", "|---|---|---|---|---|---|---|---|"]
     for r in results:
         lines.append(f"| {r.name} | {'pass' if r.ok else 'FAIL'} | {r.seconds} | "
-                     f"{r.containers_after} | {len(r.verdict.missing)} | "
+                     f"{r.time[0]} | {r.containers_after} | {len(r.verdict.missing)} | "
                      f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |")
     return "\n".join(lines) + "\n"
 
 
 def to_json(results: list[RepoResult], platform: dict) -> dict:
     return {"platform": platform, "repositories": [
-        {"name": r.name, "ok": r.ok, "seconds": r.seconds,
+        {"name": r.name, "ok": r.ok, "seconds": r.seconds, "time": list(r.time),
          "containers_after": r.containers_after, "missing": r.verdict.missing,
          "pending": r.verdict.pending, "blocking": r.verdict.blocking,
          "forbidden": r.verdict.forbidden, "incomplete": r.verdict.incomplete,
