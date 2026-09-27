@@ -2021,6 +2021,25 @@ become the task list for 12b.** Everything below is provisional until it has.
   > stability should not ship with a Traceability section that is untrue, a
   > compatibility surface nothing reads, and a load-bearing seam wired by `getattr`.
 
+  **STATUS 2026-09-27:** ⏳ **prepared and rehearsed; the tag is the owner's, after
+  the gate with a person.** Phase 17's precondition is met, A6's job has gone
+  green on two real releases, and Checkpoint F is declined with its reason
+  (28.1.3). The prep is on `main` (`f7c19b1`): the version, the lock, a
+  CHANGELOG entry that names what the stability claim covers and what it does
+  not, the README in the release-in-progress wording, `SECURITY.md` on
+  `1.0.x`, the compatibility rule's docstring in the present tense. Measured
+  against the image built from that commit: `verify.sh` five checks, the e2e
+  suite, and one `scan` over stdio on the first gate's own tree with an empty
+  cache root — **136 s to `DONE`, complete**, the database and the index
+  fetched inside that time, Checkov the slowest at 48 s. The rehearsal on
+  that exact commit is run 36317791899, green through validation on both
+  architectures and held at the `release` brake. **What this task's own words
+  still ask for:** a person outside this repository who has used it. That is
+  the gate with a person, the step before the tag; the tag on `f7c19b1` is one
+  signed push and one click, as `0.5.0`'s was, whenever the owner decides the
+  gate has happened or that the number ships without it — either way, recorded
+  here.
+
 **Exit (12b):** v1.0.0 released. CI proves non-exfiltration on every commit, the
 self-scan is clean, the signature and SBOM are published, and someone who has never
 seen valvur has installed it and got a useful answer.
@@ -5562,6 +5581,9 @@ Checkpoint E   release 0.4.0             ✅ 2026-09-26 — 28.1.2 prep PR · re
                ↓
 release 0.5.0  Phase 29 shipped                 ✅ 2026-09-26 — prep #130 on 011ec09 (98 s on the gate's tree) · rehearsal 36257979480 · tag · run 36261443737 promoted
                the owner's click at the brake; 94 minutes tag → :latest, 81 of them waiting for it
+               ↓
+release 1.0.0  prepared 2026-09-27                  prep on f7c19b1 (136 s on the gate's tree) · rehearsal 36317791899 at the brake · F declined with a reason
+               the owner: the gate with a person, then the signed tag and the click
                ↓
 Checkpoint C   the usability gate         10.1.1 · 10.1.2 on 0.4.0  →  12b.1 (engineering, on what they found)
                owner + a stranger; a calendar; the machine reset first
