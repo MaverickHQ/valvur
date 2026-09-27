@@ -2,10 +2,38 @@
 
 All notable changes to valvur are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html) — with the 0.x caveat that
-a minor bump may break things until 1.0.
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). From `1.0.0` a minor
+bump keeps the contracts named under that entry; the `0.x` series allowed a minor
+to break things, and did.
 
 ## [Unreleased]
+
+## [1.0.0] — 2026-09-27
+
+The first version claiming stability. What that claim covers, and what holds
+it: the **Results Folder** — the ten artifacts §7 of `CLAUDE.md` names, their
+place, `findings.json` and `run.json` schema-versioned, `state.json` local
+only, the folder one generation with `run.json` written last — and the
+**Fingerprint** algorithm at `fp_version` 1, so a Suppression written today
+matches tomorrow; the **six MCP tools** with their input and output schemas
+as the committed `tools/list` snapshot has them, and the `initialize` reply's
+instructions; the **CLI** commands `scan`, `doctor`, `gate`, `update`,
+`cache` and their flags; `.security-scan.toml`'s two tables; the shim/image
+**protocol** at major 1, so a shim and an image of the same major run
+together whatever their versions; the two **Profiles** and what each may
+reach, written in one place; and the four things the moat refuses, provable
+as before. A change to any of these is a major.
+
+What the number does not claim: that a person outside this repository has
+used it — 12b.3's own words, and Phase 25's exit. The first gate was a
+Claude Code agent (2026-09-26); the gate with a person is the step before the
+tag, and the record says what it found. And the bus factor: `1.0.0` ships with
+one maintainer, decided by the owner on 2026-09-27 with the reason under
+28.1.3 — what does not depend on that person is written in `MAINTAINERS.md`,
+and the second maintainer is the first thing after.
+
+Since `0.5.0`, the day before: the two things the agent-driven pass found,
+below.
 
 - **Every status reply's advice is a field** (29.2.4). Claude Code hands the
   model a structured reply's JSON and not its text, so `scan_status`'s one

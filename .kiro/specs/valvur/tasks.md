@@ -5815,7 +5815,8 @@ scheduled self-test. Details under 28.1.2.
   on a calendar. Needs the person's GitHub handle and SSH signing key. Placed
   before D because a stability claim with a bus factor of one is the finding
   (O3) that raised the task; not a hard gate for D, but D should not pass it
-  without a stated reason.
+  without a stated reason. *Declined for `v1.0.0` on 2026-09-27 with the
+  reason under 28.1.3; the task stays open for after the tag.*
 
 ### Checkpoint D — `v1.0.0` *(owner)*
 
@@ -7529,6 +7530,18 @@ letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
   a promotion is the owner's own click after the evidence — and step 2 puts the
   second person beside them and turns self-review prevention on, rather than
   filling an empty list. Sequenced as Phase 25's Checkpoint F, before `v1.0.0`.
+
+  **Declined for `v1.0.0` — 2026-09-27, the owner's decision, the reason
+  recorded as Checkpoint D asks.** No second person exists yet, and the release
+  does not wait for one: what does not depend on the maintainer is already
+  written and true (the image, the wheel and the index reproducible from the
+  tree; the signatures verifiable against a public log with no key of theirs;
+  the pipeline runnable from a fork), the `release` brake stays the owner's own
+  click after the evidence, and `SECURITY.md`'s five and fifteen working days
+  remain one person's commitment. The cost accepted is the one O3 named — a
+  bus factor of one on a version claiming stability — stated rather than
+  hidden. The task stays open: the first thing after `v1.0.0` when a person
+  exists, steps 1–5 unchanged.
 
 ### Tier 2 — What a user feels
 

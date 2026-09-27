@@ -61,8 +61,8 @@ def image_protocol(runtime: str, image: str) -> int | None:
 def _series(raw: str) -> tuple[int, int]:
     """The part of a version that may break compatibility.
 
-    Semver says only major matters — but during 0.x a minor bump is allowed to break
-    things, and we are in 0.x, so both count until 1.0.
+    Semver says only major matters — and from 1.0 only the major counts here. During
+    0.x a minor bump was allowed to break things, so for a 0.x version both count.
     """
     numbers = []
     for part in raw.split(".")[:2]:

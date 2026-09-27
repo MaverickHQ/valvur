@@ -79,12 +79,14 @@ These are vulnerabilities in valvur, not merely bugs:
 
 ## Supported versions
 
-Pre-1.0, only the latest release is supported. Once 1.0 lands, this table becomes
-the record.
+The latest minor series is supported; this table is the record.
 
 | Version | Supported |
 |---|---|
-| `0.5.x` | ✅ latest only |
+| `1.0.x` | ✅ latest only |
+
+A `0.x` release is not supported: upgrade, `1.0.0` keeps every contract `0.5.0`
+had.
 
 <!-- A test keeps this table on the released series (27.2.4): it said `0.1.x`
      through 0.2.0 and 0.3.0, so a reporter checking whether their version was
