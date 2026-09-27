@@ -89,6 +89,8 @@ class _Running:
         self.started = time.monotonic()
         self.deadline = self.started + float(tool.get("timeout") or 600)
         self.timed_out = False
+        #: Stopped by the scan's budget (R3.5), not by its own timeout.
+        self.cut = False
         self.not_started: str | None = None
         self.process: subprocess.Popen | None = None
         with open(stdout_path, "wb") as out, open(self.stderr_path, "wb") as err:
@@ -102,16 +104,21 @@ class _Running:
                 self.not_started = f"{argv[0]}: {exc.strerror or exc}"
         _event({"event": "start", "tool": self.name})
 
-    def poll(self, now: float) -> bool:
-        """True once the tool has finished or been stopped."""
+    def stop(self) -> None:
+        """Kill the tool's whole process group and wait for it."""
         import signal
 
-        if self.process is None or self.process.poll() is not None:
-            return True
-        if now >= self.deadline:
+        if self.process is not None and self.process.poll() is None:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(self.process.pid, signal.SIGKILL)
             self.process.wait()
+
+    def poll(self, now: float) -> bool:
+        """True once the tool has finished or been stopped."""
+        if self.process is None or self.process.poll() is not None:
+            return True
+        if now >= self.deadline:
+            self.stop()
             self.timed_out = True
             return True
         return False
@@ -126,7 +133,8 @@ class _Running:
         _event({"event": "end", "tool": self.name, "exit_code": code, "seconds": seconds,
                 "timed_out": self.timed_out})
         return {"tool": self.name, "exit_code": code, "seconds": seconds,
-                "timed_out": self.timed_out, "stderr_tail": excerpt(stderr, STDERR_KEPT)}
+                "timed_out": self.timed_out, "cut": self.cut,
+                "stderr_tail": excerpt(stderr, STDERR_KEPT)}
 
 
 def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
@@ -139,8 +147,18 @@ def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
     with tempfile.TemporaryDirectory(prefix="valvur-engine-") as scratch_dir:
         running = [_Running(tool, workspace, results, Path(scratch_dir))
                    for tool in plan["tools"]]
+        budget = plan.get("budget_s")
+        budget_deadline = time.monotonic() + float(budget) if budget else None
         while running:
             now = time.monotonic()
+            if budget_deadline is not None and now >= budget_deadline:
+                # One deadline (R3.5): what is still running is stopped and named.
+                for tool in running:
+                    tool.stop()
+                    tool.cut = True
+                    entries.append(tool.entry())
+                running = []
+                break
             for tool in [t for t in running if t.poll(now)]:
                 entries.append(tool.entry())
                 running.remove(tool)

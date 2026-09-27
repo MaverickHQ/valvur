@@ -707,7 +707,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             on_progress(warning)
 
     if _engine_two(runner):
-        outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress)
+        outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
+                                      budget_s=budget_s)
     else:
         outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress,
                                jobs=jobs, budget_s=budget_s)
@@ -731,7 +732,7 @@ def _engine_two(runner) -> bool:
         runner, "engine")
 
 
-def _engine_fleet(adapters, runtime, workspace, *, on_progress):
+def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut."""
     import json
@@ -741,6 +742,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress):
     from .invocation import ScannerOutput
 
     outcomes: list[ScannerOutcome | None] = [None] * len(adapters)
+    cut: list[str] = []
     plan, planned = [], []
     for index, adapter in enumerate(adapters):
         should_run, why = adapter.applies_to(workspace)
@@ -755,7 +757,9 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress):
         scratch.mkdir()
         chosen = fileset.build(workspace)
         tar = engine_host.snapshot(workspace, chosen.files)
-        runtime.run(plan, tar, scratch, on_event=None)
+        started = time.monotonic()
+        runtime.run(plan, tar, scratch, on_event=None, budget_s=budget_s)
+        spent = time.monotonic() - started
         manifest_path = scratch / "manifest.json"
         manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
         received = manifest.get("received")
@@ -779,8 +783,14 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress):
                 invocation.tool, invocation.version, stdout, entry.get("stderr_tail", ""),
                 entry["exit_code"], argv=invocation.argv,
                 stopped_after=float(invocation.timeout) if entry.get("timed_out") else None)
-            outcomes[index] = _outcome(adapters[index], output).timed(entry["seconds"])
-    return outcomes, []
+            outcome = _outcome(adapters[index], output).timed(entry["seconds"])
+            if entry.get("cut"):
+                # The budget stopped it (R3.5): the cut is the cause, in the words
+                # every surface already uses for one (29.0.3).
+                cut.append(adapters[index].name)
+                outcome = outcome.cut(f"cut by the {budget_s:g}s budget after {spent:.0f}s")
+            outcomes[index] = outcome
+    return outcomes, cut
 
 
 def _preflight(runner, workspace) -> tuple[str | None, str | None]:

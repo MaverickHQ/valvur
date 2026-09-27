@@ -70,9 +70,10 @@ def stream(command: list[str], tar: bytes, env: dict | None,
     return process.wait()
 
 
-def write_plan(scratch: Path, plan: list[Invocation]) -> None:
+def write_plan(scratch: Path, plan: list[Invocation], budget_s: float | None = None) -> None:
     (scratch / "plan.json").write_text(
-        json.dumps({"tools": [plan_entry(i) for i in plan]}), encoding="utf-8")
+        json.dumps({"tools": [plan_entry(i) for i in plan], "budget_s": budget_s}),
+        encoding="utf-8")
 
 
 class LocalRuntime:
@@ -85,8 +86,9 @@ class LocalRuntime:
         self.tools_dir = tools_dir
 
     def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
-            on_event: Callable[[dict], None] | None = None) -> int:
-        write_plan(scratch, plan)
+            on_event: Callable[[dict], None] | None = None,
+            budget_s: float | None = None) -> int:
+        write_plan(scratch, plan, budget_s)
         workspace = scratch.parent / f"{scratch.name}-workspace"
         env = {**os.environ, WORKSPACE_ENV: str(workspace), RESULTS_ENV: str(scratch)}
         if self.tools_dir is not None:
@@ -153,10 +155,11 @@ class ContainerRuntime:
         ]
 
     def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
-            on_event: Callable[[dict], None] | None = None) -> int:
+            on_event: Callable[[dict], None] | None = None,
+            budget_s: float | None = None) -> int:
         import uuid
 
-        write_plan(scratch, plan)
+        write_plan(scratch, plan, budget_s)
         network = any(i.network for i in plan)
         name = f"valvur-{uuid.uuid4().hex[:16]}"
         try:
