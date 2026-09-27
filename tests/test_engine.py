@@ -151,3 +151,23 @@ def test_an_unreadable_report_fails_its_scanner_and_the_others_stand(tmp_path, m
     assert by_tool["gitleaks"].ok and not by_tool["opengrep"].ok
     assert by_tool["opengrep"].reason.startswith("report unreadable")
     assert [f.rule for f in run.findings] == ["aws-access-token"]
+
+
+def test_progress_arrives_while_the_tools_run(tmp_path):
+    import time
+
+    arrivals: list[tuple[float, dict]] = []
+    plan = _plan(("a", ["fake-sleep", "1", "/results/a.json"], "a.json", 30),
+                 ("b", ["fake-sleep", "0", "/results/b.json"], "b.json", 30))
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    ws = _workspace(tmp_path)
+    LocalRuntime(FAKE_TOOLS).run(plan, snapshot(ws, ["config.py"]), scratch,
+                                 on_event=lambda e: arrivals.append((time.monotonic(), e)))
+    finished = time.monotonic()
+    kinds = [(e["event"], e.get("tool")) for _, e in arrivals]
+    assert kinds[0] == ("received", None)
+    for tool in ("a", "b"):
+        assert kinds.index(("start", tool)) < kinds.index(("end", tool))
+    first_start = next(at for at, e in arrivals if e["event"] == "start")
+    assert finished - first_start > 0.5, "progress arrived only after the run"

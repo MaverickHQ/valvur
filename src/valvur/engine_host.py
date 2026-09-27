@@ -38,6 +38,38 @@ def plan_entry(invocation: Invocation) -> dict:
             "empty_when": list(invocation.empty_when)}
 
 
+def stream(command: list[str], tar: bytes, env: dict | None,
+           on_event: Callable[[dict], None] | None) -> int:
+    """Run the engine, feeding it the Snapshot and handing each progress line to
+    `on_event` as it arrives, not after the run (R3.4): what a status line and an
+    MCP progress notification are built from."""
+    import threading
+
+    process = subprocess.Popen(command, stdin=subprocess.PIPE,  # noqa: S603
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env)
+
+    def feed() -> None:
+        try:
+            if process.stdin is not None:
+                process.stdin.write(tar)
+                process.stdin.close()
+        except BrokenPipeError:
+            pass                      # the engine stopped reading: its exit code says why
+
+    writer = threading.Thread(target=feed, daemon=True)
+    writer.start()
+    if process.stderr is not None:
+        for raw in process.stderr:
+            line = raw.decode("utf-8", "replace").strip()
+            if on_event is not None and line.startswith("{"):
+                try:
+                    on_event(json.loads(line))
+                except ValueError:
+                    pass
+    writer.join()
+    return process.wait()
+
+
 def write_plan(scratch: Path, plan: list[Invocation]) -> None:
     (scratch / "plan.json").write_text(
         json.dumps({"tools": [plan_entry(i) for i in plan]}), encoding="utf-8")
@@ -59,12 +91,7 @@ class LocalRuntime:
         env = {**os.environ, WORKSPACE_ENV: str(workspace), RESULTS_ENV: str(scratch)}
         if self.tools_dir is not None:
             env["PATH"] = f"{self.tools_dir}{os.pathsep}{env.get('PATH', '')}"
-        proc = subprocess.run([sys.executable, "-m", "valvur.engine"],
-                              input=tar, capture_output=True, env=env, check=False)
-        for line in proc.stderr.decode("utf-8", "replace").splitlines():
-            if on_event is not None and line.startswith("{"):
-                on_event(json.loads(line))
-        return proc.returncode
+        return stream([sys.executable, "-m", "valvur.engine"], tar, env, on_event)
 
 
 #: Up to this size the Snapshot lands in a tmpfs, in memory and gone with the
@@ -133,15 +160,9 @@ class ContainerRuntime:
         network = any(i.network for i in plan)
         name = f"valvur-{uuid.uuid4().hex[:16]}"
         try:
-            proc = subprocess.run(  # noqa: S603
-                self.command(scratch, network=network, name=name,
-                             snapshot_bytes=len(tar)),
-                input=tar, capture_output=True, check=False)
+            return stream(self.command(scratch, network=network, name=name,
+                                       snapshot_bytes=len(tar)), tar, None, on_event)
         finally:
             if len(tar) > TMPFS_LIMIT:
                 subprocess.run([self.runtime, "volume", "rm", "-f",  # noqa: S603
                                 f"{name}-snapshot"], capture_output=True, check=False)
-        for line in proc.stderr.decode("utf-8", "replace").splitlines():
-            if on_event is not None and line.startswith("{"):
-                on_event(json.loads(line))
-        return proc.returncode
