@@ -85,6 +85,10 @@ class ScannerOutcome:
 class ScanRun:
     findings: list[Finding] = field(default_factory=list)
     fixed: list[str] = field(default_factory=list)
+    #: Previous Findings whose Scanner did not run this time — cut, timed out or
+    #: failed — as (title, the Scanners that did not run), so neither fixed nor
+    #: persisting (29.0.5). Carried in the state for the next run to decide.
+    not_rechecked: list[tuple[str, str]] = field(default_factory=list)
     scanners: list[ScannerRun] = field(default_factory=list)
     network_used: bool = False
     kev_age_days: float | None = None
@@ -856,11 +860,34 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         raise RuntimeError("the enrich stage did not run")
 
     current = {f.fingerprint: f.title for f in findings}
+    # A previous Finding absent now is fixed only if the Scanner that reported it
+    # ran this time (29.0.5). Cut, timed out or failed, it could not have looked,
+    # and the Finding is *not re-checked*: carried, counted, neither fixed nor
+    # persisting. Measured before this: a 30 s budget cut seven Scanners and the
+    # run said `fixed: 8`, then the next complete run would have said regressed.
+    # A skipped Scanner had nothing to analyse, which is an answer: its old
+    # Finding's file is gone, and gone is fixed.
+    did_not_run = {r.tool for r in scanners if not r.ok and not r.skipped} | set(cut)
+    previous_sources = _state.load_sources(workspace / _results.RESULTS_DIR)
+
+    def not_run_for(fp: str) -> str | None:
+        """The Scanners that would have re-checked `fp` and did not run, joined;
+        "" when the state does not say which and something did not run; None
+        when it was looked for."""
+        sources = set(previous_sources.get(fp, ()))
+        if not sources:
+            return "" if did_not_run else None
+        missing = sources & did_not_run
+        return ", ".join(sorted(missing)) if missing else None
+
+    gone = [fp for fp in outcome.previous if fp not in current]
     # Name what was fixed, using the title remembered from the previous run.
-    fixed_now = [outcome.previous[fp] or fp for fp in outcome.previous if fp not in current]
+    fixed_now = [outcome.previous[fp] or fp for fp in gone if not_run_for(fp) is None]
+    carried = {fp: outcome.previous[fp] for fp in gone if not_run_for(fp) is not None}
     run = ScanRun(
         findings=findings,
         fixed=sorted(fixed_now),
+        not_rechecked=sorted((title or fp, not_run_for(fp) or "") for fp, title in carried.items()),
         scanners=scanners,
         network_used=network,
         kev_age_days=outcome.provider.kev_age_days,
@@ -890,9 +917,15 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
     )
 
     still_fixed = {fp for fp in outcome.previously_fixed if fp not in current}
-    still_fixed |= {fp for fp in outcome.previous if fp not in current}
+    still_fixed |= {fp for fp in gone if fp not in carried}
+    # A carried Finding stays present, with the sources it had, so the next run
+    # that looks for it says persisting or fixed rather than new or regressed.
+    present_next = {**current, **carried}
+    sources_next = {f.fingerprint: f.sources for f in findings}
+    sources_next.update({fp: previous_sources.get(fp, ()) for fp in carried})
     results.write(
         workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs,
-        state=_state.render(current, still_fixed, generation=run.generation),
+        state=_state.render(present_next, still_fixed, sources=sources_next,
+                            generation=run.generation),
     )
     return run

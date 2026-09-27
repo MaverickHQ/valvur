@@ -30,23 +30,33 @@ def take_reset() -> tuple[object, int] | None:
     return _reset.pop() if _reset else None
 
 
+def _document(results_dir: Path, *, note_reset: bool) -> dict | None:
+    """The state document, or None when there is none to compare against. A
+    fingerprint algorithm change invalidates all history; start clean rather
+    than silently comparing incomparable identities — and say so once per scan,
+    from `load`, not from every reader of the file."""
+    path = results_dir / STATE_FILE
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    if data.get("fp_version") != FP_VERSION:
+        if note_reset:
+            _reset.append((data.get("fp_version"), FP_VERSION))
+        return None
+    return data
+
+
 def load(results_dir: Path) -> tuple[dict[str, str], set[str]]:
     """Return ({fingerprint: title} present last run, fingerprints ever fixed).
 
     Titles are kept so a rescan can say *what* you fixed rather than only that
     something was — "you fixed the AWS key in config.py" beats "fixed: 1".
     """
-    path = results_dir / STATE_FILE
-    if not path.is_file():
-        return {}, set()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}, set()
-    # A fingerprint algorithm change invalidates all history; start clean rather
-    # than silently comparing incomparable identities.
-    if data.get("fp_version") != FP_VERSION:
-        _reset.append((data.get("fp_version"), FP_VERSION))
+    data = _document(results_dir, note_reset=True)
+    if data is None:
         return {}, set()
     present = data.get("present", {})
     if isinstance(present, list):  # pre-3.4.4 state; titles unknown
@@ -54,7 +64,18 @@ def load(results_dir: Path) -> tuple[dict[str, str], set[str]]:
     return present, set(data.get("fixed", []))
 
 
-def render(present: dict[str, str], fixed: set[str], *, generation: str = "") -> str:
+def load_sources(results_dir: Path) -> dict[str, tuple[str, ...]]:
+    """Which Scanners reported each Finding present last run (29.0.5): what
+    decides whether an absent Finding was *looked for* this time. Empty for a
+    state written before sources were kept — unknown, never guessed."""
+    data = _document(results_dir, note_reset=False)
+    if data is None:
+        return {}
+    return {fp: tuple(names) for fp, names in (data.get("sources") or {}).items()}
+
+
+def render(present: dict[str, str], fixed: set[str], *, generation: str = "",
+           sources: dict[str, tuple[str, ...]] | None = None) -> str:
     """The state document. Written by `results.write` in the same generation as
     the artifacts it describes (26.0.3), so a state.json from one run beside a
     findings.json from another is detectable rather than silent."""
@@ -65,6 +86,8 @@ def render(present: dict[str, str], fixed: set[str], *, generation: str = "") ->
             "generation": generation,
             "present": dict(sorted(present.items())),
             "fixed": sorted(fixed),
+            # Per present Fingerprint, the Scanners that reported it (29.0.5).
+            "sources": {fp: sorted(set(names)) for fp, names in sorted((sources or {}).items())},
         },
         indent=2,
     ) + "\n"

@@ -175,6 +175,9 @@ def render(run: ScanRun) -> str:
                     "total": len(run.findings),
                 },
                 "fixed": len(run.fixed),
+                # Previous Findings whose Scanner did not run this time (29.0.5):
+                # neither fixed nor persisting, and `fixed` above excludes them.
+                "not_rechecked": len(run.not_rechecked),
                 "scanners": [
                     {
                         "tool": s.tool,

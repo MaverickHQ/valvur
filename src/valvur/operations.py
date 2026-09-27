@@ -88,6 +88,9 @@ def _summarise(workspace: Path, run) -> str:
         lines.append("Findings are partial; do not treat this as a clean result.")
     if run.fixed:
         lines.append(f"Fixed since the last scan: {len(run.fixed)}")
+    if run.not_rechecked:
+        lines.append(f"Not re-checked since the last scan: {len(run.not_rechecked)} — their "
+                     "Scanner did not run this time; neither fixed nor persisting")
     # The first thing an agent reads after `start_scan` completes. Saying
     # "inconclusive: 0 finding(s)" without the reason invites it to treat the number
     # as the answer.
@@ -563,6 +566,10 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         + (f", {counts['suppressed']} suppressed" if counts.get("suppressed") else "")
         + (f", {counts['not_covered']} not covered" if counts.get("not_covered") else ""),
     ]
+    if data.get("not_rechecked"):
+        # Their Scanner did not run this time (29.0.5): a disappearance is not a fix.
+        lines.append(f"not re-checked: {data['not_rechecked']} previous finding(s) whose "
+                     "Scanner did not run this time — neither fixed nor persisting")
     # `inconclusive` beside `complete: True` and a list of healthy Scanners reads as
     # a contradiction unless the reason is given. It is not a contradiction: every
     # Scanner ran, and the data they ran against was too old for "nothing" to mean
@@ -639,6 +646,7 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         "findings": {key: int(counts.get(key) or 0)
                      for key in ("active", "suppressed", "not_covered", "total")},
         "fixed": int(data.get("fixed") or 0),
+        "not_rechecked": int(data.get("not_rechecked") or 0),
         "scanners": [{"tool": s.get("tool"), "ok": bool(s.get("ok")),
                       "reason": s.get("reason") or "",
                       "duration_s": s.get("duration_s") or 0}

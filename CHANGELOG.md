@@ -7,6 +7,17 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **A finding whose Scanner did not run is not fixed** (29.0.5). Found by the
+  agent-driven pass: a scan with a 30 s budget cut seven of eight Scanners and
+  reported the eight previous findings as *fixed*, then rewrote `state.json` so
+  the next complete run would have called them *regressed*. Now `state.json`
+  records which Scanner reported each finding, a previous finding absent now is
+  *fixed* only if that Scanner ran this time, and otherwise it is **not
+  re-checked** — carried in the state, counted as `not_rechecked` in `run.json`
+  and the `scan_status` reply, named in `SUMMARY.md` with the Scanner that did
+  not run. A state written before this reads as *unknown*: carried on an
+  incomplete run, fixed on a complete one.
+
 ## [0.5.0] — 2026-09-26
 
 What the first usability gate found, fixed the same day. A Claude Code agent

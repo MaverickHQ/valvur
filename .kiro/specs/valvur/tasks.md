@@ -8304,6 +8304,42 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   The `tools/list` snapshot is unchanged: `job` was an open object.
 
 
+- [x] **29.0.5** **A Finding whose Scanner did not run is not fixed (F5.6).**
+  Found by 29.2.3's second run, the cut one: a `scan` with a 30 s budget cut
+  seven of eight Scanners and reported the eight previous Findings as *fixed* —
+  `fixed: 8` in `run.json`, *fixed since last run* in `SUMMARY.md`, the
+  structured reply — and rewrote `state.json` without them, so the next
+  complete run would have called them *regressed*. The agent caught it ("they
+  show as fixed only because the scanner that produces them never ran"); the
+  message had told it otherwise, which is the false claim §7 forbids. The diff
+  compared fingerprint sets and never asked which Scanner had looked.
+
+  **STATUS 2026-09-26:** ✅ `state.json` records the Scanners that reported
+  each present Fingerprint (`sources`; a state without it reads as *unknown*,
+  never guessed); a previous Finding absent now is `fixed` only if every
+  Scanner that reported it ran — cut, timed out or failed, it is **not
+  re-checked**: carried in the state with its title and sources, counted as
+  `not_rechecked` in `run.json` and the structured `scan_status` reply (schema
+  and snapshot re-taken), a section in `SUMMARY.md` naming each with the
+  Scanner that did not run, a line in the DONE text and in the status text. A
+  skipped Scanner still counts as having looked — nothing to analyse means its
+  old Finding's file is gone. A state from before this carries on an
+  incomplete run and fixes on a complete one. Seven tests in
+  `tests/test_not_rechecked.py`, the cut simulated the way `test_budget.py`
+  does; the identity suite is unchanged. F5.6 amended, `CONTEXT.md`'s
+  **Status** entry says a Finding nothing looked for has none. **Measured on
+  the gate's tree with the fixed shim, three CLI scans in a row:** complete —
+  9 persisting; `--budget 30` — seven Scanners cut, `fixed: 0`,
+  `not_rechecked: 8`, `SUMMARY.md` naming the eight as one grouped line
+  (*8 findings — `opengrep` did not run*), the state still holding all nine with
+  their sources; complete again — 9 persisting, nothing fixed, nothing
+  regressed. Before the fix the same sequence read `fixed: 8` then
+  `regressed: 8`. One anomaly on the way, recorded and not explained: the
+  first of the three scans took forty minutes of wall clock for Scanners that
+  reported 3–61 s each, on a Mac whose Docker Desktop VM had been up for four
+  days; the two after it ran normally, and nothing in `run.json` names the
+  gap — the first gate's finding about this machine, not the tree.
+
 ### Tier 1 — The numbers fit a real machine and a real tree
 
 - [x] **29.1.1** **The time goals, re-stated for the working tree (P1, N1.1,

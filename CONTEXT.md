@@ -49,7 +49,9 @@ _Avoid_: id, hash, key, signature
 
 **Status**:
 A Finding's relationship to the previous Scan Run — `new`, `persisting`, `fixed`, or `regressed`.
-_Avoid_: state, disposition
+A previous Finding whose Scanner did not run this time has no Status: it is
+**not re-checked**, carried until a Scan Run looks for it (29.0.5).
+_Avoid_: state, disposition; "fixed" for a Finding nothing looked for
 
 **Redaction**:
 The replacement of a secret's value with its Fingerprint before any Finding is written to disk. Applies to every written artifact without exception.

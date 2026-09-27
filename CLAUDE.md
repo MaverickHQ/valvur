@@ -789,7 +789,11 @@ algorithm invalidates every suppression in every repo using the tool.
 
 Status diff: `new` / `persisting` / `fixed` / `regressed`, computed against
 `state.json`. A fresh clone has no history and reports everything as `new` —
-correct and honest.
+correct and honest. **A Finding is `fixed` only if the Scanner that reported it
+ran this time** (29.0.5): `state.json` records each Finding's Scanners, and one
+whose Scanner was cut, timed out or failed is *not re-checked* — carried,
+counted on every surface, neither fixed nor persisting. The agent-driven pass
+found a 30 s budget reporting `fixed: 8` for eight Findings nothing had looked for.
 
 ## 9. Working conventions
 

@@ -227,6 +227,9 @@
           },
           "type": "array"
         },
+        "not_rechecked": {
+          "type": "integer"
+        },
         "profile": {
           "type": "string"
         },

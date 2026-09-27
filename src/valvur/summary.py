@@ -208,7 +208,8 @@ def render(run: ScanRun) -> str:
         f"**Active findings:** {len(active)}"
         + (f" · **suppressed:** {len(suppressed)}" if suppressed else "")
         + (f" · **not covered:** {len(notes)}" if notes else "")
-        + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else ""),
+        + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else "")
+        + (f" · **not re-checked:** {len(run.not_rechecked)}" if run.not_rechecked else ""),
         "",
     ]
     if suppressed and not active:
@@ -389,6 +390,24 @@ def render(run: ScanRun) -> str:
         lines += [f"- {title}" for title in run.fixed[:10]]
         if len(run.fixed) > 10:
             lines.append(f"- _…and {len(run.fixed) - 10} more_")
+        lines.append("")
+
+    if run.not_rechecked:
+        # Their Scanner did not run, so a disappearance is not evidence (29.0.5).
+        # Grouped by title: eight pinning Findings on one tree are one line, not
+        # the same paragraph eight times (measured on the gate's tree).
+        grouped: dict[tuple[str, str], int] = {}
+        for entry in run.not_rechecked:
+            grouped[entry] = grouped.get(entry, 0) + 1
+        lines += ["## Not re-checked since the last scan", "",
+                  "Their Scanner did not run this time, so they are neither fixed nor "
+                  "persisting; the next scan that runs it will say which.", ""]
+        shown_groups = list(grouped.items())[:10]
+        lines += [f"- {title}{f' ({n} findings)' if n > 1 else ''} — "
+                  f"{'`' + which + '`' if which else 'its Scanner'} did not run"
+                  for (title, which), n in shown_groups]
+        if len(grouped) > 10:
+            lines.append(f"- _…and {len(grouped) - 10} more_")
         lines.append("")
 
     slowest = _slowest(run.scanners)

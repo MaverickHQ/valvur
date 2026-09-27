@@ -371,6 +371,13 @@ tell me what I actually fixed, so that I can measure progress rather than noise.
 5. F5.5 — valvur SHALL record an `fp_version` alongside every **Fingerprint**.
 6. F5.6 — WHEN a previous **Scan Run**'s state exists, valvur SHALL assign each
    **Finding** a **Status** of `new`, `persisting`, `fixed` or `regressed`.
+   > **Amended 2026-09-26 (29.0.5).** A previous **Finding** absent from this Scan
+   > Run is `fixed` only if every **Scanner** that reported it ran this time. When
+   > that Scanner was cut, timed out or failed, the Finding is *not re-checked*:
+   > carried in the state with its title and its Scanners, counted on every surface
+   > that counts `fixed`, and neither `fixed` nor `persisting` until a Scan Run that
+   > runs the Scanner says which. Measured before the amendment: a 30 s budget cut
+   > seven Scanners and the run said `fixed: 8`.
 7. F5.7 — valvur SHALL apply **Redaction** to secret values in every written
    artifact, including `raw/`, before that artifact reaches disk.
 8. F5.8 — valvur SHALL deduplicate **Findings** reported by more than one **Scanner**
