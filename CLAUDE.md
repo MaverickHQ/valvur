@@ -18,15 +18,15 @@ honest about why not, and trustworthy. Locally.
 **Status (2026-09-27).**
 - `0.5.0` is published: PyPI, GHCR on both architectures, signed and attested.
 - `main` carries `1.0.0` prepared (`f7c19b1`) and rehearsal 36317791899 held at the brake.
-- The owner accepted the [first-principles review](docs/REVIEW-2026-09-27.md) that day:
-  the report's contract is sound and the engine is not. **`1.0.0` waits for the rebuilt
-  engine**; `main` ships next as `0.6.0`.
+- The owner accepted the [first-principles review](docs/REVIEW-2026-09-27.md) and every
+  recommendation in it that day: the report's contract is sound and the engine is not.
+  **`1.0.0` waits for the rebuilt engine**; `main` ships next as `0.6.0`, then `0.7.0`.
 
-**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases 31 to 37 in order: the `0.6.0`
-safety release, then the acceptance set that judges everything after.
+**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended:
+pre-flight, the `0.6.0` safety release, the acceptance set, the engine, then the rest.
 
 **Size, 2026-09-27:** 71 modules, 1,308 tests in 95 files, 20 ADRs, 136 requirement IDs,
-traceability debt zero, 45 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
+traceability debt zero, 61 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
 
 ## 2. What it is NOT
 
@@ -92,15 +92,16 @@ new argument.
 | 0019 | One image with Checkov in it. Reopened by task 34.1, on the ADR's own stated condition. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
 
-**Agreed by the owner on 2026-09-27, ADRs written in the task named:**
+**Agreed by the owner on 2026-09-27, written by R0.5.** Every other decision the build
+needs is in `tasks.md` §5, each with its fallback.
 
-| ADR | decision | task |
-|---|---|---|
-| 0021 | The File Set is the git view; local agent configuration always included; excludes are root-relative prefixes | 33.1 |
-| 0022 | One Scan Container per Profile boundary, fed a Snapshot; protocol 2 | 33.1 |
-| 0023 | The Scanner set, decided by the corpus spike | 34.1 |
-| 0024 | `scan` returns the result, with progress, instead of start-and-poll | 36.1 |
-| 0025 | A scan refreshes stale data as it fetches absent data; `fetch = "never"` for air-gapped use | 36.6 |
+| ADR | decision |
+|---|---|
+| 0021 | The File Set is the git view, plus ignored `.env*` and agent configuration; excludes are root-relative prefixes; history is scanned |
+| 0022 | One Scan Container per Profile boundary, fed a Snapshot; protocol 2 |
+| 0023 | The Scanner set, by rule; amended with R4.1's measurements |
+| 0024 | `scan` returns the result, with progress, instead of start-and-poll |
+| 0025 | A scan refreshes stale data as it fetches absent data; `fetch = "never"` for air-gapped use |
 
 ## 7. The Results Folder
 
@@ -149,30 +150,29 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 
 ## 9. How we work
 
-- **Spec-driven.** `.kiro/specs/valvur/` holds requirements, design and tasks. Requirement
-  IDs are load-bearing and **never renumbered**; change one by amendment. `tasks.md` is
-  authoritative for what is open.
+- **Spec-driven.** `.kiro/specs/valvur/` holds requirements, design and tasks; `tasks.md` is
+  authoritative. Requirement IDs are **never renumbered**; change one by amendment.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), used exactly. **Measure before writing:** a
   task starts from evidence and closes with the after-measurement in a STATUS note.
-- **Test-driven, in vertical slices** (the `tdd` skill): one behaviour test, red, the least
-  code to green, repeat; never refactor while red. Test through public interfaces. Fake only
-  the container runtime and the network. Assert on fields and kinds, not sentences, except
-  where the sentence is the contract.
-- **Commits.** Each red-to-green slice may be committed on the phase branch. **Every phase
-  ends with a phase commit**: STATUS notes, `CHANGELOG.md`, the measured exit.
+- **Test-driven, in vertical slices** (the `tdd` skill; `tasks.md` §3): each task lists its
+  behaviours in test order, one red-to-green slice and one commit each, for example
+  `feat(r3.4): …`. Never refactor while red. Fake only the container runtime and the network.
+- **Every phase ends with a phase commit**, `chore(r<n>): close phase R<n>, …`, and lands
+  by one PR (`tasks.md` §4). Commit messages must pass the Conventional Commits hook.
+- **Unattended** (`tasks.md` §1 and §2): the build runs without the owner and, after a
+  usage limit, resumes through the schedules R0.1 arms. Owner-only steps wait in its §8.
 - **Landing.** `main` is protected (six required checks, signed commits, linear history).
   A phase lands by PR; with every check green, `git push origin
   refs/remotes/origin/<branch>:refs/heads/main`, then `git checkout main && git pull --ff-only`.
 - **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider`
   after clearing `__pycache__`; `-m "not e2e"` unless the container is the point. Scans and
-  e2e use `VALVUR_CACHE=<scratch>/gen-cache VALVUR_IMAGE=valvur:dev`. Never remove the
+  e2e use `VALVUR_CACHE=~/.cache/valvur-build VALVUR_IMAGE=valvur:dev`. Never remove the
   owner's `~/.cache/valvur` or pulled `ghcr.io/maverickhq/valvur:*` images.
-- **The acceptance set judges** (Phase 32, `scripts/acceptance.py`): a phase's exit is
-  measured on a Mac through Docker Desktop and on Linux.
-- **Releases** follow `docs/RELEASING.md`; the signed tag and the approval at the brake are
-  the owner's. The tool scans itself, clean, before every release.
-- **Documents an agent can hold.** This file stays under 200 lines. Comments state
-  invariants and reasons; the story of a change lives in git and the ADRs.
+- **The acceptance set judges** (R2, `scripts/acceptance.py`): a phase's exit is measured
+  on this Mac through Docker Desktop and on Linux.
+- **Releases** follow `docs/RELEASING.md`. The executor prepares and rehearses; the signed
+  tag and the approval at the brake are the owner's. The tool scans itself, clean, first.
+- **Documents an agent can hold:** this file under 200 lines; comments state invariants.
 
 ## 10. Prohibited without explicit owner approval
 
@@ -195,5 +195,4 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 - GitHub's macOS runners cannot run containers (measured 2026-09-22).
 - Listing 109,521 files: 1.6 s on a Mac's host, 16.6 s through Docker Desktop's mount.
 - The release constraint suite is held to exactly 48 tests; a new test that is not a
-  constraint goes in its own file.
-- More, with the incident behind each: section 1 of the archived `CLAUDE.md`.
+  constraint goes in its own file. More lessons: section 1 of the archived `CLAUDE.md`.
