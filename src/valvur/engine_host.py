@@ -67,6 +67,11 @@ class LocalRuntime:
         return proc.returncode
 
 
+#: Up to this size the Snapshot lands in a tmpfs, in memory and gone with the
+#: container; beyond it, in a per-scan volume removed after the scan (ADR-0022).
+TMPFS_LIMIT = 512 * 2**20
+
+
 class ContainerRuntime:
     """One Scan Container (ADR-0022): the Snapshot on stdin, into an in-memory
     `/workspace`; the plan and the reports in a scratch directory mounted at
@@ -88,8 +93,8 @@ class ContainerRuntime:
             self._runtime = detect_runtime()
         return self._runtime
 
-    def command(self, scratch: Path, *, network: bool = False,
-                name: str | None = None) -> list[str]:
+    def command(self, scratch: Path, *, network: bool = False, name: str | None = None,
+                snapshot_bytes: int = 0) -> list[str]:
         import uuid
 
         from . import cache, egress
@@ -98,15 +103,21 @@ class ContainerRuntime:
         db, names = cache.trivy_db(), cache.name_index()
         db.mkdir(parents=True, exist_ok=True)
         names.mkdir(parents=True, exist_ok=True)
+        name = name or f"valvur-{uuid.uuid4().hex[:16]}"
+        if snapshot_bytes > TMPFS_LIMIT:
+            # Past the tmpfs: a volume named for this scan, removed after it.
+            landing = ["-v", f"{name}-snapshot:/workspace"]
+        else:
+            # In memory, gone with the container.
+            landing = ["--tmpfs", "/workspace:rw,nosuid,size=512m,mode=1777"]
         return [
             self.runtime, "run", "-i", "--rm",
-            "--name", name or f"valvur-{uuid.uuid4().hex[:16]}",
+            "--name", name,
             *_user_flags(self.runtime),
             "--read-only", "--cap-drop=ALL", *_resource_flags(self.runtime),
             # Opengrep unpacks and runs opengrep-core from /tmp; R3.4 narrows this.
             "--tmpfs", "/tmp:rw,exec,nosuid,size=512m",   # noqa: S108 — the container's
-            # The Snapshot lands here: in memory, gone with the container (ADR-0022).
-            "--tmpfs", "/workspace:rw,nosuid,size=512m,mode=1777",
+            *landing,
             "-v", f"{scratch}:/results",
             "-v", f"{db}:/cache/trivy",
             "-v", f"{names}:/cache/names:ro",
@@ -116,10 +127,20 @@ class ContainerRuntime:
 
     def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
             on_event: Callable[[dict], None] | None = None) -> int:
+        import uuid
+
         write_plan(scratch, plan)
         network = any(i.network for i in plan)
-        proc = subprocess.run(self.command(scratch, network=network),  # noqa: S603
-                              input=tar, capture_output=True, check=False)
+        name = f"valvur-{uuid.uuid4().hex[:16]}"
+        try:
+            proc = subprocess.run(  # noqa: S603
+                self.command(scratch, network=network, name=name,
+                             snapshot_bytes=len(tar)),
+                input=tar, capture_output=True, check=False)
+        finally:
+            if len(tar) > TMPFS_LIMIT:
+                subprocess.run([self.runtime, "volume", "rm", "-f",  # noqa: S603
+                                f"{name}-snapshot"], capture_output=True, check=False)
         for line in proc.stderr.decode("utf-8", "replace").splitlines():
             if on_event is not None and line.startswith("{"):
                 on_event(json.loads(line))
