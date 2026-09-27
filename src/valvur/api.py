@@ -90,6 +90,9 @@ class ScannerOutcome:
 @dataclass
 class ScanRun:
     findings: list[Finding] = field(default_factory=list)
+    #: What git history was read for secrets (R3.7): commits, bytes and the bound
+    #: that stopped the read, or None when none was read.
+    history: dict | None = None
     fixed: list[str] = field(default_factory=list)
     #: Previous Findings whose Scanner did not run this time — cut, timed out or
     #: failed — as (title, the Scanners that did not run), so neither fixed nor
@@ -728,9 +731,10 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         if warning is not None:
             on_progress(warning)
 
+    beside: dict = {}
     if _engine_two(runner):
         outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
-                                      budget_s=budget_s)
+                                      budget_s=budget_s, record=beside)
     else:
         outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress,
                                jobs=jobs, budget_s=budget_s)
@@ -739,7 +743,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=files, largest_dirs=largest, skipped_builtin=skipped,
-        generation=generation,
+        generation=generation, history=beside.get("history"),
     )
 
 
@@ -755,9 +759,11 @@ def _engine_two(runner) -> bool:
         runner, "engine")
 
 
-def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None):
+def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
+                  record: dict | None = None):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
-    (ADR-0022): the outcomes in declaration order, and what the budget cut."""
+    (ADR-0022): the outcomes in declaration order, and what the budget cut.
+    `record` receives what was read beside the File Set: `history` (R3.7)."""
     import json
     import tempfile
 
@@ -780,6 +786,11 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None):
         scratch.mkdir()
         chosen = fileset.build(workspace)
         tar = engine_host.snapshot(workspace, chosen.files)
+        written = _history_pass(adapters, plan, planned, workspace, chosen, scratch,
+                                on_progress)
+        if record is not None and written is not None:
+            record["history"] = {"commits": written.commits, "bytes": written.bytes,
+                                 "bounded": written.bounded}
         _stop_if_cancelled(runtime, "before the Scan Container started")
         ended: list[str] = []
 
@@ -816,6 +827,12 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None):
                 invocation.tool, invocation.version, stdout, entry.get("stderr_tail", ""),
                 entry["exit_code"], argv=invocation.argv,
                 stopped_after=float(invocation.timeout) if entry.get("timed_out") else None)
+            if written is not None and invocation.tool == _HISTORY_TOOL:
+                outcomes[index] = _with_history(outcomes[index], adapters[index], output,
+                                                entry, written, workspace, budget_s, spent)
+                if entry.get("cut") and adapters[index].name not in cut:
+                    cut.append(adapters[index].name)
+                continue
             outcome = _outcome(adapters[index], output).timed(entry["seconds"])
             if entry.get("cut"):
                 # The budget stopped it (R3.5): the cut is the cause, in the words
@@ -824,6 +841,58 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None):
                 outcome = outcome.cut(f"cut by the {budget_s:g}s budget after {spent:.0f}s")
             outcomes[index] = outcome
     return outcomes, cut
+
+
+_HISTORY_TOOL = "gitleaks-history"
+
+
+def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progress):
+    """Git history, for Gitleaks (R3.7, D3): written into the scratch directory
+    when Gitleaks runs on a repository and the project has not said
+    `history = false`, and its pass added to the plan. Returns what was written."""
+    from . import exclusions as _exclusions
+    from . import history as _history
+    from .adapters.gitleaks import HISTORY_FILE, PROJECT_GITLEAKS_CONFIG
+
+    index = next((i for i in planned if adapters[i].name == "gitleaks"), None)
+    if (index is None or chosen.scope != "git"
+            or not _exclusions.load_scan_settings(workspace).history):
+        return None
+    written = _history.write(workspace, scratch / HISTORY_FILE)
+    if written is None:
+        return None
+    plan.append(adapters[index].history_command(
+        project_config=PROJECT_GITLEAKS_CONFIG in chosen.files))
+    planned.append(index)
+    if on_progress is not None:
+        bound = f", stopped at {written.bounded}" if written.bounded else ""
+        on_progress(f"history: {written.commits} commits read for secrets "
+                    f"({written.bytes / 2**20:.1f} MB{bound})")
+    return written
+
+
+def _with_history(outcome, adapter, output, entry, written, workspace, budget_s, spent):
+    """Gitleaks's outcome with its history pass folded in: the hits after the
+    tree's, so a secret still in the tree keeps its line; a pass that did not
+    finish makes Gitleaks's run incomplete, with the reason."""
+    from . import exclusions as _exclusions
+
+    if outcome is None:
+        return outcome
+    if entry.get("cut") or entry.get("timed_out") or entry["exit_code"] != 0:
+        why = (f"cut by the {budget_s:g}s budget after {spent:.0f}s" if entry.get("cut")
+               else f"timed out after {output.stopped_after:g}s" if entry.get("timed_out")
+               else f"exit {entry['exit_code']}: {output.stderr.strip()[-200:]}")
+        return dataclasses.replace(outcome, scanner=dataclasses.replace(
+            outcome.scanner, ok=False, reason=f"its git history pass did not finish: {why}"))
+    try:
+        found = adapter.parse_history(output, written, workspace,
+                                      _exclusions.excluded_prefixes(workspace))
+    except (ValueError, KeyError) as exc:
+        return dataclasses.replace(outcome, scanner=dataclasses.replace(
+            outcome.scanner, ok=False,
+            reason=f"its git history report was unreadable: {exc}"))
+    return dataclasses.replace(outcome, findings=[*outcome.findings, *found])
 
 
 def _preflight(runner, workspace) -> tuple[str | None, str | None]:
@@ -954,7 +1023,7 @@ def _budget_shaped(reason: str) -> bool:
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
               budget_s, shim_built_from, image_built_from,
               workspace_files: int = 0, largest_dirs=(), skipped_builtin=(),
-              generation: str | None = None) -> ScanRun:
+              generation: str | None = None, history: dict | None = None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -1034,6 +1103,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
     carried = {fp: outcome.previous[fp] for fp in gone if not_run_for(fp) is not None}
     run = ScanRun(
         **({"generation": generation} if generation else {}),
+        history=history,
         findings=findings,
         fixed=sorted(fixed_now),
         not_rechecked=sorted((title or fp, not_run_for(fp) or "") for fp, title in carried.items()),

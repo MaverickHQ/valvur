@@ -111,3 +111,59 @@ def test_a_directory_that_is_not_a_repository_has_no_history(tmp_path):
 def test_the_bounds_are_the_decisions(repo):
     assert history.MAX_COMMITS == 5000
     assert history.MAX_BYTES == 200 * 2**20
+
+
+# ------------------------------------------------ Gitleaks reads it (behaviour 2)
+
+FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
+
+
+def _scan(ws: Path, monkeypatch):
+    from valvur import api
+    from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import LocalRuntime
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    said: list[str] = []
+    run = api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[GitleaksAdapter()],
+                   on_progress=said.append)
+    return run, said
+
+
+def test_a_secret_only_in_history_is_reported_at_its_path_with_its_commit(repo, monkeypatch):
+    added = _commit(repo, {"config.py": f"KEY = '{KEY}'\n"}, "add a key")
+    _commit(repo, {"config.py": "KEY = ''\n"}, "remove it")
+    run, said = _scan(repo, monkeypatch)
+    [finding] = [f for f in run.findings if f.rule == "aws-access-token"]
+    assert finding.path == "config.py"
+    assert finding.commit == added
+    assert added[:12] in finding.title
+    assert KEY not in finding.evidence                       # redacted, as in the tree
+    assert run.history == {"commits": 2, "bytes": run.history["bytes"], "bounded": None}
+    assert any(line.startswith("history: 2 commits") for line in said), said
+
+
+def test_a_secret_still_in_the_tree_is_one_finding_at_its_line(repo, monkeypatch):
+    _commit(repo, {"config.py": f"x = 1\nKEY = '{KEY}'\n"}, "add a key")
+    run, _ = _scan(repo, monkeypatch)
+    [finding] = [f for f in run.findings if f.rule == "aws-access-token"]
+    assert (finding.path, finding.line, finding.commit) == ("config.py", 2, None)
+
+
+def test_history_respects_the_projects_excludes_and_its_path_allowlist(repo, monkeypatch):
+    _commit(repo, {".security-scan.toml": '[scan]\nexclude = ["archive"]\n',
+                   ".gitleaks.toml": "[extend]\nuseDefault = true\n\n[allowlist]\n"
+                                     "paths = ['''^tests/''']\n",
+                   "archive/old.py": f"KEY = '{KEY}'\n",
+                   "tests/keys.py": f"KEY = '{KEY}'\n"}, "planted")
+    _commit(repo, {"archive/old.py": "", "tests/keys.py": ""}, "emptied")
+    run, _ = _scan(repo, monkeypatch)
+    assert [f for f in run.findings if f.rule == "aws-access-token"] == []
+
+
+def test_a_folder_that_is_not_a_repository_reads_no_history(tmp_path, monkeypatch):
+    ws = tmp_path / "plain"
+    ws.mkdir()
+    (ws / "app.py").write_text("x = 1\n")
+    run, _ = _scan(ws, monkeypatch)
+    assert run.history is None

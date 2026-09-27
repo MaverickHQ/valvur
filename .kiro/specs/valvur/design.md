@@ -184,7 +184,8 @@ with itself — and asks egress as well.
     "path": ["your-app", "webpack@4.46.0", "lodash@4.17.11"],
     "fix": {"package": "webpack", "version": ">=5.0.0"}
   },
-  "suppressed": null            // F8.6
+  "suppressed": null,           // F8.6
+  "commit": null                // R3.7: the commit that added a secret read from history
 }
 ```
 

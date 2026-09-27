@@ -87,6 +87,8 @@ class ScanSettings:
     #: Also skip the directories `.gitignore` hides (29.0.1, part 2). Off unless
     #: asked, for the reason in the comment above `is_vendored`.
     honour_gitignore: bool = False
+    #: Read git history for secrets (R3.7, D3). On unless `history = false`.
+    history: bool = True
 
 
 def _prefixes(entries) -> tuple[str, ...]:
@@ -110,6 +112,7 @@ def load_scan_settings(workspace: Path) -> ScanSettings:
         exclude=_prefixes(scan.get("exclude")),
         include=_prefixes(scan.get("include")),
         honour_gitignore=bool(scan.get("honour_gitignore", False)),
+        history=scan.get("history", True) is not False,
     )
 
 

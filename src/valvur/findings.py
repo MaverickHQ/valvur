@@ -119,6 +119,9 @@ class Finding:
     # Populated when a committed Suppression matches. Policy, not identity:
     # it never affects the Fingerprint or the Status diff.
     suppressed: str | None = None
+    #: The commit that added it, for a secret read from git history (R3.7). Not
+    #: identity: the same secret in the tree and in history is one Finding.
+    commit: str | None = None
 
     def __post_init__(self) -> None:
         """Neutralise evidence at the MODEL boundary, not per-adapter.

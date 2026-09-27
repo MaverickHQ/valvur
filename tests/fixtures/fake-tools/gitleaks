@@ -12,7 +12,10 @@ args = sys.argv[1:]
 root = args[args.index("dir") + 1]
 report = args[args.index("--report-path") + 1]
 found = []
-for dirpath, _dirs, files in os.walk(root):
+# A file is scanned as itself and reported by the path given, as the real one does.
+targets = ([(os.path.dirname(root), [], [os.path.basename(root)])] if os.path.isfile(root)
+           else os.walk(root))
+for dirpath, _dirs, files in targets:
     for name in sorted(files):
         path = os.path.join(dirpath, name)
         with open(path, encoding="utf-8", errors="replace") as handle:
@@ -20,7 +23,8 @@ for dirpath, _dirs, files in os.walk(root):
                 match = re.search(r"AKIA[A-Z2-7]{16}", line)
                 if match:
                     found.append({"RuleID": "aws-access-token", "Description": "AWS Access Token",
-                                  "File": "/workspace/" + os.path.relpath(path, root),
+                                  "File": (path if os.path.isfile(root) else
+                                           "/workspace/" + os.path.relpath(path, root)),
                                   "StartLine": number, "Secret": match.group(0),
                                   "Match": line.strip()})
 with open(report, "w", encoding="utf-8") as handle:
