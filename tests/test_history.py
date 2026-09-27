@@ -167,3 +167,31 @@ def test_a_folder_that_is_not_a_repository_reads_no_history(tmp_path, monkeypatc
     (ws / "app.py").write_text("x = 1\n")
     run, _ = _scan(ws, monkeypatch)
     assert run.history is None
+
+
+# ------------------------------------------------ e2e: repository 3 (behaviour 3)
+
+@pytest.mark.e2e
+def test_repository_3s_removed_credential_is_reported_with_its_commit(
+        mountable_tmp, monkeypatch):
+    import importlib.util
+    import sys
+
+    from valvur import api
+    from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import ContainerRuntime
+
+    path = Path(__file__).parent.parent / "scripts" / "acceptance" / "generate.py"
+    spec = importlib.util.spec_from_file_location("acceptance_generate", path)
+    generate = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["acceptance_generate"] = generate
+    spec.loader.exec_module(generate)  # type: ignore[union-attr]
+    ws = generate.build(mountable_tmp / "set", only="3")["3-history-secret"]
+    added = _git(ws, "rev-list", "--max-parents=0", "HEAD")
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    run = api.scan(ws, runner=ContainerRuntime(), adapters=[GitleaksAdapter()])
+    [finding] = [f for f in run.findings if f.rule == "aws-access-token"]
+    assert (finding.path, finding.commit) == ("config.py", added)
+    assert run.history is not None and run.history["commits"] == 2
+    assert all(s.ok for s in run.scanners), run.scanners
