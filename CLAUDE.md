@@ -20,10 +20,10 @@ honest about why not, and trustworthy. Locally.
 - `main` carries `1.0.0` prepared (`f7c19b1`) and rehearsal 36317791899 held at the brake.
 - The owner accepted the [first-principles review](docs/REVIEW-2026-09-27.md) and every
   recommendation in it that day: the report's contract is sound and the engine is not.
-  **`1.0.0` waits for the rebuilt engine**; `main` ships next as `0.6.0`, then `0.7.0`.
+  **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
 
 **Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
-R0, pre-flight, closed 2026-09-27; R1, the `0.6.0` safety release, is next.
+R0 and R1 closed 2026-09-27; `0.6.0` waits for the owner's tag; R2, the acceptance set, is next.
 
 **Size, 2026-09-27:** 71 modules, 1,308 tests in 95 files, 20 ADRs, 136 requirement IDs,
 traceability debt zero, 61 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
