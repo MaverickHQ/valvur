@@ -374,6 +374,46 @@ def count_files(workspace: Path, prefixes: tuple[str, ...] = (),
     return total, tuple(largest[:3])
 
 
+#: Past this many files a skipped directory is reported as "at least" (R1.4):
+#: counting a whole `node_modules` costs a walk nobody reads.
+SKIPPED_COUNT_CAP = 100_000
+
+
+def skipped_builtin(workspace: Path, prefixes: tuple[str, ...] = (),
+                    ) -> tuple[tuple[str, int], ...]:
+    """Every directory the built-in list skipped, repo-relative, with the files
+    it holds (R1.4): what no Scanner read, said rather than inferred. A
+    directory under a configured prefix is the project's own choice and is
+    reported there instead."""
+    import os
+
+    skipped: list[tuple[str, int]] = []
+    for dirpath, dirnames, _files in os.walk(workspace):
+        rel = Path(dirpath).relative_to(workspace)
+        kept = []
+        for name in sorted(dirnames):
+            path = (rel / name).as_posix()
+            if is_configured_out(path, prefixes):
+                continue
+            if name in VENDORED:
+                skipped.append((path, _count(Path(dirpath) / name)))
+            else:
+                kept.append(name)
+        dirnames[:] = kept
+    return tuple(skipped)
+
+
+def _count(directory: Path) -> int:
+    import os
+
+    total = 0
+    for _dir, _dirs, files in os.walk(directory):
+        total += len(files)
+        if total >= SKIPPED_COUNT_CAP:
+            return SKIPPED_COUNT_CAP
+    return total
+
+
 def walk_files(workspace: Path, prefixes: tuple[str, ...] = ()):
     """Every file under the Workspace that is neither vendored nor under an
     excluded prefix — without descending into what is skipped, which is the
