@@ -8,6 +8,7 @@ version control's metadata. R3.2 grows this into the whole of ADR-0021.
 from __future__ import annotations
 
 import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .exclusions import RESULTS_DIR  # a leaf: importing results would close a cycle
@@ -40,6 +41,23 @@ def walk(workspace: Path) -> list[str]:
     return sorted(found)
 
 
-def files(workspace: Path) -> list[str]:
+@dataclass
+class FileSet:
+    """What a Scan Run reads (ADR-0021)."""
+
+    files: list[str]
+    #: "git" for the git view, "tree" for a walk.
+    scope: str
+    #: What was left out, and why: (path, reason).
+    skipped: list[tuple[str, str]] = field(default_factory=list)
+
+
+def build(workspace: Path) -> FileSet:
     view = git_view(workspace)
-    return view if view is not None else walk(workspace)
+    if view is not None:
+        return FileSet(view, "git")
+    return FileSet(walk(workspace), "tree")
+
+
+def files(workspace: Path) -> list[str]:
+    return build(workspace).files
