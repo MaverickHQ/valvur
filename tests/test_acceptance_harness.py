@@ -119,3 +119,18 @@ def test_a_container_left_behind_fails_the_repository(tmp_path):
     result = harness.run_repo(root, scan=lambda ws: _results(ws, []), containers=lambda: 2,
                               tasks_text=TASKS)
     assert result.ok is False and result.containers_after == 2
+
+
+def test_the_report_has_a_row_per_repository_and_the_platform(tmp_path):
+    harness = _module()
+    passing = harness.RepoResult("2-lockfiles", harness.Verdict(), 12.3, 0)
+    failing = harness.RepoResult("3-history-secret",
+                                 harness.Verdict(ok=False, missing=["aws-access-token at x"]),
+                                 4.0, 0)
+    table = harness.render_markdown([passing, failing], {"platform": "macOS 26.6.2",
+                                                         "swap_gb": 11.9})
+    assert "| 2-lockfiles | pass | 12.3 | 0 | 0 | 0 | 0 |" in table
+    assert "| 3-history-secret | FAIL | 4.0 | 0 | 1 | 0 | 0 |" in table
+    assert "macOS 26.6.2" in table
+    assert harness.to_json([passing, failing], {})["repositories"][1]["missing"] == [
+        "aws-access-token at x"]

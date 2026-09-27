@@ -372,12 +372,17 @@ R1's rehearsal.
   `@hyperion-util/cookies` 77.77.79. Three tests; the determinism test was confirmed to
   catch a time-stamped file. The generator was written before its tests, against §3;
   the break was the check that they test something.
-- [ ] **R2.2** **The harness**, `scripts/acceptance.py`. It runs a CLI scan per repository
+- [x] **R2.2** **The harness**, `scripts/acceptance.py`. It runs a CLI scan per repository
   and reports JSON plus a Markdown table: expected findings present, unexpected ones,
   status, wall time, containers alive afterwards, platform and host swap. Behaviours:
   1. Against a fixture results folder, a missing expected finding fails.
   2. An unexpected finding is listed, and fails only at high or critical.
   3. An `until` expectation is reported as pending, not failed, until its task is ticked.
+  **STATUS 2026-09-27:** ✅ `scripts/acceptance.py`: judges a results folder against
+  `expected.toml` (missing, pending, forbidden, blocking-unexpected, incomplete), runs a
+  repository through the CLI with its time and the containers left, and writes
+  `report.json` and `report.md` with the platform and host swap. Eight tests. On this Mac,
+  repository 4 passes in 13.5 s with `mypkg/build/` pending until R3.2.
 - [ ] **R2.3** **Lifecycle probes**: cancel mid-scan, a budget cut, `kill -9` of the MCP
   server mid-scan, and stdin closed mid-scan. Behaviours:
   1. After each, no container remains.

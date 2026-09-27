@@ -133,3 +133,85 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
     expected = tomllib.loads((root / "expected.toml").read_text())
     verdict = judge(root / ".security-scan", expected, tasks_text)
     return RepoResult(root.name, verdict, round(seconds, 1), containers())
+
+
+def render_markdown(results: list[RepoResult], platform: dict) -> str:
+    """One row per repository: verdict, seconds, containers left, then the counts of
+    missing, pending and blocking-unexpected findings."""
+    lines = [f"Platform: {platform.get('platform', 'unknown')}; host swap in use "
+             f"{platform.get('swap_gb', '?')} GB.", "",
+             "| repository | verdict | seconds | containers left | missing | pending "
+             "| blocking |", "|---|---|---|---|---|---|---|"]
+    for r in results:
+        lines.append(f"| {r.name} | {'pass' if r.ok else 'FAIL'} | {r.seconds} | "
+                     f"{r.containers_after} | {len(r.verdict.missing)} | "
+                     f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |")
+    return "\n".join(lines) + "\n"
+
+
+def to_json(results: list[RepoResult], platform: dict) -> dict:
+    return {"platform": platform, "repositories": [
+        {"name": r.name, "ok": r.ok, "seconds": r.seconds,
+         "containers_after": r.containers_after, "missing": r.verdict.missing,
+         "pending": r.verdict.pending, "blocking": r.verdict.blocking,
+         "forbidden": r.verdict.forbidden, "incomplete": r.verdict.incomplete,
+         "unexpected": r.verdict.unexpected} for r in results]}
+
+
+def platform_info() -> dict:
+    """The machine the run measured: the OS, and host swap, which decides whether a
+    Mac time threshold counts (D17)."""
+    import platform
+    import re as _re
+    import subprocess
+
+    info: dict = {"platform": f"{platform.system()} {platform.release()} "
+                              f"{platform.machine()}", "swap_gb": None}
+    if platform.system() == "Darwin":
+        out = subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True,
+                             text=True, check=False).stdout
+        used = _re.search(r"used = ([\d.]+)M", out)
+        info["swap_gb"] = round(float(used.group(1)) / 1024, 1) if used else None
+    elif Path("/proc/meminfo").exists():
+        mem = dict(line.split(":", 1) for line in Path("/proc/meminfo").read_text()
+                   .splitlines() if ":" in line)
+        total = int(mem.get("SwapTotal", "0 kB").split()[0])
+        free = int(mem.get("SwapFree", "0 kB").split()[0])
+        info["swap_gb"] = round((total - free) / 2**20, 1)
+    return info
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    import json
+    import os
+    import sys
+
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    home = Path(os.environ.get("HOME", "~")) / ".cache" / "valvur-build"
+    parser.add_argument("--set", type=Path, default=home / "acceptance",
+                        help="where the repositories are (built there with --generate)")
+    parser.add_argument("--only", help="one repository, by number or name")
+    parser.add_argument("--generate", action="store_true", help="build the set first")
+    parser.add_argument("--out", type=Path, default=home / "acceptance-report")
+    args = parser.parse_args(argv)
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "acceptance"))
+    import generate  # type: ignore[import-not-found]
+
+    repos = (generate.build(args.set, args.only) if args.generate else
+             {p.name: p for p in sorted(args.set.iterdir())
+              if p.is_dir() and not p.name.startswith(".")
+              and (args.only is None or args.only in (p.name, p.name.split("-", 1)[0]))})
+    results = [run_repo(root) for root in repos.values()]
+    info = platform_info()
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "report.json").write_text(json.dumps(to_json(results, info), indent=2))
+    table = render_markdown(results, info)
+    (args.out / "report.md").write_text(table)
+    print(table)
+    return 0 if all(r.ok for r in results) else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
