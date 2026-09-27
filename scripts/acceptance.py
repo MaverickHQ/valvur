@@ -196,6 +196,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=home / "acceptance-report")
     parser.add_argument("--probes", action="store_true",
                         help="also stop a scan four ways and count what is left (R2.3)")
+    parser.add_argument("--agent", action="store_true",
+                        help="also ask `claude -p` to scan each repository (R2.4; costs "
+                             "money, capped at $25 for the build)")
     args = parser.parse_args(argv)
 
     sys.path.insert(0, str(Path(__file__).resolve().parent / "acceptance"))
@@ -228,6 +231,25 @@ def main(argv: list[str] | None = None) -> int:
                       f"{p.left_at_next_start} | {p.seconds} |\n")
         probe_results = [p for p in probe_results
                          if not (p.until and p.until not in ticked_now)]
+    if args.agent:
+        import agent  # type: ignore[import-not-found]
+
+        tasks_text = (Path(__file__).resolve().parent.parent
+                      / ".kiro/specs/valvur/tasks.md").read_text()
+        table += "\n| agent run | named all | turns | cost (USD) | seconds | left |\n"
+        table += "|---|---|---|---|---|---|\n"
+        report["agent"] = []
+        for root in repos.values():
+            scored = agent.run(root, tasks_text)
+            if scored is None:
+                table += f"| {root.name} | skipped: the ${agent.CAP_USD:g} cap is spent | | | | |\n"
+                continue
+            scored.containers_left = _containers_alive()
+            report["agent"].append({"name": root.name, **vars(scored)})
+            named = "yes" if scored.named_all else "no: " + ", ".join(scored.unnamed)
+            table += (f"| {root.name} | {named} | {scored.turns} | {scored.cost_usd} | "
+                      f"{scored.seconds} | {scored.containers_left} |\n")
+        table += f"\nAgent scoring spent so far in this build: ${agent.spent():.2f}.\n"
     (args.out / "report.json").write_text(json.dumps(report, indent=2))
     (args.out / "report.md").write_text(table)
     print(table)

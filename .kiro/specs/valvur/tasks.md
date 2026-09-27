@@ -393,11 +393,17 @@ R1's rehearsal.
   of the probes passed `kill -9` for that reason). On this Mac: cancel, budget and stdin
   leave nothing and the next scan starts; `kill -9` leaves two orphans still listed when
   the next scan starts, pending R3.6. `scripts/acceptance.py --probes` reports them.
-- [ ] **R2.4** **Agent scoring.** One `claude -p` sentence per repository, using the
+- [x] **R2.4** **Agent scoring.** One `claude -p` sentence per repository, using the
   repository's generated `.mcp.json`. Records turns, cost, seconds, whether the answer names
   every expected finding, and containers left. Tracks the running total against D19.
   Behaviour: against a recorded transcript, the scorer computes turns and cost and checks
   names.
+  **STATUS 2026-09-27:** ✅ `scripts/acceptance/agent.py`: writes the repository's
+  `.mcp.json` against this checkout's shim, runs one `claude -p` sentence with the six
+  valvur tools and `Read`, scores turns, cost, seconds and each live expected finding
+  named by path, and keeps the build's running cost in `~/.cache/valvur-build`, refusing
+  past $25. `scripts/acceptance.py --agent` reports it. Two tests on a recorded result;
+  the first live run is R2.6's baseline.
 - [ ] **R2.5** **The Linux lane.** `acceptance.yml`, run nightly and on dispatch, uploads
   the report. A local registry stands in for GHCR where a test needs a mirror. Behaviour:
   the workflow's first dispatched run is green, except for the `until` rows.
