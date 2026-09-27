@@ -446,12 +446,35 @@ def _first_action(path: Path) -> str:
     return f"action 1{count}: {heading}"
 
 
-def _job_fields(job, *, progress: bool = False) -> dict:
+#: The sentences the status text says after a job's state, as fields too
+#: (29.2.4): Claude Code hands the model a structured reply's JSON and not its
+#: text, so an instruction only the text carried never arrived — the model built
+#: its own wait, and ended a turn with the scan running. One string each, so the
+#: text and the field cannot drift.
+_CANCELLING_NEXT = "Call again; no result will follow."
+_CANCELLED_NEXT = ("No result: a cancelled scan writes nothing, and the previous results, if "
+                   "any, stand. Call `scan` to start again.")
+_DOCTOR_NEXT = ("Run `doctor` (the tool; `valvur doctor` on a shell) before scanning again: "
+                "it names what this machine is missing and the fix.")
+_NO_RESULT = "No result to report."
+
+
+def _running_next() -> str:
+    return (f"Call `scan_status` again; it waits up to {jobs.STATUS_WAIT_SECONDS:g} s and "
+            "returns the moment the scan finishes; do not report a result yet.")
+
+
+def _job_fields(job, *, progress: bool = False, next_moves: list[str] | None = None) -> dict:
     fields: dict = {"state": job.state.name, "profile": job.profile,
                     "elapsed_s": round(job.elapsed, 1), "error": job.error or None,
                     "doctor_may_help": job.doctor_may_help}
     if progress:
         fields["progress"] = list(job.progress)
+    if job.failure:
+        # The budget cut as fields beside the error it is also written into.
+        fields["budget"] = dict(job.failure)
+    if next_moves is not None:
+        fields["next"] = list(next_moves)
     return fields
 
 
@@ -472,13 +495,11 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         job.wait()
     if job is not None and job.state is State.CANCELLING:
         return (f"CANCELLING — the {job.profile} scan, {job.elapsed:.0f}s in; its containers "
-                "are being stopped. Call again; no result will follow."
-                ), {"scanned": False, "job": _job_fields(job)}
+                f"are being stopped. {_CANCELLING_NEXT}"
+                ), {"scanned": False, "job": _job_fields(job, next_moves=[_CANCELLING_NEXT])}
     if job is not None and job.state is State.CANCELLED:
-        return (f"CANCELLED after {job.elapsed:.0f}s — {job.error}\n"
-                "No result: a cancelled scan writes nothing, and the previous results, if "
-                "any, stand. Call `scan` to start again."
-                ), {"scanned": False, "job": _job_fields(job)}
+        return (f"CANCELLED after {job.elapsed:.0f}s — {job.error}\n{_CANCELLED_NEXT}"
+                ), {"scanned": False, "job": _job_fields(job, next_moves=[_CANCELLED_NEXT])}
     if job is not None and job.state is State.RUNNING:
         # A fetch in progress — the image (10.2 claim 4), the database or the index
         # (24.1) — is the one kind of stage that is not a Scanner completing, and
@@ -532,19 +553,25 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         lines.append(f"Completed so far: {', '.join(completed) or 'starting'}")
         lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
                      "do not report a result yet.")
-        fields = _job_fields(job, progress=True)
+        fields = _job_fields(job, progress=True, next_moves=[_running_next()])
         fields.update({"running": {tool: round(seconds, 1) for tool, seconds in running.items()},
-                       "finished": len(finished), "fleet": fleet})
+                       "finished": len(finished), "fleet": fleet,
+                       # The lines the text says, as fields (29.2.4).
+                       "finished_scanners": list(finished),
+                       "workspace": list(workspace_lines), "now": now,
+                       "completed": list(completed),
+                       "waited_s": jobs.STATUS_WAIT_SECONDS})
         return "\n".join(lines), {"scanned": False, "job": fields}
     if job is not None and job.state is State.FAILED:
         lines = [f"FAILED after {job.elapsed:.0f}s — {job.error}"]
+        advice: list[str] = []
         if job.doctor_may_help:
             # Only when a precondition could be the cause (29.0.3): the budget's
             # refusal carries its own levers, and `doctor` would say *ready*.
-            lines.append("Run `doctor` (the tool; `valvur doctor` on a shell) before scanning "
-                         "again: it names what this machine is missing and the fix.")
-        lines.append("No result to report.")
-        return "\n".join(lines), {"scanned": False, "job": _job_fields(job)}
+            advice.append(_DOCTOR_NEXT)
+        advice.append(_NO_RESULT)
+        lines += advice
+        return "\n".join(lines), {"scanned": False, "job": _job_fields(job, next_moves=advice)}
 
     path = _results(args.get("workspace")) / "run.json"
     if not path.is_file():

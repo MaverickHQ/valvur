@@ -42,9 +42,15 @@ class ScannerFailed(RuntimeError):
 
 class BudgetExhausted(ScannerFailed):
     """The budget cut every Scanner before one finished (29.0.3): its message is
-    `levers.budget_exhausted_message`, and `doctor` has nothing to add."""
+    `levers.budget_exhausted_message`, and `doctor` has nothing to add. Carries
+    the same refusal as fields (`levers.budget_fields`, 29.2.4) for the
+    structured reply; None when built from a message alone."""
 
     doctor_may_help = False
+
+    def __init__(self, message: str, fields: dict | None = None):
+        super().__init__(message)
+        self.fields = fields
 
 
 class ScanCancelled(RuntimeError):
@@ -829,8 +835,11 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
             # what ran, what did not start, and the three levers.
             from . import levers
 
-            raise BudgetExhausted(levers.budget_exhausted_message(
-                scanners, budget_s, files=workspace_files, largest=largest_dirs))
+            raise BudgetExhausted(
+                levers.budget_exhausted_message(
+                    scanners, budget_s, files=workspace_files, largest=largest_dirs),
+                levers.budget_fields(
+                    scanners, budget_s, files=workspace_files, largest=largest_dirs))
         detail = "; ".join(f"{s.tool}: {s.reason}" for s in scanners)
         raise ScannerFailed(f"Every scanner failed. Refusing to report a scan.\n{detail}")
 

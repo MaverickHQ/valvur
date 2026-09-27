@@ -82,6 +82,9 @@ class Job:
     #: Whether `doctor` could name the cause of a failure (29.0.3): the budget's
     #: refusal says no, everything else says yes.
     doctor_may_help: bool = True
+    #: The failure as fields, when the exception carried any (29.2.4): the budget
+    #: cut's seconds, what it cut, what never started, and the levers.
+    failure: dict | None = None
     progress: list[str] = field(default_factory=list)
     #: When each progress message arrived (monotonic), beside it (29.0.4): what
     #: lets a status line say how long a Scanner has been running.
@@ -182,6 +185,7 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
                     job.transition(State.FAILED)
                     job.error = f"{type(exc).__name__}: {exc}"
                     job.doctor_may_help = bool(getattr(exc, "doctor_may_help", True))
+                    job.failure = getattr(exc, "fields", None) or None
         finally:
             job.finished = time.monotonic()
             job.settled.set()

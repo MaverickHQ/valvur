@@ -7,6 +7,14 @@ a minor bump may break things until 1.0.
 
 ## [Unreleased]
 
+- **Every status reply's advice is a field** (29.2.4). Claude Code hands the
+  model a structured reply's JSON and not its text, so `scan_status`'s one
+  instruction while a scan runs — *call again; do not report a result yet* —
+  never arrived, and the model built its own wait. Now the `job` object of the
+  structured reply carries `next` in every state (and, while running,
+  `waited_s`, `completed`, `now`, `workspace` and `finished_scanners`), and a
+  budget refusal's cause and levers are a `budget` field beside `error`. The
+  text is unchanged.
 - **A finding whose Scanner did not run is not fixed** (29.0.5). Found by the
   agent-driven pass: a scan with a 30 s budget cut seven of eight Scanners and
   reported the eight previous findings as *fixed*, then rewrote `state.json` so

@@ -179,8 +179,8 @@ follows the runtime's memory; the time goals are for the working tree after
 exclusions; Dependabot's five sorted; every client's file in one table with the
 README held to it and `doctor` reading them all; the README's status line true
 on every day of a release; sizes and KEV say which; every MCP evidence fenced.
-one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **29.2.3 ran that night, once the login existed:** one headless `claude -p` on the gate's tree with the project's `.mcp.json`, **2 min 53 s from the command to a correct report**, no question asked, the scan 95 s, nine containers all gone — warm and not a stranger, and the record says so (`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`, the whole transcript in it); 12b.1 closed with it. It found one thing, **29.2.4, open**: Claude Code hands the model a structured reply's JSON and drops its text, so `scan_status`'s *call again; do not report a result yet* never reached the agent, which built its own wait and ended its turn with Checkov running — the harness's re-invocation on its Monitor is what produced the report. `v0.4.0` (run 36254809572) and
-`v0.5.0` (run 36261443737) were both tagged and promoted on 2026-09-26. **Next, in this order: 29.2.4 (an hour); the gate with a person (12b.3's ask); the
+one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. **29.2.3 ran that night, once the login existed:** one headless `claude -p` on the gate's tree with the project's `.mcp.json`, **2 min 53 s from the command to a correct report**, no question asked, the scan 95 s, nine containers all gone — warm and not a stranger, and the record says so (`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`, the whole transcript in it); 12b.1 closed with it. It found **29.2.4**, closed the next morning: Claude Code hands the model a structured reply's JSON and drops its text, so `scan_status`'s *call again; do not report a result yet* never reached the agent, which built its own wait and ended its turn with Checkov running — the harness's re-invocation on its Monitor is what produced the report; every sentence the status text says after a job's state is a field of the structured reply now. A second pass from the other session the same night — two runs on the same tree, 200 s to a correct report with an empty cache, then a 30 s budget by prompt — found **29.0.5**: the cut run called the eight Findings nothing had looked for *fixed* and rewrote the state; closed the same night, and both transcripts are beside the record (`docs/gates/2026-09-26-claude-code-agent-pass-the-cut.md`). `v0.4.0` (run 36254809572) and
+`v0.5.0` (run 36261443737) were both tagged and promoted on 2026-09-26. **Next, in this order: the gate with a person (12b.3's ask); the
 second maintainer (28.1.3); `v1.0.0`; the runner move after 2026-11-19
 (28.3.8).** When "what is next" is asked,
 Phase 25 answers for the people and Phase 28's two open rows for the code; the
@@ -324,13 +324,14 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 71 modules under `src/valvur`, 1,294 tests in 93 files, 20 ADRs, 136
-requirement IDs, **253 done and 4 open** across 29 phases — 12b.3 (`v1.0.0`),
-Phase 28's two that wait on a person or a date, and 29.2.4, one of the two
-things the agent-driven pass found (the other, 29.0.5 — a cut run calling
-Findings nothing looked for *fixed* — closed the same night); Phases 26 to
-29's engineering are complete bar that hour, `0.5.0` is out (2026-09-26), the action is at `v0.2` and the rc is
-yanked. Two of the 4 are the owner's (the second maintainer, the `v1.0.0`
-tag), one is dated (the runner move), and one is 29.2.4. A
+requirement IDs, **254 done and 3 open** across 29 phases — 12b.3 (`v1.0.0`)
+and Phase 28's two that wait on a person or a date; the agent-driven pass found
+two things, 29.0.5 (a cut run calling Findings nothing looked for *fixed*) and
+29.2.4 (the primary client hands the model a structured reply's fields and not
+its text), both closed within the day; Phases 26 to 29's engineering are
+complete, `0.5.0` is out (2026-09-26), the action is at `v0.2` and the rc is
+yanked. Two of the 3 are the owner's (the second maintainer, the `v1.0.0`
+tag), and one is dated (the runner move). A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found
 a defect on its first run. Traceability debt: zero, and a hard check since 22.C.2.
 

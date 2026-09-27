@@ -8594,7 +8594,7 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   Gate 1 in `docs/usability-gate.md` carries the number. Codex declined by
   decision (2).
 
-- [ ] **29.2.4** **Every reply's advice is a field, because Claude Code drops
+- [x] **29.2.4** **Every reply's advice is a field, because Claude Code drops
   the text (found by 29.2.3).** Measured in the pass's transcript: for all five
   calls to the two tools that answer with `structuredContent` (28.2.2), Claude
   Code 2.1.283 gave the model the JSON as a string and not the text block —
@@ -8620,6 +8620,28 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   it. *(Recorded and not tasked beside it: A3 in the record, a bounded
   `wait_s` for an agent that wants one wait, to decide once agents are told
   the call waits.)*
+
+  **STATUS 2026-09-27:** ✅ Every sentence the status text says after a job's
+  state is a field of the structured reply's `job`, from one string each so
+  the text and the field cannot drift: `RUNNING` — `next` (*call
+  `scan_status` again; it waits up to 15 s and returns the moment the scan
+  finishes; do not report a result yet*), `waited_s`, `completed`, `now` (a
+  fetch in progress), `workspace` (the pre-flight lines) and
+  `finished_scanners` beside the counts 29.0.4 added; `FAILED` — `next` with
+  the `doctor` sentence when `doctor_may_help` and *No result to report*,
+  and `budget` (`seconds`, `cut` with each Scanner's seconds, `not_started`,
+  `files`, `largest`, `levers`) when the budget refused, built by
+  `levers.budget_fields` beside the sentence `levers.budget_exhausted_message`
+  builds and carried by the exception; `CANCELLING` and `CANCELLED` — `next`
+  with their sentences. The text is unchanged, so the CLI and the parity test
+  see nothing; the output schema's `job` is untyped, so the `tools/list`
+  snapshot is unchanged (checked). Held by `tests/test_status_fields.py`: one
+  test per state through real jobs, one for the budget's fields, one for a
+  `BudgetExhausted` built from a message alone, and the property over every
+  branch — each line after the state maps to a named field or is in `next`
+  verbatim. The second session's transcript (the file beside the record)
+  shows the same loss independently: forty-five seconds building its own
+  wait before the first poll.
 
 
 ### Tier 3 — The claim, and the small things

@@ -46,6 +46,22 @@ def large_tree_line(files: int, largest) -> str | None:
             "Scanners start")
 
 
+def budget_fields(scanners, budget_s: float, files: int | None = None, largest=()) -> dict:
+    """The same refusal as fields (29.2.4): what the budget was, what it cut and
+    for how long, what never started, the workspace, and the levers — beside
+    `job.error` in the structured reply, because the primary client hands the
+    model the fields and not the text."""
+    return {
+        "seconds": float(budget_s),
+        "cut": {s.tool: round(s.duration_s, 1) for s in scanners
+                if s.reason.startswith("cut by the ")},
+        "not_started": [s.tool for s in scanners if s.reason.startswith("not started: ")],
+        "files": files,
+        "largest": [[d, n] for d, n in largest],
+        "levers": LEVERS,
+    }
+
+
 def budget_exhausted_message(scanners, budget_s: float, files: int | None = None,
                              largest=()) -> str:
     """The refusal when the budget cut every Scanner: what ran and for how long,
