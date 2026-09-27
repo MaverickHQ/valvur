@@ -194,6 +194,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--only", help="one repository, by number or name")
     parser.add_argument("--generate", action="store_true", help="build the set first")
     parser.add_argument("--out", type=Path, default=home / "acceptance-report")
+    parser.add_argument("--probes", action="store_true",
+                        help="also stop a scan four ways and count what is left (R2.3)")
     args = parser.parse_args(argv)
 
     sys.path.insert(0, str(Path(__file__).resolve().parent / "acceptance"))
@@ -206,11 +208,30 @@ def main(argv: list[str] | None = None) -> int:
     results = [run_repo(root) for root in repos.values()]
     info = platform_info()
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "report.json").write_text(json.dumps(to_json(results, info), indent=2))
+    report = to_json(results, info)
     table = render_markdown(results, info)
+    probe_results = []
+    if args.probes:
+        import probes  # type: ignore[import-not-found]
+
+        ticked_now = ticked((Path(__file__).resolve().parent.parent
+                             / ".kiro/specs/valvur/tasks.md").read_text())
+        target = probes.workspace(args.set)
+        probe_results = [probes.probe(kind, target) for kind in probes.KINDS]
+        report["probes"] = [{**vars(p), "ok": p.ok} for p in probe_results]
+        table += "\n| probe | verdict | left after stop | left at next start | seconds |\n"
+        table += "|---|---|---|---|---|\n"
+        for p in probe_results:
+            pending = p.until is not None and p.until not in ticked_now and not p.ok
+            word = f"pending ({p.until})" if pending else ("pass" if p.ok else "FAIL")
+            table += (f"| {p.kind} | {word} | {p.containers_left} | "
+                      f"{p.left_at_next_start} | {p.seconds} |\n")
+        probe_results = [p for p in probe_results
+                         if not (p.until and p.until not in ticked_now)]
+    (args.out / "report.json").write_text(json.dumps(report, indent=2))
     (args.out / "report.md").write_text(table)
     print(table)
-    return 0 if all(r.ok for r in results) else 1
+    return 0 if all(r.ok for r in results) and all(p.ok for p in probe_results) else 1
 
 
 if __name__ == "__main__":

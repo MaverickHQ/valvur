@@ -383,10 +383,16 @@ R1's rehearsal.
   repository through the CLI with its time and the containers left, and writes
   `report.json` and `report.md` with the platform and host swap. Eight tests. On this Mac,
   repository 4 passes in 13.5 s with `mypkg/build/` pending until R3.2.
-- [ ] **R2.3** **Lifecycle probes**: cancel mid-scan, a budget cut, `kill -9` of the MCP
+- [x] **R2.3** **Lifecycle probes**: cancel mid-scan, a budget cut, `kill -9` of the MCP
   server mid-scan, and stdin closed mid-scan. Behaviours:
   1. After each, no container remains.
   2. The next scan starts.
+  **STATUS 2026-09-27:** ✅ `scripts/acceptance/probes.py` drives a real MCP server over
+  stdio, on `broken-repo` plus 30,000 files so the Scanners are still running when a probe
+  stops them (on the bare fixture an orphan finished inside any grace, and a first version
+  of the probes passed `kill -9` for that reason). On this Mac: cancel, budget and stdin
+  leave nothing and the next scan starts; `kill -9` leaves two orphans still listed when
+  the next scan starts, pending R3.6. `scripts/acceptance.py --probes` reports them.
 - [ ] **R2.4** **Agent scoring.** One `claude -p` sentence per repository, using the
   repository's generated `.mcp.json`. Records turns, cost, seconds, whether the answer names
   every expected finding, and containers left. Tracks the running total against D19.
