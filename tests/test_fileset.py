@@ -9,6 +9,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from valvur import fileset
 
 
@@ -109,3 +111,21 @@ def test_a_directory_that_is_not_a_repository_is_walked_skipping_only_caches(tmp
     assert built.scope == "tree"
     assert built.files == ["mypkg/build/steps.py", "src/app.py"]
     assert {p for p, _ in built.skipped} == {".venv", "node_modules", "src/__pycache__"}
+
+
+def test_past_the_ceiling_a_walk_refuses_and_a_git_view_warns(tmp_path, monkeypatch):
+    from valvur.operations import Refusal
+
+    monkeypatch.setattr(fileset, "CEILING", 30)
+    plain = tmp_path / "plain"
+    for i in range(40):
+        (plain / "rows").mkdir(parents=True, exist_ok=True)
+        (plain / "rows" / f"{i}.txt").write_text("x\n")
+    with pytest.raises(Refusal) as refused:
+        fileset.build(plain)
+    assert "rows" in str(refused.value) and "exclude" in str(refused.value)
+
+    repo = _repo(tmp_path, {f"src/m{i}.py": "x\n" for i in range(40)})
+    built = fileset.build(repo)
+    assert len(built.files) == 40
+    assert built.warning is not None and "src" in built.warning

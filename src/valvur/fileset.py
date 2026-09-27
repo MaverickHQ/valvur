@@ -93,6 +93,10 @@ def walk(workspace: Path, skipped: list[tuple[str, str]] | None = None) -> list[
     return sorted(found)
 
 
+#: Past this many files a walk refuses and a git view warns (ADR-0021).
+CEILING = 20_000
+
+
 @dataclass
 class FileSet:
     """What a Scan Run reads (ADR-0021)."""
@@ -102,6 +106,24 @@ class FileSet:
     scope: str
     #: What was left out, and why: (path, reason).
     skipped: list[tuple[str, str]] = field(default_factory=list)
+    #: A git view past the ceiling: the largest directories and the exclude line.
+    warning: str | None = None
+
+
+def _largest(files: list[str], count: int = 3) -> list[tuple[str, int]]:
+    per_top: dict[str, int] = {}
+    for name in files:
+        top = name.split("/", 1)[0] if "/" in name else "."
+        per_top[top] = per_top.get(top, 0) + 1
+    return sorted(per_top.items(), key=lambda item: (-item[1], item[0]))[:count]
+
+
+def _ceiling_sentence(files: list[str]) -> str:
+    largest = _largest(files)
+    named = ", ".join(f"{d} {n:,}" for d, n in largest)
+    top = largest[0][0] if largest else "."
+    return (f"{len(files):,} files; largest: {named}. If `{top}` is not source, add "
+            f'`[scan] exclude = ["{top}"]` to .security-scan.toml')
 
 
 def _kept_when_ignored(rel: str) -> bool:
@@ -180,11 +202,22 @@ def build(workspace: Path) -> FileSet:
     if view is not None:
         tracked, left_out = view
         kept, skipped = _ignored(workspace)
-        return _excluded(FileSet(sorted(set(tracked) | set(kept)), "git",
-                                 left_out + skipped), prefixes)
-    skipped: list[tuple[str, str]] = []
-    walked = walk(workspace, skipped)
-    return _excluded(FileSet(walked, "tree", sorted(skipped)), prefixes)
+        result = _excluded(FileSet(sorted(set(tracked) | set(kept)), "git",
+                                   left_out + skipped), prefixes)
+        if len(result.files) > CEILING:
+            # Tracked source is the user's code, not a data directory: proceed.
+            result.warning = _ceiling_sentence(result.files)
+        return result
+    walked_skips: list[tuple[str, str]] = []
+    walked = walk(workspace, walked_skips)
+    result = _excluded(FileSet(walked, "tree", sorted(walked_skips)), prefixes)
+    if len(result.files) > CEILING:
+        from .refusal import Refusal
+
+        raise Refusal(f"Refused before any Scanner started: {workspace} is not a git "
+                      f"repository and holds {_ceiling_sentence(result.files)}, or scan "
+                      "a repository, whose ignored files are left out.")
+    return result
 
 
 def files(workspace: Path) -> list[str]:

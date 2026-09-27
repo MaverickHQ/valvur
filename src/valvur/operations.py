@@ -26,11 +26,7 @@ MAX_LIMIT = 100
 PROJECT_DIR_ENV = "CLAUDE_PROJECT_DIR"
 
 
-class Refusal(ValueError):
-    """A request refused at the call, in one plain sentence (R1.2): the server
-    shows the sentence, never the exception's class name."""
-
-    plain = True
+from .refusal import Refusal  # noqa: E402 — re-exported: callers import it from here
 
 
 def resolve_workspace(raw: str | None) -> Path:
