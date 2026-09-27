@@ -109,6 +109,18 @@ class FileSet:
     #: A git view past the ceiling: the largest directories and the exclude line.
     warning: str | None = None
 
+    def manifest(self, workspace: Path) -> dict:
+        """What the report states about the scope (ADR-0021): the scope, how many
+        files, how many bytes, and the sha256 of the list, one path a line."""
+        import hashlib
+
+        size = 0
+        for name in self.files:
+            path = workspace / name
+            size += path.lstat().st_size if path.is_symlink() else path.stat().st_size
+        return {"scope": self.scope, "files": len(self.files), "bytes": size,
+                "sha256": hashlib.sha256("\n".join(self.files).encode()).hexdigest()}
+
 
 def _largest(files: list[str], count: int = 3) -> list[tuple[str, int]]:
     per_top: dict[str, int] = {}

@@ -129,3 +129,15 @@ def test_past_the_ceiling_a_walk_refuses_and_a_git_view_warns(tmp_path, monkeypa
     built = fileset.build(repo)
     assert len(built.files) == 40
     assert built.warning is not None and "src" in built.warning
+
+
+def test_the_manifest_records_count_bytes_and_the_lists_hash(tmp_path):
+    import hashlib
+
+    root = _repo(tmp_path, {"a.py": "x = 1\n", "b/c.py": "y = 22\n"})
+    built = fileset.build(root)
+    manifest = built.manifest(root)
+    listed = "\n".join(built.files)
+    assert manifest == {"scope": "git", "files": 2,
+                        "bytes": sum((root / f).stat().st_size for f in built.files),
+                        "sha256": hashlib.sha256(listed.encode()).hexdigest()}

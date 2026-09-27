@@ -445,7 +445,7 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   `VALVUR_ENGINE=2`. The real container reports the planted key in 1.7 s. On the way: two
   chained string replaces corrupted a local path containing `/results`, and the first
   `fileset` import closed a cycle the ratchet caught.
-- [ ] **R3.2** **The File Set** (D1, D2; F1.1, F7.7). Behaviours, on real temporary git
+- [x] **R3.2** **The File Set** (D1, D2; F1.1, F7.7). Behaviours, on real temporary git
   repositories:
   1. The git view lists tracked files and untracked-not-ignored files, never `.git/`.
   2. Ignored `.env*`, `.mcp.json`, `.claude/` and `.kiro/settings/` are included.
@@ -458,6 +458,13 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
      names as a warning.
   7. The manifest records the count, the bytes and the list's sha256. Measured:
      repository 1 lists in under half a second.
+  **STATUS 2026-09-28:** ✅ `valvur.fileset.build`: the git view plus ignored `.env*` and
+  agent configuration (an ignored directory searched at most 5,000 files deep), the
+  project's excludes applied once and root-relative, outward links and submodules named,
+  a non-repository walk skipping only dependency caches, the 20,000-file ceiling (a walk
+  refuses, a git view warns), and the manifest. Measured on this Mac: repository 1, 100,683
+  files on disk, lists its 304 in 0.08 to 0.10 s. Eight tests in `tests/test_fileset.py`.
+  `Refusal` moved to a leaf module so `fileset` can raise it.
 - [ ] **R3.3** **The Snapshot** (D4). Behaviours:
   1. Up to 512 MB goes to a tmpfs, and beyond that to a per-scan volume removed afterwards.
   2. The engine reports the count it received. A mismatch with the manifest refuses the
