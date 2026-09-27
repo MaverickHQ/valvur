@@ -99,3 +99,38 @@ def test_a_phase_finished_on_its_branch_but_not_landed_says_to_land_it(tmp_path)
     status = _module().status(work)
     assert (status["phase"], status["next_task"], status["action"]) == (
         "R0", None, "land the phase")
+
+
+def _age_commit(work: Path, message: str, hours_ago: float, now: float) -> None:
+    import os
+
+    stamp = f"{int(now - hours_ago * 3600)} +0000"
+    (work / "f.txt").write_text(message)
+    _git(work, "add", "f.txt")
+    env = {**os.environ, "GIT_AUTHOR_DATE": stamp, "GIT_COMMITTER_DATE": stamp}
+    import subprocess
+
+    subprocess.run(["git", "commit", "-q", "-m", message], cwd=work, env=env, check=True)
+    _git(work, "push", "-q", "origin", "HEAD")
+
+
+def test_a_build_commit_under_eight_hours_old_means_another_executor_is_alive(tmp_path):
+    import time
+
+    now = time.time()
+    work = _repo(tmp_path, TASKS)
+    _age_commit(work, "feat(r0.2): the machine, recorded", hours_ago=3, now=now)
+    status = _module().status(work, now=now)
+    assert status["alive"] is True
+
+
+def test_commits_without_a_phase_scope_do_not_count(tmp_path):
+    import time
+
+    now = time.time()
+    work = _repo(tmp_path, TASKS)
+    _age_commit(work, "feat(r0.2): the machine, recorded", hours_ago=12, now=now)
+    _age_commit(work, "build(deps): bump something", hours_ago=1, now=now)
+    _age_commit(work, "docs: the owner's own note", hours_ago=1, now=now)
+    status = _module().status(work, now=now)
+    assert status["alive"] is False
