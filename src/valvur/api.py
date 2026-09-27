@@ -515,6 +515,16 @@ def _attempt(adapter, runner, workspace) -> ScannerOutcome:
     return _outcome(adapter, output)
 
 
+def _cut(text: str, limit: int) -> str:
+    """At most `limit` characters, ending on a whole word, and `…` when cut: the
+    second gate read *… exclud (609.1s)*, a word halved and run into the duration."""
+    if len(text) <= limit:
+        return text
+    head = text[:limit]
+    space = head.rfind(" ")
+    return (head[:space] if space > limit // 2 else head).rstrip(" ,;:") + "…"
+
+
 def _outcome(adapter, output) -> ScannerOutcome:
     """A Scanner's output as the fleet records it: a failure with no report, or a
     ScannerRun with its Findings and any artifact."""
@@ -525,14 +535,14 @@ def _outcome(adapter, output) -> ScannerOutcome:
         tail = output.stderr.strip()
         reason = f"timed out after {output.stopped_after:g}s and was stopped"
         if tail:
-            reason += f" — last stderr: {tail[:200]}"
+            reason += f" — last stderr: {_cut(tail, 200)}"
         return ScannerOutcome(
             ScannerRun(adapter.name, ok=False, version=output.version, reason=reason,
                        argv=output.argv),
             raw=output.stdout,
         )
     if output.exit_code != 0 and not output.stdout.strip():
-        tail = output.stderr.strip()[:200]
+        tail = _cut(output.stderr.strip(), 200)
         if output.exit_code == 137:
             # SIGKILL, and valvur did not send it — the budget's and the timeout's
             # kills are rewritten above and in `_fleet`. What is left is the
@@ -765,9 +775,10 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress):
             report = (scratch / invocation.report if invocation.report
                       else scratch / f"{invocation.tool}.stdout")
             stdout = report.read_text(encoding="utf-8") if report.exists() else ""
-            output = ScannerOutput(invocation.tool, invocation.version, stdout,
-                                   entry.get("stderr_tail", ""), entry["exit_code"],
-                                   argv=invocation.argv)
+            output = ScannerOutput(
+                invocation.tool, invocation.version, stdout, entry.get("stderr_tail", ""),
+                entry["exit_code"], argv=invocation.argv,
+                stopped_after=float(invocation.timeout) if entry.get("timed_out") else None)
             outcomes[index] = _outcome(adapters[index], output).timed(entry["seconds"])
     return outcomes, []
 

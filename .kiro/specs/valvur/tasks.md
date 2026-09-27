@@ -475,7 +475,7 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   and not the other. `docker inspect` of a running Scan Container shows no mount of the
   source tree in either case; the only bind mounts are the scratch directory and valvur's
   cache. A Snapshot that arrives short refuses the scan with the numbers.
-- [ ] **R3.4** **The engine runs every `offline` Scanner** (F2.4 to F2.7). Adapters return
+- [x] **R3.4** **The engine runs every `offline` Scanner** (F2.4 to F2.7). Adapters return
   a plan entry holding argv, report path and timeout, and parsing is unchanged. The timeout
   model is MegaLinter's, as an idea only. Behaviours, through `LocalRuntime` with fake
   tools:
@@ -485,6 +485,14 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   3. One that crashes, or writes an unreadable report, fails alone and the others stand.
   4. Progress arrives as JSON lines, one as each tool starts and one as it ends.
   5. The argv snapshots are re-taken.
+  **STATUS 2026-09-28:** ✅ Every tool starts at once in its own session; past its timeout
+  its whole process group is killed, recorded as exit 124 with the stderr kept from a word
+  boundary, and the host's reason reads *timed out after Ns and was stopped* with an
+  excerpt ending on a whole word. A crash, a missing tool (exit 127) or an unreadable
+  report fails its Scanner alone. Progress streams as each tool starts and ends. The
+  group-kill test was confirmed to fail when only the tool is killed. No adapter's argv
+  changed, so the snapshots stand. Ten engine tests; the container tests pass on an image
+  rebuilt from this tree.
 - [ ] **R3.5** **One deadline and one kill** (F1.11, F2.7). Behaviours:
   1. At the budget, the engine stops what is running and writes a partial manifest naming
      each cut.

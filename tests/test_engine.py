@@ -171,3 +171,28 @@ def test_progress_arrives_while_the_tools_run(tmp_path):
         assert kinds.index(("start", tool)) < kinds.index(("end", tool))
     first_start = next(at for at, e in arrivals if e["event"] == "start")
     assert finished - first_start > 0.5, "progress arrived only after the run"
+
+
+def test_a_timed_out_scanner_says_so_with_an_excerpt_that_ends_on_a_word(tmp_path, monkeypatch):
+    from valvur import api
+    from valvur.adapters.base import ScannerAdapter
+    from valvur.invocation import Invocation
+
+    class Slow(ScannerAdapter):
+        name = "slow"
+        version = "0"
+
+        def command(self, workspace):
+            return Invocation(tool="slow", version="0",
+                              argv=("fake-spawn", str(tmp_path / "pid")), timeout=1)
+
+        def parse(self, output):
+            return []
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws = _workspace(tmp_path)
+    run = api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[Slow(), GitleaksAdapter()])
+    slow = next(s for s in run.scanners if s.tool == "slow")
+    assert slow.reason.startswith("timed out after 1s and was stopped — last stderr: ")
+    excerpt = slow.reason.split("last stderr: ", 1)[1]
+    assert excerpt.endswith("…") and excerpt[-2].isalpha() and excerpt[-3:-1] != "wh", excerpt
