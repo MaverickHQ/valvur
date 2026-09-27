@@ -42,3 +42,48 @@ TASKS = """\
 def test_the_current_phase_is_the_first_with_an_unchecked_task():
     position = _module().position(TASKS)
     assert (position.phase, position.title, position.task) == (0, "pre-flight", "R0.2")
+
+
+def _git(cwd: Path, *args: str) -> str:
+    import subprocess
+
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True,
+                          text=True).stdout
+
+
+def _repo(tmp_path: Path, tasks: str) -> Path:
+    """A clone of a bare origin whose `main` carries `tasks` at the real path."""
+    origin = tmp_path / "origin.git"
+    _git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
+    work = tmp_path / "work"
+    _git(tmp_path, "clone", "-q", str(origin), str(work))
+    for key, value in (("user.name", "t"), ("user.email", "t@example.invalid"),
+                       ("commit.gpgsign", "false")):
+        _git(work, "config", key, value)
+    path = work / ".kiro/specs/valvur/tasks.md"
+    path.parent.mkdir(parents=True)
+    path.write_text(tasks)
+    _git(work, "add", "-A")
+    _git(work, "commit", "-q", "-m", "docs: the plan")
+    _git(work, "push", "-q", "origin", "main")
+    return work
+
+
+def test_with_no_phase_branch_the_list_on_main_decides_and_a_branch_is_named(tmp_path):
+    work = _repo(tmp_path, TASKS)
+    status = _module().status(work)
+    assert (status["phase"], status["next_task"]) == ("R0", "R0.2")
+    assert status["branch"] == "build/r0-pre-flight"
+    assert status["branch_exists"] is False
+
+
+def test_an_origin_phase_branch_is_read_ahead_of_main(tmp_path):
+    work = _repo(tmp_path, TASKS)
+    _git(work, "checkout", "-q", "-b", "build/r0-pre-flight")
+    path = work / ".kiro/specs/valvur/tasks.md"
+    path.write_text(TASKS.replace("- [ ] **R0.2**", "- [x] **R0.2**"))
+    _git(work, "commit", "-q", "-am", "feat(r0.2): the machine, recorded")
+    _git(work, "push", "-q", "origin", "build/r0-pre-flight")
+    _git(work, "checkout", "-q", "main")
+    status = _module().status(work)
+    assert (status["next_task"], status["branch_exists"]) == ("R0.3", True)
