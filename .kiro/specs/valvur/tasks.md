@@ -210,7 +210,7 @@ condition.
   memory and CPUs; host swap in use; free disk, which must be at least 30 GB; and one
   `docker run --rm --network=none valvur:dev true`. When host swap is over 4 GB, D17's Mac
   time rule applies for the whole build, and the record says so.
-- [ ] **R0.3** **The toolchain and access.** Record each:
+- [x] **R0.3** **The toolchain and access.** Record each:
   - `uv`, and Python 3.11, 3.12 and 3.13 through it; `docker buildx`; `cosign`.
   - `gh auth status` with the `repo` and `workflow` scopes.
   - The signing key: `ssh-add -L` holds the key in `.github/allowed_signers`. A signed
