@@ -22,6 +22,41 @@ from .results import RESULTS_DIR
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 100
 
+#: Set by Claude Code for a project's stdio server: the project root.
+PROJECT_DIR_ENV = "CLAUDE_PROJECT_DIR"
+
+
+class Refusal(ValueError):
+    """A request refused at the call, in one plain sentence (R1.2): the server
+    shows the sentence, never the exception's class name."""
+
+    plain = True
+
+
+def resolve_workspace(raw: str | None) -> Path:
+    """The Workspace a call names, or a Refusal. Never creates anything (R1.2):
+    a relative path in the second gate became `relative/path/.security-scan/`
+    inside the project, and a confident report on an empty folder."""
+    import os
+
+    project = os.environ.get(PROJECT_DIR_ENV) or None
+    if not raw:
+        path = Path(project) if project else Path.cwd()
+    else:
+        path = Path(raw).expanduser()
+        if not path.is_absolute():
+            if project is None:
+                raise Refusal(
+                    f"The workspace must be an absolute path; got {raw!r}, and there is "
+                    "no project directory to resolve it against.")
+            path = Path(project) / path
+    path = path.resolve()
+    if not path.exists():
+        raise Refusal(f"There is no directory at {path}; nothing was scanned or created.")
+    if not path.is_dir():
+        raise Refusal(f"{path} is a file, not a directory; name the project's folder.")
+    return path
+
 def _results(workspace: str | None) -> Path:
     return Path(workspace or ".").resolve() / RESULTS_DIR
 
@@ -105,7 +140,7 @@ def start_scan(args: dict) -> str:
     with project size is one an agent cannot reason about, and the slow case is
     exactly the repository that matters.
     """
-    workspace = Path(args.get("workspace") or ".").resolve()
+    workspace = resolve_workspace(args.get("workspace"))
     profile = _profiles.resolve(args.get("profile") or _profiles.DEFAULT)
 
     existing = jobs.current(workspace)

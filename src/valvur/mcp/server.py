@@ -115,6 +115,12 @@ class Tool:
         return described
 
 
+def _error_text(exc: Exception) -> str:
+    """A refusal is its sentence (R1.2); anything else keeps its class name,
+    because an unexpected failure is worth its type in a report."""
+    return str(exc) if getattr(exc, "plain", False) else f"{type(exc).__name__}: {exc}"
+
+
 def version() -> str:
     from ..compat import shim_version
 
@@ -175,7 +181,7 @@ def build(tools: list[Tool], *, instructions: str | None = None,
             # A tool failing is a result, not a protocol error: the agent should see
             # what went wrong rather than a transport-level fault.
             return {
-                "content": [{"type": "text", "text": f"{type(exc).__name__}: {exc}"}],
+                "content": [{"type": "text", "text": _error_text(exc)}],
                 "isError": True,
             }
         text, structured = (answer, None) if isinstance(answer, str) else answer
