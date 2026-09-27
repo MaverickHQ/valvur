@@ -51,8 +51,9 @@ Two mechanisms, armed by R0.1.
   phase: `CronList`, delete the old job, create a new one.
 - **Durable fallback.** A desktop scheduled task, `valvur-build-resume`, cron `43 */3 * * *`,
   which starts a fresh session with the same prompt. It survives app restarts and the
-  seven-day expiry. It acts only when the build looks abandoned (step 1), so it does not
-  race a live session.
+  seven-day expiry. It acts only when the build looks abandoned for eight hours (step 1),
+  longer than a usage window plus the hourly schedule, so it does not race a session that
+  is only waiting for its limit to reset.
 
 **The resume prompt, verbatim:**
 
@@ -62,10 +63,13 @@ Two mechanisms, armed by R0.1.
 
 **What a resuming session does:**
 
-1. **Is another executor alive?** In a fresh session only: run `scripts/build_status.py`. If
-   the newest commit on `origin/main` or any `origin/build/r*` branch is younger than two
-   hours, or a file in the working tree changed in the last two hours, end the turn and do
-   nothing.
+1. **Is another executor alive?**
+   - *In a fresh session:* run `scripts/build_status.py`. If the newest commit on
+     `origin/main` or any `origin/build/r*` branch, or the newest change in the working tree,
+     is younger than eight hours, end the turn and do nothing.
+   - *In the session that was building:* if `origin` or the working tree holds commits this
+     session did not make, another executor has taken over. Delete this session's schedule
+     and end the turn.
 2. **Where are we?** `git fetch --prune`, then `scripts/build_status.py` names the current
    phase, its branch `build/r<n>-<slug>`, and the first unchecked task. The current phase
    is the lowest-numbered one with an unchecked task, read from its branch if the branch
@@ -191,7 +195,7 @@ condition.
 - [ ] **R0.1** **Resuming, armed** (§2). Behaviours:
   1. `scripts/build_status.py`, test-first against a fixture `tasks.md` and a fixture git
      repository. It names the current phase, its branch and the first unchecked task. It
-     answers "alive" when the newest commit or file change is under two hours old.
+     answers "alive" when the newest commit or file change is under eight hours old.
   2. The in-session job exists: `CronList` shows it.
   3. The durable task exists: `list_scheduled_tasks` shows `valvur-build-resume`.
   4. From a fresh shell, `scripts/build_status.py` prints R0.2 as the next task and changes
