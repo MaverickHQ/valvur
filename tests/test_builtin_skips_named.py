@@ -53,3 +53,11 @@ def test_summary_md_names_the_skipped_directories(tmp_path, runner_finding_nothi
     scan(ws, runner=runner_finding_nothing)
     summary = (ws / ".security-scan" / "SUMMARY.md").read_text()
     assert "`mypkg/build` (1 file)" in summary
+
+
+def test_the_cli_names_the_skipped_directories(tmp_path, capsys, runner_finding_nothing):
+    from valvur import cli
+
+    ws = _tree(tmp_path)
+    assert cli.main(["scan", str(ws)], runner=runner_finding_nothing) == 0
+    assert "not read: mypkg/build (1 file)" in capsys.readouterr().out
