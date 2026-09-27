@@ -47,3 +47,23 @@ def test_a_missing_expected_finding_fails(tmp_path):
     verdict = _module().judge(_results(tmp_path, []), EXPECTED, TASKS)
     assert verdict.ok is False
     assert verdict.missing == ["subprocess-shell-true at src/app.py"]
+
+
+def test_an_unexpected_finding_is_listed_and_fails_only_at_high_or_critical(tmp_path):
+    harness = _module()
+    low = [_finding("subprocess-shell-true", "src/app.py"), _finding("weak-hash", "b.py")]
+    verdict = harness.judge(_results(tmp_path / "low", low), EXPECTED, TASKS)
+    assert verdict.ok is True
+    assert verdict.unexpected == ["weak-hash at b.py (low)"]
+
+    high = [*low, _finding("aws-access-token", "c.py", "critical")]
+    verdict = harness.judge(_results(tmp_path / "high", high), EXPECTED, TASKS)
+    assert verdict.ok is False
+    assert "aws-access-token at c.py (critical)" in verdict.unexpected
+
+
+def test_a_repository_that_allows_other_findings_is_judged_on_its_musts(tmp_path):
+    expected = {**EXPECTED, "run": {"complete": True, "unexpected": "allowed"}}
+    findings = [_finding("subprocess-shell-true", "src/app.py"),
+                _finding("CVE-2024-1", "requirements.txt", "critical")]
+    assert _module().judge(_results(tmp_path, findings), expected, TASKS).ok is True
