@@ -324,10 +324,11 @@ diagrams and the notes are at the head of Phase 23 in
 [`tasks.md`](.kiro/specs/valvur/tasks.md).
 
 Roughly: 71 modules under `src/valvur`, 1,294 tests in 93 files, 20 ADRs, 136
-requirement IDs, **252 done and 4 open** across 29 phases — 12b.3 (`v1.0.0`),
-Phase 28's two that wait on a person or a date, and 29.2.4, the one thing the
-agent-driven pass found; Phases 26 to 29's engineering are complete bar that
-hour, `0.5.0` is out (2026-09-26), the action is at `v0.2` and the rc is
+requirement IDs, **253 done and 4 open** across 29 phases — 12b.3 (`v1.0.0`),
+Phase 28's two that wait on a person or a date, and 29.2.4, one of the two
+things the agent-driven pass found (the other, 29.0.5 — a cut run calling
+Findings nothing looked for *fixed* — closed the same night); Phases 26 to
+29's engineering are complete bar that hour, `0.5.0` is out (2026-09-26), the action is at `v0.2` and the rc is
 yanked. Two of the 4 are the owner's (the second maintainer, the `v1.0.0`
 tag), one is dated (the runner move), and one is 29.2.4. A
 public corpus of thirteen real repositories runs weekly (`corpus.yml`); it found

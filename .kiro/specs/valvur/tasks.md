@@ -8576,8 +8576,15 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   from the owner's own first run, the exclude in place; the gate's 45 s of
   fetches and 13 s install make a first-ever run an *estimate* of 3 min 51 s.
   **10.5 claim 12 answered with that number; 12b.3's person stands.** What the
-  record asked — what the model does when a scan is cut — could not be seen:
-  nothing was cut. **What was seen instead is 29.2.4**: Claude Code hands the
+  record asked — what the model does when a scan is cut — could not be seen
+  here: nothing was cut. *It was seen the same night by the other session's
+  pass, two runs on the same tree — 200 s to a correct report with an empty
+  cache, then `budget_s: 30` by prompt: the model read the cut as*
+  inconclusive, not clean, *and caught the reply calling eight Findings it had
+  not looked for* fixed *— that is 29.0.5, closed in #134 before this landed;
+  both transcripts are
+  [`2026-09-26-claude-code-agent-pass-the-cut.md`](../../../docs/gates/2026-09-26-claude-code-agent-pass-the-cut.md).*
+  **What was seen instead is 29.2.4**: Claude Code hands the
   model a structured reply's JSON and not its text, so `scan_status`'s *call
   again; do not report a result yet* never arrived, and the model built its
   own wait and ended its turn with Checkov still running; the harness's
