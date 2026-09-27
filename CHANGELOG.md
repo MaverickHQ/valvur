@@ -8,6 +8,18 @@ to break things, and did.
 
 ## [Unreleased]
 
+**Phase R0, pre-flight** (`tasks.md`, 2026-09-27): the plan for an unattended rebuild,
+from the first-principles review the owner accepted that day.
+
+- **Decided:** ADR-0021 (the File Set is the git view, history included), ADR-0022 (one
+  Scan Container per Profile boundary, fed a Snapshot; protocol 2), ADR-0023 (the Scanner
+  set, by rule), ADR-0024 (`scan` returns the result), ADR-0025 (fresh data without a
+  terminal). F1.1, F1.6 and F10.8 amended. Nothing a user runs has changed yet.
+- **Fixed:** the source distribution no longer picks up a local agent's `.claude/`
+  folder.
+- **For contributors:** `scripts/build_status.py` names the build's current phase, branch
+  and next task, and whether another executor is alive.
+
 ## [1.0.0] — 2026-09-27
 
 The first version claiming stability. What that claim covers, and what holds

@@ -22,8 +22,8 @@ honest about why not, and trustworthy. Locally.
   recommendation in it that day: the report's contract is sound and the engine is not.
   **`1.0.0` waits for the rebuilt engine**; `main` ships next as `0.6.0`, then `0.7.0`.
 
-**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended:
-pre-flight, the `0.6.0` safety release, the acceptance set, the engine, then the rest.
+**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
+R0, pre-flight, closed 2026-09-27; R1, the `0.6.0` safety release, is next.
 
 **Size, 2026-09-27:** 71 modules, 1,308 tests in 95 files, 20 ADRs, 136 requirement IDs,
 traceability debt zero, 61 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.

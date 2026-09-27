@@ -241,10 +241,14 @@ condition.
     _Avoid_ list.
   - `requirements.md` amends F1.1 and F1.6 for the Snapshot, and F10.8 for freshness.
   **STATUS 2026-09-27:** ✅ ADRs 0021 to 0025; File Set, Snapshot and Scan Container in `CONTEXT.md`; F1.1, F1.6 and F10.8 amended; traceability holds.
-- [ ] **R0.6** **The working materials.**
+- [x] **R0.6** **The working materials.**
   - `valvur:dev` is built from `main` with `SOURCE_DATE_EPOCH`.
   - `BUILD_CACHE` holds the vulnerability database and the Name Index, fetched once.
   - The e2e suite is green on this Mac against them, with its time recorded.
+  **STATUS 2026-09-27:** ✅ `valvur:dev` built from this tree and verified; the build cache
+  holds the database and the index (1.5 GB, 121 s). e2e: 34 of 35 in 354 s after Docker
+  Desktop was restarted; the one failure is C1, reproduced (Scanners launched after the
+  client disconnected), and is R1.1's to fix.
 
 **Exit:** every check recorded in `docs/acceptance/r0.md`, both schedules armed, the ADRs on
 `main`.
@@ -603,7 +607,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | R8 | run once in an AWS account and record the numbers |
 | `init --write` | R6 | decide whether `init` may write files |
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
-| **stop: Docker Desktop is not running** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run. Start it when memory allows; the hourly schedule resumes the build by itself, re-runs R0.6's e2e suite and closes R0. Nothing else is needed |
+| ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
 | pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
