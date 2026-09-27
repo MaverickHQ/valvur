@@ -324,8 +324,10 @@ The current engine, patched where `0.5.0` users can be misled today.
   **STATUS 2026-09-27:** ✅ Both flags on both Trivy commands, the scan and the database
   fetch, through one constant; both argv snapshots re-taken. Measured inside the image with
   a network: Trivy now logs *Version check and telemetry are disabled, skipping request*.
-- [ ] **R1.7** **The README says what the secrets step reads** (P2). Behaviour: the README's
+- [x] **R1.7** **The README says what the secrets step reads** (P2). Behaviour: the README's
   Gitleaks row matches the adapter's mode. R3.7 restores the history claim.
+  **STATUS 2026-09-27:** ✅ The row reads *Secrets in the files scanned*, and a test holds it
+  to the adapter's mode: while Gitleaks runs in `dir` mode, the row claims no history.
 - [ ] **R1.8** **`0.6.0` prepared** (D16).
   - Cancel rehearsal run 36317791899.
   - Set the version to `0.6.0`. The CHANGELOG's `[1.0.0]` entry becomes `[0.6.0]`,
