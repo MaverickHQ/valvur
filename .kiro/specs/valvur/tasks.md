@@ -332,8 +332,9 @@ R1's rehearsal.
 - [ ] **R2.6** **The baseline.** The `0.6.0` tree on both lanes, plus agent scoring on the
   Mac, written to `docs/acceptance/r2.md`.
 
-**Exit:** the baseline recorded. The harness fails where today's engine is wrong: repositories
-3, 4, 7 and 8, marked with the tasks that fix them.
+**Exit:** the baseline recorded. The harness fails where today's engine is wrong, each row
+marked with the task that fixes it: repository 1 without configuration (R3.2), 3 (R3.7),
+4's `mypkg/build/` (R3.2), 7 (R4.2, R5.3) and 8 (R4.6).
 
 ### Phase R3: one scan, one container, fed the files git would publish
 
