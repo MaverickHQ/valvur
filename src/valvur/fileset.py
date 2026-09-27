@@ -16,8 +16,33 @@ from .exclusions import RESULTS_DIR  # a leaf: importing results would close a c
 _NEVER = frozenset({RESULTS_DIR, ".git", ".hg", ".svn"})
 
 
-def git_view(workspace: Path) -> list[str] | None:
-    """Tracked and untracked-not-ignored files, or None when git cannot say."""
+def _submodules(workspace: Path) -> set[str]:
+    """Paths git tracks as a gitlink (mode 160000): another repository's commit."""
+    proc = subprocess.run(  # noqa: S603 — git, fixed arguments
+        ["git", "-C", str(workspace), "ls-files", "-z", "--stage"],
+        capture_output=True, check=False)
+    found = set()
+    for entry in proc.stdout.decode("utf-8", "surrogateescape").split("\0"):
+        if entry.startswith("160000 "):
+            found.add(entry.split("\t", 1)[1])
+    return found
+
+
+def _leaves(workspace: Path, rel: str) -> bool:
+    """A symbolic link whose target resolves outside the Workspace."""
+    path = workspace / rel
+    if not path.is_symlink():
+        return False
+    try:
+        path.resolve().relative_to(workspace.resolve())
+    except ValueError:
+        return True
+    return False
+
+
+def git_view(workspace: Path) -> tuple[list[str], list[tuple[str, str]]] | None:
+    """Tracked and untracked-not-ignored files, with what was left out and why;
+    None when git cannot say."""
     if not (workspace / ".git").exists():
         return None
     proc = subprocess.run(  # noqa: S603 — git, fixed arguments
@@ -25,9 +50,16 @@ def git_view(workspace: Path) -> list[str] | None:
          "--exclude-standard"], capture_output=True, check=False)
     if proc.returncode != 0:
         return None
-    names = [n for n in proc.stdout.decode("utf-8", "surrogateescape").split("\0") if n]
-    return sorted({n for n in names if not (set(Path(n).parts) & _NEVER)
-                   and (workspace / n).is_file()})
+    names = {n for n in proc.stdout.decode("utf-8", "surrogateescape").split("\0") if n
+             and not (set(Path(n).parts) & _NEVER)}
+    skipped = [(n, "a submodule, not entered") for n in sorted(_submodules(workspace))]
+    kept = []
+    for name in sorted(names):
+        if _leaves(workspace, name):
+            skipped.append((name, "a link leaving the repository, not followed"))
+        elif (workspace / name).is_file():
+            kept.append(name)
+    return kept, skipped
 
 
 def walk(workspace: Path) -> list[str]:
@@ -126,8 +158,10 @@ def build(workspace: Path) -> FileSet:
     prefixes = load_configured(workspace)
     view = git_view(workspace)
     if view is not None:
+        tracked, left_out = view
         kept, skipped = _ignored(workspace)
-        return _excluded(FileSet(sorted(set(view) | set(kept)), "git", skipped), prefixes)
+        return _excluded(FileSet(sorted(set(tracked) | set(kept)), "git",
+                                 left_out + skipped), prefixes)
     return _excluded(FileSet(walk(workspace), "tree"), prefixes)
 
 

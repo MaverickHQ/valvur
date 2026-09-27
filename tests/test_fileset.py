@@ -80,3 +80,19 @@ def test_an_exclude_removes_the_top_level_path_only(tmp_path):
     assert "archive/a.py" not in built.files
     assert {"src/archive/b.py", "src/app.py"} <= set(built.files)
     assert ("archive", "excluded by .security-scan.toml") in built.skipped
+
+
+def test_links_leaving_the_repo_submodules_and_lfs_pointers(tmp_path):
+    lfs = "version https://git-lfs.github.com/spec/v1\noid sha256:" + "0" * 64 + "\n"
+    root = _repo(tmp_path, {"src/app.py": "x = 1\n", "model.bin": lfs})
+    (root / "outside").symlink_to("/etc/hosts")
+    (root / "inside").symlink_to("src/app.py")
+    _git(root, "add", "outside", "inside")
+    _git(root, "update-index", "--add", "--cacheinfo",
+         "160000,1111111111111111111111111111111111111111,vendor/lib")
+    _git(root, "commit", "-q", "-m", "links and a submodule")
+    built = fileset.build(root)
+    assert "model.bin" in built.files and "inside" in built.files
+    assert "outside" not in built.files
+    assert ("outside", "a link leaving the repository, not followed") in built.skipped
+    assert ("vendor/lib", "a submodule, not entered") in built.skipped
