@@ -743,6 +743,13 @@ def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
             # a submitted task waits, and a line that said "running" for a
             # Scanner still in the queue would be the old silence in new words.
             def run(r, w):
+                # A task that was queued when the scan was cancelled never
+                # launches (R1.1): at width 2 the second gate watched Scanners
+                # start after `scan_cancel` had answered.
+                if getattr(r, "cancelled", False):
+                    return [ScannerOutcome(ScannerRun(
+                        name, ok=False, reason="not started: the scan was cancelled"))
+                        for name in names]
                 if on_progress is not None:
                     for name in names:
                         on_progress(f"{name}: started")
