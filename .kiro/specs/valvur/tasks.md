@@ -144,7 +144,7 @@ executor does not wait for it.
 
 | # | decision | fallback when a measurement disagrees |
 |---|---|---|
-| D1 | **The File Set is the git view.** It holds tracked files and untracked files git does not ignore. Even when ignored, `.env*` and every agent-configuration file are included, as today. A directory that is not a repository is walked, skipping only VCS metadata and dependency caches, each skip named. Past 20,000 files the scan refuses before any container starts, naming the largest directories and the exclude line. `scope = "tree"` walks instead. ADR-0021. | none needed |
+| D1 | **The File Set is the git view.** It holds tracked files and untracked files git does not ignore. Even when ignored, `.env*` and every agent-configuration file are included, as today. A directory that is not a repository is walked, skipping only VCS metadata and dependency caches, each skip named; past 20,000 files that walk refuses before any container starts, naming the largest directories and the exclude line. A git view over 20,000 files proceeds, with the same names as a warning, because tracked source is the user's code. `scope = "tree"` walks instead. ADR-0021. | none needed |
 | D2 | **An exclude is a root-relative path prefix**, applied once, to the File Set. ADR-0021. | none needed |
 | D3 | **History is scanned for secrets** in a repository, on all refs. The bound is 5,000 commits or 200 MB of patch, whichever comes first, and the report says when it was hit. `[scan] history = false` turns it off. Measured: this repository's 357 commits make 10.9 MB in 1.2 s. ADR-0021. | a lower bound if a corpus repository exceeds 60 s |
 | D4 | **One Scan Container per Profile boundary.** `offline` runs one container with no network. `full` adds one more with a network, for OSV-Scanner and the registry questions. The Snapshot arrives on stdin, into a tmpfs up to 512 MB, or a per-scan volume beyond that, removed afterwards. Protocol 2. One memory ceiling per container: 3 GiB, or 75% of the runtime's memory if that is less. ADR-0022. | none needed |
@@ -356,8 +356,9 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   4. A symlink leaving the repository is listed as a link and never followed. A submodule is
      named and not entered. An LFS pointer is scanned as the pointer file.
   5. A directory that is not a repository is walked, and each skipped directory is named.
-  6. Past 20,000 files the scan refuses before any container starts, naming the largest
-     directories and the exclude line.
+  6. Past 20,000 files, the walk refuses before any container starts, naming the largest
+     directories and the exclude line. A git view past 20,000 files proceeds, with the same
+     names as a warning.
   7. The manifest records the count, the bytes and the list's sha256. Measured:
      repository 1 lists in under half a second.
 - [ ] **R3.3** **The Snapshot** (D4). Behaviours:
