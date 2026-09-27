@@ -44,6 +44,13 @@ def db_flags() -> list[str]:
     return flags
 
 
+#: On every Trivy call (R1.6): with a network Trivy runs a version check and sends
+#: anonymous usage data to Aqua, measured inside the image on 2026-09-27. No scan
+#: of ours has a network, and the database fetch sent none; these make it so by
+#: construction, whatever container a Trivy call lands in.
+NO_PHONE_HOME = ("--disable-telemetry", "--skip-version-check")
+
+
 def database_fetch() -> Invocation:
     """`valvur update`'s fetch of the vulnerability database: Trivy, told to
     download its database and nothing else, with a network. The runner runs it
@@ -51,7 +58,7 @@ def database_fetch() -> Invocation:
     return Invocation(
         tool="trivy-db", version="",
         argv=("trivy", "image", "--download-db-only", "--cache-dir", "/cache/trivy",
-              *db_flags()),
+              *NO_PHONE_HOME, *db_flags()),
         report=None, network=True, timeout=900,
     )
 
@@ -73,6 +80,7 @@ class TrivyAdapter(ScannerAdapter):
             argv=(
                 "trivy", "fs", "/workspace",
                 "--cache-dir", "/cache/trivy",
+                *NO_PHONE_HOME,
                 *db_flags(),
                 "--skip-db-update", "--skip-java-db-update",
                 "--format", "json", "--output", "/results/trivy.json",

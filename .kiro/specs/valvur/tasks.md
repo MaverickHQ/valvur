@@ -318,9 +318,12 @@ The current engine, patched where `0.5.0` users can be misled today.
   connection. A busy workspace says to wait. Three older tests had faked a missing runtime
   with a bare `RuntimeError`; they raise `NoContainerRuntime` now. Fourteen tests in
   `tests/test_input_errors_at_the_call.py`.
-- [ ] **R1.6** **Trivy never reports to its vendor** (N2.1, ADR-0010). Behaviour: every
+- [x] **R1.6** **Trivy never reports to its vendor** (N2.1, ADR-0010). Behaviour: every
   Trivy argv, the database fetch included, carries `--disable-telemetry` and
   `--skip-version-check`, held by the argv snapshots.
+  **STATUS 2026-09-27:** ✅ Both flags on both Trivy commands, the scan and the database
+  fetch, through one constant; both argv snapshots re-taken. Measured inside the image with
+  a network: Trivy now logs *Version check and telemetry are disabled, skipping request*.
 - [ ] **R1.7** **The README says what the secrets step reads** (P2). Behaviour: the README's
   Gitleaks row matches the adapter's mode. R3.7 restores the history claim.
 - [ ] **R1.8** **`0.6.0` prepared** (D16).

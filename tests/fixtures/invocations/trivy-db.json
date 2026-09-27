@@ -4,7 +4,9 @@
     "image",
     "--download-db-only",
     "--cache-dir",
-    "/cache/trivy"
+    "/cache/trivy",
+    "--disable-telemetry",
+    "--skip-version-check"
   ],
   "timeout": 900,
   "network": true,

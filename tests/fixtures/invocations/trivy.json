@@ -5,6 +5,8 @@
     "/workspace",
     "--cache-dir",
     "/cache/trivy",
+    "--disable-telemetry",
+    "--skip-version-check",
     "--skip-db-update",
     "--skip-java-db-update",
     "--format",
