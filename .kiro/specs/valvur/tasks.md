@@ -404,9 +404,14 @@ R1's rehearsal.
   named by path, and keeps the build's running cost in `~/.cache/valvur-build`, refusing
   past $25. `scripts/acceptance.py --agent` reports it. Two tests on a recorded result;
   the first live run is R2.6's baseline.
-- [ ] **R2.5** **The Linux lane.** `acceptance.yml`, run nightly and on dispatch, uploads
+- [x] **R2.5** **The Linux lane.** `acceptance.yml`, run nightly and on dispatch, uploads
   the report. A local registry stands in for GHCR where a test needs a mirror. Behaviour:
   the workflow's first dispatched run is green, except for the `until` rows.
+  **STATUS 2026-09-27:** ✅ `.github/workflows/acceptance.yml`: nightly, on dispatch, and on a
+  pull request that changes the acceptance code, since GitHub dispatches only a workflow
+  already on `main`; its first run is R2's own PR. It builds the image from the tree, runs
+  the eight repositories and the four probes, uploads the report, and on a scheduled
+  failure opens or comments on one issue. The scheduled-workflow constraint names it.
 - [ ] **R2.6** **The baseline.** The `0.6.0` tree on both lanes, plus agent scoring on the
   Mac, written to `docs/acceptance/r2.md`.
 

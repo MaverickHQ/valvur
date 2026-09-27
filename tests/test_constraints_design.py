@@ -132,8 +132,10 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # packages stopped being pruned, which nobody would notice for months.
     # `published.yml` (daily) joined in 29.3.1: a red run there means the README
     # claims a version PyPI or GHCR does not serve, or the closing PR is overdue.
+    # `acceptance.yml` (nightly) joined in R2.5: a red run there means a phase's
+    # judge stopped passing on Linux, which nothing else would say.
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
-                                               "published.yml"}, \
+                                               "published.yml", "acceptance.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:

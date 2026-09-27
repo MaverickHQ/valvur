@@ -1,0 +1,89 @@
+name: acceptance
+
+# The acceptance set on Linux, nightly (task R2.5): eight generated repositories
+# scanned by the image built from this tree and judged against their
+# `expected.toml`, plus the four lifecycle probes. It is the Linux half of every
+# phase's exit (tasks.md §4); the Mac half runs by hand on the build machine.
+# Agent scoring is not run here: it needs a Claude login and costs money.
+on:
+  schedule:
+    - cron: "37 3 * * *"     # daily, 03:37 UTC
+  workflow_dispatch:
+  # A change to the judge is judged before it lands, and GitHub dispatches only a
+  # workflow already on the default branch: the first run is the PR that adds it.
+  pull_request:
+    paths:
+      - "scripts/acceptance.py"
+      - "scripts/acceptance/**"
+      - ".github/workflows/acceptance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: eight repositories and four probes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write         # open the one issue a failure gets (27.2.7)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the image from this tree
+        run: |
+          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            VALVUR_VERSION="$VER" docker buildx bake dev \
+              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+
+      - name: Fetch the vulnerability database and the name index
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+
+      - name: The acceptance set and the lifecycle probes
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          uv run python scripts/acceptance.py --generate --probes \
+            --set "$RUNNER_TEMP/acceptance" --out acceptance-report
+
+      - name: Summary
+        if: always()
+        run: cat acceptance-report/report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: acceptance-report
+          path: acceptance-report/
+          retention-days: 90
+      - name: A failure is a tracked thing, not an email
+        # One open issue per workflow, as the other scheduled workflows do (27.2.7):
+        # a second failure comments on the first rather than filing another.
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the nightly acceptance run failed
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "The scheduled \`acceptance\` run failed: $RUN" \
+            "Nothing users have changes: the acceptance set scans generated repositories and publishes nothing. What is lost is the Linux half of every phase's exit." \
+            "Recovery: read the report artifact for the repository or probe that failed, then dispatch this workflow again after the fix.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi
