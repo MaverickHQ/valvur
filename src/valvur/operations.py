@@ -58,6 +58,32 @@ def resolve_workspace(raw: str | None) -> Path:
     return path
 
 
+def _checked_profile(value) -> str:
+    """The Profile a call names, or a Refusal in one sentence (R1.5)."""
+    try:
+        return _profiles.resolve(value or _profiles.DEFAULT)
+    except ValueError:
+        raise Refusal(f"`profile` must be offline or full; got {value!r}.") from None
+
+
+def _checked_budget(value) -> float | None:
+    """`budget_s` as seconds, None when not given, or a Refusal (R1.5). Zero means
+    no budget, as it always has; a negative or non-numeric value used to start a
+    job that failed a moment later in Python's words."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = float(value)      # "300" from a model is a number; "ten" is not
+        except ValueError:
+            pass
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise Refusal(f"`budget_s` must be a number of seconds, 0 for none; got {value!r}.")
+    if value < 0:
+        raise Refusal(f"`budget_s` must be 0 or more seconds; got {value!r}.")
+    return float(value)
+
+
 def _checked(args: dict) -> dict:
     """The call's arguments with its Workspace resolved and checked (R1.2)."""
     return {**args, "workspace": str(resolve_workspace(args.get("workspace")))}
@@ -146,7 +172,8 @@ def start_scan(args: dict) -> str:
     exactly the repository that matters.
     """
     workspace = resolve_workspace(args.get("workspace"))
-    profile = _profiles.resolve(args.get("profile") or _profiles.DEFAULT)
+    profile = _checked_profile(args.get("profile"))
+    budget_s = _checked_budget(args.get("budget_s"))
 
     existing = jobs.current(workspace)
     if existing and existing.state is State.RUNNING:
@@ -161,9 +188,8 @@ def start_scan(args: dict) -> str:
             "reads CANCELLED, then call `scan` again."
         )
 
-    budget = args.get("budget_s")
     jobs.start(workspace, profile,
-               _scan_with_budget(MCP_BUDGET_S if budget is None else float(budget)))
+               _scan_with_budget(MCP_BUDGET_S if budget_s is None else budget_s))
     return (
         f"Started a {profile} scan of {workspace}.\n"
         "Scans take seconds to minutes depending on the project, so this returns "
