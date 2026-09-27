@@ -3,7 +3,8 @@
 Each probe starts a real MCP server over stdio, starts a scan, waits until the fleet
 has a container, stops the scan its own way, then asks the runtime which of the
 scan's containers remain, and whether a fresh server can start the next scan.
-`kill -9` of the server is expected to leave containers until R3.6 reaps orphans.
+`kill -9` of the server leaves containers, and R3.6's reaper removes them when the next
+scan starts: the kill probe is judged on `left_at_next_start`.
 """
 
 from __future__ import annotations
@@ -17,8 +18,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-#: The task that makes a probe pass, while it is open (R2.3's exit names them).
-UNTIL = {"kill": "R3.6"}
+#: The task that makes a probe pass, while it is open (R2.3's exit names them). Empty
+#: since R3.6 closed the last one, `kill`.
+UNTIL: dict[str, str] = {}
 
 
 @dataclass

@@ -511,7 +511,7 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   cut, a grace kill and a cancel. Left for R3.9's switch-over: the host does not yet turn
   the engine's progress into status lines, and the Scan Container path skips the
   first-run fetches that the fleet's runner performs.
-- [ ] **R3.6** **Nothing outlives its owner** (F1.11, F1.12). Behaviours:
+- [x] **R3.6** **Nothing outlives its owner** (F1.11, F1.12). Behaviours:
   1. Every container carries the labels `valvur.generation` and `valvur.pid`.
   2. At each scan start and in `doctor`, containers whose owner process is dead are removed.
   3. The MCP server exits on stdin EOF, and on parent death, found by polling `getppid()`.
@@ -519,6 +519,17 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   4. The workspace lock records its holder's PID, and *Busy* says whether that holder is
      alive.
   5. e2e: after `kill -9` of the server mid-scan, the next scan reaps the orphan and runs.
+  **STATUS 2026-09-28:** ✅ One leaf module, `owner`, gives every container `valvur.pid`,
+  `valvur.generation` and a third label, `valvur.host`: a PID means nothing on another
+  machine, so a runtime shared between hosts never has another host's scan reaped. A
+  structural test refuses a `run` without the labels, at all four launch sites. Each scan
+  start and `doctor` remove containers whose owner has ended on this host, and say which.
+  The server kills its own by label before it waits for its jobs, under three seconds with
+  a fake runtime, and exits when its parent dies while stdin stays open. The lock file
+  holds its exclusive holder's PID, and *Busy* says whether that process runs. On the real
+  image, after `kill -9` of the server mid-scan, the next scan removed the orphans and ran,
+  and the acceptance set's kill probe passes: it is judged from now on. The runtime is
+  faked by `tests/fixtures/fake-runtime`, a JSON-backed stand-in for the four commands.
 - [ ] **R3.7** **Secrets in history** (D3; F2.1, P2). Behaviours:
   1. The host writes `git log -p --all` into the Snapshot with commit markers, within the
      bound, and says when the bound was hit.

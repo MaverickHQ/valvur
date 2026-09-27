@@ -262,3 +262,58 @@ def test_the_holder_of_a_lock_is_read_back_with_whether_it_is_alive(tmp_path):
     assert pid is not None and alive is False
     lock.write_text("")
     assert locking.holder(lock) == (None, False)
+
+
+# ------------------------------------------------------------------ e2e
+
+@pytest.mark.e2e
+def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mountable_tmp):
+    """The second gate's shape: a server killed mid-scan cannot clean up, so its
+    fleet runs on with nobody to read it. The next scan finds them by label."""
+    import shutil
+
+    from valvur import api
+    from valvur.runner import ContainerRunner, detect_runtime
+
+    runtime = detect_runtime()
+    workspace = mountable_tmp / "ws"
+    shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
+    data = workspace / "data"                  # enough to keep a Scanner busy
+    data.mkdir()
+    for i in range(5000):
+        (data / f"row-{i}.py").write_text(f"value_{i} = {i}\n")
+
+    def owned_by(pid: int) -> list[str]:
+        return subprocess.run(
+            [runtime, "ps", "-a", "-q", "--filter", f"label={owner.PID_LABEL}={pid}"],
+            capture_output=True, text=True, check=False, timeout=30).stdout.split()
+
+    server = subprocess.Popen(
+        [sys.executable, "-c", "from valvur.mcp.server import main; raise SystemExit(main())"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        text=True, env={**os.environ, "PYTHONUNBUFFERED": "1"})
+    try:
+        assert server.stdin is not None and server.stdout is not None
+        for message in (
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+             "params": {"name": "scan", "arguments": {"workspace": str(workspace)}}},
+        ):
+            server.stdin.write(json.dumps(message) + "\n")
+            server.stdin.flush()
+            server.stdout.readline()
+        deadline = time.monotonic() + 180
+        while time.monotonic() < deadline and len(owned_by(server.pid)) < 2:
+            time.sleep(0.2)
+        server.kill()                                         # kill -9
+        server.wait()
+        left = owned_by(server.pid)
+        assert left, "nothing outlived the server, so the test measures nothing"
+    finally:
+        server.kill()
+
+    said: list[str] = []
+    run = api.scan(workspace, runner=ContainerRunner(), on_progress=said.append)
+    assert owned_by(server.pid) == []
+    assert any("left by a scan whose process had ended" in line for line in said), said
+    assert run.status in ("findings", "clean", "inconclusive")
