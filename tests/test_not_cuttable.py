@@ -98,6 +98,9 @@ def test_no_telemetry_is_emitted_under_any_profile():
         r"\b(analytics|telemetry|posthog|segment\.io|mixpanel|sentry_sdk|amplitude)\b"
         r"|track_event|report_usage"
     )
+    # A flag that turns a bundled tool's telemetry OFF is the opposite of
+    # emitting it (R1.6: every Trivy call passes `--disable-telemetry`).
+    phoning = [hit for hit in phoning if "--disable-telemetry" not in hit]
 
     assert not phoning, "valvur appears to emit telemetry: " + "; ".join(phoning)
 
