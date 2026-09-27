@@ -571,7 +571,7 @@ The first commit records R7's rehearsal.
      standing in for ECR.
   2. A scan with the mirror settings completes with `left this machine: nothing`.
   3. `AIR-GAPPED.md` gains the ECR steps.
-- [ ] **R8.4** **The build's summary**, written into this STATUS: what shipped, the
+- [ ] **R8.4** **The build's summary**, written as this task's STATUS: what shipped, the
   acceptance numbers against R2's baseline, the cost of agent scoring, and what §8 holds.
 
 **Exit:** the pipeline-step and mirror e2e tests green, and both schedules deleted.
@@ -591,7 +591,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/gates/` |
 | a self-hosted Mac runner, optional | R2 | register one with the label `docker-desktop` |
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
-| the runner move (28.3.8) | after 2026-11-19 | approve the change the executor prepares then |
+| the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | R8 | run once in an AWS account and record the numbers |
 | `init --write` | R6 | decide whether `init` may write files |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
