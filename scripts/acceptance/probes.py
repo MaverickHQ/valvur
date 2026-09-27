@@ -173,7 +173,9 @@ def workspace(dest: Path, data_files: int = 30_000) -> Path:
     probe stops them: on the bare fixture an orphan finished inside any grace."""
     import shutil
 
-    root = dest / "probe-workspace"
+    # Absolute: the MCP server refuses a relative workspace (R1.2), which is how the
+    # first Linux run's probes, given `--out acceptance-report`, never started a scan.
+    root = (dest / "probe-workspace").resolve()
     if root.exists():
         shutil.rmtree(root)
     shutil.copytree(BROKEN, root)

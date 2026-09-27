@@ -161,3 +161,15 @@ def test_a_mac_time_target_is_judged_only_on_a_mac_with_little_swap(tmp_path):
     assert harness.judge_time(165.2, expected, ticked, swapping)[0] == "recorded"
     linux = {"platform": "Linux 6.8 x86_64", "swap_gb": 0.0}
     assert harness.judge_time(165.2, expected, ticked, linux)[0] == "recorded"
+
+
+def test_the_probe_workspace_is_absolute_because_the_server_refuses_a_relative_one(
+        tmp_path, monkeypatch):
+    path = REPO / "scripts" / "acceptance" / "probes.py"
+    spec = importlib.util.spec_from_file_location("acceptance_probes", path)
+    probes = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["acceptance_probes"] = probes
+    spec.loader.exec_module(probes)  # type: ignore[union-attr]
+    monkeypatch.chdir(tmp_path)
+    root = probes.workspace(Path("relative-out"), data_files=2)
+    assert root.is_absolute()

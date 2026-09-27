@@ -236,6 +236,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="also ask `claude -p` to scan each repository (R2.4; costs "
                              "money, capped at $25 for the build)")
     args = parser.parse_args(argv)
+    args.set, args.out = args.set.resolve(), args.out.resolve()
 
     sys.path.insert(0, str(Path(__file__).resolve().parent / "acceptance"))
     import generate  # type: ignore[import-not-found]
