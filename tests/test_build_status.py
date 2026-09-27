@@ -145,3 +145,16 @@ def test_a_recent_change_in_the_working_tree_means_another_executor_is_alive(tmp
     (work / "half-done.py").write_text("# a slice in progress\n")
     status = _module().status(work, now=now)
     assert status["alive"] is True
+
+
+def test_run_as_a_command_it_prints_json_and_changes_nothing(tmp_path):
+    import json
+    import subprocess
+    import sys
+
+    work = _repo(tmp_path, TASKS)
+    before = _git(work, "status", "--porcelain", "--untracked-files=all")
+    out = subprocess.run([sys.executable, str(SCRIPT)], cwd=work, capture_output=True,
+                         text=True, check=True).stdout
+    assert json.loads(out)["next_task"] == "R0.2"
+    assert _git(work, "status", "--porcelain", "--untracked-files=all") == before

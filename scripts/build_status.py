@@ -119,3 +119,14 @@ def status(repo: Path, now: float | None = None) -> dict:
         "action": "continue the task" if current.task else "land the phase",
         **alive,
     }
+
+
+def main() -> int:
+    import json
+
+    print(json.dumps(status(Path.cwd()), indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
