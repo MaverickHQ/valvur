@@ -102,3 +102,26 @@ def test_the_tools_run_in_parallel(tmp_path):
     _scratch, manifest = _run(tmp_path, plan)
     assert time.monotonic() - started < 2.5, "three one-second tools ran one after another"
     assert sorted(e["tool"] for e in manifest["tools"]) == ["a", "b", "c"]
+
+
+def test_a_tool_past_its_timeout_is_killed_with_its_whole_group(tmp_path):
+    import os
+    import time
+
+    pidfile = tmp_path / "grandchild.pid"
+    plan = _plan(("slow", ["fake-spawn", str(pidfile)], None, 1))
+    started = time.monotonic()
+    _scratch, manifest = _run(tmp_path, plan)
+    [entry] = manifest["tools"]
+    assert time.monotonic() - started < 10
+    assert (entry["timed_out"], entry["exit_code"]) == (True, 124)
+    assert not entry["stderr_tail"].startswith(("canning", "orkspace", "hile")), \
+        "the excerpt starts mid-word"
+    grandchild = int(pidfile.read_text())
+    time.sleep(0.2)
+    try:
+        os.kill(grandchild, 0)
+        alive = True
+    except ProcessLookupError:
+        alive = False
+    assert not alive, "the timed-out tool's grandchild outlived it"
