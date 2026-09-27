@@ -269,13 +269,20 @@ The current engine, patched where `0.5.0` users can be misled today.
   lists none of its containers before it raises. The e2e test failed 3 of 3 on the old
   engine, each time with two containers launched after the cancel, and passes on the new;
   `test_mcp_shutdown` passes with it. `tests/test_cancel_stops_the_queue.py`, four tests.
-- [ ] **R1.2** **A workspace must exist** (F9.1, N2.2). Behaviours, through the MCP handlers
+- [x] **R1.2** **A workspace must exist** (F9.1, N2.2). Behaviours, through the MCP handlers
   and the CLI:
   1. A relative path resolves against `CLAUDE_PROJECT_DIR` when it is set, and is refused
      otherwise.
   2. A missing path, or a file, is refused synchronously with `isError`.
   3. No refusal creates a directory.
   4. `list_findings` and `explain_finding` refuse the same way.
+  **STATUS 2026-09-27:** ✅ One resolver, `operations.resolve_workspace`, for every MCP tool:
+  the workspace defaults to `CLAUDE_PROJECT_DIR` or the server's directory, a relative path
+  resolves against `CLAUDE_PROJECT_DIR` or is refused, and a missing path or a file is
+  refused with `isError` in one sentence, creating nothing. The CLI checks the same at
+  parse time, through the `path` argument's type, and exits 2. The server now shows a
+  refusal as its sentence, without an exception class. Fourteen tests in
+  `tests/test_workspace_must_exist.py`.
 - [ ] **R1.3** **An exclude means the same to every Scanner** (F2.1). Measure each tool's
   root-anchored form inside the image first. Behaviours, e2e on a planted tree with
   `archive` excluded:

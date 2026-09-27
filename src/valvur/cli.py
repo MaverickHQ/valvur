@@ -359,6 +359,20 @@ def _refresh_kev() -> None:
     print(f"KEV refreshed: {len(entries)} entries (catalog {raw.get('catalogVersion','?')}).")
 
 
+def _workspace(value: str) -> str:
+    """The `path` argument's type (R1.2): an existing directory, or a usage
+    error at parse time. On a shell a relative path means the current
+    directory, as it always has; nothing is created for a path that is wrong."""
+    import argparse
+
+    from .operations import Refusal, resolve_workspace
+
+    try:
+        return str(resolve_workspace(str(Path(value).resolve())))
+    except Refusal as refused:
+        raise argparse.ArgumentTypeError(str(refused)) from None
+
+
 def build_parser() -> argparse.ArgumentParser:
     """The nine commands and their arguments — what `valvur --help` prints, held
     byte for byte by `tests/test_cli_help_golden.py` across the move that made
@@ -374,7 +388,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
-    scan_cmd.add_argument("path", nargs="?", default=".", help="Workspace to scan")
+    scan_cmd.add_argument("path", nargs="?", default=".", type=_workspace, help="Workspace to scan")
     scan_cmd.add_argument(
         "--profile", default=_profiles.DEFAULT,
         # The retired 0.1.0rc1 names still resolve, so a script or agent config
@@ -429,24 +443,25 @@ def build_parser() -> argparse.ArgumentParser:
     # The same operations the MCP tools expose, so the two surfaces cannot drift
     # (F9.3). Both call valvur.operations; there is no second implementation.
     findings_cmd = sub.add_parser("findings", help="List findings from the last scan")
-    findings_cmd.add_argument("path", nargs="?", default=".")
+    findings_cmd.add_argument("path", nargs="?", default=".", type=_workspace)
     findings_cmd.add_argument("--status", choices=["new", "persisting", "regressed"])
     findings_cmd.add_argument("--limit", type=int)
     findings_cmd.add_argument("--include-suppressed", action="store_true")
 
     explain_cmd = sub.add_parser("explain", help="Explain one finding in full")
     explain_cmd.add_argument("fingerprint")
-    explain_cmd.add_argument("path", nargs="?", default=".")
+    explain_cmd.add_argument("path", nargs="?", default=".", type=_workspace)
 
     status_cmd = sub.add_parser("status", help="What the last scan actually did")
-    status_cmd.add_argument("path", nargs="?", default=".")
+    status_cmd.add_argument("path", nargs="?", default=".", type=_workspace)
 
     doctor_cmd = sub.add_parser(
         "doctor",
         help="Check that this machine can scan — runtime, image, database, index, "
         "SELinux, TLS trust, MCP client configuration — and say what to fix",
     )
-    doctor_cmd.add_argument("path", nargs="?", default=".", help="Workspace to check")
+    doctor_cmd.add_argument("path", nargs="?", default=".", type=_workspace,
+                            help="Workspace to check")
     doctor_cmd.add_argument(
         "--network", action="store_true",
         help="Also probe whether the registries a first run and the full profile need "
@@ -472,7 +487,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exit 1 if the last scan's results should not ship: an incomplete run, a "
         "lapsed suppression, or an active finding at or above --fail-on. For CI.",
     )
-    gate_cmd.add_argument("path", nargs="?", default=".", help="Workspace that was scanned")
+    gate_cmd.add_argument("path", nargs="?", default=".", type=_workspace,
+                          help="Workspace that was scanned")
     gate_cmd.add_argument(
         "--fail-on", default=_gate.DEFAULT_THRESHOLD, choices=_gate.THRESHOLDS,
         help="Lowest severity of an active finding that fails the gate (default: high). "
@@ -504,7 +520,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print a ready-to-paste suppression block for a finding (never writes)",
     )
     suppress_cmd.add_argument("fingerprint", help="Fingerprint from findings.json")
-    suppress_cmd.add_argument("path", nargs="?", default=".", help="Workspace")
+    suppress_cmd.add_argument("path", nargs="?", default=".", type=_workspace, help="Workspace")
     suppress_cmd.add_argument("--days", type=int, default=90,
                               help="Days until the suppression expires (default: 90)")
     suppress_cmd.add_argument("--reason", default="", help="Why this risk is accepted")

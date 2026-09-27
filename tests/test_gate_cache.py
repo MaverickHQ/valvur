@@ -148,7 +148,11 @@ def test_the_cli_prints_the_failures_and_exits_with_the_verdict(tmp_path, capsys
     assert cli.main(["gate", str(tmp_path), "--fail-on", "critical"]) == 0
     assert "gate: passed" in capsys.readouterr().out
 
-    assert cli.main(["gate", str(tmp_path / "nowhere")]) == 2
+    # A workspace that does not exist is a usage error at parse time (R1.2):
+    # the same exit code 2 a shell sees, raised by argparse.
+    with pytest.raises(SystemExit) as exited:
+        cli.main(["gate", str(tmp_path / "nowhere")])
+    assert exited.value.code == 2
 
 
 def test_under_github_actions_each_failure_is_an_annotation(tmp_path, capsys, monkeypatch):

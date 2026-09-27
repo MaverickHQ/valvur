@@ -72,3 +72,16 @@ def test_a_file_named_as_the_workspace_is_refused(tmp_path):
     assert result["isError"] is True
     assert "is a file" in _text(result)
     assert not (tmp_path / "README.md.security-scan").exists()
+
+
+@pytest.mark.parametrize("command", [["scan"], ["findings"], ["status"], ["gate"],
+                                     ["doctor"]])
+def test_the_cli_refuses_a_workspace_that_does_not_exist(tmp_path, capsys, command):
+    from valvur import cli
+
+    missing = tmp_path / "no" / "such" / "place"
+    with pytest.raises(SystemExit) as exited:     # a usage error, at parse time
+        cli.main([*command, str(missing)])
+    assert exited.value.code == 2
+    assert "no directory" in capsys.readouterr().err
+    assert not (tmp_path / "no").exists()
