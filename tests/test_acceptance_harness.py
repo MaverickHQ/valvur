@@ -173,3 +173,13 @@ def test_the_probe_workspace_is_absolute_because_the_server_refuses_a_relative_o
     monkeypatch.chdir(tmp_path)
     root = probes.workspace(Path("relative-out"), data_files=2)
     assert root.is_absolute()
+
+
+def test_the_uploaded_artifact_is_the_report_and_not_the_probe_workspace():
+    """The first green Linux run uploaded 117 MB, 30,013 files: the probe workspace
+    sits under `--out`, and the step uploaded the whole directory."""
+    text = (REPO / ".github" / "workflows" / "acceptance.yml").read_text()
+    step = text.split("actions/upload-artifact", 1)[1].split("- name:", 1)[0]
+    assert "acceptance-report/report.json" in step
+    assert "acceptance-report/report.md" in step
+    assert "path: acceptance-report/\n" not in step

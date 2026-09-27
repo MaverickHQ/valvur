@@ -66,7 +66,10 @@ jobs:
         if: always()
         with:
           name: acceptance-report
-          path: acceptance-report/
+          # The report, not the probe workspace beside it (30,000 files).
+          path: |
+            acceptance-report/report.json
+            acceptance-report/report.md
           retention-days: 90
       - name: A failure is a tracked thing, not an email
         # One open issue per workflow, as the other scheduled workflows do (27.2.7):
