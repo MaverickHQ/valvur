@@ -224,7 +224,7 @@ condition.
   - No open PR from another session. Worktrees are listed and left alone.
   - The unit suite is green and traceability holds.
   - The state of rehearsal run 36317791899.
-- [ ] **R0.5** **The decisions, written** (§5). Test: `scripts/check_traceability.py`
+- [x] **R0.5** **The decisions, written** (§5). Test: `scripts/check_traceability.py`
   passes, with every new ADR citing its requirements.
   - ADR-0021 *The File Set* (D1 to D3); ADR-0022 *One Scan Container and the Snapshot*
     (D4); ADR-0023 *The Scanner set, by rule* (D8), to be amended with R4.1's table;

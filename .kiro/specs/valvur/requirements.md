@@ -34,6 +34,11 @@ entirely on my machine, so that my source code never reaches a third party.
 
 1. F1.1 — WHEN a **Scan Run** starts, valvur SHALL mount the **Workspace** into the
    container read-only.
+   *Amended 2026-09-27 (R0.5, ADR-0022), to be met by R3.9:* WHEN a **Scan Run** starts,
+   valvur SHALL deliver the **File Set** to the **Scan Container** as a **Snapshot** and
+   SHALL NOT mount the **Workspace** into any container. A copy cannot modify the
+   original, which is stronger than a read-only mount; the mount was also the cost on
+   Docker Desktop, 16.6 s to list 109,521 files against 1.6 s on the host.
 2. F1.2 — WHEN the `offline` **Profile** is selected, valvur SHALL run the container
    with no network interface.
 3. F1.3 — valvur SHALL write no file inside the **Workspace** from within the
@@ -44,6 +49,8 @@ entirely on my machine, so that my source code never reaches a third party.
    `podman`, `nerdctl`, and SHALL allow override by environment variable.
 6. F1.6 — WHERE SELinux labelling is required by the host, valvur SHALL apply the
    appropriate mount label.
+   *Amended 2026-09-27 (R0.5, ADR-0022):* once the **Workspace** is no longer mounted
+   (F1.1 as amended), the requirement covers valvur's own cache mounts only.
 
    > ✅ **MET 2026-09-10 (Phase 20), and measured on a real enforcing host.**
    > Fedora CoreOS 44, SELinux `targeted` policy enforcing, `container-selinux`
@@ -654,6 +661,11 @@ of fixes, so that nothing changes my code without my decision.
    `SUMMARY.md`. Empty, not absent, on a steady-state run. Until then a first
    run's record said `network.used: false` about a run that had opened sockets
    to three hosts — true of the Profile, silent about the fetches.*
+   *Amended 2026-09-27 (R0.5, ADR-0025, approved by the owner under `CLAUDE.md` §10),
+   to be met by R6.6:* a **Scan Run** SHALL also refresh stale data, announced on every
+   progress surface and recorded in `network.fetched`, unless `fetch = "never"` is set,
+   and an MCP tool SHALL refresh on request. The agent path has no terminal: a clean
+   project scanned a week after install read `inconclusive` with no way to fix it.
 
 ## Non-functional requirements
 

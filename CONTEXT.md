@@ -14,8 +14,20 @@ One complete invocation of valvur against one Workspace, producing one Results F
 _Avoid_: scan, job, execution, analysis
 
 **Workspace**:
-The developer's project being examined. Always mounted read-only; valvur never writes to it.
+The developer's project being examined. No Scanner can modify it; valvur writes only the Results Folder into it.
 _Avoid_: project, repo, target, source directory, codebase
+
+**File Set**:
+The exact files a Scan Run examines: the Workspace's git view, plus ignored agent configuration and `.env*` files, minus the project's excludes.
+_Avoid_: scope, file list, working tree, tree
+
+**Snapshot**:
+A copy of the File Set, delivered to a Scan Container for one Scan Run and discarded after it.
+_Avoid_: mount, checkout, archive, copy
+
+**Scan Container**:
+The one container in which the Scanners of one network boundary run during a Scan Run.
+_Avoid_: fleet, worker, sandbox, runner
 
 **Profile**:
 The named breadth of a Scan Run — `offline` or `full` — determining which Scanners run and whether any network access is permitted. Split on the network boundary, not on speed (ADR-0016). The retired `quick`/`standard`/`deep` names still resolve.
