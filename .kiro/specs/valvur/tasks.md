@@ -540,6 +540,10 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   1. A major-1 image is refused, with the fix named.
   2. The constraint suite is restated for the new invariants: one container per `offline`
      scan; the workspace never mounted; zero containers after any stop.
+  3. The engine's progress events become the status lines the fleet produced (29.0.4),
+     and the CLI scans through the Scan Container too. Found at R3.5.
+  4. A first run still fetches the absent image, database and index before the Scan
+     Container starts (24.1). Found at R3.5.
 - [ ] **R3.10** **`0.7.0` prepared** (D16). The version, the CHANGELOG and the README status
   line. The rehearsal runs after landing, per §4.
 
