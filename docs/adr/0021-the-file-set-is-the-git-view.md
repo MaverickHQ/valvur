@@ -42,10 +42,17 @@ out; C10).
    is the user's code, not a data directory.
 5. **The report states the scope**: the count, the bytes and the sha256 of the list, in
    `run.json` and `SUMMARY.md` (F7.7, F7.12).
-6. **History is scanned for secrets** in a repository: the host writes `git log -p --all`
-   with commit markers into the Snapshot (ADR-0022), bounded at 5,000 commits or 200 MB,
-   whichever comes first, and says when the bound was hit. `[scan] history = false`
-   turns it off. Measured: this repository's 357 commits make 10.9 MB in 1.2 s.
+6. **History is scanned for secrets** in a repository: the host reads `git log -p --all`
+   and writes what each commit added, bounded at 5,000 commits or 200 MB, whichever
+   comes first, and says when the bound was hit. `[scan] history = false` turns it off.
+   Measured: this repository's 357 commits make 10.9 MB in 1.2 s.
+   *Amended 2026-09-28 (R3.7):* the file goes into valvur's scratch directory beside
+   the plan, not into the Snapshot, so no Scanner but Gitleaks reads it as a workspace
+   file; only added lines are written, since every removed line was added by a commit
+   that is read; and the host keeps where each commit's lines for each path begin, so
+   a hit maps back to both, and applies the project's excludes and Gitleaks path
+   allowlists there, because every hit is in one file. Measured then: 445 commits,
+   7.1 MB of added lines, 1.5 s.
 7. **`scope = "tree"`** walks the working tree instead, for a user who wants it.
 
 `CLAUDE.md` §7 says exclusion is never a built-in default, because a project's tests
