@@ -530,12 +530,25 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   image, after `kill -9` of the server mid-scan, the next scan removed the orphans and ran,
   and the acceptance set's kill probe passes: it is judged from now on. The runtime is
   faked by `tests/fixtures/fake-runtime`, a JSON-backed stand-in for the four commands.
-- [ ] **R3.7** **Secrets in history** (D3; F2.1, P2). Behaviours:
+- [x] **R3.7** **Secrets in history** (D3; F2.1, P2). Behaviours:
   1. The host writes `git log -p --all` into the Snapshot with commit markers, within the
      bound, and says when the bound was hit.
   2. Gitleaks scans it, and each hit is mapped to its commit and path.
   3. Repository 3's credential is reported with its commit.
   4. `history = false` turns it off. The README's history claim is restored.
+  **STATUS 2026-09-28:** ✅ One deviation from the letter, for the reason in ADR-0021's
+  own terms: the history goes into valvur's scratch directory, not the Snapshot, so no
+  other Scanner reads it as a workspace file. The host writes only the lines each commit
+  added, on all refs, newest first, bounded at 5,000 commits or 200 MB, keeping where each
+  commit's lines for each path begin; this repository is 445 commits, 7.1 MB, 1.5 s.
+  Gitleaks reads it as a second pass, and each hit maps back to its commit and path. The
+  project's path allowlists and excludes are applied on the host, because every hit is in
+  one file and Gitleaks cannot apply them; this repository's own allowlist is by content,
+  so it holds. A secret still in the tree stays one Finding at its line. Findings gain a
+  `commit` field. Repository 3 on a real image reports `config.py` with the root commit,
+  and the layout would have exposed an off-by-one line. `history = false` reads nothing
+  and says so; `run.json`, the Summary and progress say what was read and any bound. The
+  README's row and configuration paragraph claim history with its bounds, held by a test.
 - [ ] **R3.8** **`full` adds one networked container** (D4; N2.1, ADR-0010, ADR-0016).
   Behaviours:
   1. OSV-Scanner and dependency-reality's registry questions run in the second container;

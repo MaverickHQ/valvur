@@ -195,3 +195,32 @@ def test_repository_3s_removed_credential_is_reported_with_its_commit(
     assert (finding.path, finding.commit) == ("config.py", added)
     assert run.history is not None and run.history["commits"] == 2
     assert all(s.ok for s in run.scanners), run.scanners
+
+
+# ------------------------------------------------ off, and said (behaviour 4)
+
+def test_history_false_reads_none_and_says_so(repo, monkeypatch):
+    _commit(repo, {".security-scan.toml": "[scan]\nhistory = false\n",
+                   "config.py": f"KEY = '{KEY}'\n"}, "add a key")
+    _commit(repo, {"config.py": "KEY = ''\n"}, "remove it")
+    run, said = _scan(repo, monkeypatch)
+    assert [f for f in run.findings if f.rule == "aws-access-token"] == []
+    assert run.history == {"off": "[scan] history = false"}
+    assert "history: not read ([scan] history = false)" in said
+
+
+def test_the_record_and_the_summary_say_what_history_was_read(tmp_path):
+    import json
+
+    from valvur import provenance, summary
+    from valvur.api import ScanRun
+
+    bounded = ScanRun(history={"commits": 5000, "bytes": 3 * 2**20,
+                               "bounded": "the 5,000-commit bound"})
+    assert json.loads(provenance.render(bounded))["history"] == bounded.history
+    text = summary.render(bounded)
+    assert "the 5,000-commit bound" in text and "older commits were not read" in text
+    off = summary.render(ScanRun(history={"off": "[scan] history = false"}))
+    assert "Git history was not read" in off and "history = false" in off
+    whole = summary.render(ScanRun(history={"commits": 12, "bytes": 2048, "bounded": None}))
+    assert "12 commits" in whole

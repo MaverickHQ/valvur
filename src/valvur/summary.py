@@ -320,6 +320,18 @@ def render(run: ScanRun) -> str:
             "",
         ]
 
+    history = run.history or {}
+    if history.get("off"):
+        lines += [f"> **Git history was not read for secrets:** `{history['off']}`.", ""]
+    elif history.get("bounded"):
+        lines += [
+            f"> **Git history was read for secrets up to {history['bounded']}:** the "
+            f"newest {history.get('commits', 0):,} commits; older commits were not read.",
+            "",
+        ]
+    elif history:
+        lines += [f"Git history: {history.get('commits', 0):,} commits read for secrets.", ""]
+
     if run.skipped_builtin:
         # R1.4: the built-in list skips these at any depth before any Scanner
         # reads; a first-party `mypkg/build/` went unread and unnamed.

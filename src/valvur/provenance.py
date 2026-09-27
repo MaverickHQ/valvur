@@ -97,6 +97,9 @@ def render(run: ScanRun) -> str:
                 # Which directories the built-in list skipped, and how many files
                 # each held (R1.4): read by no Scanner, so said here.
                 "excluded_builtin": [{"path": p, "files": n} for p, n in run.skipped_builtin],
+                # What git history was read for secrets (R3.7): commits, bytes and
+                # the bound that stopped the read; or why none was; or null.
+                "history": run.history,
                 # What this project chose not to scan, and how much it cost. An
                 # exclusion the reader cannot see is indistinguishable from a
                 # scanner that found nothing.

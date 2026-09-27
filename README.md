@@ -386,7 +386,9 @@ is told to skip an excluded path before it reads it — a data directory costs a
 scan nothing — and every exclusion is reported. `honour_gitignore = true` (off
 unless asked) also skips the directories `.gitignore` hides, except that `.env*`
 files and agent instruction files are always read and a hidden directory holding
-one is scanned whole; `include = [...]` keeps a hidden path.
+one is scanned whole; `include = [...]` keeps a hidden path. In a repository, git
+history is read for secrets, the newest 5,000 commits or 200 MB, and the Summary says
+when that bound stopped the read; `history = false` turns it off, and says so.
 
 In CI, `valvur scan` exits zero whenever the scan itself worked — findings are the
 job, not a failure — and `valvur gate` turns the result into one exit code:
@@ -429,7 +431,7 @@ checks under claim 2.
 | Tool | Licence | Does |
 |---|---|---|
 | [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Dependency vulnerabilities |
-| [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets in the files scanned |
+| [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets in the files scanned and in git history, the newest 5,000 commits or 200 MB |
 | [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Dependencies against OSV.dev (`full` only: it sends lockfile names and versions out). Measured on twelve real repositories: **121 Go standard-library advisories on the one Go project**, keyed on `go.mod`'s `go` directive, which Trivy reports only from binaries; **1** disputed advisory on a Python project; **0** on the other ten; and on a thirteenth, **110 against the lower bounds of an unpinned `requirements.txt`** — versions nobody installs, dropped with the count since 25.3 (the file is a coverage note instead). About a second a scan. |
 | [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis |
 | [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration |

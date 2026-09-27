@@ -786,11 +786,10 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
         scratch.mkdir()
         chosen = fileset.build(workspace)
         tar = engine_host.snapshot(workspace, chosen.files)
-        written = _history_pass(adapters, plan, planned, workspace, chosen, scratch,
-                                on_progress)
-        if record is not None and written is not None:
-            record["history"] = {"commits": written.commits, "bytes": written.bytes,
-                                 "bounded": written.bounded}
+        written, read = _history_pass(adapters, plan, planned, workspace, chosen, scratch,
+                                      on_progress)
+        if record is not None and read is not None:
+            record["history"] = read
         _stop_if_cancelled(runtime, "before the Scan Container started")
         ended: list[str] = []
 
@@ -849,26 +848,30 @@ _HISTORY_TOOL = "gitleaks-history"
 def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progress):
     """Git history, for Gitleaks (R3.7, D3): written into the scratch directory
     when Gitleaks runs on a repository and the project has not said
-    `history = false`, and its pass added to the plan. Returns what was written."""
+    `history = false`, and its pass added to the plan. Returns what was written
+    and what the record says: what was read, or why nothing was."""
     from . import exclusions as _exclusions
     from . import history as _history
     from .adapters.gitleaks import HISTORY_FILE, PROJECT_GITLEAKS_CONFIG
 
+    say = on_progress if on_progress is not None else (lambda _: None)
     index = next((i for i in planned if adapters[i].name == "gitleaks"), None)
-    if (index is None or chosen.scope != "git"
-            or not _exclusions.load_scan_settings(workspace).history):
-        return None
+    if index is None or chosen.scope != "git":
+        return None, None
+    if not _exclusions.load_scan_settings(workspace).history:
+        say("history: not read ([scan] history = false)")
+        return None, {"off": "[scan] history = false"}
     written = _history.write(workspace, scratch / HISTORY_FILE)
     if written is None:
-        return None
+        return None, None
     plan.append(adapters[index].history_command(
         project_config=PROJECT_GITLEAKS_CONFIG in chosen.files))
     planned.append(index)
-    if on_progress is not None:
-        bound = f", stopped at {written.bounded}" if written.bounded else ""
-        on_progress(f"history: {written.commits} commits read for secrets "
-                    f"({written.bytes / 2**20:.1f} MB{bound})")
-    return written
+    bound = f", stopped at {written.bounded}" if written.bounded else ""
+    say(f"history: {written.commits} commits read for secrets "
+        f"({written.bytes / 2**20:.1f} MB{bound})")
+    return written, {"commits": written.commits, "bytes": written.bytes,
+                     "bounded": written.bounded}
 
 
 def _with_history(outcome, adapter, output, entry, written, workspace, budget_s, spent):
