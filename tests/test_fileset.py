@@ -43,3 +43,30 @@ def test_the_git_view_is_tracked_and_untracked_not_ignored_files_never_git(tmp_p
     built = fileset.build(root)
     assert built.scope == "git"
     assert built.files == [".gitignore", "new.py", "src/app.py"]
+
+
+def test_ignored_agent_configuration_and_env_files_are_read_and_the_rest_named(tmp_path):
+    root = _repo(tmp_path, {"app.py": "x = 1\n"},
+                 gitignore=".env*\n.mcp.json\n.claude/\n.kiro/\ndata/\n")
+    for name in (".env", ".env.local", ".mcp.json", ".claude/settings.local.json",
+                 ".kiro/settings/mcp.json", "data/rows.json"):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}\n")
+    built = fileset.build(root)
+    assert built.files == [".claude/settings.local.json", ".env", ".env.local",
+                           ".gitignore", ".kiro/settings/mcp.json", ".mcp.json", "app.py"]
+    assert ("data/", "ignored by git") in built.skipped
+
+
+def test_a_large_ignored_directory_costs_a_bounded_search(tmp_path, monkeypatch):
+    monkeypatch.setattr(fileset, "IGNORED_SEARCH_LIMIT", 10)
+    root = _repo(tmp_path, {"app.py": "x = 1\n"}, gitignore="data/\nconfig/\n")
+    for i in range(50):
+        (root / "data").mkdir(exist_ok=True)
+        (root / "data" / f"{i:02}.json").write_text("{}\n")
+    (root / "config").mkdir()
+    (root / "config" / ".env").write_text("TOKEN=x\n")
+    built = fileset.build(root)
+    assert "config/.env" in built.files
+    assert any(path == "data/" and "as far as 10 files" in why for path, why in built.skipped)

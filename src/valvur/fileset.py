@@ -52,10 +52,68 @@ class FileSet:
     skipped: list[tuple[str, str]] = field(default_factory=list)
 
 
+def _kept_when_ignored(rel: str) -> bool:
+    """An ignored file the scan still reads (ADR-0021): `.env*`, where a secret
+    hides, and every agent-configuration file the AI Artifact Check knows."""
+    from .exclusions import _kept_when_ignored as kept
+
+    return kept(rel)
+
+
+#: How far an ignored directory is searched for the files a scan reads anyway:
+#: a small `config/` with a `.env` is found; a 100,000-file data directory costs
+#: at most this many entries (ADR-0021, R3.2).
+IGNORED_SEARCH_LIMIT = 5_000
+
+
+def _bounded_walk(root: Path, limit: int) -> tuple[list[str], bool]:
+    """Up to `limit` files under `root`, relative; True when it stopped short."""
+    import os
+
+    found: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in _NEVER)
+        rel = Path(dirpath).relative_to(root)
+        for name in sorted(filenames):
+            found.append((rel / name).as_posix())
+            if len(found) >= limit:
+                return found, True
+    return found, False
+
+
+def _ignored(workspace: Path) -> tuple[list[str], list[tuple[str, str]]]:
+    """The ignored files the scan reads, and the ignored paths it names and skips.
+    Git collapses an ignored directory to one entry, so a 100,000-file data
+    directory costs one line; one that is agent configuration is walked."""
+    proc = subprocess.run(  # noqa: S603 — git, fixed arguments
+        ["git", "-C", str(workspace), "ls-files", "-z", "--others", "--ignored",
+         "--exclude-standard", "--directory"], capture_output=True, check=False)
+    kept: list[str] = []
+    skipped: list[tuple[str, str]] = []
+    for entry in (e for e in proc.stdout.decode("utf-8", "surrogateescape").split("\0") if e):
+        if set(Path(entry).parts) & _NEVER:
+            continue
+        if entry.endswith("/"):
+            inside, cut = _bounded_walk(workspace / entry, IGNORED_SEARCH_LIMIT)
+            chosen = [f"{entry}{rel}" for rel in inside if _kept_when_ignored(f"{entry}{rel}")]
+            kept += chosen
+            if cut:
+                skipped.append((entry, f"ignored by git; searched for agent and .env "
+                                       f"files only as far as {IGNORED_SEARCH_LIMIT:,} files"))
+            elif len(chosen) < len(inside) or not inside:
+                skipped.append((entry, "ignored by git"))
+        elif _kept_when_ignored(entry):
+            kept.append(entry)
+        else:
+            skipped.append((entry, "ignored by git"))
+    return kept, skipped
+
+
 def build(workspace: Path) -> FileSet:
     view = git_view(workspace)
     if view is not None:
-        return FileSet(view, "git")
+        kept, skipped = _ignored(workspace)
+        return FileSet(sorted(set(view) | set(kept)), "git", skipped)
     return FileSet(walk(workspace), "tree")
 
 
