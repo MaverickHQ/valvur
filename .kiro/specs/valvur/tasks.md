@@ -219,7 +219,7 @@ condition.
   - HTTPS reach to `ghcr.io`, `pypi.org`, `mirror.gcr.io`, `github.com` and
     `api.github.com`.
   - AWS is not needed: R8 uses a local registry.
-- [ ] **R0.4** **The repository.** Record each:
+- [x] **R0.4** **The repository.** Record each:
   - `main` is clean and equal to `origin/main`, and its last three CI runs are green.
   - No open PR from another session. Worktrees are listed and left alone.
   - The unit suite is green and traceability holds.
