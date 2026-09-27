@@ -328,12 +328,18 @@ The current engine, patched where `0.5.0` users can be misled today.
   Gitleaks row matches the adapter's mode. R3.7 restores the history claim.
   **STATUS 2026-09-27:** ✅ The row reads *Secrets in the files scanned*, and a test holds it
   to the adapter's mode: while Gitleaks runs in `dir` mode, the row claims no history.
-- [ ] **R1.8** **`0.6.0` prepared** (D16).
+- [x] **R1.8** **`0.6.0` prepared** (D16).
   - Cancel rehearsal run 36317791899.
   - Set the version to `0.6.0`. The CHANGELOG's `[1.0.0]` entry becomes `[0.6.0]`,
     without the stability claim. The README status line and `SECURITY.md` follow
     `test_version.py`.
   - After the phase lands, rehearse per §4 step 6. §8 gets its row.
+  **STATUS 2026-09-27:** ✅ Rehearsal 36317791899 cancelled. `pyproject.toml` and the lock
+  at `0.6.0`; the README's status line says *release in progress* and waits for the owner's
+  tag; its macOS row names the tree each number was measured on; `SECURITY.md` supports
+  `0.6.x`. The CHANGELOG's `[1.0.0]` entry is `[0.6.0]`, says why `1.0.0` was not tagged,
+  and carries R1's seven fixes, the two changes the `1.0.0` preparation held, and R0's
+  notes. The rehearsal of the landed commit is recorded in R2's first commit.
 
 **Exit:** R1.1 to R1.4's regression tests pass on Linux CI and on the Mac. The `0.6.0`
 rehearsal follows the landing (§4 step 6).

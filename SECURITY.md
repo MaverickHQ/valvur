@@ -83,10 +83,10 @@ The latest minor series is supported; this table is the record.
 
 | Version | Supported |
 |---|---|
-| `1.0.x` | ✅ latest only |
+| `0.6.x` | ✅ latest only |
 
-A `0.x` release is not supported: upgrade, `1.0.0` keeps every contract `0.5.0`
-had.
+Earlier `0.x` releases are not supported: upgrade to the latest. Before `1.0.0` a
+minor release may change a contract, and the CHANGELOG says which.
 
 <!-- A test keeps this table on the released series (27.2.4): it said `0.1.x`
      through 0.2.0 and 0.3.0, so a reporter checking whether their version was

@@ -3,50 +3,50 @@
 All notable changes to valvur are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). From `1.0.0` a minor
-bump keeps the contracts named under that entry; the `0.x` series allowed a minor
-to break things, and did.
+bump will keep the contracts that entry names; the `0.x` series allows a minor to
+break things, and has.
 
 ## [Unreleased]
 
-**Phase R0, pre-flight** (`tasks.md`, 2026-09-27): the plan for an unattended rebuild,
-from the first-principles review the owner accepted that day.
+## [0.6.0] — 2026-09-27
 
-- **Decided:** ADR-0021 (the File Set is the git view, history included), ADR-0022 (one
-  Scan Container per Profile boundary, fed a Snapshot; protocol 2), ADR-0023 (the Scanner
-  set, by rule), ADR-0024 (`scan` returns the result), ADR-0025 (fresh data without a
-  terminal). F1.1, F1.6 and F10.8 amended. Nothing a user runs has changed yet.
-- **Fixed:** the source distribution no longer picks up a local agent's `.claude/`
-  folder.
-- **For contributors:** `scripts/build_status.py` names the build's current phase, branch
-  and next task, and whether another executor is alive.
+A safety release, in place of the `1.0.0` prepared the same day and never tagged.
+That day the owner accepted a first-principles review
+(`docs/REVIEW-2026-09-27.md`): the report's contract is sound, and the engine is
+the wrong shape for a stability claim — one container per Scanner scheduled by host
+threads, the live working tree bind-mounted with excludes in six dialects, and a
+start-and-poll MCP surface. `1.0.0` waits for the rebuild (`tasks.md`, Phases R2 to
+R8). This release fixes what `0.5.0` users can be misled by today, each fix
+test-first (Phase R1), and carries the two changes the `1.0.0` preparation already
+held. The MCP schema changes are additive, so the number is a minor.
 
-## [1.0.0] — 2026-09-27
-
-The first version claiming stability. What that claim covers, and what holds
-it: the **Results Folder** — the ten artifacts §7 of `CLAUDE.md` names, their
-place, `findings.json` and `run.json` schema-versioned, `state.json` local
-only, the folder one generation with `run.json` written last — and the
-**Fingerprint** algorithm at `fp_version` 1, so a Suppression written today
-matches tomorrow; the **six MCP tools** with their input and output schemas
-as the committed `tools/list` snapshot has them, and the `initialize` reply's
-instructions; the **CLI** commands `scan`, `doctor`, `gate`, `update`,
-`cache` and their flags; `.security-scan.toml`'s two tables; the shim/image
-**protocol** at major 1, so a shim and an image of the same major run
-together whatever their versions; the two **Profiles** and what each may
-reach, written in one place; and the four things the moat refuses, provable
-as before. A change to any of these is a major.
-
-What the number does not claim: that a person outside this repository has
-used it — 12b.3's own words, and Phase 25's exit. The first gate was a
-Claude Code agent (2026-09-26); the gate with a person is the step before the
-tag, and the record says what it found. And the bus factor: `1.0.0` ships with
-one maintainer, decided by the owner on 2026-09-27 with the reason under
-28.1.3 — what does not depend on that person is written in `MAINTAINERS.md`,
-and the second maintainer is the first thing after.
-
-Since `0.5.0`, the day before: the two things the agent-driven pass found,
-below.
-
+- **A cancel stops the queue** (R1.1; the second gate's C1). At two Scanners at a
+  time, `scan_cancel` stopped the running ones and the queue launched the rest:
+  measured on this tree, two or three containers started after the client had gone.
+  A queued Scanner now checks the cancel before it launches, and `CANCELLED` is
+  reported only once the runtime lists none of the scan's containers.
+- **A workspace must exist** (R1.2; C2). A relative path used to resolve against
+  the server's directory and create `relative/path/.security-scan/` inside the
+  project. Every MCP tool and CLI command now refuses a missing path or a file in one
+  sentence and creates nothing; a relative path resolves against Claude Code's
+  `CLAUDE_PROJECT_DIR` or is refused.
+- **An exclude means the same to every Scanner** (R1.3). `exclude = ["archive"]`
+  also hid `src/archive/` from Opengrep, Checkov and OSV-Scanner. Measured inside the
+  image, each tool now gets a root-anchored form, and OSV-Scanner, which has none,
+  is filtered afterwards.
+- **Directories no Scanner read are named** (R1.4). The built-in list skips `build`,
+  `out`, `dist`, `vendor` and more at any depth; a planted flaw in `mypkg/build/` went
+  unread and unmentioned. `run.json`, `SUMMARY.md`, the CLI and `scan_status` now
+  name each skipped directory and how many files it held.
+- **Input errors fail at the call** (R1.5; C3, C4). A bad `profile`, `budget_s`,
+  `limit` or fingerprint is refused synchronously in a plain sentence, and never
+  starts a job. `doctor_may_help` is true only for a failed precondition; a busy
+  workspace says to wait.
+- **Trivy never reports to its vendor** (R1.6). With a network, Trivy sends anonymous
+  usage data unless told not to. No Trivy call of ours had a network; every call now
+  carries `--disable-telemetry` and `--skip-version-check` regardless.
+- **The README claims only what the secrets step reads** (R1.7; the owner's C10).
+  Gitleaks reads the files scanned, not git history; the table said otherwise.
 - **Every status reply's advice is a field** (29.2.4). Claude Code hands the
   model a structured reply's JSON and not its text, so `scan_status`'s one
   instruction while a scan runs — *call again; do not report a result yet* —
@@ -65,6 +65,17 @@ below.
   and the `scan_status` reply, named in `SUMMARY.md` with the Scanner that did
   not run. A state written before this reads as *unknown*: carried on an
   incomplete run, fixed on a complete one.
+
+**Also in this release, from Phase R0** (the pre-flight for the rebuild):
+
+- **Decided:** ADR-0021 (the File Set is the git view, history included), ADR-0022 (one
+  Scan Container per Profile boundary, fed a Snapshot; protocol 2), ADR-0023 (the Scanner
+  set, by rule), ADR-0024 (`scan` returns the result), ADR-0025 (fresh data without a
+  terminal). F1.1, F1.6 and F10.8 amended. Nothing a user runs has changed yet.
+- **Fixed:** the source distribution no longer picks up a local agent's `.claude/`
+  folder.
+- **For contributors:** `scripts/build_status.py` names the build's current phase, branch
+  and next task, and whether another executor is alive.
 
 ## [0.5.0] — 2026-09-26
 

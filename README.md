@@ -2,7 +2,7 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `1.0.0`** — release in progress: this tree is rehearsed and waits at the release brake; `pip install valvur` serves `0.5.0` until the run's `promote` completes.
+> **Status: `0.6.0`** — release in progress: this tree is prepared and rehearsed, and waits for the owner's signed tag; `pip install valvur` serves `0.5.0` until the release run's `promote` completes.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 ---
@@ -452,7 +452,7 @@ auditable and mirrorable. No proprietary database; nothing to lock you in.
 | | |
 |---|---|
 | Linux — Docker **and** Podman | **Supported**, and tested on every commit against both runtimes, on `amd64` and `arm64` |
-| macOS — Docker Desktop or Podman | **Supported**, and tested by hand on an Apple-silicon Mac at each release — most recently `1.0.0`, 2026-09-27: the e2e suite against the image built from the release commit, and one `scan` over MCP on the first gate's own tree — 107,544 files on disk, its two-line exclude — 136s to `DONE`, complete, with the database and the index fetched inside that time and Checkov the slowest Scanner at 48s, on a Mac with 13 GB in swap that day (`0.5.0`, the day before on a quiet machine: 98s on the same tree; `0.4.0`: 39s on the ten-file fixture; `0.3.0`: 58s). Not on every commit: a container runtime needs nested virtualisation, which GitHub's macOS runners do not offer |
+| macOS — Docker Desktop or Podman | **Supported**, and tested by hand on an Apple-silicon Mac at each release — most recently `0.6.0`, 2026-09-27: the e2e suite against the image built from the release commit. One `scan` over MCP on the first gate's own tree — 107,544 files on disk, its two-line exclude — took 136s to `DONE` on that day's `1.0.0` candidate, complete, with the database and the index fetched inside that time and Checkov the slowest Scanner at 48s, on a Mac with 13 GB in swap that day (`0.5.0`, the day before on a quiet machine: 98s on the same tree; `0.4.0`: 39s on the ten-file fixture; `0.3.0`: 58s). Not on every commit: a container runtime needs nested virtualisation, which GitHub's macOS runners do not offer |
 | `linux/amd64` and `linux/arm64` | Both, **from 0.2.0**. `0.1.0rc1` was published `arm64` only — a defect, not a policy |
 | Windows via **WSL2** | Supported — inside WSL valvur is running on Linux |
 | Native Windows | **Not claimed.** Untested, and valvur says so at startup |
