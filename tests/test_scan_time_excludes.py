@@ -36,17 +36,22 @@ def _configured(root: Path) -> Path:
 
 @pytest.mark.parametrize("kind, vendored_form, prefix_form", [
     ("trivy", ["--skip-dirs", "**/.venv"], ["--skip-dirs", PREFIX]),
-    ("checkov", ["--skip-path", r"(^|/)\.venv(/|$)"], ["--skip-path", r"(^|/)tests/fixtures(/|$)"]),
+    # Anchored on the container path (R1.3): unanchored, `archive` also skipped
+    # `src/archive/` in Checkov and Opengrep, measured inside the image.
+    ("checkov", ["--skip-path", r"(^|/)\.venv(/|$)"],
+     ["--skip-path", r"^/workspace/tests/fixtures(/|$)"]),
     ("syft", ["--exclude", "**/.venv/**"], ["--exclude", f"./{PREFIX}/**"]),
-    ("opengrep", ["--exclude=.venv"], [f"--exclude={PREFIX}"]),
-    ("osv-scanner", ["--experimental-exclude", ".venv"],
-     ["--experimental-exclude", r"r:(^|/)tests/fixtures(/|$)"]),
+    ("opengrep", ["--exclude=.venv"], [f"--exclude=/workspace/{PREFIX}"]),
+    # No anchored form exists for OSV-Scanner: a prefix is filtered afterwards.
+    ("osv-scanner", ["--experimental-exclude", ".venv"], []),
 ])
 def test_each_scanner_is_told_what_to_skip_in_its_own_form(kind, vendored_form, prefix_form):
     args = exclusions.skip_args(kind, (PREFIX,))
     joined = " ".join(args)
     assert " ".join(vendored_form) in joined, kind
     assert " ".join(prefix_form) in joined, kind
+    if not prefix_form:
+        assert PREFIX not in joined, kind
     # every vendored name once, and nothing that is not on the list
     assert joined.count("node_modules") == 1 and "distribution" not in joined
     assert exclusions.skip_args("no-such-tool", (PREFIX,)) == []
@@ -111,7 +116,10 @@ def test_every_adapters_command_carries_the_skips(tmp_path, monkeypatch):
              "OsvAdapter": "--experimental-exclude"}
     for cls, flag in forms.items():
         argv = " ".join(getattr(adapters, cls)().command(ws).argv)
-        assert flag in argv and PREFIX in argv and "node_modules" in argv, cls
+        assert flag in argv and "node_modules" in argv, cls
+        # OSV-Scanner has no root-anchored form (R1.3): its findings under a
+        # configured prefix are filtered afterwards, never skipped by a pattern.
+        assert (PREFIX in argv) is (cls != "OsvAdapter"), cls
 
     gitleaks = adapters.GitleaksAdapter().command(ws)
     assert gitleaks.argv[gitleaks.argv.index("--config") + 1] == "/results/gitleaks.toml"
@@ -318,7 +326,8 @@ def test_the_opt_in_is_off_by_default_and_joins_the_configured_list_when_on(tmp_
 
     from valvur import adapters
     argv = " ".join(adapters.CheckovAdapter().command(ws).argv)
-    assert "(^|/)data(/|$)" in argv, "the hidden directory did not reach the Scanner"
+    # Anchored on the container path since R1.3, like every configured prefix.
+    assert "^/workspace/data(/|$)" in argv, "the hidden directory did not reach the Scanner"
 
 
 def test_no_git_is_a_note_not_a_failure(tmp_path, monkeypatch):

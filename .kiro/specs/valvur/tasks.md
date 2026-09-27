@@ -283,11 +283,17 @@ The current engine, patched where `0.5.0` users can be misled today.
   parse time, through the `path` argument's type, and exits 2. The server now shows a
   refusal as its sentence, without an exception class. Fourteen tests in
   `tests/test_workspace_must_exist.py`.
-- [ ] **R1.3** **An exclude means the same to every Scanner** (F2.1). Measure each tool's
+- [x] **R1.3** **An exclude means the same to every Scanner** (F2.1). Measure each tool's
   root-anchored form inside the image first. Behaviours, e2e on a planted tree with
   `archive` excluded:
   1. Every Scanner reports the flows planted in `src/archive/` and `src/app/`.
   2. A tool with no anchored form gets no exclude, and its findings are filtered afterwards.
+  **STATUS 2026-09-27:** ✅ Measured inside the image: Opengrep anchors only on the container
+  path (`--exclude=/workspace/archive`); Checkov matches its regular expression against the
+  full container path, so `^/workspace/archive(/|$)` anchors and `^/archive` matches
+  nothing; OSV-Scanner has no anchored form, so a configured prefix is filtered afterwards.
+  The e2e test on a planted tree, `full` Profile, now finds `src/archive/` through every
+  Scanner and nothing under `archive/`; before, Opengrep missed it.
 - [ ] **R1.4** **Built-in skips are named** (F7.7). Behaviour: a tree with `mypkg/build/`
   names that directory and its file count in `run.json`, `SUMMARY.md`, the CLI output and
   the `scan_status` reply.

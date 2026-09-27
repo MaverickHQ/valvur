@@ -257,6 +257,10 @@ def prefixes_from_env(value: str | None) -> tuple[str, ...]:
     return tuple(p for p in (value or "").split("\n") if p)
 
 
+#: Where every Scanner sees the Workspace (runner.py mounts it there).
+_MOUNT = "/workspace"
+
+
 def skip_args(kind: str, prefixes: tuple[str, ...] = ()) -> list[str]:
     """The flags that make one Scanner skip the vendored directories and the
     excluded prefixes before it reads them. Measured 2026-09-26 inside the image
@@ -264,15 +268,24 @@ def skip_args(kind: str, prefixes: tuple[str, ...] = ()) -> list[str]:
 
     - Trivy `--skip-dirs` takes globs relative to the scanned root: `**/name`
       for a directory anywhere, the prefix as written.
-    - Checkov `--skip-path` is a regular expression searched in the path it
-      reports (`/archive/Dockerfile`); unanchored, so `dist` alone would skip
-      `distribution/` — the forms here bind both ends of a segment.
+    - Checkov `--skip-path` is a regular expression searched in the full
+      container path (`/workspace/archive/Dockerfile`), not the path it reports:
+      `^/archive` skips nothing, and an unanchored `(^|/)archive(/|$)` skips
+      `src/archive/` too. A configured prefix is anchored on the container path.
     - Syft `--exclude` takes globs: `**/name/**` and `./prefix/**`.
-    - Opengrep `--exclude=PATTERN` skips any path with a matching component,
-      and a pattern with a slash matches the same run of components.
+    - Opengrep `--exclude=PATTERN` skips any path with a matching component, so
+      `archive` and `/archive` both skip `src/archive/`; the container path,
+      `--exclude=/workspace/archive`, skips the top-level one only.
     - OSV-Scanner `--experimental-exclude` takes a directory name exactly, or
-      `r:` with a regular expression searched in the path.
+      `r:` with a regular expression, and no form measured anchors to the
+      scanned root: a configured prefix is not passed, and `filter_configured`
+      drops its findings there instead.
     - Gitleaks has no flag: see `gitleaks_config`.
+
+    Re-measured inside the image on 2026-09-27 (R1.3), after `exclude =
+    ["archive"]` was found hiding `src/archive/` from three of the six Scanners.
+    Vendored names skip at any depth on purpose; configured prefixes are
+    root-relative everywhere.
     """
     import re
 
@@ -281,17 +294,18 @@ def skip_args(kind: str, prefixes: tuple[str, ...] = ()) -> list[str]:
         return ([arg for d in names for arg in ("--skip-dirs", f"**/{d}")]
                 + [arg for p in prefixes for arg in ("--skip-dirs", p)])
     if kind == "opengrep":
-        return [f"--exclude={d}" for d in names] + [f"--exclude={p}" for p in prefixes]
+        return ([f"--exclude={d}" for d in names]
+                + [f"--exclude={_MOUNT}/{p}" for p in prefixes])
     if kind == "checkov":
         return ([arg for d in names for arg in ("--skip-path", f"(^|/){re.escape(d)}(/|$)")]
-                + [arg for p in prefixes for arg in ("--skip-path", f"(^|/){re.escape(p)}(/|$)")])
+                + [arg for p in prefixes
+                   for arg in ("--skip-path", f"^{_MOUNT}/{re.escape(p)}(/|$)")])
     if kind == "syft":
         return ([arg for d in names for arg in ("--exclude", f"**/{d}/**")]
                 + [arg for p in prefixes for arg in ("--exclude", f"./{p}/**")])
     if kind == "osv-scanner":
-        return ([arg for d in names for arg in ("--experimental-exclude", d)]
-                + [arg for p in prefixes
-                   for arg in ("--experimental-exclude", f"r:(^|/){re.escape(p)}(/|$)")])
+        # No anchored form exists; the configured prefixes are filtered afterwards.
+        return [arg for d in names for arg in ("--experimental-exclude", d)]
     return []
 
 
