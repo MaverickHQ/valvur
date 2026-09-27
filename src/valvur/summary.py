@@ -104,6 +104,14 @@ def _verdict(run: ScanRun) -> str:
     return "**Nothing was found, by a scan that was able to look.** No action needed."
 
 
+def _files(n: int) -> str:
+    from .exclusions import SKIPPED_COUNT_CAP
+
+    if n >= SKIPPED_COUNT_CAP:
+        return f"at least {n:,} files"
+    return f"{n:,} file" + ("" if n == 1 else "s")
+
+
 def render(run: ScanRun) -> str:
     """The agent's entry point. Bounded (F7.5) and self-describing (F7.6).
 
@@ -309,6 +317,19 @@ def render(run: ScanRun) -> str:
             + ".",
             "> Reported because a Scanner that did not run must never look like one "
             "that ran and found nothing.",
+            "",
+        ]
+
+    if run.skipped_builtin:
+        # R1.4: the built-in list skips these at any depth before any Scanner
+        # reads; a first-party `mypkg/build/` went unread and unnamed.
+        named = ", ".join(f"`{p}` ({_files(n)})" for p, n in run.skipped_builtin[:8])
+        more = (f" and {len(run.skipped_builtin) - 8} more"
+                if len(run.skipped_builtin) > 8 else "")
+        lines += [
+            f"> **Not read by any Scanner** — valvur's built-in list of dependency and "
+            f"build directories: {named}{more}.",
+            "> If one of these holds your own code, it was not scanned.",
             "",
         ]
 

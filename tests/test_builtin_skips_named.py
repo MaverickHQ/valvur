@@ -44,3 +44,12 @@ def test_valvurs_own_folder_and_version_control_are_skipped_but_never_named(tmp_
         (ws / own).mkdir()
         (ws / own / "x").write_text("x")
     assert exclusions.skipped_builtin(ws) == (("mypkg/build", 1),)
+
+
+def test_summary_md_names_the_skipped_directories(tmp_path, runner_finding_nothing):
+    from valvur.api import scan
+
+    ws = _tree(tmp_path)
+    scan(ws, runner=runner_finding_nothing)
+    summary = (ws / ".security-scan" / "SUMMARY.md").read_text()
+    assert "`mypkg/build` (1 file)" in summary
