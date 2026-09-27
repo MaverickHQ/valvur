@@ -134,3 +134,14 @@ def test_commits_without_a_phase_scope_do_not_count(tmp_path):
     _age_commit(work, "docs: the owner's own note", hours_ago=1, now=now)
     status = _module().status(work, now=now)
     assert status["alive"] is False
+
+
+def test_a_recent_change_in_the_working_tree_means_another_executor_is_alive(tmp_path):
+    import time
+
+    now = time.time()
+    work = _repo(tmp_path, TASKS)
+    _age_commit(work, "feat(r0.2): the machine, recorded", hours_ago=12, now=now)
+    (work / "half-done.py").write_text("# a slice in progress\n")
+    status = _module().status(work, now=now)
+    assert status["alive"] is True

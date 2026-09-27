@@ -69,6 +69,17 @@ def newest_build_commit(repo: Path) -> int | None:
     return max(times, default=None)
 
 
+def newest_change(repo: Path) -> float | None:
+    """The newest modification time among files the working tree has changed or added."""
+    entries = _git(repo, "status", "--porcelain", "-z", "--untracked-files=all").split("\0")
+    times = []
+    for entry in entries:
+        path = repo / entry[3:] if len(entry) > 3 else None
+        if path is not None and path.is_file():
+            times.append(path.stat().st_mtime)
+    return max(times, default=None)
+
+
 def _build_branches(repo: Path) -> list[str]:
     refs = _git(repo, "for-each-ref", "--format=%(refname:short)",
                 "refs/remotes/origin/build/").split()
@@ -83,8 +94,12 @@ def status(repo: Path, now: float | None = None) -> dict:
     now = time.time() if now is None else now
     commit = newest_build_commit(repo)
     commit_age = None if commit is None else (now - commit) / 3600
-    alive = {"alive": commit_age is not None and commit_age < WINDOW_HOURS,
-             "newest_build_commit_hours": None if commit_age is None else round(commit_age, 2)}
+    change = newest_change(repo)
+    change_age = None if change is None else (now - change) / 3600
+    ages = [a for a in (commit_age, change_age) if a is not None]
+    alive = {"alive": any(a < WINDOW_HOURS for a in ages),
+             "newest_build_commit_hours": None if commit_age is None else round(commit_age, 2),
+             "newest_change_hours": None if change_age is None else round(change_age, 2)}
     on_main = position(_git(repo, "show", f"origin/main:{TASKS}"))
     if on_main is None:
         return {"phase": None, "next_task": None, "branch": None, "branch_exists": False,
