@@ -85,3 +85,51 @@ def judge(results: Path, expected: dict, tasks_text: str) -> Verdict:
     verdict.ok = not (verdict.missing or verdict.blocking or verdict.forbidden
                       or verdict.incomplete)
     return verdict
+
+
+@dataclass
+class RepoResult:
+    name: str
+    verdict: Verdict
+    seconds: float
+    containers_after: int
+
+    @property
+    def ok(self) -> bool:
+        return self.verdict.ok and self.containers_after == 0
+
+
+def _cli_scan(workspace: Path) -> None:
+    """`valvur scan <workspace>` through the CLI, as a user runs it."""
+    import subprocess
+    import sys
+
+    subprocess.run([sys.executable, "-c",  # noqa: S603 — this interpreter, the CLI
+                    "from valvur.cli import main; raise SystemExit(main())",
+                    "scan", str(workspace)], check=False, capture_output=True)
+
+
+def _containers_alive() -> int:
+    """How many `valvur-` containers the runtime still lists."""
+    import subprocess
+
+    out = subprocess.run(["docker", "ps", "--filter", "name=valvur-", "--format",
+                          "{{.Names}}"], capture_output=True, text=True, check=False)
+    return len(out.stdout.split())
+
+
+def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
+             tasks_text: str | None = None) -> RepoResult:
+    """Scan one acceptance repository and judge it (R2.2)."""
+    import time
+    import tomllib
+
+    if tasks_text is None:
+        tasks_text = (Path(__file__).resolve().parent.parent
+                      / ".kiro/specs/valvur/tasks.md").read_text()
+    started = time.monotonic()
+    scan(root)
+    seconds = time.monotonic() - started
+    expected = tomllib.loads((root / "expected.toml").read_text())
+    verdict = judge(root / ".security-scan", expected, tasks_text)
+    return RepoResult(root.name, verdict, round(seconds, 1), containers())

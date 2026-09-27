@@ -90,3 +90,32 @@ def test_a_forbidden_path_and_an_incomplete_run_fail(tmp_path):
     assert verdict.ok is False and verdict.forbidden == ["archive/app.py"]
     verdict = harness.judge(_results(tmp_path / "b", [], complete=False), expected, TASKS)
     assert verdict.ok is False and verdict.incomplete is True
+
+
+def _write_repo(root: Path, expected_toml: str) -> Path:
+    root.mkdir(parents=True)
+    (root / "expected.toml").write_text(expected_toml)
+    return root
+
+
+def test_running_a_repository_measures_time_and_containers_and_judges_it(tmp_path):
+    harness = _module()
+    root = _write_repo(tmp_path / "4-nested-names", '[run]\ncomplete = true\n'
+                       '[[must]]\nrule = "subprocess-shell-true"\npath = "src/app.py"\n')
+
+    def fake_scan(workspace: Path) -> None:
+        _results(workspace, [_finding("valvur.python.subprocess-shell-true", "src/app.py",
+                                      "high")])
+
+    result = harness.run_repo(root, scan=fake_scan, containers=lambda: 0, tasks_text=TASKS)
+    assert result.name == "4-nested-names"
+    assert result.verdict.ok is True
+    assert result.seconds >= 0 and result.containers_after == 0
+
+
+def test_a_container_left_behind_fails_the_repository(tmp_path):
+    harness = _module()
+    root = _write_repo(tmp_path / "1-gate", "[run]\ncomplete = true\n")
+    result = harness.run_repo(root, scan=lambda ws: _results(ws, []), containers=lambda: 2,
+                              tasks_text=TASKS)
+    assert result.ok is False and result.containers_after == 2
