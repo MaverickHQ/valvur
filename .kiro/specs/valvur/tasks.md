@@ -206,7 +206,7 @@ condition.
   3. The durable task exists: `list_scheduled_tasks` shows `valvur-build-resume`.
   4. From a fresh shell, `scripts/build_status.py` prints R0.2 as the next task and changes
      nothing.
-- [ ] **R0.2** **The machine.** Record: the macOS version; Docker Desktop's version, VM
+- [x] **R0.2** **The machine.** Record: the macOS version; Docker Desktop's version, VM
   memory and CPUs; host swap in use; free disk, which must be at least 30 GB; and one
   `docker run --rm --network=none valvur:dev true`. When host swap is over 4 GB, D17's Mac
   time rule applies for the whole build, and the record says so.
@@ -594,6 +594,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | R8 | run once in an AWS account and record the numbers |
 | `init --write` | R6 | decide whether `init` may write files |
+| free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
 | pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
