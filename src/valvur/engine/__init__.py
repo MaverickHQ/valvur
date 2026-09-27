@@ -46,8 +46,14 @@ def unpack(stream: IO[bytes], workspace: Path) -> int:
 
 
 def _mapped(argument: str, workspace: Path, results: Path) -> str:
-    return (argument.replace(WORKSPACE, str(workspace))
-            .replace(RESULTS, str(results)))
+    """The container paths in one argument, pointed at `workspace` and `results`:
+    whole prefixes only, in one pass, at the start or after `=`. Two chained
+    replaces corrupted a workspace whose own path contained `/results`."""
+    import re
+
+    where = {WORKSPACE: str(workspace), RESULTS: str(results)}
+    return re.sub(r"(^|=)(/workspace|/results)(?=/|$)",
+                  lambda m: m.group(1) + where[m.group(2)], argument)
 
 
 def run(stream: IO[bytes], workspace: Path, results: Path) -> int:

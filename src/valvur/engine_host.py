@@ -46,6 +46,9 @@ def write_plan(scratch: Path, plan: list[Invocation]) -> None:
 class LocalRuntime:
     """Runs the engine as a host process, with `tools_dir` first on its PATH."""
 
+    #: What `api` asks to choose the Scan Container's path (ADR-0022).
+    engine = True
+
     def __init__(self, tools_dir: Path | None = None):
         self.tools_dir = tools_dir
 

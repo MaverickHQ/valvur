@@ -39,3 +39,23 @@ def test_the_engine_unpacks_a_snapshot_and_leaves_a_report_and_a_manifest(tmp_pa
     assert (entry["tool"], entry["exit_code"], entry["timed_out"]) == ("gitleaks", 0, False)
     report = json.loads((scratch / "gitleaks.json").read_text())
     assert [item["File"] for item in report] == ["/workspace/config.py"]
+
+
+def test_a_scan_through_the_engine_reports_the_planted_secret(tmp_path, monkeypatch):
+    from valvur import api
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws = _workspace(tmp_path)
+    api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[GitleaksAdapter()])
+    findings = json.loads((ws / ".security-scan" / "findings.json").read_text())["findings"]
+    assert [(f["rule"], f["path"]) for f in findings] == [("aws-access-token", "config.py")]
+
+
+def test_container_paths_map_whole_prefixes_only(tmp_path):
+    from valvur.engine import _mapped
+
+    workspace, results = tmp_path / "results-workspace", tmp_path / "results"
+    assert _mapped("/workspace", workspace, results) == str(workspace)
+    assert _mapped("--report-path=/results/g.json", workspace, results) == \
+        f"--report-path={results}/g.json"
+    assert _mapped("/workspaces-other", workspace, results) == "/workspaces-other"

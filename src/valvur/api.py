@@ -696,14 +696,72 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         if warning is not None:
             on_progress(warning)
 
-    outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress, jobs=jobs,
-                           budget_s=budget_s)
+    if _engine_two(runner):
+        outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress)
+    else:
+        outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress,
+                               jobs=jobs, budget_s=budget_s)
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=files, largest_dirs=largest, skipped_builtin=skipped,
     )
+
+
+#: `VALVUR_ENGINE=2` selects the Scan Container (ADR-0022) until R3.9 makes it the
+#: only engine.
+ENGINE_ENV = "VALVUR_ENGINE"
+
+
+def _engine_two(runner) -> bool:
+    import os
+
+    return os.environ.get(ENGINE_ENV) == "2" and hasattr(runner, "run") and hasattr(
+        runner, "engine")
+
+
+def _engine_fleet(adapters, runtime, workspace, *, on_progress):
+    """Every Scanner in one Scan Container, fed a Snapshot of the File Set
+    (ADR-0022): the outcomes in declaration order, and what the budget cut."""
+    import json
+    import tempfile
+
+    from . import engine_host, fileset
+    from .invocation import ScannerOutput
+
+    outcomes: list[ScannerOutcome | None] = [None] * len(adapters)
+    plan, planned = [], []
+    for index, adapter in enumerate(adapters):
+        should_run, why = adapter.applies_to(workspace)
+        if not should_run:
+            outcomes[index] = ScannerOutcome(
+                ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
+            continue
+        plan.append(adapter.command(workspace))
+        planned.append(index)
+    with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
+        scratch = Path(scratch_dir) / "results"
+        scratch.mkdir()
+        tar = engine_host.snapshot(workspace, fileset.files(workspace))
+        runtime.run(plan, tar, scratch, on_event=None)
+        manifest_path = scratch / "manifest.json"
+        entries = ({e["tool"]: e for e in json.loads(manifest_path.read_text())["tools"]}
+                   if manifest_path.exists() else {})
+        for invocation, index in zip(plan, planned, strict=True):
+            entry = entries.get(invocation.tool)
+            if entry is None:
+                outcomes[index] = ScannerOutcome(ScannerRun(
+                    adapters[index].name, ok=False, reason="the engine did not run it"))
+                continue
+            report = (scratch / invocation.report if invocation.report
+                      else scratch / f"{invocation.tool}.stdout")
+            stdout = report.read_text(encoding="utf-8") if report.exists() else ""
+            output = ScannerOutput(invocation.tool, invocation.version, stdout,
+                                   entry.get("stderr_tail", ""), entry["exit_code"],
+                                   argv=invocation.argv)
+            outcomes[index] = _outcome(adapters[index], output).timed(entry["seconds"])
+    return outcomes, []
 
 
 def _preflight(runner, workspace) -> tuple[str | None, str | None]:
