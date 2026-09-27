@@ -57,6 +57,8 @@ _SCAN_STATUS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
     "findings": _COUNTS,
     "fixed": {"type": "integer"},
     "not_rechecked": {"type": "integer"},
+    "excluded_builtin": {"type": "array", "items": {"type": "object", "properties": {
+        "path": {"type": "string"}, "files": {"type": "integer"}}}},
     "scanners": {"type": "array", "items": {"type": "object", "properties": {
         "tool": {"type": "string"}, "ok": {"type": "boolean"},
         "reason": {"type": "string"}, "duration_s": {"type": "number"}}}},

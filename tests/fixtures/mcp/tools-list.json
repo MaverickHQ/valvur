@@ -185,6 +185,20 @@
         "database": {
           "type": "object"
         },
+        "excluded_builtin": {
+          "items": {
+            "properties": {
+              "files": {
+                "type": "integer"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
         "findings": {
           "properties": {
             "active": {

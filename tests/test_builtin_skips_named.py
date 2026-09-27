@@ -61,3 +61,15 @@ def test_the_cli_names_the_skipped_directories(tmp_path, capsys, runner_finding_
     ws = _tree(tmp_path)
     assert cli.main(["scan", str(ws)], runner=runner_finding_nothing) == 0
     assert "not read: mypkg/build (1 file)" in capsys.readouterr().out
+
+
+def test_scan_status_names_the_skipped_directories_in_text_and_fields(
+        tmp_path, runner_finding_nothing):
+    from valvur.api import scan
+    from valvur.operations import scan_status_reply
+
+    ws = _tree(tmp_path)
+    scan(ws, runner=runner_finding_nothing)
+    text, fields = scan_status_reply({"workspace": str(ws)})
+    assert "not read by any Scanner: mypkg/build (1 file)" in text
+    assert fields["excluded_builtin"] == [{"path": "mypkg/build", "files": 1}]

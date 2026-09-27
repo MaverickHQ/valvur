@@ -294,9 +294,15 @@ The current engine, patched where `0.5.0` users can be misled today.
   nothing; OSV-Scanner has no anchored form, so a configured prefix is filtered afterwards.
   The e2e test on a planted tree, `full` Profile, now finds `src/archive/` through every
   Scanner and nothing under `archive/`; before, Opengrep missed it.
-- [ ] **R1.4** **Built-in skips are named** (F7.7). Behaviour: a tree with `mypkg/build/`
+- [x] **R1.4** **Built-in skips are named** (F7.7). Behaviour: a tree with `mypkg/build/`
   names that directory and its file count in `run.json`, `SUMMARY.md`, the CLI output and
   the `scan_status` reply.
+  **STATUS 2026-09-27:** ✅ `exclusions.skipped_builtin` names each directory the built-in
+  list skipped and counts its files, capped at 100,000; valvur's own folder and version
+  control's metadata are skipped but not named. The names reach `run.json`
+  (`excluded_builtin`), `SUMMARY.md`, the CLI and `scan_status`, text and field; the MCP
+  snapshot is re-taken. Six tests in `tests/test_builtin_skips_named.py`. R3.2 removes the
+  list itself.
 - [ ] **R1.5** **Input errors fail at the call, and `doctor` is suggested only when it can
   help** (F9.10). Behaviours:
   1. Each bad argument is refused synchronously, in one plain sentence with no exception
