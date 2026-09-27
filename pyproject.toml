@@ -47,6 +47,9 @@ exclude = [
   "/scripts",
   "/.gitleaks.toml",
   "/.githooks",
+  # A local agent's working folder: Claude Code writes its scheduler's lock here
+  # (R0.1), and nothing in it belongs in a published distribution.
+  "/.claude",
 ]
 
 [tool.pytest.ini_options]
