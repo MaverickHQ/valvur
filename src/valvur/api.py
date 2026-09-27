@@ -650,6 +650,12 @@ def _jobs_from_environment() -> int | None:
 
 def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
     if getattr(runner, "cancelled", False):
+        # CANCELLED is the job's word once this raises, so it must be true when
+        # said (R1.1): `docker kill` returns before `--rm` removes the container,
+        # and the second gate saw CANCELLED with a container still up.
+        wait_stopped = getattr(runner, "wait_stopped", None)
+        if wait_stopped is not None:
+            wait_stopped()
         raise ScanCancelled(f"cancelled: {finished} of {total} Scanner(s) had finished; "
                             "the rest were stopped and nothing was written")
 

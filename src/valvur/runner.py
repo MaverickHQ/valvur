@@ -382,6 +382,32 @@ class ContainerRunner:
         self.cancelled = True
         return self.stop_containers()
 
+    def wait_stopped(self, timeout: float = 15.0) -> bool:
+        """Wait until the runtime lists none of the containers this runner ever
+        started (R1.1): a kill is only done when the daemon says so. True when
+        they are gone, False if `timeout` passed first."""
+        import subprocess
+        import time
+
+        with _live_lock:
+            mine = set(self._mine)
+        if not mine:
+            return True
+        deadline = time.monotonic() + timeout
+        while True:
+            listed: set[str] = set()
+            with _suppress(Exception):
+                listed = set(subprocess.run(  # noqa: S603
+                    [self.runtime, "ps", "-a", "--filter", "name=valvur-",
+                     "--format", "{{.Names}}"],
+                    capture_output=True, text=True, timeout=30, check=False,
+                ).stdout.split())
+            if not listed & mine:
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.25)
+
     def stop_containers(self) -> int:
         """Stop the containers this runner started — without cancelling the scan.
         What the budget does (23.3.7): the Scanners that finished are a result."""
