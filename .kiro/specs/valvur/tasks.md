@@ -667,7 +667,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 
 | item | ready after | what the owner does |
 |---|---|---|
-| `v0.6.0` | R1 lands and is rehearsed | sign and push the tag on the recorded commit; approve at the brake |
+| `v0.6.0` | **ready 2026-09-27**: R1 landed at `bbf77ef`; rehearsal 36353560849 green through validation on both architectures in 13 minutes, cancelled at the brake | sign and push the tag `v0.6.0` on `bbf77ef`; approve the real run at the brake |
 | `v0.7.0` | R3 | the same |
 | `v1.0.0` | R7 | the same |
 | the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own |
