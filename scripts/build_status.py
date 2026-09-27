@@ -72,4 +72,5 @@ def status(repo: Path) -> dict:
         "next_task": current.task or None,
         "branch": existing or branch_name(current.phase, current.title),
         "branch_exists": existing is not None,
+        "action": "continue the task" if current.task else "land the phase",
     }
