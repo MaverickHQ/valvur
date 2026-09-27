@@ -31,3 +31,31 @@ def test_the_container_mounts_only_valvurs_own_directories(tmp_path):
     runtime = ContainerRuntime(image="valvur:dev", runtime="/usr/local/bin/docker")
     sources = {m.split(":", 1)[0] for m in _mounts(runtime.command(tmp_path, name="valvur-c"))}
     assert sources == {str(tmp_path), str(cache.trivy_db()), str(cache.name_index())}
+
+
+def test_a_snapshot_that_arrives_short_refuses_the_scan(tmp_path, monkeypatch):
+    import json
+
+    import pytest
+
+    from valvur import api
+    from valvur.adapters import GitleaksAdapter
+
+    class ShortRuntime:
+        engine = True
+
+        def run(self, plan, tar, scratch, on_event=None):
+            (scratch / "gitleaks.json").write_text("[]")
+            (scratch / "manifest.json").write_text(json.dumps({"received": 1, "tools": [
+                {"tool": "gitleaks", "exit_code": 0, "seconds": 0.1, "timed_out": False,
+                 "stderr_tail": ""}]}))
+            return 0
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    for name in ("a.py", "b.py"):
+        (ws / name).write_text("x = 1\n")
+    with pytest.raises(api.ScannerFailed) as refused:
+        api.scan(ws, runner=ShortRuntime(), adapters=[GitleaksAdapter()])
+    assert "received 1 of 2 files" in str(refused.value)

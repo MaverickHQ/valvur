@@ -743,11 +743,19 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress):
     with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
         scratch = Path(scratch_dir) / "results"
         scratch.mkdir()
-        tar = engine_host.snapshot(workspace, fileset.files(workspace))
+        chosen = fileset.build(workspace)
+        tar = engine_host.snapshot(workspace, chosen.files)
         runtime.run(plan, tar, scratch, on_event=None)
         manifest_path = scratch / "manifest.json"
-        entries = ({e["tool"]: e for e in json.loads(manifest_path.read_text())["tools"]}
-                   if manifest_path.exists() else {})
+        manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+        received = manifest.get("received")
+        if received is not None and received != len(chosen.files):
+            # A Scanner reading part of the File Set would report a partial scan
+            # as a whole one (ADR-0022): refused, with the numbers.
+            raise ScannerFailed(
+                f"The Scan Container received {received} of {len(chosen.files)} files; "
+                "refusing to report a scan of a partial Snapshot.")
+        entries = {e["tool"]: e for e in manifest.get("tools", [])}
         for invocation, index in zip(plan, planned, strict=True):
             entry = entries.get(invocation.tool)
             if entry is None:
