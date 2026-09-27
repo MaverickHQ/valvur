@@ -119,12 +119,15 @@ def test_a_cancelled_scan_stops_writes_nothing_and_is_not_a_failure(tmp_path, mo
     workspace.mkdir()
     (workspace / "app.py").write_text("print('hi')\n")
 
+    # One wide, so the order is fixed: since R1.1 a Scanner queued behind the
+    # cancel never launches, and at the host's own width whether Trivy had
+    # started when Gitleaks was killed was a race this test used to win.
     with pytest.raises(api.ScanCancelled) as caught:
         api.scan(workspace, runner=_Runner(cancel_during="gitleaks"),
-                 adapters=[GitleaksAdapter(), TrivyAdapter()])
+                 adapters=[GitleaksAdapter(), TrivyAdapter()], jobs=1)
 
     assert not issubclass(api.ScanCancelled, api.ScannerFailed)
-    assert "cancelled: 1 of 2 Scanner(s) had finished" in str(caught.value)
+    assert "cancelled: 0 of 2 Scanner(s) had finished" in str(caught.value)
     results = workspace / ".security-scan"
     assert not (results / "run.json").exists()
     assert not (results / "SUMMARY.md").exists()
