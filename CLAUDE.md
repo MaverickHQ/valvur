@@ -23,7 +23,8 @@ honest about why not, and trustworthy. Locally.
   **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
 
 **Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
-R0 and R1 closed 2026-09-27; `0.6.0` waits for the owner's tag; R2, the acceptance set, is next.
+R0 and R1 closed 2026-09-27, R2 (the acceptance set, baseline on both lanes) 2026-09-28;
+`0.6.0` waits for the owner's tag; R3, the one-container engine, is under way.
 
 **Size, 2026-09-27:** 71 modules, 1,308 tests in 95 files, 20 ADRs, 136 requirement IDs,
 traceability debt zero, 61 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.

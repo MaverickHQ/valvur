@@ -412,8 +412,15 @@ R1's rehearsal.
   already on `main`; its first run is R2's own PR. It builds the image from the tree, runs
   the eight repositories and the four probes, uploads the report, and on a scheduled
   failure opens or comments on one issue. The scheduled-workflow constraint names it.
-- [ ] **R2.6** **The baseline.** The `0.6.0` tree on both lanes, plus agent scoring on the
+- [x] **R2.6** **The baseline.** The `0.6.0` tree on both lanes, plus agent scoring on the
   Mac, written to `docs/acceptance/r2.md`.
+  **STATUS 2026-09-28:** ✅ Both lanes recorded. Every repository passes with its gaps
+  pending on the task that closes them, the same rows on the Mac and on Linux; cancel,
+  budget and stdin leave nothing; `kill -9` leaves containers on both, pending R3.6.
+  Repository 1 is 166 s on the Mac (10 GB of swap, recorded under D17) and 105 s on
+  Linux. Agent scoring named every live finding on seven of eight repositories, for
+  $7.15. The Linux lane's first runs found three harness defects, fixed: a shallow
+  checkout, a relative workspace the server refused, and a 117 MB artifact.
 
 **Exit:** the baseline recorded. The harness fails where today's engine is wrong, each row
 marked with the task that fixes it: repository 1 without configuration (R3.2), 3 (R3.7),
