@@ -94,6 +94,9 @@ def render(run: ScanRun) -> str:
                 # Reported, not silent: a user who vendored a vulnerable copy
                 # deserves to know we skipped it.
                 "excluded_vendored": run.vendored_dropped,
+                # Which directories the built-in list skipped, and how many files
+                # each held (R1.4): read by no Scanner, so said here.
+                "excluded_builtin": [{"path": p, "files": n} for p, n in run.skipped_builtin],
                 # What this project chose not to scan, and how much it cost. An
                 # exclusion the reader cannot see is indistinguishable from a
                 # scanner that found nothing.

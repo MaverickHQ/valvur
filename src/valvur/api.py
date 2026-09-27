@@ -128,6 +128,9 @@ class ScanRun:
     #: the three largest top-level directories by that count.
     workspace_files: int = 0
     largest_dirs: tuple[tuple[str, int], ...] = ()
+    #: The directories the built-in list skipped, with their file counts
+    #: (R1.4): what no Scanner read, named on every surface.
+    skipped_builtin: tuple[tuple[str, int], ...] = ()
     #: The `.gitignore` opt-in (29.0.1 part 2): asked for, the directories it
     #: hid, why git could not be asked, and what a Scanner reported there anyway.
     honour_gitignore: bool = False
@@ -684,7 +687,9 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     from . import exclusions as _exclusions
     from . import levers as _levers
 
-    files, largest = _exclusions.count_files(workspace, _exclusions.excluded_prefixes(workspace))
+    prefixes = _exclusions.excluded_prefixes(workspace)
+    files, largest = _exclusions.count_files(workspace, prefixes)
+    skipped = _exclusions.skipped_builtin(workspace, prefixes)
     if on_progress is not None:
         on_progress(_levers.workspace_line(files, largest))
         warning = _levers.large_tree_line(files, largest)
@@ -697,7 +702,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
-        workspace_files=files, largest_dirs=largest,
+        workspace_files=files, largest_dirs=largest, skipped_builtin=skipped,
     )
 
 
@@ -828,7 +833,7 @@ def _budget_shaped(reason: str) -> bool:
 
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
               budget_s, shim_built_from, image_built_from,
-              workspace_files: int = 0, largest_dirs=()) -> ScanRun:
+              workspace_files: int = 0, largest_dirs=(), skipped_builtin=()) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -935,6 +940,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         shim_built_from=shim_built_from,
         workspace_files=workspace_files,
         largest_dirs=tuple(largest_dirs),
+        skipped_builtin=tuple(skipped_builtin),
         image_built_from=image_built_from,
     )
 

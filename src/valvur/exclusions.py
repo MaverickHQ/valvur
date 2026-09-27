@@ -374,6 +374,10 @@ def count_files(workspace: Path, prefixes: tuple[str, ...] = (),
     return total, tuple(largest[:3])
 
 
+#: Skipped and never named (R1.4): valvur's own Results Folder and version
+#: control's metadata are not the project's code.
+_UNNAMED = frozenset({RESULTS_DIR, ".git", ".hg", ".svn"})
+
 #: Past this many files a skipped directory is reported as "at least" (R1.4):
 #: counting a whole `node_modules` costs a walk nobody reads.
 SKIPPED_COUNT_CAP = 100_000
@@ -396,7 +400,8 @@ def skipped_builtin(workspace: Path, prefixes: tuple[str, ...] = (),
             if is_configured_out(path, prefixes):
                 continue
             if name in VENDORED:
-                skipped.append((path, _count(Path(dirpath) / name)))
+                if name not in _UNNAMED:
+                    skipped.append((path, _count(Path(dirpath) / name)))
             else:
                 kept.append(name)
         dirnames[:] = kept

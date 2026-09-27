@@ -24,3 +24,23 @@ def _tree(tmp_path):
 def test_each_skipped_builtin_directory_is_named_with_its_file_count(tmp_path):
     ws = _tree(tmp_path)
     assert exclusions.skipped_builtin(ws) == (("mypkg/build", 1),)
+
+
+def test_a_scan_records_the_skipped_directories_in_run_json(tmp_path, runner_finding_nothing):
+    import json
+
+    from valvur.api import scan
+
+    ws = _tree(tmp_path)
+    run = scan(ws, runner=runner_finding_nothing)
+    assert run.skipped_builtin == (("mypkg/build", 1),)
+    recorded = json.loads((ws / ".security-scan" / "run.json").read_text())
+    assert recorded["excluded_builtin"] == [{"path": "mypkg/build", "files": 1}]
+
+
+def test_valvurs_own_folder_and_version_control_are_skipped_but_never_named(tmp_path):
+    ws = _tree(tmp_path)
+    for own in (".security-scan", ".git"):
+        (ws / own).mkdir()
+        (ws / own / "x").write_text("x")
+    assert exclusions.skipped_builtin(ws) == (("mypkg/build", 1),)
