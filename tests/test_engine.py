@@ -59,3 +59,18 @@ def test_container_paths_map_whole_prefixes_only(tmp_path):
     assert _mapped("--report-path=/results/g.json", workspace, results) == \
         f"--report-path={results}/g.json"
     assert _mapped("/workspaces-other", workspace, results) == "/workspaces-other"
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.e2e
+def test_a_real_scan_container_reports_the_planted_secret(mountable_tmp, monkeypatch):
+    from valvur import api
+    from valvur.engine_host import ContainerRuntime
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws = _workspace(mountable_tmp)
+    api.scan(ws, runner=ContainerRuntime(), adapters=[GitleaksAdapter()])
+    findings = json.loads((ws / ".security-scan" / "findings.json").read_text())["findings"]
+    assert [(f["rule"], f["path"]) for f in findings] == [("aws-access-token", "config.py")]

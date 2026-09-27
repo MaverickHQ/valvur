@@ -431,13 +431,20 @@ marked with the task that fixes it: repository 1 without configuration (R3.2), 3
 The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, and
 `VALVUR_ENGINE=2` selects the new one until then.
 
-- [ ] **R3.1** **Tracer bullet.** Behaviours:
+- [x] **R3.1** **Tracer bullet.** Behaviours:
   1. Through `LocalRuntime`, which runs `python -m valvur.engine` as a host subprocess,
      the engine receives a Snapshot of two files and writes a Gitleaks report and a
      manifest.
   2. `api.scan` with `VALVUR_ENGINE=2` through `LocalRuntime` reports the planted secret in
      `findings.json`.
   3. The same, e2e, through one real container.
+  **STATUS 2026-09-27:** ✅ `valvur.engine` (in the image) unpacks the Snapshot from stdin,
+  runs the plan and writes a manifest; `engine_host` builds the Snapshot and the plan and
+  runs the engine through `LocalRuntime` or `ContainerRuntime`, whose `/workspace` is a
+  tmpfs and whose source tree is never mounted. `api.scan` takes that path under
+  `VALVUR_ENGINE=2`. The real container reports the planted key in 1.7 s. On the way: two
+  chained string replaces corrupted a local path containing `/results`, and the first
+  `fileset` import closed a cycle the ratchet caught.
 - [ ] **R3.2** **The File Set** (D1, D2; F1.1, F7.7). Behaviours, on real temporary git
   repositories:
   1. The git view lists tracked files and untracked-not-ignored files, never `.git/`.

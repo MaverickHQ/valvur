@@ -321,9 +321,12 @@ def test_soft_cycles_are_the_ones_chosen_on_purpose():
     annotation-only edge, chosen."""
     _, soft = _import_graphs()
     accepted = {
-        frozenset({"valvur", "valvur.api", "valvur.compat", "valvur.pipeline",
-                   "valvur.provenance", "valvur.results", "valvur.runner",
-                   "valvur.staleness", "valvur.summary"}),
+        # `engine_host` joined in R3.1: it borrows the runtime's flags from `runner`
+        # while both engines exist. R3.9 deletes runner's fleet, and this entry
+        # must then be redrawn — the check below fails when a component changes.
+        frozenset({"valvur", "valvur.api", "valvur.compat", "valvur.engine_host",
+                   "valvur.pipeline", "valvur.provenance", "valvur.results",
+                   "valvur.runner", "valvur.staleness", "valvur.summary"}),
         frozenset({"valvur.mcp.server", "valvur.mcp.tools"}),
     }
 
