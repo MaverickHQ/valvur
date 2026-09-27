@@ -59,3 +59,59 @@ def test_a_snapshot_that_arrives_short_refuses_the_scan(tmp_path, monkeypatch):
     with pytest.raises(api.ScannerFailed) as refused:
         api.scan(ws, runner=ShortRuntime(), adapters=[GitleaksAdapter()])
     assert "received 1 of 2 files" in str(refused.value)
+
+
+def _running_mounts(runtime, plan, tar, scratch):
+    """Start the Scan Container in a thread and read its mounts while it runs."""
+    import json
+    import subprocess
+    import threading
+    import time
+
+    before = set(subprocess.run(["docker", "ps", "-q"], capture_output=True, text=True,
+                                check=True).stdout.split())
+    worker = threading.Thread(target=runtime.run, args=(plan, tar, scratch))
+    worker.start()
+    mounts = None
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline and mounts is None:
+        now = set(subprocess.run(["docker", "ps", "-q", "--filter", "name=valvur-"],
+                                 capture_output=True, text=True, check=True).stdout.split())
+        for container in now - before:
+            out = subprocess.run(["docker", "inspect", "--format", "{{json .Mounts}}",
+                                  container], capture_output=True, text=True, check=False)
+            if out.returncode == 0:
+                mounts = json.loads(out.stdout)
+        time.sleep(0.1)
+    worker.join(60)
+    return mounts
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.e2e
+def test_a_running_scan_container_has_no_mount_of_the_source_tree(mountable_tmp, monkeypatch):
+    import subprocess
+
+    from valvur import engine_host
+    from valvur.engine_host import snapshot
+    from valvur.invocation import Invocation
+
+    ws = mountable_tmp / "ws"
+    ws.mkdir()
+    (ws / "app.py").write_text("x = 1\n")
+    plan = [Invocation(tool="probe", version="0", argv=("sleep", "3"))]
+    for limit in (engine_host.TMPFS_LIMIT, 1):         # in memory, then a volume
+        monkeypatch.setattr(engine_host, "TMPFS_LIMIT", limit)
+        scratch = mountable_tmp / f"scratch-{limit}"
+        scratch.mkdir()
+        mounts = _running_mounts(ContainerRuntime(), plan, snapshot(ws, ["app.py"]), scratch)
+        assert mounts is not None, "the container was never seen running"
+        sources = {m.get("Source", "") for m in mounts}
+        assert not any(str(ws) in s for s in sources), sources
+        volumes = [m for m in mounts if m.get("Type") == "volume"]
+        assert bool(volumes) is (limit == 1), mounts
+    leftover = subprocess.run(["docker", "volume", "ls", "-q", "--filter", "name=-snapshot"],
+                              capture_output=True, text=True, check=True).stdout.split()
+    assert leftover == [], leftover

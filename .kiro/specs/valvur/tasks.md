@@ -465,11 +465,16 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   refuses, a git view warns), and the manifest. Measured on this Mac: repository 1, 100,683
   files on disk, lists its 304 in 0.08 to 0.10 s. Eight tests in `tests/test_fileset.py`.
   `Refusal` moved to a leaf module so `fileset` can raise it.
-- [ ] **R3.3** **The Snapshot** (D4). Behaviours:
+- [x] **R3.3** **The Snapshot** (D4). Behaviours:
   1. Up to 512 MB goes to a tmpfs, and beyond that to a per-scan volume removed afterwards.
   2. The engine reports the count it received. A mismatch with the manifest refuses the
      scan.
   3. The source tree is never mounted: an e2e test inspects the container's mounts.
+  **STATUS 2026-09-28:** ✅ Up to 512 MB the Snapshot lands in a tmpfs; beyond, in a volume
+  named for the scan and removed after it, and the e2e test sees the volume in the one case
+  and not the other. `docker inspect` of a running Scan Container shows no mount of the
+  source tree in either case; the only bind mounts are the scratch directory and valvur's
+  cache. A Snapshot that arrives short refuses the scan with the numbers.
 - [ ] **R3.4** **The engine runs every `offline` Scanner** (F2.4 to F2.7). Adapters return
   a plan entry holding argv, report path and timeout, and parsing is unchanged. The timeout
   model is MegaLinter's, as an idea only. Behaviours, through `LocalRuntime` with fake
