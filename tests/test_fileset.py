@@ -96,3 +96,16 @@ def test_links_leaving_the_repo_submodules_and_lfs_pointers(tmp_path):
     assert "outside" not in built.files
     assert ("outside", "a link leaving the repository, not followed") in built.skipped
     assert ("vendor/lib", "a submodule, not entered") in built.skipped
+
+
+def test_a_directory_that_is_not_a_repository_is_walked_skipping_only_caches(tmp_path):
+    root = tmp_path / "plain"
+    for name in ("src/app.py", "mypkg/build/steps.py", "node_modules/x/index.js",
+                 ".venv/lib/site.py", "src/__pycache__/app.pyc"):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x\n")
+    built = fileset.build(root)
+    assert built.scope == "tree"
+    assert built.files == ["mypkg/build/steps.py", "src/app.py"]
+    assert {p for p, _ in built.skipped} == {".venv", "node_modules", "src/__pycache__"}

@@ -62,13 +62,33 @@ def git_view(workspace: Path) -> tuple[list[str], list[tuple[str, str]]] | None:
     return kept, skipped
 
 
-def walk(workspace: Path) -> list[str]:
+#: What a walk skips in a directory that is not a repository (ADR-0021): installed
+#: dependencies and tool caches, each named. Build output is read — a package's own
+#: `build/` directory can be first-party code (the review's N2).
+DEPENDENCY_CACHES = frozenset({
+    "node_modules", ".venv", "venv", "__pycache__", ".tox", ".nox", ".mypy_cache",
+    ".pytest_cache", ".ruff_cache", ".gradle",
+})
+
+
+def walk(workspace: Path, skipped: list[tuple[str, str]] | None = None) -> list[str]:
+    """Every file under `workspace`, never version control's metadata or the
+    Results Folder, and — when `skipped` is given — no dependency cache either,
+    each one named there."""
     import os
 
     found = []
     for dirpath, dirnames, filenames in os.walk(workspace):
-        dirnames[:] = [d for d in dirnames if d not in _NEVER]
         rel = Path(dirpath).relative_to(workspace)
+        keep = []
+        for name in sorted(dirnames):
+            if name in _NEVER:
+                continue
+            if skipped is not None and name in DEPENDENCY_CACHES:
+                skipped.append(((rel / name).as_posix(), "a dependency cache"))
+                continue
+            keep.append(name)
+        dirnames[:] = keep
         found += [(rel / f).as_posix() for f in filenames]
     return sorted(found)
 
@@ -162,7 +182,9 @@ def build(workspace: Path) -> FileSet:
         kept, skipped = _ignored(workspace)
         return _excluded(FileSet(sorted(set(tracked) | set(kept)), "git",
                                  left_out + skipped), prefixes)
-    return _excluded(FileSet(walk(workspace), "tree"), prefixes)
+    skipped: list[tuple[str, str]] = []
+    walked = walk(workspace, skipped)
+    return _excluded(FileSet(walked, "tree", sorted(skipped)), prefixes)
 
 
 def files(workspace: Path) -> list[str]:
