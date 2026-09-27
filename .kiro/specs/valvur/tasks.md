@@ -228,7 +228,9 @@ it, behind `VALVUR_ENGINE=2` until then.
   OSV-Scanner and dependency-reality's registry questions run in a second container with a
   network; `egress.py` remains the only authority. Tests first: the exfiltration constraint
   tests, restated for two containers, pass. `offline` still starts exactly one container
-  with no network.
+  with no network. Every Trivy call passes `--disable-telemetry` and
+  `--skip-version-check`: measured 2026-09-27, `trivy fs` with a network logs *sending
+  anonymous telemetry*, and valvur passes neither flag today.
 - [ ] **33.8** **Switch over and delete.** The new engine is the only engine.
   - Deleted: the thread-pool fleet, both name registries, `skip_args`, `VENDORED`, the
     generated Gitleaks config (the project's own `.gitleaks.toml` is still honoured),
@@ -248,20 +250,28 @@ it, behind `VALVUR_ENGINE=2` until then.
 
 ## Phase 34: the Scanner set, decided by measurement
 
-- [ ] **34.1** **The spike** (F2.1, N1.1; reopens ADR-0019 on its own condition). Run
-  Trivy's misconfiguration scanner and zizmor against Checkov, and Trivy's CycloneDX output
-  against Syft's, on the thirteen corpus repositories and the acceptance set.
-  - Record a findings parity table and times.
-  - Decide each replacement in ADR-0023. zizmor's licence, offline mode and pinning are
-    checked before anything enters the image.
+- [ ] **34.1** **The spike** (F2.1, N1.1; reopens ADR-0019 on its own condition). On the
+  thirteen corpus repositories and the acceptance set, measure:
+  - zizmor against Checkov's GitHub Actions checks;
+  - KICS and Trivy's misconfiguration scanner against Checkov on infrastructure. First data
+    point, 2026-09-27, `terraform-aws-vpc`: Trivy 3 of Checkov's 9 rules, 7 to 10 s against
+    77 to 83 s. Trivy does not read workflows;
+  - Trivy's CycloneDX output, through `trivy convert`, against Syft's;
+  - OSV-Scanner's offline database as an `offline` dependency source, and whether it reports
+    the `MAL-` known-malicious entries from ossf/malicious-packages.
+
+  Record a findings parity table and times, and decide each change in ADR-0023. Each tool's
+  licence, offline mode and pinning are checked before it enters the image.
 - [ ] **34.2** **zizmor for GitHub Actions**, if 34.1 says so (F3.11). Pinned by hash in
   the image, credited in `NOTICE`, run offline. Tests first: planted workflows with an
   unpinned action, top-level write permissions and template injection each produce one
   ranked Finding.
-- [ ] **34.3** **Trivy for infrastructure; Checkov removed**, if 34.1 says so (F2.1,
-  F2.2). Removes the Checkov venv, its lock and overrides, its Dependabot entry and its
-  adapter. Tests first: `terraform-aws-vpc`'s expected findings under the new rules. The
-  image size is recorded before and after.
+- [ ] **34.3** **Checkov only where there is infrastructure** (F2.1, F2.2). Workflows go
+  to zizmor (34.2), and Checkov runs only when files other than workflows give it something
+  to analyse. If 34.1 finds KICS at parity, KICS replaces Checkov and its venv, lock,
+  overrides, Dependabot entry and adapter go. Tests first: `terraform-aws-vpc`'s expected
+  findings hold; an application repository with only workflows skips Checkov, and the skip
+  is reported. The image size is recorded before and after.
 - [ ] **34.4** **The SBOM from Trivy's pass; Syft removed**, if 34.1 says so (P3, F10.3).
   Tests first: `sbom.cdx.json` validates as CycloneDX, and its component count on the corpus
   is within the parity recorded in 34.1.
