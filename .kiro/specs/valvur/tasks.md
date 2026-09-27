@@ -493,13 +493,24 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   group-kill test was confirmed to fail when only the tool is killed. No adapter's argv
   changed, so the snapshots stand. Ten engine tests; the container tests pass on an image
   rebuilt from this tree.
-- [ ] **R3.5** **One deadline and one kill** (F1.11, F2.7). Behaviours:
+- [x] **R3.5** **One deadline and one kill** (F1.11, F2.7). Behaviours:
   1. At the budget, the engine stops what is running and writes a partial manifest naming
      each cut.
   2. If the engine does not return within a grace period, the host kills the container.
   3. `scan_cancel` sends one kill and waits until the runtime confirms the container is gone
      before `CANCELLED`.
   4. e2e: zero containers after each of these.
+  **STATUS 2026-09-28:** ✅ The engine cuts at the plan's budget and names each cut; what
+  finished stands. Twenty seconds past the budget the host stops the engine: SIGTERM, then
+  SIGKILL after five, and for a container `docker kill` first, confirmed by the runtime no
+  longer listing it. The engine now handles SIGTERM by stopping every tool it started,
+  because each tool has its own process group and a signal to the engine's never reached
+  them; the test fails without the handler. Both runtimes share `kill` and
+  `wait_stopped`, and `scan_cancel` over MCP uses the Scan Container under
+  `VALVUR_ENGINE=2`. On an image rebuilt from this tree, zero containers after a budget
+  cut, a grace kill and a cancel. Left for R3.9's switch-over: the host does not yet turn
+  the engine's progress into status lines, and the Scan Container path skips the
+  first-run fetches that the fleet's runner performs.
 - [ ] **R3.6** **Nothing outlives its owner** (F1.11, F1.12). Behaviours:
   1. Every container carries the labels `valvur.generation` and `valvur.pid`.
   2. At each scan start and in `doctor`, containers whose owner process is dead are removed.

@@ -229,11 +229,16 @@ class ContainerRuntime(_Runtime):
             self._runtime = detect_runtime()
         return self._runtime
 
-    def _kill(self, name: str) -> None:
+    def _kill(self, name: str, confirm_s: float = 15.0) -> None:
         """Stop the Scan Container by name: killing `docker run` would leave it
-        running, because the daemon owns it (16.2, 29.0.2)."""
+        running, because the daemon owns it (16.2, 29.0.2). Then wait until the
+        runtime no longer lists it: `--rm` removes it after the kill returns, and
+        `run` returning is the host's word that the container is gone (R3.5)."""
         subprocess.run([self.runtime, "kill", name],  # noqa: S603
                        capture_output=True, check=False, timeout=30)
+        deadline = time.monotonic() + confirm_s
+        while self._listed(name) and time.monotonic() < deadline:
+            time.sleep(0.25)
 
     def command(self, scratch: Path, *, network: bool = False, name: str | None = None,
                 snapshot_bytes: int = 0) -> list[str]:
