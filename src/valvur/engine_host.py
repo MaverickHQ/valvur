@@ -38,15 +38,43 @@ def plan_entry(invocation: Invocation) -> dict:
             "empty_when": list(invocation.empty_when)}
 
 
+#: How long past its budget the engine may take to stop its tools and write the
+#: manifest before the host kills it (R3.5).
+GRACE_S = 20.0
+
+
+def _kill_group(process: subprocess.Popen) -> None:
+    import contextlib
+    import signal
+
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(process.pid, signal.SIGKILL)
+
+
 def stream(command: list[str], tar: bytes, env: dict | None,
-           on_event: Callable[[dict], None] | None) -> int:
+           on_event: Callable[[dict], None] | None, *,
+           deadline_s: float | None = None,
+           kill: Callable[[], None] | None = None) -> int:
     """Run the engine, feeding it the Snapshot and handing each progress line to
     `on_event` as it arrives, not after the run (R3.4): what a status line and an
-    MCP progress notification are built from."""
+    MCP progress notification are built from. Past `deadline_s` the host kills it:
+    `kill` when given (a container is the daemon's, not this process's child),
+    and the engine's whole process group either way (R3.5)."""
     import threading
 
     process = subprocess.Popen(command, stdin=subprocess.PIPE,  # noqa: S603
-                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env)
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env,
+                               start_new_session=True)
+    finished = threading.Event()
+
+    def enforce() -> None:
+        if deadline_s is not None and not finished.wait(deadline_s):
+            if kill is not None:
+                kill()
+            _kill_group(process)
+
+    enforcer = threading.Thread(target=enforce, daemon=True)
+    enforcer.start()
 
     def feed() -> None:
         try:
@@ -67,7 +95,9 @@ def stream(command: list[str], tar: bytes, env: dict | None,
                 except ValueError:
                     pass
     writer.join()
-    return process.wait()
+    code = process.wait()
+    finished.set()
+    return code
 
 
 def write_plan(scratch: Path, plan: list[Invocation], budget_s: float | None = None) -> None:
@@ -93,7 +123,8 @@ class LocalRuntime:
         env = {**os.environ, WORKSPACE_ENV: str(workspace), RESULTS_ENV: str(scratch)}
         if self.tools_dir is not None:
             env["PATH"] = f"{self.tools_dir}{os.pathsep}{env.get('PATH', '')}"
-        return stream([sys.executable, "-m", "valvur.engine"], tar, env, on_event)
+        return stream([sys.executable, "-m", "valvur.engine"], tar, env, on_event,
+                      deadline_s=budget_s + GRACE_S if budget_s else None)
 
 
 #: Up to this size the Snapshot lands in a tmpfs, in memory and gone with the
@@ -121,6 +152,12 @@ class ContainerRuntime:
         if self._runtime is None:
             self._runtime = detect_runtime()
         return self._runtime
+
+    def _kill(self, name: str) -> None:
+        """Stop the Scan Container by name: killing `docker run` would leave it
+        running, because the daemon owns it (16.2, 29.0.2)."""
+        subprocess.run([self.runtime, "kill", name],  # noqa: S603
+                       capture_output=True, check=False, timeout=30)
 
     def command(self, scratch: Path, *, network: bool = False, name: str | None = None,
                 snapshot_bytes: int = 0) -> list[str]:
@@ -164,7 +201,9 @@ class ContainerRuntime:
         name = f"valvur-{uuid.uuid4().hex[:16]}"
         try:
             return stream(self.command(scratch, network=network, name=name,
-                                       snapshot_bytes=len(tar)), tar, None, on_event)
+                                       snapshot_bytes=len(tar)), tar, None, on_event,
+                          deadline_s=budget_s + GRACE_S if budget_s else None,
+                          kill=lambda: self._kill(name))
         finally:
             if len(tar) > TMPFS_LIMIT:
                 subprocess.run([self.runtime, "volume", "rm", "-f",  # noqa: S603

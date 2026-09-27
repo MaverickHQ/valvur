@@ -87,3 +87,19 @@ def test_when_the_budget_cuts_everything_the_refusal_names_the_levers(tmp_path, 
     ws, _tar = _tree(tmp_path)
     with pytest.raises(api.BudgetExhausted):
         api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[_Slow()], budget_s=1.0)
+
+
+def test_past_its_grace_the_host_kills_the_engine_and_everything_it_started(tmp_path):
+    import os
+
+    from valvur.engine_host import stream
+
+    pidfile = tmp_path / "pid"
+    started = time.monotonic()
+    code = stream([str(FAKE_TOOLS / "fake-spawn"), str(pidfile)], b"", None, None,
+                  deadline_s=1.0)
+    assert time.monotonic() - started < 10
+    assert code != 0
+    time.sleep(0.3)
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(pidfile.read_text()), 0)
