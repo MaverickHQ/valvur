@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 from . import profiles as _profiles
 from .findings import exploit_badge as _exploit_badge
@@ -134,10 +135,20 @@ def _scan_with_budget(budget_s: float | None):
     budget = float(budget_s) if budget_s else None
 
     def run_scan(workspace: Path, profile: str, progress) -> str:
-        from .api import scan
-        from .runner import ContainerRunner
+        import os
 
-        runner = ContainerRunner()
+        from .api import ENGINE_ENV, scan
+
+        runner: Any
+        if os.environ.get(ENGINE_ENV) == "2":
+            # The Scan Container (ADR-0022) until R3.9 makes it the only engine.
+            from . import engine_host
+
+            runner = engine_host.for_scan()
+        else:
+            from .runner import ContainerRunner
+
+            runner = ContainerRunner()
         job = jobs.current(workspace)
         if job is not None:
             job.canceller = runner.kill      # `scan_cancel` stops this fleet, not another's

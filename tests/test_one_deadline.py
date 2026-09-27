@@ -103,3 +103,114 @@ def test_past_its_grace_the_host_kills_the_engine_and_everything_it_started(tmp_
     time.sleep(0.3)
     with pytest.raises(ProcessLookupError):
         os.kill(int(pidfile.read_text()), 0)
+
+
+def _gone(pid: int, within: float = 5.0) -> bool:
+    """True once `pid` no longer exists; an orphan is reaped by init, not at once."""
+    import os
+
+    deadline = time.monotonic() + within
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.05)
+    return False
+
+
+class _Spawner(_Slow):
+    """A Scanner whose tool starts a grandchild, writes its pid, and sleeps."""
+
+    name = "spawner"
+
+    def __init__(self, pidfile: Path):
+        self.pidfile = pidfile
+
+    def command(self, workspace):
+        return Invocation(tool="spawner", version="0", report="spawner.json", timeout=60,
+                          argv=("fake-spawn", str(self.pidfile)))
+
+
+def _grandchild(pidfile: Path, within: float = 15.0) -> int:
+    deadline = time.monotonic() + within
+    while time.monotonic() < deadline:
+        if pidfile.exists() and pidfile.read_text().strip():
+            return int(pidfile.read_text())
+        time.sleep(0.05)
+    raise AssertionError("the tool never started")
+
+
+def test_a_cancel_is_one_kill_and_nothing_the_engine_started_survives_it(
+        tmp_path, monkeypatch):
+    import threading
+
+    from valvur import api
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws, _tar = _tree(tmp_path)
+    pidfile = tmp_path / "grandchild.pid"
+    runtime = LocalRuntime(FAKE_TOOLS)
+    raised: list[BaseException] = []
+
+    def scan() -> None:
+        try:
+            api.scan(ws, runner=runtime, adapters=[_Spawner(pidfile)])
+        except BaseException as exc:          # the test reads what it was
+            raised.append(exc)
+
+    worker = threading.Thread(target=scan, daemon=True)
+    worker.start()
+    grandchild = _grandchild(pidfile)
+    assert runtime.kill() == 1
+    worker.join(20)
+    assert not worker.is_alive()
+    assert isinstance(raised[0], api.ScanCancelled)
+    assert _gone(grandchild)
+
+
+def test_a_cancel_before_the_engine_starts_starts_nothing(tmp_path, monkeypatch):
+    from valvur import api
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws, _tar = _tree(tmp_path)
+    pidfile = tmp_path / "grandchild.pid"
+    runtime = LocalRuntime(FAKE_TOOLS)
+    assert runtime.kill() == 0
+    with pytest.raises(api.ScanCancelled):
+        api.scan(ws, runner=runtime, adapters=[_Spawner(pidfile)])
+    assert not pidfile.exists()
+
+
+def test_scan_cancel_over_mcp_says_cancelled_only_once_the_engine_is_gone(
+        tmp_path, monkeypatch):
+    from valvur import api, cache, engine_host, operations
+    from valvur.mcp import jobs
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    ws, _tar = _tree(tmp_path)
+    pidfile = tmp_path / "grandchild.pid"
+    runtimes: list[LocalRuntime] = []
+
+    def local() -> LocalRuntime:
+        runtimes.append(LocalRuntime(FAKE_TOOLS))
+        return runtimes[-1]
+
+    monkeypatch.setattr(engine_host, "for_scan", local)
+    spawner = _Spawner(pidfile)
+    spawner.name = "gitleaks"          # a name the `offline` Profile runs
+    monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [spawner])
+    jobs.reset()
+    try:
+        operations.start_scan({"workspace": str(ws)})
+        grandchild = _grandchild(pidfile)
+        operations.cancel_scan({"workspace": str(ws)})
+        job = jobs.current(ws.resolve())
+        assert job is not None and job.wait(20)
+        assert job.state is jobs.State.CANCELLED
+        assert runtimes[0].wait_stopped(timeout=0)
+        assert _gone(grandchild)
+    finally:
+        jobs.reset()

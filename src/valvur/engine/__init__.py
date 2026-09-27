@@ -144,25 +144,32 @@ def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
     _event({"event": "received", "files": received})
     plan = json.loads((results / "plan.json").read_text(encoding="utf-8"))
     entries = []
+    running: list[_Running] = []
     with tempfile.TemporaryDirectory(prefix="valvur-engine-") as scratch_dir:
-        running = [_Running(tool, workspace, results, Path(scratch_dir))
-                   for tool in plan["tools"]]
-        budget = plan.get("budget_s")
-        budget_deadline = time.monotonic() + float(budget) if budget else None
-        while running:
-            now = time.monotonic()
-            if budget_deadline is not None and now >= budget_deadline:
-                # One deadline (R3.5): what is still running is stopped and named.
-                for tool in running:
-                    tool.stop()
-                    tool.cut = True
+        try:
+            for tool in plan["tools"]:
+                running.append(_Running(tool, workspace, results, Path(scratch_dir)))
+            budget = plan.get("budget_s")
+            budget_deadline = time.monotonic() + float(budget) if budget else None
+            while running:
+                now = time.monotonic()
+                if budget_deadline is not None and now >= budget_deadline:
+                    # One deadline (R3.5): what is still running is stopped and named.
+                    for tool in running:
+                        tool.stop()
+                        tool.cut = True
+                        entries.append(tool.entry())
+                    running = []
+                    break
+                for tool in [t for t in running if t.poll(now)]:
                     entries.append(tool.entry())
-                running = []
-                break
-            for tool in [t for t in running if t.poll(now)]:
-                entries.append(tool.entry())
-                running.remove(tool)
-            time.sleep(0.05)
+                    running.remove(tool)
+                time.sleep(0.05)
+        finally:
+            # Stopped by the host (R3.5), or failing: nothing the engine started
+            # outlives it, and no manifest claims a run that did not finish.
+            for tool in running:
+                tool.stop()
     (results / "manifest.json").write_text(
         json.dumps({"received": received, "tools": entries}), encoding="utf-8")
     return 0

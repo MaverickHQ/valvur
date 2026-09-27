@@ -757,9 +757,19 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None):
         scratch.mkdir()
         chosen = fileset.build(workspace)
         tar = engine_host.snapshot(workspace, chosen.files)
+        _stop_if_cancelled(runtime, "before the Scan Container started")
+        ended: list[str] = []
+
+        def on_event(event: dict) -> None:
+            if event.get("event") == "end":
+                ended.append(event.get("tool", ""))
+
         started = time.monotonic()
-        runtime.run(plan, tar, scratch, on_event=None, budget_s=budget_s)
+        runtime.run(plan, tar, scratch, on_event=on_event, budget_s=budget_s)
         spent = time.monotonic() - started
+        # A cancel (F1.11, R3.5): CANCELLED once the runtime confirms the engine
+        # is gone, and nothing written.
+        _refuse_if_cancelled(runtime, len(ended), len(plan))
         manifest_path = scratch / "manifest.json"
         manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
         received = manifest.get("received")
