@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""A stand-in for Opengrep that writes a report no parser can read (R3.4)."""
+import sys
+
+args = sys.argv[1:]
+with open(args[args.index("--output") + 1], "w", encoding="utf-8") as handle:
+    handle.write("{ this is not json")

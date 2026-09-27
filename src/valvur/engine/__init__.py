@@ -88,18 +88,25 @@ class _Running:
         stdout_path = results / f"{self.name}.stdout"
         self.started = time.monotonic()
         self.deadline = self.started + float(tool.get("timeout") or 600)
-        with open(stdout_path, "wb") as out, open(self.stderr_path, "wb") as err:
-            self.process = subprocess.Popen(  # noqa: S603 — the plan's own argv
-                argv, stdout=out, stderr=err, env=env, cwd=scratch,
-                start_new_session=True)
         self.timed_out = False
+        self.not_started: str | None = None
+        self.process: subprocess.Popen | None = None
+        with open(stdout_path, "wb") as out, open(self.stderr_path, "wb") as err:
+            try:
+                self.process = subprocess.Popen(  # noqa: S603 — the plan's own argv
+                    argv, stdout=out, stderr=err, env=env, cwd=scratch,
+                    start_new_session=True)
+            except OSError as exc:
+                # A missing or unrunnable tool fails alone (R3.4): recorded as the
+                # shell records it, 127, and every other tool still runs.
+                self.not_started = f"{argv[0]}: {exc.strerror or exc}"
         _event({"event": "start", "tool": self.name})
 
     def poll(self, now: float) -> bool:
         """True once the tool has finished or been stopped."""
         import signal
 
-        if self.process.poll() is not None:
+        if self.process is None or self.process.poll() is not None:
             return True
         if now >= self.deadline:
             with contextlib.suppress(ProcessLookupError):
@@ -112,7 +119,10 @@ class _Running:
     def entry(self) -> dict:
         seconds = round(time.monotonic() - self.started, 1)
         stderr = self.stderr_path.read_text(encoding="utf-8", errors="replace")
-        code = TIMED_OUT if self.timed_out else self.process.returncode
+        if self.process is None:
+            stderr, code = self.not_started or "", 127
+        else:
+            code = TIMED_OUT if self.timed_out else self.process.returncode
         _event({"event": "end", "tool": self.name, "exit_code": code, "seconds": seconds,
                 "timed_out": self.timed_out})
         return {"tool": self.name, "exit_code": code, "seconds": seconds,

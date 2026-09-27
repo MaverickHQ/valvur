@@ -125,3 +125,29 @@ def test_a_tool_past_its_timeout_is_killed_with_its_whole_group(tmp_path):
     except ProcessLookupError:
         alive = False
     assert not alive, "the timed-out tool's grandchild outlived it"
+
+
+def test_a_crash_or_a_missing_tool_fails_alone(tmp_path):
+    plan = _plan(("ok", ["fake-sleep", "0", "/results/ok.json"], "ok.json", 30),
+                 ("crash", ["fake-crash"], None, 30),
+                 ("missing", ["no-such-tool-anywhere"], None, 30))
+    _scratch, manifest = _run(tmp_path, plan)
+    by_tool = {e["tool"]: e for e in manifest["tools"]}
+    assert by_tool["ok"]["exit_code"] == 0
+    assert (by_tool["crash"]["exit_code"], by_tool["crash"]["stderr_tail"]) == (
+        2, "fatal: the tool could not start")
+    assert by_tool["missing"]["exit_code"] == 127
+
+
+def test_an_unreadable_report_fails_its_scanner_and_the_others_stand(tmp_path, monkeypatch):
+    from valvur import api
+    from valvur.adapters import OpengrepAdapter
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    ws = _workspace(tmp_path)
+    run = api.scan(ws, runner=LocalRuntime(FAKE_TOOLS),
+                   adapters=[GitleaksAdapter(), OpengrepAdapter()])
+    by_tool = {s.tool: s for s in run.scanners}
+    assert by_tool["gitleaks"].ok and not by_tool["opengrep"].ok
+    assert by_tool["opengrep"].reason.startswith("report unreadable")
+    assert [f.rule for f in run.findings] == ["aws-access-token"]
