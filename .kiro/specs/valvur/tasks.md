@@ -2040,6 +2040,19 @@ become the task list for 12b.** Everything below is provisional until it has.
   gate has happened or that the number ships without it — either way, recorded
   here.
 
+  **Decision 2026-09-27, the owner's: `v1.0.0` ships without the gate with a
+  person.** Recorded before the tag, because this task's own words are the
+  ones it amends: the number claims the stability of the contracts the
+  CHANGELOG names, which is measured and held by tests; it does not claim
+  that a stranger has used it. That gate moves after the tag, beside 28.1.3,
+  and its record will say what the first person found — on `1.0.0` or a
+  `1.0.x`, which is the honest place for it: a first impression is measured
+  on what was shipped. What stands before the tag instead: the owner's own
+  run of the release candidate over MCP in a fresh session on the first
+  gate's tree, the same pass the record's two agents made, and the
+  rehearsal's validation of the artifact on both architectures. Phase 25's
+  exit is amended the same way.
+
 **Exit (12b):** v1.0.0 released. CI proves non-exfiltration on every commit, the
 self-scan is clean, the signature and SBOM are published, and someone who has never
 seen valvur has installed it and got a useful answer.
@@ -5848,7 +5861,9 @@ scheduled self-test. Details under 28.1.2.
 
 **Exit (Phase 25):** `v1.0.0` released; someone who had never seen valvur installed
 it from the README and got a useful answer; every open task in the plan closed or
-deferred with a reason.
+deferred with a reason. *Amended 2026-09-27 under 12b.3: the person's run follows
+the tag and is recorded against what shipped; the release itself waits only on the
+owner's own run of the candidate and the tag.*
 
 ## Phase 26 — The second external review: four gaps, five tiers
 
