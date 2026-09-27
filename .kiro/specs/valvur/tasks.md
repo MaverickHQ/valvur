@@ -349,7 +349,7 @@ rehearsal follows the landing (§4 step 6).
 The judge for every later phase, and a baseline of today's engine. The first commit records
 R1's rehearsal.
 
-- [ ] **R2.1** **Eight acceptance repositories, generated** (P1, N1.1). `scripts/acceptance/`
+- [x] **R2.1** **Eight acceptance repositories, generated** (P1, N1.1). `scripts/acceptance/`
   builds each from nothing, into a temporary directory:
   1. *gate-shaped*: 300 source files, a gitignored 100,000-file data directory, a `.venv`;
   2. *lockfiles*: a copy of `tests/fixtures/broken-repo`, with known CVEs;
@@ -367,6 +367,11 @@ R1's rehearsal.
   Behaviours:
   1. The generator is deterministic: two runs produce byte-identical trees.
   2. No generated credential exists as a literal in the repository.
+  **STATUS 2026-09-27:** ✅ `scripts/acceptance/generate.py` builds all eight in 10.7 s on
+  this Mac; repository 1 holds 100,683 files. Repository 8 names OSV's `MAL-2023-1`,
+  `@hyperion-util/cookies` 77.77.79. Three tests; the determinism test was confirmed to
+  catch a time-stamped file. The generator was written before its tests, against §3;
+  the break was the check that they test something.
 - [ ] **R2.2** **The harness**, `scripts/acceptance.py`. It runs a CLI scan per repository
   and reports JSON plus a Markdown table: expected findings present, unexpected ones,
   status, wall time, containers alive afterwards, platform and host swap. Behaviours:
