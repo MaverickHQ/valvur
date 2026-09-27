@@ -11,7 +11,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from . import egress
+from . import egress, owner
 from .version import __version__
 
 LABEL = "org.opencontainers.image.version"
@@ -139,7 +139,8 @@ def image_inputs(runtime: str, image: str) -> str | None:
         return remembered or None
     try:
         probe = subprocess.run(  # noqa: S603
-            [runtime, "run", "--rm", *egress.NONE.container_flags(), "--entrypoint", "cat",
+            [runtime, "run", "--rm", *owner.labels(), *egress.NONE.container_flags(),
+             "--entrypoint", "cat",
              image, IMAGE_INPUTS_FILE],
             capture_output=True, text=True, timeout=120, check=False,
         )

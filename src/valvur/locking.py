@@ -32,7 +32,8 @@ from pathlib import Path
 
 
 class Busy(RuntimeError):
-    """Someone else holds the lock, and we chose not to wait."""
+    """Someone else holds the lock, and we chose not to wait. The message names
+    the holder's process and whether it is running (R3.6)."""
 
     #: Not something `doctor` would name, and it knows what to do (R1.5): the
     #: second gate saw *Run `doctor`* after a Busy refusal.
@@ -46,8 +47,9 @@ def held(path: Path, *, exclusive: bool = True, wait: bool = True,
          busy_message: str = "") -> Iterator[None]:
     """Hold a lock on `path` for the duration of the block.
 
-    The lock file's *contents* are never read or written. Holding it is the whole
-    signal, and an empty file cannot be misread as state.
+    Holding it is the signal. An exclusive holder also writes its PID into the
+    file (R3.6), so a refusal can say who holds it and whether that process is
+    running: never read as the lock itself, only as its explanation.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
@@ -58,13 +60,39 @@ def held(path: Path, *, exclusive: bool = True, wait: bool = True,
         try:
             fcntl.flock(descriptor, mode)
         except OSError as exc:
-            raise Busy(busy_message or f"another process holds {path}") from exc
+            raise Busy(_busy(busy_message or f"another process holds {path}.", path)) from exc
+        if exclusive:
+            os.ftruncate(descriptor, 0)
+            os.pwrite(descriptor, f"{os.getpid()}\n".encode(), 0)
         yield
     finally:
         # Closing releases the lock. Explicit unlock first so the intent is legible.
         with _ignore_os_error():
             fcntl.flock(descriptor, fcntl.LOCK_UN)
         os.close(descriptor)
+
+
+def holder(path: Path) -> tuple[int | None, bool]:
+    """The PID an exclusive holder wrote, and whether it runs on this host."""
+    from .owner import alive
+
+    try:
+        raw = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None, False
+    if not raw.isdigit():
+        return None, False
+    return int(raw), alive(int(raw))
+
+
+def _busy(message: str, path: Path) -> str:
+    pid, running = holder(path)
+    if pid is None:
+        return message
+    if running:
+        return f"{message} Held by process {pid}, which is running."
+    return (f"{message} Held by process {pid}, which is not running on this machine: "
+            "another machine or container shares this folder.")
 
 
 @contextmanager

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import cache as _cache
-from . import egress
+from . import egress, owner
 from .version import __version__
 
 #: What each level means, in the order they are worth reading.
@@ -122,8 +122,8 @@ def _image_starts(runtime: str, image: str) -> tuple[bool, str]:
 
     from .tree_hash import IMAGE_DIGEST_FILE
 
-    cmd = [runtime, "run", "--rm", *egress.NONE.container_flags(), "--entrypoint", "cat",
-           image, IMAGE_DIGEST_FILE]
+    cmd = [runtime, "run", "--rm", *owner.labels(), *egress.NONE.container_flags(),
+           "--entrypoint", "cat", image, IMAGE_DIGEST_FILE]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120,  # noqa: S603
                               check=False)
@@ -192,6 +192,8 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(runtime_check)
     image_check, image_local = _check_image(runtime)
     checks.append(image_check)
+    if runtime is not None:
+        checks.append(_check_orphans(runtime))
     checks.append(_check_database())
     checks.append(_check_index())
     checks.append(_check_kev())
@@ -331,6 +333,20 @@ def _superseded_images(runtime: str) -> list[str]:
         return _cache.superseded_images(_cache.local_images(runtime))
     except Exception:   # broad: a listing that fails names nothing, and says nothing
         return []
+
+
+def _reap(runtime: str) -> list[str]:
+    return owner.reap(runtime)
+
+
+def _check_orphans(runtime: str) -> Check:
+    """Containers a scan left when its process ended, removed (R3.6): what a
+    server killed mid-scan leaves running, with nobody to read the result."""
+    reaped = _reap(runtime)
+    if not reaped:
+        return Check("orphans", "ok", "no container left by an ended scan")
+    return Check("orphans", "info", f"removed {len(reaped)} container(s) left by a scan "
+                 f"whose process had ended: {', '.join(reaped)}")
 
 
 def _check_database() -> Check:

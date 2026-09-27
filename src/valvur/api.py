@@ -617,6 +617,7 @@ def scan(
                 "state.json and silently spoil the next run's new/fixed diff."
             ),
         ))
+        generation = _begin(runner, on_progress)
         # What a first run needs and does not have, in dependency order: the image
         # (10.2 claim 4 — `run` would pull it silently, and a first scan that shows
         # nothing for a minute looks hung, measured through Kiro in 22.G.1); then
@@ -637,8 +638,28 @@ def scan(
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
             on_progress=on_progress, unfetched=unfetched, fetched=fetched, jobs=jobs,
-            budget_s=budget_s,
+            budget_s=budget_s, generation=generation,
         )
+
+
+def _begin(runner, on_progress) -> str:
+    """The Scan Run's generation, handed to the runner so every container it starts
+    carries it (R3.6); and first, the containers an ended process left, removed.
+    The second gate's next scan met the fleet a killed server had left running."""
+    import uuid
+
+    from . import owner
+
+    generation = str(uuid.uuid4())
+    with contextlib.suppress(AttributeError):
+        runner.generation = generation
+    runtime = getattr(runner, "runtime", None)
+    if isinstance(runtime, str):
+        reaped = owner.reap(runtime)
+        if reaped and on_progress is not None:
+            on_progress(f"removed {len(reaped)} container(s) left by a scan whose process "
+                        f"had ended: {', '.join(reaped)}")
+    return generation
 
 
 def _default_width(runner, fleet: int) -> int:
@@ -684,7 +705,8 @@ def _stop_if_cancelled(runner, where: str) -> None:
 
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                  unfetched: dict[str, str] | None = None, fetched: list[dict] | None = None,
-                 jobs: int | None = None, budget_s: float | None = None) -> ScanRun:
+                 jobs: int | None = None, budget_s: float | None = None,
+                 generation: str | None = None) -> ScanRun:
     """One Scan Run, under the Workspace lock: preflight, the fleet, then the
     assembly of the record — three functions since 28.4.2, one each."""
     shim_built_from, image_built_from = _preflight(runner, workspace)
@@ -717,6 +739,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=files, largest_dirs=largest, skipped_builtin=skipped,
+        generation=generation,
     )
 
 
@@ -930,7 +953,8 @@ def _budget_shaped(reason: str) -> bool:
 
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
               budget_s, shim_built_from, image_built_from,
-              workspace_files: int = 0, largest_dirs=(), skipped_builtin=()) -> ScanRun:
+              workspace_files: int = 0, largest_dirs=(), skipped_builtin=(),
+              generation: str | None = None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -1009,6 +1033,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
     fixed_now = [outcome.previous[fp] or fp for fp in gone if not_run_for(fp) is None]
     carried = {fp: outcome.previous[fp] for fp in gone if not_run_for(fp) is not None}
     run = ScanRun(
+        **({"generation": generation} if generation else {}),
         findings=findings,
         fixed=sorted(fixed_now),
         not_rechecked=sorted((title or fp, not_run_for(fp) or "") for fp, title in carried.items()),

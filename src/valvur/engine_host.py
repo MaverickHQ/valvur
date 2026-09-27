@@ -140,6 +140,8 @@ class _Runtime:
         self._stop = threading.Event()
         self._idle = threading.Event()
         self._idle.set()
+        #: The Scan Run's generation, carried by the Scan Container (R3.6).
+        self.generation: str | None = None
 
     def kill(self) -> int:
         """Stop the engine, and remember that the scan was cancelled. Returns 1
@@ -244,7 +246,7 @@ class ContainerRuntime(_Runtime):
                 snapshot_bytes: int = 0) -> list[str]:
         import uuid
 
-        from . import cache, egress
+        from . import cache, egress, owner
         from .runner import _resource_flags, _user_flags
 
         db, names = cache.trivy_db(), cache.name_index()
@@ -258,7 +260,7 @@ class ContainerRuntime(_Runtime):
             # In memory, gone with the container.
             landing = ["--tmpfs", "/workspace:rw,nosuid,size=512m,mode=1777"]
         return [
-            self.runtime, "run", "-i", "--rm",
+            self.runtime, "run", "-i", "--rm", *owner.labels(self.generation),
             "--name", name,
             *_user_flags(self.runtime),
             "--read-only", "--cap-drop=ALL", *_resource_flags(self.runtime),

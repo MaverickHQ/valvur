@@ -52,6 +52,7 @@ def healthy(tmp_path, monkeypatch):
     monkeypatch.setattr(doctor, "_image_protocol", lambda runtime, image: None)
     monkeypatch.setattr(doctor, "_image_starts", lambda runtime, image: (True, "0be0b0f0456f7f"))
     monkeypatch.setattr(doctor, "_superseded_images", lambda runtime: [])   # 28.3.7
+    monkeypatch.setattr(doctor, "_reap", lambda runtime: [])                 # R3.6
     from valvur import runner as _runner
 
     # A roomy runtime, faked (29.1.3): `docker info` is a probe like the others.

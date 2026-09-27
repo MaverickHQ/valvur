@@ -387,6 +387,9 @@ class ContainerRunner:
         self._mine: set[str] = set()
         #: Set by `kill`. The scan checks it before it writes anything (F1.11).
         self.cancelled = False
+        #: The Scan Run's generation, set by the scan and carried by every
+        #: container this runner starts (R3.6).
+        self.generation: str | None = None
 
     def kill(self) -> int:
         """Stop the containers this runner started, and remember that the scan
@@ -589,8 +592,10 @@ class ContainerRunner:
         enforcing = selinux_enforcing()
         own_label = ":z" if enforcing else ""
         ws_label = ",z" if enforcing and _relabel_workspace() else ""
+        from . import owner
+
         flags = [
-            self.runtime, "run", "--rm",
+            self.runtime, "run", "--rm", *owner.labels(self.generation),
             "--name", _container_name(),
             *_user_flags(self.runtime),
             # F10.2, with the Dockerfile's USER 10001: non-root, read-only root

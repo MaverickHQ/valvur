@@ -9,8 +9,10 @@ reporting on itself.
 from __future__ import annotations
 
 import contextlib
+import os
 import signal
 import sys
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -47,26 +49,54 @@ def shutdown(out=None) -> None:
     the cancel and the kill. Nothing here raises: a server that cannot clean up
     must still exit.
     """
-    from .. import runner
+    from .. import owner, runner
 
     stream = out or sys.stderr
+    stopping = []
     for workspace in jobs.active():
         job, stopped = jobs.cancel(workspace)
         if job is None:
             continue
         print(f"valvur-mcp: stopping the {job.profile} scan of {workspace} "
               f"({stopped} container(s))", file=stream, flush=True)
-        if not job.wait(SHUTDOWN_SECONDS):
-            print(f"valvur-mcp: the scan of {workspace} had not stopped after "
-                  f"{SHUTDOWN_SECONDS:.0f}s; leaving it", file=stream, flush=True)
+        stopping.append((workspace, job))
     try:
-        swept = runner.kill_running()
+        # Everything this process started, by label, in one call (R3.6): before
+        # the waits, so the kill lands within seconds whatever a job is doing.
+        swept = owner.kill_mine(runner.detect_runtime()) + runner.kill_running()
     except Exception as exc:   # broad: a server that cannot clean up must still exit
         print(f"valvur-mcp: could not stop remaining containers: {exc}",
               file=stream, flush=True)
-        return
+        swept = 0
     if swept:
-        print(f"valvur-mcp: stopped {swept} container(s) with no job", file=stream, flush=True)
+        print(f"valvur-mcp: stopped {swept} container(s) by label", file=stream, flush=True)
+    for workspace, job in stopping:
+        if not job.wait(SHUTDOWN_SECONDS):
+            print(f"valvur-mcp: the scan of {workspace} had not stopped after "
+                  f"{SHUTDOWN_SECONDS:.0f}s; leaving it", file=stream, flush=True)
+
+
+#: How often the server asks whether its parent is still there (R3.6).
+PARENT_POLL_S = 1.0
+
+
+def _watch_parent(parent: int) -> None:
+    """Exit when the client that started this server is gone, though stdin may
+    stay open: a parent killed while a grandparent holds the pipe sends no EOF,
+    and the server would scan on for nobody. Reparenting changes `getppid`."""
+    import threading
+
+    def watch() -> None:
+        while os.getppid() == parent:
+            time.sleep(PARENT_POLL_S)
+        print("valvur-mcp: the client that started this server has gone; stopping",
+              file=sys.stderr, flush=True)
+        try:
+            shutdown()
+        finally:
+            os._exit(0)
+
+    threading.Thread(target=watch, name="valvur-parent-watch", daemon=True).start()
 
 
 class Tool:
@@ -261,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
 
     with contextlib.suppress(ValueError):     # not the main thread: a test, or an embedder
         signal.signal(signal.SIGTERM, terminated)
+    _watch_parent(os.getppid())
 
     try:
         protocol.serve(build(registry()))
