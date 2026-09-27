@@ -95,7 +95,10 @@ Two mechanisms, armed by R0.1.
   2. run it and see it fail for the expected reason;
   3. write the least code that passes;
   4. run `ruff`, `mypy` and the unit suite
-     (`PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider -m "not e2e"`);
+     (`PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider -m "not e2e"`).
+     A slice that touches only `scripts/`, documents or a new test file runs its own
+     tests and lint; the full suite runs at the end of every task and before every push.
+     *Adopted in R0: the full suite takes one to two minutes on this Mac under swap.*
   5. commit. The commit message follows the repository's Conventional Commits hook, scoped
      by task, and names the behaviour: `feat(r3.4): a Scanner past its timeout is killed
      with its process group`.
@@ -206,10 +209,12 @@ condition.
   3. The durable task exists: `list_scheduled_tasks` shows `valvur-build-resume`.
   4. From a fresh shell, `scripts/build_status.py` prints R0.2 as the next task and changes
      nothing.
+  **STATUS 2026-09-27:** ✅ `scripts/build_status.py` with eight tests; `CronCreate` job `5138717e` and the desktop task `valvur-build-resume` armed; a fresh shell read R0.2 as next. Record: `docs/acceptance/r0.md`.
 - [x] **R0.2** **The machine.** Record: the macOS version; Docker Desktop's version, VM
   memory and CPUs; host swap in use; free disk, which must be at least 30 GB; and one
   `docker run --rm --network=none valvur:dev true`. When host swap is over 4 GB, D17's Mac
   time rule applies for the whole build, and the record says so.
+  **STATUS 2026-09-27:** ✅ 8 GB Mac, host swap 14.05 of 14.34 GB, 32 GB free, a container start 4.99 s: D17's swap rule holds for the build, and §8 asks the owner to free memory.
 - [x] **R0.3** **The toolchain and access.** Record each:
   - `uv`, and Python 3.11, 3.12 and 3.13 through it; `docker buildx`; `cosign`.
   - `gh auth status` with the `repo` and `workflow` scopes.
@@ -219,11 +224,13 @@ condition.
   - HTTPS reach to `ghcr.io`, `pypi.org`, `mirror.gcr.io`, `github.com` and
     `api.github.com`.
   - AWS is not needed: R8 uses a local registry.
+  **STATUS 2026-09-27:** ✅ Everything present; Python 3.13.12 installed through `uv`; a signed probe commit verified against `.github/allowed_signers`.
 - [x] **R0.4** **The repository.** Record each:
   - `main` is clean and equal to `origin/main`, and its last three CI runs are green.
   - No open PR from another session. Worktrees are listed and left alone.
   - The unit suite is green and traceability holds.
   - The state of rehearsal run 36317791899.
+  **STATUS 2026-09-27:** ✅ `main` current and green; no open PRs; one fix: `pyproject.toml` excludes `/.claude` from the sdist, where R0.1's schedule keeps its lock. Unit suite 1,274 passed.
 - [x] **R0.5** **The decisions, written** (§5). Test: `scripts/check_traceability.py`
   passes, with every new ADR citing its requirements.
   - ADR-0021 *The File Set* (D1 to D3); ADR-0022 *One Scan Container and the Snapshot*
@@ -233,6 +240,7 @@ condition.
   - `CONTEXT.md` gains **File Set**, **Snapshot** and **Scan Container**, each with an
     _Avoid_ list.
   - `requirements.md` amends F1.1 and F1.6 for the Snapshot, and F10.8 for freshness.
+  **STATUS 2026-09-27:** ✅ ADRs 0021 to 0025; File Set, Snapshot and Scan Container in `CONTEXT.md`; F1.1, F1.6 and F10.8 amended; traceability holds.
 - [ ] **R0.6** **The working materials.**
   - `valvur:dev` is built from `main` with `SOURCE_DATE_EPOCH`.
   - `BUILD_CACHE` holds the vulnerability database and the Name Index, fetched once.
@@ -595,6 +603,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | R8 | run once in an AWS account and record the numbers |
 | `init --write` | R6 | decide whether `init` may write files |
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
+| **stop: Docker Desktop is not running** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run. Start it when memory allows; the hourly schedule resumes the build by itself, re-runs R0.6's e2e suite and closes R0. Nothing else is needed |
 | pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
