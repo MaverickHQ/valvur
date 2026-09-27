@@ -197,7 +197,7 @@ Nothing is built until R0 passes. Its checks are its tests. Each check is a comm
 output is recorded in `docs/acceptance/r0.md`. A failing check is fixed, or becomes a stop
 condition.
 
-- [ ] **R0.1** **Resuming, armed** (§2). Behaviours:
+- [x] **R0.1** **Resuming, armed** (§2). Behaviours:
   1. `scripts/build_status.py`, test-first against a fixture `tasks.md` and a fixture git
      repository. It names the current phase, its branch and the first unchecked task. It
      answers "alive" when the newest build commit or file change is under eight hours old,
@@ -594,6 +594,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | R8 | run once in an AWS account and record the numbers |
 | `init --write` | R6 | decide whether `init` may write files |
+| pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
 ## 9. Where the earlier IDs went
