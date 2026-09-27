@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""A stand-in for Gitleaks on the engine's own tests (R3.1): `gitleaks dir DIR
+--report-path FILE ...` writes Gitleaks JSON for every AWS access key shape it
+finds, naming files `/workspace/<relative>` as the real one does in its container.
+It reads the files it is given and nothing else."""
+import json
+import os
+import re
+import sys
+
+args = sys.argv[1:]
+root = args[args.index("dir") + 1]
+report = args[args.index("--report-path") + 1]
+found = []
+for dirpath, _dirs, files in os.walk(root):
+    for name in sorted(files):
+        path = os.path.join(dirpath, name)
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for number, line in enumerate(handle, start=1):
+                match = re.search(r"AKIA[A-Z2-7]{16}", line)
+                if match:
+                    found.append({"RuleID": "aws-access-token", "Description": "AWS Access Token",
+                                  "File": "/workspace/" + os.path.relpath(path, root),
+                                  "StartLine": number, "Secret": match.group(0),
+                                  "Match": line.strip()})
+with open(report, "w", encoding="utf-8") as handle:
+    json.dump(found, handle)
