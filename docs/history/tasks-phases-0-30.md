@@ -1,0 +1,9083 @@
+# valvur — Implementation Plan
+
+**Status:** ready to execute · **Version:** 2.0 · **Date:** 2026-08-30
+
+Implements [design.md](./design.md) against [requirements.md](./requirements.md).
+Vocabulary is [CONTEXT.md](../../../CONTEXT.md); decisions are
+[docs/adr/](../../../docs/adr/).
+
+---
+
+## How to execute this plan
+
+**One phase = one commit**, with one documented exception. Each phase states its goal,
+its TDD cycles, an exit criterion, and its commit message. Do not span phases.
+
+The rule exists to keep changes reviewable. **Phase 3 is large enough that obeying its
+letter would defeat its purpose** — a single commit containing a refactor, the failure
+model, concurrency and five Scanner adapters is the opposite of reviewable. Phase 3
+therefore commits per sub-phase (3.0 … 3.4), each self-contained and green. Any future
+phase that grows past roughly one reviewable diff should do the same, deliberately and
+noted here — not silently.
+
+**TDD is vertical, never horizontal.** Each numbered cycle below is one
+RED→GREEN pass: write *one* test for *one* behaviour, watch it fail, write the
+minimum code to pass, move on. **Never write a batch of tests and then a batch of
+implementation** — tests written in bulk describe imagined behaviour and end up
+asserting the shape of data structures instead of what the system does.
+
+```
+RIGHT:  test → impl → test → impl → test → impl
+WRONG:  test, test, test → impl, impl, impl
+```
+
+**Cycles are written as behaviours, not implementation steps.** A cycle reads like a
+sentence about what valvur does. If a cycle can only be verified by reaching into
+internals, it is the wrong cycle — restate it in terms of observable behaviour.
+
+**Refactor only when green.** At the end of each phase, refactor with tests passing,
+then commit.
+
+**These cycles are the priority list, not the whole test suite.** They cover critical
+paths and the constraints that define the product. Add edge-case tests as you learn
+what actually breaks — do not pre-emptively expand this list.
+
+---
+
+## Phase 0 — Preflight
+
+> **✅ COMPLETE 2026-08-30 — 18 of 19; 0.2 skipped as optional, 0.14 deferred to Phase 12.**
+> Repo: https://github.com/MaverickHQ/valvur (private) · ECR:
+> `<aws-account-id>.dkr.ecr.eu-north-1.amazonaws.com/valvur` · first commit `cc67403`, signed and verified.
+
+**Goal:** every account, credential, runtime and tool the plan depends on is verified
+working *before* any code exists. No implementation.
+
+Recon performed 2026-08-30 on the target machine; re-verify each line, since these
+drift.
+
+### Local environment
+
+- [x] **0.1** Start the Docker daemon and confirm `docker info` succeeds.  
+  **STATUS 2026-08-30:** ✅ Docker 29.2.1 daemon running
+  *(Recon: Docker 29.2.1 installed, daemon was not running.)*
+- [x] **0.2** *(Optional in this phase)* Install Podman.  
+  **STATUS 2026-09-10:** ✅ **podman 6.0.2**, machine running. The dual-runtime claim
+  is kept rather than downgraded: five parity tests in `tests/test_runtimes.py` run
+  against it, and task 17.1 used it to test valvur under **enforcing SELinux** — the
+  one environment reachable from this machine where F1.6 could be exercised at all.
+  The original *(Recon: not installed.)* note stood for six weeks after it stopped
+  being true.
+- [x] **0.3** Create the project virtualenv with `uv` and pin the toolchain there.  
+  **STATUS 2026-08-30:** ✅ .venv Python 3.12.10 · pytest 9.1.1 · ruff 0.16.5 · mypy 2.3.1
+  *(Recon: `pytest` currently resolves to a Python 3.10 framework install while
+  `python3` is 3.12 — never run project tests against that.)*
+- [x] **0.4** Install `cosign` (release signing, F10.3) and `syft` + `trivy` on the  
+  **STATUS 2026-08-30:** ✅ cosign v3.1.3 · syft 1.51.1 · trivy 0.74.0 · gitleaks 8.30.1
+  host for adapter development against real output.
+
+### Local git
+
+Do all of this **before the first commit**. Git history is append-only in practice —
+a secret or a stray artifact committed here is permanent, and for this project it
+would be the worst possible opening line.
+
+- [x] **0.5** `git init` with default branch `main`.  
+  **STATUS 2026-08-30:** ✅ initialised on `main`
+- [x] **0.6** Write `.gitignore` **before staging anything**: `.security-scan/`,  
+  **STATUS 2026-08-30:** ✅ written before anything was staged
+  `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `dist/`, `build/`, `*.egg-info/`,
+  `.env`, `.DS_Store`. The **Results Folder** entry matters most — a tool that
+  promises results are never committed must not commit its own.
+- [x] **0.7** Write `.gitattributes` pinning text line endings, so **Fingerprints**  
+  **STATUS 2026-08-30:** ✅ written
+  computed on a Windows checkout match those on macOS. *(Guards F5.4 at the VCS
+  layer, where it is otherwise easy to miss.)*
+- [x] **0.8** Confirm identity resolves to `MaverickHQ`. *(Verified 2026-08-30.)*  
+  **STATUS 2026-08-30:** ✅ MaverickHQ
+- [x] **0.9** **Configure commit signing** and enable `commit.gpgsign`. *(Recon: both    
+  **STATUS 2026-08-30:** ✅ SSH signing configured, repo-local. Key loaded via `--apple-use-keychain`.
+  unset.)* A security tool with unsigned history is the first thing a reviewer
+  notices, and signed commits are the same promise as the signed release image.
+- [x] **0.10** Install a `gitleaks` pre-commit hook so a secret cannot enter history  
+  **STATUS 2026-08-30:** ✅ tracked in `.githooks/`, `core.hooksPath` set — proven: scanned 97KB, no leaks
+  in the first place. We ship secret scanning; we should not be the project that
+  leaks one.
+- [x] **0.11** Adopt Conventional Commits — the phase commit messages in this plan  
+  **STATUS 2026-08-30:** ✅ `.githooks/commit-msg` — proven: rejected a non-conventional message
+  already follow it, and it makes release notes generatable.
+- [x] **0.12** Make the initial commit and verify `git log --show-signature` confirms    
+  **STATUS 2026-08-30:** ✅ commit `cc67403` — *Good git signature for MaverickHQ*, registered as a GitHub signing key.
+  it is signed.
+
+### GitHub
+
+**GitHub only.** GitLab is out of scope; the image is published to GHCR, and to ECR
+for AWS execution.
+
+- [x] **0.13** Create the repository — private initially — and push. `gh` is already  
+  **STATUS 2026-08-30:** ✅ https://github.com/MaverickHQ/valvur (private), `origin` set
+  authenticated as MaverickHQ. This also **reserves the name** while changing it is
+  still free.
+- [x] **0.14** Enable branch protection on `main`: require a passing CI check, and    
+  **STATUS 2026-09-13:** ✅ **Done, the morning the repository went public.** Five required checks (every `ci.yml` job), signed commits required, linear history, no force-push or deletion, **enforced for administrators** — so every change since, this one included, arrives by pull request and lands on `main` only after the five checks pass. GitHub's merge button creates merge commits, which linear history forbids, so a PR lands by fast-forwarding `main` to its checked, signed head. Applied with two API calls; recorded under 23.1.1.
+  **STATUS 2026-08-30:** ⏳ **DEFERRED to Phase 12.** GitHub returns 403 — branch protection on *private* repos needs GitHub Pro. It becomes free when the repo goes public at release, and it guards nothing on a solo private repo. Re-attempt immediately after [12a.1](#12a--make-it-obtainable-and-trustworthy) makes the repo public. *(Corrected 2026-09-10: this said "re-attempt at 12.5", a task number that stopped existing when Phase 12 split into 12a/12b.)*
+  require signed commits.
+- [x] **0.15** Verify you can push a package to GHCR under this account, so the    
+  **STATUS 2026-08-30:** ✅ `docker login ghcr.io` succeeded with the refreshed `write:packages` scope.
+  container publishing path is proven before it is needed.
+
+### AWS
+
+- [x] **0.16** Confirm STS identity. *(Verified: account `<aws-account-id>`, IAM user  
+  **STATUS 2026-08-30:** ✅ account <aws-account-id>, IAM user <iam-user>
+  `<iam-user>`.)*
+- [x] **0.17** Verify that identity can create an ECR repository and push to it. It is  
+  **STATUS 2026-08-30:** ✅ simulate-principal-policy: CreateRepository, InitiateLayerUpload, PutImage, GetAuthorizationToken all **allowed**
+  an IAM **user**, not a role — check the policy rather than assuming.
+- [x] **0.18** Create the ECR repository with immutable tags and scan-on-push.  
+  **STATUS 2026-08-30:** ✅ <aws-account-id>.dkr.ecr.eu-north-1.amazonaws.com/valvur — IMMUTABLE tags, scan-on-push
+- [x] **0.19** Decide whether a dedicated least-privilege publishing role replaces the    
+  **STATUS 2026-08-30:** ✅ **DECIDED 2026-08-30: keep `<iam-user>` for now.** Its ECR permissions are verified sufficient. Revisit only if the account gains other users or the image is published from CI rather than from Harvey's machine.
+  dev user before first release. Record the answer here; do not leave it implicit.
+
+**Exit:** every box ticked, every recon line re-verified, and any deviation recorded
+in this file. **Do not start Phase 1 with a failing preflight** — every one of these
+becomes a confusing failure later if skipped.
+
+**Commit:** `chore: preflight — verify toolchain, remotes, and AWS access`
+
+---
+
+## Phase 1 — Walking skeleton
+
+> **✅ Cycles 1–8 complete 2026-08-30.** 12 tests green (10 unit, 2 e2e), CI green on
+> Linux. Only 1.12, the usability gate, remains — it needs a person.
+>
+> **Three defects found by tests, not review:**
+> 1. The e2e test caught container paths (`/workspace/…`) leaking into **Findings**,
+>    which would have broken **Fingerprint** portability (F5.4).
+> 2. The first fixture used AWS's published example key, which gitleaks allowlists —
+>    the fixture was unscannable by construction.
+> 3. **CI on Linux caught a design hole macOS hid.** Rootful Docker does not translate
+>    UIDs the way Docker Desktop does, so the container could not write its report —
+>    and `scan()` reported the broken run as **clean**. Exactly the silent failure the
+>    project calls worse than no scan. Now raises `ScannerFailed` (F2.5, N3.1).
+>
+> Defect 3 is the argument for ADR-0001's dual-runtime requirement, arriving seven
+> phases before Phase 8 was due to test it.
+
+**Goal:** `valvur scan` works end to end, for a real user, with a single **Scanner**.
+Thin but complete: install → scan → read results.
+
+This is the tracer bullet. It exists because usability is a requirement, and the only
+way to know the install and first-run experience is right is to have one on day two
+rather than month two. Every later phase adds depth to a system that already works.
+
+### TDD cycles
+
+1. Scanning a **Workspace** with a planted secret reports one **Finding**.
+2. Scanning a clean **Workspace** reports no **Findings** and still writes a
+   **Results Folder** with an explicit clean status. *(F7.11)*
+3. A **Scan Run** writes `.security-scan/` containing `SUMMARY.md`. *(F7.1, F7.4)*
+4. The **Results Folder** ignores itself — `.security-scan/.gitignore` contains `*`.
+   *(F7.2)*
+5. `git status` in a scanned **Workspace** shows no untracked scan output. *(F7.2 —
+   the guarantee, verified the way a user would see it.)*
+6. A secret's value never appears in any written file. *(F5.7, N2.4)*
+7. The **Workspace** is unchanged after a **Scan Run** — no file added, modified or
+   removed outside `.security-scan/`. *(F1.3, N2.2)*
+8. A **Scan Run** exits zero when **Findings** exist. *(N3.2)*
+
+### Also in this phase
+
+- [x] **1.9** Minimal container image with Gitleaks pinned; non-root, read-only root  
+  **STATUS 2026-08-30:** ✅ `Dockerfile` — gitleaks v8.30.1 pinned, alpine 3.22, UID 10001, read-only rootfs, all caps dropped.
+  filesystem. *(F10.2)*
+- [x] **1.10** Shim invokes it with `-v ws:/workspace:ro` and a host scratch mount.  
+  **STATUS 2026-08-30:** ✅ `ContainerRunner` — `--network=none --read-only --cap-drop=ALL -v ws:/workspace:ro` + host scratch.
+  *(F1.1)*
+- [x] **1.11** Fixture **Workspace** at `tests/fixtures/broken-repo/` — for now just a  
+  **STATUS 2026-08-30:** ✅ `tests/fixtures/{broken,clean}-repo/`. **Note:** the first fixture used AWS's published example key, which gitleaks allowlists — it was unscannable by construction. Replaced with generated credentials.
+  planted fake secret; grows each phase.
+- [x] **1.11b** CI check failing the build if any path under `.security-scan/` appears  
+  **STATUS 2026-08-30:** ✅ `.github/workflows/ci.yml` guard job. Verified both ways: passes clean, fails on output committed via `--no-verify` with hooks bypassed.
+  in the tree or in a pushed commit. The `pre-commit` hook is the first line, but a
+  hook can be bypassed with `--no-verify`; CI cannot. *(ADR-0011)*
+- [x] **1.12** **MOVED to Phase 10 (task 10.0) on 2026-08-30**, at Harvey's request.  
+  **CLOSED 2026-09-10:** ✅ superseded — [10.0](#100--pre-release-publish) completed on
+  2026-08-31 and `0.1.0rc1` was published. This entry stayed open as a pointer to work
+  that had already moved and finished, which made the count of remaining tasks wrong.
+  The *gate* it once referred to is [10.1](#101--the-usability-gate), still open.
+  Rationale for moving: there is no truthful install path yet — the README describes
+  v1 while we have built Phase 1 — so a participant today would only discover that the
+  software is not published, which we already know. Participants cannot be reused;
+  first-run impressions do not reset.
+  **Cost accepted:** Phase 1 was ordered as a walking skeleton specifically to get this
+  signal early. Deferring means Phase 10's task list rests on our own assumptions until
+  the gate runs, which is why it now runs *first* in Phase 10 rather than last.
+
+
+**Exit:** a real user can install valvur and scan a real repository. Cycle 5 passes.
+
+**Commit:** `feat: end-to-end scan skeleton with gitleaks`
+
+---
+
+## Phase 2 — Finding identity
+
+> **✅ COMPLETE 2026-08-30.** All 12 cycles green; 24 tests total.
+> Rescan loop verified end-to-end against the real container: two findings reported
+> `new`, one secret removed, rescan reports one `persisting` and one `fixed`.
+>
+> Cycles 2, 3 and 9 passed with no new code — deriving identity from the secret rather
+> than its location already delivered them. That is the design working, not a gap in
+> the tests: they are written in user-visible terms precisely so they *prove* the
+> mechanism rather than restate it.
+>
+> Classes for dependency_vuln, iac_misconfig, licence and dependency_reality are
+> implemented and tested now, though the Scanners that produce them arrive in Phase 3.
+> Identity is Phase 2's subject; who reports it is not.
+
+**Goal:** **Findings** survive editing, so the scan → fix → rescan loop can tell
+progress from noise. The highest-value code in the system; ADR-0003 makes it the most
+expensive thing to change later.
+
+### TDD cycles
+
+1. A **Finding** reported twice for unchanged code keeps the same **Fingerprint**.
+2. A **Finding** keeps its **Fingerprint** when unrelated lines above it move.
+   *(The behaviour ADR-0003 exists for.)*
+3. A **Finding** keeps its **Fingerprint** when the file is reformatted.
+4. Fixing the underlying problem changes the **Finding**'s **Status** to `fixed`.
+5. A **Finding** present in both runs has **Status** `persisting`.
+6. A **Finding** absent from the previous run has **Status** `new`.
+7. A **Finding** that was `fixed` and returns has **Status** `regressed`.
+8. On a first-ever **Scan Run**, every **Finding** is `new`. *(F5.9)*
+9. **Fingerprints** are identical for the same **Workspace** on a different machine
+   and OS. *(F5.4)*
+10. Two identical patterns in one file yield two distinct **Findings**.
+11. A **Finding** reported by two **Scanners** appears once, naming both. *(F5.8)*
+12. Bumping a vulnerable dependency marks its **Finding** `fixed`. *(The dependency
+    class earns its own cycle — its key is unrelated to location.)*
+
+Each cycle covers one **Finding Class** as it becomes relevant. Do not write all six
+classes' tests before implementing any of them.
+
+**Exit:** a scripted edit-then-rescan sequence reports exactly what changed.
+
+**Commit:** `feat: stable per-class finding identity and status diff`
+
+---
+
+## Phase 3 — Scanner fleet
+
+**Goal:** the remaining five **Scanners** contribute **Findings** through one
+normalised model, inside an orchestrator that already handles failure, profiles and
+concurrency correctly.
+
+> **Reordered 2026-08-30 after reviewing Phases 1–2.** The original plan added five
+> Scanners and *then* defined what happens when one fails. That is backwards: failure
+> handling is the fleet's architecture, so building it afterwards means rewriting every
+> adapter. Failure semantics, profile selection and concurrency now come first, and
+> each Scanner slots into a structure that already works.
+
+### 3.0 — Refactor to adapters *(no behaviour change)*
+
+- [x] **3.0.1** Extract a `ScannerAdapter` per tool, each owning: invoke, parse,  
+  **STATUS 2026-08-30:** ✅ `adapters/{base,gitleaks}.py`. `api.scan()` is now orchestration only: sequence adapters, merge, diff, write. `_relative()` became `container_relative()` in `base.py`, shared because every Scanner sees the same mount.
+  path-normalise, and fingerprint by **Finding Class**. `scan()` becomes orchestration
+  only. Do this while there is *one* adapter to move rather than six.
+  `_relative()` is gitleaks-shaped and moves into the adapter — Trivy reports target
+  names, Checkov file paths, OSV lockfile paths.
+- [x] **3.0.2** All 24 existing tests must pass unchanged. If a test needs editing,  
+  **STATUS 2026-08-30:** ✅ **Zero test files modified**, 24 pass, ruff and mypy clean.
+  the refactor changed behaviour and has gone wrong.
+
+**Commit:** `refactor: extract scanner adapters`
+
+### 3.1 — Failure semantics
+
+> **✅ COMPLETE 2026-08-30.** All 5 cycles green, 31 tests total.
+> Phase 1's `ScannerFailed` test survived unchanged, because with one Scanner a single
+> failure *is* total failure — the rule generalised cleanly rather than needing a
+> rewrite.
+> Added beyond the cycles: `run.json` carries an explicit `"complete"` flag, because
+> `"status": "clean"` on a run where every Scanner crashed is a lie of omission. It is
+> the first field an agent should read.
+
+> **This changes existing behaviour.** Phase 1 raises `ScannerFailed` when the single
+> Scanner fails, which was right for one and is wrong for six — it contradicts cycle 1
+> below. `test_a_scanner_that_produced_no_report_is_not_reported_as_clean` therefore
+> **changes meaning**: failure becomes a per-Scanner record, and the exception is
+> reserved for total failure. This is deliberate, not a broken test to "fix".
+
+1. A crashing **Scanner** is reported at the top of `SUMMARY.md` and the **Scan Run**
+   completes with the other Scanners' results. *(F2.5, F7.7)*
+2. A **Scanner** that times out is recorded as failed, never as clean. *(F2.7)*
+3. A **Scanner** exiting non-zero *because it found issues* is a successful run.
+   *(F2.4)*
+4. When every **Scanner** fails, the **Scan Run** fails and exits non-zero. *(N3.2)*
+5. `run.json` records which Scanners ran, which failed, and why. *(F7.12, N3.1)*
+
+**Commit:** `feat: per-scanner failure isolation`
+
+### 3.2 — Profile selection and concurrency
+
+> **✅ COMPLETE 2026-08-30.** All 3 cycles green, 34 tests.
+> Scanners run in a thread pool — each is a container invocation, so the work is
+> I/O-bound and threads are the right tool. Results are collected back into
+> *declaration* order, so a **Scan Run** is reproducible regardless of which Scanner
+> finished first.
+
+> Neither appeared in the original Phase 3 despite both being required. Concurrency
+> especially: six Scanners run serially will not meet the 5-minute `full` budget
+> (N1.2), and discovering that in Phase 11 means restructuring the orchestrator after
+> everything depends on it.
+
+6. The `offline` **Profile** runs only its designated **Scanners**, per the matrix in
+   [design.md](./design.md) §2. *(F2.3)*
+7. Independent **Scanners** run concurrently, and a slow one does not serialise the
+   rest. *(F2.6)*
+8. A per-**Scanner** timeout fires independently and is recorded per cycle 2. *(F2.7)*
+
+**Commit:** `feat: profile selection and concurrent scanner execution`
+
+### 3.3 — The Scanners
+
+> **✅ COMPLETE 2026-08-30.** All five Scanners contribute. Full real scan of the
+> fixture: 29 findings across gitleaks, trivy, osv-scanner, checkov and syft in
+> **11.8s** — well inside the 5-minute standard budget (N1.2).
+
+One vertical slice each. **Capture that Scanner's real output as a golden fixture at
+the moment you write its cycle**, not in a batch beforehand.
+
+9. Trivy dependency vulnerabilities become **Findings** with the `dependency_vuln`
+   identity already built in Phase 2.
+10. OSV-Scanner findings become **Findings** and merge with Trivy's where they agree,
+    keeping both sources. *(F5.8)*
+11. Opengrep results become **Findings** using the `sast` identity, including ordinal
+    disambiguation for repeats.
+12. Checkov IaC misconfigurations become **Findings** carrying the resource address.
+13. Syft produces `sbom.cdx.json`.
+
+**Commit:** `feat: full scanner fleet`
+
+### 3.4 — Safety and supporting work
+
+> **✅ COMPLETE 2026-08-30.** 45 tests (42 unit, 3 e2e).
+
+14. A **Workspace** path containing shell metacharacters reaches the **Scanner**
+    unaltered and unexecuted. *(N2.3)*
+
+- [x] **3.4.1** **Golden fixture version discipline.** Fixture filenames carry the  
+  **STATUS 2026-08-30:** ✅ `conftest.golden()` resolves fixtures by pinned version and fails loudly on a mismatch, rather than silently re-baselining.
+  Scanner version, asserted against the version pinned in the image. Without this, a
+  Scanner upgrade silently re-baselines the goldens and parsing changes go unnoticed.
+- [x] **3.4.2** Grow `tests/fixtures/broken-repo/` per cycle: a dependency manifest  
+  **STATUS 2026-08-30:** ✅ Fixture grew per cycle: `requirements.txt` (urllib3 1.24.1, PyYAML 5.1 — long-standing advisories), `main.tf`, `handler.py` incl. a byte-identical pair to exercise ordinal disambiguation.
+  with a **stable** known-vulnerable package (one whose advisory will not be
+  withdrawn), Terraform with a misconfigured resource, and code with a SAST issue.
+  Keep it strictly inside `tests/fixtures/` — Phase 11's self-scan will otherwise flag
+  our own test data in our own release gate.
+- [x] **3.4.3** **Measure the image and record it.** We are at 30.4MB with gitleaks;  
+  **STATUS 2026-08-30:** ✅ **Measured: image 674MB, host DB cache 1.2GB fetched once via `valvur update`.** Decision: accept 674MB and keep a single image. The DB dominates and is out-of-image by ADR-0012, so it does not gate first run — a machine without it records Trivy as *skipped*, honestly, rather than reporting clean. Revisit only if the image passes ~1GB.
+  the fleet will be roughly 1GB, mostly the Python layer. P1 promises useful output in
+  under 60 seconds, and for a first-time user that includes pulling the image. Decide
+  now whether `offline` warrants a smaller image or whether we accept and document the
+  download. This is a Phase 3 decision because by Phase 10 the image is fixed.
+- [x] **3.4.4** `state.json` should remember *what* was fixed, not only that something  
+  **STATUS 2026-08-30:** ✅ `state.json` stores titles alongside fingerprints; `SUMMARY.md` gained a **Fixed since the last scan** section naming each one. Old list-shaped state is migrated silently.
+  was. `SUMMARY.md` currently cannot say "you fixed the AWS key in config.py". A title
+  alongside each fingerprint is a few lines now and awkward later.
+
+**Exit:** all six **Scanners** contribute; killing any one still yields a complete,
+honest run; the `offline` **Profile** runs only its Scanners, concurrently.
+
+**Commit:** `feat: scanner fleet safety and supporting work`
+
+---
+
+## Phase 4 — AI-specific Checks
+
+**Goal:** the differentiator — the Checks nobody else ships.
+
+> **Reordered and sub-phased 2026-08-30 after reviewing Phases 1–3.** The original
+> order put the Dependency Reality Check first, which carries all of this phase's new
+> infrastructure — registry clients, caching, rate limits, a popularity dataset. The
+> AI Artifact Check needs none of that and is the most differentiated feature, so it
+> goes first and establishes the **Check** contract on the simplest case.
+
+### 4.0 — The Check protocol
+
+**Checks are not Scanners.** [CONTEXT.md](../../../CONTEXT.md) already draws the line:
+a **Scanner** is a third-party tool, a **Check** is ours. The adapter contract models
+"invoke an external tool in a container, parse its output", and forcing our own code
+through it would mean fabricating a fake stdout to parse back.
+
+- [x] **4.0.1** Add a `Check` protocol — `run(workspace) -> list[Finding]` — that the  
+  **STATUS 2026-08-30:** ✅ `checks/` package with a `Check` protocol, in-container entry point, and a `CheckAdapter`. **No orchestrator change was needed** — see 4.0.2.
+  orchestrator sequences alongside adapters, sharing failure isolation, **Profile**
+  selection, concurrency and **Provenance**.
+- [x] **4.0.2** **Checks run inside the container**, like Scanners. The tempting  
+  **STATUS 2026-08-30:** ✅ Checks run in-container (ADR-0013). Because they emit JSON they fit the *existing* adapter contract, so they inherit failure isolation, profiles, concurrency and provenance for free. Adapters gained `kind` (`scanner`/`check`) so credit stays honest (P4).
+  shortcut is running them host-side in the shim, which is simpler and needs no image
+  rebuild. It is wrong: the Dependency Reality **Check** makes registry calls, and
+  host-side those sit entirely outside `--network=none`. The moat would revert from a
+  property to a policy. In-container, `offline` *cannot* reach a registry, so F3.5's
+  "reports skipped" is enforced by architecture rather than by remembering.
+- [x] **4.0.3** All 45 existing tests pass unchanged.  
+  **STATUS 2026-08-30:** ✅ No existing test file modified by the refactor. Three tests were then updated for a **behaviour** change — adding `licence-file` to the defaults — and were over-specified anyway: they counted *total* findings rather than asserting the behaviour under test, so any new Check would have broken them.
+
+**Commit:** `refactor: add the Check protocol alongside scanner adapters`
+
+### 4.1 — AI Artifact Check
+
+> **✅ COMPLETE 2026-08-30.**
+
+Pure static file inspection: no network, no new machinery, and the feature nothing
+else ships.
+
+1. Zero-width Unicode in an agent instruction file is a **Finding**. *(F3.7)*
+2. Bidirectional and tag characters are likewise detected. *(F3.7)*
+3. An MCP server pinned to a mutable git ref is a **Finding**. *(F3.8)*
+4. Blanket tool auto-approval is a **Finding**. *(F3.9)*
+5. A permission-bypass directive is a **Finding**. *(F3.9)*
+6. An agent file containing "ignore previous instructions" is reported as a
+   **Finding** whose evidence is quoted, not obeyed. *(F3.12)*
+7. **That quoted evidence is neutralised in every written artifact** — hidden Unicode
+   escaped rather than reproduced, directive text fenced and labelled untrusted.
+   *(F3.13)*
+
+> **Cycle 7 is the one that matters, and the original plan missed it.** valvur is
+> deterministic code and cannot "obey" anything, so cycle 6 tests the wrong end of the
+> problem. The real risk is downstream: an agent reads `SUMMARY.md` first and *by
+> instruction*. Reproduce a payload verbatim and we launder an attack out of a file the
+> agent might never have opened into one we tell it to read. **valvur must not become
+> the delivery mechanism.**
+
+- [x] **4.1.8** Fixture: agent artifacts carrying each planted problem — a `CLAUDE.md`  
+  **STATUS 2026-08-30:** ✅ Fixture gained `CLAUDE.md` (U+200B/200D/FEFF), `AGENTS.md` (injection + U+202E), `.mcp.json` (@main + blanket autoApprove), `.claude/settings.json` (bypassPermissions).
+  with zero-width characters, an `.mcp.json` on `@main` with blanket `autoApprove`,
+  and an injection payload. Keep them inside `tests/fixtures/`, and confirm they do
+  not trip our own self-scan in Phase 11.
+
+**Commit:** `feat: AI artifact check with evidence neutralisation`
+
+### 4.2 — Opengrep rules
+
+> **✅ COMPLETE 2026-08-30.**
+
+Extends the ruleset already shipped in Phase 3. No new infrastructure.
+
+8. Model output flowing into a shell, `eval`, `exec`, SQL or `innerHTML` is a
+   **Finding**. *(F3.10, OWASP LLM05)*
+9. An unpinned dependency range is a **Finding**. *(F3.11)*
+10. A missing lockfile is a **Finding**. *(F3.11)*
+11. A dependency on a mutable git ref is a **Finding**. *(F3.11 — the same defect we
+    found in the AWS sample that started this project.)*
+
+**Commit:** `feat: LLM-output-to-sink and pinning hygiene rules`
+
+### 4.3 — Licence Check
+
+> **✅ COMPLETE 2026-08-30.**
+
+12. A **Workspace** with no licence file is a **Finding**. *(F4.2)*
+13. A licence file contradicting package metadata is a **Finding**. *(F4.3)*
+14. A copyleft dependency inside a permissive-declared project is a **Finding**.
+    *(F4.5)*
+15. A dependency whose licence cannot be determined is a **Finding**. *(F4.6)*
+
+Dependency licences come from the Syft SBOM already produced in Phase 3, so this
+Check reads an artifact rather than re-scanning.
+
+**Commit:** `feat: licence hygiene and dependency licence policy`
+
+### 4.4 — Dependency Reality Check
+
+> **✅ COMPLETE 2026-08-30.** 63 tests. Full fleet scan of the fixture: 56 findings
+> across 9 Scanners and Checks, all green. `offline` runs 4 of them and sends nothing.
+
+Last, because it carries all of this phase's new infrastructure.
+
+16. A dependency that does not exist on its registry is a critical **Finding**.
+    *(F3.2 — the headline slopsquat behaviour, and the one no advisory database can
+    catch, because the package is new rather than known-bad.)*
+17. A recently published, barely adopted dependency is flagged as a possible
+    **Slopsquat**. *(F3.3)*
+18. A dependency one character from a far more popular package is flagged. *(F3.4)*
+19. With no network, the **Check** reports *skipped* — and its packages are **not**
+    reported clean. *(F3.5 — the honesty behaviour.)*
+
+- [x] **4.4.20** **Popularity dataset.** Cycle 18 needs to know what is popular. Decide  
+  **STATUS 2026-08-30:** ✅ 3000 top PyPI names, 49KB, from hugovk/top-pypi-packages. **CC0-1.0**, so redistribution is unencumbered. Refresh quarterly.
+  the source, size, refresh cadence and licence of a bundled top-N package list per
+  ecosystem. Unplanned work that will otherwise surface mid-cycle.
+- [x] **4.4.21** **Disclose the registry lookups.** Querying PyPI or npm reveals your  
+  **STATUS 2026-08-30:** ✅ `run.json` carries a `network` block naming exactly what left the machine; README states it plainly; `--offline` disables it. `offline` never had it.
+  dependency list to those registries. It is metadata, not source — but it is exactly
+  what we criticise Snyk for, so it must be stated plainly in the README and recorded
+  in `run.json`, with an opt-out flag. `offline` stays fully offline. Being quietly loose
+  here would cost more credibility than the feature is worth.
+- [x] **4.4.22** Registry client with caching and rate-limit handling; a registry  
+  **STATUS 2026-08-30:** ✅ Registry client with 404-vs-unreachable distinction. Unreachable raises, so the run records the Check as failed and the scan as incomplete — never clean (F3.5).
+  refusing us must degrade per cycle 19, never silently.
+
+**Commit:** `feat: dependency reality check for slopsquat detection`
+
+**Exit:** every planted problem in the fixture **Workspace** is caught by the intended
+**Check**; the offline path degrades honestly; and no injection payload from a scanned
+repository appears as live directive text in any artifact we write.
+
+---
+
+## Phase 5 — Enrichment and ranking
+
+**Goal:** the top of the list is genuinely the most urgent thing.
+
+> **Reordered and sub-phased 2026-08-30 after reviewing Phases 1–4.** The original
+> plan assumed a **Finding** model that does not exist. `design.md` §3 specifies
+> `severity`, `rank`, `exploit{}` and `dependency{}`; **none of them are implemented**,
+> and the adapters currently parse Trivy's `Severity`, `FixedVersion`, `CVSS` and
+> `PkgIdentifier` and throw them away. Cycle 4's inversion had nothing to invert.
+
+### 5.0 — Extend the Finding model
+
+> **✅ COMPLETE 2026-08-30.** 68 tests.
+
+- [x] **5.0.1** Add `severity`, `rank`, `exploit` and `dependency` to `Finding`, per  
+  **STATUS 2026-08-30:** ✅ `Exploit` and `Dependency` dataclasses, plus `severity` and `rank` on `Finding`. All optional, so Checks needed no change.
+  `design.md` §3. Keep them optional so existing Checks need no change.
+- [x] **5.0.2** Populate them in each Scanner adapter. Trivy already hands us  
+  **STATUS 2026-08-30:** ✅ All six adapters populate them. Trivy's `Severity`/`FixedVersion`/`PURL` were previously parsed and discarded; gitleaks findings are `critical` by definition — a live credential is not a matter of degree.
+  `Severity`, `FixedVersion`, `PURL`, `CVSS` and `PublishedDate`; OSV and Checkov
+  carry equivalents. This re-touches all six adapters, which is why it comes first.
+- [x] **5.0.3** **Fingerprints must not change.** Enrichment is additive metadata, and  
+  **STATUS 2026-08-30:** ✅ **Fingerprint digest identical before and after** (`dc6c522534a90b3d`, 46 fingerprints). Now a permanent regression test with pinned literal values, not a one-off check.
+  a fingerprint shift would silently invalidate every **Suppression** in every project
+  using valvur (ADR-0003). Assert the fixture's fingerprints are byte-identical
+  before and after this sub-phase.
+- [x] **5.0.4** All 63 existing tests pass unchanged.  
+  **STATUS 2026-08-30:** ✅ All 63 existing tests passed unchanged; 68 now.
+
+**Commit:** `feat: carry severity and dependency metadata on findings`
+
+### 5.1 — KEV
+
+> **✅ COMPLETE 2026-08-30.**
+
+1. A **Finding** with a CVE carries its KEV status. *(F6.1, F6.2)*
+2. A KEV entry used in ransomware campaigns is marked as such. *(352 of 1,685 current
+   entries carry this flag — it is the strongest call to action we can print.)*
+3. A CVE absent from KEV is marked as such, not left unknown. *(Absence of evidence is
+   reportable; silence is not.)*
+
+- [x] **5.1.4** **Bundle a KEV snapshot as a floor, refresh into the host cache.**  
+  **STATUS 2026-08-30:** ✅ 74KB trimmed snapshot bundled as an offline floor; `valvur update` refreshes into the host cache and the fresher copy wins.
+  F6.2 says bundle it, and at 1.6MB size is not the concern — freshness is. A CVE
+  added to KEV yesterday would not be flagged by a three-month-old image, which is
+  precisely the reasoning that moved the Trivy DB out in ADR-0012. Bundle so `offline`
+  works offline immediately; refresh on `valvur update`; prefer the cached copy when
+  it is newer.
+
+**Commit:** `feat: KEV enrichment with ransomware flag`
+
+### 5.2 — EPSS and disclosure
+
+> **✅ COMPLETE 2026-08-30.**
+
+4. A **Finding** with a CVE carries its EPSS score where the network permits. *(F6.3)*
+5. EPSS is fetched in one batched request for the CVEs actually found, not one call
+   per finding. *(F6.3)*
+6. With no network, ranking uses KEV alone and **Provenance** records the degradation.
+   *(F6.4)*
+
+- [x] **5.2.7** **Disclose the EPSS lookup (F6.10).** Sending our CVE list to FIRST is  
+  **STATUS 2026-08-30:** ✅ `run.json` and README now name the CVE disclosure alongside the package-name one; `--offline` covers both.
+  a map of the project's *unpatched vulnerabilities* — a more sensitive disclosure
+  than the dependency names of 4.4.21. Extend the `network` block in `run.json` and
+  the README, and honour `--offline`. Having made a point of the lesser leak, silence
+  about the greater one would be worse than never having claimed it.
+
+**Commit:** `feat: batched EPSS enrichment with explicit disclosure`
+
+### 5.3 — Ranking
+
+> **✅ COMPLETE 2026-08-30.**
+
+7. **The inversion:** a CVSS 6.5 **Finding** in KEV ranks above a CVSS 9.8 at 0.04%
+   EPSS. *(F6.5 — the behaviour the whole feature exists for.)*
+8. Ranking actually reorders the written output. *(`SUMMARY.md` currently iterates in
+   adapter order, so a correct `rank` field that nothing sorts by would be a silent
+   no-op.)*
+9. **Enrichment** older than 30 days produces a staleness warning. *(F6.7)*
+
+- [x] **5.3.10** **The inversion needs test data that does not exist.** None of the  
+  **STATUS 2026-08-30:** ✅ Both halves done. Synthetic pairs prove the ranking function; **Pillow 10.0.0 / CVE-2023-4863** proves the wiring against real scanner output — one of very few PyPI-reachable CVEs in KEV.
+  fixture's 15 CVEs appear in KEV — verified against the live catalogue. Do both:
+  a synthetic pair for the unit test, which is stable and proves the ranking function;
+  and one real KEV-listed dependency for an e2e, which proves the wiring. Neither
+  alone is sufficient.
+- [x] **5.3.11** Give low-value classes a floor so they cannot crowd the top. A scan  
+  **STATUS 2026-08-30:** ✅ Class urgency now competes with exploit urgency. Real output showed hallucinated packages sinking below any CVE with a non-zero EPSS, because they have no EPSS at all.
+  of our own toy fixture returns 56 findings, of which 6 are
+  `licence.dependency-unknown` from our own SBOM, while two hallucinated packages and
+  an injection payload sit below them in arbitrary order. **Phase 6's 200-line cap is
+  only safe after this** — truncating an unranked list discards at random.
+
+**Commit:** `feat: exploit-aware ranking`
+
+### 5.4 — Dependency path and scope
+
+> **✅ COMPLETE 2026-08-30.**
+
+10. A transitive vulnerability reports its **Dependency Path** and the direct package
+    to change. *(F6.9)*
+11. A **Finding** in a development-only dependency ranks below the same **Finding** in
+    a production dependency. *(F6.6)*
+
+- [x] **5.4.12** **Verify Trivy gives us the parent chain before committing to cycle  
+  **STATUS 2026-08-30:** ✅ **Verified, and the answer was no.** Trivy exposes no `PkgID`/`Relationship`/`PkgPath` on vulnerabilities, and Syft emits no `dependencies` section. The graph is in `Packages[].DependsOn` and exists **only for lockfiles** — `requirements.txt` is flat and carries no transitive information at all. Implemented where the data exists; reporting a path for a flat manifest would be invention.
+  10.** `fs` mode may not expose it without `--list-all-pkgs`, in which case the path
+  comes from the Syft SBOM instead. Confirm first; do not assume.
+- [x] **5.4.13** Determine dev-vs-production scope per ecosystem — `devDependencies`,  
+  **STATUS 2026-08-30:** ✅ Scope from path segments and filename parts, demoted a full tier in ranking.
+  `[dependency-groups]`, and filename convention for `requirements-dev.txt`. The
+  fixture already carries the test material; no adapter marks scope yet.
+
+**Commit:** `feat: dependency paths and development-scope demotion`
+
+**Exit:** cycle 7 passes and the ranking demonstrably reorders real output; nothing
+that matters is buried beneath noise.
+
+---
+
+## Phase 6 — Results contract
+
+**Goal:** every artifact, each serving one consumer, all consistent.
+
+> **Reordered and sub-phased 2026-08-30 after reviewing Phases 1–5.** Measured against
+> the contract, five of nine artifacts do not exist, and `SUMMARY.md` is already at
+> **185 lines for 84 findings on a toy fixture** against a 200-line cap. The original
+> cycle 2 reads as a truncation task; it is a **reformat**. And two cycles understate
+> real work — see 6.4 and 6.5.
+
+### 6.0 — The consistency invariant, first
+
+> **✅ COMPLETE 2026-08-30.** 84 tests. `assert_artifacts_agree()` is a reusable
+> assertion, and a second test deliberately corrupts the SARIF to prove the invariant
+> can actually fail — a guarantee that cannot fail is not a guarantee.
+>
+> Building it first immediately earned its place: it exposed that the `offline` Profile
+> was missing the **ai-artifact** Check entirely, because an earlier edit matched a
+> trailing comma that `QUICK` did not have. The differentiator was silently absent
+> from the fast path.
+
+1. Every **Finding** in `findings.json` appears in `results.sarif` and is counted in
+   `SUMMARY.md`. *(F7.13)*
+
+> Built **first** deliberately. This is the guarantee that keeps five artifacts
+> honest, and each one added afterwards is checked as it lands rather than five being
+> reconciled at the end.
+
+**Commit:** `test: cross-artifact consistency invariant`
+
+### 6.1 — findings.json and SARIF
+
+> **✅ COMPLETE 2026-08-30.** 88 tests.
+> SARIF is validated against the **real OASIS 2.1.0 schema** (109KB, bundled), not
+> merely declared. Confirmed non-vacuous: the schema rejects a missing
+> `driver.name` and the wrong version, so the test would actually fail if our output
+> drifted.
+
+2. `findings.json` carries a schema version. *(F7.10)*
+3. `findings.json` carries neutralised evidence, not raw **Workspace** content.
+   *(F3.13 — an agent queries this per finding, so it is an injection surface exactly
+   as `SUMMARY.md` is.)*
+4. `results.sarif` validates against the SARIF 2.1.0 schema. *(F7.9)*
+5. `results.sarif` carries **Fingerprints** in `partialFingerprints`, so an IDE's
+   suppression survives an edit for the same reason ours does. *(F7.9)*
+
+**Commit:** `feat: findings.json and SARIF output`
+
+### 6.2 — SUMMARY.md within its budget
+
+> **✅ COMPLETE 2026-08-30.** 92 tests. 185 lines → 50.
+
+6. `SUMMARY.md` opens with the machine-facing header. *(F7.6)*
+7. Failures and skips appear before any **Finding**. *(F7.7)*
+8. `SUMMARY.md` stays within 200 lines given 10,000 **Findings**. *(F7.5)*
+9. When findings are truncated, the count omitted is stated. *(Silent truncation
+   reads as "that is everything", which is a lie of omission.)*
+
+- [x] **6.2.10** **Reformat to the budget in [design.md](./design.md) §6**: header ~25,  
+  **STATUS 2026-08-30:** ✅ **185 lines → 50**, for 57 findings. One line per finding; evidence moved to `findings.json`. Verified against 10,000 synthetic findings.
+  failures ~15, counts by class and status ~20, **top 15 Findings ~100**, pointers
+  ~10. We currently print every finding at ~2.2 lines each, which tops out near 85.
+  This is only safe because Phase 5 landed — truncating an unranked list discards at
+  random.
+
+**Commit:** `feat: bounded summary with explicit truncation`
+
+### 6.3 — REMEDIATION.md
+
+> **✅ COMPLETE 2026-08-30.** 97 tests.
+
+10. `REMEDIATION.md` orders **Remediation Items** by rank. *(F7.14)*
+11. **Findings resolved by a single change appear as one item.** *(F7.14 — our own
+    fixture has four CVEs in `loader-utils@1.4.0`, all fixed by "change webpack".
+    Emitting four items would be exactly the noise Phase 5 removed.)*
+12. Each item names the change to make, not merely the problem.
+
+- [x] **6.3.13** Define the grouping key per **Finding Class**: dependency findings  
+  **STATUS 2026-08-30:** ✅ Dependency findings group by the **Dependency Path root**, secrets by file, agent artifacts by file, licence together. **13 actions resolve 57 findings** on the fixture, summing exactly — grouping is a partition, pinned by test.
+  group by the package the developer can actually change (the **Dependency Path**
+  root, from 5.4); secrets group by file; IaC by resource. **This grouping is most of
+  the work in this sub-phase**, and the original plan did not acknowledge that a
+  Remediation Item is an *action* rather than a Finding.
+
+**Commit:** `feat: remediation proposal grouped by action`
+
+### 6.4 — raw/ and its own redaction
+
+> **✅ COMPLETE 2026-08-30.** 101 tests. Phase 6 complete.
+
+13. `raw/` preserves each **Scanner**'s unmodified output. *(F2.8, P2 — the artifact a
+    reviewer uses to verify we did not mangle a Scanner's findings.)*
+14. **No secret value appears in `raw/`.** *(F5.7)*
+15. `raw/` prunes to the most recent N **Scan Runs**. *(N3.3)*
+
+- [x] **6.4.16** **`raw/` needs a redaction pass of its own.** Our **Redaction** happens  
+  **STATUS 2026-08-30:** ✅ `rawoutput.scrub()` uses the secret values Gitleaks itself reports, longest-first so a Match containing a Secret leaves no fragment. Proven non-vacuous by a test that confirms the scrubber had something to remove.
+  at the **Finding** boundary; `raw/` is *pre-model* Scanner output and bypasses it
+  entirely, and Gitleaks emits live credential values in its JSON. Tractable —
+  Gitleaks tells us exactly which strings are secrets — but it is a different
+  mechanism from the one we have, and the original cycle read as though it were
+  covered.
+
+**Commit:** `feat: raw scanner output with pre-model redaction`
+
+**Exit:** a full **Results Folder** is produced, every artifact test passes, and no
+**Workspace** content can act as an instruction in any of them.
+
+> **`report.html` was cut before implementation** — see
+> [ADR-0014](../../../docs/adr/0014-no-html-report.md). Phase 6 is five sub-phases,
+> not six.
+
+---
+
+## Phase 7 — Suppressions
+
+**Goal:** accepted risks are recorded, shared and reviewed rather than forgotten.
+
+> **Reordered and sub-phased 2026-08-30 after reviewing Phase 6.** The original five
+> cycles covered the lifecycle but omitted every integration point, and F8.2 as
+> written contradicted the reason we chose per-class identity at all.
+
+### 7.0 — Parse and match
+
+> **✅ COMPLETE 2026-08-30.** 107 tests.
+
+- [x] **7.0.1** **Bump `requires-python` to `>=3.11`.** `tomllib` is 3.11+, and the  
+  **STATUS 2026-08-30:** ✅ `requires-python = ">=3.11"`. We claimed 3.10 where `tomllib` does not exist and suppression parsing would simply fail — invisible, since our venv is 3.12.
+  shim is stdlib-only by design (F10.6) so adding `tomli` would cost us that
+  property. Today we *claim* 3.10 and suppression parsing would simply fail there —
+  invisible to us, since our own venv is 3.12.
+- [x] **7.0.2** Parse `.security-scan.toml` from the **Workspace** root. *(F8.1)*  
+  **STATUS 2026-08-30:** ✅ `suppressions.load()` parses `.security-scan.toml`; a missing file is not an error.
+
+1. A **Suppression** carries a **Fingerprint**, an expiry date, a reason, **and
+   human-readable context**. *(F8.2, sharpened.)*
+2. A **Suppression** matching a **Finding** marks it suppressed rather than removing
+   it. *(F8.6)*
+
+> **Why context is mandatory.** A pull request containing only
+> `fingerprint = "4e4dff39…"` tells a reviewer nothing about what is being accepted.
+> That is the opposite of the argument for per-class identity: suppressing
+> `aws_s3_bucket.logs / CKV_AWS_18` is a decision a human can read. The hash is the
+> matching key; it is never the whole entry.
+
+**Commit:** `feat: suppression parsing and matching`
+
+### 7.1 — Lifecycle
+
+> **✅ COMPLETE 2026-08-30.**
+
+3. A **Suppression** without an expiry date is rejected and raises a **Finding**.
+   *(F8.3 — an unexpiring suppression is how a real finding gets buried for years.)*
+4. An expired **Suppression** reports its **Finding** normally, **and is itself
+   flagged**. *(F8.4 — a lapsed risk acceptance is a decision someone must retake,
+   which is the entire purpose of mandatory expiry.)*
+5. A **Suppression** matching nothing is reported as stale. *(F8.5)*
+6. valvur never writes to `.security-scan.toml`. *(F8.7)*
+
+- [x] **7.1.7** Pin the expiry semantics: UTC, and the expiry date **inclusive** — a  
+  **STATUS 2026-08-30:** ✅ UTC, inclusive, pinned by test.
+  suppression expiring today is still valid today. Ambiguity here means two machines
+  disagree about whether a build passes.
+
+**Commit:** `feat: suppression lifecycle with mandatory expiry`
+
+### 7.2 — Integration
+
+> **✅ COMPLETE 2026-08-30.** The F7.13 invariant caught the counting change as it happened — see the commit.
+
+> Three interactions the original plan did not mention. Each one is a way for
+> suppression to quietly break something Phases 5 and 6 established.
+
+7. Suppressed **Findings** are excluded from ranking positions. *(F8.9 — otherwise
+   they crowd out live ones, the exact noise problem F6.5 solved.)*
+8. `SUMMARY.md` counts active and suppressed **Findings** separately. *(F8.9 —
+   `Findings: 84` when 30 are suppressed misstates the result.)*
+9. The F7.13 cross-artifact invariant still holds with suppressions present.
+   *(Suppressed Findings stay in `findings.json` — F8.6 says distinct section, not
+   omitted — so they must still appear in the SARIF.)*
+10. `results.sarif` uses **SARIF's own** `result.suppressions` with
+    `kind: "external"`, `status: "accepted"` and the justification. *(An invented
+    property would make IDEs show suppressed findings as live — worse than emitting
+    no SARIF, because the tool would look wrong rather than misconfigured.)*
+11. Suppressing a **Finding** does not mark it `fixed`, and un-suppressing does not
+    make it `new`. *(Suppression is a **policy** layer, not an identity layer;
+    `state.json` tracks presence regardless.)*
+
+**Commit:** `feat: suppression integration with ranking, counts and SARIF`
+
+### 7.3 — `valvur suppress`
+
+> **✅ COMPLETE 2026-08-30.** 120 tests. Phase 7 complete.
+
+12. `valvur suppress <fingerprint>` prints a ready-to-paste **Suppression** block with
+    its context filled in, and writes nothing. *(F8.8, F8.7)*
+
+> Without this, writing a suppression means hand-copying a 32-character hash out of
+> `findings.json`, which nobody will do. **Printing is not writing** — F8.7 stands,
+> and the feature becomes usable rather than theoretical.
+
+**Commit:** `feat: valvur suppress prints a paste-ready block`
+
+**Exit:** the suppression lifecycle is fully covered, nothing suppressed can crowd out
+something live, and a reviewer can tell from the diff alone what is being accepted.
+
+---
+
+## Phase 8 — Runtime portability and hardening
+
+> **✅ COMPLETE 2026-08-30.** 135 tests, 14 e2e across Docker and rootless Podman.
+>
+> **The dual-runtime requirement found three distinct silent failures**, each of which
+> would have reported a vulnerable repository as clean, and none of which any Scanner
+> could detect. All three appeared only on **Podman under Linux** — local Docker and
+> local Podman on macOS were both green throughout.
+>
+> 1. `--user` on rootless Podman made the bind-mounted workspace unreadable. Every
+>    Scanner read an empty tree and exited 0.
+> 2. The scratch mount was then unwritable, so Scanners produced no report — and all
+>    three read paths treated a missing report as an empty one.
+> 3. Both flags were needed: `--userns=keep-id` maps the host user in, but the image's
+>    own `USER 10001` still applied and mapped to a subuid.
+>
+> Our fail-loudly rules all assumed a Scanner *errors*. These failures succeed
+> perfectly at scanning nothing, which no exit code reveals. The runner now verifies
+> the workspace is readable before scanning, and treats a missing report as a failure.
+>
+> ⚠️ **This phase was complete for what it tested, and one requirement it names was
+> not.** F1.6 — SELinux mount labelling — had never been implemented, and this note
+> read as though every runtime-portability requirement was finished on 2026-08-30.
+> It was found on 2026-09-05 (task 17.1) and closed on 2026-09-10 by
+> [Phase 20](#phase-20--close-phase-8-runtime-portability-debt), which reproduced it on
+> a native enforcing host: **all three of valvur's mounts were denied**, and valvur was
+> unusable on its primary target platform. The fourth silent failure of the set, found
+> six weeks after the phase that should have caught it.
+
+**Goal:** identical behaviour on Docker and Podman, with the isolation guarantees
+proven rather than intended.
+
+> **Reordered and sub-phased 2026-08-30 after reviewing Phase 7.** The review found
+> **F10.4 was unsatisfiable as written** and had been since we chose a base image, and
+> that our runtime detection misses a real, common Podman installation.
+
+### 8.0 — Correct and verify the licence claim
+
+> **✅ COMPLETE 2026-08-30.** 125 tests. **961 base → 2003 ours = 1042 added, zero GPL among them.**
+
+1. The image adds no GPL or AGPL component **as a Scanner, Check or installed
+   library**. *(F10.4, corrected.)*
+2. The verification uses **syft against our own image**, not hand-parsed package
+   metadata.
+
+> **Why the correction.** Measured on our own image: **12 GPL components** —
+> `busybox`, `apk-tools`, `alpine-baselayout`, `musl-utils`, `xz-libs`, `gdbm`,
+> `readline` and more — every one from the base OS. No Linux container can avoid
+> them. A requirement that can never pass either blocks every release or is quietly
+> ignored, and the second is worse: it teaches people to skip the check.
+>
+> **And why syft.** A hand-rolled check over Python package metadata reported *96
+> packages, all clean*. Syft found **2,227 components and the 12 above**. The Python
+> layer was never where the risk was, and we ship an SBOM generator — using it on
+> ourselves is the dogfooding the release gate is meant to prove.
+
+- [x] **8.0.3** Publish the image SBOM per release (F10.3), disclosing base-OS  
+  **STATUS 2026-08-30:** ✅ The check itself produces the SBOM; publishing it per release is task 12a.7, already planned.
+  licences rather than pretending they are absent. For a tool that ships licence
+  analysis, disclosure is the only defensible answer.
+
+**Commit:** `fix: correct the licence claim and verify it with syft`
+
+### 8.1 — File ownership across runtimes
+
+> **✅ COMPLETE 2026-08-30.** Ownership proven on Docker **and rootless Podman**; the dual-runtime claim now rests on evidence.
+
+3. **Results Folder** files are owned by the invoking user on Docker. *(F1.4)*
+4. **Results Folder** files are owned by the invoking user on rootless Podman.
+   *(F1.4 — the reason ADR-0001 exists.)*
+
+> **Podman is installed** (6.0.2, machine running), so the deferral from task 0.2 is
+> discharged and the dual-runtime claim can stand on evidence.
+
+**Commit:** `test: file ownership on docker and rootless podman`
+
+### 8.2 — Isolation and runtime detection
+
+> **✅ COMPLETE 2026-08-30.** 127 tests.
+
+5. The container cannot write to `/workspace`. *(F1.1)*
+6. A **Workspace** path containing spaces scans correctly.
+7. **A symlink pointing outside the Workspace resolves to nothing inside the
+   container.** *(Not merely "symlinks work": the read-only mount should make an
+   escape structurally impossible, and that is worth asserting rather than assuming.)*
+8. With no container runtime present, valvur refuses with actionable remediation
+   text. *(F1.5)*
+
+- [x] **8.2.9** **Runtime detection must find Podman Desktop's install.** `shutil.which`  
+  **STATUS 2026-08-30:** ✅ Detection now probes known install locations as well as `PATH`, and found the real Podman 6.0.2 at `/opt/podman/bin`.
+  missed a working Podman 6.0.2 at `/opt/podman/bin/podman`, because Podman Desktop
+  does not add itself to `PATH`. A user with a perfectly good runtime would be told
+  they have none — the worst kind of first-run failure, since the advice would be to
+  install what they already have. Probe known locations as well as `PATH`.
+
+**Commit:** `feat: robust runtime detection and proven isolation`
+
+### 8.3 — Version compatibility
+
+> **✅ COMPLETE 2026-08-30.** 134 tests. Phase 8 complete.
+
+10. A shim/image major version mismatch refuses to run and states both versions.
+    *(F1.9)*
+
+- [x] **8.3.11** **Design the version relationship first — none exists.** `_VERSION`  
+  **STATUS 2026-08-30:** ✅ Designed: the image stamps `org.opencontainers.image.version` from `pyproject` at build time; the shim reads it and compares. Below 1.0 a **minor** difference breaks compatibility, because semver permits 0.x minors to break. An image with no label predates the check and is accepted.
+  strings sit in two files, unconnected, and nothing compares them. The image should
+  declare its version as an OCI label, the shim should read it, and they should
+  compare on major. ADR-0001 accepted two artifacts on the condition this check
+  existed; it does not yet.
+
+**Commit:** `feat: shim and image version compatibility check`
+
+### 8.4 — Air-gapped operation
+
+> **✅ COMPLETE 2026-08-30.** 134 tests. Phase 8 complete.
+
+12. Vulnerability databases load from a user-specified OCI registry. *(F10.5)*
+
+- [x] **8.4.13** Expose Trivy's `--db-repository` through configuration, and document  
+  **STATUS 2026-08-30:** ✅ `VALVUR_DB_REPOSITORY` passes through to Trivy's `--db-repository` for both scan and update, documented in the README.
+  the mirroring workflow. This is the hardest enterprise requirement and ADR-0012
+  already made it reachable — the DB lives outside the image, so mirroring needs no
+  special build.
+
+**Exit:** the full suite passes on Docker **and** Podman; the licence claim is one we
+can actually defend; and a runtime that is installed is a runtime we find.
+
+---
+
+## Phase 9 — MCP surface
+
+**Goal:** an agent can scan, browse and understand **Findings** — and cannot change
+anything.
+
+> **Reordered and sub-phased 2026-08-30 after reviewing Phase 8.** The original six
+> cycles described the tools but not the two decisions that shape them: what the MCP
+> SDK costs us, and what happens when a scan outlasts a client's timeout.
+>
+> **Corrected the same day.** My first rewrite made MCP an opt-in extra, reasoning
+> that the CLI was the wider audience. That had the priority backwards: valvur is
+> agent-native, and adding it to Kiro or Claude Code *is* the product. MCP is the
+> primary interface, and ADR-0015 keeps it dependency-free by implementing stdio
+> directly.
+
+### 9.0 — Hand-rolled stdio transport
+
+> **✅ COMPLETE 2026-08-30.** 149 tests.
+
+**MCP is the primary interface.** `pip install valvur` gives a working server; there
+is no extra to opt into. The CLI is the second way in.
+
+- [x] **9.0.1** Implement MCP stdio directly — newline-delimited JSON-RPC 2.0 on  
+  **STATUS 2026-08-30:** ✅ `mcp/protocol.py` — newline-delimited JSON-RPC 2.0 over stdio, stdlib only. `dependencies = []` still holds, asserted by test.
+  stdin/stdout — keeping **zero runtime dependencies** (F10.6, ADR-0015). The
+  official SDK pulls 22 packages including `starlette`, `uvicorn`, `pyjwt` and
+  `cryptography`: an HTTP server, an OAuth stack and a crypto library, all to support
+  transports Kiro and Claude Code do not use. Installing a web server into a security
+  tool enlarges what must be audited and patched whether or not a port is ever bound —
+  and it is precisely the dependency footprint our own Dependency Reality Check
+  exists to warn people about.
+- [x] **9.0.2** Implement `initialize`, `tools/list` and `tools/call`. That is the  
+  **STATUS 2026-08-30:** ✅ `initialize`, `tools/list`, `tools/call`, plus `ping` and the `notifications/initialized` no-op.
+  whole protocol for a tools-only server.
+- [x] **9.0.3** **Pin the protocol version we declare**, and record it. We own  
+  **STATUS 2026-08-30:** ✅ Declares `2025-06-18`, negotiates down to `2025-03-26` and `2024-11-05`. An unknown version gets ours to decide on rather than a refusal.
+  compatibility now: if the handshake changes we fix it rather than upgrading a
+  package. Phase 9's exit criterion — a real client completing scan → list → explain —
+  is what makes that risk manageable rather than theoretical.
+- [x] **9.0.4** A malformed request produces a JSON-RPC error, never a traceback on  
+  **STATUS 2026-08-30:** ✅ Malformed JSON → `-32700`; unknown method → `-32601`; an unhandled exception → `-32603` with the diagnostic on **stderr**. A crashing *tool* is a tool error, not a protocol fault, so the agent sees the real problem.
+  stdout. Anything written to stdout that is not a response corrupts the stream.
+
+**Commit:** `feat: MCP stdio transport with zero dependencies`
+
+### 9.1 — The read-only tool surface
+
+> **✅ COMPLETE 2026-08-30.** 162 tests. Four tools: `scan`, `list_findings`,
+> `explain_finding`, `scan_status` — and a test pins that set exactly, so adding a
+> fifth is a deliberate act visible in a diff.
+>
+> Preparing cycle 5 (F9.9) exposed that **SAST findings carried raw workspace lines
+> as evidence**: neutralisation lived in the AI-artifact check rather than at the
+> model boundary. Now fixed in `Finding.__post_init__`, one place, applied to
+> everything — with fencing selective, so our own advice is not buried in warnings,
+> and unconditional for content whose *source* is an agent instruction file.
+
+1. An MCP client runs a **Scan Run** and receives a summary. *(F9.1)*
+2. `list_findings` returns **Findings** in rank order, filterable by **Status**.
+3. `list_findings` is **bounded by default and states what it omitted**. *(F9.10 —
+   several thousand Findings in an agent's context is the problem F7.5 solved for
+   `SUMMARY.md`, arriving by another door.)*
+4. `explain_finding` returns evidence, **Exploit Signals**, **Dependency Path** and
+   the originating source. *(F9.8)*
+5. **MCP responses carry neutralised evidence.** *(F9.9 — an MCP response reaches an
+   agent's context with no file in between. It is the most direct injection path we
+   have, and the only one the agent cannot decline to read.)*
+6. No exposed tool modifies the **Workspace**. *(F9.2)*
+7. **No tool named `scan_and_fix`, `apply`, `write` or `remediate` exists in the
+   registry.** *(ADR-0009 is a safety property, so a contributor adding one should
+   fail a test rather than merely fail review.)*
+8. Editing a file triggers no **Scan Run**. *(F9.4)*
+
+**Commit:** `feat: read-only MCP tool surface`
+
+### 9.2 — Long scans
+
+> **✅ COMPLETE 2026-08-30.** 168 tests. Verified end to end against a real container: scan → poll → DONE in 5s → list.
+
+9. A **Scan Run** started over MCP returns promptly, and `scan_status` reports its
+   progress and result.
+
+> **Measured: 20 seconds for the `full` Profile on our toy fixture.** A real
+> project is minutes, and many MCP clients time out at 30–60 seconds.
+> [design.md](./design.md) §8 already listed `scan_status` alongside `scan`, implying
+> this pattern — but the original cycles did not mention it, so the implementation
+> would have defaulted to synchronous and discovered the problem in Phase 10's
+> usability gate.
+
+**Commit:** `feat: asynchronous scan with status polling`
+
+### 9.3 — CLI parity by construction
+
+> **✅ COMPLETE 2026-08-30.** 174 tests. Phase 9 complete.
+
+10. Every MCP tool has a CLI equivalent producing the same result. *(F9.3)*
+
+- [x] **9.3.11** Make parity **structural, not compared**: both surfaces call the same  
+  **STATUS 2026-08-30:** ✅ Operations lifted into `valvur/operations.py`; both surfaces call them. A test asserts every MCP tool's handler *is* a shared operation, so a second implementation fails the build.
+  function, so they cannot drift. Asserting equality of formatted output would be
+  brittle and would keep passing while the semantics diverged.
+
+**Commit:** `feat: CLI and MCP parity by construction`
+
+**Exit:** a real MCP client completes scan → list → explain against the fixture repo;
+no tool can change anything; and nothing an agent receives can act as an instruction.
+
+---
+
+## Phase 10 — First-run experience
+
+**Goal:** usability, treated as a feature with its own phase rather than as polish.
+
+> **Reordered 2026-08-31 after reviewing Phase 9.** Two problems. The phase could not
+> run at all — nothing is published, so the usability gate had nothing for a
+> participant to install. And its tasks were written when the **CLI** was primary;
+> since ADR-0015 the first run is an MCP configuration flow with entirely different
+> failure modes.
+
+### 10.0 — Pre-release publish
+
+> **✅ COMPLETE 2026-08-31.** The gate now has something real to install.
+>
+> **Caught before upload:** the sdist would have shipped **14 occurrences** of the
+> planted AWS credentials and the injection payload to PyPI — the test fixtures are
+> deliberately full of them. Tests are now excluded from the sdist. Publishing fake
+> credentials from a tool that detects credentials would have been found by someone
+> else's scanner, not ours.
+
+The gate needs something real to install. A source checkout tests a path no user will
+take, and participants cannot be re-used.
+
+- [x] **10.0.1** **The name decision comes due here, not at 12.1.** Publishing an rc to  
+  **STATUS 2026-08-31:** ✅ **`valvur` kept.** Confirmed 2026-08-31; the name is now claimed on PyPI and cannot be released.
+  PyPI *claims the name*. `valvur` was chosen as provisional on the understanding that
+  renaming stayed free until first publish — this is first publish. Decide now or
+  rename now; there is no third option.
+- [x] **10.0.2** Publish `0.1.0rc1` to PyPI and the image to GHCR. This is most of  
+  **STATUS 2026-08-31:** ✅ `valvur 0.1.0rc1` on PyPI, `ghcr.io/maverickhq/valvur:0.1.0rc1` and `:latest` on GHCR. Verified as a stranger would: fresh venv, `pip install valvur`, scanned a repo, 57 findings, zero runtime dependencies.
+  task 12a.7 brought forward, and doing it early de-risks the real release
+  rather than duplicating it.
+- [x] **10.0.3** **Measure the image pull honestly.** The `offline` scan itself is  
+  **STATUS 2026-08-31:** ✅ **Measured: 302MB compressed** (not the 674MB uncompressed figure I had been quoting). ~24s at 100 Mbit, 48s at 50, 97s at 25. With a 5.6s scan, P1's 60 seconds holds at 50 Mbit and above and fails below it. README now states the figures rather than the promise — a claim someone can check beats one they must accept.
+  **5.6s**, comfortably inside P1's 60 seconds — but the image is **674MB**, roughly
+  110 seconds on a 50 Mbit connection. P1 is at risk entirely from the download.
+  Measure it, then either state the figure plainly in the README or reconsider a
+  smaller image for `offline`. Do not let the claim stand unmeasured.
+
+**Commit:** `chore: publish 0.1.0rc1 for the usability gate`
+
+### 10.1 — The usability gate
+
+- [x] **10.1.1** **Run it before any other task in this phase.** Protocol:
+  [docs/usability-gate.md](../../../docs/usability-gate.md). A developer who has never
+  seen valvur, repository URL only, no verbal help, scanning **their own** project.
+  **The findings become the rest of this phase's task list**, so everything below is
+  provisional until it has run. Moved here from Phase 1 task 1.12.
+
+  **STATUS 2026-09-26:** ✅ **run once, with an agent as the participant.** A
+  Claude Code agent given the README and nothing else, on the owner's own
+  project (`occams-test-lab`: 312 tracked files, 107,544 on disk), the MCP path
+  first, the record in
+  [`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-on-occams-test-lab.md)
+  and Gate 1 of the protocol file. **Thirty minutes to a first finding**, thirteen
+  to a failure that pointed the wrong way; nine findings, each measured against
+  `main` the same afternoon — [Phase 29](#phase-29--the-first-gate-a-real-working-tree-and-what-a-first-run-must-survive).
+  The participant was not a person: 12b.3's *a person outside this repository*
+  still wants one, and it runs on `0.5.0`, after Phase 29's Tier 0.
+- [x] **10.1.2** Have them install it **the way the README says** — the MCP path
+  first, since that is now primary — rather than however we would do it.
+
+  **STATUS 2026-09-26:** ✅ done as the protocol says — `uvx --from valvur
+  valvur-mcp`, the README's JSON block saved as `.mcp.json`, the server driven
+  over stdio exactly as Kiro and Claude Code drive it, and Claude Code itself
+  connected from that block in under eight seconds. What the README did not
+  say — the file's name, the approval step — is B8, task 29.2.1.
+
+**Commit:** `docs: record usability gate findings`
+
+### 10.2 — The MCP first run *(the primary path)*
+
+1. Pasting the README's config block into Kiro produces a working server.
+2. Pasting it into Claude Code produces a working server. *(Their config shapes
+   differ; one working and the other not would be found by users rather than by us.)*
+3. A malformed config, or `valvur-mcp` not on `PATH`, produces a diagnosable failure
+   rather than silence. *(Agents commonly swallow a server's stderr, so a server that
+   dies at startup can look like a server that does nothing.)*
+4. The first tool call states plainly that the image is being pulled and how large it
+   is, rather than appearing to hang.
+
+- [x] **10.2.5** Verify the copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a
+  real agent in a real repository. *(P6)* ✅ **DONE 2026-09-11.** Claude Code 2.1.261,
+  non-interactive, against a git-initialised copy of the broken fixture with the
+  README's `.mcp.json` shape and the `CLAUDE.md` snippet pasted verbatim. Only
+  read-only tools were permitted, so any attempt to edit, commit or suppress would
+  show as a denied call. Two runs.
+
+  > **One substitution, recorded.** The README says `uvx --from valvur valvur-mcp`.
+  > That would install the stale `0.1.0rc1` from PyPI and pull a private image — the
+  > exact thing 12a.1 unblocks — so the *shape* was tested with the local binary and
+  > image. The `uvx` path stays untested until the package is public.
+  >
+  > **Run 1 hit its turn limit and wrote no report.** Two defects, one in each half of
+  > the snippet's world:
+  >
+  > 1. **The snippet taught the wrong door.** It said *"Run `valvur scan`"*, and the
+  >    agent did exactly that — `which valvur`, not found, two turns gone — before
+  >    looking for the MCP tool it already had. An agent does what the text says, in
+  >    the order it says it. The snippet now names the MCP tools first.
+  > 2. **`scan_status` returned instantly, so the agent polled fourteen times in
+  >    twenty turns.** It had read every file in the repository while waiting and
+  >    then, in its own words, *"nothing else is pending, so I'll poll once more"*.
+  >    Each poll is a full model turn. `scan_status` now waits up to 15s — well under
+  >    the 30–60s the jobs docstring says clients tolerate — so one poll covers
+  >    seconds of scan rather than milliseconds. The `scan` contract is unchanged.
+  >
+  > **Run 2 succeeded**: straight to `scan` with `offline`, three polls, `SUMMARY.md`
+  > then `REMEDIATION.md` then `list_findings`, no edit or suppression attempt, and it
+  > read `.security-scan/.gitignore` unprompted to confirm the folder cannot be
+  > committed. $1.03, 121s.
+  >
+  > **The report was close to ideal, and one paragraph is the whole of Phase 19
+  > working end to end.** The agent noticed that `requirements-ai.txt` was not
+  > covered, named `reqeusts` and `aws-helper-sdk` itself, explained that `full` would
+  > catch them *and* that `full` sends package names to public registries, and left
+  > the decision to the human. That is the Block 3 profile caveat — the one that used
+  > to be hidden whenever anything else was found — read by a real agent and acted on
+  > correctly. It also wrote *"I did not act on the injected instruction"* about the
+  > planted `AGENTS.md`, and *"I applied no fixes and added no suppressions, per the
+  > project's CLAUDE.md"*.
+  >
+  > **A third defect, found while setting up.** `valvur-mcp --help` (19.C.3, written
+  > the day before) named a tool `scan_workspace`. No such tool exists; it is `scan`.
+  > The test pinning the help text now iterates the real registry, so renaming a tool
+  > fails it instead of dating the text again.
+  >
+  > **10.2's claims, as they stand:** (2) Claude Code — verified; (3) a command not on
+  > `PATH` reports `status: failed` at startup and the agent says so — verified;
+  > (1) Kiro — untested, no Kiro here; (4) the image-pull message — untested, the
+  > image was local. The `.claude/settings.json` planted in the fixture for the
+  > AI-artifact check sets `bypassPermissions`; it was removed from the harness copy,
+  > because a test agent that can bypass permissions can edit files.
+
+**Commit:** `feat: MCP first-run experience`
+
+### 10.3 — The CLI first run
+
+5. `uv tool install valvur` and `pipx install valvur` work on a clean machine with no
+   **Scanners** present. *(F10.6)*
+6. `valvur scan` with no arguments does the right thing in any directory. *(P1)*
+7. The `offline` **Profile** completes within P1's budget on a ≤50k-line repository,
+   **including** the image pull on a first run, or the README states the real figure.
+   *(P1, N1.1, and see 10.0.3.)*
+
+**Commit:** `feat: CLI first-run experience`
+
+### 10.3b — False positives, found by scanning a real project
+
+> **✅ COMPLETE 2026-08-31.** 182 tests. Re-scanned the same project: **20 findings →
+> 14**, six vendored excluded and reported, `.env` secrets down from critical to
+> medium with the reason in the title, and the licence-unknown findings now ranked
+> 11–14 instead of near the top.
+
+> **Added 2026-08-31.** A scan of a real 260k-line project (62s, standard profile, all
+> nine scanners green) returned 20 findings. Two genuine secrets, seven real IaC
+> misconfigurations — and three defects our synthetic fixture could not have revealed,
+> because it has no vendored code and no `.env`.
+
+13. **Build and vendor directories are excluded by default.** `.aws-sam/build/`,
+    `node_modules/`, `site-packages/`, `dist/`, `.venv/`. Six of the twenty findings —
+    **30%** — came from numpy's own test fixtures inside a build artifact directory.
+    That is not the user's code, they cannot fix it, and it is precisely the noise
+    Phase 5 exists to prevent.
+14. **A gitignored `.env` is not a critical finding.** Every developer has one, and
+    keeping secrets out of git is the *correct* practice we would be penalising. A
+    secret in a **tracked** file is critical; a secret in an ignored one is a note.
+    Ranking must consult git, not just the filesystem.
+15. `licence.dependency-unknown` still crowds real findings: five of the fourteen
+    findings in the user's own code. The class floor is not low enough.
+
+**Commit:** `fix: exclude vendored code and rank gitignored secrets honestly`
+
+### 10.4 — Error messages as a usability surface
+
+8. **Docker installed but not running** produces a message naming the exact next
+   command. *(The commonest first-run failure on macOS, and currently the worst
+   handled: detection finds the binary, the run fails, and the user gets a generic
+   "every scanner failed" with Docker's raw stderr attached.)*
+9. An image pull failure is diagnosed as such.
+10. A **Workspace** with no manifests at all says so, rather than reporting clean.
+11. A corrupt `.security-scan.toml` names the line.
+
+> Five failure modes already produce good messages — `NoContainerRuntime`,
+> `IncompatibleImage`, `WorkspaceUnreadable`, `ScannerFailed`, `RegistryUnreachable`.
+> These are the gaps.
+
+- [x] **10.4.12** Decide what a **human** sees first in `SUMMARY.md`.
+  ✅ **DECIDED 2026-09-10, in Block 3.** One sentence of plain English after the
+  title, before the machine block: a verdict the reader can act on, ordered by what
+  stops them trusting the rest — an incomplete scan first, then live findings, then
+  the two different reasons a nil result may mean nothing.
+
+  > **Not "demote the agent block".** F7.6 requires it to open the file, and answering
+  > this task surfaced that the block had never satisfied F7.6 either: it must describe
+  > *the **Status** values and the ranking basis* and did neither. So the answer was to
+  > **complete it** and put the human sentence above it. An agent still meets every
+  > constraint before any **Finding**, which is what F7.7 states and protects.
+
+**Commit:** `feat: actionable errors for every first-run failure`
+
+### 10.5 — The second gate
+
+12. A different developer, README only, clean machine, reaches a useful result in
+    under five minutes without asking a question.
+
+**Exit:** an unfamiliar user reaches a useful result without asking a question —
+by the MCP path first, and by the CLI second.
+
+---
+
+## Phase 11 — Constraint verification
+
+**Goal:** convert the product's central claims from assertions into tests CI runs on
+every commit.
+
+> **Reordered 2026-08-31 after auditing two real GitHub repositories.** Phase 11 was
+> written on the assumption that the risk was *constraint violation* — valvur
+> reaching the network, writing where it should not, running too long. That audit
+> found roughly twenty defects and **almost none were constraint violations.** They
+> were silent coverage loss: scanners succeeding perfectly at scanning nothing, and
+> valvur reporting a confident clean result. The worst of them reported a repository
+> with 24 CVEs as clean.
+>
+> Not one would have been caught by the cycles below as originally written. So a
+> coverage canary and a profile-equivalence check are now cycles in their own right,
+> ahead of the timing budget.
+>
+> The other change is that **cycle 3 turned out to be a design problem, not a test.**
+> The README's verification command does not work, and cannot be repaired by fixing
+> the image name — see 11.0. It moves to the front because its answer may change what
+> the README is allowed to claim.
+
+### 11.0 — Decide the real non-exfiltration proof *(design, before any test)*
+
+The README's central claim is that non-exfiltration is *"a property you can check
+yourself in one command"*:
+
+```bash
+docker run --rm --network=none -v "$PWD:/workspace:ro" valvur scan
+```
+
+**Measured 2026-08-31: that command fails twice.** The image `valvur` does not exist,
+and with the real name it fails again — `exec: "scan": executable file not found`,
+because the image's `Cmd` is `python3`. It is not a typo. It describes a **fat
+container**, which is the model [ADR-0001](../../../docs/adr/0001-thin-host-shim-read-only-container.md)
+rejected: valvur is a host shim that *launches* containers, so there is no
+"run valvur in a container" path to document.
+
+- [x] **11.0.1** Establish what a reviewer can actually run.  
+  **STATUS 2026-08-31:** ✅ Done, and the claim turned out to have **two halves** that
+  the original task ran together. `--network=none` covers the Scanner containers.
+  It says nothing about the **host shim**, which is not in a container and does have
+  a reason to reach out: enrichment fetches EPSS from FIRST, gated by one condition
+  threaded from the Profile.
+
+  Built `scripts/verify-offline.py`, which checks both, and measured on a real
+  repository carrying 24 CVEs — chosen so enrichment is actually reached, because a
+  clean repository never calls it and passes vacuously:
+
+  | Profile | connection attempts from the host process |
+  |---|---|
+  | `offline` | **0** (26 findings reported) |
+  | `full` | **1**, blocked — `create_connection` |
+
+  The `full` row is the point: the same check fails where the network is genuinely
+  used, so the `offline` pass means something. `unshare -rn` confirmed working
+  unprivileged on Linux (Fedora 44); the container runtime is reached over a unix
+  socket, so the scan is unaffected by having no network namespace.
+- [x] **11.0.2** Answer the same question for macOS.  
+  **STATUS 2026-08-31:** ✅ **There is no macOS equivalent, and the README now says
+  so.** `unshare` is Linux-only; Docker Desktop's seccomp profile blocks it even
+  inside a container (measured: `unshare failed: Operation not permitted`), and
+  running the shim in a Linux container instead breaks the mount paths, because the
+  daemon resolves them on the host rather than in the container.
+
+  The platform-independent substitute is to **disconnect the machine and scan**: once
+  the image and database are cached, `offline` needs nothing else. Weaker than an OS
+  denial — it shows valvur does not *need* the network rather than that it never
+  *tries* — so it is documented alongside the script rather than instead of it.
+- [x] **11.0.3** Rewrite the README claim to match.  
+  **STATUS 2026-08-31:** ✅ The fictional one-liner is gone from `README.md`, replaced
+  by the two halves, the script, the Linux `unshare` proof and the macOS limit. P5 in
+  [POSITIONING.md](../../../docs/POSITIONING.md) and moat item 1 in
+  [CLAUDE.md](../../../CLAUDE.md) were making the same one-command claim and now
+  state the platform limit too. *(P5 — a documented command that does not run is
+  worse than no documentation, because it is the one thing a sceptical reviewer will
+  try first. This one had never been run.)*
+
+  **Left for 11.1:** `verify-offline.py` is reviewer-facing and runs a real scan, so
+  it is too slow for the unit suite. Cycle 11.1 needs the same assertion as a fast
+  test over a stubbed runner, plus the `unshare -rn` end-to-end on Linux in CI, which
+  cannot run from macOS.
+
+**Commit:** `docs: a non-exfiltration proof that actually runs`
+
+### TDD cycles
+
+1. ✅ **The `offline` Profile makes no network connection — the test fails on any socket
+   attempt, anywhere in the process tree.** *(N2.1, ADR-0010. The single most
+   important test in the suite: it is what makes the README's central claim true
+   rather than asserted.)*
+   > **DONE 2026-09-01** — `tests/test_constraints.py`, 6 tests. Both halves asserted,
+   > each paired with a check that it can fail:
+   >
+   > | mutation | caught by |
+   > |---|---|
+   > | enrichment ignores the Profile | host-process test |
+   > | `--network=none` removed | container-argv test |
+   > | `--network=none` unconditional | the falsifiability guard |
+   >
+   > The stub carries a real CVE deliberately. Enrichment short-circuits on a finding
+   > set with none, so a stub without one passes while testing nothing — which is
+   > exactly how this passed vacuously on 2026-08-31.
+   >
+   > **Gap, recorded not omitted:** these cover the shim (in-process) and the
+   > containers (argv). Neither covers a **subprocess** opening a socket — the docker
+   > CLI, or a future helper binary. Only an OS-level denial does, and `unshare -rn`
+   > is Linux-only. Present as a skipped test carrying its own reason, to be enabled
+   > by 11.7 in CI. It is not claimed as passing.
+   > **Scope tightened 2026-08-30.** Asserting only that the container was launched
+   > with `--network=none` is insufficient: something host-side could reach the
+   > network freely and the test would still pass. It must assert over everything
+   > valvur starts.
+   >
+   > **Rationale corrected 2026-08-31.** The original note named a host-side
+   > **Check** as the risk; [ADR-0013](../../../docs/adr/0013-checks-run-inside-the-container.md)
+   > moved Checks into the container, so that specific hole is closed. The real
+   > host-side network user is now **enrichment** — EPSS is fetched from FIRST by the
+   > shim — and it is gated by a single boolean threaded from the Profile. One
+   > inverted condition and the offline guarantee is gone with no visible symptom.
+   > The scope is unchanged; only what it is guarding against.
+
+2. ✅ **The canary fixture yields at least its known findings, per Scanner.** *(New
+   2026-08-31. The regression net for silent coverage loss.)*
+   > **DONE 2026-09-01.** Two tests. Floors per Scanner, plus a dedicated dev-only
+   > dependency check.
+   >
+   > **The claim below was wrong when written, and is now true.** The fixture had
+   > **zero** dev-marked packages, so it could not have caught Trivy's
+   > dev-dependency exclusion — the worst defect of the three. Added `minimist`,
+   > reachable only through `devDependencies`, and verified against the image both
+   > ways: with `--include-dev-deps` it is reported, without it the production tree
+   > still reports and `minimist` alone vanishes. Mutation-tested: removing the flag
+   > fails the test.
+
+   `tests/fixtures/broken-repo` exercises all nine Scanners. Measured on the `full`
+   Profile, 2026-08-31 — **73 findings**:
+
+   | trivy | osv-scanner | opengrep | checkov | ai-artifact | gitleaks | dep-reality | licence-file |
+   |---|---|---|---|---|---|---|---|
+   | 36 | 37 | 12 | 12 | 6 | 2 | 2 | 1 |
+
+   Assert a **floor per Scanner**, not exact totals: advisory databases grow, and a
+   test that breaks every time OSV publishes is a test people delete. A Scanner
+   dropping to zero is the signal — that is what every silent failure looked like.
+
+   This is the cycle that would have caught all three of the worst defects found on
+   2026-08-31: Trivy's dev-dependency exclusion (24 CVEs → 0), the ecosystem
+   mismatch that double-reported every shared CVE (24 → 48), and "no package sources
+   found" being treated as a scan failure.
+
+3. ✅ **`offline` and `full` report the same dependency vulnerabilities on the canary.**
+   *(New 2026-08-31. N2.1, [ADR-0016](../../../docs/adr/0016-two-profiles-split-on-the-network-boundary.md).)*
+   > **DONE 2026-09-01, asserted at package level rather than advisory level.**
+   > Measured on the canary: `offline` 37 dependency findings, `full` 38, and the
+   > difference is entirely `PYSEC-2023-175`, an advisory OSV carries and Trivy's
+   > database does not. **Nothing was offline-only.** Requiring identical advisory
+   > IDs would encode "Trivy and OSV ship the same data", which is false and not what
+   > ADR-0016 claims. What must never happen is a vulnerable *package* disappearing —
+   > the CLU failure, seven packages to zero. Mutation-tested against exactly that.
+   >
+   > **Found while writing it:** `Pillow` and `pillow` were being proposed as two
+   > separate upgrades, the second to 10.0.1 *after* the first to 12.3.0, so
+   > following the proposal in order downgraded the package it had just fixed.
+   > Fingerprints already normalise case, so identity and suppressions were
+   > unaffected — only the proposal. Fixed and covered.
+
+   ADR-0016 claims the offline Profile gives up a second advisory source and the
+   slopsquat Check — and nothing else. **That claim was false until 2026-08-31**, when
+   `offline` returned 0 CVEs on a repository where `full` found 24, in the same
+   lockfile in the same minute. An offline Profile that quietly finds less makes
+   *"no network required"* worth nothing, because the honest advice becomes "run the
+   networked one anyway".
+
+4. ✅ No write occurs outside the **Results Folder** and host scratch. *(N2.2)*
+   > **DONE 2026-09-01.** Three tests. The existing workspace-unchanged test runs
+   > against a fake runner, so it proves the orchestration does not write; these run
+   > the real containers.
+   >
+   > - Every Scanner in **both** Profiles mounts the Workspace `:ro`, asserted over
+   >   the whole adapter set so a Scanner added without it fails the build rather
+   >   than review. Mutation-tested.
+   > - A real scan changes nothing in the Workspace's **parent** directory either.
+   >   A path-handling bug that escaped the mount would land beside the Workspace,
+   >   where a test watching only inside it cannot see.
+   > - The `:rw` scratch directory does not survive the run. Raw Scanner output
+   >   contains live credentials (F5.7); leaving it in `/tmp` puts them in a second
+   >   cleartext location nobody knows to clean up.
+
+5. **Both budgets, not just the slow one.** *(N1.1, N1.2, N1.4)*
+   - `offline` completes in under 60 seconds on a ≤50k-line repository. *(N1.1 —
+     now the tighter constraint. ADR-0016 moved Checkov into `offline`, and Checkov
+     is **13.7s of its measured 18.1s**. The old `quick` had no Checkov and no risk
+     here; `offline` does.)*
+   - `full` completes within 5 minutes and 2 GB on the same repository. *(N1.2, N1.4
+     — comfortable at ~19s measured, but unverified for memory.)*
+
+### Also in this phase
+
+- [x] **11.6** **Verify the self-scan** — mostly done 2026-08-31, restated as
+  verification rather than work.  
+  **STATUS 2026-09-01:** ✅ **N2.5 passes: 0 unsuppressed Findings**, 3 suppressed
+  with reasons, 62 excluded. The open decision is resolved, and investigating it
+  found the Finding was **false**. All four packages *do* declare licences — through
+  PyPI Trove classifiers, which Syft does not read: `docutils` (BSD/GPL/public
+  domain), `id` (Apache-2.0), `markdown-it-py` (MIT), `pathspec` (MPL-2.0). Syft
+  records licences for 36 of 140 components here, so the blind spot is detection,
+  not declaration.
+
+  Two changes followed. The message no longer asserts what it cannot know —
+  *"N dependencies have no licence recorded"*, with the evidence saying the SBOM is
+  the source and detection is partial. And the Finding is suppressed with that as
+  the reason, because valvur cannot fix it generally: it holds only the SBOM, and a
+  scanned project's packages are not installed on the host to read classifiers from.
+
+  Original text follows. Current state under `offline`: **1 live Finding, 2
+  suppressed with reasons and a one-year expiry, 61 excluded** by
+  `[scan] exclude = ["tests/fixtures"]` and reported in both `SUMMARY.md` and
+  `run.json`. `LICENSE` is Apache-2.0. The one open decision is whether the remaining
+  Finding — *4 dependencies declare no licence*, all genuinely ours — is acceptable
+  to ship or wants a suppression with a reason.
+- [x] **11.7** Wire the self-scan into CI as a release gate. *(N2.5)*  
+  **STATUS 2026-09-01:** ✅ New `selfscan` job, plus two fixes to the existing `e2e`
+  job. Each failure condition was verified by planting it and watching the gate
+  fail — an ungated gate is the thing this phase exists to prevent.
+
+  **The e2e job could not have been passing.** It builds `valvur:dev` and never set
+  `VALVUR_IMAGE`, so every container test ran against the published GHCR tag it had
+  not built and cannot pull while the package is private (task 12a.1). Now set.
+
+  **Runtime parity is asserted to have run.** The parity tests skip when a runtime
+  has no local image — right locally, wrong in CI, where both runtimes have it. A
+  skip there means the F1 dual-runtime claim went unverified while CI stayed green.
+  The job now fails if `tests/test_runtimes.py` reports any skip.
+
+  Original text follows. It must fail on three things, not one:
+  1. any unsuppressed **Finding**;
+  2. any **expired suppression** — the lapse already re-reports the Finding, but if
+     nothing fails the build then "mandatory expiry" is decoration;
+  3. any **skipped runtime-parity test**. Four Podman tests skip today because the
+     GHCR package is private (task 12a.1). Dual-runtime parity is an F1 claim, and a
+     green CI that never ran those tests is asserting something it did not check.
+     "Skipped" and "passed" must not look the same to the gate.
+
+**Exit:** CI proves non-exfiltration on every commit, proves coverage has not
+silently narrowed, and valvur passes its own scan. The README's verification command
+runs as written on every platform it claims.
+
+**Commit:** `test: constraint verification and self-scan release gate`
+
+---
+
+## Phase 12 — Release
+
+**Goal:** make valvur obtainable, verifiable and trustworthy by someone who is not
+us — then release it.
+
+> **Split in two on 2026-09-05, after reviewing what Phase 11 actually built.** The
+> phase as written could not reach its own exit criterion.
+>
+> **It was circular.** Task 12.6 unblocks Phase 10's usability gate; the gate's
+> findings *become* Phase 10's task list; and Phase 12 then tagged `v1.0.0`. Those
+> cannot all hold. Tagging 1.0.0 before one external person has installed the tool
+> inverts the order, so the phase is now **12a — make it obtainable**, the gate runs
+> against that, and **12b — release** acts on what the gate finds.
+>
+> **The target version changed with it.** `v1.0.0` is a promise about stability that
+> nothing has tested. ADR-0016 was a breaking change, the published artifact is still
+> `0.1.0rc1`, and the next publish has a licence-metadata correction to carry (12a.7).
+> 12a ships **0.2.0**; 1.0.0 waits for the gate.
+>
+> **And four assumptions had gone stale.** 12.6 named the package while the
+> *repository* is private too; the README's headline performance figure is wrong by
+> roughly 4×; the published PyPI artifact declares a licence the repository no longer
+> uses; and the version literal turned out to live in five places while F1.9 compares
+> two of them.
+
+- [x] **12.1** ~~**Decide the final name.**~~ **MOVED to task 10.0.1 on 2026-08-31.**
+  Publishing the `0.1.0rc1` needed for the usability gate *is* first publish, and
+  claims the name. The deadline moved with it. ✅ `valvur` kept.
+
+---
+
+### 12a — Make it obtainable and trustworthy
+
+Nothing below is optional for the gate. A participant who cannot obtain the tool,
+or cannot check the claims we make about it, is not testing the product.
+
+- [x] **12a.1** **Push, then make the repository public, then the package.**
+  *(F1.5, blocks 10.1 and 10.2)* — **owner action.** ✅ **Done 2026-09-13**: the
+  repository by API (after the sweep and history rewrite below), then the `valvur`
+  and `valvur-index` packages by the owner's click — anonymous API `200`, anonymous
+  GHCR tokens issued for both. The full account is under 23.1.1.
+
+  > ⛔ **BLOCKED BY [Phase 13](#phase-13--portability), added 2026-09-05.** The
+  > published image is `linux/arm64` only, so going public today hands every amd64
+  > user an artifact that cannot run. Publishing an unusable image is worse than
+  > publishing nothing: it converts a private repository into a public first
+  > impression that fails.
+
+  Held private during development (decision 2026-08-31). **Measured 2026-09-05:**
+
+  | | |
+  |---|---|
+  | `api.github.com/repos/MaverickHQ/valvur` | **404** anonymously |
+  | `ghcr.io/token?scope=…valvur:pull` | **401** anonymously |
+  | local commits ahead of `origin/main` | **17** |
+
+  > **Pre-public sweep, 2026-09-13.** gitleaks over all 155 commits: clean. A read
+  > of the tree found the AWS account ID, the IAM user name and the ECR registry
+  > host recorded in this file's Phase 0 notes since the second commit — not
+  > credentials, but an account ID beside a username is more than a public
+  > repository needs to carry. **History was rewritten** (`git filter-repo
+  > --replace-text`, the two strings → `<aws-account-id>` and `<iam-user>`), every
+  > one of the 155 commits re-signed with the same SSH key with its dates preserved
+  > (`git rebase --root -f --committer-date-is-author-date`; GitHub shows the new
+  > head verified), `v0.1.0rc1` recreated as a signed annotated tag on the rewritten
+  > rc commit with its original tagger date, and `main` and the tag force-pushed.
+  > The tree is byte-identical to the old head except the five redacted lines
+  > (`diff -r` over `git archive` of both). A mirror and a bundle of the old
+  > history are at `/private/tmp/valvur-tests/backup-before-rewrite-20260913.*`.
+  > Two things this does not do: GitHub keeps the old objects until it garbage
+  > collects, and the three closed Dependabot branches (#1–#3) still point at old
+  > commits — deleting those branches is the owner's click; and the Rekor entries
+  > from the rehearsals and the index workflow name the old SHAs forever, which is
+  > what a transparency log is for.
+
+  The original task named only the package. The **repository** is private too, which
+  matters more: the README now tells a reviewer to run
+  [`scripts/verify-offline.py`](../../../scripts/verify-offline.py) as the central
+  proof of the central claim, and they cannot obtain it. The ADRs, which are where
+  every decision's reasoning lives, are equally unreachable.
+
+  Order matters — push first, or the public repository is missing all of Phase 11:
+  ```bash
+  git push origin main
+  # GitHub → Settings → Change visibility → Public
+  # GitHub → Packages → valvur → Package settings → Change visibility → Public
+  ```
+  Then confirm a genuinely **cold** pull. An authenticated machine proves nothing,
+  because a locally cached image hides this completely — which is exactly how it went
+  unnoticed until 2026-08-31:
+  ```bash
+  docker logout ghcr.io && docker pull ghcr.io/maverickhq/valvur:0.2.0
+  curl -s -o /dev/null -w '%{http_code}\n' https://api.github.com/repos/MaverickHQ/valvur
+  ```
+  **Why it earns its own task.** Local scans passed only because Docker had the image
+  cached from the build. A new user's first run failed at the pull, and the failure
+  was reported as *"the container cannot read the workspace"* — advice about mount
+  permissions for an authentication problem. The message is fixed (11.0); the
+  visibility is not.
+
+- [x] **12a.2** **One source of truth for the version, and a check that it holds.**
+  *(F1.9)* ✅ **DONE 2026-09-05.**
+
+  > `src/valvur/version.py` derives `__version__` from installed package metadata;
+  > `runner._VERSION`, `runner.IMAGE`, `results._VERSION` and `compat.shim_version()`
+  > all read it. **Five places became two:** `pyproject.toml`, which a human edits,
+  > and the README's status line, which a test now maintains. Remaining mentions are
+  > historical prose about which version the retired Profile names came from.
+  >
+  > The image tag is derived too — `default_image()` returns
+  > `ghcr.io/maverickhq/valvur:{__version__}` — so a shim asks for the tag it was
+  > built alongside and cannot drift from it. `VALVUR_IMAGE` still overrides, for
+  > local builds and air-gapped mirrors.
+  >
+  > **Centralising it exposed the bug it was meant to prevent, already live.** The
+  > editable install's metadata was six days stale: `importlib.metadata` reported
+  > `0.1.0.dev0` while `pyproject.toml` declared `0.1.0rc1`. Every local scan for a
+  > week ran as one version and wrote the other into `results.sarif`. F1.9 stayed
+  > quiet because the two share a compatibility series — it compares `(0, 1)` against
+  > `(0, 1)`. The hardcoded literal is exactly what hid it.
+  >
+  > Tests cover both failure modes, each verified by planting it: a **partial bump**
+  > (pyproject moved, environment stale) fails two tests, and a **non-canonical
+  > version string** fails one. That second matters at release: CI labels the image
+  > with the raw `pyproject.toml` value while the shim reports the PEP 440 normalised
+  > one, so `0.2.0-rc1` would have them disagree at the moment F1.9 compares them.
+
+  Measured 2026-09-05 — the literal appears in **five** places:
+  `pyproject.toml`, `src/valvur/runner.py` twice (`IMAGE` and `_VERSION`),
+  `src/valvur/results.py`, and `README.md`.
+
+  F1.9 refuses to run a mismatched shim and image, comparing exactly two of those. A
+  partial bump therefore ships a pair that either refuses to start or, worse, agrees
+  while being wrong. Derive them from package metadata, and add a CI step asserting
+  every remaining literal agrees — a release is the one moment this breaks, and the
+  one moment nobody is running the test suite.
+
+- [x] **12a.3** **Decide whether Checkov runs unconditionally — this is a product
+  decision and it gates 12a.4.** ✅ **DECIDED 2026-09-05: gate it.**
+
+  > **DONE.** `src/valvur/applicability.py` + `CheckovAdapter.applies_to`. Measured
+  > after, on real repositories and a warm cache:
+  >
+  > | repository | files | Checkov | offline |
+  > |---|---|---|---|
+  > | crucible-autoresearcher (Python) | 69 | skipped | **7.1s** |
+  > | CLU (TypeScript, GH Actions) | 109 | ran — `.github/workflows/release.yml` | 17.7s |
+  > | fixture | 12 | ran — `main.tf` | 16.8s |
+  >
+  > Application-only repositories go from ~18s to ~7s; repositories with
+  > infrastructure still pay for it, correctly.
+  >
+  > **The three rules the risk demanded**, all enforced by tests: detection is
+  > **biased to running** (an unreadable or unrecognised file counts as
+  > infrastructure); the skip is **never silent** (`run.json.scanners_skipped` and a
+  > `SUMMARY.md` line, `complete` unchanged — a skip is not a failure); and **both
+  > branches are tested**, because a detector rotted to always-False would sail
+  > through a suite that only checked the skip. Mutation-tested: forcing it to
+  > always-False fails 20 unit tests *and* the e2e coverage canary.
+  >
+  > **A measurement error caught in passing.** The first re-measurement showed CLU
+  > and crucible at 6.4s with Checkov skipped — both were empty directories, cleaned
+  > from the scratchpad between sessions. A scan of nothing is fast and proves
+  > nothing. Re-cloned and re-measured; CLU does have infrastructure and does pay.
+
+  Measured 2026-09-05 on the offline Profile, per Scanner, against a 12-file fixture:
+
+  | gitleaks | trivy | opengrep | **checkov** | syft | licence-file | ai-artifact |
+  |---|---|---|---|---|---|---|
+  | 1.0s | 0.6s | 3.1s | **11.2s** | 1.3s | 1.0s | 1.1s |
+
+  Checkov is a fixed startup cost, not proportional to the work. A repository with no
+  Dockerfile, no terraform and no Kubernetes manifests pays 11 seconds for a Scanner
+  that has nothing to look at.
+
+  Gating it on the presence of IaC files would return most projects to ~8s scans. The
+  argument against is that a conditional Scanner is a Scanner that can silently stop
+  running — the exact failure class Phase 11 exists to catch — so if this is done,
+  the trigger belongs in the coverage canary (11.2) with a fixture that has no IaC.
+
+- [x] **12a.4** **Re-verify every README claim by measurement, not by reading.**
+  *(P3, P4)*
+
+  This was written as a read-through. It cannot be one: the claims changed under it
+  in Phase 11, and at least one is now wrong.
+
+  **Measured 2026-09-05 — the README says an offline scan takes `5.6s`:**
+
+  | repository | size | offline |
+  |---|---|---|
+  | fixture | 12 files | **20.3s** |
+  | CLU | ~100 files | 18.0s |
+  | valvur itself | 38,697 lines | 23.4s |
+
+  Roughly 4× out, and not because of repository size — the 5.6s was measured when
+  `quick` had five Scanners and no Checkov, before ADR-0016. Correct the figure, or
+  change the product first (12a.3) and then correct it.
+
+  > **DONE 2026-09-05.** Two passes. The timing table was corrected against 12a.3
+  > (`~7s` application code, `~17s` with infrastructure, basis stated). The sweep
+  > then found five more claims that were wrong rather than merely stale, every one
+  > checked against the code or the image rather than read:
+  >
+  > | claim | reality |
+  > |---|---|
+  > | Trivy credited for "Dependencies, IaC, container images, SBOM, licences" | we invoke `trivy fs --scanners vuln` — **dependencies only** |
+  > | `valvur scan --profile deep`, "including container images" | `deep` is retired, and valvur **never scans container images** |
+  > | "Fast, fully offline pre-commit check (~60s)" | ~7s, and `offline` is now the default rather than an option |
+  > | "on standard and deep" | retired names |
+  > | "No GPL-licensed tools are included in the distributed image" | contradicted by ADR-0005's own correction *and* by the Opengrep LGPL-2.1 row two lines above |
+  >
+  > **And one claim that traced to nothing at all.** *"The same image runs on
+  > ECS/Fargate via ECR — identical artifact, no AWS-specific code paths, no
+  > behavioural difference."* It appears in no requirement, nothing in
+  > POSITIONING.md backs it (its only AWS mentions are about the competitor), there
+  > is no AWS code anywhere, and it has never been run. It is also architecturally
+  > doubtful: ADR-0001's shim *launches* containers, and Fargate exposes no Docker
+  > socket and no privileged mode. Rewritten to what is defensible — the image is a
+  > plain OCI artifact that pushes anywhere, and orchestration needs a runtime the
+  > shim can reach. `CLAUDE.md` §1 carried the same claim and now records the
+  > correction rather than the claim.
+  >
+  > **Verified rather than assumed:** all six Scanner licences against their
+  > repositories (P4 — all correct); every Scanner present in the image at the
+  > credited version; F10.4 by running `scripts/check_image_licences.py` against the
+  > published image (passes — valvur adds no GPL component); every README link
+  > resolves; `VALVUR_DB_REPOSITORY` is the real variable name; the comparison table
+  > traces to POSITIONING.md lines 57–79; and the advertised MCP entry point starts,
+  > reports `valvur 0.1.0rc1` and exposes its four read-only tools.
+  >
+  > Also fixed: two sections shared the heading *"For AI coding agents"*, one about
+  > installing and one about reading output.
+
+  Also re-check: the Profile names throughout (ADR-0016 renamed them), the
+  verification instructions (rewritten in 11.0, and platform-split), and that every
+  Scanner is still credited with its licence (P4).
+
+- [x] **12a.5** **Repo furniture.** ✅ **DONE 2026-09-05** — was one of seven.
+
+  - [x] `LICENSE` — Apache-2.0, added 2026-08-31
+  - [x] `SECURITY.md` — private reporting route, and commitments a solo maintainer
+        can keep (5 working days to acknowledge, 15 to assess) rather than ones that
+        read well. **The scope section is the part that matters**: for this product a
+        *false clean result* is a vulnerability, not a bug, along with a silent
+        scanner failure, evidence that survives neutralisation, and anything leaving
+        the machine on `offline`. Findings from the bundled Scanners are explicitly
+        out of scope and pointed upstream.
+  - [x] **Enable GitHub private vulnerability reporting** — ✅ **Done 2026-09-13**,
+        by API with the rest of Block 1 (21.A.3); this box was left unticked and
+        found on 2026-09-17, when `GET /repos/MaverickHQ/valvur/private-vulnerability-reporting`
+        answered `{"enabled": true}`. Was: ⚠️ owner action, same category as 12a.1.
+        `SECURITY.md` points at `/security/advisories/new`, and until the setting
+        was on, that link 404ed. A disclosure route that does not exist is the
+        security-tool equivalent of a verification command that does not run —
+        which is exactly what 11.0 found.
+  - [x] `CONTRIBUTING.md` — setup, the spec/ADR/vocabulary conventions, and a
+        **"what will be turned down"** section so the moat is stated before someone
+        spends a weekend on a feature that sends code somewhere. Encodes the testing
+        discipline this project actually uses: every assertion must be able to fail,
+        prove the fixture reaches the code under test, mutation-test anything
+        load-bearing.
+  - [x] `CODE_OF_CONDUCT.md` — original and short, because the Contributor Covenant
+        could not be fetched and a standard document reproduced from memory with
+        subtly wrong wording is worse than none. Structure credited to it.
+  - [x] Issue templates (bug, feature, **a finding you disagree with**) and a PR
+        template whose checklist is the real gates. The accuracy template asks which
+        direction the error runs and says a missed finding is treated as a security
+        report. `config.yml` routes suspected vulnerabilities away from public issues.
+  - [x] `CHANGELOG.md` — Keep a Changelog format, with the ADR-0016 alias table
+        (`quick`→`offline`, `standard`/`deep`→`full`) a user upgrading needs, and the
+        month of defect fixes written up in terms of what they meant rather than what
+        they touched.
+  - [x] README now links all of them.
+
+- [x] **12a.6** **Pin our own supply chain.** ✅ **DONE 2026-09-05.**
+
+  > Every workflow step now carries a commit SHA with the tag in a trailing comment,
+  > so Dependabot can still track it. `.github/dependabot.yml` covers actions, pip
+  > and Docker weekly — **necessary rather than optional now**, because a pinned SHA
+  > never moves on its own, so a security update arrives only if something opens the
+  > pull request.
+  >
+  > **The product gap is fixed too.** `valvur.pinning.mutable-action-ref` catches
+  > `@v6`, `@main` and reusable-workflow refs, and ignores a 40-character SHA, a
+  > local `./…` action and a `docker://` ref — verified against the real scanner in
+  > all six forms. `WARNING`, not `ERROR`: unpinned actions are near-universal, and a
+  > rule that fires on every repository's first workflow file teaches people to skip
+  > the category.
+  >
+  > The fixture gained an unpinned workflow and the opengrep golden was recaptured.
+  > The diff was exactly **+2 `mutable-action-ref`** and nothing else moved, which is
+  > what a golden is for.
+  >
+  > **Rules ship inside the image**, so the new rule reaches a real scan only when
+  > 12a.7 rebuilds — the golden covers it today, and the canary's opengrep count
+  > moves from 12 to 14 then. Worth knowing rather than discovering.
+  >
+  > **A false-positive class found by the self-scan, and left recorded rather than
+  > suppressed.** The older rule scans every YAML file, so the comment documenting
+  > it — which quoted the string it matches — became a finding against the rule file
+  > itself. Ours is reworded. Any project whose rule definitions or documentation
+  > quote a pattern will hit the same thing, and narrowing `paths.include` to
+  > dependency manifests would trade a false positive for a false negative. Not
+  > worth that trade today; worth an issue.
+
+- [x] **12a.7** **Automate the release, and publish `0.2.0`.** *(F10.3)*
+  ✅ **Automation done 2026-09-05. Published 2026-09-13** — `v0.2.0` tagged on
+  `fc5a221`, the exact commit rehearsal #7 had passed end to end an hour earlier;
+  `ghcr.io/maverickhq/valvur:0.2.0` for both architectures, signed and attested,
+  `valvur 0.2.0` on pypi.org, the GitHub release with wheel, sdist, both SBOMs and
+  the publish attestations. What the rehearsals found on the way is under 23.1.1.
+
+  > ⛔ **ALSO BLOCKED BY [Phase 15](#phase-15--our-own-supply-chain).** This workflow
+  > holds `id-token: write`. Every `FROM` is pinned by tag rather than digest and the
+  > Opengrep binary is fetched unverified, so a compromised input would not merely
+  > build bad code — it would sign it with our identity and log it as authentic.
+  > Phase 13 also changes this task: a multi-platform build obtains its digest
+  > differently, and the signature must cover the index rather than one child
+  > manifest.
+
+  > `.github/workflows/release.yml`, triggered by a `v*` tag, in two jobs.
+  >
+  > **`verify` refuses to release a tree that disagrees with itself.** The tag must
+  > match `pyproject.toml` — the one moment nobody runs the suite first and the one
+  > moment a mismatch is expensive — then lint, types, the *whole* suite including
+  > e2e, F10.4, and the self-scan gate (N2.5, failing on unsuppressed findings,
+  > expired suppressions and an incomplete scan).
+  >
+  > **`release` publishes, then proves what it published.** Pushes to GHCR; **signs
+  > the digest, never the tag** — a tag can be moved, which is the entire reason we
+  > pin actions to SHAs, and signing one would carry that defect into our own supply
+  > chain; keyless via OIDC, so there is no key to store or leak; attests SLSA
+  > provenance; publishes CycloneDX *and* SPDX SBOMs **of the image**, distinct from
+  > the one valvur writes for a scanned project; publishes to PyPI by trusted
+  > publishing rather than a stored token; and puts the verification commands in the
+  > release notes so a sceptic does not have to find them.
+  >
+  > Permissions are per-job. `ci.yml`'s top-level `contents: read` stays, and a test
+  > now asserts it — `ci.yml` runs on pull requests including from forks, where a
+  > write token is the difference between reading the repository and rewriting it.
+  >
+  > **Verified locally:** the tag gate accepts `v0.1.0rc1` and rejects `v0.2.0` and
+  > `v1.0.0` against the current tree; both distributions build and the sdist still
+  > excludes the planted credentials (10.0.2's guard holds); the new workflow passes
+  > our own pinning rule and Checkov with zero findings. A second test asserts every
+  > action in every workflow is SHA-pinned, mutation-tested — the opengrep rule only
+  > reaches a real scan after the image is rebuilt, so this is the commit-time guard,
+  > and the release workflow is exactly where a moved tag would sign bad code with
+  > our identity.
+  >
+  > **Deliberately not done: the version is still `0.1.0rc1`.** Bumping it breaks
+  > local scanning until the image is published, because the shim derives its image
+  > tag from its own version (12a.2). That is the right trade — the alternative is a
+  > shim silently using an image built from different code — but it means the bump
+  > belongs immediately before the tag, not now.
+  >
+  > **Blocked on, and requires the owner:** 12a.1 (public repo and package), PyPI
+  > trusted publishing configured against this workflow, and a `release` GitHub
+  > environment. All three are in [docs/RELEASING.md](../../../docs/RELEASING.md),
+  > along with the release procedure and how to verify a release as a user would.
+
+  There is no release automation at all today — 12.2 and 12.5 were both hand-run
+  steps, which is how a mismatched artifact ships. A tag-triggered `release.yml`
+  covering: cosign keyless signing, an SBOM **of the image** (distinct from the
+  `sbom.cdx.json` valvur writes for a scanned project — reuse the Syft invocation
+  already in `scripts/check_image_licences.py`), SLSA build provenance via
+  `actions/attest-build-provenance`, the GHCR push and the PyPI publish.
+
+  **Permissions wrinkle.** `ci.yml`'s top-level `permissions: contents: read` is
+  correct and must stay — we report `CKV2_GHA_1` in other people's repositories.
+  Signing needs `id-token: write` and `attestations: write`, scoped to the release
+  job alone.
+
+  **This publish carries a correction.** Measured 2026-09-05: PyPI's metadata for
+  `0.1.0rc1` declares **MIT**, because the artifact predates the Apache-2.0 change of
+  2026-08-31. PyPI metadata cannot be edited in place. Until `0.2.0` ships, valvur's
+  own published package contradicts its own `LICENSE` file — which, for a tool that
+  performs licence analysis, is the first thing a reviewer will find.
+
+**Exit (12a):** a stranger can find the repository, read the reasoning, install the
+tool, pull the image cold, and verify the non-exfiltration claim unaided. `0.2.0` is
+published, signed, with an SBOM and provenance, and its metadata tells the truth.
+
+**Commit:** `chore: release 0.2.0 — obtainable, signed, and honestly described`
+
+---
+
+### → The usability gate runs here
+
+[Task 10.1](#101--the-usability-gate) has never run, because until 12a there was
+nothing a participant could obtain. It runs now, against `0.2.0`, and **its findings
+become the task list for 12b.** Everything below is provisional until it has.
+
+---
+
+### 12b — Release
+
+- [x] **12b.1** Act on the usability gate's findings. Phase 10 tasks 10.1–10.5 close
+  here or are explicitly deferred with a reason.
+
+  **STATUS 2026-09-26:** ⏳ **the gate has run; this task is
+  [Phase 29](#phase-29--the-first-gate-a-real-working-tree-and-what-a-first-run-must-survive).**
+  Nine findings, each measured; four tiers; Phase 10's provisional claims are
+  each answered under 29.3.4. Closes when Phase 29's exit criteria are met, and
+  reads `0.5.0`.
+
+  **STATUS 2026-09-26 (evening):** ⏳ thirteen of Phase 29's fourteen closed as
+  one flow (PRs #113–#127); what remains is 29.2.3, the agent-driven pass,
+  blocked on the owner's `claude login`. Every finding of the gate is fixed on
+  `main`; the measurement of a stranger's model on the fixed tree is the last
+  claim, and it is the one a person has to enable.
+
+  **STATUS 2026-09-26 (night):** ✅ **closed with 29.2.3.** Phase 29 shipped
+  as `0.5.0`; its last row ran once the owner's login existed and answered
+  10.5's claim 12 with a number — 2 min 53 s from one headless call to a
+  correct report — and found one more thing, 29.2.4, which is open on its own
+  merits and not this task's. Phase 10's claims are each answered under
+  29.3.4's STATUS; 12b.3's *a person outside this repository* is the one ask
+  the gate has not met, and it stays with `v1.0.0`.
+- [x] **12b.2** Re-run the Phase 11 constraint suite and the self-scan gate against
+  the release artifact rather than the working tree. *(N2.5)*
+
+  **STATUS 2026-09-18:** ✅ **Block A, A6 — a job, not a checklist.** `artifact`
+  is the last job of `release.yml`, after `release`: it installs the wheel from
+  `dist/` into a clean environment outside the checkout (inside it, the self-scan
+  would catalogue pytest's dependencies as the project's), with `src/` deliberately
+  off the path — and proves it, because `valvur._build` exists only in a built wheel
+  and its digest must equal the checkout's; pulls the image by the digest the
+  release job signed and verifies the signature; checks the pair's version label
+  and build digest against each other (F1.9, 23.4.4, on the release pair itself);
+  then runs the Phase 11 constraint suite, the whole e2e suite and the self-scan
+  gate through that wheel and that image. It cannot stop a release that has left;
+  it turns the run red and names why, which is the honest shape of a check on the
+  artifact. In a rehearsal it runs against the scratch image and the `.devN` wheel.
+  **Three rehearsals to green, and each found something.** The first: the F10.4
+  licence test asked Syft for a literal `valvur:dev` rather than the image under
+  test — so the *published* image's licence composition had never been the thing
+  checked; it reads `runner.IMAGE` now. The second: the gate failed on a *lapsed
+  suppression* — the `dependency-unknown` entry from 2026-09-01 matched only by
+  accident of environment. The verify job's checkout carries uv's `.venv`, from
+  which Syft reads licence metadata, so the note there is `dependency-unknown`; the
+  artifact job's checkout has no venv, Syft sees only `uv.lock`, 116 of 116
+  dependencies carry no licence, the note is `dependencies-unreadable`, and a
+  suppression matching nothing fails at every threshold. Since 23.5.5 both notes
+  are never active, so the entry suppressed nothing and is gone. The third, run
+  35393242074: green end to end — wheel from site-packages with the checkout's
+  digest, image pulled by digest and its signature verified, label and build
+  digest matching, 42 constraint tests and 24 e2e tests through the artifact, the
+  gate passed; the job takes seven minutes after `release`. N2.5 annotated;
+  `RELEASING.md` describes the job. **Block A is complete**; its corpus dispatch
+  is next, then Checkpoint B.
+- [ ] **12b.3** Tag `v1.0.0` — the first version claiming stability, and the first one
+  a person outside this repository has successfully used.
+
+  > ⛔ **REQUIRES [Phase 17](#phase-17--traceability-and-seams).** A version claiming
+  > stability should not ship with a Traceability section that is untrue, a
+  > compatibility surface nothing reads, and a load-bearing seam wired by `getattr`.
+
+  **STATUS 2026-09-27:** ⏳ **prepared and rehearsed; the tag is the owner's, after
+  the gate with a person.** Phase 17's precondition is met, A6's job has gone
+  green on two real releases, and Checkpoint F is declined with its reason
+  (28.1.3). The prep is on `main` (`f7c19b1`): the version, the lock, a
+  CHANGELOG entry that names what the stability claim covers and what it does
+  not, the README in the release-in-progress wording, `SECURITY.md` on
+  `1.0.x`, the compatibility rule's docstring in the present tense. Measured
+  against the image built from that commit: `verify.sh` five checks, the e2e
+  suite, and one `scan` over stdio on the first gate's own tree with an empty
+  cache root — **136 s to `DONE`, complete**, the database and the index
+  fetched inside that time, Checkov the slowest at 48 s. The rehearsal on
+  that exact commit is run 36317791899, green through validation on both
+  architectures and held at the `release` brake. **What this task's own words
+  still ask for:** a person outside this repository who has used it. That is
+  the gate with a person, the step before the tag; the tag on `f7c19b1` is one
+  signed push and one click, as `0.5.0`'s was, whenever the owner decides the
+  gate has happened or that the number ships without it — either way, recorded
+  here.
+
+  **Decision 2026-09-27, the owner's: `v1.0.0` ships without the gate with a
+  person.** Recorded before the tag, because this task's own words are the
+  ones it amends: the number claims the stability of the contracts the
+  CHANGELOG names, which is measured and held by tests; it does not claim
+  that a stranger has used it. That gate moves after the tag, beside 28.1.3,
+  and its record will say what the first person found — on `1.0.0` or a
+  `1.0.x`, which is the honest place for it: a first impression is measured
+  on what was shipped. What stands before the tag instead: the owner's own
+  run of the release candidate over MCP in a fresh session on the first
+  gate's tree, the same pass the record's two agents made, and the
+  rehearsal's validation of the artifact on both architectures. Phase 25's
+  exit is amended the same way.
+
+  **STATUS 2026-09-27 (evening): the owner's run happened, and it is the
+  second gate.** The lab reset to a stranger's — no results, no notes about
+  valvur, an empty cache — and `.mcp.json` pointed at the candidate (the
+  worktree at `23be2e2`, `valvur:dev` from `87e760ea`). The owner's lab
+  session ran a headless pass on that config: **148 s from one sentence to a
+  correct report, cold**, 16 turns, and every one of the first gate's nine
+  verified fixed on this build; then a probe on the paths a model would not
+  take. Nine new items, ranked, are
+  [Phase 30](#phase-30--the-second-gate-the-100-candidate-and-what-being-told-to-stop-must-mean),
+  and two of them — a cancel that keeps launching Scanners and reports
+  `CANCELLED` with a container up, and a `scan` that creates a nonexistent
+  workspace inside the project — are wrong in a way a stability claim cannot
+  carry. **Recommendation, recorded:** Phase 30's Tier 0 before the tag; the
+  version stays `1.0.0`, the fixes land, the rehearsal re-runs on that commit.
+  The held rehearsal 36317791899 stays at the brake until the owner decides.
+
+**Exit (12b):** v1.0.0 released. CI proves non-exfiltration on every commit, the
+self-scan is clean, the signature and SBOM are published, and someone who has never
+seen valvur has installed it and got a useful answer.
+
+**Commit:** `chore: release v1.0.0`
+
+---
+
+## Phases 13–17 — added 2026-09-05 after a step-back review
+
+**Why these exist.** Phase 12 was written on the assumption that what remained was
+publishing. A review against the requirements rather than against the task list found
+one release blocker, one live instance of this project's signature defect, and two
+supply-chain gaps in the build that is about to hold signing credentials. None was
+caught by a test, because none was the kind of thing the tests were pointed at.
+
+**Running order.** These phases sit *between* the two halves of Phase 12, not after
+it. The document cannot show that, so it is stated here:
+
+```
+12a.2–12a.7  ✅ done
+     ↓
+Phase 13  Portability          ✅ multi-arch build; published artifact under test
+Phase 14  Stale data           ✅ inconclusive verdict, --if-stale, DB age surfaced
+Phase 15  Our own supply chain ✅ digests pinned, Opengrep verified, 98MB smaller
+     ↓
+Phase 16  Operations           ✅ MCP carries the verdict; Ctrl-C stops the scan;
+                                 one writer per workspace and per database
+     ↓
+12a.1 + 12a.7   publish 0.2.0   ← here. Nothing in the code blocks it now;
+                                  the remaining steps are owner actions
+     ↓
+Phase 10 usability gate  →  12b.1, 12b.2
+     ↓
+Phase 17  Traceability and seams  ← before claiming stability
+     ↓
+12b.3  tag v1.0.0
+```
+
+> **Note added 2026-09-05.** Each of 13, 14 and 15 found something worse than the
+> defect it was written for: the Dockerfile could always build amd64 and only the
+> *push* was single-arch; the database age measured the download rather than the
+> data, so an air-gapped mirror was guaranteed to read as fresh; and Opengrep shipped
+> three times in every image because deleting a file in a later layer reclaims
+> nothing. In each case the measurement, not the reasoning, was what found it.
+
+---
+
+## Phase 13 — Portability
+
+**Goal:** the published artifact runs on the machines people actually have.
+
+> **Measured 2026-09-05.** `docker manifest inspect` reports the published image as
+> **`linux/arm64` only**. Every amd64 user — most CI runners, most Linux desktops,
+> every cloud VM, every Intel Mac — cannot run it. `docker pull --platform
+> linux/amd64` warns on an arm64 host and fails outright on a real amd64 one.
+>
+> The Dockerfile is already arch-aware: it takes `TARGETARCH` and fetches both
+> Opengrep binaries. Nothing is missing but a multi-platform build. It was published
+> single-arch from an Apple Silicon Mac.
+>
+> **The gap that let it through matters more than the defect.** Both workflows
+> `docker build` locally and neither ever pulls the published image, so CI cannot
+> catch this class at all — not this bug, and not the next one like it.
+
+### TDD cycles
+
+1. **A scan using the *published* image succeeds on amd64.** Not a locally built one.
+   This is the cycle that closes the blind spot; the multi-arch build is what makes it
+   pass. It must fail today.
+2. The published manifest lists both `linux/amd64` and `linux/arm64`.
+
+- [x] **13.1** Build multi-arch in `release.yml`. ✅ **DONE 2026-09-05.**
+
+  > buildx with QEMU, both platforms in one index. The digest now comes from
+  > `--metadata-file` rather than `docker inspect` — buildx pushes directly, so there
+  > is no local image to inspect — and it is the **index** digest, because signing a
+  > child manifest would leave the other architecture unsigned: the same defect as
+  > signing a tag. A following step asserts the published index really carries both,
+  > because a `--platform` flag silently ignored, or a builder falling back to the
+  > runner's own architecture, both produce a successful-looking push.
+  >
+  > **The Dockerfile was never the problem, and now that is measured rather than
+  > assumed.** Built `linux/amd64` locally under emulation and ran a real scan
+  > through it: **74 findings, `complete: True`, no scanner failures**, every scanner
+  > contributing. The Opengrep binary's ELF machine type is `0x3e` — x86-64 — so
+  > `TARGETARCH` had been selecting correctly all along.
+  >
+  > Two scanners appeared to fail first, and did not. `opengrep` and `checkov` both
+  > died on `/tmp` permissions because a bare `docker run` lacks the tmpfs the runner
+  > mounts (Opengrep needs `exec`, Checkov a writable cache as non-root). Diagnosed
+  > rather than reported: an emulation artifact and a real defect look identical
+  > until you read the error.
+- [x] **13.2** A CI job and a test, both pointed at the **published** artifact.
+  ✅ **DONE 2026-09-05.**
+
+  > New `published` job in `ci.yml`, plus `tests/test_portability.py`. Both check
+  > whether an anonymous client can obtain a pull token and, while the package is
+  > private, **skip loudly with the reason** — the job emits a `::warning::` saying
+  > the published artifact is unverified on amd64. A skip that reads as a pass is how
+  > this shipped in the first place.
+  >
+  > **Verified it catches the real defect**: forcing the public check to pass makes
+  > the test fail against today's published image with
+  > *"missing ['linux/amd64', 'linux/arm64'] — it advertises a single platform with
+  > no manifest list"*. So the moment 12a.1 lands, this fails until 13.1's build has
+  > run, which is exactly the ordering the phase needs.
+- [x] **13.3** **Decide Windows, and say so either way.** ✅ **DECIDED 2026-09-05:
+  WSL2 supported, native Windows not claimed.**
+
+  > Not blocked, and not claimed. A hard refusal would be wrong — it may genuinely
+  > work and nobody has checked — and silence would be worse, because silence reads
+  > as "supported". `unsupported_platform_warning()` says which it is at startup and
+  > points at WSL2, where valvur is running on Linux and is tested on every commit.
+  >
+  > **In MCP mode the warning goes to stderr, never stdout**, because stdout is the
+  > JSON-RPC channel and a line of prose there corrupts the stream for every client.
+  > A test asserts the server writes nothing to stdout.
+  >
+  > The README now carries a platform table. It says `linux/amd64` and `linux/arm64`
+  > are both published **from 0.2.0** — `0.1.0rc1` is arm64 only, and writing "both
+  > published" today would have been the same class of untrue claim 12a.4 spent a
+  > morning removing.
+
+**Exit:** ✅ **Reached, pending publication.** The build produces both architectures
+and CI is pointed at the published artifact rather than a local build. The remaining
+step is not code: `0.2.0` must actually be published (12a.1 + 12a.7) before the
+`published` job stops skipping. Until then it warns on every run that the artifact is
+unverified — which is true, and is the point.
+
+**Commit:** `build: publish a multi-arch image, and test the published one`
+
+---
+
+## Phase 14 — Confident answers from stale data
+
+**Goal:** valvur never reports clean from a database too old to know otherwise.
+
+> **This is the last live instance of this project's signature defect**, and it sits
+> in the one place it matters most. `cache.db_age_days()` exists and is consulted
+> **nowhere**. Measured 2026-09-05: the local database was 6 days old and nothing said
+> so. At six months, a user gets a confident clean result with no warning.
+>
+> We already warn when *KEV enrichment* data is over 30 days stale — that is the data
+> that ranks findings. We say nothing about the database that determines whether
+> findings exist at all. The wrong one is instrumented.
+
+### TDD cycles
+
+1. **A scan with a stale database does not report an unqualified clean.** The age and
+   its consequence appear in `SUMMARY.md` and `run.json`, with at least the prominence
+   of the existing KEV warning. Paired, as ever, with a check that a *fresh* database
+   produces no warning — or the caveat becomes noise a reader learns to skip.
+2. `run.json` records the database's age and source, so a clean result stays
+   falsifiable after the fact (N3.1).
+3. The threshold is justified in the code rather than chosen. Trivy's own database
+   rebuilds every 6 hours; pick a number against that and say why.
+
+- [x] **14.1** Surface it, and decide the threshold. ✅ **DONE 2026-09-05.**
+
+  > **Threshold: 7 days, and it is derived rather than chosen.** Trivy stamps
+  > `NextUpdate` at `UpdatedAt + 24h`, so it rebuilds daily — seven days is seven
+  > missed rebuilds. KEV's 30 days stays looser on purpose: it changes how findings
+  > *rank*, not whether they are *found*.
+  >
+  > **The age now measures the data, not the file.** `db_age_days()` read the
+  > metadata file's mtime, which is when it was *downloaded*. For an air-gapped
+  > mirror (F10.5) those diverge completely: a mirror can hand over a six-month-old
+  > database this morning and mtime reads as fresh. It now reads Trivy's `UpdatedAt`,
+  > with mtime as the fallback. Tested with a 180-day-old build stamp written this
+  > second — the case that motivated it.
+  >
+  > **Two different claims, because they are different claims.** Stale with no
+  > findings: *"this scan found nothing, and that is not evidence there is nothing"*.
+  > Stale with findings: *"the list is not complete"*. Saying "found nothing" in the
+  > second case would be false, and a warning that overstates gets ignored.
+  >
+  > Surfaced in `SUMMARY.md` **above** the exploit-intelligence warning, in
+  > `run.json` as a `database` block (age, overdue, stale, threshold), and in the
+  > terminal — a user may never open `SUMMARY.md`, and the case where that matters
+  > most is the one where there is nothing in it to draw them there. Unknown is
+  > reported as unknown, never as zero. Mutation-tested both ways: removing the
+  > staleness check fails three tests, reverting to mtime fails the mirror test.
+- [x] **14.2** ✅ **DECIDED 2026-09-05: valvur never updates the database itself, on
+  any Profile.** Three reasons, in order of weight.
+
+  > **It is a 1.2GB download.** Starting one inside a scan the user asked to be fast
+  > is hostile, and starting it silently is worse.
+  >
+  > **It would make the Profiles disagree for a reason unrelated to coverage.** If
+  > `full` refreshed and `offline` could not, the two would scan different data — and
+  > Phase 11 cycle 3 asserts they find the same packages. That test would start
+  > failing for a difference *we* introduced, which is the worst kind.
+  >
+  > **Updating on the user's behalf is the same move as fixing on their behalf**, and
+  > §4 refuses that. So valvur says it, loudly, in three places, and the developer
+  > decides.
+  >
+  > A test asserts `scan()` never calls `update_db`, so this stays decided rather
+  > than drifting.
+  >
+  > **REOPENED and properly resolved 2026-09-05, after "how do we make sure the data
+  > is current?" exposed the above as detection dressed as a solution.** Two of the
+  > three reasons did not survive scrutiny, and one was simply wrong.
+  >
+  > **The 1.2GB was never measured.** The published artifact is **116MB compressed**;
+  > 1.2GB is the uncompressed size on disk. Our own help text had quoted the wrong
+  > figure for months, discouraging the very update the tool depends on. The
+  > profile-divergence argument only applied to the design already rejected, and §4 is
+  > about *remediation* decisions — refreshing reference data is not accepting risk on
+  > someone's behalf.
+  >
+  > **What actually solves it, in three parts:**
+  >
+  > 1. **The verdict carries the claim.** A stale scan with no findings now reports
+  >    **`inconclusive`**, not `clean`. Phase 14 had fixed only the prose — a
+  >    400-day-old database still produced `"status": "clean"`, and the results
+  >    contract tells agents to read `SUMMARY.md` *bounded* while querying
+  >    `findings.json`, so the consumer most likely to act on the verdict was the one
+  >    least likely ever to see the caveat. Third status added to the contract
+  >    ([CLAUDE.md §7](../../../CLAUDE.md)).
+  > 2. **Staleness is knowable for free.** Trivy stamps `NextUpdate`, so being past
+  >    due costs one file read and no network.
+  > 3. **`valvur update --if-stale`** — a no-op when current, so it is cheap enough
+  >    for a pre-commit hook, a cron entry or CI. That is the mechanism that keeps
+  >    data current; the status is what makes ignoring it visible.
+  >
+  > **Auto-update is still refused, for the one reason that holds:** `offline` is the
+  > default and cannot reach the network, so auto-updating would help only `full`
+  > users while introducing exactly the profile divergence described above. It would
+  > solve the problem for the minority and hide it from the majority.
+
+**Exit:** ✅ **Reached 2026-09-05.** Verified end-to-end by ageing the real database's
+build stamp to 40 days: the terminal warned, `SUMMARY.md` carried it, and `run.json`
+recorded `{"age_days": 40.0, "stale": true}`. At the true 6.2 days nothing fires,
+which is the half that keeps the warning worth reading.
+
+**Commit:** `fix: a clean result from a stale database is not a clean result`
+
+---
+
+## Phase 15 — Our own supply chain
+
+**Goal:** the build that signs our releases is as pinned as the releases it signs.
+
+> **Measured 2026-09-05, and the inconsistency is ours.** Last week we pinned every
+> GitHub Action to a commit SHA because a tag is a mutable pointer. In the same
+> repository:
+>
+> - Every `FROM` is pinned by **tag**, not digest — `aquasec/trivy:0.74.0` and four
+>   others. A moved tag rebuilds a different scanner into our image.
+> - The Opengrep binary is fetched over HTTPS with **no verification at all**. The
+>   comment beside it says *"Opengrep publishes signed static musllinux binaries"* —
+>   and we check neither signature nor checksum.
+>
+> Both sit in the build that Phase 12a.7 gives `id-token: write`. A compromised input
+> there is not merely bad code: it is bad code signed with our identity and recorded
+> in a transparency log as authentic.
+
+- [x] **15.1** Pin every `FROM` by digest. ✅ **DONE 2026-09-05.**
+
+  > All five, by **index** digest with the tag in a comment above — Dockerfile has no
+  > inline comments on `FROM`, which the first attempt discovered by failing to parse.
+  >
+  > **Index digests, deliberately.** Pinning a child manifest would have silently
+  > broken Phase 13's multi-arch build by resolving to one architecture whatever
+  > `--platform` asked for — a defect that looks like a working build.
+  >
+  > Also corrected while in there: the image declared
+  > `org.opencontainers.image.licenses="MIT"`, stale since the Apache-2.0 change on
+  > 2026-08-31. Every published image carried the wrong licence in its own metadata.
+- [x] **15.2** Verify the Opengrep download. ✅ **DONE 2026-09-05 — both.**
+
+  > Opengrep publishes no checksums but signs every binary with **sigstore,
+  > keylessly**, from its own workflow. Both signatures verified with `cosign
+  > verify-blob` against
+  > `.../rolling-release.yml@refs/heads/main` — **Verified OK** — and the SHA256 of
+  > those verified artifacts is what the Dockerfile now pins.
+  >
+  > Two halves, because they answer different questions. The in-build `sha256sum -c`
+  > is deterministic and needs no network: it fails the build rather than baking in
+  > whatever was served. `scripts/verify-opengrep.sh` runs in CI and checks
+  > *provenance* — a pinned digest is only as trustworthy as the download that
+  > produced it — and asserts the pin matches the artifact actually signed, because
+  > pinning one artifact while verifying another proves nothing.
+  >
+  > **Verified the check can fail:** a deliberately wrong digest fails the build with
+  > `sha256sum: WARNING: 1 of 1 computed checksums did NOT match`.
+  >
+  > Corroboration worth recording: the arm64 binary in the **already-published**
+  > image matches the signed upstream artifact byte for byte.
+- [x] **15.3** **Cache between runs.** ✅ **DONE 2026-09-05.**
+
+  > Every build now uses `--cache-from/--cache-to type=gha`, so layers are shared
+  > across jobs *and* across runs. Kept as independent builds rather than one build
+  > passing a tarball between jobs: a 576MB artifact uploaded and downloaded twice
+  > costs more than a cached rebuild, and the jobs stay independently runnable.
+- [x] **15.4** Measure what each Scanner contributes. ✅ **DONE 2026-09-05, and the
+  measurement found a defect rather than a trade-off.**
+
+  > | layer | MB |
+  > |---|---|
+  > | Checkov pip install | 163 |
+  > | Trivy | 156 |
+  > | Syft | 81 |
+  > | osv-scanner | 51 |
+  > | **Opengrep — binary A** | **50** |
+  > | **Opengrep — binary B** | **48** |
+  > | **Opengrep — the copy** | **50** |
+  > | Python build deps | 43 |
+  > | Gitleaks | 22 |
+  >
+  > **Opengrep appeared three times.** Both architectures' binaries were `ADD`ed and
+  > the unused one deleted — but layers are additive, so `rm` reclaims nothing. Every
+  > image carried ~148MB of layers for a 50MB tool, including a binary that could
+  > never run on it.
+  >
+  > Restructured into per-architecture stages selected by `FROM
+  > opengrep-${TARGETARCH}`, so only the needed binary is ever fetched. **674MB →
+  > 576MB uncompressed, a 98MB saving**, with the scan output unchanged: 74 findings,
+  > complete, every Scanner contributing. Verified on both architectures — and
+  > because the two binaries have different digests, the checksum check passing *is*
+  > the proof that the right one was selected.
+  >
+  > Checkov is still the largest single item, which is the trade 12a.3 already made
+  > deliberately.
+
+**Exit:** ✅ **Reached 2026-09-05.** Every input is pinned by content, the Opengrep
+binaries are signature-verified as well as digest-pinned, builds share a layer cache,
+and the image is 98MB smaller for shipping only what it can run. Three commit-time
+tests guard it: bases pinned by digest, digests actually checked rather than merely
+declared, and the per-architecture selection still in place.
+
+**Commit:** `build: pin and verify every input to the image`
+
+---
+
+## Phase 16 — Operations
+
+**Goal:** the things that only break once someone else is using it.
+
+> **Reordered 2026-09-05, after reviewing the phase against what Phases 13–15
+> actually built.** Both original tasks survive, one of them re-scoped, but neither
+> was the most important thing here — and one of my justifications for them was
+> false.
+>
+> **16.1 overstated its risk.** I wrote that concurrent scans "corrupt `state.json`".
+> Measured: two concurrent scans, then two more on different Profiles, left every
+> artifact **valid JSON and internally consistent**. The real defect is a *lost
+> update*, which is quieter and still wrong.
+>
+> **16.2's justification was partly false.** It claimed `docs/RELEASING.md` and *two*
+> issue templates tell people to run `valvur --version`. It is **one** issue
+> template; `RELEASING.md` never mentions it. The task stands — the command still does
+> not exist — but a task list that overstates its own evidence is the thing this
+> project keeps finding in other people's documentation.
+>
+> **And the phase was missing the most consequential gap entirely:** Phase 14's
+> verdict never reached the MCP surface, which ADR-0015 makes the *primary*
+> interface.
+
+- [x] **16.1** **The MCP surface must carry the `inconclusive` verdict.** *(F9.9,
+  ADR-0015.)* ✅ **DONE 2026-09-05.**
+
+  > `_staleness_note()` in `operations.py`, reaching all three surfaces an agent
+  > touches: the summary returned when a background scan finishes, `list_findings`,
+  > and `scan_status`. It gives the age, the consequence and the command — not just
+  > the label.
+  >
+  > **Two different claims, kept different.** Nothing found: *"that is NOT evidence
+  > there is nothing"*. Findings present: *"the list is incomplete"*. What was found
+  > is real however old the data; only absence needs current data to mean anything.
+  >
+  > `scan_status` also explains itself now. `inconclusive` beside `complete: True` and
+  > seven healthy Scanners reads as a contradiction; it is not one, and the line says
+  > so — every Scanner ran, and the data was too old for a nil result to be evidence.
+  >
+  > Mutation-tested: suppressing the note fails three tests. Paired with a
+  > fresh-database case on every tool, because a caveat on every response is one an
+  > agent learns to skip.
+
+  Phase 14 taught valvur to say "we found nothing, and our data was too old for that
+  to be evidence". It taught the CLI, `SUMMARY.md` and `run.json`. It did not teach
+  the surface that reaches an agent's context with no file in between.
+
+  **Measured 2026-09-05** against a scan with a 60-day-old database:
+
+  | tool | what an agent is told |
+  |---|---|
+  | `list_findings` | *"No findings match. The scan itself may still have been incomplete — check `scan_status`."* |
+  | `scan_status` | `status: inconclusive` · `complete: True` · every Scanner `ok` |
+
+  The first points at the **wrong reason** — the scan was complete; it was
+  inconclusive — and never uses the word. The second is accurate and reads as
+  self-contradictory: an inconclusive verdict beside a complete run and seven healthy
+  Scanners, with nothing saying the database is two months old.
+
+  This is the defect Phase 14 exists to remove, still live on the surface where it
+  costs most. An agent that reads "no findings match" stops looking, and unlike a
+  human it will not glance at `SUMMARY.md` for a caveat it was not told to expect.
+
+  > **Cycle:** an `inconclusive` scan must make every MCP tool say so, in its own
+  > words, with the age and the consequence. Paired with a fresh-database scan that
+  > says none of it — a caveat on every response is a caveat agents learn to skip.
+
+- [x] **16.2** **Interrupting a scan must actually stop it.** ✅ **DONE 2026-09-05.**
+
+  > Every container now carries a unique `--name`, one `_launch()` helper registers
+  > and forgets them so no call site can omit it, and `kill_running()` stops whatever
+  > is live. Measured end to end: **2 containers running → 0 after SIGINT**, exit
+  > code **130**, and no Results Folder written.
+  >
+  > **Interruption is its own outcome**, as decided. Exiting happens long before
+  > `results.write()`, so a cancelled scan cannot be mistaken for a failed one — "a
+  > Scanner produced no report" stays reserved for a Scanner that actually failed.
+  >
+  > Three tests, mutation-verified: removing `--name` from the launch path fails the
+  > one asserting every Scanner carries a handle. The registry is also asserted to
+  > empty itself, because a registry that only grows makes an interrupt try to kill
+  > containers that exited long ago — noise that hides the ones genuinely running.
+
+  **Measured:** `SIGINT` to a running scan leaves the Scanner container
+  **running to completion** — `Up 9 seconds` after the shim had exited — with the
+  host scratch directory alive for that window. There is no signal handling
+  anywhere: `subprocess.run` with no cleanup, inside a `ThreadPoolExecutor`.
+
+  Both self-clean once the container finishes, so this is a window rather than a
+  permanent leak. It is still wrong twice over: the developer cancelled and the
+  machine kept working, and Phase 11's scratch-removal test — which exists because
+  raw Scanner output carries live credentials (F5.7) — only covers a scan that was
+  allowed to finish.
+
+  > ✅ **DECIDED 2026-09-05: kill the containers.** Ctrl-C means "stop" to the person
+  > pressing it, and the scratch window is where raw output with live credentials
+  > sits.
+  >
+  > **What the measurements constrain.** `docker run` does **not** stop the container
+  > on SIGINT — nor when the CLI is SIGKILLed, because the daemon owns the lifecycle.
+  > So letting signals propagate is not an available design. `docker kill` by name
+  > takes **0.24s**, but valvur passes no `--name` and no `--cidfile`, so today there
+  > is no handle at all. The work is therefore: a unique name per invocation, a
+  > registry of live containers, and a handler that kills them.
+  >
+  > **The hazard to design around.** "A Scanner produced no report" is already a
+  > failure path (Phase 3). A killed container must be distinguishable from a crashed
+  > one, or interrupting a scan produces a run marked *incomplete* — a confident wrong
+  > answer of exactly the kind this project keeps removing. **Interruption is its own
+  > outcome: not failure, not success.** No Results Folder is written.
+
+- [x] **16.3** **One writer per Results Folder — and per database cache.**
+  ✅ **DONE 2026-09-05.**
+
+  > `locking.py`, `flock`, two locks taken in a fixed order so scans cannot deadlock.
+  > The Workspace lock is **exclusive and fails fast**; the cache lock is **shared for
+  > readers and exclusive for `update`**, which waits — mutual exclusion there would
+  > serialise unrelated scans for no reason.
+  >
+  > **The cache hazard could not be reproduced, which is not the same as disproved.**
+  > A scan racing a rewrite completed cleanly with all 37 Trivy findings — but Trivy's
+  > read takes 0.6s while an update spends most of its time downloading, so the write
+  > window probably never overlapped. Implemented anyway: the lock is cheap, and
+  > "I could not make it fail" is weak evidence for a 1.35GB file being rewritten
+  > under live readers with no lock of Trivy's own.
+  >
+  > **Two things fell out of it.** A refusal is an expected condition, so the CLI
+  > catches `Busy` and prints one line instead of a traceback that reads as a bug in
+  > valvur. And taking the Workspace lock creates the Results Folder before a scan has
+  > produced anything — so `.gitignore` is now written at *creation*, because
+  > ADR-0011 is a guarantee about the folder and an interrupted run (routine since
+  > 16.2) would otherwise leave one git can see.
+  >
+  > Seven tests. `os.fork` is explicitly not used to test exclusion: flock belongs to
+  > the open file description, which a fork inherits, so the child holds the same lock
+  > and every assertion passes vacuously. Found the hard way.
+
+  `jobs.py` holds a `threading.Lock`, which is in-process only. Two CLI runs, or a
+  CLI run alongside the MCP server, are unguarded.
+
+  **What actually goes wrong, measured rather than assumed:** not corruption. Both
+  scans read the same `state.json`, both write their own, and the last one wins — so
+  the next run computes its new/fixed/regressed diff against a view that never
+  happened. That is the one artifact a developer trusts to say whether they made
+  progress, and it fails silently. A mixed Results Folder is also possible, because
+  `results.write()` writes several files sequentially and `rawoutput.write()` clears
+  `raw/` first — but it needs unlucky timing, and two attempts did not produce it.
+
+  > ✅ **DECIDED 2026-09-05: one module, two locks, different contention policies.**
+  >
+  > | resource | lock | on contention |
+  > |---|---|---|
+  > | Workspace | `.security-scan/.lock` | **fail fast** — `jobs.py` already says "a scan is already running here" |
+  > | Database cache | `~/.cache/valvur/.lock` | **block** — erroring because a pre-commit hook is refreshing would be worse than waiting |
+  >
+  > The differing policies are the argument for one module rather than one policy.
+  >
+  > **`fcntl.flock` on a lockfile**, because the kernel releases it when the process
+  > dies — a crashed scan leaves no stale lock to reap, which a PID file would.
+  > POSIX-only, which task 13.3 already made acceptable by scoping Windows to WSL2.
+  >
+  > **Phase 14 raised this risk, and it was my doing.** Adding `valvur update
+  > --if-stale` and recommending it for pre-commit hooks and cron made update-vs-scan
+  > far more likely than when this task was written. Measured: Trivy takes **no lock
+  > of its own** — there is no lock file in the cache — and `trivy.db` is a 1.35GB
+  > BoltDB rewritten under live readers.
+  >
+  > **Measure before assuming the worst:** whether a concurrent rewrite corrupts a
+  > reader or Trivy simply fails cleanly. If it fails cleanly the cache lock is a UX
+  > improvement rather than a correctness fix, and the fail-fast/block split above may
+  > want revisiting.
+
+- [x] **16.4** **`valvur --version`.** *(Was 16.2.)* ✅ **DONE 2026-09-05.**
+
+  > Reports the shim's version, derived from the one source 12a.2 established. The
+  > image's version is checked against it at scan time (F1.9), so the two cannot
+  > silently diverge.
+  >
+  > **Generalised rather than just fixed.** valvur has now shipped *two* documented
+  > commands that did not run — the verification one-liner found in 11.0 and this
+  > one. A test now extracts every `` `valvur …` `` command named in the README,
+  > `CONTRIBUTING.md`, `docs/RELEASING.md` and the issue templates, and asserts each
+  > appears in `--help`. Verified it catches a gap by documenting a command that does
+  > not exist. Documentation naming a command that does not run is worse than no
+  > documentation: it is the first thing a sceptical reader tries.
+
+**Exit:** an agent cannot mistake an inconclusive scan for a clean one; Ctrl-C stops
+the work; concurrent use cannot silently spoil the status diff or the database; and
+every command the documentation names exists.
+
+**Commit:** `fix: the operational edges that only appear with a second user`
+
+---
+
+## Phase 17 — Traceability and seams
+
+**Goal:** the claims the spec makes about itself are true. Before v1.0.0, not after.
+
+> **Reviewed and rewritten 2026-09-05, after Phases 13–16.** Two of the four original
+> premises were wrong, and the phase was auditing the only direction that had not
+> drifted.
+>
+> **The count was overstated: 31, not 40.** The original measurement looked at `src/`
+> and `tests/` only. Nine more — `F10.3`, `F7.8`, `F7.15`, `F6.7`, `N2.5`, `P1`, `P3`,
+> `P5`, `P6` — are cited in CI workflows, scripts or docs.
+>
+> **17.4 was simply wrong.** It claimed nothing reads `fp_version`.
+> [`state.py`](../../../src/valvur/state.py) reads it and discards all history when it
+> changes, deliberately and with a comment explaining why. The real gap is narrower
+> and different, and the task is rewritten rather than tightened.
+>
+> **17.3's wider suspicion did not survive testing.** `results.py` reads `ScanRun`
+> almost entirely through `getattr(run, …, default)`, which looked like it would make
+> a renamed field silent. It does not: renaming one fails **29 tests**. A latent
+> hazard and poor style for a dataclass in the same package, but not an active defect,
+> and not to be conflated with the real one.
+>
+> **And the phase was missing the hole that matters.** See 17.0.
+
+- [x] **17.0** **Reconcile the spec with the code.** ✅ **DONE 2026-09-05.**
+
+  > **Nine requirements appended — 127 IDs to 136.** Appended, never renumbered (§9).
+  >
+  > | ID | behaviour |
+  > |---|---|
+  > | F1.11 | interruption is a third outcome: containers stopped, no Results Folder, not a failure |
+  > | F1.12 | one **Scan Run** per **Workspace**, refused with a reason |
+  > | F6.11 | database age read from the data, not the file's mtime |
+  > | F7.16 | `findings` / `clean` / **`inconclusive`** |
+  > | F7.17 | `run.json` records the database's age, staleness and threshold |
+  > | F7.18 | the Results Folder is self-ignoring from creation, not from success |
+  > | F10.7 | published for both architectures; CI tests the published artifact |
+  > | F10.8 | refreshing is explicit and a no-op when current |
+  > | N2.6 | writes to the database cache are serialised against readers |
+  >
+  > `design.md` gained §6a (freshness and the third status), §6b (concurrency and
+  > interruption) and §6c (distribution) — it had **zero** mentions of `inconclusive`
+  > or `lock` before. `CHANGELOG.md` now carries the contract change, which was
+  > missing: anything parsing `status` and reading "not `findings`" as "safe" breaks
+  > on `inconclusive`.
+  >
+  > **All nine are cited in code or tests**, so the drift is closed at the source
+  > rather than only documented. The 31 pre-existing uncited IDs are unchanged and
+  > remain 17.2's problem.
+  >
+  > **What I would now decide differently**, as the task asked — recording these
+  > rather than rubber-stamping what the code happens to do:
+  >
+  > - **The `.lock` lives inside the Results Folder**, which forces that folder into
+  >   existence before a scan has produced anything. Locking outside the Workspace
+  >   (keyed by a hash of its path) would avoid it, at the cost of not excluding two
+  >   *different users* on a shared machine. I took the simpler option and paid for it
+  >   with F7.18; a shared build agent might want the other.
+  > - **F1.12 fails fast rather than waiting.** It matches `jobs.py`, but a developer
+  >   who fires two scans probably wants the second to queue. Worth revisiting if
+  >   anyone hits it.
+  > - **Seven days will feel aggressive to someone scanning weekly** — they will see
+  >   the warning most times. That is arguably correct and arguably nagging; it needs a
+  >   real user before it can be judged.
+  > - **`inconclusive` is a breaking change to the results contract**, made while the
+  >   package is private and effectively unused. If it had shipped six months later it
+  >   would have needed a schema bump instead.
+
+  **Measured 2026-09-05: five behaviours built in Phases 13–16 have no requirement ID
+  and no design description.**
+
+  | built | requirement | `design.md` |
+  |---|---|---|
+  | `inconclusive` status | — | 0 mentions |
+  | database staleness, `--if-stale` | — | — |
+  | multi-arch publication | — | — |
+  | interruption semantics | — | — |
+  | workspace and cache locking | — | 0 mentions |
+
+  No requirement mentions the status vocabulary **at all** — not even `clean`. The
+  results contract lives in [CLAUDE.md §7](../../../CLAUDE.md) and in the code, but
+  not in `requirements.md`.
+
+  17.2 proposes a check that every requirement appears in the code, which enforces
+  **requirement → code**. The direction actually drifting is **code → requirement**,
+  and it drifted faster than the audit would have fixed it: five unrequirement'd
+  behaviours were added across four phases while this task waited to fix citations of
+  the older ones. *"Spec-driven"* is currently untrue for the most recent quarter of
+  the work, and the phase as written would not have noticed.
+
+  > **This is a spec-writing task, and the easy way to do it badly is to invent
+  > requirements that match whatever the code happens to do.** Record what exists,
+  > and mark anything that would now be decided differently — the reconciliation is
+  > worth nothing if it only rubber-stamps.
+  >
+  > **Requirement IDs are load-bearing and must never be renumbered** (§9), so new
+  > ones append: a new group for behaviour that has none, and extensions to F7 for the
+  > results-contract changes. Where a decision already lives in an ADR, cite it rather
+  > than restating it.
+
+- [x] **17.1** Audit the not-cuttable set. ✅ **DONE 2026-09-05.**
+
+  > `tests/test_not_cuttable.py` — six tests for the negative requirements nobody had
+  > written, because it is easy to test that a thing happens and awkward to test that
+  > a thing never does. Awkward is not unnecessary: a negative requirement with no
+  > test is a promise nobody is keeping.
+  >
+  > **F9.4 now has one**, along with F1.7 (no credential is read), F1.8 (no
+  > telemetry) and F1.10 (no cloud-specific branch). Mutation-tested by planting the
+  > defect each forbids — a `watchdog` import, a runtime dependency, and a
+  > `VALVUR_API_TOKEN` read all fail the right test. F5.3, F1.2 and F1.11 were
+  > already covered by tests that never named them; they cite the ID now, so the
+  > claim and the check are connected.
+  >
+  > **Sixteen of seventeen IDs in the set are now cited. The seventeenth is not
+  > implemented at all** — F1.6, SELinux labelling, has no `:z` or `:Z` anywhere.
+  > Measured: Podman's Fedora VM is `Enforcing` and a full scan through it succeeded
+  > with 74 findings and no failures, identical to Docker, with no label applied —
+  > host directories reach that VM through virtiofs. **A native RHEL or Fedora host is
+  > untested and is the target market.** Recorded against the requirement itself with
+  > the evidence, because could-not-reproduce is not the same as does-not-happen, and
+  > leaving an unmet requirement unmentioned is the one option that is not honest.
+
+  > **`F9.4` still has no test**, while the Traceability section states *"Each is a
+  > test that fails the build if broken."* That sentence remains false, and it is the
+  > one a reviewer checks first. There is also no watching code, so the requirement
+  > holds in fact — it simply is not enforced, and nothing would fail if someone added
+  > a watcher tomorrow.
+
+- [x] **17.2** A CI check that requirements and code stay in step — **in both
+  directions.** ✅ **DONE 2026-09-05.**
+
+  > `scripts/check_traceability.py`, in CI. **Requirement → code** finds an ID nobody
+  > implemented. **Code → requirement** is approximated by requiring every ADR to cite
+  > at least one requirement — decisions land in ADRs before they land in code, so
+  > that is where the drift becomes visible earliest.
+  >
+  > **Both are ratchets against a recorded baseline** (`docs/traceability-baseline.toml`).
+  > Neither fails on today's debt; both fail the moment it grows, and the check tells
+  > you when the baseline could shrink. A check that fails on day one is a check
+  > somebody disables in week two.
+  >
+  > Baseline today: **25 uncited requirements** — down from 31, because 17.1's
+  > citations landed — and **8 ADRs citing no requirement**. Verified in both
+  > directions by planting each: a new requirement nobody implements, and a new ADR
+  > citing nothing.
+  >
+  > **Its first run was wrong and said so loudly.** The baseline file lists exactly
+  > the uncited IDs, so scanning `docs/` counted it as a citation and reported 25
+  > requirements resolving simultaneously. `requirements.md` was already excluded for
+  > the same reason; the file being written needed excluding too. Requirement → code catches an ID nobody implemented; code → requirement
+  is the direction that drifted, and needs a convention to check against (every ADR
+  and every user-visible behaviour cites an ID, say). **31** IDs are uncited today;
+  the check should start from that baseline rather than fail the build on day one.
+
+- [x] **17.3** **Promote `applies_to` to the `ScannerAdapter` protocol.**
+  ✅ **DONE 2026-09-05.**
+
+  > On the protocol with a default, and every adapter — including the four test stubs
+  > — now implements `ScannerAdapter` explicitly rather than structurally. The
+  > orchestrator calls it unconditionally, so an adapter cannot forget to be asked.
+  >
+  > **It does not do what I claimed, and the comment saying so is corrected.** I wrote
+  > that a misspelled override would become "a type error". It does not: mypy sees an
+  > extra method plus an inherited default and is content. Verified by misspelling it
+  > — **mypy passes, the test fails.** The protocol removes one failure mode, not
+  > both, and the code now says which.
+  >
+  > **`artifact` was promoted too, and reverted.** Same seam by appearance, different
+  > by mechanism: a Protocol's *method body* is inherited by an explicit subclass, an
+  > annotated class attribute's *default* is not — so every adapter without one raised
+  > `AttributeError` and 96 tests failed. It stays a `getattr`, with a note in
+  > `base.py` explaining why the two hooks are treated differently. Symmetry was the
+  > wrong instinct.
+
+  > Note, but do **not** fold in, the defensive `getattr` over `ScanRun` in
+  > `results.py`. Tested 2026-09-05: renaming a field fails 29 tests, so it is a style
+  > problem and a latent risk for a *removed* field, not a live defect. Conflating
+  > them would inflate a real finding with a speculative one.
+
+- [x] **17.4** **Say when `fp_version` changes.** ✅ **DONE 2026-09-05.**
+
+  > `state.load()` already discarded history correctly; it now records *why*, and
+  > `SUMMARY.md` and `run.json` say so. The wording matters: **"this is not a
+  > regression — nothing got worse"**, plus a warning that committed suppressions
+  > keyed on the old identities have stopped matching too, which is the part a
+  > developer would otherwise discover much later.
+  >
+  > **My first test for it was vacuous and the mutation caught it.** It constructed
+  > `ScanRun(identity_reset=…)` directly, so it exercised the reporting and not the
+  > detection — removing the detection entirely left all 15 tests green. The test now
+  > goes through `state.load()`, and the same mutation fails it. Exactly the trap
+  > CONTRIBUTING warns about, walked into while implementing the phase about
+  > traceability.
+
+  `state.py` already reads it and starts clean when it moves, which is correct. It
+  does so **silently**: every finding reappears as `new`, every previous `fixed`
+  vanishes, and committed suppressions stop matching — with no explanation in
+  `SUMMARY.md`, `run.json` or the terminal.
+
+  A developer sees a scan that looks like a catastrophic regression and has nothing to
+  tell them it was an identity change. That is the same class as everything Phase 14
+  removed: a confident output whose meaning silently changed.
+
+**Exit:** the spec describes the product that exists; every not-cuttable requirement
+is a failing test when broken; and no described mechanism is inert or silent.
+
+**Commit:** `docs: make the spec describe the product, and the claims true`
+
+---
+
+## Execution order for Phases 19–21 — run in blocks, not one task at a time
+
+> **Added 2026-09-10.** The three remaining phases hold **33 open tasks**. Run
+> sequentially they are 33 review cycles; grouped by the files they touch and the
+> decisions they share, **27 of them collapse into 7 blocks**. The remaining 6 are
+> genuinely serial or wait on a person, a host, or an artifact that does not exist yet.
+>
+> **This regrouping is a reading order, not a renumbering.** Every task keeps its ID
+> and its own text, which stays authoritative where the two disagree.
+>
+> **It produced one real re-sequencing:** 19.F.1 and 19.F.2 move to the **front**.
+> They sit last in Phase 19's own ordering, but 19.F.1 says *"before implementing
+> fixes"* and is right — run last the corpus only verifies; run first it also says
+> which of the other blocks are worth doing.
+
+```
+Block 0  corpus staging   ─┐
+Block 1  build + release  ─┼─ share no files; any order, or all three at once
+Block 5  SELinux          ─┘   (5 whenever an enforcing host exists)
+                               ↓
+                          Block 2  coverage       (rebuild the image to verify)
+                               ↓
+                          Block 3  status
+                               ↓
+                          Block 4  corpus verification  ← uses Block 0's corpus
+                               ↓
+                          Block 6  owner actions → the serial release tail
+```
+
+### Block 0 — Stage the corpus · 19.F.1, 19.F.2
+
+No source changes, no commit. Copy a mixed corpus to `/private/tmp/valvur-corpus/`,
+scan it, and record what today's build does. That recording is the baseline Blocks 2
+and 3 are measured against, which is the reason this runs first rather than last.
+
+### Block 1 — Build and release plumbing · 19.A.1, 19.A.2, 19.A.3, 19.B.1, 19.B.2, 19.B.3
+
+Touches `.github/workflows/ci.yml`, `release.yml`, `pyproject.toml`, a new lockfile,
+a new local verification script, and `docs/RELEASING.md`. Nothing under `src/`.
+
+Together because **19.A.3's script is the answer to 19.A.2**: write the verification
+command once, call it from both workflows, and the divergence cannot return. Doing
+19.A.2 alone produces an edit that 19.A.3 overwrites. 19.B.1–19.B.3 are three edits to
+those same two YAML files, proved by one CI run.
+
+> **Measured 2026-09-10.** `ci.yml:38` lints `src tests`; `release.yml:47` lints
+> `src tests scripts`. Four Python files under `scripts/` are therefore linted for the
+> first time on tag day. Neither workflow declares `concurrency`. There is no
+> lockfile of any kind — not `uv.lock`, not `constraints.txt`.
+
+**Commit:** `chore: one verification path, used everywhere`
+
+### Block 2 — Coverage: what gets inspected · 19.D.1, 19.D.2, 19.E.1 — ✅ DONE 2026-09-10
+
+> **All four Block 2 corpus defects verified fixed on the real projects, through a
+> rebuilt image.** C1: the Rust gap now appears on the default `offline` Profile with
+> no network used. C4: the monorepo that reported `npm`, `npm (pnpm)` and `Python`
+> reports **none** — both are genuinely covered now — and the Rust project reports
+> exactly one. C6: the reported path is `Cargo.toml`, not `Cargo.lock`.
+>
+> **C4's fix already existed in the codebase.** `ecosystems.py` canonicalises `pnpm`
+> and `yarn` to `npm`, and its docstring describes the identical bug — 24 CVEs
+> reported twice because Trivy said "pnpm" where osv-scanner said "npm". 19.D.3 built
+> a second table keyed on display labels right beside it. The gap table is keyed on
+> the canonical name now.
+>
+> **A mutation that should have failed did not.** Keying the gap fingerprint on the
+> display label passed all 42 tests, because the table has one entry per ecosystem so
+> the *count* assertions could not tell the difference. The property they missed:
+> a label is prose, and prose gets edited — "Rust (Cargo)" becoming "Rust" would
+> silently invalidate every committed suppression on that gap (ADR-0003). Now pinned.
+>
+> **A test claimed to check something it had patched out.** The scoped-package test
+> monkeypatched `_lookup` and then asserted about the URL `_lookup` builds, proving
+> only that `@types/node` survived JSON parsing. Rewritten against the real URL — and
+> then **measured**: `@types/node`, `@types%2Fnode` and `@types%2fnode` all return 200
+> from registry.npmjs.org, so the encoding was never a live bug there. Changed anyway,
+> because private mirrors are stricter and this product's users are behind them.
+>
+> **Left for Block 3, deliberately:** a coverage gap is a Finding, so `status` is now
+> `findings` for any repository with an uncovered ecosystem. `clean` is unreachable for
+> a polyglot repo. §7 already has the right word — `inconclusive` means *we looked,
+> found nothing, and could not support the claim* — but deciding it here would
+> pre-empt 19.C.2 and 19.E.2. A test pins today's behaviour so Block 3 has to change
+> it on purpose.
+
+Together because **19.E.1 is the general form of what 19.D.3 did by hand**. Declaring
+each adapter's coverage contract before 19.D.1 widens the Dependency Reality Check
+means declaring it twice. 19.D.2's two surviving `standard` strings live in
+`results.py` and `checks/dependency_reality.py` — both files this block already has
+open.
+
+Closes the F3.1 gap, and clears valvur's own deliberately-red self-scan finding.
+
+> ⚠️ **Needs an image rebuild to verify.** Checks ship inside the image (ADR-0013), so
+> unit tests can pass while a real scan runs the published image's older copy. Third
+> time this trap applies: 12a.6, 19.D.3, and now here.
+
+**Commit:** `feat: the reality check covers the ecosystems people use`
+
+### Block 3 — Status: what the result means · ✅ DONE 2026-09-10
+
+Ran as one change because it was one decision. 19.C.2 chose the model, 19.E.2
+implemented it, 19.C.1 exposed it on four surfaces, and 10.4.12 decided what a human
+meets first. Split apart, the status model would have been rewritten three times.
+
+> **10.4.12, and an unmet requirement found while answering it.** F7.6 requires the
+> machine-facing block to describe *the folder, the **Status** values, the ranking
+> basis, and the F9.5–F9.7 constraints*. It described the first and the last, and had
+> never mentioned the middle two — so an agent reading `inconclusive` had nothing
+> telling it not to report that as clean, which is the entire reason F7.16 put the
+> claim in the verdict rather than in prose.
+>
+> The answer to *what does a human see first* is therefore not "demote the agent
+> block": it is **complete it, and put one sentence of plain English above it**. F7.6's
+> protection is that an agent meets the constraints before any Finding — F7.7 states
+> that at the content level and it still holds.
+>
+> **Six mutations, all failing**, including re-gating the C3 caveat and counting
+> coverage notes as active. The first attempt at running them was itself invalid: zsh
+> does not word-split unquoted variables, so `pytest $FILES` passed one long filename
+> and every mutation "passed" against zero tests. Caught by reading `no tests ran`
+> rather than the absence of failures.
+
+### Rider — 19.C.3
+
+`valvur-mcp --help` / `--version`. One function; `mcp/server.py` already takes `argv`
+and never reads it. No dependency in either direction — attach it to whichever block
+runs first.
+
+### Block 4 — Corpus verification · 19.F.3, 19.F.4, 19.F.5, 19.E.3 — ✅ DONE 2026-09-10
+
+The block that could not be sized in advance, and the one that paid best. Three
+defects, all false positives valvur produced on ordinary repositories, none of which
+any unit test would have found — because each needed a *shape* of real project rather
+than a behaviour anyone thought to write down.
+
+> **Two of the three were introduced by Block 2, four hours earlier, with tests
+> passing.** Widening the Dependency Reality Check to `pyproject.toml` immediately
+> started reporting monorepo workspace members as hallucinated, and started comparing
+> names against a popular-package list without PEP 503 normalisation. Neither is
+> visible from a synthetic fixture; both are the first thing a real monorepo does.
+>
+> **The third had been latent for weeks.** `.uv-cache/` was 40% of one project's
+> report. The exclusion mechanism worked perfectly and the name simply postdated the
+> list — a denylist ageing quietly, which is the same silent-drift class as everything
+> else this phase removed, pointed the other way.
+
+### Block 5 — SELinux · 20.1, 20.2, 20.4 — ✅ DONE 2026-09-10
+
+Not environment-gated after all. The block was written assuming no enforcing host was
+reachable from a macOS machine; **the Podman machine already running on it is Fedora
+CoreOS with SELinux enforcing**, and a workspace created on its own xfs filesystem —
+rather than shared in over virtiofs — is exactly the native case F1.6 names.
+
+> **20.3 was not taken.** It was the branch for *the defect does not reproduce*, and it
+> reproduced on the first attempt, in both rootful and rootless Podman.
+>
+> The measurements settled three things no amount of reading would have: that valvur
+> was unusable on its primary target platform; that `:Z` is incompatible with running
+> Scanners concurrently; and that `restorecon -R` does not undo `:z`, which had already
+> been written into the remediation text as though it did.
+
+### Block 6 — Owner actions, one sitting · 12a.1, 0.14, 12a.7 (setup half)
+
+All at github.com plus one push, in this order: push → repository public → package
+public → branch protection → PyPI trusted publishing, the `release` environment, and
+private vulnerability reporting.
+
+### The 6 that do not group
+
+| Task | Why it stays alone |
+|---|---|
+| ~~**10.2.5**~~ | ✅ Done 2026-09-11 — two real Claude Code runs; found three defects, fixed all three. |
+| **10.1.1**, **10.1.2** | Need a person who has never seen valvur. Cannot be batched, cannot be simulated, and participants cannot be reused — first impressions do not reset. |
+| **12a.7** (publish) → **12b.1** → **12b.2** → **12b.3** | A release ordering. Each step's input is the previous step's artifact. |
+
+---
+
+## Phase 19 — Reliability, release and portfolio hardening
+
+**Goal:** remove the remaining ways valvur can look green while being ambiguous,
+environment-dependent, or confusing to a first-time user. This phase is about
+repeatable builds, release gates that fail in the right place, clearer operational
+signals, broader AI-code coverage, and portfolio-grade polish.
+
+> **Added 2026-09-10 from build/deploy/operations/functionality/architecture audit.**
+> The repo is already strong: lint, types, traceability and non-e2e tests pass; the
+> wheel builds and installs; release signing, provenance, SBOMs, redaction and
+> self-scan gates exist. The work below is the next layer: make success reproducible,
+> make failures explicit, and remove confusing-but-technically-true outputs.
+>
+> **Runs before public release.** The earlier "Everything that remains" phase mixed
+> hardening and publication. That ordered the public-release actions before the
+> optimisation work that should precede them. Publication now waits until Phases 19
+> and 20 are complete.
+
+### A — Build
+
+- [x] **19.A.1** Add a committed dependency lockfile for development and build tooling.
+  ✅ **DONE 2026-09-10.** `uv.lock`, 19 packages. Every CI and release job installs it
+  with `uv sync --extra dev --locked`; Dependabot's `pip` entry became `uv`, because
+  pointing it at `pyproject.toml` would bump the declared ranges and leave the lock —
+  the thing actually installed — untouched.
+
+  > **The risk was already realised.** The open ranges `pytest>=8` and `mypy>=1.11`
+  > had floated to **pytest 9.1.1** and **mypy 2.3.1** — two major versions nobody
+  > chose. Locking froze what currently works rather than preventing a future problem.
+  >
+  > **`--locked`, not `--frozen`.** The first version used `--frozen` and three
+  > comments claimed it caught drift. It does not: both install the lock instead of
+  > re-resolving, but only `--locked` *fails* when `pyproject.toml` has moved past it.
+  > Measured — adding a dev dependency without re-locking passed under `--frozen` and
+  > fails under `--locked`. A lockfile nothing checks is decoration.
+  >
+  > **`hatchling` is bounded rather than locked**, to `>=1.27,<2`. Build backends are
+  > resolved outside the lock at build time, so an unqualified `hatchling` means a 2.0
+  > could change the wheel this repository produces with no commit here.
+
+- [x] **19.A.2** Align CI and release verification commands.
+  ✅ **DONE 2026-09-10.** Not by aligning two lists — by deleting one. Both workflows
+  now call `scripts/verify.sh`. Aligning the lists fixes the divergence until the next
+  edit; sharing one file is what stops it returning.
+
+  > The gap was real: `ci.yml` linted `src tests`, `release.yml` linted
+  > `src tests scripts`, so four files under `scripts/` were first checked on tag day.
+  > `pyproject.toml` already carried a `"scripts/*"` per-file-ignore — the configuration
+  > for linting them had been written; the invocation never was.
+
+- [x] **19.A.3** Add a single local verification command that mirrors CI.
+  ✅ **DONE 2026-09-10.** `scripts/verify.sh` — sync from the lock, then lint, types,
+  traceability, non-e2e tests and package build. Takes names for a subset
+  (`./scripts/verify.sh lint types`). Redirects `UV_CACHE_DIR`, `RUFF_CACHE_DIR`,
+  `MYPY_CACHE_DIR` and `XDG_CACHE_HOME` to a temp root when `$HOME` is not writable,
+  and never overrides a value the caller set.
+
+  > **Its first version passed by running nothing.** The selection helper counted its
+  > own arguments, so `$#` was never 0, no check ever matched, and the script printed
+  > *all checks passed* having executed zero of them. Found by reading the output
+  > rather than the exit code.
+  >
+  > It now counts what ran and **fails when that is zero**. A verifier that can pass
+  > vacuously is worse than no verifier — it is the exact defect this repository
+  > exists to find, written into the tool meant to catch it.
+
+### B — Deploy
+
+- [x] **19.B.1** Gate published-image verification on the declared tag existing.
+  ✅ **DONE 2026-09-10.** The job asked only whether the *repository* was anonymously
+  pullable, then inspected `:$VERSION` regardless. A release-prep commit bumps
+  `pyproject.toml` before the tag workflow pushes that version, so the moment the
+  package goes public every such PR would fail on a manifest that legitimately does
+  not exist yet. It now requests that specific manifest and skips with a `::notice`
+  on anything but 200.
+
+  > **Both branches exercised against real GHCR**, since the tag path could not be
+  > tested on a private package: an existing tag returns 200 (verify) and a fabricated
+  > one returns 404 (skip). Today, valvur's own package yields no anonymous token at
+  > all, and the job warns loudly — unchanged, and still correct.
+
+- [x] **19.B.2** Add release workflow concurrency.
+  ✅ **DONE 2026-09-10.** `group: release`, **global rather than per-tag**: two
+  different tags are the dangerous case, not two pushes of one. Both build `:latest`,
+  so the slower workflow can leave `latest` on the older version while its signature,
+  attestation and GitHub release all say otherwise.
+
+  > `cancel-in-progress: false`, deliberately. A release cancelled between
+  > `docker buildx --push` and `cosign sign` leaves an **unsigned image published under
+  > a real version tag** — strictly worse than a queued job.
+
+- [x] **19.B.3** Update release documentation to use the same build path as CI.
+  ✅ **DONE 2026-09-10.** `docs/RELEASING.md` and `CONTRIBUTING.md` now use
+  `docker buildx build --load` and `./scripts/verify.sh`. RELEASING held a third copy
+  of the lint/type/test commands; third copies drift too.
+
+  > **Premise corrected 2026-09-10.** This said the documented `docker build` in
+  > `docs/RELEASING.md` fails because the Dockerfile relies on `TARGETARCH`. It does
+  > not — **measured: plain `docker build` exits 0** and produces a working image,
+  > because modern Docker enables BuildKit by default and BuildKit supplies
+  > `TARGETARCH`.
+  >
+  > The task is still worth doing, for a different reason: the build silently depends
+  > on BuildKit being on. With `DOCKER_BUILDKIT=0`, or on an older Docker, `FROM
+  > opengrep-${TARGETARCH}` has nothing to resolve. Documenting `docker buildx build
+  > --load` makes that dependency explicit rather than lucky, and matches what CI and
+  > `release.yml` actually run.
+
+### C — Operations
+
+- [x] **19.C.1** Make active versus suppressed findings explicit in terminal output,
+  `run.json`, and `SUMMARY.md`. ✅ **DONE 2026-09-10.** Three counts, on four surfaces
+  — the MCP `scan_status` response too, which ADR-0015 makes primary and which the task
+  did not name.
+
+  > **The motivating case, measured on valvur itself.** The self-scan printed
+  > `findings: 4 finding(s)`, where all four were accepted risks recorded in a
+  > committed file with expiry dates. It now prints `clean: 0 active, 4 suppressed`.
+  > A portfolio reviewer previously met what looked like four live failures.
+  >
+  > `run.json`'s `findings` is a breakdown rather than an integer:
+  > `{active, suppressed, not_covered, total}`. One number made an accepted risk, a
+  > live problem and a note about our own missing coverage indistinguishable to every
+  > machine consumer. The MCP surface reads it with a fallback, so an older `run.json`
+  > still renders.
+  >
+  > **Corpus defect C3 fixed.** The Profile caveat was gated on `not findings`, so one
+  > missing-licence finding suppressed the notice that dependency-reality never ran —
+  > the reader was told least about missing coverage exactly when there was most else
+  > on screen. Now reported either way.
+  >
+  > **Corpus defect C2 fixed.** `scanners_not_run` reaches `SUMMARY.md` and
+  > `scan_status`, not just `run.json`. And a coverage note is reported *separately*
+  > from a Profile omission, because they are different claims and both can be true:
+  > one says a Scanner did not run, the other says nothing here reads a whole
+  > ecosystem even when it does.
+  >
+  > **Corpus defect C5 fixed, and it was wider than the corpus showed.** Every Finding
+  > from `licence-file` *and* `ai-artifact` arrived as `unknown` severity — including
+  > every AI-artifact detection, which is what this product is most distinctive for. An
+  > instruction-override directive planted in `CLAUDE.md` ranked identically to a
+  > missing licence file. Now stated per rule, and a structural test fails when any
+  > Check reports without one.
+  >
+  > **The non-exfiltration disclosure was wrong.** `what_left_the_machine` still named
+  > PyPI alone after 19.D.1 added the npm registry, and never mentioned osv-scanner's
+  > destination at all. That sentence **is** the §3 claim, not a description of it, so
+  > a registry added without amending it makes the claim false. Now enumerated exactly
+  > and pinned by a test.
+
+- [x] **19.C.2** Decide whether suppressed-only results need a distinct status.
+  ✅ **DECIDED 2026-09-10: no.** Three statuses stay. `clean-with-suppressions` was
+  rejected — three values are a documented contract (§7, F7.16), every consumer
+  switches on them, and a fourth is a breaking change buying a count that now appears
+  beside the verdict on every surface anyway.
+
+  > `active` became the human-facing gate instead, as the task's second option
+  > proposed. A suppression is a decision this project recorded in a committed file, so
+  > a scan whose only Findings are accepted risks *is* clean by that project's own
+  > policy — provided the count is impossible to miss, which is 19.C.1's job.
+
+- [x] **19.C.3** Add `valvur-mcp --help` and `--version` without writing to stdout
+  during normal MCP operation. ✅ **DONE 2026-09-10.** Both answer on **stdout** —
+  deliberately, because a person ran the command, so the JSON-RPC channel is not in
+  use. Verified that a `ping` still returns nothing but JSON-RPC.
+
+  > No argparse. This entry point takes no options beyond these two, and a parser
+  > invites adding some — every flag here is a way for a client's configuration to
+  > change what the server does behind the agent's back.
+  >
+  > **An unrecognised flag is refused with exit 2, not ignored**, and the usage goes to
+  > stderr. A flag that starts the server anyway is how a typo in an agent config
+  > becomes a silent misconfiguration nobody notices for weeks.
+
+### D — Functionality
+
+- [x] **19.D.1** Expand the Dependency Reality Check beyond `requirements*.txt`.
+  ✅ **DONE 2026-09-10.** Now reads `requirements*.txt` and `pyproject.toml` — PEP 621
+  *and* Poetry, because both are everywhere and a project using the shape we skipped
+  would scan clean for the wrong reason — against PyPI, and `package.json` against the
+  npm registry.
+
+  > **Direct manifests, never lockfiles.** A lockfile is a resolved transitive tree,
+  > and transitive dependencies are not the ones a language model invents: the
+  > hallucination is written into the file a human or an agent edited. `poetry.lock`
+  > beside a `pyproject.toml` is a deliberate skip, not a hole — and a lockfile with
+  > *no* readable manifest beside it still reports a gap, because then nothing was
+  > inspected at all.
+  >
+  > **Measured end-to-end through the rebuilt image**, not just in unit tests: an npm
+  > project with an invented package now reports it, where it previously returned 0
+  > findings silently. `express` and `@types/node` were correctly left alone, and so
+  > was a `workspace:*` sibling — the false positive most likely to make a real
+  > finding ignored is reporting every package in a monorepo as nonexistent.
+  >
+  > **Cargo, Go, Ruby, PHP and JVM still have no existence check**, and are reported
+  > as gaps instead. That is the honest half of this task's own wording — *"or
+  > explicitly report unsupported manifest coverage"* — and it is what keeps F3.1
+  > true rather than aspirational.
+  >
+  > **Severity, while here.** Every finding from this Check arrived as `unknown`,
+  > including the one the product exists for: a nonexistent dependency ranked below a
+  > missing licence file. Now `high` for nonexistent, `medium` for near-miss and
+  > newly-registered. `high` rather than `critical` — nobody has registered the name
+  > yet, and if they have, the CVE Scanners are what will say so.
+  >
+  > **The self-scan gate is green again.** 19.D.3 left it deliberately red with one
+  > finding — *"Python (PEP 621 / Poetry) dependencies were not checked"* — because
+  > this repository uses `pyproject.toml`. Resolved by coverage, as promised, not by a
+  > suppression: **0 live findings**, 4 suppressed, 165 excluded from fixtures.
+
+- [x] **19.D.2** Replace remaining user-facing references to the retired `standard`
+  Profile with `full`. ✅ **DONE 2026-09-10.** Both output strings fixed:
+  `results.py` now says *"Run `valvur scan --profile full` for full coverage"*, and
+  `dependency_reality.py` says *"Re-run with `--profile full`"*. The alias still
+  resolves; new users are no longer taught the retired name.
+
+  > I first reported this task's premise as **false**, having searched only the
+  > documentation. The retired name survived in **output strings**, which is the one
+  > place that actually teaches it. Both worked, via the alias, which is exactly why
+  > nothing failed. A test now asserts `--profile standard` is *absent* from the
+  > Summary as well as `--profile full` being present — the pair, so removing the fix
+  > fails rather than merely un-improving.
+
+- [x] **19.D.3** Add coverage-gap reporting for Checks that are intentionally narrow.
+  ✅ **DONE 2026-09-10.**
+
+  > `valvur.dependency.ecosystem-not-covered`, **low** severity — it is our missing
+  > coverage, not a defect in the user's code, and ranking it alongside a hallucinated
+  > dependency would be dishonest in the other direction.
+  >
+  > **Reported before the early return**, which is the whole point: a repository with
+  > no `requirements.txt` used to exit with an empty list, so the one shape that most
+  > needed the warning was guaranteed not to get it. One finding per *ecosystem*, not
+  > per file — a monorepo has one gap, not forty — and vendored manifests are ignored,
+  > since `node_modules` is full of other people's `package.json`.
+  >
+  > Checks can now state their own severity; previously every Check finding ranked
+  > alike, so a coverage note and a hallucinated dependency arrived at the same weight.
+  >
+  > **valvur now reports its own gap.** The self-scan has **1 active finding** —
+  > *"Python (PEP 621 / Poetry) dependencies were not checked for existence"* — because
+  > this repository uses `pyproject.toml` and the Check reads `requirements*.txt`. It
+  > is true, it is ours, and **19.D.1 resolves it rather than a suppression**. The
+  > self-scan gate is red until then, deliberately.
+  >
+  > **The trap this exposed, now in CONTRIBUTING.md:** Checks and rules ship *inside*
+  > the image (ADR-0013), so unit tests passed while a real scan ran the published
+  > image's older copy and reported nothing. Second time — the first was an Opengrep
+  > rule in 12a.6.
+
+### E — Architecture
+
+- [x] **19.E.1** Make coverage contracts explicit, without breaking the adapter
+  boundary. ✅ **DONE 2026-09-10.** `coverage(workspace, exclude)` joins the
+  `ScannerAdapter` protocol beside `applies_to`, returning what an adapter reads, what
+  it deliberately ignores, and the gaps that bite in *this* Workspace. `run.json`
+  carries the declaration under `coverage`.
+
+  > **The default is empty, never "covers everything".** An adapter that has not
+  > declared its limits is recorded as having declared nothing. Recording it as
+  > unlimited would be the silent-narrowing failure the method exists to remove, and a
+  > test pins the distinction: absent and present-but-empty are different claims.
+  >
+  > **Asked of the whole registry, not the Profile's selection** — a limit does not
+  > stop being true because a Profile skipped the Scanner that has it. That is the
+  > structural fix for C1 below.
+
+- [x] **19.E.2** Revisit `ScanRun.status` semantics after 19.C.1. ✅ **DONE
+  2026-09-10.** `status` answered four questions with one word: did we find problems in
+  your code, are there accepted risks, did we look at everything, was our data good
+  enough. It now answers only the first, and the other three are reported beside it.
+
+  > `ScanRun` grew `active`, `suppressed` and `coverage_notes`. Only `active` feeds the
+  > verdict. **`inconclusive` widened** to cover an uninspected ecosystem — the same
+  > claim it already made for a stale database: *we did not look, so `clean` is not
+  > ours to claim*.
+  >
+  > It deliberately does **not** cover a Profile omission. The user chose `offline` and
+  > valvur did that job completely; that is different from valvur silently being unable
+  > to do a job nobody declined. Including it would have made every default scan
+  > `inconclusive`, which destroys the word.
+  >
+  > **The consequence that decided the coverage-note half:** a release gate keyed on
+  > active findings must not go red because valvur has no Rust support. The user cannot
+  > fix that, and a gate nobody can turn green is a gate that gets deleted. F7.16
+  > amended in `requirements.md`.
+
+- [x] **19.E.3** Add a release-readiness document aimed at GitHub portfolio readers.
+  ✅ **DONE 2026-09-10.** [`docs/EVALUATING.md`](../../../docs/EVALUATING.md), linked
+  from the README. Install, verify the signed image, prove non-exfiltration on both
+  halves, read the three statuses, and a plain list of what valvur does **not** claim.
+
+  > **Written to be read sceptically**, which meant leading with the limits rather than
+  > appending them: dependency-reality covers Python and npm only; F1.6 SELinux
+  > labelling is unimplemented; there is no reachability analysis and never will be.
+  >
+  > Its last section points at the repository's own audit trail — the unmet-requirement
+  > annotations, the tasks recording premises I asserted and then measured to be false,
+  > and the traceability ratchet. For a security tool, the record of being wrong in
+  > public is more persuasive than the feature list.
+
+### F — Local corpus validation
+
+Use real projects on this machine as a discovery corpus, not as committed fixtures.
+Every scan runs against a temporary copy, and every defect that matters is distilled
+into the smallest publishable fixture that reproduces it.
+
+- [x] **19.F.1** Select a small, mixed local corpus before implementing fixes.
+  ✅ **DONE 2026-09-10.** Six projects, each chosen for a different claim: a
+  Rust + Python + npm + Docker/Compose monorepo (multi-ecosystem, IaC, agent
+  artifacts); a `pyproject.toml`-only Python project (the known gap); a Python project
+  with **both** `requirements.txt` and `pyproject.toml` (false-positive risk); a
+  project with **no manifest at all** (the nothing-to-scan path); a monorepo with one
+  `pyproject.toml` and four `package.json` (per-ecosystem deduplication); and a 309MB
+  Node project with populated `node_modules` (vendored-path skipping at scale).
+
+  > **Claims the corpus does not exercise, recorded rather than assumed:**
+  > suppressions and expiry (no project has a `.security-scan.toml`, so those paths
+  > stay synthetic-fixture-only); Go, Ruby, PHP and JVM; and secrets at scale.
+
+- [x] **19.F.2** Scan only disposable copies under `/private/tmp/valvur-corpus/`.
+  ✅ **DONE 2026-09-10.** Copies only; no original was scanned and none holds a
+  `.security-scan/`. **The register of what was scanned is deliberately not committed**
+  — it names six private repositories, and one of them carries a live API key in a
+  committed-adjacent `.env`. Only the shapes above and the defects below cross into
+  git; the corpus is deleted when Block 4 finishes.
+
+  > **Secret redaction verified on a real credential.** That `.env` holds a live
+  > Anthropic API key. Zero valvur-written artifacts contain the literal secret and no
+  > `sk-ant` prefix appears anywhere under `.security-scan/`, `raw/` included. The
+  > first time this guarantee has been tested against a key that actually works.
+
+  > ### What the baseline measured
+  >
+  > **No Scanner failed anywhere** — nine scans across six projects, two profiles, all
+  > exit 0. No crashes, no timeouts, including 309MB and 421MB trees. Runtime 24–83s.
+  >
+  > **Six defects, none of which unit tests could have found**, because all six are
+  > about what the output does or does not say:
+  >
+  > | | Defect | Class | Fix in |
+  > |---|---|---|---|
+  > | **C1** | **Coverage-gap reporting never runs on the default profile.** 19.D.3's `ecosystem-not-covered` lives inside a Check registered `needs_network=True`, which `profiles.py` excludes from `offline`. The gap is a *static filesystem fact* and needs no network — so the message that exists to say "this scan could not help you" is absent from the profile almost everyone runs. | unsupported coverage, silent | Block 2 |
+  > | **C2** | `run.json` records `scanners_not_run`; `SUMMARY.md` names only the *conditional* skip (checkov, "nothing to analyse") and stays silent on the two the profile excluded. The §7 rule is honoured for the skip with nothing to find and not for the omission that does. | unclear Provenance | Block 3 |
+  > | **C3** | **The one caveat that would say so is gated on finding nothing** — `results.py:213`, `if absent and not findings:`. One missing-licence finding was enough to suppress the notice that dependency-reality never ran. The reader is told least about missing coverage exactly when there is most else on screen. | confusing output | Block 3 |
+  > | **C4** | **npm and pnpm counted as two ecosystems.** The monorepo reports `npm`, `npm (pnpm)` and `Python` — three gaps for two ecosystems. 19.D.3 deduped four `package.json` files to one, then split npm on lockfile flavour, because `UNCOVERED` maps filenames to *labels* and dedup is by label. npm + pnpm + yarn would report three. | false positive | Block 2 |
+  > | **C5** | `valvur.licence.missing` carries severity `unknown`, which reaches the `SUMMARY.md` counts table as a literal `unknown` row. Every corpus project has one. | confusing output | Block 3 |
+  > | **C6** | The representative path for a deduped ecosystem gap is arbitrary — `infra/package.json` over the root `package.json`, by `rglob` order. Cosmetic, but it is the path a reader opens first. | confusing output | Block 2 |
+  >
+  > **C1 and C3 together are the finding that justifies the block.** Independently each
+  > looks minor. Together they mean: on the default profile, valvur omits its most
+  > distinctive Check, records that omission only in a file the contract tells agents
+  > not to read whole, and suppresses the one human-facing sentence about it as soon as
+  > anything else is found. That is the silent-narrowing class this project keeps
+  > meeting, and no unit test was ever going to catch it — 19.D.3 shipped with tests
+  > passing, four hours before the corpus found this.
+
+- [x] **19.F.3** Classify each corpus failure before fixing it.
+  ✅ **DONE 2026-09-10.** Three defects, all the same class — **false positives valvur
+  itself produced on ordinary repositories**, which is the worst finding this product
+  can emit: a developer told their own code is a supply-chain attack stops reading the
+  report, and the real finding in it goes with them.
+
+  > | | Defect | Classification |
+  > |---|---|---|
+  > | **F1** | Three **high-severity** *"almost certainly hallucinated"* findings against a monorepo's own workspace members. `uv`, Poetry and Hatch all resolve a plain `"demo-core"` from the tree beside it when a member defines that name — nothing in the dependency string says so. The npm side already skipped `workspace:*`, `file:` and `link:`; Python has no equivalent marker. | false positive |
+  > | **F2** | *"'discord.py' is one character from the far more popular 'discord-py'"* — **the same package.** PEP 503 folds `.`, `-` and `_` together; verified 2026-09-10 that PyPI returns 200 for all three spellings with canonical name `discord.py`. One edit apart on raw strings, zero apart in fact, so any name containing a dot or underscore could accuse itself. | false positive |
+  > | **F3** | **17 of one project's 42 findings were inside `.uv-cache/`** — `eval` and `exec` in pytest, hypothesis, pygments and attrs, every one at high severity. Forty percent of that report was other people's code. | false positive |
+  >
+  > **F3 is the one worth learning from.** The mechanism was correct and already
+  > working; the directory name simply postdated the list. `exclusions.VENDORED` is a
+  > denylist, and a denylist ages — uv did not exist when it was written.
+  >
+  > **Excluding whatever `.gitignore` covers was considered and rejected.** It is the
+  > project's own statement about what is not its source, which is exactly the right
+  > signal — and it would stop valvur scanning `.env` files, which are gitignored
+  > precisely because they hold the credentials this tool exists to find.
+
+- [x] **19.F.4** Distil each defect into a minimal fixture and a failing test.
+  ✅ **DONE 2026-09-10.** `tests/fixtures/monorepo/` — a root manifest declaring two
+  local Python packages and a scoped npm workspace member, plus one real external
+  dependency in each ecosystem so the fix cannot be "stop checking anything".
+  `tests/test_corpus_regressions.py` holds all three, each with its pairing test.
+
+  > **Every fix has a pair**, because each of these is a way to make findings
+  > disappear: a local package is skipped but a real external one is still asked
+  > about; PEP 503 folding must not disarm a genuine transposition like `reqeusts`;
+  > and a whole-segment match must leave a developer's own `src/cache/` alone.
+  >
+  > **A local package is never even asked about**, not merely unreported. A workspace
+  > member's name leaving the machine buys nothing, and §3 is about what we transmit
+  > as much as what we say.
+  >
+  > F2 is a property of a pure function and is tested as one. Manufacturing a fixture
+  > directory for it would have been ceremony.
+
+- [x] **19.F.5** Re-run the corpus after the fixes.
+  ✅ **DONE 2026-09-10.** Ten scans across six projects and two Profiles, against an
+  image rebuilt from the fixed tree.
+
+  > | Condition | Result |
+  > |---|---|
+  > | No Scanner failures | **0**, every run `complete: true` |
+  > | No silent skipped coverage | every omission named: Profile gaps, conditional skips, uninspected ecosystems |
+  > | No confusing status | `clean: 0 active`, `findings: 70 active, 1 not covered` |
+  > | No avoidable false positives from valvur | three classes found and fixed; none remain |
+  > | Clear Provenance | `run.json` carries the coverage contract, the skip reasons and what left the machine |
+  >
+  > **The monorepo went from 45 findings to 23** — 22 dropped as vendored, up from 3.
+  > Half its report had been other people's code.
+  >
+  > **One measurement recorded rather than fixed:** that project's `full` scan went
+  > from 87s to 123s, because 19.D.1 now queries a registry for every declared package
+  > and the lookups are serial. Real work for real coverage, but the lookups are
+  > independent and I/O-bound, so this is the obvious place to parallelise if scan time
+  > becomes a complaint. Not done here — it touches the one code path that reaches the
+  > network, and that is not a change to make casually at the end of a block.
+  >
+  > **The corpus was deleted afterwards.** It was disposable by design (19.F.2), and
+  > one project carried a live API key.
+
+**Exit:** a fresh contributor can run one documented command for local confidence;
+CI and release gates check the same things at the right time; suppressed-only,
+stale-data and unsupported-coverage states are unmistakable; and the public GitHub
+project reads as reliable rather than merely clever.
+
+**Commit:** `chore: harden build, release and portfolio readiness`
+
+---
+
+## Phase 20 — Close Phase 8 runtime portability debt
+
+**Goal:** resolve the one known gap left by Phase 8 before public release: F1.6,
+SELinux mount labelling. Phase 8 found multiple false-clean runtime failures; this
+phase exists so an untested native SELinux host does not become the next one.
+
+> **Added 2026-09-10 after reviewing Phase 8.** Phase 8 is correctly marked complete
+> for the Docker/rootless-Podman behaviours it tested, but F1.6 was later found
+> unimplemented. That cannot remain only a note if valvur is going to claim reliable
+> regulated-industry portability.
+
+- [x] **20.1** Test valvur on a native SELinux-enforcing host, Workspace under
+  `$HOME`, using Podman. ✅ **DONE 2026-09-10.** Fedora CoreOS 44, `targeted` policy
+  **enforcing**, `container-selinux` 2.250, workspace on **xfs on a block device —
+  not virtiofs**. Rootful and rootless both tested.
+
+  > **It fails.** Every one of valvur's three mounts is denied: the source
+  > (`admin_home_t` as root, `user_home_t` as an ordinary user), the scratch directory
+  > and the Trivy cache. `:z` fixes all three.
+  >
+  > **The 2026-09-05 note guessed virtiofs was hiding it, and was right to be
+  > suspicious.** The same Podman VM reproduces the defect immediately on its own
+  > native filesystem. *Could not reproduce* was not *does not happen*.
+  >
+  > **`:Z` is architecturally impossible here**, which no amount of reading would have
+  > settled: it stamps a private MCS category, and a second container is then denied.
+  > valvur launches its Scanners concurrently against one mount, so `:Z` would break
+  > the fleet from the second Scanner onward. Measured, not inferred.
+  >
+  > **valvur fails loudly rather than falsely clean**, which is what kept this a
+  > usability defect rather than a safety one. The probe's `ls -A /workspace | wc -l`
+  > returns 0 while the host has entries, so `WorkspaceUnreadable` is raised. Run
+  > verbatim on the enforcing host to confirm.
+
+- [x] **20.2** Implement the chosen mount-label behaviour and test the exact runtime
+  flags. ✅ **DONE 2026-09-10. Opt-in relabel, refusing by default** — chosen by the
+  owner after the measurements above.
+
+  > **valvur's own directories are labelled unconditionally** on an enforcing host: the
+  > scratch mount and the Trivy cache are a temporary directory we created and a cache
+  > we own, and without the label the container cannot write its results at all.
+  >
+  > **The Workspace is not**, unless `VALVUR_SELINUX_RELABEL=1`. `:z` rewrites the
+  > SELinux context of every file in the scanned tree and it persists after the scan;
+  > §10 prohibits writing to the scanned tree without explicit owner approval, and a
+  > tool whose first promise is that it cannot touch your code should not quietly
+  > rewrite its labels. The accepted cost is that a first run on RHEL fails.
+  >
+  > **An environment variable, not a CLI flag.** MCP is the primary interface
+  > (ADR-0015) and has no command line, so a flag would fix this for the second-choice
+  > path only.
+  >
+  > **The first draft of the remediation shipped a false instruction.** It said
+  > *"Undo with: restorecon -R"*, which does **nothing**: `container_file_t` is listed
+  > in the policy's `customizable_types` and restorecon skips those unless forced.
+  > Measured on the host, corrected to `restorecon -R -F`. A remediation that silently
+  > does nothing is worse than none — the reader believes they have undone it.
+  >
+  > **Exact flags verified on the enforcing host**, generated by valvur and run there:
+  > default leaves the label `admin_home_t` untouched and the probe sees 0; with the
+  > opt-in the label becomes `container_file_t` and the probe sees every entry. **F1.1
+  > survives** — a write to `/workspace` is still refused through a `,z` mount.
+
+- [x] **20.3** ~~If SELinux labelling is not required, cut or amend F1.6.~~
+  ✅ **NOT TAKEN 2026-09-10.** This was the branch for *"the defect does not reproduce
+  on a native host"*. It does, immediately, so 20.2 was the applicable branch and F1.6
+  stands as written — now met rather than cut.
+
+- [x] **20.4** Update the Phase 8 completion note.
+  ✅ **DONE 2026-09-10.** [Phase 8](#phase-8--runtime-portability-and-hardening) now
+  records that it was complete for what it tested and that F1.6 was not among it —
+  the fourth silent failure of that set, found six weeks after the phase that should
+  have caught it.
+
+**Exit:** F1.6 is either implemented and tested on the environment it names, or the
+requirement is amended with evidence from that environment. No Phase 8 portability
+claim remains stronger than the proof behind it.
+
+**Commit:** `test: close SELinux portability gap`
+
+---
+
+## Phase 21 — Everything that remains
+
+**Goal:** one ordered release sequence for the open tasks that should happen only
+after hardening and runtime-portability debt are closed.
+
+> **Originally added as Phase 18 on 2026-09-10. Renumbered 2026-09-10.** The phase
+> was a useful release checklist, but it ran too early: public-release actions should
+> not precede the reliability and portfolio hardening now captured in Phase 19, or
+> the F1.6 portability closure in Phase 20. **If an item here disagrees with its own
+> task, the task is authoritative.**
+>
+> **Closed while writing the original phase**, because both were done and neither
+> said so: [0.2](#phase-0--preflight) (Podman installed, six weeks after the entry
+> still read *"Recon: not installed"*) and [1.12](#phase-1--walking-skeleton) (a
+> pointer to work that moved to 10.0 and finished on 2026-08-31). Two tasks that
+> looked like remaining work and were not.
+
+```
+PREREQUISITES
+   Phase 19  reliability, release and portfolio hardening
+   Phase 20  F1.6 SELinux/runtime portability closure
+        ↓
+A. OWNER ACTIONS — nothing downstream can start
+   12a.1  push · repo public · package public
+   0.14   branch protection (needs the repo public first)
+        ↓
+   Phase 22 Block A  offline existence check   ← added 2026-09-12; the default
+   Phase 22 Block B  prove the release pipeline    Profile must catch a hallucinated
+        ↓                                          package before anyone runs it
+D1. 12a.7 (second half)  publish 0.2.0  ← needs PyPI trusted publishing + a
+                                           `release` environment, also owner actions
+        ↓
+   Phase 23 Block 2  the published index   ✅ 2026-09-12 — the first ten minutes,
+   Phase 23 Block 3  valvur doctor            before a stranger measures them
+        ↓
+B. NEEDS A PERSON WHO HAS NEVER SEEN VALVUR
+   10.1.1 · 10.1.2   the usability gate
+        ↓
+D2. 12b.1  act on what the gate found
+    12b.2  re-run the constraint suite against the release artifact
+    12b.3  tag v1.0.0
+
+C. UNBLOCKED, AND NOT WAITING ON THE OWNER ACTIONS  — both done
+   10.4.12  what a human sees first in SUMMARY.md          ✅ Block 3
+   10.2.5   the CLAUDE.md / AGENTS.md snippet, against a real agent  ✅ 2026-09-11
+```
+
+> **Where this stands on 2026-09-12.** PREREQUISITES and C are complete. Everything
+> left is A → D1 → B → D2, in that order, and every item in A is an action only the
+> repository owner can take at github.com or pypi.org. There is no remaining
+> engineering task that does not depend on one of them.
+>
+> **Amended the same evening.** Phase 23 inserted two engineering blocks before the
+> gate. Block 2 (the published index; Ruby, PHP and Rust offline; the image pull
+> named) is **done**; Block 3 (`valvur doctor`, timing, cancel, the gate command, the
+> Action, the budget) is what remains before B. A gains one item from Block 2: the
+> `valvur-index` GHCR package public, beside the image's.
+>
+> **2026-09-13: A and D1 are done — `0.2.0` is published** (23.1.1 has the account).
+> What remains: Phase 23 Block 3, then B (the usability gate — now possible: there
+> is something to install), then D2. **Superseded the same day by the one list at
+> the head of [Phase 24](#phase-24--the-audit-and-one-list-of-everything-that-remains)**,
+> which orders every open task; this diagram is history.
+
+### A — Owner actions
+
+Only the repository owner can do these, and everything else waits behind them.
+
+- ~~**21.A.1**~~ ✅ **Done 2026-09-13.** → [12a.1](#12a--make-it-obtainable-and-trustworthy). Push (45 commits
+  ahead), make the **repository** public, then the **packages** — `valvur`, the
+  image, and since 23.2.1 `valvur-index`, the daily name index. In that order, or
+  the newly-public repo is missing every phase from 10.3b onward. Measured
+  2026-09-10: repo API `404`, GHCR anonymous token `401` — and 2026-09-12 for the
+  index package, the same `401` from the shim's own client.
+- ~~**21.A.2**~~ ✅ **Done 2026-09-13.** → [0.14](#phase-0--preflight). Branch protection on `main`. Deferred
+  since 2026-08-30 because GitHub charges for it on private repositories; it becomes
+  free the moment 21.A.1 lands, and guards nothing until then.
+- ~~**21.A.3**~~ ✅ **Done 2026-09-13** (PyPI and TestPyPI publishers by the owner; private vulnerability reporting enabled by API). → the setup half of [12a.7](#12a--make-it-obtainable-and-trustworthy)
+  and [12a.5](#12a--make-it-obtainable-and-trustworthy): PyPI trusted publishing
+  against `release.yml`, a `release` GitHub environment, and private vulnerability
+  reporting. All three are documented in
+  [docs/RELEASING.md](../../../docs/RELEASING.md); the release workflow fails without
+  the first two, and `SECURITY.md` links to a 404 without the third.
+
+### B — Needs a person who has never seen valvur
+
+- **21.B.1** → [10.1.1](#101--the-usability-gate) and
+  [10.1.2](#101--the-usability-gate). The usability gate. **Cannot be simulated** —
+  the entire value is that the participant has no context, and participants cannot be
+  reused because first impressions do not reset. Blocked by 21.A.1: there is nothing
+  to install until the package is public.
+
+### C — Unblocked
+
+Neither of these waits on the owner actions. They can proceed while the owner actions
+are pending, but still come after Phase 19 so the surface being tested is the hardened
+one.
+
+- ~~**21.C.1**~~ ✅ **Done 2026-09-10, Block 3.** → [10.4.12](#104--error-messages-as-a-usability-surface). Decide what
+  a **human** sees first in `SUMMARY.md`. It is currently written for agents — the
+  machine-facing block is first by design (F7.6) — and no one has asked whether that
+  is right for the person who opens it in an editor. A genuine design decision, not a
+  bug.
+- ~~**21.C.2**~~ ✅ **Done 2026-09-11.** → [10.2.5](#102--the-mcp-first-run-the-primary-path). Verify the
+  copy-pasteable `CLAUDE.md` / `AGENTS.md` snippet against a real agent in a real
+  repository *(P6)*. Partly evidenced already — task 12a.4 confirmed `valvur-mcp`
+  starts, reports its version and advertises four read-only tools — but nobody has
+  pasted the snippet into Kiro or Claude Code and watched what happens, which is the
+  actual claim.
+
+### D — Sequenced after
+
+- ~~**21.D.1**~~ ✅ **Done 2026-09-13, `v0.2.0`.** → [12a.7](#12a--make-it-obtainable-and-trustworthy), publishing half.
+  The automation is done and verified; tagging publishes `0.2.0`. Carries two
+  corrections that only take effect on release: the **multi-arch build** (13.1 — the
+  published image is still `arm64` only) and the **PyPI licence metadata**, which
+  still says MIT while the repository is Apache-2.0.
+- **21.D.2** → [12b.1](#12b--release). Act on the gate's findings.
+- **21.D.3** → [12b.2](#12b--release). Re-run the Phase 11 constraint suite and
+  the self-scan gate against the **release artifact** rather than the working tree.
+- **21.D.4** → [12b.3](#12b--release). Tag `v1.0.0`.
+
+**Exit:** `v1.0.0` released, having been installed and used by someone who did not
+build it, after Phases 19 and 20 removed the known reliability and portability debt.
+
+**Commit:** *(none — this phase only references others)*
+
+---
+
+## Phase 22 — The product move, and what the review found behind it
+
+**Goal:** make the headline feature usable by the market it is for, prove the release
+pipeline before it runs for real, and pay down the sediment three days of blocks left
+behind — in that order, because the first two decide whether publication goes well and
+the rest decide whether the next six months do.
+
+> **Added 2026-09-12 from a critical review of build, deploy, functionality,
+> architecture and product.** Phases 19 and 20 are complete and nothing technical
+> blocks publication. This phase is what the review said should happen *before*
+> `0.2.0` reaches anyone, and what should happen after.
+>
+> **The finding that shapes the order.** Slopsquat detection — the check this product
+> is most distinctive for — needs a registry, so it runs only on `full`. `full` sends
+> package names to PyPI and npm. Target market #1, regulated industries, is *defined*
+> by not being able to do that. So the tagline and the default profile disagree: "fully
+> offline" and "hallucinated-package detection" are both true, and not at the same
+> time. The first thing a regulated-industry reviewer will do is run the default
+> profile on a Java repository and read `not_covered: 1`. Block A exists so that they
+> read something else.
+
+```
+Block 6 (Phase 21 A: owner actions)  ─── any time; nothing here waits on it
+        ↓
+Block A  offline existence check        ─┐  BEFORE 0.2.0 publishes (21.D.1)
+Block B  prove the release pipeline     ─┘
+        ↓
+21.D.1  publish 0.2.0
+        ↓
+Block C  build guards                   ─┐
+Block D  architecture sediment          ─┼─ independent; any order, after publication
+Block E  corpus and rules               ─┤
+Block F  the first impression           ─┘
+        ↓
+Phase 23 Blocks 2–3  (index ✅, doctor)  ← added 2026-09-12, from the Kiro run
+        ↓
+21.B / 21.D2  the usability gate → v1.0.0
+```
+
+### A — The offline existence check
+
+The one product move. Existence — *does this package name exist at all?* — is the
+hallucination check. Age and near-miss similarity are refinements. Existence can be
+answered from a local index of names; the refinements need a registry. Split them.
+
+- [x] **22.A.1** Design and measure the index before building it. Two decisions, each
+  with a number behind it, recorded as an ADR:
+
+  > **Done 2026-09-12 — [ADR-0018](../../../docs/adr/0018-offline-package-name-index.md).**
+  > Measured against the live registries: PyPI 890,006 names (12.8MB plain, 4.0MB
+  > gzip); npm 4,382,736 (90.5MB plain, 25.4MB gzip). **Exact wins**: 29MB on the wire
+  > beside the database's 116MB, and a bloom filter at 0.1% would have saved 20MB for
+  > one missed hallucination in a thousand. Lookup is a binary search over the
+  > memory-mapped plain file — 8µs a name, measured, against 0.3s/1.6s per scan to
+  > stream the gzip or a second and ~270MB to build a set — so the index is stored
+  > uncompressed and `grep -x` is the audit. **Sources:** PyPI's simple index is one
+  > 9.7MB request. npm has no all-names endpoint: `replicate.npmjs.com/_all_docs`
+  > caps pages at 10,000 and refuses `skip` (439 requests, 145.6MB, 330s for the full
+  > set); `_changes` is ~24,000 entries a day, so a week of drift is ~17 requests.
+  > `all-the-package-names` was rejected on **measurement**: diffed the morning it
+  > was published, 140,823 of its names do not exist on the registry (deleted spam
+  > it never dropped — the direction that turns a hallucination into "exists") and
+  > 81,134 registry names are missing from it. Staleness: PyPI adds ~530 projects a
+  > day and npm ~1,600; threshold set at 30 days, with the note that an old index
+  > *overstates* (a package newer than itself reads as nonexistent) rather than
+  > misses, so the threshold keeps the age visible rather than marking a cliff.
+
+  **Exact set or probabilistic?** A bloom filter is small (roughly a byte per name at
+  1% false positives), but a false positive here is a *missed hallucination* — the
+  headline finding, silently not reported one time in a hundred. An exact sorted list
+  compresses well and never lies. Measure both against the real name counts: PyPI is
+  in the high hundreds of thousands, npm in the low millions. If the exact form is
+  under ~20MB compressed it wins on principle; if not, say what rate was accepted and
+  why.
+
+  **Where the names come from, and how they are refreshed.** PyPI's simple index is
+  one request. npm has no cheap all-names endpoint; find what is actually maintained
+  (the replicate feed, a published dump) and measure how stale it can be before it
+  matters. Refresh belongs with `valvur update`, beside the vulnerability database
+  (ADR-0012): outside the image, in the host cache, mounted at scan time.
+
+  > **Not in the image.** Names change daily; image releases do not. The exact
+  > argument ADR-0012 made for the database, and the same answer.
+
+- [x] **22.A.2** Implement it, and move existence to the default Profile. The
+  dependency-reality Check runs on `offline` against the index — existence only, under
+  `--network=none`, with `what_left_the_machine` still `nothing`. On `full` it adds
+  what needs a registry: first-publish age and the near-miss comparison.
+
+  > **Done 2026-09-12.** `src/valvur/name_index.py` (builder on the host, reader in
+  > the container, one file because the format is the contract); `valvur update`
+  > fetches it under the cache's exclusive lock and `--if-stale` refreshes the index
+  > alone when only it is due; the runner mounts `~/.cache/valvur/names` read-only at
+  > `/cache/names` and sets `VALVUR_NETWORK=1` in exactly the case it omits
+  > `--network=none`, so the Check reads the decision the kernel enforces and never
+  > probes. The network grant moved out of the adapter and into `profiles.select`
+  > (`for_profile` on the protocol) — the only place a network is granted. Stale past
+  > 30 days is `inconclusive` on every surface the database's staleness reaches:
+  > verdict, `run.json` (`name_index` block), `SUMMARY.md`, terminal, MCP.
+  >
+  > **One correction to the task as written:** the near-miss comparison never needed
+  > a registry — it reads the popular list shipped in the image — so it runs offline
+  > too. The gap prose says `offline` lacks "package age (newly-registered names)";
+  > hallucinated packages moved to the *covered* side of the Summary's sentence.
+  >
+  > **Proven in a real container**, image `valvur:blockA`, `tests/fixtures/broken-repo`
+  > on `offline`: `reqeusts` ("did you mean 'requests'?") and `aws-helper-sdk`, both
+  > high, `what_left_the_machine: nothing`, `name_index.present: true`. On `full`
+  > the same two plus age lookups for the names the index confirmed. Empty cache:
+  > the Check refuses host-side before launching, fix first — the first measurement
+  > produced a traceback truncated at 200 characters with `valvur update` cut off.
+  > The Phase 11 suite gained six tests (the Check opens no connection ungranted, does
+  > when granted, never sends a name the index settled, refuses without an index, the
+  > runner tells containers the truth, the mount is `:ro`); `verify-offline.py` runs
+  > the Check in-process under the poison as a third half. Eight mutations, six
+  > caught, two equivalent-or-fixed. The unit suite now refuses every `urlopen` — a
+  > `full` scan against a fake runner would otherwise have reached PyPI from a test.
+  > 443 → 524 tests.
+
+  > **This amends ADR-0016**, which says `full` adds *"the two that genuinely need a
+  > socket"*. After this, one of the two runs on both Profiles and only its
+  > refinements need the socket. `profiles.py`'s gap prose changes with it: `offline`
+  > no longer lacks "hallucinated and typosquatted packages", it lacks "package age and
+  > typosquat similarity". Every test that pins the Profile split moves; the Phase 11
+  > constraint suite must stay green, because the moat claim is what this touches.
+  >
+  > **A stale index is `inconclusive`, not `clean`.** The same rule as the database:
+  > record its age in `run.json`, and past a threshold the verdict carries the doubt.
+  > An index that quietly ages into uselessness would be the silent-narrowing class
+  > again, inside the fix for it.
+  >
+  > **The self-scan and the corpus fixtures prove it.** `tests/fixtures/broken-repo`
+  > has `reqeusts` and `aws-helper-sdk` in `requirements-ai.txt`; on `offline`, today,
+  > neither is reported. After this task both are, with no socket.
+
+- [x] **22.A.3** Parallelise the `full` lookups. Measured: 123s on a monorepo, because
+  each registry call is serial and each carries a 10s timeout. The lookups are
+  independent and I/O-bound. Bound the concurrency — this is the one code path that
+  reaches the network, and a scanner that opens fifty connections to PyPI at once is a
+  scanner that gets rate-limited and reports *unreachable* as if nothing was declared.
+
+  > **Done 2026-09-12.** `_verify` is two passes: existence from the index, then one
+  > bounded `ThreadPoolExecutor` (`LOOKUP_CONCURRENCY = 8`) for whatever the registry
+  > still has to answer — age for the names that exist, and existence too where
+  > there is no index — then findings built in declaration order so the output is
+  > byte-identical whatever order the answers arrived in. Measured in-process
+  > against live PyPI, 60 real names: **9.5s serial → 2.0s** at eight wide. A name
+  > the index settled as absent is never in the batch (asserted in Phase 11). One
+  > failed lookup is one unverified name, not a failed Check. Four mutations —
+  > serial, unbounded, nonexistent names sent, asked without a network — all caught.
+
+- [x] **22.A.4** Extend existence checking to JVM and Go, the two ecosystems the
+  stated market actually runs on. Maven Central is one registry with a name index;
+  Go's proxy has a feed but no all-modules list, so Go may be `full`-only and should
+  say so in its coverage contract rather than be promised. Whatever the answer, the
+  coverage note for these two must change from *no existence check* to what is true.
+
+  > **Done 2026-09-12 — both `full`-only, and the task's premise about Maven was
+  > wrong.** Measured: Central's "name index" is the 3.24GB Lucene index; its search
+  > API has 661,801 coordinates at 200 a page. Go's `index.golang.org` is a version
+  > feed — 2,000 entries covered seventeen minutes of 2026-09-11 — with no module
+  > list. Neither becomes a file a user downloads. So: one request per name on
+  > `full` (`repo1.maven.org/.../maven-metadata.xml`, `proxy.golang.org/.../@v/list`,
+  > 410 treated as absent), verified live both ways. Parsed: `pom.xml`
+  > (`<dependencies>` and `<dependencyManagement>`, `${project.groupId}` resolved,
+  > other properties skipped, namespace-agnostic, reactor modules never asked
+  > about), `build.gradle`/`.kts` (every quoted `group:artifact`, comments stripped,
+  > `project(":x")` excluded), `gradle/libs.versions.toml` (all three shapes),
+  > `go.mod` (direct `require`s; `// indirect` and locally `replace`d modules never
+  > asked about; the proxy's `!` case escaping). On `offline` these are dropped
+  > before anything else and the Coverage contract says *"existence checked on
+  > `full` only (no offline index exists for this registry)"* — a Profile omission
+  > under F7.16's rule, so a JVM repository now reads `clean` with the omission named
+  > rather than `inconclusive` with a gap Finding. That is a deliberate trade and the
+  > public corpus (Block E) is where it gets re-examined. Proven in a real container
+  > on a pom + go.mod fixture with one invented coordinate each: both reported on
+  > `full`, neither failed on `offline`. Nine mutations, nine caught. No age for
+  > either — neither registry states first publication — and the contract says so.
+
+### B — Prove the release pipeline before it runs for real
+
+`release.yml` has never executed. Cosign, the SLSA attestation, PyPI trusted
+publishing, the `release` environment — all of it is theory until a tag pushes, and
+the first tag was going to be `0.2.0` in front of everyone.
+
+- [x] **22.B.1** Dry-run the release workflow end to end on a throwaway tag against
+  TestPyPI and a scratch GHCR namespace, before `0.2.0`. Every step must succeed or
+  fail *for a reason the log names*. Record what broke — something will.
+
+  > **Done 2026-09-12, four rehearsals, four things broke.** `release.yml` gained a
+  > `workflow_dispatch` rehearsal mode: same steps, same permissions, same OIDC
+  > identity, throwaway targets (`ghcr.io/maverickhq/valvur-rehearsal`, TestPyPI, a
+  > draft pre-release deleted on the way out) under `<version>.dev<run>`. But first:
+  > **the push itself found that CI had not run for twelve days and 68 commits**,
+  > and its last run had failed. Two tests were wrong on Linux — a macOS-only hint
+  > test that never said which platform it meant, and a runtime-detection test that
+  > looked only in macOS locations, whose skip the parity guard read as "dual-runtime
+  > unverified". Fixed; CI green for the first time since 2026-08-31. The e2e job
+  > and the self-scan gate had never fetched the database or the index; they do now,
+  > with the index cached between runs (restored: the update step took 21s instead
+  > of five minutes). Then the rehearsals:
+  >
+  > 1. **Attestation refused** — GitHub does not persist attestations for a
+  >    user-owned *private* repository. Skipped in rehearsals on a private repository,
+  >    with a warning; never skipped on a real release. **The one step still
+  >    unrehearsed**, until 12a.1 makes the repository public.
+  > 2. **SBOM `unauthorized`** — syft through the Docker socket had no credentials
+  >    for a fresh (private) GHCR package. Now the registry source with syft's own
+  >    auth variables, no socket, pinned to one platform. 2,227 components.
+  > 3. **TestPyPI `invalid-publisher`** — no trusted publisher exists there yet; an
+  >    owner action (`docs/RELEASING.md` §one-time setup, item 4), and the token's
+  >    claims to configure it against are in the run log. Allowed to fail without
+  >    stopping the rehearsal, so the release step after it runs; the report at the
+  >    end turns the run red until it passes.
+  > 4. **The cleanup step lied** — "no release to remove" for a draft it had just
+  >    removed, because a draft has no tag for `--cleanup-tag` to clean. Split;
+  >    the fourth rehearsal reported "removed draft release rehearsal-4" and "no
+  >    tag to remove (a draft never creates one)", and left nothing behind.
+  >
+  > **Proven:** verify job end to end (6m30s: `verify.sh`, image build, DB + index,
+  > the whole suite including e2e, F10.4, the self-scan gate — clean); the
+  > multi-architecture push (4m36s, both platforms asserted on the published index);
+  > keyless signing — verified from this machine with the README's exact `cosign
+  > verify` command, identity `release.yml@refs/heads/main`, Rekor entry present;
+  > SBOMs in both formats; `uv build`; the GitHub release with all assets attached
+  > (as a draft, then deleted, no tag left behind). Multi-arch build 4.5 minutes,
+  > whole rehearsal ~12. Four scratch image tags remain in
+  > `ghcr.io/maverickhq/valvur-rehearsal` as evidence.
+
+- [x] **22.B.2** Write the partial-failure runbook into `docs/RELEASING.md`. The
+  workflow pushes the image, then publishes to PyPI. State what to do when the image
+  is pushed and PyPI fails, when PyPI succeeds and the GitHub release fails, and when
+  a tag has to be re-run. There is currently no rollback story of any kind.
+
+  > **Done 2026-09-12.** A table by the step it stopped in: what exists, what to do.
+  > Fix forward throughout; the one case where moving the tag is right (nothing
+  > left the runner); the dangerous state named (an unsigned image under a real
+  > tag) with the order of operations to leave it; `gh run rerun --failed` as the
+  > re-run path and why a whole re-run of a tag that reached PyPI fails correctly;
+  > the `release` environment as the manual brake. Written before the rehearsals and
+  > checked against what they showed: the states in the table are the ones the
+  > workflow can actually stop in.
+
+- [x] **22.B.3** Stand up a real mirror and run air-gapped. `VALVUR_DB_REPOSITORY` is
+  documented in two places and has never been exercised. Point it at a local OCI
+  registry, cut the network, and confirm `valvur update` and a `full`-equivalent scan
+  complete. After 22.A.2, the name index needs the same treatment.
+
+  > **Done 2026-09-12 — and the documented setting did not work on its own.** A
+  > `registry:2` on a Docker `--internal` network (no route out: structural, not a
+  > firewall rule), the Trivy DB copied in with `oras`, and `VALVUR_DB_REPOSITORY`
+  > pointed at it: *"server gave HTTP response to HTTPS client"*. Trivy assumes TLS
+  > for anything that is not `localhost` or a private-range IP literal. Three
+  > settings that did not exist that morning: `VALVUR_DB_INSECURE=1` (Trivy's
+  > `--insecure`), `VALVUR_CONTAINER_NETWORK` (the update container joins the
+  > mirror's network; never applied to a `--network=none` container, asserted), and
+  > `VALVUR_KEV_URL` — KEV was the one fetch with no mirror at all, so an air-gapped
+  > `valvur update` always tried cisa.gov. The index mirror is `VALVUR_NAME_INDEX_URL`:
+  > the three files served verbatim by any static server, `built_at` preserved so the
+  > reported age is the data's (F6.11); truncated or non-index mirrors refused.
+  > `scripts/verify-mirror.py` runs update + offline scan with every connection
+  > outside the mirrors refused as an air gap would refuse it, and judges the
+  > attempts. Result from a fresh cache: update complete (DB via the internal
+  > registry — 8 GETs in its log — index and KEV via loopback), offline scan complete
+  > with 76 findings, `what_left_the_machine: nothing`, no attempt beyond loopback.
+  > "`full`-equivalent" is the wrong phrase: `full` reaches api.osv.dev and FIRST by
+  > definition; what an air-gapped site runs is `offline`, which since 22.A.2
+  > includes the hallucination check. Recipe in `docs/RELEASING.md`; settings in the
+  > README's air-gap section (moved to `docs/AIR-GAPPED.md` in 22.F.1).
+
+- [x] **22.B.4** Measure the true first run and publish the least flattering number.
+  From a clean machine: bytes downloaded (image, database, index), wall-clock to the
+  first result, and what the user is staring at while it happens. Put it in
+  `EVALUATING.md`. The honesty document should carry the number a competitor would
+  quote, before they do.
+
+  > **Done 2026-09-12.** From an empty cache on this Mac: image 321MB compressed as
+  > published (`0.1.0rc1`, and single-arch — the known defect) or ~240MB from the
+  > current tree; `valvur update` **6m27s** and **276MB** (Trivy DB 118,357,868
+  > bytes by its manifest, npm names 146MB in 439 requests, PyPI 10MB, KEV 2MB);
+  > first scan **45s** on `broken-repo` (Checkov runs — Terraform is present;
+  > measured identical with the pre-Block-A image, so not a Block A cost). **About
+  > eight minutes to a first result on 100 Mbit, most of it npm.** In `EVALUATING.md`
+  > §1 as a table with the "what you are staring at" column the task asked for, and
+  > the one sentence that matters: a valvur-published index is what moves this
+  > number next, and it waits on Block B.
+
+### C — Build guards
+
+- [x] **22.C.1** A local image-staleness guard. The rebuild trap bit four times in
+  three days: Checks and rules ship *inside* the image (ADR-0013), so unit tests pass
+  while a real scan runs yesterday's code. CONTRIBUTING documents it; documentation
+  is not a guard. `scripts/verify.sh image` hashes `src/valvur/checks/`, `rules/` and
+  the `Dockerfile`, compares against a label baked into the local image at build
+  time, and fails with the rebuild command.
+
+  > **Done 2026-09-12 — a fifth bite first.** During Block B the previous image,
+  > run with the new shim, crashed its Check in-container; F1.9 saw two identical
+  > versions. Two deviations from the task as written, both for the same reason:
+  > **one module computes the digest on both sides.** `src/valvur/tree_hash.py` runs
+  > inside the Dockerfile (`python -m valvur.tree_hash --image`, stored at
+  > `/etc/valvur/inputs.sha256`) and on the host over the tree, so the two can only
+  > disagree because the inputs do — a label cannot be computed during a build, and a
+  > `--build-arg` at every call site is the 19.A.3 drift again. And the digest covers
+  > all of `src/valvur/`, not only `checks/`: the Check imports `name_index`,
+  > `exclusions`, `ecosystems`, all of which ship in the image. Keyed by label, not
+  > path, so `src/valvur/x.py` and its site-packages copy hash alike; `__pycache__`
+  > and `.pyc` excluded on both sides (the image strips them, the host has them
+  > everywhere). Verified: in-image and tree digests identical on a fresh build; a
+  > one-line edit to a rule fails with the rebuild command; an image predating the
+  > guard fails as such. Two consumers: `scripts/verify.sh image` (opt-in, needs a
+  > runtime; the script says when it was not run) and the first e2e test, which is
+  > where the trap bites — CI's e2e job passes it because it builds what it tests.
+  > A test pins the input set to exactly the Dockerfile's `COPY` lines, so a new
+  > `COPY` widens the guard or fails the suite. Two things found on the way: the
+  > checkov layer sat *after* our `COPY`s, so every Check edit re-ran a 60-second pip
+  > install (reordered); and there was no `.dockerignore` — the build context was
+  > 124MB, of which the Dockerfile copies under 1MB (added).
+
+- [x] **22.C.2** Cite the 24 tolerated requirements and take the ratchet to zero. They
+  are mostly *core* — F2.1 (orchestrate the Scanners), F7.1 (write the Results
+  Folder), F8.1 (read Suppressions), F10.2 (non-root) — uncited because nobody wrote
+  `# F7.1` beside obvious code, not because they are unmet. A tolerated count that
+  never shrinks is a number nobody reads.
+
+  > **Done 2026-09-12 — 0 uncited, 0 orphan ADRs, and the premise was wrong for
+  > three of the 24.** Twenty-one were exactly as described: obvious code nobody had
+  > annotated, now cited where the behaviour lives (the Finding model, the
+  > fingerprint classes, the status diff, the enrichment provider, the machine
+  > header, the results writer, the runner's container flags, the parity tests, the
+  > Dockerfile pin test). Three were not:
+  >
+  > - **F7.3 was uncited because it is unimplemented** — valvur does not add
+  >   `.security-scan/` to the scanned project's root `.gitignore`, and CLAUDE.md
+  >   section 7 said it did. It must not: that is a write to a tracked file in the
+  >   scanned tree (section 10, moat item 2). **Retired** in `requirements.md` with
+  >   the reason, the ID kept; CLAUDE.md corrected; ADR-0011's scope clarified (its
+  >   root-`.gitignore` layer is this repository's own hygiene, not something valvur
+  >   does to a Workspace).
+  > - **F3.3 is half met** — age yes, adoption no; PyPI has no download counts
+  >   without a third-party service (F1.7, ADR-0008). **F3.4 is met by proxy** —
+  >   top-3,000 membership, not a 100× download ratio, and PyPI only. Both cited by
+  >   the code implementing the half it implements, and both carry a note in
+  >   `requirements.md` saying which half, because the ratchet cannot tell.
+  >
+  > The eight orphan ADRs each gained a **Requirements** line naming what they
+  > decided about. Baseline re-recorded empty, so the ratchet is now a hard check:
+  > mutating one citation away fails it (`::error::new requirement cited nowhere:
+  > F8.1`). Rebuilt the image afterwards — the citations changed `src/valvur/`, and
+  > 22.C.1's guard said so before anything else did.
+
+  > **What the ratchet cannot do, stated so nobody expects it to.** 19.D.1 proved that
+  > citation is not satisfaction: F3.1 was cited by code implementing a tenth of it. The
+  > ratchet catches a requirement losing its last citation. It will never catch one
+  > that is cited and unmet. The corpus (Block E) is the tool for that.
+
+### D — Architecture sediment
+
+Three days of blocks added stages by inserting them. It works. It is also where the
+next ordering bug lives — Block 2 already had one, when exclusions were loaded after
+the coverage gap that needed them.
+
+- [x] **22.D.1** Name the pipeline. `api.py::_scan_locked` is 120 lines of
+  coverage → licence → vendored → configured → merge → gitcontext → enrich →
+  suppress → rank → write, inline. Make it a list of named stages, and pin their
+  order with a test that fails when one moves.
+
+  > **Done 2026-09-12.** `src/valvur/pipeline.py`: ten `Stage`s in a tuple, each a
+  > pure function of the Findings and a `Context`, each carrying `why_here` — the
+  > constraint its position encodes, kept beside the code because a constraint in a
+  > commit message is one the next insertion does not see. `write` is not a stage;
+  > `diff` is the last one, so Status is computed over the final set. Behaviour
+  > unchanged: the suite passed as-is after the switch. `tests/test_pipeline.py`
+  > pins the order outright, and pins the reasons: swapping `coverage`/`configured`
+  > fails the exclusions test Block 2's bug would have failed; swapping
+  > `vendored`/`merged` fails a duplicate that survives by merging. Five swaps
+  > mutated, five caught; two by the order test alone, which is what it is for.
+
+- [x] **22.D.2** `results.py` accepts a `ScanRun` and nothing else. `_summary` is
+  190 lines with **34 `getattr(run, …, default)` calls**, defending against a
+  dataclass whose fields are always populated — the tests pass duck-typed stubs, and
+  the production code grew defensive against a case that cannot occur. Give the tests
+  a real `ScanRun` and delete every `getattr`.
+
+  > **Done 2026-09-12.** 38, not 34, plus two in `cli.py`; all deleted, every entry
+  > point typed `run: ScanRun` (annotation-only import — `api` imports `results`).
+  > The premise was nearly right: 51 of 52 test call sites already built a real
+  > `ScanRun`; the one duck-typed `Run` was the ten-thousand-findings cap test, and
+  > it is the reason the defaults could never be removed before. The two `getattr`s
+  > on `runner` stay — fake runners are a real duck-typed boundary.
+
+- [x] **22.D.3** Coverage belongs to the Check. `CheckAdapter.coverage()` special-cases
+  `if self.name != "dependency-reality"` — the adapter knows a Check's name, which is
+  the boundary ADR-0013 drew being crossed in the wrong direction. Put `coverage()` on
+  the Check protocol; the adapter forwards.
+
+  > **Done 2026-09-12.** `Check.coverage(workspace, exclude, *, network)` with the
+  > empty default, inherited by the two Checks that declare nothing; dependency-
+  > reality's contract moved onto the Check; the adapter looks the Check up in the
+  > registry and forwards, network grant included. A test asserts the adapter's
+  > source names no Check. Host-side, like before: coverage is a static statement
+  > about files, and needs no container.
+
+- [x] **22.D.4** `status_reason`. `inconclusive` now has two causes — a stale
+  database, an uninspected ecosystem — and after 22.A.2 a third, a stale index. An
+  agent that wants to say *why* has to reconstruct it from `database.stale` and
+  `findings.not_covered`. One field, one line, and the MCP `scan_status` message
+  stops guessing.
+
+  > **Done 2026-09-12.** `ScanRun.doubts` — every reason a nil result is not
+  > evidence, as a list; `status` derives from it — and `ScanRun.status_reason`,
+  > one line for all three statuses. Carried in `run.json` and `findings.json`,
+  > used verbatim by the `SUMMARY.md` verdict sentence and the MCP `scan_status`
+  > and `start_scan` replies. The guessing it replaced was wrong in a case nobody
+  > had hit: a run with a stale database, a stale index *and* an uninspected
+  > ecosystem named only the first. A `run.json` from before this says "reason not
+  > recorded; rescan" rather than being guessed at. Verified on real scans: a
+  > Rust-only project reads the identical sentence in all three places. Three
+  > mutations, three caught.
+
+### E — Corpus and rules
+
+- [x] **22.E.1** A public, committed corpus. The local corpus found three false
+  positives in an hour — two of them introduced by the block before, with every test
+  passing — and was then deleted because it held private repositories and a live
+  credential. There is nothing between a future change and a user except seven small
+  fixture directories. Assemble ten real-shaped, permissively-licensed repositories
+  under `tests/corpus/`, and run them weekly in CI with the 19.F.5 success conditions:
+  no Scanner failures, every omission named, no confusing status, no false positives
+  from valvur itself.
+
+  > **Done 2026-09-12 — and it found a defect on its first run, like the private one
+  > did.** Eleven repositories, not ten: requests, flask, llm (AGENTS.md), express,
+  > fastify, cobra, gson, ripgrep, terraform-aws-vpc, sinatra, and awesome-cursorrules
+  > (hundreds of real `.cursorrules`, the AI Artifact Check's false-positive test).
+  > **Pinned by commit in `tests/corpus/corpus.toml`; the bytes are fetched, not
+  > committed** — `scripts/corpus.py fetch` does a depth-1 fetch of the SHA into an
+  > ignored, self-scan-excluded directory (38MB). Ten real projects in our history
+  > forever, and in every self-scan, is the wrong trade; the pins and the expectations
+  > are the corpus and the bytes follow from them. `scripts/corpus.py run` scans and
+  > judges the four conditions, names every failure, writes `report.json`;
+  > `.github/workflows/corpus.yml` runs it weekly on both Profiles and on dispatch.
+  >
+  > **The finding: Express read `clean` with thirty dependencies never checked.** It
+  > commits no lockfile, and Trivy produces no result — not zero, none — for
+  > `package.json` alone. Measured the same for `pyproject.toml`, `Gemfile` and
+  > `Cargo.toml`; `requirements.txt`, `go.mod` and `pom.xml` scan on their own.
+  > Now `ecosystems.VULNERABILITY_MANIFESTS` records what was measured, the Trivy
+  > adapter declares it through the coverage contract, and a manifest with nothing
+  > Trivy reads beside it is a coverage note (`valvur.dependency.vulnerabilities-
+  > unchecked`) that makes a nil result `inconclusive` — Express and fastify both
+  > read that way now, with the reason. The judge checks that condition too, and
+  > learned on the second run that an *empty* lockfile is not silence (awesome-
+  > cursorrules' `pnpm-lock.yaml`). Both Profiles pass: eleven of eleven, no
+  > suspect finding from any of valvur's own Checks on any real project, on `full`
+  > included — every Go module and Maven coordinate verified to exist.
+
+- [x] **22.E.2** Measure the eleven rules. `rules/` holds 4 LLM-output-to-sink, 5
+  Python and 2 pinning rules — the whole of *"targeted checks for AI-specific risks"*
+  in SAST form. Run them over the corpus and count hits, false positives and misses
+  against what a reviewer would expect. Then decide, with numbers: which to keep,
+  which to fix, and whether the positioning is carried by these or by the
+  agent-config and hidden-Unicode Checks, which are the genuinely novel ones.
+
+  > **Done 2026-09-12. The numbers, on eleven real projects:**
+  >
+  > | rule | hits | a reviewer would accept | verdict |
+  > |---|---|---|---|
+  > | `pinning.mutable-action-ref` | 64 | 64 — every one a tag-pinned action | true, and the majority of ALL findings on four repos (cobra 10/11, ripgrep 15/17); **WARNING → INFO** so it ranks last |
+  > | `python.weak-hash` | 7 | 0 — cache keys, content ids, HMAC-SHA1; **3 carried `usedforsecurity=False`** | **fixed** (pattern-not on the flag) and INFO; 7 → 4 |
+  > | `python.dangerous-eval` / `-exec` | 3 | 0 — Flask's PYTHONSTARTUP and config loader, `llm` loading user-written tools: the feature | **kept as a sink inventory at INFO**, reworded: the `valvur.llm.*` rules report the flow, this names the sink |
+  > | `python.subprocess-shell-true` | 1 | 0 — `Popen("git describe", shell=True)`, a constant | **fixed** (pattern-not on a literal command); 1 → 0 |
+  > | `python.insecure-yaml-load`, `pinning.mutable-git-ref`, `js.output-to-innerhtml`, the four `llm.output-to-*` | 0 | — | unmeasurable here: no true positive exists in the corpus, including in `simonw/llm`, which does not execute model output. Unchanged; the fixture proves they fire. |
+  >
+  > 75 rule findings became 71, every one of them now `low`, and the corpus produced
+  > **zero high- or medium-severity findings from our own rules** — because the only
+  > rules that stayed at ERROR are the ones that never fired on real code. The
+  > canary floor holds (broken-repo still yields 14).
+  >
+  > **The positioning is not carried by these rules.** Eleven repositories, and the
+  > SAST half produced no finding a reviewer would act on. What did carry it: the
+  > dependency-reality Check verified every declared dependency of every project,
+  > on both Profiles, and was right every time — silently, which is the point — and
+  > its coverage machinery found the Express lockfile gap (22.E.1); the AI Artifact
+  > Check read hundreds of real `.cursorrules` and one real `AGENTS.md` and reported
+  > nothing false. The rules are a small honest supplement — the sink half of a
+  > taint story whose flow half has no corpus evidence yet. `CLAUDE.md` §1 and the
+  > README say so now; the "eleven rules" are not the product.
+
+### F — The first impression
+
+- [x] **22.F.1** Halve the README. It is 408 lines. The record of being wrong in
+  public is persuasive to exactly the right reader and a wall to everyone else.
+  `EVALUATING.md` is the audit; the README should be the introduction, and point
+  there. Keep the three claims, the two snippets, the platform table and the
+  what-it-is-not list. Move the rest.
+
+  > **Done 2026-09-12: 464 → 190 lines.** It had grown to 464 since the task was
+  > written — Blocks A, B and E each added a blockquote. Kept: the three claims,
+  > each with the one command that verifies it; the MCP config and the agent
+  > snippet; the results tree; the scanner credit table (P4); what-it-is-not; the
+  > platform table. The five coverage blockquotes under claim 2 became one
+  > three-row table — *exists? / known CVEs?* per ecosystem — which says the same
+  > thing in a tenth of the space and leads with the Checks, as 22.E.2 concluded it
+  > should. Moved: the air-gap recipe and its five settings to a new
+  > `docs/AIR-GAPPED.md`; the comparison table, the corrected coverage detail
+  > (existence offline / JVM-Go on full / the lockfile gap), the SELinux commands,
+  > the Fargate non-claim and the agent-snippet lesson into `EVALUATING.md`, whose
+  > §5 had gone stale on all of them. The first-run table was already there.
+  > Nothing was deleted; every sentence that left the README has a home the README
+  > points at.
+
+### G — Environment-gated
+
+- [x] **22.G.1** Kiro. Named as a primary client in every document; never run. Task
+  10.2's claim 1. Needs Kiro installed; the harness from 10.2.5 is reusable as-is.
+
+  > **Done 2026-09-12 — claim 1 holds, and the run found a defect in the published
+  > rc.** Kiro 0.12.333 was installed after all. A scratch copy of `broken-repo` with
+  > the README's exact block in `.kiro/settings/mcp.json`; the harness was not
+  > reusable (Kiro has no `-p`), so the owner sent one prompt and the record was read
+  > from Kiro's logs and session store. **Before sign-in nothing happens**: the agent,
+  > and with it every MCP server, does not initialise (`No valid token found`); the
+  > user setting `kiroAgent.configureMCP: Disabled` would also have stopped it, and a
+  > workspace `.vscode/settings.json` overrides that — both now in `EVALUATING.md`.
+  > **1.6s after sign-in:** `uvx --from valvur valvur-mcp` spawned (PyPI `0.1.0rc1`,
+  > resolved through Kiro's login-shell PATH), *"Connected to server with transport:
+  > stdio … Successfully connected and synced tools"*. Then: `scan` (consent asked,
+  > then auto-approved) → `scan_status` ×10 → `list_findings` → a correct answer that
+  > led with **"Status: INCOMPLETE (one scanner failed)"**, named the injection, the
+  > hidden Unicode and the KEV-listed Pillow CVE, and asked before doing more. 58s
+  > scan, 13 model calls, 1.00 credit.
+  >
+  > **What it found.** The rc's shim has `IMAGE = "valvur:dev"` hard-coded — it never
+  > pulls the published image, so a fresh install's first scan fails "not found";
+  > here it picked up today's dev build, a shim/image mismatch F1.9 could not see
+  > (both say `0.1.0rc1`), and dependency-reality failed with the new `IndexMissing`
+  > message inside the old shim. 12a.2 fixed the derivation without ever naming the
+  > published consequence; the CHANGELOG does now. And the ten polls: 0.65 of the
+  > 1.00 credit — two thirds of the scan's cost was `scan_status` returning
+  > instantly, the same defect 10.2.5 measured in Claude Code (14 polls), now
+  > measured in a second client and priced. The agent also chose `profile:
+  > "standard"` — the retired name, which is what the rc's schema offers; it
+  > resolves (ADR-0016). Cosmetic: uvx's *"Installed 1 package"* on stderr shows as
+  > a warning in Kiro's MCP log. Claim 4 (the image-pull message) stays untested —
+  > the image was local. Claim 3 gains evidence: Kiro surfaces a server's stderr, so
+  > a server that died at startup would be visible there.
+
+- [x] **22.G.2** Confirm Dependabot's `uv` ecosystem actually opens a pull request.
+  Switched from `pip` in Block 1 on the strength of documentation; cannot run until
+  the repository is public.
+
+  > **Done 2026-09-12, and the premise was wrong: it did not need a public
+  > repository.** The first push in twelve days (22.B.1) triggered all three
+  > Dependabot ecosystems on the private repository. The `uv` job parsed `uv.lock`,
+  > checked pytest, ruff, mypy, jsonschema and hatchling against PyPI and reported
+  > "No update needed" for each — every pin was current, so no pull request, which
+  > is the correct outcome rather than a missing one. The `github_actions` and
+  > `docker` ecosystems opened three PRs the same minute, so the mechanism as a
+  > whole is proven; the `uv` half is proven up to the point of needing an update.
+
+**Exit:** the default Profile reports a hallucinated package with no socket; the
+release workflow has run once somewhere that does not matter; a stranger's first
+minute is measured and published; and the next silent regression is caught by a
+corpus, not a user.
+
+**Commit:** *(one per block, as before)*
+
+---
+
+## Phase 23 — What the second client showed
+
+**Goal:** turn the record of one real agent driving the published rc — and the
+measurements taken around it — into the five moves that change what a stranger meets
+in their first ten minutes, in the order that each unblocks the next.
+
+> **Added 2026-09-12 from a review of build, deploy, operations, architecture and
+> functionality, grounded in the Kiro run (22.G.1).** The evidence, so the order is
+> auditable: 13 model calls, **1.00 credit, 0.65 of it polling**; 58s on a 12-file
+> fixture (28s with the current shim — Checkov 27.9s, Opengrep 18.4s, everything else
+> done by 11s); the failure reason truncated at 80 characters in `scan_status`; no
+> timing anywhere in provenance; no way for the agent to stop a scan; the image pulled
+> on the first *scan* rather than on `update` (claim 4, still untested); the Check
+> that exists for agent files unable to see `.kiro/` in a Kiro workspace; and a shim
+> on PyPI that looks for a local `valvur:dev` and can never have worked for anyone.
+> Measured the same evening: 191MB of the 576MB image is Checkov's site-packages,
+> installed unpinned into valvur's own interpreter; `rubygems.org/names` is 196,830
+> names in 2.8MB and Packagist's `list.json` 461,636 in 12MB, each one request —
+> two of the three "no existence check" ecosystems are an afternoon from offline.
+>
+> **Nothing here contradicts a locked decision.** Blocks 2 and 3 are the two that
+> change the first ten minutes, which is what 10.1 is about to measure — so they
+> come before the gate, and Block 1 comes before everything because until it lands
+> the only version anyone can install does not work.
+
+```
+Block 1  0.2.0                          ─── owner actions; unblocks everything
+        ↓                                    (✅ 2026-09-13 — published)
+Block 2  the published index            ─┐  BEFORE the usability gate (10.1):
+Block 3  valvur doctor                  ─┘  these two are the first ten minutes
+        ↓                                    (Block 2 ✅ 2026-09-12)
+10.1.1 · 10.1.2  the usability gate
+        ↓
+Block 4  build and architecture         ─┬─ independent; any order
+Block 5  the primary client's own files ─┘
+        ↓
+12b.1–3  → v1.0.0
+```
+
+> **Order superseded 2026-09-13.** The one list at the head of
+> [Phase 24](#phase-24--the-audit-and-one-list-of-everything-that-remains) now orders
+> every open task, this phase's included, and moved 23.4.1 ahead of the gate; the
+> diagram above is history.
+>
+> **Where this stands on 2026-09-12, evening.** Block 2 is complete — the four
+> tasks below carry their notes — and was run out of order with Block 1 because it
+> needs nothing from the owner to *build*, only to *reach users*. It kept the
+> pattern of every block before it: the real environment found what the unit suite
+> could not. The first real pull of the 34MB artifact found a chunk-boundary write
+> defect in the streaming reader (`cmp` caught it; a 300,000-name fixture now pins
+> it); the Rust task's premise — *"impossible per user"* — was wrong by a factor of
+> five, because nobody had measured where `crates.csv` sits in the dump; and the
+> first workflow run showed the shim's anonymous pull refused by the private
+> package, which added one line to Block 1's list. **Next is Block 3** (`valvur
+> doctor` first — 23.3.1), the last engineering before the usability gate; Block 1
+> remains the owner's, and now has four items rather than three.
+
+### 1 — `0.2.0`
+
+The published `0.1.0rc1` shim has `IMAGE = "valvur:dev"` hard-coded (found 22.G.1).
+It never pulls the published image; a fresh install's first scan fails "not found".
+Every day it is the only version on PyPI is a day the product is a broken link.
+
+- [x] **23.1.1** The owner actions, in order: repository public, package public
+  (12a.1); PyPI and TestPyPI trusted publishers for `release.yml` / environment
+  `release` (12a.7); branch protection (0.14). Then one more rehearsal — the TestPyPI
+  and attestation steps go green the moment the repository is public — and the tag.
+  *This is 21.A and 21.D.1 restated with the reason the review added; nothing new to
+  build.*
+
+  > **Done 2026-09-13 — `0.2.0` is published.** In the order it happened: a
+  > pre-public sweep found the AWS identifiers and led to the history rewrite
+  > (12a.1); the repository went public by API, the two packages by the owner's
+  > click; PyPI's publisher was configured by the owner and checked against the
+  > workflow's claims; branch protection and private vulnerability reporting by
+  > API. **Rehearsal #5**, the first on a public repository: SLSA attestation passed
+  > for the first time, TestPyPI said `invalid-publisher` — step 4 not yet done.
+  > **Rehearsal #6**, with the TestPyPI pending publisher in place: the OIDC
+  > exchange succeeded and the upload failed one line later — `InvalidDistribution:
+  > '2.5' is not a valid metadata version`. `uv build` writes core metadata 2.5 and
+  > the twine inside `pypa/gh-action-pypi-publish` v1.14.0 predates it; **the real
+  > release would have failed at its last step, after the image was pushed and
+  > signed.** The only step that runs twine's check is the TestPyPI upload, so the
+  > rehearsal that "was not really required" is the one that caught it. Fixed by
+  > pinning v1.14.2 (twine 7), folded into the release-prep PR because the required
+  > amd64 check cannot pass on a branch still declaring the arm64-only `0.1.0rc1`.
+  > GitHub then had a partial outage — dropped PR events, refused merges, a
+  > rehearsal stuck "queued" for 83 minutes and later reported as both queued and
+  > completed — so the prep landed by fast-forward and the rehearsal was
+  > re-dispatched once Actions recovered. **Rehearsal #7**: every step green,
+  > `valvur 0.2.0.dev11` on TestPyPI (which created the project and claimed the
+  > name), the image's signature and attestation re-verified from this machine,
+  > both architectures. Then the tag, on the owner's word: **`v0.2.0` on that same
+  > commit**, and the real run published in six minutes.
+  >
+  > **The stranger's first run, measured against the published release** (clean
+  > venv, empty cache, image removed, Apple silicon, Docker Desktop):
+  > `pip install valvur==0.2.0` **1.7s** · `valvur update` **53s** — the image
+  > (320MB, said and streamed), the database, KEV, and the published index pulled
+  > anonymously with `signature: verified` · first `valvur scan` of the broken
+  > fixture **33s**, 76 active findings, complete, `what_left_the_machine:
+  > nothing`. **About a minute and a half from nothing to a first result**, against
+  > eight minutes the day before Block 2. One thing the measurement found: on a
+  > Python without a CA bundle (python.org's macOS build before *Install
+  > Certificates.command*) every host-side fetch fails `CERTIFICATE_VERIFY_FAILED`
+  > — the image and database still arrive, because the runtime and Trivy fetch
+  > those, but KEV and the index do not, and the fallback walk fails the same way.
+  > The message names the cause; `valvur doctor` (23.3.1) gains the check.
+
+  > **One item added 2026-09-12, by Block 2:** the **`valvur-index` package must be
+  > made public too** — it was created private by the first run of `index.yml`. Until
+  > it is, every `valvur update` on every machine is refused anonymously and walks
+  > the five registries itself (the CI log on commit `051bdc7` shows it happening),
+  > so the "first run 8 min → about 1" that Block 2 built is not yet what anyone
+  > gets. Package settings → Danger Zone → Change visibility, as for the image.
+
+### 2 — The published index
+
+Eight minutes to a first result, five and a half of them walking npm, because the
+index is built on every user's machine. The walk exists because we have not published
+the index. The release pipeline exists now; this is the `trivy-db` pattern ADR-0018
+already named as the eventual answer.
+
+- [x] **23.2.1** A daily workflow builds the index (PyPI simple, npm `_all_docs` once
+  then `_changes`, and the three below) and pushes it as an OCI artifact —
+  `ghcr.io/maverickhq/valvur-index:latest` plus a dated tag — cosign-signed, with the
+  `built_at` per ecosystem in its metadata. `valvur update` pulls it (30–50MB, seconds)
+  and verifies the signature; the direct walk stays as the fallback and as what the
+  workflow itself runs. `VALVUR_INDEX_REPOSITORY` mirrors it the way
+  `VALVUR_DB_REPOSITORY` mirrors the database, and `docs/AIR-GAPPED.md` gains the row.
+  **First run 8 min → about 1.**
+
+  > **Done 2026-09-12.** `index.yml` (daily 03:23 UTC, and on dispatch): `python -m
+  > valvur.name_index build` — the same code as `valvur update --build-index` — then
+  > `oras push` with `metadata.json` as the config blob and one gzip layer per
+  > ecosystem, `cosign sign` under the workflow identity, then the artifact is pulled
+  > back with the shim's own client and `cmp`'d file by file against what was built,
+  > with cosign on the runner so the identity regexp is proven daily. **The shim's
+  > client is `valvur/oci.py`**, zero dependencies: resolve, manifest, blob, the
+  > anonymous bearer challenge and the CDN redirect — both measured against GHCR
+  > with `trivy-db:2` before writing a line, and both reproduced by a real
+  > `http.server` on loopback in the tests rather than a monkeypatch. Every byte is
+  > digest-checked; every file is checked for the sorted-list invariant the reader
+  > bisects on, as it streams. **Measured**: the real index is 34MB compressed
+  > (npm 25MB); pulled from a local `registry:2` in **1.7s**; pushed with the exact
+  > `oras` command the workflow uses. That first real pull found a defect the unit
+  > fixtures could not: every name fragment straddling a 1MB chunk boundary was
+  > written twice — `cmp` caught it, and a 300,000-name fixture now pins it.
+  > **Signature**: verified with `cosign` when installed, stated on one line when
+  > not, and a cosign that refuses is `SignatureInvalid` — never a fallback; the
+  > same run against the unsigned local artifact was refused with the message that
+  > names `cosign copy`/`oras cp --recursive`. Why not verify keylessly in the shim
+  > itself, and why not a pinned key, is in ADR-0018's amendment. Anonymous only,
+  > pinned by a test: no credential store, no `GITHUB_TOKEN`. `VALVUR_INDEX_
+  > REPOSITORY` set explicitly is the only source tried; unset, an unreachable
+  > registry falls back to the walk, loudly — and the walk, being 400MB now, skips
+  > any registry it walked within twenty hours unless `--build-index` forces it,
+  > which is what keeps four CI jobs a push from re-streaming the crates dump.
+  > **Until the owner makes the package
+  > public (23.1.1), every user's update takes the fallback** — the workflow warns
+  > about exactly that and checks the round trip with authenticated tools instead.
+  > **First run, dispatched the same evening** (run 34714322697): built in 4m28s
+  > (npm walked in full, no cache yet), pushed `ghcr.io/maverickhq/valvur-index:
+  > 2026-09-12` = `latest` @ `sha256:2788b2a6…`, signed; the shim's anonymous
+  > pull was refused as predicted (*"the registry demands credentials and valvur
+  > pulls anonymously (is the package public?)"*), the authenticated `oras pull`
+  > matched all five files byte for byte, and `cosign verify` bound the digest to
+  > `…/.github/workflows/index.yml@refs/heads/main` at commit `6b372ae` — the
+  > Rekor entry names that SHA, which the history rewrite of 2026-09-13 (below,
+  > under 12a.1) replaced with `051bdc7`; the signature stays valid, the artifact
+  > digest is unchanged, and the old SHA is what the log will always say. The CI
+  > run on the same push shows the other side: `update` refused anonymously, fell
+  > back, and skipped every registry as walked within the day.
+
+- [x] **23.2.2** Ruby and PHP offline. `rubygems.org/names` (196,830 names, 2.8MB) and
+  `packagist.org/packages/list.json` (461,636, 12MB) are each one request and drop
+  straight into `name_index.FILES`; a `Gemfile`/`*.gemspec` parser and a
+  `composer.json` parser join `dependency_reality.py`. The coverage table goes from two
+  ecosystems offline to four, and the corpus's sinatra note changes from "no existence
+  check" to a checked project.
+
+  > **Done 2026-09-12.** Measured before deciding the stored form: RubyGems is
+  > **case-sensitive** (`rails.json` 200, `Rails.json` 404), so gem names are stored
+  > and looked up as spelled and `gem "Rails"` is reported nonexistent, which is what
+  > `bundle install` would say; Packagist is case-insensitive and lowercase by rule.
+  > The Gemfile parser reads lines, not Ruby: `gem` with its options (`git:`,
+  > `github:`, `path:`, `source:` and the `:git =>` spellings skip), and a block
+  > stack so gems inside `source "…" do` (a private server), `path … do` and
+  > `git … do` are skipped while `group`/`platforms` blocks are transparent;
+  > gemspecs contribute `add_dependency`/`add_runtime_dependency`/
+  > `add_development_dependency` and define their own gem. The composer parser
+  > reads `require`/`require-dev`, skips platform packages (no vendor), and treats
+  > the `repositories` a manifest points at — `vcs`/`git` by URL, `path`, `package`
+  > by name — as defined locally, because a private library required that way is
+  > not a hallucination. On `full`, age from every gem version's `created_at` and
+  > from Composer 2's minified `p2` metadata, expanded (a missing `time` means
+  > "same as before"). **Proven in the real image**: sinatra (git: and github:
+  > sources, groups, gemspecs) and monolog — added to the corpus as its first PHP
+  > project — scan offline with no false nonexistent; a workspace with
+  > `rails-ai-helper-sdk` and `acme/llm-composer-bridge` reports both, `what_left_
+  > the_machine: nothing`. Every assertion mutation-tested (nine killed).
+
+- [x] **23.2.3** Rust, through the published index only. crates.io's daily dump is
+  1.86GB — fine for the workflow, impossible per user — and `crates.csv` inside it is
+  the name list. `Cargo.toml` parser; `FILES["cargo"]`; the coverage contract says
+  "offline, from the published index" and `valvur update` without the published index
+  says Rust is unavailable rather than walking anything.
+
+  > **Done 2026-09-12 — and the premise was wrong, which measuring found.**
+  > `data/crates.csv` is the archive's *third* member, after 2MB of README and SQL,
+  > so a streaming reader reaches it at once and stops when it ends: **381MB read of
+  > the 1.86GB, 17.5 seconds, 91MB of memory, 332,494 names** (the CSV carries every
+  > crate's README — fields past the `csv` module's limit — and only the `name`
+  > column is kept). That is 2.6× npm's walk in bytes and a tenth of it in time, so
+  > Rust is walked like the other four: `valvur update --build-index` builds all
+  > five, there is no "published only" ecosystem, and the "unavailable" message this
+  > task specified was never needed. crates.io folds case and `-`/`_` (`Serde` and
+  > `serde-json` both answer with the underscore form) and the dump has no two
+  > names that collide under the fold, so `serde-json` in a manifest and
+  > `serde_json` in the index are the same crate. The parser reads `[dependencies]`,
+  > `[dev-dependencies]`, `[build-dependencies]`, the same under any `[target.…]`,
+  > and `[workspace.dependencies]`; `path`/`git`/`registry` entries and
+  > `workspace = true` skip; `package = "real"` names the crate that has to exist;
+  > every `[package].name` in the tree is local. **Proven in the real image**:
+  > ripgrep — a workspace of many members and path dependencies — scans offline with
+  > no false nonexistent, and `tokio-ai-agent-runtime` is reported. On `full`, age
+  > from `crate.created_at`.
+
+- [x] **23.2.4** `valvur update` pulls the image too, and `scan_status` says *"pulling
+  ghcr.io/…:0.2.0 (240MB)"* when the image is not local — checked with
+  `image inspect` before the first launch. Claim 4 of 10.2 becomes testable, and is
+  tested: remove the local image, run the harness, read the status line.
+
+  > **Done 2026-09-12.** `ContainerRunner.image_present()` (`image inspect`, ms),
+  > `pull_size_mb()` (the registry's manifest through the same `oci.py` client —
+  > the platform's layers summed from the image index; measured against
+  > `ghcr.io/aquasecurity/trivy:0.65.0`, a real multi-platform image: 53MB for
+  > arm64 in 0.9s, anonymously; None rather than a guess when the registry cannot
+  > say, which a private package cannot) and `pull_image()` (`<runtime> pull`,
+  > streamed line by line to the terminal for `update`, captured for a scan).
+  > `api._scan_locked` asks first — *before* `compat.check`, which reads no label
+  > from a missing image and passes — and a scan over MCP reports `pulling <image>
+  > (<n>MB) — the first run only` as its own `Now:` line on `scan_status`, then
+  > `image pulled (Ns)` among the completed stages; the CLI prints the same two
+  > lines to stderr. `valvur update` pulls before the database, because the
+  > database update runs Trivy inside the image and was pulling it silently under
+  > Trivy's name. A failed pull is `ImagePullFailed` with the runtime's own words
+  > and the `pull` command to run by hand. **Measured as the task asked**: the
+  > image deleted (`docker rmi` + prune, 1.6GB reclaimed), `valvur-mcp` driven over
+  > stdio with `VALVUR_IMAGE` pointed at a registry on the Docker VM's own network
+  > — `image inspect` said absent, the pull ran, and the first `scan_status` (after
+  > its 15s wait) read `Completed so far: image pulled (2s), checkov: ok, …`. The
+  > pull took two seconds because the registry was VM-local; from GHCR at 100 Mbit
+  > it is ~26s, so the first poll would still be inside it and read `Now: pulling
+  > …` — that rendering is pinned by a unit test with a slow fake pull. The size
+  > was absent on that line, honestly: the shim on the Mac could not reach the
+  > VM-local registry's manifest, and the private GHCR package answers 401, so the
+  > sized form of the line is measured against trivy's public image and will show
+  > for valvur's the day the package is public.
+
+### 3 — `valvur doctor`
+
+Every first-run failure this session was a precondition: rc1's missing image, no
+database, no index, Kiro's MCP disabled, Kiro not signed in, SELinux. Each surfaced
+as a failed scan, or as silence. A command that checks them in two seconds and names
+the fix for each is the difference between a stranger's first ten minutes and their
+last.
+
+- [x] **23.3.1** `valvur doctor`: container runtime found and version; image present
+  and its build digest against the shim's (see 23.4.4); database present and age;
+  index present, age, ecosystems; SELinux enforcing and whether the tree is labelled;
+  which Profile can reach what (a DNS probe per registry, only when asked); MCP client
+  configuration detected — Claude Code (`.mcp.json`, `~/.claude.json`) and Kiro
+  (`.kiro/settings/mcp.json`, `kiroAgent.configureMCP`) — with the server named and
+  enabled or not; and, added by the `0.2.0` first-run measurement (23.1.1), **whether
+  this interpreter can verify TLS at all** — python.org's macOS build has no CA
+  bundle until *Install Certificates.command* is run, and every host-side fetch
+  fails `CERTIFICATE_VERIFY_FAILED` while `pip` (which bundles certifi) works. One
+  line per check, the fix on the failing ones, exit non-zero if
+  any would fail a scan. Also an MCP tool, so an agent runs it *before* `scan` — and
+  the `scan_status` failure branch says so.
+
+  **STATUS 2026-09-13:** ✅ `src/valvur/doctor.py`: nine checks in the order a scan
+  meets them, each a probe small enough to test against the real thing once and a
+  report tested against a healthy machine with one thing broken at a time. **The
+  TLS check is a count, not a request:** `ssl.create_default_context()
+  .cert_store_stats()["x509_ca"]` — measured 0 on python.org's 3.10 and 3.12, 128 on
+  every interpreter that could fetch — so it needs no socket; it is `fail` when the
+  database or the index is absent (the first scan's fetch is next) and `warn` when
+  the cache is filled (this scan runs; `valvur update` will not). **The runtime
+  check runs `info`**, because `image inspect` fails the same way for a stopped
+  daemon as for a missing image, and a doctor that said "the first scan pulls it"
+  to someone whose Docker Desktop is closed would be wrong. **The image check
+  starts a container** (`--network=none`, `cat` of the build-digest file, 2–5s):
+  presence, the F1.9 version label against the shim's, and that the runtime, the
+  image and this architecture actually work together — the digest itself is
+  reported for information until 23.4.4 gives the shim one to compare. Database
+  and index: absent is `info` since 24.1 (the first scan fetches them), stale is
+  `warn` with the threshold that makes a scan `inconclusive`, and an index missing
+  an ecosystem's list names which. SELinux: on an enforcing host the tree's
+  context via `os.getxattr`, `fail` with 20.1's measured `chcon` line unless it is
+  `container_file_t` or `VALVUR_SELINUX_RELABEL=1`. MCP clients: `.mcp.json`,
+  `~/.claude.json` (top level and `projects[<this path>]`), `.claude/settings*.json`'s
+  `disabledMcpjsonServers`, `.kiro/settings/mcp.json` (workspace and user) with its
+  `disabled` flag, and `kiroAgent.configureMCP` in `.vscode/settings.json` and Kiro's
+  user settings — on this project's own machine it found the latter set to
+  *Disabled*, which no scan would ever have said. `--network` (MCP: `network: true`)
+  is one bounded 3s TCP connect per host, in two groups — what a first run and
+  `valvur update` reach (the image's registry, Trivy's first default `mirror.gcr.io`,
+  the index's `ghcr.io`, `www.cisa.gov`), each replaced by the operator's mirror
+  when `VALVUR_IMAGE`, `VALVUR_DB_REPOSITORY`, `VALVUR_INDEX_REPOSITORY` /
+  `VALVUR_NAME_INDEX_URL` or `VALVUR_KEV_URL` names one, and the nine hosts `full`
+  reaches — `fail` only when a first-run host is unreachable and a fetch is due.
+  `valvur doctor [path] [--network]` exits 1 on any `fail`; the `doctor` MCP tool
+  is the same `doctor.run`/`render` through `operations.doctor` (F9.3, the parity
+  tests extended); `scan_status`'s FAILED branch now says *"Run `doctor` (the tool;
+  `valvur doctor` on a shell) before scanning again"*. Read-only, no socket unless
+  asked — pinned by a test whose healthy fixture fails on any probe. **Measured:**
+  3.4s on the CLI, 1.7s over stdio, 8.8s with `--network` (all reachable); the
+  python.org interpreter with an empty `VALVUR_CACHE` reads `FAIL python: … 0
+  trusted roots` and `not ready`, with the cache filled `warn`. 34 tests in
+  `tests/test_doctor.py`; 26 mutations, two survived the first round (the `fix:`
+  line and the root count were unpinned) and were pinned. Not done: the build-digest
+  *comparison* (23.4.4) and the DNS-only probe the task text imagined — a TCP
+  connect is what a fetch does first, and proves more.
+
+- [x] **23.3.2** `duration_s` on every `ScannerRun`, in `run.json` and in
+  `scan_status`, and *"slowest: checkov 27.9s"* in `SUMMARY.md`. The corpus report
+  gains a column. This is how users find the Checkov cost themselves, and how we
+  measure 23.4.2.
+
+  **STATUS 2026-09-13:** ✅ `ScannerRun.duration_s`, stamped by `api._run_one`
+  around the whole attempt (`applies_to` through report read, so a skipped Scanner
+  shows the cost of deciding to skip). On every surface: `run.json` (`duration_s`,
+  to a tenth), `scan_status` (*"checkov: ok (40.9s)"* per line plus *"slowest:
+  checkov 40.9s — the fleet runs concurrently, so that is about what the scan
+  cost"*; a run.json from before this has no key and gets no invented number),
+  the progress line while a scan runs (*"Completed so far: gitleaks: ok (7.9s),
+  …"*, the surface an agent watches), and one line at the foot of `SUMMARY.md`
+  (skipped Scanners never win; an untimed run says nothing). `scripts/corpus.py`
+  records `scan_s` (the scan's wall-clock — N1.1's number, for 24.3) and
+  `duration_s` per Scanner per repository, prints `scan` and `slowest` columns.
+  **Measured, and the reason the task existed:** on the ten-file fixture with the
+  published `0.2.0` image, checkov 40.9s, opengrep 26.0s, syft 20.9s,
+  dependency-reality 15.8s, trivy 14.3s, licence-file 12.5s, ai-artifact 12.4s,
+  gitleaks 7.9s — scan 44s; the same scan against the freshly built `valvur:dev`
+  minutes earlier read checkov 59.1s, opengrep 46.7s, scan 60s, and the machine's
+  load average was 13.7 both times. The morning's 33s was a quiet machine. Three
+  things fall out: Checkov is the scan's length (23.4.6's case, now with numbers);
+  Opengrep's 26–47s on ten files is the second cost and worth a look; and the
+  three Checks cost 10–16s *each* for work that is milliseconds — three container
+  starts of a 576MB image — which is 23.4.2's whole argument, now measurable
+  before and after. **And the instrument's first reading on N1.1's own test
+  workspace** (this repository minus the venv: 3,404 files) on the same loaded
+  laptop: scan 91s — checkov 84.8s, opengrep 69.4s, dependency-reality 57.9s, syft
+  53.2s, gitleaks 43.5s, trivy 43.5s, ai-artifact 40.2s, licence-file 9.2s. Gitleaks
+  at 43s on 3,404 files is not Gitleaks; it is eight containers reading one
+  virtiofs bind mount at once on Docker Desktop while the host sat at load 8–10
+  (the constraint test read 60.6s, 94s and 75s over the day on this machine, and
+  passed under 60s on Linux CI for every PR). That is 24.3's question — N1.1 as
+  written names a line count and no machine — and it now has numbers per Scanner
+  per run rather than one wall-clock and a guess. 11 tests in
+  `tests/test_timing.py`, 9 mutations killed; the image rebuilt for e2e, 24 of 25
+  passing locally with N1.1's budget the one over, on that load.
+
+- [x] **23.3.3** `scan_cancel` as an MCP tool over the `kill_running` that already
+  exists; `scan_status` on a cancelled job says so. `--jobs N` on the CLI, honoured by
+  the fleet's executor, with a note in the platform docs about Docker Desktop's
+  default memory.
+
+  **STATUS 2026-09-13:** ✅ Not over `kill_running` as written — that stops every
+  container this *process* started, right for Ctrl-C and wrong for an MCP server
+  scanning two workspaces at once — but over a per-runner `ContainerRunner.kill()`:
+  `_launch` records each container on the runner as well as in the process-wide
+  set, `kill` signals its own live ones in **one** `<runtime> kill a b c…` (per
+  container it cost an agent's cancel 6s for seven; one call is 2.7s for eight,
+  measured) and sets `runner.cancelled`. `api.scan` reads that flag at three
+  points — before the fleet, after it, and once more before anything is written —
+  and raises `ScanCancelled`, deliberately not a `ScannerFailed` ("every Scanner
+  failed" is what killing them looks like), so a cancelled scan has F1.11's three
+  properties over MCP as over the CLI: containers stopped, no Results Folder (the
+  lock's `.gitignore` and `.lock` are all that exist), not a failure. `jobs.cancel`
+  marks the job *cancelling* and calls the canceller `_run_scan` registered
+  (`runner.kill`); whatever the fleet raises on its way down, a job in that state
+  ends *cancelled*; a cancel that arrives after the work finished is told "no scan
+  is running" and the result stands. `scan_status` waits on a cancelling job as on
+  a running one (10.2.5) and reads *CANCELLING — …* then *CANCELLED after Ns —
+  cancelled: 4 of 8 Scanner(s) had finished; the rest were stopped and nothing was
+  written*. **Measured over stdio against the real image:** 7 containers running,
+  `scan_cancel`, 0 running two seconds later, `.security-scan/` holding only
+  `.gitignore` and `.lock`. `--jobs N` (`_positive`, refuses 0) bounds the
+  `ThreadPoolExecutor`; `VALVUR_JOBS` is the default for every surface, because the
+  MCP server takes no flags, and a nonsense value is ignored rather than fatal;
+  the README's Platforms section says why (Docker Desktop's VM memory; exit 137
+  reported as a failed Scanner). No CLI `cancel` command: Ctrl-C is the CLI's, and
+  the parity test is one-directional. 19 tests in `tests/test_cancel_jobs.py`; 18
+  mutations, four survived the first round (the pre-fleet check, the post-fleet
+  count, the canceller registration, the cancelling wait) and were pinned. The
+  loop ran with `PYTHONDONTWRITEBYTECODE=1` after 23.3.5's lesson.
+
+- [x] **23.3.4** No truncation of a failure reason on the MCP surface. `scan_status`
+  cut *"…no package-name index for PyPI, so"* at 80 characters; bound the number of
+  lines, never the sentence. And the `DONE` response names the next two moves:
+  `explain_finding <fingerprint>` for the top item, and `REMEDIATION.md`'s first
+  action — the agent never called `explain_finding` because nothing pointed at it.
+
+  **STATUS 2026-09-13:** ✅ `operations._whole_reason`: every line of a failure
+  reason, the continuation lines indented under the tool's name, and only the
+  count bounded — `REASON_LINES = 6`, then *"… N more line(s) in run.json"*.
+  Reproduced the 22.G.1 case for real (an index that cannot be fetched, via
+  `VALVUR_INDEX_REPOSITORY=registry.invalid/…`): the three-line reason, 24.1's
+  "could not be fetched" prefix included, reads whole on `valvur status`, which is
+  the same operation the MCP tool calls. `operations._next_moves`: after the
+  counts and before the Scanner list, a `Next:` block with `explain_finding
+  <fingerprint> — #rank path:line title` for the highest-ranked **active** Finding
+  (not a suppressed one, not a coverage note — 19.C.1's rule for what makes a
+  status `findings`) and *"REMEDIATION.md, action 1 of N: <heading>"* read from the
+  file's own `## 1.` line so the agent is pointed at exactly what it will find
+  there. Nothing when nothing is active; nothing invented for results an older
+  valvur wrote (no findings.json, no REMEDIATION.md, or one without numbered
+  actions — the second pinned after a mutation survived). The README's agent
+  snippet says *"then follow its `Next:` lines"*. 11 tests in `tests/test_mcp_done.py`;
+  10 mutations, two survived the first round and were pinned. Not changed: the
+  CLI's own *"! tool did not complete:"* line still prints a multi-line reason
+  unindented — the terminal is the second surface, and it was never truncated.
+
+- [x] **23.3.5** `valvur gate --fail-on high --no-inconclusive`: one exit code from
+  `run.json`, replacing the Python heredoc that `ci.yml` and `release.yml` each carry
+  a copy of. `valvur cache` beside it: what is cached, how old, how large, `--clear`.
+
+  **STATUS 2026-09-13:** ✅ `src/valvur/gate.py`: `evaluate(workspace, fail_on,
+  no_inconclusive) -> Verdict(failures, summary, exit_code)` with the heredocs'
+  three conditions and the threshold they never had — an incomplete run fails at
+  every threshold naming the Scanner and its reason; an active Finding (19.C.1's
+  word: not suppressed, not a coverage note) at or above `--fail-on`, `any` being
+  every one; a lapsed suppression (`valvur.suppression.expired`/`.stale`) at every
+  threshold, because if nothing fails the build then mandatory expiry is decoration
+  — plus `--no-inconclusive`, which the heredocs never asked. Exit 0/1, and 2 for
+  no results. Under `GITHUB_ACTIONS` each reason is a `::error::` annotation; the
+  summary counts what was let through (*"0 at or above any; 0 below; 4 suppressed;
+  194 excluded by .security-scan.toml"* on this repository's own self-scan, which
+  passes the exact command CI now runs). `ci.yml`'s selfscan job and
+  `release.yml`'s verify job each lost their heredoc for `valvur gate . --fail-on
+  any --no-inconclusive`, and a test pins that neither carries a `json.loads` gate
+  again. `valvur cache`: `cache.inventory()` — database, index (each ecosystem's
+  count), KEV — with size, age and detail, `human_size`, a total, and `--clear`,
+  which removes the three under the **exclusive** cache lock (a scan reading the
+  database finishes first, 16.3) and never the directory or the lock file. On this
+  machine: database 1.38 GB 1.5 days, index 121.9 MB 1.0 days, kev 78 kB, total
+  1.50 GB. 18 tests in `tests/test_gate_cache.py`; 16 mutations, all killed — and
+  one lesson for the mutation loop itself: a same-length mutation restored within
+  the same second leaves Python's `.pyc` (mtime+size) believing the mutated
+  bytecode is current, which showed up as `human_size` returning `2.9 MB` from a
+  source that said `3.0`; run mutation loops with `PYTHONDONTWRITEBYTECODE=1`, or
+  clear `__pycache__` after. No MCP tool: a gate is CI's question, not an agent's,
+  and the CLI-parity test is one-directional by design.
+
+- [x] **23.3.6** `MaverickHQ/valvur-action`: a composite action that installs the
+  shim, restores the database and index from the Actions cache (the pattern
+  `ci.yml` uses), runs `valvur scan` and `valvur gate`, and uploads `results.sarif`
+  to code scanning. CI adoption becomes one `uses:` line, and it is the first thing a
+  team evaluating valvur will ask for. Dogfooded by this repository's own self-scan
+  job, which replaces its heredoc with it.
+
+  **STATUS 2026-09-13:** ✅ [github.com/MaverickHQ/valvur-action](https://github.com/MaverickHQ/valvur-action),
+  public, `action.yml` composite: install (`version` — a PyPI pin, defaulting to
+  `0.3.0` because `gate`, `--budget` and `--jobs` are unreleased; a `git+https://…`
+  source; or `""` for the `valvur` on PATH), cosign via `sigstore/cosign-installer`
+  so the index signature verifies (`verify`, default on — the first run on a real
+  runner read *"not verified: cosign is not installed"*, which is the one thing
+  the action must not let stand), the index restored from the Actions cache
+  (`ci.yml`'s pattern; the 1.3GB database is refetched each run, ~30s), `valvur
+  update`, `valvur scan` with `profile`/`budget`/`jobs`, `run.json` read into
+  outputs (`status`, `complete`, `active`, `results`), `results.sarif` uploaded
+  through `github/codeql-action/upload-sarif` (`sarif`, needs `security-events:
+  write`), and `valvur gate` with `fail-on`/`no-inconclusive` (`gate`). Every input
+  reaches the shell through `env:`, never interpolated. Its own CI runs it against
+  a two-line fixture (PyYAML 5.1, urllib3 1.24.1): once where the gate must fail at
+  `critical` and the outputs say `findings`/`true`/≥5, once with the gate off and a
+  budget and jobs set, asserting `what_left_the_machine: nothing` — both green,
+  ~50s each (install 7s, update 24–28s, scan 7s). **Dogfooded:** `ci.yml`'s
+  self-scan job builds the image, puts the tree's venv on PATH, and `uses:
+  MaverickHQ/valvur-action@<sha>` with `version: ""`, `profile: full`, `fail-on:
+  any`, `no-inconclusive: "true"` — the job gains `security-events: write` for the
+  SARIF upload, so valvur's own findings (none, gated) would appear in code
+  scanning; `release.yml` keeps the direct commands so a release never depends on
+  the second repository, and the workflow test pins both shapes. Not done, by
+  design: the `v0` tag, which waits for valvur 0.3.0 on PyPI (the README example
+  uses `@v0`; until then the self-test installs from `git+…@main`); and the
+  database in the Actions cache — 1.3GB uncompressed is the wrong shape for it.
+  *Tagged 2026-09-20 (25.2), once the self-test had installed `0.3.0` from PyPI.*
+
+- [x] **23.3.7** A scan budget. Each Scanner has a 600s timeout and the run has none;
+  an agent session with a runaway Checkov waits ten minutes for one Scanner. `--budget`
+  (default: none on the CLI, 300s over MCP — F2.6's figure) stops launching new
+  Scanners past it, cancels the rest, and reports the run incomplete with the ones it
+  cut named. Pairs with `scan_cancel`.
+
+  **STATUS 2026-09-13:** ✅ `api.scan(budget_s=)`: the fleet's `as_completed` gets
+  the budget as its timeout; on `TimeoutError` the queued futures are cancelled
+  (*"not started: the 20s budget was spent before its turn"*), the running ones
+  are stopped through `runner.stop_containers()` — 23.3.3's per-runner kill
+  **without** the cancelled flag, because a cut is not a cancel: the Scanners that
+  finished are a result and the run is written, incomplete — and each stopped one
+  is recorded *"cut by the 20s budget after 20s (exited 137 with no report …)"*.
+  A Scanner that finishes on its own between the timeout and the kill is a
+  result, not a casualty (pinned after a mutation survived). A runner that cannot
+  stop containers (the suite's fakes) still refuses what has not started. The
+  budget counts from the fleet's start, not the first run's fetches, which
+  announce themselves and have their own timeouts. `ScanRun.budget_s` /
+  `budget_cut`; `run.json` gains `budget: {seconds, cut}`; SUMMARY, `scan_status`
+  and `gate` report the cut through the failure paths they already had. Over MCP
+  `MCP_BUDGET_S = 300` unless the `scan` tool's `budget_s` says otherwise (0 for
+  none), bound into the job by `operations._scan_with_budget`; on the CLI none
+  unless `--budget SECONDS` (Ctrl-C is the CLI's), refusing 0. **Measured over
+  stdio against the real image with `budget_s: 20`:** six Scanners ok in 12–18s,
+  Opengrep and Checkov cut at 20s with exit 137, DONE in 26s, `complete: False`,
+  zero containers left. 12 tests in `tests/test_budget.py`; 12 mutations, one
+  survived and was pinned. F2.7 extended.
+
+### 4 — Build and architecture
+
+- [x] **23.4.1** Checkov in its own virtual environment (`/opt/checkov`), installed
+  from a `requirements-checkov.txt` generated with `pip-compile --generate-hashes`.
+  Today it shares valvur's interpreter with 300+ transitive packages nobody pins, so
+  the image is not reproducible and the SBOM is mostly Checkov. Dependabot watches the
+  lock. Measure the image before and after.
+
+  **STATUS 2026-09-13:** ✅ `requirements-checkov.in` (`checkov==3.2.517`) →
+  `requirements-checkov.txt` by `scripts/lock-checkov.sh` (`uv pip compile
+  --universal --generate-hashes`, uv being the project's tool; the task said
+  pip-compile): **96 packages, 1,866 sha256 hashes** — every published wheel and
+  sdist of each pin, so one lock serves amd64 and arm64 and musl. The Dockerfile
+  copies it before our own files, creates `/opt/checkov` with `--without-pip`,
+  installs through the system pip's `--python` with `--require-hashes`, asserts
+  the binary exists, symlinks `/usr/local/bin/checkov` so the runner's invocation
+  is unchanged, and drops the compiler as before. **Measured:** the image is the
+  same 576MB (the bytes moved, 191MB from the system site-packages to 185.5MB in
+  `/opt/checkov`); the system site-packages hold pip and valvur and nothing else,
+  where before they held 96 packages; the build layer takes 48s; Checkov 3.2.517
+  answers from the venv and finds 13 things on the fixture; the F10.4 licence
+  check reads 1,261 components added over the base and no GPL; the tree-hash guard
+  covers the lock (`tree_parts`/`image_parts` gain `checkov-lock`), so a changed
+  hash is a changed image. Dependabot gains a `pip` entry for the lock, grouped.
+  **The task's "300+ transitive packages" was 96**, counted. **Found on the way,
+  and worse than the task:** the Dockerfile's `RUN … && find … || true` put
+  `|| true` over the whole `&&` chain, so the first build of this layer — whose
+  `pip install` failed on a misplaced `--python` — produced an image *without
+  Checkov* and reported success; the same shape had covered the old `pip install
+  checkov` for as long as it existed. The `find` is scoped in a subshell, and
+  `test_no_run_chain_in_the_dockerfile_can_swallow_its_own_failure` refuses the
+  shape. Three constraint tests; four mutations, one survivor (a by-name install
+  hidden behind `--python`) pinned. F2.2 extended. **And the lock's first day paid
+  for itself:** the PR's self-scan gate — valvur scanning its own tree — failed on
+  the new `requirements-checkov.txt`, because Checkov 3.2.517 pins `asteval==1.0.6`,
+  which carries two sandbox-escape advisories (CVE-2026-55244 / GHSA-89v8-rhwq-hf77,
+  GHSA-9w56-46f6-3qhx; fixed in 1.0.9), and every Checkov release through 3.2.533
+  pins the same. Until the lock existed that dependency was installed at build
+  time and appeared in no manifest valvur reads. Now `requirements-checkov.overrides`
+  forces `asteval==1.0.10` at lock time (`uv pip compile --override`, each
+  override with its reason and the condition for dropping it), the image installs
+  the lock with `--no-deps` because the lock *is* the resolution and pip would
+  refuse the pair, Checkov 3.2.517 runs on asteval 1.0.10 with the same 13
+  findings on the fixture, the self-scan gate reads `0 at or above any`, and the
+  constraint test requires every override to name its reason and the lock to
+  carry it. A Checkov user who installs it the ordinary way runs the vulnerable
+  asteval; ours does not.
+
+- [x] **23.4.2** The three Checks in one container: `python -m valvur.checks all`,
+  nine container starts per scan become seven, and one 1.7s interpreter start instead
+  of three. Same isolation the Checks have today — they are our code, and they never
+  had a network to lose except dependency-reality's, which the batch keeps by running
+  it last with the grant the Profile gave. Measure with 23.3.2: expect ~4s off every
+  scan on a small repository.
+
+  **STATUS 2026-09-14:** ✅ `python -m valvur.checks batch <workspace> <name>…`
+  (named for what it does rather than `all`, since it runs the Checks the Profile
+  selected): each Check isolated inside the container — its own findings, its own
+  error, its own seconds — and dependency-reality last whatever order was asked.
+  `ContainerRunner.run_checks(names, workspace, network)` launches it once, carries
+  the grant, keeps the host-side index refusal for dependency-reality (the
+  container is launched for the other two), and turns a container that fails or
+  answers nonsense into a failure for every Check with the runtime's words. The
+  orchestrator gained one internal notion, `api._plan`: a task may answer for
+  several adapters, so the fleet's futures map to index lists and the budget's cut
+  names every Check in the batch; `_run_checks` gives each Check the outcome
+  `_run_one` would have — skipped when it does not apply, failed with the reason
+  when the runner raises — timed as the batch, and the widest grant any of them
+  was given. `CheckAdapter` is unchanged, so ADR-0013's "no new adapter protocol"
+  holds (the ADR is amended to say what did change). A runner without the ability
+  — an older one, or a fake — gets the Checks one by one; the suite's fakes gained
+  `run_checks` so 806 tests run the production path, with `run_checks_in_process`
+  isolating per Check the way the container does. **Measured**, old shim + old
+  image against new shim + new image on the ten-file fixture, three runs each on a
+  Mac at load 5–7: scan **35.1–46.0s → 31.2–34.6s**; the Checks 7.4–8.4s each in
+  three containers → one batch of 7.6–8.1s; Checkov 33.4–43.6 → 29.8–32.7s and
+  Opengrep 20.8–24.2 → 17.7–20.3s, which is the two container starts they no
+  longer contend with; same 76 findings, `complete: True`. The local e2e suite
+  took 6m12s where it had taken 12–13 minutes all day. The task's ~4s held. 21
+  tests in `tests/test_checks_batch.py`; 12 mutations, two survivors (a per-Check
+  error in the report reported ok; a runner raising on the batch losing the whole
+  scan) pinned. One trap on the way: the new shim against the OLD image ran the
+  batch entry point that did not exist there and reported the three Checks failed
+  — exactly what the tree-hash guard (22.C.1) exists for, and the before/after
+  measurement had to pair each shim with its own image. **Then CI's published-image
+  job failed the same way** — the tree's shim against the published `0.2.0` image,
+  the one job pointed at what users get — and that is not a CI artefact: a
+  `VALVUR_IMAGE` pinned to an older image, or a newer shim on an older image within
+  the same 0.x minor, would have lost all three Checks while F1.9 called the pair
+  compatible. So the runner tells that image apart — its entry point answers
+  `usage:` and exit 2 — raises `BatchUnsupported`, and the fleet runs the Checks
+  one by one as before; measured against the published `0.2.0` image, `complete:
+  True`, all three Checks ok, three starts instead of one. Two more tests.
+
+- [x] **23.4.3** `docker buildx bake` with the version, labels and platforms in one
+  file. `CONTRIBUTING.md`, `ci.yml`, `release.yml` and `corpus.yml` carry four copies
+  of the build command today, and 19.A.3 already showed what copies do. The arm64 half
+  of the release build moves to a native arm64 runner and `imagetools create` merges;
+  4m36s under QEMU becomes a fraction.
+
+  **STATUS 2026-09-14:** ✅ `docker-bake.hcl`: `dev` (this machine's architecture,
+  loaded, `VALVUR_VERSION` from the caller so the F1.9 label is the tree's — the
+  file cannot read pyproject and must not guess) and `release` (this runner's
+  architecture, pushed to `BAKE_IMAGE` by digest, untagged). The five copies —
+  `CONTRIBUTING.md`, `ci.yml` twice, `corpus.yml`, `release.yml`'s verify job —
+  all run `docker buildx bake` with the GHA cache passed as `--set` overrides so
+  the file itself works anywhere; the rebuild hints in `check_image.py`, the
+  tree-hash guard and RELEASING point at it; a constraint test refuses a workflow
+  that builds any other way, a release that installs QEMU, or one without the
+  arm64 runner. **The release:** a `build` matrix — `ubuntu-latest` and
+  `ubuntu-24.04-arm`, each `bake release` natively with a per-architecture cache
+  scope, the digest handed on as an artifact — then `release` writes one index
+  over the two with `docker buildx imagetools create`, and the platform assertion,
+  the signature, the attestation and the SBOM see that index's digest exactly as
+  before. **Measured by rehearsal from the branch** (run 34862131855): amd64 46s
+  and arm64 54s, side by side, **1m14s wall against 4m50s under QEMU on v0.2.0**;
+  the index 7s; sign 6s, attest 5s, SBOM 34s, TestPyPI 18s; the index carries
+  `linux/amd64` and `linux/arm64` (plus BuildKit's two `unknown/unknown`
+  attestation manifests, as v0.2.0's does), and `cosign verify` on the index
+  digest passes with the README's own command. **The first rehearsal failed**, and
+  it was the bake file's fault: bake reads its variables from the environment, so
+  the release workflow's own top-level `IMAGE` turned the verify job's test image
+  into `ghcr.io/…/valvur-rehearsal:dev`, a name nothing then found. The variables
+  are `BAKE_IMAGE`/`BAKE_TAG` now, and the release build job sets `BAKE_IMAGE`
+  from `IMAGE` explicitly. One more copy that could not drift: the `verify` job
+  used to spell the version into the build by hand; it is the same env now.
+
+- [x] **23.4.4** The shim carries the tree hash it was built beside. `release.yml`
+  builds the wheel and the image from one tree; put `tree_hash` of the inputs into the
+  wheel (a generated `_build.py`, never committed) and compare it to the image's
+  `/etc/valvur/inputs.sha256` at scan time, as `doctor` does. This closes the hole rc1
+  fell through — same version string, different code, and F1.9 content — as a warning
+  in `run.json` and `SUMMARY.md`, never a refusal: a mismatch is a diagnosis, not a
+  reason to hide results.
+
+  **STATUS 2026-09-14:** ✅ `hatch_build.py`, a hatchling build hook
+  (`[tool.hatch.build.hooks.custom]`): at every `uv build` it computes
+  `tree_hash.digest(tree_parts(root))` — the same module, the same inputs the
+  image hashes — writes `src/valvur/_build.py` with `INPUTS_SHA256`, force-includes
+  it into the wheel, and removes it in `finalize`; never committed (`.gitignore`),
+  never copied into the image (`.dockerignore`, where a host value would only be
+  stale), and never an input to the digest it holds (`tree_hash` skips the name —
+  it sits inside `src/valvur`, which is hashed). The sdist carries the inputs, so
+  a wheel built from one computes the same value; an editable install has no
+  file and `compat.shim_inputs()` hashes the checkout live, as the e2e guard does;
+  a wheel from before the hook answers None. **The image side**,
+  `compat.image_inputs(runtime, image)`: `image inspect --format {{.Id}}`
+  (milliseconds), then a memo under `~/.cache/valvur/image-inputs/<id>` — first
+  read by `cat` of `/etc/valvur/inputs.sha256` in a `--network=none` container
+  (2–5s on Docker Desktop, once per image), an image without the file remembered
+  as such, a container that did not start (exit 125) not remembered at all. The
+  runner's `build_provenance()` hands the pair to the scan; `ScanRun` carries
+  `shim_built_from`/`image_built_from`/`build_match` (None when either side is
+  unrecorded — nothing invented from nothing); `run.json` gains `build: {shim,
+  image, match}`; `SUMMARY.md` and `scan_status` warn on a mismatch with both
+  digests and the two fixes; `doctor`'s image line says *built from 958d10ca, the
+  tree this shim was built from* or warns with both. **Measured with a real wheel
+  in a clean venv:** `_build.py` = `shim_inputs()` = the tree = the image built
+  from it (958d10ca…); against the published `0.2.0` image, `match: False`, the
+  warning on all three surfaces, and the scan still complete — the diagnosis rc1
+  never had. 14 tests in `tests/test_build_hash.py`, one of them a real `uv build`
+  that opens the wheel; 13 mutations, two survivors pinned (a `cat` that printed
+  noise while failing; a container that did not start being remembered as an
+  answer). F1.9 extended. Not done: a *refusal* — deliberately, per the task; and
+  `doctor` still starts a container to read the digest rather than using the memo,
+  because that start is the point of its image check.
+
+- [x] **23.4.5** Measure osv-scanner's marginal value on the corpus: findings on `full`
+  that Trivy did not report, per ecosystem, from the report `corpus.yml` already
+  writes. cobra went 11 → 132 on `full`; the fixture went 36 merged of 38. Keep it
+  with the number in the README's scanner table, or drop it from `full` — either is
+  fine; "a second advisory source" without a number is not.
+
+  **STATUS 2026-09-14:** ✅ Measured from the two reports of run 34764187516 (twelve
+  repositories, `ubuntu-latest`, 2026-09-13), by rule, `full` minus `offline`:
+  **cobra +121** — every one a Go standard-library advisory (`CVE-2022-1705` is
+  `GO-2022-0525`, net/http Transfer-Encoding; OSV lists 132 for `stdlib` 1.15.0,
+  osv-scanner reported 121), keyed on `go 1.15` in `go.mod`, which Trivy reports
+  only from compiled binaries and which describes the toolchain rather than the
+  repository's code; **flask +1** — `CVE-2026-7246`, a *disputed* Click advisory
+  Trivy's database does not carry; **the other ten +0**, across npm (express,
+  fastify), Ruby (sinatra), PHP (monolog), Rust (ripgrep), Java (gson), Python
+  (requests, llm), Terraform and the cursorrules corpus. So per ecosystem: Go is the
+  whole of it, Python one disputed entry, everything else nothing. **Kept, with the
+  number**: the Go toolchain gap is real for a Go application, it costs about a
+  second (0.9–1.9s per repository, 23.3.2), and OSV is the second primary source §3
+  names — but the README's scanner table now says exactly what it adds, and
+  EVALUATING says that a project with no Go will get nothing from it Trivy did not
+  give, at the price of its lockfile's names and versions leaving the machine
+  (`full` only). The measurement repeats with every corpus run: `scripts/corpus.py
+  compare report-offline.json report-full.json` prints per-repository advisories
+  added and the rest, and `corpus.yml` runs it and uploads `corpus-compare.txt`;
+  one test on the arithmetic, one mutation (a rule that shrank counted as added)
+  survived and was pinned. The task's own numbers held: cobra 11 → 132.
+
+  > **Amended 2026-09-18, by the Block A corpus run (35395409682) with smolagents as
+  > the thirteenth repository:** `full` added **110** advisories there — pypdf 41,
+  > transformers 26, torch 20, pillow 17 — and none of them is marginal value.
+  > They come from `examples/open_deep_research/requirements.txt`, 39 lines, **not
+  > one of them pinned** (`transformers>=4.46.0`, `torch>=2.2.2`); OSV-Scanner
+  > evaluates an unpinned range at its *lower bound* and reports every advisory
+  > since, so the 110 are findings against versions nobody installs today. Trivy,
+  > correctly, reports nothing for a range — and valvur's coverage note stays
+  > silent, because a `requirements.txt` exists and was read, so the `offline` run
+  > shows those dependencies as *checked* when the check was vacuous. Two defects
+  > in one file, and the second is the worse: it is a silent clean. Recorded as
+  > **25.3** in Phase 25, before the release. The README's OSV row now carries
+  > the number with its cause.
+
+- [x] **23.4.6** Checkov on demand. It is 191MB of the image, the slowest Scanner by
+  ten seconds, and `applies_to` already knows when there is nothing for it to read —
+  yet every user pulls it and every scan of application code pays its startup. Two
+  shapes to measure: a second image (`valvur-checkov`) pulled the first time
+  `applies_to` says yes, or a `slim` tag of the main image without it. Either way the
+  README's first-run table gets a smaller number for the common case, and 23.3.2's
+  timing says exactly how much smaller. Decide with the measurement, not before.
+
+  **STATUS 2026-09-18:** ✅ **Decided by measurement — declined; [ADR-0019](../../../docs/adr/0019-one-image-checkov-included.md).**
+  Checkov's layer is 164MB uncompressed and **53MB compressed, 23% of the 223–233MB
+  pull**; a slim image would save about 5s of the measured 110s first run, beside
+  the 154MB of database and index every shape fetches anyway. Who it would reach:
+  `applies_to` runs Checkov on any repository with a workflow file, and **13 of 13
+  corpus repositories have one** — an on-demand second image would be pulled by
+  everyone on their first scan, and a `slim` tag serves a repository the corpus
+  cannot find (no IaC, no CI), whose runtime `applies_to` already protects. The
+  cost users actually pay is time, and it is unchanged by either shape: on GitHub's
+  Linux runner Checkov is **97–100% of every scan** (15–18s of 15–18s on twelve
+  application repositories; 107s of 108s on Terraform). One runtime lever was
+  measured on the way — `--framework github_actions` on a workflow-only repository,
+  9.3s → 7.0s on this Mac — and recorded in the ADR rather than built: two seconds
+  of a mostly-startup fifteen, at the price of moving Checkov's file detection into
+  valvur's. The ADR names what reopens the question (a measured user for whom 53MB
+  is the cost that matters; `applies_to` skipping on a real share of repositories;
+  a faster IaC scanner under an acceptable licence). No code; the Checkov layer
+  stays one `RUN` so the option is a Dockerfile edit away.
+
+### 5 — The primary client's own files
+
+- [x] **23.5.1** `.kiro/` into the AI Artifact Check: `steering/*.md` are agent
+  instructions; `settings/mcp.json` carries `autoApprove` (the key is already checked
+  under `.mcp.json`); **`hooks/` run shell commands on file events**, which is an
+  autonomous-execution surface and exactly §4's concern — a new rule,
+  `valvur.ai-artifact.hook-runs-command`, at high. With it the other clients the Check
+  does not know: `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml`. A Kiro
+  workspace was scanned today by the Check that exists for it, and it could not have
+  seen a poisoned steering file.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A1.** `.kiro/steering/`, `.kiro/settings/mcp.json`
+  and `.kiro/hooks/` are read (`KIRO_DIRS`; a `.kiro` below the root counts too), and
+  `.kiro/specs/` deliberately is not: the project's own documents — and this
+  repository's own `tasks.md` contains *"ignore previous instructions"* in the
+  sentence that specifies the injection rule, so reading `specs/` would have failed
+  our own gate with our own words, found by asking what the self-scan would do
+  before writing the code. **The new rule**, `valvur.ai-artifact.hook-runs-command`
+  (high, ranked with `permission-bypass`), fires on a hook whose *type* runs a shell
+  — a Kiro hook of action type `command`, in **both** formats Kiro has shipped (a
+  `hooks` list with `trigger`/`action`, and the older one-per-file `when`/`then`
+  with `runCommand`); a Claude Code `type: command` handler under `hooks` in
+  `.claude/settings.json` or `settings.local.json`, the other primary client's
+  identical surface; aider's `lint-cmd`/`test-cmd`, which run after every edit —
+  never on an agent/prompt-type hook, even one carrying a stray `command` key, since
+  the type decides what executes. Title names the event and the hook; the command
+  is the evidence, fenced (F3.13); identity is the file and the hook's name, so a
+  line shift does not move it. **The clients the Check did not know:** `.clinerules`
+  (file *and* directory form), `.roo/` (its `mcp.json` says `alwaysAllow` for what
+  Kiro calls `autoApprove` — one list of keys now), `.roomodes`, `.continue/`,
+  `.windsurf/`, `.aider.conf.yml` (`yes-always: true` is a permission bypass; read
+  by line, no YAML parser — the shim stays dependency-free). F3.6 amended, README
+  bullet rewritten. **Measured:** the real container on a Kiro workspace as Kiro
+  leaves it (steering with a directive, MCP settings with `autoApprove`, one command
+  hook, a spec carrying the directive) — three Findings, the spec silent, 0.9s in
+  the Check. The corpus has none of the new files, so its answer is "still zero on
+  hundreds of real `.cursorrules`"; **Block A's dispatch (35395409682) confirmed
+  it: zero AI Artifact findings on thirteen repositories**, awesome-cursorrules'
+  hundreds of real instruction files included. 27 tests in
+  `tests/test_ai_artifact_clients.py`, one of them e2e; twelve mutations, two of
+  which survived on the first pass — the hook-type gate was redundant with the
+  command-key gate until the tests planted a stray `command` on an agent-type hook,
+  which is now the case that makes it load-bearing. Not on `corpus.py`'s suspect
+  list: a committed hook on a real project is what the rule is for.
+
+- [x] **23.5.2** Snapshot the MCP `tools/list` in a test — the JSON both clients see —
+  so a schema change is a deliberate diff. The rc offered `standard`, and nothing
+  would have shown the change from the profile rename until an agent chose it.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A2.** `tests/fixtures/mcp/tools-list.json` —
+  the `tools` array exactly as `valvur-mcp` answers `tools/list`, taken through the
+  real server over stdio rather than from the registry in memory, canonical form
+  (sorted keys, two-space indent, trailing newline) so every diff is a change. Six
+  tools, 4.5KB. `tests/test_mcp_snapshot.py` fails on any drift with the
+  regeneration command in the message (`UPDATE_MCP_SNAPSHOT=1 …`; the flag
+  rewrites the file and warns, never silently), and pins three things about the
+  file itself: the `scan` tool offers exactly `offline` and `full` and none of the
+  retired names appears anywhere — the rc's defect, now unrepeatable in either
+  direction, since regenerating with `standard` in the enum fails the second test;
+  every tool carries `readOnlyHint: true, destructiveHint: false` (ADR-0009 on the
+  wire); the set of tools equals what `--help` names. Four mutations — a retired
+  Profile offered, one word of a description, the destructive hint dropped, an
+  argument renamed — each caught by the snapshot. Taken after 23.5.1 and before
+  the rest of Block A, none of which touches the schema, so this is `0.3.0`'s
+  shape. CONTRIBUTING says how to move it.
+
+- [x] **23.5.3** Taint-mode LLM rules, or retire the word. The four `valvur.llm.*`
+  rules fired zero times on eleven real projects including an LLM tool; they are
+  pattern rules with no sources. *Corrected 2026-09-13 (24.2): three of the four
+  ARE taint rules and have been since 2026-08-30 — their sources are the three SDK
+  call shapes below and nothing else; the fourth (`output-to-sql`) has no model
+  source. The task stands with its premise fixed: widen the sources, then measure.*
+  Opengrep taint mode with real sources —
+  `openai.chat.completions.create(…).choices[0].message.content`,
+  `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the
+  sinks the INFO rules now inventory. A planted fixture proves they fire; the corpus
+  measures whether they ever fire on real code. If after that they still do not, the
+  README says "sink inventory" and stops saying taint.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A3 — the word stays, and the README says
+  which half fires on real code.** Sources widened to six SDK families — Anthropic;
+  OpenAI's chat completions, Responses API and pre-1.0 module (`$CLIENT.completions.create`
+  covers `client.chat.completions.create`, `$CLIENT` binding to `client.chat`; a
+  separate pattern was measured redundant by mutation); Gemini; LangChain
+  `invoke`/`ainvoke`/`predict`; litellm; ollama — **anchored once** for the three
+  Python rules, because written out three times a mutation test found a source
+  dropped from one rule unnoticed by a fixture exercising it on another. Sinks
+  widened to the INFO inventory's; `output-to-sql` became a taint rule and its
+  string-built pattern the inventory entry `python.string-built-sql`. **The
+  `innerHTML` rule had never had a fixture** — "those four fire on our fixture" was
+  true of three — and `chat.js` now plants six JavaScript flows. `llm_app.py` plants
+  one function per Python source, each into a different sink, and one shape the
+  rules do not see: `exec(ask(prompt))`, a helper returning the model's text, which
+  the tests assert is reported by the inventory and not by the taint rule. Fifteen
+  flows fire on the rebuilt image; the golden recaptured (14 → 32 results) and a
+  new e2e test pins the golden to the image, so a source removed from `rules/`
+  fails there rather than in a recapture nobody ran. Fourteen source and sink
+  mutations against that comparison, all caught after the anchor and the dedupe.
+
+  **Then the measurement the task asked for, and what it said.** All twelve
+  corpus repositories: zero, as before — none executes model output. So two real
+  projects that *do* were fetched: **smolagents** (`exec(tool_code, module.__dict__)`,
+  Apache-2.0) and **pandas-ai** (`exec(code, self._environment)`, MIT with an `ee/`
+  exception). In both, the model call and the `exec` sit in different classes;
+  Opengrep's taint tracking is intra-procedural; neither flow is reported, and both
+  `exec` sites are named by `python.dangerous-exec`. That is the honest division:
+  the taint rules are what they say — proven on fifteen flows — and detect the
+  single-function shape; the **inventory** is what fires on real code. The task's
+  either/or assumed zero would mean the rules were not tracking; the fixture shows
+  they are, and retiring the word would misdescribe them. smolagents is the
+  corpus's thirteenth repository (scanned: 8 active — 5 Checkov GHA, 2 pinning, the
+  `exec` inventory entry — complete, nothing suspect), so the limit is measured
+  weekly rather than once. README, POSITIONING and F3.10 say all of this; 24.2 is
+  resolved for good. **Block A's dispatch (35395409682), thirteen repositories:**
+  the four taint rules zero, `python.dangerous-exec` naming smolagents' one `exec`
+  site — the division of labour exactly as predicted, now measured weekly.
+
+- [x] **23.5.4** npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/`
+  is public and unauthenticated, so *newly registered AND under N downloads* — the
+  slopsquat signal design.md specified for F3.3 — is real for half the ecosystems.
+  PyPI stays stated as impossible without a third party.
+
+  **STATUS 2026-09-18:** ✅ **Block A, A4.** On `full`, an npm name the registry has
+  already dated under 90 days is asked for its last-month downloads — only those
+  names, so nothing leaves the machine that had not already gone to
+  registry.npmjs.org — and *new AND under 1,000 downloads* (design.md's row) is
+  `newly-registered` at **high**, both numbers in the title; new but adopted at
+  **low** with the count, listed because the age is not nothing; the API
+  unreachable keeps the age-only finding at medium and says which half is missing;
+  a 404 is a package too new for statistics, the least-adopted it can be. The
+  rule id and identity are unchanged, so no committed suppression moves. PyPI,
+  RubyGems, Packagist and crates.io stay age only, and the finding's evidence says
+  why. `_downloads` shares `_fetch` (https asserted, 404 → absent, everything else
+  raised), so the 404-versus-unreachable distinction F3.5 rests on is written once.
+  **Measured through the real container on `full`**, against a `package.json` of
+  four names found live: `@atlassian-test/non-sox-test` (7 days, 89 downloads) →
+  high; `@arcforges/proto` (6 days, 1,940) → low; `left-pad` asked for nothing;
+  the hallucinated fourth → nonexistent. The scoped names' slash survives the URL
+  as it does for the registry. **Found on the way:** `run.json`'s *what left the
+  machine* — the sentence that *is* the non-exfiltration claim — named PyPI and
+  npm and had not been amended when RubyGems, Packagist and crates.io joined the
+  age check in 23.2.2–3; it now names all five registries and api.npmjs.org, and
+  the test pins every destination. `valvur doctor --network` probes api.npmjs.org
+  with the rest; the Check's Coverage declares adoption under `inspects` and the
+  four age-only registries under `ignores`, and a mutation swapping the two
+  classes is caught. F3.3 annotated *met for npm*. 13 tests; nine mutations, all
+  caught. One measurement mistake worth recording: a first pass through `api.scan`
+  with an explicit adapter list reported no age findings at all — explicit
+  adapters bypass `profiles.select`, the only place a network is granted, so the
+  Check ran offline while `run.json` said `network.used: true`; the CLI path,
+  which is the user's, was right. That harness path is what every test uses.
+  **Block A's dispatch (35395409682):** no corpus dependency is under 90 days old,
+  so the downloads API was asked about nothing — the corpus cannot exercise this
+  signal, and the live measurement above is what stands.
+
+- [x] **23.5.5** Coverage statements that still count as active. The rc run showed
+  fifteen `valvur.licence.dependency-unknown` findings — one fact, since collapsed to
+  one Finding — and the corpus shows `valvur.licence.dependencies-unreadable` on six
+  of eleven real projects: *"licences could not be determined"* is a statement about
+  what valvur could read, not a defect in the code, yet it is an active, low Finding
+  that makes a project read `findings` with nothing wrong in it. Decide the class:
+  either these join `coverage.NOTE_RULES` (never active; but a licence gap must NOT
+  make a security verdict `inconclusive`, so the note machinery needs a "does not
+  cast doubt" flag), or they stay active with the rule that a gate keyed on
+  high/critical never sees them, and the README says so. The REMEDIATION wording that
+  put two versions in one sentence — *"so `json5` reaches 2.2.2, 1.0.2"* — is fixed in
+  passing: one target per action, the minimal one, as the CHANGELOG already promises.
+
+  **STATUS 2026-09-17:** ✅ **The first shape, with the flag.** Three rules —
+  `dependencies-unreadable`, `dependency-unknown`, `unidentified` — are
+  `coverage.LICENCE_STATEMENT_RULES`, in `NOTE_RULES` (never active, `not covered`
+  on every surface, invisible to `valvur gate` at every threshold) and *not* in the
+  new `coverage.DOUBT_RULES` (the two gaps, which alone make a nil result
+  `inconclusive`); `ScanRun.doubts` reads the second set, `SUMMARY.md` renders the
+  two kinds as two blocks — *"Part of this repository was not inspected at all"*
+  stays the gap's sentence, *"What valvur could not read"* is the statement's, ending
+  *not counted in the verdict*. The sets are pinned apart by test so a new note has
+  to choose. Missing licence file, contradiction, copyleft-in-permissive stay
+  Findings: facts about the project. F4.6 annotated. **Measured on the corpus
+  before the change** (`tests/corpus/report.json`, `full`): a licence statement
+  active on eight of twelve repositories; awesome-cursorrules — a CC0 `LICENSE`, no
+  signature — reading `findings` on it and nothing else. **Measured after, through a
+  rebuilt image, on the two repositories the change touches differently:**
+  awesome-cursorrules `findings` → **`clean: 0 active, 1 not covered`**, the
+  terminal line *`· could not read: Licence file present but its licence could not
+  be identified`*, `SUMMARY.md` listing it under *What valvur could not read*;
+  express unchanged at `inconclusive` — the lockfile gap still casts its doubt —
+  and its `REMEDIATION.md` no longer opens with *"Remove the hallucinated
+  dependencies"*. **The full corpus after landing** (run 35269487234, both
+  Profiles `CORPUS PASSED`): awesome-cursorrules `findings` → `clean`, and the
+  active count fell by exactly one on each of the seven repositories that
+  carried a licence statement — cobra 132 → 131, fastify 5 → 4, flask 22 → 21,
+  gson 3 → 2, llm 16 → 15, requests 6 → 5, ripgrep 17 → 16 (its `licence.mismatch`
+  stays active, as it should) — with `not_covered` up by one on each; no other
+  verdict moved, no Scanner failed. `tests/corpus/report.json` is gitignored, so
+  the numbers live here.
+
+  **Two defects found on the way, both older than the task.** (1) `REMEDIATION.md`
+  was rendered from *every* Finding, so each coverage note went through `_key` —
+  and the lockfile gap, *"npm dependencies were not checked for known
+  vulnerabilities"*, came out as **"Remove the hallucinated dependencies"** on every
+  repository without a lockfile (express, on the corpus), and from there into
+  `scan_status`'s *"REMEDIATION.md, action 1 of N"* since 23.3.4. Notes are now
+  counted aside in one line and left to `SUMMARY.md`; the partition test counts
+  actions against Findings-about-the-code. (2) The sentence the task quotes was
+  worse than quoted — the golden fixture rendered *"so `json5` reaches 2.2.2,
+  2.2.2, 1.0.2"* — and had two causes: Trivy's `FixedVersion` is a comma-joined fix
+  per release line and the adapter copied it (now the smallest fix above the
+  installed version, OSV's rule, from the shared `versions.version_key`; Trivy's own
+  words kept when nothing is above), and `_retarget` wrote the highest fix *across
+  the whole root group* after whichever package the first finding named — with the
+  first cause fixed alone it read *"so `json5` reaches 1.4.2"*, loader-utils'
+  version on json5's name. Now per package: *"Upgrade `webpack` so `json5` reaches
+  1.0.2 and `loader-utils` reaches 1.4.2"*. 30 tests in
+  `tests/test_licence_statements.py`; fourteen mutations, all caught — including
+  the first loop, which reverted uncommitted work with `git checkout` and had to
+  be re-run from a baseline commit.
+
+**Exit:** a stranger installs the published version, `valvur doctor` passes or tells
+them exactly why not, the first scan lands in about a minute, and the Check that
+exists for agent files can see the primary client's own.
+
+**Commit:** *(one per block, as before)*
+
+---
+
+## Phase 24 — The audit, and one list of everything that remains
+
+**Goal:** close the gap between what the requirements say and what the published
+`0.2.0` does, found by auditing the one against the other the morning it shipped —
+and replace the sequencing notes scattered across Phases 21 and 23 with **one ordered
+list of every open task**, so "what is next" has exactly one answer.
+
+> **Added 2026-09-13, from an audit of the requirements against the published
+> release.** Three measurements were taken against `valvur==0.2.0` from PyPI and the
+> image from GHCR, not the tree. **(1)** A stranger's MCP first run — `scan` over stdio
+> with an empty cache, as the README's snippet instructs — finished `complete: False`
+> with Trivy and dependency-reality both failed, each saying *"Fetch it once with:
+> `valvur update`"*: a shell command the agent has no tool for, and one the snippet
+> never mentions. P1 says *one command*; the primary path needs two and hides the
+> second. **(2)** `uvx --from valvur valvur-mcp` — the README's primary install —
+> answers `serverInfo.version: 0.2.0`; that path is real for the first time.
+> **(3)** The CLI first run: `pip install` 1.7s, `valvur update` 53s, first scan 33s.
+> The requirements audit found three claims the traceability ratchet cannot see
+> through, because it proves an ID is *cited*, not *met*: F3.10 (four Opengrep rules
+> that fired zero times on twelve real repositories, still listed as a feature in
+> the README), F1.10 (never run on AWS), and N1.1/N1.4 (evidence thin: no timing on
+> a 50k-line repository, memory measured once by hand). And `0.1.0rc1`, the shim
+> that looks for `valvur:dev`, is still installable by pin.
+
+### The list — every open task, in the order it should be done
+
+**This list is authoritative for order** — *until 2026-09-18, when
+[Phase 25](#phase-25--one-block-to-the-release-then-the-three-checkpoints) took
+that over; every row and number here stands, and Phase 25 says when.* Each task's own text remains authoritative
+for what it means. The diagrams in Phases 21 and 23 are history; where they disagree
+with this list, this list wins. Items marked *owner* need a person; everything else
+is engineering and proceeds in this order. The usability gate (13–14) needs a
+stranger and a calendar, so it is arranged while 1–12 are built and its findings
+(15) are acted on before Blocks 4 and 5.
+
+> **Amended 2026-09-17.** Block 4's engineering (16–19) ran on 2026-09-14, ahead of
+> the gate: the stranger was not yet arranged, and none of the four changes what a
+> first run meets. 23.4.6 (20) stays behind the gate. **What the gate now depends
+> on that this list does not name:** 10.1.2 has the stranger install *the way the
+> README says*, and the README installs from PyPI — which is `0.2.0`, without
+> `doctor`, the first-run fetch, the budget or `scan_cancel`. Twenty-three tasks have
+> closed since `0.2.0` shipped (2–12, 16–19, 25 and, on 2026-09-18, 20–24 and 26; on
+> 2026-09-19, 25.3) — and released together as `0.3.0` on 2026-09-20; run against
+> `0.2.0`, the gate re-finds 24.1. A `0.3.0` release — a rehearsal, then the tag,
+> as `RELEASING.md` describes — is an owner action no row carries; it is **Batch 2**
+> below, and `valvur-action`'s `v0` tag waits on the same release (23.3.6).
+> *Released 2026-09-20 (25.1): the gate now measures `0.3.0`. The action's `v0`
+> followed the same day (25.2).*
+
+| # | task | what | who | batch |
+|---|---|---|---|---|
+| 1 | [24.4](#phase-24--the-audit-and-one-list-of-everything-that-remains) | yank `0.1.0rc1` on PyPI | ✅ 2026-09-20 | ✅ |
+| 2 | 24.1 | `scan` fetches what is *absent* on a first run, and says so — the primary path's one command | ✅ 2026-09-13 | ✅ |
+| 3 | 24.2 | the README stops claiming the LLM-output-to-sink rules as a feature | ✅ 2026-09-13 | ✅ |
+| 4 | [23.3.1](#3--valvur-doctor) | `valvur doctor`, with the CA-bundle check | ✅ 2026-09-13 | ✅ |
+| 5 | 23.3.2 | `duration_s` per Scanner; the corpus gains timings | ✅ 2026-09-13 | ✅ |
+| 6 | 24.3 | requirements: F1.10 retired; N1.1 and N1.4 given evidence or amended | ✅ 2026-09-13 | ✅ |
+| 7 | 23.3.4 | no truncation over MCP; `DONE` names the next two moves | ✅ 2026-09-13 | ✅ |
+| 8 | 23.3.5 | `valvur gate`, `valvur cache` | ✅ 2026-09-13 | ✅ |
+| 9 | 23.3.3 | `scan_cancel`, `--jobs` | ✅ 2026-09-13 | ✅ |
+| 10 | 23.3.7 | a scan budget | ✅ 2026-09-13 | ✅ |
+| 11 | 23.3.6 | `MaverickHQ/valvur-action`, dogfooded | ✅ 2026-09-13 | ✅ |
+| 12 | [23.4.1](#4--build-and-architecture) | Checkov hash-locked in its own venv — moved ahead of the rest of Block 4: the one image input signed with our identity that is not pinned by hash | ✅ 2026-09-13 | ✅ |
+| 13 | [10.1.1](#101--the-usability-gate) | the usability gate: protocol, participant, recording | **owner** + a stranger | 3 |
+| 14 | 10.1.2 | they install it the way the README says | with 13 | 3 |
+| 15 | [12b.1](#12b--release) | act on what the gate found | | 3 |
+| 16 | 23.4.2 | the three Checks in one container | ✅ 2026-09-14 | ✅ |
+| 17 | 23.4.3 | `buildx bake`, native arm64 | ✅ 2026-09-14 | ✅ |
+| 18 | 23.4.4 | the shim carries its build hash | ✅ 2026-09-14 | ✅ |
+| 19 | 23.4.5 | measure osv-scanner's marginal value | ✅ 2026-09-14 | ✅ |
+| 20 | 23.4.6 | Checkov on demand, or a slim image | ✅ 2026-09-18 — declined, ADR-0019 | ✅ |
+| 21 | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check | ✅ 2026-09-18 | ✅ |
+| 22 | 23.5.2 | `tools/list` snapshot | ✅ 2026-09-18 | ✅ |
+| 23 | 23.5.3 | taint-mode LLM rules, or retire the word | ✅ 2026-09-18 — resolved 24.2 | ✅ |
+| 24 | 23.5.4 | npm adoption on `full` | ✅ 2026-09-18 | ✅ |
+| 25 | 23.5.5 | coverage statements counted active | ✅ 2026-09-17 | ✅ |
+| 26 | 12b.2 | the constraint suite against the release artifact | ✅ 2026-09-18 | ✅ |
+| 27 | 12b.3 | `v1.0.0` | **owner** | 6 |
+
+### Run in batches — the 12 open tasks grouped, and the order re-cut
+
+> **Superseded 2026-09-18 by [Phase 25](#phase-25--one-block-to-the-release-then-the-three-checkpoints).**
+> Batches 1, 4 and 5 and 12b.2 are its Block A, run as one block with one corpus
+> dispatch and one rehearsal; Batches 2, 3 and 6 are its three checkpoints. The
+> reasoning below stands; the order there wins.
+>
+> **Added 2026-09-17.** Twelve boxes remain, three of them the owner's. Run one at
+> a time they are twelve review cycles and — the expensive part — an image rebuild
+> and a corpus dispatch for most of the nine engineering ones. Grouped by what they
+> share, the nine collapse into **three batches with one corpus dispatch each**, and
+> the three owner-bound items become the checkpoints between them. As for Phases
+> 19–21: **a reading order, not a renumbering** — every task keeps its ID, and its
+> own text stays authoritative for what it means.
+>
+> **It re-cuts the table's order in three places, and from row 13 down this section
+> wins where the two disagree.** **(1)** Block 5's three that change what a first
+> run *reads* — 25, 21, 22 — move ahead of the gate: the stranger measures them or
+> finds them. **(2)** 12b.2 (26) moves from the tail into the release: it is a
+> `release.yml` job, and the rehearsal `0.3.0` needs anyway is the run that proves
+> it. **(3)** The `0.3.0` release itself, which no row carried, is Batch 2 — the
+> gate measures the published version, and today that is `0.2.0`.
+
+```
+Batch 1  what the stranger's project reads   23.5.5 · 23.5.1 · 23.5.2     one corpus dispatch
+              ↓
+Batch 2  release 0.3.0                        12b.2 · rehearsal · v0.3.0     owner + pipeline
+                                              · valvur-action v0 · 24.4
+              ↓
+Batch 3  the usability gate                   10.1.1 · 10.1.2 → 12b.1    ─┬─ owner + a stranger; a calendar
+Batch 4  claims measured on the corpus        23.5.3 · 23.5.4             ─┘  engineering, while 3 waits
+              ↓
+Batch 5  image shape                          23.4.6                        its own rehearsal; decided by 3
+              ↓
+Batch 6  v1.0.0                               12b.3                         owner
+```
+
+#### Batch 1 — What the stranger's project reads · 23.5.5, 23.5.1, 23.5.2
+
+Touches `src/valvur/checks/`, `coverage.py`, the AI Artifact rules, the REMEDIATION
+wording in `results.py`, and a snapshot test over `mcp/tools.py`. Each PR rebuilds
+the image — the tree-hash guard demands it — and **one corpus dispatch at the end
+judges all three**: the verdict shift and the new rule's hits arrive in one report.
+
+Together because all three decide what a first-time user *sees*, and the gate's
+stranger is the first person who will see it:
+
+- **23.5.5 first**, because it changes the verdict semantics the other two are
+  measured under. On the committed corpus report (`tests/corpus/report.json`, run
+  34764187516, `full`): `valvur.licence.dependencies-unreadable` is an active
+  Finding on **six of twelve** repositories, a licence *statement* of some kind is
+  active on eight, and one — awesome-cursorrules — reads `findings` on a
+  `licence.unidentified` note and nothing else. A stranger whose project reads
+  `findings` with nothing wrong in it is a gate finding already held; the gate's
+  ten minutes are for the ones that are not.
+- **23.5.1**: a Kiro workspace scanned by the Check that exists for it cannot see
+  `.kiro/steering` or `.kiro/hooks` — Block 5's exit criterion in so many words.
+  Needs a planted fixture; the corpus has no `.kiro/` and will report zero, which
+  is expected and is not evidence.
+- **23.5.2 last**: the `tools/list` snapshot is taken after the last change to the
+  MCP schema before `0.3.0` — and with `scan`'s `budget_s`, `scan_cancel` and
+  `doctor` this week, the schema has moved more than at any point since the rc.
+
+**Commits:** one per task, each with its CHANGELOG line under Unreleased.
+
+#### Batch 2 — Release `0.3.0` · 12b.2, then the owner's clicks
+
+Fifteen tasks closed since `0.2.0` and none released (rows 2–12 and 16–19), plus
+Batch 1. **12b.2 goes in first**: a job in `release.yml` after `release`, which
+installs the wheel from `dist/` into a clean venv, pulls the image **by the digest
+just pushed**, and runs the e2e suite and `valvur gate` against those two. The
+`verify` job runs the same suite and gate against `valvur:dev` *before* the push —
+that proves the tree, and N2.5 asks for the artifact. `ci.yml`'s `published` job
+already does half of this (the tree's shim against the published tag); 12b.2 is
+the other half, inside the release that produced the artifact.
+
+Then, in order, as `RELEASING.md` describes: one `workflow_dispatch` rehearsal —
+12b.2's job runs for the first time there, which is the point; the version bump
+and CHANGELOG date; tag `v0.3.0`; `valvur-action`'s `v0` tag on the commit whose
+`version` default is `0.3.0` (23.3.6); and **24.4**, the yank of `0.1.0rc1`, in the
+same sitting. Then the README's first-run numbers re-measured against the release,
+as 23.1.1 did for `0.2.0`.
+
+#### Batch 3 — The usability gate · 10.1.1, 10.1.2, then 12b.1
+
+Owner and a stranger, on `0.3.0`, installed the way the README says, MCP first.
+Nothing engineering waits on it except 12b.1 and Batch 5's decision. The reason in
+[the 6 that do not group](#the-6-that-do-not-group) still holds: first impressions
+do not reset, so this is the one batch that cannot be re-run.
+
+#### Batch 4 — Claims measured on the corpus · 23.5.3, 23.5.4 — while Batch 3 waits
+
+Together because both are *change it, dispatch the corpus, then decide what the
+README may say*: 23.5.3 is rules (`rules/`) plus a planted fixture that proves the
+widened sources fire; 23.5.4 is the dependency-reality Check on `full` — one more
+public, unauthenticated endpoint, `full` only, §10 untouched. Neither changes the
+first run or the MCP shape, so they land *behind* `0.3.0` without changing what
+the stranger installs. **One corpus dispatch judges both**, and the two steps that
+answer them already exist: `corpus.py rules` (22.E.2) prints per-rule hits,
+`corpus.py compare` (23.4.5) prints what `full` added. Each ends in a
+`POSITIONING.md`/README claim edit — *taint* kept or retired; *newly registered
+and under N downloads* held for npm or not.
+
+#### Batch 5 — Image shape · 23.4.6, alone, after the gate
+
+Alone because it is the one open task that changes the release pipeline again — a
+second image or a `slim` tag means the bake file, the `build` matrix,
+`_ensure_image` pulling mid-scan and the action's inputs — so it needs its own
+rehearsal cycle and should not ride on `0.3.0`'s. And 24.3's measurement already
+leans: every corpus repository carries a workflow file, so Checkov runs on all
+twelve; an on-demand `valvur-checkov` would be pulled by everyone on their first
+scan, and the smaller first-run number *for the common case* mostly disappears.
+What the numbers leave is a `slim` tag for people who opt out, or the decision that
+nothing here is worth an image — and whether the 223MB pull registered with the
+stranger at all is the input to decide with, which is why it waits for Batch 3.
+
+#### Batch 6 — `v1.0.0` · 12b.3
+
+Owner. After 12b.1's fixes land and 12b.2's job has gone green on a real release —
+which, by then, it has.
+
+### The audit's tasks
+
+- [x] **24.1** **`scan` fetches what is absent on a first run, and says so.** Measured
+  2026-09-13 against the published `0.2.0`: over MCP, with an empty cache, the first
+  `scan` finishes incomplete — Trivy and the dependency-reality Check fail, each
+  naming `valvur update`, which the agent cannot run and the README's snippet never
+  mentions. Task 14.2 decided valvur does not update by itself, and its three
+  reasons were about **staleness**: a hostile download inside a scan the user asked
+  to be fast, the Profiles diverging, and refreshing on the user's behalf being the
+  same move as fixing on their behalf. **Absence is a different case** — without the
+  database and the index there is no scan at all, and 23.2.4 already crossed this
+  line for the image, with the pull announced on `scan_status`. So: when the
+  database or the index is *absent*, `scan` fetches it first and reports it the same
+  way (*"fetching the vulnerability database (118MB) — the first run only"*), on the
+  CLI and over MCP; when either is *stale*, nothing changes — the warning stands and
+  the user decides. The README's agent snippet then needs no `update` line, and
+  `valvur update` remains the way to refresh. Tested the way 23.2.4 was: empty
+  cache, `valvur-mcp` over stdio, read `scan_status`. **P1 becomes true on the
+  primary path.**
+
+  **STATUS 2026-09-13:** ✅ **Measured the way 23.2.4 was, from a stranger's state —
+  the image removed, an empty `VALVUR_CACHE`, `valvur-mcp` over stdio, one `scan`
+  call: `complete: True` in 110s**, 76 findings, `left this machine: nothing`.
+  `scan_status` read, in turn, *"Now: pulling ghcr.io/maverickhq/valvur:0.2.0
+  (223MB) — the first run only"*, *"Now: fetching the vulnerability database (119MB)
+  — the first run only"* (`Completed so far: image pulled (22s)`), *"Now: fetching
+  the package-name index (35MB)"* (`… database fetched (30s)`), then the eight
+  Scanners (`… index fetched (7s), gitleaks: ok, …`). The CLI with the image present:
+  four lines on stderr, 91s. **How:** `api._ensure_data` runs in `scan` after
+  `_ensure_image` and **before the shared cache lock** — both fetches take it
+  exclusively, and a shared lock already held on another descriptor of the same
+  file in this process would deadlock them (the image pull moved out of
+  `_scan_locked` for the same reason; the order test now goes through `scan`). The
+  database is `runner.update_db()`, the same call `valvur update` makes; the index
+  is `name_index.refresh(…, fallback=False)` — a new flag, because the seven-minute
+  registry walk is exactly the download 14.2 called hostile inside a scan, so a scan
+  pulls the published index or fails naming `valvur update`, which walks. Sizes come
+  from the registries' manifests through `oci.image_size` (which gained `insecure=`
+  for an operator's mirror): `ContainerRunner.db_size_mb()` against
+  `DEFAULT_DB_REPOSITORY` (`mirror.gcr.io/aquasec/trivy-db:2`, the first of Trivy's own two defaults; 118.5MB measured, 0.7s) and
+  `name_index.published_size_mb()` (35MB; None for a static mirror). The vocabulary
+  is two tuples in `api` — `FETCH_STARTED = ("pulling ", "fetching ")`,
+  `FETCH_ENDED` — that `operations.scan_status` uses for its `Now:` line (the latest
+  message, if it is a fetch, until anything follows it) and `cli` for what it
+  prints. **What a failure does:** a fetch that fails costs only the Scanner that
+  needed it (F2.5): the run is incomplete, `scan_status` records *"database not
+  fetched: <Trivy's words>"*, and `_say_why_unfetched` prefixes that Scanner's
+  failure with the reason, ahead of the runner's own refusal that names `valvur
+  update` — still the right fix for a person, but not the whole story once a fetch
+  has been tried. `oci.SignatureInvalid` is deliberately not caught: a refused index
+  signature stops the scan (23.2.1's rule). KEV is not fetched — the image carries
+  a snapshot as its floor (ADR-0007), so its absence costs nothing. **The stale case
+  is untouched**, and 14.2's pin changed shape: it inspected `scan`'s source for the
+  word `update_db`, which the new structure would have passed vacuously; it is now a
+  scan against a 45-day-old database with an `update_db` that fails the test if
+  called. 16 new tests in `tests/test_first_run.py` (the exclusive lock is proven by
+  asking for the shared one during the fetch and getting `Busy`); 16 mutations,
+  each killed; 678 unit tests; e2e unchanged (CI runs `valvur update` before it).
+  The image was rebuilt for the e2e suite because the tree-hash guard (22.C.1)
+  demanded it, as it does for any change under `src/valvur` — though nothing under
+  `checks/` or the index's reader half changed — and the measurement above used the
+  published `0.2.0` image, pulled by the scan itself. F10.8 amended and P1 annotated in `requirements.md`; README, EVALUATING
+  (a new first-run row) and CHANGELOG say what changed.
+
+- [x] **24.2** **The README stops claiming the LLM-output-to-sink rules as a
+  feature.** Claim 2's third bullet lists *"model output reaching `eval`, `exec`, a
+  shell, SQL or `innerHTML`"*; measured on the corpus (22.E.2) those four rules fired
+  zero times on twelve real repositories, one of them an LLM tool. That is a
+  coverage claim we do not hold (§10). Until 23.5.3 either makes them real with
+  taint mode or retires them, the README and `docs/EVALUATING.md` say what is true:
+  the rules exist, they are pattern rules, and on real code they have not fired.
+  Ten minutes, and it should not wait for the gate.
+
+  **STATUS 2026-09-13:** ✅ Done, and the task's own text was wrong twice, which is
+  worth recording in a task about overclaiming. **(1) "twelve"**: the last corpus
+  run (34706225304, 2026-09-12 16:45) scanned *eleven* repositories — its job name
+  says so — and monolog, the twelfth, was added later that day; the twelve-repo
+  corpus has not run yet. Every sentence written today says eleven. **(2) "pattern
+  rules … made real with taint mode"**: `rules/llm-output-sinks.yaml` has used
+  `mode: taint` since 2026-08-30 for three of the four (sources: `messages.create`,
+  `chat.completions.create`, `generate_content`; sinks: `eval`/`exec`/`compile`,
+  `os.system`/`popen`/`subprocess(shell=True)`, `innerHTML`); the fourth,
+  `output-to-sql`, is a plain string-built-SQL pattern with no model source at all.
+  So 23.5.3's question is not "add taint mode" but "why do taint rules with these
+  sources never fire on real code" — the sources are three SDK call shapes, and a
+  helper that unwraps `.choices[0].message.content`, LangChain, litellm and ollama
+  are all outside them; its text is annotated below. **What changed:** the README
+  bullet now says what the rules are, that they fire on the fixture, that on eleven
+  real repositories including `simonw/llm` they have never fired, and that the
+  Checks carry the section; `docs/EVALUATING.md` says the zero is *unmeasured*
+  rather than a pass or a fail, since no corpus repository executes model output;
+  `docs/POSITIONING.md` gains *"A measured limit on Claim 2"* in the shape Claim 3
+  already had, with the rule that the rules may be listed but not sold; F3.10 is
+  annotated as cited and exercised, met-on-real-code unmeasured. Nothing in the
+  rules, the Scanners or the tests changed: this was a documentation defect, and
+  the constraint suite has no test for prose.
+
+- [x] **24.3** **Requirements the ratchet cannot see through.** `check_traceability`
+  proves every ID is *cited*; F3.1's own note records that a requirement was cited
+  by code implementing a tenth of it. Three need the same explicit treatment F7.3
+  got: **F1.10** (identical image on AWS) has never been run there and CLAUDE.md
+  already says so — retire it, or defer it with the condition that would revive it;
+  **N1.1** (`offline` under 60s on ≤50k lines) has 33s on a twelve-file fixture and
+  7–24s on small real projects, and no measurement on a repository of that size —
+  23.3.2's `duration_s` on the corpus (ripgrep is the candidate) supplies it, and the
+  requirement is then either met with the number or amended; **N1.4** (2GB) was
+  measured once by hand at 344MiB and never asserted — record the measurement in
+  the requirement and assert it in the e2e suite on Linux, where `docker stats` can.
+
+  **STATUS 2026-09-13:** ✅ **F1.10** split into the half that holds and the half
+  that was never exercised: *no cloud-specific code path* is the requirement now,
+  asserted on every commit by `test_there_is_no_cloud_specific_code_path`; the
+  *targets AWS* clause is struck through and **deferred**, revived only by a
+  measured run on a host with a Docker socket (ECS-on-EC2, EC2 — not Fargate,
+  ADR-0001), and no document may say valvur runs on AWS until then. **N1.1**:
+  the corpus was dispatched on `main` with 23.3.2's timing (run 34764187516,
+  `ubuntu-latest`) — every application repository from 22k to 100k lines completes
+  `offline` in **14–18s, flat with size** (cobra 44k 14.4s, flask 47.5k 16.1s, llm
+  53k 15.2s, gson 64k 16.7s, ripgrep 80k 17.6s, fastify 100k 16.1s), because the
+  scan is Checkov's ~15s start-up and every other Scanner is 1–4s; and the one
+  infrastructure repository, `terraform-aws-vpc`, took **88.2s, Checkov 87.8s** —
+  so the 60s claim is *met with three times to spare on application code* and *not
+  held on IaC-heavy repositories*, and the requirement now says both, names the
+  machine class (this laptop through Docker Desktop read 60–94s on the same
+  workspace under load, a container start being 10–16s there against 2–3s on
+  Linux), and states that the data is present. **N1.2** annotated beside it: `full`
+  is `offline` plus 0–1s everywhere. **N1.4**: the self-skipping test is replaced
+  by a real one — `_FleetMemory` samples `<runtime> stats` in a thread throughout
+  a `full` scan of this repository, keeps the highest sum over every `valvur-*`
+  container, adds the shim's `ru_maxrss`, and fails above 2 GiB; Linux-only, where
+  the accounting is the kernel's (through Docker Desktop's VM the sampler works —
+  151 samples, fleet peak 493 MiB, shim 38 MiB on the ten-file fixture — but
+  describes the VM's view, so macOS keeps the hand measurement); `ci.yml` runs e2e
+  with `-rP` so the passing test's one printed number is in every CI log, and
+  `_parse_mem_usage` reads docker's `MiB` and podman's `MB` alike. The committed
+  `tests/corpus/report.json` is the run's `full` report, twelve repositories with
+  `scan_s` and `duration_s` per Scanner — and the four LLM rules are now zero on
+  twelve, so 24.2's "eleven" became "twelve" where it was written. Two findings
+  worth more than the task: **Checkov runs on every real repository** (they all
+  carry a workflow file, so applicability says yes) and is 85–95% of every scan on
+  Linux — 23.4.6's decision has its numbers; and **a container start on Docker
+  Desktop costs five times what it does on Linux**, which is most of what a Mac
+  user waits for and the whole of 23.4.2's case.
+
+- [x] **24.4** **Yank `0.1.0rc1` on PyPI.** *Owner action.* The published rc shim has
+  `IMAGE = "valvur:dev"` hard-coded (22.G.1) and can never have worked for anyone;
+  it is still installable by anyone who pins it. A yanked release stays for people
+  who already pinned and stops resolvers choosing it. pypi.org → `valvur` → Manage →
+  release `0.1.0rc1` → *Yank*, with the reason *"looks for a local development
+  image; use 0.2.0"*.
+
+  **STATUS 2026-09-20:** ✅ Yanked, the owner signed in and confirming the click,
+  with the reason *"looks for a local development image; use 0.3.0"* — `0.3.0`
+  being out by then. Verified from outside rather than from the page: the Simple
+  index pip reads (`application/vnd.pypi.simple.v1+json`) marks both files
+  `yanked` with that reason, and the JSON API agrees once its cache turned over
+  (the first read after the click still said `false` — the CDN, not the yank). A
+  resolver asked for `valvur<0.2` now finds no release and says pre-releases exist
+  but were not enabled; anyone pinning `==0.1.0rc1` still gets it, with the
+  reason on their terminal. Twenty days on PyPI as a release nobody could run.
+
+## Phase 25 — One block to the release, then the three checkpoints
+
+**Goal:** run everything engineering that stands between here and `0.3.0` as **one
+block** — one stretch of work, one corpus dispatch, one release rehearsal — and leave
+the rest of the plan as three checkpoints that each need a person: the release, the
+gate, `v1.0.0`. Written 2026-09-18 from a review of the eleven open tasks.
+
+> **What the review found.** Every open task falls into one of two kinds. Six are
+> engineering that no person is waited on for — 23.5.1, 23.5.2, 23.5.3, 23.5.4,
+> 23.4.6 and 12b.2 — and each was scheduled apart from the others only because the
+> batches of 2026-09-17 sequenced them around a gate that has no date yet. Five need
+> a person: 24.4 and the `0.3.0` cut (the owner), 10.1.1–10.1.2 (the owner and a
+> stranger), 12b.1 (whatever they found), 12b.3 (the owner). The six share one
+> validation apparatus — a corpus dispatch judges 23.5.1, 23.5.3 and 23.5.4 in one
+> report; a release rehearsal proves 12b.2 and everything `0.3.0` will carry — so
+> running them as one block costs one dispatch and one rehearsal instead of three
+> and two, and puts every engineering change into the release the stranger measures.
+>
+> **This phase is now the one answer to "what is next".** The ordered list at the
+> head of Phase 24 keeps every row and every number; its batches of 2026-09-17 are
+> re-cut here into Block A and three checkpoints, and where the two disagree, this
+> phase wins. Task IDs and task text stay where they are and stay authoritative for
+> *what* each task means; this phase says *when*.
+>
+> **Amended 2026-09-20.** Block A and Checkpoint B are complete. What is next
+> splits in two: the three checkpoints below wait on a person, and
+> [Phase 26](#phase-26--the-second-external-review-four-gaps-five-tiers) — written
+> from an external review the same afternoon — is the engineering that does not,
+> tiered by when its consequences arrive. Tier 0 and Tier 1 are what the next
+> release carries, with or before 12b.1; Tiers 2–3 land before 12b.3.
+>
+> **Amended 2026-09-26.** Phases 26, 27 and 28's engineering are complete —
+> fifty-one tasks since `0.3.0` shipped — and the order below is re-cut once
+> more, for three measured reasons. **The next tag moves ahead of the gate:** a
+> participant cannot be reused, and the tree a stranger would meet on `0.3.0` is
+> not the one they would install a week later — Checkov's floor is 6–9 s against
+> 16–19 s (28.2.1), the MCP handshake carries the rules (28.2.2), and
+> `[Unreleased]` holds thirty-three entries; measuring a stranger on a release
+> already superseded spends the one measurement that cannot be repeated. **The
+> next tag is `0.4.0`, not `0.3.1`:** two new CLI flags, a new environment
+> variable, an additive MCP schema change and a scan two to three times faster
+> is a minor by this project's own precedent (`0.2.0` → `0.3.0` carried
+> twenty-three tasks); 28.1.2's text keeps its words and its STATUS note records
+> the number. **The second maintainer (28.1.3) is placed before `v1.0.0`:** the
+> fourth review measured the bus factor at one (O3), and a stability claim should
+> not be the first thing a project that one absence stops puts its name to. The
+> prep PR and the rehearsal for `0.4.0` are engineering and run unattended; the
+> tag, the environment approval, the stranger and the second person are the
+> owner's. Checkpoints keep their letters — E and F are new, and the letters
+> name them rather than order them.
+
+```
+Block A   the pre-release block          23.5.1 → 23.5.2 → 23.5.3 → 23.5.4 → 23.4.6 → 12b.2
+          engineering, no person          one corpus dispatch · one release rehearsal
+               ↓
+Checkpoint B   release 0.3.0             ✅ 2026-09-20 — 25.1 rehearsal + tag · 25.2 valvur-action v0 · 24.4 yank
+               owner, one sitting
+               ↓
+Checkpoint E   release 0.4.0             ✅ 2026-09-26 — 28.1.2 prep PR · rehearsal 36235113134 · signed tag · run 36254809572 promoted
+               the owner's one click at the brake; 25 minutes tag → :latest, 12 of them waiting for it
+               ↓
+release 0.5.0  Phase 29 shipped                 ✅ 2026-09-26 — prep #130 on 011ec09 (98 s on the gate's tree) · rehearsal 36257979480 · tag · run 36261443737 promoted
+               the owner's click at the brake; 94 minutes tag → :latest, 81 of them waiting for it
+               ↓
+release 1.0.0  prepared 2026-09-27                  prep on f7c19b1 (136 s on the gate's tree) · rehearsal 36317791899 at the brake · F declined with a reason
+               the owner: the gate with a person, then the signed tag and the click
+               ↓
+Checkpoint C   the usability gate         10.1.1 · 10.1.2 on 0.4.0  →  12b.1 (engineering, on what they found)
+               owner + a stranger; a calendar; the machine reset first
+               ↓
+Checkpoint F   the second maintainer      28.1.3 — MAINTAINERS.md steps 1–5
+               owner + a person
+               ↓
+Checkpoint D   v1.0.0                     12b.3
+               owner
+               ↓
+dated          the runner move            28.3.8 after 2026-11-19 (engineering)
+```
+
+### Block A — The pre-release block
+
+Six tasks, in this order, each landing by its own pull request; nothing in the block
+waits on a person. Every PR rebuilds the image (the tree-hash guard demands it) and
+runs the unit suite; the two real-world checks run **once, at the end**.
+
+| # | task | what | why here |
+|---|---|---|---|
+| A1 ✅ | [23.5.1](#5--the-primary-clients-own-files) | `.kiro/` into the AI Artifact Check — `steering/*.md`, `settings/mcp.json` `autoApprove`, **`hooks/` running shell commands on file events** (`valvur.ai-artifact.hook-runs-command`, high); with it `.clinerules`, `.roo/`, `.continue/`, `.aider.conf.yml` | Block 5's exit criterion in so many words; a Kiro workspace is what the stranger is likeliest to bring. Planted fixture proves it fires; the corpus (awesome-cursorrules' hundreds of real instruction files) proves it does not fire on real ones |
+| A2 ✅ | 23.5.2 | Snapshot the MCP `tools/list` in a test, so a schema change is a deliberate diff | After A1 and before anything else: no task below changes the MCP schema, so this pins `0.3.0`'s shape |
+| A3 ✅ | 23.5.3 | Taint-mode LLM rules with real sources — `openai.chat.completions.create(…).choices[0].message.content`, `anthropic.messages.create`, LangChain `.invoke()`, `litellm`, `ollama` — into the sinks the INFO rules inventory; a planted fixture proves they fire | Rules only (`rules/`); the corpus's `rules` step already prints the answer. If the twelve still say zero, the README says *sink inventory* and stops saying *taint* — which resolves 24.2 for good |
+| A4 ✅ | 23.5.4 | npm adoption on `full`: `api.npmjs.org/downloads/point/last-month/<name>` — public, unauthenticated, `full` only — so *newly registered **and** under N downloads* is the slopsquat signal design.md specified. PyPI stays stated as impossible without a third party | The dependency-reality Check on `full`; §10 untouched (no call on `offline`, no token). The corpus's `compare OFF FULL` step already prints what `full` added |
+| A5 ✅ | 23.4.6 | Checkov on demand, or a `slim` tag — **decide from the numbers in hand**, then either build the `slim` bake target or close it as declined with the numbers recorded | The measurement the task waited for exists: Checkov is 191MB of the image and 85–95% of every scan (23.3.2); every corpus repository carries a workflow file, so Checkov runs on all twelve (24.3) — an on-demand image would be pulled by everyone on their first scan, and `applies_to` already skips its startup where there is nothing to read. Expected outcome: declined, with the condition that reopens it (a measured user for whom the 191MB is the cost that matters) |
+| A6 ✅ | [12b.2](#12b--release) | The constraint suite and `valvur gate` against the *release artifact*: a `release.yml` job after `release` that installs the wheel from `dist/` into a clean venv, pulls the image by the digest just pushed, and runs the e2e suite and the gate against those two (N2.5) | Last, because it is the job the rehearsal proves — and the rehearsal that closes the block is the one `0.3.0` needs anyway |
+
+**Validation, once, at the end of the block:**
+
+1. **One corpus dispatch** (`corpus.yml`), read for three things in one report:
+   A1's new rule against awesome-cursorrules (zero expected — hundreds of real
+   `.cursorrules` are the false-positive test), A3's per-rule hits (`corpus.py
+   rules`), A4's `full`-over-`offline` delta (`corpus.py compare`). Both Profiles
+   must say `CORPUS PASSED`.
+2. **One release rehearsal** (`release.yml`, `workflow_dispatch`): every step against
+   throwaway targets, A6's job running for the first time. Green here is the block's
+   exit and Checkpoint B's entry.
+
+**Exit (Block A):** six tasks closed with their notes; the corpus and the rehearsal
+both green on the tree that will be tagged; `CHANGELOG.md`'s Unreleased section
+complete for everything since `0.2.0`.
+
+> **Block A closed 2026-09-18.** Six tasks in one day; the rehearsal (35393242074)
+> green with the artifact job in it; the corpus (35395409682) `CORPUS PASSED` on
+> both Profiles across thirteen repositories, and it read as planned: zero AI
+> Artifact findings on awesome-cursorrules' real instruction files (A1); the four
+> taint rules zero and the inventory naming smolagents' `exec` (A3); no dependency
+> under 90 days, so the adoption signal untouched (A4). **And it found one more
+> thing**, which is what a dispatch is for: on smolagents, `full` added 110
+> advisories that are not marginal value — OSV-Scanner evaluating a 39-line,
+> wholly unpinned `requirements.txt` at its lower bounds — while on `offline` the
+> same file read as *checked* with Trivy correctly finding nothing for a range.
+> That is a silent clean of the kind §7 calls worse than no scan, on the commonest
+> Python manifest shape there is, and a stranger's project is likelier to have it
+> than not. It is **25.3**, and it goes before the release.
+
+- [x] **25.3** **Unpinned requirements are not a check.** Found by Block A's corpus
+  dispatch (2026-09-18) on smolagents' `examples/open_deep_research/requirements.txt`:
+  39 lines, none pinned. Two defects, one file. **(1)** On `offline`, Trivy reads the
+  file and reports nothing — correct, a range is not a version — and valvur's
+  lockfile coverage note stays silent because a `requirements*.txt` is present, so
+  the dependencies read as *checked* when nothing was. Treat a requirements file
+  with no `==` pins the way 22.E.1 treats a manifest with no lockfile: a coverage
+  note (`vulnerabilities-unchecked`, `DOUBT_RULES`), naming the file and saying
+  *pin them or commit a lockfile*, and the run `inconclusive`. A file that mixes
+  pinned and unpinned lines is *partly* checked; say which. **(2)** On `full`,
+  OSV-Scanner evaluates each unpinned range at its lower bound and reports every
+  advisory since — 110 on smolagents (pypdf 41, transformers 26, torch 20, pillow
+  17), against versions nobody installs today. Those findings must not stand as
+  the project's: drop OSV results for a package whose requirement line is a range,
+  and let the note from (1) say why the file was not checked. Measure on the
+  corpus (`compare` should then show smolagents +0) and pin both halves with the
+  fixture. Update the README's OSV row and EVALUATING's lockfile paragraph.
+
+  **STATUS 2026-09-19:** ✅ Both halves turn on one fact about a line, so it is
+  decided once — `valvur/requirements.py`: a line *pins* when it names one version
+  (`==1.2.3`, `===`), is a *range* otherwise (`>=`, `~=`, `<`, `!=`, a wildcard
+  `==1.*`, or no specifier at all — every version there is), and is *neither* when it
+  is an option, a comment, an editable or a direct reference (`name @ git+…`, which
+  the pinning rule already covers). Names PEP 503-normalised, last line wins, as
+  pip does. **(1)** `coverage.vulnerability_gaps` no longer trusts a
+  `requirements*.txt` by name: a lockfile beside it settles the ecosystem; without
+  one, a file with any ranges is the lockfile gap — same rule, same identity, so a
+  suppression travels between the two causes — and the evidence names each file
+  with *N of M lines are ranges*, so a mixed file is partly checked and says how
+  much. **(2)** A new pipeline stage, `unpinned`, after the path filters and
+  before `merged` (it reads each raw Finding's single source; merged, an OSV
+  answer on a range would hide inside a Trivy one on a pin): OSV-Scanner Findings
+  on a requirements file whose line for that package is a range are dropped;
+  unknown is not unpinned, so a package the file does not name stays; Trivy's are
+  never touched. The count and the files reach `run.json` (`excluded_unpinned`)
+  and `SUMMARY.md`. The `broken-repo` fixture is pins and one git reference, so
+  every golden and canary count stands. **Measured on smolagents through the
+  rebuilt image:** `offline` — the note appears, *examples/open_deep_research/
+  requirements.txt (39 of 39 lines are ranges)*; `full` — **193 raw OSV-Scanner
+  advisories dropped** (the 110 the corpus counted were post-merge; 97 with
+  OSV-Scanner 2.6.0 the next day, which no longer reads the file twice), Findings
+  from OSV zero, the same 8 active as `offline`, the count on both surfaces. 36
+  tests; ten mutations, all caught. One environment note: the local database had
+  aged to the 7-day threshold overnight and turned the clean-fixture test
+  `inconclusive` on the host before any change here — `valvur update` was the
+  fix, and CI always fetches fresh.
+
+**Commits:** one per task, Conventional Commits, each PR fast-forwarded onto `main`.
+
+### Checkpoint B — Release `0.3.0` *(owner, one sitting)*
+
+Everything since `0.2.0` — sixteen tasks at the time of writing, twenty-two after
+Block A, twenty-three with 25.3 (closed 2026-09-19) — released as `0.3.0` on 2026-09-20. The gate measures the published version, so
+this comes before Checkpoint C, not after.
+
+- [x] **25.1** **Cut `0.3.0`.** In order, as `RELEASING.md` describes: confirm Block
+  A's rehearsal is the latest run of `release.yml` and green; bump `pyproject.toml`;
+  date the CHANGELOG section; tag `v0.3.0`; watch the tag's run to the end, and read
+  A6's job — the first time the constraint suite runs against a real release
+  artifact. Then re-measure the README's first-run numbers against the release, as
+  23.1.1 did for `0.2.0`, from a stranger's state.
+
+  **STATUS 2026-09-20:** ✅ **`v0.3.0` is published.** In the order written: a
+  rehearsal on the exact tree (35502966732, after 25.3 and the OSV-Scanner bump had
+  landed on top of the previous green one) — five jobs green including the artifact
+  job; the prep landed as `207be9d` (`pyproject.toml`, the README's stated version,
+  `[0.3.0] — 2026-09-20` in the CHANGELOG with a heading paragraph; `verify.sh` and
+  the e2e suite green locally against an image built at `0.3.0`); a signed tag on
+  that commit; the owner's go; the push. **The tag's run, 35504569709: every job
+  green, 15 minutes end to end** — and the artifact job, seven of them, ran the
+  constraint suite and the gate against the real release artifact for the first
+  time: the wheel from `dist/` at `0.3.0`, the image by its signed digest
+  `sha256:02bf33e9…`, both architectures in the index, the wheel and the image
+  agreeing on the tree they were built from. On PyPI: wheel and sdist, each with a
+  publish attestation; on the GitHub release the same plus the two SBOMs.
+  **Re-measured from a stranger's state** — clean venv, empty cache, image removed,
+  Apple-silicon Mac, Docker Desktop: install **0.9s** (uv) / 1.7s (pip); `valvur
+  update` first time **45s** (image, database 120MB, index); first `valvur scan` on
+  the ten-file fixture **19s** (33s on `0.2.0` — the three Checks in one
+  container); **and the primary path, one `scan` call over stdio with nothing run
+  first: 58s to `DONE`, `complete: True`** — image pulled 13s, database 18s, index
+  8s, then the Scanners — against 110s on `0.2.0`. The first attempt at the
+  measurement used the python.org Python, which trusts no CA, and reproduced
+  23.1.1's finding exactly: the index fetch failed with
+  `CERTIFICATE_VERIFY_FAILED`, the scan completed with dependency-reality failed
+  and the cause named — the case `valvur doctor` exists for. EVALUATING's table
+  and the README carry the new numbers.
+- [x] **25.2** **Tag `valvur-action` `v0`** on the commit whose `version` default is
+  `0.3.0` (23.3.6 left `v0` waiting on exactly this), and switch `ci.yml`'s self-scan
+  job from `version: ""` to the tag. The action's README example then works for
+  anyone.
+
+  **STATUS 2026-09-20:** ✅ **`v0` and `v0.1`**, signed, on `6f90b88` — not on
+  `3e3cf19`, the commit the default had pointed at since 23.3.6, because the
+  action's own self-test still installed the shim from `git+…@main` *"until valvur
+  0.3.0 is on PyPI"*, so no commit had yet proven the path the README example
+  takes. One commit did that first: both jobs now install the default `version`,
+  and its run (35513651767) went green — `pipx install valvur==0.3.0` in 2s,
+  `valvur update` 30–35s pulling `ghcr.io/maverickhq/valvur:0.3.0` with the index
+  `signature: verified`, a 3s scan, the gate failing at `critical` with the two
+  PyYAML advisories as annotations and the outputs reading `findings` / `true` /
+  16, the other job `what_left_the_machine: nothing` — 43s and 50s end to end. The
+  tags went on that commit: `v0.1` immutable and `v0` following it, the `v0.N`
+  scheme `RELEASING.md` already described; GitHub reports both signatures valid.
+  **`ci.yml` keeps `version: ""` and the SHA, and the task text's "switch to the
+  tag" resolves to the tag's commit in the pin** (`@6f90b88… # v0.1`): the
+  self-scan's purpose is the shim *from the tree under test* — `version: 0.3.0`
+  would scan every commit with PyPI's shim, which `test_gate_cache` refuses in so
+  many words — and `@v0` would be an active finding under valvur's own
+  `mutable-action-ref` rule on a gate that fails at `any`. The self-scan on this
+  change is the tagged action exercising the tree's shim; the action's own CI is
+  the README's path on PyPI's; between them both shapes run on every commit. The
+  action's README example pins `actions/checkout@v7`, the major it uses itself.
+  Not done: a GitHub release for `v0.1` (a Marketplace listing needs one; the
+  owner's call, and nothing in `uses:` needs it).
+- [x] [**24.4**](#phase-24--the-audit-and-one-list-of-everything-that-remains) — yank
+  `0.1.0rc1`, in the same sitting. *Done 2026-09-20; Checkpoint B is complete.*
+
+### Checkpoint E — Release `0.4.0` *(engineering to the rehearsal; the owner for the tag)*
+
+The first real promote (28.1.2): the first tag to meet stage → validate → promote,
+the four-SBOM step, the attestation read-back and the index's verify-then-tag on
+a real version. Inserted 2026-09-26, ahead of the gate, for the reasons in the
+amendment above. In order:
+
+1. **Engineering, unattended — the prep PR**, per `docs/RELEASING.md` "Cutting a
+   release": `version = "0.4.0"` in `pyproject.toml` and `uv sync --extra dev
+   --locked`; `[Unreleased]` becomes `[0.4.0] — <date>` with a paragraph naming
+   the release; the README's status line, and its macOS row re-measured by hand
+   against the image built from the prep commit (`valvur:dev`, run with
+   `VALVUR_CACHE` and `VALVUR_IMAGE` set so the gate machine stays a stranger's);
+   `./scripts/verify.sh` and the e2e suite locally; lands by pull request on the
+   required checks.
+2. **Engineering, unattended — the rehearsal** on that exact commit:
+   `gh workflow run release.yml --ref main`. The run id goes in 28.1.2's STATUS
+   note, and nothing below starts until it is green. With a reviewer on
+   `release`, the rehearsal's own `promote` job waits at the brake too (measured:
+   run 36235113134), so approving it is the first thing in step 3, and the tag
+   is not pushed while it waits — the concurrency group is one release at a
+   time.
+3. **Owner, one sitting of about thirty minutes:** `git tag -s v0.4.0 <that
+   commit>` with the key in `.github/allowed_signers`, `git push origin v0.4.0`;
+   when `promote` pauses on the `release` environment, approve it — the reviewer
+   is the owner (set 2026-09-26; self-review is allowed, so it is one click);
+   afterwards `cosign verify` as `RELEASING.md` "Verifying a release, as a user
+   would" shows. Record the run and the minutes to `:latest` under 28.1.2 and
+   tick it. Then step 3's leftover: `~/.cache/valvur` and the published image are
+   now on this machine if the verification ran here — remove them before C.
+4. **`valvur-action` needs nothing:** it installs the latest release from PyPI
+   unless its `version` input names one (`action.yml`, measured 2026-09-26), so
+   `@v0` picks up `0.4.0` on its own.
+
+*Done 2026-09-26 — Checkpoint E is complete.* Steps 1 and 2 as PRs #108–#110 and
+run 36235113134, held at the brake through the afternoon while Phase 29 ran;
+step 3 in one sitting: the signed tag on `6973fbe`, run 36254809572, the owner's
+click at the brake, `promote` in 47 s — 25 minutes from the tag to `:latest`,
+12 of them waiting for the click. Verified from this machine with `pip index
+versions valvur` (`0.4.0`), the `cosign verify` command in `RELEASING.md` (two
+signatures, claims validated) and `gh attestation verify` on the tag; neither
+pulls the image nor writes `~/.cache/valvur`. Checked after: both were on the
+machine anyway — the `0.4.0` image at its promoted digest (`ea5d7d08…`), the
+database and the index, fetched 17:44–17:48 BST by a `valvur-mcp` served from
+the published wheel (`uvx --from valvur valvur-mcp`, still running) — the
+owner's own first run of the release over MCP from this machine, minutes after
+`promote`; the step 3 leftover is theirs to clear, and Checkpoint C has already
+run, so nothing waits on the reset. Step 4 is measured by the action's next
+scheduled self-test. Details under 28.1.2.
+
+### Checkpoint C — The usability gate *(owner and a stranger; a calendar)*
+
+- [**10.1.1**](#101--the-usability-gate) · **10.1.2** — on `0.4.0` (moved from
+  `0.3.0` by the 2026-09-26 amendment), installed the way the README says, MCP
+  first, protocol in `docs/usability-gate.md`. First impressions do not reset;
+  this is the one checkpoint that cannot be re-run.
+- **The machine, before the session.** A stranger's: `test -e ~/.cache/valvur`
+  false, no `ghcr.io/maverickhq/valvur:*`, no `valvur:*` scratch tag, and not the
+  `Dockerfile`'s pinned base image either — measured 2026-09-26, fourteen scratch
+  tags from earlier sessions and `python:3.12-alpine3.22` (53 MB, four layers the
+  published image shares) were on disk, so a pull here would have skipped them
+  and the timing would have read faster than a stranger's. Kiro's
+  `kiroAgent.configureMCP` is `Enabled` (checked). The reset is the last thing
+  engineering does before the date, and is verified on the day.
+- [**12b.1**](#12b--release) — act on what they found. Phase 10's provisional items
+  (10.2–10.5) close here or are deferred with a reason. Engineering, sized by the
+  findings; may be a `0.4.1`.
+
+### Checkpoint F — The second maintainer *(owner and a person)*
+
+- **28.1.3** — `MAINTAINERS.md`'s five steps, in its order: a collaborator with
+  admin; a required reviewer on `release` beside the owner, with *prevent
+  self-review* turned on so a promotion needs a click the tagger cannot make;
+  their key in `.github/allowed_signers` with a row in the table, one commit
+  (the test refuses either alone); the PyPI, TestPyPI and GHCR roles; the gate
+  on a calendar. Needs the person's GitHub handle and SSH signing key. Placed
+  before D because a stability claim with a bus factor of one is the finding
+  (O3) that raised the task; not a hard gate for D, but D should not pass it
+  without a stated reason. *Declined for `v1.0.0` on 2026-09-27 with the
+  reason under 28.1.3; the task stays open for after the tag.*
+
+### Checkpoint D — `v1.0.0` *(owner)*
+
+- [**12b.3**](#12b--release) — after 12b.1's fixes land, A6's job has gone green on
+  a real release (which E makes true), and F has happened or been declined with
+  a reason. Phase 17's precondition is met.
+
+**Exit (Phase 25):** `v1.0.0` released; someone who had never seen valvur installed
+it from the README and got a useful answer; every open task in the plan closed or
+deferred with a reason. *Amended 2026-09-27 under 12b.3: the person's run follows
+the tag and is recorded against what shipped; the release itself waits only on the
+owner's own run of the candidate and the tag.*
+
+## Phase 26 — The second external review: four gaps, five tiers
+
+**Goal:** close the four gaps an external review of the `0.3.0` tree found on
+2026-09-20, in the order their consequences arrive — what is wrong *today* first,
+what is wrong *on the next release* second, what will compound *as the code grows*
+third, polish last — each task landing by its own pull request with the test
+written before the fix. Written 2026-09-20, the same afternoon.
+
+> **What the review said, and what measurement made of it.** The review's verdict
+> on what the project does well is recorded in `CLAUDE.md` §1 and not repeated here;
+> its four gaps were each checked against the tree before a task was written,
+> because a review reads a snapshot and a task list is authoritative. Five claims
+> hold exactly as stated; one holds *more* strongly than stated; one is stale as
+> written and has a real residue. In the review's own tiering:
+>
+> - **Tier 0 — safety properties that affect correctness today.** *(a)* **The parse
+>   failure boundary.** `api._run_one` wraps `adapter.run` in a `try` and records a
+>   failed Scanner; `adapter.parse` in `_outcome` is not wrapped, and
+>   `future.result()` in the fleet's `collect` re-raises. **Measured with a fake:
+>   Trivy exiting 0 with a report cut mid-write raises `JSONDecodeError` out of
+>   `api.scan`** — the whole run, not one Scanner; Gitleaks' result thrown away with
+>   it; over MCP a FAILED job, on the CLI a traceback, nothing written. **F2.5 says
+>   the opposite** — *"IF a Scanner … emits unparseable output, THEN valvur SHALL
+>   record the failure … and SHALL continue with the remaining Scanners"* — and every
+>   test citing it exercises a crash or a refusal, never a bad report. A requirement
+>   claimed met and not. *(b)* **Cancellation atomicity, two races.** `jobs.cancel`
+>   sets `cancelling` and calls `job.canceller` if one is attached; the work attaches
+>   it in `operations.run_scan` *after* `ContainerRunner()` exists. **Measured: a
+>   cancel that lands in that window returns `stopped=0`, the runner is never told,
+>   the scan runs to completion and the job settles `done`** — the cancel is dropped
+>   with a confirmation message. And `jobs.start` refuses only `state == "running"`:
+>   **a second `start` during `cancelling` is accepted and replaces the first job in
+>   the registry**, so the first job's `CANCELLED` is never reported and the second
+>   fails on the workspace lock with a message about a scan the agent thinks it
+>   stopped. A third, smaller: a cancel during a first run's fetches (up to ~45s of
+>   image, database, index) sets `runner.cancelled` and is honoured at the fleet
+>   boundary — *after* the fetches finish, not between them. *(c)* **Result
+>   publication.** `results.write` writes `.gitignore`, `SUMMARY.md`,
+>   `findings.json`, `results.sarif`, `REMEDIATION.md`, `run.json` and any Scanner
+>   artifact one `write_text` at a time into the live folder, and `state.save` writes
+>   `state.json` separately at the end of `api.scan`. An interruption between any two
+>   leaves a **mixed generation** — new findings beside the previous run's SARIF, or
+>   a `run.json` describing a run whose `SUMMARY.md` is the old one — with nothing
+>   in the folder saying so. `sbom.cdx.json` is an optional artifact and is never
+>   removed when Syft did not produce one this time, so a run in which Syft failed
+>   carries the previous run's SBOM. `rawoutput.write` already unlinks every stale
+>   `raw/*.json` before writing; the same rule was never applied to the folder.
+> - **Tier 1 — what the next release meets.** *(a)* **Release promotion order.**
+>   `release.yml`'s `release` job runs `imagetools create -t :VERSION -t :latest`,
+>   then signs, attests, builds `dist/`, **publishes to PyPI**, creates the GitHub
+>   release — and *then* the `artifact` job (12b.2) validates the wheel/image pair.
+>   Its own comment at line 439 says it: *"Nothing here can stop a release that has
+>   already left."* A failed validation is a red run beside a `pip install valvur`
+>   that already serves the version. *(b)* **arm64 is built, listed and never run.**
+>   The `build` matrix builds it natively on `ubuntu-24.04-arm`; `release` checks it
+>   is in the index; `verify`, `published` and `artifact` all run on amd64. The only
+>   place the arm64 image has ever executed is this laptop. F10.7's *"verify the
+>   published artifact"* is met for one architecture. *(c)* **"Public repo."** Stale
+>   as written — the repository went public 2026-09-13 (12a.1) — with two residues:
+>   both workflows still carry the private-repository branches (*"Attestation not
+>   rehearsed on a private repository"*, *"not publicly pullable"*), dead since; and
+>   the SLSA provenance the release attests is verified by nothing in the pipeline —
+>   the artifact job runs `cosign verify` and stops. Checked by hand today:
+>   `gh attestation verify oci://…:0.3.0` returns one `slsa.dev/provenance/v1`
+>   statement, valid. The pipeline should be the one saying that.
+> - **Tiers 2–3 — what compounds.** `runner.py` is 860 lines and owns every
+>   Scanner's command line (`run_trivy` … `run_gitleaks`, seven methods) while the
+>   adapters own only the parsing, so adding a Scanner or changing a flag is a change
+>   in two modules with no protocol between them. Network truth lives in
+>   `profiles.ALLOWS_NETWORK` (the decision), `runner.py:572/583` (the flag),
+>   `runner.py:832` (Gitleaks' own hard-coded `--network=none`), `compat.py:119` and
+>   `doctor.py:118` (the probes' own), `doctor.FULL_HOSTS` (what `full` reaches) and
+>   `results.py:150` (what `run.json` discloses) — one decision, six places that
+>   restate it, and 23.5.4 found the disclosure had lagged the truth for a week. The
+>   shim/image protocol — which paths, which entrypoints, which labels, which JSON
+>   shape the Checks emit — is implicit in `runner.py` and the `Dockerfile` and
+>   pinned only by the e2e suite exercising it. Manageable now; the review is right
+>   that it will not stay so, and `v1.0.0` is the last cheap moment to name it.
+> - **Tiers 4–5 — polish.** The review named none; two of each are listed because
+>   they fell out of reading the code for the tiers above, and none is invented.
+>
+> **Sequencing against Phase 25.** Nothing here waits on a person, and none of it
+> needs the stranger; Tier 0 and Tier 1 are the engineering that should reach users
+> next — either inside the `0.3.1` that 12b.1 may become, or as a `0.3.1` of their
+> own if the gate is slow. Tiers 2–3 land before 12b.3, because `v1.0.0` freezes
+> the protocol they make explicit. Tiers 4–5 have no gate. **One constraint until
+> the gate has run:** this Mac was reset to a stranger's state on 2026-09-20, so
+> local work here runs the unit suite freely and the e2e suite only with
+> `VALVUR_CACHE` pointed at a scratch directory — `~/.cache/valvur` and the `0.3.0`
+> image stay absent until the stranger has seen them absent.
+
+```
+Tier 0   safety today            26.0.1 parse boundary · 26.0.2 cancel atomicity · 26.0.3 atomic publication
+Tier 1   the next release        26.1.1 promote after validation · 26.1.2 arm64 runs · 26.1.3 public-repo residue
+Tier 2   what compounds          26.2.1 the adapter owns its command · 26.2.2 one egress authority
+Tier 3   before v1.0.0           26.3.1 the shim/image protocol, named · 26.3.2 the fleet's outcome is a type
+Tier 4   polish, code            26.4.1 job state is an enum · 26.4.2 a generation id on every artifact
+Tier 5   polish, record          26.5.1 ADR: promotion order · 26.5.2 design.md: the protocol
+```
+
+**The TDD shape every engineering task below follows**, stated once: the failing
+test first, against the behaviour the review named and the measurement confirmed;
+the fix; then a mutation pass — revert the fix's core line with the test in place and
+watch it fail — before the PR. Commit the baseline before mutating (twice this
+project has lost uncommitted work to `git checkout --`). A task that changes what a
+user sees also carries a measured number in its STATUS note.
+
+### Tier 0 — Safety properties that affect correctness today
+
+- [x] **26.0.1** **The parse failure boundary (F2.5).** A Scanner that exits 0 and
+  emits a report the adapter cannot parse — a container killed mid-write, a format
+  change, a stray line on stdout — is *one failed Scanner*, recorded in Provenance
+  with the reason (`report unreadable: JSONDecodeError: …`), surfaced at the top of
+  `SUMMARY.md`, its raw output kept under `raw/` for the reader, and the fleet
+  continues; the run is `complete: False` like any other failure. Never a raised
+  exception out of `api.scan`.
+
+  **Tests first**, in `tests/test_failures.py` beside the F2.5 tests that exist: one
+  Scanner's fake returns exit 0 with truncated JSON → the run returns, that Scanner
+  is `ok=False` with `report unreadable` in its reason, every other Scanner's
+  Findings are present, `run.json` names it, `SUMMARY.md` leads with it; the same
+  for a parse that raises something other than `JSONDecodeError` (a `KeyError` on a
+  shape change — Checkov's and OSV's adapters index into their reports); and for the
+  Checks batch, where one unreadable Check report must not cost the other two
+  (23.4.2's one-container shape). Then the fix: wrap `adapter.parse` in `_outcome`
+  the way `adapter.run` is wrapped in `_run_one`, keeping the raw stdout on the
+  failure so `raw/` still gets it. Mutation: remove the `try` and watch three tests
+  fail. Measured on the fixture through the CLI with `VALVUR_CACHE` scratch: the
+  reason line as the user reads it. F2.5's test coverage gains the clause it lacked.
+
+  **STATUS 2026-09-20:** ✅ Tests first, four in `test_failures.py`, each failing
+  with the raised exception: Trivy exiting 0 with its JSON cut mid-write; Checkov
+  with valid JSON of the wrong shape (an `AttributeError`, not a decode error);
+  the summary and `raw/` for the first; and one unreadable Check report inside
+  23.4.2's batch. The fix is one `try` around `adapter.parse` in `api._outcome` —
+  the one place both the fleet and the batch pass through — returning the failed
+  `ScannerRun` with the raw text kept so `raw/` still gets it. Mutation: the `try`
+  removed, all four fail; restored from the committed baseline. **Measured on the
+  fixture with the fake, every surface:** `api.scan` returns `findings`,
+  `complete: False`; `run.json` carries `"ok": false, "reason": "report
+  unreadable: JSONDecodeError: Unterminated string starting at: line 1 column 66
+  (char 65)"`; `SUMMARY.md`'s *Scanners that did not complete* block names it
+  first; the MCP DONE line reads *INCOMPLETE — these scanners did not run: trivy:
+  report unreadable …*; `raw/trivy.json` is the truncated text, the evidence. 953
+  unit tests green; F2.5 annotated. What is *not* claimed: a real Scanner was not
+  made to write a bad report — the fake stands in for the container the e2e
+  harness cannot kill at a chosen byte.
+
+- [x] **26.0.2** **Cancellation is atomic (F1.11, 23.3.3).** Three properties,
+  each a test: **(a)** a cancel that lands before the work has a runner is honoured
+  the moment it has one — the job settles `cancelled`, nothing is written, the
+  agent's confirmation was true; **(b)** while a job is `cancelling`, a second
+  `scan` on the same workspace is refused with *"still stopping — poll `scan_status`
+  until CANCELLED"* and the registry keeps the first job; **(c)** a cancel during a
+  first run's fetches is honoured at the next boundary — after the image, after the
+  database, before the index — not after all three.
+
+  **Tests first**, in `tests/test_cancel_jobs.py`: for (a), a `run` that blocks on
+  an event before attaching its canceller (the fake in the review's measurement),
+  `cancel` before the event, release it, assert the final state and that the
+  runner's `kill` was called exactly once; for (b), `start` during `cancelling`
+  returns the existing job and `operations.start_scan` says so; for (c),
+  `_ensure_data` with a runner whose `cancelled` flips between fetches raises
+  `ScanCancelled` before the next fetch. Then the fix, in `jobs.py`: `Job.attach(
+  canceller)` and `cancel` under the one lock, so whichever runs second sees the
+  other's state and acts — attach calls the canceller at once when the state is
+  already `cancelling`; `start` refuses `running` *and* `cancelling`; `work()`
+  settles `cancelled` when the state was `cancelling` even if `run` returned
+  normally, and drops the result. In `api.py`, `_refuse_if_cancelled` between the
+  fetches. Mutation: put `state == "running"` back in `start` and watch (b) fail;
+  remove the attach-time check and watch (a) fail. Measured over stdio with the
+  real server: `scan`, `scan_cancel` within 100ms, `scan_status` → CANCELLED, no
+  `.security-scan/` written, zero containers.
+
+  **STATUS 2026-09-20:** ✅ Tests first, four: (a) a `run` that attaches its
+  canceller after an event, the cancel before it — failed with *"the runner was
+  never told to stop"*, the job `done`; (b) `start_scan` during `cancelling` —
+  failed by starting a second, real job; (c) in `test_first_run.py`, a database
+  fetch that flips the flag — failed by fetching the index anyway; and the reply's
+  wording when no container had started. The fix: `Job.canceller` is a property
+  whose setter takes the same lock `cancel` takes and, finding the job already
+  `cancelling`, calls the canceller itself — so the assignment every caller already
+  makes is the attach, and whichever of attach and cancel runs second sees the
+  first; `jobs.ACTIVE = ("running", "cancelling")` and `start` refuses both, with
+  `operations.start_scan` saying *"still stopping — poll `scan_status` until it
+  reads CANCELLED"*; `api._stop_if_cancelled` before the image, after it, and
+  between the database and the index, each naming where. One older test moved
+  with the check (its message is now *"cancelled before it began"*). Mutation,
+  three, each failing exactly its own test: the setter not calling a pending
+  canceller; `ACTIVE` back to `running` alone; the check between the fetches
+  removed. **Measured over stdio against the real server** (`VALVUR_CACHE` at
+  scratch, so a first run — the cancel lands in the fetches): `scan` at 0.98s;
+  `scan_cancel` at 1.08s → *"no container had started; the scan stops at its next
+  step"*; a second `scan` at 1.08s → *"still stopping … poll `scan_status`"*;
+  `scan_status` at 1.19s → **`CANCELLED after 0s — cancelled during the first
+  run's fetches: no Scanner had started and nothing was written`**; the folder
+  holds `.gitignore` and `.lock` only; zero containers; the scratch cache still
+  empty. F1.11 annotated. Not changed, deliberately: a cancel that lands after
+  the last check and during the write is still `done` — the result was written
+  and DONE is the truth; the window is the write itself, which 26.0.3 makes a
+  rename loop.
+
+- [x] **26.0.3** **Result publication is a generation, not seven writes (F7.1,
+  F7.4).** The folder never holds a mixed generation a reader cannot detect.
+  Design: every artifact is written to `<name>.tmp` in the folder, then renamed
+  into place with `os.replace` in one tight loop, `run.json` **last** — so any
+  single file is either the old one or the new one, never partial, and a `run.json`
+  that names this run's `generation` id means every sibling written before it
+  carries the same id. Optional artifacts this run did not produce (`sbom.cdx.json`
+  when Syft failed or was skipped) are **removed**, the rule `rawoutput.write`
+  already applies to `raw/*.json`. `state.json` joins the loop. Stated limit, in the
+  docstring and here: a multi-file swap is not atomic on POSIX without swapping the
+  directory, and the directory holds the flock and the `raw-*` archives, so the
+  window is the rename loop — microseconds, and detectable, against a window that
+  was the whole scan and invisible.
+
+  **Tests first**, in `tests/test_contract.py`: a `write` interrupted after the
+  third rename (monkeypatch `os.replace` to raise on the fourth) leaves no `.tmp`
+  file the next `write` will not clean, and every file present is a complete
+  document (JSON parses, Markdown non-empty); a run without Syft's artifact removes
+  a `sbom.cdx.json` the previous run left; every JSON artifact carries the same
+  `generation` as `run.json` (the id is F7.4's field list gaining one member —
+  extend the schema and its version note); `findings.json`'s `complete` and
+  `run.json`'s agree. Mutation: write `run.json` first instead of last and watch
+  the generation test fail. Measured: the e2e suite's SIGKILL of a scan mid-write
+  (16.2's harness) leaves either the previous generation or the new one, never
+  both — asserted by a new e2e case that kills at a random point in the write and
+  reads the folder.
+
+  **STATUS 2026-09-20:** ✅ Tests first, five in `test_contract.py`, all failing on
+  `KeyError: 'generation'` or the surviving SBOM. `ScanRun.generation` is a UUID4
+  minted once per run; `findings.json`, `run.json` and `state.json` carry it as
+  `generation`, `results.sarif` as its own `automationDetails.guid` (the field the
+  format has for a run's identity; the SARIF schema test still passes).
+  `results.write` renders every document first, writes each to `<name>.tmp`,
+  removes any `OPTIONAL_ARTIFACTS` this run did not produce — a constant a test
+  holds equal to every adapter's `artifact`, today `sbom.cdx.json` — and renames
+  them into place in one loop, `run.json` last; `state.json` joined the loop
+  (`state.render` produces the document, `api.scan` hands it to `write`; `save`
+  stays for any other caller, itself staged). Leftover `.tmp` files from an
+  interrupted write are removed before the next begins. **The interruption is
+  tested exhaustively, not randomly:** `os.replace` is made to raise at every
+  rename position in turn — seven positions on the fixture — and after each, every
+  JSON artifact parses, every Markdown one is non-empty, and whenever `run.json`
+  is the new generation every sibling is too. The task text asked for an e2e
+  case killing at a random point in the write; a random kill in a millisecond
+  window proves nothing on a miss, so the exhaustive in-process version stands
+  in, and the real path is measured instead. Mutation, three, each failing
+  exactly its test: `run.json` renamed first; the stale-artifact removal
+  dropped; the staging replaced by direct writes. **Measured through the CLI
+  against `valvur:dev` on the fixture** (`VALVUR_CACHE` at scratch): one
+  generation `00d411ae-…` across `findings.json`, `run.json`, `state.json` and
+  the SARIF guid; `sbom.cdx.json` present because Syft ran; no `.tmp` left.
+  F7.4 annotated with the field; `CLAUDE.md` §7 carries the rule (the part of
+  26.5.2 that belongs with the change). **Tier 0 is closed.**
+
+### Tier 1 — What the next release meets
+
+- [x] **26.1.1** **Promote after validation (N2.5, 12b.2's other half).** The
+  pipeline becomes *stage → validate → promote*: `release` pushes the index at
+  `:VERSION` only, signs and attests it, builds `dist/` and uploads it as an
+  artifact — and stops. `artifact` validates exactly as today, against the digest
+  and the wheel from `dist/`. A new `promote` job, `needs: artifact`, does the three
+  things that cannot be taken back: `pypa/gh-action-pypi-publish`, `imagetools
+  create -t :latest $IMAGE@$DIGEST` (a re-tag of the signed digest, so the signature
+  and the attestation hold), and the GitHub release. A red `artifact` job now
+  leaves `:VERSION` on GHCR with no wheel on PyPI — which the STATUS note must say
+  is the accepted cost, with the recovery (delete the tag through the packages API,
+  or burn the number and tag the next) written in `RELEASING.md`. The rehearsal
+  mode runs the same three jobs against the throwaway targets, so the order is
+  proven before a real tag meets it.
+
+  **Tests first**: `test_constraints.py` gains a workflow-shape test — the PyPI
+  publish step and the `:latest` tag exist only in a job that `needs: artifact`, and
+  the `release` job's `imagetools create` carries no `:latest`; mutation is moving
+  either back. Then the workflow, then **a rehearsal** (`workflow_dispatch`) read
+  end to end. Measured: the rehearsal's timing — how much later `:latest` moves.
+
+  **STATUS 2026-09-20:** ✅ Test first — `test_the_release_promotes_only_after_
+  the_artifact_is_validated`, splitting `release.yml` at its job headers: the PyPI
+  publish, `"$IMAGE:latest"` and `gh release create` exist only in `promote`;
+  `promote` needs `artifact`; `artifact` needs `stage`; `stage` writes only the
+  candidate tag; the `release` environment is on `promote`, not `stage`. Three
+  mutations, each failing it: the publish back in `stage`, `promote` not waiting,
+  `stage` tagging the version. **One improvement on the task text:** `stage`
+  pushes the index as **`:$VERSION-candidate`**, never `:$VERSION` — the shim of
+  this version pulls `:$VERSION`, so that name must not exist until `artifact` is
+  green — and `promote` re-tags the signed digest as `:$VERSION` and `:latest`
+  (a manifest re-push; the signature and the attestation on the digest hold) and
+  asserts both tags resolve to the validated digest. So a red `artifact` job
+  leaves a candidate tag and nothing else, and **the version number is not
+  burned** — the cost the task text accepted is not paid. The SBOM is generated
+  from the digest and handed on as a run artifact, as `dist/` already was: one
+  build, tested by `artifact`, published by `promote`. **Rehearsed twice:** #1
+  (35537319392) stopped in `verify` at the lint — three lines of the new test over
+  100 characters, ruff never run on it; #2 (35537448968) **green, 15m36s**:
+  `verify` 6m26s · both builds ~1m · `stage` 50s, pushed
+  `valvur-rehearsal:0.3.0.dev24-candidate@sha256:68654f78…`, both platforms,
+  signed, attested · `artifact` 6m18s — the `.dev24` wheel from `dist/`, the
+  digest pulled and its signature verified, the pair's label and tree agreeing,
+  the constraint suite, the e2e suite and the gate · `promote` 43s —
+  `:0.3.0.dev24 → sha256:68654f78…`, `:latest → sha256:68654f78…`, TestPyPI
+  `0.3.0.dev24`, the draft release created and removed. **`:latest` moved 7m22s
+  after the candidate was pushed, and only after the validation.** The rehearsal
+  package now shows one digest carrying `0.3.0.dev24`, `0.3.0.dev24-candidate`
+  and `latest`, its signature beside it, and `cosign verify` on the promoted
+  *version* tag passes from this machine. `RELEASING.md`: the job descriptions,
+  the brake (a required reviewer on the environment now asks after the evidence
+  and before the irreversible step), and the failure table — two rows added,
+  three rewritten, the `re-point latest` recovery gone because `latest` no longer
+  moves before validation.
+
+- [x] **26.1.2** **The arm64 image runs in the pipeline (F10.7).** `artifact` becomes
+  a two-runner matrix, `ubuntu-24.04` and `ubuntu-24.04-arm`, each pulling the
+  digest, verifying the signature, and running the constraint suite, the e2e suite
+  and the gate through the published wheel — the job as it is, twice. `promote`
+  needs both. `ci.yml`'s `published` job gains the same second leg so the published
+  image is exercised on both architectures on every commit, not only at release.
+
+  **Tests first**: the workflow-shape test asserts both `runs-on` values under
+  `artifact` and `published`. Then the workflow, then the rehearsal, whose STATUS
+  note records the arm64 leg's timings beside amd64's — the first pipeline numbers
+  for the architecture every Mac user is on.
+
+  **STATUS 2026-09-21:** ✅ Done with 26.1.3 in one PR and one rehearsal. Test
+  first: both runners under `artifact` and under `published`, `promote` waiting
+  on the matrix. `artifact` and `published` are each an `include` matrix of
+  `amd64`/`ubuntu-24.04` and `arm64`/`ubuntu-24.04-arm`, the `build` job's
+  shape; each leg logs the child it pulled (*"pulled the arm64 child of … on
+  aarch64"*). The amd64 leg of `published` keeps the exact name main's branch
+  protection requires; the arm64 leg is a new check, **`the published image, on
+  arm64`** — **added to main's required checks the same afternoon**, the sixth,
+  so a change that breaks the arm64 image cannot land. Mutations: each
+  matrix back to one runner, both caught. **Measured on the rehearsal
+  (35581573388 and 35583391242), the first time the arm64 image ran anywhere
+  but this laptop:** `artifact` on arm64 **6m06s–6m30s** against amd64's
+  7m02s–7m12s — the constraint suite 128s against 159s, the e2e suite 169s
+  against 207s, N1.4's peak **391–410 MiB against 511–528 MiB**; the gate passed
+  on both, 0 findings at `any`, 4 suppressed. The arm64 hosted runner is the
+  faster and the leaner of the two. On `ci.yml`, `the published image, on
+  arm64` passed on its first run: the published `0.3.0` pulled its arm64 child
+  and scanned the fixture complete. F10.7's "verify the published artifact" is
+  now true of both architectures it names.
+
+- [x] **26.1.3** **The public-repository residue.** Remove both private-repository
+  branches (`release.yml`'s *"Attestation not rehearsed"* step and report line,
+  `ci.yml`'s *"not publicly pullable"* warning path) — dead since 2026-09-13 and
+  each a way for a real failure to be reported as an expected skip. Then make the
+  pipeline the thing that verifies the provenance it makes: `artifact` runs `gh
+  attestation verify oci://$IMAGE@$DIGEST --repo MaverickHQ/valvur` beside `cosign
+  verify`, and the wheel's PyPI attestation is checked after `promote` with
+  `pypi-attestations verify` (or the publish action's own output, whichever is the
+  primary source). F10.3 gains the sentence that the pipeline verifies what it
+  publishes, with the release run number.
+
+  **Tests first**: the workflow-shape test refuses the strings that name the
+  private-repository case, and requires `gh attestation verify` in `artifact`.
+
+  **STATUS 2026-09-21:** ✅ With 26.1.2. Test first: neither workflow names the
+  private-repository case; `artifact` runs `gh attestation verify`; `promote`
+  runs `pypi-attestations verify pypi`. Both dead branches gone: the attestation
+  step is unconditional (its skip-with-a-warning outlived the repository going
+  public by eight days), and `published` treats a missing anonymous pull token
+  as an error, not the expected skip it was. `artifact` now verifies **both
+  claims** the release notes tell a user to verify — `cosign verify` and `gh
+  attestation verify oci://$IMAGE@$DIGEST --repo MaverickHQ/valvur
+  --predicate-type https://slsa.dev/provenance/v1` — on each architecture.
+  `promote` reads each distribution's provenance back from the index it just
+  published to (`/integrity/valvur/<version>/<file>/provenance` on pypi.org, or
+  test.pypi.org in a rehearsal; a six-attempt wait for the bundle to appear) and
+  verifies the local `dist/` file against it with `pypi-attestations verify
+  pypi --repository https://github.com/MaverickHQ/valvur` (0.0.30, through
+  `uvx`) — a shape proven first by hand against `0.3.0` on PyPI and the previous
+  night's `0.3.0.dev24` on TestPyPI. Mutations: the image check dropped, the
+  wheel check dropped, the private-repository `if:` restored — each caught.
+  **Rehearsed twice.** #1 (35581573388): both `artifact` legs verified the
+  provenance; `promote` verified the wheel (`OK: valvur-0.3.0.dev25-py3-none-
+  any.whl`) and then asked the index for the provenance *of an attestation* —
+  the publish action leaves each file's bundle beside it as
+  `<file>.publish.attestation`, and `dist/*` was too wide. #2 (35583391242),
+  the loop over `*.whl` and `*.tar.gz` only: **green, 17m19s**; `promote` 38s,
+  `OK:` on the wheel and the sdist, both read back from TestPyPI. F10.3 gains
+  the sentence: the pipeline verifies what it publishes. **Tier 1 is closed.**
+
+### Tier 2 — What compounds as the code grows
+
+- [x] **26.2.1** **The adapter owns its command; the runner runs containers.**
+  Today `runner.py` carries seven `run_<tool>` methods, each a command line, a
+  mount set and a network decision, and the adapter for the same tool carries the
+  parser — one Scanner, two homes, no contract between them. After: `ScannerAdapter`
+  gains `command(workspace) -> Invocation` (argv, mounts, `network`, timeout, the
+  stdout shape) and the runner has one `run(invocation) -> ScannerOutput`; the
+  Checks' one-container batch (23.4.2) is an `Invocation` too. `runner.py` keeps
+  runtime detection, mounts, SELinux, the kill registry, the compatibility check —
+  the container concerns — and loses the per-tool knowledge. Target measured, not
+  aspired: `runner.py` under 500 lines with no tool name in it except in tests.
+
+  **Tests first**: the existing adapter tests and goldens are the safety net — none
+  changes; a new `test_adapters_own_their_commands.py` asserts every adapter's
+  `Invocation` reproduces today's argv byte for byte (captured from the runner
+  before the move, one fixture per Scanner, the same trick 23.5.2 used for the MCP
+  schema), so the refactor is a diff in review and the image rebuild proves it
+  end to end. Land in three PRs — Trivy and Gitleaks first, then the rest, then the
+  Checks — each rebuilding the image and running the e2e suite.
+
+  **STATUS 2026-09-21:** ✅ Three PRs, as planned, each on top of the last. **The
+  safety net first**: every tool's argv, timeout, network and exec grant captured
+  from the runner into `tests/fixtures/invocations/<tool>.json` before a line
+  moved (the first commit of PR 1), and `test_adapters_own_their_commands.py`
+  holding each adapter's `Invocation` to its snapshot byte for byte — nineteen
+  tests by the end, three mutations per PR each failing its own. **The contract**:
+  `valvur.invocation.Invocation` (argv after the image, the report file, timeout,
+  `network`, `allow_exec`, `empty_when`) and `ScannerOutput` beside it;
+  `ScannerAdapter.command(workspace)`; one `ContainerRunner.run(invocation,
+  workspace)`. **PR 1** (#54) moved Trivy and Gitleaks and the database fetch,
+  which is Trivy's command (`trivy.database_fetch()`; the runner runs it under
+  the cache lock and no longer knows it). **PR 2** (#55) the other four. **PR 3**
+  the Checks: `check.single_command`, `batch_command` (with the host-side
+  refusal of dependency-reality without an index or a network), `split_batch`,
+  `run_batch`, and `BatchUnsupported` — the runner's capability probe for the
+  batch gone with them, since any runner runs any Invocation and only an image
+  can decline. SELinux — enforcing, the relabel opt-in, the hint — to
+  `selinux.py`, a host concern the runner reads. **Measured: `runner.py` 860 →
+  517 lines, naming no tool** (a test refuses every Scanner's and Check's name in
+  it); the target said under 500, and the 17 are the network settings 26.2.2
+  takes out — recorded rather than trimmed for the number. **Three things the
+  move found.** (1) `run_gitleaks` built its own flag list: no tmpfs, no cache
+  mounts and *no SELinux label on its scratch mount* on an enforcing host, while
+  every other Scanner's flags came from `_base_flags` — unified; the old shape is
+  in the snapshot, a test pins the new one, unmeasured on an enforcing host (none
+  at hand). (2) **A Check that failed inside the batch was recorded ok with zero
+  findings and its error dropped** — latent since 23.4.2: `run_checks` gave a
+  failed entry `"[]"` as stdout with exit 1, and a non-empty report with a
+  non-zero exit is what a Scanner that found nothing looks like to `_outcome`.
+  The fakes never reached it because they answered per Check with empty stdout;
+  the bridge that lets them speak the new contract reproduced the real report
+  shape and the budget-cut test failed on it. Fixed in `split_batch` (a failed
+  Check gets no report and its error as the reason); a fleet-level test and the
+  older shape test — which had asserted the `"[]"` — say so. (3) Trivy's refusal
+  without its database, once the runner's and bypassed by every fake, is the
+  adapter's and reaches them — which CI's unit job, having no database, found
+  first: every unit test now has a present (empty) database the way it already
+  had an index, for the unit suite only, since an e2e test mounts the real cache
+  and a zero-byte `trivy.db` is Trivy's "old DB" refusal — found by PR 1's first
+  e2e run. The fakes: one `LegacyDispatch` mixin in `conftest.py` maps an
+  Invocation to the `run_<tool>` the fake already answers; what they fake is
+  unchanged. Measured through the CLI against `valvur:dev` on the fixture after
+  each PR: 93 active findings, every Scanner `ok`, the three Checks in one
+  container. 1,014 tests; 59 modules.
+
+- [x] **26.2.2** **One authority on egress (N2.1, ADR-0010).** A single `egress.py`:
+  `Egress.for_profile(profile)` answers `network` (bool), `container_flags()` (the
+  `--network=…` flag, or none), `hosts()` (what a Profile may reach — today's
+  `doctor.FULL_HOSTS`, plus the registries the dependency-reality Check and the
+  npm-adoption lookup name), and `disclosure()` (the `what_left_the_machine`
+  sentence). The runner's flag builder, Gitleaks' hard-coded flag, both probes,
+  `doctor`'s host list and `results.py`'s disclosure each become a call into it.
+  `scripts/verify-offline.py` reads the same object, so the claim it verifies and
+  the code it verifies against cannot drift the way 23.5.4 found they had.
+
+  **Tests first**: a table test — for each Profile, `container_flags()`,
+  `hosts()` and `disclosure()` agree with each other and with `profiles.
+  ALLOWS_NETWORK`; a grep test that no file outside `egress.py` and its tests
+  contains the literal `--network=` (mutation: put Gitleaks' back). F2.3's table
+  and `run.json`'s sentence are then generated from one place, and the README's
+  "provable" claim points at one module.
+
+  **STATUS 2026-09-21:** ✅ Twelve tests first in `test_egress.py`, all failing on
+  the missing module. `egress.py`: the four settings that were the runner's
+  (`NETWORK_ENV`, `CONTAINER_NETWORK_ENV`, `DB_REPOSITORY_ENV`,
+  `DEFAULT_DB_REPOSITORY`, `DB_INSECURE_ENV`, `db_repository()`), `SPOKEN_AS` —
+  every host `full` may reach paired with how the disclosure names it, with
+  `FULL_HOSTS` derived from it — `disclosure(used=)`, and `Egress(network)` with
+  `container_flags()` and `hosts()`; `NONE` for the two probes; `for_profile()`
+  reading `profiles.ALLOWS_NETWORK`, which stays the Profile table. The runner's
+  flag builder, `compat.image_inputs`, `doctor._image_starts`, `doctor.FULL_HOSTS`,
+  `results.py`'s sentence, Trivy's `db_flags` and the dependency-reality Check's
+  `NETWORK_ENV` all call in; the runner re-exports the settings under their old
+  names for one release. **Two tests hold the claim together**: every host in
+  `FULL_HOSTS` has a spoken name and every spoken name is in the sentence — the
+  drift 23.5.4 found is now a red test — and no file under `src/valvur` but
+  `egress.py` writes the `"--network=` literal. **`scripts/verify-offline.py`
+  keeps its literal on purpose** and additionally checks that egress agrees: the
+  task text had it read the same object, which would only ask egress whether
+  egress agrees with itself; the reviewer's check must stay independent, so the
+  grep test exempts it and the STATUS says why. Four mutations, each caught —
+  `offline` given an interface (four tests, including the N2.1 constraint test
+  that predates this), a host reached but unspoken, a probe writing the flag
+  itself, the sentence dropping Packagist. Measured: `runner.py` **485 lines** —
+  under 26.2.1's 500 target now that the settings are out — and
+  `verify-offline.py` against the fixture with the cache at scratch: all five
+  PASS, the new line reading *egress.for_profile('offline') says the same*.
+  `run.json`'s sentence is byte-identical to before. `CLAUDE.md` §3 names the
+  module. 1,026 tests, 60 modules. **Tier 2 is closed.**
+
+### Tier 3 — Before `v1.0.0`
+
+- [x] **26.3.1** **The shim/image protocol, named and versioned (F1.9, 23.4.4).**
+  Write down what the shim assumes of the image — the binaries and their paths, the
+  Checks entrypoint and its JSON contract, the labels (`org.opencontainers.image.
+  version`, the build-hash label), `/etc/valvur/inputs.sha256`, the non-root user,
+  the mount points — as `PROTOCOL.md` under `docs/` **and** as a single
+  `org.valvur.protocol` label carrying a major version. The compatibility check
+  (F1.9) compares protocol majors, not only versions: a `0.3.x` shim against a
+  `0.4.0` image with the same protocol major runs and *says* the versions differ
+  (23.4.4's rule); a different protocol major is the one thing it refuses, with the
+  sentence naming both. The e2e suite asserts every path and label `PROTOCOL.md`
+  lists against the built image, so the document cannot drift from the `Dockerfile`.
+
+  **Tests first**: the e2e assertion over the image; the unit test of the
+  compatibility decision table (same major → run and say; different → refuse and
+  say). `design.md` gains the section (26.5.2).
+
+  **STATUS 2026-09-21:** ✅ Ten tests first in `test_protocol.py`, all failing on
+  the missing names. **`docs/PROTOCOL.md`** — protocol 1: the version rule (same
+  major runs, whatever the versions; a different major is the one thing refused;
+  no label is `0.3.0` and earlier, served by the version-series rule as before);
+  every path, marked *the shim's* (four mounts and the tmpfs) or *the image's*
+  (the rules, Checkov's venv, the package, the digest file, the Dockerfile copy);
+  every binary with its source and pin; the Checks' entry point and both JSON
+  shapes, `usage:`/exit 2, `VALVUR_NETWORK`, `VALVUR_DB_REPOSITORY`; the four
+  labels; the process (user 10001, read-only, no capabilities, the tmpfs, the
+  network flag, the name, no ENTRYPOINT). **Held to the code in both
+  directions:** every absolute path any `Invocation` names and every mount the
+  runner makes must be a row (a unit test, parsing the tables); every row the
+  image is said to provide must exist in the built image, every binary on its
+  PATH, every label present, `id -u` 10001 (an e2e test, parsing the same
+  tables). `compat.PROTOCOL = 1`, `PROTOCOL_LABEL`, `image_protocol()`, and one
+  pure **`verdict(ours, declared, theirs)`** that `check` raises on and `doctor`
+  reports — `doctor` had re-derived the version comparison with `_series` and
+  now reads the same verdict through its own seams. The Dockerfile declares
+  `org.valvur.protocol="1"` and a test holds it to `compat.PROTOCOL`. **Measured
+  against the rebuilt image:** `doctor` reads *protocol 1, version 0.3.0; starts
+  (built from …, the tree this shim was built from)*; the image re-labelled
+  protocol 2 and asked — `doctor`: *FAIL image: the image speaks protocol 2; this
+  shim (0.3.0) speaks protocol 1 (the image says it is version 0.3.0) (F1.9) — a
+  scan refuses the pair*; `valvur scan`: `IncompatibleImage` with the same
+  sentence and the two fixes. Four mutations each caught: a different major no
+  longer refused, the same major still judged by version, the Dockerfile
+  declaring 2, a path the adapters assume dropped from the document. **Found on
+  the way, twice:** the five F1.9 version-rule tests in `test_runtimes.py`
+  patched `image_version` and not the daemon, so a labelled `valvur:dev` on the
+  machine — the one just built — changed their outcome; they now pin an
+  unlabelled image. And a `verify-offline.py` run pointed at
+  `tests/fixtures/broken-repo` *itself* had left a `.security-scan/` inside the
+  fixture (gitignored, so `git status` said clean), which made every first-ever
+  scan read `persisting` and a cancel test find a `run.json` — removed; the
+  fixture is copied, never scanned in place. F1.9 annotated. `design.md`'s
+  section is 26.5.2's.
+
+- [x] **26.3.2** **The fleet's outcome is a type, not a 4-tuple.** `_run_one` and
+  `_outcome` return `(ScannerRun, findings, artifact, raw)` tuples that `_scan_
+  locked` indexes by position in eleven places, including the budget-cut rewrite
+  that rebuilds one with `dataclasses.replace(outcome[0], …), *outcome[1:]`. A
+  `ScannerOutcome` dataclass with those four fields, and the fleet reads names. No
+  behaviour change; the tests are the existing fleet tests, which must not change.
+  Sequenced here because 26.0.1 adds a fifth thing (the unreadable report's raw
+  text) to that tuple and 26.2.1 moves the callers — do it once, after both.
+
+  **STATUS 2026-09-21:** ✅ Four tests first in `test_outcome.py` (the fields, a
+  failure keeping its raw text and no artifact, the budget cut keeping
+  everything but the reason, and a grep refusing `outcome[n]`/`o[n]`/`*outcome`
+  in `api.py`). `ScannerOutcome(scanner, findings, artifact, raw)`, frozen,
+  with `timed(seconds)` and `cut(reason)` — the two rewrites the fleet made by
+  position; `_run_one`, `_attempt`, `_outcome`, `_run_checks` return it and the
+  fleet, the budget and the tail of `_scan_locked` read names. One test moved
+  with it (`test_timing.py` unpacked the tuple; it reads `.scanner`). The
+  existing fleet, budget, contract and failure suites are unchanged and green.
+  **A mutation survived and was pinned:** `cut()` rebuilt from the ScannerRun
+  alone — dropping findings, artifact and raw — passed, because the cut test's
+  outcome was a killed Scanner with nothing to drop; it now cuts an unreadable
+  report (26.0.1's shape, `not ok` with its raw text) and asserts the raw text
+  survives. Two more mutations caught: an unreadable report forgetting its raw
+  text, a positional read returning. No behaviour change: 1,039 tests. **Tier 3
+  is closed.**
+
+### Tier 4 — Polish, code
+
+- [x] **26.4.1** **`Job.state` is an enum.** Five string literals compared in six
+  places across `jobs.py` and `operations.py`; 26.0.2 adds comparisons. A `State`
+  `StrEnum` (serialises the same, so `scan_status`'s text is unchanged) and a test
+  that every transition the docstring lists is the only one the code makes.
+
+  **STATUS 2026-09-21:** ✅ With 26.4.2, one PR. `jobs.State` (RUNNING, CANCELLING,
+  DONE, FAILED, CANCELLED — a `StrEnum`, so every surface prints the same word and
+  the older tests that compared `"done"` still pass unchanged), `TRANSITIONS` —
+  the diagram in the docstring: RUNNING → CANCELLING | DONE | FAILED, CANCELLING →
+  CANCELLED | DONE (the too-late cancel of 26.0.2, drawn on purpose), the three
+  terminal states with no exit — `Job.transition(to)` refusing anything else with
+  `IllegalTransition("a job cannot go done → running")`, and every state change in
+  the code going through it under the registry lock (a test greps for any other
+  assignment, and for any literal comparison in `operations.py`). Five refused
+  moves tested by table; the too-late cancel tested as DONE. Mutations: a settled
+  job allowed to run again, the table not consulted — both caught.
+- [x] **26.4.2** **The generation id on every surface.** 26.0.3 puts a `generation`
+  in every JSON artifact; `SUMMARY.md`'s machine-facing block, `scan_status`'s
+  DONE line and `valvur gate` name it too, so an agent that reads `SUMMARY.md` and
+  then `findings.json` can tell they are the same run. One line each.
+
+  **STATUS 2026-09-21:** ✅ One line each: `SUMMARY.md`'s machine block ends
+  *"This is generation `<id>`. Every JSON file in this folder carries the same
+  `generation`; one that does not is from another run"*; `scan_status`'s first
+  line reads *DONE in Ns. Generation <id>.*; `valvur gate`'s count line ends
+  *"; generation <id>"* — each from `run.json`, the file written last. Three
+  tests, one per surface, each asserting the id it sees is the run's. Mutations:
+  the DONE line and the gate each losing it — caught. Measured over stdio against
+  `valvur:dev` on the fixture, one scan, three surfaces, one id: `scan_status` →
+  *DONE in 45s. Generation 5032f9c2-5695-41c8-ba5d-4b4aa810e804.*; `SUMMARY.md` →
+  *This is generation `5032f9c2-…`*; `valvur gate .` → *gate: 56 finding(s) at or
+  above high; … ; generation 5032f9c2-…* — and `run.json` says the same. **Tier 4
+  is closed.**
+
+### Tier 5 — Polish, record
+
+- [x] **26.5.1** **ADR-0020 — promote after validation.** The order 26.1.1 lands
+  and the alternatives it declined: validating before pushing at all (needs the
+  digest, which needs the push), a candidate tag promoted by re-tag (chosen), a
+  candidate *package* (a second GHCR name, rejected: two names to sign and verify).
+  The accepted cost — a version number burned by a failed validation — recorded
+  as the cost.
+
+  **STATUS 2026-09-21:** ✅ With 26.5.2, one PR.
+  [`docs/adr/0020-promote-after-validation.md`](../../../docs/adr/0020-promote-after-validation.md):
+  the context (the artifact job's own admission, and 24.4's yank as the reminder
+  that PyPI cannot be undone), the three jobs in the order the evidence arrives,
+  four alternatives with why each was rejected — including the task text's own
+  shape, "push `:version` and accept a burned number", which the candidate tag
+  made unnecessary, so the cost the task said to record is recorded as *not
+  paid* — the consequences with the measured 7m22s, and what reopens it. Cites
+  N2.5, F10.3, F10.7; the traceability ratchet holds.
+- [x] **26.5.2** **`design.md` gains the protocol and the egress sections.** The
+  shim/image protocol from 26.3.1 and the one egress authority from 26.2.2, each
+  a page, each citing the test that keeps it true. `CLAUDE.md` §7 gains the
+  generation rule from 26.0.3 and §3 points at `egress.py`.
+
+  **STATUS 2026-09-21:** ✅ `design.md` 1.1 (the two halves and the `Invocation`
+  contract, 26.2.1), **1.3 The shim/image protocol** (the label, the rule as a
+  table, what the document lists, the two tests that hold it), **2a. Egress — one
+  authority** (the four answers `egress.py` gives and who calls in, the two tests,
+  and why `verify-offline.py` keeps its own literal), 6c (both architectures, the
+  provenance verified) and **6d. The release: stage, validate, promote**. **Found
+  on the way:** §2's Profile table was the pre-ADR-0016 one — three columns,
+  `full (default)`, Checkov and Syft absent from `offline`, "fast ruleset" and
+  "git history" distinctions that no longer exist — a joining reader's first
+  wrong fact; rewritten from `profiles.py` as it is. `CLAUDE.md` §7 and §3 were
+  done with 26.0.3 and 26.2.2; §6 gains the ADR-020 row. Version 1.1 of the
+  document. **Tier 5 is closed, and with it Phase 26's engineering.**
+
+**Exit (Phase 26):** Tier 0 and Tier 1 released — the first release whose PyPI
+upload followed its validation, on both architectures; Tiers 2–3 landed before
+`v1.0.0`; `runner.py` under 500 lines with no tool name in it; one `--network=`
+literal in the tree; a mixed-generation folder impossible to produce by the e2e
+harness's kill; every claim in the phase head re-measured in its task's STATUS
+note.
+
+> **2026-09-21:** every task closed — fourteen, in eleven PRs and four rehearsals,
+> over one evening and one day. Met: `runner.py` at 485 lines naming no tool; the
+> `"--network=` literal in `egress.py` alone (and, on purpose, in
+> `verify-offline.py`); the mixed generation tested at every rename position
+> rather than by a random kill; every claim re-measured. **Not yet met, and not
+> engineering:** "Tier 0 and Tier 1 *released*" — the next real tag, which is
+> 12b.1's `0.3.1` or `v1.0.0`, will be the first release whose upload follows its
+> validation. That is the one line of this exit the owner's checkpoints still own.
+
+## Phase 27 — The third review: twenty items measured, seventeen stand
+
+**Goal:** close what a "Level 400" codebase analysis of the tree found on
+2026-09-21 — twenty items in five tiers, in
+[`docs/OPEN-ITEMS.md`](../../../docs/OPEN-ITEMS.md) — after each was measured
+against `main` at `ca13795` the same afternoon: one was already closed, two were
+wrong, one's premises were, and **seventeen stand** — sixteen tasks, two one-line
+deletions sharing one. Ordered here by consequence
+rather than by the analysis's tiers: what a user *receives* first, the primary
+surface second, the record third, refactors after the gate. Written 2026-09-21.
+
+> **What the analysis said, and what measurement made of it** — the detail is a
+> **Verdict** under every item in `OPEN-ITEMS.md`; this is the shape. *Closed
+> already:* the parse boundary (26.0.1, the evening before). *Wrong, measured:* a
+> root `__pycache__` in the build context — planted one, built `COPY . /ctx` under
+> the tree's `.dockerignore`, 1.30MB transferred and no cache at any level; and
+> `scan_status` showing no progress — it has answered `Now:` and `Completed so far:`
+> from `job.progress` since 24.1. *Premises wrong:* a red `index.yml` sends users
+> to the registry walk — it leaves yesterday's `latest` in place, and a scan never
+> walks. *Real and narrowed:* the index is tagged before it is verified (true;
+> forks cannot dispatch it); the README's macOS claim (true; a lane needs nested
+> virtualisation the runners do not offer); `design.md` (the diagram, §5.1 and §8
+> are stale; the default Profile is not); the unverified index (bounded by the next
+> daily build, not permanent). *Real as stated:* ten. **Found beyond the analysis:**
+> `.council/` — the second review's artefacts — is committed (`777c5ec`) and ships
+> in the sdist, measured with `uv build --sdist`; `design.md` §8 lists four MCP
+> tools of six; and `hatch_build.py` writes `valvur/_build.py` into the sdist at a
+> path nothing reads. None of the seventeen is a defect in a scan's result.
+>
+> **Sequencing against Phase 25.** Tier 0 lands before the next real tag (12b.1's
+> `0.3.1`, or `v1.0.0`) — it is the daily index and the release SBOM, what a user
+> receives. Tier 1 is the MCP surface, the primary path, and lands before the gate
+> if the calendar allows, after it if not; none changes what a first run meets.
+> Tier 2 has no gate. Tier 3 waits for the gate's findings (12b.1) and lands before
+> `v1.0.0`, because each moves a seam the release freezes. **The constraint from
+> Phase 26 stands:** this Mac stays a stranger's until the gate has run — local
+> tests only with `VALVUR_CACHE` on a scratch directory and `VALVUR_IMAGE=valvur:dev`,
+> and `tests/test_constraints.py` never without them, which is how it was re-warmed
+> twice on 2026-09-21.
+
+```
+Tier 0   what a user receives     27.0.1 the index: push, sign, verify, then tag (T0.2) · 27.0.2 the release SBOM by digest, both architectures (T1.1)
+Tier 1   the primary surface      27.1.1 the server stops what it started (T1.3) · 27.1.2 tool annotations tell the truth (T2.3) · 27.1.3 a cached index is re-verified when cosign appears (T2.2)
+Tier 2   the record is true       27.2.1 the README's platform row (T1.2) · 27.2.2 design.md as built (T1.4) · 27.2.3 what the sdist ships is a list (T4.1) · 27.2.4 SECURITY.md's versions (T4.3) · 27.2.5 RELEASING.md cites ADR-0020 (T4.4) · 27.2.6 dist/ and .security-scan/ cleared (T0.3, T4.2) · 27.2.7 a scheduled failure is an issue (T2.1)
+Tier 3   after the gate           27.3.1 doctor stops importing cli (T3.3) · 27.3.2 one ecosystem registry (T3.1) · 27.3.3 SUMMARY.md rendering out of results.py (T3.2) · 27.3.4 a typed pipeline result (T3.4)
+```
+
+**The TDD shape is Phase 26's**, stated there once: the failing test first, against
+the measured behaviour; the fix; a mutation pass with the baseline committed; a
+measured number in the STATUS note of any task that changes what a user sees. The
+`T` in brackets is the item in `OPEN-ITEMS.md`, whose Verdict is the measurement.
+
+### Tier 0 — What a user receives
+
+- [x] **27.0.1** **The daily index: push, sign, verify, then tag (T0.2; ADR-0018,
+  the order of ADR-0020).** `index.yml` runs `oras push "$REPOSITORY:$DATE,latest"`
+  (line 79), *then* `cosign sign` (98), *then* the round-trip through the shim's
+  own client (104–139) — so a build that fails its own verification has already
+  moved `latest`, which the step's comment admits. Reorder to the release's shape:
+  push untagged (`oras push "$REPOSITORY" …` prints the digest; if oras insists on
+  a reference, push `:candidate` and treat it as 26.1.1 did), sign the digest, pull
+  it back and verify, and only then `oras tag "$REPOSITORY@$DIGEST" "$DATE" latest`.
+  Add `if: github.ref == 'refs/heads/main'` to the `publish` job, so a dispatch
+  from a branch builds and verifies but never publishes — scheduled runs are on
+  `main` by construction, so this costs nothing. A protected environment is the
+  owner's option and not required: the brake this workflow needs is the order.
+  Retire the comment about "the previous day's tag" — after this, a failed run
+  leaves `latest` exactly where it was.
+
+  **Tests first**, in the workflow-shape suite (`tests/test_constraints.py`): the
+  `publish` job carries the ref condition; no `oras push` argument names a tag;
+  `oras tag` comes after `cosign verify` in step order. Then the workflow, then
+  one dispatch from `main`: the STATUS note records the run and the order the log
+  shows, and the tag resolving to the verified digest.
+
+  **STATUS 2026-09-21:** ✅ PR #64. Test first
+  (`test_the_daily_index_is_tagged_only_after_it_is_verified`): step order push <
+  sign < pull-back < tag; the push names only `candidate`; the date and `latest`
+  come only from `oras tag` on `$DIGEST`; the pull-back compares the digest the
+  shim resolved with the one pushed; each of the four steps guarded to `main`; no
+  private-repository strings. Mutations caught: tag before verify, `latest` on
+  the push, each guard dropped in turn (the first attempt at that mutation did
+  nothing — `sed 0,/re/` is GNU-only — redone in Python, four failures). The
+  candidate is a *tag* because `oci.Reference` refuses digest references for a
+  moving index on purpose, so the shim needs a tag to pull back. **Found on the
+  way:** the pull-back still carried the *"pulls anonymously"* private-repository
+  branch, dead since 2026-09-13 and outside 26.1.3's test, which covered `ci.yml`
+  and `release.yml` only — gone, and the new test refuses it here. The header
+  now states ADR-0018's thirty-day freshness rule, which was half of 27.2.7.
+  **Measured twice.** A dispatch from the branch (run 35632921687): the index
+  built in 56s from the restored cache and every publish step `skipped`; GHCR's
+  newest version was still the morning's `2026-09-21`/`latest`. A dispatch from
+  `main` after landing (run 35633928952): candidate pushed 17:45:22–25, signed
+  17:45:25–29, pulled back 17:45:29–34 with all five ecosystems *signature
+  verified, digest sha256:cc25acd75abc…* — the digest pushed — and tagged at
+  17:45:34: *tagged …:2026-09-21 and :latest @ sha256:cc25acd7…*; GHCR lists
+  `candidate`, `2026-09-21` and `latest` on that one digest. `latest` moved
+  twelve seconds after the verification, and would not have moved without it.
+  CHANGELOG; ADR-0018 amended.
+
+- [x] **27.0.2** **The release SBOM by digest, on both architectures (T1.1;
+  F10.4).** `release.yml:309` generates the release SBOM with `anchore/syft:v1.51.1`
+  — a tag — for `linux/amd64` only, while `Dockerfile:65` pins the same syft by
+  digest and the image ships for two architectures. Use one digest in both places
+  and hold them together: a test that the workflow's `anchore/syft@sha256:` equals
+  the Dockerfile's `FROM anchore/syft@sha256:`, so Dependabot's bump to one is a
+  red test until the other follows. Generate one SBOM per child — `stage` has both
+  digests from the `build` matrix — named for its platform, both attached to the
+  release and both handed to `promote`.
+
+  **Tests first**: the shape test refuses `anchore/syft:` followed by a tag,
+  requires the digest equality, and requires both platforms in the SBOM step. Then
+  a rehearsal: the STATUS note lists the rehearsal's release assets, two SBOMs
+  each naming its platform, and the sizes.
+
+  **STATUS 2026-09-21:** ✅ PR #65, two rehearsals. Test first
+  (`test_the_release_sbom_is_made_by_the_pinned_syft_for_both_architectures`):
+  no `anchore/syft:<tag>` anywhere in the workflow — which caught the literal in
+  my own comment, rightly; the workflow's `sed` over the Dockerfile, run by the
+  test on the Dockerfile, yields the Dockerfile's own `FROM anchore/syft@sha256:…
+  AS syft` pin; both platforms in the step; four named assets on the release.
+  Mutations caught: the tag back, amd64 only, the wrong `FROM` stage extracted,
+  two assets. The pin is *read* from the Dockerfile rather than held equal to it
+  by a test, so a Dependabot bump to the Dockerfile moves the release's syft with
+  it and nothing can drift. Each file is checked to describe the child it
+  names: syft 1.51.1's CycloneDX metadata carries no architecture (measured with
+  the image's own syft on `alpine:3.20`), but every OS package's purl does.
+  **Rehearsal #1 (35633863756) found the assertion, not the SBOM:** four files
+  came out of the pinned syft — but the base image is Alpine, whose apk purls
+  spell the architecture `x86_64`/`aarch64`, and the check was written for
+  dpkg's `amd64`/`arm64`, so it failed on `{'noarch': 1, 'x86_64': 37}` — the
+  `aarch64` had been in the probe and was not connected. **Rehearsal #2
+  (35634850014), green in 16m50s:** *2,227 components, 37 purls naming amd64*
+  (`x86_64`) and *37 naming arm64* (`aarch64`), one `noarch` in each; CycloneDX
+  1.87MB and SPDX 3.06MB per architecture, the arm64 pair a few hundred bytes
+  from the amd64 pair — two children, genuinely different; the draft release
+  created with all four beside `dist/`, then removed. `promote` verified the
+  wheel's attestation as before. CHANGELOG; RELEASING.md's SBOM paragraph and
+  failure row; F10.4 extended. **Tier 0 is closed: the next real tag is the
+  first release whose index is tagged after verification and whose SBOM covers
+  both architectures.**
+
+### Tier 1 — The primary surface
+
+- [x] **27.1.1** **The server stops what it started (T1.3; F1.11).** `server.main`
+  (server.py:154–159) returns on `KeyboardInterrupt` or `BrokenPipeError` and
+  otherwise when `serve` returns at the client's EOF; scan jobs are daemon threads
+  (jobs.py:176) and die with the process; the containers they launched do not —
+  `runner.py:185` records that the daemon owns their lifecycle, which is why
+  `kill_running` and the `--name valvur-<id>` registry exist (23.3.3). Nothing on
+  the server's way out calls either. Wrap `serve` in `try/finally`: cancel every
+  active job through `jobs.cancel` (26.0.2 made that safe under the lock), wait
+  for each to settle up to a bounded deadline (10s), `kill_running` as the backstop
+  for anything the registry still names, one line each to stderr. `SIGTERM` — how
+  a client kills a server it did not `close()` — bypasses `finally` by default;
+  install a handler that raises `SystemExit` so the same path runs.
+
+  **Tests first**: a unit test with an event-gated fake job (26.4.1's shape) —
+  `main` returning from a fake `serve` calls the canceller and waits; and an e2e
+  test in `tests/test_cancel_jobs.py`'s shape — spawn `valvur-mcp` on a copy of the
+  fixture with `VALVUR_CACHE` on scratch, `initialize`, `tools/call scan`, close
+  stdin, and assert within 10s that `docker ps --filter name=valvur-` is empty and
+  the workspace lock is free; the same for `SIGTERM`. The STATUS note records the
+  measured seconds from EOF to no containers.
+
+  **STATUS 2026-09-22:** ✅ Test first, `tests/test_mcp_shutdown.py`, six unit
+  cases and one e2e: the plain EOF, `KeyboardInterrupt`, `BrokenPipeError`,
+  SIGTERM, a job that never settles (the wait is bounded, the exit is not held),
+  and silence when nothing runs. `server.main` now runs `protocol.serve` inside a
+  `try/finally` whose `shutdown()` cancels each workspace `jobs.active()` names —
+  the same path `scan_cancel` takes, so 26.0.2's lock discipline covers it —
+  waits `SHUTDOWN_SECONDS` (10) for each to settle, then sweeps with
+  `runner.kill_running()`; a SIGTERM handler raises `SystemExit` so the `finally`
+  runs at all, and is installed only when this is the main thread. **Measured
+  over stdio against the real image** (dev image, scratch cache): a scan started
+  through the MCP surface, its first container live at 1.2s, stdin closed — the
+  server exits 0 and the container is **gone 0.3s later**, saying *"valvur-mcp:
+  stopping the offline scan of … (1 container(s))"*. **The test found two
+  defects in itself, both by being run:** the scan tool's argument is
+  `workspace`, and `path` — what the task text said — silently scanned the
+  server's own directory, so the first green run measured another tree entirely
+  (it now asserts the reply names the workspace it was given); and a 30s window
+  for the containers to go is met by an orphan *finishing* — measured **22.0s**
+  against 0.3s — so the bound is 8s, which only a kill meets, with the server's
+  stderr asserted beside it. Mutation: the `finally` removed, e2e red at 24.18s.
+  CHANGELOG; `PROTOCOL.md`'s `--name` line now names the exit as well as the
+  cancel.
+
+- [x] **27.1.2** **Tool annotations tell the truth (T2.3; F9.2).** `Tool.describe`
+  (server.py:38) answers `readOnlyHint: true, destructiveHint: false` for all six
+  tools; `scan` writes the Results Folder, pulls an image and starts containers,
+  `scan_cancel` stops them. Per-tool fields on `Tool`: `scan` and `scan_cancel`
+  are not read-only and not destructive (additive — a cancel writes nothing,
+  F1.11); `list_findings`, `explain_finding`, `scan_status` and `doctor` are
+  read-only. F9.2 stays true and the description says so — no tool touches the
+  source tree; the folder is not the tree — because a client that reads
+  `readOnlyHint: false` as "prompt the user" is now right to prompt for `scan`,
+  and that is the correct behaviour, not a regression.
+
+  **Tests first**: a table in the test — tool name → the two hints — held against
+  `registry()`; the `tools/list` snapshot (23.5.2) regenerated through the real
+  server, so the change is a diff in review, as the snapshot was built to make it.
+
+  **STATUS 2026-09-22:** ✅ Test first: one `ANNOUNCED` table in
+  `tests/test_mcp.py` — six tools, two hints each — asserted against `registry()`
+  and, by the snapshot test importing the same table, against the bytes that
+  leave the process; `tests/fixtures/mcp/tools-list.json` regenerated through
+  the real server, two lines changed, which is exactly the diff-in-review 23.5.2
+  was built for. `Tool` takes `read_only` and `destructive` keyword-only, both
+  defaulting to the *safe* answer, so a new tool that acts has to say so; `scan`
+  and `scan_cancel` declare `read_only=False`. Mutations, all caught: each
+  declaration reverted in turn, the default flipped to acting, and a
+  `destructive=True` scan. **What the annotation is not:** F9.2 and ADR-0009 are
+  about the user's *source*, and are untouched — the tree is mounted read-only
+  and no fix/apply/remediate tool exists; a second test asserts both over the
+  registry, and that `scan`'s description still carries the sentence, because
+  that is where a client now reads the claim. The three places that said *every
+  tool is read-only* are corrected: `README.md`'s MCP block, `EVALUATING.md`
+  (which also said **four** tools, and there have been six since 23.3.1 and
+  23.3.3), and `design.md` §8 — whose table gains the two missing tools, the
+  real argument names and a `readOnlyHint` column, closing that half of 27.2.2
+  early. CHANGELOG.
+
+- [x] **27.1.3** **A cached index is re-verified when cosign appears (T2.2;
+  ADR-0018).** `name_index.fetch_published` (name_index.py:337–346) returns before
+  `oci.verify_signature` when every wanted ecosystem's `built_at` matches and its
+  file exists, so an index cached as `"not verified: cosign is not installed"`
+  stays so after cosign is installed — until the next daily build is pulled, at
+  most the thirty days after which a scan is `inconclusive` anyway. When the
+  cache is current and any ecosystem's recorded signature is the cosign-absent
+  one and `shutil.which("cosign")` now answers: verify the recorded digest, no
+  layer fetched, and rewrite the metadata with the outcome; a failed verification
+  gets whatever a fresh pull's does.
+
+  **Tests first**, in `tests/test_published_index.py`: seed the metadata with the
+  unverified state, mock `shutil.which` and `oci.verify_signature`, and assert the
+  metadata reads `verified` with zero blob requests to the fake registry; the
+  inverse — cosign still absent — leaves the metadata untouched and calls
+  nothing. `valvur update`'s progress line says what happened.
+
+  **STATUS 2026-09-22:** ✅ Test first, four cases in
+  `tests/test_published_index.py`: the verdict improving (every ecosystem reads
+  `verified`, the metadata on disk holds it, cosign asked for the *recorded*
+  digest, one blob request — the config — and no layer line printed); cosign
+  still absent (nothing done, and the metadata file's mtime unchanged, so it is
+  not rewritten to say the same thing); already verified (cosign not run a second
+  time — it costs a Rekor round trip); and a refusal, which is the same uncaught
+  `SignatureInvalid` as on a fresh pull, with the cached files left byte for byte
+  as they were, because this path fetched nothing to undo. `_reverify` runs
+  inside the current-cache shortcut and is gated on both conditions: the recorded
+  verdict is the cosign-absent one (matched as a prefix, since
+  `verify_signature` appends the fix to it) and `shutil.which("cosign")` now
+  answers. Mutations, all caught: the call removed, the gate removed, the
+  metadata not written, and the staleness test made vacuous. `EVALUATING.md` says
+  installing cosign later re-checks what you have; ADR-0018 amended; CHANGELOG.
+  **Tier 1 is closed.**
+
+### Tier 2 — The record is true
+
+- [x] **27.2.1** **The README's platform row (T1.2).** `README.md:227` puts macOS
+  and Linux in one row, *"tested on every commit against both runtimes"*. Linux is —
+  Docker and Podman on every commit (`ci.yml`'s parity job) and the published
+  image on amd64 and arm64. macOS is tested by hand: `0.3.0`'s first run was
+  measured on an Apple-silicon Mac through Docker Desktop, and the gate's stranger
+  runs there. Split the row and say each thing where it is true, with the date
+  and the machine for macOS. A macOS lane is the measured option, not a claim:
+  one dispatch of a probe workflow on the current Apple-silicon runner —
+  `brew install colima docker && colima start`, a five-minute cap — and the STATUS
+  note records whether a container ran at all and in how long; if it did, a
+  scheduled lane is a task of its own, if not, the row stands as written.
+
+  **Test first**: a claims ratchet beside the README tests in
+  `tests/test_constraints.py` — no row of the platform table naming macOS may say
+  "every commit" unless a workflow names a `macos-` runner.
+
+  **STATUS 2026-09-22:** ✅ The row is split: Linux keeps the continuous claim,
+  which is true of it (docker *and* podman on every commit, amd64 and arm64), and
+  macOS gets its own — tested by hand on an Apple-silicon Mac at each release,
+  most recently `0.3.0` on 2026-09-20 with a 58s first run over MCP — with the
+  reason it is not continuous. The ratchet asks for a `macos-` runner in a job a
+  **push or a pull request** starts, so a dispatch-only probe cannot re-legitimise
+  the claim; mutation, the old row restored, red. **The ratchet failed its own
+  corrected row first:** *"Not on every commit"* contains "every commit", so a
+  test matching words rather than claims punished the honest phrasing — it now
+  strips the denial before looking for the claim.
+
+  **The probe, measured rather than assumed** (`macos-probe.yml`, dispatch-only).
+  **Run 1 (35756578871) measured nothing**: `timeout` is GNU coreutils and macOS
+  does not have it, so colima was never started while the step reported *"did not
+  start within 300s"* about a command that had not run — bounded by a background
+  process and a polled deadline instead. **Run 2 (35757706987) answered it:** on
+  `macos-15` (`Apple M1 (Virtual)`, `kern.hv_vmm_present: 1` — the runner is
+  itself a guest), colima installed in **5s**, started Lima's `vz` driver, and
+  died **10s** in: `level=fatal msg="error starting vm: error at 'creating and
+  starting': exit status 1"`, the VM exiting before boot. **No container runs on
+  a GitHub macOS runner**, so a scheduled macOS lane is not a task waiting to be
+  written — the README's row is as good as it can get, and the probe stays in the
+  tree as the evidence, to be re-dispatched when GitHub's runner images change.
+
+- [x] **27.2.2** **`design.md` as built (T1.4).** Three things stale after 26.5.2
+  rewrote six sections: the architecture diagram (design.md:14–36) still draws
+  **Orchestrator** and **Normaliser** inside the OCI image — both are host-side
+  (`api.py` plans and collects the fleet, `ContainerRunner` runs each
+  `Invocation`, the adapters parse, `pipeline.py`'s stages, `results.write`) and
+  the image holds Scanners and Checks only; §5.1 Dependency Reality reads
+  *"`requirements*.txt` against PyPI, and nothing else … widening is task 19.D.1"*
+  and describes `offline` as edit-distance heuristics — two ADRs stale (ADR-0018,
+  23.2.2–3); §8's MCP table lists four tools of six (`scan_cancel`, `doctor`).
+  Redraw the diagram from the code; rewrite §5.1 from `dependency_reality.py`
+  and ADR-0018 — five ecosystems offline from the Name Index, JVM and Go on
+  `full`, the three signals, the coverage notes; §8 gains the two tools with
+  their arguments and, after 27.1.2, their annotations. Version 1.2.
+
+  **Test first**: in `tests/test_protocol.py`'s manner, §8's tool names parsed
+  from the table equal `registry()`'s, so the table cannot fall behind a third
+  time.
+
+  **STATUS 2026-09-22:** ✅ Test first, three ratchets in `test_constraints.py`
+  over a `design.md` table parser in `test_protocol.py`'s manner: §8's tools
+  equal the MCP registry's (green on arrival — 27.1.2 had already fixed that
+  table), §5.1's ecosystems equal `ecosystems.MANIFESTS`' labels, and the
+  document states a version of at least 1.2. Red on the missing §5.1 table and
+  on `1.1`. The **diagram** now draws what runs where — `api.scan` plans and
+  collects, the adapter owns its command and its parser, `ContainerRunner` owns
+  the container, `pipeline` normalises and ranks, `results.write` publishes one
+  generation, and the image holds Scanners and Checks and nothing that decides —
+  with a paragraph saying the old picture was the opposite of ADR-0001's reason
+  for existing. **§5.1** is rewritten from `dependency_reality.py` and
+  `ecosystems.py`: the seven ecosystems with what is read, what is seen but not
+  read, and where existence is answered; the stated-omission rule for Maven and
+  Go; and the three signals with the thresholds the code actually holds
+  (`NEW_PACKAGE_DAYS`, `NPM_UNADOPTED_DOWNLOADS`, near-miss pip-only) — the old
+  table's *critical* and *high* classes were wrong as well as its coverage.
+  Mutations, all caught: an ecosystem row dropped, a tool row dropped, the
+  version reverted, a label renamed. Version 1.2.
+
+- [x] **27.2.3** **What the sdist ships is a list (T4.1).** `.council/` — the
+  second review's structured output, six files — was committed on `777c5ec` with
+  Phase 26's documents and `uv build --sdist` puts all six in `valvur-0.3.0.tar.gz`,
+  measured. Move it to `docs/council/` with a `README.md` naming its origin and
+  date (`/docs` is already excluded from the sdist; `OPEN-ITEMS.md`'s reference
+  moves with it). Found on the way: `hatch_build.py` runs for the sdist target
+  too and writes `valvur/_build.py` at the archive's root, where nothing reads it —
+  the wheel built from an sdist recomputes the hash, as the docstring says — so
+  the hook skips the sdist. Then the ratchet: the sdist's top-level entries are an
+  allowlist in a test.
+
+  **Tests first**: a test that builds the sdist into a temporary directory and
+  asserts its top-level entries are exactly the allowlist — what is there today
+  minus `.council` and the stray `valvur/` — so the next artefact committed at the
+  root is a red test, not a review finding.
+
+  **STATUS 2026-09-22:** ✅ Test first, two in `tests/test_build_hash.py` (beside
+  the wheel-digest test, which already builds with `uv build`): the sdist's
+  top-level entries equal `SDIST_TOP_LEVEL` exactly — red on
+  `['.council', 'valvur']` — and the sdist carries no generated `_build.py` while
+  carrying the `tree_hash.py` a wheel recomputes the digest from. The allowlist
+  is both ways round: something new at the root fails, and something that
+  disappears fails too, because a distribution missing its LICENCE is the other
+  half of the same question. `.council/20260920-161505/` is now
+  `docs/council/20260920-161505/` with a README naming each review, what it
+  became, and that these are *inputs* rather than findings the project stands
+  behind — several claims did not survive being checked. `hatch_build.py` returns
+  early unless `self.target_name == "wheel"`. **Measured, and the first time this
+  claim has been:** `hatch_build.py` has always said a wheel built from an sdist
+  computes the same digest; built all three ways — from the tree, from the sdist,
+  and the sdist's own — the value is `78268aa5b1700e99…` each time. Mutations:
+  the hook's guard removed, an entry dropped from the allowlist, an extra file at
+  the root — each red.
+
+- [x] **27.2.4** **`SECURITY.md`'s versions table (T4.3).** The policy is complete
+  — private vulnerability reporting, enabled on the repository and checked by API;
+  the email fallback; 5 and 15 working days; scope and out-of-scope — and its
+  *Supported versions* table says `0.1.x`. Say what the sentence above it already
+  does: the latest release, named, with a test in `tests/test_version.py` (which
+  already reads `RELEASING.md`) that the table names the current minor series.
+
+  **STATUS 2026-09-22:** ✅ Test first
+  (`test_the_security_policy_names_the_series_it_supports`): the versions the
+  table lists must be exactly the released minor series, derived from
+  `pyproject.toml`, so the next bump that forgets this file is a red test rather
+  than a reporter's wrong answer. Red on `['0.1.x'] != ['0.3.x']`, then `0.3.x`.
+  The table had been wrong through two releases — a reporter checking whether
+  their version was supported read a series superseded twice — and a comment
+  beside it now says a test keeps it true.
+
+- [x] **27.2.5** **`RELEASING.md` cites ADR-0020 (T4.4).** The document explains
+  the brake's placement three times (lines 20–22, 224, 319–324) and never says
+  `ADR-0020`. One sentence in the brake paragraph; no test — the traceability
+  ratchet holds ADRs to requirements, not documents to ADRs, and one citation does
+  not need a machine.
+
+  **STATUS 2026-09-22:** ✅ One sentence in the brake paragraph
+  (`docs/RELEASING.md:325`): the environment sits on `promote` on purpose,
+  ADR-0020 records why, and moving it to `verify` or `stage` would put the human
+  before the evidence and leave the irreversible steps ungated — which is the
+  mistake the citation exists to prevent. No test, as the task said.
+
+- [x] **27.2.6** **`dist/` and `.security-scan/` cleared (T0.3, T4.2).** Two
+  gitignored leftovers on this machine: `dist/` holds the `0.1.0rc1` wheel and
+  sdist from 2026-09-05 — the release builds `dist/` on a clean checkout, so
+  nothing published can pick them up, and a developer's `pip install dist/*.whl`
+  can; `.security-scan/` holds a `full` scan from 2026-09-19 with `build.match:
+  false`. `rm` both. **Not regenerated here until after the gate** — a local
+  scan re-warms the Mac the gate needs cold. A STATUS note, no PR.
+
+  **STATUS 2026-09-22:** ✅ Both removed, after checking what they were: `dist/`
+  held only the two `0.1.0rc1` files from 2026-09-05 (the yanked release) and
+  `dist/.gitignore`, which stays — it is the `*` that keeps a build from being
+  committed; `.security-scan/` held a `full` scan from 2026-09-19 15:14 with
+  `build.match: false` and no `generation`, so it predated 26.0.3 as well. Both
+  were untracked and ignored, confirmed before deleting; `git status` is
+  unchanged by the removal. Not regenerated on this machine until the gate has
+  run. No PR of its own — it rides with 27.2.4 and 27.2.5.
+
+- [x] **27.2.7** **A scheduled failure is an issue (T2.1's residue).** The
+  analysis's consequences were wrong — a red `index.yml` that fails before its
+  push leaves yesterday's `latest` in place (and after 27.0.1, one that fails
+  after it does too), a scan never walks the registries, and GitHub mails
+  scheduled failures to the workflow file's last committer. What holds: a failure
+  is an email, not a tracked thing. Add to `index.yml` and `corpus.yml` a final
+  step, `if: failure()`, that opens an issue — or comments on the open one with
+  the same title — carrying the run link and the recovery command, under
+  `issues: write`; and state in `index.yml`'s header the freshness rule ADR-0018
+  already imposes: an index over thirty days makes a scan `inconclusive`, so a red
+  day costs nothing and a red month costs the verdict. `CODEOWNERS` naming one
+  person on a one-person repository records nothing and is not added.
+
+  **Tests first**: the shape test asserts both scheduled workflows carry the
+  step and the permission.
+
+  **STATUS 2026-09-22:** ✅ Test first
+  (`test_a_scheduled_workflows_failure_becomes_an_issue`): the two scheduled
+  workflows are exactly `index.yml` and `corpus.yml` — a third would have to
+  appear in this test — each carrying `issues: write` **on the job**, an
+  `if: failure()` step naming `github.run_id`, and `gh issue list` before `gh
+  issue create`, so a job broken for a week is one issue rather than seven; the
+  file's top-level `permissions` stays `contents: read`, which is what a fork's
+  pull request gets. Mutations, all caught: the corpus step removed, the
+  permission dropped, `failure()` weakened to `always()`, the reuse lookup
+  removed. Each issue carries what the failure costs a *user*, which is the part
+  worth writing down: a red index leaves the last published one in place and
+  costs nothing until thirty days pass (ADR-0018); a red corpus costs nobody
+  anything they can see, and loses the only check that catches a rule change's
+  false positives before a user meets them. **Not done, deliberately:**
+  `CODEOWNERS` naming one person on a one-person repository records nothing, and
+  the freshness rule the analysis asked for was already in `index.yml`'s header
+  from 27.0.1. **The test found one thing about itself:** it first asserted the
+  run link as `$GITHUB_SERVER_URL`, which is not how a workflow names a run —
+  `${{ github.run_id }}` is — so it was failing the step for the wrong reason.
+
+### Tier 3 — After the gate, before `v1.0.0`
+
+- [x] **27.3.1** **`doctor` stops importing `cli` (T3.3).** `doctor.py:507` imports
+  `KEV_URL` and `KEV_URL_ENV` from `cli.py` (defined at 270–271), inside the KEV
+  check — a diagnostic module reaching up into the entry point. The constants
+  belong with the fetch in `enrichment.py`; `cli` and `doctor` both import from
+  there. Half an hour.
+
+  **Tests first**: `import valvur.doctor` in a subprocess asserts `valvur.cli` is
+  not in `sys.modules`; and a direction ratchet over the package's import graph
+  (`ast`, every module under `src/valvur`) — nothing but `__main__` and
+  `mcp/server` imports `cli`.
+
+  **STATUS 2026-09-22:** ✅ `KEV_URL` and `KEV_URL_ENV` now live in
+  `enrichment.py`, which does the fetching; `cli.py` names them beside
+  `_refresh_kev`, its one user, and `doctor` imports from the owner. Test first,
+  two: a subprocess that asks `doctor` for the first-run hosts and then finds
+  `valvur.cli` absent from `sys.modules`, and a ratchet over the package's own
+  import graph — `ast` over every module under `src/valvur`, where only
+  `__main__` and `cli` itself may import `cli`. The task text expected
+  `mcp/server` to be a third exception; it is not, and the ratchet is stronger
+  for it. Mutations: `doctor` pointed back at `cli`, and an unrelated module
+  (`gate.py`) made to import it — both red. **The subprocess test passed against
+  the defect when first written:** the KEV import was lazy, inside the check, so
+  importing the module was never enough to see it — the hosts have to be *asked
+  for* before `sys.modules` is worth reading. Half an hour, as estimated.
+  **Sequencing note:** Tier 3 is meant to wait for the gate, and this one does
+  not touch anything a stranger's first run meets — two constants between
+  modules, no behaviour.
+
+- [x] **27.3.2** **One ecosystem registry (T3.1).** `dependency_reality.py` is
+  1,206 lines — Check orchestration, seven manifest parsers, registry transport,
+  per-registry age decoding, typosquat matching — and imports `name_index`
+  lazily in three places while `name_index.py:468` imports
+  `dependency_reality.canonical` lazily back; `ecosystems.py` (130 lines) is the
+  third home of the same truth, and a new ecosystem is a coordinated edit in all
+  three. The split as the analysis drew it: `src/valvur/ecosystems/` as a package
+  whose registry owns each ecosystem's name, manifests, index file, registry host
+  and age strategy; a parser per ecosystem behind one interface; the Check as an
+  orchestrator that imports the registry and not the index; `name_index.FILES`
+  into the registry. The largest item in the phase; after the gate, because it
+  touches the Check the gate's stranger sees first.
+
+  **Tests first**: snapshot the Check's output on the broken fixture and the
+  corpus counts before the move and hold them after (26.2.1's method for argv);
+  an import test that loads each module alone in a subprocess; a registry test
+  that every ecosystem has a parser, an index file or a stated `full`-only reason,
+  and a registry host that `egress.SPOKEN_AS` names. The weekly corpus after
+  landing is the measurement; the STATUS note quotes its counts against the
+  previous week's.
+
+  **STATUS 2026-09-22:** ✅ `dependency_reality.py` **1,206 → 643 lines**, and
+  the three tables an ecosystem lived in are one: `ecosystems/` is a package
+  whose `registry.py` holds, per ecosystem, the key, the label, the `(pattern,
+  parser)` pairs it reads, what it only sees, the index file *or* the reason
+  there can be none, the registry and its host, the spelling the index stores,
+  and whether the near-miss comparison applies. `MANIFESTS`, `name_index.FILES`
+  and `Ecosystem.reads` all derive from it; `parsers.py` holds the eleven
+  parsers behind one shape, so `_declared_packages` is a loop over the registry
+  rather than eleven hand-written calls. The Check's `_index_form` chain,
+  `_REGISTRY_NAME` table and two `ecosystem == "pip"` near-miss tests read from
+  the registry. **The circular import is gone**: `name_index` wanted the Check's
+  PEP 503 and the Check wanted `name_index`'s crate form; both are the
+  registry's, PEP 503 now has one definition in the tree, and a subprocess test
+  proves importing `name_index` no longer pulls in the Check. **Tests first**:
+  five goldens of what the parsers read — Python, npm, JVM, the
+  Go/Ruby/PHP/Rust set, and the repository's broken fixture — captured before
+  any code moved and byte-identical after; plus every ecosystem reads something
+  and can answer existence or says why not, every registry host is one
+  `egress.SPOKEN_AS` names (so a host this Check reaches is one `run.json`
+  discloses), and the index order. **Found on the way:** `MANIFESTS` and
+  `name_index.FILES` ordered their ecosystems *differently*, and `doctor` prints
+  the index order to a user — deriving one from the other silently reordered
+  that line, which three tests caught; `INDEX_ORDER` states it. Mutations, five,
+  all caught after the last was fixed: a parser unwired, an index file dropped,
+  a host `egress` does not name, the index form changed, and the order changed —
+  that last one passed at first, because the test compared the dict with the
+  constant it is built from, which says only that a loop works. **Measured:**
+  1,059 unit tests, and the **e2e suite against a rebuilt image, 25 passed in
+  4m03s** — the Check runs inside the container, so a package that imports
+  differently there is the failure this catches. The weekly corpus on Monday is
+  the last word; its counts belong beside the previous week's.
+  **Phase 27 is complete.**
+
+- [x] **27.3.3** **`SUMMARY.md` rendering out of `results.py` (T3.2).** 642 lines,
+  of which `_summary` runs from 304 to 563 with `_verdict`, `_slowest`,
+  `_counts_table`, `_one_line` and `_enforce_cap` beside it — about three hundred
+  lines of prose in the module whose job is the atomic write (26.0.3). Extract
+  `summary.render(run, …) -> str`; the write loop calls it as it calls every other
+  document's renderer. Behaviour-preserving, `results.py` under 350 lines.
+
+  **Tests first**: `SUMMARY.md` on each fixture snapshotted before the move and
+  held byte-identical after; the existing summary tests move with the code.
+
+  **STATUS 2026-09-22:** ✅ `results.py` **642 → 230 lines** and writes;
+  `summary.py` is 423 with one entry point, `render(run)`, which the write loop
+  calls as it calls every other document's renderer. **Found on the way:** the
+  two staleness predicates were used by *both* halves — `run.json`'s `stale`
+  flags and `SUMMARY.md`'s prose — so extracting the renderer alone would have
+  made one half import the other; they are `staleness.py` (28 lines) and both
+  callers import from there. Test first: five goldens in
+  `tests/fixtures/summary/`, generated from `results._summary` **before any code
+  moved** and byte-identical after, each case pinning its own generation id
+  (uuid4 per Scan Run, correct and fatal for a golden). Mutations: a heading
+  reworded (4 red), the counts table dropped (1 red). **The mutation pass found
+  a hole in the goldens themselves:** `LINE_CAP` lowered from 200 to 60 left all
+  four unchanged, because none rendered enough lines for the cap to bite — F7.5
+  is why the document stays readable on a real project, so a golden set blind to
+  it was not covering the file. A fifth case, 300 findings, pins the cut and the
+  *"285 further finding(s) omitted"* footer; the same mutation is now red. 1,046
+  unit tests pass. **Sequencing note:** Tier 3 waits for the gate because it
+  moves seams the release freezes; this one changes no behaviour and is held to
+  that by bytes.
+
+- [x] **27.3.4** **A typed pipeline result (T3.4).** `pipeline.Context`
+  (pipeline.py:35–57) has fifteen fields; stages write `artifacts`, `coverage`,
+  the three `*_dropped` counts, `unpinned_files` and `identity_reset` into it
+  while `StageFn` is typed `list[Finding] -> list[Finding]`, and `api.py` copies
+  each into `ScanRun` by name. `pipeline.run` returns a `PipelineResult` — the
+  findings and every field a stage writes — and `api.py` builds `ScanRun` from
+  it; `Context` stays stage-local. The move 26.3.2 made for the fleet's tuple.
+  With 27.3.3, since both change how `api.py` assembles a `ScanRun`; lowest
+  priority in the phase.
+
+  **Tests first**: `test_pipeline.py` asserts the result's fields; the mutation
+  is a field dropped from the result with a test that compares `ScanRun`'s
+  populated fields to the result's.
+
+  **STATUS 2026-09-22:** ✅ `RECORDED_BY_STAGES` names the ten once;
+  `PipelineResult` carries each with a type; `pipeline.run` returns it and
+  `api.py` builds the `ScanRun` from `outcome.<field>` rather than reaching into
+  the Context the stages share. Test first, three: every `Context` field is
+  either a declared input or declared as recorded (so a new one has to say
+  which), `PipelineResult` carries everything recorded, and every recorded value
+  is *carried out* — the last against a one-stage pipeline that marks each field
+  distinctly. **That third test was written against a real run first and passed
+  against the defect**: most recorded fields hold their defaults on a small
+  workspace, so forcing `unpinned_files` to `()` on the way out changed nothing;
+  a comparison of defaults with defaults proves only that both are empty. The
+  real-pipeline comparison stays beside the marker test. Mutations, all four
+  caught: a field dropped from the result, a field dropped from the list, a
+  value not carried out, and a new `Context` field left undeclared. **Found on
+  the way:** two existing tests read `ctx.<field>` after the run and one compared
+  whole results — `provider` is a fresh `LocalProvider` per run and compares by
+  identity, and `kev_age_days` is read from the clock, so the purity test now
+  compares its *readings* to the tenth `run.json` publishes. 1,053 unit tests
+  pass. **Phase 27's engineering is complete bar 27.3.2**, which the gate still
+  gates.
+
+**Exit (Phase 27):** the daily index tagged only after its own verification, on
+a run whose log shows the order; the release SBOM by digest on both
+architectures, on a rehearsal; the MCP server leaving no container behind at EOF,
+Ctrl-C or SIGTERM, measured; six tools with six honest annotations; the sdist an
+allowlist; `design.md` drawn as built with a test on its tool table; and, after
+the gate, no import cycle in the package, `results.py` under 350 lines, one
+registry of ecosystems. Every claim in the phase head re-measured in its task's
+STATUS note.
+
+> **2026-09-22:** every task closed — sixteen, in fifteen PRs, one evening and two
+> days. Tier 3 ran ahead of the gate: each of its four moves was held to bytes
+> (goldens taken before the code moved) rather than to intent, and 27.3.2's e2e
+> run against a rebuilt image is the measurement. **One thing it left behind**,
+> found by the fourth review the next day: a module-level import cycle inside the
+> new `ecosystems` package — Phase 28's 28.0.5.
+
+## Phase 28 — The fourth review: the trust boundary, the latency, and what today left behind
+
+**Goal:** close the twenty-four actionable findings of a level-400 review of `main`
+at `2287dc7` — every claim in it measured against the tree, the workflows, the
+GitHub API or a run log on 2026-09-23, and written down in
+[`docs/REVIEW-2026-09-23.md`](../../../docs/REVIEW-2026-09-23.md) with the
+evidence beside each. Ordered by what an attacker can do first, what the next
+release depends on second, what a user feels third, hygiene fourth, and the
+architecture that waits for the gate last. Written 2026-09-25.
+
+> **What the review found, in one line each.** Not correctness in a scan — the
+> corpus and 1,059 tests hold that — but the edges. *Deploy:* four facts that are
+> fine alone and an open door together: no tag protection, `verify` checks only
+> that the tag matches the version, the `release` environment has no reviewer, and
+> the cosign identity `^https://github.com/MaverickHQ/valvur/` matches **every
+> workflow on every branch** — so a write-scoped token is release authority under
+> the identity users are told to trust. *Operations:* secret scanning, push
+> protection and Dependabot security updates are **off** on a security scanner's
+> public repository. *Functionality:* Checkov is **15.5–18.8 s of 16–19 s** on
+> every application repository in the corpus and 124.2 of 124.5 s on the
+> Terraform module — the scan's wall clock is one Scanner's startup; a first run
+> on `offline` opens sockets to three hosts and `run.json` records none of it;
+> a Scanner's container has no memory, PID or CPU ceiling. *Architecture:* one
+> hard import cycle, introduced the day before by 27.3.2 (`parsers ↔ registry`);
+> the domain vocabulary is `str`; three modules still carry two jobs. *Build:*
+> `>=3.11` claimed, 3.12 alone tested; no attribution file for the LGPL and Apache
+> tools the image redistributes; the image is not reproducible. *Cross-cutting:*
+> five tests in one day passed against the defect each was written for and were
+> caught only by hand mutation — a discipline that is one person's habit.
+> Two rows are informational (A5, O6) and have no task.
+>
+> **Sequencing against Phase 25.** Tier 0 is the trust boundary and lands
+> **before the next real tag**; none of it changes what a stranger's first run
+> meets, so it runs beside the gate. Tier 1 is the release itself and two owner
+> actions. Tier 2 changes what a user feels and is measured, not assumed. Tier 3
+> has no gate. Tier 4 moves seams the release freezes and waits for the gate's
+> findings, as Phase 27's Tier 3 did. **The constraint from Phases 26 and 27
+> stands:** this Mac stays a stranger's until the gate has run.
+
+```
+Tier 0   the trust boundary      28.0.1 GitHub's own guards on (O1) · 28.0.2 write access is not release authority (D1) · 28.0.3 a ceiling on every container (F3) · 28.0.4 a first run's fetches in the record (F2) · 28.0.5 the hard cycle, and a ratchet (A1)
+Tier 1   the release             28.1.1 the three refactors reviewed (X2) · 28.1.2 0.3.1 — the first real promote (D3) · 28.1.3 the bus factor, stated (O3)
+Tier 2   what a user feels       28.2.1 Checkov's startup, measured (F1) · 28.2.2 the MCP handshake carries the rules, and structured replies (F4)
+Tier 3   hygiene                 28.3.1 package retention (D2) · 28.3.2 stale branches (B4) · 28.3.3 SARIF suppressions GitHub honours (F5) · 28.3.4 the Python versions the claim names (B1) · 28.3.5 NOTICE (B2) · 28.3.6 supportability (O2) · 28.3.7 valvur cache --prune (O4) · 28.3.8 the runner move, dated (O5) · 28.3.9 the README's action pin (D4)
+Tier 4   after the gate          28.4.1 the vocabulary is typed (A2) · 28.4.2 three modules, one job each (A3) · 28.4.3 the constraint suite split (A4) · 28.4.4 mutation in CI (X1) · 28.4.5 a reproducible image (B3)
+```
+
+**The TDD shape is Phase 26's**, stated there once: the failing test first, against
+the measured behaviour; the fix; a mutation pass with the baseline committed; a
+measured number in the STATUS note of any task that changes what a user sees. The
+letter-number in brackets is the finding in `REVIEW-2026-09-23.md`.
+
+### Tier 0 — The trust boundary, before the next tag
+
+- [x] **28.0.1** **GitHub's own guards, on (O1).** Measured by API: `secret_scanning`,
+  `secret_scanning_push_protection`, `dependabot_security_updates` and
+  vulnerability alerts are all `disabled`; code scanning alone is on. The
+  defences that exist — the gitleaks pre-commit hook, the per-PR self-scan — are
+  local, bypassable with `--no-verify`, cover the working tree and not the
+  history, and cannot revoke a leaked partner token. Enable all four through the
+  repository `PATCH` endpoint and confirm by reading them back.
+
+  **Test first**: a shape test that reads `security_and_analysis` through `gh
+  api` and requires all four `enabled` — marked `e2e`, since it needs the
+  network, so the unit suite stays sealed. The STATUS note records what secret
+  scanning found on the history the moment it was switched on, because that is
+  the number that says whether this mattered.
+
+  **STATUS 2026-09-25:** ✅ Test first (`tests/test_repository_guards.py`, two
+  `e2e` tests reading the repository's `security_and_analysis` and
+  `/vulnerability-alerts` through `gh`): red on all three names and the 404.
+  Enabled by API in the order the API requires — vulnerability alerts first,
+  since Dependabot security updates depend on them — and read back: all four
+  `enabled`, `automated_security_fixes=true`. **What they found on arrival:**
+  secret scanning, over the whole history, **two alerts** — an AWS Access Key
+  ID and Secret Access Key — both the planted fake in
+  `tests/fixtures/broken-repo/config.py` (chosen to avoid AWS's documentation
+  examples so scanners fire), referenced from four test files and the
+  `.gitleaks.toml` allowlist; resolved as *used in tests* with the reason,
+  zero open. Dependabot: **zero** open alerts on arrival — including nothing
+  for the python-ecdsa CVE code scanning already holds, so either Dependabot
+  does not read `requirements-checkov.txt` as a manifest or its first pass had
+  not run; re-checked at the phase's end. **The trade-off worth knowing:**
+  push protection will now block a push that adds a new planted credential to
+  a fixture — the bypass exists and asks for a reason, which is the right
+  friction for a repository that commits fake keys on purpose.
+
+- [x] **28.0.2** **Write access is not release authority (D1).** Four measurements:
+  `rulesets → []` and `tags/protection → 404`; `verify` checks only that the tag
+  matches `pyproject.toml`, not that it is signed or on `main`; the `release`
+  environment has zero reviewers, zero wait and no branch policy — the brake
+  ADR-0020 placed is unplugged; and the cosign identity
+  `^https://github.com/MaverickHQ/valvur/` in `oci.SIGNING_IDENTITY`, the README
+  and both workflows matches every workflow on every branch. Together: a
+  write-scoped token pushes `v9.9.9` on any commit, the pipeline signs it under
+  the identity users are told to trust, and PyPI takes it. With one maintainer
+  the threat is a stolen token. In leverage order: **(a)** the identity becomes
+  the exact workflow and ref — `…/.github/workflows/release.yml@refs/tags/v` for
+  the image, `…/index.yml@refs/heads/main` for the index — in the shim, the
+  README, `release.yml` and `index.yml`, with one test holding the four equal;
+  **(b)** a `v*` tag ruleset: creation restricted to the owner, signed tags
+  required, and `verify` runs `git tag -v` and refuses a tag whose commit is not
+  on `main`; **(c)** a required reviewer on `release`, with a deployment branch
+  policy of tags only so rehearsals stay unattended. The rehearsal image is
+  signed by `release.yml@refs/heads/<branch>`, so (a)'s regex for the image must
+  admit the rehearsal identity in a rehearsal and refuse it everywhere else —
+  the README's verify command is the one users run, and it names tags only.
+
+  **Tests first**: the identity equality across the four files; `verify`'s
+  `git tag -v` and `merge-base --is-ancestor` steps in the shape test; then a
+  rehearsal (the identity change touches the artifact job's `cosign verify`),
+  then the ruleset and the reviewer by API, read back. The STATUS note records
+  the rehearsal run and the ruleset as the API returns it.
+
+  **STATUS 2026-09-25:** ✅ PR #85. Test first, six in
+  `tests/test_release_trust.py`: the shim's regex accepts the daily index's
+  identity and refuses four neighbours (a branch, the release workflow, the
+  probe, a fork); every command a user is given names the image identity and
+  none the broad one; `artifact` pins to this run's exact identity; `verify`
+  carries `tag -v` and `merge-base --is-ancestor`; the committed signers file
+  verifies HEAD's own signature; the ruleset as GitHub returns it. **(a)** The
+  identity is `release.yml@refs/tags/v` for the image (`EVALUATING.md`,
+  `RELEASING.md`, the release notes the pipeline writes) and
+  `index.yml@refs/heads/main` for the index (`oci.SIGNING_IDENTITY`, anchored at
+  both ends, and `EVALUATING.md`); the README, which has no command of its own,
+  is held to not growing a wider one. `artifact` verifies with
+  `--certificate-identity` at `github.ref` — exact, and true in a rehearsal and
+  a release alike. **(b)** Ruleset 24016563 *release tags*: `refs/tags/v*`,
+  creation, update and deletion restricted to the admin role, signatures
+  required, active. `verify` fetches `main` and the tag object, runs `git tag
+  -v` against `.github/allowed_signers` — the owner's SSH signing key, the one
+  every commit on `main` carries — and refuses a tag whose commit is not on
+  `main`; real tags only. **Measured locally:** a tag signed by the release key
+  verifies (rc 0); an unsigned annotated tag is refused (*no signature found*);
+  a signed tag against a file naming a stranger's key is refused (*No principal
+  matched*). **Rehearsal 36182155025, green in 17m05s:** the exact-identity
+  `cosign verify` passed on both architectures — a rehearsal signs from
+  `refs/heads/<branch>`, which the user-facing pattern refuses and the
+  pipeline's own check admits, which is the point — and the new tag step
+  reported `skipped`. Mutations, all caught: the shim's identity widened,
+  `RELEASING.md` back to the broad one, `artifact` back to a regexp, `tag -v`
+  removed, a stranger's key in the signers file. **(c), deferred to the phase's
+  last act with the reason:** a required reviewer on `release` gates *every*
+  deployment through that environment, rehearsals included — a deployment
+  branch policy does not exempt a ref, it blocks it — so set now it would stall
+  the rehearsals this phase still runs, or need the TestPyPI trusted publisher
+  moved to a second environment, which is the owner's. Set last, every
+  `promote` thereafter waits for the owner's click — where ADR-0020 put the
+  brake. **Found on the way:** the README never carried a verify command; the
+  third review's list said it did.
+
+- [x] **28.0.3** **A ceiling on every container (F3).** Measured flags in
+  `runner._base_flags`: `--read-only`, a 512m tmpfs, `--cap-drop=ALL`,
+  `--network=none`, user `10001` — and no `--memory`, `--pids-limit`, `--cpus`,
+  no `--security-opt=no-new-privileges`. A hostile repository cannot reach the
+  network or write the tree, and can take the host's memory and CPU: a
+  pathological pattern for Opengrep, a multi-gigabyte lockfile for Trivy. N1.4
+  *measures* 2 GB (528 MiB peak on CI); nothing enforces it; the budget bounds
+  time only. Add `--memory=2g --memory-swap=2g --pids-limit=512
+  --security-opt=no-new-privileges` through `egress`-style single authority in
+  the runner, and let `doctor` drop the memory flag where rootless Podman on
+  cgroup v1 refuses it, saying so.
+
+  **Tests first**: the flags on every Invocation's argv (the snapshots under
+  `tests/fixtures/invocations/` move, deliberately, in review); an e2e test that
+  a container allocating past the ceiling is killed and the Scanner reported
+  failed rather than the host swapping; the Podman-refusal branch unit-tested
+  with a fake runtime. The STATUS note records N1.4's peak against the ceiling.
+
+  **STATUS 2026-09-25:** ✅ `runner.RESOURCE_LIMITS` — `--memory=2g`,
+  `--memory-swap=2g`, `--pids-limit=512`, `--security-opt=no-new-privileges` —
+  one tuple, applied by `_base_flags` to every container including Trivy's
+  database fetch, the one with a network. Test first, six: every adapter's
+  launch carries all four; the ceiling is one authority (the literals appear
+  once); rootless Podman on cgroup v1 (`_cgroup_v2()` false on Linux) keeps the
+  PID limit and `no-new-privileges` and drops the memory pair — because Podman
+  refuses to *start* the container otherwise, which would turn a safety flag
+  into a scan that cannot run — and `doctor`'s runtime line says so; Docker and
+  cgroup-v2 Podman get the whole ceiling; the fetch container is held too.
+  **Measured against the real image:** a container asking for 3 GB inside the
+  2 GB box is **exit 137 after 8.1 s** — killed, not swapping — and the full e2e
+  suite runs green under the ceiling on every Scanner (25 passed; the one red
+  was the tree-hash guard catching an image built before the runner changed,
+  rebuilt and re-run). **N1.4 on CI under the ceiling: 533 MiB of 2 GiB**, the
+  fleet 467 MiB at most (PR #84's e2e run) — a quarter of the box. `PROTOCOL.md`'s process section names the ceiling; N1.4
+  is annotated *enforced*, not only measured; CHANGELOG.
+
+- [x] **28.0.4** **A first run's fetches are in the record (F2).** On `offline`, a
+  first scan pulls the image from GHCR, the database from `mirror.gcr.io` and
+  the index from GHCR — announced on `scan_status` and the terminal, and absent
+  from `run.json`, which says `network.used: false`,
+  `what_left_the_machine: nothing` and lists no fetch. True in the sentence's
+  sense — nothing of the workspace left — but the run opened sockets to three
+  hosts and the record cannot tell a first run from a steady-state one.
+  `api._ensure_data` already knows what it fetched and returns only what it
+  could not. Add a `fetched` block to `run.json` and `findings.json` — what,
+  from which host, how large, whether the signature verified — and a line in
+  `SUMMARY.md`'s provenance section; annotate ADR-0010 and F10.8.
+
+  **Tests first**: `test_first_run.py`'s fetch cases assert the block; a
+  steady-state run asserts its absence; the `unshare -rn` proof in
+  `verify-offline.py` is unchanged, because a first run was never the run it
+  proves.
+
+  **STATUS 2026-09-25:** ✅ `_ensure_image` and `_ensure_data` return what
+  *arrived* — `_fetch_record`: what, source, size as the source stated it,
+  seconds to a tenth, and for the index the signature verdict its metadata
+  recorded — threaded through `_scan_locked` into `ScanRun.fetched` and out to
+  `run.json` under `network.fetched` (beside `used`, which stays the Profile's
+  own answer), `findings.json`'s top level, and one `SUMMARY.md` sentence,
+  *"This was a first run. Before any Scanner ran it fetched…"*, only when there
+  is something to say. Empty, not absent, on a steady-state run: a reader can
+  tell "nothing fetched" from "a valvur that did not record". A failed fetch is
+  on the Scanner it cost (24.1's reason line) and is not also a fetch. Test
+  first, five in `test_first_run.py`: the database record with its host
+  (`mirror.gcr.io/aquasec/trivy-db:2`) and size; the index record with its
+  signature; all three in the order they happen; the steady-state empty list on
+  every surface; the failed fetch absent. Mutations, all caught: the database
+  fetch not recorded, the record dropped at `ScanRun`, `run.json` without the
+  list, a failed fetch recorded anyway. **Found on the way:** two of my fakes
+  used `_write_index(d) or {...}`, and `_write_index` returns a Path, so the
+  dict was never returned — the signature read *not recorded* until the fakes
+  were functions. F10.8 extended; ADR-0010 amended; CHANGELOG. **Tier 0 is
+  closed.**
+
+- [x] **28.0.5** **The hard cycle, and a ratchet (A1).** 27.3.2 introduced the
+  package's only module-level import cycle: `ecosystems.registry` imports the
+  parser functions and `ecosystems.parsers.declared()` imports the registry —
+  it runs only because `declared` touches the registry at call time, which is
+  the partial-module dependence 27.3.2 existed to remove. `declared()` is
+  orchestration, not parsing; it belongs in `ecosystems/__init__.py`. Then the
+  detector written for the review — `ast` over every module, module-level
+  imports outside `TYPE_CHECKING` as hard edges, everything else soft — becomes
+  a test: hard cycles = 0, soft ≤ 7 and each named.
+
+  **Tests first**: the ratchet, red on `parsers ↔ registry`; then the move; the
+  five parser goldens from 27.3.2 unchanged.
+
+  **STATUS 2026-09-25:** ✅ With 28.0.1, one PR. Test first: the detector from
+  the review as two tests in `test_ecosystem_registry.py` — `ast` over all 64
+  modules, module-level imports outside `TYPE_CHECKING` as hard edges — red on
+  `parsers ↔ registry`; and a second holding the soft cycles to the nine chosen
+  ones by name, so a lazy import that closes a new loop is a decision rather than
+  an accident. `declared()` moved to `ecosystems/__init__.py`, the loop beside
+  the registry it walks; `parsers.py` imports nothing of the registry. The five
+  parser goldens from 27.3.2 byte-identical; 1,065 unit tests. Mutations: the
+  module-level import put back — which now fails *at import time* with
+  `partially initialized module` rather than merely failing the ratchet,
+  because nothing in `parsers` needs the registry any more, so the accident
+  that let it run is gone too; and a lazy `doctor` import planted in
+  `staleness.py`, caught by the soft-cycle test.
+
+### Tier 1 — The release
+
+- [x] **28.1.1** **The three refactors, reviewed (X2).** PRs #78 (`results.py` →
+  `summary.py`), #80 (the typed pipeline result) and #81 (the ecosystem
+  registry) moved about two thousand lines through the code that writes what a
+  user reads and decides what a scan reports, each held behaviour-preserving by
+  goldens their author wrote. Five tests that day passed against the defect
+  they were written for. An independent adversarial pass over those three
+  diffs — `/code-review` at high effort, or the owner's ultrareview — before
+  `v1.0.0` freezes the seams. Findings become tasks here or are closed with a
+  reason in the STATUS note.
+
+  **STATUS 2026-09-25:** ✅ PR #88. `/code-review` at extra-high effort over
+  each diff — twenty-one findings, seven a PR, every one measured against the
+  tree before it was reported — then fixed in one branch, tests first
+  (`tests/test_refactor_review.py`, and additions to `test_pipeline.py`,
+  `test_summary_golden.py`, `test_ecosystem_registry.py`; 15 new tests, 1,097).
+  **#78 (`summary.py`):** `ScanRun.doubts` carried its own copy of both staleness
+  predicates — it calls `staleness.py`'s, held by a test that patches the shared
+  one and watches the doubt follow; `run.json`'s renderer, 120 lines, was still
+  in `results.py`, the writer the task was clearing — `provenance.render`,
+  `results.py` 236 → 95 lines; the KEV/ransomware/EPSS badge was decided twice,
+  in `summary._one_line` and `operations._one_line`, and had drifted —
+  `findings.exploit_badge` decides once and each surface marks it; the five
+  goldens were rendered with every Finding at rank 0, a prefix no real run
+  produces — ranked from 1 now, regenerated, and a diff with the rank digits
+  stripped is empty; "four goldens" is five; `staleness` imported `cache` lazily
+  for a cycle that did not exist. *Closed by measurement:* `render` over 10,000
+  Findings is **3.3 ms** best of five, so the repeated `run.active` passes are
+  not worth a signature. **#80 (the typed result):** the frozen `PipelineResult`
+  was a view of the Context — measured, `out.coverage is ctx.coverage` was
+  `True`, and a write through the Context after `run()` showed in a result
+  `api` had copied into a `ScanRun` — `run` copies every mutable member out, and
+  the carrying test asserts equal *and not the same object*; `RECORDED_BY_STAGES`
+  was a third list of the same ten names — derived from the result's fields; the
+  generated `__eq__`/`__hash__` (`hash(result)` was `TypeError`) — `eq=False`, a
+  record; `excluded_paths` was rebuilt as a list from the tuple the pipeline had
+  frozen — a tuple end to end; the purity test rounded two clock readings to a
+  tenth of a day — a bound. *Declined:* stages still communicate through the
+  shared Context; a per-stage result object is a rewrite of eleven stages for
+  no user-visible change, and the typed copy-out is the contract `api` needed.
+  **#81 (the registry):** the hard `registry` ↔ `parsers` cycle — gone already
+  (28.0.5); five module constants left in the Check, each now defined twice —
+  deleted, with `import re`; `_defined_locally` was a second per-ecosystem table
+  of seven manifests outside the entry, so an ecosystem added by the documented
+  route would have had its own packages reported as hallucinated — `defines` is
+  on the `Ecosystem` entry, one reader per manifest, `ecosystems.defined_locally`
+  the loop, and a test holds every entry to name one whose pattern it reads; the
+  registry's docstring and the CHANGELOG said the URL and first-publication
+  decoding had moved and they had not — both say what stays in the Check and
+  why; the duplicated `MANIFESTS` header, one sentence of it describing a state
+  the registry test forbids — gone; the index-order test compared
+  `name_index.FILES` by dict equality — by order; the three one-line aliases
+  kept "because tests called them" (`canonical`, `_index_form`,
+  `crate_canonical`) — gone, the callers use the registry. **Found on the way:**
+  `test_release_trust.py`'s signer test verified `HEAD`, which on a
+  `pull_request` run is GitHub's own GPG-signed merge commit — every CI run of
+  the Tier 0 stack had failed on it; it verifies the PR's own commit (`HEAD^2`)
+  there. `provenance` joins the annotation-only component the ratchet names, for
+  the reason `staleness` is in it. e2e green on an image rebuilt from the tree;
+  no document a user reads changed.
+
+- [x] **28.1.2** **`0.3.1` — the first real promote (D3).** *Owner.* Four
+  rehearsals green; no real tag has met stage → validate → promote, the
+  four-SBOM step, the attestation read-back or the index's verify-then-tag.
+  `[Unreleased]` holds twenty entries. A rehearsal on the exact tree, then the
+  tag — after Tier 0 lands, because 28.0.2 changes what the pipeline verifies.
+  The low-stakes tag to prove the path on, before `v1.0.0` stakes the stability
+  claim on it. `RELEASING.md` is the procedure; the STATUS note records the
+  run and the minutes to `:latest`.
+
+  **STATUS 2026-09-26:** ⏳ *the rehearsal half is done; the tag is the owner's.*
+  With every engineering task of the phase landed, `release.yml` was dispatched
+  on `main` at the exact tree: run 36208551017, **success in 14
+  minutes** — stage, validate on both architectures, the four-SBOM step, the
+  attestation read-back and the identity checks 28.0.2 narrowed, against the
+  rehearsal package and TestPyPI. `[Unreleased]` holds the entries the tag
+  will name. What is left is one signed tag on `main` by the key in
+  `.github/allowed_signers`, which nothing in the tree can create.
+
+  **Amended 2026-09-26 (the number, and the order):** the tag is **`v0.4.0`**.
+  Thirty-three `[Unreleased]` entries, two new CLI flags (`cache --prune`,
+  `doctor --bundle`), a new environment variable (`VALVUR_DEBUG`), an additive
+  MCP schema change (`instructions`, `structuredContent`) and Checkov's floor
+  halved are a minor by this project's precedent — `0.2.0` → `0.3.0` for
+  twenty-three tasks; the title above keeps `0.3.1` because task text is not
+  rewritten, and this note is the number. And it moves **ahead of the usability
+  gate**, as Phase 25's Checkpoint E, so the stranger meets this tree rather
+  than one already superseded. The prep PR and a second rehearsal on the prep
+  commit are engineering; the tag and the `release` approval are the owner's;
+  `valvur-action` needs no retag — it installs PyPI's latest unless told a
+  version.
+
+  **STATUS 2026-09-26 (Checkpoint E, steps 1 and 2 done — the tag is next):**
+  the prep landed as `10d2394` (`chore: release 0.4.0`: version, lock, `[0.4.0]`
+  over the thirty-three entries, the README's status line and macOS row, and
+  `SECURITY.md`'s series — a step RELEASING.md does not list, which 27.2.4's
+  test caught first). Verified here: `verify.sh` (1,160 unit tests), the e2e
+  suite against the image built from the tree (33 passed, 7m06s), and one `scan`
+  over stdio against an empty cache root with the image present — **39s to
+  DONE, complete** (`0.3.0`: 58s, of which a 13s pull; Checkov 10.3s). Then
+  `6973fbe`, a test-only fix found the same morning: Dependabot's five PRs
+  (#103–#107) all failed the required lint job on the signers test, which
+  verified the PR's own GPG-signed commit against an SSH signers file; it now
+  walks to `main`'s newest SSH-signed commit. **The second rehearsal is run
+  36235113134 on `6973fbe`:** six of seven jobs green in 11.5 minutes — the tag
+  check, both native builds, stage, the artifact on both architectures — and
+  `promote` **held at the `release` environment's reviewer**, the brake set the
+  night before, as the closing note said it would be. That hold is the owner's
+  first click and a rehearsal of the second: approve it (Actions → run
+  36235113134 → *Review deployments*), let `promote` finish against the throwaway
+  targets, then `git tag -s v0.4.0 6973fbe` and `git push origin v0.4.0`, and
+  approve again when the real run pauses. The concurrency group is one release
+  at a time, so a tag pushed while the rehearsal waits queues behind it —
+  approve or reject the rehearsal first. Afterwards: `cosign verify` as
+  RELEASING.md shows, the run id and the minutes to `:latest` here, this row
+  ticked. Not carried: the five Dependabot bumps — #103 and #105 need only a
+  rebase against the fixed test (a re-run checks out the old merge commit;
+  measured), #104's bumped `python` digest is not an Alpine image and fails at
+  `apk`, and #106/#107 (Checkov 3.3.19) need the adapter's VERSION,
+  `conftest.py`, `PROTOCOL.md` and the hash lock regenerated, then the floor
+  re-measured.
+
+  **STATUS 2026-09-26:** ✅ **`v0.4.0` released — the first real promote.** The tag,
+  signed by the key in `.github/allowed_signers` on `6973fbe`, pushed from the
+  owner's session at their request; run 36254809572: stage → validate on both
+  architectures → the brake, approved by the owner → promote — the signed
+  digest re-tagged as the version and `:latest`, the wheel on PyPI by trusted
+  publishing, the release with its four SBOMs — **25 minutes from the
+  tag to `:latest`, twelve of them waiting at the brake for the click, thirteen
+  of pipeline**, the `artifact` job testing the published wheel and the
+  signed image last. The rehearsal that had waited at the brake all day
+  (36235113134) was cancelled to free the one-release-at-a-time group; it had
+  already proven every job before the brake. Verified as a user would:
+  `pip index versions valvur` lists `0.4.0`, `cosign verify` on
+  `ghcr.io/maverickhq/valvur:0.4.0` against the release workflow's identity
+  passes. The README's status line flipped from *release in progress* to
+  *published and installable* in the same commit (29.3.1's rule).
+
+- [ ] **28.1.3** **The bus factor, stated (O3).** *Owner.* 273 of 276 commits by one
+  author; `SECURITY.md` commits five and fifteen working days on that one
+  person; 28.0.2's reviewer needs someone to click. Not fixable in code: a
+  second admin on the GitHub organisation who can approve the `release`
+  environment, a `MAINTAINERS.md` saying who that is and what happens if the
+  maintainer is unreachable, and the gate (10.1.1) as a date on a calendar
+  rather than a task on a list.
+
+  **STATUS 2026-09-26:** ⏳ *the document half is done; the person is the
+  owner's.* Measured first: the repository is **user-owned**, not an
+  organisation (`owner.type: User`), so "a second admin on the organisation"
+  is a collaborator with the admin role; the `release` environment has **no
+  required reviewer** (`/environments`: `reviewers: []`); 288 of 291 commits
+  are the maintainer's, 3 Dependabot's. `MAINTAINERS.md` written: who (one
+  row), what does *not* depend on them (the image, the wheel and the index are
+  reproducible from the tree; the signatures verify against a public log with no
+  key of theirs; the pipeline runs on a fork), what to do if unreachable (thirty
+  working days of silence on both channels → treat as unmaintained, fork,
+  rename, re-sign), and the five steps that add a second maintainer in the order
+  that matters — the `release` reviewer before anything else. A test holds
+  `.github/allowed_signers` to it: every principal that may sign a release is
+  named there, so a key without a person fails the build. `README.md` and
+  `SECURITY.md` link it. **Open until the owner does steps 1–5** — a real
+  second person with a real key — and puts the gate on a calendar; nothing in
+  the tree can do that.
+
+  **Amended 2026-09-26:** the `release` environment's required reviewer is now
+  the owner — set by API after the rehearsal, with `prevent_self_review` off, so
+  a promotion is the owner's own click after the evidence — and step 2 puts the
+  second person beside them and turns self-review prevention on, rather than
+  filling an empty list. Sequenced as Phase 25's Checkpoint F, before `v1.0.0`.
+
+  **Declined for `v1.0.0` — 2026-09-27, the owner's decision, the reason
+  recorded as Checkpoint D asks.** No second person exists yet, and the release
+  does not wait for one: what does not depend on the maintainer is already
+  written and true (the image, the wheel and the index reproducible from the
+  tree; the signatures verifiable against a public log with no key of theirs;
+  the pipeline runnable from a fork), the `release` brake stays the owner's own
+  click after the evidence, and `SECURITY.md`'s five and fifteen working days
+  remain one person's commitment. The cost accepted is the one O3 named — a
+  bus factor of one on a version claiming stability — stated rather than
+  hidden. The task stays open: the first thing after `v1.0.0` when a person
+  exists, steps 1–5 unchanged.
+
+### Tier 2 — What a user feels
+
+- [x] **28.2.1** **Checkov's startup, measured (F1).** From the corpus of
+  2026-09-21 on `offline`: Checkov 15.5–18.8 s of a 16–19 s scan on all twelve
+  application repositories, 124.2 of 124.5 s on the Terraform module; every
+  other Scanner inside 1–2 s, concurrently. N1.1's "under 60 seconds" is met
+  because one Scanner's *fixed startup* is about sixteen seconds. ADR-0019
+  measured image size and rightly declined a slim image; it did not measure
+  time. Two hypotheses, measured on the corpus before either becomes a change:
+  **(1)** `--framework` narrowed to what is present — Checkov loads every
+  framework's checks at start, and eleven of the thirteen repositories carry
+  only a workflow file; **(2)** an incremental rule — Checkov skipped when no
+  IaC or workflow file changed since `state.json`'s run, *reported as a skip*
+  through the `scanners_skipped` the contract already carries. If (1) takes the
+  floor from sixteen seconds to five, "under 20 seconds" is the application
+  number and the README says so with the measurement.
+
+  **Tests first, for whichever wins**: the framework list derived from the
+  files present is a pure function with a table test; the skip is reported and
+  both branches are tested, as every conditional Scanner is (§7). The corpus
+  before and after is the measurement; the STATUS note quotes both tables.
+
+  **STATUS 2026-09-26:** ✅ PR #89. **(1), measured and dead:** `--framework
+  github_actions` on a workflow-only tree saved **0.1 s of 10.6 s** (three runs
+  each way, Docker Desktop). **(2), not needed**, because a profile of the run
+  (`cProfile` over `checkov.main`, `--network=none`) said where the seconds
+  were, and neither was analysis: **5.0 s in `getaddrinfo`** — `banner.py`
+  calls the update checker at import, which asks PyPI for the latest version;
+  the Dockerfile's `CHECKOV_DISABLE_UPDATE_CHECK=true` (23.4.1) is a variable
+  this Checkov never reads (`env_vars_config.py`:
+  `CKV_SKIP_PACKAGE_UPDATE_CHECK`), so under `--network=none` every start
+  waited for DNS to fail, and on `full` it would have reached pypi.org; **2.6 s
+  in `compile`** — the image deleted Checkov's `__pycache__` and runs it
+  read-only, non-root, `PYTHONDONTWRITEBYTECODE=1`, so every start compiled
+  3,913 modules from source (`checkov --version` 5.9 s cold, 1.3 s with
+  bytecode, measured as root where `.pyc` could be written; the first warm run
+  as the container's user had measured only the page cache, 4.0 s). Both are
+  the image's and both are fixed there — the variable Checkov reads;
+  `compileall` over the venv and the Checks' package, the stdlib's shipped
+  bytecode kept (0.35 → 0.06 s for a Check's imports) — held by a test over the
+  Dockerfile's text and an e2e test that asks the installed Checkov's own
+  configuration whether the skip is read and counts the `.pyc` files.
+  **Measured as the runner runs it** (non-root, read-only root, no network,
+  Docker Desktop): the workflow-only tree **10.2–10.7 s → 3.0–3.3 s**; the e2e
+  suite, which scans on every test, 216 s → 152 s. **The corpus on GitHub's
+  Linux runner, `offline`, before (scheduled run 35601232995, 2026-09-21) →
+  after (run 36201214103, this branch):** requests 17.1 → 6.9 s, flask 18.1 →
+  8.5, llm 17.2 → 7.4, express 18.2 → 7.8, fastify 18.6 → 9.0, cobra 15.9 →
+  5.8, gson 19.4 → 8.8, ripgrep 19.2 → 9.1, sinatra 17.2 → 7.1, monolog 16.9 →
+  6.8, awesome-cursorrules 16.0 → 6.0, smolagents 18.7 → 8.3 — **every
+  application repository from 16–19 s to 6–9 s**, Checkov 15.5–18.8 → 5.4–8.8 s
+  and still the slowest Scanner on each; terraform-aws-vpc **124.5 → 107.8 s**
+  (the analysis is the analysis; the fixed part went). `full`: the same, plus
+  OSV-Scanner on smolagents 54.6 → 40.7 s, its own evaluation of the unpinned
+  file (25.3). Every status and every count identical across the two runs.
+  **The cost:** 61 MB uncompressed, **22 MB compressed (220 → 242 MB)** — about
+  two seconds more on a first pull, once — recorded as ADR-0019's amendment,
+  which withdraws its sentence that no image shape changed Checkov's runtime.
+  N1.1, `EVALUATING.md` and the README carry the new numbers.
+
+- [x] **28.2.2** **The handshake carries the rules, and replies are structured (F4).**
+  The MCP surface is prose-only: no `instructions` in `initialize`, so the
+  five rules of `SUMMARY.md`'s machine block reach an agent only if a human
+  pasted the README's snippet into `CLAUDE.md`; no `outputSchema` or
+  `structuredContent` (MCP 2025-06-18), so an agent parses *"DONE in 58s. 3
+  active…"* out of text. `instructions` becomes the machine block's rules;
+  `scan_status` and `list_findings` answer `structuredContent` beside the text
+  they answer today, with F9.9's neutralisation applied to both forms.
+
+  **Tests first**: the `tools/list` and `initialize` snapshots (23.5.2's
+  harness) carry the additions as a reviewed diff; the structured reply's
+  counts equal the text's on every fixture; an injection payload in a Finding
+  title is fenced in the structured form too.
+
+  **STATUS 2026-09-26:** ✅ PR #91. Tests first, seven, red then green:
+  `initialize` carries every rule of the machine block (`tools.instructions()`
+  is `summary.MACHINE_HEADER` with the blockquote furniture and the HTML comment
+  removed, one framing line in front — the same constant, so the two surfaces
+  cannot drift); `scan_status`'s `structuredContent` agrees with its text on
+  the scanned fixture — status, active count, `complete`, a 36-character
+  generation, every Scanner named — and a workspace with no scan answers
+  `{"scanned": false, "job": null, "results_dir": …}` in both forms;
+  `list_findings`' total/shown/omitted equal the text's and every shown
+  fingerprint is in the text; the planted prompt-injection Finding's evidence
+  carries the fence in the structured form (F9.9 on both); only the two readers
+  declare an `outputSchema`; and `initialize` is a second committed snapshot,
+  `serverInfo.version` normalised. **How:** `Tool` takes `output_schema` and a
+  handler that answers `str` or `(str, dict)`; `call_tool` adds
+  `structuredContent` when a dict comes back; `build(tools, instructions=…)`
+  defaults to the machine block. `operations.scan_status_reply` and
+  `list_findings_reply` build the dict in the same pass as the text — the
+  verdict, counts, Scanners, skipped/not-run, slowest, next moves, caveats,
+  network, build, database, index; each shown Finding with rank, status,
+  severity, path, line, title, rule, fingerprint, suppressed, exploit and
+  evidence, title and evidence neutralised on the way out (idempotent) and
+  evidence bounded at `defang.MAX_EVIDENCE` — and the text functions the CLI
+  and every existing caller use are `_text_of(reply)`, the reply's first
+  element by construction, naming `.reply` so F9.3's parity test still sees one
+  computation. The `tools/list` snapshot's diff is the two `outputSchema`
+  blocks and nothing else; `initialize.json` is new. `design.md` §8,
+  F9.1/F9.9 notes, the README's snippet paragraph, CHANGELOG. Unit 1,104,
+  ruff, mypy.
+
+### Tier 3 — Hygiene
+
+- [x] **28.3.1** **Package retention (D2).** `valvur-rehearsal` holds 186
+  versions (~230 MB compressed each); `valvur-index` 39 and two more a day
+  since the candidate tag; nothing deletes. Storage is free; the cost is that
+  every old rehearsal image, with whatever CVEs its base had that week, stays
+  pullable under the organisation's name. A weekly retention job
+  (`actions/delete-package-versions`, SHA-pinned): rehearsal keep 5, index keep
+  30 dated tags plus `latest` and `candidate`, the image keep every tagged
+  version. **Test first**: the shape test requires the job and its three
+  policies. The STATUS note records the counts before and after its first run.
+
+  **STATUS 2026-09-26:** ✅ PR #93. `retention.yml`, Mondays and by hand,
+  `actions/delete-package-versions` pinned by commit (v5.0.0). **Kept by
+  count, newest first, not by tag** — measured why before writing the policy:
+  a multi-architecture image is several package versions pushed together (the
+  manifest list that carries the tag, one manifest per platform, the
+  attestations, all but the first untagged), so keeping N *tags* and deleting
+  the rest would delete the platform manifests under a tag that stays, a signed
+  image that no longer pulls. `valvur-rehearsal` keeps the newest 25 versions
+  (about the last five rehearsals whole); `valvur-index` the newest 90 (about
+  six weeks: the thirty dated tags, `latest` and `candidate` among them);
+  `valvur`, the published image, is **never named** — every tagged version is a
+  release and every untagged one a release's manifest or attestation — and the
+  shape test asserts the file never touches it, beside the pin and the two
+  policies. A failure opens the one issue (27.2.7; the constraint's set of
+  scheduled workflows widened). **Counts before → after the first run (run
+  36203725657):** `valvur-rehearsal` **197 → 97** — the action deletes at most a
+  hundred versions a run, so the next Monday reaches 25 — `valvur-index` 45 →
+  45 (under its 90), `valvur` 20 → 20.
+
+- [x] **28.3.2** **Stale branches (B4).** Five remote branches for closed PRs —
+  four Dependabot, one `fix/` — and Dependabot's dev-dependency bump #20 closed
+  unmerged, so `uv.lock` has not moved since `0.3.0`. Delete them, switch on
+  "automatically delete head branches", let the dev-dependency bump land.
+
+  **STATUS 2026-09-26:** ✅ Measured before acting: the five branches the
+  review counted were already gone from the remote (`git fetch --prune`: `main`
+  and this session's own branches) — #39 and #40 merged, #21 (the Checkov
+  bump, superseded by 23.4.1's hash-lock), #5 and #20 closed. "Automatically
+  delete head branches" is on (`delete_branch_on_merge: true`, by API). #20
+  could not be reopened — Dependabot needs the branch, and it is gone — so the
+  bump it carried was done by hand: `uv lock --upgrade` moved ruff 0.16.7 →
+  0.16.9 and ast-serialize 0.11.1 → 0.11.2, the tree is clean under the new
+  ruff, and the lock has moved for the first time since `0.3.0`. Dependabot's
+  weekly run finds nothing to propose.
+
+- [x] **28.3.3** **SARIF suppressions GitHub honours (F5).** Five code-scanning
+  alerts are open — including #7, CVE-2024-23342, high, since 2026-09-13 —
+  every one suppressed in `.security-scan.toml` with an expiring, argued reason
+  and emitted in `results.sarif` as `suppressions[kind=external]`. GitHub
+  appears to need `"status": "accepted"` to dismiss. Add it, upload, confirm
+  the five close; otherwise the Security tab of a security tool shows an open
+  high CVE its own gate has answered. **Test first**: the SARIF golden.
+
+  **STATUS 2026-09-26:** ✅ **The premise was wrong, measured.** `results.sarif`
+  has carried `"status": "accepted"` on every suppressed result since
+  2026-08-30 (d06d105; `tests/test_suppressions.py` pins it), and GitHub does
+  not read SARIF `suppressions` at all: five suppressed results uploaded on
+  every push since 2026-09-13 (`kind: external`, `status: accepted`), five open
+  alerts (#1–#4, #7), none ever dismissed (`state=dismissed`: 0), and the
+  SARIF-support page silent on the property. So the fix is not a field; it is
+  what goes to code scanning. **`valvur-action` v0.2** (`16b19e2`):
+  `upload_sarif.py` writes `results.upload.sarif` beside `results.sarif` with
+  the suppressed results left out and says how many; the upload step sends
+  that file; `results.sarif` on disk keeps every result and its suppression, as
+  the contract says. Its fixture now accepts one of its own advisories so the
+  self-test proves it — one left out of the upload, kept on disk — green on
+  24.04 and 26.04 before the tag; `v0` moved to it. `ci.yml` and the README
+  pin v0.2's commit. **After it landed (2026-09-26 00:08 UTC, run
+  36203583804):** the upload carried **1** result and GitHub closed **#1, #2,
+  #3 and #7 as fixed** at the same minute — CVE-2024-23342 among them. The one
+  that stays, #4, is not a suppressed result: it is valvur's own coverage note
+  (`valvur.licence.dependency-unknown`, level `note`), which the gate counts as
+  *not covered* rather than active. Whether valvur's statements about its own
+  coverage belong in a code-scanning list at all is a question for the gate's
+  findings, not this task; the high CVE the task named is gone.
+
+- [x] **28.3.4** **The Python versions the claim names (B1).** `requires-python =
+  ">=3.11"`; CI creates every venv with 3.12. No 3.12-only syntax in `src/`, so
+  3.11 probably works — the kind of claim this project refuses elsewhere. A
+  three-way matrix on the unit job (3.11, 3.12, 3.13; ~40 s each), or the claim
+  narrowed to what is tested. **Test first**: the shape test requires the matrix
+  to cover `requires-python`'s floor.
+
+  **STATUS 2026-09-26:** ✅ Measured first, locally, on CPython 3.11.14: the
+  unit suite passes in full. A `floor` job in `ci.yml` runs it on 3.11 and 3.13
+  (`uv venv --python`, `uv sync --locked`, the interpreter asserted), about
+  forty seconds each; lint, types and the package build stay on the one job.
+  `tests/test_python_versions.py` holds the matrix to the floor
+  `requires-python` names, in both directions. The two job names join `main`'s
+  required checks once they exist there (after this lands; noted under 28.3).
+
+- [x] **28.3.5** **NOTICE (B2).** The image redistributes Opengrep (LGPL-2.1),
+  Gitleaks (MIT), Trivy, Syft, OSV-Scanner and Checkov (Apache-2.0); no `NOTICE`
+  in the repository, no third-party file in the image. The SBOM discloses
+  components; Apache §4(d) and LGPL redistribution expect attribution text. A
+  `NOTICE` at the root and at `/usr/share/doc/valvur/NOTICE` in the image, each
+  tool with its licence and upstream. **Test first**: every `FROM … AS` stage in
+  the Dockerfile is named in it, so a new tool cannot arrive unattributed.
+
+  **STATUS 2026-09-26:** ✅ `NOTICE` at the root and at
+  `/usr/share/doc/valvur/NOTICE` in the image, byte for byte (an e2e test reads
+  it back): Opengrep (LGPL-2.1), Gitleaks (MIT), Trivy, OSV-Scanner, Syft and
+  Checkov (Apache-2.0), each with its upstream and copyright line; Python
+  (PSF-2.0) and Alpine (per package, as the SBOM records, ADR-0005 restated);
+  the bundled KEV snapshot (public domain) and EPSS (fetched, never bundled).
+  Tests first: every `FROM … AS` stage names a tool the file attributes — a
+  new stage fails until it is added to the file and the test's table — and
+  every tool names its licence and upstream. It is an input the image copies,
+  so `tree_hash` and the sdist allow-list name it.
+
+- [x] **28.3.6** **Supportability (O2).** No `--verbose`, no `--debug`, no log
+  file; `run.json` records each Scanner's version and duration and not the
+  command line that produced its raw output, though the Invocation holds it
+  and the snapshots prove it stable. `argv` per Scanner in `run.json`;
+  `VALVUR_DEBUG=1` echoes container commands to stderr; `valvur doctor
+  --bundle` writes a tarball of `run.json`, the doctor report and versions —
+  never source, never `raw/` — for an issue. **Tests first**: `run.json`'s
+  schema gains `argv`; the bundle's file list is asserted against an allowlist.
+
+  **STATUS 2026-09-26:** ✅ Tests first, seven (`tests/test_supportability.py`).
+  **`argv`:** the runner carries the Invocation's `argv` back on every
+  `ScannerOutput` (the empty result, the missing report and the report all
+  three), `_outcome` puts it on the `ScannerRun` (ok, unreadable and
+  exited-with-nothing alike), the Checks' batch splits it to each Check, and
+  `run.json`'s `scanners[]` has `argv` beside `version` and `duration_s` —
+  `[]` for a Scanner that launched nothing. **`VALVUR_DEBUG=1`:** `_launch`,
+  the one place every container command goes through, echoes it to stderr as it
+  runs — stderr, so a client reading stdout over MCP never sees it — and is
+  silent otherwise. **`valvur doctor --bundle [DIR]`:** `doctor.bundle` writes
+  `valvur-doctor-<utc>.tar.gz` holding `doctor.txt` (the report; *"no scan has
+  run"* when there is none), `versions.txt` (shim, Python, platform, runtime,
+  image, database and index ages) and the last `run.json` when there is one;
+  `BUNDLE_MEMBERS` is the allow-list the archive is held to, and the test
+  plants a secret in the source and in `raw/` and reads neither back. README's
+  reporting paragraph and `SECURITY.md`'s "include" paragraph name it.
+  **Measured on a real scan of the broken fixture:** `VALVUR_DEBUG=1` printed
+  the image inspect and each `docker run … --name valvur-<id> --user 501:20
+  --read-only --tmpfs …` as it launched; `run.json`'s eight Scanners each carry
+  their argv — `gitleaks dir /workspace …`, `trivy fs /workspace …`, and the
+  three Checks the one batch command, `python -m valvur.checks batch`. e2e
+  green on an image rebuilt from the tree (32 passed).
+
+- [x] **28.3.7** **`valvur cache --prune` (O4).** `~/.cache/valvur` is never
+  pruned; each shim version pulls its own image tag and nothing removes
+  `:0.2.0` when `:0.3.0` arrives; `valvur cache` inventories and cannot clean.
+  A flag, never a default: `--prune` removes images not matching the shim's
+  version and index files the metadata no longer names, listing each first;
+  `doctor` names superseded images. **Tests first**: prune with a fake runtime
+  removes exactly the superseded set and refuses without the flag.
+
+  **STATUS 2026-09-26:** ✅ Tests first, eleven (`tests/test_cache_prune.py`),
+  against a fake image store: superseded is every local tag of
+  `ghcr.io/maverickhq/valvur` but this shim's own (`<none>` excluded), the stray
+  index files are the ones `metadata.json` does not name, `prune` removes
+  exactly that set — the named index files, the database and the KEV copy
+  untouched — under the exclusive cache lock like `clear`, without a runtime it
+  still prunes the files, `valvur cache` without the flag removes nothing, and
+  with it lists each item before removing it and counts what went; `doctor`'s
+  image line ends *"superseded: 0.2.0, latest (valvur cache --prune)"* when
+  there is something and says nothing otherwise. **Measured on this machine,
+  the first real run:** `valvur cache --prune` listed and removed
+  `:0.1.0rc1`, `:0.2.0` and `:latest` — three tags from three earlier shims,
+  two to three weeks old — and touched neither `valvur:dev` nor any other
+  repository's image; `0 files`. The implementation keeps `cache.py` out of
+  the import component the ratchet holds closed (the runtime is detected by
+  the CLI, the index's file table read from `ecosystems`), which the ratchet
+  caught on the first draft. README's cache sentence, CHANGELOG.
+
+- [ ] **28.3.8** **The runner move, dated (O5).** `ubuntu-latest` becomes 26.04
+  from 2026-10-19 (actions/runner-images#14748); every runner here is
+  `ubuntu-24.04`, and the follow-up — move, re-run the corpus, re-measure N1.1
+  and N1.4 — lives only in a STATUS note. This is that task: **after
+  2026-11-19**, move all eleven `runs-on` to 26.04, dispatch the corpus, and
+  record N1.1 and N1.4 against the 24.04 numbers in `requirements.md`.
+
+- [x] **28.3.9** **The README's action pin (D4).** `ci.yml` pins
+  `valvur-action@6f90b88…`; the README shows `@v0`, which valvur's own
+  `mutable-action-ref` rule flags in a user's tree. Show the SHA form first,
+  `@v0` as the convenience, with the sentence that says why.
+
+  **STATUS 2026-09-26:** ✅ The README's snippet pins the commit (v0.2's,
+  `16b19e2…`, the same pin `ci.yml` carries) with the sentence that says why —
+  a tag can move, valvur's own rule flags `@v0`, this repository's gate runs
+  on `any` — and offers `@v0` as the convenience, naming the finding it will
+  produce.
+
+### Tier 4 — After the gate, before `v1.0.0`
+
+- [x] **28.4.1** **The vocabulary is typed (A2).** Profile is a `str` with retired
+  aliases resolved at runtime; ecosystem key, severity, finding status and
+  Scanner kind are `str`. 26.4.1 made the job state a `StrEnum` with a
+  transition table the code could not leave. The same for `Profile`, `Severity`
+  and `Status`, introduced at the boundaries — CLI and MCP parse to the enum —
+  with JSON output byte-identical. **Tests first**: the SUMMARY, SARIF and
+  findings goldens; mypy as the second test.
+
+  **STATUS 2026-09-26:** ✅ Three `StrEnum`s, the shape 26.4.1 gave the job
+  state: `findings.Severity` (worst-first, `parse` for what a Scanner said —
+  a word it does not know is `UNKNOWN`, never a guess), `findings.Status` (the
+  three the diff produces; `fixed` is a run-level list and is refused as a
+  status), `profiles.Profile` (the two, with the retired names resolving).
+  **At the boundaries:** `profiles.resolve` returns a member or refuses the
+  name with the two that exist — the CLI's `--profile` and the MCP `scan`
+  argument both go through it — while the readers that run on a recorded
+  `run.json` or a `ScanRun` built without a profile (`not_run`,
+  `gaps_in_prose`) stay tolerant, because provenance we do not have is not a
+  reason to fail an artifact; every adapter's severity is `Severity.parse` of
+  what the tool said, the Checks' batch included, and every literal in the
+  tree is a member. `Finding.__post_init__` coerces whatever a caller passed,
+  so the hundreds of `severity="high"` in tests need no touch and a wrong
+  status is an error at construction. **Byte-identical:** `StrEnum` is a
+  `str`, so `json.dumps` writes the word, every `dict` keyed by the literal
+  still matches, and the SUMMARY, SARIF, findings and `tools/list` goldens
+  passed untouched; a test spot-checks the JSON and `str()` forms. Tests
+  first, six (`tests/test_vocabulary.py`); mypy the second test, clean; 1,145
+  unit tests; e2e green on an image rebuilt from the tree.
+
+- [x] **28.4.2** **Three modules, one job each (A3).** `name_index.py` (799 lines)
+  is two products — the reader the scan needs and the builder only the workflow
+  runs, so the hot path imports `csv`, `tarfile` and five registry walkers;
+  `cli.py` (617) has `main()` at 292 lines; `api.py` (716) has `_scan_locked`
+  at 165 and `operations.scan_status` at 127. `name_index/{reader, published,
+  build}`; `cli.main` as a command table; `_scan_locked` as fetch, fleet,
+  assemble. 27.3.3's method: goldens first, then the move, byte-identical after.
+
+  **STATUS 2026-09-26:** ✅ Three moves, three commits, one PR; every one
+  behaviour-preserving by a golden that was written first. **`name_index` is a
+  package:** `reader.py` (191 lines: the memory-mapped file, the on-disk
+  contract, the environment names — what a scan needs, importing nothing that
+  fetches), `published.py` (228: the signed OCI pull every `valvur update`
+  makes), `build.py` (410: the mirror and the five registry walkers, which only
+  the publishing workflow and the fallback run) and an `__init__` that
+  re-exports the surface; `python -m valvur.name_index` still builds and pulls.
+  Cross-module references go through the module object and every caller and
+  test names the module that defines what it patches — a `monkeypatch` on the
+  package's re-export reaches nothing, which the first run of the split's
+  goldens (the four index test files, 47 tests) showed twice, once for the
+  tests and once for `api`, `cli` and `doctor`. **`cli.main` is a table:**
+  ten goldens of `valvur --help` and every subcommand's, generated *before*
+  the move and byte for byte after it; `build_parser()`, seven `_cmd_*`
+  functions, `COMMANDS`, and a `main` of two lines — a test holds the table to
+  the parser's subcommands and `main` to its two lines. **`_scan_locked` is
+  three functions:** `_preflight` (F1.9, the mount, the tree hash),
+  `_fleet` (the pool and the budget), `_assemble` (the pipeline into one
+  ScanRun, written as one generation), cut at the seams the comments already
+  drew; the outcome, budget and first-run tests are its goldens. 1,156 unit
+  tests, mypy, ruff; e2e green on an image rebuilt from the tree.
+  `operations.scan_status`, 127 lines in the task's count, was not split:
+  28.2.2 made it the one pass that renders both forms of the reply, and two
+  functions would be two chances to disagree.
+
+- [x] **28.4.3** **The constraint suite, split (A4).** `tests/test_constraints.py`
+  is 1,442 lines — budgets, workflow shape, licences, memory and design
+  ratchets in one file, the god module moved into the tests. Split by subject;
+  the test count is unchanged and a test says so.
+
+  **STATUS 2026-09-26:** ✅ Seven files, one subject each, cut at the file's own
+  section markers: `test_constraints_exfiltration.py` (N2.1's two halves and
+  the Check that runs on both sides, with the original docstring),
+  `_canary.py` (cycles 2–3), `_isolation.py` (cycle 4), `_budgets.py` (cycle
+  5), `_supply_chain.py` (12a.6/7 through the SBOM), `_design.py` (the design
+  tables, the platform claim, the scheduled workflows, the Opengrep checksums)
+  and `_interruption.py` (16.2). What they shared moved once: the one-CVE
+  runner to `tests/constraints_support.py`, the `record_connections` poison to
+  `conftest.py` beside the real `urlopen` it restores. **48 tests before, 48
+  after**, and `tests/test_constraint_suite.py` holds the count and the absence
+  of the old file. `release.yml`'s artifact job runs `tests/test_constraints_*.py`;
+  two docstrings that named the old file name the new one. Nothing in the
+  tests' bodies changed — ruff removed sixty-eight imports each file no longer
+  needed, and the whole suite (unit and the nine e2e) ran green against the
+  image.
+
+- [x] **28.4.4** **Mutation in CI (X1).** Five tests on 2026-09-22 passed against
+  the defect each was written for — a lazy import invisible to a module-level
+  probe, an orphaned container that merely finished inside the window, a scan
+  argument named `path` that scanned the wrong tree, goldens blind to their own
+  line cap, an order assertion comparing a dict with the constant it is built
+  from — and all five were caught by hand mutation, one person's habit. A
+  per-PR mutation check scoped to the diff (`mutmut` on changed files, or a
+  small harness that reverts each hunk's core line), non-required at first;
+  the STATUS note records its first month's catches, if any.
+
+  **STATUS 2026-09-26:** ✅ The habit as a script: `scripts/mutation_check.py`
+  reads `base...HEAD`'s diff under `src/valvur` as hunks (`-U0`), reverts each
+  in turn with `git apply -R --unidiff-zero`, runs the unit suite, restores the
+  file, and names the verdict — *caught* (a test failed with the old lines
+  back), *survived* (none did: the change's own tests do not cover that hunk),
+  *no code change* (the two versions' ASTs are equal once docstrings are
+  dropped, so comments and docstrings never count) or *not applied*. A CI job,
+  `mutation`, runs it on every pull request with `continue-on-error: true` —
+  it reports, as a `::warning` per survivor and a step summary, and does not
+  gate; `--strict` exists for the day it should. Tests first, five, on a
+  throwaway repository shaped like this one: the hunk a test covers is caught,
+  the one none does survives, the docstring hunk is no code change, the tree
+  is restored to the byte, and the CI job's shape. Not `mutmut`: a per-mutant
+  run of a 30 s suite over every operator in a module is minutes per file,
+  while a per-hunk revert is the question the five defects actually asked —
+  *does any test notice this change is gone?* **First report, PR #99 (28.4.1),
+  thirty hunks:** thirteen caught (the enums, the imports, `resolve`), seventeen
+  survived — every one a `severity="high"` rewritten as `Severity.HIGH`, which
+  `Finding.__post_init__` makes equivalent, so reverting it changes nothing a
+  test could see. The verdict is right and the label is blunt: *survived* means
+  "no test distinguishes these two programs", and for a behaviour-preserving
+  rewrite that is the point. A hunk the harness cannot tell from a refactor is
+  one a reader should look at, which is what the warning asks.
+
+- [x] **28.4.5** **A reproducible image (B3).** No `SOURCE_DATE_EPOCH`, no
+  `rewrite-timestamp`; the same tree yields a different digest per build, so
+  trust rests on the OIDC identity and the tree hash rather than on anyone's
+  ability to rebuild and compare. `SOURCE_DATE_EPOCH` from the commit and
+  buildx `rewrite-timestamp=true`; then a test that two builds of one tree are
+  one digest. Honest caveat in the task: apk and pip may still defeat it, and
+  a partial result — the layers that matter reproducing — is recorded as what
+  it is.
+
+  **STATUS 2026-09-26:** ✅ **Measured to the layer, four times, and fully
+  reproducible on the driver CI uses.** `docker-bake.hcl` takes
+  `SOURCE_DATE_EPOCH` (every caller passes the commit's, `git log -1
+  --format=%ct`; a test holds the four workflow builds and the contributor
+  command to it) and both outputs carry `rewrite-timestamp=true`. Then two
+  fresh builds (`--no-cache`) of one tree, layer by layer: **on Docker
+  Desktop's built-in worker, every built layer differed** — it does not honour
+  the epoch or the rewrite — so the rest was measured through a
+  `docker-container` builder, which is what `setup-buildx-action` gives CI. There:
+  17 of 18 layers identical, the Checkov layer not — all 5,533 `.pyc` files, and
+  nothing else. `--invalidation-mode unchecked-hash` changed nothing, because
+  pip had already written timestamp-mode bytecode and `compileall` without
+  `-f` reads the header, finds it current and leaves it (measured: flags 0,
+  mtime the wall clock, 53 s apart). Then `PYTHONHASHSEED=0` and serial
+  compilation, because marshalled constants follow the seed. Then pip
+  `--no-compile` and `compileall -f`: **one image id, 18 of 18 layers
+  identical, `.pyc` flags 1** (`9c2c5ab4…` twice). The test the task asks for
+  is a CI job, `reproducible`: two builds without cache on every change,
+  `test "$first" = "$second"`; unit tests hold the bake file, the workflows,
+  the contributor command and the compile flags. Honest caveats, as asked:
+  `apk` did not defeat it (the base layers and the `apk add … del` layer
+  reproduce), `pip` did until its bytecode was replaced, and the guarantee is
+  the driver's — a rebuild through Docker Desktop's own worker is not the
+  comparison; use a `docker buildx create --driver docker-container` builder.
+
+**Exit (Phase 28):** the cosign identity names one workflow and one ref pattern
+in four places held equal by a test; a `v*` tag needs the owner, a signature and
+`main`; the `release` environment has a reviewer; GitHub's four guards are on;
+every container has a memory and PID ceiling; a first run's fetches are in
+`run.json`; zero hard import cycles, by ratchet; `0.3.1` released through the
+promote path for real; Checkov's floor measured and either cut or stated; the
+MCP handshake carries the rules. Every number in the phase head re-measured in
+its task's STATUS note.
+
+**Closed 2026-09-26 (engineering).** Twenty-one of twenty-four tasks, seventeen
+PRs (#83–#100), one evening and one night, unattended: every task measured
+before it was written, every PR green on the eight required checks (nine and
+ten by the end — the Python floor and the reproducible image joined the set
+this phase) before it landed. Against the exit: the identity is one workflow
+and one ref in four places, by test (28.0.2); a `v*` tag needs the ruleset, a
+key in `allowed_signers` and `main` (28.0.2); the `release` environment has its
+reviewer — the owner, set by API on 2026-09-26 as the last act, after the
+rehearsal, because a required reviewer would have held the rehearsal's
+promote job too; the guards are on (28.0.1); every
+container has the ceiling (28.0.3); the fetches are in `run.json` (28.0.4);
+hard cycles are zero by ratchet (28.0.5); Checkov's floor was measured and
+**cut** — 16–19 s → 6–9 s on every application repository (28.2.1); the
+handshake carries the rules (28.2.2); `0.3.1` has run the promote path for
+real as far as a rehearsal goes and waits for the owner's tag (28.1.2). Three
+rows stay open and say why: the tag and the second maintainer are a person's,
+the runner move is a date's. The five things the phase learned that no task
+asked for are in CLAUDE.md's Phase 28 bullet.
+
+## Phase 29 — The first gate: a real working tree, and what a first run must survive
+
+**Goal:** close every finding of the first usability-gate run — nine, ranked, in
+[`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-on-occams-test-lab.md)
+— plus the two questions the run raised for the owner: whether the time goals
+and the 300 s budget fit a real working tree, and whether the MCP server works
+from every agent's IDE, not two. Written 2026-09-26, the afternoon after the run;
+every claim below was measured against `main` (`0add204`) before it became a
+task, and the measurements are in the head. Each task lands by its own pull
+request with the test written first; **12b.1 is this phase.**
+
+> **What the gate found, in one paragraph.** The participant — a Claude Code
+> agent given the README and nothing else — scanned the owner's own project:
+> 312 tracked files, **107,544 files on a 1.4 GB working tree** (103,251 in a
+> gitignored archive, 3,557 in `.venv`), on an Apple-silicon Mac with a 4 GB
+> Docker Desktop VM. Install took 13 s and `doctor` said *ready*. The first
+> `scan` over MCP fetched the image, the database and the index, announced each,
+> and then **failed at the 300 s default budget with every Scanner killed and no
+> report** — and the failure text sent the participant to `doctor`, which said
+> *ready* again. Thirteen minutes from the README. Only after reading the
+> source (`VALVUR_JOBS=2`, `budget_s: 900`, `[scan] exclude`) did a second scan
+> reach a finding: **30 minutes**, against the gate's five, and *incomplete*,
+> Checkov timed out. Containers ran on after both failures — one for 401 s, one
+> still at 92 % CPU when stopped by hand. What worked is credited in §2 of the
+> record: the install, `doctor`'s accuracy, the stdio server, the live fetch
+> lines, the self-ignoring folder, `run.json`'s *left this machine: nothing*,
+> and eight real findings correctly ranked low.
+>
+> **What measurement made of each finding (2026-09-26, against `main`):**
+>
+> | # | claim | measured | verdict |
+> |---|---|---|---|
+> | B1 | the budget failure points at `doctor` | `operations.py:496` says *Run doctor … it names what this machine is missing*, unconditionally; `api.py:731` raises *Every scanner failed* when the budget cut them all | **stands** |
+> | B2 | a Scanner past its timeout is abandoned | `runner.py:519` runs every Scanner under `subprocess.run(timeout=…)`; `TimeoutExpired` is caught nowhere in `runner.py` (only `oci.py`); the exit sweep (27.1.1) is the MCP server's, the CLI has none | **stands** |
+> | B3 | excludes filter findings, not files | worse than reported: `exclusions.scanner_skip_args` **has had no caller since it was written** (`d606285`, 2026-08-31); on `main` only Syft receives the configured `[scan] exclude` (`syft.py:31`), no Scanner receives the vendored list, and Opengrep passes `--no-git-ignore`; the vendored and configured lists are `pipeline.py` filters over findings (`:148`, `:155`) | **stands, and older** |
+> | B4 | the README calls `0.4.0` published | `README.md:5` since `10d2394`, this morning's prep commit, held at the brake; RELEASING.md step 4 bumps it before the tag | **stands, self-inflicted** |
+> | B5 | no progress during the Scanner phase | refined: finished Scanners are listed as they finish (`api.py:671`); what is *running* has no line, and in the gate's run nothing finished before the cut (`operations.py:489` — `Now:` is for fetches only) | **stands, narrower** |
+> | B6 | argv without a diagnosis | a killed Scanner reads *exited 137 with no report: … stderr:* (`runner.py:529`, `api.py:491`); nothing says *budget*, *timeout* or *memory*; `subprocess.run` drops what stderr it had on a timeout | **stands** |
+> | B7 | defaults do not fit Docker Desktop | `MCP_BUDGET_S = 300` (`operations.py:54`) equals Gitleaks's own timeout (300); jobs default to the whole fleet; the README's `VALVUR_JOBS=2` is at line 257, in Platforms; the README never mentions `budget_s` | **stands** |
+> | B8 | Claude Code's file is not named | `README.md:110` gives the JSON block and no file; `doctor.py:427` knows `.mcp.json` | **stands** |
+> | B9 | four inconsistencies | sizes: `doctor.py:323` *about 118MB* (transfer) against `valvur cache`'s bytes on disk (1.45 GB); KEV: `cache.py:186` *absent* against `doctor`'s *bundled*; `explain_finding` neutralises evidence (`operations.py:284`) but does not fence it, while `SUMMARY.md:48` says quoted text carries the markers; `usability-gate.md`'s Gate 1 and 2 templates are empty | **all four stand** |
+>
+> **And the two questions.** The time goals (P1, N1.1, N1.2) are stated for
+> *lines of application code* on a Linux runner *with the data present*, and
+> were measured on git clones — the corpus has no `.venv`, no data directory,
+> no archive. Nothing in the requirements says what happens to a working tree
+> that is 340 times its git index, and the 300 s budget is N1.2's figure for
+> `full` on a clone. The clients: the README names Kiro and Claude Code and
+> gives one JSON shape; `doctor` reads Claude Code's and Kiro's files; the
+> server negotiates the protocol versions it knows (`server.py:141`); nothing
+> here has been run from Codex, Cursor, VS Code, Windsurf, Cline, Continue,
+> Gemini CLI or Zed, four of which are installed on the owner's Mac.
+>
+> **Two decisions, made here.** *The `0.4.0` tag is not held for this phase*:
+> the rehearsed tree (`6973fbe`) is validated, the findings are all present in
+> `0.3.0` too, and a release that proves the promote path is worth more today
+> than one that carries Tier 0 in a week; **Phase 29 ships as `0.5.0`**, and the
+> gate's human run (12b.3's *a person outside this repository*) is on that.
+> *Tier 0 before anything else*: a first scan of a real project that fails,
+> points the wrong way and leaks containers is the primary path failing, and
+> no README sentence fixes it.
+>
+> **The flow (2026-09-26, after the owner's four answers), so any session can
+> resume it without a question.** **(1)** `0.4.0` is tagged by the owner now, as
+> rehearsed (`6973fbe`); the flow closes 28.1.2 when the release run has
+> promoted and PyPI serves it, and ships Phase 29 as `0.5.0`. **(2)** 29.2.3
+> runs the Claude Code pass only, the owner having logged the CLI in; Codex is
+> documented from its config shape and marked unverified. **(3)** The five
+> Dependabot PRs are handled under the owner's account: rebase comments on
+> #103 and #105, #104 closed when the Dockerfile carries the tag Dependabot
+> should track (29.4.1), #106 and #107 closed for one measured Checkov 3.3.19
+> PR (29.4.2). **(4)** On the owner's Mac the flow scans `occams-test-lab` with
+> a local image and a scratch cache, writing only its `.security-scan/`, and
+> launches no IDE: Cursor, VS Code and Kiro are documented from their config
+> shapes and Kiro's earlier verification (22.F.2); handshakes are measured
+> through the stdio driver and the Claude Code CLI. The time targets stay —
+> five minutes to a first useful result (P1), 60 s for N1.1 on the tree after
+> exclusions — and the budget, the timeouts and the concurrency are decided by
+> measurement. **Order:** this note → Tier 0 (29.0.1 → 29.0.4) → Tier 1
+> (29.1.1 → 29.1.3, the corpus dispatched once) → Tier 4 (29.4.1, 29.4.2, the
+> Dependabot PRs) → Tier 2 (29.2.1 → 29.2.3) → Tier 3 (29.3.1 → 29.3.3) → the
+> `0.4.0` closure (28.1.2, once the tag and the run exist) → the `0.5.0` prep
+> and its rehearsal to the brake → the exit criteria measured on the same
+> tree → the closing docs. Each task one PR, test first, landed on the required
+> checks; nothing stops for a person except the brake, which is reported and
+> not waited on.
+
+```
+29.3.4  the record                ✅ this PR — the write-up in docs/gates, Gate 1 filled, 10.1.1–10.1.2 ticked, 12b.1 → here
+Tier 0  a first run finishes,     29.0.1 excludes at scan time, every Scanner  →  29.0.2 a timeout stops the container
+        or says why               →  29.0.3 the cut is its own message, the record diagnoses  →  29.0.4 what is running has a line
+Tier 1  the numbers               29.1.1 the time goals re-stated for the working tree  ·  29.1.2 the pre-flight count  ·  29.1.3 jobs from memory
+Tier 2  every agent's IDE         29.2.1 the client matrix, verified  ·  29.2.2 doctor knows every client  ·  29.2.3 the agent-driven pass
+Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  ·  29.3.2 sizes and KEV  ·  29.3.3 explain_finding fenced
+        things
+             ↓
+        the same protocol on the same tree, then a person (12b.3)
+```
+
+### Tier 0 — A first run on a real working tree finishes, or says why
+
+- [x] **29.0.1** **Excludes at scan time, for every Scanner (B3; 10.3b claim 13;
+  F2.5).** Measured: the vendored list (`node_modules`, `.venv`, `vendor`, …) and
+  `[scan] exclude` drop *findings* after every Scanner has walked the tree; on
+  the gate's tree Gitleaks spent 211.7 s producing 3,892 hits inside `archive/`
+  that were then discarded, Checkov never finished, and the three Checks took
+  403 s against 1.5 s, 13.7 s and nothing on the 312 tracked files.
+  `exclusions.scanner_skip_args` was written for exactly this and never called.
+  The fix: both lists reach every Scanner's argv — Gitleaks by a generated
+  config in the scratch mount (`[extend] useDefault = true` plus allowlist
+  paths; it has no path flag), Trivy `--skip-dirs`, Checkov `--skip-path`,
+  Syft `--exclude` (the configured half exists; add the vendored), Opengrep
+  `--exclude`, OSV-Scanner by what it honours (measure), and the Checks' batch
+  by a list in its arguments so their walk skips the same paths — and the
+  finding filters stay, because a Scanner that ignores its flag must not leak
+  what the user excluded. The argv snapshots (26.2.1) change deliberately and
+  are re-taken. **Held by:** an e2e fixture generator that builds a tree with a
+  20,000-file `archive/` of planted secrets beside ten real files, excluded in
+  `.security-scan.toml`: every Scanner's raw output is small, Gitleaks under
+  5 s, and the excluded count on every surface says *excluded before the scan*
+  rather than *dropped after*. **Measured on the gate's tree** (the owner's
+  project, `archive/` and `.venv` excluded): the whole scan under N1.1's 60 s
+  on this Mac, recorded in the STATUS note with each Scanner's time. Then the
+  opt-in the record asked for: `[scan] honour_gitignore = true` excludes what
+  `.gitignore` covers **except `.env*`** and anything a `[scan] include` names,
+  because the reason the default stays *off* (`exclusions.py:53`, a secret in a
+  gitignored `.env` is the finding) survives as a carve-out; off by default,
+  documented beside `exclude`, and `SUMMARY.md` says which of the three lists
+  excluded what.
+
+  **STATUS 2026-09-26 (part 1 of 2 — the skips; the `.gitignore` opt-in is
+  part 2):** measured first, inside the image on a planted tree (`a.py`,
+  `archive/deep/…`, `node_modules/…`): Trivy `--skip-dirs` takes globs; Checkov
+  `--skip-path` is a regex searched in `/archive/Dockerfile`, unanchored, so the
+  forms bind a segment; Syft `--exclude` takes globs; Opengrep `--exclude=` a
+  component or a run of them; OSV-Scanner `--experimental-exclude` a name
+  exactly or `r:` a regex — the `g:` forms and anchored regexes excluded
+  nothing; and Gitleaks, which has no path flag, a `--config` that extends the
+  defaults with an allowlist of path regexes (the bytes scanned halved on the
+  probe). Then: `exclusions.skip_args(kind, prefixes)` replaces the
+  never-called `scanner_skip_args`; `Invocation` gains `files` (written into
+  the scratch mount before launch — Gitleaks's config) and `env`
+  (`VALVUR_EXCLUDE`, one prefix per line: the Checks' walk, through the
+  environment so an older image ignores it where an argument would have been
+  read as a Check's name; PROTOCOL.md has the line); `exclusions.walk_files`
+  prunes vendored directories and excluded prefixes without entering them, and
+  the AI Artifact Check and manifest discovery — which `rglob`bed the whole
+  tree, five times over — use it. The argv snapshots re-taken deliberately:
+  Gitleaks 10 → 12 args, Trivy 15 → 131, Checkov 10 → 126, Syft 6 → 122,
+  Opengrep 10 → 68, OSV-Scanner 9 → 125 — the vendored list, once each. Held
+  by thirteen unit tests (each Scanner's form, the segment rule, the config as
+  TOML, every adapter's command, the runner's files and env, the walk, the
+  Checks' env, manifest discovery, the SUMMARY wording) and one e2e test on
+  the gate's tree in miniature: the broken fixture beside a 20,000-file
+  `archive/` of tokens Gitleaks flags — a planted one at the root proves the
+  form — and a 2,000-file `node_modules/`. **Measured, on this Mac through
+  Docker Desktop:** the synthetic tree with the exclude — wall 23 s, Gitleaks
+  5.2 s, the Checks 6.8 s; without it — wall 67 s, Gitleaks 28 s, the Checks
+  26 s, Opengrep 63 s. **The gate's own tree** (`occams-test-lab`, 107,544
+  files, its two-line exclude, every Scanner at once): **complete in 88 s,
+  8 findings, 0 dropped** — Gitleaks 6.4 s against 211.7 s at the gate, the
+  three Checks 7.8 s against 403 s, Checkov 48.3 s against never finishing.
+  At `--jobs 2`: 83.5 s wall, and every Scanner alone two to five times faster
+  (Gitleaks 2.4, Trivy 26.7, Opengrep 31.3, Checkov 40.3, the Checks 1.4) —
+  29.1.3's measurement: what is left of the wall clock on a 4 GB VM is
+  contention, not walking. 88 s is inside the 300 s MCP default; the stdio
+  run on that tree is the phase's exit criteria, measured then. **What the
+  self-scan gate caught on the PR:** `--config` stops Gitleaks auto-loading a
+  project's own `.gitleaks.toml`, and this repository's allowlists its planted
+  test keys — seven surfaced as critical. Measured on this tree: 117 findings
+  with no config, 136 with a generated config extending the defaults, 117 again
+  with it extending the project's file, which is what it does now when the
+  file exists. A `.gitleaksignore` was never affected: the image's working
+  directory is `/workspace`, Gitleaks's default for it.
+
+  **STATUS 2026-09-26 (part 2 of 2 — the `.gitignore` opt-in; ✅ the task):**
+  `[scan] honour_gitignore = true` asks git for what it hides — the collapsed
+  listing (`ls-files --others --ignored --exclude-standard --directory`, 0.03 s
+  on the gate's 107,544-file tree) for the directories, the full one (0.65 s,
+  107,251 entries) to know what each holds — and skips a hidden *directory*
+  unless it holds a file this tool exists to read: `.env*`, or any agent
+  instruction or configuration file the AI Artifact Check knows (a gitignored
+  `.mcp.json` is still what the agent obeys), in which case the directory is
+  scanned whole; a hidden file on its own is never skipped, it costs nothing;
+  what the vendored list names is not repeated; `[scan] include` keeps a hidden
+  path. Off unless asked, for the reason `exclusions.py` has carried since
+  2026-08-31. The names the Check reads moved to a leaf module,
+  `agent_surfaces.py`, because importing the Check from `exclusions` closed a
+  soft cycle the ratchet refused — the ratchet doing its job. The prefixes reach
+  every Scanner through the same `excluded_prefixes`; a `gitignored` pipeline
+  stage counts what a Scanner reported there anyway; `run.json` carries
+  `excluded_by_gitignore` always (`enabled`, `paths`, `findings_dropped`, and
+  a `note` when git could not be asked — not found, not a repository), so a
+  reader can tell *off* from *on and nothing hidden*; `SUMMARY.md` names the
+  directories and states the carve-out where it applies; `valvur gate` counts
+  the drops. Held by six unit tests. **Measured on the synthetic tree with a
+  `.gitignore` hiding `archive/` and no `[scan] exclude`:** on — wall 30 s,
+  Gitleaks 5.8 s, 95 findings, none under `archive/`, the hidden `.env` still
+  read; off — wall 135 s, Gitleaks 28 s, 20,095 findings, 20,000 of them the
+  archive's. The gate's tree, with the option on, would drop its two-line
+  exclude: `archive/`, `build/`, `.venv/` and `configs/` are all hidden there.
+- [x] **29.0.2** **A Scanner past its timeout is stopped, not abandoned (B2;
+  F1.11, F2.5).** Measured twice from Docker's event log in the record: a
+  Gitleaks container ran 401 s after its 300 s timeout killed the client; a
+  Checkov container was at 92 % CPU 90 s after the server had exited. Catch
+  `TimeoutExpired` where the Scanner is launched, kill by `--name` (the name
+  exists since 27.1.1), wait for the exit, and record *timed out after Ns and
+  was stopped* with the stderr read so far; give the CLI the exit sweep the
+  server has (27.1.1 — `atexit`, SIGINT, SIGTERM), so `Ctrl-C` on a scan leaves
+  nothing running. **Held by:** an e2e test that runs an Invocation of `sleep
+  600` under a 2 s timeout and asserts, from the runtime's own listing, that no
+  container named for the run exists two seconds later; and the same for a
+  budget cut, which already kills, now proven to wait. The requirement text
+  under F2.5 gains the clause.
+
+  **STATUS 2026-09-26:** ✅ Measured first, against `main`: `runner._launch`
+  ran every Scanner under `subprocess.run(timeout=…)`, which on expiry kills
+  the *client* — `docker run` — and raises `TimeoutExpired`; nothing caught it,
+  so `_attempt` recorded the Scanner failed with `str(exc)` as the reason (the
+  full command line, the gate's B6) while the container, the daemon's, ran on.
+  One correction to the record: the CLI *did* sweep on Ctrl-C (`_stop_on_interrupt`,
+  16.2) — what it lacked was SIGTERM, which a cancelled CI job sends. Now
+  `_launch` catches the expiry, stops the container by the name it gave it,
+  waits until the runtime no longer lists it (`_wait_gone`, polling `ps -a` by
+  exact name, 15 s bound), and `run` returns an output with `stopped_after` and
+  exit 124 (`timeout(1)`'s convention) carrying the stderr read so far
+  (`TimeoutExpired.stderr` is bytes even in text mode on 3.12 — decoded);
+  `_outcome` writes *timed out after Ns and was stopped — last stderr: …* with
+  the argv kept in `run.json` and out of the sentence. The budget path was
+  already right: `stop_containers` kills, and the client returns when the
+  container dies. Held by three unit tests (the stop-and-wait by name, the
+  reason without the argv, SIGTERM installed) and one e2e test: `sleep 600`
+  under a 2 s timeout — **the test completes in 4.4 s and the runtime lists
+  no container two seconds after** — against 401 s at the gate. F2.7 carries
+  the note. The tests live in `tests/test_scanner_timeout.py`, not the
+  interruption constraint suite: that suite is the release gate's, held to
+  the forty-eight 28.4.4 split, and a timeout is F2.7's case, not F1.11's.
+- [x] **29.0.3** **A budget cut is its own message, and the failure record
+  diagnoses (B1, B6, B7; F2.6, F9.9).** Measured: *Every scanner failed.
+  Refusing to report a scan.* followed by *Run `doctor`* — and `doctor` says
+  *ready*. The fix has three parts. **The message:** when the budget cut
+  everything, the failure says so — *the 300 s budget ran out before any
+  Scanner finished: N cut (names, seconds run), M finished (names, times); the
+  workspace holds F files, the largest directories archive/ 103,251 and .venv
+  3,557 (29.1.2); to finish: `[scan] exclude` in `.security-scan.toml` for
+  what is not source, `budget_s` on the call (`--budget` on the CLI), or fewer
+  Scanners at once (`VALVUR_JOBS`, `--jobs`)* — and `doctor` is named only
+  when the failure is a precondition it checks. **The record:** every failed
+  ScannerRun's reason states the cause valvur knows — *cut by the budget after
+  Ns*, *timed out after Ns and was stopped* (29.0.2), *exit 137: killed by the
+  runtime — the container's memory ceiling (28.0.3) or the VM's* (when valvur
+  did not send the kill), or the exit code with the stderr it had — with the
+  argv kept in `run.json` (28.3.6) and out of the prose. **The docs:**
+  `budget_s`, `--budget`, `--jobs` and `[scan] exclude` in one README
+  paragraph in the first-run section, before Platforms. **Held by:** the
+  `scan_status` and `SUMMARY.md` goldens for a budget-cut run, a timed-out run
+  and a runtime-killed run, and a test that the `doctor` sentence appears only
+  for precondition failures.
+
+  **STATUS 2026-09-26:** ✅ Measured first: `_assemble` raised *Every scanner
+  failed. Refusing to report a scan.* whenever all failed, budget or not;
+  `scan_status`'s FAILED branch appended *Run `doctor`* unconditionally; a
+  killed Scanner read *exited 137 with no report:* with nothing after the
+  colon; and `_fleet` rewrote a cut as *cut by the budget … (exited 137 …)*, the
+  kill it had sent itself reported as if the runtime had done it. Now, in one
+  leaf module (`levers.py`, so `api` and `summary` share one sentence and a test
+  holds the README to it): a budget that cut every Scanner raises
+  `BudgetExhausted` — *the 300s budget ran out before any Scanner finished: N
+  cut (gitleaks 300s, …); M not started (…); none finished.* and the three
+  levers; its `doctor_may_help` is False, the job records it, and `scan_status`
+  names `doctor` only when it is True (a precondition, which every other
+  failure may be); `SUMMARY.md` puts the levers beside a partial cut; a cut's
+  reason is the cut alone; an exit 137 valvur did not send reads *killed by the
+  runtime — the container's memory ceiling (2g) or the VM's*, the ceiling read
+  from `RESOURCE_LIMITS`, the stderr tail after it, the argv in `run.json` and
+  out of the sentence; the README's first-run section names the levers before
+  Platforms. The pre-flight count in the message is 29.1.2's, added there. Held
+  by five unit tests and three new `SUMMARY.md` goldens (a budget cut, a
+  timeout, a runtime kill); the existing goldens changed by their generation
+  id only, measured on the diff. The gate's run 1 would now have read the
+  budget sentence with the levers, and no `doctor`.
+
+- [x] **29.0.4** **What is running has a line (B5; F9.9).** Measured: sixteen
+  polls over 290 s answered *Completed so far: image pulled, database fetched,
+  index fetched* and nothing else, because nothing finished. The fleet knows
+  each Scanner's start; `scan_status` says *Now: gitleaks 120s, checkov 120s,
+  trivy 120s running — 3 of 8 finished: syft 4.1s, licence-file 4.1s,
+  ai-artifact 4.1s* from the same durations `run.json` records, and the CLI's
+  progress line matches. **Held by:** the `scan_status` snapshot mid-fleet
+  (a fake runner that holds one Scanner open) and the MCP `tools/list`
+  snapshot unchanged.
+
+  **STATUS 2026-09-26:** ✅ Measured first: the fleet emitted a message at each
+  Scanner's *end* (`gitleaks: ok (2.7s)`) and none at its start, and the job
+  kept messages without their times, so the RUNNING reply could only list what
+  had finished — nothing, for 290 s at the gate. Now `_fleet` says `fleet: 8
+  Scanners, 8 at a time` once and `<tool>: started` when a task *begins* (not
+  when it is submitted — under `--jobs` a queued Scanner would otherwise read as
+  running), the job records a monotonic time beside every message
+  (`Job.note`, `progress_at`), and the reply adds *Now: slow 12s running — 1 of
+  2 finished: fast: ok (0.1s)* from those, keeping *Now: fetching …* for a fetch
+  in progress and *Completed so far* for the fetches; `structuredContent`
+  gains `running` (tool → seconds), `finished` and `fleet`. The CLI prints the
+  same lines. Held by three unit tests (the announcements and their order; the
+  reply mid-fleet with a Scanner held open, text and fields; the timestamps)
+  and the first-run tests, which now count a Scanner's end and not its start.
+  The `tools/list` snapshot is unchanged: `job` was an open object.
+
+
+- [x] **29.0.5** **A Finding whose Scanner did not run is not fixed (F5.6).**
+  Found by 29.2.3's second run, the cut one: a `scan` with a 30 s budget cut
+  seven of eight Scanners and reported the eight previous Findings as *fixed* —
+  `fixed: 8` in `run.json`, *fixed since last run* in `SUMMARY.md`, the
+  structured reply — and rewrote `state.json` without them, so the next
+  complete run would have called them *regressed*. The agent caught it ("they
+  show as fixed only because the scanner that produces them never ran"); the
+  message had told it otherwise, which is the false claim §7 forbids. The diff
+  compared fingerprint sets and never asked which Scanner had looked.
+
+  **STATUS 2026-09-26:** ✅ `state.json` records the Scanners that reported
+  each present Fingerprint (`sources`; a state without it reads as *unknown*,
+  never guessed); a previous Finding absent now is `fixed` only if every
+  Scanner that reported it ran — cut, timed out or failed, it is **not
+  re-checked**: carried in the state with its title and sources, counted as
+  `not_rechecked` in `run.json` and the structured `scan_status` reply (schema
+  and snapshot re-taken), a section in `SUMMARY.md` naming each with the
+  Scanner that did not run, a line in the DONE text and in the status text. A
+  skipped Scanner still counts as having looked — nothing to analyse means its
+  old Finding's file is gone. A state from before this carries on an
+  incomplete run and fixes on a complete one. Seven tests in
+  `tests/test_not_rechecked.py`, the cut simulated the way `test_budget.py`
+  does; the identity suite is unchanged. F5.6 amended, `CONTEXT.md`'s
+  **Status** entry says a Finding nothing looked for has none. **Measured on
+  the gate's tree with the fixed shim, three CLI scans in a row:** complete —
+  9 persisting; `--budget 30` — seven Scanners cut, `fixed: 0`,
+  `not_rechecked: 8`, `SUMMARY.md` naming the eight as one grouped line
+  (*8 findings — `opengrep` did not run*), the state still holding all nine with
+  their sources; complete again — 9 persisting, nothing fixed, nothing
+  regressed. Before the fix the same sequence read `fixed: 8` then
+  `regressed: 8`. One anomaly on the way, recorded and not explained: the
+  first of the three scans took forty minutes of wall clock for Scanners that
+  reported 3–61 s each, on a Mac whose Docker Desktop VM had been up for four
+  days; the two after it ran normally, and nothing in `run.json` names the
+  gap — the first gate's finding about this machine, not the tree.
+
+### Tier 1 — The numbers fit a real machine and a real tree
+
+- [x] **29.1.1** **The time goals, re-stated for the working tree (P1, N1.1,
+  N1.2, N1.4; the 300 s budget; the gate's five minutes).** Measured: every
+  number in the requirements is for *lines of application code* on a Linux
+  runner with the data present, taken on git clones; the gate's tree was 340
+  times its git index and the first scan failed at 300 s. Amend P1 and N1.1 to
+  say what they hold for — *the working tree after exclusions* — and that a
+  tree past a stated file count is named before the fleet starts (29.1.2);
+  keep the numbers, because after 29.0.1 they are the right numbers. Then
+  decide the MCP default budget **from measurement, after 29.0.1**: the largest
+  corpus repository and the synthetic tree, on the Linux runner and on this
+  Mac through Docker Desktop; keep 300 s if the excluded tree finishes under
+  N1.1 with a margin, raise it and say why if not. Re-examine each Scanner's
+  own timeout against the budget: Gitleaks 300 s equals it, Checkov's 600 s
+  exceeds it, so over MCP the budget always wins and the per-Scanner timeouts
+  are the CLI's guard — say so in `invocation.py` and F2.6, and set them to
+  what the corpus measured plus a margin rather than round numbers. The
+  gate's *five minutes* (P1's document) stays the target and gets a row in
+  `docs/EVALUATING.md`'s first-run table for a working tree with a data
+  directory: with and without the exclude, both measured.
+
+  **STATUS 2026-09-26:** ✅ Decided by measurement, after 29.0.1 landed. **The
+  corpus re-dispatched on the new tree** (run 36250465513, `ubuntu-24.04`):
+  every application repository 5.4–9.5 s, Checkov the slowest on each, the
+  Terraform module 96.3 s — unchanged from 28.2.1, because the corpus is clean
+  clones and the excludes cost them nothing. **The gate's tree**: failed at
+  300 s with nothing excluded; 88 s with its two-line exclude at eight Scanners
+  at once, 83.5 s at two (this Mac, Docker Desktop). **The synthetic
+  22,000-file tree**: 20–24 s. So: P1 and N1.1 now say what they hold for —
+  *the working tree after exclusions* — and that a tree past 20,000 files to
+  scan is named before the fleet starts (29.1.2's threshold, kept); the
+  numbers stay, being the right numbers for that tree. The MCP budget stays
+  **300 s**, a margin of three or more on the slowest real tree measured; the
+  per-Scanner timeouts stay at their values with the reason each carries now
+  written in `invocation.py` — five times the worst measured run or more, the
+  CLI's guard, and over MCP the budget always first (Gitleaks's 300 s equals
+  it). `docs/EVALUATING.md`'s first-run table gains the row a working tree
+  deserves: with and without the exclude, both measured. The gate's five
+  minutes stays the target for the stranger's next run, on `0.5.0`.
+
+
+- [x] **29.1.2** **The pre-flight count (B1, B7; P1).** Measured: 107,544
+  files were walked by eight Scanners before anyone counted them. One walk in
+  the shim (`os.scandir`, measured cost on that tree in the STATUS note),
+  before the fleet: the file count after exclusions and the three largest
+  directories, on the first `scan_status` line, the CLI's first line and in
+  `run.json`; above a threshold decided by 29.1.1's numbers, a sentence naming
+  the directory and the exclude that would drop it — *before* the budget is
+  spent, not after. `doctor` prints the same for its workspace, and the
+  runtime's memory and CPUs (`docker info`: 4 GB and 8 here) with 29.1.3's
+  recommendation. **Held by:** the goldens for a small tree and the synthetic
+  one, and `doctor`'s test with a fake runtime reporting 4 GB.
+
+  **STATUS 2026-09-26:** ✅ Measured first: the pruned walk (`os.walk`, the
+  same pruning as 29.0.1's `walk_files`) costs **0.02 s on the gate's tree with
+  its exclude (327 files) and 0.69 s without (103,578 files, `archive` 103,251)**
+  — cheap enough to run before every fleet. `exclusions.count_files` returns
+  the count and the three largest top-level directories; `_scan_locked` says
+  `workspace: 327 files to scan; largest: docs 108, occams 105, tests 64` as
+  the first progress line, and past `LARGE_TREE` (20,000 — the synthetic
+  archive's size; the gate's was 103,251) a second: *archive holds 103,251 of
+  them — if it is not source, `[scan] exclude = ["archive"]` in
+  `.security-scan.toml` drops it before the Scanners start*. `scan_status` gives
+  those lines their own place under RUNNING (not among the completions), the
+  CLI prints them, `run.json` carries `workspace: {files, largest}`, the budget's
+  refusal (29.0.3) says *The workspace holds N files (…)* before the levers, and
+  `valvur doctor` has a `workspace` check — ok with the count and the largest,
+  warn past the threshold with the exclude line as its fix, and the excluded
+  prefixes named either way. Held by seven unit tests. The threshold's number
+  is 29.1.1's to revisit with the corpus; the runtime's memory beside it is
+  29.1.3's.
+
+
+- [x] **29.1.3** **Concurrency from the runtime's memory (B7; N1.4).**
+  Measured: eight containers start at once inside a 4 GB VM; the README's
+  remedy is in Platforms, after the point of failure. Measure first, on this
+  Mac and the synthetic tree: `--jobs` 8, 4 and 2 against wall clock and
+  Docker Desktop's memory pressure; if a rule falls out (the fleet peaks at
+  ~500 MB on Linux, N1.4, but two Scanners on a large tree take more), the
+  default `--jobs` derives from `MemTotal` and is printed with the pre-flight
+  line; if not, `doctor` recommends one and says why. Either way the README's
+  Docker Desktop paragraph moves into the first-run section with the number
+  it measured. **Held by:** the rule's unit test over fake `docker info`
+  output, and the STATUS note's table.
+
+  **STATUS 2026-09-26:** ✅ Measured first, on this Mac's 3.8 GiB Docker Desktop
+  VM (8 CPUs) on the synthetic gate tree with its archive excluded: `--jobs 8`
+  wall **23.6 s**, `4` **22.0 s**, `2` **20.3 s** — and at two, every Scanner
+  two to five times faster alone (Gitleaks 4.2 → 2.1 s, Trivy 7.2 → 2.6,
+  Checkov 15.7 → 7.2, Syft 8.6 → 2.8, the Checks 7.3 → 1.4); on the gate's own
+  tree 88 s at eight against 83.5 s at two (29.0.1's note). So a rule fell
+  out, measured at both ends: below 6 GiB the default is two at a time
+  (`runner.SMALL_RUNTIME_BYTES`, `default_jobs`); at or above, or when the
+  runtime cannot say, the whole fleet — Linux CI's 7 GiB runners run all eight
+  at 6–9 s. `runner.runtime_resources` reads `docker info --format
+  '{{.MemTotal}} {{.NCPU}}'` (Podman: `Host.MemTotal`, `Host.CPUs`), 0.9 s on
+  Docker Desktop and cached per runtime path for the process; `_fleet` takes
+  `--jobs`, then `VALVUR_JOBS`, then the rule, and its first line says the
+  width; `doctor`'s runtime line reads *3.8 GiB, 8 CPUs — scans run 2 Scanners
+  at a time (VALVUR_JOBS, or --jobs, to change)*. The README's Docker Desktop
+  paragraph moved from Platforms into the first-run section with the numbers.
+  Held by five unit tests over fake `info` output. Not changed: N1.4's 2 GiB
+  ceiling per container (28.0.3) — two containers under it fit a 4 GiB VM;
+  eight never did, which the exit-137 kills at the gate were.
+
+
+### Tier 2 — Every agent's IDE, by MCP
+
+- [x] **29.2.1** **The client matrix, verified (B8; 10.2 claims 1–2; P6).**
+  Measured: the README gives one JSON block and names no file. The task: one
+  README section, *Add it to your agent*, with the file, the snippet and the
+  approval step for each of — Claude Code (`.mcp.json` at the project root,
+  then approve in an interactive `claude`; `--mcp-config` for headless and SDK
+  sessions), Kiro (`.kiro/settings/mcp.json`), **Codex** (`~/.codex/config.toml`,
+  `[mcp_servers.valvur]` with `command` and `args`, or `codex mcp add`),
+  Cursor (`.cursor/mcp.json`), VS Code's agent mode (`.vscode/mcp.json`, whose
+  key is `servers`, not `mcpServers`), Windsurf
+  (`~/.codeium/windsurf/mcp_config.json`), Cline and Roo (their settings
+  files), Continue (`config.yaml`), Gemini CLI (`~/.gemini/settings.json`) and
+  Zed (`context_servers` in settings). For every client that is installed here
+  — Claude Code 2.1.278, Cursor, VS Code, Kiro; Codex CLI installed for the
+  purpose with the owner's leave — the handshake is **measured**: the
+  `protocolVersion` the client sends against `SUPPORTED_VERSIONS`, the
+  `initialize` fields it requires, whether it shows `instructions`, and that
+  `tools/list` renders; for the rest, the documented shape and the date it was
+  read, marked as unverified. A stdio transcript per client goes under
+  `tests/fixtures/mcp/clients/` and a test holds the server's replies to
+  each recorded `initialize`. **Held by:** that test, and the README's snippets
+  parsed by a test so a typo in one is a red build.
+
+  **STATUS 2026-09-26:** ✅ Under the flow's decision (4) — no IDE launched — the
+  matrix is one module, `valvur.mcp.clients`: eleven clients, each with its
+  file(s), its shape, what happens after the paste, and how it was verified.
+  **Measured:** Claude Code (the gate's own run, connected from the block in
+  under eight seconds; and here, `claude mcp list` health-checks a project
+  server only once it is approved in an interactive `claude` — a click, so
+  recorded as one) and Kiro (22.F.2). **Documented shapes, dated 2026-09-26, not
+  run here:** Codex (`~/.codex/config.toml`, `[mcp_servers.valvur]`), Cursor,
+  VS Code (`servers`, not `mcpServers`), Windsurf, Cline, Roo Code, Continue
+  (YAML), Gemini CLI, Zed (`context_servers`). The README's *Add it to your
+  agent* section is rendered from the table and a test holds it there verbatim,
+  so a typo in one snippet is a red build; every JSON and TOML snippet is
+  parsed by a test and must put `uvx --from valvur valvur-mcp` under its
+  client's key. The handshake, measured through the real server: a transcript
+  for each published protocol version (`2025-06-18`, `2025-03-26`,
+  `2024-11-05`) under `tests/fixtures/mcp/clients/`, held by a test, and an
+  unknown version is answered with the server's own. `doctor` reading every
+  file in the table, and the snippet printer, are 29.2.2.
+
+
+- [x] **29.2.2** **`doctor` knows every client (B8; 10.2 claim 3).** Measured:
+  `_check_mcp` reads Claude Code's and Kiro's files. Extend it to every file in
+  29.2.1's matrix — configured, disabled, or a command that is not on `PATH`
+  — and give it a printer: `valvur doctor --client codex` (each name in the
+  matrix) writes the snippet for that client, from one table both the README
+  and `doctor` are generated from, so the two cannot disagree. Then claim 3:
+  a malformed `.mcp.json` and a `valvur-mcp` not on `PATH`, measured in Claude
+  Code (`claude mcp list` shows *failed*), Cursor and VS Code, with what each
+  shows recorded in the README's section, because an agent that swallows the
+  server's stderr shows the user nothing. **Held by:** `doctor`'s tests over
+  a fake home with each client's file, the snippet table's round-trip test.
+
+  **STATUS 2026-09-26:** ✅ `_check_mcp` iterates `mcp.clients.CLIENTS` through
+  `lookups()` — the real paths, `~` and VS Code's global storage resolved per
+  platform — and reads each file in its shape: JSON under `mcpServers`,
+  `servers` or `context_servers` (Zed's older `command = {path, args}` too),
+  TOML under `mcp_servers`, Continue's YAML by a line scan without a parser;
+  Claude Code's user file keeps its per-project scope and its `disabled`
+  lists. Every server that names valvur is one line — file, name, command —
+  with *DISABLED* where the client says so and *`prog` is not on PATH* when
+  `shutil.which` cannot find the program (claim 3's half a scan can answer);
+  a file that will not parse reads *unreadable (not JSON/TOML)*. `valvur
+  doctor --client <name>` prints the file and the snippet from the table and
+  nothing else; the doctor help golden re-taken for the option. **Claim 3,
+  measured with Claude Code's CLI in a scratch project:** a malformed
+  `.mcp.json` → *[Failed to parse] … MCP config is not a valid JSON*, with the
+  path (diagnosable); a command not on PATH → *⏸ Pending approval (run `claude`
+  to approve)* and nothing else, because an unapproved project server is not
+  health-checked — the one case the README now names and `doctor` answers
+  before the approval. Held by fifteen tests: every client's file read in its
+  shape, the PATH line, the unreadable lines, the none-found sentence, and the
+  printer for each of the eleven.
+
+
+- [x] **29.2.3** **The agent-driven pass, measured (10.2 claims 1–2, 10.5
+  claim 12; §5 of the record).** *Owner-assisted:* the record could not run
+  the model because the desktop app's session cannot be used by a child
+  process; it needs `claude login` in a terminal. After Tier 0 lands, on the
+  same project: `claude -p "Scan this project with valvur and tell me what it
+  found." --mcp-config .mcp.json --strict-mcp-config` with the six tools and
+  `Read` allowed — timed from the call to a correct report, the transcript
+  kept — and the same through Codex with the owner's login. The interesting
+  observation the record named: what the model does when a scan is cut and
+  what the message tells it. Both transcripts in `docs/gates/`, the minutes
+  in the STATUS note, and 10.5's five-minute claim answered with a number.
+
+  **STATUS 2026-09-26:** ⏳ *blocked on the owner's login, not on engineering.*
+  The flow's decision (2) was the Claude Code pass only, after Tier 0, with
+  the CLI logged in — `claude auth status` still answers `loggedIn: false` at
+  the end of Tier 2 (a child process cannot use the desktop app's session).
+  Everything else is ready: Tier 0 is on `main`, the project is
+  `~/occams-test-lab` with its two-line exclude, and the command is the one in
+  the record — `claude -p "Scan this project with valvur and tell me what it
+  found." --mcp-config .mcp.json --strict-mcp-config --max-turns 40
+  --allowedTools "mcp__valvur__scan,mcp__valvur__scan_status,mcp__valvur__list_findings,mcp__valvur__explain_finding,mcp__valvur__doctor,mcp__valvur__scan_cancel,Read"`
+  — timed from the call to a correct report, the transcript kept under
+  `docs/gates/`. Runs the moment the login exists; the Codex pass stays
+  declined by the same decision.
+
+  **STATUS 2026-09-26 (night):** ✅ **run once the login existed — 2 min 53 s
+  from the command to a correct report, no question asked.** The command
+  above, verbatim, at 21:00:40 BST on `0.5.0` as `uvx` resolves it; the
+  participant Claude Code 2.1.283 with `claude-fable-5-1`, and not a stranger:
+  the harness loaded the project's `CLAUDE.md` and the participant's own notes
+  from the morning's gate, which it read first and followed (`budget_s: 900`,
+  a `docker ps` for leftovers). It called `doctor` at 13 s, `scan` at 23 s,
+  polled `scan_status` twice, and reported at **173 s**: eight low findings on
+  the eight `uses:` lines, the coverage note as a gap and not a finding,
+  osv-scanner's omission on `offline`, *nothing left the machine*, the eight
+  lines verified with `grep` before they were repeated — correct in every
+  claim of substance, one loose phrase. **The scan: 95 s, complete, 327 files,
+  Checkov 46 s the slowest, two Scanners at a time, nine containers all exit 0
+  and none left** — against `FAILED` at 300 s and 829 s incomplete on the same
+  tree the morning of the gate. Warm, and said so: image, database and index
+  from the owner's own first run, the exclude in place; the gate's 45 s of
+  fetches and 13 s install make a first-ever run an *estimate* of 3 min 51 s.
+  **10.5 claim 12 answered with that number; 12b.3's person stands.** What the
+  record asked — what the model does when a scan is cut — could not be seen
+  here: nothing was cut. *It was seen the same night by the other session's
+  pass, two runs on the same tree — 200 s to a correct report with an empty
+  cache, then `budget_s: 30` by prompt: the model read the cut as*
+  inconclusive, not clean, *and caught the reply calling eight Findings it had
+  not looked for* fixed *— that is 29.0.5, closed in #134 before this landed;
+  both transcripts are
+  [`2026-09-26-claude-code-agent-pass-the-cut.md`](../../../docs/gates/2026-09-26-claude-code-agent-pass-the-cut.md).*
+  **What was seen instead is 29.2.4**: Claude Code hands the
+  model a structured reply's JSON and not its text, so `scan_status`'s *call
+  again; do not report a result yet* never arrived, and the model built its
+  own wait and ended its turn with Checkov still running; the harness's
+  re-invocation on its Monitor is what produced the report. The record, with
+  the whole transcript, is
+  [`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md);
+  Gate 1 in `docs/usability-gate.md` carries the number. Codex declined by
+  decision (2).
+
+- [x] **29.2.4** **Every reply's advice is a field, because Claude Code drops
+  the text (found by 29.2.3).** Measured in the pass's transcript: for all five
+  calls to the two tools that answer with `structuredContent` (28.2.2), Claude
+  Code 2.1.283 gave the model the JSON as a string and not the text block —
+  `doctor`, `scan` and `explain_finding`, text only, arrived as text. `DONE`
+  loses nothing (its dict carries `next`, and the model called
+  `explain_finding` on the fingerprint it named). **`RUNNING` loses its one
+  instruction** — *This call waited 15s for it. Call again; do not report a
+  result yet* (`operations.py:530`, 10.2.5) — and *Completed so far*; `FAILED`
+  loses *Run `doctor` …* and *No result to report* (only `doctor_may_help`
+  survives); `CANCELLING` and `CANCELLED` lose every sentence. The agent then
+  did what the sentence exists to prevent: three refused attempts at its own
+  wait, an old file read for context, and a turn ended with the scan running.
+  The task: the `RUNNING` reply gets `next` in the shape `DONE` has (*call
+  `scan_status` again; it waits up to 15 s and returns the moment the scan
+  finishes; do not report a result yet*) and `waited_s`; `FAILED`,
+  `CANCELLING` and `CANCELLED` get `next` with their sentences; the budget
+  cut's cause and three levers (29.0.3) are fields beside `job.error`, not
+  only inside it. Text unchanged, so the CLI and the parity test (F9.3) see
+  nothing. **Held by:** a test over every branch of `scan_status_reply` that
+  each sentence the text says after the state is present in the structured
+  reply, and the `tools/list` snapshot (23.5.2) if the output schema grows.
+  An hour; before `v1.0.0`, because the primary client is the one that drops
+  it. *(Recorded and not tasked beside it: A3 in the record, a bounded
+  `wait_s` for an agent that wants one wait, to decide once agents are told
+  the call waits.)*
+
+  **STATUS 2026-09-27:** ✅ Every sentence the status text says after a job's
+  state is a field of the structured reply's `job`, from one string each so
+  the text and the field cannot drift: `RUNNING` — `next` (*call
+  `scan_status` again; it waits up to 15 s and returns the moment the scan
+  finishes; do not report a result yet*), `waited_s`, `completed`, `now` (a
+  fetch in progress), `workspace` (the pre-flight lines) and
+  `finished_scanners` beside the counts 29.0.4 added; `FAILED` — `next` with
+  the `doctor` sentence when `doctor_may_help` and *No result to report*,
+  and `budget` (`seconds`, `cut` with each Scanner's seconds, `not_started`,
+  `files`, `largest`, `levers`) when the budget refused, built by
+  `levers.budget_fields` beside the sentence `levers.budget_exhausted_message`
+  builds and carried by the exception; `CANCELLING` and `CANCELLED` — `next`
+  with their sentences. The text is unchanged, so the CLI and the parity test
+  see nothing; the output schema's `job` is untyped, so the `tools/list`
+  snapshot is unchanged (checked). Held by `tests/test_status_fields.py`: one
+  test per state through real jobs, one for the budget's fields, one for a
+  `BudgetExhausted` built from a message alone, and the property over every
+  branch — each line after the state maps to a named field or is in `next`
+  verbatim. The second session's transcript (the file beside the record)
+  shows the same loss independently: forty-five seconds building its own
+  wait before the first poll.
+
+
+### Tier 3 — The claim, and the small things
+
+- [x] **29.3.1** **The README cannot be ahead of PyPI (B4).** Measured: the
+  README on `main` has said *`0.4.0` — published and installable* since the
+  prep commit, PyPI serves `0.3.0`, and the brake between them is a click that
+  can wait for days. Two changes: the prep commit's wording is *`0.4.0` —
+  tagged from this tree; `pip install valvur` serves `0.3.0` until the release
+  run's `promote` completes*, and the docs PR that closes the release row
+  (28.1.2 today) flips it to *published* — RELEASING.md step 4 and the window
+  section say so; and a scheduled, non-required workflow (`published.yml`,
+  daily and on dispatch) reads the README's status line and asks PyPI and GHCR
+  whether they serve that version, failing as a tracked issue the way the
+  index's and the corpus's schedules do. **Do this first in the tier**,
+  because `main` overclaims today. **Held by:** the version test extended to
+  accept the two wordings and refuse *published* without a matching tag in
+  the tree's history, and the workflow's shape held as text.
+
+  **STATUS 2026-09-26:** ✅ Done first in the tier, as the row said: the README
+  on `main` had said *`0.4.0` — published and installable* since the prep
+  commit that morning while PyPI served `0.3.0` and the rehearsal waited at the
+  brake. **Two wordings:** *release in progress* until the release run has
+  promoted (the prep commit's), *published and installable* after (the closing
+  PR's, the one that closes 28.1.2); `test_version` holds the version to
+  `pyproject` as before and refuses *published* when the tree's tags are known
+  and `v<version>` is not among them (a shallow checkout without tags skips
+  that half and says why). **`published.yml`**, daily at 07:41 UTC and on
+  dispatch: reads the line, asks PyPI (`/pypi/valvur/<version>/json`) and GHCR
+  (`docker manifest inspect`), and fails in both directions — a claim ahead of
+  the registries, or *release in progress* still written after the release ran
+  — opening or commenting on the one issue (27.2.7's shape, from
+  `corpus.yml`). `RELEASING.md`'s step 4 says so. The README on `main` reads
+  *release in progress* from this commit, which is the truth today. Held by
+  three tests over the workflow's text and one over the README's wording.
+
+
+- [x] **29.3.2** **Sizes and the KEV line say which (B9).** Measured: `doctor`
+  and the README say 118 MB and 35 MB (what is fetched); `valvur cache` says
+  1.45 GB and 123 MB (what is on disk); `valvur cache` says `kev: absent` while
+  `doctor` says *bundled snapshot from the image*. Every surface says both
+  numbers with their names — *118 MB to fetch, about 1.4 GB on disk* — from
+  one table in `cache.py`, and the KEV row reads the same in both places:
+  *bundled in the image (snapshot dated …); `valvur update` fetches a fresher
+  copy into the cache; absent there means the image's snapshot is in use*.
+  **Held by:** the `doctor` and `cache` goldens.
+
+  **STATUS 2026-09-26:** ✅ One table in `cache.py` — `FETCH_MB` (database 118,
+  index 34), `fetch_note()`, `KEV_ABSENT_MEANS`, `KEV_PRESENT_MEANS` — and every
+  surface reads from it: `doctor`'s database line is *0.3 days old; 1.45 GB on
+  disk (118 MB to fetch)* and, absent, *the first scan fetches it and says so
+  (118 MB to fetch, about 1.4 GB on disk)*; the index line ends *… on disk (34
+  MB to fetch)*; `valvur cache` appends *118 MB to fetch* to the database row
+  and *34 MB to fetch* to the index row, and an absent row says what absent
+  means — for `kev`, *the image's bundled snapshot is in use; `valvur update`
+  fetches a fresher copy into the cache*, the same sentence `doctor` prints;
+  present, both say *a fresher copy than the image's snapshot*. The README's
+  first-run paragraph says both numbers for both fetches, and a test holds it
+  to the table. Held by four tests and the two doctor tests that pinned the old
+  wording, changed deliberately.
+
+
+- [x] **29.3.3** **`explain_finding`'s evidence is fenced (B9; F9.9, F3.13).**
+  Measured: `operations.py:284` neutralises the evidence (hidden Unicode
+  escaped) and does not wrap it in the markers `SUMMARY.md` promises; over
+  MCP that is the one path an agent cannot decline to read. `defang.fence()`
+  around the evidence in the reply and in `structuredContent`, the length
+  bound applied to the inside. **Held by:** the MCP snapshot and a test with
+  a planted directive in the evidence.
+
+  **STATUS 2026-09-26:** ✅ Measured: `_structured_finding` called
+  `defang.neutralise(evidence)` — hidden characters escaped, the fence added
+  only when `needs_fencing` saw a directive — and the text reply printed the
+  evidence as `findings.json` held it. Now both call `neutralise(…,
+  always_fence=True)`: fenced always, bounded to `MAX_EVIDENCE` inside the
+  fence, and an already-fenced text is left alone, so a directive-shaped
+  finding is fenced once and a plain quoted line is fenced too — the markers
+  the machine block says quoted text carries. F9.9 carries the note. Held by
+  a test over the `scanned` fixture: the first non-directive finding's text and
+  structured evidence both start with the fence and hold it once, and every
+  listed evidence does.
+
+
+- [x] **29.3.4** **The record (10.1.1, 10.1.2, 12b.1; B9's last).** The
+  write-up committed verbatim as
+  `docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`; Gate 1 in
+  `docs/usability-gate.md` filled with the date, the participant, the thirty
+  minutes and the link; 10.1.1 and 10.1.2 ticked with the participant stated
+  — an agent, not a person, and 12b.3's *a person outside this repository*
+  still wants one; 12b.1's STATUS points here; each of Phase 10's provisional
+  claims answered in its STATUS note. **STATUS 2026-09-26:** ✅ this pull
+  request. Claims: 1 (Kiro) was verified by 22.F.2 and 23.1.1; 2 (Claude Code)
+  measured — connected from the README's block in under eight seconds; 3 →
+  29.2.2; 4 measured — each fetch announced with its size; 5–7 (the CLI
+  first run) were measured by 23.1.1 on `0.2.0` and 25.1 on `0.3.0`, and 7's
+  budget is 29.1.1's; 8–11 (error messages) closed by 10.4's own tasks and
+  `doctor`; 12 (a useful result in five minutes, no question asked) — **not
+  met**: thirty minutes with the source read, and the answer is Tier 0, then
+  29.2.3 with a number — **which it gave that night: 2 min 53 s on `0.5.0`,
+  no question asked, warm, the participant an agent with notes**; 13 (build and vendor directories excluded by default)
+  — true of findings, false of time, and 29.0.1's; 14 and 15 closed by
+  10.3b's own tasks.
+
+### Tier 4 — Maintenance the morning left behind
+
+- [x] **29.4.1** **The base images carry their tag beside the digest (Dependabot
+  #104).** Measured: `FROM python@sha256:…` names no tag, so Dependabot resolved
+  `latest`, proposed a digest that is not an Alpine image, and the build failed
+  at `apk` on three required jobs. `FROM python:3.12-alpine3.22@sha256:…` on
+  the three lines, and the same shape for every tool image that has a tag, so
+  a bump tracks the tag we mean; measure that a tag beside a digest changes
+  neither the tree hash nor the reproducibility check. Close #104 with the
+  reason; Dependabot re-opens against the right tag on its next run. **Held
+  by:** a test over the Dockerfile that every `FROM` with a digest also names
+  a tag.
+
+  **STATUS 2026-09-26:** ✅ Measured first: each of the five pinned digests
+  resolved (`docker buildx imagetools inspect`) to exactly the tag its comment
+  named — `python:3.12-alpine3.22`, `gitleaks:v8.30.1`, `trivy:0.74.0`,
+  `osv-scanner:v2.6.0`, `syft:v1.51.1` — and Dependabot's two proposals were
+  `python:latest` (Debian; the build failed at `apk`, #104) and
+  `syft:latest` (500e2d8…, not 1.51.1, #103). The tags now sit on the lines
+  (`image:tag@sha256:…`), the comments that carried them are gone, the release
+  workflow's syft extraction and its test accept the shape, and a new test
+  refuses a digest with no tag beside it. The image builds unchanged from the
+  same digests (verified locally, and the tree-hash check passes). #103 and
+  #104 closed with the reason; Dependabot re-proposes against the right tags
+  on its next run.
+
+
+- [x] **29.4.2** **Checkov 3.3.19 (Dependabot #106, #107), and the two bumps
+  that only needed the signer fix (#103, #105).** `scripts/lock-checkov.sh`
+  regenerates the hash lock; `adapters/checkov.py`'s VERSION, `conftest.py`'s
+  fixture version and `docs/PROTOCOL.md`'s table follow, held by
+  `test_constraints_supply_chain`; the startup floor re-measured with 28.2.1's
+  harness and recorded against 6–9 s; #106 and #107 closed for this PR. #103
+  and #105 rebased by comment and landed the moment they are green, `main`
+  held still for the fast-forward.
+
+  **STATUS 2026-09-26:** ✅ Dependabot's two PRs (#106, #107) bumped the lock
+  and nothing else, and `test_constraints_supply_chain` refused each: the
+  adapter reports the version the lock installs. This is the bump with its
+  company — `requirements-checkov.in`, the lock regenerated by
+  `scripts/lock-checkov.sh` (**97 packages, 1,868 hashes**; python-ecdsa still
+  among them, so `.security-scan.toml`'s suppression stands and says so),
+  `adapters/checkov.py`, `conftest.py`'s pinned versions, `docs/PROTOCOL.md` —
+  and the golden the version-keyed fixture exists to force: recaptured from the
+  3.3.19 image with the adapter's own argv on the broken fixture, **the same 13
+  failed checks, ids, files and resources**, only the block order changed.
+  **The floor, re-measured with 28.2.1's harness** (a workflow-only tree,
+  `jobs=1`, three runs, this Mac through Docker Desktop): 3.3.17 **6.2 s**
+  median, 3.3.19 **5.1 s** — a second faster. The Checkov e2e tests pass on the
+  rebuilt image. #106 and #107 closed for this; #105 (the actions group) is
+  rebased by comment and landed when green, #103 and #104 closed under 29.4.1.
+
+
+**Exit criteria (Phase 29):** the record's protocol re-run on the same tree —
+README to a first finding over MCP, one `scan` call, `archive/` and `.venv`
+named by the pre-flight and excluded by one line — **completes, under five
+minutes from the README, with no container left behind** when it fails and
+with the cause named when it does; the README's client section verified
+against Claude Code, Kiro, Cursor, VS Code and Codex; the README's status line
+true on every day of a release; and the corpus dispatched once with the
+synthetic tree in it. Then `0.5.0`, and a person.
+
+**Commit:** one per task; the phase closes with `docs: Phase 29 closed — …`.
+
+**Closed 2026-09-26 (engineering), as one unattended flow.** Thirteen of
+fourteen tasks in fifteen pull requests (#113–#127), plus the flow's own three
+(#111, #112 and this one), each measured before it was written and green on
+the required checks before it landed, in the order the flow named: Tier 0,
+Tier 1, Tier 4, Tier 2, Tier 3. Against the exit criteria: the record's
+protocol re-run on the same tree — one `scan` call over stdio on the gate's own tree with its two-line exclude, an empty cache root and the image present, measured 2026-09-26 on this Mac through Docker Desktop: **`DONE in 119s`, `complete: True`, 8 active findings, 1 not covered, Checkov the slowest at 40.9 s, `left this machine: nothing`** — the database and the index fetched inside that time — against `FAILED` at the 300 s budget for the gate's own run 1 on the same tree. A first scan of the gate's tree
+with its two-line exclude completes in 88 s at eight Scanners at once and
+83.5 s at two (29.0.1, 29.1.3), a Scanner past its timeout leaves no container
+(29.0.2, 4.4 s for a 2 s timeout), a budget cut says its cause and the three
+levers (29.0.3), and what is running has a line (29.0.4). The README's client
+section is rendered from one table and held to it, Claude Code and Kiro
+measured, nine documented and dated under the owner's decision not to launch
+IDEs, and `doctor` reads every one of those files (29.2.1, 29.2.2). The
+README's status line is true on every day of a release, and reads *release in
+progress* today, which is true (29.3.1). The corpus was dispatched once on the
+Tier 0 tree — 5.4–9.5 s on every application repository (29.1.1); the synthetic
+tree lives in the e2e suite on every pull request rather than in the corpus.
+**The last row closed that night:** 29.2.3 ran once the owner's login
+existed — one headless `claude -p` on the gate's tree, **2 min 53 s from the
+command to a correct report on `0.5.0`**, no question asked, the scan 95 s,
+nine containers all gone — and 12b.1 closed with it; its record with the whole
+transcript is `docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`.
+It found one thing, **29.2.4**, open: Claude Code hands the model a structured
+reply's JSON and drops its text, so `scan_status`'s *call again; do not report
+a result yet* never reached the agent, which ended its turn with the scan
+running. The
+release step, which the flow had left at *`0.4.0` untagged* by the rule that a
+version is not bumped over an untagged one, ran the same evening once the
+owner's tag existed: `v0.4.0` promoted (28.1.2, run 36254809572, 25 minutes
+from the tag to `:latest`); the `0.5.0` prep landed as #130 on `011ec09`,
+measured against the image built from it — one `scan` over stdio on the gate's
+tree with an empty cache root, **98 s to `DONE`, complete**, the database and
+the index fetched inside that time, Checkov the slowest at 38 s — and its
+rehearsal on that exact commit was run 36257979480, green through validation and
+held at the `release` brake until the tag; then **`v0.5.0` released** on 2026-09-26 —
+the signed tag on `011ec09` pushed from the owner's session at their word, the
+rehearsal cancelled to free the group, run 36261443737 through stage and validation
+to the brake, the owner's click, promote: 94 minutes from the tag to
+`:latest`, 81 of them waiting for the click. Verified as a user would:
+`pip index versions valvur` lists `0.5.0`, `cosign verify` and `gh attestation
+verify` pass on `ghcr.io/maverickhq/valvur:0.5.0`. Phase 29 is shipped. The
+eight things the phase learned that no task asked for are in CLAUDE.md's
+Phase 29 bullet.
+
+
+## Phase 30 — The second gate: the `1.0.0` candidate, and what being told to stop must mean
+
+**Goal:** close what the second usability-gate run found — nine items, ranked,
+in [`docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md`](../../../docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md)
+— before and after the `v1.0.0` tag, in the order their consequences arrive.
+Written 2026-09-27, the evening of the run. The report's measurements are a
+stdio probe's and a headless agent's, with every JSON-RPC line kept; the three
+Tier 0 items were also read against `main` (`2eec4e2`) before they became
+tasks, and the head says what the code does. Each task lands by its own pull
+request with the test written first.
+
+> **What the gate found, in one paragraph.** The same participant as the first
+> gate — a Claude Code agent on the owner's own project — ran the `1.0.0`
+> candidate the owner had wired into the lab's `.mcp.json` (the worktree at
+> `23be2e2`, `valvur:dev` from `87e760ea`, an empty cache): **148 s from one
+> headless sentence to a correct report, cold**, 16 turns, no question asked,
+> nothing changed, no container left; the agent read the structured `next`
+> field and polled correctly from the first reply. **All nine of the first
+> gate's findings verified fixed on this build**, the timeout path on a real
+> Scanner included (C8: both Scanners past 600 s *stopped*, no container
+> after). Then a probe took the paths a model would not: a 20 s budget, bad
+> inputs, a cancel watched for 75 s, a disconnect mid-scan, the tree without
+> its exclude. **Two things are wrong in a way a stability claim cannot
+> carry** — after `scan_cancel` the two-wide fleet keeps launching queued
+> Scanners and reports `CANCELLED` with a container still up, and a killed
+> client leaves the server's own process holding the workspace lock (C1);
+> and `scan` with a relative or nonexistent path creates that directory inside
+> the user's project and reports confidently on it (C2). The rest: input errors
+> asynchronous and in Python's words (C3), `doctor_may_help` true in every
+> state (C4), a session talking to an older server than its config names with
+> nothing saying so (C5), the agent misreporting the results folder as
+> unignored (C6), small things (C7), and 3,890 identical secret hits on a data
+> directory ranked above the eight real findings (C9).
+
+> **Read against `main` before tasking (2026-09-27).** C1: the fleet submits
+> every Scanner to the pool up front (`api.py`, the `ThreadPoolExecutor`
+> block); a cancel kills the running containers and sets `runner.cancelled`,
+> which `_refuse_if_cancelled` reads only *after* the pool drains — nothing
+> cancels the queued futures the way the budget's cut does (`f.cancel()` at
+> the deadline), so the next worker starts the next Scanner. Confirmed by
+> reading; the probe measured it twice. C2: `start_scan` resolves the
+> argument with `Path(...).resolve()` against the server's own directory and
+> `results.write` creates the folder with `mkdir(parents=True)`; nothing
+> checks the workspace exists. Confirmed by reading. C4: `Job.doctor_may_help`
+> defaults to true and is set only when a job fails; the field is emitted in
+> every state. Confirmed by reading. **Verdict for the tag:** Tier 0 first.
+> The rehearsal at the brake (run 36317791899) is on a tree that mishandles
+> being told to stop; the prep commit's version stays `1.0.0`, the three fixes
+> land on `main`, and a fresh rehearsal on that commit takes fifteen minutes.
+> The owner decides; this is the recommendation and it is recorded here.
+
+### Tier 0 — Before the tag: stop means stop, and a workspace must exist
+
+- [ ] **30.0.1** **`scan_cancel` stops the queue, and `CANCELLED` waits for the
+  last container (C1; F1.11).** Measured by the probe, twice: on the excluded
+  tree, cancel at 11 s answered *stopped 2 container(s)*, a new container was
+  up 18 s later with the job still `CANCELLING`, and at +36 s the job read
+  `CANCELLED` — *6 of 8 had finished* after a cancel that met two running —
+  with a container up 13 s at that moment; on the unexcluded tree two further
+  pairs launched after the cancel. And a client that dies takes the `uv`
+  wrapper with it while the server's Python survives, holding
+  `.security-scan/.lock` with two `docker run` children, so the next `scan` is
+  refused *Busy*. Three fixes in one task, because they are one property:
+  the scheduler checks the cancel flag before every launch and cancels the
+  queued futures the moment `kill` runs (the budget already does this at its
+  deadline — one path, not two); `CANCELLED` is reported only when the
+  runner's containers are gone (`_wait_gone` per name, bounded); and the
+  server's exit stops the queue before it waits on it, so a dead client
+  cannot leave a lock-holder behind. **Held by:** a test where a cancel
+  during a two-wide fleet of four launches nothing more and reports
+  `CANCELLED` with zero live containers; a test that the queued futures are
+  cancelled by `kill`; the e2e cancel test extended to *no container after*.
+  Before `v1.0.0`.
+- [ ] **30.0.2** **A workspace that does not exist is refused, never created
+  (C2; ADR-0001, moat item 2).** Measured: `scan` with `workspace:
+  "relative/path"` created `~/occams-test-lab/relative/path/.security-scan/`,
+  ran every Scanner over the empty directory and answered *DONE … 1 active:
+  No licence file found*; an absolute path under `$HOME` would do the same. A
+  typo becomes a directory in the user's project and a confident, wrong
+  report. Fix: at the call, before a job starts — the workspace must be an
+  existing directory, given absolutely or resolved against a directory the
+  reply names; otherwise `isError` with one sentence and nothing written. The
+  CLI's `scan` gets the same check. **Held by:** a test per shape — relative,
+  absolute-missing, a file — that nothing is created and the reply says why.
+  Before `v1.0.0`.
+- [ ] **30.0.3** **Input errors fail at the call, in plain words, and `doctor`
+  is named only for a precondition (C3, C4).** Measured: a file as workspace
+  and `budget_s: -5` each *Started …* then `FAILED after 0s —
+  NotADirectoryError …` / `ValueError …`, followed by *Run `doctor`*; `"ten"`
+  and `"bogus"` refused synchronously but as `ValueError: …`;
+  `explain_finding` on an unknown fingerprint the same; and
+  `doctor_may_help` reads true while RUNNING, on DONE, on a budget cut and on
+  the Busy refusal, so a client that reads fields is sent to `doctor` after
+  every scan. Fix: validate every argument where it arrives, one sentence
+  each with no exception class; `doctor_may_help` present only on a failure
+  and true only when the cause could be a precondition (runtime, image,
+  database, index, SELinux, TLS); the Busy refusal gets its own `next` —
+  *wait, then call `scan_status`* — and no `doctor`. **Held by:** a test over
+  every bad input that the reply is synchronous, `isError`, and free of
+  exception names; a test that the field is absent or false in every
+  non-failure state. Before `v1.0.0`.
+
+### Tier 1 — After the tag, in order of what a user meets
+
+- [ ] **30.1.1** **A flood of one rule on one directory is one Finding (C9).**
+  Measured on the unexcluded tree: gitleaks reported 3,890 `generic-api-key`
+  hits, one per hash-named JSON file under `archive/surveys/…/baselines/`,
+  and `REMEDIATION.md` and the `Next:` line opened with *Rotate the
+  credentials in … — action 1 of 3890*; the pre-flight had already named the
+  directory. Fix: collapse repeated hits of one rule under one directory into
+  a single Finding carrying the count and the exclude line (*generic-api-key
+  ×3,890 under `archive/surveys/…` — machine-written data; verify one, or
+  exclude the directory*), ranked below distinct Findings; the raw list stays
+  in `findings.json`. Identity: a collapsed Finding's fingerprint is the rule
+  and the directory, so a Suppression on it holds. **Held by:** a fixture of
+  a directory of identical hits, the summary and remediation goldens.
+- [ ] **30.1.2** **`doctor` says when the server a session talks to is not the
+  one `.mcp.json` names (C5).** Measured: the session's tools were the server
+  spawned at its start while `.mcp.json` had been changed; `doctor` printed
+  the config's command under its own version header and drew no conclusion.
+  Half Claude Code's (it keeps the server it spawned), half ours: `doctor`
+  knows its own version and executable and reads the config's command; when
+  they differ it says *this server is <version> at <path>; `.mcp.json` names
+  <command>; restart the client to use it*. **Held by:** a unit test over a
+  config naming another command.
+- [ ] **30.1.3** **The `scan` reply and the handshake say the folder ignores
+  itself (C6).** Measured: the agent, refused a `git status`, told the user
+  the folder *is not in `.gitignore`* and to add a line; the folder holds its
+  own `.gitignore`. One clause in both places: *the folder ignores itself;
+  there is nothing to add*. **Held by:** the initialize snapshot and the
+  `scan` reply test.
+- [ ] **30.1.4** **The small things (C7, C8's excerpt).** *Completed so far:
+  starting* on every RUNNING reply once Scanners have finished, and `now:
+  null` beside a text that says *Now: trivy 16s …* (29.0.4/29.2.4 left the
+  fetch line and the running line under different names — say which, once);
+  `list_findings` with `limit: 500` answers 100 without saying it clamped; a
+  partial budget cut's `job` carries no `budget` field, only a full cut's
+  (29.2.4); `scan` accepts and ignores unknown arguments; the server's exit
+  after stdin closes took 10.4 s on a healthy scan, and a client that kills
+  after 5 s orphans it (30.0.1's third fix bounds this); the timeout's *last
+  stderr* excerpt is cut mid-word and runs into the duration. Each a line and
+  a test.
+
+**Exit (Phase 30):** Tier 0 on `main`, the rehearsal re-run on that commit,
+`v1.0.0` tagged from it; Tier 1 in `1.0.x` releases; the report's §5 list —
+Kiro driven, `full`, Podman, `gate`, suppressions, `update` — is the third
+gate's script.
+
+## Traceability
+
+The not-cuttable set from `requirements.md` maps to: F1 → Phase 8 · N2.1 → Phase 11
+cycle 1 · F5.3 → Phase 2 cycles 1–3 · F7.2 → Phase 1 cycles 4–5 · F9.2 → Phase 9
+cycle 4 · F9.4 → Phase 9 cycle 5. Each is a test that fails the build if broken.
+
+> ⚠️ **That last sentence is currently false, found 2026-09-05.** **F9.4** — no
+> watchers, no save hooks, no scan started other than by explicit invocation — has no
+> test at all. There is also no watching code, so the requirement holds in fact; it
+> simply is not *enforced*, and nothing would fail if someone added a watcher
+> tomorrow. [Phase 17](#phase-17--traceability-and-seams) fixes the claim and the
+> gap. Recorded here rather than quietly corrected, because a traceability section
+> that has been wrong once is worth reading sceptically.
