@@ -135,3 +135,58 @@ def test_the_real_runner_waits_until_the_runtime_no_longer_lists_its_container(m
 
     assert runner.wait_stopped(timeout=5) is True
     assert len(polls) == 3, "another runner's container does not hold this one's cancel"
+
+
+@pytest.mark.e2e
+def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_behind(
+        mountable_tmp, monkeypatch):
+    """The measurement behind R1.1, against the real image: two Scanners at a time,
+    so the rest are queued when the cancel lands. Before the fix the fleet
+    launched two or three containers after the client had gone (R0.6)."""
+    import shutil
+    import subprocess
+    import time
+    from pathlib import Path
+
+    from valvur import operations
+    from valvur.mcp import jobs
+    from valvur.mcp.jobs import State
+    from valvur.runner import detect_runtime
+
+    runtime = detect_runtime()
+
+    def live() -> set[str]:
+        out = subprocess.run([runtime, "ps", "--filter", "name=valvur-", "--format",
+                              "{{.Names}}"], capture_output=True, text=True, check=False,
+                             timeout=30)
+        return set(out.stdout.split())
+
+    workspace = mountable_tmp / "ws"
+    shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
+    monkeypatch.setenv("VALVUR_JOBS", "2")
+    jobs.reset()
+    before = live()
+    operations.start_scan({"workspace": str(workspace)})
+
+    seen: set[str] = set()
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:            # past the probe, into the fleet
+        now = live() - before
+        seen |= now
+        if len(seen) >= 3 and now:
+            break
+        time.sleep(0.2)
+    assert len(seen) >= 3, f"the fleet never ran two wide: {sorted(seen)}"
+
+    operations.cancel_scan({"workspace": str(workspace)})
+    known = set(seen) | (live() - before)
+    job = jobs.current(workspace.resolve())
+    launched_after: set[str] = set()
+    while not job.settled.is_set() and time.monotonic() < deadline:
+        launched_after |= (live() - before) - known
+        time.sleep(0.1)
+
+    assert job.state is State.CANCELLED, job.error
+    assert live() - before == set(), "CANCELLED was reported with a container still listed"
+    assert launched_after == set(), f"launched after the cancel: {sorted(launched_after)}"
+    jobs.reset()

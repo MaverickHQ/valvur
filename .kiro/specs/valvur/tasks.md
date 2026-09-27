@@ -257,12 +257,18 @@ condition.
 
 The current engine, patched where `0.5.0` users can be misled today.
 
-- [ ] **R1.1** **A cancel stops the queue** (F1.11). Behaviours:
+- [x] **R1.1** **A cancel stops the queue** (F1.11). Behaviours:
   1. With a fake runtime at `jobs=1`, a cancel during the first Scanner means the second is
      never launched.
   2. `CANCELLED` is reported only once the runtime lists none of the scan's containers.
   3. e2e at width 2: at the moment the state reads `CANCELLED`, `docker ps` shows no
      `valvur-` container.
+  **STATUS 2026-09-27:** ✅ Before (R0.6): after a disconnect at width 2 the fleet launched
+  two or three containers and the server exited 3.0 to 7.6 s later. After: a queued
+  Scanner checks the flag before it launches, and a cancelled scan waits until the runtime
+  lists none of its containers before it raises. The e2e test failed 3 of 3 on the old
+  engine, each time with two containers launched after the cancel, and passes on the new;
+  `test_mcp_shutdown` passes with it. `tests/test_cancel_stops_the_queue.py`, four tests.
 - [ ] **R1.2** **A workspace must exist** (F9.1, N2.2). Behaviours, through the MCP handlers
   and the CLI:
   1. A relative path resolves against `CLAUDE_PROJECT_DIR` when it is set, and is refused
