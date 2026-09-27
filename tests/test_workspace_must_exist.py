@@ -33,3 +33,20 @@ def test_a_scan_of_a_workspace_that_does_not_exist_is_refused_and_never_created(
     result = _call("scan", {"workspace": str(missing)})
     assert result["isError"] is True
     assert not (tmp_path / "no").exists()
+
+
+def test_a_relative_workspace_resolves_against_the_project_directory(tmp_path, monkeypatch):
+    from valvur.operations import resolve_workspace
+
+    (tmp_path / "sub").mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    assert resolve_workspace("sub") == (tmp_path / "sub").resolve()
+
+
+def test_a_relative_workspace_with_no_project_directory_is_refused(tmp_path, monkeypatch):
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.chdir(tmp_path)
+    result = _call("scan", {"workspace": "relative/path"})
+    assert result["isError"] is True
+    assert "absolute path" in _text(result)
+    assert not (tmp_path / "relative").exists()
