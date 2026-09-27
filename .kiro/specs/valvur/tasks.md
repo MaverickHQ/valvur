@@ -285,8 +285,8 @@ The current engine, patched where `0.5.0` users can be misled today.
     `test_version.py`.
   - After the phase lands, rehearse per §4 step 6. §8 gets its row.
 
-**Exit:** R1.1 to R1.4's regression tests pass on Linux CI and on the Mac, and `0.6.0` is
-rehearsed.
+**Exit:** R1.1 to R1.4's regression tests pass on Linux CI and on the Mac. The `0.6.0`
+rehearsal follows the landing (§4 step 6).
 
 ### Phase R2: the acceptance set
 
