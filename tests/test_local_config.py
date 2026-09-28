@@ -53,3 +53,31 @@ def test_an_absolute_local_path_in_local_agent_configuration_is_a_medium_finding
                              ".mcp.json"]
     assert {f["severity"] for f in found.values()} == {"medium"}
     assert "absolute local path" in found[".mcp.json"]["title"]
+
+
+def test_a_credential_shaped_value_is_named_by_its_key_and_never_quoted(tmp_path):
+    value = "Zq" + "9f" * 10          # built here, so no scanner sees a literal
+    ws = _ws(tmp_path, {
+        ".claude/settings.local.json": json.dumps({"env": {"GITHUB_TOKEN": value}}),
+        ".cursor/mcp.json": json.dumps({"mcpServers": {"api": {
+            "url": "https://example.invalid/mcp",
+            "headers": {"Authorization": f"Bearer {value}"}}}}),
+        # References are portable: the value lives in the environment.
+        ".mcp.json": _server("npx", API_KEY="${API_KEY}", DB_PASSWORD="$DB_PASSWORD"),
+    })
+
+    found = _exposed(ws)
+
+    assert sorted(found) == [".claude/settings.local.json", ".cursor/mcp.json"]
+    assert "GITHUB_TOKEN" in found[".claude/settings.local.json"]["title"]
+    assert "Authorization" in found[".cursor/mcp.json"]["title"]
+    assert not any(value in json.dumps(f) for f in found.values()), "the value was quoted"
+
+
+def test_a_file_holding_both_is_one_finding(tmp_path):
+    value = "Zq" + "9f" * 10
+    ws = _ws(tmp_path, {".mcp.json": _server("/home/alice/bin/tool", SERVICE_TOKEN=value)})
+
+    [finding] = _exposed(ws).values()
+
+    assert "absolute local path" in finding["title"] and "SERVICE_TOKEN" in finding["title"]

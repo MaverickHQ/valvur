@@ -40,6 +40,15 @@ LOCAL_PATH = re.compile(
     r"(?:/Users/|/home/)[A-Za-z0-9._-]+/?"
     r"|\b[A-Za-z]:(?:\\{1,2}|/)Users(?:\\{1,2}|/)[^\\/\"'\s]+"
 )
+#: A key that names a credential, and a quoted value shaped like one: twelve or
+#: more characters with no space, after an optional `Bearer `, and not a reference
+#: (`${VAR}`, `$VAR`, `{{ }}`, `<placeholder>`) to a value kept elsewhere.
+CREDENTIAL = re.compile(
+    r"[\"']?([A-Za-z0-9_.-]*(?:token|secret|passw(?:or)?d|api[_-]?key|access[_-]?key|"
+    r"private[_-]?key|credential|authorization)[A-Za-z0-9_.-]*)[\"']?\s*[:=]\s*"
+    r"[\"'](?:Bearer\s+|Basic\s+)?(?![$<{%])([^\"'\s]{12,})[\"']",
+    re.IGNORECASE,
+)
 
 # Phrases whose only purpose is to override a prior instruction. Deliberately narrow:
 # a false positive here accuses someone of planting an attack.
@@ -197,16 +206,23 @@ def _local_config(text: str, rel: str) -> list[dict]:
     """One Finding for a local configuration file that names this machine (R5.3).
     The host drops it when git ignores the file: the image has no git (ADR-0005)."""
     home = LOCAL_PATH.search(text)
-    if not home:
+    keys = list(dict.fromkeys(m.group(1) for m in CREDENTIAL.finditer(text)))
+    if not home and not keys:
         return []
+    holds = [*(["an absolute local path"] if home else []),
+             *([f"a credential-shaped value ({', '.join(keys)})"] if keys else [])]
+    first = min(m.start() for m in (home, CREDENTIAL.search(text)) if m)
+    # The evidence is the path, or the key's name: a credential's value is never
+    # written anywhere (F5.7).
+    evidence = home.group(0) if home else ", ".join(keys)
     return [{
         "rule": "valvur.ai-artifact.local-config-exposed",
         "severity": "medium",
         "path": rel,
-        "line": text.count("\n", 0, home.start()) + 1,
-        "title": ("Local agent configuration holds an absolute local path, and git "
-                  "does not ignore it"),
-        "evidence": neutralise(home.group(0), always_fence=True),
+        "line": text.count("\n", 0, first) + 1,
+        "title": f"Local agent configuration holds {' and '.join(holds)}, and git does "
+                 "not ignore it",
+        "evidence": neutralise(evidence, always_fence=True),
         "identity": ("ai_artifact", "local-config-exposed", rel),
     }]
 
