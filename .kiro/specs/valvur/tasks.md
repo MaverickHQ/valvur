@@ -566,7 +566,7 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   exactly OSV-Scanner and dependency-reality; Trivy never networked. The suite's count
   check now reads "not one fewer", as its comment always said. A real `full` scan on the
   image ran both containers in 8 s, every Scanner ok and none left behind.
-- [ ] **R3.9** **Switch over and delete.** The new engine becomes the only engine. Deleted:
+- [x] **R3.9** **Switch over and delete.** The new engine becomes the only engine. Deleted:
   the thread-pool fleet, both name registries, `skip_args`, `VENDORED`, the generated
   Gitleaks config (the project's own `.gitleaks.toml` is still honoured),
   `verify_workspace_readable`, width-from-memory, and `honour_gitignore`. `PROTOCOL.md`
@@ -578,6 +578,29 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
      and the CLI scans through the Scan Container too. Found at R3.5.
   4. A first run still fetches the absent image, database and index before the Scan
      Container starts (24.1). Found at R3.5.
+  **STATUS 2026-09-28:** ✅ The CLI and the MCP server scan through the Scan Container,
+  chosen because the runtime says it runs the engine; a scan through anything else is
+  refused. Deleted, each with its tests or a restatement: the thread-pool fleet, the
+  Checks batch, width from memory, the per-runner and per-process name registries,
+  `skip_args` and every adapter's skip flags, the Checks' exclude environment,
+  `VENDORED` and the vendored stage, the generated Gitleaks config (the project's own
+  `.gitleaks.toml` is read by Gitleaks from what it scans), `verify_workspace_readable`,
+  `honour_gitignore` and `include`, the workspace mount and relabelling. The File Set is
+  built once per scan and feeds the count, applicability, the coverage notes and the
+  record (`scope`, `not_read` with reasons). `--jobs` bounds the engine; the status
+  lines keep their words; the fetches of a first run are unchanged. Protocol 2, and a
+  protocol-1 image is refused with the fix. Each Scan Container gets D4's ceiling, 3 GiB
+  or three quarters of the runtime's memory; four gigabytes asked for is exit 137 in
+  9.7 s. The constraint suite holds the source never mounted, one container per
+  `offline` scan and zero containers after a budget cut, a grace kill and a cancel.
+  Found and fixed on the way, all in the new path: "nothing to scan" read as a failure
+  and a missing report as a pass; a refusing adapter raising out of the scan; a cancel
+  counting killed tools as finished; the Scan Container's mounts unlabelled for
+  SELinux; a signal kill recorded as -9; the lifecycle probes waiting for two
+  containers. `doctor` no longer fails an enforcing SELinux host over the source's
+  label. The e2e suite on the rebuilt image: 45 passed and 3 failed on the fleet's old
+  API, restated and green.
+
 - [ ] **R3.10** **`0.7.0` prepared** (D16). The version, the CHANGELOG and the README status
   line. The rehearsal runs after landing, per §4.
 
