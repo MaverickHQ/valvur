@@ -1003,10 +1003,25 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   database aged eight days, a scan refreshed it: 123 MB in 29 s, recorded, a 40 s scan,
   and data 0.03 days old after. Found on the way: a test that failed when run alone,
   hidden by a cache an earlier test warmed.
-- [ ] **R6.7** **Two settings files** (D11). Behaviours:
+- [x] **R6.7** **Two settings files** (D11). Behaviours:
   1. Machine settings are read from `~/.config/valvur/config.toml`.
   2. Each retired environment variable still works and prints one deprecation line.
   3. `doctor` prints the effective settings and where each came from.
+  **STATUS 2026-09-28:** ✅ One `settings` module; every read the shim made of a
+  `VALVUR_` variable goes through it: sixteen sites in eleven modules. The machine's file,
+  `$XDG_CONFIG_HOME/valvur/config.toml` (by default `~/.config/...`), is read once per
+  change and holds fifteen keys:
+  - **overridable by their variable:** the image, the cache, the runtime, debugging,
+    fetching, and the seven mirror settings;
+  - **retired to the file:** `jobs`, `container_network` and `selinux_relabel`. Their
+    variables still work in this release and say so once on stderr, naming the key.
+
+  The container's own variables, set by the shim, are not settings and stay. An
+  unreadable file is said and its settings not applied, and `doctor` warns with the path.
+  `doctor` prints each setting in effect and where it came from: the variable, the
+  file, or nothing set. The budget's levers, the CLI's help, the README and
+  `docs/AIR-GAPPED.md` name the file's keys. Implemented as one commit: the three
+  behaviours are one module.
 - [ ] **R6.8** **`valvur init` and the schema** (D10). Behaviours:
   1. `init` prints the client file for each client found and a starter `.security-scan.toml`
      with excludes suggested by the pre-flight count, and writes nothing.
