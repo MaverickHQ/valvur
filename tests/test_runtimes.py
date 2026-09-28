@@ -393,36 +393,6 @@ def test_a_kev_mirror_that_is_not_http_is_refused_softly(monkeypatch, tmp_path, 
     assert not (tmp_path / "kev.json").exists()
 
 
-def test_an_unreadable_workspace_is_refused_not_reported_clean(workspace, monkeypatch):
-    """The failure mode CI exposed, and the one no Scanner can detect.
-
-    From inside the container an unreadable directory and an empty one are identical.
-    Every Scanner reads nothing, exits 0, and valvur would report a clean scan of a
-    vulnerable repository — the worst possible failure for this product.
-    """
-    import subprocess
-
-    from valvur.runner import ContainerRunner, WorkspaceUnreadable
-
-    runner = ContainerRunner()
-
-    class Empty:
-        # The container ran successfully and saw nothing — which is the case this
-        # test exists for, and is distinct from the container failing to start.
-        returncode = 0
-        stdout = "0"
-        stderr = ""
-
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: Empty())
-
-    with pytest.raises(WorkspaceUnreadable) as excinfo:
-        runner.verify_workspace_readable(workspace)
-
-    message = str(excinfo.value)
-    assert "cannot read the workspace" in message
-    assert "indistinguishable from a clean one" in message
-
-
 @pytest.mark.e2e
 @pytest.mark.parametrize("runtime", RUNTIMES)
 def test_the_container_can_read_the_workspace_on_every_runtime(workspace, runtime):

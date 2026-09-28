@@ -44,9 +44,9 @@ def shutdown(out=None) -> None:
     A scan job is a daemon thread and dies with the process; the containers it
     launched are the runtime's children and do not (`runner.py`, 23.3.3). So the
     same path a `scan_cancel` takes is taken for each active job — the mark, the
-    runner's kill, the wait — and `kill_running` sweeps up anything no job owns:
-    a fleet whose job has already been replaced, or a container started between
-    the cancel and the kill. Nothing here raises: a server that cannot clean up
+    runtime's kill, the wait — and a kill by this process's label sweeps up
+    anything no job owns (R3.6): a container started between the cancel and the
+    kill, or a database fetch. Nothing here raises: a server that cannot clean up
     must still exit.
     """
     from .. import owner, runner
@@ -63,7 +63,7 @@ def shutdown(out=None) -> None:
     try:
         # Everything this process started, by label, in one call (R3.6): before
         # the waits, so the kill lands within seconds whatever a job is doing.
-        swept = owner.kill_mine(runner.detect_runtime()) + runner.kill_running()
+        swept = owner.kill_mine(runner.detect_runtime())
     except Exception as exc:   # broad: a server that cannot clean up must still exit
         print(f"valvur-mcp: could not stop remaining containers: {exc}",
               file=stream, flush=True)

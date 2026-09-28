@@ -26,21 +26,21 @@ def test_a_scanner_past_its_timeout_is_stopped_by_name_and_recorded(monkeypatch,
     waited: list[str] = []
 
     def expire(cmd, **kwargs):
+        if cmd[1] == "kill":
+            killed.append(cmd[2:])
+            return subprocess.CompletedProcess(cmd, 0, "", "")
         raise subprocess.TimeoutExpired(cmd, 2, output=b"", stderr=b"partial stderr")
 
     monkeypatch.setattr(subprocess, "run", expire)
-    monkeypatch.setattr(_runner, "_kill", lambda runtime, names: killed.append(names) or len(names))
     monkeypatch.setattr(_runner, "_wait_gone",
                         lambda runtime, name, timeout=15.0: waited.append(name) or True)
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    output = runner.run(Invocation(tool="probe", version="0", argv=("sleep", "600"), timeout=2),
-                        tmp_path)
+    output = runner.run(Invocation(tool="probe", version="0", argv=("sleep", "600"), timeout=2))
 
     assert output.stopped_after == 2 and output.exit_code == _runner.TIMED_OUT
     assert output.stderr == "partial stderr" and output.argv == ("sleep", "600")
     assert len(killed) == 1 and killed[0] == waited and waited[0].startswith("valvur-")
-    assert waited[0] not in _runner._live_containers, "still tracked after it was stopped"
 
 
 def test_the_record_says_timed_out_and_stopped_without_the_argv():

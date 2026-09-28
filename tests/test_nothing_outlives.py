@@ -94,7 +94,7 @@ def test_the_scan_container_and_the_fleet_carry_the_scan_runs_generation(
     for built in (ContainerRuntime(runtime="docker"), ContainerRunner(runtime="docker")):
         built.generation = "gen-7"
         argv = (built.command(tmp_path) if isinstance(built, ContainerRuntime)
-                else built._base_flags(tmp_path, str(tmp_path)))
+                else built._base_flags(str(tmp_path)))
         assert f"{owner.GENERATION_LABEL}=gen-7" in argv
         assert f"{owner.PID_LABEL}={os.getpid()}" in argv
 

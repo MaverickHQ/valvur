@@ -161,7 +161,7 @@ def test_the_runner_launches_an_invocation_as_base_flags_image_argv(tmp_path, mo
     runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
     invocation = Invocation(tool="probe", version="0", argv=("probe", "--flag"), report=None)
 
-    output = runner.run(invocation, tmp_path)
+    output = runner.run(invocation)
 
     cmd = launched[0]
     image_at = cmd.index("x/y:1")

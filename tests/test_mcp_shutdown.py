@@ -3,7 +3,7 @@
 `server.main` returned when stdin closed, on Ctrl-C and on a broken pipe, and the
 scan jobs it had started were daemon threads: they died with the process. The
 containers those jobs launched did not — `runner.py`'s own comment records that the
-container runtime owns their lifecycle, which is why `kill_running` and the
+container runtime owns their lifecycle, which is why a kill by label (R3.6) and the
 `--name valvur-<id>` registry exist (23.3.3). Nothing on the way out called either,
 so a client that disconnected mid-scan left the whole fleet running with nobody to
 read its result: measured before the fix, seven containers of a `full` scan, still
@@ -71,14 +71,15 @@ def test_the_server_cancels_an_active_job_when_the_client_goes_away(tmp_path, mo
     held.running.wait(timeout=5)
 
     killed: list[str] = []
-    monkeypatch.setattr("valvur.runner.kill_running", lambda: killed.append("backstop") or 0)
+    monkeypatch.setattr("valvur.runner.detect_runtime", lambda: "docker")
+    monkeypatch.setattr("valvur.owner.kill_mine", lambda runtime: killed.append("backstop") or 0)
     monkeypatch.setattr(server.protocol, "serve", lambda handlers: None)
     monkeypatch.setattr(server, "SHUTDOWN_SECONDS", 5)
 
     assert server.main([]) == 0
     assert held.stopped.is_set(), "the job was never told to stop"
     assert job.settled.wait(timeout=5) and job.state is jobs.State.CANCELLED, job.state
-    assert killed == ["backstop"], "kill_running is not the backstop it was built to be"
+    assert killed == ["backstop"], "the kill by label is not the backstop it was built to be"
 
 
 @pytest.mark.parametrize("raised", [KeyboardInterrupt, BrokenPipeError])
@@ -91,7 +92,8 @@ def test_every_way_the_server_ends_stops_the_fleet(tmp_path, monkeypatch, raised
     def explode(handlers):
         raise raised()
 
-    monkeypatch.setattr("valvur.runner.kill_running", lambda: 0)
+    monkeypatch.setattr("valvur.runner.detect_runtime", lambda: "docker")
+    monkeypatch.setattr("valvur.owner.kill_mine", lambda runtime: 0)
     monkeypatch.setattr(server.protocol, "serve", explode)
     monkeypatch.setattr(server, "SHUTDOWN_SECONDS", 5)
 
@@ -111,7 +113,8 @@ def test_a_shutdown_waits_for_the_job_to_settle_but_not_for_ever(tmp_path, monke
 
     jobs.start(tmp_path, "offline", work)
     time.sleep(0.05)
-    monkeypatch.setattr("valvur.runner.kill_running", lambda: 0)
+    monkeypatch.setattr("valvur.runner.detect_runtime", lambda: "docker")
+    monkeypatch.setattr("valvur.owner.kill_mine", lambda runtime: 0)
     monkeypatch.setattr(server.protocol, "serve", lambda handlers: None)
     monkeypatch.setattr(server, "SHUTDOWN_SECONDS", 0.3)
 
@@ -124,7 +127,8 @@ def test_a_shutdown_waits_for_the_job_to_settle_but_not_for_ever(tmp_path, monke
 
 def test_a_server_with_nothing_running_exits_silently(tmp_path, monkeypatch, capsys):
     """The common case — no scan in flight — costs nothing and says nothing."""
-    monkeypatch.setattr("valvur.runner.kill_running", lambda: 0)
+    monkeypatch.setattr("valvur.runner.detect_runtime", lambda: "docker")
+    monkeypatch.setattr("valvur.owner.kill_mine", lambda runtime: 0)
     monkeypatch.setattr(server.protocol, "serve", lambda handlers: None)
 
     assert server.main([]) == 0
@@ -141,7 +145,8 @@ def test_sigterm_runs_the_same_shutdown(tmp_path, monkeypatch):
 
     installed: dict[int, object] = {}
     monkeypatch.setattr(signal, "signal", lambda sig, handler: installed.setdefault(sig, handler))
-    monkeypatch.setattr("valvur.runner.kill_running", lambda: 0)
+    monkeypatch.setattr("valvur.runner.detect_runtime", lambda: "docker")
+    monkeypatch.setattr("valvur.owner.kill_mine", lambda runtime: 0)
     monkeypatch.setattr(server, "SHUTDOWN_SECONDS", 5)
 
     def serve_until_signalled(handlers):

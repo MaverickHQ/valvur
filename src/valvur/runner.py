@@ -6,14 +6,13 @@ import functools as _functools
 import os as _os
 import platform
 import sys
-import threading as _threading
 import uuid as _uuid
 from contextlib import suppress as _suppress
 from pathlib import Path
 
 from . import egress
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput, nothing_to_scan
-from .selinux import RELABEL_ENV, _relabel_workspace, _selinux_hint, selinux_enforcing
+from .selinux import RELABEL_ENV, selinux_enforcing
 from .version import __version__, default_image
 
 __all__ = ["NOTHING_TO_SCAN", "RELABEL_ENV", "Invocation", "ScannerOutput", "selinux_enforcing"]
@@ -36,44 +35,6 @@ DEBUG_ENV = "VALVUR_DEBUG"
 _VERSION = __version__
 
 _RUNTIMES = ("docker", "podman", "nerdctl")
-
-class WorkspaceUnreadable(RuntimeError):
-    """The container cannot see the source. Never downgraded to a clean result."""
-
-    #: A precondition `doctor` checks (R1.5).
-    doctor_may_help = True
-
-
-
-def _unreadable_hint(runtime: str, workspace) -> str:
-    """Say why, not just that. Podman on macOS runs a VM that shares only certain
-    host paths, so a repository outside them mounts as an empty directory with no
-    error from the runtime — the failure looks like a bug in us. Measured: a path
-    under /var/folders mounts empty while /private/tmp works."""
-    import platform
-
-    # Checked before the macOS branch: an enforcing host is a far more specific
-    # diagnosis than "check your mount permissions", and it is the one a RHEL user
-    # needs. Task 20.2.
-    if selinux_enforcing():
-        return _selinux_hint(workspace)
-
-    if "podman" not in runtime or platform.system() != "Darwin":
-        return (
-            "Check the path exists and that your container runtime is permitted to "
-            "mount it."
-        )
-    return (
-        "On macOS, Podman runs inside a VM and can only mount host paths that VM "
-        "shares. A path it does not share appears as an empty directory.\n"
-        f"  Path scanned: {workspace}\n"
-        "  Fix: scan a repository under your home directory, or share this path:\n"
-        "    podman machine stop\n"
-        "    podman machine set --volume /your/path:/your/path\n"
-        "    podman machine start\n"
-        "  Docker Desktop shares more paths by default and is unaffected."
-    )
-
 
 class ContainerStartFailed(RuntimeError):
     """The runtime could not start the container at all.
@@ -274,10 +235,6 @@ def _resource_flags(runtime: str) -> list[str]:
     return list(RESOURCE_LIMITS)
 
 
-_live_containers: set[str] = set()
-_live_lock = _threading.Lock()
-
-
 def _container_name() -> str:
     return f"valvur-{_uuid.uuid4().hex[:16]}"
 
@@ -326,138 +283,18 @@ def _text(raw) -> str:
     return raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
 
 
-def kill_running(runtime: str | None = None) -> int:
-    """Stop every container this process started. Returns how many were signalled.
-
-    Best effort by construction: a container that has already exited is not an error,
-    and refusing to exit because cleanup was imperfect would be worse than the mess.
-    """
-    with _live_lock:
-        names = sorted(_live_containers)
-    return _kill(runtime, names)
-
-
-def _kill(runtime: str | None, names: list[str]) -> int:
-    """One `kill` for all of them: the runtime signals each and reports the ones
-    already gone without stopping — measured, one call per container cost an
-    agent's cancel six seconds for seven containers (23.3.3)."""
-    import subprocess
-
-    if not names:
-        return 0
-    binary = runtime or detect_runtime()
-    with _suppress(Exception):
-        subprocess.run(  # noqa: S603
-            [binary, "kill", *names],
-            capture_output=True, timeout=30, check=False,
-        )
-    return len(names)
-
-
 class ContainerRunner:
-    """Invokes the scanner image. The Workspace is mounted read-only (ADR-0001)."""
+    """What a scan needs from the image before its Scan Container starts, and the
+    database fetch (ADR-0022): the image present, pulled, checked against this
+    shim; the database fetched by Trivy inside it. Every Scanner runs in the Scan
+    Container (`engine_host.ContainerRuntime`), which never mounts the source."""
 
     def __init__(self, image: str = IMAGE, runtime: str | None = None):
         self.image = image
         self._runtime = runtime
-        #: Containers THIS runner launched, so a cancel from one MCP job stops its
-        #: own fleet and not another workspace's (23.3.3). `kill_running` is the
-        #: process-wide version, for Ctrl-C.
-        self._mine: set[str] = set()
-        #: Set by `kill`. The scan checks it before it writes anything (F1.11).
-        self.cancelled = False
-        #: The Scan Run's generation, set by the scan and carried by every
-        #: container this runner starts (R3.6).
+        #: The Scan Run's generation, carried by every container this runner
+        #: starts (R3.6); none for a fetch outside a scan.
         self.generation: str | None = None
-
-    def kill(self) -> int:
-        """Stop the containers this runner started, and remember that the scan
-        was cancelled. Returns how many were signalled."""
-        self.cancelled = True
-        return self.stop_containers()
-
-    def wait_stopped(self, timeout: float = 15.0) -> bool:
-        """Wait until the runtime lists none of the containers this runner ever
-        started (R1.1): a kill is only done when the daemon says so. True when
-        they are gone, False if `timeout` passed first."""
-        import subprocess
-        import time
-
-        with _live_lock:
-            mine = set(self._mine)
-        if not mine:
-            return True
-        deadline = time.monotonic() + timeout
-        while True:
-            listed: set[str] = set()
-            with _suppress(Exception):
-                listed = set(subprocess.run(  # noqa: S603
-                    [self.runtime, "ps", "-a", "--filter", "name=valvur-",
-                     "--format", "{{.Names}}"],
-                    capture_output=True, text=True, timeout=30, check=False,
-                ).stdout.split())
-            if not listed & mine:
-                return True
-            if time.monotonic() >= deadline:
-                return False
-            time.sleep(0.25)
-
-    def stop_containers(self) -> int:
-        """Stop the containers this runner started — without cancelling the scan.
-        What the budget does (23.3.7): the Scanners that finished are a result."""
-        with _live_lock:
-            names = sorted(self._mine & _live_containers)
-        runtime = None
-        with _suppress(Exception):
-            runtime = self.runtime
-        return _kill(runtime, names)
-
-    def verify_workspace_readable(self, workspace: Path) -> None:
-        """Confirm the container can actually see the Workspace before trusting a
-        clean result.
-
-        Found by CI: on rootless Podman the wrong user-mapping flag made the bind
-        mount unreadable, so every Scanner read an empty tree, exited 0, and valvur
-        reported a CLEAN SCAN OF A VULNERABLE REPOSITORY. No Scanner can detect this
-        — from inside, an unreadable directory and an empty one are identical.
-        """
-        import tempfile
-
-        host_entries = sum(1 for _ in workspace.iterdir())
-        if host_entries == 0:
-            return                     # genuinely empty; nothing to verify
-
-        with tempfile.TemporaryDirectory(prefix="valvur-") as scratch:
-            cmd = [
-                *self._base_flags(workspace, scratch),
-                "--entrypoint", "sh", self.image,
-                "-c", "ls -A /workspace | wc -l",
-            ]
-            proc = self._launch(
-                cmd, capture_output=True, text=True, timeout=120, check=False
-            )
-
-        seen = proc.stdout.strip()
-        if proc.returncode != 0 or not seen.isdigit():
-            raise ContainerStartFailed(
-                "The container did not run, so the workspace could not be checked.\n"
-                "This is not a problem with your code — the scan never started.\n"
-                f"Runtime: {self.runtime}\n"
-                f"Image:   {self.image}\n"
-                f"{Path(self.runtime).name} said:\n"
-                f"  {(proc.stderr.strip() or '(no error text)')[:500]}\n"
-                f"If the image is missing, fetch it with:\n"
-                f"  {Path(self.runtime).name} pull {self.image}"
-            )
-        if int(seen) == 0:
-            raise WorkspaceUnreadable(
-                f"The container cannot read the workspace: {workspace} has "
-                f"{host_entries} entries, the container sees {seen or 'none'}.\n"
-                "Refusing to report a scan — an unreadable workspace is "
-                "indistinguishable from a clean one, and reporting it as clean would "
-                "be the worst possible failure.\n"
-                f"Runtime: {self.runtime}\n" + _unreadable_hint(self.runtime, workspace)
-            )
 
     def verify_compatible(self) -> None:
         from . import compat
@@ -529,7 +366,7 @@ class ContainerRunner:
         return self._runtime
 
     def _launch(self, cmd, **kwargs):
-        """Run a container command, tracking it so an interrupt can stop it."""
+        """Run a container command; one past its timeout is stopped by name."""
         import subprocess
 
         if _os.environ.get(DEBUG_ENV) == "1":
@@ -538,10 +375,6 @@ class ContainerRunner:
             # over MCP never sees it.
             print("valvur: " + " ".join(str(part) for part in cmd), file=sys.stderr, flush=True)
         name = cmd[cmd.index("--name") + 1] if "--name" in cmd else None
-        if name:
-            with _live_lock:
-                _live_containers.add(name)
-                self._mine.add(name)
         try:
             return subprocess.run(cmd, **kwargs)  # noqa: S603
         except subprocess.TimeoutExpired as exc:
@@ -551,16 +384,14 @@ class ContainerRunner:
             # 92 % CPU 90 s after the server had exited. Stop it by the name it
             # was given, wait until the runtime no longer lists it, then say so.
             if name:
-                _kill(self.runtime, [name])
+                with _suppress(Exception):
+                    subprocess.run([self.runtime, "kill", name],  # noqa: S603
+                                   capture_output=True, timeout=30, check=False)
                 _wait_gone(self.runtime, name)
             raise _ScannerTimedOut(exc.timeout, _text(exc.stderr)) from exc
-        finally:
-            if name:
-                with _live_lock:
-                    _live_containers.discard(name)
 
     def _base_flags(
-        self, workspace: Path, scratch: str, *, network: bool = False, allow_exec: bool = False
+        self, scratch: str, *, network: bool = False, allow_exec: bool = False
     ) -> list[str]:
         from . import cache
 
@@ -570,7 +401,6 @@ class ContainerRunner:
         names.mkdir(parents=True, exist_ok=True)
         enforcing = selinux_enforcing()
         own_label = ":z" if enforcing else ""
-        ws_label = ",z" if enforcing and _relabel_workspace() else ""
         from . import owner
 
         flags = [
@@ -589,14 +419,9 @@ class ContainerRunner:
             "--cap-drop=ALL",
             # The memory, PID and privilege ceiling (28.0.3), from one tuple above.
             *_resource_flags(self.runtime),
-            # SELinux mount labelling (F1.6, task 20.2). Measured on an enforcing
-            # host: without a label EVERY one of these three mounts is denied — the
-            # source unreadable, the results unwritable, the cache unwritable.
-            #
-            # The two valvur owns are relabelled unconditionally. The developer's
-            # source tree is not, unless they ask: `:z` persists after the scan, and
-            # section 10 prohibits writing to the scanned tree without approval.
-            "-v", f"{workspace}:/workspace:ro{ws_label}",   # F1.1 - source read-only
+            # SELinux mount labelling (F1.6, task 20.2): measured on an enforcing
+            # host, an unlabelled mount is denied. Every mount here is valvur's own;
+            # the source is never mounted (ADR-0022).
             "-v", f"{scratch}:/results{own_label}",
             "-v", f"{db}:/cache/trivy{own_label}",  # ADR-0012 - DB outside the image
             # ADR-0018 - the package-name index, beside the database and for the
@@ -624,9 +449,9 @@ class ContainerRunner:
         # Trivy's, fetched by Trivy, and the adapter knows how (26.2.1).
         from .adapters.trivy import database_fetch
 
-        return self.run(database_fetch(), Path.cwd())
+        return self.run(database_fetch())
 
-    def run(self, invocation: Invocation, workspace: Path) -> ScannerOutput:
+    def run(self, invocation: Invocation) -> ScannerOutput:
         """Run one Invocation — any Scanner's — and read its report from the
         scratch mount. The container concerns are this method's; the tool's are
         the Invocation's (26.2.1). `check=False` throughout: a Scanner exiting
@@ -641,7 +466,7 @@ class ContainerRunner:
             for name, text in invocation.files:
                 (Path(scratch) / name).write_text(text, encoding="utf-8")
             cmd = [
-                *self._base_flags(workspace, scratch, network=invocation.network,
+                *self._base_flags(scratch, network=invocation.network,
                                   allow_exec=invocation.allow_exec),
                 *[flag for key, value in invocation.env for flag in ("--env", f"{key}={value}")],
                 self.image, *invocation.argv,

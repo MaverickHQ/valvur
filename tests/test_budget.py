@@ -238,24 +238,3 @@ def test_the_cli_has_no_budget_unless_asked(monkeypatch, tmp_path, capsys):
     assert "--budget" in capsys.readouterr().err
 
 
-def test_the_real_runner_can_stop_its_fleet_without_cancelling(monkeypatch):
-    import subprocess
-
-    import valvur.runner as runner_module
-    from valvur.runner import ContainerRunner
-
-    killed: list[str] = []
-    monkeypatch.setattr(subprocess, "run", lambda cmd, **k: killed.extend(cmd[2:]) or
-                        subprocess.CompletedProcess(cmd, 0, "", ""))
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-    runner._mine.add("valvur-a")
-    with runner_module._live_lock:
-        runner_module._live_containers.add("valvur-a")
-    try:
-        stopped = runner.stop_containers()
-    finally:
-        with runner_module._live_lock:
-            runner_module._live_containers.discard("valvur-a")
-
-    assert stopped == 1 and killed == ["valvur-a"]
-    assert runner.cancelled is False

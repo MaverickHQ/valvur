@@ -155,3 +155,18 @@ def test_nothing_to_scan_is_an_empty_result_and_a_missing_report_is_a_failure(ws
     assert by_tool["nothing"].ok, by_tool["nothing"]
     assert not by_tool["silent"].ok
     assert "produced no report" in by_tool["silent"].reason
+
+
+def test_on_an_enforcing_host_the_scan_containers_own_mounts_are_labelled(tmp_path, monkeypatch):
+    """F1.6 for the Scan Container: every mount valvur owns carries `:z`, or an
+    enforcing host denies the plan, the reports and the cache. There is no source
+    mount to label (ADR-0022)."""
+    from valvur import cache, engine_host
+    from valvur.engine_host import ContainerRuntime
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    for enforcing in (True, False):
+        monkeypatch.setattr(engine_host, "selinux_enforcing", lambda e=enforcing: e)
+        argv = ContainerRuntime(image="x/y:1", runtime="/usr/bin/podman").command(tmp_path)
+        mounts = [argv[i + 1] for i, flag in enumerate(argv) if flag == "-v"]
+        assert mounts and all(m.endswith((":z", ",z")) is enforcing for m in mounts), mounts

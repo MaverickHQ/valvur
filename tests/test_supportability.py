@@ -35,7 +35,7 @@ def test_the_runner_records_the_argv_it_launched_on_the_output(tmp_path, monkeyp
     invocation = Invocation(tool="gitleaks", version="8.30.1",
                             argv=("gitleaks", "dir", "/workspace", "--report-format", "json"))
 
-    output = container.run(invocation, tmp_path)
+    output = container.run(invocation)
 
     assert output.argv == invocation.argv
     assert launched and launched[0][-5:] == list(invocation.argv), \

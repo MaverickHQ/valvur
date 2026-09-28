@@ -116,27 +116,6 @@ def test_cancelled_is_reported_only_once_the_runtime_lists_none_of_its_container
     jobs.reset()
 
 
-def test_the_real_runner_waits_until_the_runtime_no_longer_lists_its_container(monkeypatch):
-    import subprocess
-
-    from valvur.runner import ContainerRunner
-
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-    runner._mine.add("valvur-abc")
-    answers = iter(["valvur-abc\n", "valvur-abc\nvalvur-other\n", "valvur-other\n"])
-    polls: list[list[str]] = []
-
-    def fake_run(cmd, **kwargs):
-        polls.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, next(answers, ""), "")
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    monkeypatch.setattr("time.sleep", lambda _s: None)
-
-    assert runner.wait_stopped(timeout=5) is True
-    assert len(polls) == 3, "another runner's container does not hold this one's cancel"
-
-
 @pytest.mark.e2e
 def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_behind(
         mountable_tmp, monkeypatch):

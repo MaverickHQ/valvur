@@ -5,42 +5,52 @@ every launch carries a name to kill it by, and a refusal is one line. Split from
 
 from __future__ import annotations
 
-import subprocess
-
 import pytest
 
 from valvur import profiles
 
 # ------------------------------------------- interruption is its own outcome (16.2)
 
-def test_interrupting_a_scan_stops_the_containers(monkeypatch):
+def test_interrupting_a_scan_stops_the_containers(monkeypatch, tmp_path):
     """F1.11, task 16.2. Measured before this existed: `docker run` does not stop its
     container on SIGINT, nor when the CLI is SIGKILLed — the daemon owns the
     lifecycle. The developer cancelled and the machine kept working, with the scratch
     mount holding raw output and live credentials (F5.7) alive for the duration.
-    """
-    import valvur.runner as runner_module
+    Since R3.9 the CLI's handler kills this process's containers by label, and
+    leaves another process's alone."""
+    import json
+    import os
+    import signal
+    import socket
+    from pathlib import Path
 
-    killed: list[list[str]] = []
+    from valvur import cli, owner
 
-    def fake_run(cmd, **kwargs):
-        killed.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
+    fake = Path(__file__).parent / "fixtures" / "fake-runtime" / "docker"
+    state = tmp_path / "runtime.json"
+    mine = {owner.PID_LABEL: str(os.getpid()), owner.HOST_LABEL: socket.gethostname()}
+    other = {owner.PID_LABEL: "1", owner.HOST_LABEL: socket.gethostname()}
+    state.write_text(json.dumps({"containers": [
+        {"id": "a", "name": "valvur-aaa", "labels": mine},
+        {"id": "b", "name": "valvur-bbb", "labels": mine},
+        {"id": "c", "name": "valvur-ccc", "labels": other}]}))
+    monkeypatch.setenv("FAKE_RUNTIME_STATE", str(state))
 
-    # runner.py imports subprocess inside functions, so the global is the one that
-    # matters — patching a module attribute would create one nothing reads.
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    with runner_module._live_lock:
-        runner_module._live_containers.update({"valvur-aaa", "valvur-bbb"})
+    class Runtime:
+        runtime = str(fake)
+
+    previous = signal.getsignal(signal.SIGINT), signal.getsignal(signal.SIGTERM)
     try:
-        stopped = runner_module.kill_running("/usr/local/bin/docker")
+        cli._stop_on_interrupt(Runtime())
+        with pytest.raises(SystemExit) as stopped:
+            signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
     finally:
-        with runner_module._live_lock:
-            runner_module._live_containers.clear()
+        signal.signal(signal.SIGINT, previous[0])
+        signal.signal(signal.SIGTERM, previous[1])
 
-    assert stopped == 2
-    assert all(c[1] == "kill" for c in killed), killed
-    assert {name for c in killed for name in c[2:]} == {"valvur-aaa", "valvur-bbb"}
+    assert stopped.value.code == 130
+    left = [c["name"] for c in json.loads(state.read_text())["containers"]]
+    assert left == ["valvur-ccc"]
 
 
 def test_the_check_entry_point_turns_its_own_refusal_into_one_line(capsys, tmp_path):

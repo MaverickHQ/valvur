@@ -10,7 +10,6 @@ default memory, measured — and it is honoured by the fleet's executor, not by 
 from __future__ import annotations
 
 import json
-import subprocess
 import threading
 import time
 from pathlib import Path
@@ -20,58 +19,9 @@ from conftest import LegacyDispatch
 
 from valvur import api
 from valvur.adapters import GitleaksAdapter
-from valvur.runner import ContainerRunner, ScannerOutput
+from valvur.runner import ScannerOutput
 
 # ------------------------------------------------------------ the runner's kill
-
-
-def test_a_runner_kills_only_its_own_containers_and_remembers_it_was_cancelled(monkeypatch):
-    """`kill_running` stops everything this PROCESS started — right for Ctrl-C,
-    wrong for an MCP server scanning two workspaces at once. A runner kills what it
-    launched, and nothing else."""
-    import valvur.runner as runner_module
-
-    killed: list[str] = []
-
-    def fake_run(cmd, **kwargs):
-        if cmd[1] == "kill":
-            killed.extend(cmd[2:])
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    mine = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-    with runner_module._live_lock:
-        runner_module._live_containers.update({"valvur-mine1", "valvur-mine2", "valvur-other"})
-    mine._mine.update({"valvur-mine1", "valvur-mine2", "valvur-finished"})
-    try:
-        stopped = mine.kill()
-    finally:
-        with runner_module._live_lock:
-            runner_module._live_containers.clear()
-
-    assert stopped == 2
-    assert sorted(killed) == ["valvur-mine1", "valvur-mine2"]
-    assert mine.cancelled is True
-
-
-def test_a_launch_is_tracked_on_the_runner_as_well_as_the_process(monkeypatch):
-    import valvur.runner as runner_module
-
-    seen: list[str] = []
-
-    def fake_run(cmd, **kwargs):
-        seen.append(cmd[cmd.index("--name") + 1])
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-
-    runner._launch(["/usr/local/bin/docker", "run", "--name", "valvur-abc", "x/y:1"])
-
-    assert seen == ["valvur-abc"]
-    assert runner._mine == {"valvur-abc"}
-    with runner_module._live_lock:
-        assert "valvur-abc" not in runner_module._live_containers   # released after exit
 
 
 # ---------------------------------------------------- a cancelled scan writes nothing

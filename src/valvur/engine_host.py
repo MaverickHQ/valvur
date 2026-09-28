@@ -21,6 +21,7 @@ from pathlib import Path
 
 from .engine import RESULTS_ENV, WORKSPACE_ENV
 from .invocation import Invocation
+from .selinux import selinux_enforcing
 
 
 def snapshot(root: Path, files: Iterable[str]) -> bytes:
@@ -297,9 +298,12 @@ class ContainerRuntime(_Runtime):
         db.mkdir(parents=True, exist_ok=True)
         names.mkdir(parents=True, exist_ok=True)
         name = name or f"valvur-{uuid.uuid4().hex[:16]}"
+        # F1.6: on an enforcing host every mount valvur owns is labelled, or the
+        # plan, the reports and the cache are denied. The source is not mounted.
+        z = ":z" if selinux_enforcing() else ""
         if snapshot_bytes > TMPFS_LIMIT:
             # Past the tmpfs: a volume named for this scan, removed after it.
-            landing = ["-v", f"{name}-snapshot:/workspace"]
+            landing = ["-v", f"{name}-snapshot:/workspace{z}"]
         else:
             # In memory, gone with the container.
             landing = ["--tmpfs", "/workspace:rw,nosuid,size=512m,mode=1777"]
@@ -311,9 +315,9 @@ class ContainerRuntime(_Runtime):
             # Opengrep unpacks and runs opengrep-core from /tmp; R3.4 narrows this.
             "--tmpfs", "/tmp:rw,exec,nosuid,size=512m",   # noqa: S108 — the container's
             *landing,
-            "-v", f"{scratch}:/results",
-            "-v", f"{db}:/cache/trivy",
-            "-v", f"{names}:/cache/names:ro",
+            "-v", f"{scratch}:/results{z}",
+            "-v", f"{db}:/cache/trivy{z}",
+            "-v", f"{names}:/cache/names:ro{z and ',z'}",
             *egress.Egress(network=network).container_flags(),
             self.image, "python", "-m", "valvur.engine",
         ]

@@ -47,7 +47,6 @@ def _stop_on_interrupt(runner) -> None:
     import signal
 
     from . import owner
-    from .runner import kill_running
 
     def handle(_signum, _frame):
         runtime = None
@@ -55,9 +54,7 @@ def _stop_on_interrupt(runner) -> None:
             runtime = runner.runtime
         # By label, synchronously (R3.6): this handler runs on the thread that
         # reads the engine, so nothing may wait on that thread here.
-        stopped = kill_running(runtime)
-        if isinstance(runtime, str):
-            stopped += owner.kill_mine(runtime)
+        stopped = owner.kill_mine(runtime) if isinstance(runtime, str) else 0
         print(
             f"\n  ! interrupted — stopped {stopped} scanner(s)"
             if stopped
