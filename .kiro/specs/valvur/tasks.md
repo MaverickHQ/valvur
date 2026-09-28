@@ -662,11 +662,19 @@ The first commit records R3's rehearsal.
   scan of the planted workflow reports each of the three classes once, ranked, and
   repository 7's `write-all` is `excessive-permissions`, high, at line 3. Rules keep
   zizmor's audit names; the fingerprint is SAST-shaped, keyed on the offending text.
-- [ ] **R4.3** **Checkov only where there is infrastructure** (F2.1, F2.2), or KICS in its
+- [x] **R4.3** **Checkov only where there is infrastructure** (F2.1, F2.2), or KICS in its
   place if D8 says so. Behaviours:
   1. Repository 5's expected findings hold.
   2. A repository with only workflows skips Checkov, and the skip is reported.
   3. The image size is recorded before and after.
+  **STATUS 2026-09-28:** ✅ D8 kept Checkov (R4.1). GitHub Actions workflows no longer
+  decide that it runs, by name or by the content sniff, which had taken fastify's
+  `@fastify/swagger` for OpenAPI; where it runs it skips the `github_actions` framework,
+  so a write-all permission is zizmor's one Finding. On the corpus Checkov now runs on
+  one repository of thirteen, the Terraform module; on the other twelve it cost 4 to 6 s
+  of startup to find nothing. Repository 5 passes, Checkov 54.5 s; a workflows-only
+  repository reports the skip with its reason. The image: 640.3 MB at R3's exit, 665.0 MB
+  with zizmor (+24.7 MB); Checkov's layer is unchanged.
 - [ ] **R4.4** **The SBOM from Trivy's pass** (D8, D9; P3, F10.3), if D8 says so.
   Behaviours: `sbom.cdx.json` validates as CycloneDX, and its component count matches the
   parity recorded in R4.1.

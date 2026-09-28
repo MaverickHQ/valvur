@@ -33,7 +33,11 @@ _IAC_NAMES = frozenset({
     "template.yaml", "template.yml", ".gitlab-ci.yml",
     "bitbucket-pipelines.yml", "azure-pipelines.yml", "azure-pipelines.yaml",
 })
-_IAC_PARENTS = frozenset({".github/workflows", ".circleci", ".argo", "argo"})
+#: Other CI systems' files, which Checkov reads. GitHub Actions workflows are not
+#: here since R4.3: zizmor audits them (ADR-0023), and on the corpus they were the
+#: only reason Checkov ran on twelve repositories of thirteen.
+_IAC_PARENTS = frozenset({".circleci", ".argo", "argo"})
+_WORKFLOWS = ".github/workflows/"
 
 # Markers inside a YAML or JSON file that make it infrastructure. Checkov's
 # kubernetes, cloudformation, arm, openapi and ansible runners all act on files that
@@ -64,6 +68,10 @@ def iac_present(workspace: Path) -> tuple[bool, str]:
     """
     sniffed = 0
     for path in _candidates(workspace):
+        if _relative(path, workspace).startswith(_WORKFLOWS):
+            # zizmor's, whatever words they contain (R4.3): fastify's lists
+            # `@fastify/swagger`, which the content sniff took for OpenAPI.
+            continue
         name = path.name.lower()
         if path.suffix.lower() in _IAC_SUFFIXES or name in _IAC_NAMES:
             return True, _relative(path, workspace)

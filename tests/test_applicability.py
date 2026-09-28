@@ -39,7 +39,6 @@ def _repo(root, files: dict[str, str]):
     ("kustomization.yaml", "resources: []\n"),
     ("main.bicep", "param location string\n"),
     (".gitlab-ci.yml", "stages: [build]\n"),
-    (".github/workflows/ci.yml", "on: push\njobs: {}\n"),
     (".circleci/config.yml", "version: 2.1\n"),
 ])
 def test_infrastructure_by_name_is_recognised(tmp_path, name, body):
@@ -67,9 +66,19 @@ def test_the_evidence_names_the_file_that_decided_it():
 
     found, evidence = iac_present(Path("tests/fixtures/broken-repo"))
 
-    # The first decisive file in the File Set's order (R3.9), a workflow Checkov reads.
+    # The first decisive file in the File Set's order (R3.9); workflows are zizmor's
+    # since R4.3, so not a workflow.
     assert found
-    assert evidence == ".github/workflows/ci.yml"
+    assert not evidence.startswith(".github/workflows/"), evidence
+
+
+def test_a_repository_with_only_github_actions_workflows_has_nothing_for_checkov(tmp_path):
+    """R4.3: zizmor audits workflows (ADR-0023), so they no longer decide that
+    Checkov runs; on the corpus, twelve of thirteen repositories were paying its
+    startup for workflows alone."""
+    root = _repo(tmp_path, {".github/workflows/ci.yml": "on: push\njobs: {}\n",
+                            "src/app.py": "x = 1\n"})
+    assert iac_present(root) == (False, "")
 
 
 # ----------------------------------------------------- and code is NOT mistaken
@@ -155,3 +164,11 @@ def test_a_skipped_scanner_is_not_a_failure_and_is_reported(workspace, runner_fi
     }
     assert "Not run, having nothing to analyse" in _summary(run)
     assert "checkov" in _summary(run)
+
+
+def test_a_workflow_that_mentions_an_infrastructure_word_is_still_zizmors(tmp_path):
+    """Measured on the corpus: fastify's `citgm.yml` lists `@fastify/swagger`, and the
+    content sniff took it for an OpenAPI document, so Checkov ran for a workflow."""
+    root = _repo(tmp_path, {".github/workflows/citgm.yml":
+                            "on: push\njobs:\n  t:\n    steps:\n      - '@fastify/swagger'\n"})
+    assert iac_present(root) == (False, "")

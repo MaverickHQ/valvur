@@ -31,7 +31,8 @@ class CheckovAdapter(ScannerAdapter):
         found, evidence = iac_present(workspace)
         if found:
             return True, evidence
-        return False, "no Dockerfile, terraform, Kubernetes, CI or template files found"
+        return False, ("no Dockerfile, terraform, Kubernetes, CI or template files found; "
+                       "GitHub Actions workflows are zizmor's")
 
     def command(self, workspace: Path) -> Invocation:
         return Invocation(
@@ -39,7 +40,10 @@ class CheckovAdapter(ScannerAdapter):
             argv=("checkov", "--directory", "/workspace", "--output", "json",
                   "--output-file-path", "/results", "--quiet", "--compact",
                   # No network, ever: skip external data downloads outright.
-                  "--skip-download"),
+                  "--skip-download",
+                  # Workflows are zizmor's (R4.3, ADR-0023): without this one
+                  # write-all permission would be two Findings.
+                  "--skip-framework", "github_actions"),
             report="results_json.json", timeout=600, empty_when=NOTHING_TO_SCAN,
         )
 

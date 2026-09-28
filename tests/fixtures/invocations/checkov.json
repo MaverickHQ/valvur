@@ -9,7 +9,9 @@
     "/results",
     "--quiet",
     "--compact",
-    "--skip-download"
+    "--skip-download",
+    "--skip-framework",
+    "github_actions"
   ],
   "timeout": 600,
   "network": false,
