@@ -18,7 +18,7 @@ from valvur.findings import Finding
 
 ORDER = [
     "coverage", "licence", "configured", "unpinned", "merged",
-    "gitcontext", "enrich", "suppress", "rank", "diff",
+    "gitcontext", "enrich", "suppress", "group", "rank", "diff",
 ]
 
 
@@ -129,7 +129,8 @@ def test_a_stage_that_is_not_a_pure_function_of_its_inputs_is_caught(tmp_path):
 
 @pytest.mark.parametrize("earlier,later", [
     ("coverage", "configured"), ("configured", "merged"),
-    ("merged", "enrich"), ("enrich", "suppress"), ("suppress", "rank"), ("rank", "diff"),
+    ("merged", "enrich"), ("enrich", "suppress"), ("suppress", "group"), ("group", "rank"),
+    ("rank", "diff"),
 ])
 def test_the_pairwise_constraints_the_reasons_name(earlier, later):
     """Each `why_here` names a stage it must precede or follow. Spelled out so the

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from . import grouping as _grouping
 from .findings import SEVERITIES, Finding
 
 # A floor for classes that are real but rarely urgent, so they cannot crowd out
@@ -84,9 +85,13 @@ def sort_key(finding: Finding) -> tuple:
     # A suppressed Finding occupying a top slot crowds out a live one — the exact
     # noise problem F6.5 exists to solve. It is still reported, just never first.
     suppressed_penalty = 1 if finding.suppressed else 0
+    # A flood of machine-written data ranks below every distinct Finding (R5.1):
+    # 3,890 hits in generated JSON buried eight real ones on the gate.
+    flood_penalty = 1 if _grouping.flooded(finding) else 0
 
     return (
         suppressed_penalty,
+        flood_penalty,
         dev_penalty,
         tier,
         -epss,

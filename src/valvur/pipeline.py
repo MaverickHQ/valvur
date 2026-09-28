@@ -24,6 +24,7 @@ from . import coverage as _coverage
 from . import enrichment as _enrichment
 from . import exclusions as _exclusions
 from . import gitcontext as _gitcontext
+from . import grouping as _grouping
 from . import licence_policy as _licence
 from . import ranking as _ranking
 from . import results as _results
@@ -204,6 +205,10 @@ def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     return findings + _suppressions.policy_findings(policy, findings)
 
 
+def group(findings: list[Finding], ctx: Context) -> list[Finding]:
+    return _grouping.assign(findings)
+
+
 def rank(findings: list[Finding], ctx: Context) -> list[Finding]:
     return _ranking.apply(findings)
 
@@ -250,6 +255,10 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("suppress", suppress,
           "After `enrich` and before `rank`: a suppression is a decision about an "
           "enriched Finding, and suppressed Findings rank last."),
+    Stage("group", group,
+          "After `suppress`, so an accepted risk never counts toward a flood; before "
+          "`rank`, which ranks a group of machine-written data below every distinct "
+          "Finding."),
     Stage("rank", rank,
           "After everything that changes what a Finding is, and before `diff`, which "
           "does not reorder."),
