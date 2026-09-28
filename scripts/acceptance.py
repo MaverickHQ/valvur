@@ -36,6 +36,15 @@ def ticked(tasks_text: str) -> set[str]:
     return set(re.findall(r"^- \[[xX]\] \*\*(R\d+\.\d+)\*\*", tasks_text, re.M))
 
 
+def task_list(repo: Path | None = None) -> str:
+    """The live task list and the archives of closed phases (R7.4): an expectation
+    that waited on a task closed and moved to `docs/history/` stays met."""
+    repo = Path(__file__).resolve().parent.parent if repo is None else repo
+    archives = sorted((repo / "docs" / "history").glob("tasks-phases-r*.md"))
+    return "\n".join(p.read_text() for p in
+                     [repo / ".kiro/specs/valvur/tasks.md", *archives])
+
+
 def _matches(rule: str, finding: dict) -> bool:
     found = str(finding.get("rule", ""))
     return found == rule or found.endswith(rule)
@@ -150,8 +159,7 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
     import tomllib
 
     if tasks_text is None:
-        tasks_text = (Path(__file__).resolve().parent.parent
-                      / ".kiro/specs/valvur/tasks.md").read_text()
+        tasks_text = task_list()
     started = time.monotonic()
     scan(root)
     seconds = time.monotonic() - started
@@ -252,8 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.probes:
         import probes  # type: ignore[import-not-found]
 
-        ticked_now = ticked((Path(__file__).resolve().parent.parent
-                             / ".kiro/specs/valvur/tasks.md").read_text())
+        ticked_now = ticked(task_list())
         target = probes.workspace(args.out)       # never inside the set
         probe_results = [probes.probe(kind, target) for kind in probes.KINDS]
         report["probes"] = [{**vars(p), "ok": p.ok} for p in probe_results]
@@ -269,8 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.agent:
         import agent  # type: ignore[import-not-found]
 
-        tasks_text = (Path(__file__).resolve().parent.parent
-                      / ".kiro/specs/valvur/tasks.md").read_text()
+        tasks_text = task_list()
         table += "\n| agent run | named all | turns | cost (USD) | seconds | left |\n"
         table += "|---|---|---|---|---|---|\n"
         report["agent"] = []

@@ -214,3 +214,19 @@ def test_the_probe_workspace_is_a_repository_so_its_data_is_scanned_not_refused(
     chosen = fileset.build(root)
     assert chosen.scope == "git" and len(chosen.files) > 20_000
     assert chosen.warning
+
+
+def test_a_task_closed_into_the_archive_still_counts_as_done(tmp_path):
+    """R7.4 moves closed phases out of `tasks.md` into `docs/history/`. An
+    expectation that waited on one of them is met, not pending again: the task
+    list the harness reads is the live one and the archives of closed phases."""
+    harness = _module()
+    (tmp_path / ".kiro/specs/valvur").mkdir(parents=True)
+    (tmp_path / ".kiro/specs/valvur/tasks.md").write_text("- [ ] **R7.5** **1.0.0**\n")
+    (tmp_path / "docs/history").mkdir(parents=True)
+    (tmp_path / "docs/history/tasks-phases-r0-r6.md").write_text(
+        "- [x] **R3.2** **The File Set**\n")
+
+    text = harness.task_list(tmp_path)
+
+    assert harness.ticked(text) == {"R3.2"}
