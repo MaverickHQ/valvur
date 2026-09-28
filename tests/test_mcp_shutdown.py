@@ -186,7 +186,6 @@ def test_a_real_server_leaves_no_container_behind_when_its_client_disconnects(mo
         text=True, env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
     try:
-        replies = []
         for message in (
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
@@ -194,11 +193,9 @@ def test_a_real_server_leaves_no_container_behind_when_its_client_disconnects(mo
         ):
             server_process.stdin.write(json.dumps(message) + "\n")
             server_process.stdin.flush()
-            replies.append(server_process.stdout.readline())
-        # The argument is `workspace` (tools.py). Named wrongly it defaults to the
-        # process's own directory and the scan runs somewhere else entirely — which
-        # is how this test first "passed" while measuring another tree.
-        assert str(workspace) in replies[-1], replies[-1]
+        # `scan` answers when the scan does (R6.3), so nothing is read for it here;
+        # the server's exit names the workspace it stops, asserted below.
+        assert json.loads(server_process.stdout.readline())["id"] == 1
 
         # The set that ends the wait is the set measured: a second `live()` after
         # the loop saw nothing when the first container of the fleet had already
@@ -233,5 +230,9 @@ def test_a_real_server_leaves_no_container_behind_when_its_client_disconnects(mo
             f"containers outlived the server by more than {KILLED_WITHIN_S}s — running, "
             f"or left to finish on their own: {sorted(set(live()) & started)}")
         assert "stopping the offline scan" in said, f"the server said nothing about it: {said!r}"
+        # The argument is `workspace` (tools.py). Named wrongly it defaults to the
+        # process's own directory and the scan runs somewhere else entirely — which
+        # is how this test first "passed" while measuring another tree.
+        assert str(workspace) in said, said
     finally:
         server_process.kill()

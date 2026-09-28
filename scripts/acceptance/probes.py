@@ -52,24 +52,52 @@ def _live() -> set[str]:
 
 
 class _Server:
-    """A real `valvur-mcp`, spoken to as a client speaks to it."""
+    """A real `valvur-mcp`, spoken to as a client speaks to it: requests carry ids,
+    replies arrive in any order, and `scan` answers only when the scan does (R6.3),
+    so a probe sends it and stops the scan meanwhile."""
 
     def __init__(self) -> None:
+        import queue
+        import threading
+
         self.process = subprocess.Popen(
             [sys.executable, "-c", "from valvur.mcp.server import main; "
              "raise SystemExit(main())"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, env={**os.environ, "PYTHONUNBUFFERED": "1"})
         self._id = 0
+        self._replies: dict[int, queue.Queue[dict]] = {}
+        self._lock = threading.Lock()
+        threading.Thread(target=self._read, daemon=True).start()
         self.request("initialize", {})
 
-    def request(self, method: str, params: dict) -> dict:
-        self._id += 1
-        if self.process.stdin is None or self.process.stdout is None:
+    def _read(self) -> None:
+        for line in self.process.stdout or ():
+            message = json.loads(line)
+            if "id" in message:
+                self._queue(message["id"]).put(message)
+
+    def _queue(self, request_id: int):
+        import queue
+
+        with self._lock:
+            return self._replies.setdefault(request_id, queue.Queue())
+
+    def send(self, method: str, params: dict) -> int:
+        """Send a request without waiting for its reply; its id."""
+        if self.process.stdin is None:
             raise RuntimeError("the server's pipes are closed")
+        self._id += 1
+        self._queue(self._id)
         self.process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": self._id,
                                              "method": method, "params": params}) + "\n")
         self.process.stdin.flush()
-        return json.loads(self.process.stdout.readline())
+        return self._id
+
+    def wait(self, request_id: int, seconds: float = 400) -> dict:
+        return self._queue(request_id).get(timeout=seconds)
+
+    def request(self, method: str, params: dict) -> dict:
+        return self.wait(self.send(method, params))
 
     def call(self, tool: str, arguments: dict) -> str:
         result = self.request("tools/call", {"name": tool, "arguments": arguments})["result"]
@@ -130,13 +158,15 @@ def _next_scan_starts(workspace: Path, stopped: set[str]) -> tuple[bool, int]:
     scan's containers are still listed once it has. It is then stopped cleanly."""
     server = _Server()
     try:
-        reply = server.call("scan", {"workspace": str(workspace)})
-        started = reply.startswith("Started")
+        scan = server.send("tools/call", {"name": "scan",
+                                          "arguments": {"workspace": str(workspace)}})
         time.sleep(2.0)                           # past the scan's start, where a reaper runs
         orphans = len(_live() & stopped)
         server.call("scan_cancel", {"workspace": str(workspace)})
-        _wait_state(server, workspace, ("CANCELLED", "DONE", "FAILED"), 60)
-        return started, orphans
+        # `scan` answers once the scan has stopped (R6.3): it started if that
+        # answer is a scan's, not a refusal or a busy workspace's.
+        state = server.wait(scan, 120)["result"].get("structuredContent", {}).get("state")
+        return state in ("cancelled", "done"), orphans
     finally:
         server.close()
 
@@ -150,7 +180,7 @@ def probe(kind: str, workspace: Path) -> ProbeResult:
         arguments = {"workspace": str(workspace)}
         if kind == "budget":
             arguments["budget_s"] = 3
-        server.call("scan", arguments)
+        server.send("tools/call", {"name": "scan", "arguments": arguments})
         fleet, scan_seen = _wait_for_fleet(before)
         if kind == "cancel":
             server.call("scan_cancel", {"workspace": str(workspace)})
