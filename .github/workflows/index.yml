@@ -44,6 +44,8 @@ jobs:
       id-token: write       # keyless signing
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -86,9 +88,11 @@ jobs:
         # pull-back needs a tag to pull.
         id: push
         if: github.ref == 'refs/heads/main'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$REGISTRY_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           DATE=$(date -u +%Y-%m-%d)
           cd artifact
           oras push "$REPOSITORY:candidate" \
@@ -174,10 +178,10 @@ jobs:
               echo "## Published"
               echo
               echo "\`${REPOSITORY}:${DATE}\` = \`${REPOSITORY}:latest\` @ \`${DIGEST}\`"
-            elif [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            elif [ "$GITHUB_REF" != "refs/heads/main" ]; then
               echo "## Built, not published"
               echo
-              echo "Dispatched from \`${{ github.ref }}\`: the index was built and nothing was pushed, signed or tagged."
+              echo "Dispatched from \`${GITHUB_REF}\`: the index was built and nothing was pushed, signed or tagged."
             else
               echo "## Not published"
               echo

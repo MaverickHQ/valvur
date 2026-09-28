@@ -127,3 +127,24 @@ def test_opengrep_no_longer_carries_the_action_pin_rule():
     """One pin, one Finding: the rule left Opengrep when zizmor took it."""
     rules = (Path(__file__).parent.parent / "rules" / "pinning-hygiene.yaml").read_text()
     assert "mutable-action-ref" not in rules and "mutable-git-ref" in rules
+
+
+# ------------------------------------------ valvur's own workflows pass it (N2.5)
+
+@pytest.mark.e2e
+def test_zizmor_reports_nothing_on_valvurs_own_workflows(mountable_tmp):
+    """The tool scans itself, clean, first. zizmor's first scan of this repository
+    found ten template injections, a cache a release restored from any earlier run,
+    seventeen checkouts that left their token in `.git/config` and four Dependabot
+    entries with no cooldown; the self-scan gate fails on any of them."""
+    import shutil
+
+    from valvur import api, engine_host
+    from valvur.adapters import ZizmorAdapter
+
+    ws = mountable_tmp / "self"
+    shutil.copytree(Path(__file__).resolve().parents[1] / ".github", ws / ".github")
+    run = api.scan(ws, runner=engine_host.for_scan(), adapters=[ZizmorAdapter()])
+
+    assert all(s.ok for s in run.scanners), run.scanners
+    assert [f"{f.rule} at {f.path}:{f.line}" for f in run.findings] == []

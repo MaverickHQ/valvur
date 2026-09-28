@@ -87,11 +87,13 @@ def test_the_pipeline_verifies_the_image_against_exactly_this_runs_identity():
     """`artifact` runs in a rehearsal (signed from `refs/heads/<branch>`) and in a
     release (`refs/tags/vX.Y.Z`); a regexp wide enough for both is the one just
     removed. So it verifies the EXACT identity of this run — `release.yml` at
-    `github.ref` — which is stricter than any pattern and true in both."""
+    `github.ref` — which is stricter than any pattern and true in both. Read from
+    the runner's environment, not interpolated into the script (zizmor's
+    template-injection, R4)."""
     release = _text(".github/workflows/release.yml")
     exact = ("--certificate-identity "
-             '"https://github.com/${{ github.repository }}'
-             '/.github/workflows/release.yml@${{ github.ref }}"')
+             '"https://github.com/${GITHUB_REPOSITORY}'
+             '/.github/workflows/release.yml@${GITHUB_REF}"')
     assert exact in release, "artifact does not pin the signature to this run's own identity"
     artifact = release.split("\n  artifact:", 1)[1].split("\n  promote:", 1)[0]
     assert "--certificate-identity-regexp" not in artifact, \

@@ -24,6 +24,13 @@ The Scanner set, decided by R4.1's measurements (ADR-0023).
   Mac. The Summary's `offline` caveat now says it does not ask the network.
 - KICS was measured and not adopted (64% of Checkov's rules); Trivy's SBOM was measured
   and not adopted (67% of Syft's components, 98% without GitHub Actions).
+- **valvur's own workflows pass zizmor**, as the self-scan gate requires. Its first scan
+  of this repository found ten template injections (the token and `github.actor` in
+  `docker login`, `github.base_ref` in a `git fetch`), all now passed through `env:`;
+  seventeen checkouts that kept their token in `.git/config`; a release job that
+  restored the name index from any earlier run's cache, where `valvur update` pulls the
+  signed index in seconds; and Dependabot with no cooldown, now seven days on version
+  updates.
 
 ## [0.7.0] — 2026-09-28
 

@@ -31,6 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # Repository 6 is this repository at a pinned commit, archived by git:
           # a shallow checkout does not have it (measured on the first run).
           fetch-depth: 0

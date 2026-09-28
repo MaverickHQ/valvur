@@ -6,6 +6,10 @@
 # Actions are pinned to commit SHAs, which is what makes Dependabot necessary here
 # rather than optional: a pinned SHA never moves on its own, so security updates
 # arrive only if something opens the pull request.
+#
+# A week's cooldown on version updates: a release withdrawn within days, the usual
+# shape of a compromised one, never reaches a pull request here. Security updates
+# are not delayed by it.
 version: 2
 
 updates:
@@ -13,6 +17,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore"
     labels: ["dependencies", "supply-chain"]
@@ -31,6 +37,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore"
     labels: ["dependencies"]
@@ -49,6 +57,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore"
     labels: ["dependencies", "supply-chain"]
@@ -60,6 +70,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore"
     labels: ["dependencies", "supply-chain"]
