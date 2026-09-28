@@ -101,3 +101,30 @@ def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> di
     return {"what": f"OSV database ({name})", "source": url,
             "size_mb": max(1, round(target.stat().st_size / 1_000_000)),
             "seconds": round(time.monotonic() - started, 1)}
+
+
+def ensure(files: list[str], say: Callable[[str], None]) -> tuple[list[dict], list[str]]:
+    """OSV's database for each ecosystem `files` hold a lockfile for, fetched when
+    absent or stale (R4.6, ADR-0025), each under the cache lock and said: the
+    records `run.json` keeps, and a sentence per failure. What a scan does before
+    its Scanners start, and `valvur update PATH` ahead of one (R8.2)."""
+    from . import cache, locking
+
+    names = needed(files)
+    missing, old = absent(names), stale(names)
+    records: list[dict] = []
+    failed: list[str] = []
+    for name in missing + old:
+        say(f"fetching the OSV database for {name} — the first run for it only"
+            if name in missing else
+            f"refreshing the OSV database for {name} (over {STALE_AFTER_DAYS} days old)")
+        try:
+            with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
+                record = fetch(name)
+        except OSError as exc:
+            failed.append(f"{name}: {exc}")
+            say(f"OSV database not fetched for {name}: {exc}")
+            continue
+        say(f"OSV database fetched for {name} ({record['seconds']:.0f}s)")
+        records.append(record)
+    return records, failed

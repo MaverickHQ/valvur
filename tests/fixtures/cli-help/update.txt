@@ -1,4 +1,8 @@
-usage: valvur update [-h] [--if-stale] [--prune] [--clear] [--build-index]
+usage: valvur update [-h] [--if-stale] [--prune] [--clear] [--build-index] [path]
+
+positional arguments:
+  path           Also fetch OSV's databases for the lockfiles in this project, when absent or
+                 stale, so a scan with no network has them (a pipeline step's first half).
 
 options:
   -h, --help     show this help message and exit

@@ -427,31 +427,15 @@ def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) 
     """OSV's offline database for each ecosystem the File Set holds a lockfile for,
     when absent (R4.6, 24.1): announced, recorded, and a failure costs OSV-Scanner
     alone, with the reason."""
-    from . import fileset, locking, osv_offline
+    from . import fileset, osv_offline
     from .refusal import Refusal
 
     try:
         files = fileset.build(workspace).files
     except Refusal:
         return                       # the scan refuses the walk itself, with the reason
-    needed = osv_offline.needed(files)
-    missing = osv_offline.absent(needed)
-    old = osv_offline.stale(needed)
-    failed = []
-    for name in missing + old:
-        say(f"fetching the OSV database for {name} — the first run for it only"
-            if name in missing else
-            f"refreshing the OSV database for {name} (over "
-            f"{osv_offline.STALE_AFTER_DAYS} days old)")
-        try:
-            with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
-                record = osv_offline.fetch(name)
-        except OSError as exc:
-            failed.append(f"{name}: {exc}")
-            say(f"OSV database not fetched for {name}: {exc}")
-            continue
-        say(f"OSV database fetched for {name} ({record['seconds']:.0f}s)")
-        fetched.append(record)
+    records, failed = osv_offline.ensure(files, say)
+    fetched += records
     if failed:
         unfetched["osv-scanner"] = ("the OSV offline database could not be fetched: "
                                     + "; ".join(failed))
