@@ -121,7 +121,8 @@ listed and never ranked.
 Add valvur to your agent's MCP configuration: one server,
 `uvx --from valvur valvur-mcp`, no install step. Each client reads it from its own
 file, in its own shape; `valvur init` prints every block below and a starter
-`.security-scan.toml`, and writes nothing. The two marked *measured* were run here; the
+`.security-scan.toml`, and `valvur init --write` writes them into the project, beside
+what is there and never over it. The two marked *measured* were run here; the
 rest are the shape each client documents, dated. `valvur doctor` reads every one of
 these files and says which names valvur, which is switched off, and whether the
 program it names is on `PATH`; `valvur doctor --client codex` prints the block for any
@@ -410,7 +411,8 @@ everything left out and why.
 
 **Two settings files.** Project policy is `.security-scan.toml`, committed with the
 project: what to exclude, whether to read history, and Suppressions, each with a
-mandatory expiry date. `valvur init` prints a starter, `valvur suppress` prints a
+mandatory expiry date. `valvur init` prints a starter (`--write` writes it when there is
+none), `valvur suppress` prints a
 Suppression block for a finding, and `valvur doctor` checks the file against its JSON
 Schema, [`src/valvur/data/security-scan.schema.json`](src/valvur/data/security-scan.schema.json):
 

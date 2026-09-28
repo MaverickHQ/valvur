@@ -16,8 +16,8 @@ positional arguments:
                         lapsed suppression, or an active finding at or above --fail-on. For CI.
     cache               Now `doctor`, `update --prune` and `update --clear`
     suppress            Print a ready-to-paste suppression block for a finding (never writes)
-    init                Print each MCP client's block and a starter .security-scan.toml; writes
-                        nothing
+    init                Print each MCP client's block and a starter .security-scan.toml; --write
+                        writes them, never over what is there
 
 options:
   -h, --help            show this help message and exit

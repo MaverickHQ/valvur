@@ -450,21 +450,42 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_cmd = sub.add_parser(
         "init",
-        help="Print each MCP client's block and a starter .security-scan.toml; "
-        "writes nothing",
+        help="Print each MCP client's block and a starter .security-scan.toml; --write "
+        "writes them, never over what is there",
     )
     init_cmd.add_argument("path", nargs="?", default=".", type=_workspace,
                           help="The project")
+    init_cmd.add_argument(
+        "--write", action="store_true",
+        help="Write what init prints: the starter .security-scan.toml when there is none, "
+        "and valvur into each client's file in the project, beside what is there. Never "
+        "overwrites.",
+    )
+    from .mcp.clients import CLIENTS as _CLIENTS
+
+    init_cmd.add_argument(
+        "--client", action="append", metavar="CLIENT", choices=[c.key for c in _CLIENTS],
+        help="With --write, the client whose file to write (repeatable); by default, each "
+        "found here, or Claude Code.",
+    )
 
     return parser
 
 
 def _cmd_init(args: argparse.Namespace, runner=None) -> int:
-    """`init` (D10): prints, never writes."""
+    """`init` (D10): prints; with `--write`, writes what it prints, never over what is
+    there (the owner's decision, 2026-09-28)."""
     from . import initialize
 
-    print(initialize.render(Path(args.path).resolve()), end="")
-    return 0
+    workspace = Path(args.path).resolve()
+    if not getattr(args, "write", False):
+        print(initialize.render(workspace), end="")
+        return 0
+    lines, ok = initialize.write(workspace, getattr(args, "client", None))
+    print("valvur init --write, in " + str(workspace) + ":")
+    for line in lines:
+        print(f"  {line}")
+    return 0 if ok else 1
 
 
 def _cmd_read(args: argparse.Namespace, runner=None) -> int:

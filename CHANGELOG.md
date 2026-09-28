@@ -10,8 +10,8 @@ break things, and has.
 
 ## [1.1.0] — 2026-09-28
 
-The image as a pipeline step (Phase R8, D15). Additions only: every contract `1.0.0`
-names holds.
+The image as a pipeline step (Phase R8, D15), and `init --write`. Additions only:
+every contract `1.0.0` names holds.
 
 - **The image scans on its own.** `docker run --network=none <image> valvur scan /src
   --out /out` scans a checkout mounted read-only, with no container runtime or socket:
@@ -22,6 +22,11 @@ names holds.
   hold it; `gate`, `findings` and `status` read DIR.
 - **`update PATH`** also fetches OSV's databases for PATH's lockfiles, so a scan with
   no network has them.
+- **`init --write`** (the owner's decision, 2026-09-28) writes what `init` prints: the
+  starter `.security-scan.toml` when there is none, and valvur into each client's file
+  in the project, merged beside the servers already there. It never overwrites: a file
+  that names valvur is left, one it cannot read is left and said, and a client whose
+  file is outside the project (Codex, Windsurf, Zed, Cline) is said, not written.
 - **`run.json`'s `network.boundary`** names where the Scanners ran: the Scan Container,
   or a job's own container and whether it had a network. On `offline` with one, the
   Summary says that `--network=none` makes the guarantee structural.

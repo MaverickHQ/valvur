@@ -180,8 +180,8 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 - Any network call in the `offline` Profile beyond the approved, recorded fetches of public
   data: absent data since 24.1, stale data under ADR-0025.
 - Any dependency requiring an account, API key or token.
-- Any feature that writes to the scanned source tree. The Results Folder is the one
-  exception.
+- Any feature that writes to the scanned source tree. The exceptions: the Results Folder,
+  and `init --write` (the owner, 2026-09-28), which never overwrites.
 - Any autonomous remediation.
 - Any claim of reachability analysis, proprietary detection, or coverage we do not have.
 - Bundling a GPL-licensed tool into the image.

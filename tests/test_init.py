@@ -3,7 +3,8 @@
 For each MCP client found on this machine or in this project, the file it reads
 and the block to paste; and a starter `.security-scan.toml` whose excludes come
 from the pre-flight count, suggested and commented, since an exclusion is the
-human's decision. Nothing on disk changes: `init --write` is the owner's to decide.
+human's decision. Nothing on disk changes without `--write`, which the owner allowed
+on 2026-09-28 (`tests/test_init_write.py`).
 """
 
 from __future__ import annotations

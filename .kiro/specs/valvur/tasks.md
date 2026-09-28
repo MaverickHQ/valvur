@@ -421,7 +421,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | **ready**: R8 closed; the ECR steps are in `AIR-GAPPED.md`, the pipeline step in `docs/examples/` | run once in an AWS account and record the numbers |
-| ~~`init --write`~~ **decided 2026-09-28: yes** | R6 | the owner approved `init` writing files into the project (CLAUDE.md §10); built in R8, as an addition in `1.1.0` |
+| ~~`init --write`~~ **decided 2026-09-28: yes** | R6 | the owner approved `init` writing files into the project (CLAUDE.md §10); built in R8, `init --write`, an addition in `1.1.0`: never overwrites (`tests/test_init_write.py`) |
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
 | ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
 | ~~pre-approve the durable resume task~~ **moot 2026-09-28** | R0 | the build finished and its schedules are deleted |
