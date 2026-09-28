@@ -69,7 +69,8 @@ def test_no_scanner_is_told_what_to_skip_because_none_is_given_it(ws, monkeypatc
         argv = " ".join(invocation.argv)
         for flag in ("--skip-dirs", "--skip-path", "--exclude", "--experimental-exclude"):
             assert flag not in argv, (cls, flag)
-        assert invocation.files == (), cls
+        # Opengrep's one file is an ignore list that ignores nothing (R3.9).
+        assert all(name == ".semgrepignore" for name, _ in invocation.files), cls
     # Gitleaks reads the project's own `.gitleaks.toml` from what it scans.
     assert "--config" not in adapters.GitleaksAdapter().command(ws).argv
     assert single_command("ai-artifact", ws, network=False).env == ()

@@ -86,10 +86,9 @@ class Invocation:
     #: Stderr phrases that mean an empty result, honestly earned (see
     #: NOTHING_TO_SCAN). Empty: a missing report is always a failure.
     empty_when: tuple[str, ...] = ()
-    #: Files the runner writes into the scratch mount before the launch, as
-    #: (name, text): a generated config the tool reads at `/results/<name>`
-    #: (Gitleaks's allowlist, 29.0.1). The mount is the tool's to read and the
-    #: runner's to remove, so nothing is left on the host.
+    #: Files the engine writes into the tool's working directory before it
+    #: starts, as (name, text): configuration a tool reads from where it runs —
+    #: Opengrep's `.semgrepignore` (R3.9). Gone with the Scan Container.
     files: tuple[tuple[str, str], ...] = ()
     #: Environment the tool is started with, as (name, value). The network grant
     #: is not here — egress sets it, and nothing an adapter says can.

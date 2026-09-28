@@ -36,7 +36,8 @@ The Scan Container runs `python -m valvur.engine` and nothing else:
 2. It reads **`/results/plan.json`**: `{"tools": [...], "budget_s": float | null,
    "jobs": int | null}`. Each tool is `{"tool", "version", "argv", "report",
    "timeout", "env", "files", "empty_when"}`; its argv names `/workspace` and
-   `/results`, and its report lands under `/results`.
+   `/results`, its report lands under `/results`, and its `files` are written into
+   its working directory before it starts (Opengrep's `.semgrepignore`).
 3. It starts the tools, at most `jobs` at once (all when null), each in its own
    process group, and says `{"event": "start", "tool": ...}` and `{"event": "end",
    "tool", "exit_code", "seconds", "timed_out"}` on stderr as each starts and ends.

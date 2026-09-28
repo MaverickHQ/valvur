@@ -216,3 +216,35 @@ def test_a_tool_killed_by_a_signal_is_recorded_as_the_shell_records_it(tmp_path)
         snapshot(ws, ["a.py"]), scratch)
     [entry] = json.loads((scratch / "manifest.json").read_text())["tools"]
     assert entry["exit_code"] == 137
+
+
+def test_a_tools_files_are_in_its_working_directory(tmp_path):
+    """What an Invocation carries in `files` is written where the tool starts, so
+    a tool that reads its configuration from its working directory finds it:
+    Opengrep's `.semgrepignore` (R3.9)."""
+    from valvur.invocation import Invocation
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.py").write_text("x = 1\n")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    LocalRuntime(FAKE_TOOLS).run(
+        [Invocation(tool="cat", version="0", report="cat.txt",
+                    argv=("fake-cat-cwd", ".semgrepignore", "/results/cat.txt"),
+                    files=((".semgrepignore", "# nothing\n"),))],
+        snapshot(ws, ["a.py"]), scratch)
+    assert (scratch / "cat.txt").read_text() == "# nothing\n"
+
+
+def test_opengrep_is_told_to_ignore_nothing():
+    """Opengrep, like Semgrep, skips `build/`, `dist/`, `vendor/`, `test/` and
+    `tests/` when it finds no `.semgrepignore` — measured inside the image, a
+    flaw in `mypkg/build/` and one in `tests/` were both unread. The File Set
+    decides what is read (ADR-0021); an ignore file that ignores nothing turns
+    the tool's own list off."""
+    from valvur.adapters import OpengrepAdapter
+
+    files = dict(OpengrepAdapter().command(Path("/nonexistent")).files)
+    ignore = files[".semgrepignore"]
+    assert [line for line in ignore.splitlines() if line and not line.startswith("#")] == []

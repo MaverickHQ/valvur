@@ -18,6 +18,11 @@ from .base import ScannerAdapter, container_relative
 VERSION = "1.29.0"
 
 
+#: A `.semgrepignore` that ignores nothing, so Opengrep's own default list is off.
+_IGNORE_NOTHING = ("# valvur: the File Set decides what a scan reads (ADR-0021); this file\n"
+                   "# turns Opengrep's default ignore list off.\n")
+
+
 class OpengrepAdapter(ScannerAdapter):
     kind = "scanner"
     name = "opengrep"
@@ -37,6 +42,11 @@ class OpengrepAdapter(ScannerAdapter):
             # filesystem stays read-only, the container stays non-root and
             # capability-less, and the exec surface is in-memory and non-persistent.
             allow_exec=True,
+            # With no `.semgrepignore` where it starts, Opengrep skips `build/`,
+            # `dist/`, `vendor/`, `test/` and `tests/` of its own accord: measured
+            # inside the image, a flaw in `mypkg/build/` and one in `tests/` were
+            # both unread (R3.9). The File Set decides what is read (ADR-0021).
+            files=((".semgrepignore", _IGNORE_NOTHING),),
         )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:

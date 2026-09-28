@@ -80,8 +80,10 @@ class _Running:
     def __init__(self, tool: dict, workspace: Path, results: Path, scratch: Path):
         self.tool = tool
         self.name = tool["tool"]
+        # Written where the tool starts, for a tool that reads its configuration
+        # from its working directory: Opengrep's `.semgrepignore` (R3.9).
         for name, text in tool.get("files", []):
-            (results / name).write_text(text, encoding="utf-8")
+            (scratch / name).write_text(text, encoding="utf-8")
         argv = [_mapped(a, workspace, results) for a in tool["argv"]]
         env = {**os.environ, **dict(tool.get("env", []))}
         self.stderr_path = scratch / f"{self.name}.stderr"
