@@ -51,9 +51,10 @@ def test_the_running_line_names_what_runs_and_what_finished(workspace, monkeypat
     assert text.startswith("RUNNING — offline scan")
     assert re.search(r"Now: slow \ds running — 1 of 2 finished: fast: ok \(", text), text
     assert "Completed so far: starting" in text, "fetch completions keep their own line"
-    assert set(fields["job"]["running"]) == {"slow"} and fields["job"]["fleet"] == 2
-    assert fields["job"]["finished"] == 1
-    assert isinstance(fields["job"]["running"]["slow"], float)
+    progress = fields["progress"]                          # schema 2 (R6.2)
+    assert set(progress["running"]) == {"slow"} and progress["fleet"] == 2
+    assert len(progress["finished"]) == 1
+    assert isinstance(progress["running"]["slow"], float)
 
 
 def test_a_fetch_in_progress_still_has_its_own_line_and_a_job_timestamps_messages(tmp_path,

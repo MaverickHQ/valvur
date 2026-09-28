@@ -1,0 +1,378 @@
+"""The reply every scan surface gives: schema 2 (ADR-0024, D7; F9.8 to F9.10).
+
+Fields first, and the text rendered from them alone, so the two cannot disagree:
+Claude Code hands the model only `structuredContent` when a reply has both forms
+(29.2.4), and the status reply had grown field by field until its fields and its
+text said different things (C4, C7). The Markdown summary travels as `report`, so
+what `SUMMARY.md` says reaches the model too.
+
+Six states: `none` (no scan here), `running`, `cancelling`, `cancelled`, `failed`
+and `done`. Every state has `next`; every state with no result to give has
+`error.kind`.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+
+from .mcp import jobs
+from .mcp.jobs import State
+from .results import RESULTS_DIR
+
+SCHEMA = 2
+#: The groups a reply names, best-ranked first; `findings.json` has all.
+GROUPS_SHOWN = 10
+#: How many lines of a failure reason a reply shows. The bound is on LINES, never
+#: on the sentence (23.3.4): the Kiro run read *"…no package-name index for PyPI,
+#: so"* at an 80-character cut, which was the one sentence it needed whole.
+REASON_LINES = 6
+
+#: The sentences after a job's state, one string each so text and field agree.
+CANCELLING_NEXT = "Call again; no result will follow."
+CANCELLED_NEXT = ("No result: a cancelled scan writes nothing, and the previous results, if "
+                  "any, stand. Call `scan` to start again.")
+DOCTOR_NEXT = ("Run `doctor` (the tool; `valvur doctor` on a shell) before scanning again: "
+               "it names what this machine is missing and the fix.")
+NO_RESULT = "No result to report."
+
+
+def running_next() -> str:
+    return (f"Call `scan_status` again; it waits up to {jobs.STATUS_WAIT_SECONDS:g} s and "
+            "returns the moment the scan finishes; do not report a result yet.")
+
+
+# ------------------------------------------------------------------ the fields
+
+def fields(workspace: Path, job: jobs.Job | None = None) -> dict:
+    """Schema 2 for the scan of `workspace`: the job's state if there is one that
+    has not finished well, otherwise what the Results Folder holds."""
+    base: dict = {"schema": SCHEMA, "workspace": str(workspace), "profile": None,
+                  "elapsed_s": None, "generation": None, "verdict": None, "reason": "",
+                  "complete": None, "next": [], "error": None}
+    if job is not None:
+        base.update(profile=job.profile, elapsed_s=round(job.elapsed, 1))
+    if job is not None and job.state is State.RUNNING:
+        return {**base, "state": "running", "progress": _progress(job),
+                "next": [running_next()]}
+    if job is not None and job.state is State.CANCELLING:
+        return {**base, "state": "cancelling", "next": [CANCELLING_NEXT],
+                "error": {"kind": "cancelled", "message": (
+                    f"the {job.profile} scan, {job.elapsed:.0f}s in; its containers are "
+                    "being stopped")}}
+    if job is not None and job.state is State.CANCELLED:
+        return {**base, "state": "cancelled", "next": [CANCELLED_NEXT],
+                "error": {"kind": "cancelled", "message": job.error}}
+    if job is not None and job.state is State.FAILED:
+        advice = list(job.next_moves)
+        if job.doctor_may_help and not advice:
+            # Only when a precondition could be the cause (29.0.3): the budget's
+            # refusal carries its own levers, and `doctor` would say *ready*.
+            advice.append(DOCTOR_NEXT)
+        advice.append(NO_RESULT)
+        kind = ("budget" if job.failure else "precondition" if job.doctor_may_help
+                else "busy" if job.next_moves else "failed")
+        error: dict = {"kind": kind, "message": job.error}
+        if job.failure:
+            error["budget"] = dict(job.failure)
+        return {**base, "state": "failed", "next": advice, "error": error,
+                "doctor_may_help": job.doctor_may_help}
+
+    results = workspace / RESULTS_DIR
+    path = results / "run.json"
+    if not path.is_file():
+        return {**base, "state": "none", "next": ["Call `scan` to scan it."], "error": {
+            "kind": "no-scan", "message": f"No scan has run in this workspace ({results})."}}
+    return {**base, **_done(workspace, json.loads(path.read_text(encoding="utf-8"))),
+            "state": "done"}
+
+
+def _progress(job: jobs.Job) -> dict:
+    """A running scan, as fields: what is being fetched, what is running and for
+    how long, what finished, and what the workspace line said (29.0.4)."""
+    from . import levers as _levers
+    from .api import FETCH_STARTED
+
+    now: str | None = None
+    completed: list[str] = []
+    started: dict[str, float] = {}
+    finished: list[str] = []
+    fleet: int | None = None
+    workspace_lines: list[str] = []
+    stamps = list(job.progress_at) + [job.elapsed + job.started] * len(job.progress)
+    for message, at in zip(job.progress, stamps, strict=False):
+        if message.startswith(FETCH_STARTED):
+            now = message
+            continue
+        now = None
+        if message.startswith("fleet: "):
+            fleet = int(message.split()[1])
+            continue
+        if message.startswith(_levers.WORKSPACE_PREFIX):
+            workspace_lines.append("Workspace: " + message[len(_levers.WORKSPACE_PREFIX):])
+            continue
+        tool, sep, rest = message.partition(": ")
+        if sep and rest == "started":
+            started[tool] = at
+            continue
+        if sep and tool in started:
+            finished.append(message)
+            continue
+        completed.append(message)
+    done = {m.partition(": ")[0] for m in finished}
+    running = {tool: round(time.monotonic() - at, 1) for tool, at in started.items()
+               if tool not in done}
+    return {"now": now, "running": running, "finished": finished, "fleet": fleet,
+            "completed": completed, "workspace": workspace_lines,
+            "waited_s": jobs.STATUS_WAIT_SECONDS, "messages": list(job.progress)}
+
+
+def _done(workspace: Path, data: dict) -> dict:
+    """What a finished scan left: the verdict and why, the scope, the counts, the
+    top groups, what did not run, and the summary itself."""
+    counts = data.get("findings")
+    if not isinstance(counts, dict):          # a run.json written by an older valvur
+        counts = {"active": counts, "suppressed": 0, "not_covered": 0}
+    results = workspace / RESULTS_DIR
+    scanners = [{"tool": s.get("tool"), "ok": bool(s.get("ok")),
+                 "reason": s.get("reason") or "", "duration_s": s.get("duration_s") or 0}
+                for s in data.get("scanners", [])]
+    timed = [(s["duration_s"], s["tool"]) for s in scanners
+             if isinstance(s["duration_s"], int | float) and s["duration_s"] > 0]
+    skipped = dict(data.get("scanners_skipped") or {})
+    not_run = [{"tool": s["tool"], "kind": "failed", "reason": s["reason"]}
+               for s in scanners if not s["ok"]]
+    not_run += [{"tool": tool, "kind": "skipped", "reason": why} for tool, why in skipped.items()]
+    not_run += [{"tool": tool, "kind": "not-in-profile", "reason": ""}
+                for tool in data.get("scanners_not_run") or []]
+    report = results / "SUMMARY.md"
+    try:
+        groups = json.loads((results / "findings.json").read_text(encoding="utf-8")).get(
+            "groups") or []
+    except (OSError, ValueError):
+        groups = []
+    reason = data.get("status_reason") or ""
+    if data.get("status") == "inconclusive" and not reason:
+        reason = ("nothing live was found, and the reason is not recorded — a run.json "
+                  "from before 22.D.4; rescan")
+    coverage = (data.get("coverage") or {}).get("dependency-reality", {}).get("ignores") or []
+    return {
+        "generation": data.get("generation"), "profile": data.get("profile"),
+        "verdict": data.get("status"), "reason": reason,
+        "complete": bool(data.get("complete")),
+        "scope": data.get("scope"),
+        "counts": {**{k: int(counts.get(k) or 0)
+                      for k in ("active", "suppressed", "not_covered", "total")},
+                   "fixed": int(data.get("fixed") or 0),
+                   "not_rechecked": int(data.get("not_rechecked") or 0)},
+        "groups": groups[:GROUPS_SHOWN],
+        "not_run": not_run,
+        "not_read": [{"path": e.get("path"), "reason": e.get("reason")}
+                     for e in data.get("not_read") or [] if isinstance(e, dict)],
+        "coverage": list(coverage),
+        "hygiene": data.get("hygiene"),
+        "scanners": scanners,
+        "slowest": ({"tool": max(timed)[1], "seconds": round(max(timed)[0], 1)}
+                    if timed else None),
+        "next": next_moves(workspace),
+        "caveats": staleness_note(workspace, data, found_nothing=not counts.get("active")),
+        "network": dict(data.get("network") or {}),
+        "build": dict(data.get("build") or {}),
+        "database": dict(data.get("database") or {}),
+        "name_index": dict(data.get("name_index") or {}),
+        "report": report.read_text(encoding="utf-8") if report.is_file() else None,
+    }
+
+
+# ------------------------------------------------------------------ the text
+
+def text(f: dict) -> str:
+    """The reply as text, from the fields and nothing else."""
+    state = f["state"]
+    if state == "none":
+        return " ".join([f["error"]["message"], *f["next"]])
+    if state == "running":
+        return "\n".join(_running_text(f))
+    if state == "cancelling":
+        return f"CANCELLING — {f['error']['message']}. {' '.join(f['next'])}"
+    if state == "cancelled":
+        return f"CANCELLED after {f['elapsed_s']:.0f}s — {f['error']['message']}\n" + \
+            "\n".join(f["next"])
+    if state == "failed":
+        return "\n".join([f"FAILED after {f['elapsed_s']:.0f}s — {f['error']['message']}",
+                          *f["next"]])
+    return "\n".join(_done_text(f))
+
+
+def _running_text(f: dict) -> list[str]:
+    p = f["progress"]
+    lines = [f"RUNNING — {f['profile']} scan, {f['elapsed_s']:.0f}s elapsed.", *p["workspace"]]
+    if p["now"] is not None:
+        lines.append(f"Now: {p['now']}.")
+    if p["running"]:
+        # What an agent could not tell before: a running scan from a hung one.
+        names = ", ".join(f"{tool} {seconds:.0f}s" for tool, seconds in p["running"].items())
+        total = p["fleet"] if p["fleet"] is not None else len(p["running"]) + len(p["finished"])
+        lines.append(f"Now: {names} running — {len(p['finished'])} of {total} finished: "
+                     f"{', '.join(p['finished']) or 'none yet'}")
+    lines.append(f"Completed so far: {', '.join(p['completed']) or 'starting'}")
+    lines.append(f"This call waited {p['waited_s']:.0f}s for it. Call again; "
+                 "do not report a result yet.")
+    return lines
+
+
+def _done_text(f: dict) -> list[str]:
+    counts = f["counts"]
+    lines = [
+        f"status:   {f['verdict']}",
+        f"complete: {f['complete']}",
+        f"findings: {counts['active']} active"
+        + (f", {counts['suppressed']} suppressed" if counts["suppressed"] else "")
+        + (f", {counts['not_covered']} not covered" if counts["not_covered"] else ""),
+    ]
+    if f["elapsed_s"] is not None:
+        stamp = f" Generation {f['generation']}." if f["generation"] else ""
+        lines = [f"DONE in {f['elapsed_s']:.0f}s.{stamp}", "", *lines]
+    not_read = f["not_read"]
+    if not_read:
+        lines.append("not read by any Scanner: " + ", ".join(
+            f"{e['path']} ({e['reason']})" for e in not_read[:8])
+            + (f" and {len(not_read) - 8} more" if len(not_read) > 8 else ""))
+    if counts["not_rechecked"]:
+        lines.append(f"not re-checked: {counts['not_rechecked']} previous finding(s) whose "
+                     "Scanner did not run this time — neither fixed nor persisting")
+    if f["verdict"] == "inconclusive":
+        lines.append(f"          ^ {f['reason']}")
+    if f["next"]:
+        lines += ["", "Next:", *(f"  {move}" for move in f["next"])]
+    lines += ["", "Scanners:"]
+    for scanner in f["scanners"]:
+        mark = "ok" if scanner["ok"] else "FAILED — " + whole_reason(scanner["reason"])
+        seconds = scanner["duration_s"]
+        if isinstance(seconds, int | float) and seconds > 0:
+            mark += f" ({seconds:.1f}s)"
+        lines.append(f"  {scanner['tool']}: {mark}")
+    if f["slowest"]:
+        lines.append(f"  slowest: {f['slowest']['tool']} {f['slowest']['seconds']:.1f}s — "
+                     "the fleet runs concurrently, so that is about what the scan cost")
+    not_in_profile = [e["tool"] for e in f["not_run"] if e["kind"] == "not-in-profile"]
+    if not_in_profile:
+        lines += ["", f"not run on the `{f['profile']}` profile: " + ", ".join(not_in_profile)]
+    lines += [f"  {e['tool']}: skipped — {e['reason']}" for e in f["not_run"]
+              if e["kind"] == "skipped"]
+    if f["coverage"]:
+        lines += ["", "coverage: " + "; ".join(f["coverage"])]
+    build = f["build"]
+    if build.get("match") is False:
+        lines += ["", "WARNING: the shim and the image were built from different trees "
+                  f"(shim {str(build.get('shim'))[:12]}, image {str(build.get('image'))[:12]}). "
+                  "Same version, different code — the image may lack a Check or a rule "
+                  "this shim expects. `docker pull` the image this version publishes, or "
+                  "`pip install -U valvur`."]
+    lines += ["", "left this machine: "
+              f"{f['network'].get('what_left_the_machine', 'unknown')}"]
+    if not f["complete"]:
+        lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
+    lines += f["caveats"]
+    if f["report"]:
+        lines += ["", "--- SUMMARY.md ---", f["report"].rstrip("\n")]
+    return lines
+
+
+# ------------------------------------------------------------------ helpers
+
+def whole_reason(reason: str) -> str:
+    """A failure reason as the Scanner gave it, every sentence intact, continuation
+    lines indented under the tool's name, and only the count of lines bounded."""
+    shown = [line for line in reason.strip().splitlines()] or [""]
+    kept, rest = shown[:REASON_LINES], shown[REASON_LINES:]
+    out = kept[0]
+    for line in kept[1:]:
+        out += "\n         " + line
+    if rest:
+        out += f"\n         … {len(rest)} more line(s) in run.json"
+    return out
+
+
+def next_moves(workspace: Path) -> list[str]:
+    """The next two moves after a scan: the top active Finding, ready to hand to
+    `explain_finding`, and REMEDIATION.md's first action (23.3.4). Nothing when
+    nothing is active; nothing invented for results an older valvur wrote."""
+    from .coverage import NOTE_RULES
+
+    try:
+        findings = json.loads((workspace / RESULTS_DIR / "findings.json").read_text(
+            encoding="utf-8"))["findings"]
+    except (OSError, ValueError, KeyError):
+        return []
+    active = [f for f in findings if not f.get("suppressed") and f.get("rule") not in NOTE_RULES]
+    if not active:
+        return []
+    top = min(active, key=lambda f: f.get("rank") or 10**9)
+    where = f"{top['path']}:{top['line']}" if top.get("line") else top["path"]
+    moves = [f"explain_finding {top['fingerprint']} — #{top.get('rank', '?')} {where} "
+             f"{top['title']}"]
+    action = first_action(workspace / RESULTS_DIR / "REMEDIATION.md")
+    if action:
+        moves.append(f"REMEDIATION.md, {action}")
+    return moves
+
+
+def first_action(path: Path) -> str:
+    """`action 1 of N: <heading>` from REMEDIATION.md's own text, so the agent is
+    pointed at exactly the line it will read there; empty if the file has none."""
+    import re
+
+    try:
+        body = path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    total = re.search(r"\*\*([\d,]+) action\(s\)\*\*", body)
+    first = re.search(r"^## 1\. (.+)$", body, re.M)
+    if not first:
+        return ""
+    heading = first.group(1).replace("**", "").strip()
+    count = f" of {total.group(1)}" if total else ""
+    return f"action 1{count}: {heading}"
+
+
+def staleness_note(workspace: Path, provenance: dict, *, found_nothing: bool) -> list[str]:
+    """What an agent must be told when the data was too old to be evidence. An
+    agent that reads "no findings" stops looking; unlike a human it will not glance
+    at `SUMMARY.md` for a caveat nobody told it to expect."""
+    database = provenance.get("database") or {}
+    index = provenance.get("name_index") or {}
+    if not database.get("stale") and not index.get("stale"):
+        return []
+    note = [""]
+    if database.get("stale"):
+        note.append(f"WARNING: the vulnerability database is {_age_text(database)}.")
+    if index.get("stale"):
+        note.append(
+            f"WARNING: the package-name index is {_age_text(index)}. Dependency "
+            "existence was checked against a list that predates anything registered "
+            "since — a real package newer than the index may be reported as "
+            "nonexistent."
+        )
+        if not database.get("stale"):
+            note.append("Run `valvur update --if-stale` and scan again.")
+            return note
+    if found_nothing:
+        note += [
+            "This scan found nothing, and that is NOT evidence that there is nothing.",
+            "Absence of findings requires current data to mean anything; presence "
+            "does not.",
+        ]
+    else:
+        note += [
+            "The findings above are real, but the list is incomplete — advisories "
+            "published since are missing.",
+        ]
+    note += ["Run `valvur update --if-stale` and scan again before relying on this result."]
+    return note
+
+
+def _age_text(block: dict) -> str:
+    age = block.get("age_days")
+    return f"{age:.0f} days old" if isinstance(age, (int, float)) else "out of date"

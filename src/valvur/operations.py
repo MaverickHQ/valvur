@@ -10,7 +10,6 @@ Each returns plain text: an agent reads it, and so does a person.
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 from typing import Any
 
@@ -218,59 +217,12 @@ def _provenance(workspace: str | None) -> dict:
 
 
 def _staleness_note(workspace: str | None, *, found_nothing: bool) -> list[str]:
-    """What an agent must be told when the database was too old to be evidence.
+    """What an agent must be told when the data was too old to be evidence (the
+    words are `reply`'s, one copy for every surface)."""
+    from .reply import staleness_note
 
-    Phase 14 taught the CLI, `SUMMARY.md` and `run.json` to say this. It did not
-    teach the MCP surface — the one that reaches an agent's context with no file in
-    between, and the one ADR-0015 makes primary. Measured 2026-09-05 on a 60-day-old
-    database: `list_findings` said "No findings match" and pointed at `scan_status`
-    for *incompleteness*, which was the wrong reason, because the scan had completed.
-
-    An agent that reads "no findings" stops looking. Unlike a human it will not
-    glance at `SUMMARY.md` for a caveat nobody told it to expect.
-    """
-    provenance = _provenance(workspace)
-    database = provenance.get("database") or {}
-    index = provenance.get("name_index") or {}
-    if not database.get("stale") and not index.get("stale"):
-        return []
-
-    note = [""]
-    if database.get("stale"):
-        note.append(f"WARNING: the vulnerability database is {_age_text(database)}.")
-    if index.get("stale"):
-        # ADR-0018. Not a second copy of the database warning: the failure direction
-        # differs, and an agent told "advisories are missing" would draw the wrong
-        # conclusion about a dependency finding.
-        note.append(
-            f"WARNING: the package-name index is {_age_text(index)}. Dependency "
-            "existence was checked against a list that predates anything registered "
-            "since — a real package newer than the index may be reported as "
-            "nonexistent."
-        )
-        if not database.get("stale"):
-            note.append("Run `valvur update --if-stale` and scan again.")
-            return note
-    if found_nothing:
-        note += [
-            "This scan found nothing, and that is NOT evidence that there is nothing.",
-            "Absence of findings requires current data to mean anything; presence "
-            "does not.",
-        ]
-    else:
-        note += [
-            "The findings above are real, but the list is incomplete — advisories "
-            "published since are missing.",
-        ]
-    note += [
-        "Run `valvur update --if-stale` and scan again before relying on this result.",
-    ]
-    return note
-
-
-def _age_text(block: dict) -> str:
-    age = block.get("age_days")
-    return f"{age:.0f} days old" if isinstance(age, (int, float)) else "out of date"
+    return staleness_note(Path(workspace or ".").resolve(), _provenance(workspace),
+                          found_nothing=found_nothing)
 
 
 def _text_of(reply):
@@ -463,319 +415,21 @@ def doctor(args: dict) -> str:
     return _doctor.render(checks, workspace)
 
 
-#: How many lines of a failure reason `scan_status` shows. The bound is on LINES,
-#: never on the sentence (23.3.4): the Kiro run read *"…no package-name index for
-#: PyPI, so"* at an 80-character cut, which was the one sentence it needed whole.
-REASON_LINES = 6
-
-
-def _whole_reason(reason: str) -> str:
-    """A failure reason as the Scanner gave it, every sentence intact, continuation
-    lines indented under the tool's name, and only the count of lines bounded."""
-    shown = [line for line in reason.strip().splitlines()] or [""]
-    kept, rest = shown[:REASON_LINES], shown[REASON_LINES:]
-    out = kept[0]
-    for line in kept[1:]:
-        out += "\n         " + line
-    if rest:
-        out += f"\n         … {len(rest)} more line(s) in run.json"
-    return out
-
-
-def _next_moves(workspace: str | None) -> list[str]:
-    """The next two moves after a scan: the top active Finding, ready to hand to
-    `explain_finding`, and REMEDIATION.md's first action (23.3.4). Nothing when
-    nothing is active; nothing invented for results an older valvur wrote."""
-    from .coverage import NOTE_RULES
-
-    try:
-        findings = _load(workspace)["findings"]
-    except (FileNotFoundError, ValueError, KeyError):
-        return []
-    active = [f for f in findings if not f.get("suppressed") and f.get("rule") not in NOTE_RULES]
-    if not active:
-        return []
-    top = min(active, key=lambda f: f.get("rank") or 10**9)
-    where = f"{top['path']}:{top['line']}" if top.get("line") else top["path"]
-    moves = ["", "Next:",
-             f"  explain_finding {top['fingerprint']} — #{top.get('rank', '?')} {where} "
-             f"{top['title']}"]
-    action = _first_action(_results(workspace) / "REMEDIATION.md")
-    if action:
-        moves.append(f"  REMEDIATION.md, {action}")
-    return moves
-
-
-def _first_action(path: Path) -> str:
-    """`action 1 of N: <heading>` from REMEDIATION.md's own text, so the agent is
-    pointed at exactly the line it will read there; empty if the file has none."""
-    import re
-
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return ""
-    total = re.search(r"\*\*(\d+) action\(s\)\*\*", text)
-    first = re.search(r"^## 1\. (.+)$", text, re.M)
-    if not first:
-        return ""
-    heading = first.group(1).replace("**", "").strip()
-    count = f" of {total.group(1)}" if total else ""
-    return f"action 1{count}: {heading}"
-
-
-#: The sentences the status text says after a job's state, as fields too
-#: (29.2.4): Claude Code hands the model a structured reply's JSON and not its
-#: text, so an instruction only the text carried never arrived — the model built
-#: its own wait, and ended a turn with the scan running. One string each, so the
-#: text and the field cannot drift.
-_CANCELLING_NEXT = "Call again; no result will follow."
-_CANCELLED_NEXT = ("No result: a cancelled scan writes nothing, and the previous results, if "
-                   "any, stand. Call `scan` to start again.")
-_DOCTOR_NEXT = ("Run `doctor` (the tool; `valvur doctor` on a shell) before scanning again: "
-                "it names what this machine is missing and the fix.")
-_NO_RESULT = "No result to report."
-
-
-def _running_next() -> str:
-    return (f"Call `scan_status` again; it waits up to {jobs.STATUS_WAIT_SECONDS:g} s and "
-            "returns the moment the scan finishes; do not report a result yet.")
-
-
-def _job_fields(job, *, progress: bool = False, next_moves: list[str] | None = None) -> dict:
-    fields: dict = {"state": job.state.name, "profile": job.profile,
-                    "elapsed_s": round(job.elapsed, 1), "error": job.error or None,
-                    "doctor_may_help": job.doctor_may_help}
-    if progress:
-        fields["progress"] = list(job.progress)
-    if job.failure:
-        # The budget cut as fields beside the error it is also written into.
-        fields["budget"] = dict(job.failure)
-    if next_moves is not None:
-        fields["next"] = list(next_moves)
-    return fields
-
-
 def scan_status_reply(args: dict) -> tuple[str, dict]:
-    """The text, and the same answer as a dict for `structuredContent` (28.2.2).
+    """Schema 2 (R6.2, ADR-0024): the fields, and the text rendered from them.
 
-    An agent parsed *"DONE in 58s. 3 active…"* out of prose; the verdict, the
-    counts, the Scanners and the next moves are fields now, from the same
-    `run.json` and the same job, built in the same pass as the text.
-    """
+    A running job is waited for a bounded time before answering, so a poll covers
+    seconds of scan rather than milliseconds: the agent pays one turn per call
+    either way, and returning instantly made it pay fourteen (task 10.2.5)."""
+    from . import reply
+
     args = _checked(args)
-    workspace = Path(args.get("workspace") or ".").resolve()
-
+    workspace = Path(args["workspace"])
     job = jobs.current(workspace)
     if job is not None and job.state in jobs.ACTIVE:
-        # Wait a bounded time before answering, so a poll covers seconds of scan
-        # rather than milliseconds. The agent pays one turn per call either way;
-        # returning instantly made it pay fourteen (task 10.2.5).
         job.wait()
-    if job is not None and job.state is State.CANCELLING:
-        return (f"CANCELLING — the {job.profile} scan, {job.elapsed:.0f}s in; its containers "
-                f"are being stopped. {_CANCELLING_NEXT}"
-                ), {"scanned": False, "job": _job_fields(job, next_moves=[_CANCELLING_NEXT])}
-    if job is not None and job.state is State.CANCELLED:
-        return (f"CANCELLED after {job.elapsed:.0f}s — {job.error}\n{_CANCELLED_NEXT}"
-                ), {"scanned": False, "job": _job_fields(job, next_moves=[_CANCELLED_NEXT])}
-    if job is not None and job.state is State.RUNNING:
-        # A fetch in progress — the image (10.2 claim 4), the database or the index
-        # (24.1) — is the one kind of stage that is not a Scanner completing, and
-        # the kind that made a first run look hung: it gets its own line while it
-        # is the latest thing said, and the line goes once anything follows it.
-        from . import levers as _levers
-        from .api import FETCH_STARTED
-
-        now: str | None = None
-        completed: list[str] = []
-        # The fleet's own messages (29.0.4): its size, each Scanner's start —
-        # timestamped by the job on arrival — and each one's end.
-        started: dict[str, float] = {}
-        finished: list[str] = []
-        fleet: int | None = None
-        workspace_lines: list[str] = []
-        stamps = list(job.progress_at) + [job.elapsed + job.started] * len(job.progress)
-        for message, at in zip(job.progress, stamps, strict=False):
-            if message.startswith(FETCH_STARTED):
-                now = message
-                continue
-            now = None
-            if message.startswith("fleet: "):
-                fleet = int(message.split()[1])
-                continue
-            if message.startswith(_levers.WORKSPACE_PREFIX):
-                # The count and, past the threshold, the directory to exclude
-                # (29.1.2): said once, and not a completion.
-                workspace_lines.append("Workspace: " + message[len(_levers.WORKSPACE_PREFIX):])
-                continue
-            tool, sep, rest = message.partition(": ")
-            if sep and rest == "started":
-                started[tool] = at
-                continue
-            if sep and tool in started:
-                finished.append(message)
-                continue
-            completed.append(message)
-        lines = [f"RUNNING — {job.profile} scan, {job.elapsed:.0f}s elapsed."]
-        lines += workspace_lines
-        if now is not None:
-            lines.append(f"Now: {now}.")
-        done = {m.partition(": ")[0] for m in finished}
-        running = {tool: time.monotonic() - at for tool, at in started.items() if tool not in done}
-        if running:
-            # What an agent could not tell before: a running scan from a hung one.
-            names = ", ".join(f"{tool} {seconds:.0f}s" for tool, seconds in running.items())
-            total = fleet if fleet is not None else len(started)
-            lines.append(f"Now: {names} running — {len(finished)} of {total} finished: "
-                         f"{', '.join(finished) or 'none yet'}")
-        lines.append(f"Completed so far: {', '.join(completed) or 'starting'}")
-        lines.append(f"This call waited {jobs.STATUS_WAIT_SECONDS:.0f}s for it. Call again; "
-                     "do not report a result yet.")
-        fields = _job_fields(job, progress=True, next_moves=[_running_next()])
-        fields.update({"running": {tool: round(seconds, 1) for tool, seconds in running.items()},
-                       "finished": len(finished), "fleet": fleet,
-                       # The lines the text says, as fields (29.2.4).
-                       "finished_scanners": list(finished),
-                       "workspace": list(workspace_lines), "now": now,
-                       "completed": list(completed),
-                       "waited_s": jobs.STATUS_WAIT_SECONDS})
-        return "\n".join(lines), {"scanned": False, "job": fields}
-    if job is not None and job.state is State.FAILED:
-        lines = [f"FAILED after {job.elapsed:.0f}s — {job.error}"]
-        advice: list[str] = list(job.next_moves)
-        if job.doctor_may_help and not advice:
-            # Only when a precondition could be the cause (29.0.3): the budget's
-            # refusal carries its own levers, and `doctor` would say *ready*.
-            advice.append(_DOCTOR_NEXT)
-        advice.append(_NO_RESULT)
-        lines += advice
-        return "\n".join(lines), {"scanned": False, "job": _job_fields(job, next_moves=advice)}
-
-    path = _results(args.get("workspace")) / "run.json"
-    if not path.is_file():
-        return f"No scan has run in this workspace ({path.parent}).", {
-            "scanned": False, "job": None, "results_dir": str(path.parent)}
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    # `findings` is a breakdown, not a total (task 19.C.1). An agent reading one
-    # number could not tell four accepted risks from four live problems, and this is
-    # the surface ADR-0015 makes primary — it reaches an agent's context with no file
-    # in between, so a caveat it does not carry is a caveat nobody sees.
-    counts = data.get("findings")
-    if not isinstance(counts, dict):          # a run.json written by an older valvur
-        counts = {"active": counts, "suppressed": 0, "not_covered": 0}
-    lines = [
-        f"status:   {data.get('status')}",
-        f"complete: {data.get('complete')}",
-        f"findings: {counts.get('active', 0)} active"
-        + (f", {counts['suppressed']} suppressed" if counts.get("suppressed") else "")
-        + (f", {counts['not_covered']} not covered" if counts.get("not_covered") else ""),
-    ]
-    not_read = [entry for entry in data.get("not_read") or [] if isinstance(entry, dict)]
-    if not_read:
-        # What the File Set left out, with why (R1.4, R3.9).
-        lines.append("not read by any Scanner: " + ", ".join(
-            f"{e.get('path')} ({e.get('reason')})" for e in not_read[:8])
-            + (f" and {len(not_read) - 8} more" if len(not_read) > 8 else ""))
-    if data.get("not_rechecked"):
-        # Their Scanner did not run this time (29.0.5): a disappearance is not a fix.
-        lines.append(f"not re-checked: {data['not_rechecked']} previous finding(s) whose "
-                     "Scanner did not run this time — neither fixed nor persisting")
-    # `inconclusive` beside `complete: True` and a list of healthy Scanners reads as
-    # a contradiction unless the reason is given. It is not a contradiction: every
-    # Scanner ran, and the data they ran against was too old for "nothing" to mean
-    # anything.
-    if data.get("status") == "inconclusive":
-        # Three different causes produce this verdict and an agent must be told
-        # which. `run.json` says so in one field since 22.D.4; before that this
-        # code guessed from `database.stale` and `name_index.stale`, and a run
-        # with both stale and an uninspected ecosystem named only the first.
-        reason = data.get("status_reason") or (
-            "nothing live was found, and the reason is not recorded — a run.json "
-            "from before 22.D.4; rescan"
-        )
-        lines.append(f"          ^ {reason}")
-    # What to do first, before the list of what ran (23.3.4): the agent never called
-    # `explain_finding` in 22.G.1 because nothing pointed at it.
-    next_moves = _next_moves(args.get("workspace"))
-    lines += next_moves
-    lines += ["", "Scanners:"]
-    timed: list[tuple[float, str]] = []
-    for scanner in data.get("scanners", []):
-        mark = "ok" if scanner["ok"] else "FAILED — " + _whole_reason(scanner["reason"])
-        # Each Scanner's own time (23.3.2); a run.json from before it has none, and
-        # no number is invented for it.
-        seconds = scanner.get("duration_s")
-        if isinstance(seconds, int | float) and seconds > 0:
-            timed.append((seconds, scanner["tool"]))
-            mark += f" ({seconds:.1f}s)"
-        lines.append(f"  {scanner['tool']}: {mark}")
-    slowest = None
-    if timed:
-        seconds, tool = max(timed)
-        slowest = {"tool": tool, "seconds": round(seconds, 1)}
-        lines.append(f"  slowest: {tool} {seconds:.1f}s — the fleet runs concurrently, so "
-                     "that is about what the scan cost")
-    # What did NOT run, and what nothing here reads even when it does. Two different
-    # claims, both absent from this surface until task 19.C.1.
-    not_run = data.get("scanners_not_run") or []
-    if not_run:
-        lines += ["", f"not run on the `{data.get('profile')}` profile: " + ", ".join(not_run)]
-    skipped = data.get("scanners_skipped") or {}
-    for tool, why in skipped.items():
-        lines.append(f"  {tool}: skipped — {why}")
-    ignores = (data.get("coverage") or {}).get("dependency-reality", {}).get("ignores") or []
-    if ignores:
-        lines += ["", "coverage: " + "; ".join(ignores)]
-
-    build = data.get("build") or {}
-    if build.get("match") is False:
-        lines += ["", "WARNING: the shim and the image were built from different trees "
-                  f"(shim {str(build.get('shim'))[:12]}, image {str(build.get('image'))[:12]}). "
-                  "Same version, different code — the image may lack a Check or a rule "
-                  "this shim expects. `docker pull` the image this version publishes, or "
-                  "`pip install -U valvur`."]
-
-    network = data.get("network", {})
-    lines += ["", f"left this machine: {network.get('what_left_the_machine', 'unknown')}"]
-    if job is not None and job.state is State.DONE:
-        generation = data.get("generation")
-        stamp = f" Generation {generation}." if generation else ""
-        lines = [f"DONE in {job.elapsed:.0f}s.{stamp}", "", *lines]
-    if not data.get("complete"):
-        lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
-    caveats = _staleness_note(args.get("workspace"), found_nothing=not counts.get("active"))
-    lines += caveats
-    structured = {
-        "scanned": True,
-        "job": _job_fields(job) if job is not None else None,
-        "status": data.get("status"),
-        "status_reason": data.get("status_reason") or "",
-        "complete": bool(data.get("complete")),
-        "generation": data.get("generation"),
-        "profile": data.get("profile"),
-        "findings": {key: int(counts.get(key) or 0)
-                     for key in ("active", "suppressed", "not_covered", "total")},
-        "fixed": int(data.get("fixed") or 0),
-        "not_rechecked": int(data.get("not_rechecked") or 0),
-        "not_read": [{"path": e.get("path"), "reason": e.get("reason")}
-                     for e in not_read],
-        "scanners": [{"tool": s.get("tool"), "ok": bool(s.get("ok")),
-                      "reason": s.get("reason") or "",
-                      "duration_s": s.get("duration_s") or 0}
-                     for s in data.get("scanners", [])],
-        "scanners_skipped": dict(skipped),
-        "scanners_not_run": list(not_run),
-        "slowest": slowest,
-        "next": list(next_moves),
-        "caveats": list(caveats),
-        "network": dict(network),
-        "build": dict(build),
-        "database": dict(data.get("database") or {}),
-        "name_index": dict(data.get("name_index") or {}),
-    }
-    return "\n".join(lines), structured
+    fields = reply.fields(workspace, job)
+    return reply.text(fields), fields
 
 
 scan_status = _text_of(scan_status_reply)

@@ -69,7 +69,7 @@ def test_the_failed_reply_names_doctor_only_for_a_precondition(tmp_path, monkeyp
     jobs.reset()
     assert text.startswith("FAILED after") and "budget ran out" in text
     assert "doctor" not in text, "doctor says ready; the message must not send the agent there"
-    assert fields["job"]["doctor_may_help"] is False
+    assert fields["error"]["kind"] != "precondition"
 
     def missing(workspace, profile, progress):
         raise NoContainerRuntime("No container runtime found.")

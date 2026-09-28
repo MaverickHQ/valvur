@@ -200,8 +200,8 @@ def test_the_structured_status_reply_carries_the_count(workspace):
     _scan(workspace, [_Finder(), _Other()])
     _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=1.5)
     _text, structured = scan_status_reply({"workspace": str(workspace)})
-    assert structured["fixed"] == 0
-    assert structured["not_rechecked"] == 1
+    assert structured["counts"]["fixed"] == 0              # schema 2 (R6.2)
+    assert structured["counts"]["not_rechecked"] == 1
 
 
 def test_the_summary_groups_identical_titles(workspace):

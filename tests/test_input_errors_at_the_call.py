@@ -77,7 +77,7 @@ def _settled(tmp_path, work):
     assert job.wait(5)
     text, fields = scan_status_reply({"workspace": str(tmp_path)})
     jobs.reset()
-    return text, fields["job"]
+    return text, fields
 
 
 def test_a_running_scan_does_not_suggest_doctor(tmp_path, monkeypatch):
@@ -91,7 +91,8 @@ def test_a_running_scan_does_not_suggest_doctor(tmp_path, monkeypatch):
     jobs.start(tmp_path, "offline", lambda ws, profile, progress: release.wait(5) and "")
     _, fields = scan_status_reply({"workspace": str(tmp_path)})
     release.set()
-    assert fields["job"]["doctor_may_help"] is False
+    # Schema 2 (R6.2): doctor is advised by `error.kind`, and a running scan has none.
+    assert fields["state"] == "running" and fields["error"] is None
     jobs.reset()
 
 
@@ -101,7 +102,7 @@ def test_a_finished_scan_does_not_suggest_doctor(tmp_path, runner_finding_nothin
         return "clean: 0 finding(s)."
 
     _, job = _settled(tmp_path, work)
-    assert job["doctor_may_help"] is False
+    assert job["state"] == "done" and job["error"] is None
 
 
 def test_a_missing_runtime_suggests_doctor(tmp_path):
@@ -111,7 +112,7 @@ def test_a_missing_runtime_suggests_doctor(tmp_path):
         raise NoContainerRuntime("No container runtime found.")
 
     text, job = _settled(tmp_path, work)
-    assert job["doctor_may_help"] is True
+    assert job["error"]["kind"] == "precondition"
     assert "doctor" in text
 
 
@@ -120,7 +121,7 @@ def test_an_unexpected_failure_does_not_suggest_doctor(tmp_path):
         raise KeyError("a bug, not a missing precondition")
 
     text, job = _settled(tmp_path, work)
-    assert job["doctor_may_help"] is False
+    assert job["error"]["kind"] == "failed"
     assert "doctor" not in text
 
 
@@ -131,6 +132,6 @@ def test_a_busy_workspace_says_to_wait_and_does_not_suggest_doctor(tmp_path):
         raise Busy("a scan is already running in this workspace")
 
     text, job = _settled(tmp_path, work)
-    assert job["doctor_may_help"] is False
+    assert job["error"]["kind"] == "busy"
     assert "doctor" not in text
     assert any("wait" in move for move in job["next"]), job["next"]

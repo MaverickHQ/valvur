@@ -628,22 +628,27 @@ def test_scan_status_answers_structured_content_that_agrees_with_its_text(scanne
     text = result["content"][0]["text"]
     data = result["structuredContent"]
 
-    assert data["status"] in ("findings", "clean", "inconclusive")
-    assert f"status:   {data['status']}" in text
-    assert f"findings: {data['findings']['active']} active" in text
+    # Schema 2 (R6.2): the verdict, the counts and the Scanners, and the summary.
+    assert data["schema"] == 2 and data["state"] == "done"
+    assert data["verdict"] in ("findings", "clean", "inconclusive")
+    assert f"status:   {data['verdict']}" in text
+    assert f"findings: {data['counts']['active']} active" in text
     assert data["complete"] is True and "complete: True" in text
     assert data["generation"] and len(data["generation"]) == 36
     assert {s["tool"] for s in data["scanners"]} and all(
         f"  {s['tool']}: " in text for s in data["scanners"])
-    assert data["job"] is None, "no job ran through the server in this test"
+    assert data["elapsed_s"] is None, "no job ran through the server in this test"
+    assert data["report"] and data["report"].rstrip("\n") in text
 
 
 def test_scan_status_without_a_scan_says_so_in_both_forms(tmp_path):
     result = _call("scan_status", {"workspace": str(tmp_path)})
 
     assert "No scan has run" in result["content"][0]["text"]
-    assert result["structuredContent"] == {"scanned": False, "job": None,
-                                           "results_dir": str(tmp_path / ".security-scan")}
+    data = result["structuredContent"]
+    assert (data["schema"], data["state"], data["error"]["kind"]) == (2, "none", "no-scan")
+    assert str(tmp_path / ".security-scan") in data["error"]["message"]
+    assert data["next"] == ["Call `scan` to scan it."]
 
 
 def test_list_findings_answers_structured_findings_that_agree_with_its_text(scanned):
