@@ -440,24 +440,31 @@ is superseded — the image tags earlier shim versions pulled, and index files t
 index no longer names — listing each first. (`valvur cache` and `valvur explain`,
 their old names, still work in this release and say what replaced them.)
 
-## What actually does the scanning
+## What does the scanning
 
-valvur builds no detection engine. Six open source scanners do that and deserve the
-credit; valvur adds orchestration, one findings model, exploit-aware ranking, and the
-checks under claim 2.
+valvur builds no detection engine. Seven open-source Scanners do that and deserve the
+credit; valvur adds one File Set, one findings model, exploit-aware ranking, and three
+Checks of its own. All of them run in one container, fed a copy of the files. `run.json`
+records the version of each that ran, and `raw/` keeps what each said.
 
-| Tool | Licence | Does |
-|---|---|---|
-| [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Dependency vulnerabilities |
-| [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets in the files scanned and in git history, the newest 5,000 commits or 200 MB |
-| [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Dependencies against OSV's data. On `offline`, from OSV's offline database, fetched into the host cache the first time a project has a lockfile for the ecosystem (npm's is 207 MB): it carries the known-malicious `MAL-` packages nothing else here reports, measured on a planted one. On `full`, from OSV.dev's API, which receives lockfile names and versions. Measured on twelve real repositories: **121 Go standard-library advisories on the one Go project**, keyed on `go.mod`'s `go` directive, which Trivy reports only from binaries; **1** disputed advisory on a Python project; **0** on the other ten; and on a thirteenth, **110 against the lower bounds of an unpinned `requirements.txt`** — versions nobody installs, dropped with the count since 25.3 (the file is a coverage note instead). About a second a scan. |
-| [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis |
-| [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration |
-| [zizmor](https://github.com/zizmorcore/zizmor) | MIT | GitHub Actions workflows: unpinned actions, write permissions, template injection and more, offline. Measured on the corpus: every unpinned action and every write permission the tools before it found |
-| [Syft](https://github.com/anchore/syft) | Apache-2.0 | SBOM, and the dependency licences read from it |
+| Scanner | Licence | Reads | Runs |
+|---|---|---|---|
+| [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets in the files scanned and in git history, the newest 5,000 commits or 200 MB | always |
+| [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Known vulnerabilities in dependencies, from lockfiles, against its database in the host cache | always |
+| [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Lockfiles against OSV's data, which carries the known-malicious `MAL-` packages nothing else here reports. On `offline`, OSV's offline database for each ecosystem present, fetched into the host cache; on `full`, OSV.dev's API, which receives lockfile names and versions | always |
+| [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis: pinning rules, a sink inventory at INFO, and taint rules from a model call to a sink | always |
+| [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration: Terraform, CloudFormation, Kubernetes, Dockerfiles, other CI systems | where there is infrastructure other than GitHub workflows |
+| [zizmor](https://github.com/zizmorcore/zizmor) | MIT | GitHub Actions workflows: unpinned actions, write permissions, template injection | where there are workflows |
+| [Syft](https://github.com/anchore/syft) | Apache-2.0 | The SBOM, and the dependency licences read from it | always |
 
-Exploit intelligence comes from CISA KEV and FIRST EPSS — public primary sources,
-auditable and mirrorable. No proprietary database; nothing to lock you in.
+| Check | Reads |
+|---|---|
+| `ai-artifact` | Agent configuration: injected directives, hidden Unicode, unpinned MCP servers, blanket approval, hooks that run a command, and local settings that would leak |
+| `dependency-reality` | Every declared dependency against the Name Index: does it exist, and on `full`, how old and how adopted is it |
+| `licence-file` | The project's own licence: missing, or contradicting what the manifest declares |
+
+Exploit intelligence comes from CISA KEV and FIRST EPSS: public primary sources,
+auditable and mirrorable. No proprietary database, and nothing to lock you in.
 
 ## What it deliberately does not do
 
