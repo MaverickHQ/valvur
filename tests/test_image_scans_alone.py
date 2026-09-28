@@ -9,6 +9,7 @@ directory while the checkout stays read-only.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from valvur.engine_host import LocalRuntime, snapshot
 from valvur.invocation import Invocation
@@ -53,3 +54,52 @@ def test_the_name_check_is_told_where_the_index_is_so_the_engine_can_move_it(tmp
                               network=True).command(tmp_path)
 
     assert (INDEX_ENV, INDEX_MOUNT) in invocation.env
+
+
+def _repository(tmp_path):
+    import subprocess
+
+    ws = tmp_path / "repo"
+    ws.mkdir()
+    (ws / "app.py").write_text("x = 1\n")
+    env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+           "PATH": __import__("os").environ["PATH"], "HOME": str(tmp_path)}
+    for argv in (["init", "-q"], ["add", "app.py"], ["commit", "-qm", "one"]):
+        subprocess.run(["git", "-C", str(ws), *argv], env=env, check=True)
+    return ws
+
+
+def test_a_repository_without_git_to_ask_is_walked_and_says_why(tmp_path, monkeypatch):
+    """The image carries no `git` (ADR-0005). A checkout scanned inside it was a
+    git view that raised; it is a walk of the folder, which reads ignored files
+    too, and the scope says so."""
+    from valvur import fileset
+
+    ws = _repository(tmp_path)
+    monkeypatch.setattr(fileset, "git", lambda: None)
+
+    chosen = fileset.build(ws)
+
+    assert chosen.scope == "tree"
+    assert chosen.files == ["app.py"]
+    assert "git" in (chosen.note or "")
+    assert chosen.manifest(ws)["note"] == chosen.note
+
+
+def test_history_unread_for_want_of_git_is_said_on_the_report(tmp_path, monkeypatch):
+    import json
+
+    from valvur import api, fileset
+    from valvur.adapters import GitleaksAdapter
+
+    fake_tools = Path(__file__).parent / "fixtures" / "fake-tools"
+    ws = _repository(tmp_path)
+    monkeypatch.setattr(fileset, "git", lambda: None)
+
+    api.scan(ws, runner=LocalRuntime(fake_tools), adapters=[GitleaksAdapter()])
+
+    run = json.loads((ws / ".security-scan" / "run.json").read_text())
+    assert "git" in run["history"]["unavailable"]
+    summary = (ws / ".security-scan" / "SUMMARY.md").read_text()
+    assert "Git history was not read for secrets" in summary
