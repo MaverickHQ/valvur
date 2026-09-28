@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""`fake-killed`: SIGKILL itself, as the runtime's OOM killer would (R3.9)."""
+import os
+import signal
+
+os.kill(os.getpid(), signal.SIGKILL)

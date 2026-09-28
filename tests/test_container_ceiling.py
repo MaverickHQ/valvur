@@ -112,26 +112,29 @@ def test_the_database_fetch_container_is_held_too(monkeypatch, tmp_path):
 
 
 @pytest.mark.e2e
-def test_a_container_past_the_ceiling_is_killed_not_swapped():
-    """Against the real image: three gigabytes asked for inside a two-gigabyte
-    box is an exit 137 in seconds, reported as a failed Scanner — never the host
-    swapping while the budget counts down."""
+def test_a_container_past_the_ceiling_is_killed_not_swapped(mountable_tmp):
+    """Against the real image: four gigabytes asked for inside a Scan Container
+    whose ceiling is at most three is an exit 137 in seconds, recorded for that
+    tool — never the host swapping while the budget counts down (D4, R3.9)."""
+    import json
+
+    from valvur import fileset
+    from valvur.engine_host import ContainerRuntime, snapshot
     from valvur.invocation import Invocation
 
-    runner = ContainerRunner()
     workspace = Path(__file__).parent / "fixtures" / "clean-repo"
-    hog = Invocation(
-        tool="python", version="3.12",
-        argv=("python", "-c", "b = bytearray(3 * 1024 ** 3); print(len(b))"),
-        timeout=120,
-    )
+    scratch = mountable_tmp / "scratch"
+    scratch.mkdir()
+    hog = Invocation(tool="hog", version="3.12", report="hog.json", timeout=120,
+                     argv=("python", "-c", "b = bytearray(4 * 1024 ** 3); print(len(b))"))
 
     started = time.monotonic()
-    out = runner.run(hog, workspace)
+    ContainerRuntime().run([hog], snapshot(workspace, fileset.build(workspace).files), scratch)
     elapsed = time.monotonic() - started
 
-    print(f"28.0.3: exit {out.exit_code} after {elapsed:.1f}s")
-    assert out.exit_code == 137, f"exit {out.exit_code}: the ceiling did not hold\n{out.stderr}"
+    [entry] = json.loads((scratch / "manifest.json").read_text())["tools"]
+    print(f"D4: exit {entry['exit_code']} after {elapsed:.1f}s")
+    assert entry["exit_code"] == 137, f"the ceiling did not hold: {entry}"
     assert elapsed < 60, f"{elapsed:.0f}s — that is the host swapping, not a kill"
 
 

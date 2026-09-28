@@ -84,23 +84,32 @@ def test_the_cli_stops_on_sigterm_as_well_as_sigint(monkeypatch):
 def test_a_scanner_past_its_timeout_leaves_no_container_behind(mountable_tmp):
     """The real thing: an Invocation of `sleep 600` under a two-second timeout,
     and two seconds later the runtime lists no container named for the run."""
+    import json
     import time
 
+    from valvur.engine_host import ContainerRuntime, snapshot
     from valvur.invocation import Invocation
-    from valvur.runner import ContainerRunner
 
-    runner = ContainerRunner()
+    runtime = ContainerRuntime()
+
+    def listed() -> set[str]:
+        return set(subprocess.run(
+            [runtime.runtime, "ps", "-a", "--filter", "name=valvur-", "--format", "{{.Names}}"],
+            capture_output=True, text=True, check=False, timeout=30).stdout.split())
+
+    (mountable_tmp / "ws").mkdir()
+    (mountable_tmp / "ws" / "a.py").write_text("x = 1\n")
+    scratch = mountable_tmp / "scratch"
+    scratch.mkdir()
+    before = listed()
     started = time.monotonic()
-
-    output = runner.run(Invocation(tool="probe", version="0", argv=("sleep", "600"), timeout=2),
-                        mountable_tmp)
-
+    # Inside the Scan Container since R3.9: the engine kills the tool's group at
+    # its timeout, and the container ends with the scan.
+    runtime.run([Invocation(tool="probe", version="0", argv=("sleep", "600"), timeout=2)],
+                snapshot(mountable_tmp / "ws", ["a.py"]), scratch)
     elapsed = time.monotonic() - started
-    assert output.stopped_after == 2, output
-    time.sleep(2)
-    listed = subprocess.run(
-        [runner.runtime, "ps", "-a", "--filter", "name=valvur-", "--format", "{{.Names}}"],
-        capture_output=True, text=True, check=False, timeout=30).stdout.split()
-    leaked = sorted(set(listed) & runner._mine)
-    assert leaked == [], f"still running {elapsed:.0f}s in: {leaked}"
+
+    [entry] = json.loads((scratch / "manifest.json").read_text())["tools"]
+    assert entry["timed_out"] and entry["exit_code"] == 124, entry
+    assert listed() - before == set(), "a container outlived the scan"
     assert elapsed < 60, f"stopping a timed-out Scanner took {elapsed:.0f}s"

@@ -130,6 +130,10 @@ class _Running:
             stderr, code = self.not_started or "", 127
         else:
             code = TIMED_OUT if self.timed_out else self.process.returncode
+            if code < 0:
+                # Killed by a signal: Python says -N, a shell and `docker run` say
+                # 128 + N, and the host reads 137 as the runtime's kill (29.0.3).
+                code = 128 - code
         _event({"event": "end", "tool": self.name, "exit_code": code, "seconds": seconds,
                 "timed_out": self.timed_out})
         return {"tool": self.name, "exit_code": code, "seconds": seconds,

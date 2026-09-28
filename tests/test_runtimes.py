@@ -396,8 +396,24 @@ def test_a_kev_mirror_that_is_not_http_is_refused_softly(monkeypatch, tmp_path, 
 
 @pytest.mark.e2e
 @pytest.mark.parametrize("runtime", RUNTIMES)
-def test_the_container_can_read_the_workspace_on_every_runtime(workspace, runtime):
-    ContainerRunner(runtime=_available(runtime)).verify_workspace_readable(workspace)
+def test_the_scan_container_receives_the_whole_file_set_on_every_runtime(
+        workspace, runtime, mountable_tmp):
+    """Protocol 1 mounted the source and probed that the container could read it;
+    rootless Podman once saw an empty tree. Since R3.9 the File Set arrives on
+    stdin, and the engine counts what it unpacked."""
+    import json
+
+    from valvur import fileset
+    from valvur.engine_host import ContainerRuntime, snapshot
+    from valvur.invocation import Invocation
+
+    files = fileset.build(workspace).files
+    scratch = mountable_tmp / f"scratch-{runtime}"
+    scratch.mkdir()
+    ContainerRuntime(runtime=_available(runtime)).run(
+        [Invocation(tool="ls", version="0", argv=("ls", "/workspace"))],
+        snapshot(workspace, files), scratch)
+    assert json.loads((scratch / "manifest.json").read_text())["received"] == len(files)
 
 
 # ------------------------------------------- dev dependencies on the quick profile

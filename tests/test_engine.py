@@ -196,3 +196,23 @@ def test_a_timed_out_scanner_says_so_with_an_excerpt_that_ends_on_a_word(tmp_pat
     assert slow.reason.startswith("timed out after 1s and was stopped — last stderr: ")
     excerpt = slow.reason.split("last stderr: ", 1)[1]
     assert excerpt.endswith("…") and excerpt[-2].isalpha() and excerpt[-3:-1] != "wh", excerpt
+
+
+def test_a_tool_killed_by_a_signal_is_recorded_as_the_shell_records_it(tmp_path):
+    """The runtime's OOM killer sends SIGKILL; Python reports that as -9, and the
+    host reads exit 137 as "killed by the runtime" (29.0.3). The engine records
+    128 plus the signal, as a shell and `docker run` do."""
+    import json
+
+    from valvur.invocation import Invocation
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.py").write_text("x = 1\n")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    LocalRuntime(FAKE_TOOLS).run(
+        [Invocation(tool="hog", version="0", report="hog.json", argv=("fake-killed",))],
+        snapshot(ws, ["a.py"]), scratch)
+    [entry] = json.loads((scratch / "manifest.json").read_text())["tools"]
+    assert entry["exit_code"] == 137
