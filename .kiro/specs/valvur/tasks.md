@@ -601,14 +601,26 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   label. The e2e suite on the rebuilt image: 45 passed and 3 failed on the fleet's old
   API, restated and green.
 
-- [ ] **R3.10** **`0.7.0` prepared** (D16). The version, the CHANGELOG and the README status
+- [x] **R3.10** **`0.7.0` prepared** (D16). The version, the CHANGELOG and the README status
   line. The rehearsal runs after landing, per §4.
+  **STATUS 2026-09-28:** ✅ `pyproject.toml`, `uv.lock`, the CHANGELOG's `[0.7.0]` entry,
+  the README status line (release in progress, after `0.6.0`'s tag) and SECURITY.md's
+  `0.7.x`. The image built as `0.7.0` carries protocol 2.
 
 **Exit**, on both lanes:
 - every expected finding, except those marked for R4 and R5;
 - repository 1 complete warm in under 30 s on the Mac, under D17's swap rule;
 - one container per `offline` scan, and zero after every lifecycle probe;
 - the net line change of `api.py` and `runner.py` recorded.
+
+**Exit STATUS 2026-09-28, the Mac** (`docs/acceptance/r3.md`): every repository passes, the
+pending rows are R4.2, R4.6 and R5.3's alone; repository 1 took 8.1 s against 166 s at the
+baseline, recorded under D17 with 10.4 GB of swap; zero containers after all four probes,
+each now required to have seen a Scan Container; one container per `offline` scan held by
+the constraint suite; `api.py` +64 and `runner.py` −179 lines, 115 fewer together. The e2e
+suite: 48 passed in 6.4 minutes. The exit run found two defects, fixed before this:
+Opengrep's own ignore list, and probes that measured nothing. Linux: the pull request's
+`acceptance` run, recorded in R4's first commit with the rehearsal.
 
 ### Phase R4: the Scanner set, by rule
 
@@ -775,7 +787,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 |---|---|---|
 | `v0.6.0` | **ready 2026-09-27**: R1 landed at `bbf77ef`; rehearsal 36353560849 green through validation on both architectures in 13 minutes, cancelled at the brake | sign and push the tag `v0.6.0` on `bbf77ef`; approve the real run at the brake |
 | land R2, PR #145 | **ready 2026-09-28**: every check green on `d04e72f`, the Linux acceptance run included | fast-forward `main`: `git push origin refs/remotes/origin/build/r2-the-acceptance-set:refs/heads/main`. The build's own push to `main` was refused by the session's permission classifier on 2026-09-28 00:40; R3 continues on a branch rebased onto R2 and lands after it |
-| `v0.7.0` | R3 | the same |
+| `v0.7.0` | R3 lands (after R2's PR #145), then its rehearsal | sign and push the tag `v0.7.0` on the rehearsed commit, after `v0.6.0`; approve the real run at the brake |
 | `v1.0.0` | R7 | the same |
 | the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own |
 | Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/gates/` |

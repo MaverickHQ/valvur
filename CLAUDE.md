@@ -23,11 +23,11 @@ honest about why not, and trustworthy. Locally.
   **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
 
 **Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
-R0 and R1 closed 2026-09-27, R2 (the acceptance set, baseline on both lanes) 2026-09-28;
-`0.6.0` waits for the owner's tag; R3, the one-container engine, is under way.
+R0 and R1 closed 2026-09-27; R2 (the acceptance set) and R3 (one scan, one container, protocol
+2, `0.7.0` prepared) 2026-09-28, both waiting to land; `0.6.0` waits for the owner's tag. R4 next.
 
-**Size, 2026-09-27:** 71 modules, 1,308 tests in 95 files, 20 ADRs, 136 requirement IDs,
-traceability debt zero, 61 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
+**Size, 2026-09-28:** 78 modules, 1,382 tests in 114 files, 25 ADRs, 136 requirement IDs,
+traceability debt zero, 31 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
 
 ## 2. What it is NOT
 
@@ -46,8 +46,8 @@ rejected, or escalated to the owner explicitly.
    Index, EPSS on `full`) carry nothing of the Workspace and are recorded in `run.json`.
    One module decides the network, `src/valvur/egress.py`; `scripts/verify-offline.py`
    checks it independently; on Linux `unshare -rn valvur scan` proves it. macOS cannot.
-2. **The source cannot be modified by a Scanner**, structurally. Today a read-only mount;
-   from Phase 33 a Snapshot, so the container never sees the tree at all.
+2. **The source cannot be modified by a Scanner**, structurally: since R3.9 it is copied
+   into the Scan Container as a Snapshot on stdin and never mounted (ADR-0022).
 3. **Vulnerability data comes from auditable primary sources** (CISA KEV, FIRST EPSS, OSV,
    the registries), mirrorable for air-gapped use.
 4. **Results never leave the machine and are never committed.**
@@ -88,7 +88,7 @@ new argument.
 | 0014 | No HTML report. |
 | 0015 | MCP stdio hand-rolled, zero dependencies. |
 | 0016 | Two Profiles split on the network boundary: `offline` (default) and `full`. |
-| 0017 | SELinux relabelling of the source is opt-in. Moot for the workspace once ADR-0022 lands. |
+| 0017 | SELinux relabelling of the source is opt-in. Moot since R3.9: the source is never mounted. |
 | 0018 | An exact, offline index of package names, published daily and signed. |
 | 0019 | One image with Checkov in it. Reopened by task 34.1, on the ADR's own stated condition. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
@@ -195,5 +195,5 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
   health-check a project server until the user approves it.
 - GitHub's macOS runners cannot run containers (measured 2026-09-22).
 - Listing 109,521 files: 1.6 s on a Mac's host, 16.6 s through Docker Desktop's mount.
-- The release constraint suite is held to exactly 48 tests; a new test that is not a
-  constraint goes in its own file. More lessons: section 1 of the archived `CLAUDE.md`.
+- The release constraint suite may not shrink below 48 tests (54 since R3); a new test that
+  is not a constraint goes in its own file. More lessons: section 1 of the archived `CLAUDE.md`.
