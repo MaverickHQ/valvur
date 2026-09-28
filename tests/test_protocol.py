@@ -49,6 +49,22 @@ def test_a_different_protocol_major_is_the_one_thing_refused(monkeypatch):
     assert "pip install -U valvur" in message and "docker pull" in message
 
 
+def test_a_protocol_1_image_is_refused_with_the_fix_named(monkeypatch):
+    """R3.9: the Scan Container is protocol 2. A `0.6.0` image speaks protocol 1 —
+    it has no engine and expects the source as a mount — so it is refused before
+    a scan starts, with the two commands that fix it."""
+    monkeypatch.setattr(compat, "shim_version", lambda: "0.7.0")
+    monkeypatch.setattr(compat, "image_version", lambda r, i: "0.6.0")
+    monkeypatch.setattr(compat, "image_protocol", lambda r, i: 1)
+
+    assert compat.PROTOCOL == 2
+    with pytest.raises(compat.IncompatibleImage) as caught:
+        compat.check("docker", "ghcr.io/maverickhq/valvur:0.6.0")
+    message = str(caught.value)
+    assert "protocol 1" in message and "protocol 2" in message
+    assert "pip install -U valvur" in message and "docker pull" in message
+
+
 def test_an_image_without_the_protocol_label_falls_back_to_the_version_rule(monkeypatch):
     """Every image before this one — 0.3.0 included — has no protocol label; the
     version-series rule that served them keeps serving them."""
@@ -158,8 +174,10 @@ def test_protocol_md_lists_every_binary_and_both_labels():
 
 def test_protocol_md_names_the_checks_entry_point_and_its_shapes():
     text = PROTOCOL_MD.read_text()
-    for needed in ("python -m valvur.checks", "batch", '"ok"', '"findings"', '"error"',
-                   "usage:", "VALVUR_NETWORK", "10001", "--network=none", "--read-only"):
+    for needed in ("python -m valvur.engine", "plan.json", "manifest.json", '"received"',
+                   '"exit_code"', '"cut"', '"not_started"', "SIGTERM", "stdin",
+                   "python -m valvur.checks", "VALVUR_NETWORK", "10001", "--network=none",
+                   "--read-only", "valvur.pid", "valvur.generation"):
         assert needed in text, f"PROTOCOL.md does not mention {needed!r}"
 
 

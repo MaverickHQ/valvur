@@ -21,7 +21,7 @@ LABEL = "org.opencontainers.image.version"
 #: written down in docs/PROTOCOL.md and carried by the image as one label. A change
 #: that breaks anything on that page bumps this; an addition does not. The
 #: Dockerfile declares the same number, and a test holds the two together.
-PROTOCOL = 1
+PROTOCOL = 2
 PROTOCOL_LABEL = "org.valvur.protocol"
 
 

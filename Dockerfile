@@ -69,7 +69,7 @@ LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 # The shim/image protocol this image speaks (26.3.1): docs/PROTOCOL.md is the
 # contract, `compat.PROTOCOL` the shim's side, and a test holds all three to the
 # same number. A change that breaks anything on that page bumps it here and there.
-LABEL org.valvur.protocol="1"
+LABEL org.valvur.protocol="2"
 
 COPY --from=gitleaks /usr/bin/gitleaks        /usr/local/bin/gitleaks
 COPY --from=trivy    /usr/local/bin/trivy     /usr/local/bin/trivy
