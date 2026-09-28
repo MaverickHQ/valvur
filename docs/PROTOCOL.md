@@ -90,6 +90,7 @@ together.
 | `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.19 |
 | `zizmor` | `/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash (R4.2) | 1.30.1 |
 | `python` | the base image's Python 3.12 | with the Checks |
+| `valvur` | `/usr/local/bin/valvur`, which runs `python3 -m valvur.cli`: the image as a pipeline step (R8.1) | the image's own version |
 
 ## The Checks' entry point
 
@@ -109,6 +110,20 @@ sees it (ADR-0018). **`VALVUR_DB_REPOSITORY`** names a database mirror for Trivy
 fetch (F10.5). Both are set by the shim from `egress.py`. Protocol 1's batch of
 Checks and its `VALVUR_EXCLUDE` are gone: every tool shares one container, and the
 Snapshot is already the File Set.
+
+## The image as a pipeline step
+
+Since R8.1 the image also scans on its own, for a pipeline job with no container
+runtime to reach: `docker run --network=none -e VALVUR_CACHE=/cache -v <cache>:/cache/valvur
+-v <checkout>:/src:ro -v <out>:/out <image> valvur scan /src --out /out`. The image sets
+**`VALVUR_IN_IMAGE=1`**, and a `valvur` run with it starts no container: the engine
+above runs as a process in the job's container, `/workspace`, `/results` and `/cache`
+pointed at directories there, and Trivy's database is fetched by the image's own
+Trivy. The image has no `git` (ADR-0005), so a checkout is walked and its history is
+not read, each said. `run.json`'s `network.boundary` records the job's container and
+whether it had a network: on `offline` the Scanners run with their offline flags
+either way, and a job started with `--network=none` makes that structural. Nothing
+here is specific to a cloud (F1.10).
 
 ## Labels
 

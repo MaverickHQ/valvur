@@ -51,14 +51,15 @@ def unpack(stream: IO[bytes], workspace: Path) -> int:
 
 def _mapped(argument: str, workspace: Path, results: Path, cache: Path | None = None) -> str:
     """The container paths in one argument, pointed at `workspace`, `results` and,
-    when given, `cache`: whole prefixes only, in one pass, at the start or after
-    `=`. Two chained replaces corrupted a workspace whose own path held `/results`."""
+    when given, `cache`: whole prefixes only, in one pass, at the start, after `=`,
+    or after a scheme such as Syft's `dir:`. Two chained replaces corrupted a
+    workspace whose own path held `/results`."""
     import re
 
     where = {WORKSPACE: str(workspace), RESULTS: str(results)}
     if cache is not None:
         where[CACHE] = str(cache)
-    return re.sub(rf"(^|=)({'|'.join(map(re.escape, where))})(?=/|$)",
+    return re.sub(rf"(^|=|^[a-z]+:)({'|'.join(map(re.escape, where))})(?=/|$)",
                   lambda m: m.group(1) + where[m.group(2)], argument)
 
 
