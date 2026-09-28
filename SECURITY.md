@@ -83,7 +83,7 @@ The latest minor series is supported; this table is the record.
 
 | Version | Supported |
 |---|---|
-| `0.6.x` | ✅ latest only |
+| `0.7.x` | ✅ latest only |
 
 Earlier `0.x` releases are not supported: upgrade to the latest. Before `1.0.0` a
 minor release may change a contract, and the CHANGELOG says which.

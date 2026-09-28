@@ -8,6 +8,53 @@ break things, and has.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-28
+
+The rebuilt engine (Phase R3, ADR-0021 and ADR-0022). A scan decides once what it
+reads, copies exactly that into one container, and runs every Scanner there; the
+source tree is never mounted. The `0.x` series allows a minor to break things, and
+this one does: the shim/image protocol is 2, so a `0.7.0` shim refuses a `0.6.0`
+image and names the fix, and `run.json` and the MCP structured reply rename or drop
+the fields the old exclusion machinery owned.
+
+- **One Scan Container per network boundary** (R3.3 to R3.5, R3.8). `offline`
+  starts one container with no network; `full` adds a second for OSV-Scanner and
+  the dependency check's registry questions, and Trivy never runs in it. The File
+  Set arrives on stdin, into memory up to 512 MB, and a Snapshot that arrives short
+  refuses the scan. The engine runs every tool at once, each in its own process
+  group; `--jobs` and `VALVUR_JOBS` bound how many.
+- **The File Set is the only exclusion** (R3.2, R3.9; ADR-0021). In a repository a
+  scan reads the files git would publish, plus ignored `.env*` files and agent
+  configuration; in a plain folder, everything but dependency caches, each named.
+  `[scan] exclude` applies once, root-relative. Gone: the per-tool skip flags, the
+  built-in vendored list, the generated Gitleaks config (Gitleaks reads the
+  project's own `.gitleaks.toml`), and `[scan] honour_gitignore` and `include`.
+  `run.json` carries the File Set's manifest as `scope` and everything it left out,
+  with the reason, as `not_read`; `excluded_builtin`, `excluded_vendored` and
+  `excluded_by_gitignore` are gone, and the MCP reply's `excluded_builtin` is now
+  `not_read`.
+- **Secrets in git history** (R3.7). In a repository, what every commit on every
+  ref added is read for secrets, the newest 5,000 commits or 200 MB, and a hit is
+  reported at its path with the commit that added it (a new `commit` field on
+  findings). The Summary names the bound when it stops the read; `[scan] history =
+  false` turns it off.
+- **One deadline and one kill** (R3.5). At the budget the engine stops what runs and
+  names each cut, and what never started; twenty seconds later the host stops the
+  engine. `scan_cancel` sends one kill and says CANCELLED only once the runtime no
+  longer lists the container.
+- **Nothing outlives its owner** (R3.6). Every container carries its owner's PID,
+  host and the scan's generation as labels. A scan start and `doctor` remove
+  containers whose owner has ended; the MCP server kills its own by label on the way
+  out, and exits when its parent dies though stdin stays open. A busy workspace names
+  the process holding it.
+- **SELinux no longer stops a first run** (R3.9). The source is never mounted, so
+  its label does not matter, and `VALVUR_SELINUX_RELABEL` does nothing; valvur labels
+  its own mounts, the Scan Container's included.
+- **A ceiling per scan** (D4). Each Scan Container gets 3 GiB, or three quarters of
+  the runtime's memory when that is less.
+- **Protocol 2** (R3.9). `org.valvur.protocol` is 2; `docs/PROTOCOL.md` describes
+  the engine, its plan and manifest, and the process.
+
 ## [0.6.0] — 2026-09-27
 
 A safety release, in place of the `1.0.0` prepared the same day and never tagged.
