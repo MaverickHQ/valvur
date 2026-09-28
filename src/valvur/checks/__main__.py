@@ -11,19 +11,17 @@ container, ended with R3.9: every tool shares one container now.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
-from .. import exclusions
 from . import REGISTRY
 
 
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
-    # What the scan excluded (29.0.1), one prefix per line, through the
-    # environment rather than the arguments so an older image ignores it.
-    exclude = exclusions.prefixes_from_env(os.environ.get(exclusions.EXCLUDE_ENV))
+    # Nothing to exclude here: the Workspace is the Snapshot, which is the File
+    # Set, already shaped by the project's exclusions (R3.9).
+    exclude: tuple[str, ...] = ()
     if len(args) != 2:
         print("usage: python -m valvur.checks <check-name> <workspace>", file=sys.stderr)
         return 2

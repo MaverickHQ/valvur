@@ -41,21 +41,11 @@ def _refuses_offline(name: str, network: bool) -> bool:
     return name == "dependency-reality" and not network and not cache.name_index_present()
 
 
-def _exclude_env(workspace: Path) -> tuple[tuple[str, str], ...]:
-    """The excluded prefixes for the Checks' walk (29.0.1), through the
-    environment: an image from before it ignores the variable, where an
-    argument would have been read as a Check's name."""
-    from .. import exclusions
-
-    return exclusions.exclude_env(exclusions.excluded_prefixes(workspace))
-
-
 def single_command(name: str, workspace: Path, *, network: bool) -> Invocation:
     return Invocation(
         tool=name, version=_VERSION,
         argv=("python", "-m", "valvur.checks", name, "/workspace"),
         report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
-        env=_exclude_env(workspace),
     )
 
 

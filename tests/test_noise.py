@@ -9,42 +9,12 @@ in a gitignored `.env`. None of that was visible until then.
 import json
 from pathlib import Path
 
-from valvur.exclusions import filter_findings, is_vendored
 from valvur.findings import Exploit, Finding
 from valvur.ranking import apply
 
 
 def _f(rule, path="src/app.py", severity="medium", **kw):
     return Finding(rule=rule, path=path, line=1, title=rule, severity=severity, **kw)
-
-
-# ------------------------------------------------------- vendored code
-
-def test_findings_in_build_directories_are_excluded():
-    """30% of a real scan's findings were numpy's test fixtures inside .aws-sam/build."""
-    kept, dropped = filter_findings([
-        _f("generic-api-key", ".aws-sam/build/CampaignFunction/numpy/random/tests/t.py"),
-        _f("generic-api-key", "node_modules/pkg/index.js"),
-        _f("generic-api-key", "src/app.py"),
-    ])
-
-    assert [f.path for f in kept] == ["src/app.py"]
-    assert dropped == 2
-
-
-def test_exclusion_matches_path_segments_not_substrings():
-    """`src/distribution/` must survive containing the letters 'dist'."""
-    assert is_vendored("app/dist/bundle.js")
-    assert not is_vendored("src/distribution/report.py")
-    assert not is_vendored("src/building/plan.py")
-
-
-def test_the_number_excluded_is_reported_not_hidden():
-    """Silently dropping findings is how a scanner conceals something. A user who
-    vendored a genuinely vulnerable copy deserves to know we skipped it."""
-    _, dropped = filter_findings([_f("x", "vendor/lib/a.py"), _f("y", "vendor/lib/b.py")])
-
-    assert dropped == 2
 
 
 # ------------------------------------------------------- gitignored secrets
@@ -541,16 +511,21 @@ def test_an_unknown_ecosystem_is_not_silently_blanked():
     assert normalise("") == "unknown"
 
 
-def test_valvur_does_not_scan_its_own_results_folder():
+def test_valvur_does_not_scan_its_own_results_folder(tmp_path):
     """Each run would otherwise feed on the last one's output: findings.json quotes
     evidence from the repository, so scanning it produces findings ABOUT findings and
     the noise compounds every run. Caught by dogfooding — valvur reported two
-    mutable-git-ref findings against its own findings.json."""
-    from valvur.exclusions import is_vendored
+    mutable-git-ref findings against its own findings.json. Since R3.9 the File
+    Set leaves it out, so no Scanner is handed it."""
+    from valvur import fileset
 
-    assert is_vendored(".security-scan/findings.json")
-    assert is_vendored(".security-scan/raw/ai-artifact.json")
-    assert not is_vendored("src/valvur/api.py")
+    ws = tmp_path
+    (ws / ".security-scan" / "raw").mkdir(parents=True)
+    (ws / ".security-scan" / "findings.json").write_text("{}")
+    (ws / ".security-scan" / "raw" / "ai-artifact.json").write_text("[]")
+    (ws / "src").mkdir()
+    (ws / "src" / "api.py").write_text("x = 1\n")
+    assert fileset.build(ws).files == ["src/api.py"]
 
 
 def test_github_actions_are_not_counted_as_unlicensed_dependencies():

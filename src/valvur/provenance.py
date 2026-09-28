@@ -91,12 +91,12 @@ def render(run: ScanRun) -> str:
                 # An incomplete scan reporting "clean" would be a lie of omission.
                 # This is the single field an agent should check first.
                 "complete": not run.failures,
-                # Reported, not silent: a user who vendored a vulnerable copy
-                # deserves to know we skipped it.
-                "excluded_vendored": run.vendored_dropped,
                 # Which directories the built-in list skipped, and how many files
                 # each held (R1.4): read by no Scanner, so said here.
-                "excluded_builtin": [{"path": p, "files": n} for p, n in run.skipped_builtin],
+                # What the File Set left out, and why (ADR-0021, R3.9).
+                "not_read": [{"path": p, "reason": r} for p, r in run.not_read],
+                # The File Set's manifest: scope, files, bytes, the list's sha256.
+                "scope": run.scope,
                 # What git history was read for secrets (R3.7): commits, bytes and
                 # the bound that stopped the read; or why none was; or null.
                 "history": run.history,
@@ -117,14 +117,6 @@ def render(run: ScanRun) -> str:
                 "excluded_by_config": {
                     "paths": list(run.excluded_paths),
                     "findings_dropped": run.config_dropped,
-                },
-                # The `.gitignore` opt-in (29.0.1 part 2): always present, so a
-                # reader can tell "off" from "on and nothing hidden".
-                "excluded_by_gitignore": {
-                    "enabled": run.honour_gitignore,
-                    "paths": list(run.gitignored_paths),
-                    "findings_dropped": run.gitignore_dropped,
-                    "note": run.gitignore_note,
                 },
                 # OSV-Scanner's answers against the lower bounds of unpinned ranges
                 # (25.3): not the project's Findings, and not silently gone either.

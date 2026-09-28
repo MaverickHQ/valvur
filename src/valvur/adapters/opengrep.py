@@ -24,8 +24,6 @@ class OpengrepAdapter(ScannerAdapter):
     version = VERSION
 
     def command(self, workspace: Path) -> Invocation:
-        from .. import exclusions
-
         # Our own bundled rules only (ADR-0004). No registry fetch, so no network
         # and no licence question.
         return Invocation(
@@ -33,8 +31,6 @@ class OpengrepAdapter(ScannerAdapter):
             argv=("opengrep", "scan", "--config", "/opt/valvur-rules",
                   "--json", "--output", "/results/opengrep.json",
                   "--quiet", "--no-git-ignore",
-                  # Skipped before reading, not filtered after (29.0.1).
-                  *exclusions.skip_args("opengrep", exclusions.excluded_prefixes(workspace)),
                   "/workspace"),
             report="opengrep.json", timeout=600, empty_when=NOTHING_TO_SCAN,
             # Opengrep unpacks and execs opengrep-core. Granted only here: the root

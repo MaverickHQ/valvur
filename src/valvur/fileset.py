@@ -68,6 +68,10 @@ def git_view(workspace: Path) -> tuple[list[str], list[tuple[str, str]]] | None:
 DEPENDENCY_CACHES = frozenset({
     "node_modules", ".venv", "venv", "__pycache__", ".tox", ".nox", ".mypy_cache",
     ".pytest_cache", ".ruff_cache", ".gradle",
+    # Package managers' own caches: other people's code. Measured on a real
+    # monorepo, 17 of 42 findings were `eval` and `exec` inside `.uv-cache/`.
+    ".uv-cache", ".cache", ".yarn", ".cargo", ".pnpm-store", ".npm", ".m2", ".ivy2",
+    ".bundle", ".nuget", ".eggs", ".conda", ".pixi",
 })
 
 
@@ -140,10 +144,17 @@ def _ceiling_sentence(files: list[str]) -> str:
 
 def _kept_when_ignored(rel: str) -> bool:
     """An ignored file the scan still reads (ADR-0021): `.env*`, where a secret
-    hides, and every agent-configuration file the AI Artifact Check knows."""
-    from .exclusions import _kept_when_ignored as kept
+    hides — a gitignored `.env` holds exactly the credentials a scan is for — and
+    every agent-configuration file the AI Artifact Check knows (a `.mcp.json` a
+    project keeps out of git is still what its agent obeys)."""
+    from pathlib import PurePosixPath
 
-    return kept(rel)
+    from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
+
+    path = PurePosixPath(rel)
+    parents = set(path.parts[:-1])
+    return (path.name.startswith(".env") or path.name in ARTIFACT_NAMES
+            or bool(parents & ARTIFACT_DIRS) or ".kiro" in parents)
 
 
 #: How far an ignored directory is searched for the files a scan reads anyway:
@@ -234,3 +245,13 @@ def build(workspace: Path) -> FileSet:
 
 def files(workspace: Path) -> list[str]:
     return build(workspace).files
+
+
+def largest(files: list[str], n: int = 3) -> tuple[tuple[str, int], ...]:
+    """The `n` top-level directories holding the most of `files`; "." for files at
+    the root. What the pre-flight line and a budget refusal name (29.1.2)."""
+    counts: dict[str, int] = {}
+    for rel in files:
+        top = rel.split("/", 1)[0] if "/" in rel else "."
+        counts[top] = counts.get(top, 0) + 1
+    return tuple(sorted(counts.items(), key=lambda dn: (-dn[1], dn[0]))[:n])

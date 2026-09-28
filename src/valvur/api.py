@@ -119,7 +119,6 @@ class ScanRun:
     #: about a run that had opened sockets to three hosts — true in the sentence's
     #: sense and silent about the fetches (F10.8, ADR-0010).
     fetched: list[dict] = field(default_factory=list)
-    vendored_dropped: int = 0
     config_dropped: int = 0
     #: OSV-Scanner answers against the lower bounds of unpinned ranges, dropped
     #: (25.3), and the requirements files they came from.
@@ -130,15 +129,12 @@ class ScanRun:
     #: the three largest top-level directories by that count.
     workspace_files: int = 0
     largest_dirs: tuple[tuple[str, int], ...] = ()
-    #: The directories the built-in list skipped, with their file counts
-    #: (R1.4): what no Scanner read, named on every surface.
-    skipped_builtin: tuple[tuple[str, int], ...] = ()
-    #: The `.gitignore` opt-in (29.0.1 part 2): asked for, the directories it
-    #: hid, why git could not be asked, and what a Scanner reported there anyway.
-    honour_gitignore: bool = False
-    gitignored_paths: tuple[str, ...] = ()
-    gitignore_note: str | None = None
-    gitignore_dropped: int = 0
+    #: What the File Set left out, and why (ADR-0021): a dependency cache, a
+    #: directory git ignores, a submodule, a link leaving the repository, an
+    #: exclusion. What no Scanner read, named on every surface (R1.4, R3.9).
+    not_read: tuple[tuple[str, str], ...] = ()
+    #: The File Set's manifest: scope, files, bytes and the list's sha256.
+    scope: dict | None = None
     profile: str = ""
     #: Per-adapter coverage contracts: what each reads and what it deliberately does
     #: not (task 19.E.1). Provenance, not findings — the gaps themselves arrive as
@@ -611,15 +607,16 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     # The count (29.1.2), before a container starts: what the Scanners will read,
     # the largest directories, and — past the threshold — the one line that
     # would drop the largest, said before the budget is spent rather than after.
-    from . import exclusions as _exclusions
+    from . import fileset as _fileset
     from . import levers as _levers
 
-    prefixes = _exclusions.excluded_prefixes(workspace)
-    files, largest = _exclusions.count_files(workspace, prefixes)
-    skipped = _exclusions.skipped_builtin(workspace, prefixes)
+    # The File Set (ADR-0021), once: what the Snapshot holds, what every host-side
+    # count reads, and what the record says was and was not read.
+    chosen = _fileset.build(workspace)
+    files, largest = len(chosen.files), _fileset.largest(chosen.files)
     if on_progress is not None:
         on_progress(_levers.workspace_line(files, largest))
-        warning = _levers.large_tree_line(files, largest)
+        warning = chosen.warning or _levers.large_tree_line(files, largest)
         if warning is not None:
             on_progress(warning)
 
@@ -629,12 +626,13 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         raise TypeError(f"{type(runner).__name__} does not run the Scan Container's engine")
     outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
                                   budget_s=budget_s, record=beside,
-                                  jobs=jobs or _jobs_from_environment())
+                                  jobs=jobs or _jobs_from_environment(), chosen=chosen)
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
-        workspace_files=files, largest_dirs=largest, skipped_builtin=skipped,
+        workspace_files=files, largest_dirs=largest, not_read=tuple(chosen.skipped),
+        scope=chosen.manifest(workspace),
         generation=generation, history=beside.get("history"),
     )
 
@@ -645,7 +643,7 @@ def _engine_two(runner) -> bool:
 
 
 def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
-                  record: dict | None = None, jobs: int | None = None):
+                  record: dict | None = None, jobs: int | None = None, chosen=None):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut.
     `record` receives what was read beside the File Set: `history` (R3.7)."""
@@ -677,7 +675,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
     with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
         scratch = Path(scratch_dir) / "results"
         scratch.mkdir()
-        chosen = fileset.build(workspace)
+        chosen = chosen if chosen is not None else fileset.build(workspace)
         tar = engine_host.snapshot(workspace, chosen.files)
         written, read = _history_pass(adapters, plan, planned, workspace, chosen, scratch,
                                       on_progress)
@@ -899,7 +897,7 @@ def _budget_shaped(reason: str) -> bool:
 
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
               budget_s, shim_built_from, image_built_from,
-              workspace_files: int = 0, largest_dirs=(), skipped_builtin=(),
+              workspace_files: int = 0, largest_dirs=(), not_read=(), scope=None,
               generation: str | None = None, history: dict | None = None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
@@ -993,15 +991,10 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         db_overdue_days=_cache.db_overdue_days(),
         name_index_age_days=_cache.name_index_age_days(),
         kev_source=outcome.provider.kev_source,
-        vendored_dropped=outcome.vendored_dropped,
         config_dropped=outcome.config_dropped,
         unpinned_dropped=outcome.unpinned_dropped,
         unpinned_files=outcome.unpinned_files,
         excluded_paths=outcome.configured,
-        honour_gitignore=outcome.honour_gitignore,
-        gitignored_paths=outcome.gitignored,
-        gitignore_note=outcome.gitignore_note,
-        gitignore_dropped=outcome.gitignore_dropped,
         profile=profile,
         coverage=outcome.coverage,
         budget_s=budget_s,
@@ -1009,7 +1002,8 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         shim_built_from=shim_built_from,
         workspace_files=workspace_files,
         largest_dirs=tuple(largest_dirs),
-        skipped_builtin=tuple(skipped_builtin),
+        not_read=tuple(not_read),
+        scope=scope,
         image_built_from=image_built_from,
     )
 

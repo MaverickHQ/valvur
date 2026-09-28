@@ -149,17 +149,6 @@ def _selinux_enforcing() -> bool:
     return selinux_enforcing()
 
 
-def _tree_label(path: Path) -> str | None:
-    """The SELinux context of the Workspace directory, or None where there is none."""
-    getxattr = getattr(os, "getxattr", None)
-    if getxattr is None:
-        return None
-    try:
-        return getxattr(str(path), "security.selinux").decode(errors="replace").rstrip("\0")
-    except OSError:
-        return None
-
-
 def _reachable(host: str, port: int = 443) -> bool:
     """A bounded TCP connect — what a fetch would do first. Only when asked."""
     import socket
@@ -429,33 +418,31 @@ def _check_selinux(workspace: Path) -> Check:
         return Check("selinux", "ok", f"not applicable on {system}")
     if not _selinux_enforcing():
         return Check("selinux", "ok", "not enforcing")
-    label = _tree_label(workspace) or "unknown"
-    context = label.split(":")[2] if label.count(":") >= 2 else label
-    if "container_file_t" in label:
-        return Check("selinux", "ok", f"enforcing; the workspace is labelled {context}")
-    if os.environ.get(RELABEL_ENV) == "1":
-        return Check(
-            "selinux", "ok",
-            f"enforcing; the workspace ({context}) will be relabelled container_file_t "
-            f"because {RELABEL_ENV}=1 — that label persists after the scan",
-        )
-    return Check(
-        "selinux", "fail",
-        f"enforcing, and the workspace is labelled {context}, which a container may "
-        "not read: every mount is denied (measured on Fedora CoreOS, task 20.1)",
-        f"chcon -R -t container_file_t {workspace}   (undo: restorecon -R -F {workspace}) "
-        f"— or {RELABEL_ENV}=1 valvur scan, which relabels for you and persists",
-    )
+    # Since R3.9 the source is streamed into the Scan Container and never mounted
+    # (ADR-0022), so its label no longer matters, and ADR-0017's accepted cost, a
+    # failed first run on RHEL, is gone. valvur labels its own mounts `:z`.
+    ignored = (f"; {RELABEL_ENV}=1 no longer relabels anything"
+               if os.environ.get(RELABEL_ENV) == "1" else "")
+    return Check("selinux", "ok",
+                 "enforcing; the source is never mounted, and valvur labels its own "
+                 f"mounts{ignored}")
 
 
 def _check_workspace(workspace: Path) -> Check:
     """How much a scan here will read, and the directory that would drop most of
     it (29.1.2). The first gate's tree held 107,544 files, 103,251 of them in
     one gitignored archive, and nothing said so until the budget was spent."""
-    from . import exclusions
+    from . import exclusions, fileset
+    from .refusal import Refusal
 
     prefixes = exclusions.excluded_prefixes(workspace)
-    files, largest = exclusions.count_files(workspace, prefixes)
+    try:
+        chosen = fileset.build(workspace)
+    except Refusal as refused:
+        # A walk past the ceiling refuses before any container starts (ADR-0021).
+        return Check("workspace", "fail", str(refused).splitlines()[0],
+                     "add the largest directories to [scan] exclude, or make it a repository")
+    files, largest = len(chosen.files), fileset.largest(chosen.files)
     named = ", ".join(f"{d} {n:,}" for d, n in largest) or "none"
     excluded = f"; excluded: {', '.join(prefixes)}" if prefixes else ""
     if files >= exclusions.LARGE_TREE and largest and largest[0][0] != ".":

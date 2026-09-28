@@ -140,18 +140,21 @@ def test_a_genuine_typosquat_still_reports(tmp_path, monkeypatch, name_index):
     ".cargo/registry/src/github.com-1234/serde/lib.rs",
     ".pnpm-store/v3/files/00/abc/index.js",
 ])
-def test_a_package_cache_is_not_the_developers_code(path):
+def test_a_package_cache_is_not_the_developers_code(path, tmp_path):
     """Measured on a real monorepo: **17 of 42 findings** were `eval` and `exec` inside
     `.uv-cache/` — pytest's, hypothesis's, pygments' and attrs' own source, every one
     reported at high severity. Forty percent of that report was other people's code.
 
-    The mechanism already existed and worked; the directory name simply postdated the
-    list. That is the failure mode of a denylist, and it is why the count of dropped
-    findings is reported rather than silent.
-    """
-    from valvur import exclusions
+    In a repository git ignores these; in a plain folder the File Set's walk skips
+    them and names each (ADR-0021, R3.9)."""
+    from valvur import fileset
 
-    assert exclusions.is_vendored(path)
+    (tmp_path / path).parent.mkdir(parents=True)
+    (tmp_path / path).write_text("eval(x)\n")
+    (tmp_path / "app.py").write_text("x = 1\n")
+    chosen = fileset.build(tmp_path)
+    assert chosen.files == ["app.py"]
+    assert (path.split("/", 1)[0], "a dependency cache") in chosen.skipped
 
 
 @pytest.mark.parametrize("path", [
@@ -159,10 +162,12 @@ def test_a_package_cache_is_not_the_developers_code(path):
     "app/build_tools/gen.py",
     "lib/external_api/client.py",
 ])
-def test_a_legitimate_directory_is_not_excluded_for_its_name(path):
-    """The pair, and the reason segments are matched whole rather than as substrings:
-    silently skipping a developer's own `src/cache/` would hide real code from the
-    person who most needs to see it."""
-    from valvur import exclusions
+def test_a_legitimate_directory_is_not_excluded_for_its_name(path, tmp_path):
+    """The pair, and the reason names are matched whole: silently skipping a
+    developer's own `src/cache/` would hide real code from the person who most
+    needs to see it."""
+    from valvur import fileset
 
-    assert not exclusions.is_vendored(path)
+    (tmp_path / path).parent.mkdir(parents=True)
+    (tmp_path / path).write_text("x = 1\n")
+    assert fileset.build(tmp_path).files == [path]

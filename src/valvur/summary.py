@@ -104,14 +104,6 @@ def _verdict(run: ScanRun) -> str:
     return "**Nothing was found, by a scan that was able to look.** No action needed."
 
 
-def _files(n: int) -> str:
-    from .exclusions import SKIPPED_COUNT_CAP
-
-    if n >= SKIPPED_COUNT_CAP:
-        return f"at least {n:,} files"
-    return f"{n:,} file" + ("" if n == 1 else "s")
-
-
 def render(run: ScanRun) -> str:
     """The agent's entry point. Bounded (F7.5) and self-describing (F7.6).
 
@@ -332,15 +324,18 @@ def render(run: ScanRun) -> str:
     elif history:
         lines += [f"Git history: {history.get('commits', 0):,} commits read for secrets.", ""]
 
-    if run.skipped_builtin:
-        # R1.4: the built-in list skips these at any depth before any Scanner
-        # reads; a first-party `mypkg/build/` went unread and unnamed.
-        named = ", ".join(f"`{p}` ({_files(n)})" for p, n in run.skipped_builtin[:8])
-        more = (f" and {len(run.skipped_builtin) - 8} more"
-                if len(run.skipped_builtin) > 8 else "")
+    if run.scope:
+        # ADR-0021: the scope stated, so a reader can check what was read.
+        where = "the git view" if run.scope.get("scope") == "git" else "a walk of the folder"
+        lines += [f"Scope: {where}, {run.scope.get('files', 0):,} files "
+                  f"({run.scope.get('bytes', 0) / 2**20:.1f} MB).", ""]
+    if run.not_read:
+        # What the File Set left out, with why (R1.4, R3.9): a first-party
+        # `mypkg/build/` once went unread and unnamed.
+        named = ", ".join(f"`{p}` ({r})" for p, r in run.not_read[:8])
+        more = f" and {len(run.not_read) - 8} more" if len(run.not_read) > 8 else ""
         lines += [
-            f"> **Not read by any Scanner** — valvur's built-in list of dependency and "
-            f"build directories: {named}{more}.",
+            f"> **Not read by any Scanner:** {named}{more}.",
             "> If one of these holds your own code, it was not scanned.",
             "",
         ]
@@ -359,24 +354,6 @@ def render(run: ScanRun) -> str:
             "",
         ]
 
-    if run.honour_gitignore:
-        # The opt-in (29.0.1 part 2), and its carve-out stated where it applies.
-        if run.gitignore_note:
-            lines += [f"> **`honour_gitignore` had no effect:** {run.gitignore_note}.", ""]
-        else:
-            hidden = run.gitignored_paths
-            named = ", ".join(f"`{p}`" for p in hidden[:8])
-            more = f" and {len(hidden) - 8} more" if len(hidden) > 8 else ""
-            dropped = run.gitignore_dropped
-            lines += [
-                "> **`.gitignore` honoured** (`[scan] honour_gitignore`): "
-                + (f"{len(hidden)} hidden director(ies) excluded before the scan — "
-                   f"{named}{more}." if hidden else "it hides no directory a scan would skip.")
-                + (f" {dropped} finding(s) reported there anyway were dropped." if dropped else ""),
-                "> `.env*` files and agent instruction files are always read, and a hidden "
-                "directory holding one is scanned whole.",
-                "",
-            ]
 
     if run.unpinned_dropped:
         where = ", ".join(f"`{p}`" for p in run.unpinned_files)

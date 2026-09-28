@@ -336,47 +336,6 @@ def test_kev_names_which_copy_a_scan_would_rank_with(healthy):
 # --------------------------------------------------------------------- SELinux
 
 
-def test_an_enforcing_host_with_an_unlabelled_tree_fails_with_the_measured_fix(
-    healthy, monkeypatch
-):
-    monkeypatch.setattr(doctor, "_platform", lambda: "Linux")
-    monkeypatch.setattr(doctor, "_selinux_enforcing", lambda: True)
-    monkeypatch.setattr(doctor, "_tree_label", lambda path: "unconfined_u:object_r:user_home_t:s0")
-    monkeypatch.delenv("VALVUR_SELINUX_RELABEL", raising=False)
-
-    selinux = _by_name(doctor.run(healthy))["selinux"]
-
-    assert selinux.level == "fail"
-    assert "user_home_t" in selinux.detail
-    assert "chcon -R -t container_file_t" in selinux.fix
-    assert "VALVUR_SELINUX_RELABEL=1" in selinux.fix
-
-
-def test_an_enforcing_host_with_a_labelled_tree_is_fine(healthy, monkeypatch):
-    monkeypatch.setattr(doctor, "_platform", lambda: "Linux")
-    monkeypatch.setattr(doctor, "_selinux_enforcing", lambda: True)
-    monkeypatch.setattr(doctor, "_tree_label",
-                        lambda path: "unconfined_u:object_r:container_file_t:s0")
-
-    selinux = _by_name(doctor.run(healthy))["selinux"]
-
-    assert selinux.level == "ok" and "container_file_t" in selinux.detail
-
-
-def test_an_enforcing_host_with_relabelling_requested_is_fine_and_says_what_it_costs(
-    healthy, monkeypatch
-):
-    monkeypatch.setattr(doctor, "_platform", lambda: "Linux")
-    monkeypatch.setattr(doctor, "_selinux_enforcing", lambda: True)
-    monkeypatch.setattr(doctor, "_tree_label", lambda path: "unconfined_u:object_r:user_home_t:s0")
-    monkeypatch.setenv("VALVUR_SELINUX_RELABEL", "1")
-
-    selinux = _by_name(doctor.run(healthy))["selinux"]
-
-    assert selinux.level == "ok"
-    assert "will be relabelled" in selinux.detail and "persists" in selinux.detail
-
-
 def test_a_linux_host_not_enforcing_says_so(healthy, monkeypatch):
     monkeypatch.setattr(doctor, "_platform", lambda: "Linux")
 
@@ -669,3 +628,27 @@ def test_doctor_says_nothing_about_the_ceiling_where_it_applies(healthy, monkeyp
     _, check = doctor._check_runtime()
 
     assert check.level == "ok" and "ceiling" not in check.detail
+
+
+def test_an_enforcing_host_is_ready_whatever_the_source_is_labelled(healthy, monkeypatch):
+    """Since R3.9 the source is streamed into the Scan Container and never mounted
+    (ADR-0022), so an unlabelled tree on an enforcing host no longer fails every
+    mount: ADR-0017's accepted cost, a failed first run on RHEL, is gone."""
+    monkeypatch.setattr(doctor, "_platform", lambda: "Linux")
+    monkeypatch.setattr(doctor, "_selinux_enforcing", lambda: True)
+    monkeypatch.delenv("VALVUR_SELINUX_RELABEL", raising=False)
+
+    selinux = _by_name(doctor.run(healthy))["selinux"]
+
+    assert selinux.level == "ok"
+    assert "never mounted" in selinux.detail and "relabel" not in selinux.detail
+
+
+def test_asking_to_relabel_is_said_to_do_nothing_now(healthy, monkeypatch):
+    monkeypatch.setattr(doctor, "_platform", lambda: "Linux")
+    monkeypatch.setattr(doctor, "_selinux_enforcing", lambda: True)
+    monkeypatch.setenv("VALVUR_SELINUX_RELABEL", "1")
+
+    selinux = _by_name(doctor.run(healthy))["selinux"]
+
+    assert selinux.level == "ok" and "no longer relabels anything" in selinux.detail

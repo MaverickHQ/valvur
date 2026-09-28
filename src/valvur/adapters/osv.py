@@ -25,8 +25,6 @@ class OsvAdapter(ScannerAdapter):
     version = VERSION
 
     def command(self, workspace: Path) -> Invocation:
-        from .. import exclusions
-
         # OSV queries api.osv.dev, so it is a `full` Scanner only — absent from
         # `offline`, which must stay offline (N2.1). `network=True` here is what
         # the Profile grants by selecting it at all.
@@ -35,8 +33,6 @@ class OsvAdapter(ScannerAdapter):
             argv=("osv-scanner", "scan", "source", "--recursive",
                   # `--output-file`: 2.6.0 deprecates `--output` with a warning.
                   "--format", "json", "--output-file", "/results/osv.json",
-                  # Skipped before reading, not filtered after (29.0.1).
-                  *exclusions.skip_args("osv-scanner", exclusions.excluded_prefixes(workspace)),
                   "/workspace"),
             report="osv.json", network=True, timeout=600, empty_when=NOTHING_TO_SCAN,
         )

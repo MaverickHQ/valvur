@@ -17,7 +17,7 @@ from valvur.adapters import DEFAULT_ADAPTERS
 from valvur.findings import Finding
 
 ORDER = [
-    "coverage", "licence", "vendored", "configured", "gitignored", "unpinned", "merged",
+    "coverage", "licence", "configured", "unpinned", "merged",
     "gitcontext", "enrich", "suppress", "rank", "diff",
 ]
 
@@ -63,22 +63,24 @@ def test_configured_exclusions_are_loaded_before_anything_reads_them(tmp_path):
     assert not any("Cargo" in f.title for f in out.findings), "the gap ignored the exclusion"
 
 
-def test_filters_run_before_merge_so_a_vendored_duplicate_cannot_survive_by_merging(tmp_path):
-    """Two Scanners report the same identity, one of them at a vendored path. If
-    `merged` ran first the pair would collapse into one Finding, and which path it
-    kept would decide whether the developer sees it. Filtering first settles it."""
+def test_filters_run_before_merge_so_an_excluded_duplicate_cannot_survive_by_merging(tmp_path):
+    """Two sources report the same identity, one of them at an excluded path (a
+    secret read from git history, R3.7, is the one source that can reach there).
+    If `merged` ran first the pair would collapse into one Finding, and which path
+    it kept would decide whether the developer sees it. Filtering first settles it."""
+    (tmp_path / ".security-scan.toml").write_text('[scan]\nexclude = ["archive"]\n')
     ctx = _ctx(tmp_path)
     same_identity = "fp-shared"
     real = Finding(rule="r", path="src/a.py", line=1, title="t", evidence="",
                    fingerprint=same_identity, severity="high", sources=("trivy",))
-    copy = Finding(rule="r", path="node_modules/x/a.py", line=1, title="t", evidence="",
-                   fingerprint=same_identity, severity="high", sources=("osv-scanner",))
+    copy = Finding(rule="r", path="archive/x/a.py", line=1, title="t", evidence="",
+                   fingerprint=same_identity, severity="high", sources=("gitleaks",))
 
     out = pipeline.run([copy, real], ctx)
 
     assert [f.path for f in out.findings] == ["src/a.py"]
-    assert out.vendored_dropped == 1
-    assert out.findings[0].sources == ("trivy",), "the vendored copy's source merged in"
+    assert out.config_dropped == 1
+    assert out.findings[0].sources == ("trivy",), "the excluded copy's source merged in"
 
 
 def test_diff_is_last_so_status_is_computed_over_the_final_set(tmp_path, monkeypatch):
@@ -126,7 +128,7 @@ def test_a_stage_that_is_not_a_pure_function_of_its_inputs_is_caught(tmp_path):
 
 
 @pytest.mark.parametrize("earlier,later", [
-    ("coverage", "configured"), ("vendored", "merged"), ("configured", "merged"),
+    ("coverage", "configured"), ("configured", "merged"),
     ("merged", "enrich"), ("enrich", "suppress"), ("suppress", "rank"), ("rank", "diff"),
 ])
 def test_the_pairwise_constraints_the_reasons_name(earlier, later):

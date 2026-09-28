@@ -21,8 +21,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .exclusions import is_vendored
-
 # Names and suffixes that are infrastructure code beyond argument. Matching one of
 # these is enough on its own — no content check, no ambiguity.
 _IAC_SUFFIXES = frozenset({
@@ -84,13 +82,19 @@ def iac_present(workspace: Path) -> tuple[bool, str]:
 
 
 def _candidates(workspace: Path):
-    for path in workspace.rglob("*"):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(workspace)
-        if is_vendored(str(relative)):
-            continue
-        yield path
+    """The File Set (ADR-0021, R3.9): what the Scan Container will hold, so a
+    Terraform file in an ignored `node_modules` never decides that Checkov runs.
+    A folder the File Set refuses is walked whole: bias to running."""
+    from .fileset import files
+    from .refusal import Refusal
+
+    try:
+        chosen = files(workspace)
+    except Refusal:
+        yield from (p for p in workspace.rglob("*") if p.is_file())
+        return
+    for rel in chosen:
+        yield workspace / rel
 
 
 def _relative(path: Path, workspace: Path) -> str:

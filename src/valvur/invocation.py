@@ -91,7 +91,6 @@ class Invocation:
     #: (Gitleaks's allowlist, 29.0.1). The mount is the tool's to read and the
     #: runner's to remove, so nothing is left on the host.
     files: tuple[tuple[str, str], ...] = ()
-    #: Environment the container is launched with, as (name, value): the
-    #: excluded prefixes for the Checks (`exclusions.EXCLUDE_ENV`). The network
-    #: grant is not here — egress sets it, and nothing an adapter says can.
+    #: Environment the tool is started with, as (name, value). The network grant
+    #: is not here — egress sets it, and nothing an adapter says can.
     env: tuple[tuple[str, str], ...] = ()

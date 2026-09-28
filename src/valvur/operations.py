@@ -672,13 +672,12 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
         + (f", {counts['suppressed']} suppressed" if counts.get("suppressed") else "")
         + (f", {counts['not_covered']} not covered" if counts.get("not_covered") else ""),
     ]
-    skipped_builtin = [entry for entry in data.get("excluded_builtin") or []
-                       if isinstance(entry, dict)]
-    if skipped_builtin:
-        # R1.4: what the built-in list skipped before any Scanner read.
+    not_read = [entry for entry in data.get("not_read") or [] if isinstance(entry, dict)]
+    if not_read:
+        # What the File Set left out, with why (R1.4, R3.9).
         lines.append("not read by any Scanner: " + ", ".join(
-            f"{e.get('path')} ({e.get('files')} file{'' if e.get('files') == 1 else 's'})"
-            for e in skipped_builtin[:8]))
+            f"{e.get('path')} ({e.get('reason')})" for e in not_read[:8])
+            + (f" and {len(not_read) - 8} more" if len(not_read) > 8 else ""))
     if data.get("not_rechecked"):
         # Their Scanner did not run this time (29.0.5): a disappearance is not a fix.
         lines.append(f"not re-checked: {data['not_rechecked']} previous finding(s) whose "
@@ -760,8 +759,8 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
                      for key in ("active", "suppressed", "not_covered", "total")},
         "fixed": int(data.get("fixed") or 0),
         "not_rechecked": int(data.get("not_rechecked") or 0),
-        "excluded_builtin": [{"path": e.get("path"), "files": e.get("files")}
-                             for e in skipped_builtin],
+        "not_read": [{"path": e.get("path"), "reason": e.get("reason")}
+                     for e in not_read],
         "scanners": [{"tool": s.get("tool"), "ok": bool(s.get("ok")),
                       "reason": s.get("reason") or "",
                       "duration_s": s.get("duration_s") or 0}

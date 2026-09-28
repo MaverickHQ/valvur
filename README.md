@@ -381,14 +381,15 @@ Results land in `.security-scan/`:
 The folder ignores itself, so results are never committed. Secrets are redacted in
 every artifact, `raw/` included. **You decide which fixes to apply and when to
 rescan** — there is no autonomous loop. Suppressions (with mandatory expiry dates)
-and `[scan] exclude` paths live in a committed `.security-scan.toml`; every Scanner
-is told to skip an excluded path before it reads it — a data directory costs a
-scan nothing — and every exclusion is reported. `honour_gitignore = true` (off
-unless asked) also skips the directories `.gitignore` hides, except that `.env*`
-files and agent instruction files are always read and a hidden directory holding
-one is scanned whole; `include = [...]` keeps a hidden path. In a repository, git
-history is read for secrets, the newest 5,000 commits or 200 MB, and the Summary says
-when that bound stopped the read; `history = false` turns it off, and says so.
+and `[scan] exclude` paths live in a committed `.security-scan.toml`. What a scan
+reads is decided once, before any Scanner starts: in a repository, the files git
+would publish (tracked, and untracked but not ignored), plus ignored `.env*` files and
+agent configuration, which are exactly where secrets and instructions hide; in a plain
+folder, everything but dependency caches. An excluded path never reaches a Scanner, so
+a data directory costs a scan nothing, and the Summary names everything left out and
+why. In a repository, git history is read for secrets, the newest 5,000 commits or
+200 MB, and the Summary says when that bound stopped the read; `history = false` turns
+it off, and says so.
 
 In CI, `valvur scan` exits zero whenever the scan itself worked — findings are the
 job, not a failure — and `valvur gate` turns the result into one exit code:
@@ -458,7 +459,7 @@ auditable and mirrorable. No proprietary database; nothing to lock you in.
 | `linux/amd64` and `linux/arm64` | Both, **from 0.2.0**. `0.1.0rc1` was published `arm64` only — a defect, not a policy |
 | Windows via **WSL2** | Supported — inside WSL valvur is running on Linux |
 | Native Windows | **Not claimed.** Untested, and valvur says so at startup |
-| SELinux-enforcing hosts (RHEL, Fedora) | Supported, with one deliberate friction: valvur will not relabel your source tree unless you set `VALVUR_SELINUX_RELABEL=1`. Details in [EVALUATING.md](docs/EVALUATING.md#5-what-it-does-not-claim) |
+| SELinux-enforcing hosts (RHEL, Fedora) | Supported. Your source is copied into the scan and never mounted, so its SELinux label does not matter; valvur labels its own cache mounts |
 
 **Air-gapped?** The database, the name index and KEV all live outside the image and
 each has a mirror setting, measured end to end. See [`docs/AIR-GAPPED.md`](docs/AIR-GAPPED.md).

@@ -145,16 +145,6 @@ def test_only_osv_scanner_asks_for_a_network_among_the_scanners(tmp_path, monkey
     assert networked == ["osv-scanner"]
 
 
-def test_syfts_command_carries_the_configured_exclusions(tmp_path):
-    """The SBOM is a release artifact, so an exclusion has to reach it."""
-    from valvur.adapters import SyftAdapter
-
-    (tmp_path / ".security-scan.toml").write_text('[scan]\nexclude = ["tests/fixtures"]\n')
-    argv = SyftAdapter().command(tmp_path).argv
-
-    assert argv[-2:] == ("--exclude", "./tests/fixtures/**")
-
-
 # ------------------------------------------------------------------ the runner's half
 
 

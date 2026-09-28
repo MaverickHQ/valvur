@@ -28,13 +28,18 @@ def _tree(root, spec: dict[str, int]) -> None:
 
 
 def test_count_files_prunes_what_the_scan_skips_and_names_the_largest(tmp_path):
+    """Since R3.9 the count is the File Set's: what the Snapshot will hold."""
+    from valvur import fileset
+
     _tree(tmp_path, {"src": 3, "data": 50, "node_modules": 40, "tests/fixtures": 20, "docs": 5})
     (tmp_path / "README.md").write_text("")
+    (tmp_path / ".security-scan.toml").write_text('[scan]\nexclude = ["tests/fixtures"]\n')
 
-    files, largest = exclusions.count_files(tmp_path, ("tests/fixtures",))
+    files = fileset.build(tmp_path).files
 
-    assert files == 3 + 50 + 5 + 1, "vendored and excluded directories are not read, so not counted"
-    assert largest == (("data", 50), ("docs", 5), ("src", 3))
+    # The dependency cache and the excluded directory are not read, so not counted.
+    assert len(files) == 3 + 50 + 5 + 1 + 1
+    assert fileset.largest(files) == (("data", 50), ("docs", 5), ("src", 3))
 
 
 def test_the_first_progress_line_is_the_workspace(workspace):

@@ -9,9 +9,7 @@
     "/results/gitleaks.json",
     "--no-banner",
     "--exit-code",
-    "0",
-    "--config",
-    "/results/gitleaks.toml"
+    "0"
   ],
   "timeout": 300,
   "network": false,

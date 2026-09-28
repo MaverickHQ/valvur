@@ -67,8 +67,9 @@ def test_the_evidence_names_the_file_that_decided_it():
 
     found, evidence = iac_present(Path("tests/fixtures/broken-repo"))
 
+    # The first decisive file in the File Set's order (R3.9), a workflow Checkov reads.
     assert found
-    assert evidence == "main.tf"
+    assert evidence == ".github/workflows/ci.yml"
 
 
 # ----------------------------------------------------- and code is NOT mistaken

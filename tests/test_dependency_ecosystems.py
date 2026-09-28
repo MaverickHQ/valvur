@@ -218,10 +218,21 @@ def test_each_ecosystem_is_asked_of_its_own_registry(tmp_path, registry):
 
 
 def test_a_vendored_manifest_is_not_this_project_s_dependency(tmp_path, registry):
-    DependencyRealityCheck().run(_repo(tmp_path, {
+    """The Check reads the Snapshot, and the File Set leaves an installed
+    `node_modules` out of it (ADR-0021, R3.9): what reaches the Check is this."""
+    import shutil
+
+    from valvur import fileset
+
+    folder = _repo(tmp_path / "folder", {
         "node_modules/left-pad/package.json": json.dumps({"dependencies": {"nope-x": "1"}}),
         "package.json": json.dumps({"dependencies": {"express": "^4"}}),
-    }))
+    })
+    snapshot = tmp_path / "snapshot"
+    for rel in fileset.build(folder).files:
+        (snapshot / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(folder / rel, snapshot / rel)
+    DependencyRealityCheck().run(snapshot)
 
     assert _names(registry, "npm") == ["express"]
 

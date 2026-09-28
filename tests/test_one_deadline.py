@@ -267,7 +267,7 @@ def test_after_the_grace_kill_no_container_is_left(mountable_tmp, monkeypatch):
     scratch.mkdir()
     real = engine_host.write_plan
     monkeypatch.setattr(engine_host, "write_plan",
-                        lambda scratch, plan, budget_s=None: real(scratch, plan, None))
+                        lambda scratch, plan, budget_s=None, jobs=None: real(scratch, plan, None))
     monkeypatch.setattr(engine_host, "GRACE_S", 1.0)
     before = _valvur_containers()
     started = time.monotonic()

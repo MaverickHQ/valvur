@@ -275,17 +275,13 @@ Read this before the feature list, not after.
   measured (task 23.5.3), the README says so and the AI-specific claim rests on the
   Checks above. They are all ranked `low` now, bar the ones that have never fired
   on real code.
-- **On SELinux-enforcing hosts valvur refuses to scan until you act.** Measured on
-  Fedora CoreOS 44, native xfs under `$HOME`: the container may not read a
-  `user_home_t` directory. valvur fails loudly rather than reporting a false clean,
-  and will not relabel your source tree unless you set `VALVUR_SELINUX_RELABEL=1` —
-  `:z` persists after the scan, and rewriting the labels of the code you asked us not
-  to touch is not a thing to do quietly. That means a first run on RHEL fails, and
-  that is a deliberate trade rather than an oversight. To do it yourself, once:
-  `chcon -R -t container_file_t .`, undone with `restorecon -R -F .` (the `-F` is
-  required; `container_file_t` is a customizable type and restorecon skips those
-  unless forced). `:Z` is deliberately not offered: it stamps a private MCS category,
-  and valvur runs its scanners concurrently against one mount.
+- **On SELinux-enforcing hosts the source's label no longer matters** (since `0.7.0`,
+  ADR-0022). Measured on Fedora CoreOS 44, native xfs under `$HOME`, before it: a
+  container may not read a `user_home_t` directory, so a first run on RHEL failed until
+  the tree was relabelled, a trade ADR-0017 accepted rather than rewrite the labels of
+  the code you asked us not to touch. The source is now copied into the Scan Container
+  on its standard input and never mounted, so there is nothing to relabel, and
+  `VALVUR_SELINUX_RELABEL` does nothing. valvur still labels its own cache mounts.
 - **It has not been run on a serverless container platform, and does not claim to.**
   The image is a plain OCI artifact with no cloud-specific code paths, so it pushes
   to any registry and runs wherever a container runs. But valvur is a thin host shim

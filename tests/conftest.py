@@ -209,10 +209,8 @@ def run_check_in_process(name: str, workspace: Path, *, network: bool):
     else:
         os.environ.pop("VALVUR_NETWORK", None)
     try:
-        from valvur import exclusions
-
-        exclude = exclusions.prefixes_from_env(os.environ.get(exclusions.EXCLUDE_ENV))
-        payload = json.dumps(check.run(workspace, exclude=exclude))
+        # The workspace here is the unpacked Snapshot, already the File Set (R3.9).
+        payload = json.dumps(check.run(workspace))
     finally:
         if previous is None:
             os.environ.pop("VALVUR_NETWORK", None)

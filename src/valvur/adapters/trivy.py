@@ -69,7 +69,7 @@ class TrivyAdapter(ScannerAdapter):
     version = VERSION
 
     def command(self, workspace: Path) -> Invocation:
-        from .. import cache, exclusions
+        from .. import cache
 
         if not cache.db_present():
             # Refused here, before a container starts, so the message leads with
@@ -92,8 +92,6 @@ class TrivyAdapter(ScannerAdapter):
                 # runs on the developer's machine and in CI, which is precisely the
                 # supply-chain surface this product exists to cover.
                 "--include-dev-deps",
-                # Skipped before reading, not filtered after (29.0.1).
-                *exclusions.skip_args("trivy", exclusions.excluded_prefixes(workspace)),
             ),
             report="trivy.json", timeout=600,
         )

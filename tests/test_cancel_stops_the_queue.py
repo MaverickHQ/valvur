@@ -140,9 +140,10 @@ def test_the_real_runner_waits_until_the_runtime_no_longer_lists_its_container(m
 @pytest.mark.e2e
 def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_behind(
         mountable_tmp, monkeypatch):
-    """The measurement behind R1.1, against the real image: two Scanners at a time,
+    """The measurement behind R1.1, against the real image: two tools at a time,
     so the rest are queued when the cancel lands. Before the fix the fleet
-    launched two or three containers after the client had gone (R0.6)."""
+    launched two or three containers after the client had gone (R0.6). Since
+    R3.9 the queue is inside the one Scan Container, and the cancel stops it."""
     import shutil
     import subprocess
     import time
@@ -168,15 +169,23 @@ def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_be
     before = live()
     operations.start_scan({"workspace": str(workspace)})
 
+    def scanning() -> set[str]:
+        """Scan Containers carry their generation; the image probes carry `none`."""
+        out = subprocess.run([runtime, "ps", "--filter", "name=valvur-", "--format",
+                              '{{.Names}} {{.Label "valvur.generation"}}'],
+                             capture_output=True, text=True, check=False, timeout=30)
+        return {n for n, _, g in (line.partition(" ") for line in out.stdout.splitlines())
+                if g and g != "none"}
+
     seen: set[str] = set()
     deadline = time.monotonic() + 180
-    while time.monotonic() < deadline:            # past the probe, into the fleet
-        now = live() - before
-        seen |= now
-        if len(seen) >= 3 and now:
+    while time.monotonic() < deadline:            # past the probe, into the scan
+        seen |= live() - before
+        if scanning() - before:
             break
         time.sleep(0.2)
-    assert len(seen) >= 3, f"the fleet never ran two wide: {sorted(seen)}"
+    assert scanning() - before, f"the Scan Container never started: {sorted(seen)}"
+    time.sleep(1.0)                               # two tools running, the rest queued
 
     operations.cancel_scan({"workspace": str(workspace)})
     known = set(seen) | (live() - before)

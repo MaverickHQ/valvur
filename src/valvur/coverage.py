@@ -29,7 +29,6 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from . import ecosystems as _ecosystems
-from . import exclusions as _exclusions
 from . import fingerprint as _fp
 from .findings import Finding, Severity
 
@@ -103,16 +102,20 @@ def _representative(paths: list[str], order: tuple[str, ...]) -> str:
 def _present(
     workspace: Path, patterns: tuple[str, ...], exclude: tuple[str, ...]
 ) -> list[str]:
+    from .fileset import files
+    from .refusal import Refusal
+
+    # The File Set (ADR-0021, R3.9): an installed `node_modules` is full of other
+    # people's manifests, and git ignores it, so it is not what was scanned.
+    try:
+        listed = files(workspace)
+    except Refusal:
+        listed = [p.relative_to(workspace).as_posix() for p in workspace.rglob("*")
+                  if p.is_file()]
     found: list[str] = []
     for pattern in patterns:
-        for path in workspace.rglob(pattern):
-            if not path.is_file():
-                continue
-            relative = path.relative_to(workspace).as_posix()
-            # `node_modules` is full of other people's manifests. Reporting them
-            # would make this notice worthless on any repository that has installed
-            # anything.
-            if _exclusions.is_vendored(relative):
+        for relative in listed:
+            if not fnmatch(relative.rsplit("/", 1)[-1], pattern):
                 continue
             # A configured exclusion says a path is not part of what this project
             # asked to be scanned, so its manifests are neither a gap nor a candidate

@@ -22,18 +22,13 @@ class SyftAdapter(ScannerAdapter):
     artifact = "sbom.cdx.json"
 
     def command(self, workspace: Path) -> Invocation:
-        from .. import exclusions
-
         # The SBOM is a release artifact, so a configured exclusion has to reach
-        # it, not just the findings derived from it. Without this, valvur's own
-        # published SBOM would list aws-helper-sdk and locktest — packages its
-        # test fixtures invent precisely because they do not exist. Since 29.0.1
-        # the vendored directories are skipped the same way, by every Scanner.
-        excluded = exclusions.skip_args("syft", exclusions.excluded_prefixes(workspace))
+        # it: since R3.9 it does by construction, because Syft reads the Snapshot
+        # and the File Set was shaped by the exclusion before it (ADR-0021).
         return Invocation(
             tool=self.name, version=VERSION,
             argv=("syft", "scan", "dir:/workspace", "-o", "cyclonedx-json=/results/sbom.json",
-                  "-q", *excluded),
+                  "-q"),
             report="sbom.json", timeout=600, empty_when=NOTHING_TO_SCAN,
         )
 

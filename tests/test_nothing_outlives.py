@@ -303,7 +303,8 @@ def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mou
             server.stdin.flush()
             server.stdout.readline()
         deadline = time.monotonic() + 180
-        while time.monotonic() < deadline and len(owned_by(server.pid)) < 2:
+        # One Scan Container since R3.9: the first is the scan.
+        while time.monotonic() < deadline and not owned_by(server.pid):
             time.sleep(0.2)
         server.kill()                                         # kill -9
         server.wait()

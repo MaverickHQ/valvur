@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import coverage as _coverage
-from . import exclusions as _exclusions
 from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
@@ -722,12 +721,12 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
         label = "not checked" if note.rule in _coverage.DOUBT_RULES else "could not read"
         print(f"  · {label}: {note.title.replace(' were not checked for existence', '')}")
 
-    for path, files in run.skipped_builtin:
-        # R1.4: the built-in list skipped it before any Scanner read; a first-party
-        # `mypkg/build/` went unread and unnamed.
-        count = f"at least {files:,}" if files >= _exclusions.SKIPPED_COUNT_CAP else f"{files:,}"
-        print(f"  · not read: {path} ({count} file{'' if files == 1 else 's'}), "
-              "valvur's built-in list of dependency and build directories")
+    for path, reason in run.not_read[:8]:
+        # What the File Set left out, with why (R1.4, R3.9): a first-party
+        # `mypkg/build/` once went unread and unnamed.
+        print(f"  · not read: {path} ({reason})")
+    if len(run.not_read) > 8:
+        print(f"  · not read: {len(run.not_read) - 8} more, listed in run.json")
 
     print(f"results: {workspace / '.security-scan'}")
 
