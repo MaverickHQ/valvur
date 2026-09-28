@@ -21,7 +21,7 @@ only adds to them; a change that breaks one is `2.0.0`:
 - **The CLI**: the eight commands and their flags; `scan` exits zero whenever the scan
   itself worked, and `gate` decides the exit status.
 - **The Results Folder**: its file names, `findings.json` schema 1, `run.json`'s fields,
-  SARIF 2.1.0 and CycloneDX.
+  SARIF 2.1.0, and CycloneDX when the SBOM is asked for.
 - **Finding identity**, `fp_version` 1: a Suppression written against `1.0.0` matches
   through 1.x.
 - **The three Statuses**, `findings`, `clean` and `inconclusive`, and what each licenses.
@@ -32,6 +32,15 @@ The deprecated names, the `explain` and `cache` commands and the variables `VALV
 `VALVUR_CONTAINER_NETWORK` and `VALVUR_SELINUX_RELABEL`, keep working through 1.x and say
 what replaced them. What a Scanner finds is not a contract: a new Scanner version may
 find more or less, and this file says when one changes.
+
+The owner's decisions of 2026-09-28:
+
+- **The SBOM is opt-in.** Syft runs when a scan asks, `valvur scan --sbom` or
+  `sbom = true` under `[scan]` in `.security-scan.toml`, and writes `sbom.cdx.json`;
+  the dependency licence check reads it, so it is opt-in too. A scan that did not ask
+  names Syft under *Not run*, with how to ask.
+- **An agent reports each finding by its rule ID and path.** The MCP handshake and the
+  end of `SUMMARY.md` say so, in one sentence.
 
 The Scanner set, decided by R4.1's measurements (ADR-0023).
 

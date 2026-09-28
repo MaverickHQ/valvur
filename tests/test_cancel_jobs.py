@@ -347,7 +347,8 @@ def test_the_scan_job_registers_its_own_runner_as_the_canceller(tmp_path, monkey
     seen: dict = {}
     monkeypatch.setattr(engine_host, "for_scan", Runner)
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None):
+    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
+                  sbom=False):
         seen["canceller"] = jobs_module_current(workspace).canceller
         seen["runner"] = runner
         return api_module.ScanRun(findings=[], profile=profile)
@@ -477,7 +478,8 @@ def test_the_cli_takes_jobs_and_refuses_zero(monkeypatch, tmp_path, capsys):
 
     seen: dict = {}
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None):
+    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
+                  sbom=False):
         seen["jobs"] = jobs
         return api.ScanRun(findings=[], profile=profile)
 

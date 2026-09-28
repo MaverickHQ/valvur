@@ -389,7 +389,7 @@ Results land in `.security-scan/`:
 ├── REMEDIATION.md      ← ranked proposal, per group, with dependency paths and upgrade targets
 ├── findings.json       ← complete, normalised, schema-versioned, secrets redacted
 ├── results.sarif       ← SARIF 2.1.0 for your IDE and code scanning
-├── sbom.cdx.json       ← CycloneDX SBOM
+├── sbom.cdx.json       ← CycloneDX SBOM, when asked for: `scan --sbom`, or `sbom = true`
 ├── run.json            ← what ran, which versions, how long each took, what was fetched, what left (nothing)
 ├── state.json          ← the previous run's fingerprints, for new, persisting and fixed
 └── raw/                ← each Scanner's own output, secrets redacted, so you can verify us
@@ -479,7 +479,7 @@ records the version of each that ran, and `raw/` keeps what each said.
 | [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis: pinning rules, a sink inventory at INFO, and taint rules from a model call to a sink | always |
 | [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration: Terraform, CloudFormation, Kubernetes, Dockerfiles, other CI systems | where there is infrastructure other than GitHub workflows |
 | [zizmor](https://github.com/zizmorcore/zizmor) | MIT | GitHub Actions workflows: unpinned actions, write permissions, template injection | where there are workflows |
-| [Syft](https://github.com/anchore/syft) | Apache-2.0 | The SBOM, and the dependency licences read from it | always |
+| [Syft](https://github.com/anchore/syft) | Apache-2.0 | The SBOM, and the dependency licences read from it | when asked for: `scan --sbom`, or `sbom = true` under `[scan]` |
 
 | Check | Reads |
 |---|---|

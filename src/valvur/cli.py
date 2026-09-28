@@ -296,6 +296,11 @@ def build_parser() -> argparse.ArgumentParser:
         "registry report as unverified rather than clean.",
     )
     scan_cmd.add_argument(
+        "--sbom", action="store_true",
+        help="Also write the SBOM (sbom.cdx.json) and check dependency licences from it; "
+        "`sbom = true` under [scan] in .security-scan.toml asks for it every time.",
+    )
+    scan_cmd.add_argument(
         "--budget", type=_positive_seconds, default=None, metavar="SECONDS",
         help="Stop the Scanners past this many seconds: nothing new starts, what is "
         "running is stopped, and the result is reported incomplete with the cut "
@@ -571,7 +576,7 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
 
     try:
         run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                   jobs=args.jobs, budget_s=args.budget)
+                   jobs=args.jobs, budget_s=args.budget, sbom=getattr(args, "sbom", False))
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.

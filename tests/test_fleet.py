@@ -37,7 +37,7 @@ def test_checkov_findings_carry_the_resource_address(workspace):
 def test_syft_writes_a_cyclonedx_sbom(workspace):
     import json
 
-    scan(workspace, runner=GoldenRunner(syft=golden("syft")), adapters=[SyftAdapter()])
+    scan(workspace, runner=GoldenRunner(syft=golden("syft")), adapters=[SyftAdapter(enabled=True)])
 
     sbom = json.loads((workspace / ".security-scan" / "sbom.cdx.json").read_text())
     assert sbom["bomFormat"] == "CycloneDX"

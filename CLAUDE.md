@@ -113,7 +113,7 @@ needs is in `tasks.md` §5, each with its fallback.
   REMEDIATION.md  ranked proposal
   findings.json   normalised, schema-versioned, secrets redacted
   results.sarif   SARIF 2.1.0
-  sbom.cdx.json   CycloneDX
+  sbom.cdx.json   CycloneDX, when asked for (`--sbom`)
   run.json        provenance: versions, what ran, what was fetched, what left (nothing)
   state.json      the previous run's fingerprints and their Scanners
   raw/            per-tool output, secrets redacted

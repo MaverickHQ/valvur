@@ -64,3 +64,8 @@ by D9. That branch was not applied (R4.4): the dependency licence policy (F4.4 t
 reads Syft's SBOM, so `--sbom` alone would switch it off by default, which D9 did not
 weigh. Syft runs on every scan and the SBOM is always written; the choice is the
 owner's (`tasks.md` §8).*
+
+*Note 2026-09-28, later: the owner decided for rule 3's `--sbom` branch, weighing the
+licence policy. Syft runs when a scan asks, `valvur scan --sbom` or `sbom = true`
+under `[scan]`, and the dependency licence check (F4.4 to F4.6) with it; a scan that
+did not ask names Syft not run, with how to ask.*

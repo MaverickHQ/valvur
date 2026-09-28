@@ -370,10 +370,12 @@ def _not_run(run: ScanRun, notes) -> list[str]:
             lines += [f"> The {run.budget_s:g}s budget cut {', '.join(run.budget_cut)}. "
                       f"{levers.LEVERS}", ""]
 
+    # Each with its reason: nothing to analyse, or a Scanner the scan did not ask
+    # for, as the SBOM is opt-in (D9).
     skipped = [s for s in run.scanners if s.skipped]
     if skipped:
         lines += [
-            "> **Not run, having nothing to analyse:** "
+            "> **Not run:** "
             + "; ".join(f"**{s.tool}** — {s.reason}" for s in skipped)
             + ".",
             "",

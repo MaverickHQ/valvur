@@ -23,6 +23,10 @@
         "scope": {
           "description": "`git` reads the git view (the default); `tree` walks the working tree, ignored files included.",
           "enum": ["git", "tree"]
+        },
+        "sbom": {
+          "description": "Write the SBOM (sbom.cdx.json) and check dependency licences from it. Off by default.",
+          "type": "boolean"
         }
       }
     },

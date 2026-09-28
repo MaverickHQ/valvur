@@ -162,7 +162,7 @@ def test_a_skipped_scanner_is_not_a_failure_and_is_reported(workspace, runner_fi
     assert json.loads(_provenance(run))["scanners_skipped"] == {
         "checkov": "no infrastructure files found"
     }
-    assert "Not run, having nothing to analyse" in _summary(run)
+    assert "**Not run:** **checkov** — no infrastructure files found" in _summary(run)
     assert "checkov" in _summary(run)
 
 

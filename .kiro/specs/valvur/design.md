@@ -126,7 +126,8 @@ being described as a network boundary; the old names still resolve (`quick` →
 |---|---|---|
 | Budget | N1.1: under 60s | N1.2: under 5 minutes; 300s over MCP unless the client says otherwise |
 | Network | **none**: the Scan Container has no interface; the host shim fetches public data a scan lacks or holds stale, and nothing else (ADR-0025) | the registries and OSV below, EPSS from FIRST |
-| Gitleaks, Opengrep, Trivy, Syft | ✓ | ✓ |
+| Gitleaks, Opengrep, Trivy | ✓ | ✓ |
+| Syft | when asked for, `--sbom` or `[scan] sbom = true` (D9, the owner's decision of 2026-09-28) | the same |
 | Checkov | ✓ where there is infrastructure other than GitHub workflows (R4.3) | the same |
 | zizmor | ✓ where there are workflows or action definitions (R4.2) | the same |
 | OSV-Scanner | ✓ from OSV's offline database per ecosystem, in the host cache (R4.6) | ✓ from api.osv.dev |
@@ -304,7 +305,7 @@ Custom Opengrep rulesets, versioned with the image.
 
 ### 5.4 Licence (F4)
 Project hygiene by SPDX text matching against the licence file, cross-checked with
-package metadata. Dependency licences from Syft/Trivy. Default policy: copyleft
+package metadata. Dependency licences from Syft's SBOM, when the scan asks for one (D9). Default policy: copyleft
 (GPL/AGPL/SSPL) inside a permissive-declared project is a **Finding**; unknown
 licence is a **Finding**. Policy is overridable in `.security-scan.toml`.
 

@@ -358,6 +358,11 @@ surfaced, so that I do not publish with a missing or contradictory licence.
 6. F4.6 — valvur SHALL raise a **Finding** for any dependency whose licence cannot be
    determined.
 
+   > **Amended 2026-09-28 (the owner's decision; D9).** F4.4 to F4.6 apply when the
+   > scan asks for the SBOM, `valvur scan --sbom` or `sbom = true` under `[scan]`:
+   > the dependency licences are read from it. Otherwise Syft does not run, the scan
+   > names it not run with that reason, and no dependency licence is reported.
+
    > **Amended 2026-09-17 (task 23.5.5).** Raised, and since 23.5.5 a **coverage
    > note** — never active, never a gate failure, counted as `not covered` — because
    > "cannot be determined" is a statement about what valvur could read, not a
@@ -454,7 +459,8 @@ form, so that I can act on them without exhausting my context window.
    copied. CLAUDE.md section 7 claimed the root entry was added; it was corrected in
    the same task. The ID stays; nothing else may reuse it.
 4. F7.4 — valvur SHALL write `SUMMARY.md`, `REMEDIATION.md`, `findings.json`,
-   `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`. *Note 2026-09-20 (task 26.0.3): every document is written whole beside its name and renamed into place in one loop, `run.json` last, and `findings.json`, `run.json`, `state.json` and `results.sarif` (as `automationDetails.guid`) carry one `generation` per Scan Run — so a folder holding two runs' files is detectable, where before the seven sequential writes could leave it silently mixed. An optional artifact this run did not produce is removed.*
+   `results.sarif`, `sbom.cdx.json`, `run.json` and `raw/`. *Amended 2026-09-28 (the
+   owner's decision; D9): `sbom.cdx.json` when the scan asks for it.* *Note 2026-09-20 (task 26.0.3): every document is written whole beside its name and renamed into place in one loop, `run.json` last, and `findings.json`, `run.json`, `state.json` and `results.sarif` (as `automationDetails.guid`) carry one `generation` per Scan Run — so a folder holding two runs' files is detectable, where before the seven sequential writes could leave it silently mixed. An optional artifact this run did not produce is removed.*
 5. F7.5 — `SUMMARY.md` SHALL NOT exceed 200 lines regardless of **Finding** count.
 6. F7.6 — `SUMMARY.md` SHALL open with a machine-facing block describing the folder,
    the **Status** values, the ranking basis, and the constraints in F9.5–F9.7.

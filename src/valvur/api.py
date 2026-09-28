@@ -548,7 +548,10 @@ def _outcome(adapter, output) -> ScannerOutcome:
 def scan(
     workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
     on_progress=None, jobs: int | None = None, budget_s: float | None = None,
+    sbom: bool = False,
 ) -> ScanRun:
+    """One Scan Run of `workspace`; with `sbom`, Syft writes the SBOM whatever the
+    project file says (opt-in since 2026-09-28; D9)."""
     if budget_s is not None and not budget_s > 0:
         raise ValueError(f"the budget must be a positive number of seconds; got {budget_s!r}")
     # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
@@ -588,6 +591,11 @@ def scan(
         _stop_if_cancelled(runner, "during the first run's fetches")
         if adapters is None:
             adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
+        if sbom:
+            from .adapters.syft import SyftAdapter
+
+            adapters = [SyftAdapter(enabled=True) if a.name == "syft" else a
+                        for a in adapters]
         data, unfetched = _ensure_data(runner, on_progress, workspace=workspace,
                                        adapters=adapters)
         fetched += data

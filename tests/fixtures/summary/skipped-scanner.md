@@ -15,7 +15,7 @@ Ran: gitleaks. Versions are in `run.json`.
 
 ## What did not run
 
-> **Not run, having nothing to analyse:** **checkov** — .
+> **Not run:** **checkov** — .
 
 ## For AI agents
 

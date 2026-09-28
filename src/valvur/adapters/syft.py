@@ -14,12 +14,28 @@ from .base import ScannerAdapter
 
 VERSION = "1.51.1"
 
+#: Why a scan ran no Syft (the owner's decision, 2026-09-28; D9): said wherever a
+#: skipped Scanner is named, with the two ways to ask.
+OPT_IN = ("the SBOM, and with it the dependency licence check, is opt-in: `valvur scan "
+          "--sbom`, or `sbom = true` under `[scan]` in `.security-scan.toml`")
+
 
 class SyftAdapter(ScannerAdapter):
     kind = "scanner"
     name = "syft"
     version = VERSION
     artifact = "sbom.cdx.json"
+
+    def __init__(self, enabled: bool = False):
+        #: Asked for on this scan (`--sbom`); the project may ask in its own file.
+        self.enabled = enabled
+
+    def applies_to(self, workspace: Path) -> tuple[bool, str]:
+        from ..exclusions import load_scan_settings
+
+        if self.enabled or load_scan_settings(workspace).sbom:
+            return True, ""
+        return False, OPT_IN
 
     def command(self, workspace: Path) -> Invocation:
         # The SBOM is a release artifact, so a configured exclusion has to reach

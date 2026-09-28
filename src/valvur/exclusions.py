@@ -37,6 +37,9 @@ class ScanSettings:
     #: `tree` walks the working tree even in a repository (ADR-0021, decision 7);
     #: the git view otherwise.
     scope: str = "git"
+    #: Write the SBOM, and check dependency licences from it (opt-in since
+    #: 2026-09-28; D9).
+    sbom: bool = False
 
 
 def _prefixes(entries) -> tuple[str, ...]:
@@ -60,6 +63,7 @@ def load_scan_settings(workspace: Path) -> ScanSettings:
         exclude=_prefixes(scan.get("exclude")),
         history=scan.get("history", True) is not False,
         scope="tree" if str(scan.get("scope", "git")).strip().lower() == "tree" else "git",
+        sbom=scan.get("sbom", False) is True,
     )
 
 
