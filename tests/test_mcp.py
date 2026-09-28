@@ -336,6 +336,7 @@ def test_listing_before_scanning_says_so_rather_than_returning_nothing(tmp_path)
 ANNOUNCED = {
     "scan":            {"readOnlyHint": False, "destructiveHint": False},
     "scan_cancel":     {"readOnlyHint": False, "destructiveHint": False},
+    "update":          {"readOnlyHint": False, "destructiveHint": False},
     "scan_status":     {"readOnlyHint": True, "destructiveHint": False},
     "findings":        {"readOnlyHint": True, "destructiveHint": False},
     "list_findings":   {"readOnlyHint": True, "destructiveHint": False},
@@ -376,7 +377,7 @@ def test_the_registry_exposes_exactly_the_expected_tools():
 
     assert {t.name for t in registry()} == {
         "scan", "findings", "list_findings", "explain_finding", "scan_status", "doctor",
-        "scan_cancel",
+        "scan_cancel", "update",
     }
 
 
@@ -561,7 +562,7 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
     shared = {
         getattr(operations, name)
         for name in ("scan_reply", "findings", "list_findings", "explain_finding",
-                     "scan_status", "doctor", "cancel_scan")
+                     "scan_status", "doctor", "cancel_scan", "update_reply")
     }
     # A reader that answers `structuredContent` (28.2.2) is registered in its
     # two-form shape, `<name>_reply`; the CLI's text function is that reply's
@@ -726,7 +727,7 @@ def test_the_two_readers_declare_their_output_shape():
 
     described = {tool.name: tool.describe() for tool in registry()}
 
-    for name in ("scan", "scan_status", "list_findings"):
+    for name in ("scan", "scan_status", "list_findings", "update"):
         assert described[name]["outputSchema"]["type"] == "object", name
     assert described["scan"]["outputSchema"] == described["scan_status"]["outputSchema"]
     for name in ("scan_cancel", "explain_finding", "doctor"):

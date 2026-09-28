@@ -326,7 +326,10 @@ def test_a_container_network_applies_only_to_networked_containers(monkeypatch, t
     launched: list[list[str]] = []
 
     def capture(cmd, **kwargs):
-        launched.append(cmd)
+        # Launches only: building the Scan Container's command also asks the runtime
+        # for its memory (`docker info`), which a test run earlier had cached.
+        if len(cmd) > 1 and cmd[1] == "run":
+            launched.append(cmd)
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(cache, "db_present", lambda: True)
@@ -353,7 +356,7 @@ def test_kev_is_fetched_from_the_mirror_when_one_is_named(monkeypatch, tmp_path,
     import json
     import urllib.request
 
-    from valvur import cache, cli
+    from valvur import cache, cli, updating
 
     seen: list[str] = []
     catalog = json.dumps({"catalogVersion": "2026.09.11", "vulnerabilities": [
@@ -373,7 +376,7 @@ def test_kev_is_fetched_from_the_mirror_when_one_is_named(monkeypatch, tmp_path,
 
     monkeypatch.setattr(urllib.request, "urlopen", fake)
     monkeypatch.setattr(cache, "root", lambda: tmp_path)
-    monkeypatch.setenv(cli.KEV_URL_ENV, "http://mirror.internal:8080/kev.json")
+    monkeypatch.setenv(updating.KEV_URL_ENV, "http://mirror.internal:8080/kev.json")
 
     cli._refresh_kev()
 
@@ -383,10 +386,10 @@ def test_kev_is_fetched_from_the_mirror_when_one_is_named(monkeypatch, tmp_path,
 
 
 def test_a_kev_mirror_that_is_not_http_is_refused_softly(monkeypatch, tmp_path, capsys):
-    from valvur import cache, cli
+    from valvur import cache, cli, updating
 
     monkeypatch.setattr(cache, "root", lambda: tmp_path)
-    monkeypatch.setenv(cli.KEV_URL_ENV, "file:///etc/passwd")
+    monkeypatch.setenv(updating.KEV_URL_ENV, "file:///etc/passwd")
 
     cli._refresh_kev()
 

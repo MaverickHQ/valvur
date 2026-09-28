@@ -444,6 +444,7 @@ stopped. The annotation is narrower than F9.2 and does not weaken it.
 | `list_findings` | as `findings` | Deprecated by R6.5, kept one release | `true` |
 | `explain_finding` | as `findings`, with `fingerprint` | Deprecated by R6.5, kept one release | `true` |
 | `doctor` | `workspace?` | Every precondition a scan needs, with the fix for each (23.3.1) | `true` |
+| `update` | `if_stale?` | Fetches the image if absent, the database, KEV and the name index; says what it fetched (ADR-0025, R6.6) | `false` |
 
 No tool mutates the **Workspace** (F9.2). No tool triggers a scan implicitly (F9.4).
 No tool is destructive, and a test over the registry asserts it. `tools/list` is a

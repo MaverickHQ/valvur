@@ -722,6 +722,45 @@
   {
     "annotations": {
       "destructiveHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Fetch what a scan reads, now: the image if absent, the vulnerability database, the CISA KEV catalog and the package-name index, into this machine's cache; progress on the way, and the answer is what was fetched. Public data comes in; nothing of any workspace leaves.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "if_stale": {
+          "description": "Only what is out of date.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "name": "update",
+    "outputSchema": {
+      "properties": {
+        "fetched": {
+          "description": "What was fetched, in order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "said": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
       "readOnlyHint": true
     },
     "description": "Check that this machine can scan, before scanning: the container runtime, the image, the vulnerability database, the package-name index, SELinux, TLS trust, and which MCP client configuration names valvur. One line per check with the fix on any that would fail a scan. Changes nothing.",

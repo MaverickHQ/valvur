@@ -73,82 +73,21 @@ def _stop_on_interrupt(runner) -> None:
 
 
 def _database_needs_refresh() -> bool:
-    """Whether an update is worth doing, decided without touching the network.
+    from . import updating
 
-    Trivy stamps `NextUpdate` in its own metadata, so being past due is knowable for
-    free. That is what makes `--if-stale` cheap enough to run unconditionally in a
-    hook or a cron entry: when the database is current it costs one file read.
-    """
-    from . import cache
-
-    if not cache.db_present():
-        return True
-
-    # BOTH signals, because they can disagree and the disagreement is not academic.
-    # `NextUpdate` is the database's own opinion of its shelf life; `UpdatedAt` is
-    # when the data was actually built. A mirror serving old data with a forward-dated
-    # NextUpdate makes the second say 45 days and the first say "not due" — and until
-    # 2026-09-05 this used only the first, so `--if-stale` refused to fix the exact
-    # condition that makes a scan report `inconclusive`. The command whose purpose is
-    # to resolve staleness has to agree with the code that detects it.
-    overdue = cache.db_overdue_days()
-    if overdue is None or overdue > 0:
-        return True
-    age = cache.db_age_days()
-    return age is None or age > cache.DB_STALE_AFTER_DAYS
+    return updating.database_due()
 
 
 def _name_index_needs_refresh() -> bool:
-    """Absent, unreadable, past the threshold that makes a scan `inconclusive`, or
-    missing an ecosystem this version indexes — a cache built before 23.2.2 has no
-    Ruby, PHP or Rust list, and a scan of a Ruby project would fail for want of one.
-    Decided from one directory listing, like the database's check above (ADR-0018)."""
-    from . import cache, name_index
+    from . import updating
 
-    age = cache.name_index_age_days()
-    if age is None or age > cache.NAME_INDEX_STALE_AFTER_DAYS:
-        return True
-    directory = cache.name_index()
-    return any(not (directory / filename).is_file() for filename in name_index.FILES.values())
+    return updating.index_due()
 
 
 def _refresh_name_index(*, build: bool = False) -> bool:
-    """Refresh the package-name index into the host cache (ADR-0018).
+    from . import updating
 
-    From the published index first — one signed pull, seconds (23.2.1) — and from
-    the registries themselves when it is unreachable or when `build` says so.
-    Under the same exclusive lock as the database: a scan reading the index waits
-    for the rename, and never sees half of one. Returns False on failure, having
-    said why — whatever was on disk before is still there and still valid.
-    """
-    from . import cache, locking, name_index, oci
-
-    if build:
-        print("Building the package-name index from the registries (PyPI, npm, RubyGems, "
-              "Packagist and crates.io; about 550MB the first time, a few MB after)...")
-    else:
-        print("Fetching the package-name index (about 40MB, published daily; the registries "
-              "are walked only if it is unreachable)...")
-    try:
-        with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
-            name_index.build.refresh(cache.name_index(), published=not build,
-                               progress=lambda msg: print(f"  {msg}"))
-    except oci.SignatureInvalid as exc:
-        # Not softened into the fallback and not swallowed: a refused signature on a
-        # supply-chain artifact is the one failure that must stop the command.
-        print(f"Name index refresh REFUSED: {exc}")
-        print("To build the index from the registries directly instead: "
-              "valvur update --build-index")
-        return False
-    except name_index.IndexUnavailable as exc:
-        print(f"Name index refresh failed: {exc}")
-        if cache.name_index_present():
-            print("The previous index remains in use; its age is reported in run.json.")
-        else:
-            print("Without it, the dependency-reality Check cannot verify package "
-                  "existence offline and will report that rather than a clean result.")
-        return False
-    return True
+    return updating.refresh_index(print, build=build)
 
 
 def _print_cache(*, clear: bool, prune: bool = False) -> int:
@@ -210,19 +149,9 @@ def _prune_cache(cache) -> None:
 
 
 def _ensure_image_for_update(runner) -> bool:
-    """Pull the image if the runtime does not have it, saying what and how much."""
-    present = getattr(runner, "image_present", None)
-    if present is None or present():
-        return True
-    size = runner.pull_size_mb()
-    print(f"Pulling the image {runner.image}{f' (about {size}MB)' if size else ''} — "
-          "the first time only; the runtime keeps it...")
-    result = runner.pull_image(on_line=lambda line: print(f"  {line}"))
-    if result.exit_code != 0:
-        print(f"Image pull failed: {(result.stderr or result.stdout).strip()[-300:]}")
-        print(f"Fetch it yourself with: {runner.runtime} pull {runner.image}")
-        return False
-    return True
+    from . import updating
+
+    return updating.ensure_image(runner, print)
 
 
 def _warn_if_name_index_stale(run) -> None:
@@ -311,56 +240,10 @@ def _print_suppression(args) -> int:
     return 0
 
 
-#: Owned by `enrichment`, which does the fetching (27.3.1); named here because
-#: `_refresh_kev` below is `valvur update`'s third fetch and a reader of this file
-#: should see what it reaches for.
-from .enrichment import KEV_URL, KEV_URL_ENV  # noqa: E402 — beside its one user
-
-
 def _refresh_kev() -> None:
-    """Refresh CISA KEV into the host cache.
+    from . import updating
 
-    The image ships a snapshot as an offline floor, but exploitation data changes
-    daily and image releases do not — the ADR-0012 argument applied to a second
-    dataset. A CVE added to KEV yesterday should be flagged today.
-    """
-    import json
-    import os
-    import urllib.error
-    import urllib.request
-
-    from . import cache
-
-    # The third thing `valvur update` fetches, and the third thing an air-gapped site
-    # has to mirror (22.B.3): the catalog is one JSON file, so the mirror is any
-    # static server holding a copy of it. Plain HTTP is accepted here because the
-    # URL is set by an operator, never derived from anything in a Workspace.
-    url = os.environ.get(KEV_URL_ENV, "").strip() or KEV_URL
-    if not url.startswith(("https://", "http://")):
-        print(f"KEV refresh skipped ({KEV_URL_ENV} is not an http(s) URL); "
-              "the bundled snapshot remains in use.")
-        return
-    try:
-        with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310 — checked above
-            raw = json.load(response)
-    except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:
-        print(f"KEV refresh skipped ({exc}); the bundled snapshot remains in use.")
-        return
-
-    entries = {
-        v["cveID"]: {"r": v.get("knownRansomwareCampaignUse") == "Known",
-                     "d": v.get("dateAdded", "")}
-        for v in raw.get("vulnerabilities", [])
-    }
-    root = cache.root()
-    root.mkdir(parents=True, exist_ok=True)
-    (root / "kev.json").write_text(json.dumps({
-        "source": url,
-        "catalogVersion": raw.get("catalogVersion", ""),
-        "count": len(entries),
-        "entries": entries,
-    }, separators=(",", ":")), encoding="utf-8")
-    print(f"KEV refreshed: {len(entries)} entries (catalog {raw.get('catalogVersion','?')}).")
+    updating.refresh_kev(print)
 
 
 def _workspace(value: str) -> str:
@@ -633,49 +516,17 @@ def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
 
 
 def _cmd_update(args: argparse.Namespace, runner=None) -> int:
-    """`update`: the image, the database, the KEV copy and the index."""
-    from . import cache
+    """`update`: the image, the database, the KEV copy and the index, as the MCP
+    tool runs them (`updating.run`); or, with --prune or --clear, tidy the cache."""
+    from . import updating
     from .runner import ContainerRunner
 
     if getattr(args, "prune", False) or getattr(args, "clear", False):
         # What `cache` did (D12): tidy the host cache, and fetch nothing.
         return _print_cache(clear=args.clear, prune=args.prune)
-    if getattr(args, "if_stale", False):
-        database_due = _database_needs_refresh()
-        index_due = _name_index_needs_refresh()
-        if not database_due and not index_due:
-            age = cache.db_age_days()
-            print(f"Database is {age:.1f} days old and current enough. Nothing to do.")
-            return 0
-        if not database_due:
-            # The database is fine and only the index is due: do that one thing.
-            # A 116MB download to refresh a 4MB list is not what --if-stale means.
-            return 0 if _refresh_name_index(build=args.build_index) else 1
-
-    runner = runner or ContainerRunner()
-    # The image first (23.2.4): the database update runs Trivy *inside* it, so
-    # a missing image was being pulled here anyway — silently, under Trivy's
-    # name, and again on the first scan if `update` was skipped. Said, sized
-    # from the registry when it can be, and streamed to the terminal.
-    if not _ensure_image_for_update(runner):
-        return 1
-    # 116 MB compressed, measured 2026-09-05 against the published artifact. The
-    # help text said 1.2GB for months — that is the UNCOMPRESSED size on disk,
-    # and quoting it discouraged exactly the update this tool depends on.
-    print("Fetching the vulnerability database (about 116MB)...")
-    result = runner.update_db()
-    if result.exit_code != 0:
-        print(f"Update failed: {result.stderr.strip()[-300:]}")
-        return 1
-    from . import cache
-
-    _refresh_kev()
-    # The index is part of what "updated" means now (ADR-0018): a scan without
-    # it fails its dependency check loudly. So its failure fails the command —
-    # unlike KEV, which has a bundled snapshot to fall back on.
-    index_ok = _refresh_name_index(build=args.build_index)
-    print(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
-    return 0 if index_ok else 1
+    updated = updating.run(print, runner or ContainerRunner(), build_index=args.build_index,
+                           if_stale=getattr(args, "if_stale", False))
+    return 0 if updated.ok else 1
 
 
 def _cmd_scan(args: argparse.Namespace, runner=None) -> int:

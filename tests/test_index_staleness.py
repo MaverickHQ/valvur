@@ -208,13 +208,13 @@ def test_both_stale_at_once_are_both_named_on_the_mcp_surface(tmp_path):
 
 def test_update_if_stale_refreshes_only_the_index_when_only_it_is_due(monkeypatch, capsys):
     """A 116MB database download to refresh a 4MB list is not what --if-stale means."""
-    from valvur import cli
+    from valvur import cli, updating
 
-    monkeypatch.setattr(cli, "_database_needs_refresh", lambda: False)
-    monkeypatch.setattr(cli, "_name_index_needs_refresh", lambda: True)
+    monkeypatch.setattr(updating, "database_due", lambda: False)
+    monkeypatch.setattr(updating, "index_due", lambda: True)
     calls: list[str] = []
-    monkeypatch.setattr(cli, "_refresh_name_index",
-                        lambda **_: calls.append("index") or True)
+    monkeypatch.setattr(updating, "refresh_index",
+                        lambda say, **_: calls.append("index") or True)
 
     class NeverRunner:
         def update_db(self):
@@ -225,12 +225,12 @@ def test_update_if_stale_refreshes_only_the_index_when_only_it_is_due(monkeypatc
 
 
 def test_update_if_stale_does_nothing_when_both_are_current(monkeypatch, capsys):
-    from valvur import cli
+    from valvur import cli, updating
 
-    monkeypatch.setattr(cli, "_database_needs_refresh", lambda: False)
-    monkeypatch.setattr(cli, "_name_index_needs_refresh", lambda: False)
+    monkeypatch.setattr(updating, "database_due", lambda: False)
+    monkeypatch.setattr(updating, "index_due", lambda: False)
     monkeypatch.setattr(cache, "db_age_days", lambda: 1.0)
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda **_: pytest.fail("refreshed"))
+    monkeypatch.setattr(updating, "refresh_index", lambda say, **_: pytest.fail("refreshed"))
 
     assert cli.main(["update", "--if-stale"], runner=None) == 0
     assert "Nothing to do" in capsys.readouterr().out
@@ -240,7 +240,7 @@ def test_a_failed_index_refresh_fails_the_update_command(monkeypatch, capsys):
     """Unlike KEV, which has a bundled snapshot to fall back on, a missing index
     makes the default Profile's dependency check fail — so an update that could not
     fetch it did not do its job, and says so with a non-zero exit."""
-    from valvur import cli
+    from valvur import cli, updating
     from valvur.runner import ScannerOutput
 
     class FineRunner:
@@ -248,7 +248,7 @@ def test_a_failed_index_refresh_fails_the_update_command(monkeypatch, capsys):
             return ScannerOutput("trivy-db", "", "", "", 0)
 
     monkeypatch.setattr(cli, "_refresh_kev", lambda: None)
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda **_: False)
+    monkeypatch.setattr(updating, "refresh_index", lambda say, **_: False)
 
     assert cli.main(["update"], runner=FineRunner()) == 1
 

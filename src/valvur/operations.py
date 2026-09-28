@@ -249,6 +249,32 @@ def scan_reply(args: dict) -> tuple[str, dict]:
     return reply.text(fields), fields
 
 
+def update_reply(args: dict) -> tuple[str, dict]:
+    """`update` over MCP (ADR-0025, R6.6; F10.8): what `valvur update` does, each
+    step sent as progress, and the answer the list of what was fetched. An explicit
+    request, so `fetch = never` does not refuse it: an air-gapped site runs it
+    against its mirrors."""
+    from . import engine_host, updating
+    from .mcp import protocol
+
+    call = protocol.current_call()
+    said: list[str] = []
+
+    def say(line: str) -> None:
+        said.append(line)
+        if call is not None:
+            call.progress(line)
+
+    updated = updating.run(say, engine_host.for_scan(),
+                           if_stale=bool(args.get("if_stale")))
+    fetched = ", ".join(updated.fetched) or "nothing"
+    verdict = (f"Fetched: {fetched}." if updated.ok else
+               f"The update did not finish; fetched: {fetched}. The reason is above.")
+    return "\n".join([*said, "", verdict]), {"ok": updated.ok,
+                                              "fetched": list(updated.fetched),
+                                              "said": said}
+
+
 def _attach(job, seconds: float | None) -> None:
     """Wait for `job` to settle, for `seconds` at most (None: as long as it takes),
     sending each progress message as a notification to the call being answered,

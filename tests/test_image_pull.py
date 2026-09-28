@@ -206,7 +206,7 @@ def test_pull_lines_reach_the_terminal_when_asked(monkeypatch, tmp_path):
 
 
 def test_update_pulls_the_image_first_and_streams_it(monkeypatch, capsys):
-    from valvur import cli
+    from valvur import cli, updating
 
     order: list[str] = []
 
@@ -220,8 +220,10 @@ def test_update_pulls_the_image_first_and_streams_it(monkeypatch, capsys):
             order.append("db")
             return ScannerOutput("trivy-db", "", "", "", 0)
 
-    monkeypatch.setattr(cli, "_refresh_kev", lambda: order.append("kev"))
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda **_: order.append("index") or True)
+    # The steps live in `updating` since R6.6, shared with the MCP tool.
+    monkeypatch.setattr(updating, "refresh_kev", lambda say: order.append("kev"))
+    monkeypatch.setattr(updating, "refresh_index",
+                        lambda say, **_: order.append("index") or True)
 
     assert cli.main(["update"], runner=Runner(present=False)) == 0
 
@@ -232,15 +234,15 @@ def test_update_pulls_the_image_first_and_streams_it(monkeypatch, capsys):
 
 
 def test_update_does_not_pull_an_image_it_already_has(monkeypatch, capsys):
-    from valvur import cli
+    from valvur import cli, updating
 
     class Runner(_Runner):
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 
     runner = Runner(present=True)
-    monkeypatch.setattr(cli, "_refresh_kev", lambda: None)
-    monkeypatch.setattr(cli, "_refresh_name_index", lambda **_: True)
+    monkeypatch.setattr(updating, "refresh_kev", lambda say: False)
+    monkeypatch.setattr(updating, "refresh_index", lambda say, **_: True)
 
     assert cli.main(["update"], runner=runner) == 0
     assert "pull" not in runner.calls
