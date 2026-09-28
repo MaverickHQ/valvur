@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""`fake-report SECONDS CONTENT REPORT`: sleep, then write CONTENT to REPORT (R3.9)."""
+import sys
+import time
+
+time.sleep(float(sys.argv[1]))
+with open(sys.argv[3], "w", encoding="utf-8") as handle:
+    handle.write(sys.argv[2])

@@ -38,7 +38,8 @@ class _Adapter:
 
 
 def test_a_run_is_a_scanner_outcome_with_named_fields(tmp_path):
-    outcome = api._run_one(_Adapter(ScannerOutput("probe", "1", '{"x": 1}', "", 0)), None, tmp_path)
+    output = ScannerOutput("probe", "1", '{"x": 1}', "", 0)
+    outcome = api._outcome(_Adapter(output), output).timed(0.0)
 
     assert isinstance(outcome, ScannerOutcome)
     assert isinstance(outcome.scanner, ScannerRun) and outcome.scanner.ok
@@ -66,8 +67,8 @@ def test_the_budget_cut_rewrites_the_scanner_and_keeps_the_rest(tmp_path):
     outcome cut here is a failed one that still carries its raw text — a report
     the adapter could not read (26.0.1) — so a cut that rebuilt the outcome from
     the ScannerRun alone would be seen to drop it."""
-    outcome = api._run_one(
-        _Unreadable(ScannerOutput("probe", "1", '{"Results": [{"Vuln', "", 0)), None, tmp_path)
+    output = ScannerOutput("probe", "1", '{"Results": [{"Vuln', "", 0)
+    outcome = api._outcome(_Unreadable(output), output)
     assert not outcome.scanner.ok and outcome.raw == '{"Results": [{"Vuln'
 
     cut = outcome.cut("cut by the 20s budget after 20s")

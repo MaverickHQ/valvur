@@ -40,20 +40,21 @@ def _flags(cmd: list[str], image: str) -> list[str]:
     return cmd[:cmd.index(image)]
 
 
+def _scan_container(monkeypatch, tmp_path, runtime: str, *, network: bool = False):
+    """The Scan Container's argv (R3.9): every Scanner runs inside it."""
+    from valvur import cache
+    from valvur.engine_host import ContainerRuntime
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    return ContainerRuntime(image="x/y:1", runtime=runtime).command(tmp_path, network=network)
+
+
 def test_every_container_is_held_to_the_ceiling(monkeypatch, tmp_path):
-    from valvur.adapters import DEFAULT_ADAPTERS
-
-    launched = _launched(monkeypatch, "docker")
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-
-    for adapter in DEFAULT_ADAPTERS:
-        adapter.run(runner, tmp_path)
-
-    assert launched, "no container was launched"
-    for cmd in launched:
+    for network in (False, True):
+        cmd = _scan_container(monkeypatch, tmp_path, "/usr/local/bin/docker", network=network)
         flags = _flags(cmd, "x/y:1")
         for flag in MEMORY + ALWAYS:
-            assert flag in flags, f"{cmd[cmd.index('x/y:1') + 1]}: missing {flag}"
+            assert flag in flags, f"network={network}: missing {flag}"
 
 
 def test_the_ceiling_is_one_authority():
@@ -71,16 +72,10 @@ def test_rootless_podman_on_cgroup_v1_keeps_what_it_can(monkeypatch, tmp_path):
     rootless: memory limit not supported") and the container never starts — which
     would turn a safety flag into a scan that cannot run. There the memory flags
     are dropped, the PID limit and no-new-privileges stay, and the run says why."""
-    from valvur.adapters import GitleaksAdapter
-
     monkeypatch.setattr(_runner.platform, "system", lambda: "Linux")
     monkeypatch.setattr(_runner, "_cgroup_v2", lambda: False)
-    launched = _launched(monkeypatch, "podman")
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/bin/podman")
 
-    GitleaksAdapter().run(runner, tmp_path)
-
-    flags = _flags(launched[0], "x/y:1")
+    flags = _flags(_scan_container(monkeypatch, tmp_path, "/usr/bin/podman"), "x/y:1")
     assert not any(f.startswith("--memory") for f in flags), "podman v1 would refuse to start"
     for flag in ALWAYS:
         assert flag in flags
@@ -88,15 +83,10 @@ def test_rootless_podman_on_cgroup_v1_keeps_what_it_can(monkeypatch, tmp_path):
 
 
 def test_docker_and_cgroup_v2_podman_get_the_whole_ceiling(monkeypatch, tmp_path):
-    from valvur.adapters import GitleaksAdapter
-
     monkeypatch.setattr(_runner.platform, "system", lambda: "Linux")
     monkeypatch.setattr(_runner, "_cgroup_v2", lambda: True)
-    launched = _launched(monkeypatch, "podman")
 
-    GitleaksAdapter().run(ContainerRunner(image="x/y:1", runtime="/usr/bin/podman"), tmp_path)
-
-    flags = _flags(launched[0], "x/y:1")
+    flags = _flags(_scan_container(monkeypatch, tmp_path, "/usr/bin/podman"), "x/y:1")
     for flag in MEMORY + ALWAYS:
         assert flag in flags
     assert _runner.memory_ceiling_note("/usr/bin/podman") is None

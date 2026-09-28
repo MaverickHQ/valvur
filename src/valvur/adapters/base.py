@@ -53,11 +53,6 @@ class ScannerAdapter(Protocol):
         with the message that leads with the fix."""
         return _undeclared(self.name)
 
-    def run(self, runner, workspace: Path) -> ScannerOutput:
-        """Invoke this Scanner through the container-runtime boundary: one call,
-        with what `command` describes."""
-        return runner.run(self.command(workspace), workspace)
-
     def parse(self, output: ScannerOutput) -> list[Finding]:
         """Normalise this Scanner's output into Findings."""
         ...

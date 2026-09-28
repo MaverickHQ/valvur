@@ -474,25 +474,12 @@ def test_trivy_is_asked_for_dev_dependencies(monkeypatch, tmp_path):
     CVEs and standard found 24 — the same 24, same lockfile, one flag apart. Build
     and test tooling runs on the developer's machine and in CI, which is exactly the
     supply-chain surface this product exists to cover."""
-    import subprocess
-
     from valvur import cache
-    from valvur.runner import ContainerRunner
-
-    seen = {}
-
-    def capture(cmd, **kwargs):
-        seen["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(subprocess, "run", capture)
-
     from valvur.adapters import TrivyAdapter
 
-    TrivyAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
+    monkeypatch.setattr(cache, "db_present", lambda: True)
 
-    assert "--include-dev-deps" in seen["cmd"]
+    assert "--include-dev-deps" in TrivyAdapter().command(tmp_path).argv
 
 
 def test_dependency_scope_comes_from_trivys_own_dev_flag():
@@ -650,24 +637,18 @@ def test_the_sbom_respects_configured_exclusions(monkeypatch, tmp_path):
     the findings derived from it. Without this, valvur's own published SBOM listed
     aws-helper-sdk and locktest — packages its fixtures invent precisely because they
     do not exist."""
-    import subprocess
-
-    from valvur.runner import ContainerRunner
+    from valvur import fileset
 
     (tmp_path / ".security-scan.toml").write_text('[scan]\nexclude = ["tests/fixtures"]\n')
-    seen = {}
+    (tmp_path / "tests" / "fixtures").mkdir(parents=True)
+    (tmp_path / "tests" / "fixtures" / "requirements.txt").write_text("aws-helper-sdk==1.0\n")
+    (tmp_path / "requirements.txt").write_text("requests==2.31.0\n")
 
-    def capture(cmd, **kwargs):
-        seen["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", capture)
-    from valvur.adapters import SyftAdapter
-
-    SyftAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
-
-    assert "--exclude" in seen["cmd"]
-    assert "./tests/fixtures/**" in seen["cmd"]
+    # Since R3.9 Syft reads the Snapshot, and the Snapshot is the File Set, which
+    # the exclusion shapes before any Scanner starts (ADR-0021).
+    files = fileset.build(tmp_path).files
+    assert "requirements.txt" in files
+    assert not any(f.startswith("tests/fixtures") for f in files)
 
 
 def test_one_package_under_two_spellings_is_one_upgrade():

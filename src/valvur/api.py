@@ -11,7 +11,6 @@ import contextlib
 import dataclasses
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -424,100 +423,6 @@ def _say_why_unfetched(scanners: list[ScannerRun], unfetched: dict[str, str]) ->
     ]
 
 
-def _plan(adapters, runner) -> list[tuple]:
-    """The fleet as tasks: `(work(runner, workspace) -> [outcome, …], [indices])`.
-
-    Every Scanner is its own task. valvur's own Checks are one task when there are
-    at least two of them (23.4.2): one container, one interpreter start, and still
-    one outcome — one ScannerRun, one coverage contract, one line of provenance —
-    per Check.
-    """
-    checks = [i for i, a in enumerate(adapters) if getattr(a, "kind", "") == "check"]
-    # Two or more Checks batch. Until 26.2.1 this also asked whether the RUNNER
-    # could — a capability the old split put on the container side; now any
-    # runner runs any Invocation, and an image that cannot says so (BatchUnsupported).
-    batched = len(checks) >= 2
-    tasks: list[tuple] = []
-    for index, adapter in enumerate(adapters):
-        if batched and index in checks:
-            if index == checks[0]:
-                members = [adapters[i] for i in checks]
-                tasks.append((lambda r, w, m=members: _run_checks(m, r, w), list(checks)))
-            continue
-        tasks.append((lambda r, w, a=adapter: [_run_one(a, r, w)], [index]))
-    return tasks
-
-
-def _run_checks(adapters, runner, workspace) -> list[ScannerOutcome]:
-    """Several Checks, one container: each gets the outcome `_run_one` would have
-    given it, timed as the batch — what it cost the fleet — and the container gets
-    the widest grant any of them was given, which is dependency-reality's on
-    `full` and nothing otherwise."""
-    started = time.monotonic()
-    wanted = []
-    outcomes: dict[str, ScannerOutcome] = {}
-    for adapter in adapters:
-        should_run, why = adapter.applies_to(workspace)
-        if should_run:
-            wanted.append(adapter)
-        else:
-            outcomes[adapter.name] = ScannerOutcome(
-                ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
-    outputs: dict = {}
-    if wanted:
-        from .adapters.check import BatchUnsupported, run_batch
-
-        try:
-            outputs = run_batch(
-                runner, [a.name for a in wanted], workspace,
-                network=any(getattr(a, "network", False) for a in wanted),
-            )
-        except BatchUnsupported:
-            # An image from before the batch — pinned by VALVUR_IMAGE, or the
-            # published one under a newer shim: the Checks run one by one, as they
-            # did, and the F1.9 version check is not asked to know about this.
-            return [_run_one(a, runner, workspace) for a in adapters]
-        except Exception as exc:
-            outputs = {a.name: None for a in wanted}
-            failure = str(exc)
-    for adapter in wanted:
-        output = outputs.get(adapter.name)
-        if output is None:
-            outcomes[adapter.name] = ScannerOutcome(
-                ScannerRun(adapter.name, ok=False, reason=failure))
-        else:
-            outcomes[adapter.name] = _outcome(adapter, output)
-    elapsed = time.monotonic() - started
-    return [outcomes[a.name].timed(elapsed) for a in adapters]
-
-
-def _run_one(adapter, runner, workspace) -> ScannerOutcome:
-    """Run one Scanner, timed. One broken Scanner must never cost the others (F2.5)."""
-    started = time.monotonic()
-    return _attempt(adapter, runner, workspace).timed(time.monotonic() - started)
-
-
-def _attempt(adapter, runner, workspace) -> ScannerOutcome:
-    # Part of the ScannerAdapter protocol (task 17.3) rather than a `getattr` the
-    # orchestrator hopes for. Every adapter inherits a default, so the call is
-    # unconditional and an adapter that forgets the method is impossible.
-    #
-    # It does NOT make a MISSPELLED override a type error — mypy sees an extra
-    # method and an inherited default, and is content. `test_applicability.py`
-    # catches that; the type checker will not. Worth knowing rather than assuming.
-    should_run, why = adapter.applies_to(workspace)
-    if not should_run:
-        # Not a failure: the Scan Run stays complete. Recorded so the reader can tell
-        # "had nothing to look at" from "looked and found nothing".
-        return ScannerOutcome(ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
-
-    try:
-        output = adapter.run(runner, workspace)
-    except Exception as exc:
-        return ScannerOutcome(ScannerRun(adapter.name, ok=False, reason=str(exc)))
-    return _outcome(adapter, output)
-
-
 def _cut(text: str, limit: int) -> str:
     """At most `limit` characters, ending on a whole word, and `…` when cut: the
     second gate read *… exclud (609.1s)*, a word halved and run into the duration."""
@@ -665,19 +570,6 @@ def _begin(runner, on_progress) -> str:
     return generation
 
 
-def _default_width(runner, fleet: int) -> int:
-    """The fleet's width when neither `--jobs` nor `VALVUR_JOBS` said (29.1.3):
-    from the runtime's memory, through a runner that has one; a fake or a
-    runner that cannot say runs the fleet whole."""
-    from . import runner as _runner
-
-    runtime = getattr(runner, "runtime", None)
-    if not isinstance(runtime, str):
-        return fleet
-    memory, _ = _runner.runtime_resources(runtime)
-    return _runner.default_jobs(fleet, memory)
-
-
 def _jobs_from_environment() -> int | None:
     import os
 
@@ -732,13 +624,12 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             on_progress(warning)
 
     beside: dict = {}
-    if _engine_two(runner):
-        outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
-                                      budget_s=budget_s, record=beside,
-                                      jobs=jobs or _jobs_from_environment())
-    else:
-        outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress,
-                               jobs=jobs, budget_s=budget_s)
+    if not _engine_two(runner):
+        # The Scan Container is the only engine since R3.9 (ADR-0022).
+        raise TypeError(f"{type(runner).__name__} does not run the Scan Container's engine")
+    outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
+                                  budget_s=budget_s, record=beside,
+                                  jobs=jobs or _jobs_from_environment())
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
@@ -773,7 +664,15 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             outcomes[index] = ScannerOutcome(
                 ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
             continue
-        plan.append(adapter.command(workspace))
+        try:
+            plan.append(adapter.command(workspace))
+        except Exception as exc:
+            # A Scanner that cannot be asked — Trivy with no database, the name
+            # Check with no index — fails alone, with its reason (F2.5).
+            outcomes[index] = ScannerOutcome(ScannerRun(
+                adapter.name, ok=False, version=getattr(adapter, "version", ""),
+                reason=str(exc).strip()))
+            continue
         planned.append(index)
     with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
         scratch = Path(scratch_dir) / "results"
@@ -798,9 +697,10 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             if event.get("event") == "start" and name:
                 say(f"{name}: started")
             elif event.get("event") == "end":
-                ended.append(event.get("tool", ""))
+                ok = event.get("exit_code") == 0 and not event.get("timed_out")
+                if ok:
+                    ended.append(event.get("tool", ""))       # finished, for a cancel's count
                 if name:
-                    ok = event.get("exit_code") == 0 and not event.get("timed_out")
                     say(f"{name}: {'ok' if ok else 'failed'} "
                         f"({float(event.get('seconds', 0)):.1f}s)")
 
@@ -841,7 +741,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 cut.append(adapters[index].name)
                 outcomes[index] = ScannerOutcome(ScannerRun(
                     adapters[index].name, ok=False,
-                    reason=f"not started: the {budget_s:g}s budget was spent before it began"))
+                    reason=f"not started: the {budget_s:g}s budget was spent before its turn"))
                 continue
             where = scratches[invocation.network]
             report = (where / invocation.report if invocation.report
@@ -875,6 +775,14 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 cut.append(adapters[index].name)
                 outcome = outcome.cut(f"cut by the {budget_s:g}s budget after {spent:.0f}s")
             outcomes[index] = outcome
+        if cut and on_progress is not None:
+            stopping = [n for n in cut if not any(
+                o is not None and o.scanner.tool == n and o.scanner.reason.startswith(
+                    "not started") for o in outcomes)]
+            waiting = [n for n in cut if n not in stopping]
+            on_progress(f"budget spent after {spent:.0f}s: stopping "
+                        f"{', '.join(stopping) or 'nothing'}"
+                        f"; not starting {', '.join(waiting) or 'nothing'}")
     return outcomes, cut
 
 
@@ -983,107 +891,6 @@ def _preflight(runner, workspace) -> tuple[str | None, str | None]:
     provenance = getattr(runner, "build_provenance", None)
     return provenance() if provenance is not None else (None, None)
 
-
-
-def _fleet(adapters, runner, workspace, *, on_progress, jobs, budget_s):
-    """Every Scanner, concurrently, under the budget (23.3.7): the outcomes in
-    declaration order, and the names the budget cut."""
-    # Scanners are independent and I/O-bound — each is a container invocation — so
-    # they run concurrently. Serially, six Scanners will not meet the 5-minute
-    # standard budget (F2.6, N1.2). Results are collected back into declaration
-    # order so a Scan Run is reproducible regardless of which finished first.
-    outcomes: list[ScannerOutcome | None] = [None] * len(adapters)
-    _refuse_if_cancelled(runner, 0, len(adapters))
-
-    # `--jobs` bounds the fleet (23.3.3); the default is everything at once.
-    width = jobs if jobs is not None else (_jobs_from_environment()
-                                           or _default_width(runner, len(adapters)))
-    if on_progress is not None:
-        # The size, so a status line can say "3 of 8" (29.0.4).
-        on_progress(f"fleet: {len(adapters)} Scanners, {min(width, len(adapters))} at a time")
-    fleet_started = time.monotonic()
-    cut: list[str] = []
-    # One task per Scanner — except valvur's own Checks, which share one container
-    # (23.4.2) and so one task producing an outcome each. `futures` maps a task to
-    # the adapter indices it answers for.
-    tasks = _plan(adapters, runner)
-    with ThreadPoolExecutor(max_workers=max(1, min(width, max(1, len(tasks))))) as pool:
-        def announced(work, names):
-            # Said when the task BEGINS, not when it is submitted: under `--jobs`
-            # a submitted task waits, and a line that said "running" for a
-            # Scanner still in the queue would be the old silence in new words.
-            def run(r, w):
-                # A task that was queued when the scan was cancelled never
-                # launches (R1.1): at width 2 the second gate watched Scanners
-                # start after `scan_cancel` had answered.
-                if getattr(r, "cancelled", False):
-                    return [ScannerOutcome(ScannerRun(
-                        name, ok=False, reason="not started: the scan was cancelled"))
-                        for name in names]
-                if on_progress is not None:
-                    for name in names:
-                        on_progress(f"{name}: started")
-                return work(r, w)
-            return run
-
-        futures = {
-            pool.submit(announced(work, [adapters[i].name for i in indices]), runner, workspace):
-                indices
-            for work, indices in tasks
-        }
-
-        def names(future) -> str:
-            return ", ".join(adapters[i].name for i in futures[future])
-
-        def collect(future) -> None:
-            for index, outcome in zip(futures[future], future.result(), strict=True):
-                outcomes[index] = outcome
-                if on_progress is not None:
-                    run = outcome.scanner
-                    status = 'ok' if run.ok else 'failed'
-                    on_progress(f"{run.tool}: {status} ({run.duration_s:.1f}s)")
-
-        try:
-            for future in as_completed(futures, timeout=budget_s):
-                collect(future)
-        except TimeoutError:
-            # The budget (23.3.7): past it, nothing new starts, what is running is
-            # stopped, and the run is reported incomplete with each cut named. A cut
-            # is not a cancel — the Scanners that finished are a result (F1.11 is
-            # for the developer stopping the scan; this is the scan bounding itself).
-            spent = time.monotonic() - fleet_started
-            queued = [f for f in futures if f.cancel()]
-            running = [f for f in futures if not f.done() and f not in queued]
-            for future in queued:
-                for index in futures[future]:
-                    cut.append(adapters[index].name)
-                    outcomes[index] = ScannerOutcome(ScannerRun(
-                        adapters[index].name, ok=False,
-                        reason=f"not started: the {budget_s:g}s budget was spent before "
-                        "its turn",
-                    ))
-            stop = getattr(runner, "stop_containers", None)
-            if on_progress is not None:
-                on_progress(f"budget spent after {spent:.0f}s: stopping "
-                            f"{', '.join(names(f) for f in running) or 'nothing'}"
-                            f"; not starting {', '.join(cut) or 'nothing'}")
-            if stop is not None and running:
-                stop()
-            # A stopped container comes back promptly with no report; a runner that
-            # cannot stop one is waited for, and its result is real.
-            wait(running)
-            for future in running:
-                collect(future)
-                for index in futures[future]:
-                    outcome = outcomes[index]
-                    if outcome is not None and stop is not None and not outcome.scanner.ok:
-                        cut.append(adapters[index].name)
-                        # The cut is the cause: the exit the kill produced is not
-                        # repeated inside it as if the runtime had done it (29.0.3).
-                        outcomes[index] = outcome.cut(
-                            f"cut by the {budget_s:g}s budget after {spent:.0f}s")
-
-    return outcomes, cut
 
 
 def _budget_shaped(reason: str) -> bool:

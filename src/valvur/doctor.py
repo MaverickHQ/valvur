@@ -257,10 +257,10 @@ def _check_runtime() -> tuple[str | None, Check]:
     detail = f"{version} at {runtime}, running" + (f"; {note}" if note else "")
     memory, cpus = _runner.runtime_resources(runtime)
     if memory is not None:
-        # What the fleet will do here by default (29.1.3), said before a scan.
-        width = _runner.default_jobs(len(_default_fleet()), memory)
-        detail += (f"; {memory / 2**30:.1f} GiB, {cpus} CPUs — scans run {width} Scanners "
-                   "at a time (VALVUR_JOBS, or --jobs, to change)")
+        # One Scan Container runs every Scanner at once (ADR-0022); --jobs or
+        # VALVUR_JOBS bounds how many, and the runtime's size is what to weigh.
+        detail += (f"; {memory / 2**30:.1f} GiB, {cpus} CPUs — every Scanner runs at once "
+                   "in one container (VALVUR_JOBS, or --jobs, to bound it)")
     return runtime, Check("runtime", "ok", detail)
 
 

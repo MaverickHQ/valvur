@@ -5,7 +5,6 @@ every launch carries a name to kill it by, and a refusal is one line. Split from
 
 from __future__ import annotations
 
-import contextlib
 import subprocess
 
 import pytest
@@ -44,83 +43,6 @@ def test_interrupting_a_scan_stops_the_containers(monkeypatch):
     assert {name for c in killed for name in c[2:]} == {"valvur-aaa", "valvur-bbb"}
 
 
-def test_every_container_launch_carries_a_name_to_kill_it_by(monkeypatch, tmp_path):
-    """A container with no `--name` and no `--cidfile` cannot be stopped at all,
-    which is the state valvur was in. Asserted over every Scanner rather than one,
-    so a launch added without a handle fails the build."""
-    from valvur import cache
-    from valvur.adapters import DEFAULT_ADAPTERS
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-
-    def capture(cmd, **kwargs):
-        launched.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(subprocess, "run", capture)
-    runner = ContainerRunner(runtime="/usr/local/bin/docker")
-
-    for adapter in profiles.select(DEFAULT_ADAPTERS, profiles.FULL):
-        with contextlib.suppress(Exception):
-            adapter.run(runner, tmp_path)
-
-    runs = [c for c in launched if isinstance(c, list) and "run" in c]
-    assert runs, "no container was launched, so nothing was asserted"
-    for cmd in runs:
-        assert "--name" in cmd, f"launched with no handle to kill it by: {cmd[:6]}"
-
-
-def test_a_launch_stops_being_tracked_once_it_finishes(monkeypatch, tmp_path):
-    """Otherwise the registry grows for the life of the process and an interrupt
-    tries to kill containers that exited long ago — noisy, and it hides the ones that
-    are genuinely still running."""
-    import valvur.runner as runner_module
-    from valvur import cache
-    from valvur.runner import ContainerRunner
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(
-        subprocess, "run",
-        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "{}", ""),
-    )
-    from valvur.adapters import GitleaksAdapter
-
-    GitleaksAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
-
-    with runner_module._live_lock:
-        assert runner_module._live_containers == set()
-
-
-def test_without_an_index_the_runner_refuses_before_launching_and_names_the_fix(
-    monkeypatch, tmp_path
-):
-    """The first-run experience. Measured 2026-09-12 with an empty cache: the Check
-    failed inside the container and the reason reached `SUMMARY.md` as a traceback
-    truncated at 200 characters, with `valvur update` cut off. Trivy already refuses
-    host-side with the fix first — in the adapter since 26.2.1; the Check gets the
-    same treatment."""
-    from valvur import cache
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-    monkeypatch.setattr(cache, "name_index_present", lambda: False)
-    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: launched.append(cmd))
-    runner = ContainerRunner(runtime="/usr/local/bin/docker")
-
-    from valvur.adapters import CheckAdapter
-
-    with pytest.raises(RuntimeError, match="valvur update"):
-        CheckAdapter("dependency-reality", uses_network=True, network=False).run(runner, tmp_path)
-
-    assert launched == [], "a container was launched with nothing to check against"
-    # With a network the registry can answer instead, so no refusal.
-    monkeypatch.setattr(subprocess, "run",
-                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "[]", ""))
-    CheckAdapter("dependency-reality", uses_network=True, network=True).run(runner, tmp_path)
-
-
 def test_the_check_entry_point_turns_its_own_refusal_into_one_line(capsys, tmp_path):
     """In-container half of the same fix: a refusal is a sentence on stderr and a
     non-zero exit, not a traceback."""
@@ -142,3 +64,54 @@ def test_the_check_entry_point_turns_its_own_refusal_into_one_line(capsys, tmp_p
     assert "Traceback" not in captured.err
     assert captured.out == ""
 
+
+
+# ------------------------------------------- restated for the Scan Container (R3.9)
+
+def test_a_scan_container_is_found_by_its_owner_labels(monkeypatch, tmp_path):
+    """The in-process registry of container names grew for the life of the
+    process and died with it, so a server killed with SIGKILL left its fleet
+    unfindable (R3.6). Since R3.9 there is no registry: every Scan Container
+    carries its owner's PID and host, which outlive the process."""
+    import os
+    import socket
+
+    from test_constraints_exfiltration import _launches
+
+    from valvur import owner
+
+    for argv, tools in _launches(profiles.FULL, tmp_path, monkeypatch):
+        assert f"{owner.PID_LABEL}={os.getpid()}" in argv, tools
+        assert f"{owner.HOST_LABEL}={socket.gethostname()}" in argv, tools
+
+
+def test_every_container_launch_carries_a_name_to_kill_it_by(monkeypatch, tmp_path):
+    """A container with no `--name` and no `--cidfile` cannot be stopped at all,
+    which is the state valvur was in. Asserted over every Scan Container of a
+    `full` scan, so a launch added without a handle fails the build."""
+    from test_constraints_exfiltration import _launches
+
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    assert launched, "no container was launched, so nothing was asserted"
+    for argv, tools in launched:
+        assert argv[argv.index("--name") + 1].startswith("valvur-"), tools
+
+
+def test_without_an_index_the_runner_refuses_before_launching_and_names_the_fix(
+    monkeypatch, tmp_path
+):
+    """The first-run experience. Measured 2026-09-12 with an empty cache: the Check
+    failed inside the container and the reason reached `SUMMARY.md` as a traceback
+    truncated at 200 characters, with `valvur update` cut off. The adapter refuses
+    with the fix first, and the Check never enters the Scan Container's plan."""
+    from test_constraints_exfiltration import _launches
+
+    from valvur import cache
+    from valvur.adapters import CheckAdapter
+
+    monkeypatch.setattr(cache, "name_index_present", lambda: False)
+    with pytest.raises(RuntimeError, match="valvur update"):
+        CheckAdapter("dependency-reality", uses_network=True, network=False).command(tmp_path)
+
+    launched = _launches(profiles.OFFLINE, tmp_path, monkeypatch, index=False)
+    assert launched and all("dependency-reality" not in tools for _, tools in launched)

@@ -9,6 +9,7 @@ default memory, measured — and it is honoured by the fleet's executor, not by 
 
 from __future__ import annotations
 
+import json
 import subprocess
 import threading
 import time
@@ -430,12 +431,13 @@ def test_the_tool_is_registered_as_acting_and_shared_with_the_operation():
 
 
 class _Counting:
-    """An adapter that records how many of its kind were running at once."""
+    """A Scanner the recording runtime answers at once (R3.9): how many run
+    together is the engine's to enforce, measured in `test_switch_over`; what
+    these tests hold is the width the scan hands it."""
 
     artifact = None
-    in_flight = 0
-    peak = 0
-    lock = threading.Lock()
+    kind = "scanner"
+    version = "1"
 
     def __init__(self, name: str):
         self.name = name
@@ -443,23 +445,38 @@ class _Counting:
     def applies_to(self, workspace):
         return True, ""
 
-    def run(self, runner, workspace):
-        with _Counting.lock:
-            _Counting.in_flight += 1
-            _Counting.peak = max(_Counting.peak, _Counting.in_flight)
-        time.sleep(0.15)
-        with _Counting.lock:
-            _Counting.in_flight -= 1
-        return ScannerOutput(self.name, "1", "[]", "", 0)
+    def command(self, workspace):
+        from valvur.invocation import Invocation
+
+        return Invocation(tool=self.name, version="1", report=f"{self.name}.json",
+                          argv=("true",))
 
     def parse(self, output):
         return []
 
+    def for_profile(self, *, network):
+        return self
+
+
+class _Recording:
+    """A Scan Container runtime that records the width it is given."""
+
+    engine = True
+    width: int | None = None
+
+    def run(self, plan, tar, scratch, on_event=None, budget_s=None, jobs=None):
+        _Recording.width = min(jobs or len(plan), len(plan))
+        for invocation in plan:
+            (scratch / invocation.report).write_text("[]")
+        (scratch / "manifest.json").write_text(json.dumps({"tools": [
+            {"tool": i.tool, "exit_code": 0, "seconds": 0.0, "timed_out": False,
+             "stderr_tail": ""} for i in plan]}))
+        return 0
+
 
 @pytest.fixture
 def counting():
-    _Counting.in_flight = 0
-    _Counting.peak = 0
+    _Recording.width = None
     return [_Counting("a"), _Counting("b"), _Counting("c"), _Counting("d")]
 
 
@@ -469,8 +486,8 @@ def _scan(tmp_path, monkeypatch, adapters, **kwargs):
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     workspace = tmp_path / "ws"
     workspace.mkdir(exist_ok=True)
-    api.scan(workspace, runner=object(), adapters=adapters, **kwargs)
-    return _Counting.peak
+    api.scan(workspace, runner=_Recording(), adapters=adapters, **kwargs)
+    return _Recording.width
 
 
 def test_jobs_bounds_how_many_scanners_run_at_once(tmp_path, monkeypatch, counting):

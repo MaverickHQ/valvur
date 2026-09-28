@@ -25,10 +25,10 @@ LEVERS = ("[scan] exclude", "budget_s", "--budget", "VALVUR_JOBS", "--jobs")
 def test_a_budget_that_cuts_everything_is_its_own_refusal_with_the_levers(workspace):
     with pytest.raises(api.BudgetExhausted) as caught:
         _scan(workspace, _Runner(), [_Adapter("slow", 5.0), _Adapter("slower", 5.0)],
-              budget_s=0.3)
+              budget_s=1.0)
 
     text = str(caught.value)
-    assert text.startswith("the 0.3s budget ran out before any Scanner finished")
+    assert text.startswith("the 1s budget ran out before any Scanner finished")
     assert "slow" in text and "slower" in text and "none finished" in text
     for lever in LEVERS:
         assert lever in text, lever
@@ -38,18 +38,18 @@ def test_a_budget_that_cuts_everything_is_its_own_refusal_with_the_levers(worksp
 
 
 def test_a_partial_cut_names_the_levers_where_the_cut_is_reported(workspace):
-    _scan(workspace, _Runner(), [_Adapter("ok", 0.05), _Adapter("slow", 5.0)], budget_s=0.3)
+    _scan(workspace, _Runner(), [_Adapter("ok", 0.05), _Adapter("slow", 5.0)], budget_s=1.0)
 
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
-    assert "**slow** — cut by the 0.3s budget after" in summary
-    assert "The 0.3s budget cut slow." in summary
+    assert "**slow** — cut by the 1s budget after" in summary
+    assert "The 1s budget cut slow." in summary
     for lever in LEVERS:
         assert lever in summary, lever
     run = json.loads((workspace / ".security-scan" / "run.json").read_text())
     reasons = {s["tool"]: s["reason"] for s in run["scanners"]}
     # The cut is the cause; the exit code the kill produced is not repeated
     # inside it as if the runtime had done it.
-    assert reasons["slow"].startswith("cut by the 0.3s budget after ")
+    assert reasons["slow"].startswith("cut by the 1s budget after ")
     assert "137" not in reasons["slow"] and "killed" not in reasons["slow"]
 
 

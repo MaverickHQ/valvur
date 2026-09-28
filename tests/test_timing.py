@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import time
 from pathlib import Path
 
 import pytest
@@ -19,17 +18,22 @@ from valvur import api
 from valvur.api import ScanRun
 from valvur.provenance import ScannerRun
 from valvur.provenance import render as _provenance
-from valvur.runner import ScannerOutput
 from valvur.summary import render as _summary
 
 # ------------------------------------------------------------- the measurement
 
 
+FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
+
+
 class _Adapter:
-    """One Scanner that takes a known time and ends the way the test says."""
+    """One Scanner that takes a known time and ends the way the test says, its
+    tool run by the engine as a host process (R3.9)."""
 
     name = "slowpoke"
     artifact = None
+    kind = "scanner"
+    version = "1.0"
 
     def __init__(self, *, sleep: float = 0.05, ending: str = "ok"):
         self.sleep = sleep
@@ -40,46 +44,59 @@ class _Adapter:
             return False, "nothing to analyse"
         return True, ""
 
-    def run(self, runner, workspace):
-        time.sleep(self.sleep)
-        if self.ending == "crash":
-            raise RuntimeError("boom")
-        if self.ending == "no-report":
-            return ScannerOutput(self.name, "1.0", "", "went wrong", 2)
-        return ScannerOutput(self.name, "1.0", "[]", "", 0)
+    def for_profile(self, *, network):
+        return self
+
+    def command(self, workspace):
+        from valvur.invocation import Invocation
+
+        argv = {"ok": ("fake-report", str(self.sleep), "[]", "/results/slowpoke.json"),
+                "crash": ("no-such-tool",),
+                "no-report": ("fake-quiet", "2", "went wrong")}[self.ending]
+        return Invocation(tool=self.name, version="1.0", report="slowpoke.json",
+                          timeout=60, argv=argv)
 
     def parse(self, output):
         return []
 
 
+def _scan(tmp_path, monkeypatch, adapter, **kwargs):
+    """One scan with `adapter` and Gitleaks's fake beside it, so a failing
+    `adapter` is one failed Scanner and not a refused scan."""
+    from valvur import cache
+    from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import LocalRuntime
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    ws = tmp_path / "ws"
+    ws.mkdir(exist_ok=True)
+    return api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[adapter, GitleaksAdapter()],
+                    **kwargs)
+
+
 @pytest.mark.parametrize("ending", ["ok", "crash", "no-report", "skipped"])
-def test_every_outcome_carries_how_long_the_scanner_took(ending, tmp_path):
-    scanner = api._run_one(_Adapter(ending=ending), None, tmp_path).scanner
+def test_every_outcome_carries_how_long_the_scanner_took(ending, tmp_path, monkeypatch):
+    run = _scan(tmp_path, monkeypatch, _Adapter(ending=ending))
+    [scanner] = [s for s in run.scanners if s.tool == "slowpoke"]
 
     assert isinstance(scanner, ScannerRun)
     if ending == "skipped":
         assert scanner.skipped and scanner.duration_s < 0.05
     else:
-        assert scanner.duration_s >= 0.05, f"{ending}: {scanner.duration_s}"
-        assert scanner.duration_s < 5
+        assert scanner.ok is (ending == "ok")
+        floor = 0.05 if ending == "ok" else 0.0
+        assert floor <= scanner.duration_s < 5, f"{ending}: {scanner.duration_s}"
 
 
 def test_the_progress_line_says_how_long_each_scanner_took(tmp_path, monkeypatch):
     """`scan_status`'s "Completed so far" is where a user watching a slow first scan
     learns which Scanner is slow — before run.json exists."""
-    from valvur import cache
-
-    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     said: list[str] = []
-
-    class Runner:
-        pass
-
-    api.scan(tmp_path / "ws", runner=Runner(), adapters=[_Adapter(sleep=0.1)],
-             on_progress=said.append)
+    _scan(tmp_path, monkeypatch, _Adapter(sleep=0.1), on_progress=said.append)
 
     [line] = [s for s in said if s.startswith("slowpoke: ok")]
-    assert line.startswith("slowpoke: ok (0.1s)") or line.startswith("slowpoke: ok (0.2s)"), line
+    seconds = float(line.removeprefix("slowpoke: ok (").removesuffix("s)"))
+    assert 0.1 <= seconds < 1.0, line
 
 
 # ------------------------------------------------------------------ run.json

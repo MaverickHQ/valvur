@@ -195,29 +195,3 @@ def test_an_unreadable_report_is_named_at_the_top_of_the_summary_and_kept_under_
     assert "report unreadable" in provenance and '"complete": false' in provenance
 
 
-def test_one_unreadable_check_report_in_the_batch_does_not_cost_the_other_checks(
-    workspace, monkeypatch
-):
-    """23.4.2 runs the three Checks in one container and parses three reports out
-    of one; one of them unreadable is one failed Check, not three."""
-    from conftest import FakeRunner, run_checks_in_process
-
-    from valvur.adapters import DEFAULT_ADAPTERS
-    from valvur.runner import ScannerOutput
-
-    CHECK_ADAPTERS = [a for a in DEFAULT_ADAPTERS if getattr(a, "kind", "") == "check"]
-
-    class Runner(FakeRunner):
-        def run_checks(self, names, workspace, *, network=False):
-            outputs = run_checks_in_process(names, workspace, network=network)
-            good = outputs["ai-artifact"]
-            outputs["ai-artifact"] = ScannerOutput(
-                good.tool, good.version, '[{"rule": "x", "path": ', good.stderr, 0)
-            return outputs
-
-    run = scan(workspace, runner=Runner(), adapters=list(CHECK_ADAPTERS))
-
-    assert [s.tool for s in run.failures] == ["ai-artifact"]
-    assert "report unreadable" in run.failures[0].reason
-    assert {s.tool for s in run.scanners if s.ok} == {
-        a.name for a in CHECK_ADAPTERS if a.name != "ai-artifact"}

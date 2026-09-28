@@ -127,13 +127,11 @@ def test_every_adapters_command_carries_the_skips(tmp_path, monkeypatch):
 
     # The Checks: through the environment, one prefix per line — an image from
     # before this would read `--exclude` as a Check's name.
-    batch, _ = _check.batch_command(["ai-artifact", "licence-file"], ws, network=False)
-    assert dict(batch.env)[exclusions.EXCLUDE_ENV] == PREFIX
-    assert "--exclude" not in batch.argv
     single = _check.single_command("ai-artifact", ws, network=False)
     assert dict(single.env)[exclusions.EXCLUDE_ENV] == PREFIX
+    assert "--exclude" not in single.argv
     # Nothing configured, nothing passed: the vendored list is the Checks' own.
-    bare, _ = _check.batch_command(["ai-artifact"], tmp_path / "elsewhere", network=False)
+    bare = _check.single_command("ai-artifact", tmp_path / "elsewhere", network=False)
     assert bare.env == ()
 
 

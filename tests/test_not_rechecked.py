@@ -15,14 +15,17 @@ neither fixed nor persisting.
 from __future__ import annotations
 
 import json
-import threading
+from pathlib import Path
 
 import pytest
 
 from valvur import api
 from valvur import fingerprint as _fp
+from valvur.engine_host import LocalRuntime
 from valvur.findings import Finding
-from valvur.runner import ScannerOutput
+from valvur.invocation import Invocation
+
+FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
 
 RESULTS = ".security-scan"
 
@@ -32,6 +35,8 @@ class _Finder:
     and takes `seconds`, so a budget can cut it."""
 
     artifact = None
+    kind = "scanner"
+    version = "1"
 
     def __init__(self, name: str = "finder", *, finds: bool = True, seconds: float = 0.0):
         self.name = name
@@ -41,10 +46,14 @@ class _Finder:
     def applies_to(self, workspace):
         return True, ""
 
-    def run(self, runner, workspace):
-        if self.seconds and runner.stopped.wait(timeout=self.seconds):
-            return ScannerOutput(self.name, "1", "", "killed", 137)
-        return ScannerOutput(self.name, "1", "[1]" if self.finds else "[]", "", 0)
+    def for_profile(self, *, network):
+        return self
+
+    def command(self, workspace):
+        # Run by the engine as a host process (R3.9): the tool sleeps, then writes.
+        return Invocation(tool=self.name, version="1", report=f"{self.name}.json", timeout=60,
+                          argv=("fake-report", str(self.seconds),
+                                "[1]" if self.finds else "[]", f"/results/{self.name}.json"))
 
     def parse(self, output):
         if output.stdout != "[1]":
@@ -60,17 +69,8 @@ class _Other(_Finder):
         super().__init__("other", finds=False, seconds=seconds)
 
 
-class _Runner:
-    image = "x/y:1"
-    runtime = "/usr/local/bin/docker"
-
-    def __init__(self):
-        self.stopped = threading.Event()
-        self.cancelled = False
-
-    def stop_containers(self) -> int:
-        self.stopped.set()
-        return 1
+def _Runner():
+    return LocalRuntime(FAKE_TOOLS)
 
 
 @pytest.fixture
@@ -108,7 +108,7 @@ def test_a_finding_whose_scanner_was_cut_is_not_reported_fixed(workspace):
     first = _scan(workspace, [_Finder(), _Other()])
     assert [f.status for f in first.findings] == ["new"]
 
-    cut = _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=0.3)
+    cut = _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=1.5)
     assert cut.budget_cut == ["finder"]
     assert cut.fixed == [], "a Scanner that did not run cannot have fixed anything"
     assert cut.not_rechecked == [("a planted finding", "finder")]
@@ -136,7 +136,7 @@ def test_a_carried_finding_is_persisting_on_the_next_complete_run(workspace):
     """Run 3 re-checks and still finds it: persisting, not regressed — the run
     that did not look is not a run that found it gone."""
     _scan(workspace, [_Finder(), _Other()])
-    _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=0.3)
+    _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=1.5)
     third = _scan(workspace, [_Finder(), _Other()])
     assert [f.status for f in third.findings] == ["persisting"]
     assert third.not_rechecked == [] and third.fixed == []
@@ -146,7 +146,7 @@ def test_a_finding_absent_after_its_scanner_ran_is_fixed_as_before(workspace):
     """The other Scanner being cut changes nothing about a Finding whose own
     Scanner ran and found it gone (F5.6 unchanged where it applies)."""
     _scan(workspace, [_Finder(), _Other()])
-    second = _scan(workspace, [_Finder(finds=False), _Other(seconds=5.0)], budget_s=0.3)
+    second = _scan(workspace, [_Finder(finds=False), _Other(seconds=5.0)], budget_s=1.5)
     assert second.budget_cut == ["other"]
     assert second.fixed == ["a planted finding"]
     assert second.not_rechecked == []
@@ -157,7 +157,7 @@ def test_a_carried_finding_that_is_gone_when_re_checked_is_fixed_then(workspace)
     """Carried through the cut run, then its Scanner runs and it is absent: fixed
     on that run, with its title remembered across the gap."""
     _scan(workspace, [_Finder(), _Other()])
-    _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=0.3)
+    _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=1.5)
     third = _scan(workspace, [_Finder(finds=False), _Other()])
     assert third.fixed == ["a planted finding"]
     assert third.not_rechecked == []
@@ -182,7 +182,7 @@ def test_a_state_without_sources_is_carried_when_any_scanner_did_not_run(workspa
     """Sources unknown, run incomplete: which Scanner would have re-checked it is
     unknowable, so it is not re-checked rather than fixed."""
     _old_state(workspace, _fp.derive("planted.rule", "a.py"), "a planted finding")
-    cut = _scan(workspace, [_Finder(finds=False), _Other(seconds=5.0)], budget_s=0.3)
+    cut = _scan(workspace, [_Finder(finds=False), _Other(seconds=5.0)], budget_s=1.5)
     assert cut.fixed == []
     assert cut.not_rechecked == [("a planted finding", "")]
 
@@ -198,7 +198,7 @@ def test_the_structured_status_reply_carries_the_count(workspace):
     from valvur.operations import scan_status_reply
 
     _scan(workspace, [_Finder(), _Other()])
-    _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=0.3)
+    _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=1.5)
     _text, structured = scan_status_reply({"workspace": str(workspace)})
     assert structured["fixed"] == 0
     assert structured["not_rechecked"] == 1

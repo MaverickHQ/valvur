@@ -40,11 +40,11 @@ def test_the_running_line_names_what_runs_and_what_finished(workspace, monkeypat
                         on_progress=progress)
 
     job = jobs.start(workspace, "offline", work)
-    time.sleep(0.5)
+    time.sleep(1.5)
     try:
         text, fields = scan_status_reply({"workspace": str(workspace)})
     finally:
-        runner.stopped.set()
+        runner.kill()
         job.settled.wait(timeout=10)
         jobs.reset()
 

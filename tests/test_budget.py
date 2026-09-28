@@ -9,19 +9,25 @@ ones it cut named — on every surface a failed Scanner already reaches.
 from __future__ import annotations
 
 import json
-import threading
 import time
+from pathlib import Path
 
 import pytest
 
 from valvur import api
-from valvur.runner import ScannerOutput
+from valvur.engine_host import LocalRuntime
+from valvur.invocation import Invocation
+
+FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
 
 
 class _Adapter:
-    """A Scanner that takes `seconds`, unless the runner stops it first."""
+    """A Scanner whose tool takes `seconds`, unless the budget stops it first.
+    Run by the engine as a host process (R3.9), with the sleeping fake tool."""
 
     artifact = None
+    kind = "scanner"
+    version = "1"
 
     def __init__(self, name: str, seconds: float):
         self.name = name
@@ -30,31 +36,19 @@ class _Adapter:
     def applies_to(self, workspace):
         return True, ""
 
-    def run(self, runner, workspace):
-        if runner.stopped.wait(timeout=self.seconds):
-            return ScannerOutput(self.name, "1", "", "killed", 137)
-        return ScannerOutput(self.name, "1", "[]", "", 0)
+    def command(self, workspace):
+        return Invocation(tool=self.name, version="1", report=f"{self.name}.json", timeout=60,
+                          argv=("fake-sleep", str(self.seconds), f"/results/{self.name}.json"))
 
     def parse(self, output):
         return []
 
+    def for_profile(self, *, network):
+        return self
 
-class _Runner:
-    """Stops its fleet the way the real one does — every running Scanner comes
-    back with exit 137 and no report — and remembers being asked."""
 
-    image = "x/y:1"
-    runtime = "/usr/local/bin/docker"
-
-    def __init__(self):
-        self.stopped = threading.Event()
-        self.stops = 0
-        self.cancelled = False
-
-    def stop_containers(self) -> int:
-        self.stops += 1
-        self.stopped.set()
-        return 2
+def _Runner():
+    return LocalRuntime(FAKE_TOOLS)
 
 
 @pytest.fixture
@@ -86,23 +80,22 @@ def test_past_the_budget_running_scanners_are_stopped_and_queued_ones_never_star
                 _Adapter("queued", 0.05)]
 
     started = time.monotonic()
-    run, said = _scan(workspace, runner, adapters, budget_s=0.4, jobs=2)
+    run, said = _scan(workspace, runner, adapters, budget_s=1.5, jobs=2)
     elapsed = time.monotonic() - started
 
-    assert elapsed < 3, "the budget did not stop the slow Scanners"
-    assert runner.stops == 1
+    assert elapsed < 5, "the budget did not stop the slow Scanners"
     by_tool = {s.tool: s for s in run.scanners}
     assert by_tool["fast"].ok
     for tool in ("slow", "slow2"):
         assert not by_tool[tool].ok
-        assert by_tool[tool].reason.startswith("cut by the 0.4s budget after ")
+        assert by_tool[tool].reason.startswith("cut by the 1.5s budget after ")
         # The cut is the cause (29.0.3): the exit code the kill produced is not
         # repeated inside it as if the runtime had done it.
         assert "137" not in by_tool[tool].reason
     assert not by_tool["queued"].ok
-    assert by_tool["queued"].reason == "not started: the 0.4s budget was spent before its turn"
+    assert by_tool["queued"].reason == "not started: the 1.5s budget was spent before its turn"
     assert [f.tool for f in run.failures] == ["slow", "slow2", "queued"]
-    assert run.budget_s == 0.4 and sorted(run.budget_cut) == ["queued", "slow", "slow2"]
+    assert run.budget_s == 1.5 and sorted(run.budget_cut) == ["queued", "slow", "slow2"]
     assert any(line.startswith("budget spent after ") and "stopping slow, slow2" in line
                and "not starting queued" in line for line in said), said
 
@@ -114,7 +107,6 @@ def test_a_run_within_its_budget_is_untouched(workspace):
                       budget_s=5.0)
 
     assert not run.failures
-    assert runner.stops == 0
     assert run.budget_s == 5.0 and run.budget_cut == []
     assert not any("budget" in line for line in said)
 
@@ -134,55 +126,17 @@ def test_the_cut_is_reported_incomplete_on_every_surface(workspace):
     from valvur.operations import scan_status
 
     runner = _Runner()
-    _scan(workspace, runner, [_Adapter("ok", 0.05), _Adapter("slow", 5.0)], budget_s=0.3)
+    _scan(workspace, runner, [_Adapter("ok", 0.05), _Adapter("slow", 5.0)], budget_s=1.0)
 
     run = json.loads((workspace / ".security-scan" / "run.json").read_text())
     assert run["complete"] is False
-    assert run["budget"] == {"seconds": 0.3, "cut": ["slow"]}
+    assert run["budget"] == {"seconds": 1.0, "cut": ["slow"]}
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
     assert "## ⚠ Scanners that did not complete" in summary
-    assert "**slow** — cut by the 0.3s budget" in summary
+    assert "**slow** — cut by the 1s budget" in summary
     status = scan_status({"workspace": str(workspace)})
-    assert "slow: FAILED — cut by the 0.3s budget" in status
+    assert "slow: FAILED — cut by the 1s budget" in status
     assert "This scan was INCOMPLETE" in status
-
-
-def test_a_runner_that_cannot_stop_containers_still_cuts_what_has_not_started(workspace):
-    """The suite's fakes have no `stop_containers`; the running Scanner is waited
-    for and the queued one is still refused, so the budget bounds new work even
-    where it cannot interrupt old."""
-    class Bare:
-        pass
-
-    class Plain(_Adapter):
-        def run(self, runner, workspace):
-            time.sleep(self.seconds)
-            return ScannerOutput(self.name, "1", "[]", "", 0)
-
-    run, _ = _scan(workspace, Bare(), [Plain("slow", 0.5), Plain("queued", 0.05)],
-                   budget_s=0.2, jobs=1)
-
-    by_tool = {s.tool: s for s in run.scanners}
-    assert by_tool["slow"].ok, "it finished; nothing could stop it, and its result is real"
-    assert by_tool["queued"].reason.startswith("not started: the 0.2s budget")
-
-
-def test_a_scanner_that_finishes_anyway_after_the_cut_is_a_result_not_a_casualty(workspace):
-    """Between the budget expiring and the kill landing, a Scanner can complete on
-    its own. Its report is real and it is not named as cut."""
-    class Finisher(_Adapter):
-        def run(self, runner, workspace):
-            time.sleep(self.seconds)          # ignores the stop, finishes cleanly
-            return ScannerOutput(self.name, "1", "[]", "", 0)
-
-    runner = _Runner()
-
-    run, _ = _scan(workspace, runner, [Finisher("finisher", 0.4)], budget_s=0.15)
-
-    assert runner.stops == 1
-    [scanner] = run.scanners
-    assert scanner.ok and scanner.reason == ""
-    assert run.budget_cut == [] and not run.failures
 
 
 def test_a_budget_cut_is_not_a_cancel(workspace):
@@ -191,11 +145,15 @@ def test_a_budget_cut_is_not_a_cancel(workspace):
     runner = _Runner()
 
     run, _ = _scan(workspace, runner, [_Adapter("ok", 0.05), _Adapter("slow", 5.0)],
-                   budget_s=0.3)
+                   budget_s=1.0)
 
-    assert runner.cancelled is False
+    assert runtime_not_cancelled(runner)
     assert (workspace / ".security-scan" / "run.json").exists()
     assert [s.tool for s in run.scanners if s.ok] == ["ok"]
+
+
+def runtime_not_cancelled(runtime) -> bool:
+    return runtime.cancelled is False
 
 
 def test_a_budget_must_be_positive(workspace):

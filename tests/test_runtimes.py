@@ -328,14 +328,16 @@ def test_a_container_network_applies_only_to_networked_containers(monkeypatch, t
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     monkeypatch.setattr(subprocess, "run", capture)
     monkeypatch.setenv("VALVUR_CONTAINER_NETWORK", "airgap")
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import ContainerRuntime
 
     runner.update_db()
-    GitleaksAdapter().run(runner, tmp_path)
+    # The offline Scan Container (R3.9): what every offline Scanner runs in.
+    launched.append(ContainerRuntime(runtime="/usr/local/bin/docker").command(tmp_path))
 
     update, scan = launched
     assert "--network=airgap" in update and "--network=none" not in update

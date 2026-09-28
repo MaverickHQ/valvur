@@ -18,7 +18,6 @@ connection was made" was true and meaningless.
 from __future__ import annotations
 
 import contextlib
-import subprocess
 
 import pytest
 from constraints_support import CveRunner
@@ -74,57 +73,6 @@ def test_a_scan_survives_the_network_being_unavailable(workspace, record_connect
 
 
 # --------------------------------------------- half 2: the containers (N2.1)
-
-def test_every_scanner_on_the_offline_profile_is_launched_with_no_network(  # F1.2
-    monkeypatch, tmp_path
-):
-    """Asserted over the whole Profile rather than one Scanner, so adding a Scanner
-    that forgets the flag fails the build instead of failing review."""
-    from valvur import cache
-    from valvur.adapters import DEFAULT_ADAPTERS
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-
-    def capture(cmd, **kwargs):
-        launched.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(subprocess, "run", capture)
-    runner = ContainerRunner(runtime="/usr/local/bin/docker")
-
-    for adapter in profiles.select(DEFAULT_ADAPTERS, profiles.OFFLINE):
-        # A stubbed run fails after launch, because no real report is written. The
-        # argv is what this test is about and it has already been captured by then.
-        with contextlib.suppress(Exception):
-            adapter.run(runner, tmp_path)
-
-    container_cmds = [c for c in launched if isinstance(c, list) and "run" in c]
-    assert container_cmds, "no container was launched, so nothing was asserted"
-    for cmd in container_cmds:
-        assert "--network=none" in cmd, f"launched without --network=none: {cmd}"
-
-
-def test_the_networked_scanner_is_not_launched_with_no_network(monkeypatch, tmp_path):
-    """The falsifiability half of the check above: if --network=none were
-    unconditional, the assertion would pass while proving nothing about the Profile."""
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-
-    def capture(cmd, **kwargs):
-        launched.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", capture)
-    from valvur.adapters import OsvAdapter
-
-    OsvAdapter().run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
-
-    assert launched
-    assert "--network=none" not in launched[0]
-
 
 def test_osv_is_the_only_scanner_the_offline_profile_does_not_run():
     """N2.1 — the offline guarantee is a property of the Profile's membership, so it
@@ -199,57 +147,6 @@ def test_without_an_index_the_offline_check_fails_rather_than_reporting_clean(
         DependencyRealityCheck().run(workspace)
 
 
-def test_the_networked_containers_are_told_and_the_offline_ones_are_not(monkeypatch, tmp_path):
-    """The Check reads VALVUR_NETWORK; the runner sets it in exactly the case it
-    omits --network=none. Both halves, because either alone would pass with the
-    variable set unconditionally."""
-    from valvur import cache
-    from valvur.runner import NETWORK_ENV, ContainerRunner
-
-    launched: list[list[str]] = []
-
-    def capture(cmd, **kwargs):
-        launched.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(subprocess, "run", capture)
-    runner = ContainerRunner(runtime="/usr/local/bin/docker")
-
-    from valvur.adapters import CheckAdapter
-
-    CheckAdapter("dependency-reality", uses_network=True, network=False).run(runner, tmp_path)
-    CheckAdapter("dependency-reality", uses_network=True, network=True).run(runner, tmp_path)
-
-    offline, full = launched
-    assert "--network=none" in offline and f"{NETWORK_ENV}=1" not in offline
-    assert "--network=none" not in full and f"{NETWORK_ENV}=1" in full
-
-
-def test_the_index_is_mounted_read_only_into_every_container(monkeypatch, tmp_path):
-    """The Check only asks the index questions. A writable mount would let a
-    compromised Scanner edit the list of what exists."""
-    from valvur import cache
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(cache, "name_index", lambda: tmp_path / "names")
-
-    def capture(cmd, **kwargs):
-        launched.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", capture)
-    from valvur.adapters import CheckAdapter
-
-    CheckAdapter("licence-file").run(ContainerRunner(runtime="/usr/local/bin/docker"), tmp_path)
-
-    mounts = [launched[0][i + 1] for i, flag in enumerate(launched[0]) if flag == "-v"]
-    index_mount = next(m for m in mounts if m.endswith("/cache/names:ro"))
-    assert index_mount.startswith(str(tmp_path / "names") + ":")
-
-
 # ------------------------------------------------------------- the known gap
 
 @pytest.mark.skip(
@@ -309,13 +206,13 @@ class _RecordingRuntime:
         return Recorder()
 
 
-def _launches(profile: str, tmp_path, monkeypatch):
+def _launches(profile: str, tmp_path, monkeypatch, *, index: bool = True):
     from valvur import api, cache, owner
 
     monkeypatch.setenv("VALVUR_ENGINE", "2")
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(cache, "name_index_present", lambda: True)
+    monkeypatch.setattr(cache, "name_index_present", lambda: index)
     monkeypatch.setattr(owner, "reap", lambda runtime: [])
     ws = tmp_path / "ws"
     ws.mkdir()
@@ -356,3 +253,50 @@ def test_trivy_never_runs_in_the_networked_container(tmp_path, monkeypatch):
     for argv, tools in launched:
         if "trivy" in tools:
             assert "--network=none" in argv, tools
+
+
+# ------------------------------- F1.2, N2.1 and ADR-0018, restated for the Scan Container
+
+def test_every_scanner_on_the_offline_profile_is_launched_with_no_network(  # F1.2
+    monkeypatch, tmp_path
+):
+    """Asserted over the whole Profile rather than one Scanner, so adding a Scanner
+    that forgets the flag fails the build instead of failing review. Since R3.9:
+    over every Scan Container an `offline` scan starts."""
+    launched = _launches(profiles.OFFLINE, tmp_path, monkeypatch)
+    assert launched, "no container was launched, so nothing was asserted"
+    for argv, tools in launched:
+        assert "--network=none" in argv, f"launched without --network=none: {tools}"
+    assert {t for _, tools in launched for t in tools} >= {"gitleaks", "trivy", "opengrep"}
+
+
+def test_the_networked_scanner_is_not_launched_with_no_network(monkeypatch, tmp_path):
+    """The falsifiability half of the check above: if --network=none were
+    unconditional, the assertion would pass while proving nothing about the Profile."""
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    [argv] = [argv for argv, tools in launched if "osv-scanner" in tools]
+    assert "--network=none" not in argv
+
+
+def test_the_networked_containers_are_told_and_the_offline_ones_are_not(monkeypatch, tmp_path):
+    """The Check reads VALVUR_NETWORK; the runtime sets it in exactly the case it
+    omits --network=none. Both halves, because either alone would pass with the
+    variable set unconditionally."""
+    from valvur.runner import NETWORK_ENV
+
+    for argv, tools in _launches(profiles.FULL, tmp_path, monkeypatch):
+        told = f"{NETWORK_ENV}=1" in argv
+        assert told is ("--network=none" not in argv), tools
+
+
+def test_the_index_is_mounted_read_only_into_every_container(monkeypatch, tmp_path):
+    """The Check only asks the index questions. A writable mount would let a
+    compromised Scanner edit the list of what exists."""
+    from valvur import cache
+
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    assert launched
+    for argv, tools in launched:
+        mounts = [argv[i + 1] for i, flag in enumerate(argv) if flag == "-v"]
+        index_mount = next(m for m in mounts if m.endswith("/cache/names:ro"))
+        assert index_mount.startswith(str(cache.name_index()) + ":"), tools

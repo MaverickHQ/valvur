@@ -273,16 +273,57 @@ GITLEAKS_ONE_SECRET = json.dumps([
 
 
 class LegacyDispatch:
-    """The fakes' `run_<tool>(workspace)` methods, reached through the one
-    `run(invocation, workspace)` the adapters call since 26.2.1. A fake keeps
+    """The fakes' `run_<tool>(workspace)` methods, reached through the Scan
+    Container's protocol (ADR-0022, R3.9): `run(plan, tar, scratch, ...)` unpacks
+    the Snapshot, answers each Invocation from the fake's per-tool method, and
+    writes the reports and the manifest the engine would have. A fake keeps
     describing what a tool answers; this maps the Invocation to that answer."""
+
+    #: What `api` asks to choose the Scan Container's path.
+    engine = True
 
     _BY_TOOL: ClassVar[dict[str, str]] = {
         "gitleaks": "run_gitleaks", "trivy": "run_trivy", "osv-scanner": "run_osv",
         "checkov": "run_checkov", "syft": "run_syft", "opengrep": "run_opengrep",
     }
 
-    def run(self, invocation, workspace):
+    def run(self, plan, tar, scratch, on_event=None, budget_s=None, jobs=None):
+        import io
+        import tarfile
+        import time
+
+        workspace = scratch.parent / f"{scratch.name}-workspace"
+        workspace.mkdir(exist_ok=True)
+        with tarfile.open(fileobj=io.BytesIO(tar)) as archive:
+            members = archive.getmembers()
+            archive.extractall(workspace, filter="data")
+        entries = []
+        for invocation in plan:
+            if getattr(self, "cancelled", False):
+                return 143                    # killed: the engine writes no manifest
+            if on_event is not None:
+                on_event({"event": "start", "tool": invocation.tool})
+            started = time.monotonic()
+            try:
+                out = self.answer(invocation, workspace)
+            except Exception as exc:          # a tool that crashed, as the engine records it
+                out = ScannerOutput(invocation.tool, invocation.version, "", str(exc), 1)
+            seconds = round(time.monotonic() - started, 3)
+            (scratch / (invocation.report or f"{invocation.tool}.stdout")).write_text(
+                out.stdout, encoding="utf-8")
+            entry = {"tool": invocation.tool, "exit_code": out.exit_code, "seconds": seconds,
+                     "timed_out": out.stopped_after is not None, "cut": False,
+                     "stderr_tail": out.stderr}
+            entries.append(entry)
+            if on_event is not None:
+                on_event({"event": "end", **entry})
+        (scratch / "manifest.json").write_text(json.dumps(
+            {"received": sum(1 for m in members if m.isfile()), "tools": entries}))
+        return 0
+
+    def answer(self, invocation, workspace):
+        if invocation.argv[:1] == ("crash",):
+            raise RuntimeError(invocation.argv[1])
         method = self._BY_TOOL.get(invocation.tool)
         if method is not None:
             return getattr(self, method)(workspace)
@@ -410,8 +451,11 @@ class CrashingAdapter(ScannerAdapter):
     def __init__(self, reason="container exited 137 (OOM)"):
         self._reason = reason
 
-    def run(self, runner, workspace):
-        raise RuntimeError(self._reason)
+    def command(self, workspace):
+        from valvur.invocation import Invocation
+
+        # The fake runtime answers `crash` by failing with the reason (conftest).
+        return Invocation(tool=self.name, version="0", argv=("crash", self._reason))
 
     def parse(self, output):  # pragma: no cover - never reached
         return []

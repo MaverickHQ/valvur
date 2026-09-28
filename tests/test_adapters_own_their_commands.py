@@ -181,31 +181,6 @@ def test_the_runner_launches_an_invocation_as_base_flags_image_argv(tmp_path, mo
     assert output.tool == "probe" and output.stdout == "on stdout" and output.exit_code == 0
 
 
-def test_gitleaks_now_gets_the_same_container_as_every_other_scanner(tmp_path, monkeypatch):
-    """Found by the move: `run_gitleaks` built its own flag list — no tmpfs, no
-    cache mounts and, on an enforcing SELinux host, NO LABEL on its scratch mount,
-    while every other Scanner's came from `_base_flags`. The snapshot records the
-    old shape; this pins the new one. Unmeasured on an enforcing host (none is at
-    hand); the flag diff is the evidence."""
-    import subprocess
-
-    from valvur.adapters import GitleaksAdapter
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: (
-        launched.append(list(cmd)) or subprocess.CompletedProcess(cmd, 0, "", "")))
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-
-    GitleaksAdapter().run(runner, tmp_path)
-
-    cmd = launched[0]
-    flags = [f for f in cmd[:cmd.index("x/y:1")] if f.startswith("--") and f != "--name"]
-    assert "--tmpfs" in flags, "gitleaks has no scratch tmpfs"
-    assert any("/cache/trivy" in f for f in cmd), "gitleaks gets the standard mounts"
-    assert _snapshot("gitleaks")["flags_shape"] != flags, "the old shape is deliberately gone"
-
-
 def test_the_runner_names_no_tool(monkeypatch):
     """The target the task set: the container boundary knows containers. The
     database fetch is the one exception, and it is a call into Trivy's adapter,
@@ -232,35 +207,19 @@ def test_a_single_check_reproduces_the_runners_argv(tmp_path):
     _assert_matches(granted.command(tmp_path), "dependency-reality")
 
 
-def test_the_checks_batch_reproduces_the_runners_argv(tmp_path):
-    from valvur.adapters.check import batch_command
-
-    invocation, refused = batch_command(
-        ["licence-file", "ai-artifact", "dependency-reality"], tmp_path, network=True)
-
-    assert refused == {}
-    _assert_matches(invocation, "checks-batch")
-
-
 def test_dependency_reality_is_refused_before_launching_without_an_index_or_a_network(
     tmp_path, monkeypatch
 ):
-    """The host-side refusal that leads with the fix, now the adapter's: single
-    and batch alike, and the batch still launches for the others."""
+    """The host-side refusal that leads with the fix, now the adapter's; the scan
+    records it as that Check's failure alone (R3.9)."""
     from valvur.adapters import CheckAdapter
-    from valvur.adapters.check import batch_command
 
     monkeypatch.setattr(cache, "name_index_present", lambda: False)
 
     with pytest.raises(RuntimeError, match="valvur update"):
         CheckAdapter("dependency-reality", uses_network=True).command(tmp_path)
-    invocation, refused = batch_command(["licence-file", "dependency-reality"], tmp_path,
-                                        network=False)
-    assert list(refused) == ["dependency-reality"]
-    assert "valvur update" in refused["dependency-reality"].stderr
-    assert invocation is not None and invocation.argv[-1] == "licence-file"
     # Granted a network, the registry can answer instead: no refusal.
-    assert batch_command(["dependency-reality"], tmp_path, network=True)[1] == {}
+    CheckAdapter("dependency-reality", uses_network=True, network=True).command(tmp_path)
 
 
 def test_the_runner_names_no_tool_at_all():
