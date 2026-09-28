@@ -982,10 +982,27 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
     verdict and counts.
 
   The README and EVALUATING name the new forms.
-- [ ] **R6.6** **Fresh data without a terminal** (D5; F10.8). Behaviours:
+- [x] **R6.6** **Fresh data without a terminal** (D5; F10.8). Behaviours:
   1. An eight-day-old database is refreshed inside a scan and recorded.
   2. With `fetch = "never"`, the result is `inconclusive` with the reason.
   3. The `update` tool fetches, and says what it fetched.
+  **STATUS 2026-09-28:** ✅ ADR-0025 reverses task 14.2. A scan refreshes stale data as it
+  fetches absent data, each fetch announced and recorded under `network.fetched`:
+  - a vulnerability database over 7 days old (*refreshing the vulnerability database
+    (8 days old)*);
+  - a name index over 30;
+  - an OSV database over 7.
+
+  `VALVUR_FETCH=never`, read by a new `settings` module that R6.7 extends to the machine
+  settings file, turns every fetch off. A nil result over stale data then says
+  *fetching is off (fetch = never)* in its reason. Three tests of 14.2's line are restated
+  to ADR-0025's. `valvur update`'s steps move from `cli.py` to `updating.py`, each saying
+  its line through a `say` the caller passes. The new `update` MCP tool runs them, sends
+  each line as progress, answers with what it fetched, and is not refused by
+  `fetch = never`, being an explicit request. On the image, with the build cache's
+  database aged eight days, a scan refreshed it: 123 MB in 29 s, recorded, a 40 s scan,
+  and data 0.03 days old after. Found on the way: a test that failed when run alone,
+  hidden by a cache an earlier test warmed.
 - [ ] **R6.7** **Two settings files** (D11). Behaviours:
   1. Machine settings are read from `~/.config/valvur/config.toml`.
   2. Each retired environment variable still works and prints one deprecation line.
