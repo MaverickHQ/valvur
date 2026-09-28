@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MaverickHQ/valvur/raw/main/src/valvur/data/security-scan.schema.json",
+  "title": ".security-scan.toml",
+  "description": "A project's scan policy for valvur, committed with the project (D10, D11): what the scan reads, and the risks the project has accepted. Machine settings live in ~/.config/valvur/config.toml instead.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scan": {
+      "description": "What the scan reads (ADR-0021).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "description": "Root-relative path prefixes no Scanner reads, matched on whole segments. An exclusion hides a directory from every Scanner: name only what is not source.",
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "history": {
+          "description": "Read git history for secrets (D3). On by default.",
+          "type": "boolean"
+        },
+        "scope": {
+          "description": "`git` reads the git view (the default); `tree` walks the working tree, ignored files included.",
+          "enum": ["git", "tree"]
+        }
+      }
+    },
+    "suppress": {
+      "description": "Accepted risks, each reviewed by a human and expiring (F8).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fingerprint", "rule", "path", "expires", "reason"],
+        "properties": {
+          "fingerprint": {"description": "The Finding's fingerprint, from `valvur findings`.", "type": "string", "minLength": 1},
+          "rule": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "expires": {"description": "A TOML date; the suppression lapses after it.", "type": "string", "format": "date"},
+          "reason": {"description": "Why the risk is accepted, for the reviewer.", "type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

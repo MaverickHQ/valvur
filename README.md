@@ -392,6 +392,22 @@ why. In a repository, git history is read for secrets, the newest 5,000 commits 
 200 MB, and the Summary says when that bound stopped the read; `history = false` turns
 it off, and says so.
 
+```toml
+[scan]
+exclude = ["tests/fixtures"]   # root-relative prefixes; only what is not source
+history = true                 # read git history for secrets (the default)
+
+[[suppress]]
+fingerprint = "3f9c2a7d41b08e65c1d9e0a2b7f4c813"   # from `valvur findings`
+rule = "CKV_DOCKER_2"
+path = "Dockerfile"
+expires = 2027-03-01
+reason = "The image runs under an orchestrator that health-checks it."
+```
+
+`valvur init` prints a starter, and the file's JSON Schema,
+`src/valvur/data/security-scan.schema.json`, is what `valvur doctor` checks it against.
+
 In CI, `valvur scan` exits zero whenever the scan itself worked — findings are the
 job, not a failure — and `valvur gate` turns the result into one exit code:
 
