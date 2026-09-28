@@ -1,9 +1,11 @@
 import json
 import os
 import platform
+import queue
 import shutil
 import socket as socket_mod
 import tempfile
+import threading
 from pathlib import Path
 from typing import ClassVar
 
@@ -555,3 +557,53 @@ def record_connections(monkeypatch):
     return attempts
 
 
+# ------------------------------------------------ an MCP client over live stdio
+
+class McpSession:
+    """A client over a live stdio pair: stdin stays open until it closes it, and
+    every line the server writes is kept, in order."""
+
+    def __init__(self) -> None:
+        self._in: queue.Queue[str | None] = queue.Queue()
+        self.out: queue.Queue[dict] = queue.Queue()
+        self.seen: list[dict] = []
+        server = self
+
+        class _Out:
+            def write(self, text: str) -> None:
+                for line in text.splitlines():
+                    if line.strip():
+                        server.out.put(json.loads(line))
+
+            def flush(self) -> None:
+                pass
+
+        def lines():
+            while (line := self._in.get()) is not None:
+                yield line
+
+        from valvur.mcp import protocol
+        from valvur.mcp.server import build
+        from valvur.mcp.tools import registry
+
+        self.thread = threading.Thread(
+            target=protocol.serve, args=(build(registry()),),
+            kwargs={"stdin": lines(), "stdout": _Out()}, daemon=True)
+        self.thread.start()
+
+    def send(self, message: dict) -> None:
+        self._in.put(json.dumps(message) + "\n")
+
+    def reply(self, request_id: int, seconds: float = 30) -> dict:
+        for message in self.seen:               # replies arrive in any order
+            if message.get("id") == request_id:
+                return message
+        while True:
+            message = self.out.get(timeout=seconds)
+            self.seen.append(message)
+            if message.get("id") == request_id:
+                return message
+
+    def close(self) -> None:
+        self._in.put(None)
+        self.thread.join(timeout=15)

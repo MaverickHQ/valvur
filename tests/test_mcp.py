@@ -491,13 +491,23 @@ def test_scan_status_waits_rather_than_answering_instantly(tmp_path, monkeypatch
     """
     import time
 
+    from conftest import McpSession
+
     from valvur.mcp import jobs
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 5.0)
     jobs.start(tmp_path, "standard", lambda w, p, g: (time.sleep(0.5), "ok")[1])
 
+    # A client whose stdin stays open, as a real one's does: since R6.3 stdin
+    # closing ends every wait, which is what an in-process one-shot exchange does.
+    session = McpSession()
     began = time.monotonic()
-    result = _call("scan_status", {"workspace": str(tmp_path)})
+    try:
+        session.send(_request("tools/call", {"name": "scan_status",
+                                             "arguments": {"workspace": str(tmp_path)}}))
+        result = session.reply(1)["result"]
+    finally:
+        session.close()
     waited = time.monotonic() - began
     text = result["content"][0]["text"]
 

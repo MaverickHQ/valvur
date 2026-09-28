@@ -22,18 +22,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-#: How long `scan_status` waits for a running job before answering (task 10.2.5).
+#: How long `scan_status` waits for a running job before answering.
 #:
-#: Measured with a real agent: a 51-second scan cost **14 status polls in 20 turns**,
-#: because each poll returned instantly and the agent — having read every file in
-#: the repository while it waited — had nothing left to do but ask again. Each poll
-#: is a full model turn; that run hit its turn limit before writing a report.
-#:
-#: Fifteen seconds sits well under the 30-60s at which the docstring above says
-#: clients give up, and turns those 14 polls into 4. The job itself is unchanged:
-#: `scan` still returns immediately, and the shape of the contract does not vary
-#: with project size.
-STATUS_WAIT_SECONDS = 15.0
+#: Fifteen seconds from task 10.2.5, when clients were said to time out at 30 to
+#: 60: a 51-second scan had cost 14 status polls in 20 turns, each returning
+#: instantly. R6.1 measured Claude Code keeping a 150-second call's result, so
+#: since R6.3 `scan_status` attaches for the MCP budget and a margin: in practice,
+#: until the scan it names has finished.
+STATUS_WAIT_SECONDS = 330.0
 
 
 class State(enum.StrEnum):

@@ -9,62 +9,17 @@ the call and calls again is attached to the same scan; `scan_status` attaches.
 from __future__ import annotations
 
 import json
-import queue
 import threading
 from pathlib import Path
 
 import pytest
+from conftest import McpSession
 
 from valvur import api, engine_host
 from valvur.engine_host import LocalRuntime
-from valvur.mcp import jobs, protocol
-from valvur.mcp.server import build
-from valvur.mcp.tools import registry
+from valvur.mcp import jobs
 
 FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
-
-
-class Session:
-    """A client over a live stdio pair: stdin stays open until it closes it, and
-    every line the server writes is kept, in order."""
-
-    def __init__(self) -> None:
-        self._in: queue.Queue[str | None] = queue.Queue()
-        self.out: queue.Queue[dict] = queue.Queue()
-        self.seen: list[dict] = []
-        server = self
-
-        class _Out:
-            def write(self, text: str) -> None:
-                for line in text.splitlines():
-                    if line.strip():
-                        server.out.put(json.loads(line))
-
-            def flush(self) -> None:
-                pass
-
-        def lines():
-            while (line := self._in.get()) is not None:
-                yield line
-
-        self.thread = threading.Thread(
-            target=protocol.serve, args=(build(registry()),),
-            kwargs={"stdin": lines(), "stdout": _Out()}, daemon=True)
-        self.thread.start()
-
-    def send(self, message: dict) -> None:
-        self._in.put(json.dumps(message) + "\n")
-
-    def reply(self, request_id: int, seconds: float = 30) -> dict:
-        while True:
-            message = self.out.get(timeout=seconds)
-            self.seen.append(message)
-            if message.get("id") == request_id:
-                return message
-
-    def close(self) -> None:
-        self._in.put(None)
-        self.thread.join(timeout=15)
 
 
 def _call(request_id: int, tool: str, arguments: dict, token=None) -> dict:
@@ -90,7 +45,7 @@ def ws(tmp_path, monkeypatch) -> Path:
 
 
 def test_one_call_returns_the_result_with_progress_on_the_way(ws):
-    session = Session()
+    session = McpSession()
     try:
         session.send(_call(1, "scan", {"workspace": str(ws)}, token="t1"))
         result = session.reply(1)["result"]
@@ -105,3 +60,77 @@ def test_one_call_returns_the_result_with_progress_on_the_way(ws):
     assert all(m["params"]["progressToken"] == "t1" for m in progress)
     values = [m["params"]["progress"] for m in progress]
     assert values == sorted(values) and len(set(values)) == len(values)
+
+
+@pytest.fixture
+def held(ws, monkeypatch):
+    """A scan that waits for `release` before it runs, counting how many start."""
+    from valvur import operations
+
+    release = threading.Event()
+    started: list[int] = []
+    real = operations._scan_with_budget
+
+    def slow(budget_s):
+        work = real(budget_s)
+
+        def run(workspace, profile, progress):
+            started.append(1)
+            progress("fleet: 1 Scanners, 1 at a time")
+            assert release.wait(20), "the test never released the scan"
+            return work(workspace, profile, progress)
+        return run
+
+    monkeypatch.setattr(operations, "_scan_with_budget", slow)
+    return release, started
+
+
+def test_a_client_that_lets_go_and_calls_again_gets_the_same_scan(ws, held):
+    release, started = held
+    first = McpSession()
+    first.send(_call(1, "scan", {"workspace": str(ws)}))
+    _wait_until(lambda: started)
+    first.send({"jsonrpc": "2.0", "method": "notifications/cancelled",
+                "params": {"requestId": 1, "reason": "the client timed out"}})
+    first.close()                                   # and then goes away altogether
+
+    second = McpSession()
+    try:
+        second.send(_call(1, "scan", {"workspace": str(ws)}))
+        release.set()
+        fields = second.reply(1)["result"]["structuredContent"]
+    finally:
+        second.close()
+
+    assert not [m for m in first.seen if m.get("id") == 1], "a cancelled call was answered"
+    assert len(started) == 1, "the second call started a second scan"
+    record = json.loads((ws / ".security-scan" / "run.json").read_text())
+    assert fields["state"] == "done" and fields["generation"] == record["generation"]
+
+
+def test_scan_status_attaches_to_the_running_scan_and_returns_its_result(ws, held):
+    release, started = held
+    session = McpSession()
+    try:
+        session.send(_call(1, "scan", {"workspace": str(ws)}))
+        _wait_until(lambda: started)
+        session.send(_call(2, "scan_status", {"workspace": str(ws)}, token="s"))
+        threading.Timer(0.5, release.set).start()
+        status = session.reply(2)["result"]["structuredContent"]
+        scan = session.reply(1)["result"]["structuredContent"]
+    finally:
+        session.close()
+
+    assert status["state"] == "done", "scan_status answered before the scan finished"
+    assert status["generation"] == scan["generation"] and len(started) == 1
+    assert [m for m in session.seen if m.get("method") == "notifications/progress"
+            and m["params"]["progressToken"] == "s"], "scan_status sent no progress"
+
+
+def _wait_until(condition, seconds: float = 10) -> None:
+    import time
+
+    deadline = time.monotonic() + seconds
+    while not condition():
+        assert time.monotonic() < deadline, "the scan never started"
+        time.sleep(0.02)

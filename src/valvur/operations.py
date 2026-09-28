@@ -10,6 +10,7 @@ Each returns plain text: an agent reads it, and so does a person.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -217,22 +218,36 @@ def scan_reply(args: dict) -> tuple[str, dict]:
     next `scan` here attaches and returns the same generation, and `scan_cancel` is
     what stops one."""
     from . import reply
-    from .mcp import protocol
 
     workspace = resolve_workspace(args.get("workspace"))
     profile = _checked_profile(args.get("profile"))
     budget_s = _checked_budget(args.get("budget_s"))
     job = jobs.start(workspace, profile,
                      _scan_with_budget(MCP_BUDGET_S if budget_s is None else budget_s))
+    _attach(job, None)
+    fields = reply.fields(workspace, job)
+    return reply.text(fields), fields
+
+
+def _attach(job, seconds: float | None) -> None:
+    """Wait for `job` to settle, for `seconds` at most (None: as long as it takes),
+    sending each progress message as a notification to the call being answered,
+    and stopping once the client lets go of the call (R6.3)."""
+    from .mcp import protocol
+
     call = protocol.current_call()
+    deadline = None if seconds is None else time.monotonic() + seconds
     sent = 0
-    while not job.settled.wait(timeout=0.25):
+    while True:
+        step = 0.25 if deadline is None else min(0.25, max(0.0, deadline - time.monotonic()))
+        if job.settled.wait(timeout=step):
+            break
         sent = _forward(job, call, sent)
         if call is not None and call.detached.is_set():
             break
+        if deadline is not None and time.monotonic() >= deadline:
+            break
     _forward(job, call, sent)
-    fields = reply.fields(workspace, job)
-    return reply.text(fields), fields
 
 
 def _forward(job, call, sent: int) -> int:
@@ -456,16 +471,16 @@ def doctor(args: dict) -> str:
 def scan_status_reply(args: dict) -> tuple[str, dict]:
     """Schema 2 (R6.2, ADR-0024): the fields, and the text rendered from them.
 
-    A running job is waited for a bounded time before answering, so a poll covers
-    seconds of scan rather than milliseconds: the agent pays one turn per call
-    either way, and returning instantly made it pay fourteen (task 10.2.5)."""
+    A running scan is attached to (R6.3): the call waits for its result, sending
+    its progress, up to `jobs.STATUS_WAIT_SECONDS`, and never starts one. Returning
+    instantly made an agent pay fourteen turns for one scan (task 10.2.5)."""
     from . import reply
 
     args = _checked(args)
     workspace = Path(args["workspace"])
     job = jobs.current(workspace)
     if job is not None and job.state in jobs.ACTIVE:
-        job.wait()
+        _attach(job, jobs.STATUS_WAIT_SECONDS)
     fields = reply.fields(workspace, job)
     return reply.text(fields), fields
 
