@@ -1044,9 +1044,18 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   the first invalid key, for example `` `scan.exclud` is not a key it takes ``, which
   was ignored in silence before. Found on the way: ADR-0021's `scope = "tree"` was
   decided and never read, and is implemented.
-- [ ] **R6.9** **`doctor` and the reply tell the truth about the session.** Behaviours:
+- [x] **R6.9** **`doctor` and the reply tell the truth about the session.** Behaviours:
   1. `doctor` says when the running server is older than the configuration names.
   2. The reply and the handshake say the Results Folder ignores itself.
+  **STATUS 2026-09-28:** ✅ From the second gate's C5 and C6, in 30.1.2's and 30.1.3's
+  words. Inside the server, `doctor` compares its own executable with the command that
+  `.mcp.json` or Kiro's file names, where that resolves to a path. When they differ it
+  says *this server is <version> at <path>; .mcp.json names <command>; restart the
+  client to use it*. A launcher like `uvx` resolves at start and is not compared. The
+  CLI has no session and prints no such line; the parity test sets it aside and says
+  why. The handshake says *the folder ignores itself; there is nothing to add to
+  .gitignore*, and a finished scan's reply checks the folder's own `.gitignore` and
+  says the same, as `results.ignores_itself` and one line of text.
 - [ ] **R6.10** **The Kiro probe** (D20). Behaviour: a stdio client replaying Kiro's
   initialize, tools/list, calls and cancellation passes in CI.
 
