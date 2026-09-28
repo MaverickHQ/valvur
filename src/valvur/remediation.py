@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from . import grouping as _grouping
 from .coverage import NOTE_RULES
 from .findings import Finding
 from .text import cut
@@ -24,6 +25,9 @@ class Item:
     action: str
     where: str
     findings: list[Finding] = field(default_factory=list)
+    #: A flood of machine-written data (R5.4): its action is a decision about a
+    #: directory, and the item carries the exclude line.
+    flood: bool = False
 
     @property
     def rank(self) -> int:
@@ -36,10 +40,13 @@ class Item:
 
 def group(findings: list[Finding]) -> list[Item]:
     """Collapse Findings into the changes that resolve them."""
+    floods = {g.id: g for g in _grouping.describe(findings) if g.machine_written}
     items: dict[tuple[str, str], Item] = {}
     for finding in findings:
-        key, action, where = _key(finding)
-        item = items.setdefault((key, where), Item(action=action, where=where))
+        flood = floods.get(finding.group or "")
+        key, action, where = _flood_key(flood) if flood else _key(finding)
+        item = items.setdefault((key, where),
+                                Item(action=action, where=where, flood=flood is not None))
         item.findings.append(finding)
     for item in items.values():
         _retarget(item)
@@ -76,6 +83,14 @@ def _retarget(item: Item) -> None:
         f"Upgrade `{target}`" + (f" to {direct}" if direct else "")
         + (f" so {reach}" if reach else "")
     )
+
+
+def _flood_key(flood) -> tuple[str, str, str]:
+    """A flood is one decision about a directory, not thousands of credentials to
+    rotate (R5.4): whether it is generated data or the project's own."""
+    return (f"flood:{flood.id}",
+            f"Decide what `{flood.directory}` is: {flood.count:,} {flood.rule} hits in "
+            f"{flood.files:,} data files, possibly machine-written", flood.directory)
 
 
 def _key(finding: Finding) -> tuple[str, str, str]:
@@ -168,6 +183,24 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
                 "this upgrade does not resolve them."
             )
         lines.append("")
+        if item.flood and item.where != "./":
+            # The exclude line, and whose decision it is: an exclusion hides the
+            # directory from every Scanner, as a suppression hides one Finding, and
+            # an agent told to reach zero has no cheaper path (CLAUDE.md §4).
+            lines += [
+                "If it is generated data rather than the project's own, the line that "
+                "leaves it out is, in `.security-scan.toml`:",
+                "",
+                "```toml",
+                "[scan]",
+                f'exclude = ["{item.where.rstrip("/")}"]',
+                "```",
+                "",
+                "**Ask the human before adding it**: an exclusion hides the directory from "
+                "every Scanner. If it is the project's own, every hit is in `findings.json` "
+                "under its group.",
+                "",
+            ]
         for finding in sorted(item.findings, key=lambda f: f.rank or 10**9)[:8]:
             lines.append(f"- {finding.rule} — {cut(finding.title, 100)}")
         if len(item.findings) > 8:

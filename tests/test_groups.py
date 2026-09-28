@@ -124,3 +124,24 @@ def test_two_real_keys_in_json_configs_are_a_group_but_not_a_flood(tmp_path):
     assert group.count == 2 and not group.machine_written
     assert "machine-written" not in group.label
     assert group.rank == 1
+
+
+# ------------------------------------------- R5.4: REMEDIATION.md per group
+
+def test_the_flood_is_one_action_naming_the_count_and_the_exclude_line(tmp_path):
+    """F7.14: an item is one action. 3,890 hits in generated data are not 3,890
+    credentials to rotate; they are one decision about a directory."""
+    import re
+
+    from valvur import remediation
+
+    out = pipeline.run([_hit(i) for i in range(FLOOD)] + _distinct(), _ctx(tmp_path))
+    text = remediation.render(out.findings, top=50)
+    actions = re.findall(r"^## \d+\. (.*)$", text, re.MULTILINE)
+    flood = [a for a in actions if "data/" in a]
+
+    assert len(flood) == 1, flood
+    assert "3,890" in flood[0]
+    assert actions[-1] == flood[0], "the flood is not the last action"
+    assert 'exclude = ["data"]' in text
+    assert "batch_000" not in "\n".join(actions)
