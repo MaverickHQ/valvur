@@ -47,13 +47,18 @@ def _stop_on_interrupt(runner) -> None:
     """
     import signal
 
+    from . import owner
     from .runner import kill_running
 
     def handle(_signum, _frame):
         runtime = None
         with contextlib.suppress(Exception):
             runtime = runner.runtime
+        # By label, synchronously (R3.6): this handler runs on the thread that
+        # reads the engine, so nothing may wait on that thread here.
         stopped = kill_running(runtime)
+        if isinstance(runtime, str):
+            stopped += owner.kill_mine(runtime)
         print(
             f"\n  ! interrupted — stopped {stopped} scanner(s)"
             if stopped
@@ -642,9 +647,10 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
 def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     """`scan`: the Scan Run, from the terminal."""
     if runner is None:
-        from .runner import ContainerRunner
+        from . import engine_host
 
-        runner = ContainerRunner()
+        # The Scan Container (ADR-0022): the only engine since R3.9.
+        runner = engine_host.for_scan()
 
     _stop_on_interrupt(runner)
 

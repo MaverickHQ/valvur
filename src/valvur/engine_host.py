@@ -118,9 +118,11 @@ def stream(command: list[str], tar: bytes, env: dict | None,
     return code
 
 
-def write_plan(scratch: Path, plan: list[Invocation], budget_s: float | None = None) -> None:
+def write_plan(scratch: Path, plan: list[Invocation], budget_s: float | None = None,
+               jobs: int | None = None) -> None:
     (scratch / "plan.json").write_text(
-        json.dumps({"tools": [plan_entry(i) for i in plan], "budget_s": budget_s}),
+        json.dumps({"tools": [plan_entry(i) for i in plan], "budget_s": budget_s,
+                    "jobs": jobs}),
         encoding="utf-8")
 
 
@@ -184,8 +186,8 @@ class LocalRuntime(_Runtime):
 
     def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
             on_event: Callable[[dict], None] | None = None,
-            budget_s: float | None = None) -> int:
-        write_plan(scratch, plan, budget_s)
+            budget_s: float | None = None, jobs: int | None = None) -> int:
+        write_plan(scratch, plan, budget_s, jobs)
         workspace = scratch.parent / f"{scratch.name}-workspace"
         env = {**os.environ, WORKSPACE_ENV: str(workspace), RESULTS_ENV: str(scratch)}
         if self.tools_dir is not None:
@@ -212,6 +214,39 @@ class ContainerRuntime(_Runtime):
         self._runtime = runtime
         #: Every Scan Container this runtime started, for `wait_stopped`.
         self._names: set[str] = set()
+
+    # What a scan does before the Scan Container starts (24.1, 23.2.4, F1.9,
+    # 23.4.4): the image and the data, fetched when absent, and the pair checked.
+    # The fleet's runner already does each; this runtime asks it.
+
+    @property
+    def _fetcher(self):
+        from .runner import ContainerRunner
+
+        if self.__dict__.get("_runner") is None:
+            self.__dict__["_runner"] = ContainerRunner(self.image, self._runtime)
+        return self.__dict__["_runner"]
+
+    def image_present(self) -> bool:
+        return self._fetcher.image_present()
+
+    def pull_size_mb(self):
+        return self._fetcher.pull_size_mb()
+
+    def pull_image(self, on_line=None):
+        return self._fetcher.pull_image(on_line)
+
+    def db_size_mb(self):
+        return self._fetcher.db_size_mb()
+
+    def update_db(self):
+        return self._fetcher.update_db()
+
+    def verify_compatible(self) -> None:
+        return self._fetcher.verify_compatible()
+
+    def build_provenance(self):
+        return self._fetcher.build_provenance()
 
     def wait_stopped(self, timeout: float = 15.0) -> bool:
         """True once the `docker run` client has returned AND the runtime no
@@ -285,10 +320,10 @@ class ContainerRuntime(_Runtime):
 
     def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
             on_event: Callable[[dict], None] | None = None,
-            budget_s: float | None = None) -> int:
+            budget_s: float | None = None, jobs: int | None = None) -> int:
         import uuid
 
-        write_plan(scratch, plan, budget_s)
+        write_plan(scratch, plan, budget_s, jobs)
         network = any(i.network for i in plan)
         name = f"valvur-{uuid.uuid4().hex[:16]}"
         self._names.add(name)

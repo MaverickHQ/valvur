@@ -208,8 +208,7 @@ def test_a_budget_must_be_positive(workspace):
 
 def test_mcp_scans_default_to_f2_6s_five_minutes_and_a_client_may_change_it(tmp_path, monkeypatch):
     from valvur import api as api_module
-    from valvur import operations
-    from valvur import runner as runner_module
+    from valvur import engine_host, operations
     from valvur.mcp import jobs
 
     seen: list = []
@@ -218,7 +217,7 @@ def test_mcp_scans_default_to_f2_6s_five_minutes_and_a_client_may_change_it(tmp_
         def kill(self):
             return 0
 
-    monkeypatch.setattr(runner_module, "ContainerRunner", Runner)
+    monkeypatch.setattr(engine_host, "for_scan", Runner)
 
     def fake_scan(workspace, *, runner, profile, on_progress, budget_s=None, **kw):
         seen.append(budget_s)

@@ -287,6 +287,16 @@ class _RecordingRuntime:
                 super().__init__(runtime="/usr/local/bin/docker")
                 self.launched: list[tuple[list[str], list[str]]] = []
 
+            # The preflight asks the real runtime about the image; not here.
+            def image_present(self):
+                return True
+
+            def verify_compatible(self):
+                return None
+
+            def build_provenance(self):
+                return None, None
+
             def _engine(self, command, tar, env, on_event, budget_s, kill=None):
                 import json as _json
                 from pathlib import Path as _Path

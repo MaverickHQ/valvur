@@ -44,7 +44,7 @@ def test_a_snapshot_that_arrives_short_refuses_the_scan(tmp_path, monkeypatch):
     class ShortRuntime:
         engine = True
 
-        def run(self, plan, tar, scratch, on_event=None, budget_s=None):
+        def run(self, plan, tar, scratch, on_event=None, budget_s=None, jobs=None):
             (scratch / "gitleaks.json").write_text("[]")
             (scratch / "manifest.json").write_text(json.dumps({"received": 1, "tools": [
                 {"tool": "gitleaks", "exit_code": 0, "seconds": 0.1, "timed_out": False,

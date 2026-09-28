@@ -386,8 +386,7 @@ def test_a_cancel_before_any_container_says_the_scan_stops_at_its_next_step(tmp_
 def test_the_scan_job_registers_its_own_runner_as_the_canceller(tmp_path, monkeypatch):
     """`_run_scan` is where the runner exists; a cancel stops THAT fleet."""
     from valvur import api as api_module
-    from valvur import operations
-    from valvur import runner as runner_module
+    from valvur import engine_host, operations
     from valvur.mcp import jobs
 
     class Runner:
@@ -395,7 +394,7 @@ def test_the_scan_job_registers_its_own_runner_as_the_canceller(tmp_path, monkey
             return 0
 
     seen: dict = {}
-    monkeypatch.setattr(runner_module, "ContainerRunner", Runner)
+    monkeypatch.setattr(engine_host, "for_scan", Runner)
 
     def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None):
         seen["canceller"] = jobs_module_current(workspace).canceller

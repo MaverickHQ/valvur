@@ -734,7 +734,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     beside: dict = {}
     if _engine_two(runner):
         outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
-                                      budget_s=budget_s, record=beside)
+                                      budget_s=budget_s, record=beside,
+                                      jobs=jobs or _jobs_from_environment())
     else:
         outcomes, cut = _fleet(adapters, runner, workspace, on_progress=on_progress,
                                jobs=jobs, budget_s=budget_s)
@@ -747,20 +748,13 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     )
 
 
-#: `VALVUR_ENGINE=2` selects the Scan Container (ADR-0022) until R3.9 makes it the
-#: only engine.
-ENGINE_ENV = "VALVUR_ENGINE"
-
-
 def _engine_two(runner) -> bool:
-    import os
-
-    return os.environ.get(ENGINE_ENV) == "2" and hasattr(runner, "run") and hasattr(
-        runner, "engine")
+    """A runtime that runs the Scan Container's engine (ADR-0022) says so."""
+    return getattr(runner, "engine", False) is True and hasattr(runner, "run")
 
 
 def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
-                  record: dict | None = None):
+                  record: dict | None = None, jobs: int | None = None):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut.
     `record` receives what was read beside the File Set: `history` (R3.7)."""
@@ -792,10 +786,23 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             record["history"] = read
         _stop_if_cancelled(runtime, "before the Scan Container started")
         ended: list[str] = []
+        say = on_progress if on_progress is not None else (lambda _: None)
+        named = {i.tool: adapters[index].name for i, index in zip(plan, planned, strict=True)
+                 if i.tool != _HISTORY_TOOL}
+        fleet = len(set(planned))
+        # The words the fleet used, which `scan_status` reads (29.0.4).
+        say(f"fleet: {fleet} Scanners, {min(jobs or fleet, fleet)} at a time")
 
         def on_event(event: dict) -> None:
-            if event.get("event") == "end":
+            name = named.get(event.get("tool", ""))
+            if event.get("event") == "start" and name:
+                say(f"{name}: started")
+            elif event.get("event") == "end":
                 ended.append(event.get("tool", ""))
+                if name:
+                    ok = event.get("exit_code") == 0 and not event.get("timed_out")
+                    say(f"{name}: {'ok' if ok else 'failed'} "
+                        f"({float(event.get('seconds', 0)):.1f}s)")
 
         # One Scan Container per network boundary (ADR-0022, R3.8): what needs a
         # network runs in its own, and everything else, Trivy included, in one
@@ -805,7 +812,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             scratches[True] = Path(scratch_dir) / "results-networked"
             scratches[True].mkdir()
         started = time.monotonic()
-        _run_by_network(runtime, plan, tar, scratches, on_event, budget_s)
+        _run_by_network(runtime, plan, tar, scratches, on_event, budget_s, jobs)
         spent = time.monotonic() - started
         # A cancel (F1.11, R3.5): CANCELLED once the runtime confirms the engine
         # is gone, and nothing written.
@@ -828,6 +835,13 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             if entry is None:
                 outcomes[index] = ScannerOutcome(ScannerRun(
                     adapters[index].name, ok=False, reason="the engine did not run it"))
+                continue
+            if entry.get("not_started"):
+                # The budget was spent before `--jobs` reached it.
+                cut.append(adapters[index].name)
+                outcomes[index] = ScannerOutcome(ScannerRun(
+                    adapters[index].name, ok=False,
+                    reason=f"not started: the {budget_s:g}s budget was spent before it began"))
                 continue
             where = scratches[invocation.network]
             report = (where / invocation.report if invocation.report
@@ -853,7 +867,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
     return outcomes, cut
 
 
-def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s) -> None:
+def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s, jobs=None) -> None:
     """Each network boundary's part of the plan in its own Scan Container, at once
     when there are two: one budget, one cancel, both stopped by either."""
     import threading
@@ -862,13 +876,15 @@ def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s) -> None:
     parts = [(network, part) for network, part in parts if part]
     if len(parts) == 1:
         network, part = parts[0]
-        runtime.run(part, tar, scratches[network], on_event=on_event, budget_s=budget_s)
+        runtime.run(part, tar, scratches[network], on_event=on_event, budget_s=budget_s,
+                    jobs=jobs)
         return
     failed: list[BaseException] = []
 
     def run(network: bool, part: list) -> None:
         try:
-            runtime.run(part, tar, scratches[network], on_event=on_event, budget_s=budget_s)
+            runtime.run(part, tar, scratches[network], on_event=on_event, budget_s=budget_s,
+                        jobs=jobs)
         except BaseException as exc:          # raised again below, on the scan's thread
             failed.append(exc)
 

@@ -145,21 +145,29 @@ def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
     plan = json.loads((results / "plan.json").read_text(encoding="utf-8"))
     entries = []
     running: list[_Running] = []
+    pending = list(plan["tools"])
+    #: How many tools run at once (`--jobs`); all of them unless the plan says.
+    width = int(plan.get("jobs") or 0) or max(1, len(pending))
     with tempfile.TemporaryDirectory(prefix="valvur-engine-") as scratch_dir:
         try:
-            for tool in plan["tools"]:
-                running.append(_Running(tool, workspace, results, Path(scratch_dir)))
             budget = plan.get("budget_s")
             budget_deadline = time.monotonic() + float(budget) if budget else None
-            while running:
+            while running or pending:
+                while pending and len(running) < width:
+                    running.append(_Running(pending.pop(0), workspace, results,
+                                            Path(scratch_dir)))
                 now = time.monotonic()
                 if budget_deadline is not None and now >= budget_deadline:
-                    # One deadline (R3.5): what is still running is stopped and named.
+                    # One deadline (R3.5): what is still running is stopped and named,
+                    # and what never started is named as never started.
                     for tool in running:
                         tool.stop()
                         tool.cut = True
                         entries.append(tool.entry())
-                    running = []
+                    entries += [{"tool": t["tool"], "exit_code": TIMED_OUT, "seconds": 0.0,
+                                 "timed_out": False, "cut": True, "not_started": True,
+                                 "stderr_tail": ""} for t in pending]
+                    running, pending = [], []
                     break
                 for tool in [t for t in running if t.poll(now)]:
                     entries.append(tool.entry())
