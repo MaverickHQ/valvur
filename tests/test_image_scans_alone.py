@@ -305,3 +305,19 @@ def test_the_image_scans_a_read_only_checkout_into_a_mounted_directory(mountable
     assert run["network"]["boundary"] == "this job's container, with no network"
     assert run["network"]["what_left_the_machine"] == "nothing"
     assert sorted(p.name for p in checkout.iterdir()) == ["config.py", "requirements.txt"]
+
+
+def test_doctor_in_the_image_needs_no_runtime(tmp_path, monkeypatch):
+    """A pipeline step that runs `valvur doctor` in the image was told to install
+    Docker: there is none to find, and none is needed."""
+    from valvur import doctor
+
+    monkeypatch.setenv("VALVUR_IN_IMAGE", "1")
+    monkeypatch.setenv("VALVUR_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setattr("shutil.which", lambda name: None)
+
+    by = {c.name: c for c in doctor.run(tmp_path)}
+
+    assert by["runtime"].level == "ok", by["runtime"].detail
+    assert "the image" in by["runtime"].detail
+    assert by["image"].level == "ok", by["image"].detail
