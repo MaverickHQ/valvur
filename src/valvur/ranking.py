@@ -56,7 +56,7 @@ def _exploit_tier(finding: Finding) -> int | None:
     return None
 
 
-def sort_key(finding: Finding) -> tuple:
+def sort_key(finding: Finding, flooded: frozenset[str] = frozenset()) -> tuple:
     exploit = finding.exploit
     epss = exploit.epss if exploit and exploit.epss is not None else 0.0
 
@@ -87,7 +87,7 @@ def sort_key(finding: Finding) -> tuple:
     suppressed_penalty = 1 if finding.suppressed else 0
     # A flood of machine-written data ranks below every distinct Finding (R5.1):
     # 3,890 hits in generated JSON buried eight real ones on the gate.
-    flood_penalty = 1 if _grouping.flooded(finding) else 0
+    flood_penalty = 1 if finding.group in flooded else 0
 
     return (
         suppressed_penalty,
@@ -103,5 +103,6 @@ def sort_key(finding: Finding) -> tuple:
 
 def apply(findings: list[Finding]) -> list[Finding]:
     """Sort worst-first and stamp each Finding with its position."""
-    ordered = sorted(findings, key=sort_key)
+    flooded = frozenset(g.id for g in _grouping.describe(findings) if g.machine_written)
+    ordered = sorted(findings, key=lambda f: sort_key(f, flooded))
     return [replace(f, rank=i + 1) for i, f in enumerate(ordered)]

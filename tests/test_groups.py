@@ -5,7 +5,8 @@ machine-written JSON, and eight distinct findings under them. A group makes the
 flood one thing to look at: it drops no Finding and changes no identity, and a
 flood of data files ranks below every distinct Finding. Measured on the corpus
 before writing this: the most any rule repeats under one directory is 17
-(`unpinned-uses` in terraform-aws-vpc's `.github/`), so a group starts at 25.
+(`unpinned-uses` in terraform-aws-vpc's `.github/`), so a flood starts at 25. A
+group, one entry with a count, starts at two (R5.2).
 """
 
 from __future__ import annotations
@@ -86,3 +87,40 @@ def test_findings_json_keeps_every_finding_with_its_group_id_and_lists_the_group
     assert group["directory"] == "data/" and group["files"] == FLOOD
     assert "possibly machine-written data" in group["label"]
     assert sum(f["group"] is None for f in data["findings"]) == 8
+
+
+# ------------------------------- R5.2: a group is two hits; a flood is twenty-five
+
+def test_eight_pin_lines_in_one_directory_are_one_group_and_keep_their_rank(tmp_path):
+    """The lab's `SUMMARY.md` listed one rule eight times (the review, C9). Grouped,
+    they are one entry with a count; they are code, so nothing sinks."""
+    pins = [Finding(rule="unpinned-uses", path=f".github/workflows/w{i}.yml", line=9,
+                    title="unpinned action reference", fingerprint=f"fp-pin-{i}",
+                    severity="low", sources=("zizmor",)) for i in range(8)]
+    info = Finding(rule="valvur.python.dangerous-exec", path="src/tools.py", line=2,
+                   title="exec", fingerprint="fp-exec", severity="info",
+                   sources=("opengrep",))
+
+    out = pipeline.run([*pins, info], _ctx(tmp_path))
+
+    [group] = grouping.describe(out.findings)
+    assert (group.rule, group.directory, group.count) == ("unpinned-uses", ".github/", 8)
+    assert not group.machine_written
+    assert group.rank == 1, "a group of code sank below an info finding"
+
+
+def test_two_real_keys_in_json_configs_are_a_group_but_not_a_flood(tmp_path):
+    """Two keys in `config/*.json` are two keys. Only a flood is machine-written."""
+    keys = [Finding(rule="generic-api-key", path=f"config/{env}.json", line=1,
+                    title="key", fingerprint=f"fp-{env}", severity="high",
+                    sources=("gitleaks",)) for env in ("dev", "prod")]
+    info = Finding(rule="valvur.python.dangerous-exec", path="src/tools.py", line=2,
+                   title="exec", fingerprint="fp-exec", severity="info",
+                   sources=("opengrep",))
+
+    out = pipeline.run([*keys, info], _ctx(tmp_path))
+
+    [group] = grouping.describe(out.findings)
+    assert group.count == 2 and not group.machine_written
+    assert "machine-written" not in group.label
+    assert group.rank == 1

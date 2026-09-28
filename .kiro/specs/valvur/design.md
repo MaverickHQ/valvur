@@ -190,11 +190,12 @@ with itself — and asks egress as well.
 }
 ```
 
-A **group** is one rule firing 25 or more times under one top-level directory, data files
-apart from code (R5.1). `findings.json` lists each beside the Findings, derived from their
-`group` ids: `{id, rule, directory, count, files, machine_written, rank, label}`. A group
-of data files is labelled possibly machine-written and ranks below every distinct
-Finding; grouping drops nothing and changes no Fingerprint.
+A **group** is one rule firing two or more times under one top-level directory, data
+files apart from code (R5.1, R5.2): one entry with a count and its locations.
+`findings.json` lists each beside the Findings, derived from their `group` ids: `{id,
+rule, directory, count, files, machine_written, rank, label}`. A **flood**, a group of 25
+or more data files, is labelled possibly machine-written and ranks below every distinct
+Finding. Grouping drops nothing and changes no Fingerprint.
 
 ### 3.1 Fingerprint derivation (ADR-0003, F5.3)
 

@@ -6,9 +6,11 @@ and eight distinct findings under them. A group drops no Finding and changes no
 identity: `findings.json` keeps each one with its group id, and a group's facts
 are derived from its members, never stored beside them.
 
-Data files group apart from code under the same directory, so a real key in
-`src/settings.py` never hides in a flood under `src/fixtures/`; only a group of
-data files is labelled machine-written and ranked below every distinct Finding.
+A group is one entry with a count and its locations, which is what the lab's eight
+pin lines needed (R5.2). Data files group apart from code under the same directory,
+so a real key in `src/settings.py` never hides in a flood under `src/fixtures/`;
+only a flood, a large group of data files, is labelled machine-written and ranked
+below every distinct Finding.
 """
 
 from __future__ import annotations
@@ -19,10 +21,12 @@ from dataclasses import dataclass, replace
 from .coverage import NOTE_RULES
 from .findings import Finding
 
-#: Hits of one rule under one top-level directory that make a group. The corpus's
-#: most repeated rule reaches 17 in one directory (measured 2026-09-28), so a real
-#: repository's findings stay ungrouped and a flood is always one.
-GROUP_MIN = 25
+#: Hits of one rule under one top-level directory that make a group (R5.2).
+GROUP_MIN = 2
+#: Hits in data files that make a group a flood of machine-written data. The
+#: corpus's most repeated rule reaches 17 in one directory (measured 2026-09-28), so
+#: no real repository's findings sink, and two keys in `config/*.json` never do.
+FLOOD_MIN = 25
 
 #: What machine-written data is usually stored as. A minified bundle is written by
 #: a machine too, and floods the same way.
@@ -80,11 +84,6 @@ def assign(findings: list[Finding]) -> list[Finding]:
             for f in findings]
 
 
-def flooded(finding: Finding) -> bool:
-    """In a group of data files: ranked below every distinct Finding."""
-    return finding.group is not None and _data(finding.path)
-
-
 def describe(findings: list[Finding]) -> list[Group]:
     """The groups among these Findings, best-ranked first."""
     members: dict[str, list[Finding]] = {}
@@ -95,6 +94,7 @@ def describe(findings: list[Finding]) -> list[Group]:
     for group_id, found in members.items():
         rule, directory, data = _key(found[0])
         groups.append(Group(id=group_id, rule=rule, directory=directory, count=len(found),
-                            files=len({f.path for f in found}), machine_written=data,
+                            files=len({f.path for f in found}),
+                            machine_written=data and len(found) >= FLOOD_MIN,
                             rank=min(f.rank or 10**9 for f in found)))
     return sorted(groups, key=lambda g: (g.rank, g.id))
