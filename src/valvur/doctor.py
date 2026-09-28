@@ -189,6 +189,9 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_kev())
     checks.append(_check_cache())
     checks.append(_check_settings())
+    session = _check_session(workspace)
+    if session is not None:
+        checks.append(session)
     checks.append(_check_selinux(workspace))
     checks.append(_check_workspace(workspace))
     checks.append(_check_project_file(workspace))
@@ -444,6 +447,58 @@ def _check_project_file(workspace: Path) -> Check:
         return Check("project file", "warn", f"{path.name}: {said}",
                      f"fix it; the schema is {project_schema.PATH}")
     return Check("project file", "ok", f"{path.name} is valid")
+
+
+#: Launchers that resolve the server at start: nothing to compare a path against.
+_LAUNCHERS = frozenset({"uvx", "uv", "pipx", "npx", "python", "python3"})
+
+
+def _as_server() -> bool:
+    """Whether this `doctor` answers inside the MCP server, over a call."""
+    from .mcp import protocol
+
+    return protocol.current_call() is not None
+
+
+def _check_session(workspace: Path) -> Check | None:
+    """Whether the server answering is the one the configuration names (30.1.2, C5).
+
+    A client keeps the server it spawned when the session began; a changed `.mcp.json`
+    takes effect only when the client starts it again, so the session's tools can be
+    another version than the file says. `doctor` knows its own version and
+    executable: where the configured command resolves to a path, it compares."""
+    import shutil
+    import sys
+
+    from .version import __version__
+
+    if not _as_server():
+        return None
+    running = Path(sys.argv[0])
+    for label, command, args in _configured_servers(workspace):
+        if command in _LAUNCHERS:
+            continue                 # resolved at start by the launcher: cannot compare
+        found = shutil.which(command) if "/" not in command else command
+        if found is None or Path(found).expanduser().resolve() == running.resolve():
+            continue
+        line = " ".join([command, *args])
+        return Check("session", "warn",
+                     f"this server is {__version__} at {running}; {label} names {line}; "
+                     "restart the client to use it",
+                     "restart the MCP server from the client, or the client itself")
+    return Check("session", "ok", f"this server is {__version__} at {running}")
+
+
+def _configured_servers(workspace: Path) -> list[tuple[str, str, list[str]]]:
+    """The command each project-level client file names for valvur."""
+    found = []
+    for label in (".mcp.json", ".kiro/settings/mcp.json"):
+        data = _read_json(workspace / label) or {}
+        entry = (data.get("mcpServers") or {}).get("valvur")
+        if isinstance(entry, dict) and entry.get("command"):
+            found.append((label, str(entry["command"]),
+                          [str(a) for a in entry.get("args") or []]))
+    return found
 
 
 def _check_settings() -> Check:

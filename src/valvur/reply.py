@@ -190,8 +190,18 @@ def _done(workspace: Path, data: dict) -> dict:
         "build": dict(data.get("build") or {}),
         "database": dict(data.get("database") or {}),
         "name_index": dict(data.get("name_index") or {}),
+        # 30.1.3 (C6): an agent refused a `git status` told the user to add the folder
+        # to `.gitignore`; it holds its own. Checked, not assumed.
+        "results": {"path": str(results), "ignores_itself": _ignores_itself(results)},
         "report": _bounded(report.read_text(encoding="utf-8")) if report.is_file() else None,
     }
+
+
+def _ignores_itself(results: Path) -> bool:
+    try:
+        return "*" in (results / ".gitignore").read_text(encoding="utf-8").split()
+    except OSError:
+        return False
 
 
 def _bounded(summary: str) -> str:
@@ -290,6 +300,9 @@ def _done_text(f: dict) -> list[str]:
                   "`pip install -U valvur`."]
     lines += ["", "left this machine: "
               f"{f['network'].get('what_left_the_machine', 'unknown')}"]
+    if f["results"]["ignores_itself"]:
+        lines.append(f"results: {f['results']['path']}; the folder ignores itself; "
+                     "there is nothing to add to .gitignore")
     if not f["complete"]:
         lines += ["", "This scan was INCOMPLETE. Do not report it as clean."]
     lines += f["caveats"]

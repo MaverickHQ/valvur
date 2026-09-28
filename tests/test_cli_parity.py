@@ -85,6 +85,11 @@ def test_each_reader_and_its_command_give_the_same_answer(scanned, capsys, tool)
     text = _mcp(tool, arguments)["content"][0]["text"]
     cli.main([command[0], str(scanned), *command[1:]])
     printed = capsys.readouterr().out
+    if tool == "doctor":
+        # The one line only a server can say (R6.9): whether it is the server the
+        # client's configuration names. A terminal has no session to check.
+        text = "\n".join(line for line in text.splitlines()
+                         if not line.lstrip().split(" ", 1)[-1].lstrip().startswith("session:"))
 
     assert printed.strip() == text.strip(), tool
 

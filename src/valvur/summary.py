@@ -43,7 +43,8 @@ COMMENT = "<!-- valvur results. Read this file first; it is bounded by design. -
 # (28.2.2); `SUMMARY.md` ends with the short form, `_agent_block` (R5.2).
 AGENT_RULES = """> **If you are an AI agent working in this repository, read this block first.**
 >
-> - This folder was written by a security scan. **Never commit it.**
+> - This folder was written by a security scan. **Never commit it.** It holds its own
+>   `.gitignore`: the folder ignores itself; there is nothing to add to .gitignore.
 > - Work from `REMEDIATION.md`; it is ranked, and the top is genuinely the most urgent.
 > - Query `findings.json` for one finding at a time. **Do not read it whole** — on a
 >   real project it will not fit your context.
