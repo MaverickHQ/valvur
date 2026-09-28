@@ -276,6 +276,8 @@ def _scope(run: ScanRun, active) -> list[str]:
     if run.scope:
         # ADR-0021: the scope stated, so a reader can check what was read.
         where = "the git view" if run.scope.get("scope") == "git" else "a walk of the folder"
+        if run.scope.get("note"):
+            where += f" ({run.scope['note']})"
         lines.append(f"Read: {where}, {run.scope.get('files', 0):,} files "
                      f"({run.scope.get('bytes', 0) / 2**20:.1f} MB).")
     ran = [s.tool for s in run.scanners if s.ok and not s.skipped]
@@ -284,6 +286,8 @@ def _scope(run: ScanRun, active) -> list[str]:
     history = run.history or {}
     if history.get("off"):
         lines.append(f"> **Git history was not read for secrets:** `{history['off']}`.")
+    elif history.get("unavailable"):
+        lines.append(f"> **Git history was not read for secrets:** {history['unavailable']}.")
     elif history.get("bounded"):
         lines.append(f"> **Git history was read for secrets up to {history['bounded']}:** the "
                      f"newest {history.get('commits', 0):,} commits; older commits were not read.")

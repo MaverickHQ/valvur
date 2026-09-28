@@ -58,14 +58,20 @@ def _path(header: bytes) -> str | None:
 
 def write(root: Path, dest: Path, *, max_commits: int = MAX_COMMITS,
           max_bytes: int = MAX_BYTES) -> History | None:
-    """Write `root`'s history to `dest`; None when `root` is not a repository."""
-    inside = subprocess.run(["git", "-C", str(root), "rev-parse",  # noqa: S603
+    """Write `root`'s history to `dest`; None when `root` is not a repository, or
+    when there is no `git` to read it with."""
+    from .fileset import git
+
+    command = git()
+    if command is None:
+        return None
+    inside = subprocess.run([command, "-C", str(root), "rev-parse",  # noqa: S603
                              "--is-inside-work-tree"],
                             capture_output=True, text=True, check=False)
     if inside.returncode != 0 or inside.stdout.strip() != "true":
         return None
     process = subprocess.Popen(  # noqa: S603 — a fixed argv; `root` is an argument
-        ["git", "-C", str(root), "-c", "core.quotePath=false", "log", "--all", "-p", "-U0",
+        [command, "-C", str(root), "-c", "core.quotePath=false", "log", "--all", "-p", "-U0",
          "--no-color", "--no-ext-diff", "--no-textconv", "--format=%x00%H",
          "-n", str(max_commits + 1)],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)

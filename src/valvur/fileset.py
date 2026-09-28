@@ -13,6 +13,19 @@ from pathlib import Path
 
 from .exclusions import RESULTS_DIR  # a leaf: importing results would close a cycle
 
+
+def git() -> str | None:
+    """The `git` to ask, or None where there is none: the image carries no `git`
+    (ADR-0005), and a checkout scanned inside it is walked instead (R8.1)."""
+    import shutil
+
+    return shutil.which("git")
+
+
+#: Why a repository was walked rather than read as git sees it.
+NO_GIT = ("git is not on PATH here (the image carries none, ADR-0005), so the folder "
+          "was walked and files git ignores were read too")
+
 _NEVER = frozenset({RESULTS_DIR, ".git", ".hg", ".svn"})
 
 
@@ -43,10 +56,11 @@ def _leaves(workspace: Path, rel: str) -> bool:
 def git_view(workspace: Path) -> tuple[list[str], list[tuple[str, str]]] | None:
     """Tracked and untracked-not-ignored files, with what was left out and why;
     None when git cannot say."""
-    if not (workspace / ".git").exists():
+    command = git()
+    if not (workspace / ".git").exists() or command is None:
         return None
     proc = subprocess.run(  # noqa: S603 — git, fixed arguments
-        ["git", "-C", str(workspace), "ls-files", "-z", "--cached", "--others",
+        [command, "-C", str(workspace), "ls-files", "-z", "--cached", "--others",
          "--exclude-standard"], capture_output=True, check=False)
     if proc.returncode != 0:
         return None
@@ -115,6 +129,8 @@ class FileSet:
     #: The files in it that git ignores: `.env*` and agent configuration, read
     #: anyway (ADR-0021). What only the host can know, the image having no git.
     ignored: list[str] = field(default_factory=list)
+    #: Why a repository was walked, when it was: no `git` to ask (R8.1).
+    note: str | None = None
 
     def manifest(self, workspace: Path) -> dict:
         """What the report states about the scope (ADR-0021): the scope, how many
@@ -125,8 +141,11 @@ class FileSet:
         for name in self.files:
             path = workspace / name
             size += path.lstat().st_size if path.is_symlink() else path.stat().st_size
-        return {"scope": self.scope, "files": len(self.files), "bytes": size,
-                "sha256": hashlib.sha256("\n".join(self.files).encode()).hexdigest()}
+        manifest = {"scope": self.scope, "files": len(self.files), "bytes": size,
+                    "sha256": hashlib.sha256("\n".join(self.files).encode()).hexdigest()}
+        if self.note:
+            manifest["note"] = self.note
+        return manifest
 
 
 def _largest(files: list[str], count: int = 3) -> list[tuple[str, int]]:
@@ -239,6 +258,8 @@ def build(workspace: Path) -> FileSet:
     walked_skips: list[tuple[str, str]] = []
     walked = walk(workspace, walked_skips)
     result = _excluded(FileSet(walked, "tree", sorted(walked_skips)), prefixes)
+    if (workspace / ".git").exists() and git() is None:
+        result.note = NO_GIT
     if len(result.files) > CEILING:
         from .refusal import Refusal
 

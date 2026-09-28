@@ -891,7 +891,15 @@ def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progre
 
     say = on_progress if on_progress is not None else (lambda _: None)
     index = next((i for i in planned if adapters[i].name == "gitleaks"), None)
-    if index is None or chosen.scope != "git":
+    if index is None:
+        return None, None
+    if chosen.note:
+        # A repository walked for want of `git` (R8.1): its history cannot be read,
+        # and a record that said nothing would read as a repository with none.
+        say("history: not read (git is not on PATH here)")
+        return None, {"unavailable": "git is not on PATH here (the image carries none, "
+                                     "ADR-0005)"}
+    if chosen.scope != "git":
         return None, None
     if not _exclusions.load_scan_settings(workspace).history:
         say("history: not read ([scan] history = false)")
