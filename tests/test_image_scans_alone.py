@@ -290,7 +290,7 @@ def test_the_image_scans_a_read_only_checkout_into_a_mounted_directory(mountable
         [detect_runtime(), "run", "--rm", "--network=none", *user,
          "-e", "VALVUR_CACHE=/cache", "-v", f"{cache.root()}:/cache/valvur",
          "-v", f"{checkout}:/src:ro", "-v", f"{out}:/out",
-         IMAGE, "valvur", "scan", "/src", "--out", "/out"],
+         IMAGE, "valvur", "scan", "/src", "--out", "/out", "--sbom"],
         capture_output=True, text=True, timeout=900, check=False)
 
     assert done.returncode == 0, done.stdout + done.stderr
