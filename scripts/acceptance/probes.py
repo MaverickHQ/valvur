@@ -34,11 +34,15 @@ class ProbeResult:
     #: The stopped scan's containers still listed once the next scan has started:
     #: what a reaper (R3.6) must have removed.
     left_at_next_start: int = 0
+    #: Whether a Scan Container was ever running: a probe that never saw one
+    #: stopped nothing and measured an empty runtime (R3's first Mac run).
+    scan_seen: bool = True
 
     @property
     def ok(self) -> bool:
         stopped_clean = self.kind == "kill" or self.containers_left == 0
-        return stopped_clean and self.left_at_next_start == 0 and self.next_scan_started
+        return (self.scan_seen and stopped_clean and self.left_at_next_start == 0
+                and self.next_scan_started)
 
 
 def _live() -> set[str]:
@@ -88,17 +92,17 @@ def _scan_containers() -> set[str]:
             if generation and generation != "none"}
 
 
-def _wait_for_fleet(before: set[str], seconds: float = 180) -> set[str]:
-    """Every container seen until a Scan Container is running. Since R3.9 a scan
-    is one container, so the old wait for two outlasted it."""
+def _wait_for_fleet(before: set[str], seconds: float = 180) -> tuple[set[str], bool]:
+    """Every container seen until a Scan Container is running, and whether one
+    was. Since R3.9 a scan is one container, so the old wait for two outlasted it."""
     deadline = time.monotonic() + seconds
     seen: set[str] = set()
     while time.monotonic() < deadline:
         seen |= _live() - before
         if _scan_containers() - before:
-            return seen | (_scan_containers() - before)
+            return seen | (_scan_containers() - before), True
         time.sleep(0.2)
-    return seen
+    return seen, False
 
 
 def _wait_state(server: _Server, workspace: Path, words: tuple[str, ...],
@@ -147,7 +151,7 @@ def probe(kind: str, workspace: Path) -> ProbeResult:
         if kind == "budget":
             arguments["budget_s"] = 3
         server.call("scan", arguments)
-        fleet = _wait_for_fleet(before)
+        fleet, scan_seen = _wait_for_fleet(before)
         if kind == "cancel":
             server.call("scan_cancel", {"workspace": str(workspace)})
             _wait_state(server, workspace, ("CANCELLED",))
@@ -174,7 +178,7 @@ def probe(kind: str, workspace: Path) -> ProbeResult:
     # What `kill -9` orphaned must not spoil the next probe: wait it out.
     _left_after(before, 300)
     return ProbeResult(kind, left, next_started, round(time.monotonic() - started, 1),
-                       UNTIL.get(kind), orphans)
+                       UNTIL.get(kind), orphans, scan_seen)
 
 
 KINDS = ("cancel", "budget", "stdin", "kill")
@@ -197,4 +201,11 @@ def workspace(dest: Path, data_files: int = 30_000) -> Path:
         path = root / "data" / f"{i // 1000:02}" / f"{i:05}.txt"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"{i:032x}\n")
+    # A repository, with the data tracked: past 20,000 files a folder walk refuses
+    # before any container starts, and a git view proceeds (ADR-0021). R3's first
+    # Mac run measured four probes of an empty runtime before this.
+    git = ["git", "-C", str(root), "-c", "user.email=probe@example.com",
+           "-c", "user.name=probe", "-c", "commit.gpgsign=false"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "probe workspace"]):
+        subprocess.run([*git, *args], check=True, capture_output=True)  # noqa: S603
     return root

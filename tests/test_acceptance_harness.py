@@ -183,3 +183,34 @@ def test_the_uploaded_artifact_is_the_report_and_not_the_probe_workspace():
     assert "acceptance-report/report.json" in step
     assert "acceptance-report/report.md" in step
     assert "path: acceptance-report/\n" not in step
+
+
+def _load_probes():
+    path = REPO / "scripts" / "acceptance" / "probes.py"
+    spec = importlib.util.spec_from_file_location("acceptance_probes", path)
+    probes = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["acceptance_probes"] = probes
+    spec.loader.exec_module(probes)  # type: ignore[union-attr]
+    return probes
+
+
+def test_a_probe_that_never_saw_a_scan_container_measured_nothing_and_fails():
+    """R3's first Mac run: every probe passed in 180 to 300 s, because the probe
+    workspace was refused before a container started and the probes measured an
+    empty runtime."""
+    probes = _load_probes()
+    unseen = probes.ProbeResult("cancel", 0, True, 180.0, None, 0, scan_seen=False)
+    seen = probes.ProbeResult("cancel", 0, True, 4.0, None, 0, scan_seen=True)
+    assert not unseen.ok and seen.ok
+
+
+def test_the_probe_workspace_is_a_repository_so_its_data_is_scanned_not_refused(tmp_path):
+    """Past 20,000 files a folder walk refuses before any container starts; a git
+    view proceeds with a warning (ADR-0021). The probes need the scan to run."""
+    from valvur import fileset
+
+    probes = _load_probes()
+    root = probes.workspace(tmp_path, data_files=20_001)
+    chosen = fileset.build(root)
+    assert chosen.scope == "git" and len(chosen.files) > 20_000
+    assert chosen.warning
