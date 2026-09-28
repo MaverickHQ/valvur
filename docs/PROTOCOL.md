@@ -87,6 +87,7 @@ together.
 | `syft` | `anchore/syft` | 1.51.1 |
 | `opengrep` | `opengrep/opengrep` | 1.29.0 |
 | `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.19 |
+| `zizmor` | `/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash (R4.2) | 1.30.1 |
 | `python` | the base image's Python 3.12 | with the Checks |
 
 ## The Checks' entry point

@@ -130,7 +130,7 @@ def test_only_opengrep_is_granted_an_executable_scratch(tmp_path, monkeypatch):
     }
 
     assert granted == {"gitleaks": False, "trivy": False, "osv-scanner": False,
-                       "opengrep": True, "checkov": False, "syft": False}
+                       "opengrep": True, "checkov": False, "zizmor": False, "syft": False}
 
 
 def test_only_osv_scanner_asks_for_a_network_among_the_scanners(tmp_path, monkeypatch):

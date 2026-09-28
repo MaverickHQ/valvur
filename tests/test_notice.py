@@ -56,6 +56,7 @@ def test_every_tool_names_its_licence_and_its_upstream():
         "OSV-Scanner": ("Apache License 2.0", "github.com/google/osv-scanner"),
         "Syft": ("Apache License 2.0", "github.com/anchore/syft"),
         "Checkov": ("Apache License 2.0", "github.com/bridgecrewio/checkov"),
+        "zizmor": ("MIT License", "github.com/zizmorcore/zizmor"),
     }
     for tool, (licence, upstream) in expected.items():
         block = notice.split(f"\n{tool}\n", 1)

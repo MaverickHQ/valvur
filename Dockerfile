@@ -119,6 +119,16 @@ RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
  && apk del .build \
  && PYTHONHASHSEED=0 /opt/checkov/bin/python -m compileall -q -f --invalidation-mode unchecked-hash /opt/checkov/lib
 
+# zizmor (R4.2, ADR-0023) audits GitHub Actions workflows. One package, a static
+# binary in a musl wheel per architecture, pinned by hash in `requirements-zizmor.txt`
+# and installed into its own environment with `--require-hashes`, the Checkov way.
+COPY requirements-zizmor.txt /opt/zizmor-requirements.txt
+RUN python3 -m venv --without-pip /opt/zizmor \
+ && pip --python /opt/zizmor/bin/python install --no-cache-dir --no-deps --no-compile \
+        --only-binary=:all: --require-hashes -r /opt/zizmor-requirements.txt \
+ && test -x /opt/zizmor/bin/zizmor \
+ && ln -s /opt/zizmor/bin/zizmor /usr/local/bin/zizmor
+
 # Checkov ships an update checker that asks PyPI for the latest version at every
 # start and caches the answer under `$HOME`. A scanner that phones home would break
 # the central claim in ADR-0010, so it is switched off — by the variable this

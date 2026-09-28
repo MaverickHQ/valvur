@@ -1,0 +1,15 @@
+# Planted for R4.2: an unpinned action, write-all permissions and a template
+# injection, each of which zizmor must report once.
+name: planted
+on:
+  issues:
+    types: [opened]
+permissions: write-all
+jobs:
+  triage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: echo "${{ github.event.issue.title }}"

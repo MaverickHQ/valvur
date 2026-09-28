@@ -436,6 +436,7 @@ checks under claim 2.
 | [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Dependencies against OSV.dev (`full` only: it sends lockfile names and versions out). Measured on twelve real repositories: **121 Go standard-library advisories on the one Go project**, keyed on `go.mod`'s `go` directive, which Trivy reports only from binaries; **1** disputed advisory on a Python project; **0** on the other ten; and on a thirteenth, **110 against the lower bounds of an unpinned `requirements.txt`** — versions nobody installs, dropped with the count since 25.3 (the file is a coverage note instead). About a second a scan. |
 | [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis |
 | [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration |
+| [zizmor](https://github.com/zizmorcore/zizmor) | MIT | GitHub Actions workflows: unpinned actions, write permissions, template injection and more, offline. Measured on the corpus: every unpinned action and every write permission the tools before it found |
 | [Syft](https://github.com/anchore/syft) | Apache-2.0 | SBOM, and the dependency licences read from it |
 
 Exploit intelligence comes from CISA KEV and FIRST EPSS — public primary sources,

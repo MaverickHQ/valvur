@@ -75,6 +75,7 @@ SDIST_TOP_LEVEL = {
     "PKG-INFO", "pyproject.toml", "hatch_build.py", "uv.lock", "src", "rules",
     "Dockerfile", "docker-bake.hcl", ".dockerignore",
     "requirements-checkov.in", "requirements-checkov.overrides", "requirements-checkov.txt",
+    "requirements-zizmor.txt",
     # The documents a package should carry with it.
     "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md", "MAINTAINERS.md",

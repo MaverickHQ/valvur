@@ -35,14 +35,14 @@ SCANNERS: dict[str, tuple[str, ...]] = {
     # Everything here runs under --network=none. Verified, not assumed: checkov with
     # --skip-download and syft cataloguing local files both complete with no socket.
     OFFLINE: (
-        "gitleaks", "opengrep", "trivy", "checkov", "syft",
+        "gitleaks", "opengrep", "trivy", "checkov", "zizmor", "syft",
         "licence-file", "ai-artifact",
         # Existence is answered from the package-name index in the host cache
         # (ADR-0018), so the hallucination check runs with no socket at all.
         "dependency-reality",
     ),
     FULL: (
-        "gitleaks", "opengrep", "trivy", "checkov", "syft",
+        "gitleaks", "opengrep", "trivy", "checkov", "zizmor", "syft",
         "licence-file", "ai-artifact", "dependency-reality",
         # The only Scanner that genuinely needs a socket: osv-scanner queries
         # api.osv.dev with the names and versions in your lockfiles, never source.

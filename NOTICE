@@ -46,6 +46,12 @@ Checkov
     hash-locked dependencies (`requirements-checkov.txt`), each under its own
     licence as the SBOM records.
 
+zizmor
+    https://github.com/zizmorcore/zizmor
+    MIT License
+    Copyright (c) 2024 William Woodruff; installed as the release's musl wheel,
+    pinned by hash (`requirements-zizmor.txt`).
+
 Base image and runtime
 ----------------------
 

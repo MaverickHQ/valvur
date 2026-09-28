@@ -650,10 +650,18 @@ The first commit records R3's rehearsal.
   repository 8 with `--network=none`, npm's database 207 MB. The spike also found
   zizmor's default persona misses a one-job workflow's `write-all`, which decided the
   persona.
-- [ ] **R4.2** **zizmor** (F3.11), pinned by hash in the image, credited in `NOTICE`, run
+- [x] **R4.2** **zizmor** (F3.11), pinned by hash in the image, credited in `NOTICE`, run
   with `--offline`. Behaviours: planted workflows with an unpinned action, write-all
   permissions and template injection each produce one ranked Finding. Repository 7's
   workflow is reported.
+  **STATUS 2026-09-28:** ✅ zizmor 1.30.1 (MIT) in its own environment in the image, the
+  musl wheels for both architectures pinned by hash in `requirements-zizmor.txt`, which
+  the tree hash covers; credited in `NOTICE`; a row in `PROTOCOL.md` and the README. It
+  runs with `--offline --persona pedantic --min-severity medium --no-exit-codes`, only
+  where the File Set holds a workflow or an action definition, on both Profiles. A real
+  scan of the planted workflow reports each of the three classes once, ranked, and
+  repository 7's `write-all` is `excessive-permissions`, high, at line 3. Rules keep
+  zizmor's audit names; the fingerprint is SAST-shaped, keyed on the offending text.
 - [ ] **R4.3** **Checkov only where there is infrastructure** (F2.1, F2.2), or KICS in its
   place if D8 says so. Behaviours:
   1. Repository 5's expected findings hold.

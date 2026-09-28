@@ -283,7 +283,12 @@ class LegacyDispatch:
     _BY_TOOL: ClassVar[dict[str, str]] = {
         "gitleaks": "run_gitleaks", "trivy": "run_trivy", "osv-scanner": "run_osv",
         "checkov": "run_checkov", "syft": "run_syft", "opengrep": "run_opengrep",
+        "zizmor": "run_zizmor",
     }
+
+    def run_zizmor(self, workspace):
+        """zizmor finds nothing unless a fake says otherwise (R4.2)."""
+        return ScannerOutput("zizmor", "1.30.1", "[]", "", 0)
 
     def run(self, plan, tar, scratch, on_event=None, budget_s=None, jobs=None):
         import io
@@ -464,7 +469,7 @@ class CrashingAdapter(ScannerAdapter):
 # parsing behaviour (task 3.4.1).
 PINNED_VERSIONS = {
     "trivy": "0.74.0", "gitleaks": "8.30.1", "osv-scanner": "2.6.0",
-    "checkov": "3.3.19", "syft": "1.51.1", "opengrep": "1.29.0",
+    "checkov": "3.3.19", "syft": "1.51.1", "opengrep": "1.29.0", "zizmor": "1.30.1",
 }
 
 

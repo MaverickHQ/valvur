@@ -110,7 +110,8 @@ def test_the_tree_parts_are_exactly_what_the_dockerfile_copies():
     parts = tree_hash.tree_parts(REPO)
 
     # The Checkov lock joined in 23.4.1: a changed hash is a changed image.
-    assert copied == {"Dockerfile", "rules", "src/valvur", "requirements-checkov.txt", "NOTICE"}
+    assert copied == {"Dockerfile", "rules", "src/valvur", "requirements-checkov.txt",
+                      "requirements-zizmor.txt", "NOTICE"}
     assert {p.relative_to(REPO).as_posix() for p in parts.values()} == copied
 
 
