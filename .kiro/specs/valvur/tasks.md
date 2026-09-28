@@ -323,11 +323,21 @@ The first commit records R7's rehearsal.
   now fetches them for PATH's lockfiles. `docs/examples/gitlab-ci.yml` is the GitLab
   job, the image as its container, a documented shape not run here. A test holds both
   examples to the version's image tag.
-- [ ] **R8.3** **A mirror in the customer's own registry.** Behaviours:
+- [x] **R8.3** **A mirror in the customer's own registry.** Behaviours:
   1. A CI test mirrors the image, the database and the index into a local OCI registry,
      standing in for ECR.
   2. A scan with the mirror settings completes with `left this machine: nothing`.
   3. `AIR-GAPPED.md` gains the ECR steps.
+  **STATUS 2026-09-28:** ✅ all three. `tests/test_customer_mirror.py`, in the e2e suite:
+  a pinned `registry:2` on an `--internal` network holds the image, the database and the
+  index; KEV and OSV's PyPI database are files on a server beside it; the image run there
+  with the mirror settings updates and scans, complete and `clean`, `what_left_the_machine:
+  nothing`, nothing fetched during the scan, and nothing left behind. 68 s on this Mac. The
+  image is pushed from `docker save`'s OCI layout and verified by digest, since Docker
+  Desktop's daemon cannot reach a registry on the Mac's loopback; on Linux it is pulled
+  back and scanned from. `AIR-GAPPED.md` gains the ECR steps, a documented shape: valvur
+  fetches the index, KEV and OSV anonymously, so in ECR those are files served inside the
+  account. The measured AWS run stays the owner's (§8).
 - [ ] **R8.4** **The build's summary**, written as this task's STATUS: what shipped, the
   acceptance numbers against R2's baseline, the cost of agent scoring, and what §8 holds.
 

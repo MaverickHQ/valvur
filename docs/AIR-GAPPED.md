@@ -98,6 +98,40 @@ says which value came from where.
 | `fetch` | `VALVUR_FETCH` | `never` stops every fetch a scan would make on its own (ADR-0025); `valvur update` and the `update` tool still fetch from the mirrors when asked. |
 | `container_network` | `VALVUR_CONTAINER_NETWORK`, retired to the file | The container network the **update** container joins, when the mirror registry lives on a named one. Never applied to a scan container: `--network=none` is not negotiable. The variable still works through 1.x, and says so once. |
 
+## In your own AWS account: ECR
+
+The same mirror, in Amazon ECR, for an account whose pipelines reach nothing outside it.
+**A documented shape, not measured here:** the measured run in an AWS account is the
+owner's to record (`tasks.md` §8). What is measured is the same mirror in a local
+`registry:2` on a Docker network with no route out, on every commit
+(`tests/test_customer_mirror.py`, below).
+
+```bash
+REGISTRY=<account>.dkr.ecr.<region>.amazonaws.com
+aws ecr create-repository --repository-name valvur
+aws ecr create-repository --repository-name trivy-db
+aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+aws ecr get-login-password | oras login --username AWS --password-stdin "$REGISTRY"
+
+# The image, and the vulnerability database.
+docker pull ghcr.io/maverickhq/valvur:1.0.0
+docker tag ghcr.io/maverickhq/valvur:1.0.0 "$REGISTRY/valvur:1.0.0"
+docker push "$REGISTRY/valvur:1.0.0"
+oras cp mirror.gcr.io/aquasec/trivy-db:2 "$REGISTRY/trivy-db:2"
+```
+
+valvur fetches the index, KEV and OSV's databases itself, anonymously, and carries no
+AWS credentials. So serve those as files from inside the account, an S3 bucket behind a
+VPC endpoint or any web server, laid out as the file mirror above, and name them with
+`name_index_url`, `kev_url` and `osv_url`. The database is fetched by Trivy, which reads
+registry credentials from a Docker configuration: in the image, whose `HOME` is `/tmp`,
+mount one holding the ECR login at `/tmp/.docker/config.json`. Then, in the job:
+
+```bash
+valvur update /src     # db_repository = "$REGISTRY/trivy-db:2" and the file mirrors set
+valvur scan /src --out /out
+```
+
 ## Prove it
 
 ```bash
@@ -111,6 +145,12 @@ variables or the settings file, OSV's included. The container half — whether t
 could have reached the internet — is a property of the network it joins; put the
 mirror on a network with no route out (Docker's `--internal`) and the gap is
 structural. The recipe that was measured is in [`RELEASING.md`](RELEASING.md).
+
+`tests/test_customer_mirror.py` measures the whole set on every commit: the image, the
+database and the index copied into a `registry:2`, KEV and OSV's database on a file
+server, both on a Docker network created `--internal`, and the image run there with the
+mirror settings. `valvur update /src` and `valvur scan` complete, and `run.json` says
+nothing left the machine and nothing was fetched during the scan.
 
 The database, the index, KEV and OSV's databases all deliberately live **outside** the image
 ([ADR-0012](adr/0012-vulnerability-db-lives-outside-the-image.md),
