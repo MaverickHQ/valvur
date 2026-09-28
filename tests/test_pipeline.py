@@ -154,7 +154,8 @@ def test_every_field_a_stage_records_is_named_in_one_place():
     import dataclasses
 
     fields = {f.name for f in dataclasses.fields(pipeline.Context)}
-    inputs = {"workspace", "profile", "network", "declaring", "artifacts", "ignored"}
+    inputs = {"workspace", "profile", "network", "declaring", "artifacts", "ignored",
+              "results"}
 
     assert fields == inputs | set(pipeline.RECORDED_BY_STAGES), (
         "a Context field is neither a declared input nor declared as recorded by a "

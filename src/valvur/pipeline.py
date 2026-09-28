@@ -52,6 +52,8 @@ class Context:
     #: The File Set's files git ignores (R5.3): the Checks read the Snapshot, and
     #: the image has no git to ask.
     ignored: frozenset[str] = frozenset()
+    #: The Results Folder, when it is not the workspace's (`--out`, R8.1).
+    results: Path | None = None
 
     # ---- recorded by stages, read when the ScanRun is assembled
     configured: tuple[str, ...] = ()
@@ -228,7 +230,7 @@ def rank(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def diff(findings: list[Finding], ctx: Context) -> list[Finding]:
     """new / persisting / fixed / regressed against the previous run (F5.6)."""
-    results_dir = ctx.workspace / _results.RESULTS_DIR
+    results_dir = ctx.results or ctx.workspace / _results.RESULTS_DIR
     ctx.previous, ctx.previously_fixed = _state.load(results_dir)
     ctx.identity_reset = _state.take_reset()
     return [

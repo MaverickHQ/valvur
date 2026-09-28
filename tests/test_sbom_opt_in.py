@@ -53,7 +53,7 @@ def test_scan_sbom_reaches_the_scan(tmp_path, monkeypatch):
     seen = {}
 
     def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False):
+                  sbom=False, out=None):
         seen["sbom"] = sbom
         from valvur.api import ScanRun
 

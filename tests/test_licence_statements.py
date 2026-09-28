@@ -311,7 +311,7 @@ def test_the_terminal_says_could_not_read_rather_than_not_checked(
     from valvur import cli
 
     def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False):
+                  sbom=False, out=None):
         return ScanRun(findings=[_statement(STATEMENTS[2]), _gap()], profile=profile)
 
     monkeypatch.setattr(cli, "scan", fake_scan)

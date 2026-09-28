@@ -479,7 +479,7 @@ def test_the_cli_takes_jobs_and_refuses_zero(monkeypatch, tmp_path, capsys):
     seen: dict = {}
 
     def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False):
+                  sbom=False, out=None):
         seen["jobs"] = jobs
         return api.ScanRun(findings=[], profile=profile)
 
