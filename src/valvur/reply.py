@@ -24,6 +24,13 @@ from .results import RESULTS_DIR
 SCHEMA = 2
 #: The groups a reply names, best-ranked first; `findings.json` has all.
 GROUPS_SHOWN = 10
+#: What the File Set left out, named in a reply; `run.json` has every entry.
+NOT_READ_SHOWN = 20
+#: The summary's characters a reply carries (R6.2). A reply carries it twice, as
+#: `report` and in the text, and Claude Code's limit is 25,000 tokens: 30,000
+#: characters each leaves the fields room at three characters a token. The
+#: largest measured, repository 2's, was 6,000.
+REPORT_CHARS = 30_000
 #: How many lines of a failure reason a reply shows. The bound is on LINES, never
 #: on the sentence (23.3.4): the Kiro run read *"…no package-name index for PyPI,
 #: so"* at an 80-character cut, which was the one sentence it needed whole.
@@ -157,6 +164,7 @@ def _done(workspace: Path, data: dict) -> dict:
         reason = ("nothing live was found, and the reason is not recorded — a run.json "
                   "from before 22.D.4; rescan")
     coverage = (data.get("coverage") or {}).get("dependency-reality", {}).get("ignores") or []
+    not_read = [e for e in data.get("not_read") or [] if isinstance(e, dict)]
     return {
         "generation": data.get("generation"), "profile": data.get("profile"),
         "verdict": data.get("status"), "reason": reason,
@@ -169,7 +177,8 @@ def _done(workspace: Path, data: dict) -> dict:
         "groups": groups[:GROUPS_SHOWN],
         "not_run": not_run,
         "not_read": [{"path": e.get("path"), "reason": e.get("reason")}
-                     for e in data.get("not_read") or [] if isinstance(e, dict)],
+                     for e in not_read[:NOT_READ_SHOWN]],
+        "not_read_total": len(not_read),
         "coverage": list(coverage),
         "hygiene": data.get("hygiene"),
         "scanners": scanners,
@@ -181,8 +190,16 @@ def _done(workspace: Path, data: dict) -> dict:
         "build": dict(data.get("build") or {}),
         "database": dict(data.get("database") or {}),
         "name_index": dict(data.get("name_index") or {}),
-        "report": report.read_text(encoding="utf-8") if report.is_file() else None,
+        "report": _bounded(report.read_text(encoding="utf-8")) if report.is_file() else None,
     }
+
+
+def _bounded(summary: str) -> str:
+    """The summary, whole when it fits, else cut at a line and said so."""
+    if len(summary) <= REPORT_CHARS:
+        return summary
+    head = summary[:REPORT_CHARS].rsplit("\n", 1)[0]
+    return head + "\n\n_The rest is in `.security-scan/SUMMARY.md`._\n"
 
 
 # ------------------------------------------------------------------ the text
@@ -236,9 +253,10 @@ def _done_text(f: dict) -> list[str]:
         lines = [f"DONE in {f['elapsed_s']:.0f}s.{stamp}", "", *lines]
     not_read = f["not_read"]
     if not_read:
+        more = f["not_read_total"] - min(len(not_read), 8)
         lines.append("not read by any Scanner: " + ", ".join(
             f"{e['path']} ({e['reason']})" for e in not_read[:8])
-            + (f" and {len(not_read) - 8} more" if len(not_read) > 8 else ""))
+            + (f" and {more} more" if more else ""))
     if counts["not_rechecked"]:
         lines.append(f"not re-checked: {counts['not_rechecked']} previous finding(s) whose "
                      "Scanner did not run this time — neither fixed nor persisting")

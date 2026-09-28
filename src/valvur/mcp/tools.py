@@ -68,7 +68,9 @@ _REPLY_SHAPE: dict[str, Any] = {"type": "object", "required": ["schema", "state"
     "not_run": {"type": "array", "items": {"type": "object", "properties": {
         "tool": {"type": "string"}, "reason": {"type": "string"},
         "kind": {"type": "string", "enum": ["failed", "skipped", "not-in-profile"]}}}},
-    "not_read": {"type": "array", "items": {"type": "object"}},
+    "not_read": {"type": "array", "items": {"type": "object"},
+                 "description": "The first entries; `not_read_total` counts them all."},
+    "not_read_total": {"type": "integer"},
     "progress": {"type": "object", "description": "A running scan: what runs, what finished."},
     "next": {"type": "array", "items": {"type": "string"},
              "description": "What to do now, in order."},

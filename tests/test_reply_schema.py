@@ -105,3 +105,35 @@ def test_a_finished_scan_carries_its_verdict_counts_and_summary(tmp_path, monkey
     assert done["scope"]["files"] == 1
     assert done["report"] == summary
     assert all(set(e) == {"tool", "kind", "reason"} for e in done["not_run"])
+
+
+# ------------------------------------------- behaviour 2: under Claude Code's limit
+
+#: Claude Code's limit on a tool's output (MAX_MCP_OUTPUT_TOKENS), and a
+#: conservative three characters a token: paths and JSON tokenise worse than prose.
+TOKEN_LIMIT, CHARS_PER_TOKEN = 25_000, 3
+
+
+def test_a_reply_stays_under_the_token_limit_whatever_the_repository_holds(tmp_path):
+    """Measured on the acceptance set, the largest reply is repository 2's, about
+    3,400 tokens. The bound must hold for what no fixture holds: thousands of
+    ignored directories, and a summary at its line cap with long lines."""
+    import json
+
+    results = tmp_path / ".security-scan"
+    results.mkdir()
+    (results / "run.json").write_text(json.dumps({
+        "status": "findings", "status_reason": "1 active finding(s)", "complete": True,
+        "generation": "g", "profile": "offline",
+        "findings": {"active": 1, "suppressed": 0, "not_covered": 0, "total": 1},
+        "not_read": [{"path": f"vendor/pkg{i:04}/" + "d" * 80, "reason": "ignored by git"}
+                     for i in range(3_000)],
+        "scanners": [{"tool": f"tool{i}", "ok": True, "duration_s": 1.0} for i in range(12)],
+    }))
+    (results / "SUMMARY.md").write_text("\n".join("x" * 400 for _ in range(200)) + "\n")
+
+    fields = reply.fields(tmp_path)
+    size = len(json.dumps(fields)) + len(reply.text(fields))
+
+    assert size / CHARS_PER_TOKEN < TOKEN_LIMIT, f"{size:,} characters"
+    assert fields["counts"]["active"] == 1 and "SUMMARY.md" in fields["report"]

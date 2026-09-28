@@ -254,10 +254,14 @@
           "type": "array"
         },
         "not_read": {
+          "description": "The first entries; `not_read_total` counts them all.",
           "items": {
             "type": "object"
           },
           "type": "array"
+        },
+        "not_read_total": {
+          "type": "integer"
         },
         "not_run": {
           "items": {
