@@ -286,9 +286,8 @@ def build_parser() -> argparse.ArgumentParser:
         # written against the rc keeps working; they are not advertised.
         choices=[*_profiles.SCANNERS, *_profiles.ALIASES],
         metavar="{offline,full}",
-        help="offline (default) runs every Scanner that works with --network=none. "
-        "full adds osv-scanner and the dependency-reality Check, which send package "
-        "names to public registries.",
+        help="offline (default) runs every Scanner with --network=none. "
+        + _profiles.FULL_ADDS,
     )
     scan_cmd.add_argument(
         "--offline",

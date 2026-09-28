@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .. import profiles
 from ..operations import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
@@ -147,9 +148,7 @@ def registry() -> list[Tool]:
                  **workspace_arg,
                  "profile": {"type": "string", "enum": ["offline", "full"],
                              "description": "offline (the default) runs every Scanner "
-                             "that works with no network access. full adds a second "
-                             "advisory source and the dependency-reality Check, both "
-                             "of which send package names to public registries."},
+                             "with no network access. " + profiles.FULL_ADDS},
                  "budget_s": {"type": "integer",
                               "description": "Seconds the Scanners may take together "
                               "(default 300). Past it, nothing new starts, what is "

@@ -13,7 +13,7 @@
           "type": "integer"
         },
         "profile": {
-          "description": "offline (the default) runs every Scanner that works with no network access. full adds a second advisory source and the dependency-reality Check, both of which send package names to public registries.",
+          "description": "offline (the default) runs every Scanner with no network access. full asks the network what local data cannot answer: OSV.dev in place of the offline database, the registries for each package's age and adoption and whether JVM and Go dependencies exist, and FIRST for EPSS. They receive package names, versions and CVE identifiers, never source.",
           "enum": [
             "offline",
             "full"

@@ -1,10 +1,9 @@
 """Profiles — what runs, and whether the network is allowed at all.
 
 Two profiles, split on the only line that matters to this product: whether anything
-leaves the machine. `offline` runs every Scanner that works under `--network=none`,
-which is all of them bar one. `full` adds osv-scanner, and lets the
-dependency-reality Check ask a registry for the one thing its local index cannot
-answer — a package's age (ADR-0018).
+leaves the machine. `offline` runs every Scanner under `--network=none`. `full` runs
+the same Scanners and lets them ask the network what local data cannot answer:
+`FULL_ADDS` says what, and the CLI and the `scan` tool both give it.
 
 The earlier `quick`/`standard`/`deep` split was drawn along speed while being
 described as a network boundary, and `deep` was byte-identical to `standard`. See
@@ -53,6 +52,12 @@ SCANNERS: dict[str, tuple[str, ...]] = {
 }
 
 ALLOWS_NETWORK: dict[str, bool] = {OFFLINE: False, FULL: True}
+
+#: What `full` adds, for every surface that describes it: questions, not Scanners.
+FULL_ADDS = ("full asks the network what local data cannot answer: OSV.dev in place of "
+             "the offline database, the registries for each package's age and adoption "
+             "and whether JVM and Go dependencies exist, and FIRST for EPSS. They "
+             "receive package names, versions and CVE identifiers, never source.")
 
 #: Scanners that run on BOTH Profiles and do less without a network — the network
 #: half of what they cover, in the reader's terms. dependency-reality checks existence

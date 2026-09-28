@@ -7,9 +7,11 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --profile {offline,full}
-                        offline (default) runs every Scanner that works with --network=none. full
-                        adds osv-scanner and the dependency-reality Check, which send package
-                        names to public registries.
+                        offline (default) runs every Scanner with --network=none. full asks the
+                        network what local data cannot answer: OSV.dev in place of the offline
+                        database, the registries for each package's age and adoption and whether
+                        JVM and Go dependencies exist, and FIRST for EPSS. They receive package
+                        names, versions and CVE identifiers, never source.
   --offline             Force the offline Profile regardless of --profile. Checks needing a
                         registry report as unverified rather than clean.
   --budget SECONDS      Stop the Scanners past this many seconds: nothing new starts, what is
