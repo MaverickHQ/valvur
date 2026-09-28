@@ -797,30 +797,41 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             if event.get("event") == "end":
                 ended.append(event.get("tool", ""))
 
+        # One Scan Container per network boundary (ADR-0022, R3.8): what needs a
+        # network runs in its own, and everything else, Trivy included, in one
+        # with no interface at all. `offline` has only the second.
+        scratches = {False: scratch}
+        if any(i.network for i in plan):
+            scratches[True] = Path(scratch_dir) / "results-networked"
+            scratches[True].mkdir()
         started = time.monotonic()
-        runtime.run(plan, tar, scratch, on_event=on_event, budget_s=budget_s)
+        _run_by_network(runtime, plan, tar, scratches, on_event, budget_s)
         spent = time.monotonic() - started
         # A cancel (F1.11, R3.5): CANCELLED once the runtime confirms the engine
         # is gone, and nothing written.
         _refuse_if_cancelled(runtime, len(ended), len(plan))
-        manifest_path = scratch / "manifest.json"
-        manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
-        received = manifest.get("received")
-        if received is not None and received != len(chosen.files):
-            # A Scanner reading part of the File Set would report a partial scan
-            # as a whole one (ADR-0022): refused, with the numbers.
-            raise ScannerFailed(
-                f"The Scan Container received {received} of {len(chosen.files)} files; "
-                "refusing to report a scan of a partial Snapshot.")
-        entries = {e["tool"]: e for e in manifest.get("tools", [])}
+        entries: dict[tuple[bool, str], dict] = {}
+        for network, where in scratches.items():
+            manifest_path = where / "manifest.json"
+            manifest = (json.loads(manifest_path.read_text()) if manifest_path.exists()
+                        else {})
+            received = manifest.get("received")
+            if received is not None and received != len(chosen.files):
+                # A Scanner reading part of the File Set would report a partial scan
+                # as a whole one (ADR-0022): refused, with the numbers.
+                raise ScannerFailed(
+                    f"The Scan Container received {received} of {len(chosen.files)} "
+                    "files; refusing to report a scan of a partial Snapshot.")
+            entries.update({(network, e["tool"]): e for e in manifest.get("tools", [])})
         for invocation, index in zip(plan, planned, strict=True):
-            entry = entries.get(invocation.tool)
+            entry = entries.get((invocation.network, invocation.tool))
             if entry is None:
                 outcomes[index] = ScannerOutcome(ScannerRun(
                     adapters[index].name, ok=False, reason="the engine did not run it"))
                 continue
-            report = (scratch / invocation.report if invocation.report
-                      else scratch / f"{invocation.tool}.stdout")
+            where = scratches[invocation.network]
+            report = (where / invocation.report if invocation.report
+                      else where / f"{invocation.tool}.stdout")
             stdout = report.read_text(encoding="utf-8") if report.exists() else ""
             output = ScannerOutput(
                 invocation.tool, invocation.version, stdout, entry.get("stderr_tail", ""),
@@ -840,6 +851,35 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 outcome = outcome.cut(f"cut by the {budget_s:g}s budget after {spent:.0f}s")
             outcomes[index] = outcome
     return outcomes, cut
+
+
+def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s) -> None:
+    """Each network boundary's part of the plan in its own Scan Container, at once
+    when there are two: one budget, one cancel, both stopped by either."""
+    import threading
+
+    parts = [(network, [i for i in plan if i.network is network]) for network in scratches]
+    parts = [(network, part) for network, part in parts if part]
+    if len(parts) == 1:
+        network, part = parts[0]
+        runtime.run(part, tar, scratches[network], on_event=on_event, budget_s=budget_s)
+        return
+    failed: list[BaseException] = []
+
+    def run(network: bool, part: list) -> None:
+        try:
+            runtime.run(part, tar, scratches[network], on_event=on_event, budget_s=budget_s)
+        except BaseException as exc:          # raised again below, on the scan's thread
+            failed.append(exc)
+
+    threads = [threading.Thread(target=run, args=part, name=f"valvur-engine-{part[0]}")
+               for part in parts]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    if failed:
+        raise failed[0]
 
 
 _HISTORY_TOOL = "gitleaks-history"

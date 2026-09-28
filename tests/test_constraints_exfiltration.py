@@ -271,3 +271,78 @@ def test_the_whole_process_tree_is_denied_the_network_under_unshare():
     raise AssertionError("must be enabled in CI on Linux")
 
 
+
+
+# ------------------------------------------ R3.8: one Scan Container per network boundary
+
+class _RecordingRuntime:
+    """The Scan Container's runtime with the launch recorded instead of run: the
+    argv the runtime would start, and the tools the plan beside it names."""
+
+    def __new__(cls):
+        from valvur.engine_host import ContainerRuntime
+
+        class Recorder(ContainerRuntime):
+            def __init__(self):
+                super().__init__(runtime="/usr/local/bin/docker")
+                self.launched: list[tuple[list[str], list[str]]] = []
+
+            def _engine(self, command, tar, env, on_event, budget_s, kill=None):
+                import json as _json
+                from pathlib import Path as _Path
+
+                results = next(a for a in command if a.endswith(":/results"))
+                plan = _json.loads((_Path(results.rsplit(":", 1)[0]) / "plan.json").read_text())
+                self.launched.append((command, [t["tool"] for t in plan["tools"]]))
+                return 0
+
+        return Recorder()
+
+
+def _launches(profile: str, tmp_path, monkeypatch):
+    from valvur import api, cache, owner
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    monkeypatch.setattr(cache, "db_present", lambda: True)
+    monkeypatch.setattr(cache, "name_index_present", lambda: True)
+    monkeypatch.setattr(owner, "reap", lambda runtime: [])
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "requirements.txt").write_text("requests==2.31.0\n")
+    (ws / "app.py").write_text("import requests\n")
+    runtime = _RecordingRuntime()
+    with contextlib.suppress(api.ScannerFailed):       # nothing ran, so nothing reported
+        api.scan(ws, runner=runtime, profile=profile)
+    return runtime.launched
+
+
+def test_offline_starts_exactly_one_scan_container_and_it_has_no_network(
+        tmp_path, monkeypatch):
+    launched = _launches(profiles.OFFLINE, tmp_path, monkeypatch)
+    assert len(launched) == 1, [tools for _, tools in launched]
+    argv, tools = launched[0]
+    assert "--network=none" in argv
+    assert "osv-scanner" not in tools and "trivy" in tools
+
+
+def test_full_adds_one_networked_container_holding_only_what_needs_the_network(
+        tmp_path, monkeypatch):
+    from valvur.runner import NETWORK_ENV
+
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    assert len(launched) == 2, [tools for _, tools in launched]
+    offline = [(a, t) for a, t in launched if "--network=none" in a]
+    networked = [(a, t) for a, t in launched if "--network=none" not in a]
+    assert len(offline) == 1 and len(networked) == 1
+    argv, tools = networked[0]
+    assert f"{NETWORK_ENV}=1" in argv
+    assert set(tools) == {"osv-scanner", "dependency-reality"}, tools
+    assert f"{NETWORK_ENV}=1" not in offline[0][0]
+
+
+def test_trivy_never_runs_in_the_networked_container(tmp_path, monkeypatch):
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    for argv, tools in launched:
+        if "trivy" in tools:
+            assert "--network=none" in argv, tools

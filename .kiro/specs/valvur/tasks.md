@@ -549,13 +549,23 @@ The engine rebuilt under D1 to D4. The old path serves until R3.9 deletes it, an
   and the layout would have exposed an off-by-one line. `history = false` reads nothing
   and says so; `run.json`, the Summary and progress say what was read and any bound. The
   README's row and configuration paragraph claim history with its bounds, held by a test.
-- [ ] **R3.8** **`full` adds one networked container** (D4; N2.1, ADR-0010, ADR-0016).
+- [x] **R3.8** **`full` adds one networked container** (D4; N2.1, ADR-0010, ADR-0016).
   Behaviours:
   1. OSV-Scanner and dependency-reality's registry questions run in the second container;
      `egress.py` stays the only authority.
   2. The exfiltration constraint tests, restated for two containers, pass.
   3. `offline` starts exactly one container, with no network.
   4. Trivy never runs in the networked container.
+  **STATUS 2026-09-28:** ✅ Before this, a `full` scan through the Scan Container gave
+  every tool, Trivy included, the network, because one tool needed it; the new constraint
+  test caught it. The plan now splits on each Invocation's own grant, which only the
+  Profile gives: what needs the network runs in a second Scan Container fed the same
+  Snapshot, both at once under one budget and one cancel, and everything else in one with
+  no interface. The flags still come from `egress`. Three constraint tests hold it: one
+  container on `offline`, with `--network=none`; two on `full`, the networked one holding
+  exactly OSV-Scanner and dependency-reality; Trivy never networked. The suite's count
+  check now reads "not one fewer", as its comment always said. A real `full` scan on the
+  image ran both containers in 8 s, every Scanner ok and none left behind.
 - [ ] **R3.9** **Switch over and delete.** The new engine becomes the only engine. Deleted:
   the thread-pool fleet, both name registries, `skip_args`, `VENDORED`, the generated
   Gitleaks config (the project's own `.gitleaks.toml` is still honoured),

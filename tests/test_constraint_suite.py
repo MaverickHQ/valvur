@@ -24,6 +24,7 @@ def test_the_split_kept_every_test_and_the_one_file_is_gone():
     found = sum(len(re.findall(r"^def test_", f.read_text(encoding="utf-8"), re.M))
                 for f in files)
 
-    assert found == BEFORE_THE_SPLIT, \
+    # Not one fewer; a new constraint is welcome (R3.8 added the two-container ones).
+    assert found >= BEFORE_THE_SPLIT, \
         f"{found} tests across the split; the file held {BEFORE_THE_SPLIT}"
     assert not (TESTS / "test_constraints.py").exists(), "the god module is back"

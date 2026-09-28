@@ -140,6 +140,9 @@ class _Runtime:
         self._stop = threading.Event()
         self._idle = threading.Event()
         self._idle.set()
+        #: Engines running now: `full` runs two at once, one per network boundary.
+        self._running = 0
+        self._count = threading.Lock()
         #: The Scan Run's generation, carried by the Scan Container (R3.6).
         self.generation: str | None = None
 
@@ -158,13 +161,18 @@ class _Runtime:
     def _engine(self, command: list[str], tar: bytes, env: dict | None,
                 on_event: Callable[[dict], None] | None, budget_s: float | None,
                 kill: Callable[[], None] | None = None) -> int:
-        self._idle.clear()
+        with self._count:
+            self._running += 1
+            self._idle.clear()
         try:
             return stream(command, tar, env, on_event,
                           deadline_s=budget_s + GRACE_S if budget_s else None,
                           kill=kill, stop=self._stop)
         finally:
-            self._idle.set()
+            with self._count:
+                self._running -= 1
+                if self._running == 0:
+                    self._idle.set()
 
 
 class LocalRuntime(_Runtime):
@@ -202,7 +210,8 @@ class ContainerRuntime(_Runtime):
         super().__init__()
         self.image = image or IMAGE
         self._runtime = runtime
-        self._name: str | None = None
+        #: Every Scan Container this runtime started, for `wait_stopped`.
+        self._names: set[str] = set()
 
     def wait_stopped(self, timeout: float = 15.0) -> bool:
         """True once the `docker run` client has returned AND the runtime no
@@ -211,17 +220,17 @@ class ContainerRuntime(_Runtime):
         deadline = time.monotonic() + timeout
         if not super().wait_stopped(timeout):
             return False
-        while self._name is not None and self._listed(self._name):
+        while self._names and self._names & self._listed():
             if time.monotonic() >= deadline:
                 return False
             time.sleep(0.25)
         return True
 
-    def _listed(self, name: str) -> bool:
-        listed = subprocess.run(  # noqa: S603
-            [self.runtime, "ps", "-a", "--filter", f"name={name}", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=30, check=False).stdout.split()
-        return name in listed
+    def _listed(self) -> set[str]:
+        """The Scan Containers the runtime lists, running or not."""
+        return set(subprocess.run(  # noqa: S603
+            [self.runtime, "ps", "-a", "--filter", "name=valvur-", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=30, check=False).stdout.split())
 
     @property
     def runtime(self) -> str:
@@ -239,7 +248,7 @@ class ContainerRuntime(_Runtime):
         subprocess.run([self.runtime, "kill", name],  # noqa: S603
                        capture_output=True, check=False, timeout=30)
         deadline = time.monotonic() + confirm_s
-        while self._listed(name) and time.monotonic() < deadline:
+        while name in self._listed() and time.monotonic() < deadline:
             time.sleep(0.25)
 
     def command(self, scratch: Path, *, network: bool = False, name: str | None = None,
@@ -281,7 +290,8 @@ class ContainerRuntime(_Runtime):
 
         write_plan(scratch, plan, budget_s)
         network = any(i.network for i in plan)
-        name = self._name = f"valvur-{uuid.uuid4().hex[:16]}"
+        name = f"valvur-{uuid.uuid4().hex[:16]}"
+        self._names.add(name)
         try:
             return self._engine(self.command(scratch, network=network, name=name,
                                              snapshot_bytes=len(tar)), tar, None, on_event,
