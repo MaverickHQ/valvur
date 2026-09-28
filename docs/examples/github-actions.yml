@@ -1,0 +1,42 @@
+# valvur as a step in your own pipeline (R8.2): the image fetches what a scan reads,
+# then scans the checkout with no network, and nothing leaves the runner. Copy into
+# .github/workflows/. A CI test in valvur's repository runs these steps against the
+# image built from the same tree (tests/test_pipeline_example.py).
+#
+# To see the findings in code scanning, upload
+# $RUNNER_TEMP/valvur-out/.security-scan/results.sarif with
+# github/codeql-action/upload-sarif, pinned by commit, under `security-events: write`.
+name: valvur
+on:
+  push:
+  pull_request:
+permissions: {}
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VALVUR_IMAGE: ghcr.io/maverickhq/valvur:1.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Fetch what a scan reads
+        run: |
+          mkdir -p "$RUNNER_TEMP/valvur-cache" "$RUNNER_TEMP/valvur-out"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e VALVUR_CACHE=/cache -v "$RUNNER_TEMP/valvur-cache:/cache/valvur" \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            "$VALVUR_IMAGE" valvur update /src
+      - name: Scan, with no network
+        run: |
+          docker run --rm --network=none --user "$(id -u):$(id -g)" \
+            -e VALVUR_CACHE=/cache -v "$RUNNER_TEMP/valvur-cache:/cache/valvur" \
+            -v "$GITHUB_WORKSPACE:/src:ro" -v "$RUNNER_TEMP/valvur-out:/out" \
+            "$VALVUR_IMAGE" valvur scan /src --out /out
+      - name: Gate
+        run: |
+          docker run --rm --network=none --user "$(id -u):$(id -g)" \
+            -v "$RUNNER_TEMP/valvur-out:/out" \
+            "$VALVUR_IMAGE" valvur gate /out --fail-on high

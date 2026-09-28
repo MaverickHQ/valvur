@@ -1,0 +1,20 @@
+# valvur as a GitLab CI job (R8.2): the image is the job's container, and GitLab's
+# helper clones the project, so the image needs no git. The documented shape; not
+# run here. The cache sits under `.cache/`, which a scan does not read, and the
+# results under `results/`, which it does not read either.
+valvur:
+  image: ghcr.io/maverickhq/valvur:1.0.0
+  variables:
+    VALVUR_CACHE: $CI_PROJECT_DIR/.cache
+  cache:
+    key: valvur
+    paths:
+      - .cache/valvur/
+  script:
+    - valvur update "$CI_PROJECT_DIR"
+    - valvur scan "$CI_PROJECT_DIR" --out results
+    - valvur gate results --fail-on high
+  artifacts:
+    when: always
+    paths:
+      - results/.security-scan/

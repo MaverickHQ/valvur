@@ -288,12 +288,16 @@ Read this before the feature list, not after.
   `VALVUR_SELINUX_RELABEL` does nothing. valvur still labels its own cache mounts.
 - **It has not been run on a serverless container platform, and does not claim to.**
   The image is a plain OCI artifact with no cloud-specific code paths, so it pushes
-  to any registry and runs wherever a container runs. But valvur is a thin host shim
-  that *launches* scanner containers
-  ([ADR-0001](adr/0001-thin-host-shim-read-only-container.md)), so wherever it runs
-  must give it a container runtime to talk to. A build agent, a VM or ECS on EC2 can;
-  AWS Fargate exposes no Docker socket and no privileged mode, and we have not run it
-  there. Local is the default and always will be.
+  to any registry and runs wherever a container runs. On a laptop the shim launches
+  the Scan Container ([ADR-0001](adr/0001-thin-host-shim-read-only-container.md)).
+  Since R8.1 the image also scans on its own, with no runtime or socket: a pipeline
+  job runs `valvur scan` inside it (`docs/examples/`), so a platform that runs a
+  container and gives it no socket is no longer ruled out by that. None has been
+  measured, and until one is, F1.10's deferred half stays deferred and nothing here
+  says valvur runs on AWS.
+  Inside the image the Scanners share the job's network, which `run.json` names;
+  only a job started with no network makes `offline` structural. Local is the
+  default and always will be.
 - **It is not a pen-test tool.** No DAST, no exploitation, no scanning of deployed
   systems.
 
