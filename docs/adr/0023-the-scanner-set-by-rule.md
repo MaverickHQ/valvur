@@ -39,3 +39,22 @@ current tool stays.
 - **actionlint.** zizmor covers its injection check, and its shellcheck integration is
   GPL-3.0 (ADR-0005).
 - **GuardDog.** It downloads packages to analyse them, so it can never run on `offline`.
+
+## Amendment, 2026-09-28: the measurements (R4.1)
+
+On this Mac, the thirteen corpus checkouts and acceptance repositories 5 to 8, every tool
+with no network; the scripts are in `scripts/spikes/`, the full record in
+`docs/acceptance/r4.md`.
+
+| rule | measured | verdict |
+|---|---|---|
+| 1. zizmor | 85 of 85 unpinned actions; 18 of 18 files with Checkov's write-permission finding, at `--persona pedantic --min-severity medium` (16 of 18 at the default persona); 1.1 s for sixteen repositories | **adopted** at that persona |
+| 2. KICS | 14 of Checkov's 22 distinct failed rules on repositories 5 and 6 (64%); 10.0 s against Checkov's 63.3 s on the Terraform module, 9.6 s against 5.3 s on repository 6. Trivy: 12 of 22 (55%) | **Checkov stays**, only where there is infrastructure other than workflows: on the corpus, one repository of thirteen |
+| 3. Trivy's SBOM | 205 components against Syft's 308 (66.6%); 205 against 209 without the 99 GitHub Actions Syft lists | **Syft stays**; by D9 the SBOM is written only with `--sbom` |
+| 4. OSV offline | MAL-2023-1 on repository 8's `@hyperion-util/cookies`, with `--network=none`, in 10 s; npm's database is 207 MB | **joins `offline`** |
+
+The corpus holds no infrastructure but the Terraform module: every other repository ran
+Checkov for 4 to 6 s of startup to find nothing, now zizmor's work. KICS's misses are the
+S3 hardening checks (public access block, lifecycle, events, replication, KMS) and the
+module and availability-zone pins; licence, offline mode and pinning were checked for
+zizmor (MIT, `--offline`, musl wheels by hash) before it enters the image.

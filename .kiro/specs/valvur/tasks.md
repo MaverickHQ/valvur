@@ -628,7 +628,7 @@ Opengrep's own ignore list, and probes that measured nothing. Linux: the pull re
 
 The first commit records R3's rehearsal.
 
-- [ ] **R4.1** **The spike** (D8; F2.1, N1.1). Measure, on the thirteen corpus repositories
+- [x] **R4.1** **The spike** (D8; F2.1, N1.1). Measure, on the thirteen corpus repositories
   and the acceptance set:
   1. zizmor against Checkov's GitHub Actions checks;
   2. KICS and Trivy against Checkov on infrastructure. The first data point is in the
@@ -638,6 +638,18 @@ The first commit records R3's rehearsal.
 
   Apply D8's rules and amend ADR-0023 with the table. Each tool's licence, offline mode and
   pinning are checked before it enters the image.
+  **STATUS 2026-09-28:** ✅ Measured on this Mac, every tool with no network, scripts in
+  `scripts/spikes/`, the record in `docs/acceptance/r4.md`, ADR-0023 amended. **zizmor is
+  adopted**: 85 of 85 unpinned actions and 18 of 18 of Checkov's write permissions at
+  `--persona pedantic --min-severity medium`, 1.1 s for sixteen repositories. **Checkov
+  stays**: KICS finds 14 of its 22 distinct rules on repositories 5 and 6 (Trivy 12), and
+  is slower on repository 6; Checkov runs only where there is infrastructure other than
+  workflows, one corpus repository in thirteen. **Syft stays**: Trivy's SBOM is 66.6% of
+  Syft's components, 98.1% without the GitHub Actions Syft lists; by D9 the SBOM is
+  written only with `--sbom`. **OSV's offline database joins `offline`**: MAL-2023-1 on
+  repository 8 with `--network=none`, npm's database 207 MB. The spike also found
+  zizmor's default persona misses a one-job workflow's `write-all`, which decided the
+  persona.
 - [ ] **R4.2** **zizmor** (F3.11), pinned by hash in the image, credited in `NOTICE`, run
   with `--offline`. Behaviours: planted workflows with an unpinned action, write-all
   permissions and template injection each produce one ranked Finding. Repository 7's
