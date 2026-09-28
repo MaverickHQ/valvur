@@ -431,7 +431,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | land R6, PR #150 | R5 lands | the same fast-forward, after #149 |
 | ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so; re-run on the three that missed, every answer names every expected finding, and 5 of 8 fit six turns (`docs/acceptance/r7.md`). Agent scoring ended at $24.60 of $25 |
 | land R7, PR #151 | R6 lands; its checks rerun on `f1016e2`, the owner's decisions applied | the same fast-forward, after #150 |
-| land R8, PR #152 | R7 lands | the same fast-forward, after #151 |
+| land R8, PR #153 | R7 lands | the same fast-forward, after #151. #153 supersedes #152, which held R8 before its rebase onto R7's amended head; the session's classifier refused the force-push that would have updated #152 in place |
 | the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
 | ~~D9 and the SBOM~~ **decided 2026-09-28: the SBOM is opt-in** | R4.4 | Syft runs, and the dependency licence policy (F4.4 to F4.6) with it, when a scan asks: `--sbom`, or `sbom = true` under `[scan]`. In `1.0.0`, whose Results Folder contract says so |
 | revisit a decision in §5 | any time | `/grill-with-docs` |

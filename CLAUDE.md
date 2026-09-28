@@ -19,7 +19,7 @@ honest about why not, and trustworthy. Locally.
 - `0.5.0` is published: PyPI, GHCR on both architectures, signed and attested.
 - `main` is R1's close, `bbf77ef`: `0.6.0` prepared and rehearsed, waiting for its tag.
 - R2 to R8 rebuilt the engine, as the [review](docs/history/REVIEW-2026-09-27.md) the owner
-  accepted asked; each waits on a stacked PR (#145 to #151, then R8's) for the owner to land
+  accepted asked; each waits on a stacked PR (#145 to #151, then #153) for the owner to land
   it, in order (`tasks.md` §8). `0.7.0`, `1.0.0` and `1.1.0` are prepared on R3, R7 and R8.
 
 **Next:** the build is finished and its schedules deleted; [`tasks.md`](.kiro/specs/valvur/tasks.md)
