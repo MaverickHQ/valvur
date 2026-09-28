@@ -154,9 +154,10 @@ def _metadata_time(marker: Path, field: str) -> float | None:
 
 #: What each fetch costs, in the unit a download is quoted in (29.3.2). What it
 #: takes on disk is measured by `inventory()` — the database unpacks to about
-#: 1.4 GB, the index to about 120 MB — and every surface says both with their
-#: names, because 118 MB beside 1.45 GB read as a contradiction at the first gate.
-FETCH_MB: dict[str, int] = {"database": 118, "index": 34}
+#: 1.4 GB, the index to about 118 MB — and every surface says both with their
+#: names, because a fetch size beside 1.45 GB read as a contradiction at the first
+#: gate. Measured on 2026-09-28 (`docs/acceptance/r7.md`).
+FETCH_MB: dict[str, int] = {"database": 123, "index": 36}
 
 #: The KEV row's one sentence for an absent cache copy, on `doctor` and on
 #: `valvur cache` alike: absent is not missing, the image carries a snapshot.

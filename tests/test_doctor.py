@@ -102,10 +102,11 @@ def test_a_healthy_machine_is_ready_and_every_line_says_what_was_measured(health
                                   f"{__version__} matches the shim; starts (built from 0be0b0f0, "
                                   "the tree this shim was built from)")
     assert by["database"].detail.startswith("0.3 days old; ")
-    assert by["database"].detail.endswith(" on disk (118 MB to fetch)")   # 29.3.2
+    assert by["database"].detail.endswith(f" on disk ({cache.fetch_note('database')})")   # 29.3.2
     assert by["index"].detail.startswith(
         "0.0 days old — pip 1 · npm 1 · gem 1 · composer 1 · cargo 1; "
-        + cache.human_size(cache._tree_size(cache.name_index())) + " on disk (34 MB to fetch)")
+        + cache.human_size(cache._tree_size(cache.name_index()))
+        + f" on disk ({cache.fetch_note('index')})")
     assert by["selinux"].detail == "not applicable on Darwin"
     assert by["network"].detail == "not probed (valvur doctor --network)"
     assert text.startswith(f"valvur {__version__} doctor — {healthy}\n")
@@ -277,7 +278,8 @@ def test_an_absent_database_is_information_since_the_first_scan_fetches_it(healt
     database = _by_name(doctor.run(healthy))["database"]
 
     assert database.level == "info"
-    assert "the first scan fetches it" in database.detail and "118 MB to fetch" in database.detail
+    assert "the first scan fetches it" in database.detail
+    assert cache.fetch_note("database") in database.detail
 
 
 def test_a_stale_database_warns_with_the_refresh_command(healthy, monkeypatch):

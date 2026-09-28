@@ -1108,10 +1108,25 @@ probe against the real server among them. Linux: #150's checks.
 
 ### Phase R7: documents, and `1.0.0` prepared
 
-- [ ] **R7.1** **The README, rewritten against what exists** (P6). Behaviours:
+- [x] **R7.1** **The README, rewritten against what exists** (P6). Behaviours:
   1. Every number in it is the acceptance set's.
   2. The tool table matches the image.
   3. The client table matches `doctor`.
+  **STATUS 2026-09-28:** ✅ `tests/test_readme_as_built.py` holds all three. A time, size or
+  count the README cites is a code limit or a figure `docs/acceptance/` records with the
+  same kind of unit: the old README failed on 17, dated measurements from four releases.
+  What no record held was measured into `docs/acceptance/r7.md`: a first scan from an
+  empty cache, 59 s; the index, 6,334,163 names; the published image, 256 MB to pull.
+  The tool table is the adapters' seven Scanners with NOTICE's licences, and the three
+  Checks. Rewriting found three defects, fixed:
+  1. the client block lowercased every note after its first letter, so Kiro's users were
+     told to enable `kiroagent.configuremcp`;
+  2. the CLI and the `scan` tool said `full` adds OSV-Scanner and the dependency-reality
+     Check, which have run on `offline` since R4.6 and ADR-0018 (`profiles.FULL_ADDS`);
+  3. `doctor`'s fetch sizes were 118 and 34 MB, measured now at 123 and 36.
+  The README also said a stale database is never refreshed by a scan, that a small VM
+  runs two Scanners at a time, that `scan_status` is polled, and that a first run takes
+  58 s on `0.3.0`; each now says what R3 to R6 built.
 - [ ] **R7.2** **`EVALUATING.md`, `design.md`, `PROTOCOL.md`, `AIR-GAPPED.md` and
   `requirements.md` as built.** Amendments only, and no ID renumbered. Behaviour:
   traceability holds.

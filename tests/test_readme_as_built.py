@@ -79,3 +79,77 @@ def test_the_tool_table_is_the_images_scanners_and_checks():
     for name, row in tools.items():
         assert row[1] == licences[name], (name, row[1], licences[name])
         assert f"/usr/local/bin/{name}" in dockerfile, name
+
+
+_NUMBER = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?"
+_UNIT = r"s|seconds?|minutes?|KB|MB|GB|GiB|files|commits"
+#: A unit's kind: `22 s` and `22 seconds` cite the same measurement.
+_FAMILY = {"s": "time", "second": "time", "seconds": "time", "minute": "time",
+           "minutes": "time", "KB": "size", "MB": "size", "GB": "size", "GiB": "size",
+           "files": "files", "commits": "commits"}
+#: A table header cell that gives its column a unit: `s`, `Mac s`, `seconds`, `MB`.
+_HEADER = {"time": r"(?<![\w'\u2019])(s|seconds?|minutes?)(?![\w'\u2019])",
+           "size": r"\b(KB|MB|GB|GiB)\b", "files": r"\bfiles\b", "commits": r"\bcommits\b"}
+
+
+def _with_units(text: str) -> list[tuple[str, str]]:
+    """Every number `text` gives a unit, with the unit's kind; a range or a list
+    before one unit, `3.0 to 14.8 s`, gives it to each number."""
+    import re
+
+    chain = re.compile(rf"(?<![\w.])((?:{_NUMBER})(?:\s*(?:to|\u2013|and|or|,)\s*(?:{_NUMBER}))*)"
+                       rf"\s?({_UNIT})\b")
+    return [(n, _FAMILY[m.group(2)]) for m in chain.finditer(text)
+            for n in re.findall(_NUMBER, m.group(1))]
+
+
+def _cited() -> list[tuple[str, str]]:
+    return _with_units(README.read_text(encoding="utf-8"))
+
+
+def _recorded() -> set[tuple[str, str]]:
+    """What `docs/acceptance/` measured: each number with a unit in its text, and
+    each number in a table column whose header names a unit."""
+    import re
+
+    found: set[tuple[str, str]] = set()
+    for path in sorted((REPO / "docs" / "acceptance").glob("*.md")):
+        header: list[str] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            found.update(_with_units(line))
+            if not line.startswith("|"):
+                header = []
+                continue
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if not header:
+                header = cells
+                continue
+            for title, cell in zip(header, cells, strict=False):
+                for family, says in _HEADER.items():
+                    if re.search(says, title):
+                        found.update((n, family) for n in re.findall(_NUMBER, cell))
+    return found
+
+
+def _limits() -> set[tuple[str, str]]:
+    """The code's own limits, which the README states and no measurement produces."""
+    from valvur import fileset, history, operations, runner
+
+    budget = f"{operations.MCP_BUDGET_S:.0f}"
+    return {(budget, "time"), (f"{history.MAX_COMMITS:,}", "commits"),
+            (f"{history.MAX_BYTES // 2**20}", "size"),
+            (f"{runner.SCAN_CEILING_BYTES // 2**30}", "size"),
+            (f"{fileset.CEILING:,}", "files")}
+
+
+def test_every_number_the_readme_cites_is_the_acceptance_sets():
+    """A time, a size or a count in the README is either one of the code's limits
+    or a figure `docs/acceptance/` records with the same kind of unit, where the
+    run that produced it is written down. The README had cited eleven dated
+    measurements from four releases."""
+    known = _recorded() | _limits()
+    cited = _cited()
+
+    assert cited, "the README cites no measurement at all"
+    unsourced = sorted({f"{n} ({kind})" for n, kind in cited if (n, kind) not in known})
+    assert not unsourced, f"not in docs/acceptance/ and not a limit: {unsourced}"
