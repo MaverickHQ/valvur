@@ -186,6 +186,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_database())
     checks.append(_check_index())
     checks.append(_check_kev())
+    checks.append(_check_cache())
     checks.append(_check_selinux(workspace))
     checks.append(_check_workspace(workspace))
     checks.append(_check_mcp(workspace))
@@ -408,6 +409,18 @@ def _check_kev() -> Check:
         age = (time.time() - cached.stat().st_mtime) / 86400
         return Check("kev", "info", f"host cache, {age:.1f} days old — {_cache.KEV_PRESENT_MEANS}")
     return Check("kev", "info", _cache.KEV_ABSENT_MEANS)
+
+
+def _check_cache() -> Check:
+    """What the host cache holds and how large (D12, R6.5): what `valvur cache`
+    printed, one line, with the command that reclaims it."""
+    entries = _cache.inventory()
+    held = ", ".join(f"{e.name} {_cache.human_size(e.size)}"
+                     + (f" ({e.age_days:.0f} days)" if e.age_days is not None else "")
+                     for e in entries if e.present) or "empty"
+    total = _cache.human_size(sum(e.size for e in entries))
+    return Check("cache", "info", f"{_cache.root()} — {held}; total {total}. "
+                 "`valvur update --prune` or `--clear` reclaims it.")
 
 
 def _check_selinux(workspace: Path) -> Check:

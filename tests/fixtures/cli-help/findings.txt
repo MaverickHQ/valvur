@@ -1,4 +1,5 @@
-usage: valvur findings [-h] [--status {new,persisting,regressed}] [--limit LIMIT]
+usage: valvur findings [-h] [--fingerprint FINGERPRINT] [--group GROUP] [--rule RULE]
+                       [--path PREFIX] [--status {new,persisting,regressed}] [--limit LIMIT]
                        [--include-suppressed]
                        [path]
 
@@ -7,6 +8,11 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --fingerprint FINGERPRINT
+                        One finding, in full
+  --group GROUP         A group's id, from findings.json
+  --rule RULE
+  --path PREFIX         Findings under this path, on whole segments
   --status {new,persisting,regressed}
   --limit LIMIT
   --include-suppressed

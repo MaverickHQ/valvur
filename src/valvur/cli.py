@@ -390,7 +390,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", action="version", version=f"valvur {__version__}"
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    # Seven commands (D12, R6.5); `explain` and `cache` still parse, for one
+    # release, and say what replaced them.
+    sub = parser.add_subparsers(
+        dest="command", required=True,
+        metavar="{scan,update,findings,status,doctor,gate,suppress}")
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
     scan_cmd.add_argument("path", nargs="?", default=".", type=_workspace, help="Workspace to scan")
     scan_cmd.add_argument(
@@ -436,6 +440,18 @@ def build_parser() -> argparse.ArgumentParser:
         "freshness check needs no network at all.",
     )
     update_cmd.add_argument(
+        "--prune", action="store_true",
+        help="Fetch nothing; remove the published image's local tags that are not this "
+        "shim's version, and index files the metadata no longer names, each listed "
+        "first. Never the database, never this shim's image. `valvur doctor` shows "
+        "what is cached.",
+    )
+    update_cmd.add_argument(
+        "--clear", action="store_true",
+        help="Fetch nothing; remove the vulnerability database, the package-name index "
+        "and the KEV copy. Waits for a running scan. The next scan fetches them again.",
+    )
+    update_cmd.add_argument(
         "--build-index",
         action="store_true",
         help="Build the package-name index from the registries themselves instead of "
@@ -446,13 +462,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     # The same operations the MCP tools expose, so the two surfaces cannot drift
     # (F9.3). Both call valvur.operations; there is no second implementation.
-    findings_cmd = sub.add_parser("findings", help="List findings from the last scan")
+    findings_cmd = sub.add_parser(
+        "findings", help="The last scan's findings, filtered; one in full by --fingerprint")
     findings_cmd.add_argument("path", nargs="?", default=".", type=_workspace)
+    findings_cmd.add_argument("--fingerprint", help="One finding, in full")
+    findings_cmd.add_argument("--group", help="A group's id, from findings.json")
+    findings_cmd.add_argument("--rule")
+    findings_cmd.add_argument("--path", dest="finding_path", metavar="PREFIX",
+                              help="Findings under this path, on whole segments")
     findings_cmd.add_argument("--status", choices=["new", "persisting", "regressed"])
     findings_cmd.add_argument("--limit", type=int)
     findings_cmd.add_argument("--include-suppressed", action="store_true")
 
-    explain_cmd = sub.add_parser("explain", help="Explain one finding in full")
+    explain_cmd = sub.add_parser("explain", help="Now `findings --fingerprint`")
     explain_cmd.add_argument("fingerprint")
     explain_cmd.add_argument("path", nargs="?", default=".", type=_workspace)
 
@@ -505,7 +527,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     cache_cmd = sub.add_parser(
-        "cache", help="What is in the host cache, how old and how large; --clear removes it",
+        "cache", help="Now `doctor`, `update --prune` and `update --clear`",
     )
     cache_cmd.add_argument(
         "--clear", action="store_true",
@@ -536,15 +558,22 @@ def _cmd_read(args: argparse.Namespace, runner=None) -> int:
     """`findings`, `explain`, `status`: the same operations the MCP tools call (F9.3)."""
     from . import operations
 
+    if args.command == "explain":
+        # One release, then gone (D12): the old name says what replaced it, on
+        # stderr, so a script reading stdout still reads the finding.
+        print(f"`valvur explain` is now `valvur findings --fingerprint {args.fingerprint}`.",
+              file=sys.stderr)
     handler = {
-        "findings": operations.list_findings,
-        "explain": operations.explain_finding,
+        "findings": operations.findings,
+        "explain": operations.findings,
         "status": operations.scan_status,
     }[args.command]
     payload = {"workspace": args.path}
-    for field in ("status", "limit", "fingerprint"):
+    for field, key in (("status", "status"), ("limit", "limit"),
+                       ("fingerprint", "fingerprint"), ("group", "group"),
+                       ("rule", "rule"), ("finding_path", "path")):
         if getattr(args, field, None) is not None:
-            payload[field] = getattr(args, field)
+            payload[key] = getattr(args, field)
     if getattr(args, "include_suppressed", False):
         payload["include_suppressed"] = True
     try:
@@ -571,7 +600,11 @@ def _cmd_gate(args: argparse.Namespace, runner=None) -> int:
 
 
 def _cmd_cache(args: argparse.Namespace, runner=None) -> int:
-    """`cache`: the inventory, `--clear`, `--prune`."""
+    """`cache`, for one release (D12): `doctor` shows the inventory, and `update
+    --prune` and `update --clear` tidy it."""
+    print("`valvur cache` is now `valvur doctor` for what is cached, and "
+          "`valvur update --prune` or `valvur update --clear` to reclaim it.",
+          file=sys.stderr)
     return _print_cache(clear=args.clear, prune=args.prune)
 
 
@@ -604,6 +637,9 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     from . import cache
     from .runner import ContainerRunner
 
+    if getattr(args, "prune", False) or getattr(args, "clear", False):
+        # What `cache` did (D12): tidy the host cache, and fetch nothing.
+        return _print_cache(clear=args.clear, prune=args.prune)
     if getattr(args, "if_stale", False):
         database_due = _database_needs_refresh()
         index_due = _name_index_needs_refresh()
