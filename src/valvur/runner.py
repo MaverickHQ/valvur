@@ -176,14 +176,6 @@ RESOURCE_LIMITS: tuple[str, ...] = (
 )
 
 
-def memory_ceiling() -> str:
-    """The container's memory ceiling as the flag states it — `2g` — for the
-    sentence a killed Scanner's record carries (29.0.3)."""
-    # Read from the tuple, spelled nowhere else: the one-authority test counts
-    # the literal.
-    return _MEMORY_LIMITS[0].partition("=")[2]
-
-
 #: The two of those a rootless Podman on cgroup v1 refuses outright ("cgroup v1
 #: rootless: memory limit not supported") — refusing to start the container at
 #: all, which would turn a safety flag into a scan that cannot run.
@@ -233,6 +225,26 @@ def _resource_flags(runtime: str) -> list[str]:
     if memory_ceiling_note(runtime) is not None:
         return [flag for flag in RESOURCE_LIMITS if flag not in _MEMORY_LIMITS]
     return list(RESOURCE_LIMITS)
+
+
+#: The Scan Container's memory ceiling (ADR-0022 point 6, D4): every Scanner now
+#: shares one container, so its ceiling is the whole scan's.
+SCAN_CEILING_BYTES = 3 * 2**30
+
+
+def scan_resource_flags(runtime: str) -> list[str]:
+    """The ceiling for a Scan Container: 3 GiB, or three quarters of the
+    runtime's memory when that is less, so a scan never takes a small Docker
+    Desktop VM whole. The same flags as `RESOURCE_LIMITS`, resized, and dropped
+    where rootless Podman on cgroup v1 refuses them."""
+    flags = _resource_flags(runtime)
+    if memory_ceiling_note(runtime) is not None:
+        return flags
+    memory, _ = runtime_resources(runtime)
+    ceiling = SCAN_CEILING_BYTES if memory is None else min(SCAN_CEILING_BYTES, memory * 3 // 4)
+    size = f"{ceiling // 2**20}m"
+    return [f"{flag.partition('=')[0]}={size}" if flag in _MEMORY_LIMITS else flag
+            for flag in flags]
 
 
 def _container_name() -> str:

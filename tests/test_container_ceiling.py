@@ -50,10 +50,11 @@ def _scan_container(monkeypatch, tmp_path, runtime: str, *, network: bool = Fals
 
 
 def test_every_container_is_held_to_the_ceiling(monkeypatch, tmp_path):
+    monkeypatch.setattr(_runner, "runtime_resources", lambda runtime: (None, None))
     for network in (False, True):
         cmd = _scan_container(monkeypatch, tmp_path, "/usr/local/bin/docker", network=network)
         flags = _flags(cmd, "x/y:1")
-        for flag in MEMORY + ALWAYS:
+        for flag in ("--memory=3072m", "--memory-swap=3072m", *ALWAYS):
             assert flag in flags, f"network={network}: missing {flag}"
 
 
@@ -85,9 +86,10 @@ def test_rootless_podman_on_cgroup_v1_keeps_what_it_can(monkeypatch, tmp_path):
 def test_docker_and_cgroup_v2_podman_get_the_whole_ceiling(monkeypatch, tmp_path):
     monkeypatch.setattr(_runner.platform, "system", lambda: "Linux")
     monkeypatch.setattr(_runner, "_cgroup_v2", lambda: True)
+    monkeypatch.setattr(_runner, "runtime_resources", lambda runtime: (None, None))
 
     flags = _flags(_scan_container(monkeypatch, tmp_path, "/usr/bin/podman"), "x/y:1")
-    for flag in MEMORY + ALWAYS:
+    for flag in ("--memory=3072m", "--memory-swap=3072m", *ALWAYS):
         assert flag in flags
     assert _runner.memory_ceiling_note("/usr/bin/podman") is None
 
@@ -131,3 +133,27 @@ def test_a_container_past_the_ceiling_is_killed_not_swapped():
     print(f"28.0.3: exit {out.exit_code} after {elapsed:.1f}s")
     assert out.exit_code == 137, f"exit {out.exit_code}: the ceiling did not hold\n{out.stderr}"
     assert elapsed < 60, f"{elapsed:.0f}s — that is the host swapping, not a kill"
+
+
+# ------------------------------------------ D4: one ceiling per Scan Container (R3.9)
+
+GIB = 2**30
+
+
+@pytest.mark.parametrize("memory,expected", [
+    (16 * GIB, "3072m"),          # a large runtime: the 3 GiB cap
+    (2 * GIB, "1536m"),           # Docker Desktop's small default: 75% of it
+    (None, "3072m"),              # a runtime that cannot say: the cap
+])
+def test_a_scan_container_gets_3_gib_or_three_quarters_of_the_runtime(
+        monkeypatch, tmp_path, memory, expected):
+    """ADR-0022 point 6: every Scanner shares one container now, so its ceiling is
+    the whole scan's — N1.4 measured 528 MiB for the whole `full` fleet — and it may
+    not take more of a small runtime than leaves the runtime itself working."""
+    monkeypatch.setattr(_runner, "runtime_resources", lambda runtime: (memory, 4))
+    flags = _flags(_scan_container(monkeypatch, tmp_path, "/usr/local/bin/docker"), "x/y:1")
+
+    assert f"--memory={expected}" in flags and f"--memory-swap={expected}" in flags
+    assert not any(f in flags for f in MEMORY), "the per-Scanner 2g is not the scan's"
+    for flag in ALWAYS:
+        assert flag in flags

@@ -292,7 +292,7 @@ class ContainerRuntime(_Runtime):
         import uuid
 
         from . import cache, egress, owner
-        from .runner import _resource_flags, _user_flags
+        from .runner import _user_flags, scan_resource_flags
 
         db, names = cache.trivy_db(), cache.name_index()
         db.mkdir(parents=True, exist_ok=True)
@@ -311,7 +311,7 @@ class ContainerRuntime(_Runtime):
             self.runtime, "run", "-i", "--rm", *owner.labels(self.generation),
             "--name", name,
             *_user_flags(self.runtime),
-            "--read-only", "--cap-drop=ALL", *_resource_flags(self.runtime),
+            "--read-only", "--cap-drop=ALL", *scan_resource_flags(self.runtime),
             # Opengrep unpacks and runs opengrep-core from /tmp; R3.4 narrows this.
             "--tmpfs", "/tmp:rw,exec,nosuid,size=512m",   # noqa: S108 — the container's
             *landing,

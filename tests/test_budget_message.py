@@ -90,7 +90,7 @@ def test_the_record_names_a_runtime_kill_and_keeps_the_argv_out_of_it():
     killed = _outcome(GitleaksAdapter(),
                       ScannerOutput("gitleaks", "8.30.1", "", "", 137, argv=argv)).scanner
     assert killed.reason.startswith("exit 137: killed by the runtime")
-    assert "memory ceiling" in killed.reason and "2g" in killed.reason
+    assert "memory ceiling" in killed.reason and "3 GiB" in killed.reason
     assert "--flag-" not in killed.reason and killed.argv == argv
 
     said = _outcome(GitleaksAdapter(),

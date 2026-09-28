@@ -449,12 +449,13 @@ def _outcome(adapter, output) -> ScannerOutcome:
         tail = _cut(output.stderr.strip(), 200)
         if output.exit_code == 137:
             # SIGKILL, and valvur did not send it — the budget's and the timeout's
-            # kills are rewritten above and in `_fleet`. What is left is the
-            # runtime: the container's ceiling (28.0.3) or the VM's (29.0.3).
+            # kills are rewritten above and in the engine. What is left is the
+            # runtime: the Scan Container's ceiling (D4, R3.9) or the VM's (29.0.3).
             from . import runner as _runner
 
-            reason = ("exit 137: killed by the runtime — the container's memory ceiling "
-                      f"({_runner.memory_ceiling()}) or the VM's")
+            reason = ("exit 137: killed by the runtime — the Scan Container's memory "
+                      f"ceiling ({_runner.SCAN_CEILING_BYTES // 2**30} GiB, or three "
+                      "quarters of the runtime's memory) or the VM's")
             if tail:
                 reason += f" — last stderr: {tail}"
         else:
