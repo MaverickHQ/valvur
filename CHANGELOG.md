@@ -8,6 +8,31 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-09-28
+
+The image as a pipeline step (Phase R8, D15). Additions only: every contract `1.0.0`
+names holds.
+
+- **The image scans on its own.** `docker run --network=none <image> valvur scan /src
+  --out /out` scans a checkout mounted read-only, with no container runtime or socket:
+  the image carries a `valvur` command, and inside it the Scan Container's engine runs
+  as a process, the job's cache at `/cache`. Measured on acceptance repository 2: the
+  same findings, notes and SBOM as a scan from a laptop.
+- **`scan --out DIR`** writes `.security-scan/` under DIR, for a checkout that cannot
+  hold it; `gate`, `findings` and `status` read DIR.
+- **`update PATH`** also fetches OSV's databases for PATH's lockfiles, so a scan with
+  no network has them.
+- **`run.json`'s `network.boundary`** names where the Scanners ran: the Scan Container,
+  or a job's own container and whether it had a network. On `offline` with one, the
+  Summary says that `--network=none` makes the guarantee structural.
+- Inside the image there is no `git` (ADR-0005): a checkout is walked and its history
+  is not read, and the report says both. `doctor` there needs no runtime.
+- **Examples**: `docs/examples/github-actions.yml`, whose steps the e2e suite runs
+  against the image built from each commit, and a GitLab job, a documented shape.
+- **A mirror in your own registry**: the image, the database and the index in a
+  registry on a network with no route out, measured on every commit; `AIR-GAPPED.md`
+  gives the ECR steps, a documented shape.
+
 ## [1.0.0] — 2026-09-28
 
 The rebuilt engine, finished: the Scanner set by rule, the report, the agent surface and

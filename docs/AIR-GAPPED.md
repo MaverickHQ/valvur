@@ -114,9 +114,9 @@ aws ecr get-login-password | docker login --username AWS --password-stdin "$REGI
 aws ecr get-login-password | oras login --username AWS --password-stdin "$REGISTRY"
 
 # The image, and the vulnerability database.
-docker pull ghcr.io/maverickhq/valvur:1.0.0
-docker tag ghcr.io/maverickhq/valvur:1.0.0 "$REGISTRY/valvur:1.0.0"
-docker push "$REGISTRY/valvur:1.0.0"
+docker pull ghcr.io/maverickhq/valvur:1.1.0
+docker tag ghcr.io/maverickhq/valvur:1.1.0 "$REGISTRY/valvur:1.1.0"
+docker push "$REGISTRY/valvur:1.1.0"
 oras cp mirror.gcr.io/aquasec/trivy-db:2 "$REGISTRY/trivy-db:2"
 ```
 

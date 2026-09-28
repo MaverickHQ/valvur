@@ -18,15 +18,15 @@ honest about why not, and trustworthy. Locally.
 **Status (2026-09-28).**
 - `0.5.0` is published: PyPI, GHCR on both architectures, signed and attested.
 - `main` is R1's close, `bbf77ef`: `0.6.0` prepared and rehearsed, waiting for its tag.
-- R2 to R6 rebuilt the engine, as the [review](docs/history/REVIEW-2026-09-27.md) the owner
-  accepted asked; each waits on a stacked PR (#145 to #150) for the owner to land it, in
-  order (`tasks.md` §8). `0.7.0` is prepared on R3's branch.
+- R2 to R8 rebuilt the engine, as the [review](docs/history/REVIEW-2026-09-27.md) the owner
+  accepted asked; each waits on a stacked PR (#145 to #151, then R8's) for the owner to land
+  it, in order (`tasks.md` §8). `0.7.0`, `1.0.0` and `1.1.0` are prepared on R3, R7 and R8.
 
-**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: R7 (documents as built,
-`1.0.0` prepared) is closed and waits to land; R8 (the image as a pipeline step) is next.
+**Next:** the build is finished and its schedules deleted; [`tasks.md`](.kiro/specs/valvur/tasks.md)
+§8 is the owner's queue, and R8.4's STATUS is the build's summary.
 
-**Size, 2026-09-28:** 89 modules, 1,544 tests in 139 files, 25 ADRs, 136 requirement IDs,
-traceability debt zero, 4 open tasks.
+**Size, 2026-09-28:** 89 modules, 1,562 tests in 142 files, 25 ADRs, 136 requirement IDs,
+traceability debt zero, no open tasks.
 
 ## 2. What it is NOT
 
