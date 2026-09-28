@@ -306,8 +306,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--jobs", type=_positive, default=None, metavar="N",
         help="How many Scanners run at once (default: all of them). Docker Desktop's "
         "default memory cannot always start eight containers together; two or "
-        "three at a time trades speed for not being killed. VALVUR_JOBS sets the "
-        "same default for the MCP server.",
+        "three at a time trades speed for not being killed. `jobs` in "
+        "~/.config/valvur/config.toml sets the same default for the MCP server.",
     )
 
     update_cmd = sub.add_parser(

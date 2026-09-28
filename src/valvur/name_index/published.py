@@ -35,19 +35,20 @@ LAYER_TYPE = "application/vnd.valvur.name-index.layer.v1+gzip"
 def repository() -> str:
     """The OCI repository the published index is pulled from: the operator's mirror
     when named, the one this project publishes otherwise."""
-    named = os.environ.get(_reader.INDEX_REPOSITORY_ENV, "").strip()
-    return named or _reader.DEFAULT_INDEX_REPOSITORY
+    from .. import settings
+
+    return settings.get("index_repository") or _reader.DEFAULT_INDEX_REPOSITORY
 
 
 def published_size_mb() -> int | None:
     """What pulling the published index will cost, from its manifest — for the line
     that says a first scan is fetching it (24.1). None when the registry cannot say,
     and for a static mirror, which has no manifest to ask."""
-    from .. import oci
+    from .. import oci, settings
 
-    if os.environ.get(_reader.MIRROR_ENV, "").strip():
+    if settings.get("name_index_url"):
         return None
-    size = oci.image_size(repository(), insecure=os.environ.get(_reader.INDEX_INSECURE_ENV) == "1")
+    size = oci.image_size(repository(), insecure=settings.get("index_insecure") == "1")
     return None if size is None else max(1, round(size / 1_000_000))
 
 
@@ -72,7 +73,9 @@ def fetch_published(repository: str, directory: Path, *, ecosystems: Iterable[st
     from .. import oci
 
     directory.mkdir(parents=True, exist_ok=True)
-    insecure = os.environ.get(_reader.INDEX_INSECURE_ENV) == "1"
+    from .. import settings
+
+    insecure = settings.get("index_insecure") == "1"
     try:
         reference = oci.Reference.parse(repository)
         registry = oci.Registry(reference, insecure=insecure)

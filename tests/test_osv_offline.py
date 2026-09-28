@@ -40,7 +40,7 @@ def test_an_absent_database_is_fetched_into_the_layout_osv_scanner_reads(cache_r
         return io.BytesIO(b"PK\x03\x04 a zip")
 
     record = osv_offline.fetch("npm", opener=opener)
-    assert asked == [f"{osv_offline.BASE_URL}/npm/all.zip"]
+    assert asked == [f"{osv_offline.base_url()}/npm/all.zip"]
     stored = cache_root / "osv" / "osv-scalibr" / "npm" / "all.zip"
     assert stored.read_bytes() == b"PK\x03\x04 a zip"
     assert record["what"] == "OSV database (npm)" and record["source"] == asked[0]

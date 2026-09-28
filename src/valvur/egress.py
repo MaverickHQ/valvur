@@ -18,7 +18,6 @@ shim's one reason to reach out — EPSS on `full` — is gated by the same boole
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 from . import profiles as _profiles
@@ -56,7 +55,9 @@ DB_INSECURE_ENV = "VALVUR_DB_INSECURE"
 
 
 def db_repository() -> str | None:
-    return os.environ.get(DB_REPOSITORY_ENV) or None
+    from . import settings
+
+    return settings.get("db_repository")
 
 
 # ------------------------------------------------------------- what full reaches
@@ -123,7 +124,9 @@ class Egress:
         mirror = db_repository()
         if mirror:
             flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
-        joined = os.environ.get(CONTAINER_NETWORK_ENV)
+        from . import settings
+
+        joined = settings.get("container_network")
         if joined:
             flags.append(f"--network={joined}")
         return flags

@@ -312,8 +312,8 @@ the image; it had been 16–19).
 says so). Past it the running Scanners are stopped and the reply says which, for
 how long, and what to turn: exclude what is not source (`[scan] exclude` in
 `.security-scan.toml` — a data directory or a build tree costs a scan nothing
-once named), give it longer, or run fewer Scanners at once (`VALVUR_JOBS`, or
-`--jobs` on the CLI). On a runtime with less than 6 GiB — a default Docker Desktop
+once named), give it longer, or run fewer Scanners at once (`jobs` in
+`~/.config/valvur/config.toml`, or `--jobs` on the CLI). On a runtime with less than 6 GiB — a default Docker Desktop
 VM — valvur already runs two at a time: measured on a 3.8 GiB VM, eight at once
 contend and finish no sooner (23.6 s against 20.3 s), and a container the VM cannot
 fit is killed with exit 137 and reported as such. `valvur doctor` says what the

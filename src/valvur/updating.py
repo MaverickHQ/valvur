@@ -10,7 +10,6 @@ Moved from `cli.py`, where it printed, so both surfaces run one implementation
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -113,12 +112,12 @@ def refresh_kev(say: Say) -> bool:
     import urllib.error
     import urllib.request
 
-    from . import cache
-
     # One JSON file, so an air-gapped mirror is any static server holding a copy
     # (22.B.3). Plain HTTP is accepted because the URL is set by an operator,
     # never derived from anything in a Workspace.
-    url = os.environ.get(KEV_URL_ENV, "").strip() or KEV_URL
+    from . import cache, settings
+
+    url = settings.get("kev_url") or KEV_URL
     if not url.startswith(("https://", "http://")):
         say(f"KEV refresh skipped ({KEV_URL_ENV} is not an http(s) URL); "
             "the bundled snapshot remains in use.")

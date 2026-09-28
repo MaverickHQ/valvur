@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import functools as _functools
-import os as _os
 import platform
 import sys
 import uuid as _uuid
@@ -11,6 +10,7 @@ from contextlib import suppress as _suppress
 from pathlib import Path
 
 from . import egress
+from . import settings as _settings
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput, nothing_to_scan
 from .selinux import RELABEL_ENV, selinux_enforcing
 from .version import __version__, default_image
@@ -27,7 +27,7 @@ db_repository = egress.db_repository
 # The published image. A fresh install has no local build, so this must be pullable
 # by anyone — pointing at a local tag would make the first run fail for every user
 # who is not us.
-IMAGE = _os.environ.get("VALVUR_IMAGE") or default_image()
+IMAGE = _settings.get("image") or default_image()
 #: `VALVUR_DEBUG=1`: every container command echoed to stderr as it runs (28.3.6).
 DEBUG_ENV = "VALVUR_DEBUG"
 
@@ -81,7 +81,9 @@ def detect_runtime() -> str:
     import os
     import shutil
 
-    override = os.environ.get("VALVUR_RUNTIME")
+    from . import settings
+
+    override = settings.get("runtime")
     if override:
         return override
 
@@ -343,12 +345,11 @@ class ContainerRunner:
     def db_size_mb(self) -> int | None:
         """What fetching the vulnerability database will cost, from the registry
         Trivy will pull it from, or None if it cannot say (24.1)."""
-        import os
 
         from . import oci
 
         size = oci.image_size(egress.db_repository() or egress.DEFAULT_DB_REPOSITORY,
-                              insecure=os.environ.get(egress.DB_INSECURE_ENV) == "1")
+                              insecure=_settings.get("db_insecure") == "1")
         return None if size is None else max(1, round(size / 1_000_000))
 
     def pull_image(self, on_line=None) -> ScannerOutput:
@@ -381,7 +382,7 @@ class ContainerRunner:
         """Run a container command; one past its timeout is stopped by name."""
         import subprocess
 
-        if _os.environ.get(DEBUG_ENV) == "1":
+        if _settings.get("debug") == "1":
             # What is about to run, as it will run (28.3.6): the one line a bug
             # report about a container needs. Stderr, so a client reading stdout
             # over MCP never sees it.

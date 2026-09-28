@@ -622,9 +622,7 @@ def _begin(runner, on_progress) -> str:
 
 
 def _jobs_from_environment() -> int | None:
-    import os
-
-    raw = os.environ.get(JOBS_ENV, "").strip()
+    raw = (_settings.get("jobs") or "").strip()
     return int(raw) if raw.isdigit() and int(raw) > 0 else None
 
 

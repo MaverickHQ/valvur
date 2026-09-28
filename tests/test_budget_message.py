@@ -19,7 +19,7 @@ from test_budget import _Adapter, _Runner, _scan
 from valvur import api
 from valvur.runner import NoContainerRuntime
 
-LEVERS = ("[scan] exclude", "budget_s", "--budget", "VALVUR_JOBS", "--jobs")
+LEVERS = ("[scan] exclude", "budget_s", "--budget", "`jobs`", "--jobs")
 
 
 def test_a_budget_that_cuts_everything_is_its_own_refusal_with_the_levers(workspace):

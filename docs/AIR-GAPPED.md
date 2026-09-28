@@ -58,6 +58,14 @@ serves and by being yours.
 
 ## The settings
 
+Each is also a key in the machine's settings file, `~/.config/valvur/config.toml` (D11),
+the variable winning when both are set: `db_repository`, `db_insecure`,
+`container_network`, `index_repository`, `index_insecure`, `name_index_url`, `kev_url`
+and `osv_url`. `VALVUR_CONTAINER_NETWORK` is retired to the file and still works in this
+release, saying so once. `fetch = "never"` (or `VALVUR_FETCH=never`) stops every fetch a
+scan would make on its own (ADR-0025); `valvur update` and the `update` tool still fetch
+from the mirrors when asked.
+
 | variable | what it does |
 |---|---|
 | `VALVUR_DB_REPOSITORY` | The OCI repository Trivy fetches its database from. |

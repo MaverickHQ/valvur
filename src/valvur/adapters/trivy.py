@@ -31,7 +31,6 @@ def db_flags() -> list[str]:
     fetch it from, and `--insecure` for a mirror that speaks plain HTTP or a
     certificate the container does not trust. Read from the two settings the
     runner names; the flags are Trivy's and so are here."""
-    import os
 
     from .. import egress
 
@@ -39,7 +38,9 @@ def db_flags() -> list[str]:
     if not mirror:
         return []                    # the default path is TLS to ghcr.io; never insecure
     flags = ["--db-repository", mirror]
-    if os.environ.get(egress.DB_INSECURE_ENV) == "1":
+    from .. import settings
+
+    if settings.get("db_insecure") == "1":
         flags.append("--insecure")
     return flags
 

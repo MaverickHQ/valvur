@@ -15,7 +15,8 @@ from __future__ import annotations
 LEVERS = (
     "To finish: exclude what is not source (`[scan] exclude` in `.security-scan.toml`), "
     "give it longer (`budget_s` on the `scan` call; `--budget` on the CLI), or run "
-    "fewer Scanners at once (`VALVUR_JOBS`, `--jobs`)."
+    "fewer Scanners at once (`jobs` in `~/.config/valvur/config.toml`; `--jobs` on the "
+    "CLI)."
 )
 
 

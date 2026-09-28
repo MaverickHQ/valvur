@@ -496,6 +496,7 @@ def test_the_cli_takes_jobs_and_refuses_zero(monkeypatch, tmp_path, capsys):
 def test_the_platform_docs_say_why_jobs_exists():
     text = Path("README.md").read_text()
 
-    assert "--jobs" in text and "VALVUR_JOBS" in text
+    # The setting, since R6.7 a key in the machine's config file (D11).
+    assert "--jobs" in text and "`jobs` in" in text
     assert "Docker Desktop" in text.split("--jobs")[0][-1500:] or \
         "Docker Desktop" in text.split("--jobs")[1][:1500]

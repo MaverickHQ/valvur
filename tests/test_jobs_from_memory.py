@@ -49,4 +49,4 @@ def test_doctor_says_the_memory_and_what_the_default_will_be(monkeypatch):
     assert "3.8 GiB, 8 CPUs" in check.detail
     # Since R3.9 one Scan Container runs every Scanner at once; the size is what
     # a person weighs before bounding it.
-    assert "every Scanner runs at once" in check.detail and "VALVUR_JOBS" in check.detail
+    assert "every Scanner runs at once" in check.detail and "`jobs`" in check.detail

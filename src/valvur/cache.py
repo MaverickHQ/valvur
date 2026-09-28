@@ -36,7 +36,9 @@ NAME_INDEX_STALE_AFTER_DAYS = 30
 
 
 def root() -> Path:
-    base = os.environ.get("XDG_CACHE_HOME") or os.environ.get("VALVUR_CACHE")
+    from . import settings
+
+    base = os.environ.get("XDG_CACHE_HOME") or settings.get("cache")
     return Path(base or (Path.home() / ".cache")) / "valvur"
 
 

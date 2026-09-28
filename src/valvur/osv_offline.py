@@ -11,7 +11,6 @@ fetched, recorded in `run.json` like every fetch.
 
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Callable
 from fnmatch import fnmatch
@@ -19,7 +18,14 @@ from pathlib import Path
 
 #: OSV's public export, one zip per ecosystem (https://google.github.io/osv.dev/data/).
 #: `VALVUR_OSV_URL` names a mirror for air-gapped use.
-BASE_URL = os.environ.get("VALVUR_OSV_URL", "https://osv-vulnerabilities.storage.googleapis.com")
+DEFAULT_URL = "https://osv-vulnerabilities.storage.googleapis.com"
+
+
+def base_url() -> str:
+    """OSV's bucket, or the mirror the machine names (`osv_url`, R6.7)."""
+    from . import settings
+
+    return settings.get("osv_url") or DEFAULT_URL
 #: Where OSV-Scanner 2.6 looks under `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`.
 LAYOUT = "osv-scalibr"
 #: Where the Scan Container sees the cache.
@@ -77,7 +83,7 @@ def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> di
     Returns the record `run.json` keeps (28.0.4)."""
     import urllib.request
 
-    url = f"{BASE_URL}/{name}/all.zip"
+    url = f"{base_url()}/{name}/all.zip"
     target = path(name)
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_suffix(".partial")

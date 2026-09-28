@@ -11,7 +11,6 @@ import csv
 import gzip
 import io
 import json
-import os
 import tarfile
 import time
 import urllib.error
@@ -67,11 +66,13 @@ def refresh(directory: Path, *, ecosystems: Iterable[str] | None = None,
     caller holds the cache lock (exclusive) around this; see `cli.py` and `api.py`.
     """
     directory.mkdir(parents=True, exist_ok=True)
-    mirror = os.environ.get(_reader.MIRROR_ENV, "").strip()
+    from .. import settings
+
+    mirror = settings.get("name_index_url") or ""
     if mirror:
         return fetch_mirror(mirror, directory, ecosystems=ecosystems, progress=progress)
     if published:
-        named = os.environ.get(_reader.INDEX_REPOSITORY_ENV, "").strip()
+        named = settings.get("index_repository") or ""
         try:
             return _published.fetch_published(_published.repository(), directory,
                                               ecosystems=ecosystems,

@@ -17,12 +17,12 @@ The same report is an MCP tool, so an agent can run it *before* `scan`.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
 from . import cache as _cache
 from . import egress, owner
+from . import settings as _settings
 from .version import __version__
 
 #: What each level means, in the order they are worth reading.
@@ -166,9 +166,10 @@ def _reachable(host: str, port: int = 443) -> bool:
 def _image_reference() -> str:
     """The same expression `runner.IMAGE` is built from, read now rather than at
     import, so `VALVUR_IMAGE=… valvur doctor` checks what it names."""
+    from . import settings
     from .version import default_image
 
-    return os.environ.get("VALVUR_IMAGE") or default_image()
+    return settings.get("image") or default_image()
 
 
 def run(workspace: Path, *, network: bool = False) -> list[Check]:
@@ -187,6 +188,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_index())
     checks.append(_check_kev())
     checks.append(_check_cache())
+    checks.append(_check_settings())
     checks.append(_check_selinux(workspace))
     checks.append(_check_workspace(workspace))
     checks.append(_check_mcp(workspace))
@@ -247,10 +249,10 @@ def _check_runtime() -> tuple[str | None, Check]:
     detail = f"{version} at {runtime}, running" + (f"; {note}" if note else "")
     memory, cpus = _runner.runtime_resources(runtime)
     if memory is not None:
-        # One Scan Container runs every Scanner at once (ADR-0022); --jobs or
-        # VALVUR_JOBS bounds how many, and the runtime's size is what to weigh.
+        # One Scan Container runs every Scanner at once (ADR-0022); --jobs or the
+        # `jobs` setting bounds how many, and the runtime's size is what to weigh.
         detail += (f"; {memory / 2**30:.1f} GiB, {cpus} CPUs — every Scanner runs at once "
-                   "in one container (VALVUR_JOBS, or --jobs, to bound it)")
+                   "in one container (`jobs` in config.toml, or --jobs, to bound it)")
     return runtime, Check("runtime", "ok", detail)
 
 
@@ -423,6 +425,20 @@ def _check_cache() -> Check:
                  "`valvur update --prune` or `--clear` reclaims it.")
 
 
+def _check_settings() -> Check:
+    """What is in effect and where each came from (D11, R6.7): the variable, the
+    machine's file, or nothing set."""
+    problem = _settings.problem()
+    if problem:
+        return Check("settings", "warn", problem,
+                     f"fix the file, or remove it to take the defaults: {_settings.path()}")
+    effective = _settings.effective()
+    if not effective:
+        return Check("settings", "info", f"the defaults; {_settings.path()} sets nothing")
+    return Check("settings", "info", "; ".join(f"{key} = {value} ({source})"
+                                               for key, value, source in effective))
+
+
 def _check_selinux(workspace: Path) -> Check:
     from .selinux import RELABEL_ENV
 
@@ -435,7 +451,7 @@ def _check_selinux(workspace: Path) -> Check:
     # (ADR-0022), so its label no longer matters, and ADR-0017's accepted cost, a
     # failed first run on RHEL, is gone. valvur labels its own mounts `:z`.
     ignored = (f"; {RELABEL_ENV}=1 no longer relabels anything"
-               if os.environ.get(RELABEL_ENV) == "1" else "")
+               if _settings.get("selinux_relabel") == "1" else "")
     return Check("selinux", "ok",
                  "enforcing; the source is never mounted, and valvur labels its own "
                  f"mounts{ignored}")
@@ -628,7 +644,7 @@ def _first_run_hosts() -> list[tuple[str, int]]:
 
     from . import name_index, oci
     from .egress import DEFAULT_DB_REPOSITORY, db_repository
-    from .enrichment import KEV_URL, KEV_URL_ENV
+    from .enrichment import KEV_URL
 
     hosts: list[tuple[str, int]] = []
 
@@ -647,12 +663,12 @@ def _first_run_hosts() -> list[tuple[str, int]]:
 
     registry(_image_reference())
     registry(db_repository() or DEFAULT_DB_REPOSITORY)
-    mirror = os.environ.get(name_index.MIRROR_ENV, "").strip()
+    mirror = _settings.get("name_index_url")
     if mirror:
         url(mirror)
     else:
         registry(name_index.published.repository())
-    url(os.environ.get(KEV_URL_ENV, "").strip() or KEV_URL)
+    url(_settings.get("kev_url") or KEV_URL)
     return list(dict.fromkeys(hosts))      # deduplicated, first occurrence's order
 
 

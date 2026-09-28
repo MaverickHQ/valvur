@@ -97,7 +97,7 @@ def test_a_healthy_machine_is_ready_and_every_line_says_what_was_measured(health
     assert by["python"].detail.endswith("128 trusted roots")
     assert by["runtime"].detail == (
         "Docker version 29.2.1 at /usr/local/bin/docker, running; 8.0 GiB, 8 CPUs — every "
-        "Scanner runs at once in one container (VALVUR_JOBS, or --jobs, to bound it)")
+        "Scanner runs at once in one container (`jobs` in config.toml, or --jobs, to bound it)")
     assert by["image"].detail == (f"ghcr.io/maverickhq/valvur:{__version__}: version "
                                   f"{__version__} matches the shim; starts (built from 0be0b0f0, "
                                   "the tree this shim was built from)")

@@ -22,7 +22,7 @@ Ran: gitleaks. Versions are in `run.json`.
 
 **This scan is incomplete.** Findings below are partial.
 
-> The 300s budget cut trivy, checkov. To finish: exclude what is not source (`[scan] exclude` in `.security-scan.toml`), give it longer (`budget_s` on the `scan` call; `--budget` on the CLI), or run fewer Scanners at once (`VALVUR_JOBS`, `--jobs`).
+> The 300s budget cut trivy, checkov. To finish: exclude what is not source (`[scan] exclude` in `.security-scan.toml`), give it longer (`budget_s` on the `scan` call; `--budget` on the CLI), or run fewer Scanners at once (`jobs` in `~/.config/valvur/config.toml`; `--jobs` on the CLI).
 
 _Scanners ran concurrently; slowest: trivy 300.0s. Each one's time is in `run.json`._
 
