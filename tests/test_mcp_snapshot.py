@@ -152,8 +152,7 @@ def test_the_snapshot_holds_exactly_the_tools_the_help_text_names():
     from valvur.mcp.server import USAGE as HELP
 
     names = {t["name"] for t in _recorded()}
-    assert names == {"scan", "scan_status", "scan_cancel", "findings", "list_findings",
-                     "explain_finding", "doctor", "update"}
+    assert names == {"scan", "scan_status", "scan_cancel", "findings", "doctor", "update"}
     for name in names:
         assert name in HELP, f"{name} is offered over MCP but --help does not name it"
 

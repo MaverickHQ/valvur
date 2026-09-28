@@ -102,17 +102,22 @@ def test_a_short_multi_line_reason_is_shown_whole(tmp_path):
 # ------------------------------------------------------- the next two moves
 
 
-def test_a_finished_scan_names_the_next_two_moves(tmp_path):
+def test_a_finished_scan_says_to_report_from_the_summary_and_names_the_top_finding(tmp_path):
+    """Since R6's exit: report from `report`, name rule and location, evidence only
+    when asked; the top finding and the first fix stay, as data."""
     _results(tmp_path, findings=[_finding(1, fingerprint="e935cb10996c49025c111e34449e4a5d")],
              remediation=REMEDIATION)
 
     text = scan_status({"workspace": str(tmp_path)})
 
     assert "\nNext:\n" in text
-    assert ("  explain_finding e935cb10996c49025c111e34449e4a5d — #1 AGENTS.md:5 Hidden "
-            "Unicode in an agent instruction file") in text
-    assert ("  REMEDIATION.md, action 1 of 3: Review the agent instruction file `AGENTS.md` "
-            "[known exploited]") in text
+    assert "  Report from `report`, the summary" in text
+    assert "  Name each finding by its rule and its location" in text
+    assert ("#1 is e935cb10996c49025c111e34449e4a5d, AGENTS.md:5 Hidden Unicode in an agent "
+            "instruction file") in text
+    assert ("  The first proposed fix is REMEDIATION.md's action 1 of 3: Review the agent "
+            "instruction file `AGENTS.md` [known exploited]") in text
+    assert "explain_finding" not in text
 
 
 def test_the_top_item_is_the_highest_ranked_active_finding(tmp_path):
@@ -127,8 +132,8 @@ def test_the_top_item_is_the_highest_ranked_active_finding(tmp_path):
 
     text = scan_status({"workspace": str(tmp_path)})
 
-    assert "explain_finding " + "c" * 32 + " — #3 AGENTS.md:5 'reqeusts' does not exist" in text
-    assert "explain_finding " + f"{1:032x}" not in text
+    assert "#3 is " + "c" * 32 + ", AGENTS.md:5 'reqeusts' does not exist" in text
+    assert f"{1:032x}" not in text
 
 
 def test_the_top_item_is_the_best_rank_not_the_first_listed(tmp_path):
@@ -137,7 +142,7 @@ def test_the_top_item_is_the_best_rank_not_the_first_listed(tmp_path):
 
     text = scan_status({"workspace": str(tmp_path)})
 
-    assert "explain_finding " + "a" * 32 + " — #1 " in text
+    assert "#1 is " + "a" * 32 + ", " in text
     assert "b" * 32 not in text
 
 
@@ -148,7 +153,7 @@ def test_a_scan_with_nothing_active_names_no_move(tmp_path):
     text = scan_status({"workspace": str(tmp_path)})
 
     assert "Next:" not in text
-    assert "explain_finding" not in text
+    assert "Report from" not in text
 
 
 def test_results_from_an_older_valvur_name_what_they_can(tmp_path):
@@ -158,16 +163,16 @@ def test_results_from_an_older_valvur_name_what_they_can(tmp_path):
 
     text = scan_status({"workspace": str(tmp_path)})
 
-    assert "explain_finding " + f"{1:032x}" in text
-    assert "REMEDIATION.md" not in text.split("Next:")[1]
+    assert "#1 is " + f"{1:032x}" in text
+    assert "REMEDIATION.md" not in text.split("Next:")[1].split("\n\n")[0]
 
     _results(tmp_path, findings=[_finding(1)],
              remediation="# Remediation proposal\n\nNo numbered actions here.\n")
 
     text = scan_status({"workspace": str(tmp_path)})
 
-    assert "explain_finding " + f"{1:032x}" in text
-    assert "REMEDIATION.md" not in text.split("Next:")[1]
+    assert "#1 is " + f"{1:032x}" in text
+    assert "REMEDIATION.md" not in text.split("Next:")[1].split("\n\n")[0]
 
 
 def test_the_next_moves_sit_before_the_scanner_list_and_after_the_verdict(tmp_path):
@@ -196,4 +201,4 @@ def test_the_done_response_carries_the_moves_too(tmp_path, monkeypatch, state):
     jobs.reset()
 
     assert ("DONE in" in text) == (state == "done")
-    assert "\nNext:\n  explain_finding " in text
+    assert "\nNext:\n  Report from `report`" in text

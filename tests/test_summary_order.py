@@ -169,3 +169,20 @@ def test_a_repository_shaped_like_repository_1_fits_one_screen(tmp_path):
     )
 
     assert len(render(run).splitlines()) <= 45
+
+
+def test_a_group_line_names_each_location_once(tmp_path):
+    """Measured on repository 5 at R6's exit: twelve CKV2_AWS_12 hits at one
+    resource read `main.tf:28`, `main.tf:28`, `main.tf:28` and 9 more."""
+    same = [Finding(rule="CKV2_AWS_12", path="main.tf", line=28, title="default SG",
+                    fingerprint=f"fp-sg-{i}", severity="low", sources=("checkov",))
+            for i in range(4)]
+    other = Finding(rule="CKV2_AWS_12", path="vpc.tf", line=9, title="default SG",
+                    fingerprint="fp-sg-x", severity="low", sources=("checkov",))
+    ctx = pipeline.Context(workspace=tmp_path, profile="offline", network=False,
+                           declaring=[a.for_profile(network=False) for a in DEFAULT_ADAPTERS])
+    text = render(ScanRun(findings=pipeline.run([*same, other], ctx).findings))
+    [line] = [x for x in text.splitlines() if "CKV2_AWS_12" in x]
+
+    assert line.count("`main.tf:28`") == 1 and "`vpc.tf:9`" in line
+    assert "more" not in line

@@ -327,9 +327,14 @@ def whole_reason(reason: str) -> str:
 
 
 def next_moves(workspace: Path) -> list[str]:
-    """The next two moves after a scan: the top active Finding, ready to hand to
-    `explain_finding`, and REMEDIATION.md's first action (23.3.4). Nothing when
-    nothing is active; nothing invented for results an older valvur wrote."""
+    """What an agent does with a finished scan: report from the summary it holds,
+    naming each finding by rule and location; evidence only when asked (R6's exit).
+
+    Task 23.3.4 pointed at `explain_finding` and REMEDIATION.md because an agent had
+    called neither; measured at R6's exit, an agent handed the whole summary in
+    `report` took each pointer as a turn to spend, and three of eight reports ran
+    past six. The top Finding's fingerprint stays, as data. Nothing when nothing is
+    active; nothing invented for results an older valvur wrote."""
     from .coverage import NOTE_RULES
 
     try:
@@ -342,11 +347,15 @@ def next_moves(workspace: Path) -> list[str]:
         return []
     top = min(active, key=lambda f: f.get("rank") or 10**9)
     where = f"{top['path']}:{top['line']}" if top.get("line") else top["path"]
-    moves = [f"explain_finding {top['fingerprint']} — #{top.get('rank', '?')} {where} "
-             f"{top['title']}"]
+    moves = ["Report from `report`, the summary: it is the whole result, ranked, with what "
+             "did not run.",
+             "Name each finding by its rule and its location, as the summary does: the user "
+             "needs both to ask about one or to accept it.",
+             f"Evidence only when asked: `findings` with a fingerprint; #{top.get('rank', '?')} "
+             f"is {top['fingerprint']}, {where} {top['title']}"]
     action = first_action(workspace / RESULTS_DIR / "REMEDIATION.md")
     if action:
-        moves.append(f"REMEDIATION.md, {action}")
+        moves.append(f"The first proposed fix is REMEDIATION.md's {action}")
     return moves
 
 

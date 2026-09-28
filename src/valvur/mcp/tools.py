@@ -23,9 +23,7 @@ from ..operations import (
     MAX_LIMIT,
     cancel_scan,
     doctor,
-    explain_finding,
     findings_reply,
-    list_findings_reply,
     scan_reply,
     scan_status_reply,
     update_reply,
@@ -178,22 +176,6 @@ def registry() -> list[Tool]:
                                           "a larger one is clamped, and said so."},
                  "include_suppressed": {"type": "boolean"},
              }}, findings_reply, output_schema=_LIST_FINDINGS_SHAPE),
-        Tool("list_findings", "Deprecated since R6.5, removed in the next release: "
-                              "`findings` does this and more.",
-             {"type": "object", "properties": {
-                 **workspace_arg,
-                 "status": {"type": "string",
-                            "enum": ["new", "persisting", "regressed"]},
-                 "limit": {"type": "integer",
-                           "description": f"Default {DEFAULT_LIMIT}, max {MAX_LIMIT}."},
-                 "include_suppressed": {"type": "boolean"},
-             }}, list_findings_reply, output_schema=_LIST_FINDINGS_SHAPE),
-        Tool("explain_finding", "Deprecated since R6.5, removed in the next release: "
-                                "`findings` with a `fingerprint`.",
-             {"type": "object", "required": ["fingerprint"], "properties": {
-                 **workspace_arg,
-                 "fingerprint": {"type": "string", "description": "From list_findings."},
-             }}, explain_finding),
         Tool("scan_status", "What the last scan actually did: which scanners ran, "
                             "which failed, and whether the result is complete.",
              {"type": "object", "properties": workspace_arg}, scan_status_reply,

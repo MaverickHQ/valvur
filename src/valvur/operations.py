@@ -223,7 +223,7 @@ def start_scan(args: dict) -> str:
         f"Started a {profile} scan of {workspace}.\n"
         "Scans take seconds to minutes depending on the project, so this returns "
         "immediately.\n\n"
-        "Poll `scan_status` until it reports done, then use `list_findings`."
+        "Poll `scan_status` until it reports done, then use `findings`."
     )
 
 
@@ -404,13 +404,6 @@ def _matches(finding: dict, filters: dict) -> bool:
                  or finding["path"].startswith(prefix + "/")))
 
 
-def list_findings_reply(args: dict) -> tuple[str, dict]:
-    """`list_findings`, since R6.5 `findings` with no fingerprint: kept one release
-    so a client that allowed it by name still works."""
-    return findings_reply(args)
-
-
-list_findings = _text_of(list_findings_reply)
 findings = _text_of(findings_reply)
 
 
@@ -442,14 +435,6 @@ def _structured_finding(finding: dict) -> dict:
                     "epss": exploit.get("epss")},
         "evidence": evidence,
     }
-
-
-def explain_finding(args: dict) -> str:
-    """`explain_finding`, since R6.5 `findings` with a fingerprint: kept one release."""
-    if not args.get("fingerprint"):
-        raise Refusal("`fingerprint` is required; `findings` gives each finding's.",
-                      kind="missing-argument")
-    return findings_reply(args)[0]
 
 
 def _detail(finding: dict) -> dict:

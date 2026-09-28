@@ -168,7 +168,7 @@ def _scanned(tmp_path, *, index_stale: bool, db_stale: bool = False):
 def test_an_agent_finding_nothing_is_told_the_index_was_too_old(tmp_path):
     workspace = _scanned(tmp_path, index_stale=True)
 
-    answer = operations.list_findings({"workspace": str(workspace)})
+    answer = operations.findings({"workspace": str(workspace)})
 
     assert "package-name index is" in answer
     assert "reported as nonexistent" in answer
@@ -191,14 +191,14 @@ def test_scan_status_explains_an_index_caused_inconclusive(tmp_path):
 def test_a_fresh_index_adds_nothing_to_the_mcp_answer(tmp_path):
     workspace = _scanned(tmp_path, index_stale=False)
 
-    for tool in (operations.list_findings, operations.scan_status):
+    for tool in (operations.findings, operations.scan_status):
         assert "package-name index" not in tool({"workspace": str(workspace)})
 
 
 def test_both_stale_at_once_are_both_named_on_the_mcp_surface(tmp_path):
     workspace = _scanned(tmp_path, index_stale=True, db_stale=True)
 
-    answer = operations.list_findings({"workspace": str(workspace)})
+    answer = operations.findings({"workspace": str(workspace)})
 
     assert "vulnerability database is 60 days old" in answer
     assert "package-name index is" in answer

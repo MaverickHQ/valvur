@@ -81,10 +81,18 @@ def run(root: Path, tasks_text: str) -> AgentScore | None:
     # and not ignored, is exactly what R5.3 reports, and the agent would report it.
     config_path = LEDGER.parent / "agent-mcp.json"
     config_path.write_text(json.dumps(config, indent=2))
-    completed = subprocess.run(  # noqa: S603 — the Claude CLI, fixed arguments
-        ["claude", "-p", SENTENCE, "--mcp-config", str(config_path), "--strict-mcp-config",
-         "--max-turns", "40", "--output-format", "json", "--allowedTools", TOOLS],
-        cwd=root, capture_output=True, text=True, check=False, timeout=1800)
+    # The answers, out of the agent's reach while it works: at R6's exit an agent
+    # read `expected.toml` from the repository it was scoring.
+    expected_path = root / "expected.toml"
+    hidden = LEDGER.parent / f"expected-{root.name}.toml"
+    expected_path.replace(hidden)
+    try:
+        completed = subprocess.run(  # noqa: S603 — the Claude CLI, fixed arguments
+            ["claude", "-p", SENTENCE, "--mcp-config", str(config_path), "--strict-mcp-config",
+             "--max-turns", "40", "--output-format", "json", "--allowedTools", TOOLS],
+            cwd=root, capture_output=True, text=True, check=False, timeout=1800)
+    finally:
+        hidden.replace(expected_path)
     try:
         result = json.loads(completed.stdout)
     except ValueError:

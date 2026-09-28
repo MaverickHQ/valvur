@@ -128,14 +128,13 @@ def test_every_tools_arguments_are_closed():
     ("scan", {"budget_s": "ten"}, "invalid-argument"),
     ("scan", {"budget_s": -5}, "invalid-argument"),
     ("scan_status", {"workspace": 5}, "invalid-argument"),
-    ("list_findings", {"limit": 0}, "invalid-argument"),
-    ("list_findings", {"status": "fixed"}, "invalid-argument"),
-    ("explain_finding", {}, "missing-argument"),
+    ("findings", {"limit": 0}, "invalid-argument"),
+    ("findings", {"status": "fixed"}, "invalid-argument"),
     ("doctor", {"network": "yes"}, "invalid-argument"),
     ("scan", {"workspace": "relative/path"}, "relative-path"),
     ("scan", {"workspace": "/no/such/directory/anywhere"}, "no-directory"),
-    ("list_findings", {}, "no-results"),
-    ("explain_finding", {"fingerprint": "nope"}, "no-results"),
+    ("findings", {}, "no-results"),
+    ("findings", {"fingerprint": "nope"}, "no-results"),
 ])
 def test_every_violation_fails_at_the_call_with_a_kind_and_one_sentence(
         tmp_path, tool, arguments, kind):
@@ -159,3 +158,17 @@ def test_a_file_named_as_the_workspace_is_not_a_directory(tmp_path):
     result = _call("scan", {"workspace": str(readme)})
 
     assert result["structuredContent"]["error"]["kind"] == "not-a-directory"
+
+
+def test_a_missing_required_argument_is_its_own_kind():
+    """No tool requires an argument since `explain_finding` went (R6's exit), so the
+    check is held directly: a future tool that requires one gets it for free."""
+    from valvur.mcp.server import _check_arguments
+    from valvur.refusal import Refusal
+
+    with pytest.raises(Refusal) as refused:
+        _check_arguments({"type": "object", "required": ["fingerprint"],
+                          "properties": {"fingerprint": {"type": "string"}}}, {})
+
+    assert refused.value.kind == "missing-argument"
+    assert str(refused.value) == "`fingerprint` is required."

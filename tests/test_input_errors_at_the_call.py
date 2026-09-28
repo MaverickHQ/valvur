@@ -53,11 +53,10 @@ def test_a_number_sent_as_a_string_is_still_a_number():
 
 
 @pytest.mark.parametrize("tool, arguments", [
-    ("list_findings", {"limit": "many"}),
-    ("list_findings", {"limit": 0}),
-    ("explain_finding", {}),
-    ("explain_finding", {"fingerprint": "no-such-fingerprint"}),
-    ("list_findings", {}),                       # no scan has run here yet
+    ("findings", {"limit": "many"}),
+    ("findings", {"limit": 0}),
+    ("findings", {"fingerprint": "no-such-fingerprint"}),
+    ("findings", {}),                            # no scan has run here yet
 ])
 def test_a_readers_bad_argument_is_refused_in_one_plain_sentence(tmp_path, tool, arguments):
     result = _call(tool, {"workspace": str(tmp_path), **arguments})

@@ -50,7 +50,7 @@ def test_an_agent_finding_nothing_is_told_why_that_proves_nothing(tmp_path):
     """The case that mattered. Nothing found, by data too old to have found it."""
     workspace = _scanned(tmp_path, status="inconclusive", db_age_days=60.0, stale=True)
 
-    answer = operations.list_findings({"workspace": str(workspace)})
+    answer = operations.findings({"workspace": str(workspace)})
 
     assert "60 days old" in answer
     assert "NOT evidence that there is nothing" in answer
@@ -66,7 +66,7 @@ def test_findings_from_a_stale_scan_are_marked_incomplete_not_worthless(tmp_path
     workspace = _scanned(tmp_path, status="findings", findings=[finding],
                          db_age_days=60.0, stale=True)
 
-    answer = operations.list_findings({"workspace": str(workspace)})
+    answer = operations.findings({"workspace": str(workspace)})
 
     assert "the list is incomplete" in answer
     assert "NOT evidence that there is nothing" not in answer
@@ -99,7 +99,7 @@ def test_a_run_json_without_a_reason_says_so_rather_than_guessing(tmp_path):
     assert "reason is not recorded" in answer and "rescan" in answer
 
 
-@pytest.mark.parametrize("tool", ["list_findings", "scan_status"])
+@pytest.mark.parametrize("tool", ["findings", "scan_status"])
 def test_a_fresh_database_produces_no_warning_on_any_tool(tmp_path, tool):
     """The pair that keeps the warning worth reading. A caveat on every response is
     one an agent learns to skip — the same reason the coverage caveat is gated."""
@@ -117,6 +117,6 @@ def test_a_missing_run_json_does_not_fabricate_a_warning(tmp_path):
     results.mkdir(parents=True)
     (results / "findings.json").write_text(json.dumps({"status": "clean", "findings": []}))
 
-    answer = operations.list_findings({"workspace": str(tmp_path)})
+    answer = operations.findings({"workspace": str(tmp_path)})
 
     assert "WARNING" not in answer

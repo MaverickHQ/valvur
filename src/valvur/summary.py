@@ -556,8 +556,11 @@ def _group_line(members) -> str:
     best = members[0]
     word = _exploit_badge(best.exploit)
     badge = f" **[{word}]**" if word else ""
-    where = ", ".join(f"`{f.path}:{f.line}`" if f.line else f"`{f.path}`" for f in members[:3])
-    more = f" and {len(members) - 3:,} more" if len(members) > 3 else ""
+    # Each location once: twelve hits at one resource are one place (R6's exit).
+    places = list(dict.fromkeys(f"`{f.path}:{f.line}`" if f.line else f"`{f.path}`"
+                                for f in members))
+    where = ", ".join(places[:3])
+    more = f" and {len(places) - 3:,} more" if len(places) > 3 else ""
     label = next((g.label for g in _grouping.describe(members) if g.machine_written), "")
     tail = f" — {label.split(': ', 1)[1]}" if label else ""
     return (f"{best.rank}. **{len(members):,} ×** {_cut(best.title, 110)} "  # noqa: RUF001

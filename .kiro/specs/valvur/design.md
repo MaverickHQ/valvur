@@ -441,8 +441,6 @@ stopped. The annotation is narrower than F9.2 and does not weaken it.
 | `scan_status` | `workspace?` | The same reply: attaches to a running scan, never starts one | `true` |
 | `scan_cancel` | `workspace?` | What was stopped; nothing is written (F1.11) | `false` |
 | `findings` | `workspace?`, `fingerprint?`, `group?`, `rule?`, `path?`, `status?`, `limit?` | Ranked **Findings**, filtered; with a fingerprint, its evidence, **Exploit Signals**, **Dependency Path** and sources (F9.8, R6.5) | `true` |
-| `list_findings` | as `findings` | Deprecated by R6.5, kept one release | `true` |
-| `explain_finding` | as `findings`, with `fingerprint` | Deprecated by R6.5, kept one release | `true` |
 | `doctor` | `workspace?` | Every precondition a scan needs, with the fix for each (23.3.1) | `true` |
 | `update` | `if_stale?` | Fetches the image if absent, the database, KEV and the name index; says what it fetched (ADR-0025, R6.6) | `false` |
 
@@ -453,7 +451,7 @@ committed snapshot (23.5.2), so any change to this table is a diff in review.
 **The handshake carries the rules, and the two readers answer in two forms
 (28.2.2).** `initialize` returns `instructions`: the five rules `SUMMARY.md`'s
 machine block opens with, from the same constant, so an agent that never opens the
-folder has them before its first call. `scan_status` and `list_findings` declare
+folder has them before its first call. `scan`, `scan_status` and `findings` declare
 an `outputSchema` and answer `structuredContent` beside their text (MCP
 2025-06-18) — the verdict, the counts, the Scanners and the next moves as fields;
 the shown Findings as objects — computed in the same pass as the text, so the two

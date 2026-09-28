@@ -226,7 +226,7 @@ def _call(tool_name, arguments):
 
 
 def test_list_findings_returns_findings_worst_first(scanned):
-    result = _call("list_findings", {"workspace": str(scanned)})
+    result = _call("findings", {"workspace": str(scanned)})
 
     assert result["isError"] is False
     assert "worst first" in result["content"][0]["text"]
@@ -235,7 +235,7 @@ def test_list_findings_returns_findings_worst_first(scanned):
 def test_list_findings_is_bounded_and_says_what_it_omitted(scanned):
     """F9.10 — several thousand findings in an agent's context is the problem F7.5
     solved for SUMMARY.md, arriving by another door."""
-    result = _call("list_findings", {"workspace": str(scanned), "limit": 2})
+    result = _call("findings", {"workspace": str(scanned), "limit": 2})
 
     text = result["content"][0]["text"]
     assert "showing 2" in text
@@ -245,14 +245,14 @@ def test_list_findings_is_bounded_and_says_what_it_omitted(scanned):
 def test_list_findings_caps_an_unreasonable_limit(scanned):
     from valvur.mcp.tools import MAX_LIMIT
 
-    result = _call("list_findings", {"workspace": str(scanned), "limit": 100_000})
+    result = _call("findings", {"workspace": str(scanned), "limit": 100_000})
 
     shown = result["content"][0]["text"].count("fingerprint:")
     assert shown <= MAX_LIMIT
 
 
 def test_list_findings_can_filter_by_status(scanned):
-    result = _call("list_findings", {"workspace": str(scanned), "status": "persisting"})
+    result = _call("findings", {"workspace": str(scanned), "status": "persisting"})
 
     assert result["isError"] is False
 
@@ -267,7 +267,7 @@ def test_explain_finding_returns_evidence_and_provenance(scanned):
     )["findings"]
     injection = next(f for f in findings if "prompt-injection" in f["rule"])
 
-    result = _call("explain_finding",
+    result = _call("findings",
                    {"workspace": str(scanned), "fingerprint": injection["fingerprint"]})
 
     text = result["content"][0]["text"]
@@ -288,7 +288,7 @@ def test_an_mcp_response_carries_neutralised_evidence(scanned):
     )["findings"]
     injection = next(f for f in findings if "prompt-injection" in f["rule"])
 
-    result = _call("explain_finding",
+    result = _call("findings",
                    {"workspace": str(scanned), "fingerprint": injection["fingerprint"]})
     text = result["content"][0]["text"]
 
@@ -305,7 +305,7 @@ def test_explain_finding_restates_that_valvur_does_not_apply_fixes(scanned):
         (scanned / ".security-scan" / "findings.json").read_text()
     )["findings"]
 
-    result = _call("explain_finding",
+    result = _call("findings",
                    {"workspace": str(scanned), "fingerprint": findings[0]["fingerprint"]})
 
     text = result["content"][0]["text"]
@@ -322,7 +322,7 @@ def test_scan_status_reports_incompleteness_rather_than_hiding_it(scanned):
 
 
 def test_listing_before_scanning_says_so_rather_than_returning_nothing(tmp_path):
-    result = _call("list_findings", {"workspace": str(tmp_path)})
+    result = _call("findings", {"workspace": str(tmp_path)})
 
     assert result["isError"] is True
     assert "Run the `scan` tool first" in result["content"][0]["text"]
@@ -339,8 +339,6 @@ ANNOUNCED = {
     "update":          {"readOnlyHint": False, "destructiveHint": False},
     "scan_status":     {"readOnlyHint": True, "destructiveHint": False},
     "findings":        {"readOnlyHint": True, "destructiveHint": False},
-    "list_findings":   {"readOnlyHint": True, "destructiveHint": False},
-    "explain_finding": {"readOnlyHint": True, "destructiveHint": False},
     "doctor":          {"readOnlyHint": True, "destructiveHint": False},
 }
 
@@ -376,8 +374,7 @@ def test_the_registry_exposes_exactly_the_expected_tools():
     from valvur.mcp.tools import registry
 
     assert {t.name for t in registry()} == {
-        "scan", "findings", "list_findings", "explain_finding", "scan_status", "doctor",
-        "scan_cancel", "update",
+        "scan", "findings", "scan_status", "doctor", "scan_cancel", "update",
     }
 
 
@@ -561,8 +558,8 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
 
     shared = {
         getattr(operations, name)
-        for name in ("scan_reply", "findings", "list_findings", "explain_finding",
-                     "scan_status", "doctor", "cancel_scan", "update_reply")
+        for name in ("scan_reply", "findings", "scan_status", "doctor", "cancel_scan",
+                     "update_reply")
     }
     # A reader that answers `structuredContent` (28.2.2) is registered in its
     # two-form shape, `<name>_reply`; the CLI's text function is that reply's
@@ -578,8 +575,8 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
 
 @pytest.mark.parametrize(
     ("command", "operation"),
-    [("findings", "list_findings"), ("explain", "explain_finding"),
-     ("status", "scan_status"), ("scan", "start_scan"), ("doctor", "doctor")],
+    [("findings", "findings"), ("status", "scan_status"), ("scan", "start_scan"),
+     ("doctor", "doctor")],
 )
 def test_each_mcp_tool_has_a_cli_equivalent(command, operation):
     """F9.3 — the CLI is the second way in, and must reach the same operations."""
@@ -605,7 +602,7 @@ def test_the_cli_and_mcp_produce_identical_text_for_the_same_request(scanned):
     from valvur import operations
     from valvur.cli import main
 
-    direct = operations.list_findings({"workspace": str(scanned), "limit": 3})
+    direct = operations.findings({"workspace": str(scanned), "limit": 3})
 
     with contextlib.redirect_stdout(io.StringIO()) as out:
         main(["findings", str(scanned), "--limit", "3"])
@@ -665,7 +662,7 @@ def test_scan_status_without_a_scan_says_so_in_both_forms(tmp_path):
 
 
 def test_list_findings_answers_structured_findings_that_agree_with_its_text(scanned):
-    result = _call("list_findings", {"workspace": str(scanned), "limit": 2})
+    result = _call("findings", {"workspace": str(scanned), "limit": 2})
     text = result["content"][0]["text"]
     data = result["structuredContent"]
 
@@ -681,7 +678,7 @@ def test_list_findings_answers_structured_findings_that_agree_with_its_text(scan
 def test_structured_findings_are_neutralised_like_the_text(scanned):
     """F9.9 applies to both forms: a structured reply reaches the agent's context
     as directly as the text does."""
-    result = _call("list_findings", {"workspace": str(scanned), "limit": 50})
+    result = _call("findings", {"workspace": str(scanned), "limit": 50})
     data = result["structuredContent"]
 
     injection = next(f for f in data["findings"] if "prompt-injection" in f["rule"])
@@ -707,14 +704,14 @@ def test_every_evidence_an_mcp_reply_carries_is_fenced_not_only_a_directive(scan
                  if "prompt-injection" not in f["rule"] and f.get("evidence")
                  and not defang.needs_fencing(f["evidence"]))
 
-    reply = _call("explain_finding",
+    reply = _call("findings",
                   {"workspace": str(scanned), "fingerprint": plain["fingerprint"]})
     text = reply["content"][0]["text"]
     after = text.split("Evidence:\n", 1)[1]
     assert after.startswith(defang.FENCE), after[:120]
     assert text.count(defang.FENCE) == 1
 
-    listed = _call("list_findings", {"workspace": str(scanned), "limit": 50})["structuredContent"]
+    listed = _call("findings", {"workspace": str(scanned), "limit": 50})["structuredContent"]
     for entry in listed["findings"]:
         if entry["evidence"]:
             assert entry["evidence"].startswith(defang.FENCE), entry["rule"]
@@ -727,8 +724,8 @@ def test_the_two_readers_declare_their_output_shape():
 
     described = {tool.name: tool.describe() for tool in registry()}
 
-    for name in ("scan", "scan_status", "list_findings", "update"):
+    for name in ("scan", "scan_status", "findings", "update"):
         assert described[name]["outputSchema"]["type"] == "object", name
     assert described["scan"]["outputSchema"] == described["scan_status"]["outputSchema"]
-    for name in ("scan_cancel", "explain_finding", "doctor"):
+    for name in ("scan_cancel", "doctor"):
         assert "outputSchema" not in described[name], f"{name} claims a shape it does not answer"
