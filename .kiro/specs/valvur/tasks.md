@@ -285,6 +285,11 @@ Phases R0 to R6 are closed, each with its STATUS notes and its exit as measured,
   and the three misses each describe a finding without the literal the scorer demands, a
   path or a rule ID. The ledger stands at $22.51 of D19's $25; the $2.49 left pays for
   less than a run, so by D19's fallback no further scoring runs in this build (§8).
+- **Addendum, the owner's decisions applied** (`docs/acceptance/r7.md`): with the rule
+  that a report names the rule ID and the path, the three repositories that missed name
+  every expected finding. D17's agent criterion: 5 of 8 in six turns or fewer, every
+  answer complete; still ❌ on turns (repositories 3, 4 and 8: 8, 9 and 7). The SBOM is
+  opt-in. The ledger closes at $24.60 of $25.
 
 ### Phase R8: the image as a pipeline step
 
@@ -333,7 +338,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | ~~R4's speed exit, missed~~ **decided 2026-09-28: accepted** | R4's exit | the fastest application-repository scan on Linux stays 63% of R2's baseline, not half; no task follows |
 | land R5, PR #149 | R4 lands; **every check green on `7b4e6a6`** | the same fast-forward, after #148 |
 | land R6, PR #150 | R5 lands | the same fast-forward, after #149 |
-| ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so, and the three repositories that missed at R7 are re-run within D19's remaining $2.49 (`docs/acceptance/r7.md`) |
+| ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so; re-run on the three that missed, every answer names every expected finding, and 5 of 8 fit six turns (`docs/acceptance/r7.md`). Agent scoring ended at $24.60 of $25 |
 | land R7, PR (opened at R7's exit) | R6 lands | the same fast-forward, after #150 |
 | the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
 | ~~D9 and the SBOM~~ **decided 2026-09-28: the SBOM is opt-in** | R4.4 | Syft runs, and the dependency licence policy (F4.4 to F4.6) with it, when a scan asks: `--sbom`, or `sbom = true` under `[scan]`. In `1.0.0`, whose Results Folder contract says so |
