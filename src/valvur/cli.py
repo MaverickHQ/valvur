@@ -296,6 +296,11 @@ def build_parser() -> argparse.ArgumentParser:
         "registry report as unverified rather than clean.",
     )
     scan_cmd.add_argument(
+        "--out", default=None, metavar="DIR",
+        help="Write .security-scan/ under DIR instead of the workspace, for a checkout "
+        "mounted read-only; `gate`, `findings` and `status` then read DIR.",
+    )
+    scan_cmd.add_argument(
         "--budget", type=_positive_seconds, default=None, metavar="SECONDS",
         help="Stop the Scanners past this many seconds: nothing new starts, what is "
         "running is stopped, and the result is reported incomplete with the cut "
@@ -570,8 +575,9 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
             print(f"  {message}", file=sys.stderr)
 
     try:
+        out = Path(args.out).resolve() if getattr(args, "out", None) else None
         run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                   jobs=args.jobs, budget_s=args.budget)
+                   jobs=args.jobs, budget_s=args.budget, out=out)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.
@@ -583,23 +589,8 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     if run.failures:
         print("  ! this scan is INCOMPLETE")
 
-    # Task 14.2 — decided 2026-09-05: valvur does NOT update the database by itself,
-    # on any Profile. Three reasons, in order of weight.
-    #
-    # It is a 1.2GB download. Starting one inside a scan the user asked to be fast
-    # is hostile, and doing it silently is worse.
-    #
-    # It would make the Profiles disagree for a reason unrelated to coverage. If
-    # `full` refreshed and `offline` could not, the two would scan different data
-    # and the equivalence asserted in Phase 11 cycle 3 would break — not because
-    # coverage differs, but because we introduced a difference.
-    #
-    # And updating on the user's behalf is the same move as fixing on their behalf,
-    # which section 4 refuses. So: say it, loudly, and let them decide.
-    #
-    # All three are about STALENESS. An ABSENT database or index is fetched by the
-    # scan itself, and said (24.1, `api._ensure_data`): without them there is no
-    # scan at all, and the primary path has no shell to run `valvur update` in.
+    # A scan fetches absent data and refreshes stale data itself (24.1, ADR-0025),
+    # so these warn only when it could not: `fetch = "never"`, or a fetch that failed.
     _warn_if_database_stale(run)
     _warn_if_name_index_stale(run)
 
@@ -629,7 +620,7 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     if len(run.not_read) > 8:
         print(f"  · not read: {len(run.not_read) - 8} more, listed in run.json")
 
-    print(f"results: {workspace / '.security-scan'}")
+    print(f"results: {(out or workspace) / '.security-scan'}")
 
     # Findings never fail the run (N3.2). Only a failed Scan Run exits non-zero.
     return 0

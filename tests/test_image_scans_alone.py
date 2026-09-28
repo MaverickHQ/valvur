@@ -147,3 +147,34 @@ def test_outside_the_image_a_scan_starts_a_scan_container(monkeypatch):
     monkeypatch.delenv("VALVUR_IN_IMAGE", raising=False)
 
     assert isinstance(engine_host.for_scan(), engine_host.ContainerRuntime)
+
+
+def test_the_results_can_go_to_a_directory_of_their_own(tmp_path):
+    """A checkout mounted read-only into a pipeline step cannot hold
+    `.security-scan/`: `--out DIR` writes it under DIR, the next scan's new and
+    fixed are read from there, and `gate` reads DIR as it reads a workspace."""
+    import json
+    import os
+
+    from valvur import cli
+
+    fake_tools = Path(__file__).parent / "fixtures" / "fake-tools"
+    ws = tmp_path / "checkout"
+    ws.mkdir()
+    (ws / "config.py").write_text('AWS = "AKIA' + "Q" * 16 + '"\n')
+    out = tmp_path / "out"
+    out.mkdir()
+    ws.chmod(0o555)
+    try:
+        for _ in range(2):
+            assert cli.main(["scan", str(ws), "--out", str(out)],
+                            runner=LocalRuntime(fake_tools)) == 0
+    finally:
+        ws.chmod(0o755)
+
+    assert not (ws / ".security-scan").exists()
+    findings = json.loads((out / ".security-scan" / "findings.json").read_text())["findings"]
+    assert [f["status"] for f in findings if f["rule"] == "aws-access-token"] == ["persisting"]
+    assert (out / ".security-scan" / ".gitignore").read_text() == "*\n"
+    assert cli.main(["gate", str(out), "--fail-on", "high"]) == 1
+    assert os.access(ws, os.W_OK)

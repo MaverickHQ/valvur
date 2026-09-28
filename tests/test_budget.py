@@ -222,7 +222,8 @@ def test_the_cli_has_no_budget_unless_asked(monkeypatch, tmp_path, capsys):
 
     seen: list = []
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None):
+    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
+                  out=None):
         seen.append(budget_s)
         return api.ScanRun(findings=[], profile=profile)
 

@@ -1,4 +1,5 @@
-usage: valvur scan [-h] [--profile {offline,full}] [--offline] [--budget SECONDS] [--jobs N]
+usage: valvur scan [-h] [--profile {offline,full}] [--offline] [--out DIR] [--budget SECONDS]
+                   [--jobs N]
                    [path]
 
 positional arguments:
@@ -14,6 +15,8 @@ options:
                         names, versions and CVE identifiers, never source.
   --offline             Force the offline Profile regardless of --profile. Checks needing a
                         registry report as unverified rather than clean.
+  --out DIR             Write .security-scan/ under DIR instead of the workspace, for a checkout
+                        mounted read-only; `gate`, `findings` and `status` then read DIR.
   --budget SECONDS      Stop the Scanners past this many seconds: nothing new starts, what is
                         running is stopped, and the result is reported incomplete with the cut
                         Scanners named. Default: none here (Ctrl-C is yours); 300 over MCP.

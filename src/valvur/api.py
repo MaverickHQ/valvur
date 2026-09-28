@@ -548,7 +548,11 @@ def _outcome(adapter, output) -> ScannerOutcome:
 def scan(
     workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
     on_progress=None, jobs: int | None = None, budget_s: float | None = None,
+    out: Path | None = None,
 ) -> ScanRun:
+    """One Scan Run of `workspace`. Its Results Folder is `.security-scan/` in the
+    workspace, or in `out` when given (R8.1): a checkout mounted read-only into a
+    pipeline step cannot hold it."""
     if budget_s is not None and not budget_s > 0:
         raise ValueError(f"the budget must be a positive number of seconds; got {budget_s!r}")
     # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
@@ -563,9 +567,10 @@ def scan(
     from . import cache as _cache_mod
     from . import locking as _locking
 
+    out = Path(out) if out is not None else workspace
     with contextlib.ExitStack() as _locks:
         _locks.enter_context(_locking.held(
-            _locking.workspace_lock(workspace / _results.RESULTS_DIR),
+            _locking.workspace_lock(out / _results.RESULTS_DIR),
             exclusive=True, wait=False,
             busy_message=(
                 f"a scan is already running in {workspace}. Wait for it, or scan a "
@@ -597,7 +602,7 @@ def scan(
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
             on_progress=on_progress, unfetched=unfetched, fetched=fetched, jobs=jobs,
-            budget_s=budget_s, generation=generation,
+            budget_s=budget_s, generation=generation, out=out,
         )
 
 
@@ -650,7 +655,7 @@ def _stop_if_cancelled(runner, where: str) -> None:
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                  unfetched: dict[str, str] | None = None, fetched: list[dict] | None = None,
                  jobs: int | None = None, budget_s: float | None = None,
-                 generation: str | None = None) -> ScanRun:
+                 generation: str | None = None, out: Path | None = None) -> ScanRun:
     """One Scan Run, under the Workspace lock: preflight, the fleet, then the
     assembly of the record — three functions since 28.4.2, one each."""
     shim_built_from, image_built_from = _preflight(runner, workspace)
@@ -686,7 +691,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=files, largest_dirs=largest, not_read=tuple(chosen.skipped),
         scope=chosen.manifest(workspace), ignored=frozenset(chosen.ignored),
-        hygiene=_hygiene.assess(workspace, chosen.files),
+        hygiene=_hygiene.assess(workspace, chosen.files), out=out,
         generation=generation, history=beside.get("history"),
     )
 
@@ -961,7 +966,8 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
               budget_s, shim_built_from, image_built_from,
               workspace_files: int = 0, largest_dirs=(), not_read=(), scope=None,
               generation: str | None = None, history: dict | None = None,
-              ignored: frozenset[str] = frozenset(), hygiene: dict | None = None) -> ScanRun:
+              ignored: frozenset[str] = frozenset(), hygiene: dict | None = None,
+              out: Path | None = None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -999,6 +1005,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         # network the Profile granted (ADR-0018), not on whether the adapter was run.
         declaring=[a.for_profile(network=network) for a in DEFAULT_ADAPTERS],
         artifacts=artifacts, ignored=ignored,
+        results=(out or workspace) / _results.RESULTS_DIR,
     )
     # One value out, with every field a stage recorded (27.3.4): the ScanRun below
     # is assembled from it rather than by reaching into the Context the stages
@@ -1023,7 +1030,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
     # A skipped Scanner had nothing to analyse, which is an answer: its old
     # Finding's file is gone, and gone is fixed.
     did_not_run = {r.tool for r in scanners if not r.ok and not r.skipped} | set(cut)
-    previous_sources = _state.load_sources(workspace / _results.RESULTS_DIR)
+    previous_sources = _state.load_sources((out or workspace) / _results.RESULTS_DIR)
 
     def not_run_for(fp: str) -> str | None:
         """The Scanners that would have re-checked `fp` and did not run, joined;
@@ -1079,7 +1086,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
     sources_next = {f.fingerprint: f.sources for f in findings}
     sources_next.update({fp: previous_sources.get(fp, ()) for fp in carried})
     results.write(
-        workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs,
+        out or workspace, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs,
         state=_state.render(present_next, still_fixed, sources=sources_next,
                             generation=run.generation),
     )
