@@ -538,13 +538,13 @@ def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
 def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     """`update`: the image, the database, the KEV copy and the index, as the MCP
     tool runs them (`updating.run`); or, with --prune or --clear, tidy the cache."""
-    from . import updating
-    from .runner import ContainerRunner
+    from . import engine_host, updating
 
     if getattr(args, "prune", False) or getattr(args, "clear", False):
         # What `cache` did (D12): tidy the host cache, and fetch nothing.
         return _print_cache(clear=args.clear, prune=args.prune)
-    updated = updating.run(print, runner or ContainerRunner(), build_index=args.build_index,
+    updated = updating.run(print, runner or engine_host.for_scan(),
+                           build_index=args.build_index,
                            if_stale=getattr(args, "if_stale", False))
     return 0 if updated.ok else 1
 

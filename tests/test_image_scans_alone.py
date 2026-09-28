@@ -103,3 +103,47 @@ def test_history_unread_for_want_of_git_is_said_on_the_report(tmp_path, monkeypa
     assert "git" in run["history"]["unavailable"]
     summary = (ws / ".security-scan" / "SUMMARY.md").read_text()
     assert "Git history was not read for secrets" in summary
+
+
+def _fake_trivy(tmp_path):
+    """A `trivy` that records its arguments and succeeds."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    trivy = bin_dir / "trivy"
+    trivy.write_text(f"#!{sys.executable}\nimport sys\n"
+                     f"open({str(tmp_path / 'argv.txt')!r}, 'w').write(' '.join(sys.argv[1:]))\n")
+    trivy.chmod(0o755)
+    return bin_dir
+
+
+def test_inside_the_image_a_scan_runs_the_engine_as_a_process(tmp_path, monkeypatch):
+    """No runtime to start a container from inside a container: the same engine
+    runs as a process there, the job's cache at `/cache`, and there is no image to
+    pull and no second tree to compare."""
+    from valvur import cache, engine_host
+
+    monkeypatch.setenv("VALVUR_IN_IMAGE", "1")
+    monkeypatch.setenv("VALVUR_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("PATH", f"{_fake_trivy(tmp_path)}:{__import__('os').environ['PATH']}")
+
+    runtime = engine_host.for_scan()
+
+    assert isinstance(runtime, engine_host.ImageRuntime)
+    assert runtime.cache == cache.root()
+    assert runtime.image_present() is True
+    runtime.verify_compatible()
+    shim, image = runtime.build_provenance()
+    assert shim == image
+    fetched = runtime.update_db()
+    assert fetched.exit_code == 0
+    argv = (tmp_path / "argv.txt").read_text()
+    assert f"--cache-dir {cache.root()}/trivy" in argv
+    assert "--download-db-only" in argv
+
+
+def test_outside_the_image_a_scan_starts_a_scan_container(monkeypatch):
+    from valvur import engine_host
+
+    monkeypatch.delenv("VALVUR_IN_IMAGE", raising=False)
+
+    assert isinstance(engine_host.for_scan(), engine_host.ContainerRuntime)
