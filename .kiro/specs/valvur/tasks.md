@@ -1082,6 +1082,30 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
 **Exit:** agent scoring reaches a correct report in 6 turns or fewer on every repository.
 Every bad input fails synchronously. The CLI parity test is green.
 
+**Exit STATUS 2026-09-28** (`docs/acceptance/r6.md`), two of three met:
+- **Agent scoring: a correct report in six turns or fewer on 4 of 8 repositories, not
+  all.** ❌ The first exit run reached 3. Its traces found four causes, fixed before the
+  second run:
+  1. `next` sent the agent to `explain_finding` and REMEDIATION.md after the whole summary
+     was already in `report`;
+  2. the deprecated MCP tools cost a deferred-tool load each;
+  3. a group line repeated one location;
+  4. the harness left `expected.toml` where the agent read it.
+
+  The second run: turns 5, 4, 7, 6, 5, 3, 5, 7, so six of eight fit six turns. Six of eight
+  named every expected finding. Repository 2's answer omitted `requirements.txt`, and
+  repository 5's named neither of its two rules, though both are in the summary it was
+  given. The ledger stands at $18.04 of D19's $25. The rest is kept for R7's exit, which
+  measures the same criterion for `1.0.0` (D17). The answers are now kept beside the
+  score, so the next misses can be read. The choice is the owner's (§8).
+- Every bad input fails synchronously: ✅ thirteen violations held to their kind, one
+  sentence and two seconds, with no job started (R6.4).
+- The CLI parity test is green: ✅ every MCP tool against its command (R6.5).
+
+The Mac lane on the rebuilt image, host swap 12.8 GB: every repository passes with nothing
+pending, zero containers after all four probes, and the e2e suite 51 passed, the Kiro
+probe against the real server among them. Linux: #150's checks.
+
 ### Phase R7: documents, and `1.0.0` prepared
 
 - [ ] **R7.1** **The README, rewritten against what exists** (P6). Behaviours:
@@ -1149,6 +1173,9 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | land R3, PR #146, then R4, PR #148 | R2 lands | the same fast-forward, one branch at a time, in order. Not a squash or a rebase merge: repository 6 of the acceptance set is pinned to R4's commit `eb3a199` and needs that hash on `main` |
 | R4's speed exit, missed | **now** (R4's exit) | the fastest application-repository scan on Linux is 63% of R2's baseline, not half (§7, R4). Accept it, or take a task to unpack Opengrep in the image at build: measured 0.45 s faster per scan, 243 MB less tmpfs memory, `/tmp` no longer executable, and the image about 190 MB larger; about 3.0 s, still short of 2.7 s. A second lever is OSV's offline database, about 10 s on every npm project on both lanes, which D8 accepted for `MAL-` packages |
 | land R5, PR #149 | R4 lands; **every check green on `7b4e6a6`** | the same fast-forward, after #148 |
+| land R6, PR #150 | R5 lands | the same fast-forward, after #149 |
+| R6's agent exit, missed | **now** (R6's exit; also D17 for `1.0.0`) | 4 of 8 repositories reach a correct report in six turns or fewer; six of eight fit six turns, and the misses are an answer that names a CVE without its file and one that describes two rules without their IDs. Decide whether a correct report must name the rule ID and the path, as the scorer demands, or whether it may describe them, which would pass both misses. The build's $6.96 left under D19 pays for one more full run, at R7's exit |
+| the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
 | D9 and the SBOM | now (R4.4) | decide whether Syft becomes `--sbom` only: that would switch the dependency licence policy (F4.4 to F4.6) off by default, which D9 did not weigh; or amend D8 to count packages without GitHub Actions, where Trivy's SBOM is 98.1% of Syft's and could carry both |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 

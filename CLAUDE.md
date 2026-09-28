@@ -23,11 +23,11 @@ honest about why not, and trustworthy. Locally.
   **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
 
 **Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
-R0, R1 closed 2026-09-27; R2 (acceptance set), R3 (one container, protocol 2, `0.7.0`), R4 (the
-Scanner set) and R5 (the report) 2026-09-28, all waiting to land; `0.6.0` waits for its tag. R6 next.
+R0, R1 closed 2026-09-27; R2 to R6 (acceptance set, one container, Scanner set, report, agent
+surface) 2026-09-28, all waiting to land; `0.6.0` waits for its tag. R7 next.
 
-**Size, 2026-09-28:** 84 modules, 1,468 tests in 123 files, 25 ADRs, 136 requirement IDs,
-traceability debt zero, 19 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
+**Size, 2026-09-28:** 89 modules, 1,538 tests in 135 files, 25 ADRs, 136 requirement IDs,
+traceability debt zero, 9 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
 
 ## 2. What it is NOT
 

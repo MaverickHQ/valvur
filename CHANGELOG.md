@@ -73,7 +73,9 @@ The agent surface (R6):
   of the client's roots, and one outside the roots is refused. Every schema is closed.
   Every bad input fails at the call, in one sentence and with its kind.
 - **One `findings` tool** filters by fingerprint, group, rule and path and says when it
-  clamped. `list_findings` and `explain_finding` stay for one release.
+  clamped. **The MCP tools `list_findings` and `explain_finding` are removed**: each cost
+  an agent a turn to load before it found `findings`. A client that allowed them by
+  name should allow `findings`.
 - **Eight CLI commands**: `findings` absorbs `explain`; `doctor` shows the cache;
   `update --prune` and `--clear` absorb `cache`; `init` prints a starter and the client
   blocks and writes nothing. The old names still work and say what replaced them. A
