@@ -84,13 +84,14 @@ def fetch(entries: list[dict]) -> int:
 # -------------------------------------------------------------------------- run
 
 def _scan(target: Path, profile: str) -> tuple[dict, list[dict]]:
-    from valvur import cache
-    from valvur.api import scan
-    from valvur.runner import ContainerRunner
+    from valvur import api, cache
+    from valvur.engine_host import for_scan
 
     if not cache.name_index_present():
         sys.exit("no package-name index in the cache; run `valvur update` first")
-    scan(target, runner=ContainerRunner(), profile=profile)
+    # The runtime `valvur scan` uses: the corpus judges the product, not a path
+    # beside it.
+    api.scan(target, runner=for_scan(), profile=profile)
     results = target / ".security-scan"
     run = json.loads((results / "run.json").read_text(encoding="utf-8"))
     findings = json.loads((results / "findings.json").read_text(encoding="utf-8"))["findings"]

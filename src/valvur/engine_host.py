@@ -344,6 +344,6 @@ class ContainerRuntime(_Runtime):
 
 
 def for_scan() -> ContainerRuntime:
-    """The runtime a scan over MCP uses under `VALVUR_ENGINE=2` (R3.5), until R3.9
-    makes it the only one. A function, so a test can hand in `LocalRuntime`."""
+    """The runtime every scan uses (R3.9): the CLI, MCP, the corpus. A function,
+    so a test can hand in `LocalRuntime`."""
     return ContainerRuntime()

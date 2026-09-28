@@ -57,13 +57,15 @@ def _deny(name: str):
 
 def check_containers_have_no_network() -> bool:
     from valvur import profiles
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
-    runner = ContainerRunner(runtime="/usr/local/bin/docker")
+    # The command a scan launches, built by the code a scan calls (ADR-0022):
+    # one Scan Container per network boundary, so the offline one is the claim.
+    runtime = ContainerRuntime(runtime="/usr/local/bin/docker")
     probe = Path(tempfile.mkdtemp())
-    flags = runner._base_flags(probe, tempfile.mkdtemp(), network=False)
+    flags = runtime.command(probe, network=False)
     ok = "--network=none" in flags
-    print(f"  [{'PASS' if ok else 'FAIL'}] containers are launched with --network=none")
+    print(f"  [{'PASS' if ok else 'FAIL'}] the Scan Container is launched with --network=none")
     # The literal above is deliberate — this script is the independent check, and
     # must not merely ask egress whether egress agrees with itself. But the
     # authority every caller reads (26.2.2) must say the same thing.
@@ -74,7 +76,7 @@ def check_containers_have_no_network() -> bool:
     ok = ok and agrees
     print(f"         Scanners on offline: {', '.join(profiles.SCANNERS[profiles.OFFLINE])}")
     # The check is only meaningful if it can fail: the networked path must differ.
-    networked = runner._base_flags(probe, tempfile.mkdtemp(), network=True)
+    networked = runtime.command(probe, network=True)
     if "--network=none" in networked:
         print("  [FAIL] the flag is unconditional, so this check proves nothing")
         return False
