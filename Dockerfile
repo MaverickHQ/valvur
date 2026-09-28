@@ -167,7 +167,15 @@ RUN python3 -m valvur.tree_hash --image > /etc/valvur/inputs.sha256 \
  && chmod 0444 /etc/valvur/inputs.sha256 \
  && PYTHONHASHSEED=0 python3 -m compileall -q -f --invalidation-mode unchecked-hash /usr/local/lib/python3.12/site-packages/valvur
 
+# The image as a pipeline step (R8.1, D15): `valvur scan` run here has no runtime
+# to start a Scan Container from, so it runs the same engine as a process in this
+# container. `VALVUR_IN_IMAGE` tells it so; `valvur` is the CLI, as the wheel names it.
+RUN printf '#!/bin/sh\nexec python3 -m valvur.cli "$@"\n' > /usr/local/bin/valvur \
+ && chmod 0755 /usr/local/bin/valvur
+ENV VALVUR_IN_IMAGE=1
+
 RUN adduser -D -u 10001 valvur
 USER 10001:10001
 WORKDIR /workspace
-# No ENTRYPOINT: the shim names a specific scanner binary per adapter.
+# No ENTRYPOINT: the shim names a specific scanner binary per adapter, and a
+# pipeline step names `valvur scan`.

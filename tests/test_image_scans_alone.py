@@ -44,6 +44,18 @@ def test_the_engine_maps_the_cache_in_arguments_and_in_a_tools_environment(tmp_p
     assert (scratch / "env.txt").read_text() == f"{cache}/osv"
 
 
+
+def test_a_path_after_a_scheme_is_mapped_too(tmp_path):
+    """Syft is told `dir:/workspace`: run as a process, it scanned the image's own
+    empty `/workspace` and wrote an SBOM of nothing, measured on acceptance
+    repository 2 (0 components against the host's 16)."""
+    from valvur.engine import _mapped
+
+    ws, results = tmp_path / "ws", tmp_path / "results"
+    assert _mapped("dir:/workspace", ws, results) == f"dir:{ws}"
+    assert _mapped("https://example.invalid/workspace", ws, results) == \
+        "https://example.invalid/workspace"
+
 def test_the_name_check_is_told_where_the_index_is_so_the_engine_can_move_it(tmp_path):
     """The Check read `/cache/names` from a constant unless a variable said otherwise;
     its invocation now says it, and the engine maps it with the rest of the cache."""
@@ -187,9 +199,15 @@ def test_in_the_image_the_boundary_is_the_jobs_and_the_report_says_which(tmp_pat
     from valvur import engine_host
 
     net = tmp_path / "net"
-    (net / "lo").mkdir(parents=True)
+    # What `--network=none` leaves, measured in the image: the loopback, the kernel's
+    # tunnel devices, down, and a file that is not an interface.
+    for name, flags in (("lo", "0x9"), ("sit0", "0x80"), ("tunl0", "0x80")):
+        (net / name).mkdir(parents=True)
+        (net / name / "flags").write_text(flags + "\n")
+    (net / "bonding_masters").write_text("\n")
     assert engine_host.job_boundary(net) == "this job's container, with no network"
     (net / "eth0").mkdir()
+    (net / "eth0" / "flags").write_text("0x1003\n")
     assert engine_host.job_boundary(net) == "this job's container, with a network: eth0"
 
 
@@ -219,3 +237,71 @@ def test_a_scan_records_its_boundary_and_the_summary_names_a_network_on_offline(
     run = json.loads((ws / ".security-scan" / "run.json").read_text())
     assert run["network"]["boundary"] == "the Scan Container"
     assert "--network=none" not in (ws / ".security-scan" / "SUMMARY.md").read_text()
+
+
+
+def test_a_report_names_the_workspace_as_a_scan_container_would(tmp_path):
+    """A tool given the workspace's real path reports that path; the adapters read
+    `/workspace/...`, as every tool writes it in a Scan Container. Run as a process,
+    the engine's reports are handed back in the container's terms."""
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "config.py").write_text("x = 1\n")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    LocalRuntime().run(
+        [Invocation(tool="paths", version="0", report="paths.json",
+                    argv=(sys.executable, "-c",
+                          "import json, sys; json.dump({'path': sys.argv[1] + '/config.py'},"
+                          " open(sys.argv[2], 'w'))",
+                          "/workspace", "/results/paths.json"))],
+        snapshot(source, ["config.py"]), scratch)
+
+    assert (scratch / "paths.json").read_text() == '{"path": "/workspace/config.py"}'
+
+
+import pytest  # noqa: E402
+
+KEY = "AKIA" + "QX3ZR5TW7YB2MN4P"          # assembled: push protection is on
+
+
+@pytest.mark.e2e
+def test_the_image_scans_a_read_only_checkout_into_a_mounted_directory(mountable_tmp):
+    """R8.1 behaviour 1: `docker run` of the image on a checkout, with no network
+    and no socket, writes the Results Folder to a mounted output directory. The
+    checkout is mounted read-only and stays untouched; the cache is the host's."""
+    import json
+    import os
+    import platform
+    import subprocess
+
+    from valvur import cache
+    from valvur.runner import IMAGE, detect_runtime
+
+    checkout = mountable_tmp / "checkout"
+    checkout.mkdir()
+    (checkout / "config.py").write_text(f'AWS_ACCESS_KEY_ID = "{KEY}"\n')
+    (checkout / "requirements.txt").write_text("requests==2.19.0\n")
+    out = mountable_tmp / "out"
+    out.mkdir()
+    user = [] if platform.system() == "Darwin" else ["--user", f"{os.getuid()}:{os.getgid()}"]
+
+    done = subprocess.run(
+        [detect_runtime(), "run", "--rm", "--network=none", *user,
+         "-e", "VALVUR_CACHE=/cache", "-v", f"{cache.root()}:/cache/valvur",
+         "-v", f"{checkout}:/src:ro", "-v", f"{out}:/out",
+         IMAGE, "valvur", "scan", "/src", "--out", "/out"],
+        capture_output=True, text=True, timeout=900, check=False)
+
+    assert done.returncode == 0, done.stdout + done.stderr
+    folder = out / ".security-scan"
+    findings = json.loads((folder / "findings.json").read_text())["findings"]
+    found = {(f["rule"], f["path"]) for f in findings}
+    assert ("aws-access-token", "config.py") in found
+    assert any(rule.startswith("CVE-") and path == "requirements.txt" for rule, path in found)
+    sbom = json.loads((folder / "sbom.cdx.json").read_text())
+    assert "requests" in {c.get("name") for c in sbom.get("components", [])}
+    run = json.loads((folder / "run.json").read_text())
+    assert run["network"]["boundary"] == "this job's container, with no network"
+    assert run["network"]["what_left_the_machine"] == "nothing"
+    assert sorted(p.name for p in checkout.iterdir()) == ["config.py", "requirements.txt"]

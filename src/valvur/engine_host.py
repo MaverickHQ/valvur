@@ -132,12 +132,22 @@ def write_plan(scratch: Path, plan: list[Invocation], budget_s: float | None = N
 SCAN_CONTAINER = "the Scan Container"
 
 
+def _up(interface: Path) -> bool:
+    """IFF_UP in the interface's flags. `--network=none` still lists the kernel's
+    tunnel devices, down; they carry nothing."""
+    try:
+        return bool(int((interface / "flags").read_text().strip(), 16) & 0x1)
+    except (OSError, ValueError):
+        return False
+
+
 def job_boundary(net: Path = Path("/sys/class/net")) -> str:
-    """The job's container, and whether it has a network: any interface but the
-    loopback is one. The Scanners run with their offline flags either way; only a
+    """The job's container, and whether it has a network: any interface that is up,
+    the loopback apart. The Scanners run with their offline flags either way; only a
     job started with no network makes that structural."""
     try:
-        interfaces = sorted(p.name for p in net.iterdir() if p.name != "lo")
+        interfaces = sorted(p.name for p in net.iterdir()
+                            if p.name != "lo" and p.is_dir() and _up(p))
     except OSError:
         return "this job's container, its network unknown"
     if not interfaces:
@@ -219,8 +229,29 @@ class LocalRuntime(_Runtime):
             env[CACHE_ENV] = str(self.cache)
         if self.tools_dir is not None:
             env["PATH"] = f"{self.tools_dir}{os.pathsep}{env.get('PATH', '')}"
-        return self._engine([sys.executable, "-m", "valvur.engine"], tar, env, on_event,
+        code = self._engine([sys.executable, "-m", "valvur.engine"], tar, env, on_event,
                             budget_s)
+        as_the_container_saw(scratch, workspace)
+        return code
+
+
+def as_the_container_saw(scratch: Path, workspace: Path) -> None:
+    """Every report the engine left, naming the workspace as a Scan Container's tools
+    name it: a tool reports the absolute path it was given, and the adapters read
+    `/workspace/...`. Run as a process, the workspace is a directory of its own, and
+    its path is put back (R8.1)."""
+    from .engine import WORKSPACE
+
+    prefixes = sorted({str(workspace), str(workspace.resolve())}, key=len, reverse=True)
+    for report in scratch.iterdir():
+        if not report.is_file():
+            continue
+        data = report.read_bytes()
+        seen = data
+        for prefix in prefixes:
+            seen = seen.replace(prefix.encode(), WORKSPACE.encode())
+        if seen != data:
+            report.write_bytes(seen)
 
 
 #: Up to this size the Snapshot lands in a tmpfs, in memory and gone with the
