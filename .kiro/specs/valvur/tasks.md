@@ -938,11 +938,27 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   and stdin probes and the shutdown test pass. The kill probe failed once, on the run
   whose image bake had timed out fetching Opengrep, and then passed three times on the
   rebuilt image.
-- [ ] **R6.4** **Inputs from the client's roots** (F9.1, N2.2). Behaviours:
+- [x] **R6.4** **Inputs from the client's roots** (F9.1, N2.2). Behaviours:
   1. The workspace defaults to `CLAUDE_PROJECT_DIR`, or the first root from `roots/list`.
   2. A workspace outside the roots is refused.
   3. Every schema has `additionalProperties: false`.
   4. Every violation fails synchronously, with a kind and one sentence.
+  **STATUS 2026-09-28:** ✅ The protocol keeps the capabilities the client declared at
+  `initialize`, puts requests to the client under its own ids, and routes the answers
+  back to the call that asked. A client's answer used to be read as a malformed request.
+  A call naming no workspace scans `CLAUDE_PROJECT_DIR`; failing that, the first root
+  of a client that declared roots, asked once per session and again after
+  `roots/list_changed`; failing that, where a terminal stands. A workspace under none of
+  the client's roots is refused before anything runs, naming them, and nothing is
+  created there. The `Tool` closes every schema itself. The server checks each call
+  against its schema first, refusing an unknown argument, a missing one, or one of the
+  wrong type; a number sent as a string is still a number (R1.5). Every refusal
+  carries its kind in the structured form, as schema 2's `refused` state:
+  `invalid-argument`, `unknown-argument`, `missing-argument`, `relative-path`,
+  `no-directory`, `not-a-directory`, `outside-roots`, `no-results` or
+  `unknown-fingerprint`. Thirteen violations are each held to their kind, one sentence,
+  and an answer within two seconds with no job started; the roots are driven over live
+  stdio with the test client answering `roots/list`.
 - [ ] **R6.5** **One `findings` tool, seven CLI commands** (D12; F9.1, F9.3, F9.8). Behaviours:
   1. The tool filters by fingerprint, group, rule and path, and says when it clamped.
   2. `valvur findings` absorbs `explain`; `doctor` and `update` absorb `cache`.
