@@ -29,6 +29,18 @@ from .base import Check
 MCP_FILES = {".mcp.json", ".kiro/settings/mcp.json", ".roo/mcp.json"}
 AUTO_APPROVE_KEYS = ("autoApprove", "alwaysAllow")
 
+#: Local agent configuration (R5.3): what a client writes for one machine, by path
+#: tail, so `apps/web/.mcp.json` counts. Committed, or one `git add -A` away, it
+#: publishes that machine: the owner's audit found both on 2026-09-27.
+LOCAL_CONFIG = {".mcp.json", ".claude/settings.local.json", ".claude/settings.json",
+                ".kiro/settings/mcp.json", ".roo/mcp.json", ".cursor/mcp.json",
+                ".gemini/settings.json", ".continue/config.json", ".aider.conf.yml"}
+#: A home directory: macOS, Linux, and Windows with the backslashes JSON escapes.
+LOCAL_PATH = re.compile(
+    r"(?:/Users/|/home/)[A-Za-z0-9._-]+/?"
+    r"|\b[A-Za-z]:(?:\\{1,2}|/)Users(?:\\{1,2}|/)[^\\/\"'\s]+"
+)
+
 # Phrases whose only purpose is to override a prior instruction. Deliberately narrow:
 # a false positive here accuses someone of planting an attack.
 INJECTION = re.compile(
@@ -72,6 +84,8 @@ class AiArtifactCheck(Check):
                 findings += _claude_hooks(text, rel)
             if path.name == ".aider.conf.yml":
                 findings += _aider_config(text, rel)
+            if path.name in LOCAL_CONFIG or any(_tail(parts, n) in LOCAL_CONFIG for n in (2, 3)):
+                findings += _local_config(text, rel)
         return findings
 
 
@@ -177,6 +191,24 @@ def _mcp_config(text: str, rel: str) -> list[dict]:
                 "identity": ("ai_artifact", "blanket-auto-approve", rel, server),
             })
     return findings
+
+
+def _local_config(text: str, rel: str) -> list[dict]:
+    """One Finding for a local configuration file that names this machine (R5.3).
+    The host drops it when git ignores the file: the image has no git (ADR-0005)."""
+    home = LOCAL_PATH.search(text)
+    if not home:
+        return []
+    return [{
+        "rule": "valvur.ai-artifact.local-config-exposed",
+        "severity": "medium",
+        "path": rel,
+        "line": text.count("\n", 0, home.start()) + 1,
+        "title": ("Local agent configuration holds an absolute local path, and git "
+                  "does not ignore it"),
+        "evidence": neutralise(home.group(0), always_fence=True),
+        "identity": ("ai_artifact", "local-config-exposed", rel),
+    }]
 
 
 def _hook(rel: str, event: str, name: str, command: str) -> dict:
