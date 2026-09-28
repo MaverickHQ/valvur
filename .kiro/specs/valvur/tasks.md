@@ -919,10 +919,25 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   entries with a total, and 30,000 characters of summary. They hold a pathological
   repository, 3,000 ignored directories and a 200-line summary of long lines, under
   25,000 tokens at three characters a token, both forms together.
-- [ ] **R6.3** **`scan` blocks and returns** (D6; F9.1). Behaviours, over stdio:
+- [x] **R6.3** **`scan` blocks and returns** (D6; F9.1). Behaviours, over stdio:
   1. One call yields the result, with progress notifications on the way.
   2. A disconnect, then a second call, yields the same generation.
   3. `scan_status` attaches.
+  **STATUS 2026-09-28:** ✅ The protocol answers each `tools/call` on its own thread, with
+  writes serialised, so `scan_cancel`, `ping` and a cancellation still reach a server
+  whose `scan` is waiting. A call carries its progress token. `scan` starts the scan,
+  or attaches to the one running here, forwards each progress message as
+  `notifications/progress`, and returns schema 2 when it settles. A client that lets
+  go, by cancelling the request or closing stdin, stops the wait and not the scan; the
+  next `scan` attaches and returns the same generation, and a test holds that only one
+  scan ran. A cancelled request is not answered, per MCP. `scan_status` attaches the
+  same way and never starts a scan; its wait, 15 s since task 10.2.5, is now 330 s,
+  since R6.1 measured the premise gone. The acceptance probes' client now routes
+  replies by id. Its next-scan check reads that scan's own end state, where an immediate
+  *Started* would have passed a scan that then failed. On the image, the cancel, budget
+  and stdin probes and the shutdown test pass. The kill probe failed once, on the run
+  whose image bake had timed out fetching Opengrep, and then passed three times on the
+  rebuilt image.
 - [ ] **R6.4** **Inputs from the client's roots** (F9.1, N2.2). Behaviours:
   1. The workspace defaults to `CLAUDE_PROJECT_DIR`, or the first root from `roots/list`.
   2. A workspace outside the roots is refused.
