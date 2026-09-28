@@ -454,7 +454,7 @@ def _top(active) -> list[str]:
         # omission. Say what was left out and where it is.
         lines += [
             "",
-            f"_{omitted} further finding(s) omitted here. All {len(active)} are "
+            f"_{omitted:,} further finding(s) omitted here. All {len(active):,} are "
             "in `findings.json`, ranked, and grouped into actions in "
             "`REMEDIATION.md`._",
         ]

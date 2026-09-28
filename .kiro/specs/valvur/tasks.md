@@ -760,11 +760,32 @@ and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
   Gitleaks' `generic-api-key` on 3,694 files, and Checkov's `CKV_SECRET_6` on 3,890. The 56
   distinct Findings ranked 1 to 56. Checkov's secrets framework reports nothing on the
   acceptance set or the corpus, so it stays.
-- [ ] **R5.2** **`SUMMARY.md` leads with what matters** (F7.4 to F7.7, N1.3). Behaviours:
+- [x] **R5.2** **`SUMMARY.md` leads with what matters** (F7.4 to F7.7, N1.3). Behaviours:
   1. The order is: verdict, scope manifest, what did not run, top groups, Hygiene, then a
      shortened agent block at the end.
   2. No title is cut mid-word, at every truncation site.
   3. The golden files are re-taken.
+  **STATUS 2026-09-28:** ✅ The review asked for a group to be "one entry with a count and
+  its locations", which fixes the lab's one rule listed eight times. So a group now starts
+  at two hits, and only a flood of 25 or more data files is machine-written and ranked
+  last. Two real keys in `config/*.json` keep their rank. The document runs in this order:
+  - the verdict and what qualifies it;
+  - the Status and counts, in two lines;
+  - `## Scope`: what was read, by which Scanners, what the File Set left out, and what
+    the Profile leaves to the network;
+  - `## What did not run`;
+  - `## Most urgent`, a group as one line with its count and first three locations, and a
+    flood that did not make the top list still named;
+  - accepted risks and fixes;
+  - `## For AI agents`, seven lines, which the cap never cuts.
+
+  F7.6 is amended; the MCP handshake carries the rules in full (`AGENT_RULES`), and its
+  snapshot changed in one sentence. Titles are cut at word boundaries on all five surfaces
+  that cut them, through `text.cut`. Eight goldens are re-taken. On the image, repository
+  1's `SUMMARY.md` went from 68 lines to 43. The tracked flood's went from 86 to 61, and
+  names both floods. Observed and not changed: a run with a failed Scanner and no finding
+  still has Status `clean`, with `complete: false` beside it. The gate fails it, but the
+  agent block's gloss of `clean` does not fit it; this belongs to R6's reply.
 - [ ] **R5.3** **Local agent configuration that would leak** (F3.6). Behaviour: `.mcp.json`,
   `.claude/settings.local.json`, `.kiro/settings/mcp.json` and their peers, when git does not
   ignore them and they hold absolute local paths or credential-shaped values, yield a medium
