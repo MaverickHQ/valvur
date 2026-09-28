@@ -79,9 +79,10 @@ def test_doctor_shows_the_caches_sizes(tmp_path, monkeypatch):
     assert "valvur update --prune" in line.detail
 
 
-def test_the_help_offers_seven_commands(capsys):
+def test_the_help_offers_seven_commands_and_init(capsys):
+    """D12's seven, and D10's `init` (R6.8), which prints and never writes."""
     with pytest.raises(SystemExit):
         cli.main(["--help"])
     usage = capsys.readouterr().out
 
-    assert "{" + ",".join(SEVEN) + "}" in usage
+    assert "{" + ",".join([*SEVEN, "init"]) + "}" in usage

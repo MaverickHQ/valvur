@@ -1,9 +1,9 @@
-usage: valvur [-h] [--version] {scan,update,findings,status,doctor,gate,suppress} ...
+usage: valvur [-h] [--version] {scan,update,findings,status,doctor,gate,suppress,init} ...
 
 Command line interface.
 
 positional arguments:
-  {scan,update,findings,status,doctor,gate,suppress}
+  {scan,update,findings,status,doctor,gate,suppress,init}
     scan                Scan a workspace
     update              Pull the image if it is not local, and fetch the vulnerability database
                         and the package-name index into the local cache
@@ -16,6 +16,8 @@ positional arguments:
                         lapsed suppression, or an active finding at or above --fail-on. For CI.
     cache               Now `doctor`, `update --prune` and `update --clear`
     suppress            Print a ready-to-paste suppression block for a finding (never writes)
+    init                Print each MCP client's block and a starter .security-scan.toml; writes
+                        nothing
 
 options:
   -h, --help            show this help message and exit

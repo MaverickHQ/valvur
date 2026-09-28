@@ -277,7 +277,7 @@ def build_parser() -> argparse.ArgumentParser:
     # release, and say what replaced them.
     sub = parser.add_subparsers(
         dest="command", required=True,
-        metavar="{scan,update,findings,status,doctor,gate,suppress}")
+        metavar="{scan,update,findings,status,doctor,gate,suppress,init}")
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
     scan_cmd.add_argument("path", nargs="?", default=".", type=_workspace, help="Workspace to scan")
     scan_cmd.add_argument(
@@ -434,7 +434,23 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Days until the suppression expires (default: 90)")
     suppress_cmd.add_argument("--reason", default="", help="Why this risk is accepted")
 
+    init_cmd = sub.add_parser(
+        "init",
+        help="Print each MCP client's block and a starter .security-scan.toml; "
+        "writes nothing",
+    )
+    init_cmd.add_argument("path", nargs="?", default=".", type=_workspace,
+                          help="The project")
+
     return parser
+
+
+def _cmd_init(args: argparse.Namespace, runner=None) -> int:
+    """`init` (D10): prints, never writes."""
+    from . import initialize
+
+    print(initialize.render(Path(args.path).resolve()), end="")
+    return 0
 
 
 def _cmd_read(args: argparse.Namespace, runner=None) -> int:
@@ -633,6 +649,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, object], int]] = {
     "doctor": _cmd_doctor,
     "update": _cmd_update,
     "scan": _cmd_scan,
+    "init": _cmd_init,
 }
 
 

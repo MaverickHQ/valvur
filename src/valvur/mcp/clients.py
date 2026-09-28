@@ -130,6 +130,32 @@ def lookups(entry: Client, workspace, home, system: str):
     return out
 
 
+def found(workspace, home, system: str) -> list[Client]:
+    """The clients present here (R6.8): a file one reads, or the folder that holds
+    it, exists in the project or the home directory. What `valvur init` offers."""
+    present = []
+    for entry in CLIENTS:
+        for _, path in lookups(entry, workspace, home, system):
+            anchor = path if path.exists() else _folder(path, workspace, home)
+            if anchor is not None and anchor.exists():
+                present.append(entry)
+                break
+    return present
+
+
+def _folder(path, workspace, home):
+    """The client's own folder for a file it reads: `.kiro` for
+    `.kiro/settings/mcp.json`, `~/.codex` for `~/.codex/config.toml`; None for a
+    file at the top, whose absence says the client is not here."""
+    for base in (workspace, home):
+        try:
+            parts = path.relative_to(base).parts
+        except ValueError:
+            continue
+        return base / parts[0] if len(parts) > 1 else None
+    return None
+
+
 def client(key: str) -> Client:
     for entry in CLIENTS:
         if entry.key == key:
