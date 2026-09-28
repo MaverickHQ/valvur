@@ -1056,8 +1056,28 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   why. The handshake says *the folder ignores itself; there is nothing to add to
   .gitignore*, and a finished scan's reply checks the folder's own `.gitignore` and
   says the same, as `results.ignores_itself` and one line of text.
-- [ ] **R6.10** **The Kiro probe** (D20). Behaviour: a stdio client replaying Kiro's
+- [x] **R6.10** **The Kiro probe** (D20). Behaviour: a stdio client replaying Kiro's
   initialize, tools/list, calls and cancellation passes in CI.
+  **STATUS 2026-09-28:** ✅ `tests/fixtures/mcp/kiro-sequence.json` holds Kiro's calls in
+  order. No transcript of Kiro exists in the repository, so this is the MCP TypeScript
+  SDK client's shape as Kiro uses it, labelled a documented shape; the GUI pass is the
+  owner's (§8). The sequence:
+  1. `initialize` with Kiro's client info and roots;
+  2. `notifications/initialized`;
+  3. `tools/list`;
+  4. `doctor` and `scan` with progress tokens;
+  5. a `ping` while the scan runs;
+  6. `notifications/cancelled` for the scan;
+  7. `scan_cancel`;
+  8. `scan_status`.
+
+  Every request but the cancelled one is answered once, with no JSON-RPC error. The
+  cancelled scan gets no reply and is stopped by `scan_cancel`. The sequence runs
+  in-process on every test run, and as an e2e test against a real `valvur-mcp` and the
+  image, which CI's end-to-end job runs: 17.8 s, no container left. **Observed, not
+  changed:** a `scan_cancel` sent within milliseconds of `scan`, before the scan's job
+  exists, cancels nothing, and the scan then runs. The in-process probe first went red
+  on exactly that, until it waited, as Kiro does, for the scan to be running.
 
 **Exit:** agent scoring reaches a correct report in 6 turns or fewer on every repository.
 Every bad input fails synchronously. The CLI parity test is green.
