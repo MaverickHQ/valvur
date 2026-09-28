@@ -179,17 +179,14 @@ def test_the_cli_stays_quiet_when_the_database_is_fresh(capsys):
     assert capsys.readouterr().err == ""
 
 
-def test_valvur_never_updates_a_database_it_has_by_itself(tmp_path, monkeypatch, workspace):
-    """Decided in 14.2. A 1.2GB download started inside a scan is hostile; doing it
-    on `full` alone would make the Profiles scan different data and break the
-    equivalence asserted in Phase 11 cycle 3; and updating on the user's behalf is
-    the same move as fixing on their behalf, which section 4 refuses.
-
-    Narrowed by 24.1, not reversed: an ABSENT database is fetched by the first scan
-    (`test_first_run.py`), because without one there is no scan at all. A database
-    that is PRESENT, however stale, is never touched — this test is that line. Until
-    24.1 it inspected `scan`'s source for the word `update_db`; a behaviour is a
-    better pin than a word."""
+def test_with_fetch_never_valvur_never_updates_a_database_it_has(tmp_path, monkeypatch,
+                                                                  workspace):
+    """Decided in 14.2, narrowed by 24.1 (an absent database is fetched), and
+    reversed by ADR-0025 (R6.6): a scan refreshes a stale database, since an agent
+    has no terminal and a week-old one left it `inconclusive` with no way out
+    (`test_first_run.py`). The line is now the machine's: with `fetch = never`, for
+    air-gapped use, a database that is present, however stale, is never touched."""
+    monkeypatch.setenv("VALVUR_FETCH", "never")
     from conftest import FakeRunner
 
     from valvur import scan
@@ -208,8 +205,7 @@ def test_valvur_never_updates_a_database_it_has_by_itself(tmp_path, monkeypatch,
             return 118
 
         def update_db(self):
-            pytest.fail("a scan updated the database by itself — see task 14.2 for why "
-                        "it must not")
+            pytest.fail("a scan updated the database with fetch = never (ADR-0025)")
 
     run = scan(workspace, runner=Runner(), adapters=[GitleaksAdapter()])
 

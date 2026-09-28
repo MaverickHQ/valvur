@@ -315,40 +315,56 @@ def test_a_cancel_during_the_fetches_is_honoured_at_the_next_boundary(
 # ------------------------------------------------------ stale: untouched (14.2)
 
 
-def test_a_stale_database_is_never_refreshed_by_a_scan(workspace, host_cache):
-    """Decided in 14.2, and 24.1 keeps it: a download inside a scan the user asked to
-    be fast is hostile; refreshing on `full` alone would make the Profiles scan
-    different data; and refreshing on the user's behalf is the same move as fixing
-    on their behalf, which section 4 refuses. Absence is the one exception, and this
-    is the line between them."""
+def test_an_eight_day_old_database_is_refreshed_by_the_scan_and_recorded(workspace, host_cache):
+    """ADR-0025 (R6.6), reversing 14.2: an agent has no terminal, so a database a
+    week old made every nil result `inconclusive` with no way out (the review's
+    N3). A scan refreshes stale data as it fetches absent data: announced,
+    recorded under `network.fetched`, and nothing of the Workspace leaves."""
+    _write_db(host_cache, age_days=8)
+    _write_index(host_cache)
+    runner = _Runner(host_cache)
+
+    run, said = _scan(workspace, runner)
+
+    assert "db" in runner.calls
+    assert any(line.startswith("refreshing the vulnerability database (8 days old)")
+               for line in said), said
+    assert [f["what"] for f in run.fetched] == ["vulnerability database"]
+    assert run.db_age_days is not None and run.db_age_days < 1
+    assert not run.failures
+    # The fixture stays `inconclusive` for its own reason, an ecosystem nothing here
+    # inspects; the database is no longer one of the reasons.
+    assert "database" not in run.status_reason
+
+
+def test_a_stale_index_is_refreshed_by_the_scan(workspace, host_cache, monkeypatch):
+    _write_db(host_cache)
+    _write_index(host_cache, built_at="2026-01-01T00:00:00Z")
+    refreshed = []
+    monkeypatch.setattr(name_index.build, "refresh",
+                        lambda *a, **k: refreshed.append(1) or {})
+
+    _, said = _scan(workspace, _Runner(host_cache))
+
+    assert refreshed == [1]
+    assert any(line.startswith("refreshing the package-name index") for line in said), said
+
+
+def test_with_fetch_never_nothing_is_fetched_and_the_verdict_says_why(
+        workspace, host_cache, monkeypatch):
+    """For air-gapped use (ADR-0025): no fetch, absent or stale, and a nil result
+    over stale data is `inconclusive`, its reason naming the setting."""
+    monkeypatch.setenv("VALVUR_FETCH", "never")
     _write_db(host_cache, age_days=45)
     _write_index(host_cache)
     runner = _Runner(host_cache)
 
     run, said = _scan(workspace, runner)
 
-    assert "db" not in runner.calls and "size" not in runner.calls
-    # The fleet's own announcements (29.0.4) are not fetches; what must be absent
-    # is any fetch line, so only the Scanners' ends are counted here.
-    ends = [line for line in said if not line.startswith(("fleet: ", "workspace: "))
-            and not line.endswith(": started")]
-    assert sorted(line.split(":")[0] for line in ends) == ["gitleaks", "trivy"]
-    assert all(": ok (" in line for line in ends), said
-    assert run.db_age_days is not None and run.db_age_days > cache.DB_STALE_AFTER_DAYS
-    assert not run.failures
-
-
-def test_a_stale_index_is_never_refreshed_by_a_scan(workspace, host_cache, monkeypatch):
-    _write_db(host_cache)
-    _write_index(host_cache, built_at="2026-01-01T00:00:00Z")
-    monkeypatch.setattr(name_index.build, "refresh",
-                        lambda *a, **k: pytest.fail("the index was refreshed"))
-
-    run, said = _scan(workspace, _Runner(host_cache))
-
-    assert not any(line.startswith("fetching") for line in said)
-    assert run.name_index_age_days is not None
-    assert run.name_index_age_days > cache.NAME_INDEX_STALE_AFTER_DAYS
+    assert "db" not in runner.calls and not run.fetched
+    assert not any(line.startswith(("fetching", "refreshing")) for line in said), said
+    assert run.status == "inconclusive"
+    assert "fetching is off (fetch = never)" in run.status_reason
 
 
 def test_a_runner_without_the_ability_is_left_alone(workspace, host_cache):

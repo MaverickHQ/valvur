@@ -21,6 +21,7 @@ from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results
 from . import results as _results
+from . import settings as _settings
 from . import staleness as _staleness
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
@@ -264,6 +265,9 @@ class ScanRun:
                 f"the package-name index is {self.name_index_age_days:.0f} days old "
                 f"(threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS})"
             )
+        if reasons and _settings.fetch() == _settings.NEVER:
+            # Why it was not refreshed (ADR-0025): the machine said never.
+            reasons.append("fetching is off (fetch = never), so it was not refreshed")
         gaps = [n for n in self.coverage_notes if n.rule in _DOUBT_RULES]
         if gaps:
             # Each gap's title is "<what> were not checked for <question>"; the
@@ -333,17 +337,15 @@ FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
 
 def _ensure_data(runner, on_progress, *, workspace=None,
                  adapters=()) -> tuple[list[dict], dict[str, str]]:
-    """The vulnerability database and the package-name index, when ABSENT (24.1).
+    """The vulnerability database, the package-name index and OSV's offline
+    databases, when absent (24.1) or stale (ADR-0025, R6.6).
 
-    Task 14.2 decided valvur never refreshes on its own, and its three reasons were
-    about staleness: a download inside a scan the user asked to be fast, the
-    Profiles diverging, and refreshing on the user's behalf being the same move as
-    fixing on their behalf. Absence is a different case — without these there is no
-    scan at all, and the primary path, an agent over MCP, has no `valvur update` to
-    run. Measured 2026-09-13 against the published 0.2.0: the first `scan` finished
-    incomplete, each failure naming a command the agent could not run. So an absent
-    database or index is fetched here and announced like the image (23.2.4); a stale
-    one is never touched — the warning stands and the user decides.
+    Task 14.2 decided valvur never refreshes on its own; 24.1 fetched absent data,
+    because without it there is no scan at all; ADR-0025 refreshes stale data too,
+    because the primary path, an agent over MCP, has no terminal, and a database a
+    week old left every nil result `inconclusive` with no way out (the review's N3).
+    Each fetch is announced and recorded under `network.fetched`: data comes in,
+    nothing of the Workspace leaves. `fetch = never` turns all of it off.
 
     Runs BEFORE `scan` takes the shared cache lock: both fetches take it
     exclusively, and a shared lock already held on another descriptor of the same
@@ -351,16 +353,28 @@ def _ensure_data(runner, on_progress, *, workspace=None,
     the Scanner it costs, so that Scanner's failure says the fetch was tried and why
     it failed rather than only naming `valvur update`.
     """
+    from . import settings
+
     update = getattr(runner, "update_db", None)
     if update is None:
         return [], {}      # the suite's fakes; the rule `_ensure_image` applies too
+    if settings.fetch() == settings.NEVER:
+        # Air-gapped (ADR-0025): nothing is fetched, absent or stale. An absent
+        # database fails its Scanner with the reason; a stale one makes a nil
+        # result `inconclusive`, and the verdict names the setting.
+        return [], {}
     say = on_progress if on_progress is not None else (lambda _: None)
     fetched: list[dict] = []
     unfetched: dict[str, str] = {}
 
-    if not _cache.db_present():
+    db_age = _cache.db_age_days() if _cache.db_present() else None
+    if db_age is None or db_age > _cache.DB_STALE_AFTER_DAYS:
+        # Absent since 24.1; stale since ADR-0025 (R6.6), reversing 14.2: an agent has
+        # no terminal, and a week-old database left it `inconclusive` with no way out.
         db_size = runner.db_size_mb()
-        say(f"fetching the vulnerability database{_mb(db_size)} — the first run only")
+        say(f"fetching the vulnerability database{_mb(db_size)} — the first run only"
+            if db_age is None else
+            f"refreshing the vulnerability database ({db_age:.0f} days old){_mb(db_size)}")
         started = time.monotonic()
         result = update()
         if result.exit_code != 0:
@@ -375,11 +389,14 @@ def _ensure_data(runner, on_progress, *, workspace=None,
                 _egress.db_repository() or _egress.DEFAULT_DB_REPOSITORY, db_size, seconds))
 
     _stop_if_cancelled(runner, "during the first run's fetches")
-    if not _cache.name_index_present():
+    index_age = _cache.name_index_age_days() if _cache.name_index_present() else None
+    if index_age is None or index_age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
         from . import locking, name_index
 
         index_size = name_index.published.published_size_mb()
-        say(f"fetching the package-name index{_mb(index_size)} — the first run only")
+        say(f"fetching the package-name index{_mb(index_size)} — the first run only"
+            if index_age is None else
+            f"refreshing the package-name index ({index_age:.0f} days old){_mb(index_size)}")
         started = time.monotonic()
         try:
             with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
@@ -414,10 +431,15 @@ def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) 
         files = fileset.build(workspace).files
     except Refusal:
         return                       # the scan refuses the walk itself, with the reason
-    missing = osv_offline.absent(osv_offline.needed(files))
+    needed = osv_offline.needed(files)
+    missing = osv_offline.absent(needed)
+    old = osv_offline.stale(needed)
     failed = []
-    for name in missing:
-        say(f"fetching the OSV database for {name} — the first run for it only")
+    for name in missing + old:
+        say(f"fetching the OSV database for {name} — the first run for it only"
+            if name in missing else
+            f"refreshing the OSV database for {name} (over "
+            f"{osv_offline.STALE_AFTER_DAYS} days old)")
         try:
             with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
                 record = osv_offline.fetch(name)

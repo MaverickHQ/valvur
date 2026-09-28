@@ -58,6 +58,20 @@ def absent(names: list[str]) -> list[str]:
     return [name for name in names if not path(name).is_file()]
 
 
+#: An OSV database older than this is refreshed by a scan (ADR-0025): the same
+#: week as the vulnerability database's, since both carry advisories.
+STALE_AFTER_DAYS = 7
+
+
+def stale(names: list[str]) -> list[str]:
+    """The present databases older than `STALE_AFTER_DAYS`, by their file's age."""
+    import time
+
+    limit = time.time() - STALE_AFTER_DAYS * 86400
+    return [name for name in names if path(name).is_file()
+            and path(name).stat().st_mtime < limit]
+
+
 def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> dict:
     """Download `name`'s database into place; a failure leaves nothing behind.
     Returns the record `run.json` keeps (28.0.4)."""
