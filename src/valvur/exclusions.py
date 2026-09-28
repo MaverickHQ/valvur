@@ -34,6 +34,9 @@ class ScanSettings:
     exclude: tuple[str, ...] = ()
     #: Read git history for secrets (R3.7, D3). On unless `history = false`.
     history: bool = True
+    #: `tree` walks the working tree even in a repository (ADR-0021, decision 7);
+    #: the git view otherwise.
+    scope: str = "git"
 
 
 def _prefixes(entries) -> tuple[str, ...]:
@@ -56,6 +59,7 @@ def load_scan_settings(workspace: Path) -> ScanSettings:
     return ScanSettings(
         exclude=_prefixes(scan.get("exclude")),
         history=scan.get("history", True) is not False,
+        scope="tree" if str(scan.get("scope", "git")).strip().lower() == "tree" else "git",
     )
 
 

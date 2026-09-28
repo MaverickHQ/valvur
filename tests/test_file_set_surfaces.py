@@ -126,3 +126,27 @@ def test_a_checks_walk_never_descends_into_an_excluded_prefix(tmp_path):
                    for p in exclusions.walk_files(tmp_path, ("tests/fixtures",)))
 
     assert found == ["src/a.py", "src/distribution/y.py", "tests/unit.py"]
+
+
+def test_scope_tree_walks_a_repository_instead_of_reading_its_git_view(tmp_path, monkeypatch):
+    """ADR-0021, decision 7, which R3 left unread: `[scan] scope = "tree"` walks the
+    working tree, ignored files included, for a user who wants it; the git view is
+    the default."""
+    import subprocess
+
+    from valvur import fileset
+
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "gitconfig"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    ws = tmp_path / "repo"
+    (ws / "build").mkdir(parents=True)
+    (ws / "build" / "generated.py").write_text("x = 1\n")
+    (ws / "app.py").write_text("print('hi')\n")
+    (ws / ".gitignore").write_text("build/\n")
+    subprocess.run(["git", "init", "-q", str(ws)], check=True)
+
+    assert "build/generated.py" not in fileset.build(ws).files
+    (ws / ".security-scan.toml").write_text('[scan]\nscope = "tree"\n')
+    walked = fileset.build(ws)
+
+    assert walked.scope == "tree" and "build/generated.py" in walked.files

@@ -221,10 +221,11 @@ def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
 
 
 def build(workspace: Path) -> FileSet:
-    from .exclusions import load_configured
+    from .exclusions import load_configured, load_scan_settings
 
     prefixes = load_configured(workspace)
-    view = git_view(workspace)
+    # `scope = "tree"` walks instead, for a user who wants it (ADR-0021, decision 7).
+    view = None if load_scan_settings(workspace).scope == "tree" else git_view(workspace)
     if view is not None:
         tracked, left_out = view
         kept, skipped = _ignored(workspace)
