@@ -96,7 +96,7 @@ says which value came from where.
 | `osv_url` | `VALVUR_OSV_URL` | A URL under which OSV's databases are served as `<ecosystem>/all.zip`, OSV's own layout. The shim fetches them itself. |
 | `image` | `VALVUR_IMAGE` | The image, from any registry: a mirror of `ghcr.io/maverickhq/valvur`. |
 | `fetch` | `VALVUR_FETCH` | `never` stops every fetch a scan would make on its own (ADR-0025); `valvur update` and the `update` tool still fetch from the mirrors when asked. |
-| `container_network` | `VALVUR_CONTAINER_NETWORK`, retired to the file | The container network the **update** container joins, when the mirror registry lives on a named one. Never applied to a scan container: `--network=none` is not negotiable. The variable still works in this release, and says so once. |
+| `container_network` | `VALVUR_CONTAINER_NETWORK`, retired to the file | The container network the **update** container joins, when the mirror registry lives on a named one. Never applied to a scan container: `--network=none` is not negotiable. The variable still works through 1.x, and says so once. |
 
 ## Prove it
 

@@ -498,7 +498,7 @@ def _cmd_gate(args: argparse.Namespace, runner=None) -> int:
 
 
 def _cmd_cache(args: argparse.Namespace, runner=None) -> int:
-    """`cache`, for one release (D12): `doctor` shows the inventory, and `update
+    """`cache`, kept through 1.x (D12): `doctor` shows the inventory, and `update
     --prune` and `update --clear` tidy it."""
     print("`valvur cache` is now `valvur doctor` for what is cached, and "
           "`valvur update --prune` or `valvur update --clear` to reclaim it.",

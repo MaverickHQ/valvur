@@ -6,7 +6,7 @@ suppressions and `[scan] exclude`. Machine settings are
 the image, the cache, the runtime, fetching, the mirrors, how many Scanners at
 once. Environment variables remain as overrides for the image, the cache, the
 runtime, debugging, fetching and the mirrors, where a CI job or a one-off command
-needs them; the others are retired to the file, still work for one release, and
+needs them; the others are retired to the file, still work through 1.x, and
 say so once.
 
 `fetch` is ADR-0025's (R6.6): `never` turns every fetch a scan would make off, for

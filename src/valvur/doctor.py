@@ -270,7 +270,7 @@ def _check_image(runtime: str | None) -> tuple[Check, bool]:
     if not _image_present(runtime, image):
         return Check(
             "image", "info", f"{image}: not local; the first scan pulls it and says so "
-            "on the status line (about 220MB compressed)",
+            "on the status line (about 250 MB compressed)",
         ), False
     declared = _image_label(runtime, image)
     protocol = _image_protocol(runtime, image)

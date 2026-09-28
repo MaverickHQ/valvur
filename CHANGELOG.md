@@ -8,6 +8,31 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-09-28
+
+The rebuilt engine, finished: the Scanner set by rule, the report, the agent surface and
+the documents as built (Phases R4 to R7), on the engine `0.7.0` brought (R3).
+
+**What 1.0 promises.** From `1.0.0` a minor or patch release keeps these contracts and
+only adds to them; a change that breaks one is `2.0.0`:
+
+- **The MCP tools** `scan`, `findings`, `scan_status`, `scan_cancel`, `update` and
+  `doctor`: their names, their arguments, and reply schema 2's fields and error kinds.
+- **The CLI**: the eight commands and their flags; `scan` exits zero whenever the scan
+  itself worked, and `gate` decides the exit status.
+- **The Results Folder**: its file names, `findings.json` schema 1, `run.json`'s fields,
+  SARIF 2.1.0 and CycloneDX.
+- **Finding identity**, `fp_version` 1: a Suppression written against `1.0.0` matches
+  through 1.x.
+- **The three Statuses**, `findings`, `clean` and `inconclusive`, and what each licenses.
+- **`.security-scan.toml`** as its JSON Schema states it, and the machine settings' keys.
+- **The shim/image protocol**, major 2.
+
+The deprecated names, the `explain` and `cache` commands and the variables `VALVUR_JOBS`,
+`VALVUR_CONTAINER_NETWORK` and `VALVUR_SELINUX_RELABEL`, keep working through 1.x and say
+what replaced them. What a Scanner finds is not a contract: a new Scanner version may
+find more or less, and this file says when one changes.
+
 The Scanner set, decided by R4.1's measurements (ADR-0023).
 
 - **zizmor audits GitHub Actions workflows**, offline, pinned by hash in the image. On
@@ -86,12 +111,31 @@ The agent surface (R6):
   fetched.
 - **Two settings files**: machine settings live in `~/.config/valvur/config.toml`, with
   variables as overrides. `VALVUR_JOBS`, `VALVUR_CONTAINER_NETWORK` and
-  `VALVUR_SELINUX_RELABEL` are retired to the file; they still work for one release and
+  `VALVUR_SELINUX_RELABEL` are retired to the file; they still work through 1.x and
   say so. `doctor` prints what is in effect and where it came from.
 - **A JSON Schema for `.security-scan.toml`**, and `doctor` names the first invalid key.
   `[scan] scope = "tree"`, decided in ADR-0021, now works.
 - `doctor` says when the server a session talks to is not the one the configuration
   names; the reply and the handshake say the results folder ignores itself.
+
+The documents, as built (R7):
+
+- **The README says what exists.** Every time, size or count it cites is a figure the
+  acceptance set recorded or a limit in the code, and a test holds it there; its Scanner
+  table is the image's, and its client block is the one `doctor` reads. A first scan
+  from an empty cache measured 59 s on a Mac, the image already local.
+- **The client block keeps each note's case**: it told Kiro's users to enable
+  `kiroagent.configuremcp`, a key that does not exist.
+- **The `full` Profile is described by what it adds**, on the CLI and the `scan` tool:
+  questions to OSV.dev, the registries and FIRST, not Scanners. OSV-Scanner and the
+  dependency-reality Check run on `offline` too.
+- `doctor`'s fetch sizes are the measured 123 MB and 36 MB.
+- **`scripts/verify-mirror.py` permits OSV's mirror**, and reads every mirror from the
+  settings file as well as the environment; an honest air-gapped setup had failed its
+  own proof. `docs/AIR-GAPPED.md` names the four things a scan fetches.
+- `EVALUATING.md`, `design.md`, `PROTOCOL.md` and the requirements say what was built.
+  The closed reviews, gates and phases move to `docs/history/`, and no Markdown link in
+  the repository is broken.
 
 ## [0.7.0] — 2026-09-28
 
