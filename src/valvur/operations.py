@@ -51,6 +51,11 @@ def resolve_workspace(raw: str | None) -> Path:
                     "no project directory to resolve it against.")
             path = Path(project) / path
     path = path.resolve()
+    if roots and not any(path == root or root in path.parents for root in roots):
+        # A scan writes into the folder it scans (R6.4, N2.2).
+        raise Refusal(f"{path} is outside the client's roots ("
+                      f"{', '.join(str(root) for root in roots)}); a scan writes into the "
+                      "folder it scans, so name one inside them.", kind="outside-roots")
     if not path.exists():
         raise Refusal(f"There is no directory at {path}; nothing was scanned or created.")
     if not path.is_dir():

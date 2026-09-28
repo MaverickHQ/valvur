@@ -52,7 +52,8 @@ _REPLY_SHAPE: dict[str, Any] = {"type": "object", "required": ["schema", "state"
                                 "properties": {
     "schema": {"const": 2},
     "state": {"type": "string",
-              "enum": ["none", "running", "cancelling", "cancelled", "failed", "done"]},
+              "enum": ["none", "running", "cancelling", "cancelled", "failed", "done",
+                       "refused"]},
     "workspace": {"type": "string"},
     "profile": {"type": ["string", "null"]},
     "elapsed_s": {"type": ["number", "null"]},
@@ -75,8 +76,12 @@ _REPLY_SHAPE: dict[str, Any] = {"type": "object", "required": ["schema", "state"
     "next": {"type": "array", "items": {"type": "string"},
              "description": "What to do now, in order."},
     "error": {"type": ["object", "null"], "properties": {
-        "kind": {"type": "string", "enum": ["no-scan", "cancelled", "failed", "budget",
-                                            "precondition", "busy"]},
+        "kind": {"type": "string", "enum": [
+            # no result from a scan
+            "no-scan", "cancelled", "failed", "budget", "precondition", "busy",
+            # a call refused before anything ran (R6.4)
+            "invalid-argument", "unknown-argument", "missing-argument", "relative-path",
+            "no-directory", "not-a-directory", "outside-roots", "no-results"]},
         "message": {"type": "string"}}},
     "caveats": {"type": "array", "items": {"type": "string"}},
     "report": {"type": ["string", "null"],

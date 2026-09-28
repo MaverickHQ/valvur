@@ -88,3 +88,26 @@ def test_without_a_project_directory_it_is_the_first_of_the_clients_roots(tmp_pa
         session.close()
 
     assert fields["workspace"] == str(first.resolve())
+
+
+# ------------------------------------------- behaviour 2: never outside the roots
+
+def test_a_workspace_outside_the_clients_roots_is_refused(tmp_path):
+    inside, outside = tmp_path / "project", tmp_path / "elsewhere"
+    inside.mkdir()
+    outside.mkdir()
+    session = McpSession()
+    try:
+        _initialize(session, roots=True)
+        session.send({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "scan", "arguments": {"workspace": str(outside)}}})
+        _answer_roots(session, inside)
+        result = session.reply(1)["result"]
+    finally:
+        session.close()
+
+    assert result["isError"] is True
+    assert result["structuredContent"]["error"]["kind"] == "outside-roots"
+    assert str(inside) in result["content"][0]["text"]
+    assert jobs.current(outside.resolve()) is None
+    assert not (outside / ".security-scan").exists()

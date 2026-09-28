@@ -80,7 +80,15 @@
                 "failed",
                 "budget",
                 "precondition",
-                "busy"
+                "busy",
+                "invalid-argument",
+                "unknown-argument",
+                "missing-argument",
+                "relative-path",
+                "no-directory",
+                "not-a-directory",
+                "outside-roots",
+                "no-results"
               ],
               "type": "string"
             },
@@ -181,7 +189,8 @@
             "cancelling",
             "cancelled",
             "failed",
-            "done"
+            "done",
+            "refused"
           ],
           "type": "string"
         },
@@ -403,7 +412,15 @@
                 "failed",
                 "budget",
                 "precondition",
-                "busy"
+                "busy",
+                "invalid-argument",
+                "unknown-argument",
+                "missing-argument",
+                "relative-path",
+                "no-directory",
+                "not-a-directory",
+                "outside-roots",
+                "no-results"
               ],
               "type": "string"
             },
@@ -504,7 +521,8 @@
             "cancelling",
             "cancelled",
             "failed",
-            "done"
+            "done",
+            "refused"
           ],
           "type": "string"
         },

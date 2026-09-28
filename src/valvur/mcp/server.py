@@ -210,10 +210,18 @@ def build(tools: list[Tool], *, instructions: str | None = None,
         except Exception as exc:   # broad: a server that cannot clean up must still exit
             # A tool failing is a result, not a protocol error: the agent should see
             # what went wrong rather than a transport-level fault.
-            return {
+            refused: dict[str, Any] = {
                 "content": [{"type": "text", "text": _error_text(exc)}],
                 "isError": True,
             }
+            if getattr(exc, "plain", False):
+                # The kind beside the sentence (R6.4), in the structured form too,
+                # since Claude Code hands the model that form alone.
+                refused["structuredContent"] = {
+                    "schema": 2, "state": "refused", "next": [],
+                    "error": {"kind": getattr(exc, "kind", "invalid-argument"),
+                              "message": _error_text(exc)}}
+            return refused
         text, structured = (answer, None) if isinstance(answer, str) else answer
         reply: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": False}
         if structured is not None:
