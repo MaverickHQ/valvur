@@ -121,7 +121,11 @@ entirely on my machine, so that my source code never reaches a third party.
     half is a measured run on such a host, recorded here with the date and the
     numbers; until then the traceability ratchet counts the ID as cited by the
     test of the half that holds, and no document may say valvur runs on AWS. The
-    ID stays; nothing else may reuse it.
+    ID stays; nothing else may reuse it. *Note 2026-09-28 (R8.1): the obstacle the
+    deferral names is gone. The image scans on its own with no socket, the engine
+    run as a process in the job's container, so a platform with no Docker socket
+    can run it; the test of the standing half passes unchanged. The deferred half
+    still waits for a measured run on AWS (`tasks.md` §8).*
 
 11. F1.11 — WHEN a **Scan Run** is interrupted, valvur SHALL stop the **Scanner**
     containers it started, SHALL write no **Results Folder**, and SHALL NOT report the

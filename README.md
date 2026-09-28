@@ -458,6 +458,17 @@ uses it on every commit:
 Pinned by commit, because a tag can move and a scan of your own tree would say so:
 zizmor, which valvur runs, flags `@v0` as an unpinned action.
 
+**Or the image as a step of its own**, where a job has no shim to install: `docker run`
+of the image fetches what a scan reads (`valvur update /src`, OSV's databases for the
+checkout's lockfiles included), then scans the checkout mounted read-only with
+`--network=none`, writing `.security-scan/` to a directory you mount (`scan --out`).
+[`docs/examples/github-actions.yml`](docs/examples/github-actions.yml) is those steps;
+this repository's CI runs them against the image built from each commit.
+[`docs/examples/gitlab-ci.yml`](docs/examples/gitlab-ci.yml) is the same as a GitLab
+job, a documented shape not run here. The image has no `git`, so there the checkout is
+walked and its history is not read, and the report says both; `run.json` names the
+job's container and whether it had a network.
+
 `valvur doctor` says what is cached, how old and how large; `valvur update --prune`
 removes only what is superseded, listing each first, and `valvur update --clear`
 removes the data. The eight commands are `scan`, `update`, `findings`, `status`,

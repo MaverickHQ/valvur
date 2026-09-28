@@ -310,8 +310,19 @@ The first commit records R7's rehearsal.
   17.2 s. The first run found three defects, fixed: reports named the engine's temporary
   workspace, Syft's `dir:/workspace` went unmapped, and down tunnel devices read as a
   network. F1.10's test passes unchanged: nothing added names a cloud.
-- [ ] **R8.2** **A GitHub Actions container job**: a workflow example and a CI test that runs
+- [x] **R8.2** **A GitHub Actions container job**: a workflow example and a CI test that runs
   it. A GitLab snippet goes in the docs.
+  **STATUS 2026-09-28:** ✅ `docs/examples/github-actions.yml`: a job on the runner whose
+  steps `docker run` the image, fetching with a network, scanning with `--network=none`
+  into a mounted directory, and gating. Not a `container:` job: GitHub's JavaScript
+  actions, `actions/checkout` among them, do not run in an Alpine job container, and the
+  image has no `git`. `tests/test_pipeline_example.py` runs its three `run:` blocks
+  against the image built from the tree, in CI's e2e job: 40.6 s here from an empty
+  cache, complete. It found a defect, fixed: OSV's databases were fetched only by a
+  scan, so a scan with no network failed OSV-Scanner and the gate; `valvur update PATH`
+  now fetches them for PATH's lockfiles. `docs/examples/gitlab-ci.yml` is the GitLab
+  job, the image as its container, a documented shape not run here. A test holds both
+  examples to the version's image tag.
 - [ ] **R8.3** **A mirror in the customer's own registry.** Behaviours:
   1. A CI test mirrors the image, the database and the index into a local OCI registry,
      standing in for ECR.

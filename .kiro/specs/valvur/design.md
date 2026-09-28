@@ -422,6 +422,19 @@ irreversible step. Rehearsed by `workflow_dispatch` against throwaway targets
 before every real tag.
 
 
+## 6e. The image as a pipeline step (D15, R8.1)
+
+The image sets `VALVUR_IN_IMAGE=1` and carries a `valvur` command. A `valvur scan` run
+inside it has no runtime to start a Scan Container from, so `engine_host.for_scan()`
+returns `ImageRuntime`: the same engine, run as a process in the job's container, its
+`/workspace`, `/results` and `/cache` pointed at directories there and its reports
+handed back in the Scan Container's terms. Trivy's database is fetched by the image's
+own Trivy; `valvur update PATH` also fetches OSV's databases for PATH's lockfiles, so a
+scan with no network has them (R8.2). `scan --out DIR` writes the Results Folder under
+DIR for a read-only checkout. The image has no `git`, so the File Set walks the
+checkout and history is not read, each said. The network boundary is the job's:
+`run.json`'s `network.boundary` names it from the container's interfaces that are up.
+
 ## 7. Error handling
 
 | Condition | Behaviour | Req |
