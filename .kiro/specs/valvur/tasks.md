@@ -675,9 +675,16 @@ The first commit records R3's rehearsal.
   of startup to find nothing. Repository 5 passes, Checkov 54.5 s; a workflows-only
   repository reports the skip with its reason. The image: 640.3 MB at R3's exit, 665.0 MB
   with zizmor (+24.7 MB); Checkov's layer is unchanged.
-- [ ] **R4.4** **The SBOM from Trivy's pass** (D8, D9; P3, F10.3), if D8 says so.
+- [x] **R4.4** **The SBOM from Trivy's pass** (D8, D9; P3, F10.3), if D8 says so.
   Behaviours: `sbom.cdx.json` validates as CycloneDX, and its component count matches the
   parity recorded in R4.1.
+  **STATUS 2026-09-28:** ✅ Not applicable: D8 kept Syft (R4.1, 66.6% of its components).
+  D9's other branch, Syft only with `--sbom`, is **not applied**: it rests on the review's
+  premise that no Finding depends on the SBOM, and one does. The dependency licence
+  policy (F4.4 to F4.6, `valvur.licence.copyleft-in-permissive`) reads Syft's SBOM, so
+  making it optional would switch those checks off by default. Syft runs as before; the
+  owner decides (§8). Worth weighing: the licence policy already ignores `pkg:github`
+  components, and without them Trivy's SBOM was 98.1% of Syft's.
 - [ ] **R4.5** **The action-pin rule moves to zizmor**, if parity holds (F3.11). Behaviour:
   the pin findings on the corpus are unchanged in count and path. Opengrep keeps the sink
   inventory and the taint rules.
@@ -829,6 +836,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
 | ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
 | pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
+| D9 and the SBOM | now (R4.4) | decide whether Syft becomes `--sbom` only: that would switch the dependency licence policy (F4.4 to F4.6) off by default, which D9 did not weigh; or amend D8 to count packages without GitHub Actions, where Trivy's SBOM is 98.1% of Syft's and could carry both |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
 ## 9. Where the earlier IDs went
