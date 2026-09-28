@@ -24,6 +24,7 @@ from ..operations import (
     cancel_scan,
     doctor,
     explain_finding,
+    findings_reply,
     list_findings_reply,
     scan_reply,
     scan_status_reply,
@@ -91,6 +92,10 @@ _REPLY_SHAPE: dict[str, Any] = {"type": "object", "required": ["schema", "state"
 _LIST_FINDINGS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
     "total": {"type": "integer"}, "shown": {"type": "integer"},
     "omitted": {"type": "integer"}, "limit": {"type": "integer"},
+    "clamped": {"type": "boolean", "description": "The limit asked was over the maximum."},
+    "filters": {"type": "object"},
+    "detail": {"type": ["object", "null"],
+               "description": "With a fingerprint: sources, exploitation, dependency."},
     "findings": {"type": "array", "items": {"type": "object", "properties": {
         "rank": {"type": "integer"}, "status": {"type": "string"},
         "severity": {"type": "string"}, "path": {"type": "string"},
@@ -142,8 +147,28 @@ def registry() -> list[Tool]:
                               "running is stopped, and the result is reported "
                               "incomplete with the cut Scanners named. 0 for none."},
              }}, scan_reply, read_only=False, output_schema=_REPLY_SHAPE),
-        Tool("list_findings", "List findings from the last scan, worst first. "
-                              "Bounded by default.",
+        Tool("findings", "The last scan's findings, worst first and bounded: filter "
+                         "by `group`, `rule`, `path` or `status`, or give a "
+                         "`fingerprint` for that finding in full, with its evidence, "
+                         "exploitation, dependency path and the Scanners that reported it.",
+             {"type": "object", "properties": {
+                 **workspace_arg,
+                 "fingerprint": {"type": "string",
+                                 "description": "One finding, in full."},
+                 "group": {"type": "string", "description": "A group's id, from "
+                           "`groups` in a scan's reply or `findings.json`."},
+                 "rule": {"type": "string"},
+                 "path": {"type": "string",
+                          "description": "A path prefix, on whole segments."},
+                 "status": {"type": "string",
+                            "enum": ["new", "persisting", "regressed"]},
+                 "limit": {"type": "integer",
+                           "description": f"Default {DEFAULT_LIMIT}, max {MAX_LIMIT}; "
+                                          "a larger one is clamped, and said so."},
+                 "include_suppressed": {"type": "boolean"},
+             }}, findings_reply, output_schema=_LIST_FINDINGS_SHAPE),
+        Tool("list_findings", "Deprecated since R6.5, removed in the next release: "
+                              "`findings` does this and more.",
              {"type": "object", "properties": {
                  **workspace_arg,
                  "status": {"type": "string",
@@ -152,8 +177,8 @@ def registry() -> list[Tool]:
                            "description": f"Default {DEFAULT_LIMIT}, max {MAX_LIMIT}."},
                  "include_suppressed": {"type": "boolean"},
              }}, list_findings_reply, output_schema=_LIST_FINDINGS_SHAPE),
-        Tool("explain_finding", "Full detail for one finding: evidence, exploitation, "
-                                "dependency path and which scanner reported it.",
+        Tool("explain_finding", "Deprecated since R6.5, removed in the next release: "
+                                "`findings` with a `fingerprint`.",
              {"type": "object", "required": ["fingerprint"], "properties": {
                  **workspace_arg,
                  "fingerprint": {"type": "string", "description": "From list_findings."},

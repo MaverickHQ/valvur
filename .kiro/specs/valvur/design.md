@@ -437,11 +437,12 @@ stopped. The annotation is narrower than F9.2 and does not weaken it.
 
 | Tool | Args | Returns | `readOnlyHint` |
 |---|---|---|---|
-| `scan` | `workspace`, `profile?`, `budget_s?` | Run summary, counts by status, folder location | `false` |
-| `scan_status` | `workspace` | Last-run **Provenance**, or a running scan's progress | `true` |
-| `scan_cancel` | `workspace` | What was stopped; nothing is written (F1.11) | `false` |
-| `list_findings` | `workspace`, `status?`, `class?`, `limit?` | Ranked **Findings**, no evidence bodies | `true` |
-| `explain_finding` | `workspace`, `fingerprint` | Evidence, **Exploit Signals**, **Dependency Path**, source (F9.8) | `true` |
+| `scan` | `workspace?`, `profile?`, `budget_s?` | The result, reply schema 2, with progress on the way; attaches to a running scan (R6.3) | `false` |
+| `scan_status` | `workspace?` | The same reply: attaches to a running scan, never starts one | `true` |
+| `scan_cancel` | `workspace?` | What was stopped; nothing is written (F1.11) | `false` |
+| `findings` | `workspace?`, `fingerprint?`, `group?`, `rule?`, `path?`, `status?`, `limit?` | Ranked **Findings**, filtered; with a fingerprint, its evidence, **Exploit Signals**, **Dependency Path** and sources (F9.8, R6.5) | `true` |
+| `list_findings` | as `findings` | Deprecated by R6.5, kept one release | `true` |
+| `explain_finding` | as `findings`, with `fingerprint` | Deprecated by R6.5, kept one release | `true` |
 | `doctor` | `workspace?` | Every precondition a scan needs, with the fix for each (23.3.1) | `true` |
 
 No tool mutates the **Workspace** (F9.2). No tool triggers a scan implicitly (F9.4).

@@ -313,56 +313,79 @@ def _text_of(reply):
     return text
 
 
-def list_findings_reply(args: dict) -> tuple[str, dict]:
-    """The text, and the same answer as a dict for `structuredContent` (28.2.2):
-    the counts an agent parsed out of the first line, and each shown Finding's
-    fields. One computation, so the two cannot disagree."""
+def findings_reply(args: dict) -> tuple[str, dict]:
+    """`findings` (R6.5, D12): the last scan's Findings, worst first, filtered by
+    fingerprint, group, rule and path prefix, by status and suppression; with a
+    fingerprint, that Finding in full. It says when it clamped the limit, and what
+    it did not show. The text, and the same answer as a dict for
+    `structuredContent`, from one computation (28.2.2)."""
     args = _checked(args)
-    limit = min(_checked_limit(args.get("limit")), MAX_LIMIT)
+    asked = _checked_limit(args.get("limit"))
+    limit = min(asked, MAX_LIMIT)
     status = args.get("status")
     if status and status not in ("new", "persisting", "regressed"):
         # The arguments first: what the call asked, before what the folder holds.
         raise Refusal(f"`status` must be new, persisting or regressed; got {status!r}.")
+    filters = {key: args[key] for key in ("fingerprint", "group", "rule", "path", "status")
+               if args.get(key)}
     data = _load(args.get("workspace"))
-    findings = data["findings"]
-
-    if status:
-        findings = [f for f in findings if f.get("status") == status]
-    if not args.get("include_suppressed"):
+    findings = [f for f in data["findings"] if _matches(f, filters)]
+    if filters.get("fingerprint") and not findings:
+        raise Refusal(f"No finding with fingerprint {filters['fingerprint']} in the last "
+                      "scan; `findings` gives each finding's.", kind="unknown-fingerprint")
+    if not args.get("include_suppressed") and not filters.get("fingerprint"):
         findings = [f for f in findings if not f.get("suppressed")]
-
     findings.sort(key=lambda f: f.get("rank") or 10**9)
 
     shown, omitted = findings[:limit], max(0, len(findings) - limit)
     caveats = _staleness_note(args.get("workspace"), found_nothing=not findings)
+    detail = _detail(findings[0]) if filters.get("fingerprint") else None
     structured = {
         "total": len(findings), "shown": len(shown), "omitted": omitted, "limit": limit,
+        "clamped": asked > MAX_LIMIT, "filters": filters,
         "findings": [_structured_finding(f) for f in shown],
-        "caveats": caveats,
+        "detail": detail, "caveats": caveats,
     }
-
+    if detail is not None:
+        return "\n".join([_explained(findings[0]), *caveats]), structured
     if not findings:
-        lines = [
-            "No findings match. The scan itself may still have been incomplete — "
-            "check `scan_status`."
-        ]
-        lines += caveats
-        return "\n".join(lines), structured
+        lines = ["No findings match. The scan itself may still have been incomplete — "
+                 "check `scan_status`."]
+        return "\n".join(lines + caveats), structured
 
-    lines = [f"{len(findings)} finding(s); showing {len(shown)}, worst first.", ""]
+    lines = [f"{len(findings)} finding(s); showing {len(shown)}, worst first."
+             + (f" `limit` {asked} was clamped to {MAX_LIMIT}." if asked > MAX_LIMIT else ""),
+             ""]
     lines += [_one_line(f) for f in shown]
     if omitted:
         # Silent truncation reads as "that is everything" (F9.10).
         lines += [
             "",
             f"{omitted} more not shown. Raise `limit` (max {MAX_LIMIT}) or filter "
-            "by `status`.",
+            "by `group`, `rule`, `path` or `status`.",
         ]
     lines += caveats
     return "\n".join(lines), structured
 
 
+def _matches(finding: dict, filters: dict) -> bool:
+    """A Finding against the call's filters: exact fingerprint, group, rule and
+    status; `path` a prefix on whole segments, as an exclude is."""
+    prefix = str(filters.get("path") or "").rstrip("/")
+    return (all(finding.get(key) == filters[key]
+                for key in ("fingerprint", "group", "rule", "status") if key in filters)
+            and (not prefix or finding["path"] == prefix
+                 or finding["path"].startswith(prefix + "/")))
+
+
+def list_findings_reply(args: dict) -> tuple[str, dict]:
+    """`list_findings`, since R6.5 `findings` with no fingerprint: kept one release
+    so a client that allowed it by name still works."""
+    return findings_reply(args)
+
+
 list_findings = _text_of(list_findings_reply)
+findings = _text_of(findings_reply)
 
 
 def _structured_finding(finding: dict) -> dict:
@@ -396,19 +419,25 @@ def _structured_finding(finding: dict) -> dict:
 
 
 def explain_finding(args: dict) -> str:
-    args = _checked(args)
-    fingerprint = args.get("fingerprint")
-    if not fingerprint:
-        raise Refusal("`fingerprint` is required; `list_findings` gives each finding's.")
+    """`explain_finding`, since R6.5 `findings` with a fingerprint: kept one release."""
+    if not args.get("fingerprint"):
+        raise Refusal("`fingerprint` is required; `findings` gives each finding's.",
+                      kind="missing-argument")
+    return findings_reply(args)[0]
 
-    data = _load(args.get("workspace"))
-    finding = next(
-        (f for f in data["findings"] if f["fingerprint"] == fingerprint), None
-    )
-    if finding is None:
-        raise Refusal(f"No finding with fingerprint {fingerprint} in the last scan; "
-                      "`list_findings` gives each finding's.", kind="unknown-fingerprint")
 
+def _detail(finding: dict) -> dict:
+    """What `findings` adds for one fingerprint: every source, the exploitation,
+    the dependency path, the suppression."""
+    return {"sources": list(finding.get("sources") or []),
+            "exploit": dict(finding.get("exploit") or {}),
+            "dependency": dict(finding.get("dependency") or {}),
+            "suppressed": finding.get("suppressed"),
+            "group": finding.get("group")}
+
+
+def _explained(finding: dict) -> str:
+    """One Finding in full, as text."""
     lines = [
         f"{finding['title']}",
         f"  rule:        {finding['rule']}",
@@ -418,6 +447,8 @@ def explain_finding(args: dict) -> str:
         f"  status:      {finding.get('status', '?')}",
         f"  reported by: {', '.join(finding.get('sources') or []) or 'unknown'}",
     ]
+    if finding.get("group"):
+        lines.append(f"  group:       {finding['group']}")
 
     exploit = finding.get("exploit") or {}
     if exploit.get("cve"):

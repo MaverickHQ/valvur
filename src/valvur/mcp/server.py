@@ -302,8 +302,9 @@ Add it to your agent instead:
       }
     }
 
-Tools: doctor, scan, scan_status, scan_cancel, list_findings, explain_finding — all
-read-only with respect to your source. There is no scan-and-fix tool and there will
+Tools: doctor, scan, scan_status, scan_cancel and findings — all read-only with
+respect to your source. list_findings and explain_finding are findings' old names,
+kept for one release. There is no scan-and-fix tool and there will
 not be one (ADR-0009): you choose which fixes to apply. `doctor` checks this machine
 can scan before one is started; `scan_cancel` stops one, as Ctrl-C would.
 

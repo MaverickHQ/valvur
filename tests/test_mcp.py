@@ -337,6 +337,7 @@ ANNOUNCED = {
     "scan":            {"readOnlyHint": False, "destructiveHint": False},
     "scan_cancel":     {"readOnlyHint": False, "destructiveHint": False},
     "scan_status":     {"readOnlyHint": True, "destructiveHint": False},
+    "findings":        {"readOnlyHint": True, "destructiveHint": False},
     "list_findings":   {"readOnlyHint": True, "destructiveHint": False},
     "explain_finding": {"readOnlyHint": True, "destructiveHint": False},
     "doctor":          {"readOnlyHint": True, "destructiveHint": False},
@@ -374,7 +375,8 @@ def test_the_registry_exposes_exactly_the_expected_tools():
     from valvur.mcp.tools import registry
 
     assert {t.name for t in registry()} == {
-        "scan", "list_findings", "explain_finding", "scan_status", "doctor", "scan_cancel",
+        "scan", "findings", "list_findings", "explain_finding", "scan_status", "doctor",
+        "scan_cancel",
     }
 
 
@@ -558,8 +560,8 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
 
     shared = {
         getattr(operations, name)
-        for name in ("scan_reply", "list_findings", "explain_finding", "scan_status",
-                     "doctor", "cancel_scan")
+        for name in ("scan_reply", "findings", "list_findings", "explain_finding",
+                     "scan_status", "doctor", "cancel_scan")
     }
     # A reader that answers `structuredContent` (28.2.2) is registered in its
     # two-form shape, `<name>_reply`; the CLI's text function is that reply's
