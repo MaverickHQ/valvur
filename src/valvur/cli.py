@@ -320,6 +320,11 @@ def build_parser() -> argparse.ArgumentParser:
         "and the package-name index into the local cache",
     )
     update_cmd.add_argument(
+        "path", nargs="?", default=None,
+        help="Also fetch OSV's databases for the lockfiles in this project, when absent "
+        "or stale, so a scan with no network has them (a pipeline step's first half).",
+    )
+    update_cmd.add_argument(
         "--if-stale",
         action="store_true",
         help="Do nothing unless the database or the index is actually out of date. "
@@ -543,9 +548,11 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     if getattr(args, "prune", False) or getattr(args, "clear", False):
         # What `cache` did (D12): tidy the host cache, and fetch nothing.
         return _print_cache(clear=args.clear, prune=args.prune)
+    path = getattr(args, "path", None)
     updated = updating.run(print, runner or engine_host.for_scan(),
                            build_index=args.build_index,
-                           if_stale=getattr(args, "if_stale", False))
+                           if_stale=getattr(args, "if_stale", False),
+                           workspace=Path(path).resolve() if path else None)
     return 0 if updated.ok else 1
 
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .enrichment import KEV_URL, KEV_URL_ENV
 
@@ -146,21 +147,43 @@ def refresh_kev(say: Say) -> bool:
     return True
 
 
-def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False) -> Updated:
-    """Every step, in order: what `valvur update` and the `update` tool both run."""
+def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
+    """OSV's databases for the lockfiles in `workspace`, when absent or stale (R8.2):
+    a pipeline fetches with a network and scans with none, and only a project says
+    which ecosystems it needs."""
+    if workspace is None:
+        return
+    from . import fileset, osv_offline
+
+    records, failed = osv_offline.ensure(fileset.build(workspace).files, say)
+    updated.fetched += [record["what"] for record in records]
+    if failed:
+        updated.ok = False
+
+
+def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False,
+        workspace: Path | None = None) -> Updated:
+    """Every step, in order: what `valvur update` and the `update` tool both run;
+    with `workspace`, OSV's databases for its lockfiles as well (R8.2)."""
     from . import cache
 
     if if_stale:
         database, index = database_due(), index_due()
         if not database and not index:
             age = cache.db_age_days()
-            say(f"Database is {age:.1f} days old and current enough. Nothing to do.")
-            return Updated(ok=True)
+            say(f"Database is {age:.1f} days old and current enough.")
+            updated = Updated(ok=True)
+            refresh_osv(say, workspace, updated)
+            if not updated.fetched and updated.ok:
+                say("Nothing to do.")
+            return updated
         if not database:
             # The database is fine and only the index is due: do that one thing.
             # A 116MB download to refresh a 4MB list is not what --if-stale means.
             ok = refresh_index(say, build=build_index)
-            return Updated(ok=ok, fetched=["package-name index"] if ok else [])
+            updated = Updated(ok=ok, fetched=["package-name index"] if ok else [])
+            refresh_osv(say, workspace, updated)
+            return updated
 
     updated = Updated(ok=True)
     # The image first (23.2.4): the database update runs Trivy inside it.
@@ -186,5 +209,6 @@ def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False) 
         updated.fetched.append("package-name index")
     else:
         updated.ok = False
+    refresh_osv(say, workspace, updated)
     say(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
     return updated
