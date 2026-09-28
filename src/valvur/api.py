@@ -16,6 +16,7 @@ from pathlib import Path
 
 from . import cache as _cache
 from . import egress as _egress
+from . import hygiene as _hygiene
 from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results
@@ -136,6 +137,8 @@ class ScanRun:
     not_read: tuple[tuple[str, str], ...] = ()
     #: The File Set's manifest: scope, files, bytes and the list's sha256.
     scope: dict | None = None
+    #: Repository hygiene (D13, R5.5): facts, never Findings, never the Status.
+    hygiene: dict | None = None
     profile: str = ""
     #: Per-adapter coverage contracts: what each reads and what it deliberately does
     #: not (task 19.E.1). Provenance, not findings — the gaps themselves arrive as
@@ -663,6 +666,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=files, largest_dirs=largest, not_read=tuple(chosen.skipped),
         scope=chosen.manifest(workspace), ignored=frozenset(chosen.ignored),
+        hygiene=_hygiene.assess(workspace, chosen.files),
         generation=generation, history=beside.get("history"),
     )
 
@@ -929,7 +933,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
               budget_s, shim_built_from, image_built_from,
               workspace_files: int = 0, largest_dirs=(), not_read=(), scope=None,
               generation: str | None = None, history: dict | None = None,
-              ignored: frozenset[str] = frozenset()) -> ScanRun:
+              ignored: frozenset[str] = frozenset(), hygiene: dict | None = None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -1035,6 +1039,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         largest_dirs=tuple(largest_dirs),
         not_read=tuple(not_read),
         scope=scope,
+        hygiene=hygiene,
         image_built_from=image_built_from,
     )
 

@@ -131,6 +131,7 @@ def render(run: ScanRun) -> str:
     lines += _scope(run, active)
     lines += _not_run(run, notes)
     lines += _top(active)
+    lines += _hygiene(run)
     lines += _accepted_and_fixed(run, suppressed)
     slowest = _slowest(run.scanners)
     if slowest is not None:
@@ -460,6 +461,18 @@ def _top(active) -> list[str]:
         ]
     lines.append("")
     return lines
+
+
+def _hygiene(run: ScanRun) -> list[str]:
+    """Facts about the repository, never Findings and never the Status (D13)."""
+    from . import hygiene
+
+    said = hygiene.lines(run.hygiene)
+    if not said:
+        return []
+    return ["## Hygiene", "",
+            "_Facts about the repository, not Findings: none changes the Status._", "",
+            *said, ""]
 
 
 def _accepted_and_fixed(run: ScanRun, suppressed) -> list[str]:

@@ -97,6 +97,8 @@ def render(run: ScanRun) -> str:
                 "not_read": [{"path": p, "reason": r} for p, r in run.not_read],
                 # The File Set's manifest: scope, files, bytes, the list's sha256.
                 "scope": run.scope,
+                # Repository hygiene (D13, R5.5): facts, never Findings.
+                "hygiene": run.hygiene,
                 # What git history was read for secrets (R3.7): commits, bytes and
                 # the bound that stopped the read; or why none was; or null.
                 "history": run.history,
