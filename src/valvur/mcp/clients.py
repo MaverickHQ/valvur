@@ -39,9 +39,9 @@ CLIENTS: tuple[Client, ...] = (
            (".mcp.json", "~/.claude.json"), "json-mcpServers",
            "approve the project server once in an interactive `claude`; a headless or "
            "SDK session passes `--mcp-config .mcp.json --strict-mcp-config`",
-           "measured 2026-09-26 at the first gate: connected from this block in under "
-           "eight seconds; `claude mcp list` health-checks a project server only once "
-           "it is approved"),
+           "measured 2026-09-28 at R6's exit: `claude -p` scanned the eight acceptance "
+           "repositories through this server; `claude mcp list` health-checks a project "
+           "server only once it is approved"),
     Client("kiro", "Kiro",
            (".kiro/settings/mcp.json", "~/.kiro/settings/mcp.json"), "json-mcpServers",
            "`kiroAgent.configureMCP` must be `Enabled`; the server starts with the agent",
@@ -194,13 +194,19 @@ README_START = ("<!-- clients:start — rendered from valvur.mcp.clients; a test
 README_END = "<!-- clients:end -->"
 
 
+def _sentence(text: str) -> str:
+    """The first letter raised and nothing else: a note names keys such as
+    `kiroAgent.configureMCP`, whose case is the setting."""
+    return text[:1].upper() + text[1:]
+
+
 def readme_section() -> str:
     """The README's client-by-client block, rendered from the table."""
     lines = [README_START, ""]
     for entry in CLIENTS:
         files = " or ".join(f"`{f}`" for f in entry.files)
-        lines += [f"**{entry.name}** — {files}. {entry.after.capitalize()}. "
-                  f"*{entry.verified.capitalize()}.*", "",
+        lines += [f"**{entry.name}** — {files}. {_sentence(entry.after)}. "
+                  f"*{_sentence(entry.verified)}.*", "",
                   f"```{fence(entry)}", snippet(entry).rstrip("\n"), "```", ""]
     lines.append(README_END)
     return "\n".join(lines) + "\n"

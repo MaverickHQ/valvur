@@ -116,7 +116,7 @@ project server is approved — `doctor` says it first.
 
 <!-- clients:start — rendered from valvur.mcp.clients; a test holds this block to it -->
 
-**Claude Code** — `.mcp.json` or `~/.claude.json`. Approve the project server once in an interactive `claude`; a headless or sdk session passes `--mcp-config .mcp.json --strict-mcp-config`. *Measured 2026-09-26 at the first gate: connected from this block in under eight seconds; `claude mcp list` health-checks a project server only once it is approved.*
+**Claude Code** — `.mcp.json` or `~/.claude.json`. Approve the project server once in an interactive `claude`; a headless or SDK session passes `--mcp-config .mcp.json --strict-mcp-config`. *Measured 2026-09-28 at R6's exit: `claude -p` scanned the eight acceptance repositories through this server; `claude mcp list` health-checks a project server only once it is approved.*
 
 ```json
 {
@@ -133,7 +133,7 @@ project server is approved — `doctor` says it first.
 }
 ```
 
-**Kiro** — `.kiro/settings/mcp.json` or `~/.kiro/settings/mcp.json`. `kiroagent.configuremcp` must be `enabled`; the server starts with the agent. *Measured 2026-09-12 (task 22.f.2), and `doctor` reads kiro's files.*
+**Kiro** — `.kiro/settings/mcp.json` or `~/.kiro/settings/mcp.json`. `kiroAgent.configureMCP` must be `Enabled`; the server starts with the agent. *Measured 2026-09-12 (task 22.F.2), and `doctor` reads Kiro's files.*
 
 ```json
 {
@@ -160,7 +160,7 @@ command = "uvx"
 args = ["--from", "valvur", "valvur-mcp"]
 ```
 
-**Cursor** — `.cursor/mcp.json` or `~/.cursor/mcp.json`. Enable the server under settings → mcp; cursor starts it on demand. *Documented shape, 2026-09-26; not run here.*
+**Cursor** — `.cursor/mcp.json` or `~/.cursor/mcp.json`. Enable the server under Settings → MCP; Cursor starts it on demand. *Documented shape, 2026-09-26; not run here.*
 
 ```json
 {
@@ -177,7 +177,7 @@ args = ["--from", "valvur", "valvur-mcp"]
 }
 ```
 
-**VS Code (Copilot agent mode)** — `.vscode/mcp.json`. The key is `servers`, not `mcpservers`; start it from the file's inline *start* action or trust the workspace. *Documented shape, 2026-09-26; not run here.*
+**VS Code (Copilot agent mode)** — `.vscode/mcp.json`. The key is `servers`, not `mcpServers`; start it from the file's inline *Start* action or trust the workspace. *Documented shape, 2026-09-26; not run here.*
 
 ```json
 {
@@ -195,7 +195,7 @@ args = ["--from", "valvur", "valvur-mcp"]
 }
 ```
 
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json`. Refresh the mcp panel; windsurf starts it on demand. *Documented shape, 2026-09-26; not run here.*
+**Windsurf** — `~/.codeium/windsurf/mcp_config.json`. Refresh the MCP panel; Windsurf starts it on demand. *Documented shape, 2026-09-26; not run here.*
 
 ```json
 {
@@ -212,7 +212,7 @@ args = ["--from", "valvur", "valvur-mcp"]
 }
 ```
 
-**Cline** — `cline_mcp_settings.json (under the extension's global storage)`. Edit through the extension's mcp servers panel, which opens this file. *Documented shape, 2026-09-26; not run here.*
+**Cline** — `cline_mcp_settings.json (under the extension's global storage)`. Edit through the extension's MCP Servers panel, which opens this file. *Documented shape, 2026-09-26; not run here.*
 
 ```json
 {
@@ -246,7 +246,7 @@ args = ["--from", "valvur", "valvur-mcp"]
 }
 ```
 
-**Continue** — `.continue/config.yaml` or `~/.continue/config.yaml`. Yaml, under `mcpservers:`; reload the config from the extension. *Documented shape, 2026-09-26; not run here.*
+**Continue** — `.continue/config.yaml` or `~/.continue/config.yaml`. YAML, under `mcpServers:`; reload the config from the extension. *Documented shape, 2026-09-26; not run here.*
 
 ```yaml
 mcpServers:
@@ -258,7 +258,7 @@ mcpServers:
       - valvur-mcp
 ```
 
-**Gemini CLI** — `.gemini/settings.json` or `~/.gemini/settings.json`. `/mcp` in the cli lists it; the server starts with the session. *Documented shape, 2026-09-26; not run here.*
+**Gemini CLI** — `.gemini/settings.json` or `~/.gemini/settings.json`. `/mcp` in the CLI lists it; the server starts with the session. *Documented shape, 2026-09-26; not run here.*
 
 ```json
 {
