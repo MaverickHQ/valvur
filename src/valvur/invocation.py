@@ -30,6 +30,12 @@ NOTHING_TO_SCAN: tuple[str, ...] = (
 )
 
 
+def nothing_to_scan(stderr: str, phrases: tuple[str, ...]) -> bool:
+    """Whether a tool's stderr says, in one of `phrases`, it had nothing to analyse."""
+    lowered = stderr.lower()
+    return any(phrase in lowered for phrase in phrases)
+
+
 @dataclass(frozen=True)
 class ScannerOutput:
     tool: str

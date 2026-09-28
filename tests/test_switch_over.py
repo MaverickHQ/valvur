@@ -113,3 +113,45 @@ def test_jobs_bounds_how_many_tools_the_engine_runs_at_once(tmp_path):
         LocalRuntime(FAKE_TOOLS).run(_sleepers(3), snapshot(ws, ["a.py"]), scratch, jobs=jobs)
         timings[jobs] = time.monotonic() - started
     assert timings[None] < 2.5 <= timings[1], timings
+
+
+class _Quiet:
+    """A Scanner whose tool writes no report and says why on stderr."""
+
+    kind = "scanner"
+    version = "0"
+
+    def __init__(self, name: str, code: int, message: str, empty_when=()):
+        self.name, self.code, self.message, self.empty_when = name, code, message, empty_when
+
+    def applies_to(self, workspace):
+        return True, ""
+
+    def command(self, workspace):
+        return Invocation(tool=self.name, version="0", report=f"{self.name}.json", timeout=60,
+                          argv=("fake-quiet", str(self.code), self.message),
+                          empty_when=self.empty_when)
+
+    def parse(self, output):
+        import json
+
+        return json.loads(output.stdout or "[]") and []
+
+    def for_profile(self, *, network):
+        return self
+
+
+def test_nothing_to_scan_is_an_empty_result_and_a_missing_report_is_a_failure(ws):
+    from valvur import api
+    from valvur.adapters import GitleaksAdapter
+    from valvur.invocation import NOTHING_TO_SCAN
+
+    run = api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[
+        GitleaksAdapter(),
+        _Quiet("nothing", 128, "No package sources found, --help for usage",
+               empty_when=NOTHING_TO_SCAN),
+        _Quiet("silent", 0, "could not open the report for writing")])
+    by_tool = {s.tool: s for s in run.scanners}
+    assert by_tool["nothing"].ok, by_tool["nothing"]
+    assert not by_tool["silent"].ok
+    assert "produced no report" in by_tool["silent"].reason

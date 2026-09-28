@@ -12,7 +12,7 @@ from contextlib import suppress as _suppress
 from pathlib import Path
 
 from . import egress
-from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
+from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput, nothing_to_scan
 from .selinux import RELABEL_ENV, _relabel_workspace, _selinux_hint, selinux_enforcing
 from .version import __version__, default_image
 
@@ -33,9 +33,6 @@ IMAGE = _os.environ.get("VALVUR_IMAGE") or default_image()
 DEBUG_ENV = "VALVUR_DEBUG"
 
 
-def _is_empty_result(stderr: str, phrases: tuple[str, ...]) -> bool:
-    lowered = stderr.lower()
-    return any(phrase in lowered for phrase in phrases)
 _VERSION = __version__
 
 _RUNTIMES = ("docker", "podman", "nerdctl")
@@ -678,7 +675,7 @@ class ContainerRunner:
                                      argv=invocation.argv, stopped_after=stopped.seconds)
             report = Path(scratch) / invocation.report if invocation.report else None
             if (report is not None and not report.exists()
-                    and _is_empty_result(proc.stderr, invocation.empty_when)):
+                    and nothing_to_scan(proc.stderr, invocation.empty_when)):
                 # Nothing to analyse: an empty result, honestly earned.
                 return ScannerOutput(tool, version, "", "", 0, argv=invocation.argv)
             if report is not None and not report.exists():

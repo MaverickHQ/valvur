@@ -157,7 +157,7 @@ def test_nothing_to_scan_is_not_a_scan_failure():
     exit 128 saying 'No package sources found'. Reporting that as a failure marked
     the whole scan incomplete and made every lockfile-less project look broken."""
     from valvur.invocation import NOTHING_TO_SCAN
-    from valvur.runner import _is_empty_result
+    from valvur.invocation import nothing_to_scan as _is_empty_result
 
     assert _is_empty_result("No package sources found, --help for usage", NOTHING_TO_SCAN)
     assert not _is_empty_result("permission denied reading /workspace", NOTHING_TO_SCAN)

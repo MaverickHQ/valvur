@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""`fake-quiet CODE MESSAGE`: write MESSAGE to stderr, no report, exit CODE (R3.9) —
+a tool with nothing to analyse, or one that could not write its report."""
+import sys
+
+sys.stderr.write(sys.argv[2] + "\n")
+sys.exit(int(sys.argv[1]))

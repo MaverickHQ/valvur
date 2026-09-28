@@ -762,7 +762,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
     import tempfile
 
     from . import engine_host, fileset
-    from .invocation import ScannerOutput
+    from .invocation import ScannerOutput, nothing_to_scan
 
     outcomes: list[ScannerOutcome | None] = [None] * len(adapters)
     cut: list[str] = []
@@ -847,9 +847,20 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             report = (where / invocation.report if invocation.report
                       else where / f"{invocation.tool}.stdout")
             stdout = report.read_text(encoding="utf-8") if report.exists() else ""
+            code, stderr = entry["exit_code"], entry.get("stderr_tail", "")
+            if invocation.report and not report.exists() and not entry.get("timed_out"):
+                if nothing_to_scan(stderr, invocation.empty_when):
+                    # Nothing to analyse: an empty result, honestly earned.
+                    code, stderr = 0, ""
+                else:
+                    # Asked for a report and wrote none: it could not write, which
+                    # is not the same as finding nothing (the fleet's rule, kept).
+                    stderr = (f"{invocation.tool} produced no report at "
+                              f"{invocation.report}. stderr: {stderr.strip()[:300]}")
+                    code = code or 99
             output = ScannerOutput(
-                invocation.tool, invocation.version, stdout, entry.get("stderr_tail", ""),
-                entry["exit_code"], argv=invocation.argv,
+                invocation.tool, invocation.version, stdout, stderr, code,
+                argv=invocation.argv,
                 stopped_after=float(invocation.timeout) if entry.get("timed_out") else None)
             if written is not None and invocation.tool == _HISTORY_TOOL:
                 outcomes[index] = _with_history(outcomes[index], adapters[index], output,
