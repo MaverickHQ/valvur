@@ -164,6 +164,9 @@ def render(run: ScanRun) -> str:
                     # opened before any Scanner ran, and this is where they are
                     # said. Empty, not absent, on a steady-state run.
                     "fetched": run.fetched,
+                    # Where the Scanners ran (R8.1): the Scan Container, or a
+                    # pipeline job's own container, with or without a network.
+                    "boundary": run.boundary,
                 },
                 # Broken out rather than a single total (task 19.C.1). One number
                 # made an accepted risk, a live problem and a note about our own

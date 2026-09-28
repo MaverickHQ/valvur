@@ -102,6 +102,9 @@ class ScanRun:
     not_rechecked: list[tuple[str, str]] = field(default_factory=list)
     scanners: list[ScannerRun] = field(default_factory=list)
     network_used: bool = False
+    #: Where the Scanners ran (R8.1): the Scan Container, or a job's own container
+    #: and whether it had a network.
+    boundary: str = "the Scan Container"
     kev_age_days: float | None = None
     kev_source: str = ""
     # The database that decides whether findings EXIST, as opposed to KEV which only
@@ -1082,6 +1085,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         scope=scope,
         hygiene=hygiene,
         image_built_from=image_built_from,
+        boundary=getattr(runner, "boundary", lambda: "the Scan Container")(),
     )
 
     still_fixed = {fp for fp in outcome.previously_fixed if fp not in current}

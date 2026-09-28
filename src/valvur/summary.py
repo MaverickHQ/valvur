@@ -203,6 +203,16 @@ def _qualifiers(run: ScanRun, findings) -> list[str]:
             "",
         ]
 
+    if run.profile == "offline" and "with a network" in run.boundary:
+        # The image as a pipeline step (R8.1): the Scanners ran offline, and the
+        # guarantee that nothing could leave is the job's network, not valvur's.
+        lines += [
+            f"> **The Scanners ran in {run.boundary}.** Each was run offline, and "
+            "valvur sent nothing; for the guarantee that nothing could leave, run the "
+            "step with no network (`docker run --network=none`).",
+            "",
+        ]
+
     if run.build_match is False:
         # The rc1 hole, named (23.4.4): F1.9 saw two equal version labels, and the
         # code behind them differed. A warning, not a refusal.
