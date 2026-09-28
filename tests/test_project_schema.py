@@ -65,3 +65,13 @@ def test_the_first_invalid_key_is_named(text, named):
     said = project_schema.problem(tomllib.loads(text))
 
     assert said is not None and said.startswith(f"`{named}`"), said
+
+
+def test_doctor_names_the_first_invalid_key(tmp_path):
+    from valvur import doctor
+
+    (tmp_path / ".security-scan.toml").write_text('[scan]\nexclud = ["data"]\n')
+
+    [line] = [c for c in doctor.run(tmp_path) if c.name == "project file"]
+
+    assert line.level == "warn" and "`scan.exclud`" in line.detail

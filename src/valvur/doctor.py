@@ -191,6 +191,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_settings())
     checks.append(_check_selinux(workspace))
     checks.append(_check_workspace(workspace))
+    checks.append(_check_project_file(workspace))
     checks.append(_check_mcp(workspace))
     checks.append(_check_network(network, fetch_due=fetch_due or not image_local))
     return checks
@@ -423,6 +424,26 @@ def _check_cache() -> Check:
     total = _cache.human_size(sum(e.size for e in entries))
     return Check("cache", "info", f"{_cache.root()} — {held}; total {total}. "
                  "`valvur update --prune` or `--clear` reclaims it.")
+
+
+def _check_project_file(workspace: Path) -> Check:
+    """`.security-scan.toml` against its schema (D10, R6.8): the first invalid key,
+    named, since a misspelt `exclud` was otherwise ignored in silence."""
+    import tomllib
+
+    from . import project_schema
+
+    path = workspace / ".security-scan.toml"
+    if not path.is_file():
+        return Check("project file", "info", "none; `valvur init` prints a starter")
+    try:
+        said = project_schema.problem(tomllib.loads(path.read_text(encoding="utf-8")))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        said = f"it cannot be read as TOML ({exc})."
+    if said:
+        return Check("project file", "warn", f"{path.name}: {said}",
+                     f"fix it; the schema is {project_schema.PATH}")
+    return Check("project file", "ok", f"{path.name} is valid")
 
 
 def _check_settings() -> Check:
