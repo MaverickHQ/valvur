@@ -19,7 +19,7 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from .engine import RESULTS_ENV, WORKSPACE_ENV
+from .engine import CACHE_ENV, RESULTS_ENV, WORKSPACE_ENV
 from .invocation import Invocation
 from .selinux import selinux_enforcing
 
@@ -179,11 +179,13 @@ class _Runtime:
 
 
 class LocalRuntime(_Runtime):
-    """Runs the engine as a host process, with `tools_dir` first on its PATH."""
+    """Runs the engine as a process, with `tools_dir` first on its PATH and the
+    container's `/cache` at `cache` when one is given."""
 
-    def __init__(self, tools_dir: Path | None = None):
+    def __init__(self, tools_dir: Path | None = None, cache: Path | None = None):
         super().__init__()
         self.tools_dir = tools_dir
+        self.cache = cache
 
     def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
             on_event: Callable[[dict], None] | None = None,
@@ -191,6 +193,8 @@ class LocalRuntime(_Runtime):
         write_plan(scratch, plan, budget_s, jobs)
         workspace = scratch.parent / f"{scratch.name}-workspace"
         env = {**os.environ, WORKSPACE_ENV: str(workspace), RESULTS_ENV: str(scratch)}
+        if self.cache is not None:
+            env[CACHE_ENV] = str(self.cache)
         if self.tools_dir is not None:
             env["PATH"] = f"{self.tools_dir}{os.pathsep}{env.get('PATH', '')}"
         return self._engine([sys.executable, "-m", "valvur.engine"], tar, env, on_event,

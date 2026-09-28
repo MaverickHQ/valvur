@@ -7,7 +7,7 @@ import signal
 import sys
 from pathlib import Path
 
-from . import RESULTS, RESULTS_ENV, WORKSPACE, WORKSPACE_ENV, run
+from . import CACHE_ENV, RESULTS, RESULTS_ENV, WORKSPACE, WORKSPACE_ENV, run
 
 
 def _terminated(signum, _frame):
@@ -18,5 +18,7 @@ def _terminated(signum, _frame):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _terminated)
+    cache = os.environ.get(CACHE_ENV)
     sys.exit(run(sys.stdin.buffer, Path(os.environ.get(WORKSPACE_ENV, WORKSPACE)),
-                 Path(os.environ.get(RESULTS_ENV, RESULTS))))
+                 Path(os.environ.get(RESULTS_ENV, RESULTS)),
+                 Path(cache) if cache else None))

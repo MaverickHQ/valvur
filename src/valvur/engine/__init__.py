@@ -5,8 +5,9 @@ workspace directory, reads the plan the host left in the results directory, runs
 each Scanner, and writes a manifest of what happened beside the reports. Progress
 goes to stderr as JSON lines. The host never mounts the source tree.
 
-Paths default to the container's (`/workspace`, `/results`); `LocalRuntime` points
-them elsewhere to run the same engine as a host process in tests.
+Paths default to the container's (`/workspace`, `/results`, `/cache`); `LocalRuntime`
+points them elsewhere to run the same engine as a process: in tests, and in the image
+itself when it runs as a pipeline step with no runtime to start a container (R8.1).
 """
 
 from __future__ import annotations
@@ -23,8 +24,10 @@ from typing import IO
 
 WORKSPACE = "/workspace"
 RESULTS = "/results"
+CACHE = "/cache"
 WORKSPACE_ENV = "VALVUR_ENGINE_WORKSPACE"
 RESULTS_ENV = "VALVUR_ENGINE_RESULTS"
+CACHE_ENV = "VALVUR_ENGINE_CACHE"
 
 
 def _event(record: dict) -> None:
@@ -46,14 +49,16 @@ def unpack(stream: IO[bytes], workspace: Path) -> int:
     return count
 
 
-def _mapped(argument: str, workspace: Path, results: Path) -> str:
-    """The container paths in one argument, pointed at `workspace` and `results`:
-    whole prefixes only, in one pass, at the start or after `=`. Two chained
-    replaces corrupted a workspace whose own path contained `/results`."""
+def _mapped(argument: str, workspace: Path, results: Path, cache: Path | None = None) -> str:
+    """The container paths in one argument, pointed at `workspace`, `results` and,
+    when given, `cache`: whole prefixes only, in one pass, at the start or after
+    `=`. Two chained replaces corrupted a workspace whose own path held `/results`."""
     import re
 
     where = {WORKSPACE: str(workspace), RESULTS: str(results)}
-    return re.sub(r"(^|=)(/workspace|/results)(?=/|$)",
+    if cache is not None:
+        where[CACHE] = str(cache)
+    return re.sub(rf"(^|=)({'|'.join(map(re.escape, where))})(?=/|$)",
                   lambda m: m.group(1) + where[m.group(2)], argument)
 
 
@@ -77,15 +82,17 @@ class _Running:
     """One tool, started in its own session and so its own process group: a
     timeout kills the group, grandchildren included (R3.4)."""
 
-    def __init__(self, tool: dict, workspace: Path, results: Path, scratch: Path):
+    def __init__(self, tool: dict, workspace: Path, results: Path, scratch: Path,
+                 cache: Path | None = None):
         self.tool = tool
         self.name = tool["tool"]
         # Written where the tool starts, for a tool that reads its configuration
         # from its working directory: Opengrep's `.semgrepignore` (R3.9).
         for name, text in tool.get("files", []):
             (scratch / name).write_text(text, encoding="utf-8")
-        argv = [_mapped(a, workspace, results) for a in tool["argv"]]
-        env = {**os.environ, **dict(tool.get("env", []))}
+        argv = [_mapped(a, workspace, results, cache) for a in tool["argv"]]
+        env = {**os.environ, **{name: _mapped(value, workspace, results, cache)
+                                for name, value in tool.get("env", [])}}
         self.stderr_path = scratch / f"{self.name}.stderr"
         stdout_path = results / f"{self.name}.stdout"
         self.started = time.monotonic()
@@ -143,7 +150,7 @@ class _Running:
                 "stderr_tail": excerpt(stderr, STDERR_KEPT)}
 
 
-def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
+def run(stream: IO[bytes], workspace: Path, results: Path, cache: Path | None = None) -> int:
     import tempfile
 
     received = unpack(stream, workspace)
@@ -161,7 +168,7 @@ def run(stream: IO[bytes], workspace: Path, results: Path) -> int:
             while running or pending:
                 while pending and len(running) < width:
                     running.append(_Running(pending.pop(0), workspace, results,
-                                            Path(scratch_dir)))
+                                            Path(scratch_dir), cache))
                 now = time.monotonic()
                 if budget_deadline is not None and now >= budget_deadline:
                     # One deadline (R3.5): what is still running is stopped and named,

@@ -42,10 +42,15 @@ def _refuses_offline(name: str, network: bool) -> bool:
 
 
 def single_command(name: str, workspace: Path, *, network: bool) -> Invocation:
+    from ..checks.dependency_reality import INDEX_ENV, INDEX_MOUNT
+
+    # The index's path by variable, as OSV-Scanner's database is named, so an engine
+    # running in the image itself can point it at the job's cache (R8.1).
+    env = ((INDEX_ENV, INDEX_MOUNT),) if name == "dependency-reality" else ()
     return Invocation(
         tool=name, version=_VERSION,
         argv=("python", "-m", "valvur.checks", name, "/workspace"),
-        report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN,
+        report=None, network=network, timeout=600, empty_when=NOTHING_TO_SCAN, env=env,
     )
 
 
