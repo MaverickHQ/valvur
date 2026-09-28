@@ -902,10 +902,23 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   cannot be driven unattended; for such a client, or one that times out, the second
   `scan` attaching (R6.3) is the path. Cost $0.95, so the agent ledger stands at $8.10 of
   $25.
-- [ ] **R6.2** **Reply schema 2** (D7; F9.8 to F9.10). Behaviours:
+- [x] **R6.2** **Reply schema 2** (D7; F9.8 to F9.10). Behaviours:
   1. The snapshot is re-taken.
   2. The largest acceptance repository's reply stays under 25,000 tokens.
   3. Every state's fields agree with its text, which is rendered from the fields.
+  **STATUS 2026-09-28:** ✅ `reply.py` builds one schema for six states: `none`, `running`,
+  `cancelling`, `cancelled`, `failed` and `done`. Its fields are `state`, `verdict`,
+  `reason`, `complete`, `scope`, `counts`, `groups`, `not_run`, `not_read`, `progress`,
+  `next`, `error.kind`, and `report`, which carries `SUMMARY.md`'s text. The text is a
+  function of the fields alone, and a test holds that for every state. `error.kind`
+  says why there is no result: `no-scan`, `cancelled`, `precondition`, `budget`, `busy`
+  or `failed`. Every state but `done` says what to do in `next`. The tools/list output
+  schema describes schema 2, and its snapshot is re-taken; sixteen tests move from the
+  old shape. On the acceptance set the largest reply is repository 2's: 10,233
+  characters structured, about 3,400 tokens. The bounds are the first 20 left-out
+  entries with a total, and 30,000 characters of summary. They hold a pathological
+  repository, 3,000 ignored directories and a 200-line summary of long lines, under
+  25,000 tokens at three characters a token, both forms together.
 - [ ] **R6.3** **`scan` blocks and returns** (D6; F9.1). Behaviours, over stdio:
   1. One call yields the result, with progress notifications on the way.
   2. A disconnect, then a second call, yields the same generation.
