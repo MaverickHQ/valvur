@@ -548,7 +548,7 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
 
     shared = {
         getattr(operations, name)
-        for name in ("start_scan", "list_findings", "explain_finding", "scan_status",
+        for name in ("scan_reply", "list_findings", "explain_finding", "scan_status",
                      "doctor", "cancel_scan")
     }
     # A reader that answers `structuredContent` (28.2.2) is registered in its
@@ -709,11 +709,13 @@ def test_every_evidence_an_mcp_reply_carries_is_fenced_not_only_a_directive(scan
 
 
 def test_the_two_readers_declare_their_output_shape():
+    """And `scan`, since it returns the result (R6.3): schema 2, as `scan_status`."""
     from valvur.mcp.tools import registry
 
     described = {tool.name: tool.describe() for tool in registry()}
 
-    for name in ("scan_status", "list_findings"):
+    for name in ("scan", "scan_status", "list_findings"):
         assert described[name]["outputSchema"]["type"] == "object", name
-    for name in ("scan", "scan_cancel", "explain_finding", "doctor"):
+    assert described["scan"]["outputSchema"] == described["scan_status"]["outputSchema"]
+    for name in ("scan_cancel", "explain_finding", "doctor"):
         assert "outputSchema" not in described[name], f"{name} claims a shape it does not answer"

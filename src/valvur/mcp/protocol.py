@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, TextIO
@@ -79,24 +80,108 @@ def error(request_id: Any, code: int, message: str, data: Any = None) -> str:
     return json.dumps({"jsonrpc": "2.0", "id": request_id, "error": body})
 
 
+class Call:
+    """One `tools/call` in flight (R6.3): its id, the client's progress token, and
+    whether the client has let go of it. A handler that runs long reads this to
+    send progress, and stops waiting once the client is gone."""
+
+    def __init__(self, request_id: Any, token: Any, emit: Callable[[str], None]):
+        self.id = request_id
+        self.token = token
+        self._emit = emit
+        self._sent = 0
+        #: Set by the client's `notifications/cancelled` or by stdin closing: a
+        #: handler that waits stops waiting.
+        self.detached = threading.Event()
+        #: The client cancelled the request: nothing is written for it, per MCP.
+        #: Stdin closing is not that: a call already answered is still answered.
+        self.cancelled = False
+
+    def progress(self, message: str) -> None:
+        """One `notifications/progress`, when the client asked for them."""
+        if self.token is None or self.cancelled:
+            return
+        self._sent += 1
+        self._emit(json.dumps({"jsonrpc": "2.0", "method": "notifications/progress",
+                               "params": {"progressToken": self.token,
+                                          "progress": self._sent, "message": message}}))
+
+
+_local = threading.local()
+
+
+def current_call() -> Call | None:
+    """The call this thread is answering, if it is answering one."""
+    return getattr(_local, "call", None)
+
+
+#: How long the end of input waits for calls in flight to let go (R6.3).
+JOIN_SECONDS = 10.0
+
+
 def serve(
     handlers: dict[str, Callable[[dict], Any]],
     *,
-    stdin: TextIO | None = None,
+    stdin: Any = None,
     stdout: TextIO | None = None,
 ) -> None:
-    """Read requests until stdin closes, dispatching each to a handler."""
+    """Read requests until stdin closes, dispatching each to a handler.
+
+    A `tools/call` runs on its own thread (R6.3): `scan` blocks until the result,
+    and the client must still be able to send `scan_cancel`, `ping` or a
+    cancellation meanwhile. Writes are serialised. When stdin closes every call
+    in flight is let go, and the server's exit stops the scans it started."""
     source = stdin or sys.stdin
     sink = stdout or sys.stdout
+    lock = threading.Lock()
+    calls: dict[Any, tuple[Call, threading.Thread]] = {}
+
+    def emit(text: str) -> None:
+        with lock:
+            sink.write(text + "\n")
+            sink.flush()
+
+    def answer(line: str, call: Call) -> None:
+        _local.call = call
+        try:
+            response = _handle(line, handlers)
+        finally:
+            _local.call = None
+        if response is not None and not call.cancelled:
+            emit(response)
 
     for line in source:
         line = line.strip()
         if not line:
             continue
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            message = None
+        if isinstance(message, dict) and message.get("method") == "notifications/cancelled":
+            held = calls.get((message.get("params") or {}).get("requestId"))
+            if held is not None:
+                held[0].cancelled = True
+                held[0].detached.set()
+            continue
+        if isinstance(message, dict) and message.get("method") == "tools/call" \
+                and message.get("id") is not None:
+            meta = (message.get("params") or {}).get("_meta") or {}
+            call = Call(message["id"], meta.get("progressToken"), emit)
+            for done in [key for key, (_, t) in calls.items() if not t.is_alive()]:
+                del calls[done]              # a long session keeps only what runs
+            thread = threading.Thread(target=answer, args=(line, call), daemon=True,
+                                      name=f"valvur-call-{message['id']}")
+            calls[message["id"]] = (call, thread)
+            thread.start()
+            continue
         response = _handle(line, handlers)
         if response is not None:
-            sink.write(response + "\n")
-            sink.flush()
+            emit(response)
+    for call, _thread in calls.values():
+        call.detached.set()
+    for _, thread in calls.values():
+        thread.join(timeout=JOIN_SECONDS)
 
 
 def _handle(line: str, handlers: dict[str, Callable[[dict], Any]]) -> str | None:

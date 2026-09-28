@@ -206,6 +206,44 @@ def start_scan(args: dict) -> str:
     )
 
 
+def scan_reply(args: dict) -> tuple[str, dict]:
+    """`scan` over MCP (R6.3, ADR-0024): start the scan, or attach to the one
+    already running here, and return its result in schema 2, sending each progress
+    message as a notification on the way.
+
+    R6.1 measured that Claude Code keeps a 150-second call's result, and start-and-
+    poll cost the second gate's agent sixteen turns. A client that lets go of the
+    call, by cancelling it or by closing stdin, stops the wait and not the scan: the
+    next `scan` here attaches and returns the same generation, and `scan_cancel` is
+    what stops one."""
+    from . import reply
+    from .mcp import protocol
+
+    workspace = resolve_workspace(args.get("workspace"))
+    profile = _checked_profile(args.get("profile"))
+    budget_s = _checked_budget(args.get("budget_s"))
+    job = jobs.start(workspace, profile,
+                     _scan_with_budget(MCP_BUDGET_S if budget_s is None else budget_s))
+    call = protocol.current_call()
+    sent = 0
+    while not job.settled.wait(timeout=0.25):
+        sent = _forward(job, call, sent)
+        if call is not None and call.detached.is_set():
+            break
+    _forward(job, call, sent)
+    fields = reply.fields(workspace, job)
+    return reply.text(fields), fields
+
+
+def _forward(job, call, sent: int) -> int:
+    """Each progress message the job has said since `sent`, as a notification."""
+    said = list(job.progress)
+    if call is not None:
+        for message in said[sent:]:
+            call.progress(message)
+    return len(said)
+
+
 def _provenance(workspace: str | None) -> dict:
     path = _results(workspace) / "run.json"
     if not path.is_file():

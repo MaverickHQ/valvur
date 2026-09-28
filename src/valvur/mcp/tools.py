@@ -25,8 +25,8 @@ from ..operations import (
     doctor,
     explain_finding,
     list_findings_reply,
+    scan_reply,
     scan_status_reply,
-    start_scan,
 )
 from .server import Tool
 
@@ -119,8 +119,10 @@ def instructions() -> str:
 def registry() -> list[Tool]:
     workspace_arg: dict[str, Any] = {"workspace": _WORKSPACE}
     return [
-        Tool("scan", "Run a security scan of a project. Writes results into "
-                     ".security-scan/ and never modifies your source.",
+        Tool("scan", "Run a security scan of a project and return the result, with "
+                     "progress on the way; calling it while a scan runs here attaches "
+                     "to that scan. Writes results into .security-scan/ and never "
+                     "modifies your source.",
              {"type": "object", "properties": {
                  **workspace_arg,
                  "profile": {"type": "string", "enum": ["offline", "full"],
@@ -133,7 +135,7 @@ def registry() -> list[Tool]:
                               "(default 300). Past it, nothing new starts, what is "
                               "running is stopped, and the result is reported "
                               "incomplete with the cut Scanners named. 0 for none."},
-             }}, start_scan, read_only=False),
+             }}, scan_reply, read_only=False, output_schema=_REPLY_SHAPE),
         Tool("list_findings", "List findings from the last scan, worst first. "
                               "Bounded by default.",
              {"type": "object", "properties": {
