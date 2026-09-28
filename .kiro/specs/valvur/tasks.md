@@ -343,10 +343,64 @@ The first commit records R7's rehearsal.
   back and scanned from. `AIR-GAPPED.md` gains the ECR steps, a documented shape: valvur
   fetches the index, KEV and OSV anonymously, so in ECR those are files served inside the
   account. The measured AWS run stays the owner's (§8).
-- [ ] **R8.4** **The build's summary**, written as this task's STATUS: what shipped, the
+- [x] **R8.4** **The build's summary**, written as this task's STATUS: what shipped, the
   acceptance numbers against R2's baseline, the cost of agent scoring, and what §8 holds.
+  **STATUS 2026-09-28, the build's summary.** Nine phases in two days, unattended, each
+  closed by a phase commit and a PR stacked on the last.
+
+  *What shipped.* Four releases prepared, each waiting for the owner's tag:
+  - `0.6.0` (R1): the safety fixes for `0.5.0`'s users, on `main`, rehearsed.
+  - `0.7.0` (R3): the rebuilt engine. One Scan Container fed a Snapshot of the files git
+    would publish, the source never mounted, secrets read from history, one deadline and
+    one kill, and nothing outliving its owner (ADR-0021, ADR-0022).
+  - `1.0.0` (R4 to R7), with its stability claim:
+    - the Scanner set by measured rule: zizmor, Checkov only where there is
+      infrastructure, OSV-Scanner offline for its `MAL-` data (ADR-0023);
+    - the report: groups, a summary that leads with what matters, local agent
+      configuration that would leak, hygiene, and 41 borrowed injection patterns;
+    - the agent surface: `scan` returns the result, reply schema 2, one `findings`
+      tool, fresh data without a terminal, two settings files, `init` and a schema;
+    - the documents as built, every README number from the acceptance set.
+  - `1.1.0` (R8): the image as a pipeline step, examples run on every commit, and a
+    mirror in the customer's own registry measured on every commit.
+
+  *The acceptance set against R2's baseline* (`docs/acceptance/r2.md` to `r8.md`):
+
+  | | R2, Mac | now, Mac (R8) | R2, Linux | now, Linux (R7) |
+  |---|---|---|---|---|
+  | repository 1, the gate's shape | 166.2 s | 7.5 s | 105.4 s | 8.1 s |
+  | the other application repositories | 5.3 to 10.6 s | 5.7 to 17.8 s | 2.7 to 6.6 s | 3.8 to 18.4 s |
+  | repository 5, Checkov on Terraform | 67.9 s | 61.0 s | 76.3 s | 114.2 s |
+  | expectations pending | 5, on four repositories | 0 | 5 | 0 |
+  | containers after the kill probe | 2 | 0 | 5 | 0 |
+
+  Repository 1 is 22 times faster on the Mac and 13 on Linux, because the File Set never
+  reads its 100,000 ignored files. The other repositories are slower where OSV-Scanner
+  loads npm's database, about ten seconds a scan, for the `MAL-` data it alone carries;
+  R4's speed exit missed by that and is in the queue below. The probes take longer
+  because each now waits until the runtime confirms the containers gone.
+
+  *Agent scoring* cost $22.51 of D19's $25: R2's baseline $7.15, R6.1's spike $0.95, R6's
+  two runs and two traced runs $9.94, R7's run $4.47. A correct report in six turns or
+  fewer: 0 of 8 at R2 (7 to 17 turns), 4 of 8 at R6, 3 of 8 at R7 (3 to 9 turns). Every
+  miss since R6 is an answer that describes a finding without the path or rule ID the
+  scorer wants; that choice is the owner's.
+
+  *What §8 holds:* landing R2 to R8 in order; the four tags, each after its rehearsal
+  on the landed commit; four decisions (the agent criterion, R4's speed exit, D9 and
+  the SBOM, `init --write`); the gate with a person; Kiro's GUI pass; the measured AWS
+  run; a second maintainer; the runner move after 2026-11-19; and memory on the build
+  Mac. The build's schedules are deleted; nothing resumes it.
 
 **Exit:** the pipeline-step and mirror e2e tests green, and both schedules deleted.
+
+**Exit STATUS 2026-09-28** (`docs/acceptance/r8.md`):
+- **The pipeline-step and mirror e2e tests green:** ✅ on the Mac, in the e2e suite's 54
+  passed; Linux is R8's PR, whose e2e job runs the same three tests.
+- **Both schedules deleted:** ✅ the in-session hourly resume and the durable
+  `valvur-build-resume` task, at this commit's close.
+- The acceptance set on the Mac: every repository passes with nothing pending, zero
+  containers after all four probes.
 
 ---
 
@@ -359,23 +413,25 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | `v0.6.0` | **ready 2026-09-27**: R1 landed at `bbf77ef`; rehearsal 36353560849 green through validation on both architectures in 13 minutes, cancelled at the brake | sign and push the tag `v0.6.0` on `bbf77ef`; approve the real run at the brake |
 | land R2, PR #145 | **ready 2026-09-28**: every check green on `d04e72f`, the Linux acceptance run included | fast-forward `main`: `git push origin refs/remotes/origin/build/r2-the-acceptance-set:refs/heads/main`. The build's own push to `main` was refused by the session's permission classifier on 2026-09-28 00:40; R3 continues on a branch rebased onto R2 and lands after it |
 | `v0.7.0` | R3 lands (after R2's PR #145), then its rehearsal | sign and push the tag `v0.7.0` on the rehearsed commit, after `v0.6.0`; approve the real run at the brake |
+| `v1.1.0` | R8 lands, then its rehearsal | sign and push the tag `v1.1.0` on the rehearsed commit, after `v1.0.0`; approve the real run at the brake. The pipeline step and the examples need it: `1.0.0`'s image predates them |
 | `v1.0.0` | R7 lands, then its rehearsal | sign and push the tag `v1.0.0` on the rehearsed commit, after `v0.7.0`; approve the real run at the brake. D17's agent criterion is the one unmet (the row below) |
 | the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | R2 | register one with the label `docker-desktop` |
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
-| AWS measured runs: ECR mirror and CodeBuild (F1.10) | R8 | run once in an AWS account and record the numbers |
+| AWS measured runs: ECR mirror and CodeBuild (F1.10) | **ready**: R8 closed; the ECR steps are in `AIR-GAPPED.md`, the pipeline step in `docs/examples/` | run once in an AWS account and record the numbers |
 | ~~`init --write`~~ **decided 2026-09-28: yes** | R6 | the owner approved `init` writing files into the project (CLAUDE.md §10); built in R8, as an addition in `1.1.0` |
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
 | ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
-| pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
+| ~~pre-approve the durable resume task~~ **moot 2026-09-28** | R0 | the build finished and its schedules are deleted |
 | land R3, PR #146, then R4, PR #148 | R2 lands | the same fast-forward, one branch at a time, in order. Not a squash or a rebase merge: repository 6 of the acceptance set is pinned to R4's commit `eb3a199` and needs that hash on `main` |
 | ~~R4's speed exit, missed~~ **decided 2026-09-28: accepted** | R4's exit | the fastest application-repository scan on Linux stays 63% of R2's baseline, not half; no task follows |
 | land R5, PR #149 | R4 lands; **every check green on `7b4e6a6`** | the same fast-forward, after #148 |
 | land R6, PR #150 | R5 lands | the same fast-forward, after #149 |
 | ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so; re-run on the three that missed, every answer names every expected finding, and 5 of 8 fit six turns (`docs/acceptance/r7.md`). Agent scoring ended at $24.60 of $25 |
-| land R7, PR (opened at R7's exit) | R6 lands | the same fast-forward, after #150 |
+| land R7, PR #151 | R6 lands; its checks rerun on `f1016e2`, the owner's decisions applied | the same fast-forward, after #150 |
+| land R8, PR #152 | R7 lands | the same fast-forward, after #151 |
 | the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
 | ~~D9 and the SBOM~~ **decided 2026-09-28: the SBOM is opt-in** | R4.4 | Syft runs, and the dependency licence policy (F4.4 to F4.6) with it, when a scan asks: `--sbom`, or `sbom = true` under `[scan]`. In `1.0.0`, whose Results Folder contract says so |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
