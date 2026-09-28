@@ -786,10 +786,22 @@ and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
   names both floods. Observed and not changed: a run with a failed Scanner and no finding
   still has Status `clean`, with `complete: false` beside it. The gate fails it, but the
   agent block's gloss of `clean` does not fit it; this belongs to R6's reply.
-- [ ] **R5.3** **Local agent configuration that would leak** (F3.6). Behaviour: `.mcp.json`,
+- [x] **R5.3** **Local agent configuration that would leak** (F3.6). Behaviour: `.mcp.json`,
   `.claude/settings.local.json`, `.kiro/settings/mcp.json` and their peers, when git does not
   ignore them and they hold absolute local paths or credential-shaped values, yield a medium
   Finding. Repository 7 is reported.
+  **STATUS 2026-09-28:** ✅ `valvur.ai-artifact.local-config-exposed` is medium and fires once
+  per file. It reads nine local configuration files by path tail: `.mcp.json`, Claude
+  Code's two settings files, and the MCP or settings files of Kiro, Roo, Cursor, Gemini,
+  Continue and aider. It looks for a home directory on macOS, Linux or Windows, and for a
+  quoted credential-shaped value under a token, secret, password, key or Authorization
+  name. A value is never written, only its key; a reference like `${VAR}` is portable and
+  not reported. The Check reads the Snapshot, which keeps ignored agent configuration
+  (ADR-0021), and cannot ask git, so the File Set now records the files git ignores and a
+  pipeline stage, `ignored`, drops the Finding on them. On the image, repository 7
+  reports it at `.mcp.json` and passes with nothing pending. The thirteen corpus
+  checkouts gain no such Finding. On this Mac, Claude Code's global git ignore already
+  covers `.claude/settings.local.json`, so that file is correctly not reported here.
 - [ ] **R5.4** **`REMEDIATION.md` per group** (F7.14). Behaviour: the gate's flood yields one
   action naming the count and the exclude line.
 - [ ] **R5.5** **Repository hygiene** (D13). Behaviours:

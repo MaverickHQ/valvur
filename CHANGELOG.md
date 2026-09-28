@@ -32,6 +32,23 @@ The Scanner set, decided by R4.1's measurements (ADR-0023).
   signed index in seconds; and Dependabot with no cooldown, now seven days on version
   updates.
 
+The report (R5):
+
+- **A group is one entry.** Two or more hits of one rule under one directory are one line
+  in `SUMMARY.md` with a count and the first locations, and `findings.json` gives every
+  Finding its `group` and lists the groups. A flood, 25 or more data files, is labelled
+  possibly machine-written and ranked below every distinct Finding. Nothing is dropped.
+- **`SUMMARY.md` leads with what matters:** the verdict, the scope (what was read, by
+  which Scanners, what was left out), what did not run, the top entries, and a short
+  agent block at the end. The MCP handshake carries the full rules. Repository 1's
+  summary went from 68 lines to 43.
+- **No title is cut mid-word**, in `SUMMARY.md`, `REMEDIATION.md`, SARIF or the
+  suppression snippet.
+- **Local agent configuration that would leak** is a medium Finding
+  (`valvur.ai-artifact.local-config-exposed`): `.mcp.json`, `.claude/settings.local.json`,
+  `.kiro/settings/mcp.json` and their peers, when git does not ignore them and they hold
+  a home directory or a credential-shaped value. A value is never quoted.
+
 ## [0.7.0] — 2026-09-28
 
 The rebuilt engine (Phase R3, ADR-0021 and ADR-0022). A scan decides once what it
