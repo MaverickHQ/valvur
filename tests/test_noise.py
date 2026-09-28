@@ -175,7 +175,8 @@ def test_a_narrower_profile_does_not_claim_bare_clean():
 
     text = _summary(ScanRun(findings=[], profile="offline"))
 
-    assert "did not run every Scanner" in text
+    # Since R4.6 both Profiles run every Scanner; the caveat is the network's.
+    assert "does not ask the network" in text
     # `full`, not `standard`. The Profiles were renamed by ADR-0016 and the sentence
     # recommending one was not — the retired name survived in the output string, which
     # is the one place that actually teaches it to a new user (task 19.D.2).
@@ -222,7 +223,8 @@ def test_run_json_records_the_profile_and_its_gaps():
     doc = json.loads(_provenance(ScanRun(findings=[], profile="offline")))
 
     assert doc["profile"] == "offline"
-    assert "osv-scanner" in doc["scanners_not_run"]
+    # Since R4.6 OSV-Scanner runs on `offline` from its offline database.
+    assert doc["scanners_not_run"] == []
 
 
 def test_unknown_profile_reports_no_gap_rather_than_raising():

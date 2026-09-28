@@ -24,10 +24,36 @@ class OsvAdapter(ScannerAdapter):
     name = "osv-scanner"
     version = VERSION
 
+    def __init__(self, *, offline: bool = False):
+        #: On `offline` (R4.6): the database fetched into the host cache, no network.
+        self.offline = offline
+
+    def for_profile(self, *, network: bool) -> OsvAdapter:
+        """This adapter, told whether the Profile grants a network: a copy, so a
+        subclass keeps what it overrides."""
+        import copy
+
+        told = copy.copy(self)
+        told.offline = not network
+        return told
+
     def command(self, workspace: Path) -> Invocation:
-        # OSV queries api.osv.dev, so it is a `full` Scanner only — absent from
-        # `offline`, which must stay offline (N2.1). `network=True` here is what
-        # the Profile grants by selecting it at all.
+        from ..osv_offline import MOUNT
+
+        if self.offline:
+            # R4.6, measured in R4.1: the offline database, per ecosystem, from the
+            # host cache; it carries the MAL- entries nothing else in valvur has.
+            return Invocation(
+                tool=self.name, version=VERSION,
+                argv=("osv-scanner", "scan", "source", "--recursive",
+                      "--offline-vulnerabilities",
+                      "--format", "json", "--output-file", "/results/osv.json",
+                      "/workspace"),
+                report="osv.json", network=False, timeout=600, empty_when=NOTHING_TO_SCAN,
+                env=(("OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY", MOUNT),),
+            )
+        # On `full`, OSV queries api.osv.dev with the lockfiles' names and versions;
+        # `network=True` here is what the Profile grants by selecting it.
         return Invocation(
             tool=self.name, version=VERSION,
             argv=("osv-scanner", "scan", "source", "--recursive",
@@ -133,7 +159,11 @@ def _normalise(value: str) -> str | None:
 
 
 def _severity(vuln: dict) -> Severity:
-    """OSV reports severity inconsistently across ecosystems; take what is there."""
+    """OSV reports severity inconsistently across ecosystems; take what is there. A
+    MAL- entry is a package published to attack whoever installs it (F3.2): critical,
+    whatever else it says."""
+    if str(vuln.get("id", "")).startswith("MAL-"):
+        return Severity.CRITICAL
     for entry in vuln.get("severity") or []:
         mapped = _normalise(entry.get("score", ""))
         if mapped:

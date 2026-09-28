@@ -36,6 +36,8 @@ SCANNERS: dict[str, tuple[str, ...]] = {
     # --skip-download and syft cataloguing local files both complete with no socket.
     OFFLINE: (
         "gitleaks", "opengrep", "trivy", "checkov", "zizmor", "syft",
+        # From its offline database, fetched into the host cache (R4.6, ADR-0023).
+        "osv-scanner",
         "licence-file", "ai-artifact",
         # Existence is answered from the package-name index in the host cache
         # (ADR-0018), so the hallucination check runs with no socket at all.

@@ -56,7 +56,7 @@ to `/results/history.txt` and plans a second Gitleaks pass over it (R3.7).
 
 ## Paths
 
-Inside a Scan Container. Four are the shim's (`engine_host.ContainerRuntime.command`);
+Inside a Scan Container. Six are the shim's (`engine_host.ContainerRuntime.command`);
 the rest are the image's, and the e2e test checks each of those exists.
 
 | path | provided by | who relies on it |
@@ -65,6 +65,7 @@ the rest are the image's, and the e2e test checks each of those exists.
 | `/results` | the shim: a scratch directory mounted read-write, one per Scan Container, holding the plan, the reports and the manifest | the engine; every Scanner's report (`Invocation.report`) |
 | `/cache/trivy` | the shim: the vulnerability database, mounted from the host cache (ADR-0012) | Trivy (`--cache-dir`, and `TRIVY_CACHE_DIR`), and `valvur update`'s fetch into it |
 | `/cache/names` | the shim: the package-name index, mounted read-only from the host cache (ADR-0018) | the dependency-reality Check |
+| `/cache/osv` | the shim: OSV's offline database, one zip per ecosystem, mounted read-only from the host cache (R4.6) | OSV-Scanner on `offline` (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`) |
 | `/tmp` | the shim: a tmpfs (`rw,exec,nosuid,size=512m`); `HOME` points here | Opengrep unpacks and runs opengrep-core here; any tool that needs scratch space |
 | `/opt/valvur-rules` | the image: valvur's own Opengrep rules, licensed with the project (ADR-0004) | Opengrep (`--config`) |
 | `/opt/checkov` | the image: Checkov's own virtual environment, hash-locked (23.4.1); `checkov` on PATH links into it | Checkov |

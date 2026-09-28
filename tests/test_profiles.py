@@ -19,7 +19,8 @@ def test_the_offline_profile_runs_only_its_designated_scanners(
     ran = {s.tool for s in run.scanners}
 
     assert ran <= set(scanners_for("offline"))
-    assert "osv-scanner" not in ran
+    # From its offline database since R4.6: no network, the same OSV data.
+    assert "osv-scanner" in ran
     # And the one that USED to be excluded now runs here, from the local index
     # (ADR-0018) — the hallucination check is what the offline Profile is for.
     assert "dependency-reality" in ran
@@ -47,7 +48,7 @@ def test_the_offline_profile_excludes_every_scanner_needing_network(
     from valvur.profiles import ALLOWS_NETWORK, scanners_for, select
 
     assert ALLOWS_NETWORK["offline"] is False
-    assert "osv-scanner" not in scanners_for("offline")
+    assert "osv-scanner" in scanners_for("offline")        # offline, since R4.6
     # Selection is where a network is granted, and offline grants none.
     for adapter in select(DEFAULT_ADAPTERS, "offline"):
         assert not getattr(adapter, "network", False), adapter.name
@@ -63,18 +64,18 @@ def test_the_offline_profile_runs_every_scanner_that_works_without_a_socket():
     from valvur.profiles import ALLOWS_NETWORK, OFFLINE, SCANNERS
 
     assert ALLOWS_NETWORK[OFFLINE] is False
-    assert {"checkov", "syft", "trivy", "dependency-reality"} <= set(SCANNERS[OFFLINE])
-    assert "osv-scanner" not in SCANNERS[OFFLINE]
+    assert {"checkov", "syft", "trivy", "dependency-reality", "osv-scanner",
+            "zizmor"} <= set(SCANNERS[OFFLINE])
 
 
-def test_only_the_one_socket_scanner_separates_the_profiles():
+def test_only_the_network_separates_the_profiles():
     """ADR-0018 amended ADR-0016's "the two that genuinely need a socket": the
-    dependency-reality Check runs on both, and only its age question needs one."""
+    dependency-reality Check runs on both, and only its age question needs one.
+    Since R4.6 OSV-Scanner runs on both too, from its offline database on `offline`:
+    the Profiles run the same Scanners, and differ only in what may be asked."""
     from valvur.profiles import FULL, NEEDS_NETWORK_FOR, OFFLINE, SCANNERS
 
-    extra = set(SCANNERS[FULL]) - set(SCANNERS[OFFLINE])
-
-    assert extra == {"osv-scanner"}
+    assert set(SCANNERS[FULL]) == set(SCANNERS[OFFLINE])
     assert set(NEEDS_NETWORK_FOR) == {"dependency-reality"}
 
 

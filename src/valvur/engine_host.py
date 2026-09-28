@@ -291,12 +291,12 @@ class ContainerRuntime(_Runtime):
                 snapshot_bytes: int = 0) -> list[str]:
         import uuid
 
-        from . import cache, egress, owner
+        from . import cache, egress, osv_offline, owner
         from .runner import _user_flags, scan_resource_flags
 
-        db, names = cache.trivy_db(), cache.name_index()
-        db.mkdir(parents=True, exist_ok=True)
-        names.mkdir(parents=True, exist_ok=True)
+        db, names, osv = cache.trivy_db(), cache.name_index(), osv_offline.directory()
+        for directory in (db, names, osv):
+            directory.mkdir(parents=True, exist_ok=True)
         name = name or f"valvur-{uuid.uuid4().hex[:16]}"
         # F1.6: on an enforcing host every mount valvur owns is labelled, or the
         # plan, the reports and the cache are denied. The source is not mounted.
@@ -318,6 +318,8 @@ class ContainerRuntime(_Runtime):
             "-v", f"{scratch}:/results{z}",
             "-v", f"{db}:/cache/trivy{z}",
             "-v", f"{names}:/cache/names:ro{z and ',z'}",
+            # OSV's offline database (R4.6), read-only like the index.
+            "-v", f"{osv}:{osv_offline.MOUNT}:ro{z and ',z'}",
             *egress.Egress(network=network).container_flags(),
             self.image, "python", "-m", "valvur.engine",
         ]

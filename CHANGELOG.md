@@ -8,6 +8,23 @@ break things, and has.
 
 ## [Unreleased]
 
+The Scanner set, decided by R4.1's measurements (ADR-0023).
+
+- **zizmor audits GitHub Actions workflows**, offline, pinned by hash in the image. On
+  the corpus it reported every unpinned action and every write permission the tools
+  before it found. The action-pin finding is now zizmor's `unpinned-uses`, still ranked
+  low; **a Suppression written for `valvur.pinning.mutable-action-ref` no longer
+  matches**, and is rewritten against `unpinned-uses`.
+- **Checkov runs only where there is infrastructure other than workflows**: on the
+  corpus, one repository in thirteen, where before it ran on every one for 4 to 6 s.
+- **OSV-Scanner runs on `offline`**, from its offline database, fetched into the host
+  cache the first time a project has a lockfile for the ecosystem and recorded in
+  `run.json`. It reports known-malicious packages (`MAL-`, critical) that nothing else
+  here does. It loads the ecosystem's database on every scan: about 10 s for npm on a
+  Mac. The Summary's `offline` caveat now says it does not ask the network.
+- KICS was measured and not adopted (64% of Checkov's rules); Trivy's SBOM was measured
+  and not adopted (67% of Syft's components, 98% without GitHub Actions).
+
 ## [0.7.0] — 2026-09-28
 
 The rebuilt engine (Phase R3, ADR-0021 and ADR-0022). A scan decides once what it

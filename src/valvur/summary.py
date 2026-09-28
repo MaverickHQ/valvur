@@ -245,21 +245,25 @@ def render(run: ScanRun) -> str:
             "",
         ]
     absent = _profiles.not_run(run.profile)
-    if absent:
+    gap = _profiles.gaps_in_prose(run.profile)
+    if absent or gap != "nothing else":
+        # Since R4.6 both Profiles run every Scanner; what `offline` lacks is what
+        # only a network answers, and that is what the caveat says.
         headline = (
-            "⚠ **Nothing found — but this Profile did not run every Scanner.**"
+            "⚠ **Nothing found — but this Profile does not ask the network.**"
             if not active else
-            f"**The `{run.profile}` profile did not run every Scanner.**"
+            f"**The `{run.profile}` profile does not ask the network.**"
         )
+        not_run = f" Not run: {', '.join(absent)}." if absent else ""
         lines += [
-            f"> {headline} Not run: {', '.join(absent)}.",
+            f"> {headline}{not_run}",
             # Hallucinated packages are named on the "does cover" side since
             # ADR-0018 — the sentence used to put them on the other side, and a
             # reader of the default Profile's output was told the headline check had
             # not run when it had.
-            f"> `{run.profile}` does cover dependency CVEs, secrets, code patterns, "
-            "agent config and hallucinated packages. It does not cover "
-            f"{_profiles.gaps_in_prose(run.profile)}.",
+            f"> `{run.profile}` does cover dependency CVEs and known-malicious packages, "
+            "secrets, code patterns, workflows, agent config and hallucinated packages. "
+            f"It does not cover {gap}.",
             "> Run `valvur scan --profile full` for full coverage.",
             "",
         ]

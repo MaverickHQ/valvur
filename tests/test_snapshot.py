@@ -30,7 +30,11 @@ def test_the_container_mounts_only_valvurs_own_directories(tmp_path):
 
     runtime = ContainerRuntime(image="valvur:dev", runtime="/usr/local/bin/docker")
     sources = {m.split(":", 1)[0] for m in _mounts(runtime.command(tmp_path, name="valvur-c"))}
-    assert sources == {str(tmp_path), str(cache.trivy_db()), str(cache.name_index())}
+    from valvur import osv_offline
+
+    # OSV's offline database joined valvur's own mounts in R4.6.
+    assert sources == {str(tmp_path), str(cache.trivy_db()), str(cache.name_index()),
+                       str(osv_offline.directory())}
 
 
 def test_a_snapshot_that_arrives_short_refuses_the_scan(tmp_path, monkeypatch):

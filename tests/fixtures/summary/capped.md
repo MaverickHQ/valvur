@@ -35,8 +35,8 @@
 **Status:** findings
 **Active findings:** 300
 
-> **The `offline` profile did not run every Scanner.** Not run: osv-scanner.
-> `offline` does cover dependency CVEs, secrets, code patterns, agent config and hallucinated packages. It does not cover a second dependency-advisory source or package age (newly-registered names), or whether JVM and Go dependencies exist.
+> **The `offline` profile does not ask the network.**
+> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist.
 > Run `valvur scan --profile full` for full coverage.
 
 ## Counts

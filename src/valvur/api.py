@@ -323,10 +323,12 @@ def _fetch_record(what: str, source: str, size_mb: int | None, seconds: float,
 #: Scanner finishing.
 FETCH_STARTED = ("pulling ", "fetching ")
 FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
-               "index fetched", "index not fetched")
+               "index fetched", "index not fetched", "OSV database fetched",
+               "OSV database not fetched")
 
 
-def _ensure_data(runner, on_progress) -> tuple[list[dict], dict[str, str]]:
+def _ensure_data(runner, on_progress, *, workspace=None,
+                 adapters=()) -> tuple[list[dict], dict[str, str]]:
     """The vulnerability database and the package-name index, when ABSENT (24.1).
 
     Task 14.2 decided valvur never refreshes on its own, and its three reasons were
@@ -390,7 +392,40 @@ def _ensure_data(runner, on_progress) -> tuple[list[dict], dict[str, str]]:
             fetched.append(_fetch_record(
                 "package-name index", name_index.published.repository(), index_size, seconds,
                 signature=_index_signature(metadata)))
+    if workspace is not None and any(getattr(a, "offline", False) for a in adapters
+                                     if getattr(a, "name", "") == "osv-scanner"):
+        _stop_if_cancelled(runner, "during the first run's fetches")
+        _ensure_osv(workspace, say, fetched, unfetched)
     return fetched, unfetched
+
+
+def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) -> None:
+    """OSV's offline database for each ecosystem the File Set holds a lockfile for,
+    when absent (R4.6, 24.1): announced, recorded, and a failure costs OSV-Scanner
+    alone, with the reason."""
+    from . import fileset, locking, osv_offline
+    from .refusal import Refusal
+
+    try:
+        files = fileset.build(workspace).files
+    except Refusal:
+        return                       # the scan refuses the walk itself, with the reason
+    missing = osv_offline.absent(osv_offline.needed(files))
+    failed = []
+    for name in missing:
+        say(f"fetching the OSV database for {name} — the first run for it only")
+        try:
+            with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
+                record = osv_offline.fetch(name)
+        except OSError as exc:
+            failed.append(f"{name}: {exc}")
+            say(f"OSV database not fetched for {name}: {exc}")
+            continue
+        say(f"OSV database fetched for {name} ({record['seconds']:.0f}s)")
+        fetched.append(record)
+    if failed:
+        unfetched["osv-scanner"] = ("the OSV offline database could not be fetched: "
+                                    + "; ".join(failed))
 
 
 def _index_signature(metadata: object) -> str:
@@ -535,7 +570,10 @@ def scan(
         if image is not None:
             fetched.append(image)
         _stop_if_cancelled(runner, "during the first run's fetches")
-        data, unfetched = _ensure_data(runner, on_progress)
+        if adapters is None:
+            adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
+        data, unfetched = _ensure_data(runner, on_progress, workspace=workspace,
+                                       adapters=adapters)
         fetched += data
         _locks.enter_context(_locking.held(
             _locking.cache_lock(_cache_mod.root()), exclusive=False, wait=True,

@@ -74,15 +74,20 @@ def test_a_scan_survives_the_network_being_unavailable(workspace, record_connect
 
 # --------------------------------------------- half 2: the containers (N2.1)
 
-def test_osv_is_the_only_scanner_the_offline_profile_does_not_run():
-    """N2.1 — the offline guarantee is a property of the Profile's membership, so it
-    is asserted there and not only at each call site. Since ADR-0018 the
-    dependency-reality Check runs on both Profiles; what changes with the network is
-    asserted in-process below, because membership alone no longer says it."""
-    networked = set(profiles.SCANNERS[profiles.FULL]) - set(profiles.SCANNERS[profiles.OFFLINE])
+def test_the_offline_profile_grants_no_scanner_a_network():
+    """N2.1 — the offline guarantee was a property of the Profile's membership, OSV
+    left out. Since R4.6 both Profiles run the same Scanners, OSV from its offline
+    database on `offline`, so the guarantee is the grant: every Scanner `offline`
+    selects is told there is no network, and its command asks for none."""
+    from pathlib import Path
 
-    assert networked == {"osv-scanner"}
+    from valvur.adapters import DEFAULT_ADAPTERS
+
+    assert set(profiles.SCANNERS[profiles.FULL]) == set(profiles.SCANNERS[profiles.OFFLINE])
     assert profiles.ALLOWS_NETWORK[profiles.OFFLINE] is False
+    for adapter in profiles.select(DEFAULT_ADAPTERS, profiles.OFFLINE):
+        if getattr(adapter, "kind", "") == "scanner":
+            assert adapter.command(Path("/nonexistent")).network is False, adapter.name
 
 
 # ------------------------------ half 3: the Check that runs on both sides (ADR-0018)
@@ -214,6 +219,10 @@ def _launches(profile: str, tmp_path, monkeypatch, *, index: bool = True):
     monkeypatch.setattr(cache, "db_present", lambda: True)
     monkeypatch.setattr(cache, "name_index_present", lambda: index)
     monkeypatch.setattr(owner, "reap", lambda runtime: [])
+    from valvur import osv_offline
+
+    # Nothing is fetched here: the recorder only records (R4.6).
+    monkeypatch.setattr(osv_offline, "absent", lambda names: [])
     ws = tmp_path / "ws"
     ws.mkdir()
     (ws / "requirements.txt").write_text("requests==2.31.0\n")
@@ -230,7 +239,8 @@ def test_offline_starts_exactly_one_scan_container_and_it_has_no_network(
     assert len(launched) == 1, [tools for _, tools in launched]
     argv, tools = launched[0]
     assert "--network=none" in argv
-    assert "osv-scanner" not in tools and "trivy" in tools
+    # OSV runs here since R4.6, from its offline database, with no network.
+    assert "osv-scanner" in tools and "trivy" in tools
 
 
 def test_full_adds_one_networked_container_holding_only_what_needs_the_network(

@@ -696,9 +696,22 @@ The first commit records R3's rehearsal.
   zizmor does not flag an action pinned to a full SHA or a local one. The rule's name
   changes, so a Suppression written for the old one no longer matches: said in the
   CHANGELOG. `mutable-git-ref`, the sink inventory and the taint rules stay Opengrep's.
-- [ ] **R4.6** **OSV's offline database on `offline`**, if D8 says so (F3.2). Behaviours:
+- [x] **R4.6** **OSV's offline database on `offline`**, if D8 says so (F3.2). Behaviours:
   1. The database is fetched and recorded like Trivy's, for the ecosystems in the File Set.
   2. Repository 8's `MAL-` package is reported at critical.
+  **STATUS 2026-09-28:** ✅ D8 said so. `osv_offline` maps the File Set's lockfiles to OSV's
+  ecosystems and, when a database is absent, fetches its `all.zip` into the host cache in
+  the layout OSV-Scanner reads, announced and recorded in `run.json` like the other
+  first-run data, a failure costing OSV-Scanner alone with the reason; `VALVUR_OSV_URL`
+  names a mirror. On `offline` OSV-Scanner runs with `--offline-vulnerabilities` against
+  that cache, mounted read-only, with no network; `full` keeps OSV.dev's API. A `MAL-`
+  advisory is critical. Both Profiles now run the same Scanners, so the Summary's caveat on
+  `offline` says it does not ask the network, not that a Scanner did not run. On the real
+  image, repository 8 reports MAL-2023-1 at `package-lock.json`, critical; the first run
+  fetched npm's database, 217 MB in 6.7 s. **The cost:** OSV-Scanner loads the whole
+  ecosystem database on every scan, 10.4 s warm on this Mac for one npm lockfile, so
+  repository 8 went from 5.2 s at R3's exit to 14.2 s. D8's rule accepted that price for
+  known-malicious packages; the Linux figure is R4's exit.
 
 **Exit:** ADR-0023 amended. The fastest application-repository scan on Linux is at most half
 of R2's baseline. Repositories 5 and 8 behave as D8 decided. `NOTICE`, the licence checks and

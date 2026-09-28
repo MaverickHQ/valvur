@@ -121,10 +121,10 @@ def test_the_profile_caveat_survives_a_finding_being_present():
     quiet = render_summary(ScanRun(findings=[], profile="offline"))
 
     for summary in (noisy, quiet):
-        assert "did not run every Scanner" in summary
-        # osv-scanner rather than dependency-reality: the latter runs on both
-        # Profiles since ADR-0018, and the caveat names what did not.
-        assert "osv-scanner" in summary
+        # Since R4.6 both Profiles run every Scanner, and the caveat names what the
+        # network would add: package age, from the registry.
+        assert "does not ask the network" in summary
+        assert "package age" in summary
 
 
 def test_a_coverage_note_is_reported_separately_from_a_profile_omission():
@@ -133,7 +133,7 @@ def test_a_coverage_note_is_reported_separately_from_a_profile_omission():
 
     summary = render_summary(ScanRun(findings=[_note()], profile="offline"))
 
-    assert "did not run every Scanner" in summary
+    assert "does not ask the network" in summary
     assert "not inspected at all" in summary
     assert "not something a different Profile fixes" in summary
 
