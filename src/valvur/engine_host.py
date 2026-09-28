@@ -348,7 +348,77 @@ class ContainerRuntime(_Runtime):
                                 f"{name}-snapshot"], capture_output=True, check=False)
 
 
-def for_scan() -> ContainerRuntime:
-    """The runtime every scan uses (R3.9): the CLI, MCP, the corpus. A function,
-    so a test can hand in `LocalRuntime`."""
-    return ContainerRuntime()
+#: Set by the image (R8.1): this process is the image's own, so a scan runs its
+#: engine here rather than starting a container from inside one.
+IN_IMAGE_ENV = "VALVUR_IN_IMAGE"
+
+
+class ImageRuntime(LocalRuntime):
+    """The image as a pipeline step (R8.1, D15): no runtime to start a container
+    from, so the engine runs as a process in the image, with the job's cache at
+    `/cache`. The image is present by definition, and the shim is the image's own,
+    so there is nothing to pull and no second tree to compare. The network is the
+    job's: the Scanners run with their offline flags on `offline`, and only a job
+    started with no network makes that structural."""
+
+    image = "this image"
+    runtime = None
+
+    def __init__(self) -> None:
+        from . import cache
+
+        super().__init__(cache=cache.root())
+
+    def image_present(self) -> bool:
+        return True
+
+    def pull_size_mb(self) -> None:
+        return None
+
+    def verify_compatible(self) -> None:
+        return None
+
+    def build_provenance(self) -> tuple[str | None, str | None]:
+        from .compat import IMAGE_INPUTS_FILE
+
+        try:
+            own = Path(IMAGE_INPUTS_FILE).read_text(encoding="utf-8").strip() or None
+        except OSError:
+            own = None
+        return own, own
+
+    def db_size_mb(self) -> int | None:
+        from .runner import database_size_mb
+
+        return database_size_mb()
+
+    def update_db(self):
+        """Trivy's own fetch, run here, into the job's cache (ADR-0012)."""
+        from . import cache, locking
+        from .adapters.trivy import database_fetch
+        from .engine import RESULTS, WORKSPACE, _mapped
+        from .invocation import ScannerOutput
+
+        fetch = database_fetch()
+        root = cache.root()
+        (root / "trivy").mkdir(parents=True, exist_ok=True)
+        argv = tuple(_mapped(a, Path(WORKSPACE), Path(RESULTS), root) for a in fetch.argv)
+        with locking.held(locking.cache_lock(root), exclusive=True, wait=True):
+            try:
+                done = subprocess.run(argv, capture_output=True, text=True,  # noqa: S603
+                                      timeout=fetch.timeout, check=False)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return ScannerOutput(fetch.tool, fetch.version, "", str(exc), 1, argv=argv)
+        return ScannerOutput(fetch.tool, fetch.version, done.stdout, done.stderr,
+                             done.returncode, argv=argv)
+
+
+def in_image() -> bool:
+    return os.environ.get(IN_IMAGE_ENV) == "1"
+
+
+def for_scan() -> ContainerRuntime | ImageRuntime:
+    """The runtime every scan uses (R3.9): the CLI, MCP, the corpus; inside the image,
+    the engine as a process there (R8.1). A function, so a test can hand in
+    `LocalRuntime`."""
+    return ImageRuntime() if in_image() else ContainerRuntime()

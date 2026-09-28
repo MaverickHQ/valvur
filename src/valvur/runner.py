@@ -297,6 +297,16 @@ def _text(raw) -> str:
     return raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
 
 
+def database_size_mb() -> int | None:
+    """What fetching the vulnerability database will cost, from the registry Trivy
+    will pull it from, or None if it cannot say (24.1)."""
+    from . import oci
+
+    size = oci.image_size(egress.db_repository() or egress.DEFAULT_DB_REPOSITORY,
+                          insecure=_settings.get("db_insecure") == "1")
+    return None if size is None else max(1, round(size / 1_000_000))
+
+
 class ContainerRunner:
     """What a scan needs from the image before its Scan Container starts, and the
     database fetch (ADR-0022): the image present, pulled, checked against this
@@ -343,14 +353,7 @@ class ContainerRunner:
         return None if size is None else max(1, round(size / 1_000_000))
 
     def db_size_mb(self) -> int | None:
-        """What fetching the vulnerability database will cost, from the registry
-        Trivy will pull it from, or None if it cannot say (24.1)."""
-
-        from . import oci
-
-        size = oci.image_size(egress.db_repository() or egress.DEFAULT_DB_REPOSITORY,
-                              insecure=_settings.get("db_insecure") == "1")
-        return None if size is None else max(1, round(size / 1_000_000))
+        return database_size_mb()
 
     def pull_image(self, on_line=None) -> ScannerOutput:
         """`<runtime> pull <image>`, its output line by line to `on_line` when given
