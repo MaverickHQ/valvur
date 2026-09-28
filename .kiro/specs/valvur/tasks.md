@@ -959,11 +959,29 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   `unknown-fingerprint`. Thirteen violations are each held to their kind, one sentence,
   and an answer within two seconds with no job started; the roots are driven over live
   stdio with the test client answering `roots/list`.
-- [ ] **R6.5** **One `findings` tool, seven CLI commands** (D12; F9.1, F9.3, F9.8). Behaviours:
+- [x] **R6.5** **One `findings` tool, seven CLI commands** (D12; F9.1, F9.3, F9.8). Behaviours:
   1. The tool filters by fingerprint, group, rule and path, and says when it clamped.
   2. `valvur findings` absorbs `explain`; `doctor` and `update` absorb `cache`.
   3. The old names print the new form.
   4. A parity test runs over every MCP tool and its CLI command.
+  **STATUS 2026-09-28:** ✅ `findings_reply` is one operation for both surfaces.
+  - **Filters:** group, rule, path prefix on whole segments, status and suppression.
+    With a fingerprint it answers that Finding in full: its sources, exploitation,
+    dependency path, suppression and group, as `detail`.
+  - **Clamping:** a limit over 100 is clamped, and the reply says so in both forms.
+  - **MCP:** `list_findings` and `explain_finding` stay one release, described as
+    deprecated, because a client may have allowed them by name.
+  - **CLI:** the usage names seven commands: `scan`, `update`, `findings`, `status`,
+    `doctor`, `gate` and `suppress`. `findings` takes the four filters, `doctor` reports
+    the host cache's parts, sizes, ages and total, and `update --prune` and `--clear`
+    tidy it without fetching. `explain` and `cache` still work and say on stderr what
+    replaced them. R6.8's `init` makes eight, by D10.
+  - **Parity:** `tests/test_cli_parity.py` holds every tool to a CLI counterpart named in
+    one table; `scan_cancel`'s is Ctrl-C. On one scanned `broken-repo` each reader's text
+    and its command's output are identical, and an MCP scan and a CLI scan reach the same
+    verdict and counts.
+
+  The README and EVALUATING name the new forms.
 - [ ] **R6.6** **Fresh data without a terminal** (D5; F10.8). Behaviours:
   1. An eight-day-old database is refreshed inside a scan and recorded.
   2. With `fetch = "never"`, the result is `inconclusive` with the reason.

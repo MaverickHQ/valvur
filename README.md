@@ -326,8 +326,9 @@ directory before any scan.
 
 The server's handshake carries the rules an agent needs — never commit the
 folder, work from `REMEDIATION.md`, never add a suppression without a human, a
-disappeared finding is not a fix — as MCP `instructions`, and `scan_status` and
-`list_findings` answer structured content beside their text, so an agent reads
+disappeared finding is not a fix — as MCP `instructions`. `scan` returns the result
+itself, with progress on the way, and `scan`, `scan_status` and `findings` answer
+structured content beside their text, the summary included, so an agent reads
 counts as fields rather than out of prose. For a client that does not show
 `instructions`, add this to your project's `CLAUDE.md` or `AGENTS.md`, so the agent
 uses what it has:
@@ -417,11 +418,11 @@ The gate fails on an incomplete run, on a lapsed suppression, on an active findi
 at or above `--fail-on` (`any` is every one; it is what valvur's own release gate
 uses), and with `--no-inconclusive` on a scan whose data was too old to be
 evidence or that never inspected part of the tree. Under GitHub Actions each
-reason is an annotation. `valvur cache` says what is on disk, how old and how
-large; `valvur cache --clear` removes it; `valvur cache --prune` removes only what
+reason is an annotation. `valvur doctor` says what is cached, how old and how
+large; `valvur update --clear` removes it; `valvur update --prune` removes only what
 is superseded — the image tags earlier shim versions pulled, and index files the
-index no longer names — listing each first, and `valvur doctor` says when there
-is something to prune.
+index no longer names — listing each first. (`valvur cache` and `valvur explain`,
+their old names, still work in this release and say what replaced them.)
 
 ## What actually does the scanning
 

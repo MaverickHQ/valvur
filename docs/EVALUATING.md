@@ -82,10 +82,11 @@ As an MCP tool, which is the primary path:
 { "mcpServers": { "valvur": { "command": "valvur-mcp" } } }
 ```
 
-`valvur-mcp --help` describes the six tools it exposes. None of them can change your
-source: it is mounted read-only and no tool writes, fixes or applies anything
-(ADR-0009). Four only read what a scan left — `scan_status`, `list_findings`,
-`explain_finding`, `doctor` — and declare `readOnlyHint: true`; `scan` and
+`valvur-mcp --help` describes the tools it exposes. None of them can change your
+source: it is never mounted, only copied into the Scan Container, and no tool writes,
+fixes or applies anything (ADR-0009). Three only read what a scan left, `scan_status`,
+`findings` and `doctor`, and declare `readOnlyHint: true` (`list_findings` and
+`explain_finding`, `findings`' old names, stay for one release); `scan` and
 `scan_cancel` act on your machine (a results folder, an image pull, containers
 started and stopped) and declare `false`, so a client may ask before running them.
 
