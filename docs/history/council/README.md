@@ -14,7 +14,7 @@ The third review (2026-09-21) arrived as prose rather than as files; it is in
 
 These are *inputs*, not findings we stand behind: each review's claims were checked
 against the tree before any became a task, and several did not survive that check.
-The phase heads in [`tasks.md`](../../.kiro/specs/valvur/tasks.md) say which.
+The phase heads in [`tasks.md`](../../../.kiro/specs/valvur/tasks.md) say which.
 
 They live under `docs/` so they stay out of the published distribution — `/docs`
 is excluded from the sdist, and until 2026-09-22 (task 27.2.3) these six files

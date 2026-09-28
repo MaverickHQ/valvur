@@ -98,7 +98,8 @@ casts no doubt: a security verdict of `clean` stays `clean` over it.
 ### 3. Ten things that matter, not four hundred findings
 
 Findings are ranked by **whether attackers are actually exploiting them**: CISA KEV
-(with its ransomware-campaign flag) and FIRST EPSS, not CVSS alone. Development-only
+(with its ransomware-campaign flag) and FIRST EPSS, not CVSS alone. KEV rarely lists
+an application dependency, so on application code EPSS does most of that work. Development-only
 dependencies are demoted; a transitive vulnerability comes with its path and the
 direct package to bump. Findings of one rule in one directory are one **group**, so
 `SUMMARY.md` shows one line where a generated file would have filled a page, and a

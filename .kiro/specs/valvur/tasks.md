@@ -1,7 +1,7 @@
 # valvur: tasks
 
 **Written 2026-09-27, second version of the day.** The owner accepted every recommendation
-in [the review](../../../docs/REVIEW-2026-09-27.md), section 11 included, and asked for a list
+in [the review](../../../docs/history/REVIEW-2026-09-27.md), section 11 included, and asked for a list
 that runs end to end without them. This replaces the same day's Phases 31 to 37. It is
 authoritative for what is open.
 
@@ -1141,10 +1141,19 @@ probe against the real server among them. Linux: #150's checks.
   One defect, fixed: `verify-mirror.py` refused OSV's mirror and read no settings file,
   so an honest air-gapped setup failed its own proof. `valvur update` does not fetch
   OSV's databases, which only a project names; the README and `AIR-GAPPED.md` say so.
-- [ ] **R7.3** **Documents consolidated.** `OPEN-ITEMS.md`, `POSITIONING.md`, the reviews,
+- [x] **R7.3** **Documents consolidated.** `OPEN-ITEMS.md`, `POSITIONING.md`, the reviews,
   `usability-gate.md`, `council/` and `gates/` move to `docs/history/`, and their still-true
   points move into the README or `EVALUATING.md`. Behaviour: a link check over every
   Markdown file finds no broken relative link.
+  **STATUS 2026-09-28:** ✅ `tests/test_links.py` reads every tracked Markdown file but the
+  fixtures', code apart. Before the move it found 67 broken links, all in the two
+  archives R0 had moved without re-pointing them; every link in a moved file is now
+  resolved from where the file was written and re-pointed at where its target lives.
+  `docs/` holds `AIR-GAPPED`, `EVALUATING`, `PROTOCOL` and `RELEASING`, the ADRs, the
+  acceptance records and `history/`, which has an index. Carried forward: POSITIONING's
+  measured limit on claim 3, that KEV rarely lists an application dependency, now in
+  `EVALUATING.md` §5 and the README; OPEN-ITEMS' open refactors had closed in Phase 27;
+  the usability gate stays the protocol for the owner's gate with a person (§8).
 - [ ] **R7.4** **`CLAUDE.md` and this file.** `CLAUDE.md` is refreshed within 200 lines. Closed
   phases move to `docs/history/`.
 - [ ] **R7.5** **`1.0.0` prepared** (D16, D17). D17's criteria are measured on both lanes and
@@ -1186,8 +1195,8 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | land R2, PR #145 | **ready 2026-09-28**: every check green on `d04e72f`, the Linux acceptance run included | fast-forward `main`: `git push origin refs/remotes/origin/build/r2-the-acceptance-set:refs/heads/main`. The build's own push to `main` was refused by the session's permission classifier on 2026-09-28 00:40; R3 continues on a branch rebased onto R2 and lands after it |
 | `v0.7.0` | R3 lands (after R2's PR #145), then its rehearsal | sign and push the tag `v0.7.0` on the rehearsed commit, after `v0.6.0`; approve the real run at the brake |
 | `v1.0.0` | R7 | the same |
-| the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own |
-| Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/gates/` |
+| the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
+| Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | R2 | register one with the label `docker-desktop` |
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |

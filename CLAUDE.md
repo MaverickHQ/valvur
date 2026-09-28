@@ -18,7 +18,7 @@ honest about why not, and trustworthy. Locally.
 **Status (2026-09-27).**
 - `0.5.0` is published: PyPI, GHCR on both architectures, signed and attested.
 - `main` carries `1.0.0` prepared (`f7c19b1`) and rehearsal 36317791899 held at the brake.
-- The owner accepted the [first-principles review](docs/REVIEW-2026-09-27.md) and every
+- The owner accepted the [first-principles review](docs/history/REVIEW-2026-09-27.md) and every
   recommendation in it that day: the report's contract is sound and the engine is not.
   **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
 

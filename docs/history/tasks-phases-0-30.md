@@ -2,9 +2,9 @@
 
 **Status:** ready to execute · **Version:** 2.0 · **Date:** 2026-08-30
 
-Implements [design.md](./design.md) against [requirements.md](./requirements.md).
-Vocabulary is [CONTEXT.md](../../../CONTEXT.md); decisions are
-[docs/adr/](../../../docs/adr/).
+Implements [design.md](../../.kiro/specs/valvur/design.md) against [requirements.md](../../.kiro/specs/valvur/requirements.md).
+Vocabulary is [CONTEXT.md](../../CONTEXT.md); decisions are
+[docs/adr/](../adr/).
 
 ---
 
@@ -336,7 +336,7 @@ concurrency correctly.
 > everything depends on it.
 
 6. The `offline` **Profile** runs only its designated **Scanners**, per the matrix in
-   [design.md](./design.md) §2. *(F2.3)*
+   [design.md](../../.kiro/specs/valvur/design.md) §2. *(F2.3)*
 7. Independent **Scanners** run concurrently, and a slow one does not serialise the
    rest. *(F2.6)*
 8. A per-**Scanner** timeout fires independently and is recorded per cycle 2. *(F2.7)*
@@ -410,7 +410,7 @@ honest run; the `offline` **Profile** runs only its Scanners, concurrently.
 
 ### 4.0 — The Check protocol
 
-**Checks are not Scanners.** [CONTEXT.md](../../../CONTEXT.md) already draws the line:
+**Checks are not Scanners.** [CONTEXT.md](../../CONTEXT.md) already draws the line:
 a **Scanner** is a third-party tool, a **Check** is ours. The adapter contract models
 "invoke an external tool in a container, parse its output", and forcing our own code
 through it would mean fabricating a fake stdout to parse back.
@@ -711,7 +711,7 @@ that matters is buried beneath noise.
 9. When findings are truncated, the count omitted is stated. *(Silent truncation
    reads as "that is everything", which is a lie of omission.)*
 
-- [x] **6.2.10** **Reformat to the budget in [design.md](./design.md) §6**: header ~25,  
+- [x] **6.2.10** **Reformat to the budget in [design.md](../../.kiro/specs/valvur/design.md) §6**: header ~25,  
   **STATUS 2026-08-30:** ✅ **185 lines → 50**, for 57 findings. One line per finding; evidence moved to `findings.json`. Verified against 10,000 synthetic findings.
   failures ~15, counts by class and status ~20, **top 15 Findings ~100**, pointers
   ~10. We currently print every finding at ~2.2 lines each, which tops out near 85.
@@ -762,7 +762,7 @@ that matters is buried beneath noise.
 **Workspace** content can act as an instruction in any of them.
 
 > **`report.html` was cut before implementation** — see
-> [ADR-0014](../../../docs/adr/0014-no-html-report.md). Phase 6 is five sub-phases,
+> [ADR-0014](../adr/0014-no-html-report.md). Phase 6 is five sub-phases,
 > not six.
 
 ---
@@ -1075,7 +1075,7 @@ is no extra to opt into. The CLI is the second way in.
 
 > **Measured: 20 seconds for the `full` Profile on our toy fixture.** A real
 > project is minutes, and many MCP clients time out at 30–60 seconds.
-> [design.md](./design.md) §8 already listed `scan_status` alongside `scan`, implying
+> [design.md](../../.kiro/specs/valvur/design.md) §8 already listed `scan_status` alongside `scan`, implying
 > this pattern — but the original cycles did not mention it, so the implementation
 > would have defaulted to synchronous and discovered the problem in Phase 10's
 > usability gate.
@@ -1144,7 +1144,7 @@ take, and participants cannot be re-used.
 ### 10.1 — The usability gate
 
 - [x] **10.1.1** **Run it before any other task in this phase.** Protocol:
-  [docs/usability-gate.md](../../../docs/usability-gate.md). A developer who has never
+  [docs/usability-gate.md](usability-gate.md). A developer who has never
   seen valvur, repository URL only, no verbal help, scanning **their own** project.
   **The findings become the rest of this phase's task list**, so everything below is
   provisional until it has run. Moved here from Phase 1 task 1.12.
@@ -1153,7 +1153,7 @@ take, and participants cannot be re-used.
   Claude Code agent given the README and nothing else, on the owner's own
   project (`occams-test-lab`: 312 tracked files, 107,544 on disk), the MCP path
   first, the record in
-  [`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-on-occams-test-lab.md)
+  [`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](gates/2026-09-26-claude-code-on-occams-test-lab.md)
   and Gate 1 of the protocol file. **Thirty minutes to a first finding**, thirteen
   to a failure that pointed the wrong way; nine findings, each measured against
   `main` the same afternoon — [Phase 29](#phase-29--the-first-gate-a-real-working-tree-and-what-a-first-run-must-survive).
@@ -1345,7 +1345,7 @@ docker run --rm --network=none -v "$PWD:/workspace:ro" valvur scan
 **Measured 2026-08-31: that command fails twice.** The image `valvur` does not exist,
 and with the real name it fails again — `exec: "scan": executable file not found`,
 because the image's `Cmd` is `python3`. It is not a typo. It describes a **fat
-container**, which is the model [ADR-0001](../../../docs/adr/0001-thin-host-shim-read-only-container.md)
+container**, which is the model [ADR-0001](../adr/0001-thin-host-shim-read-only-container.md)
 rejected: valvur is a host shim that *launches* containers, so there is no
 "run valvur in a container" path to document.
 
@@ -1383,8 +1383,8 @@ rejected: valvur is a host shim that *launches* containers, so there is no
 - [x] **11.0.3** Rewrite the README claim to match.  
   **STATUS 2026-08-31:** ✅ The fictional one-liner is gone from `README.md`, replaced
   by the two halves, the script, the Linux `unshare` proof and the macOS limit. P5 in
-  [POSITIONING.md](../../../docs/POSITIONING.md) and moat item 1 in
-  [CLAUDE.md](../../../CLAUDE.md) were making the same one-command claim and now
+  [POSITIONING.md](POSITIONING.md) and moat item 1 in
+  [CLAUDE.md](../../CLAUDE.md) were making the same one-command claim and now
   state the platform limit too. *(P5 — a documented command that does not run is
   worse than no documentation, because it is the one thing a sceptical reviewer will
   try first. This one had never been run.)*
@@ -1426,7 +1426,7 @@ rejected: valvur is a host shim that *launches* containers, so there is no
    > valvur starts.
    >
    > **Rationale corrected 2026-08-31.** The original note named a host-side
-   > **Check** as the risk; [ADR-0013](../../../docs/adr/0013-checks-run-inside-the-container.md)
+   > **Check** as the risk; [ADR-0013](../adr/0013-checks-run-inside-the-container.md)
    > moved Checks into the container, so that specific hole is closed. The real
    > host-side network user is now **enrichment** — EPSS is fetched from FIRST by the
    > shim — and it is gated by a single boolean threaded from the Profile. One
@@ -1463,7 +1463,7 @@ rejected: valvur is a host shim that *launches* containers, so there is no
    found" being treated as a scan failure.
 
 3. ✅ **`offline` and `full` report the same dependency vulnerabilities on the canary.**
-   *(New 2026-08-31. N2.1, [ADR-0016](../../../docs/adr/0016-two-profiles-split-on-the-network-boundary.md).)*
+   *(New 2026-08-31. N2.1, [ADR-0016](../adr/0016-two-profiles-split-on-the-network-boundary.md).)*
    > **DONE 2026-09-01, asserted at package level rather than advisory level.**
    > Measured on the canary: `offline` 37 dependency findings, `full` 38, and the
    > difference is entirely `PYSEC-2023-175`, an advisory OSV carries and Trivy's
@@ -1640,7 +1640,7 @@ or cannot check the claims we make about it, is not testing the product.
 
   The original task named only the package. The **repository** is private too, which
   matters more: the README now tells a reviewer to run
-  [`scripts/verify-offline.py`](../../../scripts/verify-offline.py) as the central
+  [`scripts/verify-offline.py`](../../scripts/verify-offline.py) as the central
   proof of the central claim, and they cannot obtain it. The ADRs, which are where
   every decision's reasoning lives, are equally unreachable.
 
@@ -1921,7 +1921,7 @@ or cannot check the claims we make about it, is not testing the product.
   >
   > **Blocked on, and requires the owner:** 12a.1 (public repo and package), PyPI
   > trusted publishing configured against this workflow, and a `release` GitHub
-  > environment. All three are in [docs/RELEASING.md](../../../docs/RELEASING.md),
+  > environment. All three are in [docs/RELEASING.md](../RELEASING.md),
   > along with the release procedure and how to verify a release as a user would.
 
   There is no release automation at all today — 12.2 and 12.5 were both hand-run
@@ -2289,7 +2289,7 @@ unverified — which is true, and is the point.
   >    contract tells agents to read `SUMMARY.md` *bounded* while querying
   >    `findings.json`, so the consumer most likely to act on the verdict was the one
   >    least likely ever to see the caveat. Third status added to the contract
-  >    ([CLAUDE.md §7](../../../CLAUDE.md)).
+  >    ([CLAUDE.md §7](../../CLAUDE.md)).
   > 2. **Staleness is knowable for free.** Trivy stamps `NextUpdate`, so being past
   >    due costs one file read and no network.
   > 3. **`valvur update --if-stale`** — a no-op when current, so it is cheap enough
@@ -2614,7 +2614,7 @@ every command the documentation names exists.
 > `P5`, `P6` — are cited in CI workflows, scripts or docs.
 >
 > **17.4 was simply wrong.** It claimed nothing reads `fp_version`.
-> [`state.py`](../../../src/valvur/state.py) reads it and discards all history when it
+> [`state.py`](../../src/valvur/state.py) reads it and discards all history when it
 > changes, deliberately and with a comment explaining why. The real gap is narrower
 > and different, and the task is rewritten rather than tightened.
 >
@@ -2682,7 +2682,7 @@ every command the documentation names exists.
   | workspace and cache locking | — | 0 mentions |
 
   No requirement mentions the status vocabulary **at all** — not even `clean`. The
-  results contract lives in [CLAUDE.md §7](../../../CLAUDE.md) and in the code, but
+  results contract lives in [CLAUDE.md §7](../../CLAUDE.md) and in the code, but
   not in `requirements.md`.
 
   17.2 proposes a check that every requirement appears in the code, which enforces
@@ -3281,7 +3281,7 @@ signals, broader AI-code coverage, and portfolio-grade polish.
   > amended in `requirements.md`.
 
 - [x] **19.E.3** Add a release-readiness document aimed at GitHub portfolio readers.
-  ✅ **DONE 2026-09-10.** [`docs/EVALUATING.md`](../../../docs/EVALUATING.md), linked
+  ✅ **DONE 2026-09-10.** [`docs/EVALUATING.md`](../EVALUATING.md), linked
   from the README. Install, verify the signed image, prove non-exfiltration on both
   halves, read the three statuses, and a plain list of what valvur does **not** claim.
 
@@ -3586,7 +3586,7 @@ Only the repository owner can do these, and everything else waits behind them.
   and [12a.5](#12a--make-it-obtainable-and-trustworthy): PyPI trusted publishing
   against `release.yml`, a `release` GitHub environment, and private vulnerability
   reporting. All three are documented in
-  [docs/RELEASING.md](../../../docs/RELEASING.md); the release workflow fails without
+  [docs/RELEASING.md](../RELEASING.md); the release workflow fails without
   the first two, and `SECURITY.md` links to a 404 without the third.
 
 ### B — Needs a person who has never seen valvur
@@ -3682,7 +3682,7 @@ answered from a local index of names; the refinements need a registry. Split the
 - [x] **22.A.1** Design and measure the index before building it. Two decisions, each
   with a number behind it, recorded as an ADR:
 
-  > **Done 2026-09-12 — [ADR-0018](../../../docs/adr/0018-offline-package-name-index.md).**
+  > **Done 2026-09-12 — [ADR-0018](../adr/0018-offline-package-name-index.md).**
   > Measured against the live registries: PyPI 890,006 names (12.8MB plain, 4.0MB
   > gzip); npm 4,382,736 (90.5MB plain, 25.4MB gzip). **Exact wins**: 29MB on the wire
   > beside the database's 116MB, and a bloom filter at 0.1% would have saved 20MB for
@@ -4941,7 +4941,7 @@ last.
   README's first-run table gets a smaller number for the common case, and 23.3.2's
   timing says exactly how much smaller. Decide with the measurement, not before.
 
-  **STATUS 2026-09-18:** ✅ **Decided by measurement — declined; [ADR-0019](../../../docs/adr/0019-one-image-checkov-included.md).**
+  **STATUS 2026-09-18:** ✅ **Decided by measurement — declined; [ADR-0019](../adr/0019-one-image-checkov-included.md).**
   Checkov's layer is 164MB uncompressed and **53MB compressed, 23% of the 223–233MB
   pull**; a slim image would save about 5s of the measured 110s first run, beside
   the 154MB of database and index every shape fetches anyway. Who it would reach:
@@ -6503,7 +6503,7 @@ user sees also carries a measured number in its STATUS note.
   as the cost.
 
   **STATUS 2026-09-21:** ✅ With 26.5.2, one PR.
-  [`docs/adr/0020-promote-after-validation.md`](../../../docs/adr/0020-promote-after-validation.md):
+  [`docs/adr/0020-promote-after-validation.md`](../adr/0020-promote-after-validation.md):
   the context (the artifact job's own admission, and 24.4's yank as the reminder
   that PyPI cannot be undone), the three jobs in the order the evidence arrives,
   four alternatives with why each was rejected — including the task text's own
@@ -6549,7 +6549,7 @@ note.
 
 **Goal:** close what a "Level 400" codebase analysis of the tree found on
 2026-09-21 — twenty items in five tiers, in
-[`docs/OPEN-ITEMS.md`](../../../docs/OPEN-ITEMS.md) — after each was measured
+[`docs/OPEN-ITEMS.md`](OPEN-ITEMS.md) — after each was measured
 against `main` at `ca13795` the same afternoon: one was already closed, two were
 wrong, one's premises were, and **seventeen stand** — sixteen tasks, two one-line
 deletions sharing one. Ordered here by consequence
@@ -7166,7 +7166,7 @@ STATUS note.
 **Goal:** close the twenty-four actionable findings of a level-400 review of `main`
 at `2287dc7` — every claim in it measured against the tree, the workflows, the
 GitHub API or a run log on 2026-09-23, and written down in
-[`docs/REVIEW-2026-09-23.md`](../../../docs/REVIEW-2026-09-23.md) with the
+[`docs/REVIEW-2026-09-23.md`](REVIEW-2026-09-23.md) with the
 evidence beside each. Ordered by what an attacker can do first, what the next
 release depends on second, what a user feels third, hygiene fourth, and the
 architecture that waits for the gate last. Written 2026-09-25.
@@ -8072,7 +8072,7 @@ asked for are in CLAUDE.md's Phase 28 bullet.
 ## Phase 29 — The first gate: a real working tree, and what a first run must survive
 
 **Goal:** close every finding of the first usability-gate run — nine, ranked, in
-[`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-on-occams-test-lab.md)
+[`docs/gates/2026-09-26-claude-code-on-occams-test-lab.md`](gates/2026-09-26-claude-code-on-occams-test-lab.md)
 — plus the two questions the run raised for the owner: whether the time goals
 and the 300 s budget fit a real working tree, and whether the MCP server works
 from every agent's IDE, not two. Written 2026-09-26, the afternoon after the run;
@@ -8649,14 +8649,14 @@ Tier 3  the claim and the small   29.3.1 the README cannot be ahead of PyPI  · 
   inconclusive, not clean, *and caught the reply calling eight Findings it had
   not looked for* fixed *— that is 29.0.5, closed in #134 before this landed;
   both transcripts are
-  [`2026-09-26-claude-code-agent-pass-the-cut.md`](../../../docs/gates/2026-09-26-claude-code-agent-pass-the-cut.md).*
+  [`2026-09-26-claude-code-agent-pass-the-cut.md`](gates/2026-09-26-claude-code-agent-pass-the-cut.md).*
   **What was seen instead is 29.2.4**: Claude Code hands the
   model a structured reply's JSON and not its text, so `scan_status`'s *call
   again; do not report a result yet* never arrived, and the model built its
   own wait and ended its turn with Checkov still running; the harness's
   re-invocation on its Monitor is what produced the report. The record, with
   the whole transcript, is
-  [`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`](../../../docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md);
+  [`docs/gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md`](gates/2026-09-26-claude-code-agent-pass-on-occams-test-lab.md);
   Gate 1 in `docs/usability-gate.md` carries the number. Codex declined by
   decision (2).
 
@@ -8923,7 +8923,7 @@ Phase 29 bullet.
 ## Phase 30 — The second gate: the `1.0.0` candidate, and what being told to stop must mean
 
 **Goal:** close what the second usability-gate run found — nine items, ranked,
-in [`docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md`](../../../docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md)
+in [`docs/gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md`](gates/2026-09-27-claude-code-on-occams-test-lab-1.0.0-candidate.md)
 — before and after the `v1.0.0` tag, in the order their consequences arrive.
 Written 2026-09-27, the evening of the run. The report's measurements are a
 stdio probe's and a headless agent's, with every JSON-RPC line kept; the three

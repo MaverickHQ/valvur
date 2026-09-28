@@ -697,7 +697,7 @@ of fixes, so that nothing changes my code without my decision.
 ## Non-functional requirements
 
 ### P — Positioning commitments
-Traceable to [docs/POSITIONING.md](../../../docs/POSITIONING.md) §6.
+Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md) §6.
 
 1. P1 — A first **Scan Run** SHALL require one command, no account, and SHALL complete
    the `offline` **Profile** in under 60 seconds on a mid-sized repository. *Note

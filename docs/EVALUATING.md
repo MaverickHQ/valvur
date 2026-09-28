@@ -273,6 +273,11 @@ Read this before the feature list, not after.
   taint tracking is intra-procedural and does not see it, and the INFO sink
   inventory names both `exec` sites. They are ranked `low`; the AI-specific claim
   rests on the Checks above.
+- **KEV rarely lists an application dependency, so EPSS does most of the ranking.**
+  Measured 2026-08-30: across PyYAML, urllib3, Django, Jinja2 and Pillow, 269 CVEs and
+  one of them in KEV; the catalogue is mostly vendor appliances and enterprise
+  software. The README's ranking example is real and will fire rarely on application
+  dependencies alone; we do not imply that KEV routinely reorders a scan.
 - **On SELinux-enforcing hosts the source's label no longer matters** (since `0.7.0`,
   ADR-0022). Measured on Fedora CoreOS 44, native xfs under `$HOME`, before it: a
   container may not read a `user_home_t` directory, so a first run on RHEL failed until
