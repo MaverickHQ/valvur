@@ -8,19 +8,19 @@ import pytest
 
 from valvur import scan
 from valvur.adapters import GitleaksAdapter
-from valvur.runner import ContainerRunner
+from valvur.engine_host import ContainerRuntime
 
 
 @pytest.mark.e2e
 def test_a_real_container_scan_finds_the_planted_secret(workspace):
-    run = scan(workspace, runner=ContainerRunner())
+    run = scan(workspace, runner=ContainerRuntime())
 
     assert "aws-access-token" in [f.rule for f in run.findings]
 
 
 @pytest.mark.e2e
 def test_a_real_container_scan_redacts_the_secret_it_found(workspace):
-    scan(workspace, runner=ContainerRunner())
+    scan(workspace, runner=ContainerRuntime())
 
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
 
@@ -39,7 +39,7 @@ def test_a_workspace_path_with_shell_metacharacters_scans_safely(tmp_path):
     nasty = tmp_path / f"repo; touch {canary}; echo 'x' && whoami #$(id)"
     shutil.copytree(FIXTURES / "broken-repo", nasty)
 
-    run = scan(nasty, runner=ContainerRunner(), adapters=[GitleaksAdapter()])
+    run = scan(nasty, runner=ContainerRuntime(), adapters=[GitleaksAdapter()])
 
     assert not canary.exists(), "the path was interpreted by a shell"
     assert len(run.findings) >= 1, "the scan should still work on an awkward path"

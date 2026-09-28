@@ -5,8 +5,6 @@ scratch mount, and every Scanner sees the Workspace read-only. Split from
 
 from __future__ import annotations
 
-import contextlib
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -16,43 +14,24 @@ from valvur.api import scan
 
 # ------------------------ cycle 4: nothing is written outside results and scratch
 
-@pytest.mark.e2e
-def test_every_scanner_mounts_the_workspace_read_only(monkeypatch, tmp_path):
-    """F1.1, N2.2 — the mount IS the jail (ADR-0001). Not a check valvur performs, a
-    thing that cannot happen.
+def test_every_scanner_reads_a_snapshot_and_the_source_is_never_mounted(monkeypatch, tmp_path):
+    """F1.1, N2.2 — the source cannot be written because no container can reach it.
+    Protocol 1 mounted it `:ro` into every Scanner's container (ADR-0001); since
+    R3.9 it is copied into the Scan Container on stdin (ADR-0022), and nothing
+    mounts it at all. Asserted over every Scan Container a `full` scan starts."""
+    from test_constraints_exfiltration import _launches
 
-    Asserted over every Scanner the Profile runs, rather than one ad-hoc container:
-    a Scanner added without `:ro` would otherwise be caught by review or not at all.
-    """
-    from valvur import cache
-    from valvur.adapters import DEFAULT_ADAPTERS
-    from valvur.runner import ContainerRunner
-
-    launched: list[list[str]] = []
-
-    def capture(cmd, **kwargs):
-        launched.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    monkeypatch.setattr(subprocess, "run", capture)
-    runner = ContainerRunner(runtime="/usr/local/bin/docker")
-
-    for adapter in profiles.select(DEFAULT_ADAPTERS, profiles.FULL):
-        with contextlib.suppress(Exception):
-            adapter.run(runner, tmp_path)
-
-    # Only the values of -v flags. Syft's scan target is the string "dir:/workspace",
-    # which is an argument rather than a mount and would otherwise fail this.
-    mounts = [
-        cmd[i + 1]
-        for cmd in launched if isinstance(cmd, list)
-        for i, arg in enumerate(cmd[:-1])
-        if arg == "-v" and ":/workspace" in str(cmd[i + 1])
-    ]
-    assert mounts, "no workspace mount was built, so nothing was asserted"
-    for mount in mounts:
-        assert mount.endswith(":/workspace:ro"), f"workspace mounted writable: {mount}"
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    assert launched, "no container was launched, so nothing was asserted"
+    workspace = str(tmp_path / "ws")
+    for argv, tools in launched:
+        mounts = [argv[i + 1] for i, flag in enumerate(argv) if flag == "-v"]
+        assert not any(m.split(":", 1)[0].startswith(workspace) for m in mounts), mounts
+        assert "-i" in argv, "the Snapshot arrives on stdin"
+        landing = [argv[i + 1] for i in range(len(argv) - 1)
+                   if argv[i] in ("--tmpfs", "-v")
+                   and (argv[i + 1].startswith("/workspace:") or ":/workspace" in argv[i + 1])]
+        assert landing, f"no /workspace for the Snapshot: {tools}"
 
 
 @pytest.mark.e2e
@@ -69,7 +48,7 @@ def test_a_scan_writes_nothing_outside_the_results_folder(mountable_tmp):
 
     from conftest import FIXTURES
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "repo"
     shutil.copytree(FIXTURES / "broken-repo", ws)
@@ -87,7 +66,7 @@ def test_a_scan_writes_nothing_outside_the_results_folder(mountable_tmp):
         }
 
     before = digest(mountable_tmp)
-    scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    scan(ws, runner=ContainerRuntime(), profile=profiles.OFFLINE)
     after = digest(mountable_tmp)
 
     assert after == before, (
@@ -108,14 +87,14 @@ def test_the_host_scratch_is_removed_after_a_scan(mountable_tmp):
 
     from conftest import FIXTURES
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "repo"
     shutil.copytree(FIXTURES / "broken-repo", ws)
 
     root = Path(tempfile.gettempdir())
     before = {p.name for p in root.glob("valvur-*")}
-    scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    scan(ws, runner=ContainerRuntime(), profile=profiles.OFFLINE)
     leaked = {p.name for p in root.glob("valvur-*")} - before
 
     assert not leaked, f"scratch directories survived the scan: {sorted(leaked)}"

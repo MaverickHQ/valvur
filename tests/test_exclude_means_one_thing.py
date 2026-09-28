@@ -36,10 +36,10 @@ def _planted(root):
 @pytest.mark.e2e
 def test_every_scanner_reads_a_nested_directory_that_shares_an_excluded_name(mountable_tmp):
     from valvur import api
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     workspace = _planted(mountable_tmp / "ws")
-    run = api.scan(workspace, runner=ContainerRunner(), profile="full")
+    run = api.scan(workspace, runner=ContainerRuntime(), profile="full")
 
     by_source: dict[str, set[str]] = {}
     for finding in run.findings:

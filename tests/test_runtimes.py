@@ -15,6 +15,7 @@ import pytest
 
 from valvur import scan
 from valvur.adapters import GitleaksAdapter
+from valvur.engine_host import ContainerRuntime
 from valvur.runner import _EXTRA_LOCATIONS, ContainerRunner, detect_runtime
 
 
@@ -73,7 +74,7 @@ def test_results_are_owned_by_the_invoking_user(workspace, runtime):
     need sudo to delete their own scan output. The shim writes these files instead,
     so ownership is correct by construction on every runtime.
     """
-    run = scan(workspace, runner=ContainerRunner(runtime=_available(runtime)),
+    run = scan(workspace, runner=ContainerRuntime(runtime=_available(runtime)),
                adapters=[GitleaksAdapter()], profile="quick")
     assert run.failures == [], f"{runtime} could not run the scanner"
 
@@ -89,7 +90,7 @@ def test_results_are_owned_by_the_invoking_user(workspace, runtime):
 @pytest.mark.parametrize("runtime", RUNTIMES)
 def test_a_scan_finds_the_same_things_on_every_runtime(workspace, runtime):  # F10.1
     """Portability is not just about permissions: the answer must match too."""
-    run = scan(workspace, runner=ContainerRunner(runtime=_available(runtime)),
+    run = scan(workspace, runner=ContainerRuntime(runtime=_available(runtime)),
                adapters=[GitleaksAdapter()], profile="quick")
 
     # Assert completeness first. Without this the test conflates "found nothing"
@@ -128,7 +129,7 @@ def test_a_workspace_path_containing_spaces_scans_correctly(mountable_tmp):
     awkward = mountable_tmp / "my project (v2)" / "the repo"
     shutil.copytree(FIXTURES / "broken-repo", awkward)
 
-    run = scan(awkward, runner=ContainerRunner(), adapters=[GitleaksAdapter()],
+    run = scan(awkward, runner=ContainerRuntime(), adapters=[GitleaksAdapter()],
                profile="quick")
 
     assert run.findings
@@ -319,6 +320,7 @@ def test_a_container_network_applies_only_to_networked_containers(monkeypatch, t
     import subprocess
 
     from valvur import cache
+    from valvur.engine_host import ContainerRuntime
     from valvur.runner import ContainerRunner
 
     launched: list[list[str]] = []
@@ -333,7 +335,6 @@ def test_a_container_network_applies_only_to_networked_containers(monkeypatch, t
     monkeypatch.setenv("VALVUR_CONTAINER_NETWORK", "airgap")
     runner = ContainerRunner(runtime="/usr/local/bin/docker")
 
-    from valvur.engine_host import ContainerRuntime
 
     runner.update_db()
     # The offline Scan Container (R3.9): what every offline Scanner runs in.
@@ -418,7 +419,7 @@ def test_the_offline_profile_finds_dev_dependency_vulnerabilities(mountable_tmp,
     ws = mountable_tmp / "pnpm"
     shutil.copytree(FIXTURES / "pnpm-dev-repo", ws)
 
-    run = scan(ws, runner=ContainerRunner(runtime=_available(runtime)),
+    run = scan(ws, runner=ContainerRuntime(runtime=_available(runtime)),
                adapters=[TrivyAdapter()], profile="quick")
 
     packages = {f.dependency.package for f in run.findings if f.dependency}

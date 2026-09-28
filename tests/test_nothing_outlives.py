@@ -273,7 +273,8 @@ def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mou
     import shutil
 
     from valvur import api
-    from valvur.runner import ContainerRunner, detect_runtime
+    from valvur.engine_host import ContainerRuntime
+    from valvur.runner import detect_runtime
 
     runtime = detect_runtime()
     workspace = mountable_tmp / "ws"
@@ -314,7 +315,7 @@ def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mou
         server.kill()
 
     said: list[str] = []
-    run = api.scan(workspace, runner=ContainerRunner(), on_progress=said.append)
+    run = api.scan(workspace, runner=ContainerRuntime(), on_progress=said.append)
     assert owned_by(server.pid) == []
     assert any("left by a scan whose process had ended" in line for line in said), said
     assert run.status in ("findings", "clean", "inconclusive")

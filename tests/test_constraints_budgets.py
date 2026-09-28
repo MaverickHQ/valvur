@@ -62,11 +62,11 @@ def test_the_offline_profile_meets_its_time_budget(mountable_tmp):
     single slowest Scanner. The old `quick` had no Checkov and no risk here."""
     import time
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = _sizeable_workspace(mountable_tmp)
     started = time.monotonic()
-    run = scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    run = scan(ws, runner=ContainerRuntime(), profile=profiles.OFFLINE)
     elapsed = time.monotonic() - started
 
     assert not run.failures, f"a Scanner failed, so the timing is meaningless: {run.failures}"
@@ -80,11 +80,11 @@ def test_the_full_profile_meets_its_time_budget(mountable_tmp):
     """N1.2 — 5 minutes."""
     import time
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = _sizeable_workspace(mountable_tmp)
     started = time.monotonic()
-    run = scan(ws, runner=ContainerRunner(), profile=profiles.FULL)
+    run = scan(ws, runner=ContainerRuntime(), profile=profiles.FULL)
     elapsed = time.monotonic() - started
 
     assert not run.failures, f"a Scanner failed, so the timing is meaningless: {run.failures}"
@@ -165,14 +165,15 @@ def test_a_full_scan_stays_within_its_memory_budget(mountable_tmp):
     import resource
     import threading
 
-    from valvur.runner import ContainerRunner, detect_runtime
+    from valvur.engine_host import ContainerRuntime
+    from valvur.runner import detect_runtime
 
     ws = _sizeable_workspace(mountable_tmp)
     fleet = _FleetMemory(detect_runtime())
     sampler = threading.Thread(target=fleet.run, daemon=True)
     sampler.start()
     try:
-        run = scan(ws, runner=ContainerRunner(), profile=profiles.FULL)
+        run = scan(ws, runner=ContainerRuntime(), profile=profiles.FULL)
     finally:
         fleet.stop()
         sampler.join(timeout=90)

@@ -295,7 +295,7 @@ def test_a_kiro_workspace_is_read_by_the_check_inside_the_container(mountable_tm
     steering, MCP settings, one hook — through the real container."""
     from valvur import scan
     from valvur.adapters import CheckAdapter
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = _ws(mountable_tmp / "kiro", {
         "README.md": "# app\\n",
@@ -308,7 +308,7 @@ def test_a_kiro_workspace_is_read_by_the_check_inside_the_container(mountable_tm
         ".kiro/specs/app/tasks.md": INJECTION,      # the project's own documents
     })
 
-    run = scan(ws, runner=ContainerRunner(), adapters=[CheckAdapter("ai-artifact")])
+    run = scan(ws, runner=ContainerRuntime(), adapters=[CheckAdapter("ai-artifact")])
 
     assert not run.failures, run.failures
     assert sorted((f.rule, f.path) for f in run.findings) == [

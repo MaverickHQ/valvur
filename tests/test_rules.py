@@ -151,13 +151,19 @@ def test_the_golden_matches_what_the_image_reports_on_the_fixture(mountable_tmp)
 
     from conftest import FIXTURES
 
+    from valvur import fileset
     from valvur.adapters import OpengrepAdapter
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime, snapshot
 
     ws = mountable_tmp / "rules"
     shutil.copytree(FIXTURES / "broken-repo", ws)
+    scratch = mountable_tmp / "scratch"
+    scratch.mkdir()
 
-    live = json.loads(OpengrepAdapter().run(ContainerRunner(), ws).stdout)
+    # One tool in a Scan Container, on a Snapshot of the File Set (R3.9).
+    invocation = OpengrepAdapter().command(ws)
+    ContainerRuntime().run([invocation], snapshot(ws, fileset.build(ws).files), scratch)
+    live = json.loads((scratch / invocation.report).read_text())
     recorded = json.loads(golden("opengrep"))
 
     def hits(data):

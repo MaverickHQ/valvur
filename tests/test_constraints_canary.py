@@ -49,12 +49,12 @@ def test_the_canary_fixture_still_exercises_every_scanner(mountable_tmp):
 
     from conftest import FIXTURES
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "canary"
     shutil.copytree(FIXTURES / "broken-repo", ws)
 
-    run = scan(ws, runner=ContainerRunner(), profile=profiles.FULL)
+    run = scan(ws, runner=ContainerRuntime(), profile=profiles.FULL)
     counts = collections.Counter(s for f in run.findings for s in f.sources)
 
     assert run.complete if hasattr(run, "complete") else not run.failures, (
@@ -82,12 +82,12 @@ def test_the_canary_covers_dev_only_dependencies(mountable_tmp):
 
     from conftest import FIXTURES
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "canary"
     shutil.copytree(FIXTURES / "broken-repo", ws)
 
-    run = scan(ws, runner=ContainerRunner(), profile=profiles.OFFLINE)
+    run = scan(ws, runner=ContainerRuntime(), profile=profiles.OFFLINE)
     packages = {
         f.dependency.package for f in run.findings if f.dependency and f.dependency.package
     }
@@ -119,12 +119,12 @@ def test_the_offline_profile_misses_no_vulnerable_package(mountable_tmp):
 
     from conftest import FIXTURES
 
-    from valvur.runner import ContainerRunner
+    from valvur.engine_host import ContainerRuntime
 
     def packages(profile):
         ws = mountable_tmp / profile
         shutil.copytree(FIXTURES / "broken-repo", ws)
-        run = scan(ws, runner=ContainerRunner(), profile=profile)
+        run = scan(ws, runner=ContainerRuntime(), profile=profile)
         return {
             f.dependency.package.lower()
             for f in run.findings
