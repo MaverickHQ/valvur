@@ -15,19 +15,18 @@ launched by a small host shim. **The goal every change is judged against:** from
 session, one request scans the project and writes a report into it that is fast, complete or
 honest about why not, and trustworthy. Locally.
 
-**Status (2026-09-27).**
+**Status (2026-09-28).**
 - `0.5.0` is published: PyPI, GHCR on both architectures, signed and attested.
-- `main` carries `1.0.0` prepared (`f7c19b1`) and rehearsal 36317791899 held at the brake.
-- The owner accepted the [first-principles review](docs/history/REVIEW-2026-09-27.md) and every
-  recommendation in it that day: the report's contract is sound and the engine is not.
-  **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
+- `main` is R1's close, `bbf77ef`: `0.6.0` prepared and rehearsed, waiting for its tag.
+- R2 to R6 rebuilt the engine, as the [review](docs/history/REVIEW-2026-09-27.md) the owner
+  accepted asked; each waits on a stacked PR (#145 to #150) for the owner to land it, in
+  order (`tasks.md` §8). `0.7.0` is prepared on R3's branch.
 
-**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
-R0, R1 closed 2026-09-27; R2 to R6 (acceptance set, one container, Scanner set, report, agent
-surface) 2026-09-28, all waiting to land; `0.6.0` waits for its tag. R7 next.
+**Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: R7 (documents as built,
+`1.0.0` prepared), then R8 (the image as a pipeline step). Closed phases: `docs/history/`.
 
-**Size, 2026-09-28:** 89 modules, 1,538 tests in 135 files, 25 ADRs, 136 requirement IDs,
-traceability debt zero, 9 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
+**Size, 2026-09-28:** 89 modules, 1,544 tests in 139 files, 25 ADRs, 136 requirement IDs,
+traceability debt zero, 5 open tasks.
 
 ## 2. What it is NOT
 
@@ -43,7 +42,7 @@ rejected, or escalated to the owner explicitly.
 
 1. **It never phones home, provably.** `offline` Scanners have no network interface; no
    account, API key or telemetry. The shim's fetches of public data (image, database, Name
-   Index, EPSS on `full`) carry nothing of the Workspace and are recorded in `run.json`.
+   Index, OSV's databases; EPSS on `full`) carry nothing of the Workspace, and are recorded.
    One module decides the network, `src/valvur/egress.py`; `scripts/verify-offline.py`
    checks it independently; on Linux `unshare -rn valvur scan` proves it. macOS cannot.
 2. **The source cannot be modified by a Scanner**, structurally: since R3.9 it is copied
@@ -162,9 +161,9 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
   by one PR (`tasks.md` §4). Commit messages must pass the Conventional Commits hook.
 - **Unattended** (`tasks.md` §1 and §2): the build runs without the owner and, after a
   usage limit, resumes through the schedules R0.1 arms. Owner-only steps wait in its §8.
-- **Landing.** `main` is protected (six required checks, signed commits, linear history).
-  A phase lands by PR; with every check green, `git push origin
-  refs/remotes/origin/<branch>:refs/heads/main`, then `git checkout main && git pull --ff-only`.
+- **Landing.** `main` is protected (six required checks, signed commits, linear history). A
+  phase lands by fast-forward, `git push origin refs/remotes/origin/<branch>:refs/heads/main`,
+  which the classifier refuses the executor: the owner lands each phase, in order.
 - **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider`
   after clearing `__pycache__`; `-m "not e2e"` unless the container is the point. Scans and
   e2e use `VALVUR_CACHE=~/.cache/valvur-build VALVUR_IMAGE=valvur:dev`. Never remove the
@@ -173,7 +172,8 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
   on this Mac through Docker Desktop and on Linux.
 - **Releases** follow `docs/RELEASING.md`. The executor prepares and rehearses; the signed
   tag and the approval at the brake are the owner's. The tool scans itself, clean, first.
-- **Documents an agent can hold:** this file under 200 lines; comments state invariants.
+- **Documents an agent can hold:** this file under 200 lines; comments state invariants;
+  closed work goes to `docs/history/`; the README cites only measured numbers (R7.1).
 
 ## 10. Prohibited without explicit owner approval
 
