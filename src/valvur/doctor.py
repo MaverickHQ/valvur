@@ -178,10 +178,22 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks: list[Check] = []
 
     checks.append(_check_python(fetch_due))
-    runtime, runtime_check = _check_runtime()
-    checks.append(runtime_check)
-    image_check, image_local = _check_image(runtime)
-    checks.append(image_check)
+    from .engine_host import in_image
+
+    if in_image():
+        # The image as a pipeline step (R8.1): a scan runs its engine here, and
+        # there is no runtime to find and none to need.
+        from .version import __version__
+
+        runtime, image_local = None, True
+        checks.append(Check("runtime", "ok", "none needed: this is the image itself, "
+                            "and a scan runs its engine here"))
+        checks.append(Check("image", "ok", f"this image, valvur {__version__}"))
+    else:
+        runtime, runtime_check = _check_runtime()
+        checks.append(runtime_check)
+        image_check, image_local = _check_image(runtime)
+        checks.append(image_check)
     if runtime is not None:
         checks.append(_check_orphans(runtime))
     checks.append(_check_database())
