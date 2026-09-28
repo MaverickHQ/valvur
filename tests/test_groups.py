@@ -65,3 +65,24 @@ def test_a_flood_under_one_directory_is_one_group_ranked_below_eight_distinct(tm
     assert len(flood) == FLOOD and len(distinct) == 8
     assert max(f.rank for f in distinct) < min(f.rank for f in flood), \
         "a distinct finding ranks below the flood"
+
+
+def test_findings_json_keeps_every_finding_with_its_group_id_and_lists_the_group(tmp_path):
+    """An agent queries `findings.json` one finding at a time; it must be able to
+    ask for a group's members, and to learn what the group is without them."""
+    import json
+
+    from valvur import artifacts
+
+    out = pipeline.run([_hit(i) for i in range(FLOOD)] + _distinct(), _ctx(tmp_path))
+    data = json.loads(artifacts.findings_json(out.findings, status="findings",
+                                              complete=True))
+
+    [group] = data["groups"]
+    members = [f for f in data["findings"] if f["group"] == group["id"]]
+    assert len(data["findings"]) == FLOOD + 8
+    assert len(members) == group["count"] == FLOOD
+    assert group["machine_written"] is True
+    assert group["directory"] == "data/" and group["files"] == FLOOD
+    assert "possibly machine-written data" in group["label"]
+    assert sum(f["group"] is None for f in data["findings"]) == 8

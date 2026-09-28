@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
+from . import grouping as _grouping
 from .findings import Finding
 from .fingerprint import FP_VERSION
 
@@ -37,6 +38,9 @@ def findings_json(findings: list[Finding], *, status: str, status_reason: str = 
             "status_reason": status_reason,
             "fetched": list(fetched or []),
             "complete": complete,
+            # Floods of one rule under one directory (R5.1), derived from the
+            # Findings' own `group` ids. Additive to schema 1.
+            "groups": [{**asdict(g), "label": g.label} for g in _grouping.describe(findings)],
             "findings": [_serialise(f) for f in findings],
         },
         indent=2,

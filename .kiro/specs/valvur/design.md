@@ -185,9 +185,16 @@ with itself — and asks egress as well.
     "fix": {"package": "webpack", "version": ">=5.0.0"}
   },
   "suppressed": null,           // F8.6
-  "commit": null                // R3.7: the commit that added a secret read from history
+  "commit": null,               // R3.7: the commit that added a secret read from history
+  "group": null                 // R5.1: "generic-api-key in data/ (data files)", or null
 }
 ```
+
+A **group** is one rule firing 25 or more times under one top-level directory, data files
+apart from code (R5.1). `findings.json` lists each beside the Findings, derived from their
+`group` ids: `{id, rule, directory, count, files, machine_written, rank, label}`. A group
+of data files is labelled possibly machine-written and ranks below every distinct
+Finding; grouping drops nothing and changes no Fingerprint.
 
 ### 3.1 Fingerprint derivation (ADR-0003, F5.3)
 
