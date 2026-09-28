@@ -1070,7 +1070,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
 | land R3, PR #146, then R4, PR #148 | R2 lands | the same fast-forward, one branch at a time, in order. Not a squash or a rebase merge: repository 6 of the acceptance set is pinned to R4's commit `eb3a199` and needs that hash on `main` |
 | R4's speed exit, missed | **now** (R4's exit) | the fastest application-repository scan on Linux is 63% of R2's baseline, not half (§7, R4). Accept it, or take a task to unpack Opengrep in the image at build: measured 0.45 s faster per scan, 243 MB less tmpfs memory, `/tmp` no longer executable, and the image about 190 MB larger; about 3.0 s, still short of 2.7 s. A second lever is OSV's offline database, about 10 s on every npm project on both lanes, which D8 accepted for `MAL-` packages |
-| land R5, PR #149 | R4 lands | the same fast-forward, after #148 |
+| land R5, PR #149 | R4 lands; **every check green on `7b4e6a6`** | the same fast-forward, after #148 |
 | D9 and the SBOM | now (R4.4) | decide whether Syft becomes `--sbom` only: that would switch the dependency licence policy (F4.4 to F4.6) off by default, which D9 did not weigh; or amend D8 to count packages without GitHub Actions, where Trivy's SBOM is 98.1% of Syft's and could carry both |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
