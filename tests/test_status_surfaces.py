@@ -91,23 +91,25 @@ def test_the_summary_leads_with_a_sentence_a_human_can_act_on():
     addressed to somebody else before anything about their own repository."""
 
     summary = render_summary(ScanRun(findings=[_live()]))
-    head = summary.split("<!-- valvur results")[0]
+    head = summary.split("**Status:**")[0]
 
     assert "active finding" in head
     assert "REMEDIATION.md" in head
-    # F7.6 still holds: the machine block precedes every Finding.
-    assert summary.index("If you are an AI agent") < summary.index("Most urgent")
+    # F7.6 as amended by R5.2: the agent block is still in the file, at the end.
+    assert summary.index("Most urgent") < summary.index("## For AI agents")
 
 
 def test_the_machine_block_explains_what_the_statuses_mean():
     """F7.6 requires the block to describe *the Status values and the ranking basis*.
     It never did — and after 19.E.2 changed what they mean, an agent reading
     `inconclusive` had nothing telling it not to report that as clean."""
-    from valvur.summary import MACHINE_HEADER
+    from valvur.summary import AGENT_RULES
 
-    for status in ("findings", "clean", "inconclusive"):
-        assert f"`{status}`" in MACHINE_HEADER
-    assert "KEV" in MACHINE_HEADER and "EPSS" in MACHINE_HEADER
+    block = render_summary(ScanRun(findings=[_live()])).rsplit("## For AI agents", 1)[1]
+    for said in (AGENT_RULES, block):
+        for status in ("findings", "clean", "inconclusive"):
+            assert f"`{status}`" in said
+        assert "KEV" in said and "EPSS" in said
 
 
 # ---------------------------------------------------- corpus defect C3, and C2

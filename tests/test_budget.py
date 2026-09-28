@@ -132,7 +132,7 @@ def test_the_cut_is_reported_incomplete_on_every_surface(workspace):
     assert run["complete"] is False
     assert run["budget"] == {"seconds": 1.0, "cut": ["slow"]}
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
-    assert "## ⚠ Scanners that did not complete" in summary
+    assert "**⚠ Scanners that did not complete:**" in summary
     assert "**slow** — cut by the 1s budget" in summary
     status = scan_status({"workspace": str(workspace)})
     assert "slow: FAILED — cut by the 1s budget" in status

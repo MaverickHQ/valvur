@@ -189,7 +189,7 @@ def test_an_unreadable_report_is_named_at_the_top_of_the_summary_and_kept_under_
 
     folder = workspace / ".security-scan"
     summary = (folder / "SUMMARY.md").read_text()
-    assert "report unreadable" in summary.split("**Active findings:**")[0]
+    assert "report unreadable" in summary.split("## Most urgent")[0]   # F7.7
     assert (folder / "raw" / "trivy.json").read_text() == truncated
     provenance = (folder / "run.json").read_text()
     assert "report unreadable" in provenance and '"complete": false' in provenance

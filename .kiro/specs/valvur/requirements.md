@@ -463,6 +463,15 @@ form, so that I can act on them without exhausting my context window.
    > protection is that an agent meets the constraints before any **Finding**, which
    > F7.7 states at the content level and which still holds. What a human met first was
    > twelve lines of instructions addressed to somebody else.
+   >
+   > **Amended 2026-09-28 (R5.2): the block ENDS the file, shortened.** The owner
+   > accepted the review's E8: the lab's report opened with 30 lines of instructions to
+   > agents before any finding. Since 28.2.2 the MCP handshake gives an agent the rules
+   > in full before its first call, so `SUMMARY.md` leads with the verdict, the scope
+   > manifest, what did not run and the top groups, and closes with the block in about
+   > ten lines: still the folder, the three Status values, the ranking basis and F9.5 to
+   > F9.7, and the cap never cuts it. F7.7 is unchanged: failures still come before any
+   > **Finding**.
 7. F7.7 — WHEN any **Scanner** or **Check** failed or was skipped, `SUMMARY.md` SHALL
    state so before reporting any **Finding**.
 8. F7.8 — **DEFERRED 2026-08-30, see [ADR-0014](../../../docs/adr/0014-no-html-report.md).**

@@ -119,7 +119,7 @@ def test_a_finding_whose_scanner_was_cut_is_not_reported_fixed(workspace):
     summary = (workspace / RESULTS / "SUMMARY.md").read_text()
     assert "fixed since last run" not in summary
     assert "**not re-checked:** 1" in summary
-    assert "## Not re-checked since the last scan" in summary
+    assert "**Not re-checked since the last scan:**" in summary
     assert "- a planted finding — `finder` did not run" in summary
     status = scan_status({"workspace": str(workspace)})
     assert "Fixed since the last scan" not in status

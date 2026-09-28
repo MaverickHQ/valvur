@@ -106,7 +106,7 @@ def test_summary_md_names_the_generation_in_its_machine_block(workspace, runner_
     run = _scan(workspace, runner_finding_nothing)
     summary = (workspace / ".security-scan" / "SUMMARY.md").read_text()
 
-    machine_block = summary.split("**Active findings:**")[0]
+    machine_block = summary.rsplit("## For AI agents", 1)[1]   # R5.2: last
     assert run.generation in machine_block
     assert f"generation `{run.generation}`" in machine_block
     findings = json.loads((workspace / ".security-scan" / "findings.json").read_text())

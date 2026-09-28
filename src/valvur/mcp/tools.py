@@ -87,22 +87,19 @@ _LIST_FINDINGS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
 
 
 def instructions() -> str:
-    """The rules an agent is given at the handshake (28.2.2, F4).
+    """The rules an agent is given at the handshake (28.2.2, F4), in full.
 
-    `SUMMARY.md` opens with them (F7.6) because an agent in someone else's
-    repository meets the output before it ever sees our README; over MCP they
-    reached an agent only if a human had pasted the README's snippet into
-    `CLAUDE.md`. The same constant, with the Markdown blockquote furniture and
-    the HTML comment removed, so the two surfaces cannot drift.
+    Over MCP they reached an agent only if a human had pasted the README's snippet
+    into `CLAUDE.md`. Since R5.2 this is where they are whole: `SUMMARY.md` ends
+    with a short form of them, and leads with the verdict. The constant, with the
+    Markdown blockquote furniture removed.
     """
-    from ..summary import MACHINE_HEADER
+    from ..summary import AGENT_RULES
 
     lines = ["valvur writes a scan's results into `.security-scan/` in the scanned "
-             "project. `SUMMARY.md` there opens with these rules; they apply to what "
-             "these tools answer too.", ""]
-    for line in MACHINE_HEADER.splitlines():
-        if line.startswith("<!--"):
-            continue
+             "project. These rules apply to it, and `SUMMARY.md` there ends with a "
+             "short form of them; they apply to what these tools answer too.", ""]
+    for line in AGENT_RULES.splitlines():
         lines.append(line[2:] if line.startswith("> ") else line.removeprefix(">"))
     return "\n".join(lines).strip() + "\n"
 

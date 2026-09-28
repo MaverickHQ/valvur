@@ -27,6 +27,7 @@ from .coverage import DOUBT_RULES as _DOUBT_RULES
 from .coverage import NOTE_RULES as _NOTE_RULES
 from .findings import Finding
 from .provenance import ScannerRun
+from .text import cut as _cut
 
 
 class ScannerFailed(RuntimeError):
@@ -452,16 +453,6 @@ def _say_why_unfetched(scanners: list[ScannerRun], unfetched: dict[str, str]) ->
         if s.failed and s.tool in unfetched else s
         for s in scanners
     ]
-
-
-def _cut(text: str, limit: int) -> str:
-    """At most `limit` characters, ending on a whole word, and `…` when cut: the
-    second gate read *… exclud (609.1s)*, a word halved and run into the duration."""
-    if len(text) <= limit:
-        return text
-    head = text[:limit]
-    space = head.rfind(" ")
-    return (head[:space] if space > limit // 2 else head).rstrip(" ,;:") + "…"
 
 
 def _outcome(adapter, output) -> ScannerOutcome:

@@ -310,10 +310,16 @@ All artifacts are projections of one in-memory list, generated in a single pass
 never enters it, so it cannot leak into any projection including `raw/`. This is a
 structural placement, not a filter applied per writer.
 
-`SUMMARY.md` budget (F7.5, 200 lines): machine-facing header ~25 · failures and skips
-~15 · counts by class and status ~20 · top 15 **Findings** ~100 · pointers ~10. When
-**Findings** exceed the budget, the count is stated and the list truncates — the
-budget is never exceeded.
+`SUMMARY.md` (F7.5, 200 lines), in the order a reader needs it (R5.2): the verdict and
+what qualifies it (stale data, a shim and image from different trees), the Status with
+counts on two lines · the scope manifest: what was read, by which Scanners, what the
+File Set left out, what the Profile leaves to the network · what did not run: failures,
+skips, gaps, not re-checked · the top 15 entries, a group as one line with its count and
+first locations · Hygiene (R5.5) · accepted risks and fixes · the agent block, last and
+about ten lines, since the MCP handshake carries the rules in full (28.2.2). When
+**Findings** exceed the budget, the count is stated and the list truncates from above
+the agent block, which always survives; the budget is never exceeded. A title is never
+cut mid-word, on any surface (`text.cut`).
 
 ---
 
