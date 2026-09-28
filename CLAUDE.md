@@ -23,16 +23,16 @@ honest about why not, and trustworthy. Locally.
   **`1.0.0` waits for the rebuilt engine**; `0.6.0` is prepared on `main`, then `0.7.0`.
 
 **Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), Phases R0 to R8, built unattended.
-R0 and R1 closed 2026-09-27; R2 (the acceptance set) and R3 (one scan, one container, protocol
-2, `0.7.0` prepared) 2026-09-28, both waiting to land; `0.6.0` waits for the owner's tag. R4 next.
+R0, R1 closed 2026-09-27; R2 (acceptance set), R3 (one container, protocol 2, `0.7.0`) and R4
+(the Scanner set) 2026-09-28, all waiting to land; `0.6.0` waits for the owner's tag. R5 next.
 
-**Size, 2026-09-28:** 78 modules, 1,382 tests in 114 files, 25 ADRs, 136 requirement IDs,
-traceability debt zero, 31 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
+**Size, 2026-09-28:** 80 modules, 1,403 tests in 118 files, 25 ADRs, 136 requirement IDs,
+traceability debt zero, 25 open tasks. Phases 0 to 30: `docs/history/tasks-phases-0-30.md`.
 
 ## 2. What it is NOT
 
-- **Not a scanning engine.** Detection is Trivy, Gitleaks, Opengrep, Checkov, OSV-Scanner
-  and Syft, plus valvur's own Checks. Credit them; never imply proprietary detection.
+- **Not a scanning engine.** Detection is Trivy, Gitleaks, Opengrep, zizmor, Checkov,
+  OSV-Scanner and Syft, plus valvur's own Checks. Credit them; never imply proprietary detection.
 - **Not a reachability analyser, an autonomous fixer (§4), a pen-test tool, or a
   code-quality platform.** Never claim or drift into any of them.
 

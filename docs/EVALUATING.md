@@ -210,8 +210,8 @@ findings: 70 active, 1 not covered
 
 Read this before the feature list, not after.
 
-- **It is not a scanning engine.** Detection is Trivy, Gitleaks, Opengrep, Checkov,
-  OSV-Scanner and Syft. valvur orchestrates, normalises, enriches and presents. Every
+- **It is not a scanning engine.** Detection is Trivy, Gitleaks, Opengrep, zizmor,
+  Checkov, OSV-Scanner and Syft. valvur orchestrates, normalises, enriches and presents. Every
   finding names its source.
 - **It is not a reachability analyser.** It does not prove a vulnerable function is
   ever called. That is a multi-year per-language effort and claiming it would be a lie.

@@ -68,8 +68,8 @@ These are vulnerabilities in valvur, not merely bugs:
 
 - **Vulnerabilities in the code valvur scans.** Those are your findings, working as
   intended.
-- **Findings from the underlying scanners** — Trivy, Gitleaks, Opengrep, Checkov,
-  OSV-Scanner, Syft. valvur orchestrates them; it does not write their detections.
+- **Findings from the underlying scanners** — Trivy, Gitleaks, Opengrep, zizmor,
+  Checkov, OSV-Scanner, Syft. valvur orchestrates them; it does not write their detections.
   Report those upstream, and please tell us too if we are presenting them wrongly.
 - **False positives**, unless the volume makes real findings unreadable. That is a
   bug and an important one — open an issue.

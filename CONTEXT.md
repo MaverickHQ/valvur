@@ -34,7 +34,7 @@ The named breadth of a Scan Run — `offline` or `full` — determining which Sc
 _Avoid_: mode, level, preset, tier
 
 **Scanner**:
-A third-party tool that performs actual detection (Trivy, Gitleaks, Opengrep, Checkov, OSV-Scanner, Syft). valvur never detects anything itself.
+A third-party tool that performs actual detection (Trivy, Gitleaks, Opengrep, zizmor, Checkov, OSV-Scanner, Syft). valvur never detects anything itself.
 _Avoid_: tool, engine, plugin, analyser
 
 **Check**:

@@ -312,7 +312,8 @@ class ContainerRuntime(_Runtime):
             "--name", name,
             *_user_flags(self.runtime),
             "--read-only", "--cap-drop=ALL", *scan_resource_flags(self.runtime),
-            # Opengrep unpacks and runs opengrep-core from /tmp; R3.4 narrows this.
+            # Opengrep's one-file binary unpacks 243 MB into $HOME, here, and execs
+            # it, on every scan; unpacking it in the image is in tasks.md §8.
             "--tmpfs", "/tmp:rw,exec,nosuid,size=512m",   # noqa: S108 — the container's
             *landing,
             "-v", f"{scratch}:/results{z}",

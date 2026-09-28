@@ -717,6 +717,30 @@ The first commit records R3's rehearsal.
 of R2's baseline. Repositories 5 and 8 behave as D8 decided. `NOTICE`, the licence checks and
 the reproducible-image check are green.
 
+**Exit STATUS 2026-09-28** (`docs/acceptance/r4.md`), three of four met:
+- ADR-0023 amended with R4.1's table. ✅
+- **The fastest application-repository scan on Linux: 3.4 s against R2's 5.4 s, 63%, not
+  half.** ❌ The `corpus` run 36375041325 against run 36250465513: every application
+  repository is faster, by 18% (requests) to 55% (express), because Checkov no longer runs
+  on them. The floor is now Opengrep, 2.7 to 3.4 s on every small repository, most of it
+  startup: its one-file binary unpacks 243 MB into the Scan Container's tmpfs on every
+  scan (0.45 s measured) and imports its CLI (1.25 s). The target assumed the review's set,
+  Syft replaced and no OSV on `offline`; D8's measurements kept Syft and added OSV, both
+  by rule. No fallback is recorded for this threshold, so the miss is recorded and the
+  choice is the owner's (§8).
+- Repositories 5 and 8 as D8 decided. ✅ Checkov still runs on repository 5 and its
+  expected findings hold: 62.1 s on the Mac, 112.9 s on Linux, where R3 took 58.8 s and
+  the corpus's run of the same module 79.1 s, so Linux's Checkov time is noisy. Repository
+  8 reports MAL-2023-1, critical, on both lanes, at OSV's price: 15.2 s on the Mac and
+  12.2 s on Linux, from 5.2 s and 2.4 s. Every scan of a project with an npm lockfile
+  pays about 10 s, the probes included.
+- `NOTICE`, the licence checks and the reproducible-image check green on #148. ✅
+
+The acceptance set on both lanes: every repository passes once repository 6's pin moved, and
+zero containers after all four probes. The exit run found three defects, fixed before this:
+zizmor's eleven high findings on valvur's own workflows, which failed the self-scan gate,
+and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
+
 ### Phase R5: the report
 
 - [ ] **R5.1** **Groups** (F5.8, F7.5, F7.14). Behaviours:
@@ -857,6 +881,8 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
 | ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
 | pre-approve the durable resume task | now | open *Scheduled* in the sidebar, `valvur-build-resume`, *Run now* once, and approve its tools, so a real resumption never pauses on a prompt |
+| land R3, PR #146, then R4, PR #148 | R2 lands | the same fast-forward, one branch at a time, in order. Not a squash or a rebase merge: repository 6 of the acceptance set is pinned to R4's commit `eb3a199` and needs that hash on `main` |
+| R4's speed exit, missed | **now** (R4's exit) | the fastest application-repository scan on Linux is 63% of R2's baseline, not half (§7, R4). Accept it, or take a task to unpack Opengrep in the image at build: measured 0.45 s faster per scan, 243 MB less tmpfs memory, `/tmp` no longer executable, and the image about 190 MB larger; about 3.0 s, still short of 2.7 s. A second lever is OSV's offline database, about 10 s on every npm project on both lanes, which D8 accepted for `MAL-` packages |
 | D9 and the SBOM | now (R4.4) | decide whether Syft becomes `--sbom` only: that would switch the dependency licence policy (F4.4 to F4.6) off by default, which D9 did not weigh; or amend D8 to count packages without GitHub Actions, where Trivy's SBOM is 98.1% of Syft's and could carry both |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
