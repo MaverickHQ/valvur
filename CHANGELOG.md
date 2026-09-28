@@ -46,6 +46,11 @@ The report (R5):
   suppression snippet.
 - **A flood is one remediation action**: what the directory is, the count, and the
   exclude line, with a reminder that the human decides.
+- **41 injection patterns from Cisco's mcp-scanner** (Apache-2.0) join the AI Artifact
+  Check: every string of four of its YARA rules that found nothing on the corpus's real
+  agent texts or on valvur's own. Three new classes, `coercive-directive`,
+  `exfiltration-directive` and `credential-harvesting`, rank with prompt injection, and
+  each Finding names the pattern. Credited in `NOTICE`.
 - **Repository hygiene** is reported, never ranked: no `SECURITY.md`, no Dependabot or
   Renovate configuration, and workflows with no top-level `permissions:` appear in a
   Hygiene section and `run.json`, and never change the Status.

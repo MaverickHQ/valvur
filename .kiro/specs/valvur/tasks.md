@@ -839,10 +839,35 @@ and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
     terraform-aws-vpc 5 of 5.
 
   valvur itself has all three.
-- [ ] **R5.6** **Borrowed injection patterns** (D14; F3.6, F3.12). Behaviours:
+- [x] **R5.6** **Borrowed injection patterns** (D14; F3.6, F3.12). Behaviours:
   1. Each translated pattern fires on its planted fixture.
   2. The corpus's real agent files gain no finding.
   3. `NOTICE` credits the source.
+  **STATUS 2026-09-28:** ✅ Measured first with `scripts/spikes/r5_6_patterns.py`. The
+  spike ran every string of cisco-ai-defense/mcp-scanner's `prompt_injection`,
+  `coercive_injection`, `data_exfiltration` and `credential_harvesting` YARA rules
+  (Apache-2.0, commit `9e47aab`) over three sets:
+  - the corpus's agent files, 2;
+  - the 263 real instruction texts in awesome-cursorrules, which are not live surfaces
+    but are the best false-positive corpus there is;
+  - valvur's own agent files, 8, since the self-scan gate fails on any Finding.
+
+  **41 adopted**: the strings Cisco's condition treats as a detection on their own, and
+  that found nothing in any set. **Left out**:
+  - five with a hit: `tool_injection_commands`, 4; `hidden_behavior`, 1;
+    `conversation_exfil`, 1; `sends_conversation`, 1; `leak_param`, 14;
+  - `upload_external` and `external_endpoints`, whose precision rests on a negation of
+    template text;
+  - credential harvesting's conjunction parts, for instance `access_actions_words` on
+    134 of the 263 texts.
+
+  The adopted patterns are in `checks/borrowed.py`, verified identical to the source.
+  They extend `prompt-injection` and add three classes, all high and ranked beside it:
+  `coercive-directive`, `exfiltration-directive` and `credential-harvesting`. Each title
+  names the pattern. Matching is whole-text, so a hidden HTML comment spanning lines is
+  read. Each fires on a sentence written for it, valvur's own agent files gain none, the
+  weekly corpus run treats every class as suspect, and `NOTICE` credits the source at
+  its commit. The telemetry test exempts the one detection pattern containing the word.
 
 **Exit:** repository 1's `SUMMARY.md` fits one screen. Repository 7 is fully reported. The
 corpus gains no finding from R5.6.
