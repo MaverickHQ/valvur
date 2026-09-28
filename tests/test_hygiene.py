@@ -58,3 +58,23 @@ def test_the_three_facts_are_in_the_hygiene_section_and_run_json(tmp_path, monke
     assert record == {"security_policy": None, "dependency_updates": None,
                       "workflows": 2,
                       "default_permissions": [".github/workflows/ci.yml"]}
+
+
+def test_none_of_them_changes_the_status(tmp_path, monkeypatch):
+    """All three missing, and nothing found: the verdict is about the code (§7)."""
+    run, results = _scan(tmp_path, monkeypatch, {
+        "app.py": "print('hi')\n", ".github/workflows/ci.yml": WORKFLOW})
+
+    assert run.hygiene["security_policy"] is None and run.hygiene["default_permissions"]
+    assert run.findings == []
+    assert run.status == "clean"
+    assert json.loads((results / "run.json").read_text())["status"] == "clean"
+
+
+def test_a_repository_with_all_three_has_no_hygiene_section(tmp_path, monkeypatch):
+    _, results = _scan(tmp_path, monkeypatch, {
+        "app.py": "print('hi')\n", ".github/SECURITY.md": "Report to security@example.invalid\n",
+        ".github/dependabot.yml": "version: 2\n",
+        ".github/workflows/ci.yml": "permissions: {}\n" + WORKFLOW})
+
+    assert "## Hygiene" not in (results / "SUMMARY.md").read_text()
