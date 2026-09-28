@@ -1022,11 +1022,28 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
   file, or nothing set. The budget's levers, the CLI's help, the README and
   `docs/AIR-GAPPED.md` name the file's keys. Implemented as one commit: the three
   behaviours are one module.
-- [ ] **R6.8** **`valvur init` and the schema** (D10). Behaviours:
+- [x] **R6.8** **`valvur init` and the schema** (D10). Behaviours:
   1. `init` prints the client file for each client found and a starter `.security-scan.toml`
      with excludes suggested by the pre-flight count, and writes nothing.
   2. The JSON Schema validates every example in the README.
   3. `doctor` names the first invalid key.
+  **STATUS 2026-09-28:** ✅ **`valvur init`** finds a client when a file it reads, or the
+  folder that holds it, exists in the project or the home directory, the lookups
+  `doctor` makes. For each it prints the file, the block and what to do after; with
+  none found it names Claude Code and Kiro. The starter `.security-scan.toml` states
+  every choice and lists the largest directories from the pre-flight count. It suggests
+  excluding a directory holding most of the files, commented out, since that is the
+  owner's decision. A test holds every file's mtime unchanged. The usage now names
+  eight commands: D12's seven and D10's `init`.
+
+  **The schema** ships as `src/valvur/data/security-scan.schema.json`: `[scan]`
+  `exclude`, `history` and `scope`, and `[[suppress]]` with its five required fields.
+  `project_schema.py` validates the subset it uses, with no dependency, and answers
+  with the first problem, naming the key. The README gained the example it lacked; it,
+  the repository's own file and `init`'s starter all validate. **`doctor`** warns with
+  the first invalid key, for example `` `scan.exclud` is not a key it takes ``, which
+  was ignored in silence before. Found on the way: ADR-0021's `scope = "tree"` was
+  decided and never read, and is implemented.
 - [ ] **R6.9** **`doctor` and the reply tell the truth about the session.** Behaviours:
   1. `doctor` says when the running server is older than the configuration names.
   2. The reply and the handshake say the Results Folder ignores itself.
