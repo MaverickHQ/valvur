@@ -44,7 +44,8 @@ def group(findings: list[Finding]) -> list[Item]:
     items: dict[tuple[str, str], Item] = {}
     for finding in findings:
         flood = floods.get(finding.group or "")
-        key, action, where = _flood_key(flood) if flood else _key(finding)
+        key, action, where = (_flood_key(flood.directory, floods.values()) if flood
+                              else _key(finding))
         item = items.setdefault((key, where),
                                 Item(action=action, where=where, flood=flood is not None))
         item.findings.append(finding)
@@ -85,12 +86,19 @@ def _retarget(item: Item) -> None:
     )
 
 
-def _flood_key(flood) -> tuple[str, str, str]:
+def _flood_key(directory: str, floods) -> tuple[str, str, str]:
     """A flood is one decision about a directory, not thousands of credentials to
-    rotate (R5.4): whether it is generated data or the project's own."""
-    return (f"flood:{flood.id}",
-            f"Decide what `{flood.directory}` is: {flood.count:,} {flood.rule} hits in "
-            f"{flood.files:,} data files, possibly machine-written", flood.directory)
+    rotate (R5.4): whether it is generated data or the project's own. Every flood
+    under it is the same decision, since one exclude line resolves them all."""
+    here = [f for f in floods if f.directory == directory]
+    count = sum(f.count for f in here)
+    rules = " and ".join(sorted(f.rule for f in here))
+    files = max(f.files for f in here)
+    return (f"flood:{directory}",
+            f"Decide what `{directory}` is: {count:,} hits of {rules} in {files:,} or more "
+            "data files, possibly machine-written" if len(here) > 1 else
+            f"Decide what `{directory}` is: {count:,} {rules} hits in {files:,} data files, "
+            "possibly machine-written", directory)
 
 
 def _key(finding: Finding) -> tuple[str, str, str]:
@@ -159,7 +167,7 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
             lines += [aside, ""]
         return "\n".join(lines)
 
-    lines.append(f"**{len(items)} action(s)** resolve **{len(findings)} finding(s)**.")
+    lines.append(f"**{len(items):,} action(s)** resolve **{len(findings):,} finding(s)**.")
     if aside:
         lines.append(aside)
     lines.append("")

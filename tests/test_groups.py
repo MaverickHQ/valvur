@@ -145,3 +145,21 @@ def test_the_flood_is_one_action_naming_the_count_and_the_exclude_line(tmp_path)
     assert actions[-1] == flood[0], "the flood is not the last action"
     assert 'exclude = ["data"]' in text
     assert "batch_000" not in "\n".join(actions)
+
+
+def test_two_floods_under_one_directory_are_one_decision(tmp_path):
+    """Gitleaks and Checkov both flood `data/` on the same files; one exclude line
+    resolves both, so it is one item (F7.14), measured on the tracked flood."""
+    import re
+
+    from valvur import remediation
+
+    checkov = [Finding(rule="CKV_SECRET_6", path=f"data/batch_{i // 1000:03}/{i:06}.json",
+                       line=1, title="Base64 High Entropy String", fingerprint=f"fp-ck-{i}",
+                       severity="low", sources=("checkov",)) for i in range(FLOOD)]
+    out = pipeline.run([_hit(i) for i in range(FLOOD)] + checkov + _distinct(), _ctx(tmp_path))
+    actions = re.findall(r"^## \d+\. (.*)$", remediation.render(out.findings, top=50),
+                         re.MULTILINE)
+
+    [flood] = [a for a in actions if "data/" in a]
+    assert "7,780" in flood and "generic-api-key" in flood and "CKV_SECRET_6" in flood
