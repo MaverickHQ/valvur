@@ -645,9 +645,9 @@
   {
     "annotations": {
       "destructiveHint": false,
-      "readOnlyHint": true
+      "readOnlyHint": false
     },
-    "description": "Check that this machine can scan, before scanning: the container runtime, the image, the vulnerability database, the package-name index, SELinux, TLS trust, and which MCP client configuration names valvur. One line per check with the fix on any that would fail a scan. Changes nothing.",
+    "description": "Check that this machine can scan, before scanning: the container runtime, the image, the vulnerability database, the package-name index, SELinux, TLS trust, and which MCP client configuration names valvur. One line per check with the fix on any that would fail a scan. Changes nothing but the containers of scans whose process ended, which it removes.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

@@ -9,9 +9,10 @@ ADR-0009 is a safety property rather than a preference.
 
 That is about the user's *source*. What each tool does to the machine — `scan`
 writes the Results Folder, pulls an image and starts a container; `scan_cancel`
-kills it; `update` fills the host cache; the other three only read — is declared per
-tool below and reaches the client as `readOnlyHint` (27.1.2). The three readers say
-nothing and take the safe default.
+kills it; `update` fills the host cache; `doctor` removes the containers of scans
+whose process ended (R3.6); the other two only read — is declared per tool below and
+reaches the client as `readOnlyHint` (27.1.2). The two readers say nothing and take
+the safe default.
 """
 
 from __future__ import annotations
@@ -197,7 +198,8 @@ def registry() -> list[Tool]:
                        "container runtime, the image, the vulnerability database, the "
                        "package-name index, SELinux, TLS trust, and which MCP client "
                        "configuration names valvur. One line per check with the fix on "
-                       "any that would fail a scan. Changes nothing.",
+                       "any that would fail a scan. Changes nothing but the containers "
+                       "of scans whose process ended, which it removes.",
              {"type": "object", "properties": {
                  **workspace_arg,
                  "network": {"type": "boolean",
@@ -205,5 +207,5 @@ def registry() -> list[Tool]:
                              "per host, whether the registries a first run and the "
                              "full profile need are reachable from here. Off by "
                              "default: without it doctor opens no socket."},
-             }}, doctor),
+             }}, doctor, read_only=False),
     ]

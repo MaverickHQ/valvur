@@ -316,11 +316,11 @@ def _check_image(runtime: str | None) -> tuple[Check, bool]:
     else:
         built = "; starts"
     # What this shim is not using and nothing removes (28.3.7): the tags earlier
-    # shims pulled. Named here; `valvur cache --prune` removes them.
+    # shims pulled. Named here; `valvur update --prune` removes them.
     superseded = _superseded_images(runtime)
     if superseded:
         tags = ", ".join(ref.rsplit(":", 1)[1] for ref in superseded)
-        built += f"; superseded: {tags} (valvur cache --prune)"
+        built += f"; superseded: {tags} (valvur update --prune)"
     return Check("image", "ok", f"{image}: {label}{built}"), True
 
 

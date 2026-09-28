@@ -339,7 +339,9 @@ ANNOUNCED = {
     "update":          {"readOnlyHint": False, "destructiveHint": False},
     "scan_status":     {"readOnlyHint": True, "destructiveHint": False},
     "findings":        {"readOnlyHint": True, "destructiveHint": False},
-    "doctor":          {"readOnlyHint": True, "destructiveHint": False},
+    # Not read-only since R3.6: it removes the containers a scan left when its
+    # process ended (R7.5 found the annotation still said otherwise).
+    "doctor":          {"readOnlyHint": False, "destructiveHint": False},
 }
 
 

@@ -318,7 +318,7 @@ six tools:
 | `scan_status` | What the last scan did: which Scanners ran, failed or were cut, and whether the result is complete | no |
 | `scan_cancel` | Stops a running scan: its container killed, nothing written, the previous results standing. What Ctrl-C does on the command line | stops a container |
 | `update` | Fetches the image, the vulnerability database, KEV and the Name Index now | fills the host cache |
-| `doctor` | Says whether this machine can scan, and which client files name valvur | no |
+| `doctor` | Says whether this machine can scan, and which client files name valvur | removes the containers of scans whose process ended |
 
 No tool can change your code: the source is copied into the scan, and there is no fix,
 apply or remediate tool to call. The tools that act on your machine say so in their MCP

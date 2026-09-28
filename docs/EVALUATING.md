@@ -78,10 +78,11 @@ As an MCP tool, which is the primary path:
 
 `valvur-mcp --help` describes the six tools it exposes. None of them can change your
 source: it is never mounted, only copied into the Scan Container, and no tool writes,
-fixes or applies anything (ADR-0009). Three only read, `scan_status`, `findings` and
-`doctor`, and declare `readOnlyHint: true`; `scan`, `scan_cancel` and `update` act on
-your machine (a results folder, an image pull, the host cache, a container started
-and stopped) and declare `false`, so a client may ask before running them. `scan`
+fixes or applies anything (ADR-0009). Two only read, `scan_status` and `findings`, and
+declare `readOnlyHint: true`; `scan`, `scan_cancel`, `update` and `doctor` act on your
+machine (a results folder, an image pull, the host cache, a container started and
+stopped, the containers of scans whose process ended) and declare `false`, so a client
+may ask before running them. `scan`
 returns the result itself, with progress on the way (ADR-0024): there is nothing to
 poll.
 

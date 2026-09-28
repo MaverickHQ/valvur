@@ -197,7 +197,7 @@ def test_doctor_names_the_superseded_images(monkeypatch):
 
     assert check.level == "ok"
     assert "superseded: 0.2.0, latest" in check.detail
-    assert "valvur cache --prune" in check.detail
+    assert "valvur update --prune" in check.detail
 
 
 def test_doctor_says_nothing_about_images_when_none_is_superseded(monkeypatch):
