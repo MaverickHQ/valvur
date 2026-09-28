@@ -802,8 +802,18 @@ and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
   reports it at `.mcp.json` and passes with nothing pending. The thirteen corpus
   checkouts gain no such Finding. On this Mac, Claude Code's global git ignore already
   covers `.claude/settings.local.json`, so that file is correctly not reported here.
-- [ ] **R5.4** **`REMEDIATION.md` per group** (F7.14). Behaviour: the gate's flood yields one
+- [x] **R5.4** **`REMEDIATION.md` per group** (F7.14). Behaviour: the gate's flood yields one
   action naming the count and the exclude line.
+  **STATUS 2026-09-28:** ✅ Before, on the tracked flood, `REMEDIATION.md` was 196 lines:
+  one "rotate the credentials" item per data file, the top 25 shown. A flood of
+  machine-written data is now one item, ranked last. It asks what the directory is,
+  names every rule and the total, and gives the exclude line (`exclude = ["data"]`, a
+  segment prefix) with "ask the human before adding it". An exclusion hides the directory
+  from every Scanner, the cheaper path to zero that `CLAUDE.md` §4 names. Floods are
+  keyed by directory, because one exclude resolves them all: Gitleaks and Checkov both
+  flooded `data/`. After, on the image: 8 actions resolve 7,639 Findings in 109 lines, and
+  the eighth is the flood of 7,584 hits. Other groups keep their per-file actions,
+  because rotating two keys in two files is two actions.
 - [ ] **R5.5** **Repository hygiene** (D13). Behaviours:
   1. A missing `SECURITY.md`, no dependency-update configuration, and write-all default
      workflow permissions each appear in the Hygiene section.

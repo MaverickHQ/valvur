@@ -44,6 +44,8 @@ The report (R5):
   summary went from 68 lines to 43.
 - **No title is cut mid-word**, in `SUMMARY.md`, `REMEDIATION.md`, SARIF or the
   suppression snippet.
+- **A flood is one remediation action**: what the directory is, the count, and the
+  exclude line, with a reminder that the human decides.
 - **Local agent configuration that would leak** is a medium Finding
   (`valvur.ai-artifact.local-config-exposed`): `.mcp.json`, `.claude/settings.local.json`,
   `.kiro/settings/mcp.json` and their peers, when git does not ignore them and they hold
