@@ -77,7 +77,9 @@ Two mechanisms, armed by R0.1.
    phase, its branch `build/r<n>-<slug>`, and the first unchecked task. The current phase
    is the lowest-numbered one with an unchecked task, read from its branch if the branch
    exists on origin, otherwise from `main`. Check out the branch, creating it from `main`
-   when absent.
+   when absent. A phase finished on its branch whose landing was refused to the session
+   waits for the owner (§8): the next phase is built on a branch stacked on it, and the
+   script steps over the waiting phase to that branch, listing it in `waiting_to_land`.
 3. **Leave nothing half-done.** The session that was building keeps its own changes and
    finishes its slice. A fresh session stashes any working-tree changes with
    `git stash push -u -m "resume <UTC time>: partial slice"` and redoes that slice from its

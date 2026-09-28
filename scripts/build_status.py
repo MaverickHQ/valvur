@@ -104,12 +104,22 @@ def status(repo: Path, now: float | None = None) -> dict:
     if on_main is None:
         return {"phase": None, "next_task": None, "branch": None, "branch_exists": False,
                 "action": "finish the build", **alive}
-    existing = _origin_branch(repo, on_main.phase)
-    current = on_main
-    if existing is not None:
+    current, waiting = on_main, []
+    while True:
+        existing = _origin_branch(repo, current.phase)
+        if existing is None:
+            break
         ahead = position(_git(repo, "show", f"origin/{existing}:{TASKS}"))
-        current = ahead if ahead is not None and ahead.phase == on_main.phase else Position(
-            on_main.phase, on_main.title, "")
+        if ahead is not None and ahead.phase == current.phase:
+            current = ahead
+            break
+        # Finished on its branch. When the next phase's branch is already stacked on
+        # it, the landing is the owner's (§8) and the build continues there.
+        if ahead is None or _origin_branch(repo, ahead.phase) is None:
+            current = Position(current.phase, current.title, "")
+            break
+        waiting.append(existing)
+        current = ahead
     return {
         "phase": f"R{current.phase}",
         "title": current.title,
@@ -117,6 +127,7 @@ def status(repo: Path, now: float | None = None) -> dict:
         "branch": existing or branch_name(current.phase, current.title),
         "branch_exists": existing is not None,
         "action": "continue the task" if current.task else "land the phase",
+        "waiting_to_land": waiting,
         **alive,
     }
 

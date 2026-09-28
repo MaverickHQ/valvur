@@ -101,6 +101,25 @@ def test_a_phase_finished_on_its_branch_but_not_landed_says_to_land_it(tmp_path)
         "R0", None, "land the phase")
 
 
+def test_a_finished_phase_waiting_to_land_is_stepped_over_to_the_next_phases_branch(tmp_path):
+    """R2 finished and green, its landing refused to the session and queued for the
+    owner (§8), R3 built on a branch stacked on it: a resuming session continues R3
+    rather than stalling on a landing it may not make."""
+    work = _repo(tmp_path, TASKS)
+    _git(work, "checkout", "-q", "-b", "build/r0-pre-flight")
+    path = work / ".kiro/specs/valvur/tasks.md"
+    path.write_text(TASKS.replace("- [ ] **R0.", "- [x] **R0."))
+    _git(work, "commit", "-q", "-am", "chore(r0): close phase R0")
+    _git(work, "push", "-q", "origin", "build/r0-pre-flight")
+    _git(work, "checkout", "-q", "-b", "build/r1-the-0-6-0-safety-release")
+    _git(work, "push", "-q", "origin", "build/r1-the-0-6-0-safety-release")
+    status = _module().status(work)
+    assert (status["phase"], status["next_task"], status["action"]) == (
+        "R1", "R1.1", "continue the task")
+    assert status["branch"] == "build/r1-the-0-6-0-safety-release"
+    assert status["waiting_to_land"] == ["build/r0-pre-flight"]
+
+
 def _age_commit(work: Path, message: str, hours_ago: float, now: float) -> None:
     import os
 
