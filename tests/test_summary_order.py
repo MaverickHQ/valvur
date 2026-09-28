@@ -70,3 +70,53 @@ def test_the_shortened_block_still_says_what_f7_6_requires(tmp_path):
                  "KEV", "EPSS", "[UNTRUSTED CONTENT", "`findings.json`"):
         assert said in block, said
     assert len(block.strip().splitlines()) <= 14
+
+
+# ------------------------------------------- behaviour 2: never cut mid-word
+
+#: A title whose one long word straddles every limit a surface cuts at: 100
+#: (`REMEDIATION.md`, the suppression snippet), 110 (`SUMMARY.md`) and 120 (SARIF).
+WORD = "Straddlingwordthatcrossesthelimit"
+LONG = ("An advisory whose title runs long enough to be cut on every bounded surface, "
+        "and then last, " + WORD + " follows, and more words after it.")
+
+
+def _long(i: int = 0, path: str = "src/app.py") -> Finding:
+    return Finding(rule="valvur.test.long", path=path, line=3 + i, title=LONG,
+                   fingerprint=f"fp-long-{i}", severity="high", sources=("opengrep",))
+
+
+def _whole_or_absent(text: str) -> bool:
+    return WORD in text or WORD[:7] not in text
+
+
+def test_no_title_is_cut_mid_word_on_any_surface(tmp_path, capsys):
+    import argparse
+    import json
+
+    from valvur import artifacts, cli, remediation
+
+    # Every limit falls at least seven letters into the word.
+    assert LONG.index(WORD) + 7 <= 100 and LONG.index(WORD) + len(WORD) > 120
+    ctx = pipeline.Context(workspace=tmp_path, profile="offline", network=False,
+                           declaring=[a.for_profile(network=False) for a in DEFAULT_ADAPTERS])
+    single = pipeline.run([_long()], ctx).findings
+    grouped = pipeline.run([_long(i) for i in range(3)], ctx).findings
+
+    surfaces = {
+        "SUMMARY.md, one": render(ScanRun(findings=single)),
+        "SUMMARY.md, a group": render(ScanRun(findings=grouped)),
+        "REMEDIATION.md": remediation.render(single),
+        "results.sarif": json.loads(artifacts.sarif(single, version="0"))
+                         ["runs"][0]["tool"]["driver"]["rules"][0]["shortDescription"]["text"],
+    }
+    results = tmp_path / ".security-scan"
+    results.mkdir()
+    (results / "findings.json").write_text(artifacts.findings_json(
+        single, status="findings", complete=True))
+    cli._print_suppression(argparse.Namespace(path=str(tmp_path), days=30, reason="r",
+                                              fingerprint=single[0].fingerprint))
+    surfaces["the suppression snippet"] = capsys.readouterr().out
+
+    halved = [name for name, text in surfaces.items() if not _whole_or_absent(text)]
+    assert halved == [], f"a title was cut mid-word in: {halved}"

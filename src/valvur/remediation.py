@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 from .coverage import NOTE_RULES
 from .findings import Finding
+from .text import cut
 from .versions import release_line, version_key
 
 
@@ -168,7 +169,7 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
             )
         lines.append("")
         for finding in sorted(item.findings, key=lambda f: f.rank or 10**9)[:8]:
-            lines.append(f"- {finding.rule} — {finding.title[:100]}")
+            lines.append(f"- {finding.rule} — {cut(finding.title, 100)}")
         if len(item.findings) > 8:
             lines.append(f"- _…and {len(item.findings) - 8} more_")
         lines.append("")

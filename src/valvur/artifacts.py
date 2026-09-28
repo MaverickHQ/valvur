@@ -13,6 +13,7 @@ from dataclasses import asdict
 from . import grouping as _grouping
 from .findings import Finding
 from .fingerprint import FP_VERSION
+from .text import cut
 
 SCHEMA = 1
 FINGERPRINT_KEY = f"valvurFingerprint/v{FP_VERSION}"
@@ -69,7 +70,7 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
     for finding in findings:
         rules.setdefault(finding.rule, {
             "id": finding.rule,
-            "shortDescription": {"text": finding.title[:120]},
+            "shortDescription": {"text": cut(finding.title, 120)},
             "properties": {"security-severity": _security_severity(finding.severity)},
         })
         results.append({

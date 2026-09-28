@@ -305,7 +305,9 @@ def _print_suppression(args) -> int:
     print(f"expires = {expires}")
     print(f'reason = "{reason}"')
     print()
-    print(f"# {match['title'][:100]}")
+    from .text import cut
+
+    print(f"# {cut(match['title'], 100)}")
     return 0
 
 
