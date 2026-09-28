@@ -267,7 +267,7 @@ def _scope(run: ScanRun, active) -> list[str]:
     if run.scope:
         # ADR-0021: the scope stated, so a reader can check what was read.
         where = "the git view" if run.scope.get("scope") == "git" else "a walk of the folder"
-        lines.append(f"Scope: {where}, {run.scope.get('files', 0):,} files "
+        lines.append(f"Read: {where}, {run.scope.get('files', 0):,} files "
                      f"({run.scope.get('bytes', 0) / 2**20:.1f} MB).")
     ran = [s.tool for s in run.scanners if s.ok and not s.skipped]
     if ran:
@@ -279,7 +279,9 @@ def _scope(run: ScanRun, active) -> list[str]:
         lines.append(f"> **Git history was read for secrets up to {history['bounded']}:** the "
                      f"newest {history.get('commits', 0):,} commits; older commits were not read.")
     elif history:
-        lines.append(f"Git history: {history.get('commits', 0):,} commits read for secrets.")
+        commits = history.get("commits", 0)
+        lines.append(f"Git history: {commits:,} commit{'' if commits == 1 else 's'} "
+                     "read for secrets.")
     lines.append("")
 
     if run.not_read:
@@ -439,6 +441,13 @@ def _top(active) -> list[str]:
     shown = entries[:TOP_N]
     lines = [f"## Most urgent ({len(shown)} of {len(entries)})", ""]
     lines += [_one_line(e[0]) if len(e) == 1 else _group_line(e) for e in shown]
+    # A flood ranks last, so it rarely reaches the top; it is named anyway, or
+    # thousands of findings would be "further findings omitted" and nothing more.
+    floods = [g for g in _grouping.describe(active)
+              if g.machine_written and not any(e[0].group == g.id for e in shown)]
+    if floods:
+        lines += ["", "Ranked last, as possibly machine-written data: " + "; ".join(
+            f"**{g.count:,} ×** {g.rule} in `{g.directory}`" for g in floods) + "."]  # noqa: RUF001
     omitted = sum(len(e) for e in entries[TOP_N:])
     if omitted:
         # Silent truncation reads as "that is everything", which is a lie of

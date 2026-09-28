@@ -120,3 +120,21 @@ def test_no_title_is_cut_mid_word_on_any_surface(tmp_path, capsys):
 
     halved = [name for name, text in surfaces.items() if not _whole_or_absent(text)]
     assert halved == [], f"a title was cut mid-word in: {halved}"
+
+
+def test_a_flood_ranked_below_the_top_entries_is_still_named(tmp_path):
+    """Ranked last, a flood never reaches the top fifteen, and the reader would
+    learn of thousands of findings only as "further findings omitted"."""
+    distinct = [Finding(rule=f"valvur.test.r{i:02}", path="src/app.py", line=i + 1,
+                        title=f"distinct {i}", fingerprint=f"fp-d{i}", severity="high",
+                        sources=("opengrep",)) for i in range(20)]
+    flood = [Finding(rule="generic-api-key", path=f"data/b/{i:05}.json", line=1,
+                     title="Detected a Generic API Key", fingerprint=f"fp-f{i}",
+                     severity="high", sources=("gitleaks",)) for i in range(300)]
+    ctx = pipeline.Context(workspace=tmp_path, profile="offline", network=False,
+                           declaring=[a.for_profile(network=False) for a in DEFAULT_ADAPTERS])
+    text = render(ScanRun(findings=pipeline.run([*distinct, *flood], ctx).findings))
+    top = text.split("## Most urgent", 1)[1].split("\n## ", 1)[0]
+
+    assert "**300 ×** generic-api-key in `data/`" in top   # noqa: RUF001 — the multiplication sign
+    assert "possibly machine-written data" in top
