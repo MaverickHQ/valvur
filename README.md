@@ -368,9 +368,10 @@ with the image already local, on this Mac: 59 s in all, of which 21.5 s fetched 
 vulnerability database (123 MB to fetch, 1.4 GB on disk), 8.3 s the signed Name Index
 (36 MB to fetch, 118 MB on disk), and 2.5 and 6.0 s OSV's databases for PyPI and npm
 (35 and 217 MB). The image adds a pull the first
-time: `0.5.0`'s was 256 MB on amd64 and 246 MB on arm64. `valvur update` fetches all
-of it ahead of time; a scan refreshes what is stale by itself, and `valvur update
---if-stale` costs one file read when everything is current.
+time: `0.5.0`'s was 256 MB on amd64 and 246 MB on arm64. `valvur update` fetches the
+image, the database, KEV and the index ahead of time; OSV's databases come with the
+first scan of a project whose lockfiles need them. A scan refreshes what is stale by
+itself, and `valvur update --if-stale` costs one file read when everything is current.
 
 A scan after that, measured on the acceptance set: 5.6 to 16.4 s on the seven
 application repositories on this Mac through Docker Desktop, and 60.0 s on the

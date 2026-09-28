@@ -17,41 +17,35 @@ valvur update                # the image, the vulnerability database and the nam
 valvur scan .
 ```
 
-Needs Docker or Podman. The shim is Python, stdlib only, no runtime dependencies —
-the scanners live in one OCI image, so nothing is installed onto your machine beyond
-a ~200-line launcher.
+Needs Docker or Podman. The shim is Python, stdlib only, no runtime dependencies:
+the Scanners live in one OCI image, so nothing is installed onto your machine beyond
+the shim itself.
 
 ### The true first run, measured
 
-The number a competitor would quote, measured on **2026-09-20 against the published
-`0.3.0`** — a clean venv, an empty cache, the image removed, on an Apple-silicon Mac
-with Docker Desktop — so it is here before they do (22.B.4; re-measured for 23.1.1
-against `0.2.0`, and again for 25.1; the `0.2.0` numbers are in brackets where they
-moved):
+The acceptance set judges every phase of the build on this Mac through Docker Desktop
+and on GitHub's Linux runner; each run is in [`acceptance/`](acceptance/). The first
+run, measured 2026-09-28 (`acceptance/r7.md`):
 
-| | bytes | wall-clock | what you are looking at |
+| | size | wall-clock | what you are looking at |
 |---|---|---|---|
-| `pip install valvur` | <1MB | **1.7s** with pip, 0.9s with uv | pip |
-| `valvur update`, first time | **~380MB**: the image 223MB compressed (pulled here since 23.2.4, and said on the status line if a scan has to do it), vulnerability database 120MB, the published name index 35MB (one signed OCI artifact: PyPI, npm, RubyGems, Packagist and crates.io), KEV 2MB | **45s** (53s) | docker's layer bars, Trivy's progress bar, then one line per ecosystem with its build time and `signature: verified` |
-| `valvur update`, first time, **if the published index is unreachable** | **~700MB**: as above, but the five registries walked directly — npm 146MB in 439 requests, the crates.io dump streamed until its crate list ends (381MB), PyPI 10MB, RubyGems 3MB, Packagist 4MB | **~7 minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40s |
-| `valvur update`, every later time | two small requests when the published index has not moved; a few hundred KB when it has | seconds | one line per source |
-| first `valvur scan` | — | **19s** (33s) on the ten-file `tests/fixtures/broken-repo` (Terraform present, so Checkov runs; the three Checks in one container since 23.4.2); 7–24s on the real projects in the README. On GitHub's `ubuntu-latest` runner (Ubuntu 24.04), the twelve-repository corpus: **14–18s** on every application repository from 22k to 100k lines, 88s on a Terraform module (Checkov analysing it) — run 34764187516, 2026-09-13; **6–9s** and 108s after Checkov's startup was fixed in the image (28.2.1) — run 36201214103, 2026-09-26 | eight scanner names, each turning `ok` |
-| **first `scan` over MCP, nothing run first** — no image, empty cache, one tool call (24.1) | the same ~380MB | **58s** (110s) to `DONE`, `complete: True`: image pulled 13s, database fetched 18s, index fetched 8s, then the Scanners | `scan_status` reads *"Now: pulling ghcr.io/… (223MB) — the first run only"*, then *"fetching the vulnerability database (119MB)"*, then *"fetching the package-name index (35MB)"*, each gone once it is over |
-| a **working tree with a data directory** — the first gate's, 107,544 files on disk, 312 tracked, 103,251 in a gitignored archive | — | **failed at the 300 s budget** with nothing excluded (Gitleaks 211.7 s on the archive alone, Checkov never finished); **88 s** with `[scan] exclude = ["archive", "build"]` after 29.0.1, 83.5 s at `--jobs 2` — on an Apple-silicon Mac through Docker Desktop, 2026-09-26 | what a real checkout looks like, as against the corpus's clean clones; the pre-flight names the directory (29.1.2) and `honour_gitignore` drops it unasked (29.0.1) |
+| `pip install valvur` | under 1 MB | 1.7 s with pip, 0.9 s with uv, measured 2026-09-20 | pip |
+| the image, pulled by the first scan or `valvur update` | `0.5.0`: 256 MB on amd64, 246 MB on arm64, compressed | your connection's | the runtime's pull, said on the status line |
+| a first `valvur scan` from an empty cache, image already local, acceptance repository 2 | 123 MB of vulnerability database, 36 MB of signed index, 35 and 217 MB of OSV's PyPI and npm databases | **59 s** in all: 21.5 s the database, 8.3 s the index, 2.5 and 6.0 s OSV's, the rest the Scanners | one line per fetch, *"— the first run only"*, then the result |
+| a scan after that, the seven application repositories | nothing fetched | **5.6 to 16.4 s** on the Mac; **3.0 to 14.8 s** on Linux | the result |
+| the Terraform module, where Checkov runs | nothing fetched | **60.0 s** on the Mac, **76.0 s** on Linux | the result |
+| the gate's shape: a few hundred source files beside a gitignored archive of 100,000 | nothing fetched | **7.4 s** on the Mac, **8.3 s** on Linux, from 166 s and 105 s before R3 | the archive is never read: the File Set is the git view (ADR-0021) |
+| `valvur update` **if the published index is unreachable**, measured 2026-09-20 | about 700 MB: the five registries walked directly, npm 146 MB in 439 requests, the crates.io dump 381 MB | **about seven minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40 s |
 
-**About a minute from nothing to a first result, measured — the same over MCP with
-nothing run first — or about eight minutes on the day the published index cannot
-be reached.** The README once promised sixty seconds; then this table said
-eight minutes, because npm publishes no list of its package names and every machine
-walked the registry's replication feed itself. Since 23.2.1 a workflow in this
-repository does that walk once a day and publishes the result as a signed OCI
-artifact ([ADR-0018](adr/0018-offline-package-name-index.md), amended). The walk
-remains the fallback for `valvur update`, and the second row is what it costs; a
-scan that finds the index absent pulls the published one and, if it cannot, says
-so and names `valvur update` — it never starts a seven-minute walk on its own.
-`valvur update` is therefore optional before the first scan and remains the way to
-**refresh**: a scan fetches what is *absent*, and never touches what is *stale*
-(task 14.2) — the warning stands, and you decide.
+A scan fetches what is **absent** and refreshes what is **stale**, saying so as it
+does and recording each fetch in `run.json` (ADR-0025); `fetch = "never"` in the
+machine's settings turns both off, and a scan then says its data was not refreshed.
+The index comes from a workflow in this repository that walks the registries once a
+day and publishes the result as a signed OCI artifact
+([ADR-0018](adr/0018-offline-package-name-index.md), amended). The walk remains
+`valvur update --build-index`, the fallback, and the last row is what it costs; a
+scan that cannot reach the published index says so and names `valvur update`, and
+never starts a seven-minute walk on its own.
 
 If you are evaluating on a laptop with a metered or slow connection, run
 `valvur update` before the meeting.
@@ -82,12 +76,14 @@ As an MCP tool, which is the primary path:
 { "mcpServers": { "valvur": { "command": "valvur-mcp" } } }
 ```
 
-`valvur-mcp --help` describes the tools it exposes. None of them can change your
+`valvur-mcp --help` describes the six tools it exposes. None of them can change your
 source: it is never mounted, only copied into the Scan Container, and no tool writes,
-fixes or applies anything (ADR-0009). Three only read what a scan left, `scan_status`,
-`findings` and `doctor`, and declare `readOnlyHint: true`; `scan` and
-`scan_cancel` act on your machine (a results folder, an image pull, containers
-started and stopped) and declare `false`, so a client may ask before running them.
+fixes or applies anything (ADR-0009). Three only read, `scan_status`, `findings` and
+`doctor`, and declare `readOnlyHint: true`; `scan`, `scan_cancel` and `update` act on
+your machine (a results folder, an image pull, the host cache, a container started
+and stopped) and declare `false`, so a client may ask before running them. `scan`
+returns the result itself, with progress on the way (ADR-0024): there is nothing to
+poll.
 
 **In Kiro**, the same block goes in `.kiro/settings/mcp.json` (workspace) or
 `~/.kiro/settings/mcp.json` (user). Kiro starts the server the moment the file is
@@ -97,8 +93,11 @@ Two things that stop it silently: MCP has to be enabled (`kiroAgent.configureMCP
 because the agent, and with it every MCP server, does not initialise until it is.
 Verified 2026-09-12: server connected 1.6s after sign-in, and the agent ran `scan`,
 polled `scan_status`, called `list_findings`, and reported the planted injection,
-the hidden Unicode and the KEV-listed CVE — with the one failed Scanner named as
-such rather than folded into a clean-looking summary.
+the hidden Unicode and the KEV-listed CVE, with the one failed Scanner named as
+such rather than folded into a clean-looking summary. Since then `scan` returns the
+result and `list_findings` is `findings` (R6); Kiro's calls, in the MCP SDK's
+documented shape, are replayed against the server in CI, and a pass through Kiro's
+own window is the owner's to record.
 
 ## 2. Verify the image before you trust it
 
@@ -144,14 +143,16 @@ The claim is that source never leaves your machine, and it has two halves.
 **The containers** run with `--network=none` on the default profile. No interface, not
 a policy.
 
-**The host shim** is the half a `--network=none` flag cannot cover. It has one reason
-to reach out during a scan — fetching EPSS exploitation scores — and it is gated on
-the `full` profile only. Before a scan, on a machine that has none of them, it
-fetches the image, the vulnerability database and the name index and says so
-(23.2.4, 24.1): three pulls of three fixed names, nothing from the workspace, and
-`valvur update` does the same ahead of time. Under `unshare -rn` on a fresh
-machine those fetches fail — loudly, naming each — so run `valvur update` first if
-you want that proof on a first run.
+**The host shim** is the half a `--network=none` flag cannot cover. Before the Scan
+Container starts, it fetches public data a scan lacks or holds stale, and says so
+(23.2.4, 24.1, ADR-0025): the image, the vulnerability database, the name index, and
+OSV's offline database for each ecosystem the lockfiles use (R4.6). Each is a pull of
+a fixed public name and carries nothing from the workspace, though which OSV
+databases it asks for says which ecosystems are present. `valvur update` does the
+same ahead of time, and `fetch = "never"` turns it off. During a scan it has one
+reason to reach out, fetching EPSS exploitation scores, and only on `full`. Under
+`unshare -rn` on a fresh machine those fetches fail, loudly, naming each, so run
+`valvur update` first if you want that proof on a first run.
 
 ```bash
 scripts/verify-offline.py          # checks both halves
@@ -223,8 +224,8 @@ Read this before the feature list, not after.
   `full`-only for JVM and Go.** `requirements*.txt` and `pyproject.toml` (PEP 621
   and Poetry), `package.json`, `Gemfile` and `*.gemspec`, `composer.json` and
   `Cargo.toml` are checked against a local index of every name on PyPI, npm,
-  RubyGems, Packagist and crates.io — 890,000, 4.4 million, 197,000, 462,000 and
-  332,000, exact, fetched by `valvur update`
+  RubyGems, Packagist and crates.io, 900,170, 4,432,959, 196,977, 463,413 and 340,644
+  on 2026-09-28, exact, fetched by `valvur update` or the first scan
   ([ADR-0018](adr/0018-offline-package-name-index.md)). `pom.xml`, Gradle scripts
   and `go.mod` are checked against Maven Central and the Go module proxy on `full`,
   because neither registry publishes a name list an offline index could be built
@@ -245,36 +246,33 @@ Read this before the feature list, not after.
   ranges — `transformers>=4.46.0` — is present and checks nothing, and read as
   *checked* until the note learned to count pins. It now names the file and how
   many of its lines are ranges, and the run is `inconclusive`; a mixed file is
-  *partly* checked and says so. On `full`, OSV-Scanner evaluates every range at its
+  *partly* checked and says so. OSV-Scanner evaluates every range at its
   lower bound and reports each advisory since — 97 raw on that one file with
   OSV-Scanner 2.6.0 (193 with 2.2.4, which read the file twice), against
   versions nothing installs — and those are dropped with the count in `run.json`
   and `SUMMARY.md`, never shown as the project's.
-- **OSV-Scanner's marginal value is measured, and small outside Go.** On the
-  twelve-repository corpus (task 23.4.5, run 34764187516): `full` added **121**
-  findings to `offline` on cobra — every one a Go standard-library advisory keyed on
-  `go 1.15` in `go.mod`, which Trivy reports only from compiled binaries, and which
-  describe the toolchain rather than the repository's code; **1** on flask (a
-  disputed Click advisory Trivy's database does not carry); and **0** on the other
-  ten, across npm, Ruby, PHP, Rust, Java, Python and Terraform. It stays on `full`
-  because the Go toolchain gap is real for a Go application, it costs about a second,
-  and it is the second primary source (§3 of CLAUDE.md) — but if you scan no Go, it
-  will find you nothing Trivy did not, and it sends your lockfile's names and
-  versions to api.osv.dev, which `offline` never does.
-- **The Opengrep rules are a supplement, not the product — and the LLM-output
-  rules are not a coverage claim.** Measured on eleven real repositories (task
-  22.E.2; twelve on the run of 2026-09-13, same result): 75 findings, 64 of them tag-pinned GitHub Actions and the other 11
-  rejected by a reviewer to the last one; the four LLM-output-to-sink rules fired
-  zero times, including on `simonw/llm`. Those four are what they are: taint rules
-  whose only sources are a completion call from the OpenAI, Anthropic or Gemini SDK
-  (`messages.create`, `chat.completions.create`, `generate_content`) flowing into
-  `eval`/`exec`, a shell or `innerHTML`, plus one plain rule for string-built SQL
-  with no model source at all. They fire on our fixture; whether they catch
-  anything in the wild is **unmeasured, not proven** — no repository in the corpus
-  executes model output, so a zero there is not a miss and not a hit. Until that is
-  measured (task 23.5.3), the README says so and the AI-specific claim rests on the
-  Checks above. They are all ranked `low` now, bar the ones that have never fired
-  on real code.
+- **OSV-Scanner earns its place on `offline` with one kind of finding.** Its data
+  carries the known-malicious `MAL-` packages from ossf/malicious-packages, which no
+  other source here reports: with its offline database, measured on acceptance
+  repository 8's planted `MAL-2023-1` with no network (R4.6, ADR-0023), it runs on
+  `offline` from a database per ecosystem in the host cache. On `full` it asks
+  api.osv.dev instead, which receives your lockfile's names and versions. Its other
+  advisories mostly repeat Trivy's: on the twelve-repository corpus (task 23.4.5, run
+  34764187516) it added **121** findings on cobra, every one a Go standard-library
+  advisory keyed on `go 1.15` in `go.mod`, which Trivy reports only from compiled
+  binaries; **1** on flask; and **0** on the other ten. Reading npm's database costs
+  it about ten seconds on every npm project, on both lanes (`acceptance/r4.md`).
+- **The Opengrep rules are a supplement, not the product, and the LLM-output rules
+  are not a coverage claim.** Measured on eleven real repositories (task 22.E.2):
+  75 findings, 64 of them tag-pinned GitHub Actions and the other 11 rejected by a
+  reviewer to the last one. The taint rules from a model call to `eval`/`exec`, a
+  shell or `innerHTML`, with sources for the OpenAI, Anthropic, Gemini, LangChain,
+  litellm and ollama SDKs, fire on all fifteen planted flows in the fixture and have
+  never fired on real code (23.5.3): on the two corpus projects that execute model
+  output, smolagents and pandas-ai, the flow crosses a class boundary, Opengrep's
+  taint tracking is intra-procedural and does not see it, and the INFO sink
+  inventory names both `exec` sites. They are ranked `low`; the AI-specific claim
+  rests on the Checks above.
 - **On SELinux-enforcing hosts the source's label no longer matters** (since `0.7.0`,
   ADR-0022). Measured on Fedora CoreOS 44, native xfs under `$HOME`, before it: a
   container may not read a `user_home_t` directory, so a first run on RHEL failed until
@@ -305,22 +303,13 @@ does when it cannot find anything.
   Scanner is one that can silently stop running.
 - A Scanner the **profile did not run** is named on every scan, whether or not
   anything was found.
-- **How long each Scanner took** is in `run.json` (`duration_s`), on `scan_status`,
-  and as one line in `SUMMARY.md`: *"slowest: checkov 40.9s"*. The fleet runs
-  concurrently, so the slowest Scanner is about what the scan cost, and it is
-  usually Checkov — measured 2026-09-13 on the ten-file fixture, published image,
-  a loaded laptop: checkov 40.9s, opengrep 26.0s, syft 20.9s, the rest 8–16s, the
-  scan 44s. Ten minutes earlier the same scan on a quiet machine took 33s. On
-  GitHub's Linux runner the same day, across twelve real repositories: Checkov
-  14–17s on every one that has a workflow file to analyse (they all do), every
-  other Scanner 1–4s, and Checkov 88s on the one Terraform module — a container
-  start costs 2–3s there against 10–16s through Docker Desktop. Since 28.2.1
-  (2026-09-26) Checkov starts in a third of the time — its update check, which
-  had waited five seconds for DNS on every start, is off by the variable Checkov
-  reads, and its bytecode is in the image instead of compiled at every start —
-  and the same corpus reads **6–9s** on every application repository, Checkov
-  5–9s of it, 108s on the Terraform module. The number is on every run so you
-  can see yours rather than trust ours.
+- **How long each Scanner took** is in `run.json` (`duration_s`), on the `scan`
+  reply's `slowest`, and as one line in `SUMMARY.md`. Every Scanner runs at once in
+  the one Scan Container, so the slowest is about what the scan cost. On the
+  acceptance set it is OSV-Scanner reading npm's database on an npm project, and
+  Checkov on the Terraform module, the one repository where Checkov runs at all: a
+  repository with no infrastructure but its workflows no longer starts it (R4.3).
+  The number is on every run so you can see yours rather than trust ours.
 - An **ecosystem nothing inspects** produces a finding saying so.
 - **Excluded paths** are reported with the count they cost. An exclusion you cannot
   see is indistinguishable from a scan that found nothing.
@@ -357,10 +346,14 @@ The repository keeps its own audit trail, and it is not flattering by design.
 
 - [`.kiro/specs/valvur/requirements.md`](../.kiro/specs/valvur/requirements.md) — 136
   numbered requirements. Unmet ones are annotated as unmet, with the measurement.
-- [`.kiro/specs/valvur/tasks.md`](../.kiro/specs/valvur/tasks.md) — every task, with
-  what went wrong while doing it. Several entries record a premise I asserted and then
-  measured to be false.
-- [`docs/adr/`](adr/) — 16 decisions with their rejected alternatives.
+- [`.kiro/specs/valvur/tasks.md`](../.kiro/specs/valvur/tasks.md) — the current build,
+  each task closed with its measurement, and the owner's queue; the earlier phases,
+  with what went wrong while doing them, are in [`history/`](history/). Several
+  entries record a premise asserted and then measured to be false.
+- [`docs/acceptance/`](acceptance/) — the eight repositories and four probes every
+  phase is judged on, run on a Mac and on Linux, and the agent's score, misses
+  included.
+- [`docs/adr/`](adr/) — 25 decisions with their rejected alternatives.
 - CI runs a **traceability ratchet** that fails when a requirement loses its last
   citation, and a **self-scan gate** that fails on any unsuppressed finding in
   valvur's own repository.

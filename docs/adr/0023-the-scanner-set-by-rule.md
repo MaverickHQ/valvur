@@ -58,3 +58,9 @@ Checkov for 4 to 6 s of startup to find nothing, now zizmor's work. KICS's misse
 S3 hardening checks (public access block, lifecycle, events, replication, KMS) and the
 module and availability-zone pins; licence, offline mode and pinning were checked for
 zizmor (MIT, `--offline`, musl wheels by hash) before it enters the image.
+
+*Note 2026-09-28 (R7.2): rule 3's verdict says the SBOM is written only with `--sbom`
+by D9. That branch was not applied (R4.4): the dependency licence policy (F4.4 to F4.6)
+reads Syft's SBOM, so `--sbom` alone would switch it off by default, which D9 did not
+weigh. Syft runs on every scan and the SBOM is always written; the choice is the
+owner's (`tasks.md` §8).*

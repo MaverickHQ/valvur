@@ -1,6 +1,6 @@
 # valvur — Design
 
-**Status:** approved for implementation · **Version:** 1.2 · **Date:** 2026-08-30, revised 2026-09-22 (tasks 26.2.1–26.5.2, 27.1.2, 27.2.2)
+**Status:** approved for implementation · **Version:** 1.3 · **Date:** 2026-08-30, revised 2026-09-22 (tasks 26.2.1–26.5.2, 27.1.2, 27.2.2) and 2026-09-28 as built through R6 (R7.2)
 
 Implements [requirements.md](./requirements.md). Decisions marked ADR-NNNN are
 recorded in [docs/adr/](../../../docs/adr/); this document does not re-argue them.
@@ -15,45 +15,48 @@ Two artifacts, versioned together (ADR-0001).
 flowchart LR
   subgraph host["Host — developer's machine"]
     agent["MCP client<br/>(Claude Code, Kiro)"]
-    api["api.scan — plans the fleet,<br/>collects each outcome"]
+    api["api.scan — the File Set,<br/>the plan, each outcome"]
     adapters["Adapters<br/>command() → Invocation<br/>parse() → Findings"]
-    runner["ContainerRunner<br/>one container per Invocation"]
-    pipe["pipeline — normalise, fingerprint,<br/>enrich, suppress, rank"]
+    eh["engine_host<br/>one Scan Container per network boundary"]
+    pipe["pipeline — normalise, fingerprint,<br/>enrich, suppress, group, rank"]
     results["results.write<br/>one generation, renamed into place"]
     ws[("Workspace")]
     rf[("Results Folder<br/>.security-scan/")]
-    cache[("Host cache<br/>trivy db · name index")]
+    cache[("Host cache<br/>trivy db · name index · osv")]
   end
-  subgraph img["OCI image — one container per Scanner, no network on offline"]
-    sc["Scanners<br/>trivy · gitleaks · osv<br/>opengrep · checkov · syft"]
-    ck["Checks, one batch<br/>dep-reality · ai-artifact · licence"]
+  subgraph img["Scan Container — no network on offline, the source never mounted"]
+    eng["python -m valvur.engine<br/>unpacks the Snapshot, runs the plan"]
+    sc["Scanners<br/>trivy · gitleaks · osv-scanner · opengrep<br/>checkov · zizmor · syft"]
+    ck["Checks<br/>dependency-reality · ai-artifact · licence-file"]
   end
   agent -->|stdio| api
-  api --> adapters --> runner
-  runner -->|"--network=none --read-only --cap-drop=ALL<br/>-v ws:/workspace:ro -v scratch:/results:rw"| sc
-  runner --> ck
-  sc -.->|report under /results| adapters
-  ck -.->|JSON on stdout| adapters
+  api --> adapters --> eh
+  ws -.->|"the File Set, as a tar on stdin"| eh
+  eh -->|"--network=none --read-only --cap-drop=ALL<br/>-v scratch:/results:rw"| eng
+  eng --> sc
+  eng --> ck
+  sc -.->|reports under /results| adapters
+  ck -.->|JSON under /results| adapters
   api --> pipe --> results --> rf
-  ws -.->|read-only mount| img
-  cache -.->|read-only mount| img
+  cache -.->|read-only mounts| img
 ```
 
 **The orchestrator is host-side, and so is everything that reads a report.** The
-image holds the Scanners, the Checks and nothing that decides: `api.scan` plans the
-fleet and collects it, each adapter owns its tool's command line and its parser
-(26.2.1), `ContainerRunner` owns the container, `pipeline.py`'s stages normalise and
-rank, and `results.write` publishes one generation (26.0.3). This diagram drew the
-orchestrator and the normaliser *inside* the image until task 27.2.2 — which was
-never true of the shipped code and is the opposite of ADR-0001's reason for
-existing: the shim writes, because a container-written file lands with broken
+image holds the Scanners, the Checks and an engine that runs a plan and decides
+nothing: `api.scan` decides the File Set once (ADR-0021), asks each adapter for its
+command (26.2.1), and hands `engine_host` a plan; one Scan Container per network
+boundary receives a Snapshot of the File Set on its standard input, runs every tool
+in the plan and writes a manifest (ADR-0022, protocol 2); `pipeline.py`'s stages
+normalise, group and rank, and `results.write` publishes one generation (26.0.3). The
+shim writes, as ADR-0001 requires, because a container-written file lands with broken
 ownership on every runtime.
 
 **Why the shim writes, not the container:** container-written files land with broken
 ownership differently on every runtime — root-owned under rootful Docker,
 subuid-mapped under rootless Podman, unreadable without `:z` under SELinux. Confining
 the only read-write mount to a host-owned scratch directory removes the entire
-compatibility matrix (F1.4).
+compatibility matrix (F1.4). Since R3.9 the source is not mounted at all: a Scanner
+cannot modify what it was never given (ADR-0022).
 
 ### 1.1 Host shim
 
@@ -70,17 +73,20 @@ is reported.
 
 Since task 26.2.1 the shim is two halves with one contract between them: each
 **Scanner**'s adapter owns its command — `ScannerAdapter.command(workspace)` returns
-an `Invocation` (argv after the image, the report file under `/results`, timeout,
-the network and exec grants) — and `ContainerRunner.run(invocation, workspace)`
-owns the container: runtime, mounts, user, read-only root, SELinux labels, the
-kill registry. `runner.py` names no tool; a snapshot per Scanner under
-`tests/fixtures/invocations/` holds every argv to what it was before the split.
+an `Invocation` (argv, the report file under `/results`, timeout, the network
+grant) — and since R3.9 `engine_host.ContainerRuntime` owns the Scan Container: the
+Snapshot, the plan, the runtime, the mounts, the user, the read-only root, the
+SELinux labels, the owner labels a cancel and a restart find it by (R3.6). It names
+no tool; a snapshot per Scanner under `tests/fixtures/invocations/` holds every argv.
+`runner.ContainerRunner` remains for `valvur update`'s database fetch.
 
 ### 1.2 Container image
 
 Multi-stage. Go binaries (trivy, gitleaks, osv-scanner, syft) copied from pinned
-upstream release stages; Python layer for opengrep, checkov and the **Checks**.
-Non-root user, read-only root filesystem, all capabilities dropped (F10.2).
+upstream release stages; Opengrep's release binary by checksum; Checkov and zizmor
+each in its own hash-locked virtual environment; the `valvur` package for the engine
+and the **Checks**. Non-root user, read-only root filesystem, all capabilities
+dropped (F10.2).
 
 ### 1.3 The shim/image protocol (F1.9, task 26.3.1)
 
@@ -95,12 +101,13 @@ holding the Dockerfile to the same number:
 | a different major | refuses, naming both protocols and both versions and the fix — the one thing refused |
 | no label | an image from before protocol 1 (`0.3.0` and earlier): the version-series rule as before |
 
-The document lists every path (four are mounts the shim provides — `/workspace`
-read-only, `/results`, `/cache/trivy`, `/cache/names` — plus the `/tmp` tmpfs; the
-rest are the image's), every binary and its pin, the Checks' entry point
-(`python -m valvur.checks <name>` and `batch`) with both JSON shapes, the labels,
-and the process (user 10001, `--read-only`, `--cap-drop=ALL`, `--network=none`
-unless granted, no `ENTRYPOINT`). It is held to the code in both directions: a
+The document lists every path (six the shim provides — `/workspace`, the unpacked
+Snapshot in a tmpfs, `/results`, `/cache/trivy`, `/cache/names`, `/cache/osv` and
+the `/tmp` tmpfs; the rest are the image's), the engine's plan and manifest, every
+binary and its pin, the Checks' entry point (`python -m valvur.checks <name>`), the
+labels, and the process (user 10001, `--read-only`, `--cap-drop=ALL`,
+`--network=none` unless granted, a memory ceiling, the owner labels, no
+`ENTRYPOINT`). It is held to the code in both directions: a
 unit test asserts every absolute path any `Invocation` names is a row; an e2e
 test asserts every row the image is said to provide exists in the built image, on
 both architectures. A change that breaks anything on the page bumps the major; an
@@ -118,9 +125,11 @@ being described as a network boundary; the old names still resolve (`quick` →
 | | `offline` (the default) | `full` |
 |---|---|---|
 | Budget | N1.1: under 60s | N1.2: under 5 minutes; 300s over MCP unless the client says otherwise |
-| Network | **none**: every container `--network=none`, the host shim opens no socket | the registries and OSV below, EPSS from FIRST |
-| Gitleaks, Opengrep, Trivy, Checkov, Syft | ✓ | ✓ |
-| OSV-Scanner | — (needs api.osv.dev) | ✓, a second advisory source |
+| Network | **none**: the Scan Container has no interface; the host shim fetches public data a scan lacks or holds stale, and nothing else (ADR-0025) | the registries and OSV below, EPSS from FIRST |
+| Gitleaks, Opengrep, Trivy, Syft | ✓ | ✓ |
+| Checkov | ✓ where there is infrastructure other than GitHub workflows (R4.3) | the same |
+| zizmor | ✓ where there are workflows or action definitions (R4.2) | the same |
+| OSV-Scanner | ✓ from OSV's offline database per ecosystem, in the host cache (R4.6) | ✓ from api.osv.dev |
 | Licence, AI Artifact | ✓ | ✓ |
 | Dependency Reality | existence and near-misses, from the Name Index (ADR-0018) | + first-publish age from the five registries, npm adoption from api.npmjs.org, JVM and Go existence from Maven Central and the Go proxy |
 | Enrichment | bundled KEV | KEV + EPSS |
@@ -139,7 +148,7 @@ calls in:
 - `Egress.container_flags()` — `["--network=none"]`, or with a network: `--env
   VALVUR_NETWORK=1` (the Check that asks a registry does so only when it sees this,
   ADR-0018), the database mirror for Trivy if one is named, and the user-defined
-  network to join if there is one (`VALVUR_CONTAINER_NETWORK`, F10.5). The runner's
+  network to join if there is one (the `container_network` setting, F10.5). The runner's
   flag builder and both image probes (`compat`, `doctor`) use it; `egress.NONE` is
   the probe's no-interface launch.
 - `Egress.hosts()` — nothing, or `FULL_HOSTS`: every host `full` may reach, derived
@@ -350,9 +359,13 @@ read `SUMMARY.md` bounded and query `findings.json` per **Finding** (F9.5–F9.7
 the consumer most likely to act on a verdict is the least likely to read a warning
 beside it. Every MCP tool restates the age and the consequence for the same reason.
 
-**valvur never refreshes the database itself** (F10.8). It is a 116MB download; doing
-it inside a scan the developer asked to be fast is hostile, and doing it only on
-`full` would make the two **Profiles** scan different data. `valvur update --if-stale`
+**A scan refreshes stale data as it fetches absent data** (F10.8 as amended,
+ADR-0025, R6.6). This section said the opposite until R6: a refresh inside a scan
+was a download the developer had not asked for. The agent path has no terminal, so
+a clean project scanned a week after install read `inconclusive` with no way to fix
+it. The refresh is announced on every progress surface and recorded in
+`network.fetched`, both Profiles scan the same data, and `fetch = "never"` turns it
+off, a scan then saying its data was not refreshed. `valvur update --if-stale`
 costs one file read when current, which is what makes it safe in a hook.
 
 ## 6b. Concurrency and interruption (F1.11, F1.12, F7.18, N2.6)
@@ -431,9 +444,9 @@ scan.
 ## 8. MCP tool contracts (F9)
 
 Six, and `readOnlyHint` is what each says about itself on the wire (27.1.2): the
-four readers declare `true`, and `scan` and `scan_cancel` declare `false` because
-they act on the machine — a results folder, an image pull, containers started and
-stopped. The annotation is narrower than F9.2 and does not weaken it.
+three readers declare `true`, and `scan`, `scan_cancel` and `update` declare `false`
+because they act on the machine — a results folder, an image pull, the host cache, a
+container started and stopped. The annotation is narrower than F9.2 and does not weaken it.
 
 | Tool | Args | Returns | `readOnlyHint` |
 |---|---|---|---|

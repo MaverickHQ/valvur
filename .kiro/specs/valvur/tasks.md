@@ -1127,9 +1127,20 @@ probe against the real server among them. Linux: #150's checks.
   The README also said a stale database is never refreshed by a scan, that a small VM
   runs two Scanners at a time, that `scan_status` is polled, and that a first run takes
   58 s on `0.3.0`; each now says what R3 to R6 built.
-- [ ] **R7.2** **`EVALUATING.md`, `design.md`, `PROTOCOL.md`, `AIR-GAPPED.md` and
+- [x] **R7.2** **`EVALUATING.md`, `design.md`, `PROTOCOL.md`, `AIR-GAPPED.md` and
   `requirements.md` as built.** Amendments only, and no ID renumbered. Behaviour:
   traceability holds.
+  **STATUS 2026-09-28:** ✅ `check_traceability.py`: 0 uncited, 0 orphan ADRs, 136 IDs.
+  - `design.md` 1.3: the Scan Container and its Snapshot in §1, zizmor, Checkov's rule
+    and OSV on `offline` in §2, stale data refreshed in §6a, three readers in §8.
+  - `EVALUATING.md`: the first run from `acceptance/r7.md`; OSV on `offline` for its
+    `MAL-` data; the taint rules as 23.5.3 measured them; the index's counts; 25 ADRs.
+  - `AIR-GAPPED.md`: four things, not three, OSV's mirror, the settings file first.
+  - `requirements.md`: F1.1 and F10.8 met, F1.5, F2.1, F9.1, F9.3 and F10.5 amended.
+  - `PROTOCOL.md`: the `container_network` setting; ADR-0023 notes its SBOM branch.
+  One defect, fixed: `verify-mirror.py` refused OSV's mirror and read no settings file,
+  so an honest air-gapped setup failed its own proof. `valvur update` does not fetch
+  OSV's databases, which only a project names; the README and `AIR-GAPPED.md` say so.
 - [ ] **R7.3** **Documents consolidated.** `OPEN-ITEMS.md`, `POSITIONING.md`, the reviews,
   `usability-gate.md`, `council/` and `gates/` move to `docs/history/`, and their still-true
   points move into the README or `EVALUATING.md`. Behaviour: a link check over every

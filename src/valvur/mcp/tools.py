@@ -8,10 +8,10 @@ no `apply`, no `write` and no `remediate`, and a test asserts their absence, bec
 ADR-0009 is a safety property rather than a preference.
 
 That is about the user's *source*. What each tool does to the machine — `scan`
-writes the Results Folder, pulls an image and starts containers; `scan_cancel`
-kills them; the other four read what a scan left — is declared per tool below and
-reaches the client as `readOnlyHint` (27.1.2). The four readers say nothing and
-take the safe default.
+writes the Results Folder, pulls an image and starts a container; `scan_cancel`
+kills it; `update` fills the host cache; the other three only read — is declared per
+tool below and reaches the client as `readOnlyHint` (27.1.2). The three readers say
+nothing and take the safe default.
 """
 
 from __future__ import annotations

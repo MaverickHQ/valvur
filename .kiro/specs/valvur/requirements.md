@@ -39,6 +39,8 @@ entirely on my machine, so that my source code never reaches a third party.
    SHALL NOT mount the **Workspace** into any container. A copy cannot modify the
    original, which is stronger than a read-only mount; the mount was also the cost on
    Docker Desktop, 16.6 s to list 109,521 files against 1.6 s on the host.
+   *Met 2026-09-28 (R3.9, protocol 2): the File Set reaches the Scan Container as a tar
+   on its standard input, and no container is given a mount of the Workspace.*
 2. F1.2 — WHEN the `offline` **Profile** is selected, valvur SHALL run the container
    with no network interface.
 3. F1.3 — valvur SHALL write no file inside the **Workspace** from within the
@@ -47,6 +49,8 @@ entirely on my machine, so that my source code never reaches a third party.
    by the invoking user on Docker rootful, Docker Desktop, and rootless Podman.
 5. F1.5 — valvur SHALL detect the available container runtime in the order `docker`,
    `podman`, `nerdctl`, and SHALL allow override by environment variable.
+   *Amended 2026-09-28 (R6.7, D11): or by the `runtime` key of the machine's settings
+   file; the variable wins when both are set.*
 6. F1.6 — WHERE SELinux labelling is required by the host, valvur SHALL apply the
    appropriate mount label.
    *Amended 2026-09-27 (R0.5, ADR-0022):* once the **Workspace** is no longer mounted
@@ -142,6 +146,9 @@ that I do not maintain six toolchains myself.
 
 1. F2.1 — valvur SHALL orchestrate Trivy, Gitleaks, OSV-Scanner, Opengrep, Checkov
    and Syft as **Scanners**.
+   *Amended 2026-09-28 (R4.2, R4.3, ADR-0023): and zizmor, for GitHub Actions
+   workflows, adopted by measurement; Checkov runs where there is infrastructure other
+   than workflows, and OSV-Scanner on `offline` from its offline database (R4.6).*
 2. F2.2 — valvur SHALL pin every **Scanner** to an exact version in the image.
    *Extended 2026-09-13 (task 23.4.1): and every package a **Scanner** pulls in.
    Checkov, the one Python Scanner, was pinned by version while its ~95 transitive
@@ -575,9 +582,15 @@ of fixes, so that nothing changes my code without my decision.
    28.2.2): the `initialize` reply carries `instructions` — the machine block's
    rules (F9.5–F9.7) from the same constant `SUMMARY.md` renders — and the two
    reading tools answer `structuredContent` with a declared `outputSchema`
-   beside their text, built in one pass so the forms cannot disagree.*
+   beside their text, built in one pass so the forms cannot disagree.* *Note 2026-09-28
+   (R6.3, R6.5, R6.6): `scan` returns the result, with progress (ADR-0024); one tool,
+   `findings`, lists **Findings** and, given a fingerprint, explains one, so
+   `list_findings` and `explain_finding` were removed at R6's exit; `update` refreshes
+   the data on request.*
 2. F9.2 — valvur SHALL NOT expose any tool that modifies the **Workspace**'s source.
 3. F9.3 — valvur SHALL provide equivalent CLI commands for every MCP tool.
+   *Note 2026-09-28 (R6.5): a parity test holds each MCP tool to its command, `scan`,
+   `findings`, `status`, `update` and `doctor`, and `scan_cancel` to Ctrl-C.*
 4. F9.4 — valvur SHALL NOT watch files, hook editor save events, or start a **Scan
    Run** other than by explicit invocation.
 5. F9.5 — valvur SHALL document that a disappeared **Finding** is not evidence of a
@@ -634,7 +647,9 @@ of fixes, so that nothing changes my code without my decision.
    *Extended 2026-09-12 (task 23.2.1): the **Name Index** is an OCI artifact too,
    published daily and signed, and `VALVUR_INDEX_REPOSITORY` mirrors it the way
    `VALVUR_DB_REPOSITORY` mirrors the database; the static-file mirror of 22.B.3
-   remains. `docs/AIR-GAPPED.md` is the measured recipe.*
+   remains. `docs/AIR-GAPPED.md` is the measured recipe.* *Extended 2026-09-28 (R4.6, R6.7):
+   OSV's offline databases by `osv_url`, and every mirror a key in the machine's
+   settings file as well as a variable.*
 6. F10.6 — The host shim SHALL install without a compiler, without the **Scanners**
    present on the host, and with **no runtime dependencies at all** — including the
    MCP server, which is on the primary install path.
@@ -675,6 +690,9 @@ of fixes, so that nothing changes my code without my decision.
    progress surface and recorded in `network.fetched`, unless `fetch = "never"` is set,
    and an MCP tool SHALL refresh on request. The agent path has no terminal: a clean
    project scanned a week after install read `inconclusive` with no way to fix it.
+   *Met 2026-09-28 (R6.6): measured on the image, a database aged to eight days was
+   refreshed by `valvur scan`, 123 MB in 29 s, recorded in `network.fetched`, and
+   `database.age_days` read 0.03 after.*
 
 ## Non-functional requirements
 

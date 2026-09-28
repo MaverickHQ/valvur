@@ -126,8 +126,8 @@ The shim starts every Scan Container the same way (`engine_host.ContainerRuntime
 
 - **one per network boundary**: `offline` starts one, with `--network=none`;
   `full` adds a second for what needs the network (OSV-Scanner, the dependency
-  check's registry questions), with `VALVUR_NETWORK=1`, joining
-  `VALVUR_CONTAINER_NETWORK` if set; Trivy never runs in it;
+  check's registry questions), with `VALVUR_NETWORK=1`, joining the network the
+  `container_network` machine setting names, if it names one; Trivy never runs in it;
 - **`-i`**, the Snapshot on stdin, and **`--rm`**;
 - as user **`10001:10001`** — the image's `USER`, and the shim's `--user` on Linux
   so the scratch mount is writable (F10.2);
