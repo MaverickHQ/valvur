@@ -28,8 +28,9 @@ BROKEN = REPO / "tests" / "fixtures" / "broken-repo"
 CORPUS_CHECKOUTS = REPO / "tests" / "corpus" / ".checkouts"
 TERRAFORM_URL = "https://github.com/terraform-aws-modules/terraform-aws-vpc"
 TERRAFORM_PIN = "cf0e3ca46fd51f47bf095957f2a6ac6127c89045"   # tests/corpus/corpus.toml
-#: This repository at the commit R0 landed on `main` (2026-09-27).
-SELF_PIN = "0d85768"
+#: This repository at the commit where its own workflows first passed zizmor (R4):
+#: at R0's commit, `0d85768`, they held eleven high findings and failed the gate.
+SELF_PIN = "eb3a199f077a99fee643b252f300c5c46a76fea2"
 #: A known-malicious npm package (OSV `MAL-2023-1`), named in a manifest, never installed.
 MALICIOUS = ("@hyperion-util/cookies", "77.77.79", "MAL-2023-1")
 #: The gate's shape: its archive held 103,251 files.
