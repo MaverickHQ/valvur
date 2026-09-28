@@ -662,7 +662,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=files, largest_dirs=largest, not_read=tuple(chosen.skipped),
-        scope=chosen.manifest(workspace),
+        scope=chosen.manifest(workspace), ignored=frozenset(chosen.ignored),
         generation=generation, history=beside.get("history"),
     )
 
@@ -928,7 +928,8 @@ def _budget_shaped(reason: str) -> bool:
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
               budget_s, shim_built_from, image_built_from,
               workspace_files: int = 0, largest_dirs=(), not_read=(), scope=None,
-              generation: str | None = None, history: dict | None = None) -> ScanRun:
+              generation: str | None = None, history: dict | None = None,
+              ignored: frozenset[str] = frozenset()) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -965,7 +966,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         # contract says whether package age was checked, and that depends on the
         # network the Profile granted (ADR-0018), not on whether the adapter was run.
         declaring=[a.for_profile(network=network) for a in DEFAULT_ADAPTERS],
-        artifacts=artifacts,
+        artifacts=artifacts, ignored=ignored,
     )
     # One value out, with every field a stage recorded (27.3.4): the ScanRun below
     # is assembled from it rather than by reaching into the Context the stages

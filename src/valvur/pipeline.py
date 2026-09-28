@@ -49,6 +49,9 @@ class Context:
     declaring: list
     #: (artifact name, body) pairs the fleet produced — the SBOM, for the licence stage.
     artifacts: list[tuple[str, str]] = field(default_factory=list)
+    #: The File Set's files git ignores (R5.3): the Checks read the Snapshot, and
+    #: the image has no git to ask.
+    ignored: frozenset[str] = frozenset()
 
     # ---- recorded by stages, read when the ScanRun is assembled
     configured: tuple[str, ...] = ()
@@ -151,6 +154,16 @@ def configured(findings: list[Finding], ctx: Context) -> list[Finding]:
     return kept
 
 
+def ignored(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """Local agent configuration git ignores does not leak (R5.3): the Check read
+    it because the File Set keeps ignored agent files for their hooks."""
+    return [f for f in findings
+            if not (f.rule == _LOCAL_CONFIG and f.path in ctx.ignored)]
+
+
+_LOCAL_CONFIG = "valvur.ai-artifact.local-config-exposed"
+
+
 def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
     """OSV-Scanner evaluates an unpinned requirement at its lower bound and reports
     every advisory since — 110 on one real repository, against versions nobody
@@ -238,6 +251,9 @@ PIPELINE: tuple[Stage, ...] = (
           "Before `merged`: an excluded path's finding (one read from git history) "
           "must not survive by merging into a real one, and the dropped count must "
           "be of raw Findings."),
+    Stage("ignored", ignored,
+          "After `configured`, a path filter like it; before `merged`, so a finding on "
+          "a file git ignores is dropped before identity is settled."),
     Stage("unpinned", unpinned,
           "After the path filters, so an excluded file's ranges are not counted "
           "twice; before `merged`, because it reads each raw Finding's single "

@@ -112,6 +112,9 @@ class FileSet:
     skipped: list[tuple[str, str]] = field(default_factory=list)
     #: A git view past the ceiling: the largest directories and the exclude line.
     warning: str | None = None
+    #: The files in it that git ignores: `.env*` and agent configuration, read
+    #: anyway (ADR-0021). What only the host can know, the image having no git.
+    ignored: list[str] = field(default_factory=list)
 
     def manifest(self, workspace: Path) -> dict:
         """What the report states about the scope (ADR-0021): the scope, how many
@@ -227,6 +230,7 @@ def build(workspace: Path) -> FileSet:
         kept, skipped = _ignored(workspace)
         result = _excluded(FileSet(sorted(set(tracked) | set(kept)), "git",
                                    left_out + skipped), prefixes)
+        result.ignored = sorted(set(kept) & set(result.files))
         if len(result.files) > CEILING:
             # Tracked source is the user's code, not a data directory: proceed.
             result.warning = _ceiling_sentence(result.files)

@@ -81,3 +81,35 @@ def test_a_file_holding_both_is_one_finding(tmp_path):
     [finding] = _exposed(ws).values()
 
     assert "absolute local path" in finding["title"] and "SERVICE_TOKEN" in finding["title"]
+
+
+# ---------------------------------------- the host decides what git ignores
+
+def test_a_file_git_ignores_is_not_reported_and_one_it_would_publish_is(tmp_path, monkeypatch):
+    """Through a real scan: the Check reads both, because the File Set keeps ignored
+    agent configuration for its hooks (ADR-0021); the host drops the one git
+    ignores. `.claude/settings.local.json` is untracked and not ignored: one
+    `git add -A` publishes it, which is what the owner's audit found."""
+    import subprocess
+
+    from valvur import api, cache
+    from valvur.adapters.check import CheckAdapter
+    from valvur.engine_host import LocalRuntime
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    # This machine's own ignores are not the test's: Claude Code's global one lists
+    # `**/.claude/settings.local.json`, which is exactly a file git then ignores.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "gitconfig"))
+    ws = _ws(tmp_path / "ws", {
+        ".gitignore": ".mcp.json\n",
+        ".mcp.json": _server("/Users/me/tools/run-tool"),
+        ".claude/settings.local.json": json.dumps(
+            {"permissions": {"allow": ["Read(/home/me/notes/**)"]}}),
+    })
+    subprocess.run(["git", "init", "-q", str(ws)], check=True)
+    subprocess.run(["git", "-C", str(ws), "add", ".gitignore"], check=True)
+
+    run = api.scan(ws, runner=LocalRuntime(), adapters=[CheckAdapter("ai-artifact")])
+
+    assert [f.path for f in run.findings if f.rule == RULE] == [".claude/settings.local.json"]

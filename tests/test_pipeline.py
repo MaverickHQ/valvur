@@ -17,7 +17,7 @@ from valvur.adapters import DEFAULT_ADAPTERS
 from valvur.findings import Finding
 
 ORDER = [
-    "coverage", "licence", "configured", "unpinned", "merged",
+    "coverage", "licence", "configured", "ignored", "unpinned", "merged",
     "gitcontext", "enrich", "suppress", "group", "rank", "diff",
 ]
 
@@ -154,7 +154,7 @@ def test_every_field_a_stage_records_is_named_in_one_place():
     import dataclasses
 
     fields = {f.name for f in dataclasses.fields(pipeline.Context)}
-    inputs = {"workspace", "profile", "network", "declaring", "artifacts"}
+    inputs = {"workspace", "profile", "network", "declaring", "artifacts", "ignored"}
 
     assert fields == inputs | set(pipeline.RECORDED_BY_STAGES), (
         "a Context field is neither a declared input nor declared as recorded by a "
