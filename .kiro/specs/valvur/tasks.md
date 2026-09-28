@@ -685,9 +685,17 @@ The first commit records R3's rehearsal.
   making it optional would switch those checks off by default. Syft runs as before; the
   owner decides (§8). Worth weighing: the licence policy already ignores `pkg:github`
   components, and without them Trivy's SBOM was 98.1% of Syft's.
-- [ ] **R4.5** **The action-pin rule moves to zizmor**, if parity holds (F3.11). Behaviour:
+- [x] **R4.5** **The action-pin rule moves to zizmor**, if parity holds (F3.11). Behaviour:
   the pin findings on the corpus are unchanged in count and path. Opengrep keeps the sink
   inventory and the taint rules.
+  **STATUS 2026-09-28:** ✅ Parity held in R4.1, so `valvur.pinning.mutable-action-ref` left
+  Opengrep's rules and zizmor's `unpinned-uses` is the one pin Finding, ranked low as the
+  rule was (22.E.2). Measured with real scans of the thirteen corpus repositories: 66 pin
+  findings before and 66 after, the same path and line on every repository, no Scanner
+  failed, 132 s for all thirteen. Opengrep's golden lost exactly its two pin hits.
+  zizmor does not flag an action pinned to a full SHA or a local one. The rule's name
+  changes, so a Suppression written for the old one no longer matches: said in the
+  CHANGELOG. `mutable-git-ref`, the sink inventory and the taint rules stay Opengrep's.
 - [ ] **R4.6** **OSV's offline database on `offline`**, if D8 says so (F3.2). Behaviours:
   1. The database is fetched and recorded like Trivy's, for the ecosystems in the File Set.
   2. Repository 8's `MAL-` package is reported at critical.

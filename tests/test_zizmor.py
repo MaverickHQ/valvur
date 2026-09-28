@@ -38,11 +38,12 @@ def test_each_planted_class_is_one_finding_at_its_line():
     found = {f.rule: f for f in _adapter().parse(output)}
     assert sorted(found) == ["excessive-permissions", "template-injection", "unpinned-uses"]
     assert {r: f.line for r, f in found.items()} == {
-        "excessive-permissions": 7, "unpinned-uses": 12, "template-injection": 15}
+        "excessive-permissions": 8, "unpinned-uses": 13, "template-injection": 18}
     for finding in found.values():
         assert finding.path == ".github/workflows/planted.yml"
-        assert finding.severity is Severity.HIGH
         assert finding.sources == ("zizmor",)
+    assert found["excessive-permissions"].severity is Severity.HIGH
+    assert found["template-injection"].severity is Severity.HIGH
     assert found["excessive-permissions"].evidence == "permissions: write-all"
     assert "write-all" in found["excessive-permissions"].title
     assert len({f.fingerprint for f in found.values()}) == 3
@@ -51,7 +52,7 @@ def test_each_planted_class_is_one_finding_at_its_line():
 def test_the_fingerprint_survives_the_line_moving():
     """Per-class identity (ADR-0003): a workflow finding is SAST-shaped, keyed on the
     offending text, never on its line."""
-    text = golden("zizmor").replace('"row": 6', '"row": 40')
+    text = golden("zizmor").replace('"row": 7', '"row": 40')
     before = _adapter().parse(ScannerOutput("zizmor", "1.30.1", golden("zizmor"), "", 0))
     after = _adapter().parse(ScannerOutput("zizmor", "1.30.1", text, "", 0))
     assert {f.fingerprint for f in before} == {f.fingerprint for f in after}
@@ -106,3 +107,23 @@ def test_a_real_scan_reports_each_planted_problem_once_and_ranked(mountable_tmp)
     assert sorted(f.rule for f in run.findings) == [
         "excessive-permissions", "template-injection", "unpinned-uses"]
     assert all(f.rank > 0 for f in run.findings)
+
+
+# ---------------------------------------- R4.5: the action-pin rule is zizmor's
+
+def test_a_tag_pinned_action_is_one_finding_ranked_low_and_a_sha_or_local_one_is_none():
+    """The pin finding moved from Opengrep's `valvur.pinning.mutable-action-ref` to
+    zizmor's `unpinned-uses` (R4.5), on R4.1's parity: 85 of 85 on the corpus, by
+    file and line. Ranked low as the Opengrep rule was (22.E.2): true and worth fixing,
+    and on cobra and ripgrep numerous enough to bury everything else at high."""
+    output = ScannerOutput("zizmor", "1.30.1", golden("zizmor"), "", 0)
+    pins = [f for f in _adapter().parse(output) if f.rule == "unpinned-uses"]
+    assert [f.line for f in pins] == [13]
+    assert pins[0].severity is Severity.LOW
+    assert "actions/checkout@v4" in pins[0].evidence
+
+
+def test_opengrep_no_longer_carries_the_action_pin_rule():
+    """One pin, one Finding: the rule left Opengrep when zizmor took it."""
+    rules = (Path(__file__).parent.parent / "rules" / "pinning-hygiene.yaml").read_text()
+    assert "mutable-action-ref" not in rules and "mutable-git-ref" in rules

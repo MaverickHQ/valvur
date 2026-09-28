@@ -146,7 +146,7 @@ path = "handler.py"
 rule = "CKV_AWS_18"
 path = "main.tf"
 [[must]]
-rule = "mutable-action-ref"
+rule = "unpinned-uses"
 path = ".github/workflows/ci.yml"
 """)
 

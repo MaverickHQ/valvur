@@ -409,7 +409,7 @@ gate uses it on every commit:
 ```
 
 Pinned by commit, because a tag can move and a scan of your own tree would say
-so: valvur's `mutable-action-ref` rule flags `@v0` as a finding, and this
+so: zizmor's `unpinned-uses`, which valvur runs, flags `@v0` as a finding, and this
 repository's own gate runs on `any`. `@v0` works and follows the latest `v0.x`;
 use it if you accept that, and expect the finding.
 

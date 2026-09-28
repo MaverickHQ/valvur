@@ -21,6 +21,11 @@ VERSION = "1.30.1"
 
 _SEVERITY = {"high": "high", "medium": "medium", "low": "low", "informational": "info"}
 
+#: Ranked low whatever zizmor says, as Opengrep's action-pin rule was before it moved
+#: here (R4.5): measured on the corpus (22.E.2), true and worth fixing, and on cobra
+#: and ripgrep numerous enough to bury everything else if ranked high.
+_RANKED_LOW = frozenset({"unpinned-uses"})
+
 
 def _workflow(rel: str) -> bool:
     name = rel.rsplit("/", 1)[-1]
@@ -78,6 +83,8 @@ class ZizmorAdapter(ScannerAdapter):
             ordinal = seen[key]
             seen[key] += 1
             severity = str(item.get("determinations", {}).get("severity", "")).lower()
+            if rule in _RANKED_LOW:
+                severity = "low"
             findings.append(Finding(
                 rule=rule,
                 path=path,

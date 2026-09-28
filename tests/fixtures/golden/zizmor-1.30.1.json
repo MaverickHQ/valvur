@@ -30,16 +30,16 @@
         "concrete": {
           "location": {
             "start_point": {
-              "row": 6,
+              "row": 7,
               "column": 0
             },
             "end_point": {
-              "row": 6,
+              "row": 7,
               "column": 22
             },
             "offset_span": {
-              "start": 177,
-              "end": 199
+              "start": 292,
+              "end": 314
             }
           },
           "feature": "permissions: write-all",
@@ -80,7 +80,7 @@
                 "Key": "steps"
               },
               {
-                "Index": 1
+                "Index": 3
               }
             ]
           },
@@ -90,16 +90,16 @@
         "concrete": {
           "location": {
             "start_point": {
-              "row": 14,
+              "row": 17,
               "column": 8
             },
             "end_point": {
-              "row": 15,
+              "row": 18,
               "column": 0
             },
             "offset_span": {
-              "start": 346,
-              "end": 390
+              "start": 584,
+              "end": 628
             }
           },
           "feature": "run: echo \"${{ github.event.issue.title }}\"\n",
@@ -126,7 +126,7 @@
                 "Key": "steps"
               },
               {
-                "Index": 1
+                "Index": 3
               },
               {
                 "Key": "run"
@@ -146,16 +146,16 @@
         "concrete": {
           "location": {
             "start_point": {
-              "row": 14,
+              "row": 17,
               "column": 23
             },
             "end_point": {
-              "row": 14,
+              "row": 17,
               "column": 47
             },
             "offset_span": {
-              "start": 361,
-              "end": 385
+              "start": 599,
+              "end": 623
             }
           },
           "feature": "echo \"${{ github.event.issue.title }}\"",
@@ -182,7 +182,7 @@
                 "Key": "steps"
               },
               {
-                "Index": 1
+                "Index": 3
               },
               {
                 "Key": "run"
@@ -195,16 +195,16 @@
         "concrete": {
           "location": {
             "start_point": {
-              "row": 14,
+              "row": 17,
               "column": 8
             },
             "end_point": {
-              "row": 14,
+              "row": 17,
               "column": 11
             },
             "offset_span": {
-              "start": 346,
-              "end": 349
+              "start": 584,
+              "end": 587
             }
           },
           "feature": "run",
@@ -265,16 +265,16 @@
         "concrete": {
           "location": {
             "start_point": {
-              "row": 11,
+              "row": 12,
               "column": 8
             },
             "end_point": {
-              "row": 13,
+              "row": 14,
               "column": 36
             },
             "offset_span": {
-              "start": 261,
-              "end": 337
+              "start": 376,
+              "end": 452
             }
           },
           "feature": "uses: actions/checkout@v4\n        with:\n          persist-credentials: false",
@@ -321,16 +321,16 @@
         "concrete": {
           "location": {
             "start_point": {
-              "row": 11,
+              "row": 12,
               "column": 14
             },
             "end_point": {
-              "row": 11,
+              "row": 12,
               "column": 33
             },
             "offset_span": {
-              "start": 267,
-              "end": 286
+              "start": 382,
+              "end": 401
             }
           },
           "feature": "actions/checkout@v4",
