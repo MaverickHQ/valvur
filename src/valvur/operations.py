@@ -48,7 +48,7 @@ def resolve_workspace(raw: str | None) -> Path:
             if project is None:
                 raise Refusal(
                     f"The workspace must be an absolute path; got {raw!r}, and there is "
-                    "no project directory to resolve it against.")
+                    "no project directory to resolve it against.", kind="relative-path")
             path = Path(project) / path
     path = path.resolve()
     if roots and not any(path == root or root in path.parents for root in roots):
@@ -57,9 +57,11 @@ def resolve_workspace(raw: str | None) -> Path:
                       f"{', '.join(str(root) for root in roots)}); a scan writes into the "
                       "folder it scans, so name one inside them.", kind="outside-roots")
     if not path.exists():
-        raise Refusal(f"There is no directory at {path}; nothing was scanned or created.")
+        raise Refusal(f"There is no directory at {path}; nothing was scanned or created.",
+                      kind="no-directory")
     if not path.is_dir():
-        raise Refusal(f"{path} is a file, not a directory; name the project's folder.")
+        raise Refusal(f"{path} is a file, not a directory; name the project's folder.",
+                      kind="not-a-directory")
     return path
 
 
@@ -122,7 +124,8 @@ def _results(workspace: str | None) -> Path:
 def _load(workspace: str | None) -> dict:
     path = _results(workspace) / "findings.json"
     if not path.is_file():
-        raise Refusal(f"No scan results at {path}. Run the `scan` tool first.")
+        raise Refusal(f"No scan results at {path}. Run the `scan` tool first.",
+                      kind="no-results")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -316,10 +319,13 @@ def list_findings_reply(args: dict) -> tuple[str, dict]:
     fields. One computation, so the two cannot disagree."""
     args = _checked(args)
     limit = min(_checked_limit(args.get("limit")), MAX_LIMIT)
+    status = args.get("status")
+    if status and status not in ("new", "persisting", "regressed"):
+        # The arguments first: what the call asked, before what the folder holds.
+        raise Refusal(f"`status` must be new, persisting or regressed; got {status!r}.")
     data = _load(args.get("workspace"))
     findings = data["findings"]
 
-    status = args.get("status")
     if status:
         findings = [f for f in findings if f.get("status") == status]
     if not args.get("include_suppressed"):
@@ -401,7 +407,7 @@ def explain_finding(args: dict) -> str:
     )
     if finding is None:
         raise Refusal(f"No finding with fingerprint {fingerprint} in the last scan; "
-                      "`list_findings` gives each finding's.")
+                      "`list_findings` gives each finding's.", kind="unknown-fingerprint")
 
     lines = [
         f"{finding['title']}",

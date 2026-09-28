@@ -117,7 +117,9 @@ class Tool:
                  output_schema: dict | None = None):
         self.name = name
         self.description = description
-        self.schema = schema
+        # Closed, whatever the caller wrote (R6.4): an argument no tool takes is
+        # refused at the call, never silently ignored.
+        self.schema = {**schema, "additionalProperties": False}
         #: Answers the text every client renders — and, for a tool that declares
         #: `output_schema`, the same answer as a dict beside it, which the reply
         #: carries as `structuredContent` (MCP 2025-06-18; 28.2.2). One call
@@ -149,6 +151,50 @@ def _error_text(exc: Exception) -> str:
     """A refusal is its sentence (R1.2); anything else keeps its class name,
     because an unexpected failure is worth its type in a report."""
     return str(exc) if getattr(exc, "plain", False) else f"{type(exc).__name__}: {exc}"
+
+
+def _check_arguments(schema: dict, arguments: Any) -> None:
+    """The call's arguments against the tool's schema, before anything runs (R6.4):
+    an unknown one, a missing one, or one of the wrong type is refused in one
+    sentence with its kind. A number sent as a string is still a number (R1.5);
+    what a value means is the tool's to check."""
+    from ..refusal import Refusal
+
+    if not isinstance(arguments, dict):
+        raise Refusal("The arguments must be an object of named values.")
+    properties = schema.get("properties") or {}
+    unknown = sorted(set(arguments) - set(properties))
+    if unknown:
+        takes = ", ".join(f"`{name}`" for name in properties) or "no arguments"
+        raise Refusal(f"`{unknown[0]}` is not an argument of this tool, which takes "
+                      f"{takes}.", kind="unknown-argument")
+    for name in schema.get("required") or ():
+        if arguments.get(name) in (None, ""):
+            raise Refusal(f"`{name}` is required.", kind="missing-argument")
+    for name, value in arguments.items():
+        expected = properties[name].get("type")
+        if value is not None and not _typed(value, expected):
+            raise Refusal(f"`{name}` must be {_A[expected]}; got {value!r}.")
+
+
+_A = {"string": "a string", "integer": "a whole number", "number": "a number",
+      "boolean": "true or false"}
+
+
+def _typed(value: Any, expected: str | None) -> bool:
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected in ("integer", "number"):
+        if isinstance(value, str):
+            try:
+                float(value)
+            except ValueError:
+                return False
+            return True
+        return isinstance(value, int | float) and not isinstance(value, bool)
+    return True
 
 
 def version() -> str:
@@ -204,7 +250,9 @@ def build(tools: list[Tool], *, instructions: str | None = None,
                 f"unknown tool: {name}. Available: {', '.join(sorted(by_name)) or 'none'}",
             )
         try:
-            answer = tool.handler(params.get("arguments") or {})
+            arguments = params.get("arguments") or {}
+            _check_arguments(tool.schema, arguments)
+            answer = tool.handler(arguments)
         except RpcError:
             raise
         except Exception as exc:   # broad: a server that cannot clean up must still exit

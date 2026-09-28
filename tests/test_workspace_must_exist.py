@@ -59,7 +59,10 @@ import pytest  # noqa: E402
                                   "scan_cancel", "doctor"])
 def test_every_tool_refuses_a_workspace_that_does_not_exist(tmp_path, tool):
     missing = tmp_path / "no" / "such" / "place"
-    result = _call(tool, {"workspace": str(missing), "fingerprint": "x"})
+    # Only the tool that takes one is given a fingerprint: since R6.4 an argument a
+    # tool does not take is refused before the workspace is looked at.
+    extra = {"fingerprint": "x"} if tool == "explain_finding" else {}
+    result = _call(tool, {"workspace": str(missing), **extra})
     assert result["isError"] is True, _text(result)
     assert "no directory" in _text(result)
     assert not (tmp_path / "no").exists()

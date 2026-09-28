@@ -111,3 +111,51 @@ def test_a_workspace_outside_the_clients_roots_is_refused(tmp_path):
     assert str(inside) in result["content"][0]["text"]
     assert jobs.current(outside.resolve()) is None
     assert not (outside / ".security-scan").exists()
+
+
+# ----------------------------------------- behaviour 3: every schema is closed
+
+def test_every_tools_arguments_are_closed():
+    for tool in registry():
+        assert tool.schema.get("additionalProperties") is False, tool.name
+
+
+# --------------------------------------- behaviour 4: a kind and one sentence
+
+@pytest.mark.parametrize(("tool", "arguments", "kind"), [
+    ("scan", {"verbose": True}, "unknown-argument"),
+    ("scan", {"profile": "fast"}, "invalid-argument"),
+    ("scan", {"budget_s": "ten"}, "invalid-argument"),
+    ("scan", {"budget_s": -5}, "invalid-argument"),
+    ("scan_status", {"workspace": 5}, "invalid-argument"),
+    ("list_findings", {"limit": 0}, "invalid-argument"),
+    ("list_findings", {"status": "fixed"}, "invalid-argument"),
+    ("explain_finding", {}, "missing-argument"),
+    ("doctor", {"network": "yes"}, "invalid-argument"),
+    ("scan", {"workspace": "relative/path"}, "relative-path"),
+    ("scan", {"workspace": "/no/such/directory/anywhere"}, "no-directory"),
+    ("list_findings", {}, "no-results"),
+    ("explain_finding", {"fingerprint": "nope"}, "no-results"),
+])
+def test_every_violation_fails_at_the_call_with_a_kind_and_one_sentence(
+        tmp_path, tool, arguments, kind):
+    if "workspace" not in arguments:
+        arguments = {"workspace": str(tmp_path), **arguments}
+    began = time.monotonic()
+    result = _call(tool, arguments)
+    text = result["content"][0]["text"]
+
+    assert result["isError"] is True, text
+    assert result["structuredContent"]["error"] == {"kind": kind, "message": text}
+    assert "\n" not in text.strip() and text.rstrip().endswith("."), text
+    assert time.monotonic() - began < 2, "it did not fail at the call"
+    assert jobs.current(tmp_path.resolve()) is None, "a refused call started a job"
+
+
+def test_a_file_named_as_the_workspace_is_not_a_directory(tmp_path):
+    readme = tmp_path / "README.md"
+    readme.write_text("# a file\n")
+
+    result = _call("scan", {"workspace": str(readme)})
+
+    assert result["structuredContent"]["error"]["kind"] == "not-a-directory"

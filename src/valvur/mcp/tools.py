@@ -81,7 +81,8 @@ _REPLY_SHAPE: dict[str, Any] = {"type": "object", "required": ["schema", "state"
             "no-scan", "cancelled", "failed", "budget", "precondition", "busy",
             # a call refused before anything ran (R6.4)
             "invalid-argument", "unknown-argument", "missing-argument", "relative-path",
-            "no-directory", "not-a-directory", "outside-roots", "no-results"]},
+            "no-directory", "not-a-directory", "outside-roots", "no-results",
+            "unknown-fingerprint"]},
         "message": {"type": "string"}}},
     "caveats": {"type": "array", "items": {"type": "string"}},
     "report": {"type": ["string", "null"],

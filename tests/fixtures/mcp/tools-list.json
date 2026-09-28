@@ -6,6 +6,7 @@
     },
     "description": "Run a security scan of a project and return the result, with progress on the way; calling it while a scan runs here attaches to that scan. Writes results into .security-scan/ and never modifies your source.",
     "inputSchema": {
+      "additionalProperties": false,
       "properties": {
         "budget_s": {
           "description": "Seconds the Scanners may take together (default 300). Past it, nothing new starts, what is running is stopped, and the result is reported incomplete with the cut Scanners named. 0 for none.",
@@ -88,7 +89,8 @@
                 "no-directory",
                 "not-a-directory",
                 "outside-roots",
-                "no-results"
+                "no-results",
+                "unknown-fingerprint"
               ],
               "type": "string"
             },
@@ -226,6 +228,7 @@
     },
     "description": "List findings from the last scan, worst first. Bounded by default.",
     "inputSchema": {
+      "additionalProperties": false,
       "properties": {
         "include_suppressed": {
           "type": "boolean"
@@ -326,6 +329,7 @@
     },
     "description": "Full detail for one finding: evidence, exploitation, dependency path and which scanner reported it.",
     "inputSchema": {
+      "additionalProperties": false,
       "properties": {
         "fingerprint": {
           "description": "From list_findings.",
@@ -350,6 +354,7 @@
     },
     "description": "What the last scan actually did: which scanners ran, which failed, and whether the result is complete.",
     "inputSchema": {
+      "additionalProperties": false,
       "properties": {
         "workspace": {
           "description": "Absolute path to the project to scan. Defaults to the current directory.",
@@ -420,7 +425,8 @@
                 "no-directory",
                 "not-a-directory",
                 "outside-roots",
-                "no-results"
+                "no-results",
+                "unknown-fingerprint"
               ],
               "type": "string"
             },
@@ -558,6 +564,7 @@
     },
     "description": "Stop a running scan: its containers are killed, nothing is written, and the previous results (if any) stand. What Ctrl-C does on the command line.",
     "inputSchema": {
+      "additionalProperties": false,
       "properties": {
         "workspace": {
           "description": "Absolute path to the project to scan. Defaults to the current directory.",
@@ -575,6 +582,7 @@
     },
     "description": "Check that this machine can scan, before scanning: the container runtime, the image, the vulnerability database, the package-name index, SELinux, TLS trust, and which MCP client configuration names valvur. One line per check with the fix on any that would fail a scan. Changes nothing.",
     "inputSchema": {
+      "additionalProperties": false,
       "properties": {
         "network": {
           "description": "Also probe, with one bounded TCP connect per host, whether the registries a first run and the full profile need are reachable from here. Off by default: without it doctor opens no socket.",
