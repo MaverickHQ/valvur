@@ -133,6 +133,9 @@ The documents, as built (R7):
 - **`scripts/verify-mirror.py` permits OSV's mirror**, and reads every mirror from the
   settings file as well as the environment; an honest air-gapped setup had failed its
   own proof. `docs/AIR-GAPPED.md` names the four things a scan fetches.
+- **`doctor` says it removes the containers of ended scans**, as it has since R3.6, and
+  declares `readOnlyHint: false`; it had said it changes nothing. Its image line names
+  `valvur update --prune` in place of the deprecated `valvur cache --prune`.
 - `EVALUATING.md`, `design.md`, `PROTOCOL.md` and the requirements say what was built.
   The closed reviews, gates and phases move to `docs/history/`, and no Markdown link in
   the repository is broken.

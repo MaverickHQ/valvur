@@ -337,8 +337,9 @@ memory, and never above 3 GiB.
 
 Measured on the acceptance set with Claude Code, one sentence per repository, *scan
 this project with valvur and tell me what it found*: the agent reached its answer in
-3 to 7 turns, and named every expected finding on six of the eight repositories. The
-record, misses included, is in [`docs/acceptance/r6.md`](docs/acceptance/r6.md).
+3 to 9 turns, and named every expected finding by path and rule on five of the eight
+repositories; the other three described one without naming it. The record, misses
+included, is in [`docs/acceptance/r7.md`](docs/acceptance/r7.md).
 
 The server's handshake carries the rules an agent needs as MCP `instructions`: never
 commit the folder, work from `REMEDIATION.md`, never add a suppression without a human,
@@ -374,10 +375,10 @@ image, the database, KEV and the index ahead of time; OSV's databases come with 
 first scan of a project whose lockfiles need them. A scan refreshes what is stale by
 itself, and `valvur update --if-stale` costs one file read when everything is current.
 
-A scan after that, measured on the acceptance set: 5.6 to 16.4 s on the seven
-application repositories on this Mac through Docker Desktop, and 60.0 s on the
-Terraform module, where Checkov runs; on GitHub's Linux runner, 3.0 to 14.8 s and
-76.0 s. Each run is in [`docs/acceptance/`](docs/acceptance/).
+A scan after that, measured on the acceptance set: 5.8 to 16.4 s on the seven
+application repositories on this Mac through Docker Desktop, and 61.1 s on the
+Terraform module, where Checkov runs; on GitHub's Linux runner, 3.7 to 18.0 s and
+115.1 s. Each run is in [`docs/acceptance/`](docs/acceptance/).
 
 Results land in `.security-scan/`:
 

@@ -32,9 +32,9 @@ run, measured 2026-09-28 (`acceptance/r7.md`):
 | `pip install valvur` | under 1 MB | 1.7 s with pip, 0.9 s with uv, measured 2026-09-20 | pip |
 | the image, pulled by the first scan or `valvur update` | `0.5.0`: 256 MB on amd64, 246 MB on arm64, compressed | your connection's | the runtime's pull, said on the status line |
 | a first `valvur scan` from an empty cache, image already local, acceptance repository 2 | 123 MB of vulnerability database, 36 MB of signed index, 35 and 217 MB of OSV's PyPI and npm databases | **59 s** in all: 21.5 s the database, 8.3 s the index, 2.5 and 6.0 s OSV's, the rest the Scanners | one line per fetch, *"— the first run only"*, then the result |
-| a scan after that, the seven application repositories | nothing fetched | **5.6 to 16.4 s** on the Mac; **3.0 to 14.8 s** on Linux | the result |
-| the Terraform module, where Checkov runs | nothing fetched | **60.0 s** on the Mac, **76.0 s** on Linux | the result |
-| the gate's shape: a few hundred source files beside a gitignored archive of 100,000 | nothing fetched | **7.4 s** on the Mac, **8.3 s** on Linux, from 166 s and 105 s before R3 | the archive is never read: the File Set is the git view (ADR-0021) |
+| a scan after that, the seven application repositories | nothing fetched | **5.8 to 16.4 s** on the Mac; **3.7 to 18.0 s** on Linux | the result |
+| the Terraform module, where Checkov runs | nothing fetched | **61.1 s** on the Mac; 76.0 to 115.1 s on Linux, where the runners vary most on the longest scan | the result |
+| the gate's shape: a few hundred source files beside a gitignored archive of 100,000 | nothing fetched | **7.6 s** on the Mac, **7.8 s** on Linux, from 166 s and 105 s before R3 | the archive is never read: the File Set is the git view (ADR-0021) |
 | `valvur update` **if the published index is unreachable**, measured 2026-09-20 | about 700 MB: the five registries walked directly, npm 146 MB in 439 requests, the crates.io dump 381 MB | **about seven minutes**, five and a half of them npm | `npm: 499,942 names so far` about every 40 s |
 
 A scan fetches what is **absent** and refreshes what is **stale**, saying so as it

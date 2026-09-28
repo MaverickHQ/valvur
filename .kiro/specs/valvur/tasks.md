@@ -258,11 +258,33 @@ Phases R0 to R6 are closed, each with its STATUS notes and its exit as measured,
   it stands (`main` at R1, R2 to R6 waiting to land, R7 and R8 next), the landing rule as it
   is (the owner lands each phase), OSV's databases among the moat's recorded fetches, and
   the rule that the README cites only measured numbers.
-- [ ] **R7.5** **`1.0.0` prepared** (D16, D17). D17's criteria are measured on both lanes and
+- [x] **R7.5** **`1.0.0` prepared** (D16, D17). D17's criteria are measured on both lanes and
   recorded. The CHANGELOG states the stability claim. The rehearsal runs after landing, per
   §4.
+  **STATUS 2026-09-28:** ✅ `823259f`: the version, the lock, the README status line and
+  `SECURITY.md` at `1.0.0`. The CHANGELOG's `1.0.0` entry names what 1.x keeps: the six MCP
+  tools and reply schema 2, the eight commands and their exit status, the Results Folder's
+  files and schemas, `fp_version` 1, the three Statuses, both settings files and protocol
+  2; the deprecated names keep working through 1.x, and the code and documents that said
+  "for one release" say so. D17 is measured in `docs/acceptance/r7.md`, four criteria of
+  five; the agent pass is not (below). One defect found on the way, fixed: `doctor`
+  declared `readOnlyHint: true` and "changes nothing" while it removes the containers of
+  ended scans (R3.6), and its image line named the deprecated `valvur cache --prune`.
 
 **Exit:** the acceptance set fully green on both lanes, every `until` resolved, and D17 met.
+
+**Exit STATUS 2026-09-28** (`docs/acceptance/r7.md`):
+- **The acceptance set, the Mac lane:** ✅ the image baked as `1.0.0`, host swap 13.6 GB:
+  every repository passes with nothing pending, repository 1 in 7.6 s, zero containers
+  after all four probes, and the e2e suite 51 passed. **Linux:** the `acceptance` check on
+  R7's PR; R6's commit passed there with nothing pending (#150, recorded in `r7.md`).
+- **Every `until` resolved:** ✅ nothing pending on either lane; the harness reads the
+  closed phases from their archive (R7.4).
+- **D17:** ❌ four criteria of five. The agent pass reached a correct report in six turns
+  or fewer on 3 of 8 repositories: five of eight answers named every expected finding,
+  and the three misses each describe a finding without the literal the scorer demands, a
+  path or a rule ID. The ledger stands at $22.51 of D19's $25; the $2.49 left pays for
+  less than a run, so by D19's fallback no further scoring runs in this build (§8).
 
 ### Phase R8: the image as a pipeline step
 
@@ -296,7 +318,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | `v0.6.0` | **ready 2026-09-27**: R1 landed at `bbf77ef`; rehearsal 36353560849 green through validation on both architectures in 13 minutes, cancelled at the brake | sign and push the tag `v0.6.0` on `bbf77ef`; approve the real run at the brake |
 | land R2, PR #145 | **ready 2026-09-28**: every check green on `d04e72f`, the Linux acceptance run included | fast-forward `main`: `git push origin refs/remotes/origin/build/r2-the-acceptance-set:refs/heads/main`. The build's own push to `main` was refused by the session's permission classifier on 2026-09-28 00:40; R3 continues on a branch rebased onto R2 and lands after it |
 | `v0.7.0` | R3 lands (after R2's PR #145), then its rehearsal | sign and push the tag `v0.7.0` on the rehearsed commit, after `v0.6.0`; approve the real run at the brake |
-| `v1.0.0` | R7 | the same |
+| `v1.0.0` | R7 lands, then its rehearsal | sign and push the tag `v1.0.0` on the rehearsed commit, after `v0.7.0`; approve the real run at the brake. D17's agent criterion is the one unmet (the row below) |
 | the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | R2 | register one with the label `docker-desktop` |
@@ -311,7 +333,8 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | R4's speed exit, missed | **now** (R4's exit) | the fastest application-repository scan on Linux is 63% of R2's baseline, not half (§7, R4). Accept it, or take a task to unpack Opengrep in the image at build: measured 0.45 s faster per scan, 243 MB less tmpfs memory, `/tmp` no longer executable, and the image about 190 MB larger; about 3.0 s, still short of 2.7 s. A second lever is OSV's offline database, about 10 s on every npm project on both lanes, which D8 accepted for `MAL-` packages |
 | land R5, PR #149 | R4 lands; **every check green on `7b4e6a6`** | the same fast-forward, after #148 |
 | land R6, PR #150 | R5 lands | the same fast-forward, after #149 |
-| R6's agent exit, missed | **now** (R6's exit; also D17 for `1.0.0`) | 4 of 8 repositories reach a correct report in six turns or fewer; six of eight fit six turns, and the misses are an answer that names a CVE without its file and one that describes two rules without their IDs. Decide whether a correct report must name the rule ID and the path, as the scorer demands, or whether it may describe them, which would pass both misses. The build's $6.96 left under D19 pays for one more full run, at R7's exit |
+| R6's agent exit, and D17's agent criterion, missed | **now** (R6's and R7's exits) | a correct report in six turns or fewer on 4 of 8 repositories at R6, 3 of 8 at R7. Every miss is an answer right in substance that omits the literal the scorer demands: a CVE without `requirements.txt`, two Checkov rules described without their IDs, a malicious package "in the lockfile" without `package-lock.json`. Decide whether a correct report must name the rule ID and the path, as the scorer demands, or may describe them, which would pass every miss so far. Agent scoring stops here by D19's fallback: $22.51 of $25 spent, $2.49 left |
+| land R7, PR (opened at R7's exit) | R6 lands | the same fast-forward, after #150 |
 | the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
 | D9 and the SBOM | now (R4.4) | decide whether Syft becomes `--sbom` only: that would switch the dependency licence policy (F4.4 to F4.6) off by default, which D9 did not weigh; or amend D8 to count packages without GitHub Actions, where Trivy's SBOM is 98.1% of Syft's and could carry both |
 | revisit a decision in §5 | any time | `/grill-with-docs` |

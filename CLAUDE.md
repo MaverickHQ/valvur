@@ -23,10 +23,10 @@ honest about why not, and trustworthy. Locally.
   order (`tasks.md` §8). `0.7.0` is prepared on R3's branch.
 
 **Next:** [`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: R7 (documents as built,
-`1.0.0` prepared), then R8 (the image as a pipeline step). Closed phases: `docs/history/`.
+`1.0.0` prepared) is closed and waits to land; R8 (the image as a pipeline step) is next.
 
 **Size, 2026-09-28:** 89 modules, 1,544 tests in 139 files, 25 ADRs, 136 requirement IDs,
-traceability debt zero, 5 open tasks.
+traceability debt zero, 4 open tasks.
 
 ## 2. What it is NOT
 
