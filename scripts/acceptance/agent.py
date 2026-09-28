@@ -19,8 +19,7 @@ SENTENCE = "Scan this project with valvur and tell me what it found."
 CAP_USD = 25.0
 LEDGER = Path(os.environ.get("HOME", "~")) / ".cache" / "valvur-build" / "agent-cost.json"
 TOOLS = ",".join(f"mcp__valvur__{t}" for t in (
-    "scan", "scan_status", "scan_cancel", "list_findings", "explain_finding", "doctor")) \
-    + ",Read"
+    "scan", "scan_status", "scan_cancel", "findings", "doctor", "update")) + ",Read"
 
 
 @dataclass
@@ -78,9 +77,12 @@ def run(root: Path, tasks_text: str) -> AgentScore | None:
         "command": "uv", "args": ["run", "--project", str(REPO), "valvur-mcp"],
         "env": {key: os.environ[key] for key in ("VALVUR_IMAGE", "VALVUR_CACHE")
                 if key in os.environ}}}}
-    (root / ".mcp.json").write_text(json.dumps(config, indent=2))
+    # Outside the repository: a `.mcp.json` holding this machine's paths, untracked
+    # and not ignored, is exactly what R5.3 reports, and the agent would report it.
+    config_path = LEDGER.parent / "agent-mcp.json"
+    config_path.write_text(json.dumps(config, indent=2))
     completed = subprocess.run(  # noqa: S603 — the Claude CLI, fixed arguments
-        ["claude", "-p", SENTENCE, "--mcp-config", ".mcp.json", "--strict-mcp-config",
+        ["claude", "-p", SENTENCE, "--mcp-config", str(config_path), "--strict-mcp-config",
          "--max-turns", "40", "--output-format", "json", "--allowedTools", TOOLS],
         cwd=root, capture_output=True, text=True, check=False, timeout=1800)
     try:
