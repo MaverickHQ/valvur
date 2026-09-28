@@ -59,6 +59,38 @@ The report (R5):
   `.kiro/settings/mcp.json` and their peers, when git does not ignore them and they hold
   a home directory or a credential-shaped value. A value is never quoted.
 
+The agent surface (R6):
+
+- **`scan` returns the result.** One call blocks until the scan settles, sending progress
+  notifications on the way, and answers reply schema 2. A client that lets go and calls
+  again, or calls `scan_status`, is attached to the same scan. Measured first: Claude Code
+  keeps a 150-second call's result (ADR-0024).
+- **Reply schema 2**: the fields come first and the text is rendered from them. It
+  carries `state`, `verdict`, `reason`, `complete`, `scope`, `counts`, `groups`, what did
+  not run, `next`, `error.kind`, and `report`, the `SUMMARY.md` text. It stays under
+  Claude Code's 25,000-token limit whatever the repository holds.
+- **Inputs from the client**: the workspace defaults to `CLAUDE_PROJECT_DIR` or the first
+  of the client's roots, and one outside the roots is refused. Every schema is closed.
+  Every bad input fails at the call, in one sentence and with its kind.
+- **One `findings` tool** filters by fingerprint, group, rule and path and says when it
+  clamped. `list_findings` and `explain_finding` stay for one release.
+- **Eight CLI commands**: `findings` absorbs `explain`; `doctor` shows the cache;
+  `update --prune` and `--clear` absorb `cache`; `init` prints a starter and the client
+  blocks and writes nothing. The old names still work and say what replaced them. A
+  parity test holds every MCP tool to its CLI command.
+- **Fresh data without a terminal** (ADR-0025): a scan refreshes a stale database, index
+  or OSV database as it fetches absent ones, announced and recorded. `fetch = "never"`
+  turns every fetch off. A new `update` tool fetches on request and says what it
+  fetched.
+- **Two settings files**: machine settings live in `~/.config/valvur/config.toml`, with
+  variables as overrides. `VALVUR_JOBS`, `VALVUR_CONTAINER_NETWORK` and
+  `VALVUR_SELINUX_RELABEL` are retired to the file; they still work for one release and
+  say so. `doctor` prints what is in effect and where it came from.
+- **A JSON Schema for `.security-scan.toml`**, and `doctor` names the first invalid key.
+  `[scan] scope = "tree"`, decided in ADR-0021, now works.
+- `doctor` says when the server a session talks to is not the one the configuration
+  names; the reply and the handshake say the results folder ignores itself.
+
 ## [0.7.0] — 2026-09-28
 
 The rebuilt engine (Phase R3, ADR-0021 and ADR-0022). A scan decides once what it
