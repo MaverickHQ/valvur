@@ -77,14 +77,26 @@ class _Server:
         self.process.wait(timeout=30)
 
 
+def _scan_containers() -> set[str]:
+    """Running Scan Containers: a scan's carry its generation (R3.6); the image
+    probes before a scan carry `none`."""
+    out = subprocess.run(["docker", "ps", "--filter", "name=valvur-", "--format",
+                          '{{.Names}} {{.Label "valvur.generation"}}'],
+                         capture_output=True, text=True, check=False)
+    return {name for name, _, generation in (line.partition(" ")
+                                             for line in out.stdout.splitlines())
+            if generation and generation != "none"}
+
+
 def _wait_for_fleet(before: set[str], seconds: float = 180) -> set[str]:
+    """Every container seen until a Scan Container is running. Since R3.9 a scan
+    is one container, so the old wait for two outlasted it."""
     deadline = time.monotonic() + seconds
     seen: set[str] = set()
     while time.monotonic() < deadline:
-        now = _live() - before
-        seen |= now
-        if len(seen) >= 2 and now:            # past the pre-flight probe
-            return seen
+        seen |= _live() - before
+        if _scan_containers() - before:
+            return seen | (_scan_containers() - before)
         time.sleep(0.2)
     return seen
 
