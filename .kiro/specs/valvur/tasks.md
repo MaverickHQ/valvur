@@ -889,10 +889,19 @@ after all four probes. The e2e suite on the rebuilt image: 50 passed. Linux: #14
 
 ### Phase R6: the agent surface
 
-- [ ] **R6.1** **Measure the client before relying on it** (F9.1). In Claude Code, a stdio
+- [x] **R6.1** **Measure the client before relying on it** (F9.1). In Claude Code, a stdio
   tool call that runs 150 s and sends progress: is it backgrounded at two minutes, and does
   its result reach the model? The answer is recorded in ADR-0024, and D6's fallback applies
   if needed.
+  **STATUS 2026-09-28:** ✅ ADR-0024 confirmed, and D6's fallback does not apply. The spike
+  is `scripts/spikes/r6_1_background.py`: a stdio server whose one tool runs for the time
+  asked, sending progress every 10 s, and returns a number. Claude Code 2.1.283, headless,
+  was asked for the number. For 150 s, the number reached the model as the call's own
+  result, in 3 turns and 186.9 s, the same turns as a 5 s control; no polling, nothing
+  lost. The interactive client's move to the background at two minutes is documented and
+  cannot be driven unattended; for such a client, or one that times out, the second
+  `scan` attaching (R6.3) is the path. Cost $0.95, so the agent ledger stands at $8.10 of
+  $25.
 - [ ] **R6.2** **Reply schema 2** (D7; F9.8 to F9.10). Behaviours:
   1. The snapshot is re-taken.
   2. The largest acceptance repository's reply stays under 25,000 tokens.
