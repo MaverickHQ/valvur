@@ -37,15 +37,23 @@ LINE_CAP = 200
 #: Line one of the file, invisible when rendered.
 COMMENT = "<!-- valvur results. Read this file first; it is bounded by design. -->"
 
+#: How an agent reports what it found (the owner's decision, 2026-09-28): by rule ID and
+#: path, so the answer can be checked against the report. One sentence, in the
+#: handshake and at the end of `SUMMARY.md`.
+REPORT_RULE = ("When you report what the scan found, name each finding by its rule ID "
+               "and its path, as `SUMMARY.md` gives them: a description alone cannot be "
+               "checked against the report.")
+
 # The three documentation requirements: never commit the folder (F9.7), suppressions
 # need a human (F9.6), and a Finding that disappeared is not a fix (F9.5). In full
 # here for the MCP handshake, which gives them to an agent before its first call
 # (28.2.2); `SUMMARY.md` ends with the short form, `_agent_block` (R5.2).
-AGENT_RULES = """> **If you are an AI agent working in this repository, read this block first.**
+AGENT_RULES = f"""> **If you are an AI agent working in this repository, read this block first.**
 >
 > - This folder was written by a security scan. **Never commit it.** It holds its own
 >   `.gitignore`: the folder ignores itself; there is nothing to add to .gitignore.
 > - Work from `REMEDIATION.md`; it is ranked, and the top is genuinely the most urgent.
+> - {REPORT_RULE}
 > - Query `findings.json` for one finding at a time. **Do not read it whole** — on a
 >   real project it will not fit your context.
 > - **Never add a suppression without asking the human.** A suppression is a risk
@@ -510,7 +518,7 @@ def _agent_block(run: ScanRun) -> str:
         "> found and **not evidence**: never report it as clean, and `status_reason` in "
         "`run.json` says why.",
         "> Ranked by finding class, raised by CISA KEV and FIRST EPSS evidence, not by "
-        "severity label.",
+        f"severity label. {REPORT_RULE}",
         # The run this file belongs to (26.0.3, 26.4.2): run.json is written last,
         # so a sibling with a different id is another run.
         f"> This is generation `{run.generation}`; every JSON file here carries the "
