@@ -37,8 +37,11 @@ def resolve_workspace(raw: str | None) -> Path:
     import os
 
     project = os.environ.get(PROJECT_DIR_ENV) or None
+    roots = _client_roots()
     if not raw:
-        path = Path(project) if project else Path.cwd()
+        # The client's project (R6.4): Claude Code's variable, or the first root it
+        # names over `roots/list`; a person at a terminal means where they stand.
+        path = Path(project) if project else roots[0] if roots else Path.cwd()
     else:
         path = Path(raw).expanduser()
         if not path.is_absolute():
@@ -53,6 +56,15 @@ def resolve_workspace(raw: str | None) -> Path:
     if not path.is_dir():
         raise Refusal(f"{path} is a file, not a directory; name the project's folder.")
     return path
+
+
+def _client_roots() -> list[Path] | None:
+    """The roots of the MCP client this call comes from; None outside a call, or
+    when the client declared none."""
+    from .mcp import protocol
+
+    call = protocol.current_call()
+    return call.client.roots() if call is not None and call.client is not None else None
 
 
 def _checked_profile(value) -> str:

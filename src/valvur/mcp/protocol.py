@@ -80,15 +80,81 @@ def error(request_id: Any, code: int, message: str, data: Any = None) -> str:
     return json.dumps({"jsonrpc": "2.0", "id": request_id, "error": body})
 
 
+class Client:
+    """What this session knows of its client (R6.4): the capabilities it declared
+    at `initialize`, the requests this server has put to it and awaits, and its
+    roots once asked, until it says they changed."""
+
+    def __init__(self, emit: Callable[[str], None]):
+        self._emit = emit
+        self.capabilities: dict = {}
+        self._pending: dict[str, Any] = {}
+        self._next = 0
+        self._lock = threading.Lock()
+        self._roots: list[Any] | None = None
+
+    def ask(self, method: str, params: dict | None = None, seconds: float = 10.0) -> Any:
+        """Put a request to the client and wait for its result; None on an error or
+        no answer. The id is the server's own, so it never meets a client's."""
+        import queue
+
+        with self._lock:
+            self._next += 1
+            request_id = f"valvur-{self._next}"
+            answer: queue.Queue = queue.Queue()
+            self._pending[request_id] = answer
+        self._emit(json.dumps({"jsonrpc": "2.0", "id": request_id, "method": method,
+                               **({"params": params} if params else {})}))
+        try:
+            message = answer.get(timeout=seconds)
+        except queue.Empty:
+            return None
+        finally:
+            with self._lock:
+                self._pending.pop(request_id, None)
+        return message.get("result")
+
+    def answered(self, message: dict) -> bool:
+        """Deliver the client's answer to a request of ours; False if it is not one."""
+        with self._lock:
+            waiting = self._pending.get(str(message.get("id")))
+        if waiting is None:
+            return False
+        waiting.put(message)
+        return True
+
+    def roots(self) -> list[Any] | None:
+        """The client's roots as paths, asked once; None when it declared none."""
+        from pathlib import Path
+        from urllib.parse import unquote, urlparse
+
+        if "roots" not in self.capabilities:
+            return None
+        if self._roots is None:
+            result = self.ask("roots/list") or {}
+            found = []
+            for root in result.get("roots") or []:
+                uri = urlparse(str(root.get("uri", "")))
+                if uri.scheme == "file":
+                    found.append(Path(unquote(uri.path)).resolve())
+            self._roots = found
+        return list(self._roots)
+
+    def roots_changed(self) -> None:
+        self._roots = None
+
+
 class Call:
     """One `tools/call` in flight (R6.3): its id, the client's progress token, and
     whether the client has let go of it. A handler that runs long reads this to
     send progress, and stops waiting once the client is gone."""
 
-    def __init__(self, request_id: Any, token: Any, emit: Callable[[str], None]):
+    def __init__(self, request_id: Any, token: Any, emit: Callable[[str], None],
+                 client: Client | None = None):
         self.id = request_id
         self.token = token
         self._emit = emit
+        self.client = client
         self._sent = 0
         #: Set by the client's `notifications/cancelled` or by stdin closing: a
         #: handler that waits stops waiting.
@@ -141,6 +207,8 @@ def serve(
             sink.write(text + "\n")
             sink.flush()
 
+    client = Client(emit)
+
     def answer(line: str, call: Call) -> None:
         _local.call = call
         try:
@@ -158,6 +226,15 @@ def serve(
             message = json.loads(line)
         except json.JSONDecodeError:
             message = None
+        if isinstance(message, dict) and "method" not in message and client.answered(message):
+            continue                          # the client answering a request of ours
+        if isinstance(message, dict) and message.get("method") == "initialize":
+            client.capabilities = dict((message.get("params") or {}).get("capabilities")
+                                        or {})
+        if isinstance(message, dict) and message.get("method") == \
+                "notifications/roots/list_changed":
+            client.roots_changed()
+            continue
         if isinstance(message, dict) and message.get("method") == "notifications/cancelled":
             held = calls.get((message.get("params") or {}).get("requestId"))
             if held is not None:
@@ -167,7 +244,7 @@ def serve(
         if isinstance(message, dict) and message.get("method") == "tools/call" \
                 and message.get("id") is not None:
             meta = (message.get("params") or {}).get("_meta") or {}
-            call = Call(message["id"], meta.get("progressToken"), emit)
+            call = Call(message["id"], meta.get("progressToken"), emit, client)
             for done in [key for key, (_, t) in calls.items() if not t.is_alive()]:
                 del calls[done]              # a long session keeps only what runs
             thread = threading.Thread(target=answer, args=(line, call), daemon=True,
