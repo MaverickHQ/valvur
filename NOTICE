@@ -52,6 +52,19 @@ zizmor
     Copyright (c) 2024 William Woodruff; installed as the release's musl wheel,
     pinned by hash (`requirements-zizmor.txt`).
 
+Patterns translated into valvur's own Checks
+--------------------------------------------
+
+mcp-scanner
+    https://github.com/cisco-ai-defense/mcp-scanner
+    Apache License 2.0
+    Copyright 2025 Cisco Systems, Inc. and its affiliates; 41 regular
+    expressions from the YARA rules prompt_injection, coercive_injection,
+    data_exfiltration and credential_harvesting, at commit
+    9e47aabdf2017b82e78f3419f39a75f20b6f98fa, translated into the AI Artifact
+    Check (`src/valvur/checks/borrowed.py`, D14). Each Finding they produce
+    names the pattern in its title.
+
 Base image and runtime
 ----------------------
 

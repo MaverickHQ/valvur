@@ -19,6 +19,10 @@ from .findings import SEVERITIES, Finding
 CLASS_WEIGHT = {
     "valvur.dependency.nonexistent": 0,      # someone can register that name today
     "valvur.ai-artifact.prompt-injection": 0,
+    # R5.6: Cisco mcp-scanner's classes, beside the one they extend.
+    "valvur.ai-artifact.coercive-directive": 0,
+    "valvur.ai-artifact.exfiltration-directive": 0,
+    "valvur.ai-artifact.credential-harvesting": 0,
     "valvur.ai-artifact.hidden-unicode": 0,
     "valvur.dependency.near-miss": 1,
     "valvur.ai-artifact.permission-bypass": 1,

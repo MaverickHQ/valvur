@@ -84,6 +84,7 @@ class AiArtifactCheck(Check):
                 continue
             findings += _hidden_unicode(text, rel)
             findings += _directives(text, rel)
+            findings += _borrowed(text, rel)
             parts = path.relative_to(workspace).parts
             if path.name == ".mcp.json" or _tail(parts, 3) in MCP_FILES:
                 findings += _mcp_config(text, rel)
@@ -164,6 +165,45 @@ def _directives(text: str, rel: str) -> list[dict]:
                     "evidence": neutralise(line, always_fence=True),
                     "identity": ("ai_artifact", rule, rel, str(n)),
                 })
+    return findings
+
+
+#: The four classes of borrowed pattern (R5.6), by the title a reader meets.
+BORROWED_TITLES = {
+    "prompt-injection": "Instruction-override directive in an agent file",
+    "coercive-directive": "Coercive directive in an agent file",
+    "exfiltration-directive": "Exfiltration directive in an agent file",
+    "credential-harvesting": "Credential-harvesting directive in an agent file",
+}
+
+
+def _borrowed(text: str, rel: str) -> list[dict]:
+    """Cisco mcp-scanner's patterns (D14, `borrowed.py`), each named in the title
+    it produced, since the detection is theirs. Whole text, not by line: an HTML
+    comment hiding an instruction spans lines. One per pattern per file; the same
+    rule on the same line is one Finding, as `_directives` makes it."""
+    from .borrowed import COMPILED, EXFILTRATION_EXEMPT
+
+    exempt = any(p.search(text) for p in EXFILTRATION_EXEMPT)
+    lines = text.splitlines()
+    findings = []
+    for rule, name, pattern in COMPILED:
+        if rule == "exfiltration-directive" and exempt:
+            continue        # Cisco's condition: config plumbing, a stated backup
+        match = pattern.search(text)
+        if match is None:
+            continue
+        n = text.count("\n", 0, match.start()) + 1
+        findings.append({
+            "rule": f"valvur.ai-artifact.{rule}",
+            "severity": "high",
+            "path": rel,
+            "line": n,
+            "title": f"{BORROWED_TITLES[rule]} (mcp-scanner's {name})",
+            "evidence": neutralise(lines[n - 1] if n <= len(lines) else match.group(0),
+                                   always_fence=True),
+            "identity": ("ai_artifact", rule, rel, str(n)),
+        })
     return findings
 
 

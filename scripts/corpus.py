@@ -45,6 +45,11 @@ SUSPECT_RULES = (
     "valvur.ai-artifact.prompt-injection",
     "valvur.ai-artifact.permission-bypass",
     "valvur.ai-artifact.hidden-unicode",
+    # R5.6: Cisco mcp-scanner's classes, adopted only because they found nothing on
+    # this corpus (D14); a hit here is the rule to revisit.
+    "valvur.ai-artifact.coercive-directive",
+    "valvur.ai-artifact.exfiltration-directive",
+    "valvur.ai-artifact.credential-harvesting",
 )
 
 
