@@ -127,6 +127,24 @@ def write_plan(scratch: Path, plan: list[Invocation], budget_s: float | None = N
         encoding="utf-8")
 
 
+#: Where the Scanners ran, as `run.json` states it: the Scan Container, which has
+#: no network interface on `offline` (ADR-0022), unless a job's container (R8.1).
+SCAN_CONTAINER = "the Scan Container"
+
+
+def job_boundary(net: Path = Path("/sys/class/net")) -> str:
+    """The job's container, and whether it has a network: any interface but the
+    loopback is one. The Scanners run with their offline flags either way; only a
+    job started with no network makes that structural."""
+    try:
+        interfaces = sorted(p.name for p in net.iterdir() if p.name != "lo")
+    except OSError:
+        return "this job's container, its network unknown"
+    if not interfaces:
+        return "this job's container, with no network"
+    return f"this job's container, with a network: {', '.join(interfaces)}"
+
+
 class _Runtime:
     """What both runtimes share: one engine at a time, and one way to stop it.
 
@@ -148,6 +166,10 @@ class _Runtime:
         self._count = threading.Lock()
         #: The Scan Run's generation, carried by the Scan Container (R3.6).
         self.generation: str | None = None
+
+    def boundary(self) -> str:
+        """Where the Scanners run, for `run.json` (R8.1)."""
+        return SCAN_CONTAINER
 
     def kill(self) -> int:
         """Stop the engine, and remember that the scan was cancelled. Returns 1
@@ -371,6 +393,9 @@ class ImageRuntime(LocalRuntime):
 
     def image_present(self) -> bool:
         return True
+
+    def boundary(self) -> str:
+        return job_boundary()
 
     def pull_size_mb(self) -> None:
         return None

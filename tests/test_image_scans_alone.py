@@ -178,3 +178,44 @@ def test_the_results_can_go_to_a_directory_of_their_own(tmp_path):
     assert (out / ".security-scan" / ".gitignore").read_text() == "*\n"
     assert cli.main(["gate", str(out), "--fail-on", "high"]) == 1
     assert os.access(ws, os.W_OK)
+
+
+def test_in_the_image_the_boundary_is_the_jobs_and_the_report_says_which(tmp_path, monkeypatch):
+    """The Scan Container has no network interface on `offline`; a job's container
+    has whatever the job gave it. The Scanners run offline either way, but only a
+    job with no network makes that structural, so the run says which it had."""
+    from valvur import engine_host
+
+    net = tmp_path / "net"
+    (net / "lo").mkdir(parents=True)
+    assert engine_host.job_boundary(net) == "this job's container, with no network"
+    (net / "eth0").mkdir()
+    assert engine_host.job_boundary(net) == "this job's container, with a network: eth0"
+
+
+def test_a_scan_records_its_boundary_and_the_summary_names_a_network_on_offline(tmp_path):
+    import json
+
+    from valvur import api
+    from valvur.adapters import GitleaksAdapter
+
+    class JobRuntime(LocalRuntime):
+        def boundary(self):
+            return "this job's container, with a network: eth0"
+
+    fake_tools = Path(__file__).parent / "fixtures" / "fake-tools"
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "app.py").write_text("x = 1\n")
+
+    api.scan(ws, runner=JobRuntime(fake_tools), adapters=[GitleaksAdapter()])
+
+    run = json.loads((ws / ".security-scan" / "run.json").read_text())
+    assert run["network"]["boundary"] == "this job's container, with a network: eth0"
+    summary = (ws / ".security-scan" / "SUMMARY.md").read_text()
+    assert "--network=none" in summary
+
+    api.scan(ws, runner=LocalRuntime(fake_tools), adapters=[GitleaksAdapter()])
+    run = json.loads((ws / ".security-scan" / "run.json").read_text())
+    assert run["network"]["boundary"] == "the Scan Container"
+    assert "--network=none" not in (ws / ".security-scan" / "SUMMARY.md").read_text()
