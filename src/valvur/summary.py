@@ -230,11 +230,10 @@ def _status(run: ScanRun, active, suppressed, notes) -> list[str]:
         + (f" · **suppressed:** {len(suppressed)}" if suppressed else "")
         + (f" · **not covered:** {len(notes)}" if notes else "")
         + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else "")
-        + (f" · **not re-checked:** {len(run.not_rechecked)}" if run.not_rechecked else ""),
+        + (f" · **not re-checked:** {len(run.not_rechecked)}" if run.not_rechecked else "")
+        + (f". {_counts(active)}" if active else ""),
+        "",
     ]
-    if active:
-        lines.append(_counts(active))
-    lines.append("")
     if suppressed and not active:
         lines += [
             f"> **Nothing live was found.** The {len(suppressed)} finding(s) below are "
@@ -325,8 +324,7 @@ def _scope(run: ScanRun, active) -> list[str]:
             f"> {headline}{not_run}",
             f"> `{run.profile}` does cover dependency CVEs and known-malicious packages, "
             "secrets, code patterns, workflows, agent config and hallucinated packages. "
-            f"It does not cover {gap}.",
-            "> Run `valvur scan --profile full` for full coverage.",
+            f"It does not cover {gap}; `valvur scan --profile full` does.",
             "",
         ]
 
@@ -369,8 +367,6 @@ def _not_run(run: ScanRun, notes) -> list[str]:
             "> **Not run, having nothing to analyse:** "
             + "; ".join(f"**{s.tool}** — {s.reason}" for s in skipped)
             + ".",
-            "> Reported because a Scanner that did not run must never look like one "
-            "that ran and found nothing.",
             "",
         ]
 
@@ -470,9 +466,7 @@ def _hygiene(run: ScanRun) -> list[str]:
     said = hygiene.lines(run.hygiene)
     if not said:
         return []
-    return ["## Hygiene", "",
-            "_Facts about the repository, not Findings: none changes the Status._", "",
-            *said, ""]
+    return ["## Hygiene: facts about the repository, not Findings", "", *said, ""]
 
 
 def _accepted_and_fixed(run: ScanRun, suppressed) -> list[str]:

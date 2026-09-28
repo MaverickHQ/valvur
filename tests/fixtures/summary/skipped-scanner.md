@@ -11,13 +11,11 @@
 Ran: gitleaks. Versions are in `run.json`.
 
 > ⚠ **Nothing found — but this Profile does not ask the network.**
-> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist.
-> Run `valvur scan --profile full` for full coverage.
+> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist; `valvur scan --profile full` does.
 
 ## What did not run
 
 > **Not run, having nothing to analyse:** **checkov** — .
-> Reported because a Scanner that did not run must never look like one that ran and found nothing.
 
 ## For AI agents
 

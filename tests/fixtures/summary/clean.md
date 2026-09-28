@@ -11,8 +11,7 @@
 Ran: gitleaks. Versions are in `run.json`.
 
 > ⚠ **Nothing found — but this Profile does not ask the network.**
-> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist.
-> Run `valvur scan --profile full` for full coverage.
+> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist; `valvur scan --profile full` does.
 
 ## For AI agents
 

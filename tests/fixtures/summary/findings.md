@@ -4,8 +4,7 @@
 **2 active finding(s).** The most urgent is ranked first in [`REMEDIATION.md`](REMEDIATION.md); start there rather than here.
 
 **Status:** findings
-**Active findings:** 2
-By severity: 1 high · 1 medium. New / persisting / regressed: 2 / 0 / 0.
+**Active findings:** 2. By severity: 1 high · 1 medium. New / persisting / regressed: 2 / 0 / 0.
 
 ## Scope
 

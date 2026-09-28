@@ -138,3 +138,34 @@ def test_a_flood_ranked_below_the_top_entries_is_still_named(tmp_path):
 
     assert "**300 ×** generic-api-key in `data/`" in top   # noqa: RUF001 — the multiplication sign
     assert "possibly machine-written data" in top
+
+
+# ------------------------------------------------------ R5's exit: one screen
+
+def test_a_repository_shaped_like_repository_1_fits_one_screen(tmp_path):
+    """R5's exit, measured: repository 1's summary was 68 lines before R5.2 and 50
+    once Hygiene joined it. Held under 46, a laptop editor's screen with room, by
+    saying each thing once rather than explaining itself."""
+    shell = Finding(rule="valvur.python.subprocess-shell-true", path="src/pkg/runner.py",
+                    line=5, title="subprocess with shell=True", fingerprint="fp-shell",
+                    severity="high", sources=("opengrep",))
+    licence = Finding(rule="valvur.licence.missing", path=".", line=0,
+                      title="No licence file found", fingerprint="fp-licence",
+                      severity="low", sources=("licence-file",))
+    ctx = pipeline.Context(workspace=tmp_path, profile="offline", network=False,
+                           declaring=[a.for_profile(network=False) for a in DEFAULT_ADAPTERS])
+    run = ScanRun(
+        findings=pipeline.run([shell, licence], ctx).findings, profile="offline",
+        scanners=[ScannerRun(t, True, duration_s=1.0) for t in (
+            "gitleaks", "trivy", "osv-scanner", "opengrep", "syft", "licence-file",
+            "ai-artifact", "dependency-reality")]
+        + [ScannerRun("checkov", True, skipped=True, reason="no infrastructure"),
+           ScannerRun("zizmor", True, skipped=True, reason="no workflow")],
+        scope={"scope": "git", "files": 304, "bytes": 4895},
+        not_read=((".venv/", "ignored by git"), ("data/", "ignored by git")),
+        history={"commits": 1},
+        hygiene={"security_policy": None, "dependency_updates": None, "workflows": 0,
+                 "default_permissions": []},
+    )
+
+    assert len(render(run).splitlines()) <= 45

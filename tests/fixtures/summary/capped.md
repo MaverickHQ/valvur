@@ -4,16 +4,14 @@
 **300 active finding(s).** The most urgent is ranked first in [`REMEDIATION.md`](REMEDIATION.md); start there rather than here.
 
 **Status:** findings
-**Active findings:** 300
-By severity: 300 high. New / persisting / regressed: 300 / 0 / 0.
+**Active findings:** 300. By severity: 300 high. New / persisting / regressed: 300 / 0 / 0.
 
 ## Scope
 
 Ran: gitleaks. Versions are in `run.json`.
 
 > **The `offline` profile does not ask the network.**
-> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist.
-> Run `valvur scan --profile full` for full coverage.
+> `offline` does cover dependency CVEs and known-malicious packages, secrets, code patterns, workflows, agent config and hallucinated packages. It does not cover package age (newly-registered names), or whether JVM and Go dependencies exist; `valvur scan --profile full` does.
 
 ## Most urgent (15 of 300)
 
