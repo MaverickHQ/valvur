@@ -743,10 +743,23 @@ and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
 
 ### Phase R5: the report
 
-- [ ] **R5.1** **Groups** (F5.8, F7.5, F7.14). Behaviours:
+- [x] **R5.1** **Groups** (F5.8, F7.5, F7.14). Behaviours:
   1. 3,890 `generic-api-key` hits under one directory form one group, ranked below eight
      distinct findings, and labelled as possible machine-written data.
   2. `findings.json` keeps every Finding with its group id.
+  **STATUS 2026-09-28:** ✅ Measured first: repository 1's flood no longer reaches a scan,
+  because its `data/` is gitignored and the File Set (R3) leaves it out. A flood now comes
+  only from tracked data or a folder walk. On the corpus, no rule repeats more than 17
+  times under one directory, so a group starts at 25 hits of one rule under one top-level
+  directory. Data files group apart from code, and only a group of data files is labelled
+  possibly machine-written and ranked below every distinct Finding. A new pipeline stage,
+  `group`, runs between `suppress` and `rank`. Each Finding carries `group`, and
+  `findings.json` lists the groups derived from those ids, additive to schema 1. On the
+  image, a tracked repository of 3,890 JSON files with API-key-shaped values and four
+  planted files took 23.8 s. It produced 7,640 Findings in two groups, all under `data/`:
+  Gitleaks' `generic-api-key` on 3,694 files, and Checkov's `CKV_SECRET_6` on 3,890. The 56
+  distinct Findings ranked 1 to 56. Checkov's secrets framework reports nothing on the
+  acceptance set or the corpus, so it stays.
 - [ ] **R5.2** **`SUMMARY.md` leads with what matters** (F7.4 to F7.7, N1.3). Behaviours:
   1. The order is: verdict, scope manifest, what did not run, top groups, Hygiene, then a
      shortened agent block at the end.
