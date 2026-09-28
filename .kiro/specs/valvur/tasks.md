@@ -295,11 +295,26 @@ Phases R0 to R6 are closed, each with its STATUS notes and its exit as measured,
 
 The first commit records R7's rehearsal.
 
-- [ ] **R8.1** **The image scans on its own** (D15; F1.10). `valvur scan` runs inside the
+- [x] **R8.1** **The image scans on its own** (D15; F1.10). `valvur scan` runs inside the
   image on a mounted or cloned checkout, needing no socket. Behaviours:
   1. e2e: `docker run` of the image on a checkout writes the Results Folder to a mounted
      output directory.
   2. No cloud-specific code path exists: F1.10's test still holds.
+  **STATUS 2026-09-28:** ✅ both. The image sets `VALVUR_IN_IMAGE` and carries a `valvur`
+  command; inside it `for_scan()` is `ImageRuntime`, the Scan Container's engine run as a
+  process with the job's cache at `/cache`, Trivy's database fetched by the image's own
+  Trivy. `scan --out DIR` writes `.security-scan/` under DIR for a read-only checkout, and
+  `gate`, `findings` and `status` read DIR. With no `git` in the image a checkout is walked
+  and history is not read, each said. `run.json`'s `network.boundary` names the job's
+  container and whether it had a network, and on `offline` with one the Summary says that
+  `--network=none` makes the guarantee structural; `doctor` in the image needs no runtime.
+  `tests/test_image_scans_alone.py`'s e2e test runs the image with `--network=none` on a
+  read-only checkout: the planted secret, a CVE in `requirements.txt` and a non-empty SBOM
+  come back in `/out`, and the checkout is untouched. Measured on acceptance repository 2
+  (`docs/acceptance/r8.md`): the host's 96 findings, two notes and 16 SBOM components, in
+  17.2 s. The first run found three defects, fixed: reports named the engine's temporary
+  workspace, Syft's `dir:/workspace` went unmapped, and down tunnel devices read as a
+  network. F1.10's test passes unchanged: nothing added names a cloud.
 - [ ] **R8.2** **A GitHub Actions container job**: a workflow example and a CI test that runs
   it. A GitLab snippet goes in the docs.
 - [ ] **R8.3** **A mirror in the customer's own registry.** Behaviours:
