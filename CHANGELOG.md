@@ -46,6 +46,9 @@ The report (R5):
   suppression snippet.
 - **A flood is one remediation action**: what the directory is, the count, and the
   exclude line, with a reminder that the human decides.
+- **Repository hygiene** is reported, never ranked: no `SECURITY.md`, no Dependabot or
+  Renovate configuration, and workflows with no top-level `permissions:` appear in a
+  Hygiene section and `run.json`, and never change the Status.
 - **Local agent configuration that would leak** is a medium Finding
   (`valvur.ai-artifact.local-config-exposed`): `.mcp.json`, `.claude/settings.local.json`,
   `.kiro/settings/mcp.json` and their peers, when git does not ignore them and they hold

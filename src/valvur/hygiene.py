@@ -55,8 +55,11 @@ def lines(facts: dict | None) -> list[str]:
         return []
     said = []
     if not facts.get("security_policy"):
-        said.append("- No `SECURITY.md`: nobody reading the repository is told how to report "
-                    "a vulnerability.")
+        # express and flask publish theirs organisation-wide, from a `.github`
+        # repository, which a scan of this one cannot see (measured on the corpus).
+        said.append("- No `SECURITY.md` in the repository: nobody reading it is told how to "
+                    "report a vulnerability, unless an organisation-wide policy applies, "
+                    "which a scan of this repository cannot see.")
     if not facts.get("dependency_updates"):
         said.append("- No dependency-update configuration (Dependabot or Renovate): pinned "
                     "dependencies and actions move only when someone moves them.")

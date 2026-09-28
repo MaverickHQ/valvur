@@ -814,11 +814,31 @@ and two scripts left on the pre-R3.9 runner, the corpus and `verify-offline.py`.
   flooded `data/`. After, on the image: 8 actions resolve 7,639 Findings in 109 lines, and
   the eighth is the flood of 7,584 hits. Other groups keep their per-file actions,
   because rotating two keys in two files is two actions.
-- [ ] **R5.5** **Repository hygiene** (D13). Behaviours:
+- [x] **R5.5** **Repository hygiene** (D13). Behaviours:
   1. A missing `SECURITY.md`, no dependency-update configuration, and write-all default
      workflow permissions each appear in the Hygiene section.
   2. None of them changes the Status.
   3. The corpus is measured and its counts recorded.
+  **STATUS 2026-09-28:** ✅ `hygiene.assess` reads three facts on the host from the File
+  Set, because they concern which files exist:
+  - a security policy where GitHub looks, the root, `.github/` or `docs/`;
+  - Dependabot or Renovate configuration;
+  - the workflows with no top-level `permissions:`.
+
+  D13 was written before R4.2 made an explicit `write-all` zizmor's ranked Finding, which
+  repository 7 expects, so that Finding stays. The third fact is what no Finding says: a
+  workflow with no top-level `permissions:` runs with the repository's default token,
+  write-all on repositories created before February 2023, and that setting is in no file.
+  The facts are recorded in `run.json` as `hygiene`, with the paths, and a Hygiene section
+  after the top entries names only what is missing. None is a Finding or changes the
+  Status. On the corpus, of thirteen repositories:
+  - 7 have no security policy of their own; express and flask publish theirs
+    organisation-wide, which the line now says a scan cannot see;
+  - 5 have no Dependabot or Renovate configuration;
+  - 3 have workflows left to the default token: sinatra 1 of 2, smolagents 5 of 6 and
+    terraform-aws-vpc 5 of 5.
+
+  valvur itself has all three.
 - [ ] **R5.6** **Borrowed injection patterns** (D14; F3.6, F3.12). Behaviours:
   1. Each translated pattern fires on its planted fixture.
   2. The corpus's real agent files gain no finding.
