@@ -45,3 +45,20 @@ def test_a_finding_the_answer_leaves_out_is_unnamed():
     score = _agent().score(silent, EXPECTED, TASKS)
     assert score.named_all is False
     assert score.unnamed == ["src/archive/app.py"]
+
+
+def test_the_score_keeps_what_the_agent_wrote():
+    """R6's exit could not say why two reports missed a finding: the answer was
+    scored and thrown away."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "scripts" / "acceptance" / "agent.py"
+    spec = importlib.util.spec_from_file_location("acceptance_agent", path)
+    agent = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agent)
+
+    scored = agent.score({"result": "PyYAML 5.1 in requirements.txt", "num_turns": 3},
+                         {"must": [{"rule": "CVE-2020-14343", "path": "requirements.txt"}]}, "")
+
+    assert scored.answer == "PyYAML 5.1 in requirements.txt" and scored.named_all

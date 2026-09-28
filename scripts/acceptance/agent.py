@@ -30,6 +30,8 @@ class AgentScore:
     named_all: bool
     unnamed: list[str] = field(default_factory=list)
     containers_left: int = 0
+    #: What the agent wrote, so a miss can be read rather than guessed at (R6).
+    answer: str = ""
 
 
 def _ticked(tasks_text: str) -> set[str]:
@@ -51,7 +53,7 @@ def score(result: dict, expected: dict, tasks_text: str) -> AgentScore:
     return AgentScore(int(result.get("num_turns", 0)),
                       round(float(result.get("total_cost_usd", 0.0)), 2),
                       round(int(result.get("duration_ms", 0)) / 1000, 1),
-                      not unnamed, unnamed)
+                      not unnamed, unnamed, answer=answer)
 
 
 def spent() -> float:
