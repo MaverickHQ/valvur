@@ -1,0 +1,14 @@
+usage: valvur check [-h] [--project PROJECT] [--json]
+                    ecosystem NAME[@VERSION] [NAME[@VERSION] ...]
+
+positional arguments:
+  ecosystem          npm, pip (or pypi), cargo, gem, composer; go and maven answer unknown
+  NAME[@VERSION]     Up to 50; `@scope/name@1.2.3` for npm, `name==1.2.3` works too
+
+options:
+  -h, --help         show this help message and exit
+  --project PROJECT  The project whose registry configuration applies (default: here)
+  --json             The answers as JSON, as the check_package tool gives them
+
+Exit status: 0 when no package is flagged, 1 when any is (nonexistent, near-miss, malicious or a
+confusion exposure), 2 on an error.

@@ -756,8 +756,16 @@ the baseline.
     registry; valvur does not ask it.
   - **Measured:** 50 answers in 59 ms against the real index (4.4 million npm names),
     8 ms warm.
-- [ ] **R12.2** **The CLI, `valvur check`.** Behaviours: the exit status per D28; `--json`;
+- [x] **R12.2** **The CLI, `valvur check`.** Behaviours: the exit status per D28; `--json`;
   the help fixture and the documented-commands test updated.
+  **STATUS 2026-09-30:** ✅ all three.
+  - `valvur check <ecosystem> NAME[@VERSION] …` prints one line per package: its
+    verdict and why. It exits 0 when none is flagged, 1 when any is, and 2 on an
+    error, such as more than 50 names.
+  - `--json` gives the answers as the tool will.
+  - `--project` names whose registry configuration applies; the default is here.
+  - The top-level usage now lists nine commands, which `test_seven_commands.py` holds.
+    `check`'s help is a golden beside the others, and the README's quick start shows it.
 - [ ] **R12.3** **The MCP tool** (F9.11). Behaviours:
   1. `check_package` is listed with its schema and annotations, read-only, not open-world;
   2. a reply of 50 packages stays bounded and carries `structuredContent`;

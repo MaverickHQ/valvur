@@ -273,11 +273,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", action="version", version=f"valvur {__version__}"
     )
-    # Seven commands (D12, R6.5); `explain` and `cache` still parse, for one
-    # release, and say what replaced them.
+    # Seven commands (D12, R6.5), `init` the eighth and `check` the ninth (D28);
+    # `explain` and `cache` still parse, for one release, and say what replaced them.
     sub = parser.add_subparsers(
         dest="command", required=True,
-        metavar="{scan,update,findings,status,doctor,gate,suppress,init}")
+        metavar="{scan,update,findings,status,doctor,gate,suppress,init,check}")
     scan_cmd = sub.add_parser("scan", help="Scan a workspace")
     scan_cmd.add_argument("path", nargs="?", default=".", type=_workspace, help="Workspace to scan")
     scan_cmd.add_argument(
@@ -469,7 +469,53 @@ def build_parser() -> argparse.ArgumentParser:
         "found here, or Claude Code.",
     )
 
+    check_cmd = sub.add_parser(
+        "check",
+        help="Before installing: does each package exist, is it one edit from a popular "
+        "one, was it published as malicious? Offline; never asks a registry",
+        epilog="Exit status: 0 when no package is flagged, 1 when any is (nonexistent, "
+        "near-miss, malicious or a confusion exposure), 2 on an error.",
+    )
+    check_cmd.add_argument("ecosystem",
+                           help="npm, pip (or pypi), cargo, gem, composer; go and maven "
+                           "answer unknown")
+    check_cmd.add_argument("packages", nargs="+", metavar="NAME[@VERSION]",
+                           help="Up to 50; `@scope/name@1.2.3` for npm, `name==1.2.3` "
+                           "works too")
+    check_cmd.add_argument("--project", default=".", type=_workspace,
+                           help="The project whose registry configuration applies "
+                           "(default: here)")
+    check_cmd.add_argument("--json", action="store_true",
+                           help="The answers as JSON, as the check_package tool gives them")
+
     return parser
+
+
+def _cmd_check(args: argparse.Namespace, runner=None) -> int:
+    """`valvur check` (D28): each package's answer, and whether any should stop an
+    install. Host-side and offline, like the tool it shares its answers with."""
+    import json
+
+    from . import packages
+
+    try:
+        answers = packages.check([packages.parse(args.ecosystem, spec)
+                                  for spec in args.packages],
+                                 workspace=Path(args.project).resolve())
+    except ValueError as exc:
+        print(f"valvur check: {exc}", file=sys.stderr)
+        return 2
+    flagged = sum(answer.flagged for answer in answers)
+    if args.json:
+        print(json.dumps({"answers": [a.as_dict() for a in answers], "flagged": flagged},
+                         indent=2))
+    else:
+        for answer in answers:
+            at = f"{answer.name}@{answer.version}" if answer.version else answer.name
+            print(f"{answer.verdict:<11} {answer.ecosystem} {at}: {answer.reason}")
+        print(f"\n{flagged} of {len(answers)} flagged" if flagged
+              else f"\nnone of {len(answers)} flagged")
+    return 1 if flagged else 0
 
 
 def _cmd_init(args: argparse.Namespace, runner=None) -> int:
@@ -674,6 +720,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, object], int]] = {
     "update": _cmd_update,
     "scan": _cmd_scan,
     "init": _cmd_init,
+    "check": _cmd_check,
 }
 
 

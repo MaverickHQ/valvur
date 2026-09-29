@@ -20,7 +20,7 @@ import pytest
 GOLDEN = Path(__file__).parent / "fixtures" / "cli-help"
 UPDATE = "UPDATE_CLI_HELP_GOLDEN"
 COMMANDS = ("", "scan", "update", "findings", "explain", "status", "doctor", "gate", "cache",
-            "suppress")
+            "suppress", "check")
 
 
 def _help(command: str, capsys) -> str:

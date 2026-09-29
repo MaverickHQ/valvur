@@ -1,9 +1,9 @@
-usage: valvur [-h] [--version] {scan,update,findings,status,doctor,gate,suppress,init} ...
+usage: valvur [-h] [--version] {scan,update,findings,status,doctor,gate,suppress,init,check} ...
 
 Command line interface.
 
 positional arguments:
-  {scan,update,findings,status,doctor,gate,suppress,init}
+  {scan,update,findings,status,doctor,gate,suppress,init,check}
     scan                Scan a workspace
     update              Pull the image if it is not local, and fetch the vulnerability database
                         and the package-name index into the local cache
@@ -18,6 +18,8 @@ positional arguments:
     suppress            Print a ready-to-paste suppression block for a finding (never writes)
     init                Print each MCP client's block and a starter .security-scan.toml; --write
                         writes them, never over what is there
+    check               Before installing: does each package exist, is it one edit from a popular
+                        one, was it published as malicious? Offline; never asks a registry
 
 options:
   -h, --help            show this help message and exit

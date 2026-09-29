@@ -367,6 +367,7 @@ doctor` says whether it has one, and what to install if not.
 pip install valvur          # or: uv tool install valvur
 valvur scan                 # offline by default; --profile full adds the network's answers
 valvur doctor               # if that did not work: what this machine is missing, and the fix
+valvur check npm left-pad   # before an install: real, a near-miss, or malicious? Offline
 ```
 
 A first scan fetches what it lacks and says so as it goes. Measured from an empty cache
