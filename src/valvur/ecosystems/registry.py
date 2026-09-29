@@ -111,9 +111,10 @@ ECOSYSTEMS: tuple[Ecosystem, ...] = (
     Ecosystem(
         key="pip", label="Python",
         parsers=(("requirements*.txt", _parsers.from_requirements),
-                 ("pyproject.toml", _parsers.from_pyproject)),
+                 ("pyproject.toml", _parsers.from_pyproject),
+                 ("Pipfile", _parsers.from_pipfile)),
         defines=(("pyproject.toml", _parsers.defines_pyproject),),
-        sees=("Pipfile", "setup.py", "setup.cfg", "poetry.lock", "uv.lock"),
+        sees=("setup.py", "setup.cfg", "poetry.lock", "uv.lock"),
         index_file="pypi.txt", registry="PyPI", host="pypi.org",
         index_form=pep503, near_miss=True,
     ),

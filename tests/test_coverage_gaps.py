@@ -65,7 +65,6 @@ def test_an_ecosystem_with_no_existence_check_says_so(tmp_path, monkeypatch):
     # `sees` only: the ecosystem is read, but not through this file. A Pipenv
     # project with no requirements file or pyproject, a Rust tree with only its
     # lockfile — each is a real gap and the note names what would close it.
-    ("Pipfile", "Python"),
     ("setup.py", "Python"),
     ("Cargo.lock", "Rust (Cargo)"),
     ("Gemfile.lock", "Ruby (Bundler)"),
@@ -127,7 +126,7 @@ def test_the_gap_does_not_depend_on_the_network_profile(tmp_path):
     Pinned as a property of the module rather than of the Check: this function must
     never need a runner, a container or a socket.
     """
-    gaps = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": "[packages]\n"}))
+    gaps = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": ""}))
 
     assert len(gaps) == 1
     assert not hasattr(coverage.dependency_gaps, "needs_network")
@@ -153,10 +152,10 @@ def test_the_reported_path_is_the_shallowest_not_an_arbitrary_one(tmp_path):
     """**C3**. The npm gap pointed at `infra/package.json` rather than the root, by
     `rglob` order. Cosmetic, but it is the path a reader opens first."""
     gaps = coverage.dependency_gaps(_repo(tmp_path, {
-        "infra/Pipfile": "", "Pipfile": "", "a/b/c/Pipfile": "",
+        "infra/setup.py": "", "setup.py": "", "a/b/c/setup.py": "",
     }))
 
-    assert gaps[0].path == "Pipfile"
+    assert gaps[0].path == "setup.py"
 
 
 def test_the_manifest_is_reported_before_its_lockfile(tmp_path):
@@ -173,10 +172,10 @@ def test_the_manifest_is_reported_before_its_lockfile(tmp_path):
 # ------------------------------------------------------------------ the old rules
 
 def test_one_gap_per_ecosystem_not_per_file(tmp_path):
-    """A monorepo with forty `Pipfile`s has one gap, not forty — the lesson the
+    """A monorepo with forty `setup.py`s has one gap, not forty — the lesson the
     licence Check learned when 618 undeclared dependencies buried two dozen CVEs."""
     gaps = coverage.dependency_gaps(_repo(tmp_path, {
-        f"{d}/Pipfile": "" for d in "abcd"
+        f"{d}/setup.py": "" for d in "abcd"
     }))
 
     assert len(gaps) == 1
@@ -187,7 +186,7 @@ def test_a_vendored_manifest_is_not_our_gap(tmp_path):
     """`node_modules` is full of other people's manifests. Reporting them would make
     the notice worthless on any repository that has ever installed anything."""
     assert coverage.dependency_gaps(_repo(tmp_path, {
-        "node_modules/left-pad/Pipfile": "",
+        "node_modules/left-pad/setup.py": "",
         "vendor/github.com/x/go.mod": "",
     })) == []
 
@@ -200,7 +199,7 @@ def test_a_repository_with_no_manifests_at_all_has_no_gap(tmp_path):
 def test_the_gap_is_low_severity_not_a_defect_in_your_code(tmp_path):
     """It is our missing coverage, not the user's bug. Ranking it alongside a
     hallucinated dependency would be dishonest in the other direction."""
-    gaps = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": "[packages]\n"}))
+    gaps = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": ""}))
 
     assert gaps[0].severity == "low"
 
@@ -208,8 +207,8 @@ def test_the_gap_is_low_severity_not_a_defect_in_your_code(tmp_path):
 def test_the_identity_is_the_ecosystem_so_the_finding_is_stable(tmp_path):
     """A gap moving fingerprint between scans would make it unsuppressible and would
     read as fixed-then-regressed forever (ADR-0003)."""
-    one = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": ""}))
-    two = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": "", "x/Pipfile": ""}))
+    one = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": ""}))
+    two = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": "", "x/setup.py": ""}))
 
     assert one[0].fingerprint == two[0].fingerprint
 
@@ -226,11 +225,11 @@ def test_rewording_a_label_does_not_move_the_fingerprint(tmp_path, monkeypatch):
     """
     from valvur import ecosystems as _ecosystems
 
-    before = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": ""}))[0].fingerprint
+    before = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": ""}))[0].fingerprint
 
     reworded = dict(_ecosystems.MANIFESTS)
     reworded["pip"] = _ecosystems.Manifests("Python (pip)", reads=("requirements*.txt",),
-                                            sees=("Pipfile",))
+                                            sees=("setup.py",))
     monkeypatch.setattr(_ecosystems, "MANIFESTS", reworded)
 
     after = coverage.dependency_gaps(tmp_path)[0]
@@ -292,7 +291,7 @@ def test_a_coverage_gap_does_not_read_as_a_problem_in_your_code(tmp_path):
     """
     from valvur.api import ScanRun
 
-    gaps = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": ""}))
+    gaps = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": ""}))
     run = ScanRun(findings=list(gaps))
 
     assert run.status == "inconclusive"
@@ -302,11 +301,11 @@ def test_a_coverage_gap_does_not_read_as_a_problem_in_your_code(tmp_path):
 
 def test_a_gap_never_fails_someone_else_s_build(tmp_path):
     """The consequence that decided it. A release gate keyed on active findings must
-    not go red because valvur does not read a Pipfile — the user cannot fix that, and
+    not go red because valvur does not read a setup.py — the user cannot fix that, and
     a gate nobody can turn green is a gate that gets deleted."""
     from valvur.api import ScanRun
 
-    gaps = coverage.dependency_gaps(_repo(tmp_path, {"Pipfile": "[packages]\n"}))
+    gaps = coverage.dependency_gaps(_repo(tmp_path, {"setup.py": ""}))
 
     assert ScanRun(findings=list(gaps)).active == []
     # But it is still reported, never hidden — that is the whole point of 19.D.3.
@@ -385,14 +384,27 @@ def test_the_trivy_adapter_declares_the_gap_through_the_contract(tmp_path):
 
 
 def test_both_gaps_can_stand_on_one_repository(tmp_path):
-    """A Pipenv project without a lockfile has two different things nobody checked:
-    existence (nothing reads a Pipfile) and known vulnerabilities (no Pipfile.lock).
-    Two notes, two identities, both named in the reason."""
+    """A setuptools project without a lockfile has two different things nobody
+    checked: existence (nothing reads a setup.py) and known vulnerabilities (no
+    lockfile). Two notes, two identities, both named in the reason. It was a Pipfile
+    until R10.4, which reads a Pipfile's packages."""
     from valvur.api import ScanRun
 
-    ws = _repo(tmp_path, {"Pipfile": "[packages]\nrequests = '*'\n"})
+    ws = _repo(tmp_path, {"setup.py": "from setuptools import setup\n"
+                                      "setup(name='x', install_requires=['requests'])\n"})
     notes = coverage.dependency_gaps(ws) + coverage.vulnerability_gaps(ws)
     run = ScanRun(findings=list(notes))
 
     assert len({n.fingerprint for n in notes}) == 2
     assert run.status_reason.count("Python dependencies:") == 2
+
+
+def test_a_lone_pipfile_is_read_for_existence_and_leaves_only_the_vulnerability_gap(
+    tmp_path
+):
+    """R10.4 reads a Pipfile's packages, so existence is checked; with no
+    `Pipfile.lock` beside it, known vulnerabilities still are not."""
+    ws = _repo(tmp_path, {"Pipfile": "[packages]\nrequests = '*'\n"})
+
+    assert coverage.dependency_gaps(ws) == []
+    assert [g.rule for g in coverage.vulnerability_gaps(ws)] == [coverage.VULNERABILITY_RULE]

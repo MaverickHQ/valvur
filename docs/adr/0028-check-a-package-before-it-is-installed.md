@@ -53,3 +53,18 @@ Python indexes were not.
 - **A hook that blocks `npm install`.** `CLAUDE.md` §4 forbids watchers and on-save
   hooks, and this would be neither. Whether a pre-install hook may exist is the owner's
   decision, not this ADR's.
+
+## Amendment, 2026-09-29 (R10.4, R10.10): what a Python or Composer source means
+
+- **uv.** Its default index strategy searches the configured indexes before PyPI and
+  stops at the first that has the package. A plain `[[tool.uv.index]]` therefore
+  serves a private name first; it is not the merge decision 1 called it. A missing
+  name there is `not-public`, low. Only `index-strategy = "unsafe-best-match"` merges,
+  and so means `confusion`.
+- **Poetry.** `supplemental` and the deprecated `secondary` merge, and so mean
+  `confusion`. A primary source replaces PyPI.
+- **Pipfile.** Its packages are read (they were only seen), and its first `[[source]]`
+  is where pipenv installs from.
+- **Composer (R10.10).** A `composer`-type repository is canonical, searched before
+  Packagist, unless `canonical` is false, which merges.
+

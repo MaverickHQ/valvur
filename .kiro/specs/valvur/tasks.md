@@ -453,10 +453,27 @@ duration recorded, the release's share by R9.6's rule.
   - **The harness counts claims only:** the package-reality track counts nonexistent,
     near-miss, newly registered, malicious and confusion, so D27's low advice does not
     flag a safe case.
-- [ ] **R10.4** **Private Python indexes** (D27). Behaviours, one test each:
+- [x] **R10.4** **Private Python indexes** (D27). Behaviours, one test each:
   `--extra-index-url` in a requirements file; `--index-url` alone; `pip.conf` in the tree;
   a supplemental and an explicit uv index; Poetry's `supplemental` and `explicit` sources;
   a `Pipfile` `[[source]]`.
+  **STATUS 2026-09-29:** ✅ all seven.
+  - **Where the configuration is read:** `registries.py` reads pip.conf (`[global]` and
+    `[install]`, the manifest's directory up to the root), a requirements file's `-i`,
+    `--index-url` and `--extra-index-url`, uv's `[[tool.uv.index]]` with
+    `[tool.uv.sources]`, Poetry's `[[tool.poetry.source]]` with each dependency's
+    `source`, and a Pipfile's `[[source]]` with each package's `index`.
+  - **Merged means confusion, high:** pip's extra index, Poetry `supplemental` and
+    `secondary`, and uv under `index-strategy = "unsafe-best-match"`.
+  - **Replaced or searched first means not-public, low:** `--index-url`, a Poetry primary
+    source, the first Pipfile source, and a plain uv index.
+  - **Bound means a note:** an explicit uv or Poetry source, and a Pipfile `index =`.
+  - **D27, refined by reading uv's resolver:** its default strategy searches configured
+    indexes before PyPI and stops at the first match, so a plain uv index is not the
+    merge D27 called it. ADR-0028 records this.
+  - **A Pipfile's packages are now read for existence**, so its sources have something
+    to apply to. A lone Pipfile keeps only the vulnerability gap; the coverage tests
+    move their unread example to `setup.py`, and the README and `EVALUATING.md` say so.
 - [ ] **R10.5** **What the README and the pipeline example claim.** Behaviours:
   1. the README's quick start names Docker or Podman as a prerequisite;
   2. the platform table says what CI tests on each architecture, until D38's leg lands;
@@ -481,6 +498,12 @@ duration recorded, the release's share by R9.6's rule.
   diff's `+` and Gitleaks' pattern misses it: track 3 found every history secret but
   the private key. Behaviours: a private key committed and then deleted is reported
   from history; a one-line secret in history still is, once.
+- [ ] **R10.10** **Private Composer repositories** (added by R10.4; D27 extended). Track
+  5's privately served Composer case still reads as hallucinated at high, which the
+  honesty gate refuses from R10's exit. Composer treats a `composer`-type repository as
+  canonical, searched before Packagist, unless `canonical` is false. Behaviours: a
+  canonical private repository makes a missing name not-public, low; a non-canonical
+  one makes it confusion, high; `"packagist.org": false` replaces Packagist.
 
 **Exit:** the Score on both lanes: tracks 3, 5 and 8 at or above the baseline, and the
 honesty gate green; track 5's private-registry cases scored.

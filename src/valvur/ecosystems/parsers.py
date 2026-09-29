@@ -184,6 +184,25 @@ def from_pyproject(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
     return found
 
 
+def from_pipfile(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
+    """`[packages]` and `[dev-packages]` (R10.4). A table-valued entry with `path`,
+    `git`, `file` or `editable` is not from an index."""
+    import tomllib
+
+    rel = str(path.relative_to(workspace))
+    try:
+        data = tomllib.loads(text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return set()
+    found: set[tuple[str, str, str]] = set()
+    for table in ("packages", "dev-packages"):
+        for name, spec in (data.get(table) or {}).items():
+            if isinstance(spec, dict) and spec.keys() & {"path", "git", "file", "editable"}:
+                continue
+            found.add(("pip", str(name).lower(), rel))
+    return found
+
+
 def from_package_json(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
     rel = str(path.relative_to(workspace))
     try:

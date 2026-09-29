@@ -261,9 +261,10 @@ class DependencyRealityCheck(Check):
                     "valvur.dependency.not-public", ecosystem, name, source, "low",
                     f"'{name}' is not on {registry}; this project installs from its own "
                     "registry",
-                    f"The project replaces {registry} with {configured.replaced}. If that "
-                    f"setting is ever dropped or mistyped, '{name}' comes from {registry}, "
-                    "from whoever registered it. Reserve the name there.",
+                    f"The project installs from {configured.replaced} before {registry}, "
+                    f"or instead of it. If that setting is ever dropped or mistyped, "
+                    f"'{name}' comes from {registry}, from whoever registered it. Reserve "
+                    "the name there.",
                 ))
                 continue
             if not exists:
@@ -340,8 +341,9 @@ class DependencyRealityCheck(Check):
 def _private_source(configured: _registries.Registries, name: str) -> tuple[str, str] | None:
     """(what the note calls it, the registry's URL) when `name` is bound to a private
     registry, else None."""
-    if name in configured.private_names:
-        return name, configured.private_names[name]
+    url = _registries.bound(configured, name)
+    if url:
+        return name, url
     scope = name.split("/", 1)[0] if name.startswith("@") and "/" in name else None
     if scope and scope in configured.private_scopes:
         return scope, configured.private_scopes[scope]

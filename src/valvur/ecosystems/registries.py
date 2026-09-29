@@ -111,7 +111,135 @@ def npm(workspace: Path, manifest: Path) -> Registries:
         replaced=replaced)
 
 
+# --------------------------------------------------------------------- Python
+
+_REQUIREMENT_INDEX = re.compile(
+    r"^\s*(-i|--index-url|--extra-index-url)(?:\s+|=)(\S+)", re.M)
+
+
+def _normal(name: str) -> str:
+    """PEP 503's form, so `acme_billing` and `Acme-Billing` are one name."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _pip_conf(path: Path) -> tuple[str | None, list[str]]:
+    """`index-url` and `extra-index-url` under `[global]` or `[install]`."""
+    import configparser
+
+    parser = configparser.ConfigParser()
+    try:
+        parser.read_string(_text(path))
+    except configparser.Error:
+        return None, []
+    index, extras = None, []
+    for section in ("global", "install"):
+        if parser.has_section(section):
+            index = parser.get(section, "index-url", fallback=index)
+            extras += parser.get(section, "extra-index-url", fallback="").split()
+    return index, extras
+
+
+def _toml(path: Path) -> dict:
+    import tomllib
+
+    try:
+        data = tomllib.loads(_text(path))
+    except (tomllib.TOMLDecodeError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _pyproject(data: dict, private: dict[str, str]) -> tuple[str | None, list[str]]:
+    """uv's and Poetry's source tables: what replaces PyPI, what merges with it, and
+    which names they bind (into `private`)."""
+    tool = data.get("tool") or {}
+    replaced, merged = None, []
+    uv = tool.get("uv") or {}
+    indexes = {i.get("name"): i for i in uv.get("index") or [] if isinstance(i, dict)}
+    unsafe = uv.get("index-strategy") == "unsafe-best-match"
+    for index in indexes.values():
+        url = str(index.get("url") or "")
+        if not url or is_public("pip", url) or index.get("explicit"):
+            continue
+        # uv searches its indexes before PyPI and stops at the first that has the
+        # package: searched first, a missing name is served privately, unless the
+        # strategy takes the best version from every index, which is a merge.
+        if unsafe:
+            merged.append(url)
+        else:
+            replaced = replaced or url
+    for name, source in (uv.get("sources") or {}).items():
+        named = indexes.get(source.get("index")) if isinstance(source, dict) else None
+        if named and not is_public("pip", str(named.get("url") or "")):
+            private[_normal(name)] = str(named["url"])
+    poetry = tool.get("poetry") or {}
+    sources = {s.get("name"): s for s in poetry.get("source") or [] if isinstance(s, dict)}
+    for source in sources.values():
+        url, priority = str(source.get("url") or ""), source.get("priority", "primary")
+        if not url or is_public("pip", url):
+            continue
+        if priority in ("supplemental", "secondary"):
+            merged.append(url)
+        elif priority in ("primary", "default"):
+            replaced = replaced or url
+    tables = [poetry.get("dependencies") or {}] + [
+        (group or {}).get("dependencies") or {} for group in (poetry.get("group") or {}).values()]
+    for table in tables:
+        for name, spec in (table.items() if isinstance(table, dict) else ()):
+            source = sources.get(spec.get("source")) if isinstance(spec, dict) else None
+            if source and not is_public("pip", str(source.get("url") or "")):
+                private[_normal(name)] = str(source["url"])
+    return replaced, merged
+
+
+def _pipfile(data: dict, private: dict[str, str]) -> str | None:
+    """Pipenv installs from the first `[[source]]` unless a package names another."""
+    sources = [s for s in data.get("source") or [] if isinstance(s, dict)]
+    by_name = {s.get("name"): s for s in sources}
+    for table in ("packages", "dev-packages"):
+        for name, spec in (data.get(table) or {}).items():
+            source = by_name.get(spec.get("index")) if isinstance(spec, dict) else None
+            if source and not is_public("pip", str(source.get("url") or "")):
+                private[_normal(name)] = str(source["url"])
+    first = str(sources[0].get("url") or "") if sources else ""
+    return first if first and not is_public("pip", first) else None
+
+
+def python(workspace: Path, manifest: Path) -> Registries:
+    replaced: str | None = None
+    extras: list[str] = []
+    private: dict[str, str] = {}
+    for directory in reversed(_between(workspace, manifest)):      # farthest first
+        if (directory / "pip.conf").is_file():
+            index, more = _pip_conf(directory / "pip.conf")
+            if index is not None:
+                replaced = None if is_public("pip", index) else index
+            extras += more
+    name = manifest.name
+    if name.startswith("requirements") and name.endswith(".txt"):
+        for option, url in _REQUIREMENT_INDEX.findall(_text(manifest)):
+            if option == "--extra-index-url":
+                extras.append(url)
+            else:
+                replaced = None if is_public("pip", url) else url
+    elif name == "pyproject.toml":
+        index, merged = _pyproject(_toml(manifest), private)
+        replaced, extras = index or replaced, extras + merged
+    elif name == "Pipfile":
+        replaced = _pipfile(_toml(manifest), private) or replaced
+    return Registries(replaced=replaced,
+                      supplemental=tuple(u for u in extras if not is_public("pip", u)),
+                      private_names=private)
+
+
 def for_manifest(workspace: Path, ecosystem: str, manifest: Path) -> Registries:
     if ecosystem == "npm":
         return npm(workspace, manifest)
+    if ecosystem == "pip":
+        return python(workspace, manifest)
     return Registries()
+
+
+def bound(configured: Registries, name: str) -> str | None:
+    """The private URL a name is bound to by its own configuration, if any."""
+    return configured.private_names.get(name) or configured.private_names.get(_normal(name))

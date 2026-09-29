@@ -231,8 +231,9 @@ Read this before the feature list, not after.
   and `go.mod` are checked against Maven Central and the Go module proxy on `full`,
   because neither registry publishes a name list an offline index could be built
   from (Maven Central's only one is 3.2GB; Go's is a feed of versions). A manifest
-  valvur recognises but does not read — a lone `Pipfile`, a lockfile with no
-  manifest beside it — produces a coverage note rather than a clean result. Every
+  valvur recognises but does not read — a lone `setup.py`, a lockfile with no
+  manifest beside it — produces a coverage note rather than a clean result. A
+  `Pipfile`'s packages are read since R10.4, its `[[source]]` tables with them. Every
   case is stated in the run's coverage contract.
 - **Known-vulnerability scanning needs a lockfile.** Measured 2026-09-12: Trivy
   produces no result — not zero findings, no scan — for `package.json`,

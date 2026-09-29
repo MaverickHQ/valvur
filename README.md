@@ -90,7 +90,7 @@ What is covered, and what is not, is stated on every scan rather than left to in
 | Python, npm, Ruby, PHP, Rust | offline, from the index | from a lockfile: `requirements*.txt` pinned, `uv.lock`, `poetry.lock`, `package-lock.json` and the rest |
 | JVM, Go | `full` only: neither registry publishes a name list | `pom.xml`, `go.mod` on their own |
 
-A manifest with no lockfile beside it, or one nothing here reads (a lone `Pipfile`,
+A manifest with no lockfile beside it, or one nothing here reads (a lone `setup.py`,
 say), is a **coverage note**: the run reads `inconclusive` rather than `clean`, and
 names why. A licence valvur *could not read* is a note too, listed and counted, but it
 casts no doubt: a security verdict of `clean` stays `clean` over it.
