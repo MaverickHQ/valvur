@@ -15,12 +15,11 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-09-29).** `1.1.0` is published, signed and attested; the R0 to R8 build has
-landed. [The review of 2026-09-29](docs/history/REVIEW-2026-09-29.md) found the code AI
-writes thinly covered, threat data up to a month old, and accuracy never measured.
-
-**Next:** Phases R9 to R15 of [`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: the
-Score's baseline, trust fixes, fresh data, `check_package`, static analysis, reuse, `1.2.0`.
+**Status (2026-09-29).** `1.1.0` is published; the R0 to R8 build has landed. [The review of
+2026-09-29](docs/history/REVIEW-2026-09-29.md) found the code AI writes thinly covered, threat
+data up to a month old, and accuracy never measured. **Next:** Phases R9 to R16 of
+[`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: the Score's baseline, trust fixes, fresh
+data, `check_package`, static analysis, reuse, the skill with its plugin and power, `1.2.0`.
 
 ## 2. What it is NOT
 
@@ -85,9 +84,8 @@ new argument.
 | 0019 | One image with Checkov in it. Reopened by task 34.1, on the ADR's own stated condition. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
 
-**Agreed by the owner:** 0021 to 0025 on 2026-09-27, written by R0.5; 0026 to 0030 on
-2026-09-29, written by R9.2 from `tasks.md` §5, where every other decision the build needs
-is, each with its fallback.
+**Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0031 on 2026-09-29, written by
+R9.2 from `tasks.md` §5, which holds every other decision the build needs, with fallbacks.
 
 | ADR | decision |
 |---|---|
@@ -101,6 +99,7 @@ is, each with its fallback.
 | 0028 | `check_package`, offline, before an install; private registries and dependency confusion |
 | 0029 | Static-analysis rules from licence-audited sources, each shipped only on measured precision |
 | 0030 | Trivy's and OSV-Scanner's results reused when their inputs and data are unchanged |
+| 0031 | One skill in the open Agent Skills format, shipped as a Claude Code plugin, a Kiro power and by `init --write`; no separate agent |
 
 ## 7. The Results Folder
 

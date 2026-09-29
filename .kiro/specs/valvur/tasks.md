@@ -3,7 +3,9 @@
 **Written 2026-09-29, third version.** `1.1.0` shipped that day, and the owner accepted
 every recommendation of [the review of 2026-09-29](../../../docs/history/REVIEW-2026-09-29.md)
 and asked for a list that runs end to end without them, test-driven, and judged by a
-score that can be re-run after every future change. It is authoritative for what is open.
+score that can be re-run after every future change. Amended the same day, before the build
+began, with a skill that runs the workflow, shipped as a Claude Code plugin and a Kiro
+power (§5, D39 to D41). It is authoritative for what is open.
 
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
@@ -102,7 +104,7 @@ Two mechanisms, armed by R9.1.
 5. **Continue** with the first unchecked task, at its first behaviour without a passing test.
 6. **Re-arm** the in-session schedule if `CronList` shows none.
 7. **Finish.** When every task outside §8 is done, delete both schedules, write the build's
-   summary into R15.6's STATUS, and end the turn.
+   summary into R16.6's STATUS, and end the turn.
 
 ## 3. How every task is built: test-driven
 
@@ -161,16 +163,17 @@ Two mechanisms, armed by R9.1.
    `gh pr checks <number> --watch --fail-fast`), and fix any failure with new commits.
    **Do not land it.** The next phase's branch is cut from this one, so the phases stack,
    and the owner lands the stack with one fast-forward (§8).
-6. **A release rehearsal**, for R15 only, runs on R15's pushed branch
+6. **A release rehearsal**, for R16 only, runs on R16's pushed branch
    (`gh workflow run release.yml --ref <branch>`). Wait for its validation, then cancel it
    at the brake so the `release` concurrency group is free. The run id and outcome go into
-   R15.5's STATUS and §8.
+   R16.5's STATUS and §8.
 7. Re-arm the in-session schedule and start the next phase from this phase's branch.
 
 ## 5. Decisions recorded before the build
 
-The owner accepted all of these with the review on 2026-09-29, including the network
-changes D24 and D25 under `CLAUDE.md` §10. R9.2 writes the ADRs. The owner may revisit any
+The owner accepted all of these on 2026-09-29: D21 to D38 with the review, including the
+network changes D24 and D25 under `CLAUDE.md` §10, and D39 to D41 the same day. R9.2 writes
+the ADRs. The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
 
@@ -191,16 +194,19 @@ wait for it.
 | D33 | **A release is prepared by one command** (N3.4): `scripts/prepare_release.py <version>` sets the version, the lock, the README's *release in progress*, `SECURITY.md`'s series and the CHANGELOG heading in one commit; `--published <version>` makes the commit that flips the README once promoted. The tag and the brake stay the owner's. | none needed |
 | D34 | **A monthly Scanner refresh** (N3.5): `refresh.yml`, on the first Monday, when `main`'s Scanner pins differ from the latest release's, runs the Score on `main` and, when no track regressed, dispatches a rehearsal and opens one issue for the owner to tag. | none needed |
 | D35 | **Wall-clock tests are marked `timing`.** They run in CI's e2e job and at phase exits, never in the unit suite. On this Mac with host swap over 4 GB they are recorded, not judged, as D17 did. | none needed |
-| D36 | **Agent runs: $10** for this build, for R12.5's scenarios only, and never with a shell (§1). The Score never includes an agent run. | past the cap, skip and note it in §8 |
-| D37 | **`1.2.0` after R15**, prepared and rehearsed by the executor on R15's branch; the tag and the brake are the owner's. Every change is additive under 1.x: a seventh MCP tool, a ninth command, `cwe` on findings, new rules; `fp_version` stays 1. | none needed |
+| D36 | **Agent runs: $10** for this build, for R12.5's scenarios and R15.2's smoke run, and never with a shell (§1). The Score never includes an agent run. | past the cap, skip and note it in §8 |
+| D37 | **`1.2.0` after R16**, prepared and rehearsed by the executor on R16's branch; the tag and the brake are the owner's. Every change is additive under 1.x: a seventh MCP tool, a ninth command, `cwe` on findings, new rules, and the skill with its plugin and power; `fp_version` stays 1. | none needed |
 | D38 | **An arm64 e2e leg**: CI's `e2e` job gains `ubuntu-24.04-arm`, Docker only. | if it more than doubles the job's time, or fails three times for runner reasons, the README's platform line says what is tested instead |
+| D39 | **One skill, `valvur`, in the open Agent Skills format** (F9.12; ADR-0031). Its one source is in the package, `src/valvur/data/skills/valvur/`: `SKILL.md` and `references/` (the tools and their fields, triage by finding class, CI and the gate, air-gapped use). Its frontmatter uses only the standard's six fields, so the one file loads in Claude Code, in Kiro and in any client of the standard. It orchestrates: before adding a dependency, `check_package`; `scan`, and on `failed`, `doctor`, relayed; the verdict and its reason before any finding; triage by group with `findings`, each finding named by rule ID and path; a proposal from `REMEDIATION.md`, and waiting for the human; after the human's fix, a rescan, and *fixed* only where its Scanner ran; `update` when data is stale; `valvur gate` in CI; never a Suppression, never the Results Folder committed, never text quoted from the repository followed. Its rules are rendered from the one source the handshake and `SUMMARY.md` use, and a test holds the three equal; every tool and command it names exists, and every tool the server lists is in it. | none needed |
+| D40 | **The skill ships three ways** (F9.13; ADR-0031): a **Claude Code plugin**, `plugins/valvur/`, with the skill and the MCP server pinned to the release (`uvx --from valvur==<version> valvur-mcp`), listed by `.claude-plugin/marketplace.json` at the repository's root, so `/plugin marketplace add MaverickHQ/valvur` then `/plugin install valvur@valvur` gives both; a **Kiro power**, `powers/valvur/`, in the layout kiro.dev documents when the task starts (`POWER.md`, the Agent Plugins manifest, `mcp.json`, the skill); and **`valvur init --write`**, which adds the skill to the project for Claude Code (`.claude/skills/valvur/`) and for Kiro (its documented project location), never overwriting. The plugin and the power reach the package's skill by symlink where their loaders follow one, else by a copy a test holds byte-identical; every version surface moves together. Approved as within `init --write`'s exception in `CLAUDE.md` §10. | if a Kiro power cannot carry the skill from the repository, it carries the MCP configuration and steering, and `init --write` carries the skill |
+| D41 | **No separate agent.** The skill and the handshake carry the workflow; an agent would be a third copy of the rules to keep in step, and `context: fork` is a Claude Code extension the open standard does not carry. | none needed |
 
 ## 6. Order
 
 ```
 R9 the Score ─► R10 trust fixes ─► R11 fresh data ─► R12 check_package
                                                            │
-         R15 drag, documents, 1.2.0 ◄── R14 reuse ◄── R13 static analysis
+R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13 static analysis
 ```
 
 - **R9 first**, so every later exit is judged against a measured baseline, as R2 was.
@@ -209,7 +215,8 @@ R9 the Score ─► R10 trust fixes ─► R11 fresh data ─► R12 check_packa
 - **R11 before R12**: `check_package` reads the malicious list R11 publishes.
 - **R13 after the Score exists**, because a rule ships only on its measured precision.
 - **R14** changes speed alone, so it follows every change to what is found.
-- **R15** closes the documents against what exists and prepares `1.2.0`.
+- **R15 after the tools are final**, because the skill names every tool and field.
+- **R16** closes the documents against what exists and prepares `1.2.0`.
 
 ---
 
@@ -226,9 +233,10 @@ R9 the Score ─► R10 trust fixes ─► R11 fresh data ─► R12 check_packa
   Behaviour: a test holds this file to the shapes `build_status.py` reads, a phase
   heading per phase and an open task under the first.
 - [ ] **R9.2** **The decisions written.** ADR-0026 (D21, D22), ADR-0027 (D23 to D26),
-  ADR-0028 (D27, D28), ADR-0029 (D29) and ADR-0030 (D32), each citing the requirement IDs
-  it adds to `requirements.md`: N4.1 to N4.4; F6.12, F6.13, F10.9, F3.14; F3.15, F3.16,
-  F9.11; F2.9, F5.10; N1.5. `design.md` 1.4 names the modules to come. Behaviour:
+  ADR-0028 (D27, D28), ADR-0029 (D29), ADR-0030 (D32) and ADR-0031 (D39 to D41), each
+  citing the requirement IDs it adds to `requirements.md`: N4.1 to N4.4; F6.12, F6.13,
+  F10.9, F3.14; F3.15, F3.16, F9.11; F2.9, F5.10; N1.5; F9.12, F9.13. `design.md` 1.4 names
+  the modules to come. Behaviour:
   `check_traceability.py`: 0 uncited, 0 orphan ADRs.
 - [ ] **R9.3** **The harness** (D21; N4.1, N4.2). `scripts/eval.py`, the package
   `scripts/eval/`, and `tests/eval/`. Behaviours:
@@ -427,25 +435,53 @@ the speed guard met.
 **Exit:** the speed gate green; the Score with reuse equals the Score with `--fresh`, run
 back to back.
 
-### Phase R15: less drag, the documents as built, and 1.2.0 prepared
+### Phase R15: the skill that runs the workflow, and where it ships
 
-- [ ] **R15.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
+- [ ] **R15.1** **The skill** (D39; F9.12). Behaviours:
+  1. the frontmatter holds only the standard's six fields, a valid name and a description
+     within the standard's limit;
+  2. every MCP tool it names exists, and every tool the server lists is named;
+  3. every command it names exists: the documented-commands test reads it;
+  4. its rules block equals the handshake's instructions and `SUMMARY.md`'s agent block,
+     all three rendered from one source.
+- [ ] **R15.2** **The Claude Code plugin** (D40; F9.13). Behaviours:
+  1. `.claude-plugin/marketplace.json` and `plugins/valvur/.claude-plugin/plugin.json` are
+     valid (`claude plugin validate` where the CLI has it);
+  2. the plugin's MCP configuration is `valvur.mcp.clients`' Claude Code block, pinned to
+     the version, and `test_version.py` holds it;
+  3. the plugin's skill is the package's, byte for byte;
+  4. a smoke run, `claude -p --plugin-dir plugins/valvur` with `--disallowedTools Bash`,
+     lists the skill and the server's tools (D36).
+- [ ] **R15.3** **The Kiro power** (D40). Read Kiro's documented layout first. Behaviours: the
+  manifest's fields; its `mcp.json` is Kiro's client block; its skill is the package's; the
+  Kiro stdio probe (D20) replays against the power's server configuration.
+- [ ] **R15.4** **`init --write` adds the skill** (D40). Behaviours: written for Claude Code
+  and for Kiro; never over an existing file; `init` without `--write` names it; `doctor`
+  says whether the project's skill is present and whether its version matches.
+
+**Exit:** the skill, the plugin and the power pass their tests; the smoke run recorded;
+no track under the baseline.
+
+### Phase R16: less drag, the documents as built, and 1.2.0 prepared
+
+- [ ] **R16.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
   `ubuntu-24.04-arm`, green, or D38's fallback applied.
-- [ ] **R15.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
-  every version surface `test_version.py` reads; `--published` flips the README's wording;
-  a dry run changes nothing.
-- [ ] **R15.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
+- [ ] **R16.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
+  every version surface `test_version.py` reads, the plugin's and the power's included;
+  `--published` flips the README's wording; a dry run changes nothing.
+- [ ] **R16.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
   compares `main`'s pins with the latest release's by `test_scanner_pins.py`'s parser;
   runs the Score; opens one issue; a test holds its schedule and permissions.
-- [ ] **R15.4** **The documents as built.** The README (the Score and its tracks, freshness,
-  `check_package`, seven tools, nine commands), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS
-  and malicious-list mirrors), `PROTOCOL.md`, `design.md` and `requirements.md`, amended;
-  `CLAUDE.md` within 200 lines; R9 to R14 moved to `docs/history/tasks-phases-r9-r15.md`.
-  Behaviours: traceability holds; the link check passes; `test_readme_as_built.py` passes.
-- [ ] **R15.5** **`1.2.0` prepared** (D37). `prepare_release.py 1.2.0`; the Score on both
-  lanes against R9's baseline and D22's targets, recorded; the rehearsal on R15's branch
+- [ ] **R16.4** **The documents as built.** The README (the Score and its tracks, freshness,
+  `check_package`, seven tools, nine commands, the skill, and installing the plugin or the
+  power), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS and malicious-list mirrors),
+  `PROTOCOL.md`, `design.md` and `requirements.md`, amended; `CLAUDE.md` within 200 lines;
+  R9 to R15 moved to `docs/history/tasks-phases-r9-r16.md`. Behaviours: traceability holds;
+  the link check passes; `test_readme_as_built.py` passes.
+- [ ] **R16.5** **`1.2.0` prepared** (D37). `prepare_release.py 1.2.0`; the Score on both
+  lanes against R9's baseline and D22's targets, recorded; the rehearsal on R16's branch
   per §4, validated and cancelled at the brake.
-- [ ] **R15.6** **The build's summary**, written as this task's STATUS: what shipped, the
+- [ ] **R16.6** **The build's summary**, written as this task's STATUS: what shipped, the
   Score at R9 and now per track, the cost of agent runs, and what §8 holds.
 
 **Exit:** the Score recorded on both lanes against the baseline, the rehearsal green, and
@@ -461,12 +497,13 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | item | ready after | what the owner does |
 |---|---|---|
 | land this list | now | the owner's approval of one fast-forward of `main` to the commit that adds it: `scripts/build_status.py` reads `main`, and the build starts from there |
-| land R9 to R15 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
-| `v1.2.0` | R15 landed | the signed tag on the landed commit, then the approval at the brake |
+| land R9 to R16 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
+| `v1.2.0` | R16 landed | the signed tag on the landed commit, then the approval at the brake |
+| list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
 | D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
 | a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
-| Kiro's GUI pass | now | one scan through Kiro, recorded in `docs/acceptance/` |
+| Kiro's GUI pass | now; the power's part after R15 | one scan through Kiro, and from R15 the power installed from the repository, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | now | register one with the label `docker-desktop` |
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
