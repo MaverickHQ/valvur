@@ -30,3 +30,9 @@ def test_a_task_under_another_phase_s_heading_is_reported():
             "### Phase R10: trust fixes\n\n- [ ] **R9.2** **Misplaced.**\n")
 
     assert _module().shape_errors(text) == ["R9.2 sits under Phase R10"]
+
+
+def test_a_gap_in_a_phase_s_numbering_is_reported():
+    text = "### Phase R9: the Score\n\n- [x] **R9.1** **One.**\n- [ ] **R9.3** **Three.**\n"
+
+    assert _module().shape_errors(text) == ["R9.3 follows R9.1"]
