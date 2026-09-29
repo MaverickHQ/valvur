@@ -123,7 +123,11 @@ def test_an_explicit_image_still_wins(monkeypatch):
     try:
         assert runner.IMAGE == "registry.internal/valvur:pinned"
     finally:
-        monkeypatch.delenv("VALVUR_IMAGE")
+        # Back to the environment the suite runs in, then reload. Deleting the
+        # variable here left `runner.IMAGE` at the published tag for every later
+        # test in the process, and the release's whole-suite run looked for an
+        # image not yet published (1.0.0's rehearsal, run 36544594332).
+        monkeypatch.undo()
         importlib.reload(runner)
 
 
