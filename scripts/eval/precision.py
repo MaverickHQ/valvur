@@ -6,7 +6,8 @@ Gitleaks, whose noise users meet first, carries a label in
 `tests/eval/labels/corpus.toml`: `tp` when a maintainer would act on it (change
 code, rotate, pin), `fp` otherwise, and a reason either way. The labels are the
 executor's, committed for the owner to read. A finding without one fails the track
-and is named, so a new rule cannot arrive unjudged.
+and is named, so a new rule cannot arrive unjudged. The score is smoothed precision
+(`Precision.score`).
 """
 
 from __future__ import annotations
@@ -60,7 +61,10 @@ class Precision:
 
     @property
     def score(self) -> float:
-        return round(100 * self.tp / (self.tp + self.fp), 1) if self.tp + self.fp else 0.0
+        """Precision with one imaginary true positive, times 100 (ADR-0026, amended by
+        R9.5): silence scores 100 and each false alarm costs, which plain precision
+        cannot say where maintained code offers nothing true to find."""
+        return round(100 * (self.tp + 1) / (self.tp + self.fp + 1), 1)
 
 
 def judge(findings_by_repo: dict[str, list[dict]],

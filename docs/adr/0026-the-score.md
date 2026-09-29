@@ -35,7 +35,15 @@ that halved what a Scanner found would pass every check the repository had.
    8. Real-code precision on the corpus. Every active finding of a valvur-owned rule or
       of Gitleaks is labelled `tp` or `fp` with a reason, and the track is precision
       × 100. The rubric: `tp` when a maintainer would act on the finding (change code,
-      rotate, pin). The labels are committed for review.
+      rotate, pin). The labels are committed for review. Coverage notes are valvur's
+      own limits and are not judged.
+
+      *Amended 2026-09-29 by R9.5, on the first measurement:* the track is
+      **smoothed precision**, 100 × (tp + 1) / (tp + fp + 1). The corpus's 21 judged
+      findings held no true positive. Plain precision was therefore 0 for one false
+      alarm and for forty, and 0/0 for none, so the ratchet could not see noise grow.
+      With one imaginary true positive, a silent corpus scores 100 and each false
+      alarm costs.
 3. **The Score** is the unweighted mean of the eight, so no weight can be tuned.
 4. **Gates**, pass or fail: freshness, honesty (no `clean` while incomplete, no safe
    twin at high or critical), offline (`what_left_the_machine: nothing`), ranking (a

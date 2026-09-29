@@ -55,7 +55,8 @@ def test_precision_over_the_labelled_findings_of_valvur_s_rules_and_gitleaks(tmp
                                 _f("c3", "CVE-2023-30861", "trivy")],
                       "requests": [_f("b2", "private-key", "gitleaks")]}, labels)
 
-    assert (result.tp, result.fp, result.score) == (1, 1, 50.0)
+    # One imaginary true positive: (1 + 1) / (1 + 1 + 1).
+    assert (result.tp, result.fp, result.score) == (1, 1, 66.7)
     assert result.unlabelled == []
     assert result.others == {"trivy": 1}
 
@@ -89,3 +90,17 @@ def test_a_coverage_note_is_valvur_s_own_limit_and_not_judged(tmp_path):
                                      "trivy")]}, p.load(tmp_path / "labels.toml"))
 
     assert (result.tp, result.fp, result.unlabelled, result.notes) == (0, 0, [], 1)
+
+
+def test_a_silent_corpus_scores_100_and_every_false_alarm_costs():
+    """Maintained code rarely holds a real finding: the first measurement judged 21
+    findings on the corpus, none a maintainer would act on. Plain precision is then
+    0 for one false alarm and for forty, and 0/0 for none, so the ratchet could not
+    see noise grow. One imaginary true positive makes silence 100 and each false
+    alarm cost."""
+    p = _precision()
+
+    assert p.Precision(tp=0, fp=0).score == 100.0
+    assert p.Precision(tp=0, fp=1).score == 50.0
+    assert p.Precision(tp=0, fp=21).score == 4.5
+    assert p.Precision(tp=0, fp=40).score == 2.4
