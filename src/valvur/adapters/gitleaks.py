@@ -38,7 +38,7 @@ class GitleaksAdapter(ScannerAdapter):
     def parse(self, output: ScannerOutput) -> list[Finding]:
         return [_finding(item, container_relative(item["File"]), item["StartLine"],
                          self.name)
-                for item in json.loads(output.stdout or "[]")]
+                for item in json.loads(output.stdout or "[]") if not _placeholder(item)]
 
     def history_command(self, *, project_config: bool) -> Invocation:
         """The second pass (R3.7): the history file the host wrote into the scratch
@@ -63,6 +63,8 @@ class GitleaksAdapter(ScannerAdapter):
         allowed = project_path_allowlist(workspace)
         findings = []
         for item in json.loads(output.stdout or "[]"):
+            if _placeholder(item):
+                continue
             where = written.locate(int(item.get("StartLine", 0)))
             if where is None:
                 continue
@@ -77,6 +79,23 @@ class GitleaksAdapter(ScannerAdapter):
 HISTORY_TOOL = "gitleaks-history"
 HISTORY_FILE = "history.txt"
 HISTORY_REPORT = "gitleaks-history.json"
+
+
+#: The least key material a private-key block can hold: a real one, even a 256-bit
+#: elliptic-curve key, carries far more base64 than this between its markers.
+KEY_MATERIAL = 64
+
+
+def _placeholder(item: dict) -> bool:
+    """A private-key block whose body is a placeholder, as documentation writes one
+    (`...`, `<your key here>`): Gitleaks reports it, at critical, and it is no key
+    (R10.8). Judged by the base64 between the markers, never by the file's name."""
+    import re
+
+    if item.get("RuleID") != "private-key":
+        return False
+    body = re.sub(r"-----(BEGIN|END)[^-]*-----", "", str(item.get("Secret", "")))
+    return len(re.findall(r"[A-Za-z0-9+/=]", body)) < KEY_MATERIAL
 
 
 def _finding(item: dict, path: str, line: int, tool: str, *,

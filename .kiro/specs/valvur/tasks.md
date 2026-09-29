@@ -519,10 +519,14 @@ duration recorded, the release's share by R9.6's rule.
     `MIT` still reports.
   - ripgrep's corpus finding goes: one of R9.5's 24 false alarms, the only one valvur
     owned outright.
-- [ ] **R10.8** **A placeholder key is not a secret** (added by R9.5, measured). Gitleaks
+- [x] **R10.8** **A placeholder key is not a secret** (added by R9.5, measured). Gitleaks
   flags the PEM placeholder of track 3 (`...` between the markers) at critical, which the
   honesty gate refuses from R10's exit. Behaviours: a private-key block whose body is a
   placeholder is not reported; a real key block still is.
+  **STATUS 2026-09-29:** ✅ both. A Gitleaks `private-key` hit is dropped, in the tree and
+  in history, when the block holds fewer than 64 base64 characters between its markers,
+  as `...` and `<your key here>` do. It is judged by the content, never the file's name.
+  A real key block, twelve lines of 64, still reports.
 - [ ] **R10.9** **A key committed in history is found** (added by R9, measured). History is
   written as a patch and read by `gitleaks dir`, so a multi-line key's lines carry the
   diff's `+` and Gitleaks' pattern misses it: track 3 found every history secret but
