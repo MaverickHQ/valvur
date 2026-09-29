@@ -30,6 +30,7 @@ from urllib.parse import urlparse
 PUBLIC_HOSTS = {
     "npm": frozenset({"registry.npmjs.org", "registry.yarnpkg.com", "registry.npmjs.com"}),
     "pip": frozenset({"pypi.org", "pypi.python.org", "files.pythonhosted.org"}),
+    "composer": frozenset({"packagist.org", "repo.packagist.org"}),
 }
 
 
@@ -232,11 +233,47 @@ def python(workspace: Path, manifest: Path) -> Registries:
                       private_names=private)
 
 
+# ------------------------------------------------------------------- Composer
+
+def composer(manifest: Path) -> Registries:
+    """`composer`-type repositories (R10.10). Composer treats one as canonical, taking
+    a package from it before Packagist, unless `"canonical": false`, which merges;
+    `"packagist.org": false` turns Packagist off. Path, VCS and package repositories
+    are the parser's: their packages are not looked up at all."""
+    import json
+
+    try:
+        data = json.loads(_text(manifest))
+    except ValueError:
+        return Registries()
+    repositories = data.get("repositories") if isinstance(data, dict) else None
+    entries = list(repositories.values()) if isinstance(repositories, dict) else \
+        list(repositories or []) if isinstance(repositories, list) else []
+    # Off in either form: a `"packagist.org": false` key, or an entry that is one.
+    keyed = isinstance(repositories, dict) and repositories.get("packagist.org") is False
+    listed = any(isinstance(e, dict) and e.get("packagist.org") is False for e in entries)
+    packagist_off = keyed or listed
+    first, merged = None, []
+    for entry in entries:
+        if not isinstance(entry, dict) or entry.get("type") != "composer":
+            continue
+        url = str(entry.get("url") or "")
+        if not url or is_public("composer", url):
+            continue
+        if entry.get("canonical", True) is False and not packagist_off:
+            merged.append(url)
+        else:
+            first = first or url
+    return Registries(replaced=first, supplemental=tuple(merged))
+
+
 def for_manifest(workspace: Path, ecosystem: str, manifest: Path) -> Registries:
     if ecosystem == "npm":
         return npm(workspace, manifest)
     if ecosystem == "pip":
         return python(workspace, manifest)
+    if ecosystem == "composer" and manifest.name == "composer.json":
+        return composer(manifest)
     return Registries()
 
 

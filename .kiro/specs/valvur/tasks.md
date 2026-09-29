@@ -498,12 +498,20 @@ duration recorded, the release's share by R9.6's rule.
   diff's `+` and Gitleaks' pattern misses it: track 3 found every history secret but
   the private key. Behaviours: a private key committed and then deleted is reported
   from history; a one-line secret in history still is, once.
-- [ ] **R10.10** **Private Composer repositories** (added by R10.4; D27 extended). Track
+- [x] **R10.10** **Private Composer repositories** (added by R10.4; D27 extended). Track
   5's privately served Composer case still reads as hallucinated at high, which the
   honesty gate refuses from R10's exit. Composer treats a `composer`-type repository as
   canonical, searched before Packagist, unless `canonical` is false. Behaviours: a
   canonical private repository makes a missing name not-public, low; a non-canonical
   one makes it confusion, high; `"packagist.org": false` replaces Packagist.
+  **STATUS 2026-09-29:** ✅ all three.
+  - `registries.composer` reads `composer`-type repositories in either form, list or
+    keyed.
+  - A canonical private repository makes a missing name `not-public`, low; one marked
+    `canonical: false` makes it `confusion`, high; `"packagist.org": false` replaces
+    Packagist.
+  - Path, VCS and package repositories stay the parser's: their packages are never
+    looked up.
 
 **Exit:** the Score on both lanes: tracks 3, 5 and 8 at or above the baseline, and the
 honesty gate green; track 5's private-registry cases scored.
