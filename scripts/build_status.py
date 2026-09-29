@@ -40,6 +40,19 @@ def position(tasks_text: str) -> Position | None:
     return None
 
 
+def shape_errors(tasks_text: str) -> list[str]:
+    """What in the task list `position` would misread: a task outside its phase."""
+    errors, phase = [], -1
+    for line in tasks_text.splitlines():
+        if heading := _PHASE.match(line):
+            phase = int(heading.group(1))
+        elif task := _TASK.match(line):
+            owner = int(task.group(2)[1:].split(".")[0])
+            if owner != phase:
+                errors.append(f"{task.group(2)} sits under Phase R{phase}")
+    return errors
+
+
 def branch_name(phase: int, title: str) -> str:
     """`build/r<n>-<slug>`, the slug from the phase's title."""
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
