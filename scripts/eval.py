@@ -53,11 +53,33 @@ def _read(root: Path) -> tuple[list[dict], dict]:
     return findings, json.loads((folder / "run.json").read_text())
 
 
+#: The dependency track's ranking fixture (D21's ranking gate): Log4Shell, in CISA
+#: KEV, beside a test-scoped critical, in one project.
+RANKING_PATH, RANKING_FIRST = "deps/ranking/pom.xml", "CVE-2021-44228"
+
+
+def _ranked_first(findings: list[dict]) -> bool | None:
+    """Whether the known-exploited CVE outranks every other finding in the fixture;
+    None when the fixture drew nothing to rank."""
+    here = [f for f in findings if f.get("path") == RANKING_PATH and not f.get("suppressed")]
+    if not here:
+        return None
+    first = min(here, key=lambda f: f.get("rank") or 10**9)
+    return RANKING_FIRST in (first.get("rule"), (first.get("exploit") or {}).get("cve"))
+
+
+def _safe_flagged_high(cases: list, findings: list[dict]) -> list[str]:
+    loud = [f for f in findings if f.get("severity") in ("high", "critical")]
+    return [case.path for case in cases
+            if not case.vulnerable and score.flagged(case, loud)]
+
+
 def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_scan,
         image: str = "valvur:dev", image_id: Callable[[str], str] = _image_id,
-        seed: int = 20260929) -> dict:
+        seed: int = 20260929, tasks_text: str | None = None) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt."""
     started = time.monotonic()
+    ranking_first: bool | None = None
     result: dict = {"schema": 1, "image": {"name": image, "id": image_id(image)},
                     "seed": seed, "tracks": {}, "data": {}}
     for track in tracks:
@@ -83,16 +105,81 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             "what_left_the_machine": (run_json.get("network") or {}).get(
                 "what_left_the_machine"),
             "seconds": round(time.monotonic() - began, 1),
+            "safe_flagged_high": _safe_flagged_high(cases, findings),
         }
+        if track == "dependencies":
+            ranking_first = _ranked_first(findings)
         result["data"] = {
             "database_age_days": (run_json.get("database") or {}).get("age_days"),
             "name_index_age_days": (run_json.get("name_index") or {}).get("age_days"),
             "kev_age_days": (run_json.get("enrichment") or {}).get("kev_age_days"),
         }
+    result["gates"] = judge_gates(result["tracks"], result["data"],
+                                  ranking_first=ranking_first,
+                                  tasks_text=_tasks_text() if tasks_text is None else tasks_text)
     scores = [t["score"] for t in result["tracks"].values()]
     result["score"] = round(sum(scores) / len(scores), 1) if scores else 0.0
     result["duration_s"] = round(time.monotonic() - started, 1)
     return result
+
+
+#: Each gate, and the phase from whose close it is judged (D21): before that it is
+#: recorded, so a baseline can say what is wrong without failing a phase that
+#: cannot yet fix it.
+GATES = {"offline": 9, "honesty": 10, "freshness": 11, "ranking": 11, "speed": 14}
+
+#: D24's refresh thresholds, in days: the oldest data a scan should be using.
+FRESH_DAYS = {"database": 7.0, "name_index": 2.0, "kev": 2.0, "epss": 2.0, "osv": 7.0}
+
+
+def _phase_closed(phase: int, tasks_text: str) -> bool:
+    import re
+
+    marks = re.findall(rf"^- \[([ xX])\] \*\*R{phase}\.\d+\*\*", tasks_text, re.M)
+    return bool(marks) and all(mark != " " for mark in marks)
+
+
+def _tasks_text() -> str:
+    """The live task list and its archives, as the acceptance harness reads them."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("acceptance_harness",
+                                                  REPO / "scripts" / "acceptance.py")
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    # Registered first: its dataclasses look their module up in sys.modules.
+    sys.modules["acceptance_harness"] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module.task_list(REPO)
+
+
+def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
+                tasks_text: str) -> dict[str, dict]:
+    """Pass or fail, each with its reason and whether its phase has closed."""
+    leaked = [f"{name} ({t['what_left_the_machine']})" for name, t in tracks.items()
+              if t.get("what_left_the_machine") != "nothing"]
+    false_clean = [name for name, t in tracks.items()
+                   if t.get("status") == "clean" and not t.get("complete")]
+    loud_twins = [path for t in tracks.values() for path in t.get("safe_flagged_high", [])]
+    stale = [f"{name} {data[f'{name}_age_days']} days (over {limit:g})"
+             for name, limit in FRESH_DAYS.items()
+             if data.get(f"{name}_age_days") is not None
+             and data[f"{name}_age_days"] > limit]
+    outcomes = {
+        "offline": (not leaked, "left the machine: " + "; ".join(leaked)),
+        "honesty": (not false_clean and not loud_twins,
+                    "; ".join(filter(None, [
+                        false_clean and "clean while incomplete: " + ", ".join(false_clean),
+                        loud_twins and "safe twins at high or critical: "
+                        + ", ".join(loud_twins)]))),
+        "freshness": (not stale, "stale: " + ", ".join(stale)),
+        "ranking": (ranking_first is True,
+                    "the known-exploited CVE did not rank first"
+                    if ranking_first is False else "the ranking fixture was not scanned"),
+        "speed": (True, "recorded"),
+    }
+    return {name: {"judged": _phase_closed(GATES[name], tasks_text), "ok": ok,
+                   "reason": "" if ok else reason, "from": f"R{GATES[name]}"}
+            for name, (ok, reason) in outcomes.items()}
 
 
 #: How far a track may fall under its baseline before a comparison fails (N4.2).

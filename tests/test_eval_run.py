@@ -98,3 +98,27 @@ def test_a_baseline_is_raised_by_a_better_run_and_never_lowered(tmp_path):
 
     assert kept == ["dependencies: 97.0 is under the recorded 100.0; kept"]
     assert json.loads(path.read_text())["tracks"] == {"secrets": 95.0, "dependencies": 100.0}
+
+
+def test_a_run_judges_its_gates_from_what_the_scans_wrote(tmp_path):
+    harness = _harness()
+
+    def scan(root: Path) -> None:
+        findings = [{"path": "examples/aws.env.example", "rule": "aws-access-token",
+                     "sources": ["gitleaks"], "severity": "critical", "suppressed": None,
+                     "status": "new"}] if (root / "examples").exists() else [
+            {"path": "deps/ranking/pom.xml", "rule": "CVE-2021-44228", "rank": 1,
+             "severity": "critical", "suppressed": None, "status": "new",
+             "exploit": {"cve": "CVE-2021-44228", "kev": True}},
+            {"path": "deps/ranking/pom.xml", "rule": "CVE-2019-14379", "rank": 2,
+             "severity": "critical", "suppressed": None, "status": "new",
+             "exploit": {"cve": "CVE-2019-14379", "kev": False}}]
+        _results(root, findings)
+
+    result = harness.run(["secrets", "dependencies"], tmp_path / "work", scan=scan,
+                         image="valvur:dev", image_id=lambda image: "sha256:abc")
+
+    assert result["tracks"]["secrets"]["safe_flagged_high"] == ["examples/aws.env.example"]
+    assert result["gates"]["ranking"]["ok"] is True
+    assert result["gates"]["offline"]["ok"] is True
+    assert "examples/aws.env.example" in result["gates"]["honesty"]["reason"]
