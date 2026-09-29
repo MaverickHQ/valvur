@@ -509,10 +509,16 @@ duration recorded, the release's share by R9.6's rule.
     timing"`; the release's whole suite runs everything. §3's command and `CLAUDE.md`
     say so.
   - **Measured on this Mac:** the timing run passes, 24 in 16 s.
-- [ ] **R10.7** **A dual licence is one licence** (added by R9.5, measured). The
+- [x] **R10.7** **A dual licence is one licence** (added by R9.5, measured). The
   licence-file Check reported ripgrep's `COPYING`, which states *Unlicense and MIT*, as
   contradicting `Cargo.toml`'s `Unlicense OR MIT`. Behaviours: a licence file naming
   every licence of an `OR` expression matches it; a real contradiction still reports.
+  **STATUS 2026-09-29:** ✅ both.
+  - A declaration's alternatives are read: SPDX `OR` and Cargo's older `A/B`. A licence
+    file identified as any one of them agrees with it; `Apache-2.0` against a declared
+    `MIT` still reports.
+  - ripgrep's corpus finding goes: one of R9.5's 24 false alarms, the only one valvur
+    owned outright.
 - [ ] **R10.8** **A placeholder key is not a secret** (added by R9.5, measured). Gitleaks
   flags the PEM placeholder of track 3 (`...` between the markers) at critical, which the
   honesty gate refuses from R10's exit. Behaviours: a private-key block whose body is a

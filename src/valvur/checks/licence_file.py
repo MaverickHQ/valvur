@@ -82,7 +82,7 @@ class LicenceFileCheck(Check):
             }]
 
         declared = _declared(workspace)
-        if declared and declared[1].upper() != identified.upper():
+        if declared and identified.upper() not in _alternatives(declared[1]):
             return [{
                 "rule": "valvur.licence.mismatch",
                 "severity": "medium",
@@ -110,6 +110,15 @@ TITLES = (
     ("ISC", re.compile(r"\bISC\b", re.I)),
     ("MIT", re.compile(r"\bMIT\b", re.I)),
 )
+
+
+def _alternatives(expression: str) -> set[str]:
+    """The licences an SPDX `OR` expression, or Cargo's older `A/B`, lets a user
+    choose, upper-cased. A file naming any one of them agrees with the declaration
+    (R10.7): ripgrep's `COPYING` states its dual licence and was read as MIT, which
+    the Check reported as contradicting `Unlicense OR MIT`."""
+    parts = re.split(r"\s+OR\s+|/", expression.strip().strip("()"), flags=re.I)
+    return {part.strip().strip("()").upper() for part in parts if part.strip()}
 
 
 def _from_title(text: str) -> str | None:
