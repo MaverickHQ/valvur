@@ -8,6 +8,30 @@ break things, and has.
 
 ## [Unreleased]
 
+- **Every dataset's age is its data's** (Phase R11, ADR-0027). KEV is aged by its
+  catalog's release, OSV's databases by their export's date, and EPSS by its scoring
+  date. The bundled KEV snapshot now reads its true month rather than its install day.
+  - `run.json` gains a `data` block with each age and what it is measured from.
+    `SUMMARY.md` says them in one `Data:` line, and the MCP reply carries the block.
+- **A scan refreshes past two days** the index, KEV, EPSS and the malicious list,
+  announced and recorded under `network.fetched`. The CLI now prints every refresh;
+  stale refreshes had been silent on a terminal. `fetch = "never"` still fetches
+  nothing.
+- **EPSS comes from FIRST's daily file**, 3 MB, cached and read on every Profile.
+  - `offline` ranks with EPSS, which it never had.
+  - `full` no longer sends the CVE identifiers it finds to FIRST's API.
+  - The file is mirrorable as `epss_url`.
+- **Known-malicious packages, published daily.** A list built from OpenSSF's
+  malicious-packages is published beside the Name Index, signed. dependency-reality
+  reports a declared or locked package on it as `valvur.dependency.malicious`,
+  critical and ranked first. OSV-Scanner's `MAL-` finding for the same package folds
+  into it: one finding, both Scanners named. A version-scoped entry matches only
+  the locked version it names.
+  - Lockfiles are read for it: npm's four, PyPI's four, Cargo, Composer and Bundler.
+  - `valvur update` pulls it with the index, or builds it until `main` publishes it.
+- `scripts/verify-offline.py` permits the measured hosts of the recorded fetches of
+  public data and nothing else. Before, its poisoned scan failed on any cache older
+  than two days.
 - **A failed Scanner with nothing found reads `inconclusive`**, naming the Scanner
   (F7.19). Such a run read `clean` beside `complete: false`.
 - **A project's own registries are read** (Phase R10, ADR-0028): npm's `.npmrc` and

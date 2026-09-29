@@ -723,6 +723,20 @@ honesty gate green; track 5's private-registry cases scored.
 **Exit:** the freshness and ranking gates green on both lanes; tracks 4 and 5 at or above
 the baseline.
 
+**Exit STATUS 2026-09-30** (`docs/acceptance/r11.md`):
+- **The Score, both lanes:** ✅ **63.0**, from 62.0. Package reality rose 92 to 100: the
+  two still-registered npm malicious names are on the list. No track fell, and
+  `--compare` passes. The baseline is raised from Linux run 36641729214, and its `mac`
+  block now holds this phase's Mac run.
+- **The freshness and ranking gates:** ✅ judged from R11, and green on both lanes. Every
+  dataset is within D24: at most 0.54 days, and OSV's oldest export 4.1 days (limit 7).
+- **Tracks 4 and 5:** ✅ 100 and 100.
+- **The acceptance set:** ✅ both lanes. Linux is run 36642663426. The Mac's set was
+  regenerated, and repository 8 now expects the one malicious finding.
+- **The suites:** ✅ e2e 82 passed on Linux. On the Mac, 79 passed and the
+  image-staleness test failed on an image one type fix behind; it passes on the rebuilt
+  image.
+
 ### Phase R12: `check_package`, before the install
 
 - [ ] **R12.1** **The API** (D28; F3.16). Behaviours, one test each: `exists`,

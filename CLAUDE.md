@@ -15,11 +15,12 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-09-29).** `1.1.0` is published. R9 measured the [review](docs/history/REVIEW-2026-09-29.md)'s
-gaps as the Score, 59.3; R10's trust fixes raise it to **62.0** on both lanes (static analysis
-0.4 and 10, real-code precision 4.2, the rest 92 to 100). **Next:** Phases R11 to R16 of
-[`tasks.md`](.kiro/specs/valvur/tasks.md), unattended and stacked: fresh data, `check_package`,
-static analysis, reuse, the skill with its plugin and power, `1.2.0`.
+**Status (2026-09-30).** `1.1.0` is published. R9 measured the [review](docs/history/REVIEW-2026-09-29.md)'s
+gaps as the Score, 59.3; R10's trust fixes raised it to 62.0, and R11's fresh data to **63.0**
+on both lanes (static analysis 0.4 and 10, real-code precision 4.2, the rest 94 to 100), with
+the freshness and ranking gates judged and green. **Next:** Phases R12 to R16 of
+[`tasks.md`](.kiro/specs/valvur/tasks.md), unattended and stacked: `check_package`, static
+analysis, reuse, the skill with its plugin and power, `1.2.0`.
 
 ## 2. What it is NOT
 
