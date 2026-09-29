@@ -264,7 +264,7 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 
   Each new ID says *added by R9.2, to be met by* its task. F6.3 is amended to point at
   F6.13. `design.md` 1.4 §11 maps each module to its phase and ADR.
-- [ ] **R9.3** **The harness** (D21; N4.1, N4.2). `scripts/eval.py`, the package
+- [x] **R9.3** **The harness** (D21; N4.1, N4.2). `scripts/eval.py`, the package
   `scripts/eval/`, and `tests/eval/`. Behaviours:
   1. the formula: a hand-built `findings.json` and case list score each category's TPR
      minus FPR, averaged, 0 to 100;
@@ -279,6 +279,44 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
   6. `--compare` exits non-zero on a track more than 2 points under the baseline, or a failed
      gate, naming each; `--update-baseline` refuses to lower a track;
   7. the gates: freshness, honesty, offline and ranking judged; speed recorded.
+  **STATUS 2026-09-29:** ✅ all seven.
+  - **The harness.** `scripts/eval.py`, with `scripts/eval/score.py` (the formula and case
+    matching) and `twins.py` (the six generated tracks). 32 tests in four files.
+  - **Case matching.** A case is matched by rule, rule prefix, advisory (rule or CVE),
+    CWE, or Scanner.
+  - **Premises re-checked.** A package-reality case whose premise the index no longer
+    holds is named, not scored.
+  - **First measurement**, on `valvur:dev` from `main` (`99bb4e6`), the six generated
+    tracks in 47.8 s:
+
+    | track | score |
+    |---|---|
+    | SAST-JS | 0.0 |
+    | secrets | 90.0 |
+    | dependencies | 100.0 |
+    | package reality | 81.0 |
+    | agent configuration | 94.3 |
+    | infrastructure | 95.0 |
+
+  - **Every miss is valvur's or a Scanner's, not a case's:**
+    - no JavaScript rule at all;
+    - Gitleaks misses a private key in history, where the diff's `+` prefixes break its
+      multi-line pattern, and flags a placeholder PEM;
+    - private registries are read as hallucinated for pip, npm and Composer (R10);
+    - the two npm malicious names are still registered, as security holders (R11);
+    - a paraphrased injection and an exfiltration directive pass the patterns;
+    - Checkov does not flag `public-read` on `aws_s3_bucket_acl`.
+  - **Two generator defects, found by that run, each fixed under a test:**
+    - the template-injection workflow was invalid YAML, so its twin passed for free;
+    - the ranking fixture was merged away, because a dependency finding's identity has
+      no path (ADR-0003). The same vulnerable package and version in two lockfiles is
+      one finding, reported at one of them. Noted for the owner (§8).
+  - **Gates, recorded:**
+    - honesty would fail: four safe twins draw a high (the placeholder PEM, three private
+      registries);
+    - freshness would fail: the index is 2.41 days old;
+    - ranking passes: Log4Shell ranks first;
+    - a test-scoped Maven dependency reads scope `unknown`, not development-only.
 - [ ] **R9.4** **The OWASP Benchmark for Python** (D21, track 1). Behaviours:
   1. `tests/eval/sources.toml` pins it by commit; a checkout at any other commit is
      refused; nothing of it is tracked in this repository (a test asserts it);
@@ -535,5 +573,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | now | run once in an AWS account and record the numbers; the steps are in `AIR-GAPPED.md` and `docs/examples/` |
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
+| one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
