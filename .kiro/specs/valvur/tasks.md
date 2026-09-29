@@ -617,7 +617,7 @@ honesty gate green; track 5's private-registry cases scored.
     unit test's scan read the owner's `~/.cache/valvur`, and would have written KEV
     there. Every unit test now has a host cache of its own, holding the bundled
     catalog dated now; 1584 pass.
-- [ ] **R11.4** **EPSS from FIRST's daily file** (D25; F6.13). Measure the file's size and
+- [x] **R11.4** **EPSS from FIRST's daily file** (D25; F6.13). Measure the file's size and
   host first. Behaviours:
   1. `valvur update` fetches it into the cache; `epss_url` names a mirror;
   2. on `offline`, a finding's EPSS comes from the file, and the README's ranking example
@@ -625,6 +625,34 @@ honesty gate green; track 5's private-registry cases scored.
   3. on `full`, no request reaches FIRST's API: the egress test lists only the file's host;
   4. `egress.py`, `verify-offline.py` and `verify-mirror.py` know the new hosts, the file's
      and its redirect's, and nothing else.
+  **STATUS 2026-09-29:** ✅ all four. D25's fallback is not needed.
+  - **Measured first.** `epss.cyentia.com/epss_scores-current.csv.gz` answers 301 to
+    `epss.empiricalsecurity.com`, then 302 to the day's dated file: 2.7 MB compressed,
+    380,528 lines, under D25's 20 MB. Its first line carries `score_date`, which is its
+    age (D23).
+  - **The file.** `valvur update`, and a scan when it is absent or past
+    `EPSS_REFRESH_AFTER_DAYS` (2), fetch it into the host cache. Each fetch is
+    announced and recorded, and `epss_url` names a mirror. A download that is not the
+    file keeps the copy in use and says so.
+  - **Every Profile.** Enrichment reads the file, and `full` no longer sends the CVEs
+    it found anywhere. The API path is gone, and so are FIRST's name from
+    `FULL_HOSTS` (9 hosts) and CVE identifiers from the disclosure sentence and from
+    `full`'s description. `run.json` records `epss_scored` and `epss_age_days`.
+  - **One scan measured.** An offline scan of a `requirements.txt` from a stale scratch
+    cache ranked with real scores: CVE-2018-18074 at 0.074. `offline` had no EPSS
+    before this task.
+  - **The proofs.** A traced scan from a stale cache reached exactly six hosts from the
+    host process, all fetches of public data. `verify-offline.py` now permits those,
+    and the database's size query, and nothing else. It resolves by name and connects
+    only to the addresses those names resolved to. Since R11.3 its poisoned scan had
+    failed on any machine not updated within two days.
+    - `verify-mirror.py` permits `epss_url`.
+    - `doctor --network` probes the file's host with the first-run group.
+  - **Found on the way.**
+    - The CLI printed only `fetching` and `pulling` lines, so every stale refresh since
+      ADR-0025 was silent on a terminal. `refreshing` now counts as a fetch starting.
+    - The falsifiability constraint relied on `full`'s API call. It now relies on a
+      scan due a fetch. A new constraint asserts `full`'s host process opens nothing.
 - [ ] **R11.5** **The malicious list, published daily** (D26; F3.14). Behaviours:
   1. `python -m valvur.name_index build-malicious` builds the sorted per-ecosystem lists
      from a pinned fixture of OSV records;

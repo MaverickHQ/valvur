@@ -734,7 +734,7 @@ def _first_run_hosts() -> list[tuple[str, int]]:
     mirror setting the air-gapped guide documents."""
     from urllib.parse import urlsplit
 
-    from . import name_index, oci
+    from . import epss, name_index, oci
     from .egress import DEFAULT_DB_REPOSITORY, db_repository
     from .enrichment import KEV_URL
 
@@ -761,6 +761,7 @@ def _first_run_hosts() -> list[tuple[str, int]]:
     else:
         registry(name_index.published.repository())
     url(_settings.get("kev_url") or KEV_URL)
+    url(_settings.get("epss_url") or epss.URL)
     return list(dict.fromkeys(hosts))      # deduplicated, first occurrence's order
 
 

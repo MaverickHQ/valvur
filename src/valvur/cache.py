@@ -34,12 +34,13 @@ DB_STALE_AFTER_DAYS = 7
 #: The threshold keeps the answer's age visible; it is not a cliff.
 NAME_INDEX_STALE_AFTER_DAYS = 30
 
-#: When a scan refreshes what it reads (D24, F10.9, ADR-0027): the index, published
-#: daily, and KEV, released most days, once over two days old. These are not the
-#: thresholds above, which decide when a verdict is `inconclusive`: fresh data is
-#: fetched well before old data stops being evidence.
+#: When a scan refreshes what it reads (D24, F10.9, ADR-0027): the index and EPSS,
+#: published daily, and KEV, released most days, once over two days old. These are
+#: not the thresholds above, which decide when a verdict is `inconclusive`: fresh
+#: data is fetched well before old data stops being evidence.
 INDEX_REFRESH_AFTER_DAYS = 2
 KEV_REFRESH_AFTER_DAYS = 2
+EPSS_REFRESH_AFTER_DAYS = 2
 
 
 def root() -> Path:
@@ -164,7 +165,7 @@ def _metadata_time(marker: Path, field: str) -> float | None:
 #: 1.4 GB, the index to about 118 MB — and every surface says both with their
 #: names, because a fetch size beside 1.45 GB read as a contradiction at the first
 #: gate. Measured on 2026-09-28 (`docs/acceptance/r7.md`).
-FETCH_MB: dict[str, int] = {"database": 123, "index": 36}
+FETCH_MB: dict[str, int] = {"database": 123, "index": 36, "epss": 3}
 
 #: The KEV row's one sentence for an absent cache copy, on `doctor` and on
 #: `valvur cache` alike: absent is not missing, the image carries a snapshot.
@@ -188,7 +189,7 @@ class Entry:
 
 
 def inventory() -> list[Entry]:
-    """The three things `valvur update` fetches, in the order it fetches them."""
+    """What `valvur update` fetches into the cache, in the order it fetches it."""
     import json
 
     entries = [Entry("database", trivy_db(), db_present(), _tree_size(trivy_db()),
@@ -211,7 +212,61 @@ def inventory() -> list[Entry]:
     present = kev.is_file()
     age = _kev_age(kev) if present else None
     entries.append(Entry("kev", kev, present, kev.stat().st_size if present else 0, age))
+
+    scores = epss_path()
+    present = scores.is_file()
+    entries.append(Entry("epss", scores, present, scores.stat().st_size if present else 0,
+                         epss_age()[0], f"scored {epss_scored()}" if present else ""))
     return entries
+
+
+#: FIRST's daily EPSS file (D25), kept as fetched: `epss` reads and fetches it.
+EPSS_FILE = "epss_scores.csv.gz"
+
+
+def epss_path() -> Path:
+    return root() / EPSS_FILE
+
+
+def score_date(first_line: str) -> str:
+    """The `score_date` of the EPSS file's first line, as stated, or empty:
+    `#model_version:v2026.06.15,score_date:2026-09-29T12:00:22Z`."""
+    for field in first_line.lstrip("#").strip().split(","):
+        key, _, value = field.partition(":")
+        if key == "score_date":
+            return value
+    return ""
+
+
+def _epss_stamp(path: Path) -> str:
+    import gzip
+    import zlib
+
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as lines:
+            return score_date(lines.readline())
+    except (OSError, EOFError, zlib.error, UnicodeDecodeError):
+        return ""
+
+
+def epss_scored() -> str:
+    """The day the EPSS scores in use were computed, `YYYY-MM-DD`; empty when there
+    is no file, or it does not say."""
+    path = epss_path()
+    return _epss_stamp(path)[:10] if path.is_file() else ""
+
+
+def epss_age() -> tuple[float | None, str]:
+    """(age in days, basis): the scores' own `score_date`, `scored`; a copy that does
+    not say is aged by its file, `fetched` (D23). None when there is no file."""
+    path = epss_path()
+    if not path.is_file():
+        return None, ""
+    stamp = _epss_stamp(path)
+    days = stamp_age_days(stamp) if stamp else None
+    if days is not None:
+        return days, "scored"
+    return (time.time() - path.stat().st_mtime) / 86400, "fetched"
 
 
 def _kev_age(path: Path) -> float | None:

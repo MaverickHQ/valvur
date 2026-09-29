@@ -11,8 +11,8 @@ options:
                         offline (default) runs every Scanner with --network=none. full asks the
                         network what local data cannot answer: OSV.dev in place of the offline
                         database, the registries for each package's age and adoption and whether
-                        JVM and Go dependencies exist, and FIRST for EPSS. They receive package
-                        names, versions and CVE identifiers, never source.
+                        JVM and Go dependencies exist. They receive package names and versions,
+                        never source.
   --offline             Force the offline Profile regardless of --profile. Checks needing a
                         registry report as unverified rather than clean.
   --sbom                Also write the SBOM (sbom.cdx.json) and check dependency licences from it;

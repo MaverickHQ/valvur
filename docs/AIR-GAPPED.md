@@ -1,8 +1,8 @@
 # Air-gapped operation
 
-A scan reads four things from the host cache, and each has a mirror setting: the
-vulnerability database, the package-name index, CISA KEV, and OSV's offline database
-for each ecosystem a project's lockfiles use. The image comes from any registry the
+A scan reads five things from the host cache, and each has a mirror setting: the
+vulnerability database, the package-name index, CISA KEV, FIRST's EPSS scores (since
+R11.4), and OSV's offline database for each ecosystem a project's lockfiles use. The image comes from any registry the
 `image` setting names. Measured end to end on 2026-09-12 for the database, the index
 and KEV (an OCI registry on a Docker network with no route out, a static file server,
 and every other connection refused): `valvur update` and an `offline` scan both
@@ -11,19 +11,20 @@ them. OSV's mirror joined when its database did (R4.6); R8.3 measures the whole 
 again, in a registry of your own.
 
 What an air-gapped site runs is the **`offline`** Profile. Since ADR-0018 that
-includes the hallucination check, and since R4.6 OSV's known-malicious packages; only
-OSV.dev's API, package age and adoption, and EPSS need the internet, and those are
-what `full` is. For a machine that must never reach out, `fetch = "never"` in the
+includes the hallucination check, since R4.6 OSV's known-malicious packages, and since
+R11.4 EPSS, read from FIRST's daily file; only OSV.dev's API and package age and
+adoption need the internet, and those are what `full` is. For a machine that must never reach out, `fetch = "never"` in the
 settings stops every fetch a scan would make on its own (ADR-0025): a scan then reads
 what the cache holds, and says so when that is stale.
 
-## The four things, and where each comes from
+## The five things, and where each comes from
 
 | what | to fetch | primary source | mirror as |
 |---|---|---|---|
 | vulnerability database (Trivy) | 123 MB | `mirror.gcr.io/aquasec/trivy-db:2` | an OCI artifact, in any registry |
 | package-name index (PyPI, npm, RubyGems, Packagist, crates.io) | 36 MB | `ghcr.io/maverickhq/valvur-index:latest`, built daily from the five registries and cosign-signed | an OCI artifact, in any registry, **or** six plain files on any web server |
 | CISA KEV | one JSON file | `cisa.gov` | one JSON file, on any web server |
+| FIRST EPSS | 3 MB, measured 2026-09-29 | `epss.cyentia.com/epss_scores-current.csv.gz`, which redirects to `epss.empiricalsecurity.com` | one gzip file, on any web server |
 | OSV's offline database, per ecosystem | 35 MB for PyPI, 217 MB for npm | `osv-vulnerabilities.storage.googleapis.com/<ecosystem>/all.zip` | the same paths, on any web server |
 
 The sizes were measured on 2026-09-28 (`docs/acceptance/r7.md`).
@@ -40,6 +41,8 @@ oras cp --recursive ghcr.io/maverickhq/valvur-index:latest registry.internal/mir
 #    your projects use (PyPI, npm, crates.io, Go, Maven, RubyGems, Packagist).
 curl -o /srv/valvur-mirror/kev.json \
   https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+curl -L -o /srv/valvur-mirror/epss_scores-current.csv.gz \
+  https://epss.cyentia.com/epss_scores-current.csv.gz
 for eco in PyPI npm; do
   mkdir -p /srv/valvur-mirror/osv/$eco
   curl -o /srv/valvur-mirror/osv/$eco/all.zip \
@@ -50,6 +53,7 @@ done
 #    db_repository    = "registry.internal/mirror/trivy-db"
 #    index_repository = "registry.internal/mirror/valvur-index"
 #    kev_url          = "http://mirror.internal/valvur-mirror/kev.json"
+#    epss_url         = "http://mirror.internal/valvur-mirror/epss_scores-current.csv.gz"
 #    osv_url          = "http://mirror.internal/valvur-mirror/osv"
 #    db_insecure = "1" and index_insecure = "1" only if the registry is plain HTTP
 #    or self-signed.
@@ -93,6 +97,7 @@ says which value came from where.
 | `index_insecure` | `VALVUR_INDEX_INSECURE=1` | Plain HTTP, or an untrusted certificate, for that repository. The shim pulls the index itself, no container involved, so this is the shim's own switch, not Trivy's. |
 | `name_index_url` | `VALVUR_NAME_INDEX_URL` | A URL under which the index's files, `pypi.txt`, `npm.txt`, `rubygems.txt`, `packagist.txt`, `crates.txt` and `metadata.json`, are served verbatim. Wins over the repository when both are set. |
 | `kev_url` | `VALVUR_KEV_URL` | A URL for the CISA KEV catalog JSON. Without it, an air-gapped `valvur update` tries cisa.gov, fails softly, and keeps the snapshot shipped in the image. |
+| `epss_url` | `VALVUR_EPSS_URL` | A URL for FIRST's daily EPSS file, `epss_scores-current.csv.gz`, served verbatim. Without it, an air-gapped `valvur update` tries epss.cyentia.com, fails softly, and findings rank without EPSS. |
 | `osv_url` | `VALVUR_OSV_URL` | A URL under which OSV's databases are served as `<ecosystem>/all.zip`, OSV's own layout. The shim fetches them itself. |
 | `image` | `VALVUR_IMAGE` | The image, from any registry: a mirror of `ghcr.io/maverickhq/valvur`. |
 | `fetch` | `VALVUR_FETCH` | `never` stops every fetch a scan would make on its own (ADR-0025); `valvur update` and the `update` tool still fetch from the mirrors when asked. |
@@ -120,10 +125,10 @@ docker push "$REGISTRY/valvur:1.1.0"
 oras cp mirror.gcr.io/aquasec/trivy-db:2 "$REGISTRY/trivy-db:2"
 ```
 
-valvur fetches the index, KEV and OSV's databases itself, anonymously, and carries no
-AWS credentials. So serve those as files from inside the account, an S3 bucket behind a
-VPC endpoint or any web server, laid out as the file mirror above, and name them with
-`name_index_url`, `kev_url` and `osv_url`. The database is fetched by Trivy, which reads
+valvur fetches the index, KEV, EPSS and OSV's databases itself, anonymously, and
+carries no AWS credentials. So serve those as files from inside the account, an S3
+bucket behind a VPC endpoint or any web server, laid out as the file mirror above, and
+name them with `name_index_url`, `kev_url`, `epss_url` and `osv_url`. The database is fetched by Trivy, which reads
 registry credentials from a Docker configuration: in the image, whose `HOME` is `/tmp`,
 mount one holding the ECR login at `/tmp/.docker/config.json`. Then, in the job:
 

@@ -33,8 +33,9 @@ def test_every_mirror_setting_is_permitted_from_the_file_or_the_environment(
         'osv_url = "http://osv.mirror.internal/osv"\n'
         'db_repository = "registry.mirror.internal:5000/trivy-db"\n')
     monkeypatch.setenv("VALVUR_KEV_URL", "http://kev.mirror.internal/kev.json")
+    monkeypatch.setenv("VALVUR_EPSS_URL", "http://epss.mirror.internal/epss.csv.gz")
 
     hosts = _script().mirror_hosts()
 
     assert {"osv.mirror.internal", "registry.mirror.internal",
-            "kev.mirror.internal"} <= hosts
+            "kev.mirror.internal", "epss.mirror.internal"} <= hosts

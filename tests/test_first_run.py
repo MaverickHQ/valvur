@@ -650,11 +650,13 @@ def test_all_three_fetches_are_recorded_in_the_order_they_happen(
     assert run.fetched[0]["size_mb"] == 240
 
 
-def test_a_steady_state_run_records_no_fetch(workspace, host_cache):
+def test_a_steady_state_run_records_no_fetch(workspace, host_cache, _fresh_kev, _fresh_epss):
     """The common case says so explicitly — an empty list, not an absent key — so
     a reader can tell "nothing fetched" from "a valvur that did not record."""
     _write_db(host_cache)
     _write_index(host_cache)
+    (host_cache / "kev.json").write_text(_fresh_kev)
+    (host_cache / "epss_scores.csv.gz").write_bytes(_fresh_epss)
 
     run, said = _scan(workspace, _Runner(host_cache))
 

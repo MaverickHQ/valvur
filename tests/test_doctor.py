@@ -420,16 +420,16 @@ def test_the_network_is_probed_only_when_asked_and_per_purpose(healthy, monkeypa
 
     def reachable(host, port=443):
         probed.append(host)
-        return host != "api.first.org"
+        return host != "api.osv.dev"
 
     monkeypatch.setattr(doctor, "_reachable", reachable)
 
     network = _by_name(doctor.run(healthy, network=True))["network"]
 
     assert network.level == "warn"
-    assert ("first run and `valvur update`: ghcr.io, mirror.gcr.io, www.cisa.gov "
-            "reachable") in network.detail
-    assert "`full`: api.first.org UNREACHABLE" in network.detail
+    assert ("first run and `valvur update`: ghcr.io, mirror.gcr.io, www.cisa.gov, "
+            "epss.cyentia.com reachable") in network.detail
+    assert "`full`: api.osv.dev UNREACHABLE" in network.detail
     assert "pypi.org" in probed and "registry.npmjs.org" in probed and "api.osv.dev" in probed
     assert "full" in network.fix and "offline" in network.fix
 
@@ -441,6 +441,7 @@ def test_mirrors_are_probed_in_place_of_the_public_hosts(healthy, monkeypatch):
     monkeypatch.setenv("VALVUR_DB_REPOSITORY", "registry.internal:5000/mirror/trivy-db:2")
     monkeypatch.setenv(name_index.reader.INDEX_REPOSITORY_ENV, "registry.internal:5000/mirror/idx")
     monkeypatch.setenv("VALVUR_KEV_URL", "http://files.internal/kev.json")
+    monkeypatch.setenv("VALVUR_EPSS_URL", "http://files.internal/epss_scores-current.csv.gz")
     monkeypatch.setenv("VALVUR_IMAGE", "registry.internal:5000/mirror/valvur:0.2.0")
 
     doctor.run(healthy, network=True)
@@ -448,6 +449,7 @@ def test_mirrors_are_probed_in_place_of_the_public_hosts(healthy, monkeypatch):
     assert ("registry.internal", 5000) in probed and ("files.internal", 80) in probed
     hosts = [host for host, _ in probed]
     assert "mirror.gcr.io" not in hosts and "ghcr.io" not in hosts and "www.cisa.gov" not in hosts
+    assert "epss.cyentia.com" not in hosts
 
 
 def test_a_first_run_host_that_is_unreachable_fails_when_a_fetch_is_due(healthy, monkeypatch):

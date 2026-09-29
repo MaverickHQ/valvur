@@ -146,14 +146,16 @@ a policy.
 
 **The host shim** is the half a `--network=none` flag cannot cover. Before the Scan
 Container starts, it fetches public data a scan lacks or holds stale, and says so
-(23.2.4, 24.1, ADR-0025): the image, the vulnerability database, the name index, and
-OSV's offline database for each ecosystem the lockfiles use (R4.6). Each is a pull of
-a fixed public name and carries nothing from the workspace, though which OSV
-databases it asks for says which ecosystems are present. `valvur update` does the
-same ahead of time, and `fetch = "never"` turns it off. During a scan it has one
-reason to reach out, fetching EPSS exploitation scores, and only on `full`. Under
-`unshare -rn` on a fresh machine those fetches fail, loudly, naming each, so run
-`valvur update` first if you want that proof on a first run.
+(23.2.4, 24.1, ADR-0025): the image, the vulnerability database, the name index, KEV,
+FIRST's EPSS file, and OSV's offline database for each ecosystem the lockfiles use
+(R4.6). Each is a pull of a fixed public name and carries nothing from the workspace,
+though which OSV databases it asks for says which ecosystems are present. `valvur
+update` does the same ahead of time, and `fetch = "never"` turns it off. Past those
+fetches it opens no socket, on either Profile: EPSS was fetched per CVE from FIRST's
+API on `full` until R11.4, and is now read from the daily file. Under `unshare -rn` on
+a fresh machine those fetches fail, loudly, naming each, so run `valvur update` first
+if you want that proof on a first run. `verify-offline.py` permits the hosts of those
+fetches, measured, and nothing else.
 
 ```bash
 scripts/verify-offline.py          # checks both halves

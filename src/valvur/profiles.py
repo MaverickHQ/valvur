@@ -56,8 +56,8 @@ ALLOWS_NETWORK: dict[str, bool] = {OFFLINE: False, FULL: True}
 #: What `full` adds, for every surface that describes it: questions, not Scanners.
 FULL_ADDS = ("full asks the network what local data cannot answer: OSV.dev in place of "
              "the offline database, the registries for each package's age and adoption "
-             "and whether JVM and Go dependencies exist, and FIRST for EPSS. They "
-             "receive package names, versions and CVE identifiers, never source.")
+             "and whether JVM and Go dependencies exist. They receive package names "
+             "and versions, never source.")
 
 #: Scanners that run on BOTH Profiles and do less without a network — the network
 #: half of what they cover, in the reader's terms. dependency-reality checks existence

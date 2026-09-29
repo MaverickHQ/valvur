@@ -2,13 +2,12 @@
 
 Behind an `EnrichmentProvider` interface with exactly one implementation (ADR-0007).
 There is no external platform prerequisite: a bundled CISA KEV snapshot, refreshed
-into the host cache, plus FIRST EPSS fetched on demand for the CVEs actually found.
+into the host cache, and FIRST's daily EPSS file beside it (D25, R11.4).
 
 **Placement.** This runs host-side, unlike Checks (ADR-0013). Enrichment is not
 detection — it post-processes Findings that only exist once the fleet has finished,
-on the host. Its network access is gated by Profile: `quick` fetches nothing, and
-Phase 11's regression test asserts that over the whole process tree, not merely over
-the container.
+on the host. It reads files and opens no socket, on any Profile: until R11.4 `full`
+sent the CVEs it found to FIRST's API, and `offline` ranked without EPSS at all.
 """
 
 from __future__ import annotations
@@ -20,6 +19,7 @@ from pathlib import Path
 from typing import Protocol
 
 from . import cache
+from . import epss as _epss
 from .findings import Finding
 
 #: CISA's catalog of vulnerabilities exploited in reality (F6.2). The image ships a
@@ -44,15 +44,17 @@ _BUNDLED = Path(__file__).resolve().parent / "data" / "kev.json"
 
 
 class EnrichmentProvider(Protocol):  # F6.8: the interface; no platform behind it
-    def enrich(self, findings: list[Finding], *, network: bool) -> list[Finding]: ...
+    def enrich(self, findings: list[Finding]) -> list[Finding]: ...
 
 
 class LocalProvider:
-    """KEV from disk, EPSS from FIRST. No account, no platform, no lock-in."""
+    """KEV and EPSS, both from disk. No account, no platform, no lock-in."""
 
     def __init__(self) -> None:
         (self._kev, self._kev_age, self._kev_source, self._kev_catalog,
          self._kev_basis) = _load_kev()
+        self._epss_age, self._epss_basis = _epss.age()
+        self._epss_scored = _epss.scored()
 
     @property
     def kev_age_days(self) -> float | None:
@@ -75,12 +77,27 @@ class LocalProvider:
         return self._kev_basis
 
     @property
+    def epss_age_days(self) -> float | None:
+        """The EPSS scores' age, from their `score_date`; None with no file."""
+        return self._epss_age
+
+    @property
+    def epss_scored(self) -> str:
+        """The day the scores in use were computed, `YYYY-MM-DD`; empty with none."""
+        return self._epss_scored
+
+    @property
+    def epss_age_basis(self) -> str:
+        """`scored` from the file's own date, `fetched` from its time (D23)."""
+        return self._epss_basis
+
+    @property
     def is_stale(self) -> bool:
         return self._kev_age is not None and self._kev_age > STALE_AFTER_DAYS
 
-    def enrich(self, findings: list[Finding], *, network: bool) -> list[Finding]:
-        # F6.1: every Finding carrying a CVE gets its Exploit Signals — KEV always,
-        # EPSS when the Profile allows the lookup.
+    def enrich(self, findings: list[Finding]) -> list[Finding]:
+        # F6.1: every Finding carrying a CVE gets its Exploit Signals, KEV and EPSS,
+        # on every Profile: both are files in the host cache (D25).
         cves = {
             f.exploit.cve for f in findings
             if f.exploit and f.exploit.cve.startswith("CVE-")
@@ -88,7 +105,7 @@ class LocalProvider:
         if not cves:
             return findings
 
-        epss = _fetch_epss(cves) if network else {}
+        epss = _epss.scores(cves)
 
         enriched = []
         for finding in findings:
@@ -139,26 +156,3 @@ def _load_kev() -> tuple[dict, float | None, str, str, str]:
         if best[1] is None or age < best[1]:
             best = (data.get("entries", {}), age, label, catalog, basis)
     return best
-
-
-def _fetch_epss(cves: set[str]) -> dict[str, tuple[float, str]]:
-    """One batched request for the CVEs actually found, never one call per finding."""
-    import urllib.error
-    import urllib.request
-
-    out: dict[str, tuple[float, str]] = {}
-    ordered = sorted(cves)
-    for start in range(0, len(ordered), 100):      # the API caps a query's length
-        batch = ordered[start:start + 100]
-        url = "https://api.first.org/data/v1/epss?cve=" + ",".join(batch)
-        try:
-            with urllib.request.urlopen(url, timeout=15) as response:
-                payload = json.load(response)
-        except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError):
-            return out                              # degrade to KEV only (F6.4)
-        for row in payload.get("data", []):
-            try:
-                out[row["cve"]] = (float(row["epss"]), row.get("date", ""))
-            except (KeyError, TypeError, ValueError):
-                continue
-    return out

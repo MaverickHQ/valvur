@@ -126,6 +126,19 @@ def default_trivy_db(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
+def _fresh_epss() -> bytes:
+    """FIRST's daily file as `valvur update` leaves it, scored now and scoring
+    nothing: a scan refreshes EPSS past two days (R11.4), and a test that wants a
+    score writes its own."""
+    import gzip
+    from datetime import UTC, datetime
+
+    scored = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return gzip.compress(f"#model_version:v2026.06.15,score_date:{scored}\n"
+                         "cve,epss,percentile\n".encode())
+
+
+@pytest.fixture(scope="session")
 def _fresh_kev() -> str:
     """The bundled catalog's entries, dated now: what a machine that has just run
     `valvur update` holds. A scan refreshes KEV past two days (R11.3), and the image's
@@ -140,7 +153,7 @@ def _fresh_kev() -> str:
 
 @pytest.fixture(autouse=True)
 def _installed_name_index(request, default_name_index, default_trivy_db, monkeypatch,
-                          tmp_path_factory, _fresh_kev):
+                          tmp_path_factory, _fresh_kev, _fresh_epss):
     """Every test runs as on a machine that has done `valvur update`: an index and
     a database are present, fresh, and the Checks and Trivy read them. Without
     this, the dependency-reality Check fails loudly on the offline Profile —
@@ -165,6 +178,7 @@ def _installed_name_index(request, default_name_index, default_trivy_db, monkeyp
         # which a unit test's scan read and, once a scan refreshes KEV, would write.
         root = tmp_path_factory.mktemp("host-cache")
         (root / "kev.json").write_text(_fresh_kev)
+        (root / "epss_scores.csv.gz").write_bytes(_fresh_epss)
         monkeypatch.setattr(cache, "root", lambda: root)
 
 

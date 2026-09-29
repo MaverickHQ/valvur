@@ -109,6 +109,10 @@ class ScanRun:
     kev_source: str = ""
     #: The KEV catalog's release day, `YYYY-MM-DD`; empty when it does not say (D23).
     kev_catalog: str = ""
+    #: The EPSS scores' day and age (D25): from their `score_date`, or empty and None
+    #: when the host cache holds none, and findings ranked without EPSS.
+    epss_scored: str = ""
+    epss_age_days: float | None = None
     # The database that decides whether findings EXIST, as opposed to KEV which only
     # decides how they rank. Until 2026-09-05 only the latter was instrumented.
     db_age_days: float | None = None
@@ -340,10 +344,11 @@ def _fetch_record(what: str, source: str, size_mb: int | None, seconds: float,
 #: as each fetch starts, one as it ends. `scan_status` shows the current one as
 #: `Now:`; the CLI prints both kinds to stderr. Every other progress message is a
 #: Scanner finishing.
-FETCH_STARTED = ("pulling ", "fetching ")
+FETCH_STARTED = ("pulling ", "fetching ", "refreshing ")
 FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
                "index fetched", "index not fetched", "OSV database fetched",
-               "OSV database not fetched")
+               "OSV database not fetched", "KEV refreshed", "KEV refresh skipped",
+               "EPSS refreshed", "EPSS refresh skipped")
 
 
 def _ensure_data(runner, on_progress, *, workspace=None,
@@ -428,6 +433,7 @@ def _ensure_data(runner, on_progress, *, workspace=None,
                 signature=_index_signature(metadata)))
     _stop_if_cancelled(runner, "during the first run's fetches")
     _ensure_kev(say, fetched)
+    _ensure_epss(say, fetched)
     if workspace is not None and any(getattr(a, "offline", False) for a in adapters
                                      if getattr(a, "name", "") == "osv-scanner"):
         _stop_if_cancelled(runner, "during the first run's fetches")
@@ -452,6 +458,24 @@ def _ensure_kev(say, fetched: list[dict]) -> None:
 
         fetched.append(_fetch_record(
             "KEV catalog", settings.get("kev_url") or enrichment.KEV_URL, None,
+            time.monotonic() - started))
+
+
+def _ensure_epss(say, fetched: list[dict]) -> None:
+    """EPSS absent or past two days (D24, D25, R11.4), as KEV: a failure keeps the
+    scores in use, or ranks without EPSS, and costs no Scanner."""
+    from . import epss, settings, updating
+
+    age, _ = epss.age()
+    if age is not None and age <= _cache.EPSS_REFRESH_AFTER_DAYS:
+        return
+    say("fetching EPSS scores (about 3MB) — the first run only" if age is None else
+        f"refreshing EPSS ({age:.0f} days old)")
+    started = time.monotonic()
+    if updating.refresh_epss(say):
+        fetched.append(_fetch_record(
+            "EPSS scores", settings.get("epss_url") or epss.URL,
+            max(1, round(epss.path().stat().st_size / 1_000_000)),
             time.monotonic() - started))
 
 
@@ -1087,6 +1111,8 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         name_index_age_days=_cache.name_index_age_days(),
         kev_source=outcome.provider.kev_source,
         kev_catalog=outcome.provider.kev_catalog,
+        epss_scored=outcome.provider.epss_scored,
+        epss_age_days=outcome.provider.epss_age_days,
         config_dropped=outcome.config_dropped,
         unpinned_dropped=outcome.unpinned_dropped,
         unpinned_files=outcome.unpinned_files,

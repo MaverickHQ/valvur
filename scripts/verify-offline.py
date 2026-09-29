@@ -10,11 +10,12 @@ Non-exfiltration has two halves, and one flag only covers one of them.
      valvur builds for every Scanner the `offline` Profile runs.
 
   2. The host shim — the part that is NOT in a container — could still open a socket.
-     It has a reason to: exploit enrichment fetches EPSS scores from FIRST on the
-     `full` Profile, gated by a single boolean threaded from the Profile. One
-     inverted condition and the guarantee is gone with no visible symptom.
-     Checked here by poisoning every connect path in the process and running a real
-     scan.
+     Until R11.4 it had a reason to on `full`: exploit enrichment asked FIRST's API
+     for the CVEs a scan found. EPSS is now a daily file of public data, read on
+     every Profile. What the host may still do is fetch public data its cache lacks
+     or holds past two days (ADR-0025, D24), from the hosts in PUBLIC_DATA, each
+     fetch recorded in run.json. Checked here by poisoning every connect path in the
+     process but those, and running a real scan.
 
   3. The dependency-reality Check runs on `offline` since ADR-0018, answering
      existence from the local package-name index. It is the one Check with a reason
@@ -40,19 +41,34 @@ import tempfile
 from pathlib import Path
 
 attempts: list[str] = []
+fetched_from: list[str] = []
+
+#: The hosts of the public data an `offline` scan fetches when its copy is absent or
+#: past two days, each fetch recorded under `network.fetched`, and nothing of the
+#: Workspace sent. Measured 2026-09-29 from a stale cache: the package-name index
+#: (ghcr.io, and the CDN its blobs redirect to), CISA KEV, FIRST's EPSS file (the
+#: documented host and the one it redirects to) and OSV's databases; and, from the
+#: code, the database's size asked of the registry Trivy fetches it from, since
+#: Trivy itself fetches it in a container. Written out, not read from valvur: this
+#: script is the independent check.
+PUBLIC_DATA = frozenset({
+    "ghcr.io", "pkg-containers.githubusercontent.com",
+    "mirror.gcr.io",
+    "www.cisa.gov",
+    "epss.cyentia.com", "epss.empiricalsecurity.com",
+    "osv-vulnerabilities.storage.googleapis.com",
+})
+
+_REAL = {
+    "connect": socket.socket.connect,
+    "connect_ex": socket.socket.connect_ex,
+    "create_connection": socket.create_connection,
+    "getaddrinfo": socket.getaddrinfo,
+}
 
 
 class Connected(RuntimeError):
     """The host process tried to reach the network during an offline scan."""
-
-
-def _deny(name: str):
-    def blocked(*args, **kwargs):
-        target = args[1] if len(args) > 1 else kwargs.get("address", "?")
-        attempts.append(f"{name} -> {target}")
-        raise Connected(f"{name} -> {target}")
-
-    return blocked
 
 
 def check_containers_have_no_network() -> bool:
@@ -83,11 +99,37 @@ def check_containers_have_no_network() -> bool:
     return ok
 
 
-def _poison() -> None:
-    socket.socket.connect = _deny("connect")
-    socket.socket.connect_ex = _deny("connect_ex")
-    socket.create_connection = _deny("create_connection")
-    socket.getaddrinfo = _deny("getaddrinfo")
+def _poison(public: frozenset[str] = frozenset()) -> None:
+    """Every connect path refused, but for the hosts in `public`: resolved by name,
+    and then reached only at the addresses that resolution returned."""
+    resolved: set[str] = set()
+
+    def refuse(name: str, target: object):
+        attempts.append(f"{name} -> {target}")
+        raise Connected(f"{name} -> {target}")
+
+    def getaddrinfo(host, *args, **kwargs):
+        if host not in public:
+            refuse("getaddrinfo", host)
+        fetched_from.append(str(host))
+        answers = _REAL["getaddrinfo"](host, *args, **kwargs)
+        resolved.update(str(answer[4][0]) for answer in answers)
+        return answers
+
+    def guarded(name: str, index: int):
+        def call(*args, **kwargs):
+            address = args[index] if len(args) > index else kwargs.get("address", "?")
+            host = str(address[0]) if isinstance(address, tuple) else str(address)
+            if host not in resolved and host not in public:
+                refuse(name, address)
+            return _REAL[name](*args, **kwargs)
+
+        return call
+
+    socket.socket.connect = guarded("connect", 1)
+    socket.socket.connect_ex = guarded("connect_ex", 1)
+    socket.create_connection = guarded("create_connection", 0)
+    socket.getaddrinfo = getaddrinfo
 
 
 def check_the_dependency_check_asks_nothing(target: str) -> bool:
@@ -128,11 +170,11 @@ def check_the_dependency_check_asks_nothing(target: str) -> bool:
 
 
 def check_host_opens_no_connection(target: str) -> bool:
-    _poison()
+    _poison(PUBLIC_DATA)
 
     from valvur.cli import main
 
-    print(f"  ...  scanning {target} with every connect path poisoned")
+    print(f"  ...  scanning {target} with every connect path poisoned but public data's")
     try:
         main(["scan", target, "--profile", "offline"])
     except Connected as exc:
@@ -144,7 +186,11 @@ def check_host_opens_no_connection(target: str) -> bool:
         for attempt in dict.fromkeys(attempts):
             print(f"         {attempt}")
         return False
-    print("  [PASS] the host process opened no connection")
+    if fetched_from:
+        print("  [PASS] the host process reached only public data, recorded in run.json: "
+              + ", ".join(dict.fromkeys(fetched_from)))
+    else:
+        print("  [PASS] the host process opened no connection")
     return True
 
 

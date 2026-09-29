@@ -8,6 +8,7 @@ and `--clear`.
 
 from __future__ import annotations
 
+import gzip
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -215,6 +216,8 @@ def _fill(root: Path) -> None:
     write_name_index(root / "names", pip=["requests", "flask"], npm=["react"], gem=["rack"],
                      composer=["monolog/monolog"], cargo=["serde"])
     (root / "kev.json").write_text('{"entries": {}, "count": 1500}')
+    (root / "epss_scores.csv.gz").write_bytes(gzip.compress(
+        b"#model_version:v2026.06.15,score_date:2026-09-29T12:00:22Z\ncve,epss,percentile\n"))
     (root / ".lock").write_bytes(b"")
 
 
@@ -228,7 +231,8 @@ def test_the_inventory_says_what_is_cached_how_old_and_how_large(host_cache):
     assert entries["index"].present and "pip 2" in entries["index"].detail
     assert entries["index"].detail.endswith("cargo 1")
     assert entries["kev"].present and entries["kev"].size > 0
-    assert [e.name for e in cache.inventory()] == ["database", "index", "kev"]
+    assert entries["epss"].present and entries["epss"].detail == "scored 2026-09-29"
+    assert [e.name for e in cache.inventory()] == ["database", "index", "kev", "epss"]
 
 
 def test_an_empty_cache_is_described_not_invented(host_cache):
@@ -242,7 +246,7 @@ def test_clear_removes_the_data_and_keeps_the_directory_and_the_lock(host_cache)
 
     removed = cache.clear()
 
-    assert removed == ["database", "index", "kev"]
+    assert removed == ["database", "index", "kev", "epss"]
     assert sorted(p.name for p in host_cache.iterdir()) == [".lock"]
     assert cache.clear() == []
 

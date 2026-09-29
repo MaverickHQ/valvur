@@ -4,10 +4,12 @@ N2.1 and ADR-0010: an `offline` **Scan Run** sends nothing. The claim has two ha
 and one flag only covers one of them:
 
   - The **Scanners** run in containers launched with `--network=none`.
-  - The **host shim** is not in a container and could open a socket. It has a reason
-    to — enrichment fetches EPSS from FIRST — gated by a single boolean threaded from
-    the **Profile**. One inverted condition and the guarantee is gone with no visible
-    symptom, because nothing in the output would change.
+  - The **host shim** is not in a container and could open a socket. Until R11.4 it
+    had a reason to: enrichment asked FIRST's API for EPSS on `full`, gated by a
+    single boolean threaded from the **Profile**. EPSS is now a file in the host
+    cache, read on every Profile, so neither Profile's enrichment opens a socket. The
+    host still fetches public data its cache lacks or holds past two days (ADR-0025,
+    D24), and that fetch is what shows the poison below catches the host at all.
 
 Both halves are asserted here, and each is paired with a check that it can FAIL. An
 assertion that cannot fail is how the first version of this passed against a clean
@@ -18,6 +20,7 @@ connection was made" was true and meaningless.
 from __future__ import annotations
 
 import contextlib
+import gzip
 
 import pytest
 from constraints_support import CveRunner
@@ -44,7 +47,7 @@ def test_the_offline_profile_opens_no_connection_from_the_host_process(
     )
 
 
-def test_the_full_profile_does_connect_so_the_previous_test_can_fail(
+def test_a_scan_due_a_fetch_does_connect_so_the_previous_test_can_fail(
     workspace, record_connections
 ):
     """The falsifiability half, and not optional.
@@ -52,15 +55,41 @@ def test_the_full_profile_does_connect_so_the_previous_test_can_fail(
     On 2026-08-31 the first version of this check passed against a repository with no
     findings: enrichment is never called without a CVE, so "no connection" was true
     and worthless. If this test ever stops recording an attempt, the test above has
-    silently become decorative — either enrichment stopped fetching, or the poison
-    stopped catching it. Both mean the offline result no longer means anything.
+    silently become decorative: the poison stopped catching the host process. Until
+    R11.4 it was `full`'s EPSS lookup that connected; now it is the one thing the
+    host still fetches, public data past two days, here FIRST's EPSS file.
     """
-    scan(workspace, runner=CveRunner(), profile=profiles.FULL)
+    from datetime import UTC, datetime, timedelta
+
+    from valvur import epss
+    from valvur.runner import ScannerOutput
+
+    class Fetching(CveRunner):
+        def update_db(self):
+            return ScannerOutput("trivy-db", "", "", "", 0)
+
+    scored = (datetime.now(UTC) - timedelta(days=3)).isoformat().replace("+00:00", "Z")
+    epss.path().write_bytes(gzip.compress(
+        f"#model_version:v1,score_date:{scored}\ncve,epss,percentile\n".encode()))
+
+    scan(workspace, runner=Fetching(), profile=profiles.OFFLINE)
 
     assert record_connections, (
-        "the networked Profile made no connection, so the offline assertion "
+        "a scan due a fetch made no connection, so the offline assertion "
         "distinguishes nothing"
     )
+
+
+def test_the_full_profile_opens_no_connection_from_the_host_process_either(
+    workspace, record_connections
+):
+    """D25: `full` sent the CVE identifiers a scan found to FIRST's API. Its Scanners
+    reach the network from their container; the host process, enriching the same CVE,
+    now reads a file."""
+    run = scan(workspace, runner=CveRunner(), profile=profiles.FULL)
+
+    assert record_connections == [], f"the host process connected: {record_connections}"
+    assert any(f.exploit and f.exploit.cve for f in run.findings)
 
 
 def test_a_scan_survives_the_network_being_unavailable(workspace, record_connections):

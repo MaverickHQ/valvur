@@ -26,7 +26,7 @@ def _f(rule, severity, *, kev=False, ransomware=False, epss=None, scope="product
 def test_a_cve_in_kev_is_marked_as_exploited():
     from valvur.enrichment import LocalProvider
 
-    enriched = LocalProvider().enrich([_f("CVE-2021-44228", "critical")], network=False)
+    enriched = LocalProvider().enrich([_f("CVE-2021-44228", "critical")])
 
     assert enriched[0].exploit.kev is True
 
@@ -35,7 +35,7 @@ def test_a_kev_entry_used_in_ransomware_is_flagged():
     """The strongest call to action we can print. 352 of 1,685 entries carry it."""
     from valvur.enrichment import LocalProvider
 
-    enriched = LocalProvider().enrich([_f("CVE-2021-44228", "critical")], network=False)
+    enriched = LocalProvider().enrich([_f("CVE-2021-44228", "critical")])
 
     assert enriched[0].exploit.ransomware is True
 
@@ -45,7 +45,7 @@ def test_a_cve_absent_from_kev_is_marked_absent_not_unknown():
     'never looked' is not."""
     from valvur.enrichment import LocalProvider
 
-    enriched = LocalProvider().enrich([_f("CVE-2019-20477", "critical")], network=False)
+    enriched = LocalProvider().enrich([_f("CVE-2019-20477", "critical")])
 
     assert enriched[0].exploit.kev is False
 

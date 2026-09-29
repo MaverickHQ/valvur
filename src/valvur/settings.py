@@ -29,13 +29,14 @@ ENVIRONMENT: dict[str, str] = {
     "runtime": "VALVUR_RUNTIME",
     "debug": "VALVUR_DEBUG",
     "fetch": "VALVUR_FETCH",
-    # The mirrors (F10.5): where the database, the index, KEV and OSV come from.
+    # The mirrors (F10.5): where the database, the index, KEV, EPSS and OSV come from.
     "db_repository": "VALVUR_DB_REPOSITORY",
     "db_insecure": "VALVUR_DB_INSECURE",
     "index_repository": "VALVUR_INDEX_REPOSITORY",
     "index_insecure": "VALVUR_INDEX_INSECURE",
     "name_index_url": "VALVUR_NAME_INDEX_URL",
     "kev_url": "VALVUR_KEV_URL",
+    "epss_url": "VALVUR_EPSS_URL",
     "osv_url": "VALVUR_OSV_URL",
     # Retired to the file by D11: they still work in this release, and say so.
     "jobs": "VALVUR_JOBS",

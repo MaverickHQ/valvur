@@ -9,9 +9,10 @@ Runs `valvur update` and then an `offline` scan with every connect path in this
 process poisoned — except to the hosts named in the mirror settings, and loopback.
 Any other destination is refused the way an air gap would refuse it, recorded, and
 fails the verdict at the end. That covers the host half of the claim (22.B.3): the
-shim fetches the package-name index, CISA KEV and OSV's databases itself, from
-VALVUR_INDEX_REPOSITORY (an OCI mirror) or VALVUR_NAME_INDEX_URL (plain files),
-VALVUR_KEV_URL and VALVUR_OSV_URL when set, or their keys in the settings file.
+shim fetches the package-name index, CISA KEV, FIRST's EPSS file and OSV's databases
+itself, from VALVUR_INDEX_REPOSITORY (an OCI mirror) or VALVUR_NAME_INDEX_URL (plain
+files), VALVUR_KEV_URL, VALVUR_EPSS_URL and VALVUR_OSV_URL when set, or their keys in
+the settings file.
 With the index on a mirror registry and cosign installed, the signature check runs
 `cosign`, a separate process this script does not poison; its Rekor lookups are
 cosign's own business, and `--offline` verification is not wired here (23.2.1
@@ -66,8 +67,10 @@ def _poison() -> None:
 
 #: Every setting that names a mirror (F10.5), read as a scan reads it: the
 #: variable, else the machine's settings file (R6.7). `osv_url` since R4.6, when an
-#: `offline` scan began fetching OSV's database for each ecosystem present.
-MIRRORS = ("name_index_url", "index_repository", "kev_url", "osv_url", "db_repository")
+#: `offline` scan began fetching OSV's database for each ecosystem present;
+#: `epss_url` since R11.4, when EPSS became a daily file every Profile reads.
+MIRRORS = ("name_index_url", "index_repository", "kev_url", "epss_url", "osv_url",
+           "db_repository")
 
 
 def _host(value: str) -> str:
@@ -98,6 +101,7 @@ def main() -> int:
     index_mirror = settings.get("name_index_url") or settings.get("index_repository")
     print(f"  index mirror    : {index_mirror or '(none — the published index, then direct)'}")
     print(f"  KEV mirror      : {settings.get('kev_url') or '(none — direct)'}")
+    print(f"  EPSS mirror     : {settings.get('epss_url') or '(none — direct)'}")
     print(f"  OSV mirror      : {settings.get('osv_url') or '(none — direct)'}")
     print(f"  cache           : {cache.root()}")
     print(f"  permitted hosts : {', '.join(sorted(allowed))}\n")

@@ -20,7 +20,8 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 def test_the_fetch_sizes_live_in_one_table_and_the_readme_holds_to_them():
-    assert cache.FETCH_MB == {"database": 123, "index": 36}   # docs/acceptance/r7.md
+    # docs/acceptance/r7.md; EPSS measured 2026-09-29 (R11.4)
+    assert cache.FETCH_MB == {"database": 123, "index": 36, "epss": 3}
     readme = (REPO / "README.md").read_text()
     for name, mb in cache.FETCH_MB.items():
         assert f"{mb} MB to fetch" in readme, f"the README does not say what the {name} costs"

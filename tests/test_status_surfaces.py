@@ -232,8 +232,9 @@ def test_the_disclosure_names_every_destination_reached(tmp_path):
         (tmp_path / ".security-scan" / "run.json").read_text()
     )["network"]["what_left_the_machine"]
 
-    for destination in ("PyPI", "npm registry", "osv.dev", "FIRST"):
+    for destination in ("PyPI", "npm registry", "osv.dev"):
         assert destination in disclosed, f"{destination} is reached but not disclosed"
+    assert "FIRST" not in disclosed          # EPSS is a file since R11.4 (D25)
     assert "Never source code" in disclosed
 
 

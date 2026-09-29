@@ -206,9 +206,9 @@ def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def enrich(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Exploit intelligence: what the world reports, as opposed to what a Scanner
-    asserts. Network use is Profile-gated (F6.3, F6.4)."""
+    asserts. Read from the host cache on every Profile (D25): no socket."""
     ctx.provider = _enrichment.LocalProvider()
-    return ctx.provider.enrich(findings, network=ctx.network)
+    return ctx.provider.enrich(findings)
 
 
 def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:

@@ -1,7 +1,7 @@
 """What `valvur update` and the `update` MCP tool do (F10.8, ADR-0025, R6.6): the
-image if absent, the vulnerability database, the KEV catalog and the package-name
-index, each step said through `say`, so the terminal prints it and the MCP call
-sends it as progress, and never on the JSON-RPC channel by accident.
+image if absent, the vulnerability database, the KEV catalog, EPSS scores and the
+package-name index, each step said through `say`, so the terminal prints it and the
+MCP call sends it as progress, and never on the JSON-RPC channel by accident.
 
 Moved from `cli.py`, where it printed, so both surfaces run one implementation
 (F9.3).
@@ -150,6 +150,31 @@ def refresh_kev(say: Say) -> bool:
     return True
 
 
+def refresh_epss(say: Say) -> bool:
+    """FIRST's EPSS scores into the host cache (D25, R11.4): one public file a day,
+    read on every Profile, so no scan sends a CVE identifier anywhere. True when a
+    fresh copy was written; a skip is said, and the copy in use, if any, stays."""
+    import urllib.error
+
+    from . import epss, settings
+
+    url = settings.get("epss_url") or epss.URL
+    if not url.startswith(("https://", "http://")):
+        say(f"EPSS refresh skipped ({epss.URL_ENV} is not an http(s) URL); "
+            "findings rank without EPSS until it is fetched.")
+        return False
+    try:
+        count, day = epss.fetch(url)
+    except (urllib.error.URLError, OSError, TimeoutError, epss.NotTheFile) as exc:
+        kept = epss.scored()
+        say(f"EPSS refresh skipped ({exc}); "
+            + (f"the scores of {kept} remain in use." if kept
+               else "findings rank without EPSS until it is fetched."))
+        return False
+    say(f"EPSS refreshed: {count:,} scores (scored {day}).")
+    return True
+
+
 def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
     """OSV's databases for the lockfiles in `workspace`, when absent or stale (R8.2):
     a pipeline fetches with a network and scans with none, and only a project says
@@ -205,6 +230,9 @@ def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False,
     updated.fetched.append("vulnerability database")
     if refresh_kev(say):
         updated.fetched.append("KEV catalog")
+    # Like KEV, it only ranks: a failure is said and costs the update nothing.
+    if refresh_epss(say):
+        updated.fetched.append("EPSS scores")
     # The index is part of what "updated" means (ADR-0018): a scan without it fails
     # its dependency check loudly, so its failure fails the update, unlike KEV,
     # which has a bundled snapshot to fall back on.

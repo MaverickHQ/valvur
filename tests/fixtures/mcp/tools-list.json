@@ -13,7 +13,7 @@
           "type": "integer"
         },
         "profile": {
-          "description": "offline (the default) runs every Scanner with no network access. full asks the network what local data cannot answer: OSV.dev in place of the offline database, the registries for each package's age and adoption and whether JVM and Go dependencies exist, and FIRST for EPSS. They receive package names, versions and CVE identifiers, never source.",
+          "description": "offline (the default) runs every Scanner with no network access. full asks the network what local data cannot answer: OSV.dev in place of the offline database, the registries for each package's age and adoption and whether JVM and Go dependencies exist. They receive package names and versions, never source.",
           "enum": [
             "offline",
             "full"

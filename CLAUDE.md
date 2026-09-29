@@ -35,7 +35,7 @@ rejected, or escalated to the owner explicitly.
 
 1. **It never phones home, provably.** `offline` Scanners have no network interface; no
    account, API key or telemetry. The shim's fetches of public data (image, database, Name
-   Index, OSV's databases; EPSS on `full`) carry nothing of the Workspace, and are recorded.
+   Index, KEV, EPSS, OSV's databases) carry nothing of the Workspace, and are recorded.
    One module decides the network, `src/valvur/egress.py`; `scripts/verify-offline.py`
    checks it independently; on Linux `unshare -rn valvur scan` proves it. macOS cannot.
 2. **The source cannot be modified by a Scanner**, structurally: since R3.9 it is copied

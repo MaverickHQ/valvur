@@ -13,7 +13,8 @@ cannot drift apart.
 
 The moat (CLAUDE.md §3) has two halves and this module states both: the Scanners'
 containers get `--network=none` unless the Profile says otherwise, and the host
-shim's one reason to reach out — EPSS on `full` — is gated by the same boolean.
+shim sends nothing on any Profile. Its one reason to, EPSS on `full`, became a file
+of public data in R11.4, fetched like the others and named below.
 """
 
 from __future__ import annotations
@@ -62,12 +63,12 @@ def db_repository() -> str | None:
 
 # ------------------------------------------------------------- what full reaches
 
-#: Every host `full` may reach, from the host process and from the container, and
-#: how the disclosure sentence names each. The five registries the
-#: dependency-reality Check asks for first-publish age, api.npmjs.org for npm
-#: adoption (23.5.4), Maven Central and the Go proxy for existence (22.A.4), OSV
-#: for the second advisory source, FIRST for EPSS. A host added here without a
-#: spoken name fails a test; a spoken name absent from the sentence fails another.
+#: Every host `full` may reach, from the container, and how the disclosure sentence
+#: names each. The five registries the dependency-reality Check asks for
+#: first-publish age, api.npmjs.org for npm adoption (23.5.4), Maven Central and the
+#: Go proxy for existence (22.A.4), OSV for the second advisory source. FIRST's API
+#: left the list in R11.4, for the file below. A host added here without a spoken
+#: name fails a test; a spoken name absent from the sentence fails another.
 SPOKEN_AS: dict[str, str] = {
     "pypi.org": "PyPI",
     "registry.npmjs.org": "the npm registry",
@@ -78,9 +79,14 @@ SPOKEN_AS: dict[str, str] = {
     "repo1.maven.org": "Maven Central",
     "proxy.golang.org": "proxy.golang.org",
     "api.osv.dev": "api.osv.dev",
-    "api.first.org": "FIRST",
 }
 FULL_HOSTS: tuple[str, ...] = tuple(SPOKEN_AS)
+
+#: Where FIRST's daily EPSS file comes from (D25, R11.4), fetched by `valvur update`
+#: and by a scan past two days, on every Profile, as public data that carries nothing
+#: of the Workspace: the documented host, and the one it redirects to (measured
+#: 2026-09-29: a 301, then a 302 to the day's dated file on the second).
+EPSS_HOSTS: tuple[str, ...] = ("epss.cyentia.com", "epss.empiricalsecurity.com")
 
 # Enumerated exactly, and kept exact. This sentence IS the non-exfiltration claim
 # (§3), so a registry added without amending it would make the claim false —
@@ -93,8 +99,7 @@ _WHAT_LEAVES_ON_FULL = (
     "the npm names first published under 90 days ago (to api.npmjs.org, for "
     "last-month download counts); for JVM and Go every declared coordinate (to Maven "
     "Central and proxy.golang.org, for existence). Also the dependency names and "
-    "versions in your lockfiles (to api.osv.dev, by osv-scanner) and the CVE "
-    "identifiers found in this workspace (to FIRST, for EPSS scores). Never source "
+    "versions in your lockfiles (to api.osv.dev, by osv-scanner). Never source "
     "code, and never a name the index already settled as absent."
 )
 

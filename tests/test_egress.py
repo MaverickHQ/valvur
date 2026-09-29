@@ -47,7 +47,7 @@ def test_full_is_told_not_probed_and_reaches_exactly_the_listed_hosts(monkeypatc
     assert "--network=none" not in flags
     assert flags[:2] == ["--env", f"{egress.NETWORK_ENV}=1"], flags
     assert e.hosts() == egress.FULL_HOSTS
-    assert len(egress.FULL_HOSTS) == 10
+    assert len(egress.FULL_HOSTS) == 9          # FIRST's API left for its file (R11.4)
 
 
 def test_a_networked_container_joins_the_named_network_and_carries_the_mirror(monkeypatch):
