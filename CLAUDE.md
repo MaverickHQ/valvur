@@ -15,12 +15,12 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-09-29).** `1.1.0` is published, signed and attested; the R0 to R8 build has
-landed. [The review of 2026-09-29](docs/history/REVIEW-2026-09-29.md) found the code AI
-writes thinly covered, threat data up to a month old, and accuracy never measured.
-
-**Next:** Phases R9 to R15 of [`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: the
-Score's baseline, trust fixes, fresh data, `check_package`, static analysis, reuse, `1.2.0`.
+**Status (2026-09-29).** `1.1.0` is published; the R0 to R8 build has landed. [The review of
+2026-09-29](docs/history/REVIEW-2026-09-29.md) found the code AI writes thinly covered, threat
+data up to a month old, and accuracy never measured. **Next:** Phases R9 to R18 of
+[`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: the Score's baseline, trust fixes, fresh
+data, `check_package`, static analysis, a Laya trial, reuse, the skill with its plugin and
+power, the workflow harness, then `1.2.0`.
 
 ## 2. What it is NOT
 
@@ -85,9 +85,8 @@ new argument.
 | 0019 | One image with Checkov in it. Reopened by task 34.1, on the ADR's own stated condition. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
 
-**Agreed by the owner:** 0021 to 0025 on 2026-09-27, written by R0.5; 0026 to 0030 on
-2026-09-29, written by R9.2 from `tasks.md` §5, where every other decision the build needs
-is, each with its fallback.
+**Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0033 on 2026-09-29, written by
+R9.2 from `tasks.md` §5, which holds every other decision the build needs, with fallbacks.
 
 | ADR | decision |
 |---|---|
@@ -101,6 +100,9 @@ is, each with its fallback.
 | 0028 | `check_package`, offline, before an install; private registries and dependency confusion |
 | 0029 | Static-analysis rules from licence-audited sources, each shipped only on measured precision |
 | 0030 | Trivy's and OSV-Scanner's results reused when their inputs and data are unchanged |
+| 0031 | One skill in the open Agent Skills format, shipped as a Claude Code plugin, a Kiro power and by `init --write`; no separate agent |
+| 0032 | A scan's history is facts, never judgments: a human's judgment lives only in an expiring Suppression |
+| 0033 | A local model only by measurement (the Laya trial), opt-in, never in the default image; never a hosted model API |
 
 ## 7. The Results Folder
 
@@ -150,16 +152,14 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 ## 9. How we work
 
 - **Spec-driven.** `.kiro/specs/valvur/` holds requirements, design and tasks; `tasks.md` is
-  authoritative. Requirement IDs are **never renumbered**; change one by amendment.
-- **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), used exactly. **Measure before writing:** a
-  task starts from evidence and closes with the after-measurement in a STATUS note.
+  authoritative; requirement IDs are **never renumbered**, only amended. Vocabulary is [`CONTEXT.md`](CONTEXT.md)'s.
+  **Measure before writing:** a task starts from evidence and ends with the after in a STATUS note.
 - **Test-driven, in vertical slices** (the `tdd` skill; `tasks.md` §3): each task lists its
   behaviours in test order, one red-to-green slice and one commit each, for example
   `feat(r3.4): …`. Never refactor while red. Fake only the container runtime and the network.
-- **Every phase ends with a phase commit**, `chore(r<n>): close phase R<n>, …`, and one PR
-  (`tasks.md` §4). Commit messages must pass the Conventional Commits hook.
-- **Unattended** (`tasks.md` §1 and §2): the build runs without the owner and, after a
-  usage limit, resumes through the schedules R9.1 arms. Owner-only steps wait in its §8.
+- **Unattended, phase by phase** (`tasks.md` §1 to §4): resumed after a usage limit by the
+  schedules R9.1 arms; each phase ends with `chore(r<n>): close phase R<n>, …` and one PR;
+  commits pass the Conventional Commits hook; owner-only steps wait in its §8.
 - **Landing.** `main` is protected (six required checks, signed commits, linear history); a
   phase lands by fast-forward. Auto mode refuses that push and a tag push, so the executor
   never makes them: phases stack, and the owner approves the landing in manual approve mode.
@@ -178,8 +178,8 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 ## 10. Prohibited without explicit owner approval
 
 - Any network call in the `offline` Profile beyond the approved, recorded fetches of public
-  data: absent data since 24.1, stale data under ADR-0025, and KEV's and EPSS's daily files
-  and the malicious list under ADR-0027 (the owner, 2026-09-29).
+  data: absent data since 24.1, stale data under ADR-0025, KEV's and EPSS's daily files and
+  the malicious list under ADR-0027, and a model's weights if one passes ADR-0033's trial.
 - Any dependency requiring an account, API key or token.
 - Any feature that writes to the scanned source tree. The exceptions: the Results Folder,
   and `init --write` (the owner, 2026-09-28), which never overwrites.
@@ -195,5 +195,5 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
   `CLAUDE_PROJECT_DIR`, answers `roots/list`, and health-checks a project server only once approved.
 - GitHub's macOS runners cannot run containers (measured 2026-09-22).
 - Listing 109,521 files: 1.6 s on a Mac's host, 16.6 s through Docker Desktop's mount.
-- The release constraint suite may not shrink below 48 tests (54 since R3); a new test that
-  is not a constraint goes in its own file. More lessons: section 1 of the archived `CLAUDE.md`.
+- The constraint suite never shrinks below 54 tests; other new tests get files of their own.
+  More lessons: section 1 of the archived `CLAUDE.md`.

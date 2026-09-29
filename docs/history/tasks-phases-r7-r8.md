@@ -1,7 +1,7 @@
 # valvur: Phases R7 and R8, closed
 
 Moved from [`tasks.md`](../../.kiro/specs/valvur/tasks.md) on 2026-09-29, when the owner
-accepted [the review of that day](REVIEW-2026-09-29.md) and a new list, Phases R9 to R15,
+accepted [the review of that day](REVIEW-2026-09-29.md) and a new list, Phases R9 to R18,
 replaced them. Each task keeps its STATUS and each phase its exit as measured. With them
 are the decisions D1 to D20 the build ran on, the owner queue's closed rows, and the map
 of the first version's IDs. [Phases R0 to R6](tasks-phases-r0-r6.md) are archived beside

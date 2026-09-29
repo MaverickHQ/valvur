@@ -11,7 +11,7 @@ point where their targets live now.
 | [`tasks-phases-0-30.md`](tasks-phases-0-30.md) | the task list through Phase 30 | `tasks.md`, Phases R0 to R8 |
 | [`tasks-phases-r0-r6.md`](tasks-phases-r0-r6.md) | Phases R0 to R6, closed, with their STATUS notes and exits | `0.6.0`, `0.7.0` and most of `1.0.0` |
 | [`tasks-phases-r7-r8.md`](tasks-phases-r7-r8.md) | Phases R7 and R8, closed, with the decisions D1 to D20 and the owner queue's closed rows | `1.0.0` and `1.1.0` |
-| [`REVIEW-2026-09-29.md`](REVIEW-2026-09-29.md) | the review of `1.1.0` against the goal, and the choice of the Score | `tasks.md`, Phases R9 to R15 |
+| [`REVIEW-2026-09-29.md`](REVIEW-2026-09-29.md) | the review of `1.1.0` against the goal, and the choice of the Score | `tasks.md`, Phases R9 to R18 |
 | [`REVIEW-2026-09-27.md`](REVIEW-2026-09-27.md) | the first-principles review the owner accepted | Phases R0 to R8 |
 | [`REVIEW-2026-09-23.md`](REVIEW-2026-09-23.md) | the fourth review | Phase 28 |
 | [`OPEN-ITEMS.md`](OPEN-ITEMS.md) | the third review, with a verdict per item | Phase 27 |
