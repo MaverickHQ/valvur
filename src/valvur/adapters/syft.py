@@ -12,7 +12,7 @@ from ..findings import Finding
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter
 
-VERSION = "1.51.1"
+VERSION = "1.52.0"
 
 #: Why a scan ran no Syft (the owner's decision, 2026-09-28; D9): said wherever a
 #: skipped Scanner is named, with the two ways to ask.

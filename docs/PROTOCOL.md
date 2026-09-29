@@ -85,7 +85,7 @@ together.
 | `gitleaks` | `zricethezav/gitleaks` | 8.30.1 |
 | `trivy` | `aquasec/trivy` | 0.74.0 |
 | `osv-scanner` | `ghcr.io/google/osv-scanner` | 2.6.0 |
-| `syft` | `anchore/syft` | 1.51.1 |
+| `syft` | `anchore/syft` | 1.52.0 |
 | `opengrep` | `opengrep/opengrep` | 1.29.0 |
 | `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.19 |
 | `zizmor` | `/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash (R4.2) | 1.30.1 |
