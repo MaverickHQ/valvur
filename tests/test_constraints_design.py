@@ -134,8 +134,11 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # claims a version PyPI or GHCR does not serve, or the closing PR is overdue.
     # `acceptance.yml` (nightly) joined in R2.5: a red run there means a phase's
     # judge stopped passing on Linux, which nothing else would say.
+    # `eval.yml` (weekly) joined in R9.6: a red run there means the Score fell under
+    # its baseline or a corpus finding has no label (ADR-0026).
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
-                                               "published.yml", "acceptance.yml"}, \
+                                               "published.yml", "acceptance.yml",
+                                               "eval.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:
