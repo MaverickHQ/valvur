@@ -302,8 +302,9 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 
   - **Every miss is valvur's or a Scanner's, not a case's:**
     - no JavaScript rule at all;
-    - Gitleaks misses a private key in history, where the diff's `+` prefixes break its
-      multi-line pattern, and flags a placeholder PEM;
+    - Gitleaks misses a private key in history and flags a placeholder PEM: one match
+      running from the placeholder into the real key, both in one history file (the
+      cause as R10.9 found it; this note first blamed the diff's `+`);
     - private registries are read as hallucinated for pip, npm and Composer (R10);
     - the two npm malicious names are still registered, as security holders (R11);
     - a paraphrased injection and an exfiltration directive pass the patterns;
@@ -527,11 +528,23 @@ duration recorded, the release's share by R9.6's rule.
   in history, when the block holds fewer than 64 base64 characters between its markers,
   as `...` and `<your key here>` do. It is judged by the content, never the file's name.
   A real key block, twelve lines of 64, still reports.
-- [ ] **R10.9** **A key committed in history is found** (added by R9, measured). History is
-  written as a patch and read by `gitleaks dir`, so a multi-line key's lines carry the
-  diff's `+` and Gitleaks' pattern misses it: track 3 found every history secret but
-  the private key. Behaviours: a private key committed and then deleted is reported
-  from history; a one-line secret in history still is, once.
+- [x] **R10.9** **A key committed in history is found** (added by R9, measured). Track 3
+  found every history secret but the private key. Behaviours: a private key committed
+  and then deleted is reported from history; a one-line secret in history still is,
+  once.
+  **STATUS 2026-09-29:** ✅ both.
+  - **The cause, found by reproducing it.** It was not the diff's `+`, as this task
+    first said: the writer strips it. Every commit's added lines went into one file,
+    so Gitleaks' key pattern, which reads 64 characters or more to the next `KEY-----`,
+    ran from the placeholder block into the real key committed after it. It reported
+    the placeholder, the only false alarm on track 3's safe cases, and missed the key.
+  - **The fix.** History is written as one file per commit and path, under its own
+    name, and `locate` maps a hit by its file.
+  - **The tests.**
+    - An e2e test commits a placeholder and a real key in that order and deletes the
+      real one: the old writer reports the placeholder, the new one only the key.
+    - Repository 3's history test and the one-line history tests still pass.
+    - `test_history.py` moves to the directory's API.
 - [x] **R10.10** **Private Composer repositories** (added by R10.4; D27 extended). Track
   5's privately served Composer case still reads as hallucinated at high, which the
   honesty gate refuses from R10's exit. Composer treats a `composer`-type repository as

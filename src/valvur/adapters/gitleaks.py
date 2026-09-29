@@ -41,14 +41,15 @@ class GitleaksAdapter(ScannerAdapter):
                 for item in json.loads(output.stdout or "[]") if not _placeholder(item)]
 
     def history_command(self, *, project_config: bool) -> Invocation:
-        """The second pass (R3.7): the history file the host wrote into the scratch
-        directory. The project's own `.gitleaks.toml`, when the File Set carries
-        it, keeps its rules and content allowlists; its path allowlists are
-        applied by `parse_history`, because every hit here is in one file."""
+        """The second pass (R3.7): the history directory the host wrote into the
+        scratch directory, one file per commit and path (R10.9). The project's own
+        `.gitleaks.toml`, when the File Set carries it, keeps its rules and content
+        allowlists; its path allowlists are applied by `parse_history`, because
+        every hit here is under one directory."""
         config = ("--config", f"/workspace/{PROJECT_GITLEAKS_CONFIG}") if project_config else ()
         return Invocation(
             tool=HISTORY_TOOL, version=VERSION,
-            argv=("gitleaks", "dir", f"/results/{HISTORY_FILE}",
+            argv=("gitleaks", "dir", f"/results/{HISTORY_DIR}",
                   "--report-format", "json",
                   "--report-path", f"/results/{HISTORY_REPORT}",
                   "--no-banner", "--exit-code", "0", *config),
@@ -65,7 +66,7 @@ class GitleaksAdapter(ScannerAdapter):
         for item in json.loads(output.stdout or "[]"):
             if _placeholder(item):
                 continue
-            where = written.locate(int(item.get("StartLine", 0)))
+            where = written.locate(str(item.get("File", "")))
             if where is None:
                 continue
             commit, path = where
@@ -77,7 +78,9 @@ class GitleaksAdapter(ScannerAdapter):
 
 #: The history pass's name in the plan and its files in the scratch directory.
 HISTORY_TOOL = "gitleaks-history"
-HISTORY_FILE = "history.txt"
+#: A directory, one file per commit and path (R10.9): a multi-line pattern cannot run
+#: from one path's lines into another's.
+HISTORY_DIR = "history"
 HISTORY_REPORT = "gitleaks-history.json"
 
 

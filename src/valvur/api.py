@@ -883,7 +883,7 @@ def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progre
     and what the record says: what was read, or why nothing was."""
     from . import exclusions as _exclusions
     from . import history as _history
-    from .adapters.gitleaks import HISTORY_FILE, PROJECT_GITLEAKS_CONFIG
+    from .adapters.gitleaks import HISTORY_DIR, PROJECT_GITLEAKS_CONFIG
 
     say = on_progress if on_progress is not None else (lambda _: None)
     index = next((i for i in planned if adapters[i].name == "gitleaks"), None)
@@ -900,7 +900,7 @@ def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progre
     if not _exclusions.load_scan_settings(workspace).history:
         say("history: not read ([scan] history = false)")
         return None, {"off": "[scan] history = false"}
-    written = _history.write(workspace, scratch / HISTORY_FILE)
+    written = _history.write(workspace, scratch / HISTORY_DIR)
     if written is None:
         return None, None
     plan.append(adapters[index].history_command(

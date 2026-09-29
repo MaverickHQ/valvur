@@ -1,9 +1,9 @@
 """R3.7: secrets in history (D3; F2.1, P2; ADR-0021).
 
-The host writes each commit's added lines into a file in valvur's scratch
-directory, on all refs, bounded at 5,000 commits or 200 MB, and keeps where each
-commit's lines for each path begin, so a Gitleaks hit maps back to both. Only
-added lines: a removed line was added by an earlier commit, which is scanned.
+The host writes each commit's added lines for each path as a file of its own in
+valvur's scratch directory (R10.9), on all refs, bounded at 5,000 commits or 200 MB,
+so a Gitleaks hit maps back to the commit and the path by its file. Only added
+lines: a removed line was added by an earlier commit, which is scanned.
 """
 
 from __future__ import annotations
@@ -45,21 +45,25 @@ def _commit(repo: Path, files: dict[str, str], message: str) -> str:
     return _git(repo, "rev-parse", "HEAD")
 
 
-def _line_of(text: str, needle: str) -> int:
-    return next(i for i, line in enumerate(text.splitlines(), start=1) if needle in line)
+def _all(written) -> str:
+    return "".join(p.read_text() for p in sorted(written.path.rglob("*")) if p.is_file())
+
+
+def _file_with(written, needle: str) -> str:
+    return next(str(p) for p in sorted(written.path.rglob("*"))
+                if p.is_file() and needle in p.read_text())
 
 
 def test_a_removed_secret_is_in_the_history_with_its_commit_and_path(repo, tmp_path):
     added = _commit(repo, {"config.py": f"KEY = '{KEY}'\n"}, "add a key")
     _commit(repo, {"config.py": "KEY = ''\n"}, "remove it")
-    written = history.write(repo, tmp_path / "history.txt")
+    written = history.write(repo, tmp_path / "history")
     assert written is not None
-    text = written.path.read_text()
-    assert text.count(KEY) == 1                       # added once; the removal is not a line
-    assert written.locate(_line_of(text, KEY)) == (added, "config.py")
+    assert _all(written).count(KEY) == 1              # added once; the removal is not a line
+    assert written.locate(_file_with(written, KEY)) == (added, "config.py")
     assert written.commits == 2
     assert written.bounded is None
-    assert written.bytes == len(written.path.read_bytes())
+    assert written.bytes == len(_all(written).encode())
 
 
 def test_every_ref_is_read_not_only_the_branch_checked_out(repo, tmp_path):
@@ -67,35 +71,33 @@ def test_every_ref_is_read_not_only_the_branch_checked_out(repo, tmp_path):
     _git(repo, "checkout", "-q", "-b", "side")
     side = _commit(repo, {"deploy/keys.py": f"KEY = '{KEY}'\n"}, "a key on a side branch")
     _git(repo, "checkout", "-q", "main")
-    written = history.write(repo, tmp_path / "history.txt")
+    written = history.write(repo, tmp_path / "history")
     assert written is not None
-    text = written.path.read_text()
-    assert written.locate(_line_of(text, KEY)) == (side, "deploy/keys.py")
+    assert written.locate(_file_with(written, KEY)) == (side, "deploy/keys.py")
 
 
 def test_each_path_in_a_commit_maps_to_itself(repo, tmp_path):
     sha = _commit(repo, {"a b/ü.py": "first = 1\n", "z.py": f"KEY = '{KEY}'\n"}, "two files")
-    written = history.write(repo, tmp_path / "history.txt")
+    written = history.write(repo, tmp_path / "history")
     assert written is not None
-    text = written.path.read_text()
-    assert written.locate(_line_of(text, "first = 1")) == (sha, "a b/ü.py")
-    assert written.locate(_line_of(text, KEY)) == (sha, "z.py")
+    assert written.locate(_file_with(written, "first = 1")) == (sha, "a b/ü.py")
+    assert written.locate(_file_with(written, KEY)) == (sha, "z.py")
 
 
 def test_past_the_commit_bound_the_newest_are_read_and_the_bound_is_named(repo, tmp_path):
     for i in range(3):
         _commit(repo, {f"f{i}.py": f"n = {i}\n"}, f"commit {i}")
-    written = history.write(repo, tmp_path / "history.txt", max_commits=2)
+    written = history.write(repo, tmp_path / "history", max_commits=2)
     assert written is not None
     assert written.commits == 2
     assert written.bounded == "the 2-commit bound"
-    assert "n = 0" not in written.path.read_text()     # the oldest was not read
+    assert "n = 0" not in _all(written)                # the oldest was not read
 
 
 def test_past_the_byte_bound_writing_stops_and_the_bound_is_named(repo, tmp_path):
     for i in range(5):
         _commit(repo, {f"f{i}.py": "x" * 1000 + "\n"}, f"commit {i}")
-    written = history.write(repo, tmp_path / "history.txt", max_bytes=2500)
+    written = history.write(repo, tmp_path / "history", max_bytes=2500)
     assert written is not None
     assert written.bounded == "the 2,500-byte bound"
     assert written.bytes <= 2500
@@ -105,7 +107,7 @@ def test_past_the_byte_bound_writing_stops_and_the_bound_is_named(repo, tmp_path
 def test_a_directory_that_is_not_a_repository_has_no_history(tmp_path):
     plain = tmp_path / "plain"
     plain.mkdir()
-    assert history.write(plain, tmp_path / "history.txt") is None
+    assert history.write(plain, tmp_path / "history") is None
 
 
 def test_the_bounds_are_the_decisions(repo):
@@ -224,3 +226,57 @@ def test_the_record_and_the_summary_say_what_history_was_read(tmp_path):
     assert "Git history was not read" in off and "history = false" in off
     whole = summary.render(ScanRun(history={"commits": 12, "bytes": 2048, "bounded": None}))
     assert "12 commits" in whole
+
+
+# ------------------------------------------------ one file per commit and path (R10.9)
+
+def test_each_commits_lines_for_each_path_are_a_file_of_their_own(repo, tmp_path):
+    """A multi-line pattern cannot run from one file into the next. With every
+    added line in one file, a placeholder key block in one path read on into a real
+    key in another, and Gitleaks reported the placeholder and missed the key (R9's
+    secrets track)."""
+    sha = _commit(repo, {"a/example.pem": "placeholder\n", "b/real.pem": "material\n"},
+                  "two paths")
+    written = history.write(repo, tmp_path / "history")
+    assert written is not None
+
+    files = sorted(p for p in written.path.rglob("*") if p.is_file())
+    assert [p.read_text() for p in files] == ["placeholder\n", "material\n"]
+    assert [written.locate(str(p)) for p in files] == [(sha, "a/example.pem"),
+                                                      (sha, "b/real.pem")]
+    assert [p.name for p in files] == ["example.pem", "real.pem"]
+
+
+@pytest.mark.e2e
+def test_a_key_committed_then_deleted_beside_a_placeholder_is_found(repo, mountable_tmp,
+                                                                     monkeypatch):
+    """R10.9, through the image: the arrangement R9's secrets track measured. A
+    documentation placeholder key and a real key are committed together; the real
+    one is deleted. Markers and key material are assembled at runtime."""
+    import random
+    import shutil
+    import string
+
+    from valvur import api
+    from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import ContainerRuntime
+
+    header, footer = "-----BEGIN RSA " + "PRIVATE KEY-----", "-----END RSA " + "PRIVATE KEY-----"
+    rng = random.Random(9)  # noqa: S311 — seeded, the same fake key each run
+    body = "\n".join("".join(rng.choice(string.ascii_letters + string.digits + "+/")
+                             for _ in range(64)) for _ in range(12))
+    ws = mountable_tmp / "repo"
+    shutil.copytree(repo, ws)
+    # `git log` lists a commit's paths in order: the placeholder first, as the
+    # track's `examples/` came before its `history/`.
+    added = _commit(ws, {"a/key.pem.example": f"{header}\n...\n{footer}\n",
+                         "b/id_rsa": f"{header}\n{body}\n{footer}\n"}, "keys")
+    (ws / "b" / "id_rsa").unlink()
+    _git(ws, "add", "-A")
+    _git(ws, "commit", "-q", "-m", "remove the real one")
+
+    monkeypatch.setenv("VALVUR_ENGINE", "2")
+    run = api.scan(ws, runner=ContainerRuntime(), adapters=[GitleaksAdapter()])
+
+    keys = [(f.path, f.commit) for f in run.findings if f.rule == "private-key"]
+    assert keys == [("b/id_rsa", added)], keys
