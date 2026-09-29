@@ -24,6 +24,7 @@ from ..operations import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
     cancel_scan,
+    check_package_reply,
     doctor,
     findings_reply,
     scan_reply,
@@ -120,6 +121,26 @@ _LIST_FINDINGS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
 }}
 
 
+#: `check_package`'s answer (D28): one per package, in the order asked.
+_CHECK_SHAPE: dict[str, Any] = {"type": "object", "properties": {
+    "checked": {"type": "integer"},
+    "flagged": {"type": "integer",
+                "description": "Answers that should stop an install until the human "
+                               "has looked."},
+    "answers": {"type": "array", "items": {"type": "object", "properties": {
+        "ecosystem": {"type": "string"}, "name": {"type": "string"},
+        "version": {"type": ["string", "null"]},
+        "verdict": {"type": "string", "enum": ["exists", "nonexistent", "near-miss",
+                                               "malicious", "confusion", "not-public",
+                                               "unknown"]},
+        "flagged": {"type": "boolean"}, "reason": {"type": "string"},
+        "near": {"type": ["string", "null"]},
+        "ids": {"type": "array", "items": {"type": "string"}},
+        "source": {"type": ["string", "null"]},
+        "index_built": {"type": "string"}, "exists": {"type": ["boolean", "null"]}}}},
+}}
+
+
 def instructions() -> str:
     """The rules an agent is given at the handshake (28.2.2, F4), in full.
 
@@ -208,4 +229,28 @@ def registry() -> list[Tool]:
                              "full profile need are reachable from here. Off by "
                              "default: without it doctor opens no socket."},
              }}, doctor, read_only=False),
+        Tool("check_package", "Before adding a dependency: whether each package exists "
+                              "on its registry, is one edit from a far more popular one, "
+                              "was published as malicious, or is exposed to dependency "
+                              "confusion by this project's registry configuration. "
+                              "Answered from this machine's cache; no registry is asked, "
+                              "because asking about a hallucinated name tells whoever "
+                              "watches what to register. Never add a flagged package "
+                              "without asking the human.",
+             {"type": "object", "required": ["packages"], "properties": {
+                 **workspace_arg,
+                 "packages": {
+                     "type": "array", "maxItems": 50, "minItems": 1,
+                     "description": "Up to 50, each {ecosystem, name, version?}.",
+                     "items": {"type": "object", "required": ["ecosystem", "name"],
+                               "properties": {
+                                   "ecosystem": {"type": "string",
+                                                 "description": "npm, pip, cargo, gem or "
+                                                 "composer; go and maven answer unknown"},
+                                   "name": {"type": "string"},
+                                   "version": {"type": "string",
+                                               "description": "The version to be installed, "
+                                               "when known: some are malicious only at "
+                                               "one version."}}}},
+             }}, check_package_reply, open_world=False, output_schema=_CHECK_SHAPE),
     ]

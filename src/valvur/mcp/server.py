@@ -114,7 +114,7 @@ class Tool:
     def __init__(self, name: str, description: str, schema: dict,
                  handler: Callable[[dict], str | tuple[str, dict]], *,
                  read_only: bool = True, destructive: bool = False,
-                 output_schema: dict | None = None):
+                 open_world: bool | None = None, output_schema: dict | None = None):
         self.name = name
         self.description = description
         # Closed, whatever the caller wrote (R6.4): an argument no tool takes is
@@ -133,6 +133,9 @@ class Tool:
         #: says so: a scan only adds, and a cancel writes nothing at all (F1.11).
         #: The field exists so the claim is stated rather than assumed.
         self.destructive = destructive
+        #: Stated where it is known: `check_package` answers from this machine's
+        #: cache and reaches no one (D28), which MCP's default, open-world, denies.
+        self.open_world = open_world
 
     def describe(self) -> dict:
         described = {
@@ -140,7 +143,9 @@ class Tool:
             "description": self.description,
             "inputSchema": self.schema,
             "annotations": {"readOnlyHint": self.read_only,
-                            "destructiveHint": self.destructive},
+                            "destructiveHint": self.destructive,
+                            **({} if self.open_world is None
+                               else {"openWorldHint": self.open_world})},
         }
         if self.output_schema is not None:
             described["outputSchema"] = self.output_schema
@@ -249,6 +254,9 @@ def build(tools: list[Tool], *, instructions: str | None = None,
                 protocol.INVALID_PARAMS,
                 f"unknown tool: {name}. Available: {', '.join(sorted(by_name)) or 'none'}",
             )
+        call = protocol.current_call()
+        if call is not None:
+            call.served = tuple(by_name)
         try:
             arguments = params.get("arguments") or {}
             _check_arguments(tool.schema, arguments)
@@ -302,10 +310,11 @@ Add it to your agent instead:
       }
     }
 
-Tools: doctor, scan, scan_status, scan_cancel, findings and update — all read-only
-with respect to your source. There is no scan-and-fix tool and there will
-not be one (ADR-0009): you choose which fixes to apply. `doctor` checks this machine
-can scan before one is started; `scan_cancel` stops one, as Ctrl-C would.
+Tools: doctor, scan, scan_status, scan_cancel, findings, update and check_package —
+all read-only with respect to your source. There is no scan-and-fix tool and there
+will not be one (ADR-0009): you choose which fixes to apply. `doctor` checks this
+machine can scan before one is started; `scan_cancel` stops one, as Ctrl-C would;
+`check_package` says, offline, whether a package is real before it is added.
 
   --help      this text
   --version   the version, which must match the container image

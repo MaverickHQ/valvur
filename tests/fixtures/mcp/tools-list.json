@@ -663,5 +663,130 @@
       "type": "object"
     },
     "name": "doctor"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Before adding a dependency: whether each package exists on its registry, is one edit from a far more popular one, was published as malicious, or is exposed to dependency confusion by this project's registry configuration. Answered from this machine's cache; no registry is asked, because asking about a hallucinated name tells whoever watches what to register. Never add a flagged package without asking the human.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "description": "Up to 50, each {ecosystem, name, version?}.",
+          "items": {
+            "properties": {
+              "ecosystem": {
+                "description": "npm, pip, cargo, gem or composer; go and maven answer unknown",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "description": "The version to be installed, when known: some are malicious only at one version.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "ecosystem",
+              "name"
+            ],
+            "type": "object"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        "workspace": {
+          "description": "Absolute path to the project to scan. Defaults to the current directory.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "packages"
+      ],
+      "type": "object"
+    },
+    "name": "check_package",
+    "outputSchema": {
+      "properties": {
+        "answers": {
+          "items": {
+            "properties": {
+              "ecosystem": {
+                "type": "string"
+              },
+              "exists": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "flagged": {
+                "type": "boolean"
+              },
+              "ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "index_built": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "near": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "source": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "verdict": {
+                "enum": [
+                  "exists",
+                  "nonexistent",
+                  "near-miss",
+                  "malicious",
+                  "confusion",
+                  "not-public",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "checked": {
+          "type": "integer"
+        },
+        "flagged": {
+          "description": "Answers that should stop an install until the human has looked.",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
   }
 ]

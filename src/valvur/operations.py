@@ -533,6 +533,37 @@ def doctor(args: dict) -> str:
     return _doctor.render(checks, workspace)
 
 
+def check_package_reply(args: dict) -> tuple[str, dict]:
+    """`check_package` (D28, F9.11): each package's answer, from this machine's cache
+    and never from a registry, as `valvur check --json` gives them."""
+    from . import packages
+    from .refusal import Refusal
+
+    asked = args.get("packages") or []
+    if not isinstance(asked, list) or not asked:
+        raise Refusal("`packages` is a list of {ecosystem, name, version} to check.",
+                      kind="missing-argument")
+    if len(asked) > packages.MOST:
+        raise Refusal(f"{len(asked)} packages asked; at most {packages.MOST} at once. "
+                      "Ask again with the rest.", kind="too-many")
+    wanted = []
+    for item in asked:
+        if not (isinstance(item, dict) and isinstance(item.get("ecosystem"), str)
+                and isinstance(item.get("name"), str) and item["name"].strip()):
+            raise Refusal("Each package needs an `ecosystem` and a `name`.",
+                          kind="missing-argument")
+        wanted.append((item["ecosystem"], item["name"], item.get("version") or None))
+    answers = packages.check(wanted, workspace=resolve_workspace(args.get("workspace")))
+    flagged = sum(answer.flagged for answer in answers)
+    lines = [f"{a.verdict}: {a.ecosystem} {a.name}"
+             + (f"@{a.version}" if a.version else "") + f" — {a.reason}" for a in answers]
+    lines += ["", f"{flagged} of {len(answers)} flagged."
+              + (" Do not add a flagged package without asking the human." if flagged
+                 else "")]
+    return "\n".join(lines), {"answers": [a.as_dict() for a in answers],
+                               "flagged": flagged, "checked": len(answers)}
+
+
 def scan_status_reply(args: dict) -> tuple[str, dict]:
     """Schema 2 (R6.2, ADR-0024): the fields, and the text rendered from them.
 
@@ -551,3 +582,4 @@ def scan_status_reply(args: dict) -> tuple[str, dict]:
 
 
 scan_status = _text_of(scan_status_reply)
+check_package = _text_of(check_package_reply)

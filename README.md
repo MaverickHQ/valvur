@@ -310,7 +310,7 @@ mcpServers:
 <!-- clients:end -->
 
 Then ask it to scan. The server is **stdio only**, no listener and no port, and it has
-six tools:
+seven tools:
 
 | tool | does | acts on your machine |
 |---|---|---|
@@ -320,6 +320,7 @@ six tools:
 | `scan_cancel` | Stops a running scan: its container killed, nothing written, the previous results standing. What Ctrl-C does on the command line | stops a container |
 | `update` | Fetches the image, the vulnerability database, KEV and the Name Index now | fills the host cache |
 | `doctor` | Says whether this machine can scan, and which client files name valvur | removes the containers of scans whose process ended |
+| `check_package` | Before a dependency is added: whether each package exists, is one edit from a popular one, was published as malicious, or is exposed to dependency confusion. From the local index; no registry is asked | no |
 
 No tool can change your code: the source is copied into the scan, and there is no fix,
 apply or remediate tool to call. The tools that act on your machine say so in their MCP

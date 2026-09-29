@@ -486,11 +486,14 @@ def _check_session(workspace: Path) -> Check | None:
     import shutil
     import sys
 
+    from .mcp import protocol
     from .version import __version__
 
     if not _as_server():
         return None
     running = Path(sys.argv[0])
+    names = getattr(protocol.current_call(), "served", ())
+    serving = f", serving {len(names)} tools: {', '.join(names)}" if names else ""
     for label, command, args in _configured_servers(workspace):
         if command in _LAUNCHERS:
             continue                 # resolved at start by the launcher: cannot compare
@@ -499,10 +502,10 @@ def _check_session(workspace: Path) -> Check | None:
             continue
         line = " ".join([command, *args])
         return Check("session", "warn",
-                     f"this server is {__version__} at {running}; {label} names {line}; "
-                     "restart the client to use it",
+                     f"this server is {__version__} at {running}{serving}; {label} "
+                     f"names {line}; restart the client to use it",
                      "restart the MCP server from the client, or the client itself")
-    return Check("session", "ok", f"this server is {__version__} at {running}")
+    return Check("session", "ok", f"this server is {__version__} at {running}{serving}")
 
 
 def _configured_servers(workspace: Path) -> list[tuple[str, str, list[str]]]:

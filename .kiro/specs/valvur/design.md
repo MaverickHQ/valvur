@@ -457,7 +457,7 @@ scan.
 
 ## 8. MCP tool contracts (F9)
 
-Six, and `readOnlyHint` is what each says about itself on the wire (27.1.2): the two
+Seven, and `readOnlyHint` is what each says about itself on the wire (27.1.2): the three
 readers declare `true`, and `scan`, `scan_cancel`, `update` and `doctor` declare `false`
 because they act on the machine — a results folder, an image pull, the host cache, a
 container started and stopped, the containers of scans whose process ended (R3.6). The annotation is narrower than F9.2 and does not weaken it.
@@ -470,6 +470,7 @@ container started and stopped, the containers of scans whose process ended (R3.6
 | `findings` | `workspace?`, `fingerprint?`, `group?`, `rule?`, `path?`, `status?`, `limit?` | Ranked **Findings**, filtered; with a fingerprint, its evidence, **Exploit Signals**, **Dependency Path** and sources (F9.8, R6.5) | `true` |
 | `doctor` | `workspace?`, `network?` | Every precondition a scan needs, with the fix for each (23.3.1); removes the containers of ended scans (R3.6) | `false` |
 | `update` | `if_stale?` | Fetches the image if absent, the database, KEV and the name index; says what it fetched (ADR-0025, R6.6) | `false` |
+| `check_package` | `packages` (up to 50 of `ecosystem`, `name`, `version?`), `workspace?` | Each package's verdict from the host cache, never a registry: exists, nonexistent, near-miss, malicious, confusion, not-public or unknown (D28, R12.3); also `openWorldHint: false` | `true` |
 
 No tool mutates the **Workspace** (F9.2). No tool triggers a scan implicitly (F9.4).
 No tool is destructive, and a test over the registry asserts it. `tools/list` is a

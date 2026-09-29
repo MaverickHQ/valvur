@@ -35,6 +35,9 @@ def render(workspace: Path) -> str:
         lines += [f"{entry.name} reads {' or '.join(entry.files)}:", "",
                   f"```{_clients.fence(entry)}", _clients.snippet(entry).rstrip("\n"), "```",
                   "", f"Then: {entry.after}.", ""]
+    from .summary import CHECK_RULE
+
+    lines += [f"For an agent working here: {CHECK_RULE.replace('**', '')}", ""]
     lines += [f"A starter `.security-scan.toml` for {workspace.name}, committed with it:",
               "", "```toml", starter(workspace).rstrip("\n"), "```"]
     return "\n".join(lines) + "\n"

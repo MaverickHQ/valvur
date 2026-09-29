@@ -342,6 +342,9 @@ ANNOUNCED = {
     # Not read-only since R3.6: it removes the containers a scan left when its
     # process ended (R7.5 found the annotation still said otherwise).
     "doctor":          {"readOnlyHint": False, "destructiveHint": False},
+    # R12.3: reads the host cache and asks no one, which MCP's default denies.
+    "check_package":   {"readOnlyHint": True, "destructiveHint": False,
+                        "openWorldHint": False},
 }
 
 
@@ -377,6 +380,7 @@ def test_the_registry_exposes_exactly_the_expected_tools():
 
     assert {t.name for t in registry()} == {
         "scan", "findings", "scan_status", "doctor", "scan_cancel", "update",
+        "check_package",
     }
 
 
@@ -564,7 +568,7 @@ def test_every_mcp_tool_is_backed_by_a_shared_operation():
     shared = {
         getattr(operations, name)
         for name in ("scan_reply", "findings", "scan_status", "doctor", "cancel_scan",
-                     "update_reply")
+                     "update_reply", "check_package")
     }
     # A reader that answers `structuredContent` (28.2.2) is registered in its
     # two-form shape, `<name>_reply`; the CLI's text function is that reply's

@@ -76,10 +76,11 @@ As an MCP tool, which is the primary path:
 { "mcpServers": { "valvur": { "command": "valvur-mcp" } } }
 ```
 
-`valvur-mcp --help` describes the six tools it exposes. None of them can change your
+`valvur-mcp --help` describes the seven tools it exposes. None of them can change your
 source: it is never mounted, only copied into the Scan Container, and no tool writes,
-fixes or applies anything (ADR-0009). Two only read, `scan_status` and `findings`, and
-declare `readOnlyHint: true`; `scan`, `scan_cancel`, `update` and `doctor` act on your
+fixes or applies anything (ADR-0009). Three only read, `scan_status`, `findings` and
+`check_package`, and declare `readOnlyHint: true`; `check_package` also declares
+`openWorldHint: false`, since it asks no registry. `scan`, `scan_cancel`, `update` and `doctor` act on your
 machine (a results folder, an image pull, the host cache, a container started and
 stopped, the containers of scans whose process ended) and declare `false`, so a client
 may ask before running them. `scan`

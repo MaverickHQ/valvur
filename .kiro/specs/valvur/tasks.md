@@ -766,12 +766,29 @@ the baseline.
   - `--project` names whose registry configuration applies; the default is here.
   - The top-level usage now lists nine commands, which `test_seven_commands.py` holds.
     `check`'s help is a golden beside the others, and the README's quick start shows it.
-- [ ] **R12.3** **The MCP tool** (F9.11). Behaviours:
+- [x] **R12.3** **The MCP tool** (F9.11). Behaviours:
   1. `check_package` is listed with its schema and annotations, read-only, not open-world;
   2. a reply of 50 packages stays bounded and carries `structuredContent`;
   3. the handshake's instructions and `SUMMARY.md`'s agent block say to call it before
      adding a dependency; `init`'s block says so too;
   4. the README and `doctor` say seven tools.
+  **STATUS 2026-09-30:** ✅ all four.
+  - **The tool.** `check_package` takes up to 50 `{ecosystem, name, version?}` and an
+    optional `workspace`. It declares `readOnlyHint: true` and `openWorldHint: false`,
+    the first tool to state the latter, and answers `structuredContent` beside
+    bounded text.
+  - **One computation.** `operations.check_package_reply` serves both surfaces:
+    `valvur check` prints its text or, with `--json`, its fields.
+  - **The rule.** "Before adding a dependency, call `check_package` … and never add one
+    it flags without asking the human" is in the handshake's instructions, in
+    `SUMMARY.md`'s agent block, and in `valvur init`'s output. In the agent block it
+    shares a line, so the summary of repository 1 still fits one screen.
+  - **Seven tools.** The README's table, `valvur-mcp --help`, design.md §8 and
+    EVALUATING.md say seven. `doctor` inside the server names the tools it serves; it
+    reads them from the call rather than importing the registry, which would have
+    closed an import cycle through `operations`.
+  - **Pins updated deliberately:** the tools-list, initialize and client-transcript
+    snapshots, and the summary goldens, which differ by the agent line only.
 - [ ] **R12.4** **Track 5 through `check_package`.** Behaviour: the package-reality track
   scores the same cases through the tool as through a scan, both reported.
 - [ ] **R12.5** **Agent scenarios** (D36; ≤ $10). Behaviour: `scripts/acceptance/agent.py`

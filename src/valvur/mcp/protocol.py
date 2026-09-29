@@ -162,6 +162,9 @@ class Call:
         #: The client cancelled the request: nothing is written for it, per MCP.
         #: Stdin closing is not that: a call already answered is still answered.
         self.cancelled = False
+        #: The tools the server answering it serves, set by that server, so `doctor`
+        #: can say them without importing the registry that imports it (R12.3).
+        self.served: tuple[str, ...] = ()
 
     def progress(self, message: str) -> None:
         """One `notifications/progress`, when the client asked for them."""

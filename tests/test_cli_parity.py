@@ -29,6 +29,7 @@ PARITY: dict[str, list[str] | None] = {
     "doctor": ["doctor"],
     "update": ["update"],     # its steps are one function, `updating.run`
     "scan_cancel": None,      # the CLI's cancel is Ctrl-C, on the scan it is running
+    "check_package": ["check"],   # names, not a workspace: its own test, below
 }
 
 
@@ -70,7 +71,7 @@ def test_every_tool_names_its_cli_counterpart():
 
 
 @pytest.mark.parametrize("tool", [t for t, command in PARITY.items()
-                                  if command and t not in ("scan", "update")])
+                                  if command and t not in ("scan", "update", "check_package")])
 def test_each_reader_and_its_command_give_the_same_answer(scanned, capsys, tool):
     findings = json.loads((scanned / ".security-scan" / "findings.json").read_text())
     fingerprint = findings["findings"][0]["fingerprint"]

@@ -492,30 +492,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_check(args: argparse.Namespace, runner=None) -> int:
-    """`valvur check` (D28): each package's answer, and whether any should stop an
-    install. Host-side and offline, like the tool it shares its answers with."""
+    """`valvur check` (D28): the `check_package` tool's answer, one computation for
+    both (F9.3), and whether any package should stop an install."""
     import json
 
-    from . import packages
+    from . import operations, packages
+    from .refusal import Refusal
 
+    asked = [dict(zip(("ecosystem", "name", "version"),
+                      packages.parse(args.ecosystem, spec), strict=True))
+             for spec in args.packages]
     try:
-        answers = packages.check([packages.parse(args.ecosystem, spec)
-                                  for spec in args.packages],
-                                 workspace=Path(args.project).resolve())
-    except ValueError as exc:
-        print(f"valvur check: {exc}", file=sys.stderr)
+        text, answer = operations.check_package_reply(
+            {"packages": asked, "workspace": args.project})
+    except Refusal as refused:
+        print(f"valvur check: {refused}", file=sys.stderr)
         return 2
-    flagged = sum(answer.flagged for answer in answers)
-    if args.json:
-        print(json.dumps({"answers": [a.as_dict() for a in answers], "flagged": flagged},
-                         indent=2))
-    else:
-        for answer in answers:
-            at = f"{answer.name}@{answer.version}" if answer.version else answer.name
-            print(f"{answer.verdict:<11} {answer.ecosystem} {at}: {answer.reason}")
-        print(f"\n{flagged} of {len(answers)} flagged" if flagged
-              else f"\nnone of {len(answers)} flagged")
-    return 1 if flagged else 0
+    print(json.dumps(answer, indent=2) if args.json else text)
+    return 1 if answer["flagged"] else 0
 
 
 def _cmd_init(args: argparse.Namespace, runner=None) -> int:
