@@ -1,0 +1,99 @@
+name: eval
+
+# The Score on Linux (task R9.6, ADR-0026): every track scanned by the image built
+# from this tree, scored by the OWASP Benchmark's formula, and compared with the
+# committed baseline. Weekly, on dispatch, and on a PR that changes the harness,
+# since GitHub dispatches only a workflow already on the default branch and the
+# first run is the PR that adds it. It is the Linux half of every phase's exit
+# (tasks.md §4); the Mac half runs by hand on the build machine.
+on:
+  schedule:
+    - cron: "47 4 * * 1"     # Mondays, 04:47 UTC
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/eval.py"
+      - "scripts/eval/**"
+      - "tests/eval/**"
+      - "rules/**"
+      - ".github/workflows/eval.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  score:
+    name: the Score, every track
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write         # open the one issue a failure gets (27.2.7)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the image from this tree
+        run: |
+          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            VALVUR_VERSION="$VER" docker buildx bake dev \
+              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+
+      - name: Fetch the vulnerability database and the name index
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+
+      - name: The Score, compared with the baseline when there is one
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          set -o pipefail
+          compare=()
+          if [ -f tests/eval/baseline.json ]; then
+            compare=(--compare tests/eval/baseline.json)
+          fi
+          uv run python scripts/eval.py --work "$RUNNER_TEMP/eval" --out eval-report \
+            "${compare[@]}"
+
+      - name: Summary
+        if: always()
+        run: cat eval-report/scorecard.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: eval-report
+          path: |
+            eval-report/score.json
+            eval-report/scorecard.md
+          retention-days: 90
+      - name: A failure is a tracked thing, not an email
+        # One open issue per workflow, as the other scheduled workflows do (27.2.7):
+        # a second failure comments on the first rather than filing another.
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the weekly Score fell or failed
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "The scheduled \`eval\` run failed: $RUN" \
+            "A track fell more than 2 points under its baseline, a gate failed, or a finding on the corpus has no label. Nothing users have changes; what is lost is the evidence that detection is still on target." \
+            "Recovery: read the eval-report artifact's scorecard, fix the cause or label the new finding, then dispatch this workflow again.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi
