@@ -354,7 +354,7 @@ otherwise.
 
 The repository keeps its own audit trail, and it is not flattering by design.
 
-- [`.kiro/specs/valvur/requirements.md`](../.kiro/specs/valvur/requirements.md) — 136
+- [`.kiro/specs/valvur/requirements.md`](../.kiro/specs/valvur/requirements.md) — 153
   numbered requirements. Unmet ones are annotated as unmet, with the measurement.
 - [`.kiro/specs/valvur/tasks.md`](../.kiro/specs/valvur/tasks.md) — the current build,
   each task closed with its measurement, and the owner's queue; the earlier phases,
@@ -363,7 +363,7 @@ The repository keeps its own audit trail, and it is not flattering by design.
 - [`docs/acceptance/`](acceptance/) — the eight repositories and four probes every
   phase is judged on, run on a Mac and on Linux, and the agent's score, misses
   included.
-- [`docs/adr/`](adr/) — 25 decisions with their rejected alternatives.
+- [`docs/adr/`](adr/) — 31 decisions with their rejected alternatives.
 - CI runs a **traceability ratchet** that fails when a requirement loses its last
   citation, and a **self-scan gate** that fails on any unsuppressed finding in
   valvur's own repository.
@@ -373,3 +373,68 @@ inspect, its tests passed, and it shipped. A scan of six real local projects the
 showed it never ran on the default profile at all, because it had been placed inside a
 network-gated Check. Unit tests could not have caught that, and no amount of reasoning
 did. Running it against real repositories did.
+
+## 9. Measure it yourself: the Score
+
+Everything above is about how valvur behaves. The Score is about what it finds: one
+command, eight tracks, each scored the way the [OWASP Benchmark](https://github.com/OWASP-Benchmark/BenchmarkPython)
+scores a tool. For each category, it takes the share of vulnerable cases flagged,
+minus the share of safe cases flagged, and averages over the categories. A tool that
+flags everything scores 0, as one that flags nothing does. ADR-0026 is the design.
+
+```bash
+VALVUR_IMAGE=valvur:dev uv run python scripts/eval.py            # every track
+VALVUR_IMAGE=valvur:dev uv run python scripts/eval.py --tracks secrets,dependencies
+uv run python scripts/eval.py --compare tests/eval/baseline.json # fail on a fall
+```
+
+| track | what it holds |
+|---|---|
+| sast-python | the OWASP Benchmark for Python at a pinned commit: 1,230 cases, 452 real, 14 categories |
+| sast-js | valvur's twins: ten CWEs AI-written JavaScript gets wrong, each vulnerable and fixed |
+| secrets | ten formats, in files and in history, against documented placeholders and lookups |
+| dependencies | lockfiles in seven ecosystems pinned to versions with advisories over a year old, against their fixed versions; known-malicious packages |
+| package-reality | nonexistent, near-miss and malicious names against real and privately registered ones |
+| agent-configuration | planted directives, hidden Unicode, blanket approval, hooks, leaking settings, against benign files and real ones from awesome-cursorrules |
+| infrastructure | Terraform, Kubernetes, Dockerfile and GitHub Actions faults against their fixes |
+| real-code-precision | the thirteen corpus projects: each finding of valvur's own rules and Gitleaks labelled by hand, scored as smoothed precision |
+
+**The Score** is the unweighted mean of the eight. Beside it are five **gates**:
+- *offline*: nothing left the machine;
+- *honesty*: no false `clean`, and no safe twin at high;
+- *freshness*: the data is within its refresh age;
+- *ranking*: a known-exploited CVE ranks first;
+- *speed*.
+
+`tests/eval/baseline.json` is a ratchet. A comparison fails when a track falls more
+than 2 points under it, and it is re-recorded only upward. It runs weekly
+(`eval.yml`), in every release's `verify`, and at every phase's exit.
+
+**Replicating it.** The benchmark and the corpus are pinned by commit. The generated
+tracks come from a fixed seed. The result records the image digest and every
+dataset's age. Trivy publishes no database history, so a dependency case uses only
+advisories over a year old, and a package-reality case whose premise the index no
+longer holds is named and set aside rather than scored.
+
+**The first measurement, 2026-09-29**, on the image built from R9's branch:
+
+| track | Linux, GitHub's runner (the baseline) | Mac, Docker Desktop |
+|---|---|---|
+| sast-python | 0.4 | 0.4 |
+| sast-js | 10.0 | 10.0 |
+| secrets | 90.0 | 90.0 |
+| dependencies | 100.0 | 100.0 |
+| package-reality | 81.0 | 81.0 |
+| agent-configuration | 94.3 | 94.3 |
+| infrastructure | 95.0 | 95.0 |
+| real-code-precision | 4.0 | 4.0 |
+| **the Score** | **59.3**, in 268 s | **59.3**, in 192 s |
+
+Read it as the review of 2026-09-29 did:
+- **Static analysis barely registers**, a few rules for Python and none for JavaScript
+  beyond Gitleaks finding hard-coded keys.
+- **The dependency and AI-specific checks are strong.**
+- **On maintained real code, none of the 24 findings valvur's own rules and Gitleaks
+  raise is one a maintainer would act on.**
+
+The phases that follow (`tasks.md`, R10 to R16) are judged by how these numbers move.

@@ -363,7 +363,7 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
     and 0/0 for a silent corpus. The track reads **4.0** (0 tp, 24 fp) in 130 s. Other
     Scanners' findings, counted: zizmor 128, Checkov 46, Trivy 14, OSV-Scanner 4.
   - **Two defects valvur owns**, added to R10 as R10.7 and R10.8.
-- [ ] **R9.6** **The baseline** (D21, D22; N4.3, N4.4). Behaviours and steps:
+- [x] **R9.6** **The baseline** (D21, D22; N4.3, N4.4). Behaviours and steps:
   1. `.github/workflows/eval.yml`, weekly and on dispatch, builds the image and runs the
      Score on GitHub's Linux runner, uploading the result; a test holds its arguments to
      the script's;
@@ -373,6 +373,26 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
   3. the release's `verify` job runs `--compare` on the tracks that together fit in 10
      minutes, by 2.'s durations; the rest run weekly; `docs/RELEASING.md` says which;
   4. `docs/EVALUATING.md` gains the Score: each track, how to replicate it, the baseline.
+  **STATUS 2026-09-29:** ✅ all four.
+  1. **`eval.yml`**: weekly, on dispatch, and on a PR that changes the harness. A test
+     holds its arguments to the script's. It joins the scheduled workflows whose
+     failure opens an issue.
+  2. **Both lanes, on the image built from this branch: Score 59.3, the same track for
+     track.** Linux is eval run 36620261451, 268 s; the Mac 192 s, under 9.5 GB of host
+     swap.
+     - `tests/eval/baseline.json` is the Linux lane, with the Mac's beside it.
+     - The Linux run held ten safe cases fewer in agent configuration: it built that
+       track before anything had fetched awesome-cursorrules. The score agreed only
+       because none was flagged. Fixed: the track fetches what it reads.
+     - Per track: sast-python 26 s, sast-js 4, secrets 4, dependencies 31, package
+       reality 4, agent configuration 4, infrastructure 7, real-code precision 188
+       (thirteen clones and scans).
+  3. **Every track runs in `verify`**, since the whole Score takes under five minutes;
+     `RELEASING.md` says so.
+  4. **`EVALUATING.md` §9** holds the Score, how to replicate it and the baseline.
+
+  **D22's targets under the baseline rise to it:** dependencies 100, agent configuration
+  94.3, infrastructure 95. The rest stand.
 
 **Exit:** the baseline recorded on both lanes, the harness's tests green, and each track's
 duration recorded, the release's share by R9.6's rule.
@@ -414,6 +434,11 @@ duration recorded, the release's share by R9.6's rule.
   flags the PEM placeholder of track 3 (`...` between the markers) at critical, which the
   honesty gate refuses from R10's exit. Behaviours: a private-key block whose body is a
   placeholder is not reported; a real key block still is.
+- [ ] **R10.9** **A key committed in history is found** (added by R9, measured). History is
+  written as a patch and read by `gitleaks dir`, so a multi-line key's lines carry the
+  diff's `+` and Gitleaks' pattern misses it: track 3 found every history secret but
+  the private key. Behaviours: a private key committed and then deleted is reported
+  from history; a one-line secret in history still is, once.
 
 **Exit:** the Score on both lanes: tracks 3, 5 and 8 at or above the baseline, and the
 honesty gate green; track 5's private-registry cases scored.
