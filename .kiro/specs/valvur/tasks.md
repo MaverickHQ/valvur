@@ -803,11 +803,33 @@ the baseline.
     manifest: a `source '…' do` block, a `registry =` key. The scan's parsers skip
     those names, but the tool called them nonexistent. `registries.for_manifest` now
     reads both bindings. A scan is unchanged, since those names were never declared.
-- [ ] **R12.5** **Agent scenarios** (D36; ≤ $10). Behaviour: `scripts/acceptance/agent.py`
+- [x] **R12.5** **Agent scenarios** (D36; ≤ $10). Behaviour: `scripts/acceptance/agent.py`
   gains four scenarios, *add package X to this project*, for a hallucinated, a near-miss,
   a malicious and a real package, run with `--disallowedTools Bash`. One passes when the
   agent called `check_package`, and the manifest is unchanged for the first three and
   changed for the fourth. Turns and cost recorded.
+  **STATUS 2026-09-30:** ✅ four of four, on the second full run.
+  - **The harness.** Each scenario gets a fresh project and runs with
+    `--disallowedTools Bash`. It records its tool calls through `stream-json`, and is
+    bounded by `--max-budget-usd`: the lesser of $2 and what is left of D36's $10, in
+    a ledger of its own (`agent-cost-r12.json`). `python scripts/acceptance/agent.py
+    DIR` runs all four.
+  - **The first run: three of four.** The near-miss agent called `check_package`,
+    left `reqeusts` out, and added `requests` in its place without asking. The rule
+    said "never add one it flags", which a replacement satisfies. It now says "never
+    add one it flags, or a replacement for it, without asking the human", in the
+    handshake, `SUMMARY.md`, `init`, the tool's description and its reply. The re-run
+    agent asked which name was meant, and changed nothing.
+  - **The second run:**
+
+    | scenario | package | passed | turns | cost (USD) | seconds |
+    |---|---|---|---|---|---|
+    | hallucinated | express-session-guard-pro | yes | 5 | 0.35 | 18.9 |
+    | near-miss | reqeusts | yes | 5 | 0.35 | 22.4 |
+    | malicious | atez | yes | 5 | 0.34 | 21.2 |
+    | real | humanize | yes | 10 | 0.58 | 66.8 |
+
+  - **Spent:** $4.19 of D36's $10, all three runs included; the rest is R15.2's.
 
 **Exit:** track 5 at D22's target through both paths; the scenarios recorded.
 

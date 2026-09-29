@@ -558,8 +558,8 @@ def check_package_reply(args: dict) -> tuple[str, dict]:
     lines = [f"{a.verdict}: {a.ecosystem} {a.name}"
              + (f"@{a.version}" if a.version else "") + f" — {a.reason}" for a in answers]
     lines += ["", f"{flagged} of {len(answers)} flagged."
-              + (" Do not add a flagged package without asking the human." if flagged
-                 else "")]
+              + (" Do not add a flagged package, or a replacement for it, without "
+                 "asking the human." if flagged else "")]
     return "\n".join(lines), {"answers": [a.as_dict() for a in answers],
                                "flagged": flagged, "checked": len(answers)}
 

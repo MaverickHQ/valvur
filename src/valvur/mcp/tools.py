@@ -235,8 +235,8 @@ def registry() -> list[Tool]:
                               "confusion by this project's registry configuration. "
                               "Answered from this machine's cache; no registry is asked, "
                               "because asking about a hallucinated name tells whoever "
-                              "watches what to register. Never add a flagged package "
-                              "without asking the human.",
+                              "watches what to register. Never add a flagged package, "
+                              "or a replacement for it, without asking the human.",
              {"type": "object", "required": ["packages"], "properties": {
                  **workspace_arg,
                  "packages": {

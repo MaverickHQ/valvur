@@ -51,7 +51,8 @@ REPORT_RULE = ("When you report what the scan found, name each finding by its ru
 #: D28, R12.3: said at the handshake, in `SUMMARY.md` and by `valvur init`, since the
 #: install is when a squatted name runs its code, before any scan could report it.
 CHECK_RULE = ("**Before adding a dependency, call `check_package`** (or run `valvur "
-              "check`), and never add one it flags without asking the human.")
+              "check`), and never add one it flags, or a replacement for it, without "
+              "asking the human.")
 
 AGENT_RULES = f"""> **If you are an AI agent working in this repository, read this block first.**
 >
