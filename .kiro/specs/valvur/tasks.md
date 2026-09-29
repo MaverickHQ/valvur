@@ -411,12 +411,20 @@ duration recorded, the release's share by R9.6's rule.
 
 ### Phase R10: trust fixes, and the false positives users see first
 
-- [ ] **R10.1** **A failed Scanner with nothing found reads `inconclusive`** (D30; F7.19).
+- [x] **R10.1** **A failed Scanner with nothing found reads `inconclusive`** (D30; F7.19).
   Behaviours:
   1. `api.scan` through `LocalRuntime`, one Scanner exiting non-zero, nothing found:
      `inconclusive`, `status_reason` naming the Scanner;
   2. `SUMMARY.md`, `run.json`, the MCP reply and `gate` agree;
   3. with a finding, `findings` and *incomplete*, unchanged.
+  **STATUS 2026-09-29:** ✅ all three.
+  - **The change.** `ScanRun.doubts` names each Scanner that failed, timed out or was cut,
+    so a nil result beside one reads `inconclusive`. Every surface reads that one
+    verdict: `run.json`, `SUMMARY.md`, the MCP reply and `gate --no-inconclusive` agree,
+    each naming the Scanner.
+  - **Goldens.** Four `SUMMARY.md` goldens pinned such a run as `clean`; regenerated,
+    their one changed line is the status.
+  - **Documents.** F7.19 is added; `CLAUDE.md` §7 and `EVALUATING.md` §4 name the cause.
 - [ ] **R10.2** **Checkov without its secrets framework** (D31). Behaviours:
   1. Checkov's invocation carries `--skip-framework secrets`;
   2. e2e: R5's planted flood beside Terraform yields the secrets group once.

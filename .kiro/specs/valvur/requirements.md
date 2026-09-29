@@ -574,7 +574,13 @@ form, so that I can act on them without exhausting my context window.
 18. F7.18 — The **Results Folder** SHALL be self-ignoring from the moment it is
     created, not from the completion of a **Scan Run**. *Added 2026-09-05 (task 16.3).
     F7.2 was satisfied only at the end of a run; interruption (F1.11) is routine, and
-    would otherwise leave a folder git can see.*
+    would otherwise leave a folder git can see.*19. F7.19 — WHEN any **Scanner** failed, timed out or was cut and no active **Finding**
+    exists, the Status SHALL be `inconclusive`, and `status_reason` SHALL name each
+    such **Scanner**. *Added 2026-09-29 (R10.1, D30). Such a run read `clean` beside
+    `complete: false` until then: the gate failed it and every surface said
+    incomplete, but the one word an agent switches on said the code was clean where
+    part of it was never read.*
+
 ## F8 — Suppressions
 
 **User Story:** As a team lead, I want accepted risks recorded and shared, so that

@@ -121,8 +121,8 @@ R9.2 from `tasks.md` §5, which holds every other decision the build needs, with
 dates, and `[scan] exclude`.
 
 - **Three Statuses**: `findings`, `clean`, `inconclusive`. Clean is never claimed when it
-  cannot be supported: a stale database or an uninspected ecosystem makes a nil result
-  `inconclusive`, and `status_reason` says why in one line on every surface.
+  cannot be supported: a stale database, an uninspected ecosystem or a Scanner that did not
+  complete makes a nil result `inconclusive` (F7.19), and `status_reason` says why in one line.
 - **The verdict is about the code.** Only active Findings count: not suppressed ones, and
   not coverage notes, which are valvur's own limits.
 - **Fail loudly.** A Scanner that failed, timed out, was cut or skipped is named at the top.

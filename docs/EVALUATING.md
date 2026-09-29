@@ -187,7 +187,7 @@ Three statuses. The distinction between the last two is the point of the product
 |---|---|
 | `findings` | Live problems were found in this repository. |
 | `clean` | Nothing live was found, **by a scan that could support the claim**. |
-| `inconclusive` | Nothing was found **and that is not evidence**. Either the vulnerability database was too old, or an ecosystem present in your repository was never inspected. |
+| `inconclusive` | Nothing was found **and that is not evidence**. The vulnerability database was too old, an ecosystem present in your repository was never inspected, or a Scanner failed, timed out or was cut (F7.19, since R10). |
 
 Only **active** findings make a status `findings`. Two things deliberately do not:
 

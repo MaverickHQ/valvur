@@ -3,7 +3,7 @@
 
 **This scan is incomplete — trivy, checkov did not finish.** Anything below is partial, and a nil result would not be evidence.
 
-**Status:** clean
+**Status:** inconclusive
 **Active findings:** 0
 
 ## Scope

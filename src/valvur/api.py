@@ -253,6 +253,12 @@ class ScanRun:
         it from `database.stale` and `findings.not_covered` (task 22.D.4).
         """
         reasons: list[str] = []
+        # A Scanner that failed, timed out or was cut did not look (F7.19, D30):
+        # nothing found beside it is not evidence. Until R10 such a run read
+        # `clean` beside `complete: false`, and the verdict an agent switches on
+        # said the code was clean where part of it was never read.
+        for failure in self.failures:
+            reasons.append(f"{failure.tool} did not complete ({failure.reason or 'failed'})")
         # The predicates are `staleness.py`'s, the same ones `run.json`'s `stale`
         # flags use — this method carried its own copy of each comparison until
         # 28.1.1, and two copies of a predicate agree only until one is edited.
