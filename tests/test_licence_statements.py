@@ -109,7 +109,12 @@ def test_the_three_are_notes_and_only_the_two_gaps_cast_doubt():
     assert coverage.LICENCE_STATEMENT_RULES <= coverage.NOTE_RULES
     assert coverage.DOUBT_RULES == {coverage.RULE, coverage.VULNERABILITY_RULE}
     assert coverage.DOUBT_RULES.isdisjoint(coverage.LICENCE_STATEMENT_RULES)
-    assert coverage.NOTE_RULES == coverage.DOUBT_RULES | coverage.LICENCE_STATEMENT_RULES
+    # R10.3 decided the private registry: a note about where the project installs
+    # from, casting no doubt, since a name bound to a private registry cannot be
+    # taken publicly (D27).
+    assert coverage.PRIVATE_RULE not in coverage.DOUBT_RULES
+    assert coverage.NOTE_RULES == (coverage.DOUBT_RULES | coverage.LICENCE_STATEMENT_RULES
+                                   | {coverage.PRIVATE_RULE})
 
 
 # ------------------------------------------------------------------ the surfaces

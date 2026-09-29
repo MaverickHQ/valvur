@@ -436,9 +436,23 @@ duration recorded, the release's share by R9.6's rule.
   - **A test that proved nothing, fixed.** The first version planted the key in a `.env`
     beside the Terraform, and passed against the old argv too: Checkov's secrets
     framework does not read `.env` files.
-- [ ] **R10.3** **Private npm registries** (D27; F3.15). Behaviours, one test each: a scope
+- [x] **R10.3** **Private npm registries** (D27; F3.15). Behaviours, one test each: a scope
   bound in `.npmrc`; a scope bound in `.yarnrc.yml`; a whole-registry `registry=`; no
   configuration, whose message names the index's build date.
+  **STATUS 2026-09-29:** ✅ all four.
+  - **`ecosystems/registries.py`** reads `.npmrc` and `.yarnrc.yml` from the manifest's
+    directory up to the workspace root, nearest last-wins, never from a home directory.
+  - **A scope bound to a private registry** is not looked up publicly. One
+    `valvur.dependency.private-registry` note per registry names the scope and host.
+    It is a note, not a doubt, since a scoped name bound to a private registry cannot
+    be taken publicly; the test that pins the note sets now says so.
+  - **A replaced registry** turns a missing name into `valvur.dependency.not-public`,
+    low, advising the name be reserved.
+  - **With no configuration**, a nonexistent finding names the index's build date and
+    what the project should declare.
+  - **The harness counts claims only:** the package-reality track counts nonexistent,
+    near-miss, newly registered, malicious and confusion, so D27's low advice does not
+    flag a safe case.
 - [ ] **R10.4** **Private Python indexes** (D27). Behaviours, one test each:
   `--extra-index-url` in a requirements file; `--index-url` alone; `pip.conf` in the tree;
   a supplemental and an explicit uv index; Poetry's `supplemental` and `explicit` sources;

@@ -38,12 +38,13 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from .. import ecosystems as _ecosystems
 from .. import egress as _egress
-from ..coverage import Coverage
+from ..coverage import PRIVATE_RULE, Coverage
 from ..ecosystems import parsers as _parsers
+from ..ecosystems import registries as _registries
 from ..ecosystems.registry import pep503 as _pep503
 from .base import Check
 
@@ -61,6 +62,10 @@ NPM_UNADOPTED_DOWNLOADS = 1000
 #: the runner sets when — and only when — the container was launched with a network.
 INDEX_MOUNT = "/cache/names"
 INDEX_ENV = "VALVUR_NAME_INDEX"
+#: Where a project declares a private registry, by ecosystem: what a nonexistent
+#: finding names, so an internal package's owner knows what valvur reads (D27).
+_DECLARE_HINT = {"npm": ".npmrc or .yarnrc.yml",
+                 "pip": "pip.conf, a requirements file's --index-url, or a uv or Poetry source"}
 NETWORK_ENV = _egress.NETWORK_ENV
 _UA = {"User-Agent": "valvur/0.1 (+https://github.com/MaverickHQ/valvur)"}
 
@@ -155,7 +160,8 @@ class DependencyRealityCheck(Check):
                     f"{len(declared)} dependency name(s) were NOT verified (and are "
                     "NOT clean)."
                 )
-            findings, reached_any, asked_any = self._verify(declared, indexes, popular, network)
+            findings, reached_any, asked_any = self._verify(declared, indexes, popular, network,
+                                                            workspace)
         finally:
             for idx in indexes.values():
                 if idx is not None:
@@ -181,7 +187,8 @@ class DependencyRealityCheck(Check):
             )
         return findings
 
-    def _verify(self, declared, indexes, popular, network) -> tuple[list[dict], bool, bool]:
+    def _verify(self, declared, indexes, popular, network,
+                workspace: Path) -> tuple[list[dict], bool, bool]:
         """The per-package decisions. Returns (findings, reached a registry, asked one).
 
         Two passes. The first decides existence from the index and collects what the
@@ -190,7 +197,20 @@ class DependencyRealityCheck(Check):
         whatever order the answers arrived in.
         """
         findings: list[dict] = []
-        ordered = sorted(declared)
+        # Where the project says each manifest's packages come from (D27, R10.3). A
+        # name bound to a private registry is not looked up publicly at all: one
+        # note per registry says so, and nothing about it leaves the machine.
+        registries = {(eco, source): _registries.for_manifest(workspace, eco, workspace / source)
+                      for eco, _, source in declared}
+        private: dict[tuple[str, str, str, str], list[str]] = {}
+        kept = set()
+        for ecosystem, name, source in declared:
+            where = _private_source(registries[(ecosystem, source)], name)
+            if where is None:
+                kept.add((ecosystem, name, source))
+            else:
+                private.setdefault((ecosystem, source, *where), []).append(name)
+        ordered = sorted(kept)
 
         # Existence, locally where there is an index. `None` means the registry has
         # to answer it — no index for this ecosystem, and a network to ask with.
@@ -224,6 +244,28 @@ class DependencyRealityCheck(Check):
                 exists = meta is not None
 
             registry = _REGISTRY_NAME[ecosystem]
+            configured = registries[(ecosystem, source)]
+            if not exists and configured.supplemental:
+                findings.append(_finding(
+                    "valvur.dependency.confusion", ecosystem, name, source, "high",
+                    f"'{name}' is not on {registry}, and this project also installs "
+                    "from it",
+                    f"A private source ({', '.join(configured.supplemental)}) is merged "
+                    f"with {registry}, and the resolver takes the best version from "
+                    f"either: whoever registers '{name}' there is installed next. Serve "
+                    "it from one index only, or reserve the name.",
+                ))
+                continue
+            if not exists and configured.replaced:
+                findings.append(_finding(
+                    "valvur.dependency.not-public", ecosystem, name, source, "low",
+                    f"'{name}' is not on {registry}; this project installs from its own "
+                    "registry",
+                    f"The project replaces {registry} with {configured.replaced}. If that "
+                    f"setting is ever dropped or mistyped, '{name}' comes from {registry}, "
+                    "from whoever registered it. Reserve the name there.",
+                ))
+                continue
             if not exists:
                 # A nonexistent name that is one edit from a popular package is
                 # almost always a typo, and saying so is far more useful than
@@ -235,7 +277,11 @@ class DependencyRealityCheck(Check):
                     f"'{name}' does not exist on {registry}"
                     + (f" — did you mean '{suggestion}'?" if suggestion else ""),
                     "A dependency that does not exist was almost certainly hallucinated. "
-                    "If someone registers that name, your next install runs their code.",
+                    "If someone registers that name, your next install runs their code. "
+                    f"Checked against the package-name index built on "
+                    f"{_index_built_on(ecosystem)}. If this is an internal package, "
+                    "declare its registry in the project "
+                    f"({_DECLARE_HINT.get(ecosystem, 'its manifest')}) and valvur reads it.",
                 ))
                 continue
 
@@ -278,7 +324,40 @@ class DependencyRealityCheck(Check):
             if age is not None and age < NEW_PACKAGE_DAYS:
                 findings.append(_newly_registered(ecosystem, name, source, int(age)))
 
+        for (ecosystem, source, label, url), names in sorted(private.items()):
+            host = urlparse(url).hostname or url
+            findings.append({
+                "rule": PRIVATE_RULE, "path": source, "line": 0, "severity": "low",
+                "title": f"{_REGISTRY_NAME[ecosystem].removeprefix('the ').capitalize()} "
+                         f"packages under {label} come from {host} and were not checked "
+                         "against the public registry",
+                "evidence": f"{source} binds {label} to {url}: " + ", ".join(sorted(names)),
+                "identity": ("dependency_reality", ecosystem, f"{label} via {host}"),
+            })
         return findings, reached_any, asked_any
+
+
+def _private_source(configured: _registries.Registries, name: str) -> tuple[str, str] | None:
+    """(what the note calls it, the registry's URL) when `name` is bound to a private
+    registry, else None."""
+    if name in configured.private_names:
+        return name, configured.private_names[name]
+    scope = name.split("/", 1)[0] if name.startswith("@") and "/" in name else None
+    if scope and scope in configured.private_scopes:
+        return scope, configured.private_scopes[scope]
+    return None
+
+
+def _index_built_on(ecosystem: str) -> str:
+    """The day the index answering `ecosystem` was built, from its metadata."""
+    import json
+
+    try:
+        data = json.loads((_index_dir() / "metadata.json").read_text(encoding="utf-8"))
+        stamp = str(((data.get("ecosystems") or {}).get(ecosystem) or {}).get("built_at") or "")
+    except (OSError, ValueError, AttributeError):
+        stamp = ""
+    return stamp[:10] or "an unrecorded date"
 
 
 def _newly_registered(ecosystem: str, name: str, source: str, age: int) -> dict:
