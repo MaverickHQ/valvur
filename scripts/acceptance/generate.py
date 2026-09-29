@@ -277,15 +277,12 @@ def malicious_dependency(root: Path) -> None:
 [run]
 complete = true
 
-# npm removed the package, so the Name Index answers that it does not exist: true
-# today (measured at R2.6), and what a user with it in a lockfile must be told.
+# The malicious list names it at the version the lockfile pins (R11.5, D26), and
+# OSV-Scanner's {_mal} folds into that one finding: it is reported as malicious,
+# not as nonexistent, although npm removed it, and not twice.
 [[must]]
-rule = "valvur.dependency.nonexistent"
-path = "package.json"
-[[must]]
-rule = "{_mal}"
+rule = "valvur.dependency.malicious"
 path = "package-lock.json"
-until = "R4.6"
 """)
 
 
