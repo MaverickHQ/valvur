@@ -701,9 +701,24 @@ honesty gate green; track 5's private-registry cases scored.
     since the advisory's own rule no longer stands alone.
   - **Found on the way.** `NOTICE` still said EPSS was fetched on `full`; it now
     says what R11.4 made true, and credits ossf/malicious-packages.
-- [ ] **R11.6** **Freshness on every surface.** Behaviours: `SUMMARY.md` gains one line of
+- [x] **R11.6** **Freshness on every surface.** Behaviours: `SUMMARY.md` gains one line of
   each dataset's data age; the MCP reply carries them as fields; the Score's freshness
   gate reads them from `run.json`.
+  **STATUS 2026-09-29:** ✅ all three.
+  - `staleness.data_ages` gives every dataset's age and its basis. The database, the
+    index and the malicious list are `built`, KEV `released`, EPSS `scored`, and
+    each OSV export the scan read `published`. A copy that does not say is
+    `fetched`, and one that is not there is `absent`.
+  - `run.json` holds them in one `data` block; the blocks around it are unchanged.
+  - `SUMMARY.md`'s scope section says them in one `Data:` line, and the MCP reply
+    carries the block as `data`.
+  - The Score's freshness gate reads the block. It now also judges the malicious
+    list, EPSS and OSV (its oldest export), which it listed but never read.
+  - **Found on the way.** Closing R11 made the ranking gate judged. A partial run,
+    such as `--tracks real-code-precision`, then failed it for a fixture it never
+    scanned. The gate is now recorded but not judged when unmeasured. The first
+    commit of this slice went in with that test red, because the commit was chained
+    with `;`; it was amended before any push.
 
 **Exit:** the freshness and ranking gates green on both lanes; tracks 4 and 5 at or above
 the baseline.

@@ -179,11 +179,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         }
         if track == "dependencies":
             ranking_first = _ranked_first(findings)
-        result["data"] = {
-            "database_age_days": (run_json.get("database") or {}).get("age_days"),
-            "name_index_age_days": (run_json.get("name_index") or {}).get("age_days"),
-            "kev_age_days": (run_json.get("enrichment") or {}).get("kev_age_days"),
-        }
+        result["data"] = data_ages(run_json)
     result["gates"] = judge_gates(result["tracks"], result["data"],
                                   ranking_first=ranking_first,
                                   tasks_text=_tasks_text() if tasks_text is None else tasks_text)
@@ -199,7 +195,20 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
 GATES = {"offline": 9, "honesty": 10, "freshness": 11, "ranking": 11, "speed": 14}
 
 #: D24's refresh thresholds, in days: the oldest data a scan should be using.
-FRESH_DAYS = {"database": 7.0, "name_index": 2.0, "kev": 2.0, "epss": 2.0, "osv": 7.0}
+FRESH_DAYS = {"database": 7.0, "name_index": 2.0, "malicious": 2.0, "kev": 2.0,
+              "epss": 2.0, "osv": 7.0}
+
+
+def data_ages(run_json: dict) -> dict:
+    """Each dataset's age from `run.json`'s `data` block (R11.6), as the gate reads
+    it: OSV's oldest export stands for OSV, since any of them can be the stale one."""
+    data = run_json.get("data") or {}
+    ages = {f"{name}_age_days": (data.get(name) or {}).get("age_days")
+            for name in FRESH_DAYS if name != "osv"}
+    osv = [e.get("age_days") for e in (data.get("osv") or {}).values()
+           if isinstance(e, dict) and e.get("age_days") is not None]
+    ages["osv_age_days"] = max(osv) if osv else None
+    return ages
 
 
 def _phase_closed(phase: int, tasks_text: str) -> bool:
@@ -247,8 +256,11 @@ def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
                     if ranking_first is False else "the ranking fixture was not scanned"),
         "speed": (True, "recorded"),
     }
-    return {name: {"judged": _phase_closed(GATES[name], tasks_text), "ok": ok,
-                   "reason": "" if ok else reason, "from": f"R{GATES[name]}"}
+    # A partial run (`--tracks`) that scanned no ranking fixture did not measure the
+    # ranking: recorded, never judged, since it cannot pass or fail on nothing.
+    unmeasured = {"ranking"} if ranking_first is None else set()
+    return {name: {"judged": _phase_closed(GATES[name], tasks_text) and name not in unmeasured,
+                   "ok": ok, "reason": "" if ok else reason, "from": f"R{GATES[name]}"}
             for name, (ok, reason) in outcomes.items()}
 
 

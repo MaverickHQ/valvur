@@ -28,8 +28,12 @@ def _results(root: Path, findings: list[dict], *, complete: bool = True) -> None
     (folder / "findings.json").write_text(json.dumps({"findings": findings}))
     (folder / "run.json").write_text(json.dumps({
         "status": "findings" if findings else "clean", "complete": complete,
-        "database": {"age_days": 1.5}, "name_index": {"age_days": 2.4},
-        "enrichment": {"kev_age_days": 33.0},
+        # R11.6: every dataset's age in one block, which the gate reads.
+        "data": {"database": {"age_days": 1.5, "basis": "built"},
+                 "name_index": {"age_days": 2.4, "basis": "built"},
+                 "malicious": {"age_days": 0.5, "basis": "built"},
+                 "kev": {"age_days": 33.0, "basis": "released"},
+                 "epss": {"age_days": 0.4, "basis": "scored"}, "osv": {}},
         "network": {"what_left_the_machine": "nothing"},
     }))
 
@@ -57,7 +61,8 @@ def test_a_track_is_scanned_scored_and_recorded(tmp_path):
     assert result["score"] == 50.0
     assert result["image"] == {"name": "valvur:dev", "id": "sha256:abc"}
     assert result["data"] == {"database_age_days": 1.5, "name_index_age_days": 2.4,
-                              "kev_age_days": 33.0}
+                              "malicious_age_days": 0.5, "kev_age_days": 33.0,
+                              "epss_age_days": 0.4, "osv_age_days": None}
     assert result["duration_s"] >= 0
 
 

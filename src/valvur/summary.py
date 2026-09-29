@@ -279,6 +279,27 @@ def _counts(active) -> str:
             + (f" **Known exploited (KEV): {exploited}.**" if exploited else ""))
 
 
+#: How each dataset is named on the `Data:` line.
+_DATASETS = (("database", "vulnerability database"), ("name_index", "package-name index"),
+             ("malicious", "malicious list"), ("kev", "KEV"), ("epss", "EPSS"))
+
+
+def _data_line(ages: dict) -> str:
+    """Every dataset's age in one line (R11.6), each with what it is measured from:
+    the verdict rests on these, and a reader should not have to open `run.json` to
+    learn that one is a week old."""
+
+    def said(label: str, entry: dict) -> str:
+        age = entry.get("age_days")
+        if age is None:
+            return f"{label} absent"
+        return f"{label} {max(age, 0):.1f} days ({entry.get('basis') or 'fetched'})"
+
+    parts = [said(label, ages[key]) for key, label in _DATASETS if key in ages]
+    parts += [said(f"OSV {name}", entry) for name, entry in (ages.get("osv") or {}).items()]
+    return "Data: " + ", ".join(parts) + "."
+
+
 def _scope(run: ScanRun, active) -> list[str]:
     """What was read, by what, and what the Profile leaves to the network (R5.2):
     the report said none of this, and a reader could not check it."""
@@ -293,6 +314,8 @@ def _scope(run: ScanRun, active) -> list[str]:
     ran = [s.tool for s in run.scanners if s.ok and not s.skipped]
     if ran:
         lines.append(f"Ran: {', '.join(ran)}. Versions are in `run.json`.")
+    if run.data_ages:
+        lines.append(_data_line(run.data_ages))
     history = run.history or {}
     if history.get("off"):
         lines.append(f"> **Git history was not read for secrets:** `{history['off']}`.")

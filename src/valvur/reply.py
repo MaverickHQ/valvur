@@ -190,6 +190,8 @@ def _done(workspace: Path, data: dict) -> dict:
         "build": dict(data.get("build") or {}),
         "database": dict(data.get("database") or {}),
         "name_index": dict(data.get("name_index") or {}),
+        # Every dataset's age and its basis (R11.6), as `run.json` holds them.
+        "data": dict(data.get("data") or {}),
         # 30.1.3 (C6): an agent refused a `git status` told the user to add the folder
         # to `.gitignore`; it holds its own. Checked, not assumed.
         "results": {"path": str(results), "ignores_itself": _ignores_itself(results)},

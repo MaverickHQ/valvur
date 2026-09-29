@@ -17,6 +17,7 @@ from pathlib import Path
 from . import cache as _cache
 from . import egress as _egress
 from . import hygiene as _hygiene
+from . import osv_offline as _osv_offline
 from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results
@@ -113,6 +114,9 @@ class ScanRun:
     #: when the host cache holds none, and findings ranked without EPSS.
     epss_scored: str = ""
     epss_age_days: float | None = None
+    #: Every dataset's age and its basis (R11.6, `staleness.data_ages`): what
+    #: `run.json`'s `data`, `SUMMARY.md`'s `Data:` line and the MCP reply say.
+    data_ages: dict = field(default_factory=dict)
     # The database that decides whether findings EXIST, as opposed to KEV which only
     # decides how they rank. Until 2026-09-05 only the latter was instrumented.
     db_age_days: float | None = None
@@ -773,6 +777,10 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         scope=chosen.manifest(workspace), ignored=frozenset(chosen.ignored),
         hygiene=_hygiene.assess(workspace, chosen.files), out=out,
         generation=generation, history=beside.get("history"),
+        # OSV's offline databases this File Set needs, when OSV-Scanner reads them.
+        osv_read=tuple(_osv_offline.needed(chosen.files))
+        if any(a.name == "osv-scanner" and getattr(a, "offline", False) for a in adapters)
+        else (),
     )
 
 
@@ -1047,6 +1055,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
               workspace_files: int = 0, largest_dirs=(), not_read=(), scope=None,
               generation: str | None = None, history: dict | None = None,
               ignored: frozenset[str] = frozenset(), hygiene: dict | None = None,
+              osv_read: tuple[str, ...] = (),
               out: Path | None = None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
@@ -1144,6 +1153,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         kev_catalog=outcome.provider.kev_catalog,
         epss_scored=outcome.provider.epss_scored,
         epss_age_days=outcome.provider.epss_age_days,
+        data_ages=_staleness.data_ages(outcome.provider, osv=osv_read),
         config_dropped=outcome.config_dropped,
         unpinned_dropped=outcome.unpinned_dropped,
         unpinned_files=outcome.unpinned_files,

@@ -148,6 +148,9 @@ def render(run: ScanRun) -> str:
                     "stale": _staleness.index_is_stale(run),
                     "stale_after_days": _cache.NAME_INDEX_STALE_AFTER_DAYS,
                 },
+                # R11.6: every dataset's age and what it is measured from, in one
+                # place; the blocks around it keep what each has always said.
+                "data": run.data_ages,
                 "enrichment": {
                     "kev_source": run.kev_source,
                     "kev_catalog": run.kev_catalog,

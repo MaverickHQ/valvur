@@ -65,3 +65,16 @@ def test_a_gate_is_recorded_not_judged_until_its_phase_closes():
     assert gates["offline"]["judged"] is True
     assert (gates["freshness"]["judged"], gates["freshness"]["ok"]) == (False, False)
     assert gates["freshness"]["from"] == "R11"
+
+
+def test_a_run_without_the_dependencies_track_does_not_judge_ranking():
+    """`--tracks real-code-precision` scans no ranking fixture. The gate records
+    that it was not measured, and is not judged: failing it would fail every partial
+    run once R11 closed, for a fixture nobody asked it to scan."""
+    gates = _harness().judge_gates(
+        {"real-code-precision": _track()}, FRESH, ranking_first=None,
+        tasks_text=CLOSED_R9_TO_R11)
+
+    assert gates["ranking"]["judged"] is False
+    assert gates["ranking"]["reason"] == "the ranking fixture was not scanned"
+    assert gates["offline"]["judged"] is True
