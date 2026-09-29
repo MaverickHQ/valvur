@@ -121,3 +121,32 @@ def test_a_package_case_whose_premise_broke_is_named_and_set_aside(tmp_path):
         "package-reality-pkg/pip/near-miss-1": "'reqeusts' is in the pip index now",
         "package-reality-pkg/pip/real-1": "'requests' is not in the pip index",
     }
+
+
+def test_no_two_dependency_cases_or_fixtures_share_a_package_and_version(tmp_path):
+    """A dependency finding's identity is package, version and advisory, with no path
+    (ADR-0003): two lockfiles pinning the same package and version are one finding at
+    one path, so one of the two cases could never be flagged."""
+    import re
+
+    twins = _twins()
+    root = tmp_path / "dependencies"
+    twins.build("dependencies", root)
+    pins: list[tuple[str, str]] = []
+    for path in root.rglob("*"):
+        text = path.read_text() if path.is_file() else ""
+        if path.name == "requirements.txt":
+            pins += re.findall(r"^([\w.-]+)==([\w.]+)$", text, re.M)
+        elif path.name == "pom.xml":
+            pins += re.findall(r"<artifactId>([\w.-]+)</artifactId>\s*<version>([\w.]+)<", text)
+        elif path.name == "package-lock.json":
+            pins += [(k.removeprefix("node_modules/"), v["version"]) for k, v in
+                     json.loads(text)["packages"].items() if k]
+        elif path.name in ("Cargo.lock", "go.mod", "Gemfile.lock", "composer.lock"):
+            pins += re.findall(r'name = "([\w-]+)"\nversion = "([\w.]+)"', text)
+            pins += re.findall(r"^require ([\w./-]+) (v[\w.]+)$", text, re.M)
+            pins += re.findall(r"^    ([\w-]+) \(([\w.]+)\)$", text, re.M)
+            if path.name == "composer.lock":
+                pins += [(p["name"], p["version"]) for p in json.loads(text)["packages"]]
+    pins = [pin for pin in pins if pin[0] != "case"]
+    assert len(pins) == len(set(pins)), sorted(p for p in set(pins) if pins.count(p) > 1)

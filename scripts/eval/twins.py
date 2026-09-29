@@ -443,12 +443,14 @@ def dependencies(root: Path, seed: int) -> list[Case]:
             cases.append(Case(f"dependencies-{case_dir}", "dependencies", "malicious",
                               case_dir, vulnerable, advisories=(mal_id,)))
     # The ranking gate's fixture, not a case: a KEV-listed CVE beside a test-scoped
-    # critical, which ranking must put second (D21).
+    # critical, which ranking must put second (D21). Versions no case uses: a
+    # dependency finding's identity has no path (ADR-0003), so the same package and
+    # version in two lockfiles is one finding, reported at one of them.
     files["deps/ranking/pom.xml"] = _lockfiles(
-        "maven", "org.apache.logging.log4j:log4j-core", "2.14.1")["pom.xml"].replace(
+        "maven", "org.apache.logging.log4j:log4j-core", "2.14.0")["pom.xml"].replace(
         "  </dependencies>",
         "    <dependency>\n      <groupId>com.fasterxml.jackson.core</groupId>\n"
-        "      <artifactId>jackson-databind</artifactId>\n      <version>2.9.8</version>\n"
+        "      <artifactId>jackson-databind</artifactId>\n      <version>2.9.7</version>\n"
         "      <scope>test</scope>\n    </dependency>\n  </dependencies>")
     _write(root, files)
     return cases
