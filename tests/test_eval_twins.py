@@ -1,0 +1,79 @@
+"""R9.3: the Score's own tracks are written from a seed (ADR-0026, D21).
+
+Two runs with one seed write the same trees, commits included, so a score measured
+today is measured on the same cases tomorrow. Each track holds at least twenty
+vulnerable and twenty safe cases, listed in its `cases.json`.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+EVAL = Path(__file__).resolve().parent.parent / "scripts" / "eval"
+
+
+def _twins():
+    sys.path.insert(0, str(EVAL))
+    try:
+        spec = importlib.util.spec_from_file_location("twins", EVAL / "twins.py")
+        module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+        sys.modules["twins"] = module
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        return module
+    finally:
+        sys.path.remove(str(EVAL))
+
+
+def _tree(root: Path) -> dict[str, str]:
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(root.rglob("*")) if p.is_file() and ".git" not in p.parts}
+
+
+def _head(root: Path) -> str:
+    if not (root / ".git").exists():
+        return ""
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True,
+                          text=True, check=True).stdout.strip()
+
+
+TRACKS = ["sast-js", "secrets", "dependencies", "package-reality", "agent-configuration",
+          "infrastructure"]
+
+
+@pytest.mark.parametrize("track", TRACKS)
+def test_one_seed_writes_the_same_tree_twice(tmp_path, track):
+    twins = _twins()
+
+    twins.build(track, tmp_path / "a" / track, seed=7)
+    twins.build(track, tmp_path / "b" / track, seed=7)
+
+    assert _tree(tmp_path / "a" / track) == _tree(tmp_path / "b" / track)
+    assert _head(tmp_path / "a" / track) == _head(tmp_path / "b" / track)
+    assert (tmp_path / "a" / f"{track}.cases.json").read_text() == \
+        (tmp_path / "b" / f"{track}.cases.json").read_text()
+
+
+@pytest.mark.parametrize("track", TRACKS)
+def test_each_track_holds_twenty_vulnerable_and_twenty_safe_cases(tmp_path, track):
+    twins = _twins()
+    root = tmp_path / track
+
+    twins.build(track, root)
+    listed = json.loads((tmp_path / f"{track}.cases.json").read_text())
+
+    assert sum(case["vulnerable"] for case in listed) >= 20
+    assert sum(not case["vulnerable"] for case in listed) >= 20
+    assert len({case["id"] for case in listed}) == len(listed)
+    for case in listed:
+        path = case["path"]
+        in_history = subprocess.run(
+            ["git", "log", "--all", "--format=%H", "--", path], cwd=root,
+            capture_output=True, text=True, check=False).stdout if (root / ".git").exists() else ""
+        assert (root / path).exists() or in_history, f"{track}: {path} is nowhere"
