@@ -177,6 +177,11 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             "safe_flagged_high": _safe_flagged_high(cases, findings),
             "invalid": invalid,
         }
+        if track == "package-reality":
+            # R12.4: the same cases asked of `check_package`, the tool an agent calls
+            # before the install. Reported beside the scan's score, not averaged in.
+            result["tracks"][track]["check_package"] = _through_check_package(
+                cases, root, cwe_of)
         if track == "dependencies":
             ranking_first = _ranked_first(findings)
         # The oldest each dataset was in any track's scan: only some tracks read
@@ -199,6 +204,22 @@ GATES = {"offline": 9, "honesty": 10, "freshness": 11, "ranking": 11, "speed": 1
 #: D24's refresh thresholds, in days: the oldest data a scan should be using.
 FRESH_DAYS = {"database": 7.0, "name_index": 2.0, "malicious": 2.0, "kev": 2.0,
               "epss": 2.0, "osv": 7.0}
+
+
+def _through_check_package(cases: list, root: Path, cwe_of) -> float:
+    """Track 5's cases scored by `check_package`'s answers, by the track's own formula:
+    a case is flagged when the answer about its package is, with the case's
+    directory as the project whose registry configuration applies."""
+    from valvur import packages
+
+    findings = []
+    for case in cases:
+        [answer] = packages.check([(case.category, case.subject, None)],
+                                  workspace=root / case.path)
+        if answer.flagged:
+            findings.append({"path": f"{case.path}/{answer.verdict}", "status": "new",
+                             "rule": f"valvur.dependency.{answer.verdict}"})
+    return score.score_track(cases, findings, cwe_of).score
 
 
 def _oldest(seen: dict, ages: dict) -> dict:
@@ -325,6 +346,10 @@ def scorecard(result: dict) -> str:
     for name, track in result["tracks"].items():
         lines.append(f"| {name} | {track['score']} | {track['vulnerable']} | {track['safe']} "
                      f"| {'yes' if track['complete'] else 'NO'} | {track['seconds']} |")
+    through = (result["tracks"].get("package-reality") or {}).get("check_package")
+    if through is not None:
+        # R12.4: the same cases, asked of the tool an agent calls before an install.
+        lines += ["", f"Package reality through `check_package`: **{through}**"]
     return "\n".join(lines) + "\n"
 
 

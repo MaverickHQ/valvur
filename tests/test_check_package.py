@@ -137,3 +137,30 @@ def test_a_spec_is_a_name_and_an_optional_version():
     assert packages.parse("npm", "@scope/name") == ("npm", "@scope/name", None)
     assert packages.parse("pip", "requests@2.31.0") == ("pip", "requests", "2.31.0")
     assert packages.parse("pip", "requests==2.31.0") == ("pip", "requests", "2.31.0")
+
+
+def test_a_gem_in_a_private_source_block_is_bound_not_nonexistent(index, tmp_path):
+    project = tmp_path / "p"
+    project.mkdir()
+    (project / "Gemfile").write_text("source 'https://rubygems.org'\n\n"
+                                     "source 'https://gems.acme.example' do\n"
+                                     "  gem 'acme-billing'\nend\n")
+
+    answer = _one("gem", "acme-billing", workspace=project)
+
+    assert answer.verdict == "unknown" and answer.source == "https://gems.acme.example"
+
+
+def test_a_crate_from_an_alternative_registry_is_bound_not_nonexistent(index, tmp_path):
+    project = tmp_path / "p"
+    (project / ".cargo").mkdir(parents=True)
+    (project / "Cargo.toml").write_text('[package]\nname = "case"\nversion = "0.1.0"\n\n'
+                                        '[dependencies]\n'
+                                        'acme-billing = { version = "1", registry = "acme" }\n')
+    (project / ".cargo" / "config.toml").write_text(
+        '[registries.acme]\nindex = "sparse+https://cargo.acme.example/"\n')
+
+    answer = _one("cargo", "acme-billing", workspace=project)
+
+    assert answer.verdict == "unknown"
+    assert answer.source == "sparse+https://cargo.acme.example/"

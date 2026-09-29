@@ -4,8 +4,10 @@ A name missing from the public index is a hallucination only if the project woul
 look for it on the public registry. A company's internal packages are served by its
 own registry, and the project says so in its own files: `.npmrc` and `.yarnrc.yml`
 for npm; `pip.conf`, a requirements file's index options, and the uv, Poetry and
-Pipfile source tables for Python. Read from the File Set, never from a home
-directory: what is not in the project is not what the project declares.
+Pipfile source tables for Python; Composer's repositories; and, for `check_package`
+(R12.4), a Gemfile's private `source` blocks and a Cargo.toml's `registry` keys.
+Read from the File Set, never from a home directory: what is not in the project is
+not what the project declares.
 
 Three answers, from the safest:
 
@@ -267,6 +269,63 @@ def composer(manifest: Path) -> Registries:
     return Registries(replaced=first, supplemental=tuple(merged))
 
 
+_GEM_SOURCE_BLOCK = re.compile(r"""^\s*source\s*\(?\s*["']([^"']+)["'][^#]*\bdo\b""")
+
+
+def gem(manifest: Path) -> Registries:
+    """The gems a Gemfile takes from a `source '...' do` block that is not RubyGems
+    (R12.4). The parser already leaves them undeclared; `check_package` needs to
+    know where they come from, or it would call a private gem nonexistent."""
+    from . import parsers as _parsers
+
+    bound: dict[str, str] = {}
+    stack: list[str | None] = []       # per open block: its private source, if any
+    for raw in _text(manifest).splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        stripped = line.strip()
+        if stripped == "end" or stripped.startswith("end "):
+            if stack:
+                stack.pop()
+            continue
+        match = _parsers._GEM_LINE.match(line)
+        source = next((s for s in reversed(stack) if s), None)
+        if match and source:
+            bound[match.group(1)] = source
+        if _parsers._BLOCK_OPENS.search(line):
+            opened = _GEM_SOURCE_BLOCK.match(line)
+            stack.append(opened.group(1) if opened and not is_public_gem(opened.group(1))
+                         else None)
+    return Registries(private_names=bound)
+
+
+def is_public_gem(url: str) -> bool:
+    return (urlparse(url).hostname or "") in ("rubygems.org", "www.rubygems.org")
+
+
+def cargo(workspace: Path, manifest: Path) -> Registries:
+    """The crates a Cargo.toml takes from an alternative `registry`, each bound to that
+    registry's index from `.cargo/config.toml` between the manifest and the root
+    (R12.4); the parser already leaves them undeclared."""
+    data = _toml(manifest)
+    indexes: dict[str, str] = {}
+    for directory in _between(workspace, manifest):
+        for name in ("config.toml", "config"):
+            configured = _toml(directory / ".cargo" / name).get("registries") or {}
+            for registry, entry in configured.items() if isinstance(configured, dict) else ():
+                if isinstance(entry, dict) and isinstance(entry.get("index"), str):
+                    indexes.setdefault(registry, entry["index"])
+    bound: dict[str, str] = {}
+    tables = [data.get(key) or {} for key in
+              ("dependencies", "dev-dependencies", "build-dependencies")]
+    tables.append((data.get("workspace") or {}).get("dependencies") or {})
+    for table in tables:
+        for alias, spec in (table.items() if isinstance(table, dict) else ()):
+            if isinstance(spec, dict) and isinstance(spec.get("registry"), str):
+                name = spec["package"] if isinstance(spec.get("package"), str) else alias
+                bound[name] = indexes.get(spec["registry"], f"the {spec['registry']} registry")
+    return Registries(private_names=bound)
+
+
 def for_manifest(workspace: Path, ecosystem: str, manifest: Path) -> Registries:
     if ecosystem == "npm":
         return npm(workspace, manifest)
@@ -274,6 +333,10 @@ def for_manifest(workspace: Path, ecosystem: str, manifest: Path) -> Registries:
         return python(workspace, manifest)
     if ecosystem == "composer" and manifest.name == "composer.json":
         return composer(manifest)
+    if ecosystem == "gem" and manifest.name == "Gemfile":
+        return gem(manifest)
+    if ecosystem == "cargo" and manifest.name == "Cargo.toml":
+        return cargo(workspace, manifest)
     return Registries()
 
 

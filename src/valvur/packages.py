@@ -89,7 +89,8 @@ def _built(names: Path) -> dict[str, str]:
 #: Where a project states each ecosystem's registries, in the order they are read.
 _CONFIGURED_BY = {"npm": ("package.json",),
                   "pip": ("pyproject.toml", "Pipfile", "requirements.txt"),
-                  "composer": ("composer.json",)}
+                  "composer": ("composer.json",),
+                  "gem": ("Gemfile",), "cargo": ("Cargo.toml",)}
 
 
 def _configured(workspace: Path | None, ecosystem: str) -> _registries.Registries:

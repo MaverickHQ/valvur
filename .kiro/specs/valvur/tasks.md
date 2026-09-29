@@ -789,8 +789,20 @@ the baseline.
     closed an import cycle through `operations`.
   - **Pins updated deliberately:** the tools-list, initialize and client-transcript
     snapshots, and the summary goldens, which differ by the agent line only.
-- [ ] **R12.4** **Track 5 through `check_package`.** Behaviour: the package-reality track
+- [x] **R12.4** **Track 5 through `check_package`.** Behaviour: the package-reality track
   scores the same cases through the tool as through a scan, both reported.
+  **STATUS 2026-09-30:** ✅
+  - `scripts/eval.py` asks `check_package` about each case's package, with the case's
+    directory as the project, and scores the answers by the track's own formula.
+  - The result is recorded as the track's `check_package` and printed under the
+    scorecard. The Score's mean keeps the scan's value, so the ratchet measures
+    what it always has.
+  - **Measured on the Mac against the real index:** 100 through a scan, 100 through
+    the tool.
+  - **Found on the way.** Ruby's and Rust's private cases bind their name inside the
+    manifest: a `source '…' do` block, a `registry =` key. The scan's parsers skip
+    those names, but the tool called them nonexistent. `registries.for_manifest` now
+    reads both bindings. A scan is unchanged, since those names were never declared.
 - [ ] **R12.5** **Agent scenarios** (D36; ≤ $10). Behaviour: `scripts/acceptance/agent.py`
   gains four scenarios, *add package X to this project*, for a hallucinated, a near-miss,
   a malicious and a real package, run with `--disallowedTools Bash`. One passes when the
