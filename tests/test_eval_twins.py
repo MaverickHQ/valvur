@@ -150,3 +150,27 @@ def test_no_two_dependency_cases_or_fixtures_share_a_package_and_version(tmp_pat
                 pins += [(p["name"], p["version"]) for p in json.loads(text)["packages"]]
     pins = [pin for pin in pins if pin[0] != "case"]
     assert len(pins) == len(set(pins)), sorted(p for p in set(pins) if pins.count(p) > 1)
+
+
+def test_a_package_case_is_flagged_only_by_a_claim_about_the_package(tmp_path):
+    """Nonexistent, near-miss, newly registered, malicious, or exposed to confusion:
+    each says the package is not what it seems. A coverage note, or D27's low advice
+    to reserve a privately served name, says nothing against it, so neither flags a
+    safe case."""
+    sys.path.insert(0, str(EVAL))
+    try:
+        import score  # type: ignore[import-not-found]
+    finally:
+        sys.path.remove(str(EVAL))
+    twins = _twins()
+    [case] = [c for c in twins.build("package-reality", tmp_path / "pr")
+              if c.path == "pkg/pip/private-1"]
+
+    def hit(rule: str) -> bool:
+        return score.flagged(case, [{"path": "pkg/pip/private-1/requirements.txt",
+                                     "rule": rule, "status": "new"}])
+
+    for claim in ("nonexistent", "near-miss", "newly-registered", "malicious", "confusion"):
+        assert hit(f"valvur.dependency.{claim}"), claim
+    for statement in ("not-public", "ecosystem-not-covered", "private-registry"):
+        assert not hit(f"valvur.dependency.{statement}"), statement

@@ -489,6 +489,12 @@ REALITY: dict[str, dict[str, list[str]]] = {
 
 _PRIVATE_HOST = "registry.internal.example"
 
+#: The dependency-reality rules that say a package is not what it seems. A coverage
+#: note, or D27's low advice to reserve a privately served name, says nothing against
+#: the package, so neither flags a case.
+CLAIMS = tuple(f"valvur.dependency.{claim}" for claim in
+               ("nonexistent", "near-miss", "newly-registered", "malicious", "confusion"))
+
 
 def _manifest(ecosystem: str, name: str, private: bool) -> dict[str, str]:
     """One declared dependency; `private` names the project's own registry for it,
@@ -538,8 +544,7 @@ def package_reality(root: Path, seed: int) -> list[Case]:
                 for file, text in _manifest(ecosystem, name, kind == "private").items():
                     files[f"{case_dir}/{file}"] = text
                 cases.append(Case(f"package-reality-{case_dir}", "package-reality", ecosystem,
-                                  case_dir, vulnerable, prefixes=("valvur.dependency.",),
-                                  subject=name))
+                                  case_dir, vulnerable, rules=CLAIMS, subject=name))
     _write(root, files)
     return cases
 
