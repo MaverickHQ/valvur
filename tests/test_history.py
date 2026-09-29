@@ -265,7 +265,8 @@ def test_a_key_committed_then_deleted_beside_a_placeholder_is_found(repo, mounta
     rng = random.Random(9)  # noqa: S311 — seeded, the same fake key each run
     body = "\n".join("".join(rng.choice(string.ascii_letters + string.digits + "+/")
                              for _ in range(64)) for _ in range(12))
-    ws = mountable_tmp / "repo"
+    # Its own name: on Linux `mountable_tmp` is the `repo` fixture's own tmp_path.
+    ws = mountable_tmp / "planted"
     shutil.copytree(repo, ws)
     # `git log` lists a commit's paths in order: the placeholder first, as the
     # track's `examples/` came before its `history/`.
