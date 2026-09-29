@@ -739,10 +739,23 @@ the baseline.
 
 ### Phase R12: `check_package`, before the install
 
-- [ ] **R12.1** **The API** (D28; F3.16). Behaviours, one test each: `exists`,
+- [x] **R12.1** **The API** (D28; F3.16). Behaviours, one test each: `exists`,
   `nonexistent`, `near-miss` with its suggestion, `malicious` with its ID, `confusion` and
   `not-public` given the project's registry configuration, `unknown` for JVM and Go; a
   batch of 50; no socket opened (the conftest guard); under a second for 50 (`timing`).
+  **STATUS 2026-09-30:** ✅ all of them.
+  - `valvur.packages.check` answers from the host cache with the dependency-reality
+    Check's own logic: the index, the popular-name comparison, the malicious list, and
+    the project's registry configuration read from its root manifests (D27).
+  - Each answer carries a verdict, one sentence of reason, and the index's build day.
+    Where they apply it also carries the near name, the `MAL-` IDs, or the private
+    source.
+  - `near-miss` is given whether or not the name exists: a registered typosquat is
+    the same risk.
+  - A name the project binds to a private registry is `unknown`, and names that
+    registry; valvur does not ask it.
+  - **Measured:** 50 answers in 59 ms against the real index (4.4 million npm names),
+    8 ms warm.
 - [ ] **R12.2** **The CLI, `valvur check`.** Behaviours: the exit status per D28; `--json`;
   the help fixture and the documented-commands test updated.
 - [ ] **R12.3** **The MCP tool** (F9.11). Behaviours:
