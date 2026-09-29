@@ -11,7 +11,8 @@
     "--compact",
     "--skip-download",
     "--skip-framework",
-    "github_actions"
+    "github_actions",
+    "secrets"
   ],
   "timeout": 600,
   "network": false,

@@ -425,9 +425,17 @@ duration recorded, the release's share by R9.6's rule.
   - **Goldens.** Four `SUMMARY.md` goldens pinned such a run as `clean`; regenerated,
     their one changed line is the status.
   - **Documents.** F7.19 is added; `CLAUDE.md` §7 and `EVALUATING.md` §4 name the cause.
-- [ ] **R10.2** **Checkov without its secrets framework** (D31). Behaviours:
+- [x] **R10.2** **Checkov without its secrets framework** (D31). Behaviours:
   1. Checkov's invocation carries `--skip-framework secrets`;
   2. e2e: R5's planted flood beside Terraform yields the secrets group once.
+  **STATUS 2026-09-29:** ✅ both.
+  - **The change.** Checkov runs with `--skip-framework github_actions secrets`; the
+    pinned invocation fixture moves with it.
+  - **The e2e test.** It plants a key in Terraform: the old argv reports it twice,
+    Gitleaks and `CKV_SECRET`, and the new one once.
+  - **A test that proved nothing, fixed.** The first version planted the key in a `.env`
+    beside the Terraform, and passed against the old argv too: Checkov's secrets
+    framework does not read `.env` files.
 - [ ] **R10.3** **Private npm registries** (D27; F3.15). Behaviours, one test each: a scope
   bound in `.npmrc`; a scope bound in `.yarnrc.yml`; a whole-registry `registry=`; no
   configuration, whose message names the index's build date.

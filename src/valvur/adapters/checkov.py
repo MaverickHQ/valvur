@@ -42,8 +42,11 @@ class CheckovAdapter(ScannerAdapter):
                   # No network, ever: skip external data downloads outright.
                   "--skip-download",
                   # Workflows are zizmor's (R4.3, ADR-0023): without this one
-                  # write-all permission would be two Findings.
-                  "--skip-framework", "github_actions"),
+                  # write-all permission would be two Findings. Secrets are
+                  # Gitleaks' (R10.2, D31): a secret's identity carries its rule,
+                  # so the same key found by both could never merge, and R5's
+                  # planted flood came back as 3,694 findings and 3,890 more.
+                  "--skip-framework", "github_actions", "secrets"),
             report="results_json.json", timeout=600, empty_when=NOTHING_TO_SCAN,
         )
 
