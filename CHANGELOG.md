@@ -8,6 +8,16 @@ break things, and has.
 
 ## [Unreleased]
 
+- **The Score** (Phase R9, ADR-0026): `scripts/eval.py` measures what valvur finds.
+  - Eight tracks, each scored by the OWASP Benchmark's formula: the OWASP Benchmark for
+    Python at a pinned commit, six generated tracks of vulnerable cases and their safe
+    twins, and hand-labelled precision on the thirteen corpus projects.
+  - Five gates beside it: offline, honesty, freshness, ranking and speed.
+  - A committed baseline that only rises.
+  - It runs weekly (`eval.yml`), in every release's `verify`, and at every phase exit.
+    The first measurement is in `docs/EVALUATING.md` §9.
+- **Every rule of valvur's own declares a CWE** in its metadata.
+- ADR-0026 to ADR-0031 record the decisions of the third task list.
 - **Syft 1.52.0.** Its adapter declares the version, so `run.json` records the one
   that ran, and its golden output is recaptured.
 - **A test holds each Scanner's image pin to its adapter's declared version** and to

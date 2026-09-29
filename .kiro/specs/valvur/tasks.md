@@ -100,7 +100,9 @@ Two mechanisms, armed by R9.1.
    that first.
 4. **Is the machine ready?** Docker answers `docker info`; if not, `open -a Docker` and wait
    up to five minutes, then stop condition 4. `valvur:dev` exists and was built from this
-   branch's HEAD, else rebuild it.
+   branch's HEAD, else rebuild it. The Mac's acceptance set is always run with
+   `--generate`: a set left on disk from an earlier phase is judged by old expectations
+   (R9).
 5. **Continue** with the first unchecked task, at its first behaviour without a passing test.
 6. **Re-arm** the in-session schedule if `CronList` shows none.
 7. **Finish.** When every task outside §8 is done, delete both schedules, write the build's
@@ -396,6 +398,16 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 
 **Exit:** the baseline recorded on both lanes, the harness's tests green, and each track's
 duration recorded, the release's share by R9.6's rule.
+
+**Exit STATUS 2026-09-29** (`docs/acceptance/r9.md`):
+- **The baseline, both lanes:** ✅ Score 59.3 on Linux and on the Mac, track for track.
+  Linux is `eval.yml` run 36620261451 and the baseline; the offline gate is judged and
+  holds.
+- **The harness's tests:** ✅ 60 tests in nine files. The unit suite passes: 1564 tests
+  before the last documents.
+- **Durations:** ✅ recorded per track. All run in `verify`: under five minutes in all.
+- **The acceptance set:** ✅ on both lanes. Linux is run 36620273548; on the Mac, every
+  repository and probe passes once the stale set is regenerated.
 
 ### Phase R10: trust fixes, and the false positives users see first
 
