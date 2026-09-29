@@ -1,49 +1,57 @@
 # valvur: tasks
 
-**Written 2026-09-27, second version of the day.** The owner accepted every recommendation
-in [the review](../../../docs/history/REVIEW-2026-09-27.md), section 11 included, and asked for a list
-that runs end to end without them. This replaces the same day's Phases 31 to 37. It is
-authoritative for what is open.
+**Written 2026-09-29, third version.** `1.1.0` shipped that day, and the owner accepted
+every recommendation of [the review of 2026-09-29](../../../docs/history/REVIEW-2026-09-29.md)
+and asked for a list that runs end to end without them, test-driven, and judged by a
+score that can be re-run after every future change. It is authoritative for what is open.
 
-**IDs.** Tasks here are `R<phase>.<n>`; R0 to R6 are closed and in
-[their archive](../../../docs/history/tasks-phases-r0-r6.md). A bare ID such as `29.0.5`
-or `0.1` refers to [the archive of Phases 0 to 30](../../../docs/history/tasks-phases-0-30.md). §9 maps the
-first version's 31 to 37. Requirement IDs are never renumbered; a task that changes one
-amends it in `requirements.md`.
+**IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
+[their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
+[theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
+build ran on. A bare ID such as `29.0.5` refers to
+[the archive of Phases 0 to 30](../../../docs/history/tasks-phases-0-30.md). Requirement
+IDs are never renumbered; a task that changes one amends it in `requirements.md`.
 
 **Contents:** 1 unattended running · 2 resuming · 3 how a task is built · 4 how a phase
-ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue · 9 earlier IDs
+ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
 
 ---
 
 ## 1. How this list runs unattended
 
-- **One executor.** A Claude Code session in auto mode, in this checkout on this Mac, works
-  the phases in order. It does not end its turn between tasks or phases. It ends only when
-  §8 is all that remains, or on a stop condition.
-- **Nothing on the critical path waits for the owner.** Signed tags, the release approval,
-  the gate with a person, AWS spend and Kiro's GUI are collected in §8. The executor
-  prepares everything up to them and moves on.
-- **Every choice has a recorded answer** (§5). A measurement that misses its threshold takes
-  the recorded fallback. Nothing waits for a decision.
+- **One executor.** A Claude Code session in auto mode, in this checkout on this Mac,
+  works the phases in order. It does not end its turn between tasks or phases. It ends
+  only when §8 is all that remains, or on a stop condition.
+- **Nothing on the critical path waits for the owner.** Landing on `main`, the signed tag,
+  the release approval, the gate with a person and anything that spends money outside
+  D36 are collected in §8. The executor prepares everything up to them and moves on.
+  **It never pushes to `main` or pushes a tag**; phases stack instead (§4).
+- **Every choice has a recorded answer** (§5). A measurement that misses its threshold
+  takes the recorded fallback. Nothing waits for a decision.
 - **The only stop conditions:**
-  1. a change would cross `CLAUDE.md` §10;
-  2. an action would delete or overwrite something outside this repository and the build
-     cache;
-  3. a required check fails three times for the same cause after fixes;
-  4. the machine cannot run containers.
+  1. a change would cross `CLAUDE.md` §10, beyond what §5 records as approved;
+  2. an action would delete or overwrite something outside this repository and the
+     build caches (`~/.cache/valvur-build`, Docker's build cache);
+  3. a required check, or a phase exit's Score, fails three times for the same cause
+     after fixes;
+  4. the machine cannot run containers;
+  5. a fetch would reach a host that neither `src/valvur/egress.py` nor ADR-0027 names.
 
   On a stop, the executor writes what happened and what it needs as a row in §8, commits
-  it, and ends its turn.
-- **Cost cap.** Agent scoring with `claude -p` is capped at $25 across the build. Past the
-  cap it is skipped and noted in §8.
-- **Machine hygiene.** Builds, scans and e2e use `BUILD_CACHE=~/.cache/valvur-build` as
+  it, pushes the branch, and ends its turn.
+- **Cost cap.** Agent runs with `claude -p` are capped at $10 across this build (D36).
+  Past the cap they are skipped and noted in §8.
+- **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
   `VALVUR_CACHE` and `VALVUR_IMAGE=valvur:dev`. Never touch `~/.cache/valvur`, pulled
-  `ghcr.io/maverickhq/valvur:*` images, or containers the build did not start.
+  `ghcr.io/maverickhq/valvur:*` images, or containers the build did not start. The Score's
+  external sources are fetched into `~/.cache/valvur-build/eval/`, never into the tree.
+- **Safety in agent runs.** An agent run never has a shell: `claude -p` runs with
+  `--disallowedTools Bash`, so no package named in a scenario, malicious ones included,
+  is ever installed or executed on this machine.
 
 ## 2. Resuming
 
-Two mechanisms, armed by R0.1.
+Two mechanisms, armed by R9.1.
 
 - **In-session schedule.** `CronCreate`, cron `17 * * * *`, recurring, with the resume
   prompt below. It fires only while the session is idle, so after a usage limit it resumes
@@ -77,19 +85,24 @@ Two mechanisms, armed by R0.1.
 2. **Where are we?** `git fetch --prune`, then `scripts/build_status.py` names the current
    phase, its branch `build/r<n>-<slug>`, and the first unchecked task. The current phase
    is the lowest-numbered one with an unchecked task, read from its branch if the branch
-   exists on origin, otherwise from `main`. Check out the branch, creating it from `main`
-   when absent. A phase finished on its branch whose landing was refused to the session
-   waits for the owner (§8): the next phase is built on a branch stacked on it, and the
-   script steps over the waiting phase to that branch, listing it in `waiting_to_land`.
+   exists on origin, otherwise from `main`. Check out the branch, creating it from the
+   previous phase's branch when that exists on origin, else from `main`. A phase finished
+   on its branch waits for the owner to land (§8): the script steps over it to the branch
+   stacked on it, listing it in `waiting_to_land`. When it says `land the phase`, the phase
+   is finished and its PR open: never push to `main`; cut the next phase's branch from it
+   and continue there.
 3. **Leave nothing half-done.** The session that was building keeps its own changes and
    finishes its slice. A fresh session stashes any working-tree changes with
    `git stash push -u -m "resume <UTC time>: partial slice"` and redoes that slice from its
    last green commit, never trusting it. Either way, if the unit suite is red on HEAD, fix
    that first.
-4. **Continue** with the first unchecked task, at its first behaviour without a passing test.
-5. **Re-arm** the in-session schedule if `CronList` shows none.
-6. **Finish.** When every task outside §8 is done, delete both schedules, write the build's
-   summary into R8's STATUS, and end the turn.
+4. **Is the machine ready?** Docker answers `docker info`; if not, `open -a Docker` and wait
+   up to five minutes, then stop condition 4. `valvur:dev` exists and was built from this
+   branch's HEAD, else rebuild it.
+5. **Continue** with the first unchecked task, at its first behaviour without a passing test.
+6. **Re-arm** the in-session schedule if `CronList` shows none.
+7. **Finish.** When every task outside §8 is done, delete both schedules, write the build's
+   summary into R15.6's STATUS, and end the turn.
 
 ## 3. How every task is built: test-driven
 
@@ -98,361 +111,366 @@ Two mechanisms, armed by R0.1.
   2. run it and see it fail for the expected reason;
   3. write the least code that passes;
   4. run `ruff`, `mypy` and the unit suite
-     (`PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider -m "not e2e"`).
-     A slice that touches only `scripts/`, documents or a new test file runs its own
-     tests and lint; the full suite runs at the end of every task and before every push.
-     *Adopted in R0: the full suite takes one to two minutes on this Mac under swap.*
+     (`PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider -m "not e2e"`,
+     after clearing `__pycache__`). A slice that touches only `scripts/`, documents or a
+     new test file runs its own tests and lint; the full suite runs at the end of every
+     task and before every push. *The unit suite takes one to two minutes on this Mac; the
+     whole suite, e2e included, took 12 minutes on 2026-09-29.*
   5. commit. The commit message follows the repository's Conventional Commits hook, scoped
-     by task, and names the behaviour: `feat(r3.4): a Scanner past its timeout is killed
-     with its process group`.
+     by task, and names the behaviour: `feat(r11.1): KEV's age is its catalog's date`.
 - **Never write all the tests first. Never refactor while red.** A refactor is its own
-  commit on green: `refactor(r3.4): …`.
+  commit on green: `refactor(r11.1): …`.
 - **Test through public interfaces:** `api.scan`, the MCP server over stdio, the CLI,
-  `python -m valvur.engine`, `scripts/acceptance.py`. **Fake only two boundaries:** the
-  container runtime, through `LocalRuntime` (R3.1), and the network, through
-  `tests/fake_registry.py`. `git`, files and processes are real.
+  `python -m valvur.engine`, `scripts/acceptance.py`, `scripts/eval.py`. **Fake only two
+  boundaries:** the container runtime, through `LocalRuntime`, and the network, through
+  `tests/fake_registry.py` and the conftest socket guard. `git`, files and processes are
+  real.
 - **Assert on fields, kinds and counts.** Assert on a sentence only where the sentence is the
   contract.
 - **A behaviour that needs a container** is tested through `LocalRuntime` and again with
   `-m e2e` against `valvur:dev`.
 - **Measure first.** A task whose value is a number records the before in its first commit
-  and the after in its STATUS.
+  and the after in its STATUS. **A task that changes detection, ranking, data or the reply**
+  runs the Score's tracks it touches (`scripts/eval.py --tracks … --compare`) before its
+  last commit, and its STATUS gives each track's delta.
 - **Tick the task's checkbox** in the commit that turns its last behaviour green, so a
   resuming session can see where the build stands.
-- **New tests go in new files.** The constraint suite stays at 48 tests unless a task
-  restates a constraint, as R3.9 does.
+- **New tests go in new files.** The constraint suite stays at 54 tests unless a task
+  restates a constraint.
 - **Planted credentials are assembled at runtime.** Push protection is on for this
-  repository, so no test or generator carries a credential as a literal.
+  repository, so no test, generator or Score track carries a credential as a literal.
+- **A new requirement ID** is added by the task that builds it, in the same commit as the
+  test that cites it, so `scripts/check_traceability.py` never records debt.
 
 ## 4. How every phase ends: the phase commit
 
 1. Every task is ticked and carries a `**STATUS <date>:** ✅` note with its measured after.
-2. From R2 on, the phase exit is measured on both lanes (D18) and written to
-   `docs/acceptance/r<n>.md`.
+2. **The exit is measured on both lanes** and written to `docs/acceptance/r<n>.md`:
+   - *the acceptance set*: `scripts/acceptance.py` on this Mac; the `acceptance` check on
+     the phase's PR for Linux;
+   - *the Score*: `scripts/eval.py --compare tests/eval/baseline.json` on this Mac;
+     `gh workflow run eval.yml --ref <branch>` for Linux (from R9.6 on). Every track, the
+     Score, each gate, and the delta against the baseline. A track more than 2 points under
+     its baseline, or a failed gate that is judged by then (D21), fails the exit: fix it
+     before the phase commit. Then `--update-baseline` records every track that rose.
 3. `CHANGELOG.md` `[Unreleased]` is updated, and so are the status and Next lines of
    `CLAUDE.md`.
 4. **The phase commit:** `chore(r<n>): close phase R<n>, <title>, exit measured`.
-5. **Land it.** Push, and open one PR for the phase. Wait for the required checks with
-   `gh pr checks <number> --watch --fail-fast`, and fix any failure with new commits. Then
-   fast-forward `main` with `git push origin refs/remotes/origin/<branch>:refs/heads/main`,
-   run `git checkout main && git pull --ff-only`, and delete the local branch.
-6. **A release rehearsal**, for a phase that prepares one, runs on the landed `main`
-   (`gh workflow run release.yml --ref main`). Wait for its validation, then cancel it at
-   the brake so the `release` concurrency group is free. The run id and outcome go into the
-   next phase's first commit and into §8.
-7. Re-arm the in-session schedule and start the next phase from the new `main`.
+5. **Push and open one PR** for the phase, base `main`. Wait for the required checks (the
+   app's PR monitor where the session has one, else
+   `gh pr checks <number> --watch --fail-fast`), and fix any failure with new commits.
+   **Do not land it.** The next phase's branch is cut from this one, so the phases stack,
+   and the owner lands the stack with one fast-forward (§8).
+6. **A release rehearsal**, for R15 only, runs on R15's pushed branch
+   (`gh workflow run release.yml --ref <branch>`). Wait for its validation, then cancel it
+   at the brake so the `release` concurrency group is free. The run id and outcome go into
+   R15.5's STATUS and §8.
+7. Re-arm the in-session schedule and start the next phase from this phase's branch.
 
 ## 5. Decisions recorded before the build
 
-The owner accepted all of these with the review on 2026-09-27. R0.5 writes the ADRs. The owner
-may revisit any decision with `/grill-with-docs`; a change becomes a new task, and the
-executor does not wait for it.
+The owner accepted all of these with the review on 2026-09-29, including the network
+changes D24 and D25 under `CLAUDE.md` §10. R9.2 writes the ADRs. The owner may revisit any
+decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
+wait for it.
 
 | # | decision | fallback when a measurement disagrees |
 |---|---|---|
-| D1 | **The File Set is the git view.** It holds tracked files and untracked files git does not ignore. Even when ignored, `.env*` and every agent-configuration file are included, as today. A directory that is not a repository is walked, skipping only VCS metadata and dependency caches, each skip named; past 20,000 files that walk refuses before any container starts, naming the largest directories and the exclude line. A git view over 20,000 files proceeds, with the same names as a warning, because tracked source is the user's code. `scope = "tree"` walks instead. ADR-0021. | none needed |
-| D2 | **An exclude is a root-relative path prefix**, applied once, to the File Set. ADR-0021. | none needed |
-| D3 | **History is scanned for secrets** in a repository, on all refs. The bound is 5,000 commits or 200 MB of patch, whichever comes first, and the report says when it was hit. `[scan] history = false` turns it off. Measured: this repository's 357 commits make 10.9 MB in 1.2 s. ADR-0021. | a lower bound if a corpus repository exceeds 60 s |
-| D4 | **One Scan Container per Profile boundary.** `offline` runs one container with no network. `full` adds one more with a network, for OSV-Scanner and the registry questions. The Snapshot arrives on stdin, into a tmpfs up to 512 MB, or a per-scan volume beyond that, removed afterwards. Protocol 2. One memory ceiling per container: 3 GiB, or 75% of the runtime's memory if that is less. ADR-0022. | none needed |
-| D5 | **Freshness.** A stale vulnerability database (over 7 days), Name Index (over 30 days) or OSV database is refreshed inside a scan, announced, and recorded in `network.fetched`. `fetch = "never"`, as a setting or `VALVUR_FETCH=never`, serves air-gapped use. A new `update` MCP tool. This is approved under `CLAUDE.md` §10. ADR-0025. | none needed |
-| D6 | **`scan` returns the result.** It blocks within the budget, default 300 s, and sends progress. A second call on the same workspace attaches. Past the budget it returns a partial result naming the cuts. ADR-0024. | if R6.1 finds Claude Code loses a backgrounded result, keep start-and-poll with the schema-2 reply |
-| D7 | **Reply schema 2.** `structuredContent` comes first. It carries a `report` field holding the Markdown summary, plus `error.kind` and `next`, and stays under 25,000 tokens. | none needed |
-| D8 | **The Scanner set, by rule.** zizmor is adopted if it reports every unpinned action and every write permission that Checkov's GitHub Actions checks found on the corpus. KICS replaces Checkov only if it finds at least 90% of Checkov's distinct failed rules on repositories 5 and 6 and the corpus infrastructure, and runs at least twice as fast. Otherwise Checkov stays and runs only where infrastructure exists. Trivy's SBOM replaces Syft if its component count is within 5% of Syft's on the corpus. OSV's offline database joins `offline` if it reports repository 8's planted `MAL-` package. ADR-0023. | each rule names its own fallback: the current tool stays |
-| D9 | **The Results Folder.** SARIF is always written. The SBOM is always written when it comes from Trivy's pass, and otherwise only with `--sbom`. *Amended by the owner 2026-09-28: Trivy's pass was not adopted (R4.4), so the SBOM is Syft's and opt-in, `--sbom` or `sbom = true` under `[scan]`, the dependency licence policy with it.* | none needed |
-| D10 | **`init` prints and never writes.** A JSON Schema for `.security-scan.toml`, which `doctor` validates. | none needed |
-| D11 | **Two settings files.** Project policy lives in `.security-scan.toml`, machine settings in `~/.config/valvur/config.toml`. Environment variables remain only as overrides: `VALVUR_IMAGE`, `VALVUR_CACHE`, `VALVUR_RUNTIME`, `VALVUR_DEBUG`, `VALVUR_FETCH`, and the mirror settings. The rest print a deprecation line for one release, then go. | none needed |
-| D12 | **Seven CLI commands.** `findings` absorbs `explain`. `doctor` shows cache sizes, and `update --prune` and `--clear` absorb `cache`. The old names work for one release and print the new form. | none needed |
-| D13 | **Repository hygiene is reported, not ranked.** A missing `SECURITY.md`, no dependency-update configuration, or write-all default workflow permissions go in a Hygiene section of `SUMMARY.md` and `run.json`. They are never Findings and never change the Status. | none needed |
-| D14 | **Borrowed injection patterns.** Cisco mcp-scanner's rules (Apache-2.0) are translated into the AI Artifact Check only where they add no finding on the corpus's real files. They are credited in `NOTICE`. | patterns that add any finding are left out |
-| D15 | **The image as a pipeline step comes after `1.0.0`** (R8). AWS itself appears only in §8. | none needed |
-| D16 | **Releases.** `0.6.0` after R1, `0.7.0` after R3, `1.0.0` after R7. Each is prepared and rehearsed by the executor. The tag and the approval are the owner's and block nothing. | none needed |
-| D17 | **`1.0.0` criteria.** On both lanes, every acceptance repository yields its expected findings and none unexpected at high or critical. Zero containers remain after every lifecycle probe. Repository 1 completes warm in under 30 s on the Mac; when host swap is over 4 GB the Mac number is recorded and the threshold is judged on Linux. The agent pass reaches a correct report in 6 turns or fewer on every repository. Every bad input fails synchronously. | none needed |
-| D18 | **Two lanes.** The Mac lane is this machine, run by the executor at every phase exit. The Linux lane is `acceptance.yml` on GitHub's runners. | none needed |
-| D19 | **Agent scoring budget:** $25 in total. | skip scoring and note it in §8 |
-| D20 | **Kiro.** A stdio probe that replays Kiro's call sequence runs in CI. The GUI pass is the owner's. | none needed |
+| D21 | **The Score** (ADR-0026). One command, `scripts/eval.py`, runs the image under test over eight **tracks** and scores each 0 to 100 with the OWASP Benchmark's formula: per category, true-positive rate minus false-positive rate, averaged. A **case** is a path with a category and a label, vulnerable or safe; it is flagged when an active finding of its category lands on it. The tracks: **1 SAST-Python**, the OWASP Benchmark for Python v0.1 (1,230 cases, 530 real, 14 categories), a git checkout at a pinned commit in the build cache, never vendored (GPL-3.0); **2 SAST-JS**, valvur's own vulnerable and safe twins, ten CWEs AI code gets wrong (89, 79, 78, 22, 918, 94, 1321, 601, 798, 327); **3 secrets**, real formats assembled at runtime against decoys (documented example keys, placeholders, environment lookups), in files and in history; **4 dependencies**, lockfiles in seven ecosystems pinned to versions with advisories published before 2025-09-29 against their fixed twins, and `MAL-` packages sampled from ossf/malicious-packages at a pinned commit; **5 package reality**, nonexistent, near-miss and malicious names against real popular, real long-tail and privately registered ones; **6 agent configuration**, planted directives, hidden Unicode, blanket approval, hooks and leaking local settings against benign twins and awesome-cursorrules' real files; **7 infrastructure and workflows**, Terraform, Kubernetes, Dockerfile and GitHub Actions faults against fixed twins; **8 real-code precision**, the 13-repository corpus, where every active finding of a valvur-owned rule or of Gitleaks is labelled `tp` or `fp` in `tests/eval/labels/corpus.toml` with a reason, and the track is precision × 100 (an unlabelled finding fails the track, named). **The Score** is the unweighted mean of the eight. **Gates**, pass or fail: *freshness*, every dataset's data age at scan time within D24; *honesty*, no scan reads `clean` while incomplete, and no safe twin draws a high or critical; *offline*, every scan's `what_left_the_machine` is `nothing`; *ranking*, the dependency track's known-exploited CVE ranks first over a development-only critical; *speed*, the median warm scan of the acceptance set within 110% of the baseline. A gate is judged from the phase that builds what it checks, and recorded before: offline from R9, honesty from R10, freshness and ranking from R11, speed from R14. **The ratchet:** `tests/eval/baseline.json` holds each track, the Score and what they were measured on; `--compare` fails when a track falls more than 2 points under it or a gate fails, naming each; the baseline is re-recorded only upward, at a phase commit, with the reason. **Replication:** external sources pinned by git commit, the generator seeded, the image named by digest, and every dataset's age recorded; Trivy publishes no database history, so dependency cases use only advisories over a year old. Why not an exploit gym: SecBench.js, BaxBench and CyberGym score exploits against running code, which is dynamic testing, and valvur refuses it (`CLAUDE.md` §2). | if the OWASP Benchmark cannot be fetched at its pin, or its track exceeds 10 minutes, track 1 is valvur's own Python twins over the same 14 categories, and every surface says so |
+| D22 | **Targets for `1.2.0`**, per track: SAST-Python 25, SAST-JS 50, secrets 90, dependencies 90, package reality 95, agent configuration 90, infrastructure and workflows 70, real-code precision 80; every gate green. A target under R9's baseline is raised to the baseline, never lowered. | a missed target is recorded in the exit and in §8 for the owner; the build continues |
+| D23 | **Every dataset's age is its data's** (F6.12, extending F6.11): KEV from the catalog's `dateReleased`; EPSS from its file's `score_date`; each OSV database from the `Last-Modified` its fetch recorded in a sidecar; the index and the database as now. | where a source carries no date, the fetch time, labelled *fetched*, never *built*, on every surface |
+| D24 | **Refresh thresholds** (amends D5 and ADR-0025, as ADR-0027). A scan refreshes, announces and records: the vulnerability database and OSV's databases past 7 days, as now; the Name Index and the malicious list past **2** days (was 30); KEV and EPSS past **2** days (a scan never refreshed them). The thresholds that make a verdict `inconclusive` are unchanged. `fetch = "never"` fetches none. A failed refresh keeps the old data and says so. | none needed |
+| D25 | **EPSS from FIRST's daily file** (F6.13, amends F6.3 and F6.10): `epss_scores-current.csv.gz`, fetched by `valvur update` and by a stale scan into the host cache, mirrorable as `epss_url`, read on every Profile; `full` no longer sends CVE identifiers to FIRST's API. Approved under `CLAUDE.md` §10 as a recorded fetch of public data. | if the file is over 20 MB compressed, or its host is unreachable from GitHub's runners, F6.3's API stays on `full`, `offline` ranks as now, and the README's ranking example says `full` |
+| D26 | **Known-malicious names, daily** (F3.14): `index.yml` also publishes, as the tags `malicious` and `malicious-<date>` of the existing public `valvur-index` package, signed and pulled back like the index, a sorted list per ecosystem of `MAL-` package names and affected versions from ossf/malicious-packages (Apache-2.0, in `NOTICE`), built from OSV's export or the repository, whichever measures faster. `1.1.0`'s client pulls `latest` and is untouched; `retention.yml` keeps these tags as it keeps the index's. `dependency-reality` reports a declared or locked package in it as `valvur.dependency.malicious`, critical; a version-scoped entry matches only a locked version it names. OSV-Scanner's finding for the same package merges into it: one finding, both Scanners named. Until `index.yml` runs from a landed `main`, the build's lanes build the list locally, as `--build-index` does. | if the list exceeds 10 MB compressed, names only, and a version-scoped entry is reported at high as *a version of this package was published as malicious* |
+| D27 | **Private registries** (F3.15). Read from the File Set: `.npmrc` and `.yarnrc.yml` (scoped and whole registries); `--index-url` and `--extra-index-url` in requirements files, `pip.conf`, `[[tool.uv.index]]` with `[tool.uv.sources]`, `[[tool.poetry.source]]` and a `Pipfile`'s `[[source]]`. A name whose scope or source is a private registry is not looked up publicly and is listed as a coverage note. A name absent from the public index where a supplemental source (`--extra-index-url`, a supplemental uv or Poetry source) is configured is `valvur.dependency.confusion`, **high**: the resolver may take a public package registered under it. Absent where the public registry is replaced entirely: `valvur.dependency.not-public`, **low**, advising the name be reserved. No configuration: `nonexistent`, high, as now, its message naming the index's build date and saying an internal package should declare its registry in the project. | none needed |
+| D28 | **`check_package`** (F3.16, F9.11; ADR-0028). The API `valvur.packages.check`, the CLI `valvur check <ecosystem> <name>[@version] …` (a ninth command; exit 0 when every package exists and is not flagged, 1 when any is, 2 on error; `--json`) and an MCP tool `check_package` (up to 50 packages, `readOnlyHint` true, `openWorldHint` false). Each answer is `exists`, `nonexistent`, `near-miss` with the name it is near, `malicious` with its `MAL-` ID, `confusion` or `not-public` by D27, or `unknown` where no index exists (JVM, Go), with the index's build date. Host-side, **no network, ever**: asking a registry about a hallucinated name tells the registry, and anyone watching it, what to register. Under a second. The handshake's instructions and `SUMMARY.md`'s agent block say: before adding a dependency, call `check_package`, and never add one it flags without the human. | none needed |
+| D29 | **Static-analysis rules by licence and measurement** (F2.9, F5.10; ADR-0029; amends ADR-0004's consequences). Candidates: GitLab's `sast-rules` (MIT, Semgrep syntax) at a pinned commit, for Python, JavaScript and TypeScript, Go and Java. A rule is eligible only if the project it was translated from, named by its metadata, is MIT, Apache-2.0 or BSD: rules from flawfinder, find-sec-bugs, security-code-scan or Brakeman are excluded. `opengrep-rules` (archived, Commons Clause) and Semgrep's registry stay excluded. A rule **ships** when, over tracks 1 and 2 and the corpus, it has at least one true positive and precision of at least 0.5. Shipped rules live in `rules/vendor/gitlab/` with the licence, the commit and a manifest of each rule's origin, and carry their CWE into `findings.json` and SARIF (an optional field). Opengrep's intra-file cross-function taint is adopted if the pinned Opengrep supports it and it raises tracks 1 and 2 without raising their false-positive rate. Opengrep's median time on the acceptance set may grow at most 30%; past that the slowest rules go first. | if no candidate is eligible, valvur writes its own rules (Apache-2.0) for track 2's CWEs and track 1's categories, measured the same way |
+| D30 | **A failed Scanner with nothing found reads `inconclusive`** (F7.19), `status_reason` naming the Scanner. With findings, `findings` and *incomplete*, as now. The three Statuses are unchanged; a false `clean` is removed, which 1.x's contract allows as a fix. | none needed |
+| D31 | **Checkov runs without its secrets framework** (`--skip-framework secrets`): Gitleaks owns secrets. | none needed |
+| D32 | **Reuse what cannot have changed** (N1.5; ADR-0030). Trivy's and OSV-Scanner's raw output is kept in the host cache, keyed on the Scanner, its version, the Profile, the sha256 of every lockfile and manifest they read, and the database's built time, and reused when the key matches. `run.json` names each reused result and the run it came from; `--fresh` on the CLI and `fresh: true` on `scan` run everything. Source-reading Scanners are never reused. | if a warm rescan of acceptance repository 8 is not at least 30% faster, reuse ships off by default, recorded |
+| D33 | **A release is prepared by one command** (N3.4): `scripts/prepare_release.py <version>` sets the version, the lock, the README's *release in progress*, `SECURITY.md`'s series and the CHANGELOG heading in one commit; `--published <version>` makes the commit that flips the README once promoted. The tag and the brake stay the owner's. | none needed |
+| D34 | **A monthly Scanner refresh** (N3.5): `refresh.yml`, on the first Monday, when `main`'s Scanner pins differ from the latest release's, runs the Score on `main` and, when no track regressed, dispatches a rehearsal and opens one issue for the owner to tag. | none needed |
+| D35 | **Wall-clock tests are marked `timing`.** They run in CI's e2e job and at phase exits, never in the unit suite. On this Mac with host swap over 4 GB they are recorded, not judged, as D17 did. | none needed |
+| D36 | **Agent runs: $10** for this build, for R12.5's scenarios only, and never with a shell (§1). The Score never includes an agent run. | past the cap, skip and note it in §8 |
+| D37 | **`1.2.0` after R15**, prepared and rehearsed by the executor on R15's branch; the tag and the brake are the owner's. Every change is additive under 1.x: a seventh MCP tool, a ninth command, `cwe` on findings, new rules; `fp_version` stays 1. | none needed |
+| D38 | **An arm64 e2e leg**: CI's `e2e` job gains `ubuntu-24.04-arm`, Docker only. | if it more than doubles the job's time, or fails three times for runner reasons, the README's platform line says what is tested instead |
 
 ## 6. Order
 
 ```
-R0 pre-flight ─► R1 0.6.0 ─► R2 acceptance set ─► R3 engine ─► R4 Scanner set
-                                                        (0.7.0)          │
-      R8 pipeline step ◄── R7 documents, 1.0.0 ◄── R6 agent surface ◄── R5 report
+R9 the Score ─► R10 trust fixes ─► R11 fresh data ─► R12 check_package
+                                                           │
+         R15 drag, documents, 1.2.0 ◄── R14 reuse ◄── R13 static analysis
 ```
 
-- **R0** makes an unattended run possible: resuming armed, the machine and access verified,
-  the decisions written.
-- **R1** fixes what `0.5.0` users can be misled by today, touching the current engine as
-  little as possible.
-- **R2** measures the current engine before it is replaced, so every later exit compares
-  numbers, not memories.
-- **R3** is the critical path. It removes the three engine causes, and history scanning
-  rides on its input pipeline. It ends with `0.7.0` prepared, because that release carries
-  the timeout and reliability fixes.
-- **R4 before R5 and R6**, so the report and the reply are built on the final Scanner set.
-- **R5 before R6**, because the reply carries the report's groups.
-- **R7** closes the documents against what exists, then prepares `1.0.0`.
-- **R8** follows `1.0.0` by decision D15.
+- **R9 first**, so every later exit is judged against a measured baseline, as R2 was.
+- **R10** is hours of work that removes the false clean and the false positives users see
+  first.
+- **R11 before R12**: `check_package` reads the malicious list R11 publishes.
+- **R13 after the Score exists**, because a rule ships only on its measured precision.
+- **R14** changes speed alone, so it follows every change to what is found.
+- **R15** closes the documents against what exists and prepares `1.2.0`.
 
 ---
 
 ## 7. The phases
 
-Phases R0 to R6 are closed, each with its STATUS notes and its exit as measured, in
-[the archive of Phases R0 to R6](../../../docs/history/tasks-phases-r0-r6.md).
+### Phase R9: the Score, measured before anything changes
 
-### Phase R7: documents, and `1.0.0` prepared
+- [ ] **R9.1** **Pre-flight, and resuming armed.** Steps, each recorded in the STATUS:
+  1. `scripts/build_status.py` names R9 and its branch from `main`;
+  2. Docker answers (§2 step 4), at least 20 GB is free (else `docker builder prune -f`),
+     `gh auth status` and `claude --version` answer;
+  3. `valvur:dev` is built from `main` and `valvur doctor` passes with the build cache;
+  4. both schedules of §2 are armed with its prompt.
+  Behaviour: a test holds this file to the shapes `build_status.py` reads, a phase
+  heading per phase and an open task under the first.
+- [ ] **R9.2** **The decisions written.** ADR-0026 (D21, D22), ADR-0027 (D23 to D26),
+  ADR-0028 (D27, D28), ADR-0029 (D29) and ADR-0030 (D32), each citing the requirement IDs
+  it adds to `requirements.md`: N4.1 to N4.4; F6.12, F6.13, F10.9, F3.14; F3.15, F3.16,
+  F9.11; F2.9, F5.10; N1.5. `design.md` 1.4 names the modules to come. Behaviour:
+  `check_traceability.py`: 0 uncited, 0 orphan ADRs.
+- [ ] **R9.3** **The harness** (D21; N4.1, N4.2). `scripts/eval.py`, the package
+  `scripts/eval/`, and `tests/eval/`. Behaviours:
+  1. the formula: a hand-built `findings.json` and case list score each category's TPR
+     minus FPR, averaged, 0 to 100;
+  2. a case is flagged only by an active finding of its category on its path; a
+     suppressed or grouped-away finding counts as it does in `findings.json`;
+  3. the twin generator is deterministic: two runs with one seed write identical trees;
+  4. tracks 2 to 7 each generate their cases and a `cases.json`, at least 20 vulnerable
+     and 20 safe per track, credentials assembled at runtime;
+  5. `scripts/eval.py` scans each track's tree through `valvur scan` with the image named by
+     `VALVUR_IMAGE`, writes the result JSON (tracks, gates, image digest, data ages,
+     duration) and prints the scorecard;
+  6. `--compare` exits non-zero on a track more than 2 points under the baseline, or a failed
+     gate, naming each; `--update-baseline` refuses to lower a track;
+  7. the gates: freshness, honesty, offline and ranking judged; speed recorded.
+- [ ] **R9.4** **The OWASP Benchmark for Python** (D21, track 1). Behaviours:
+  1. `tests/eval/sources.toml` pins it by commit; a checkout at any other commit is
+     refused; nothing of it is tracked in this repository (a test asserts it);
+  2. `expectedresults-0.1.csv` becomes 1,230 cases, 530 vulnerable, 14 categories;
+  3. a finding maps to a test case by file and to a category by CWE, from the finding's
+     `cwe` when present, else from its rule's metadata under `rules/`;
+  4. the track's score is the OWASP scorecard's.
+- [ ] **R9.5** **Real-code precision** (D21, track 8). Behaviours:
+  1. every active finding of a valvur-owned rule or of Gitleaks on the corpus needs a label
+     in `tests/eval/labels/corpus.toml` by fingerprint; an unlabelled one fails the track,
+     named;
+  2. the rubric, in ADR-0026: `tp` when a maintainer would act on it (change code, rotate,
+     pin), `fp` otherwise, the reason saying why; the labels are the executor's, committed
+     for review;
+  3. the track is precision × 100; third-party Scanners' other findings are counted and
+     reported, not labelled.
+- [ ] **R9.6** **The baseline** (D21, D22; N4.3, N4.4). Behaviours and steps:
+  1. `.github/workflows/eval.yml`, weekly and on dispatch, builds the image and runs the
+     Score on GitHub's Linux runner, uploading the result; a test holds its arguments to
+     the script's;
+  2. the Score measured on both lanes on `valvur:dev` built from R9's branch;
+     `tests/eval/baseline.json` from the Linux lane, the Mac's beside it, the duration of
+     each track recorded;
+  3. the release's `verify` job runs `--compare` on the tracks that together fit in 10
+     minutes, by 2.'s durations; the rest run weekly; `docs/RELEASING.md` says which;
+  4. `docs/EVALUATING.md` gains the Score: each track, how to replicate it, the baseline.
 
-- [x] **R7.1** **The README, rewritten against what exists** (P6). Behaviours:
-  1. Every number in it is the acceptance set's.
-  2. The tool table matches the image.
-  3. The client table matches `doctor`.
-  **STATUS 2026-09-28:** ✅ `tests/test_readme_as_built.py` holds all three. A time, size or
-  count the README cites is a code limit or a figure `docs/acceptance/` records with the
-  same kind of unit: the old README failed on 17, dated measurements from four releases.
-  What no record held was measured into `docs/acceptance/r7.md`: a first scan from an
-  empty cache, 59 s; the index, 6,334,163 names; the published image, 256 MB to pull.
-  The tool table is the adapters' seven Scanners with NOTICE's licences, and the three
-  Checks. Rewriting found three defects, fixed:
-  1. the client block lowercased every note after its first letter, so Kiro's users were
-     told to enable `kiroagent.configuremcp`;
-  2. the CLI and the `scan` tool said `full` adds OSV-Scanner and the dependency-reality
-     Check, which have run on `offline` since R4.6 and ADR-0018 (`profiles.FULL_ADDS`);
-  3. `doctor`'s fetch sizes were 118 and 34 MB, measured now at 123 and 36.
-  The README also said a stale database is never refreshed by a scan, that a small VM
-  runs two Scanners at a time, that `scan_status` is polled, and that a first run takes
-  58 s on `0.3.0`; each now says what R3 to R6 built.
-- [x] **R7.2** **`EVALUATING.md`, `design.md`, `PROTOCOL.md`, `AIR-GAPPED.md` and
-  `requirements.md` as built.** Amendments only, and no ID renumbered. Behaviour:
-  traceability holds.
-  **STATUS 2026-09-28:** ✅ `check_traceability.py`: 0 uncited, 0 orphan ADRs, 136 IDs.
-  - `design.md` 1.3: the Scan Container and its Snapshot in §1, zizmor, Checkov's rule
-    and OSV on `offline` in §2, stale data refreshed in §6a, three readers in §8.
-  - `EVALUATING.md`: the first run from `acceptance/r7.md`; OSV on `offline` for its
-    `MAL-` data; the taint rules as 23.5.3 measured them; the index's counts; 25 ADRs.
-  - `AIR-GAPPED.md`: four things, not three, OSV's mirror, the settings file first.
-  - `requirements.md`: F1.1 and F10.8 met, F1.5, F2.1, F9.1, F9.3 and F10.5 amended.
-  - `PROTOCOL.md`: the `container_network` setting; ADR-0023 notes its SBOM branch.
-  One defect, fixed: `verify-mirror.py` refused OSV's mirror and read no settings file,
-  so an honest air-gapped setup failed its own proof. `valvur update` does not fetch
-  OSV's databases, which only a project names; the README and `AIR-GAPPED.md` say so.
-- [x] **R7.3** **Documents consolidated.** `OPEN-ITEMS.md`, `POSITIONING.md`, the reviews,
-  `usability-gate.md`, `council/` and `gates/` move to `docs/history/`, and their still-true
-  points move into the README or `EVALUATING.md`. Behaviour: a link check over every
-  Markdown file finds no broken relative link.
-  **STATUS 2026-09-28:** ✅ `tests/test_links.py` reads every tracked Markdown file but the
-  fixtures', code apart. Before the move it found 67 broken links, all in the two
-  archives R0 had moved without re-pointing them; every link in a moved file is now
-  resolved from where the file was written and re-pointed at where its target lives.
-  `docs/` holds `AIR-GAPPED`, `EVALUATING`, `PROTOCOL` and `RELEASING`, the ADRs, the
-  acceptance records and `history/`, which has an index. Carried forward: POSITIONING's
-  measured limit on claim 3, that KEV rarely lists an application dependency, now in
-  `EVALUATING.md` §5 and the README; OPEN-ITEMS' open refactors had closed in Phase 27;
-  the usability gate stays the protocol for the owner's gate with a person (§8).
-- [x] **R7.4** **`CLAUDE.md` and this file.** `CLAUDE.md` is refreshed within 200 lines. Closed
-  phases move to `docs/history/`.
-  **STATUS 2026-09-28:** ✅ this file drops to 335 lines: Phases R0 to R6, each with its
-  STATUS and exit, are `docs/history/tasks-phases-r0-r6.md`. The acceptance harness
-  reads that archive as well as this file, since an expectation that waited on R3.2 would
-  otherwise read pending again (55 closed tasks, all still seen as done), and
-  `build_status.py` finds the current phase unchanged. `CLAUDE.md`, 199 lines: the status as
-  it stands (`main` at R1, R2 to R6 waiting to land, R7 and R8 next), the landing rule as it
-  is (the owner lands each phase), OSV's databases among the moat's recorded fetches, and
-  the rule that the README cites only measured numbers.
-- [x] **R7.5** **`1.0.0` prepared** (D16, D17). D17's criteria are measured on both lanes and
-  recorded. The CHANGELOG states the stability claim. The rehearsal runs after landing, per
-  §4.
-  **STATUS 2026-09-28:** ✅ `823259f`: the version, the lock, the README status line and
-  `SECURITY.md` at `1.0.0`. The CHANGELOG's `1.0.0` entry names what 1.x keeps: the six MCP
-  tools and reply schema 2, the eight commands and their exit status, the Results Folder's
-  files and schemas, `fp_version` 1, the three Statuses, both settings files and protocol
-  2; the deprecated names keep working through 1.x, and the code and documents that said
-  "for one release" say so. D17 is measured in `docs/acceptance/r7.md`, four criteria of
-  five; the agent pass is not (below). One defect found on the way, fixed: `doctor`
-  declared `readOnlyHint: true` and "changes nothing" while it removes the containers of
-  ended scans (R3.6), and its image line named the deprecated `valvur cache --prune`.
+**Exit:** the baseline recorded on both lanes, the harness's tests green, and each track's
+duration recorded, the release's share by R9.6's rule.
 
-**Exit:** the acceptance set fully green on both lanes, every `until` resolved, and D17 met.
+### Phase R10: trust fixes, and the false positives users see first
 
-**Exit STATUS 2026-09-28** (`docs/acceptance/r7.md`):
-- **The acceptance set, the Mac lane:** ✅ the image baked as `1.0.0`, host swap 13.6 GB:
-  every repository passes with nothing pending, repository 1 in 7.6 s, zero containers
-  after all four probes, and the e2e suite 51 passed. **Linux:** the `acceptance` check on
-  R7's PR; R6's commit passed there with nothing pending (#150, recorded in `r7.md`).
-- **Every `until` resolved:** ✅ nothing pending on either lane; the harness reads the
-  closed phases from their archive (R7.4).
-- **D17:** ❌ four criteria of five. The agent pass reached a correct report in six turns
-  or fewer on 3 of 8 repositories: five of eight answers named every expected finding,
-  and the three misses each describe a finding without the literal the scorer demands, a
-  path or a rule ID. The ledger stands at $22.51 of D19's $25; the $2.49 left pays for
-  less than a run, so by D19's fallback no further scoring runs in this build (§8).
-- **Addendum, the owner's decisions applied** (`docs/acceptance/r7.md`): with the rule
-  that a report names the rule ID and the path, the three repositories that missed name
-  every expected finding. D17's agent criterion: 5 of 8 in six turns or fewer, every
-  answer complete; still ❌ on turns (repositories 3, 4 and 8: 8, 9 and 7). The SBOM is
-  opt-in. The ledger closes at $24.60 of $25.
+- [ ] **R10.1** **A failed Scanner with nothing found reads `inconclusive`** (D30; F7.19).
+  Behaviours:
+  1. `api.scan` through `LocalRuntime`, one Scanner exiting non-zero, nothing found:
+     `inconclusive`, `status_reason` naming the Scanner;
+  2. `SUMMARY.md`, `run.json`, the MCP reply and `gate` agree;
+  3. with a finding, `findings` and *incomplete*, unchanged.
+- [ ] **R10.2** **Checkov without its secrets framework** (D31). Behaviours:
+  1. Checkov's invocation carries `--skip-framework secrets`;
+  2. e2e: R5's planted flood beside Terraform yields the secrets group once.
+- [ ] **R10.3** **Private npm registries** (D27; F3.15). Behaviours, one test each: a scope
+  bound in `.npmrc`; a scope bound in `.yarnrc.yml`; a whole-registry `registry=`; no
+  configuration, whose message names the index's build date.
+- [ ] **R10.4** **Private Python indexes** (D27). Behaviours, one test each:
+  `--extra-index-url` in a requirements file; `--index-url` alone; `pip.conf` in the tree;
+  a supplemental and an explicit uv index; Poetry's `supplemental` and `explicit` sources;
+  a `Pipfile` `[[source]]`.
+- [ ] **R10.5** **What the README and the pipeline example claim.** Behaviours:
+  1. the README's quick start names Docker or Podman as a prerequisite;
+  2. the platform table says what CI tests on each architecture, until D38's leg lands;
+  3. the agent paragraph states R7's final record, every answer naming every expected
+     finding;
+  4. `docs/examples/github-actions.yml` caches the valvur cache with a pinned
+     `actions/cache`, and the test that runs it still passes.
+- [ ] **R10.6** **Wall-clock tests marked** (D35). Behaviours: every test asserting on
+  wall-clock time carries `timing`, registered in `pyproject.toml`; the unit suite selects
+  none; CI's e2e job and the phase exits run them. §3's command and `CLAUDE.md` then read
+  `-m "not e2e and not timing"`.
 
-### Phase R8: the image as a pipeline step
+**Exit:** the Score on both lanes: tracks 3, 5 and 8 at or above the baseline, and the
+honesty gate green; track 5's private-registry cases scored.
 
-The first commit records R7's rehearsal.
+### Phase R11: fresh data
 
-- [x] **R8.1** **The image scans on its own** (D15; F1.10). `valvur scan` runs inside the
-  image on a mounted or cloned checkout, needing no socket. Behaviours:
-  1. e2e: `docker run` of the image on a checkout writes the Results Folder to a mounted
-     output directory.
-  2. No cloud-specific code path exists: F1.10's test still holds.
-  **STATUS 2026-09-28:** ✅ both. The image sets `VALVUR_IN_IMAGE` and carries a `valvur`
-  command; inside it `for_scan()` is `ImageRuntime`, the Scan Container's engine run as a
-  process with the job's cache at `/cache`, Trivy's database fetched by the image's own
-  Trivy. `scan --out DIR` writes `.security-scan/` under DIR for a read-only checkout, and
-  `gate`, `findings` and `status` read DIR. With no `git` in the image a checkout is walked
-  and history is not read, each said. `run.json`'s `network.boundary` names the job's
-  container and whether it had a network, and on `offline` with one the Summary says that
-  `--network=none` makes the guarantee structural; `doctor` in the image needs no runtime.
-  `tests/test_image_scans_alone.py`'s e2e test runs the image with `--network=none` on a
-  read-only checkout: the planted secret, a CVE in `requirements.txt` and a non-empty SBOM
-  come back in `/out`, and the checkout is untouched. Measured on acceptance repository 2
-  (`docs/acceptance/r8.md`): the host's 96 findings, two notes and 16 SBOM components, in
-  17.2 s. The first run found three defects, fixed: reports named the engine's temporary
-  workspace, Syft's `dir:/workspace` went unmapped, and down tunnel devices read as a
-  network. F1.10's test passes unchanged: nothing added names a cloud.
-- [x] **R8.2** **A GitHub Actions container job**: a workflow example and a CI test that runs
-  it. A GitLab snippet goes in the docs.
-  **STATUS 2026-09-28:** ✅ `docs/examples/github-actions.yml`: a job on the runner whose
-  steps `docker run` the image, fetching with a network, scanning with `--network=none`
-  into a mounted directory, and gating. Not a `container:` job: GitHub's JavaScript
-  actions, `actions/checkout` among them, do not run in an Alpine job container, and the
-  image has no `git`. `tests/test_pipeline_example.py` runs its three `run:` blocks
-  against the image built from the tree, in CI's e2e job: 40.6 s here from an empty
-  cache, complete. It found a defect, fixed: OSV's databases were fetched only by a
-  scan, so a scan with no network failed OSV-Scanner and the gate; `valvur update PATH`
-  now fetches them for PATH's lockfiles. `docs/examples/gitlab-ci.yml` is the GitLab
-  job, the image as its container, a documented shape not run here. A test holds both
-  examples to the version's image tag.
-- [x] **R8.3** **A mirror in the customer's own registry.** Behaviours:
-  1. A CI test mirrors the image, the database and the index into a local OCI registry,
-     standing in for ECR.
-  2. A scan with the mirror settings completes with `left this machine: nothing`.
-  3. `AIR-GAPPED.md` gains the ECR steps.
-  **STATUS 2026-09-28:** ✅ all three. `tests/test_customer_mirror.py`, in the e2e suite:
-  a pinned `registry:2` on an `--internal` network holds the image, the database and the
-  index; KEV and OSV's PyPI database are files on a server beside it; the image run there
-  with the mirror settings updates and scans, complete and `clean`, `what_left_the_machine:
-  nothing`, nothing fetched during the scan, and nothing left behind. 68 s on this Mac. The
-  image is pushed from `docker save`'s OCI layout and verified by digest, since Docker
-  Desktop's daemon cannot reach a registry on the Mac's loopback; on Linux it is pulled
-  back and scanned from. `AIR-GAPPED.md` gains the ECR steps, a documented shape: valvur
-  fetches the index, KEV and OSV anonymously, so in ECR those are files served inside the
-  account. The measured AWS run stays the owner's (§8).
-- [x] **R8.4** **The build's summary**, written as this task's STATUS: what shipped, the
-  acceptance numbers against R2's baseline, the cost of agent scoring, and what §8 holds.
-  **STATUS 2026-09-28, the build's summary.** Nine phases in two days, unattended, each
-  closed by a phase commit and a PR stacked on the last.
+- [ ] **R11.1** **KEV's age is its catalog's** (D23; F6.12). Behaviours:
+  1. the bundled snapshot reads 2026-08-27's age however recently the file was written;
+  2. between the cache and the bundle, the newer catalog wins, not the newer file;
+  3. `run.json` records KEV's catalog date, age and source; `doctor` shows them.
+- [ ] **R11.2** **Every dataset's age is its data's** (D23). Behaviours: an OSV fetch
+  records `Last-Modified` in a sidecar and its age is read from it; a source with no date
+  reads *fetched* on every surface.
+- [ ] **R11.3** **A scan refreshes past D24's thresholds** (F10.9). Behaviours, through
+  `tests/fake_registry.py`:
+  1. the index and KEV past two days are refreshed, announced and recorded under
+     `network.fetched`;
+  2. within the threshold nothing is fetched;
+  3. `fetch = "never"` fetches nothing;
+  4. a failed refresh keeps the old data and says so, and the verdict thresholds decide.
+- [ ] **R11.4** **EPSS from FIRST's daily file** (D25; F6.13). Measure the file's size and
+  host first. Behaviours:
+  1. `valvur update` fetches it into the cache; `epss_url` names a mirror;
+  2. on `offline`, a finding's EPSS comes from the file, and the README's ranking example
+     ranks the same on `offline` as on `full`;
+  3. on `full`, no request reaches FIRST's API: the egress test lists only the file's host;
+  4. `egress.py`, `verify-offline.py` and `verify-mirror.py` know the new hosts, the file's
+     and its redirect's, and nothing else.
+- [ ] **R11.5** **The malicious list, published daily** (D26; F3.14). Behaviours:
+  1. `python -m valvur.name_index build-malicious` builds the sorted per-ecosystem lists
+     from a pinned fixture of OSV records;
+  2. `index.yml` builds, pushes as a candidate, signs, pulls back and compares it, and
+     tags it only then, as it does the index; nothing is pushed off `main`;
+  3. the reader answers name and version queries by bisection;
+  4. `dependency-reality` reports acceptance repository 8's `@hyperion-util/cookies` as
+     `valvur.dependency.malicious`, critical, merged with OSV-Scanner's `MAL-2023-1`: one
+     finding naming both Scanners;
+  5. a version-scoped entry flags only the locked version it names;
+  6. `valvur update` and a stale scan fetch it with the index; the Score's lanes build it
+     locally until `main` publishes it;
+  7. `retention.yml` keeps the `malicious` tags as it keeps the index's.
+- [ ] **R11.6** **Freshness on every surface.** Behaviours: `SUMMARY.md` gains one line of
+  each dataset's data age; the MCP reply carries them as fields; the Score's freshness
+  gate reads them from `run.json`.
 
-  *What shipped.* Four releases prepared, each waiting for the owner's tag:
-  - `0.6.0` (R1): the safety fixes for `0.5.0`'s users, on `main`, rehearsed.
-  - `0.7.0` (R3): the rebuilt engine. One Scan Container fed a Snapshot of the files git
-    would publish, the source never mounted, secrets read from history, one deadline and
-    one kill, and nothing outliving its owner (ADR-0021, ADR-0022).
-  - `1.0.0` (R4 to R7), with its stability claim:
-    - the Scanner set by measured rule: zizmor, Checkov only where there is
-      infrastructure, OSV-Scanner offline for its `MAL-` data (ADR-0023);
-    - the report: groups, a summary that leads with what matters, local agent
-      configuration that would leak, hygiene, and 41 borrowed injection patterns;
-    - the agent surface: `scan` returns the result, reply schema 2, one `findings`
-      tool, fresh data without a terminal, two settings files, `init` and a schema;
-    - the documents as built, every README number from the acceptance set.
-  - `1.1.0` (R8): the image as a pipeline step, examples run on every commit, and a
-    mirror in the customer's own registry measured on every commit.
+**Exit:** the freshness and ranking gates green on both lanes; tracks 4 and 5 at or above
+the baseline.
 
-  *The acceptance set against R2's baseline* (`docs/acceptance/r2.md` to `r8.md`):
+### Phase R12: `check_package`, before the install
 
-  | | R2, Mac | now, Mac (R8) | R2, Linux | now, Linux (R7) |
-  |---|---|---|---|---|
-  | repository 1, the gate's shape | 166.2 s | 7.5 s | 105.4 s | 8.1 s |
-  | the other application repositories | 5.3 to 10.6 s | 5.7 to 17.8 s | 2.7 to 6.6 s | 3.8 to 18.4 s |
-  | repository 5, Checkov on Terraform | 67.9 s | 61.0 s | 76.3 s | 114.2 s |
-  | expectations pending | 5, on four repositories | 0 | 5 | 0 |
-  | containers after the kill probe | 2 | 0 | 5 | 0 |
+- [ ] **R12.1** **The API** (D28; F3.16). Behaviours, one test each: `exists`,
+  `nonexistent`, `near-miss` with its suggestion, `malicious` with its ID, `confusion` and
+  `not-public` given the project's registry configuration, `unknown` for JVM and Go; a
+  batch of 50; no socket opened (the conftest guard); under a second for 50 (`timing`).
+- [ ] **R12.2** **The CLI, `valvur check`.** Behaviours: the exit status per D28; `--json`;
+  the help fixture and the documented-commands test updated.
+- [ ] **R12.3** **The MCP tool** (F9.11). Behaviours:
+  1. `check_package` is listed with its schema and annotations, read-only, not open-world;
+  2. a reply of 50 packages stays bounded and carries `structuredContent`;
+  3. the handshake's instructions and `SUMMARY.md`'s agent block say to call it before
+     adding a dependency; `init`'s block says so too;
+  4. the README and `doctor` say seven tools.
+- [ ] **R12.4** **Track 5 through `check_package`.** Behaviour: the package-reality track
+  scores the same cases through the tool as through a scan, both reported.
+- [ ] **R12.5** **Agent scenarios** (D36; ≤ $10). Behaviour: `scripts/acceptance/agent.py`
+  gains four scenarios, *add package X to this project*, for a hallucinated, a near-miss,
+  a malicious and a real package, run with `--disallowedTools Bash`. One passes when the
+  agent called `check_package`, and the manifest is unchanged for the first three and
+  changed for the fourth. Turns and cost recorded.
 
-  Repository 1 is 22 times faster on the Mac and 13 on Linux, because the File Set never
-  reads its 100,000 ignored files. The other repositories are slower where OSV-Scanner
-  loads npm's database, about ten seconds a scan, for the `MAL-` data it alone carries;
-  R4's speed exit missed by that and is in the queue below. The probes take longer
-  because each now waits until the runtime confirms the containers gone.
+**Exit:** track 5 at D22's target through both paths; the scenarios recorded.
 
-  *Agent scoring* cost $22.51 of D19's $25: R2's baseline $7.15, R6.1's spike $0.95, R6's
-  two runs and two traced runs $9.94, R7's run $4.47. A correct report in six turns or
-  fewer: 0 of 8 at R2 (7 to 17 turns), 4 of 8 at R6, 3 of 8 at R7 (3 to 9 turns). Every
-  miss since R6 is an answer that describes a finding without the path or rule ID the
-  scorer wants; that choice is the owner's.
+### Phase R13: static analysis, widened against the benchmark
 
-  *What §8 holds:* landing R2 to R8 in order; the four tags, each after its rehearsal
-  on the landed commit; four decisions (the agent criterion, R4's speed exit, D9 and
-  the SBOM, `init --write`); the gate with a person; Kiro's GUI pass; the measured AWS
-  run; a second maintainer; the runner move after 2026-11-19; and memory on the build
-  Mac. The build's schedules are deleted; nothing resumes it.
+- [ ] **R13.1** **The rule source, audited** (D29; F2.9). Behaviours:
+  1. `tests/eval/sources.toml` pins `sast-rules` by commit;
+  2. a manifest lists every candidate rule's path, languages, CWE and the origin project
+     its metadata names, with that project's licence;
+  3. a test refuses any vendored rule whose origin is not MIT, Apache-2.0 or BSD.
+- [ ] **R13.2** **Each rule measured.** Behaviour: `scripts/eval.py --per-rule <dir>`
+  reports each rule's true and false positives over tracks 1 and 2 and the corpus, and its
+  time; the measurement of every candidate is recorded in the STATUS.
+- [ ] **R13.3** **The rules that pass, shipped.** Behaviours:
+  1. `rules/vendor/gitlab/` holds exactly the rules meeting D29's bar, with the licence,
+     the commit and the manifest; `NOTICE` credits it;
+  2. the image carries them, and `run.json` names the rule set's commit;
+  3. e2e: a planted SQL injection in a JavaScript file is reported by a vendored rule.
+- [ ] **R13.4** **CWE on findings** (F5.10). Behaviours: `findings.json` and SARIF carry
+  `cwe` when the rule declares one; the findings schema's own rule for additions decides
+  whether its version moves; ranking and grouping are unchanged.
+- [ ] **R13.5** **Cross-function taint.** Measure first. Behaviour: adopted per D29, or the
+  measurement recorded and nothing changed.
+- [ ] **R13.6** **The speed guard.** Behaviour: Opengrep's median time on the acceptance set
+  within 130% of R9's, pruning the slowest rules until it is.
+- [ ] **R13.7** **The claims, from the measurement.** Behaviour: the README's static-analysis
+  paragraph and `EVALUATING.md` state tracks 1 and 2 as measured and nothing beyond them;
+  `test_readme_as_built.py` holds the numbers.
 
-**Exit:** the pipeline-step and mirror e2e tests green, and both schedules deleted.
+**Exit:** tracks 1 and 2 at D22's targets or recorded as missed; track 8 at or above 80;
+the speed guard met.
 
-**Exit STATUS 2026-09-28** (`docs/acceptance/r8.md`):
-- **The pipeline-step and mirror e2e tests green:** ✅ on the Mac, in the e2e suite's 54
-  passed; Linux is R8's PR, whose e2e job runs the same three tests.
-- **Both schedules deleted:** ✅ the in-session hourly resume and the durable
-  `valvur-build-resume` task, at this commit's close.
-- The acceptance set on the Mac: every repository passes with nothing pending, zero
-  containers after all four probes.
+### Phase R14: reuse what cannot have changed
+
+- [ ] **R14.1** **Measure.** Each Scanner's warm time on the acceptance set, both lanes,
+  recorded as the before.
+- [ ] **R14.2** **The reuse key** (D32; N1.5). Behaviours, one test each: a lockfile's byte
+  change, the database's built time, the Scanner's version and the Profile each change the
+  key; a source file's change does not.
+- [ ] **R14.3** **Reuse in a scan.** Behaviours:
+  1. through `LocalRuntime`, a second scan of an unchanged repository 8 runs neither Trivy
+     nor OSV-Scanner, and its fingerprints equal the first's;
+  2. `run.json` names each reused result and its run;
+  3. `--fresh` and `fresh: true` run everything.
+- [ ] **R14.4** **The reused results' home.** Behaviours: under the host cache and its
+  lock; `update --prune` removes those of superseded keys, `--clear` all; nothing is
+  written in the Workspace but the Results Folder.
+- [ ] **R14.5** **The after.** Behaviour: a warm rescan of repository 8 is at least 30%
+  faster on both lanes, or D32's fallback is applied and recorded; the speed gate is judged
+  from here on.
+
+**Exit:** the speed gate green; the Score with reuse equals the Score with `--fresh`, run
+back to back.
+
+### Phase R15: less drag, the documents as built, and 1.2.0 prepared
+
+- [ ] **R15.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
+  `ubuntu-24.04-arm`, green, or D38's fallback applied.
+- [ ] **R15.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
+  every version surface `test_version.py` reads; `--published` flips the README's wording;
+  a dry run changes nothing.
+- [ ] **R15.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
+  compares `main`'s pins with the latest release's by `test_scanner_pins.py`'s parser;
+  runs the Score; opens one issue; a test holds its schedule and permissions.
+- [ ] **R15.4** **The documents as built.** The README (the Score and its tracks, freshness,
+  `check_package`, seven tools, nine commands), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS
+  and malicious-list mirrors), `PROTOCOL.md`, `design.md` and `requirements.md`, amended;
+  `CLAUDE.md` within 200 lines; R9 to R14 moved to `docs/history/tasks-phases-r9-r15.md`.
+  Behaviours: traceability holds; the link check passes; `test_readme_as_built.py` passes.
+- [ ] **R15.5** **`1.2.0` prepared** (D37). `prepare_release.py 1.2.0`; the Score on both
+  lanes against R9's baseline and D22's targets, recorded; the rehearsal on R15's branch
+  per §4, validated and cancelled at the brake.
+- [ ] **R15.6** **The build's summary**, written as this task's STATUS: what shipped, the
+  Score at R9 and now per track, the cost of agent runs, and what §8 holds.
+
+**Exit:** the Score recorded on both lanes against the baseline, the rehearsal green, and
+both schedules deleted.
 
 ---
 
 ## 8. The owner queue
 
-Nothing here blocks the build. The executor adds a row when an item becomes ready.
+Nothing here blocks the build. The executor adds a row when an item becomes ready. The
+rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phases-r7-r8.md).
 
 | item | ready after | what the owner does |
 |---|---|---|
-| ~~`v0.6.0`~~ **released 2026-09-29** | R1 | the owner's signed tag on `bbf77ef`, run 36535100652, approved at the brake |
-| ~~land R2 to R7, #145 to #151~~ **landed 2026-09-29** | R1 | one fast-forward of `main` to `f1016e2`, the owner's approval in the session's manual mode |
-| ~~`v0.7.0`~~ **released 2026-09-29** | R3 | rehearsal 36539751736 on `853af0e`, then the signed tag, run 36544552477, approved at the brake |
-| ~~`v1.1.0`~~ **released 2026-09-29** | R8 | rehearsal 36574050016 on `bebfa7c`, then the signed tag, run 36585829159, approved at the brake |
-| ~~`v1.0.0`~~ **released 2026-09-29** | R7 | the first rehearsal, 36544594332, failed in its whole-suite step: a test left `runner.IMAGE` at the unpublished tag for the tests after it. Fixed by #156, landed as `7682643`; rehearsal 36557790800 green, then the signed tag, run 36560663805, approved at the brake |
-| the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
-| Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/acceptance/` |
-| a self-hosted Mac runner, optional | R2 | register one with the label `docker-desktop` |
+| land this list | now | the owner's approval of one fast-forward of `main` to the commit that adds it: `scripts/build_status.py` reads `main`, and the build starts from there |
+| land R9 to R15 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
+| `v1.2.0` | R15 landed | the signed tag on the landed commit, then the approval at the brake |
+| D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
+| a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
+| the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
+| Kiro's GUI pass | now | one scan through Kiro, recorded in `docs/acceptance/` |
+| a self-hosted Mac runner, optional | now | register one with the label `docker-desktop` |
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
-| AWS measured runs: ECR mirror and CodeBuild (F1.10) | **ready**: R8 closed; the ECR steps are in `AIR-GAPPED.md`, the pipeline step in `docs/examples/` | run once in an AWS account and record the numbers |
-| ~~`init --write`~~ **decided 2026-09-28: yes** | R6 | the owner approved `init` writing files into the project (CLAUDE.md §10); built in R8, `init --write`, an addition in `1.1.0`: never overwrites (`tests/test_init_write.py`) |
-| free disk on the build Mac | now | memory was freed on 2026-09-29 by quitting Docker Desktop, which held a 4 GB VM: free memory 29% to 41%, swap 9.8 GB to 7.1 GB on this 8 GB Mac. Left: `docker builder prune`, with Docker running, reclaims about 21 GB of build cache |
-| ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
-| ~~pre-approve the durable resume task~~ **moot 2026-09-28** | R0 | the build finished and its schedules are deleted |
-| ~~land R3, #146, and R4, #148~~ **landed 2026-09-29** | R2 | in the fast-forward above |
-| ~~R4's speed exit, missed~~ **decided 2026-09-28: accepted** | R4's exit | the fastest application-repository scan on Linux stays 63% of R2's baseline, not half; no task follows |
-| ~~land R5, #149~~ **landed 2026-09-29** | R4 | in the fast-forward above |
-| ~~land R6, #150~~ **landed 2026-09-29** | R5 | in the fast-forward above |
-| ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so; re-run on the three that missed, every answer names every expected finding, and 5 of 8 fit six turns (`docs/acceptance/r7.md`). Agent scoring ended at $24.60 of $25 |
-| ~~land R7, #151~~ **landed 2026-09-29** | R6 | in the fast-forward above, then #156, the test fix, as `7682643` |
-| ~~land R8, #153~~ **landed 2026-09-29** | R7 | rebased onto `7682643`, then fast-forwarded to `bebfa7c`. #153 superseded #152 |
-| ~~the MCP tools `list_findings` and `explain_finding`~~ **done** | R6 (removed) | nothing to do: the removal is in the CHANGELOG, which says to allow `findings` instead |
-| ~~D9 and the SBOM~~ **decided 2026-09-28: the SBOM is opt-in** | R4.4 | Syft runs, and the dependency licence policy (F4.4 to F4.6) with it, when a scan asks: `--sbom`, or `sbom = true` under `[scan]`. In `1.0.0`, whose Results Folder contract says so |
+| AWS measured runs: ECR mirror and CodeBuild (F1.10) | now | run once in an AWS account and record the numbers; the steps are in `AIR-GAPPED.md` and `docs/examples/` |
+| free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
+| a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
-| a scan with a failed Scanner can read `clean` | backlog (R4, `docs/acceptance/r5.md`) | the Status is `clean` beside `complete: false` when a Scanner failed and nothing was found. The gate fails such a run and every surface says *incomplete*, but the verdict word could say `inconclusive` instead. Decide whether it should |
-| a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare, since a person or agent cancels seconds in; a fix would queue the cancel for the job about to start |
-| Checkov's secrets check reports a data-file flood twice | backlog (R5) | on a repository with infrastructure, Checkov's secrets framework reports the same machine-written flood Gitleaks does, so the group appears twice. Excluding Checkov's secrets framework, since Gitleaks owns secrets, would remove the duplicate |
-
-## 9. Where the earlier IDs went
-
-| first version, 2026-09-27 | here |
-|---|---|
-| 31.1 to 31.6 | R1.1 to R1.5, R1.7 |
-| 31.7 | R1.8 |
-| 32.1 to 32.6 | R2.1 to R2.6 |
-| 33.1 | R0.5 |
-| 33.2 to 33.8 | R3.1 to R3.9 |
-| 34.1 to 34.5 | R4.1 to R4.5 |
-| 34.6 | R3.7 |
-| 35.1 to 35.4 | R5.1 to R5.4 |
-| 36.1 to 36.7 | R6.1 to R6.4, R6.5, R6.6, R6.9 |
-| 37.1 to 37.3 | R7.1, R7.2, R7.4 |
-| 37.4 to 37.7 | §8 |
-| Phase 30's seven, from the second gate | R1.1, R1.2, R1.5, R5.1, R6.9, R6.2, R6.5 |
-| C10, git history | R1.7, R3.7 |

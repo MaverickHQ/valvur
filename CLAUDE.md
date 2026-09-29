@@ -1,9 +1,8 @@
 # CLAUDE.md
 
-> For any agent or human joining with no prior context. **Budget: under 200 lines** of
-> rules, decisions and current focus; history goes to `CHANGELOG.md`, the ADRs and
-> `docs/history/`, where [the text this replaced](docs/history/CLAUDE-2026-09-27.md) is kept.
-> **Name:** `valvur` (Estonian: *guard, watchman*).
+> For any agent or human joining with no prior context. **Budget: under 200 lines** of rules,
+> decisions and current focus; history goes to `CHANGELOG.md`, the ADRs and `docs/history/`
+> ([the text this replaced](docs/history/CLAUDE-2026-09-27.md)). **Name:** `valvur` (Estonian: *guard*).
 
 ## 1. What this is, and where it stands
 
@@ -13,19 +12,15 @@ agent-readable Results Folder into the project. Primary surface: an **MCP server
 Claude Code or Kiro (ADR-0015); second, the CLI. One OCI image on Docker or Podman,
 launched by a small host shim. **The goal every change is judged against:** from an agent
 session, one request scans the project and writes a report into it that is fast, complete or
-honest about why not, and trustworthy. Locally.
+honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
+`scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-09-29).**
-- `1.1.0` is published: PyPI, GHCR on both architectures, signed and attested. `0.6.0`,
-  `0.7.0` and `1.0.0` were released the same day, each rehearsed on its commit first.
-- The build, R0 to R8, has landed on `main`, as the owner accepted
-  [the review](docs/history/REVIEW-2026-09-27.md); its PRs are merged.
+**Status (2026-09-29).** `1.1.0` is published, signed and attested; the R0 to R8 build has
+landed. [The review of 2026-09-29](docs/history/REVIEW-2026-09-29.md) found the code AI
+writes thinly covered, threat data up to a month old, and accuracy never measured.
 
-**Next:** nothing is open in [`tasks.md`](.kiro/specs/valvur/tasks.md); its §8 holds the
-owner's remaining items, and R8.4's STATUS is the build's summary.
-
-**Size, 2026-09-28:** 89 modules, 1,562 tests in 142 files, 25 ADRs, 136 requirement IDs,
-traceability debt zero, no open tasks.
+**Next:** Phases R9 to R15 of [`tasks.md`](.kiro/specs/valvur/tasks.md), unattended: the
+Score's baseline, trust fixes, fresh data, `check_package`, static analysis, reuse, `1.2.0`.
 
 ## 2. What it is NOT
 
@@ -75,7 +70,7 @@ new argument.
 | 0003 | Per-class Finding identity; `fp_version` is a compatibility surface. |
 | 0004 | Opengrep, not Semgrep (rule licensing). |
 | 0005 | No GPL tool added to the image. This is why `git` is not in it. |
-| 0006 | No graph database. |
+| 0006 | No graph database (and 0014: no HTML report). |
 | 0007 | Enrichment is internal: KEV bundled, EPSS on demand. VulnGraph is parked, never a dependency. |
 | 0008 | No SaaS-coupled dependency. |
 | 0009 | Human-in-the-loop remediation (§4). |
@@ -83,7 +78,6 @@ new argument.
 | 0011 | Scan output never enters git, on any branch. |
 | 0012 | The vulnerability database lives outside the image, in the host cache. |
 | 0013 | valvur's own Checks run inside the container. |
-| 0014 | No HTML report. |
 | 0015 | MCP stdio hand-rolled, zero dependencies. |
 | 0016 | Two Profiles split on the network boundary: `offline` (default) and `full`. |
 | 0017 | SELinux relabelling of the source is opt-in. Moot since R3.9: the source is never mounted. |
@@ -91,8 +85,9 @@ new argument.
 | 0019 | One image with Checkov in it. Reopened by task 34.1, on the ADR's own stated condition. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
 
-**Agreed by the owner on 2026-09-27, written by R0.5.** Every other decision the build
-needs is in `tasks.md` §5, each with its fallback.
+**Agreed by the owner:** 0021 to 0025 on 2026-09-27, written by R0.5; 0026 to 0030 on
+2026-09-29, written by R9.2 from `tasks.md` §5, where every other decision the build needs
+is, each with its fallback.
 
 | ADR | decision |
 |---|---|
@@ -101,6 +96,11 @@ needs is in `tasks.md` §5, each with its fallback.
 | 0023 | The Scanner set, by rule; amended with R4.1's measurements |
 | 0024 | `scan` returns the result, with progress, instead of start-and-poll |
 | 0025 | A scan refreshes stale data as it fetches absent data; `fetch = "never"` for air-gapped use |
+| 0026 | The Score: eight tracks, TPR minus FPR, a ratchet no track may fall 2 points under |
+| 0027 | Every dataset's age is its data's; index, KEV and EPSS refreshed past 2 days; EPSS from FIRST's daily file; `MAL-` names published daily |
+| 0028 | `check_package`, offline, before an install; private registries and dependency confusion |
+| 0029 | Static-analysis rules from licence-audited sources, each shipped only on measured precision |
+| 0030 | Trivy's and OSV-Scanner's results reused when their inputs and data are unchanged |
 
 ## 7. The Results Folder
 
@@ -156,20 +156,20 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 - **Test-driven, in vertical slices** (the `tdd` skill; `tasks.md` §3): each task lists its
   behaviours in test order, one red-to-green slice and one commit each, for example
   `feat(r3.4): …`. Never refactor while red. Fake only the container runtime and the network.
-- **Every phase ends with a phase commit**, `chore(r<n>): close phase R<n>, …`, and lands
-  by one PR (`tasks.md` §4). Commit messages must pass the Conventional Commits hook.
+- **Every phase ends with a phase commit**, `chore(r<n>): close phase R<n>, …`, and one PR
+  (`tasks.md` §4). Commit messages must pass the Conventional Commits hook.
 - **Unattended** (`tasks.md` §1 and §2): the build runs without the owner and, after a
-  usage limit, resumes through the schedules R0.1 arms. Owner-only steps wait in its §8.
-- **Landing.** `main` is protected (six required checks, signed commits, linear history). A
-  phase lands by fast-forward, `git push origin refs/remotes/origin/<branch>:refs/heads/main`.
-  Auto mode's classifier refuses that push and a tag push; in manual approve mode the
-  owner approves each one, as on 2026-09-29. A merged PR's branch is deleted.
-- **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider`
-  after clearing `__pycache__`; `-m "not e2e"` unless the container is the point. Scans and
-  e2e use `VALVUR_CACHE=~/.cache/valvur-build VALVUR_IMAGE=valvur:dev`. Never remove the
-  owner's `~/.cache/valvur` or pulled `ghcr.io/maverickhq/valvur:*` images.
-- **The acceptance set judges** (R2, `scripts/acceptance.py`): a phase's exit is measured
-  on this Mac through Docker Desktop and on Linux.
+  usage limit, resumes through the schedules R9.1 arms. Owner-only steps wait in its §8.
+- **Landing.** `main` is protected (six required checks, signed commits, linear history); a
+  phase lands by fast-forward. Auto mode refuses that push and a tag push, so the executor
+  never makes them: phases stack, and the owner approves the landing in manual approve mode.
+- **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider`,
+  `-m "not e2e"` unless the container is the point; scans use `VALVUR_CACHE=~/.cache/valvur-build
+  VALVUR_IMAGE=valvur:dev`, never the owner's `~/.cache/valvur` or pulled `ghcr.io` images.
+- **The acceptance set and the Score judge** (`scripts/acceptance.py`, `scripts/eval.py`): a
+  phase's exit is measured on this Mac and on Linux. **After R9, a change to detection,
+  ranking, data or the reply** runs `scripts/eval.py --compare tests/eval/baseline.json` before
+  its PR, which carries the Score; a track over 2 points under its baseline blocks it.
 - **Releases** follow `docs/RELEASING.md`. The executor prepares and rehearses; the signed
   tag and the approval at the brake are the owner's. The tool scans itself, clean, first.
 - **Documents an agent can hold:** this file under 200 lines; comments state invariants;
@@ -178,7 +178,8 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 ## 10. Prohibited without explicit owner approval
 
 - Any network call in the `offline` Profile beyond the approved, recorded fetches of public
-  data: absent data since 24.1, stale data under ADR-0025.
+  data: absent data since 24.1, stale data under ADR-0025, and KEV's and EPSS's daily files
+  and the malicious list under ADR-0027 (the owner, 2026-09-29).
 - Any dependency requiring an account, API key or token.
 - Any feature that writes to the scanned source tree. The exceptions: the Results Folder,
   and `init --write` (the owner, 2026-09-28), which never overwrites.
@@ -189,10 +190,9 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 ## 11. Things that cost a day to learn
 
 - Killing `docker run` does not stop its container. Stop by name or label; confirm gone.
-- Claude Code gives a stdio tool call a 30-minute idle window, moves a call to the
-  background after two minutes, and hands the model only `structuredContent` when a reply
-  has both forms. It sets `CLAUDE_PROJECT_DIR` and answers `roots/list`. It does not
-  health-check a project server until the user approves it.
+- Claude Code gives a stdio tool call a 30-minute idle window, backgrounds it after two
+  minutes, and hands the model only `structuredContent` when a reply has both forms. It sets
+  `CLAUDE_PROJECT_DIR`, answers `roots/list`, and health-checks a project server only once approved.
 - GitHub's macOS runners cannot run containers (measured 2026-09-22).
 - Listing 109,521 files: 1.6 s on a Mac's host, 16.6 s through Docker Desktop's mount.
 - The release constraint suite may not shrink below 48 tests (54 since R3); a new test that
