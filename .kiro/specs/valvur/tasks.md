@@ -245,12 +245,25 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
   `tests/test_task_list_shape.py`: `shape_errors` in `build_status.py` reports a task under
   another phase's heading and a gap in a phase's numbering, and the live file has neither.
   Renumbering R9.2 to R9.9 fails the test.
-- [ ] **R9.2** **The decisions written.** ADR-0026 (D21, D22), ADR-0027 (D23 to D26),
+- [x] **R9.2** **The decisions written.** ADR-0026 (D21, D22), ADR-0027 (D23 to D26),
   ADR-0028 (D27, D28), ADR-0029 (D29), ADR-0030 (D32) and ADR-0031 (D39 to D41), each
   citing the requirement IDs it adds to `requirements.md`: N4.1 to N4.4; F6.12, F6.13,
   F10.9, F3.14; F3.15, F3.16, F9.11; F2.9, F5.10; N1.5; F9.12, F9.13. `design.md` 1.4 names
   the modules to come. Behaviour:
   `check_traceability.py`: 0 uncited, 0 orphan ADRs.
+  **STATUS 2026-09-29:** ✅ `check_traceability.py`: 0 uncited, 0 orphan ADRs, 153 IDs, 31
+  ADRs. Adding the IDs first turned it red on N4.1 to N4.4 and the rest; the ADRs turned it
+  green. Each ADR carries the decisions it records, what it amends and what it rejected:
+  - ADR-0026, the Score;
+  - ADR-0027, data ages and freshness, amending ADR-0025, ADR-0007 and ADR-0018;
+  - ADR-0028, private registries and `check_package`;
+  - ADR-0029, rules by licence and measurement, amending ADR-0004;
+  - ADR-0030, reuse;
+  - ADR-0031, the skill, which records the harness, the history and Laya as dropped by the
+    owner.
+
+  Each new ID says *added by R9.2, to be met by* its task. F6.3 is amended to point at
+  F6.13. `design.md` 1.4 §11 maps each module to its phase and ADR.
 - [ ] **R9.3** **The harness** (D21; N4.1, N4.2). `scripts/eval.py`, the package
   `scripts/eval/`, and `tests/eval/`. Behaviours:
   1. the formula: a hand-built `findings.json` and case list score each category's TPR

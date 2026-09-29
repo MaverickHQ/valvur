@@ -1,6 +1,6 @@
 # valvur — Design
 
-**Status:** approved for implementation · **Version:** 1.3 · **Date:** 2026-08-30, revised 2026-09-22 (tasks 26.2.1–26.5.2, 27.1.2, 27.2.2) and 2026-09-28 as built through R6 (R7.2)
+**Status:** approved for implementation · **Version:** 1.4 · **Date:** 2026-08-30, revised 2026-09-22 (tasks 26.2.1–26.5.2, 27.1.2, 27.2.2), 2026-09-28 as built through R6 (R7.2), and 2026-09-29 with the modules R9 to R16 add (R9.2, §11)
 
 Implements [requirements.md](./requirements.md). Decisions marked ADR-NNNN are
 recorded in [docs/adr/](../../../docs/adr/); this document does not re-argue them.
@@ -515,3 +515,21 @@ zero-width Unicode, an unpinned range, and a missing licence.
 Git rename detection for fingerprint continuity · full ScanCode copyright analysis ·
 TruffleHog verified secrets · GitHub Pages intel site · additional
 `EnrichmentProvider` implementations.
+
+## 11. Planned by R9 to R16 (2026-09-29)
+
+Named here by R9.2 so each phase builds into a known place. §1 to §8 describe each as it
+lands (R16.4).
+
+| module | what | phase | ADR |
+|---|---|---|---|
+| `scripts/eval.py`, `scripts/eval/`, `tests/eval/` | the Score: tracks, cases, scoring, the baseline, the corpus labels, pinned sources | R9 | 0026 |
+| `.github/workflows/eval.yml` | the Score on Linux, weekly and on dispatch | R9 | 0026 |
+| `ecosystems/registries.py` | private registry configuration read from the File Set | R10 | 0028 |
+| `enrichment.py`, `cache.py` | KEV's and EPSS's ages from their data; EPSS from the daily file | R11 | 0027 |
+| `name_index/malicious.py` | the malicious list: built, published beside the index, read by bisection | R11 | 0027 |
+| `packages.py`, `mcp/tools.py`, `cli.py` | `check_package`: the API, the MCP tool, `valvur check` | R12 | 0028 |
+| `rules/vendor/gitlab/` | licence-audited rules, each shipped on its measured precision | R13 | 0029 |
+| `reuse.py` | dependency Scanners' results reused under an exact key | R14 | 0030 |
+| `data/skills/valvur/`, `plugins/valvur/`, `powers/valvur/` | the skill, its Claude Code plugin and its Kiro power | R15 | 0031 |
+| `scripts/prepare_release.py`, `.github/workflows/refresh.yml` | a release prepared by one command; the monthly Scanner refresh | R16 | — |

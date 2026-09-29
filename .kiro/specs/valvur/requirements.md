@@ -215,6 +215,10 @@ that I do not maintain six toolchains myself.
    ok, Opengrep and Checkov cut at 20s, `complete: False`, no container left.*
 8. F2.8 — valvur SHALL preserve each **Scanner**'s unmodified output under `raw/`,
    subject to F5.7.
+9. F2.9 — valvur SHALL ship a static-analysis rule only from a source whose licence, and
+   the licence of the project the rule was translated from, is MIT, Apache-2.0 or BSD,
+   and only when the rule's measured precision on the Score's static-analysis tracks
+   and the corpus is at least 0.5 with at least one true positive. *Added 2026-09-29 (R9.2, ADR-0029), to be met by R13.*
 
 ## F3 — AI-specific Checks
 
@@ -345,6 +349,16 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
     reproduce an injection payload verbatim, we launder an attack out of a file the
     agent might never have opened into one we tell it to read. valvur must not become
     the delivery mechanism.*
+14. F3.14 — valvur SHALL report, offline, a declared or locked package named in a daily
+    published list of known-malicious packages, as critical, merged with any
+    **Scanner**'s finding for the same package. *Added 2026-09-29 (R9.2, ADR-0027), to be met by R11.5.*
+15. F3.15 — valvur SHALL read a project's private registry configuration and SHALL NOT
+    report a privately registered package as nonexistent; a name absent from the public
+    registry where a supplemental source is configured SHALL be reported as a
+    dependency-confusion exposure. *Added 2026-09-29 (R9.2, ADR-0028), to be met by R10.3 and R10.4.*
+16. F3.16 — valvur SHALL answer, offline and without any network connection, whether a
+    named package exists, is one edit from a popular name, is known-malicious, or is
+    exposed to dependency confusion, before it is installed. *Added 2026-09-29 (R9.2, ADR-0028), to be met by R12.*
 
 ## F4 — Licence analysis
 
@@ -407,6 +421,8 @@ tell me what I actually fixed, so that I can measure progress rather than noise.
    into a single **Finding** listing every reporting **Scanner**.
 9. F5.9 — WHEN no previous state exists, valvur SHALL assign every **Finding** a
    **Status** of `new`.
+10. F5.10 — WHEN a rule declares a CWE, the **Finding** SHALL carry it in `findings.json`
+    and SARIF. *Added 2026-09-29 (R9.2, ADR-0029), to be met by R13.4.*
 
 ## F6 — Enrichment and prioritisation
 
@@ -418,7 +434,9 @@ genuinely the most urgent thing, so that I fix what attackers actually exploit.
 2. F6.2 — valvur SHALL ship a CISA KEV snapshot inside the image, including the
    ransomware-campaign flag.
 3. F6.3 — WHERE network access is permitted, valvur SHALL retrieve EPSS scores for
-   only the CVEs present in the **Scan Run**.
+   only the CVEs present in the **Scan Run**. *Amended 2026-09-29 (R9.2, ADR-0027), to be met by
+   R11.4: superseded by F6.13, which reads EPSS from FIRST's daily file on every
+   **Profile** and sends no CVE identifier.*
 4. F6.4 — IF EPSS is unavailable, THEN valvur SHALL rank using KEV alone and SHALL
    record the degradation in **Provenance**.
 5. F6.5 — valvur SHALL rank **Findings** by **Exploit Signal** ahead of
@@ -442,7 +460,15 @@ genuinely the most urgent thing, so that I fix what attackers actually exploit.
     it contains, not from the file's modification time, and SHALL report that age in
     the **Results Folder**. *Added 2026-09-05 (task 14.1). An air-gapped mirror (F10.5)
     can serve a six-month-old database today; mtime would read as fresh, so the users
-    who most need the warning were guaranteed not to get it.*
+    who most need the warning were guaranteed not to get it.*12. F6.12 — valvur SHALL determine the age of every dataset a verdict or a rank rests on
+    (KEV, EPSS, OSV's databases, the **Name Index**, the malicious list) from the data
+    it contains, and SHALL label a source that carries no date as *fetched*, never
+    *built*. *Added 2026-09-29 (R9.2, ADR-0027), to be met by R11.1 and R11.2.* *KEV's age was its file's time: an
+    install on 2026-09-26 called the 2026-08-27 catalog three days old.*
+13. F6.13 — valvur SHALL read EPSS scores from FIRST's published daily file, held in
+    the host cache and mirrorable, on every **Profile**, and SHALL NOT send CVE
+    identifiers to a lookup service. *Added 2026-09-29 (R9.2, ADR-0027), to be met by R11.4.*
+
 ## F7 — Results contract
 
 **User Story:** As an AI coding agent, I want results in a bounded, self-describing
@@ -624,6 +650,13 @@ of fixes, so that nothing changes my code without my decision.
 10. F9.10 — MCP responses SHALL be bounded by default and SHALL state what was
     omitted. *Rationale: returning several thousand **Findings** into an agent's
     context is the problem F7.5 solved for `SUMMARY.md`, arriving by another door.*
+11. F9.11 — valvur SHALL expose the check of F3.16 as an MCP tool, `check_package`,
+    read-only and not open-world, and as a CLI command. *Added 2026-09-29 (R9.2, ADR-0028), to be met by R12.*
+12. F9.12 — valvur SHALL ship one skill in the open Agent Skills format that orchestrates
+    the workflow its tools serve, whose rules are the rules the MCP handshake and
+    `SUMMARY.md` carry, from one source. *Added 2026-09-29 (R9.2, ADR-0031), to be met by R15.1.*
+13. F9.13 — valvur SHALL distribute that skill as a Claude Code plugin carrying the MCP
+    server, as a Kiro power, and through `init --write`, never overwriting a file. *Added 2026-09-29 (R9.2, ADR-0031), to be met by R15.2 to R15.4.*
 
 ## F10 — Distribution
 
@@ -703,6 +736,11 @@ of fixes, so that nothing changes my code without my decision.
    *Met 2026-09-28 (R6.6): measured on the image, a database aged to eight days was
    refreshed by `valvur scan`, 123 MB in 29 s, recorded in `network.fetched`, and
    `database.age_days` read 0.03 after.*
+9. F10.9 — A **Scan Run** SHALL refresh the **Name Index**, the malicious list, KEV and
+   EPSS once older than two days, and the vulnerability database and OSV's databases
+   once older than seven, announcing and recording each fetch, unless `fetch =
+   "never"` is set; the thresholds that make a verdict `inconclusive` are unchanged.
+   *Added 2026-09-29 (R9.2, ADR-0027), to be met by R11.3.*
 
 ## Non-functional requirements
 
@@ -800,6 +838,10 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    On macOS the same sampler read a 493 MiB fleet peak and a 38 MiB shim on the
    ten-file fixture (2026-09-13), but through Docker Desktop's VM that is the VM's
    view, so the assertion is Linux-only and macOS keeps the hand measurement.*
+5. N1.5 — valvur SHALL reuse a dependency **Scanner**'s result when its version, the
+   **Profile**, every lockfile and manifest it reads and the database it reads are
+   unchanged, SHALL record each reuse in **Provenance**, and SHALL run everything when
+   asked. *Added 2026-09-29 (R9.2, ADR-0030), to be met by R15.*
 
 ### N2 — Security
 1. N2.1 — The `offline` **Profile** SHALL make no network connection, verified by an
@@ -831,6 +873,19 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
 2. N3.2 — valvur SHALL exit non-zero only on **Scan Run** failure, never on the
    presence of **Findings**.
 3. N3.3 — valvur SHALL prune `raw/` to the most recent N **Scan Runs**.
+
+### N4 — Evaluation
+*Added 2026-09-29 (R9.2, ADR-0026), to be met by R9.*
+
+1. N4.1 — valvur's detection SHALL be scored by one command, `scripts/eval.py`, over
+   labelled tracks of vulnerable and safe cases, each track by the OWASP Benchmark's
+   formula: true-positive rate minus false-positive rate, per category.
+2. N4.2 — The score SHALL be compared with a committed baseline, and a track falling
+   more than 2 points under it, or a failed gate, SHALL fail the comparison.
+3. N4.3 — The score SHALL be measured at every phase exit on both lanes, and before a
+   release.
+4. N4.4 — The score SHALL be replicable: external sources pinned by commit, generated
+   cases seeded, the image named by digest, and every dataset's age recorded.
 
 ---
 
