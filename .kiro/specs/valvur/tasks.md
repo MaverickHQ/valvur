@@ -317,13 +317,26 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
     - freshness would fail: the index is 2.41 days old;
     - ranking passes: Log4Shell ranks first;
     - a test-scoped Maven dependency reads scope `unknown`, not development-only.
-- [ ] **R9.4** **The OWASP Benchmark for Python** (D21, track 1). Behaviours:
+- [x] **R9.4** **The OWASP Benchmark for Python** (D21, track 1). Behaviours:
   1. `tests/eval/sources.toml` pins it by commit; a checkout at any other commit is
      refused; nothing of it is tracked in this repository (a test asserts it);
   2. `expectedresults-0.1.csv` becomes 1,230 cases, 452 vulnerable, 14 categories;
   3. a finding maps to a test case by file and to a category by CWE, from the finding's
      `cwe` when present, else from its rule's metadata under `rules/`;
   4. the track's score is the OWASP scorecard's.
+  **STATUS 2026-09-29:** ✅ all four.
+  - **The pin.** `tests/eval/sources.toml` pins `f1291485808b`. `owasp.checkout` clones it
+    into the build cache and refuses any other commit; no file of it is tracked here.
+  - **The count.** The pinned file has 452 real cases, not the 530 the list first said.
+  - **CWEs.** `cwe.py` reads a finding's CWE from the finding, else its rule, else its
+    Scanner. Every rule under `rules/` now declares one.
+  - **Measured on `valvur:dev`: 0.4 in 18.5 s.** Only three categories score:
+    - weak hash: 37 of 71 caught, no false positive;
+    - code injection: 20 of 20 caught and all 33 safe cases flagged, since the INFO
+      sink inventory names every `eval`, so it nets zero;
+    - command injection: 7 of 13 caught, and 7 of 7 safe cases flagged.
+  - **SAST-JS, through the same lookup: 10.0**, from Gitleaks finding the two hard-coded
+    credentials. R13's starting point.
 - [ ] **R9.5** **Real-code precision** (D21, track 8). Behaviours:
   1. every active finding of a valvur-owned rule or of Gitleaks on the corpus needs a label
      in `tests/eval/labels/corpus.toml` by fingerprint; an unlabelled one fails the track,
