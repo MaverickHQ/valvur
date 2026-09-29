@@ -34,6 +34,13 @@ DB_STALE_AFTER_DAYS = 7
 #: The threshold keeps the answer's age visible; it is not a cliff.
 NAME_INDEX_STALE_AFTER_DAYS = 30
 
+#: When a scan refreshes what it reads (D24, F10.9, ADR-0027): the index, published
+#: daily, and KEV, released most days, once over two days old. These are not the
+#: thresholds above, which decide when a verdict is `inconclusive`: fresh data is
+#: fetched well before old data stops being evidence.
+INDEX_REFRESH_AFTER_DAYS = 2
+KEV_REFRESH_AFTER_DAYS = 2
+
 
 def root() -> Path:
     from . import settings

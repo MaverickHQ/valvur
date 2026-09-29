@@ -401,7 +401,9 @@ def _ensure_data(runner, on_progress, *, workspace=None,
 
     _stop_if_cancelled(runner, "during the first run's fetches")
     index_age = _cache.name_index_age_days() if _cache.name_index_present() else None
-    if index_age is None or index_age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
+    # Past two days, not thirty (D24): the index is published daily, and a real
+    # package published since the last pull read as hallucinated, at high.
+    if index_age is None or index_age > _cache.INDEX_REFRESH_AFTER_DAYS:
         from . import locking, name_index
 
         index_size = name_index.published.published_size_mb()
@@ -424,11 +426,33 @@ def _ensure_data(runner, on_progress, *, workspace=None,
             fetched.append(_fetch_record(
                 "package-name index", name_index.published.repository(), index_size, seconds,
                 signature=_index_signature(metadata)))
+    _stop_if_cancelled(runner, "during the first run's fetches")
+    _ensure_kev(say, fetched)
     if workspace is not None and any(getattr(a, "offline", False) for a in adapters
                                      if getattr(a, "name", "") == "osv-scanner"):
         _stop_if_cancelled(runner, "during the first run's fetches")
         _ensure_osv(workspace, say, fetched, unfetched)
     return fetched, unfetched
+
+
+def _ensure_kev(say, fetched: list[dict]) -> None:
+    """KEV past two days (D24, R11.3): a scan never refreshed it, so a machine that
+    had not run `valvur update` ranked with the image's snapshot for ever. A failed
+    refresh keeps the catalog in use, which says why; it costs no Scanner, since
+    KEV ranks findings and finds none."""
+    from . import enrichment, updating
+
+    _, age, _, _, _ = enrichment._load_kev()
+    if age is not None and age <= _cache.KEV_REFRESH_AFTER_DAYS:
+        return
+    say("refreshing KEV" + (f" ({age:.0f} days old)" if age is not None else ""))
+    started = time.monotonic()
+    if updating.refresh_kev(say):
+        from . import settings
+
+        fetched.append(_fetch_record(
+            "KEV catalog", settings.get("kev_url") or enrichment.KEV_URL, None,
+            time.monotonic() - started))
 
 
 def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) -> None:

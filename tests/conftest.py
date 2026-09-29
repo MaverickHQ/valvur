@@ -125,8 +125,22 @@ def default_trivy_db(tmp_path_factory) -> Path:
     return root
 
 
+@pytest.fixture(scope="session")
+def _fresh_kev() -> str:
+    """The bundled catalog's entries, dated now: what a machine that has just run
+    `valvur update` holds. A scan refreshes KEV past two days (R11.3), and the image's
+    snapshot is a month old, so without this every test scan would try."""
+    from datetime import UTC, datetime
+
+    from valvur import enrichment
+
+    bundled = json.loads(enrichment._BUNDLED.read_text())
+    return json.dumps({**bundled, "dateReleased": datetime.now(UTC).isoformat()})
+
+
 @pytest.fixture(autouse=True)
-def _installed_name_index(request, default_name_index, default_trivy_db, monkeypatch):
+def _installed_name_index(request, default_name_index, default_trivy_db, monkeypatch,
+                          tmp_path_factory, _fresh_kev):
     """Every test runs as on a machine that has done `valvur update`: an index and
     a database are present, fresh, and the Checks and Trivy read them. Without
     this, the dependency-reality Check fails loudly on the offline Profile —
@@ -147,6 +161,11 @@ def _installed_name_index(request, default_name_index, default_trivy_db, monkeyp
     monkeypatch.setattr(cache, "name_index", lambda: default_name_index)
     if request.node.get_closest_marker("e2e") is None:
         monkeypatch.setattr(cache, "trivy_db", lambda: default_trivy_db)
+        # A host cache of the test's own (R11.3), never the owner's `~/.cache/valvur`,
+        # which a unit test's scan read and, once a scan refreshes KEV, would write.
+        root = tmp_path_factory.mktemp("host-cache")
+        (root / "kev.json").write_text(_fresh_kev)
+        monkeypatch.setattr(cache, "root", lambda: root)
 
 
 @pytest.fixture

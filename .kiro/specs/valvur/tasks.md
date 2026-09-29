@@ -599,13 +599,24 @@ honesty gate green; track 5's private-registry cases scored.
   reads it, `published`, else the file's time, `fetched`, and `stale` judges by it: a
   fresh file of an export ten days old is stale. R11.6 carries the basis onto every
   surface.
-- [ ] **R11.3** **A scan refreshes past D24's thresholds** (F10.9). Behaviours, through
+- [x] **R11.3** **A scan refreshes past D24's thresholds** (F10.9). Behaviours, through
   `tests/fake_registry.py`:
   1. the index and KEV past two days are refreshed, announced and recorded under
      `network.fetched`;
   2. within the threshold nothing is fetched;
   3. `fetch = "never"` fetches nothing;
   4. a failed refresh keeps the old data and says so, and the verdict thresholds decide.
+  **STATUS 2026-09-29:** ✅ all four.
+  - **Thresholds.** A scan refreshes the index past `INDEX_REFRESH_AFTER_DAYS`, 2 (it
+    was 30), and KEV past `KEV_REFRESH_AFTER_DAYS`, 2 (it was never). Both are
+    announced and recorded in `network.fetched`. The inconclusive thresholds are
+    unchanged.
+  - **Failure.** A failed KEV refresh keeps the catalog in use and says so; it costs no
+    Scanner. EPSS and the malicious list join in R11.4 and R11.5.
+  - **Hygiene, found on the way.** The unit suite never isolated `cache.root()`, so a
+    unit test's scan read the owner's `~/.cache/valvur`, and would have written KEV
+    there. Every unit test now has a host cache of its own, holding the bundled
+    catalog dated now; 1584 pass.
 - [ ] **R11.4** **EPSS from FIRST's daily file** (D25; F6.13). Measure the file's size and
   host first. Behaviours:
   1. `valvur update` fetches it into the cache; `epss_url` names a mirror;
