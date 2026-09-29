@@ -36,3 +36,15 @@ def test_a_gap_in_a_phase_s_numbering_is_reported():
     text = "### Phase R9: the Score\n\n- [x] **R9.1** **One.**\n- [ ] **R9.3** **Three.**\n"
 
     assert _module().shape_errors(text) == ["R9.3 follows R9.1"]
+
+
+def test_the_live_task_list_reads_as_the_resume_script_expects():
+    import re
+
+    module = _module()
+    text = (REPO / module.TASKS).read_text()
+    open_tasks = re.findall(r"^- \[ \] \*\*(R\d+\.\d+)\*\*", text, re.M)
+
+    assert module.shape_errors(text) == []
+    assert module.position(text) is None if not open_tasks else \
+        module.position(text).task == open_tasks[0]

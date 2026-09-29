@@ -224,7 +224,7 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 
 ### Phase R9: the Score, measured before anything changes
 
-- [ ] **R9.1** **Pre-flight, and resuming armed.** Steps, each recorded in the STATUS:
+- [x] **R9.1** **Pre-flight, and resuming armed.** Steps, each recorded in the STATUS:
   1. `scripts/build_status.py` names R9 and its branch from `main`;
   2. Docker answers (§2 step 4), at least 20 GB is free (else `docker builder prune -f`),
      `gh auth status` and `claude --version` answer;
@@ -232,6 +232,19 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
   4. both schedules of §2 are armed with its prompt.
   Behaviour: a test holds this file to the shapes `build_status.py` reads, a phase
   heading per phase and an open task under the first.
+  **STATUS 2026-09-29:** ✅ all four.
+  1. `build_status.py` on `main` at `99bb4e6`: R9.1, `build/r9-the-score-measured-before-anything-changes`.
+  2. Docker was quit; `open -a Docker` answered in 20 s: 29.2.1, a 3.8 GiB VM, 8 CPUs. 29 GB
+     free, so nothing pruned. `gh` is signed in as MaverickHQ (`repo`, `workflow`,
+     `write:packages`); `claude` is 2.1.284.
+  3. `valvur:dev` built from `main` in 1 min 49 s, 665.5 MB; `doctor` with the build cache:
+     *ready*, database 1.5 days old, index 2.4, KEV 1.9.
+  4. The hourly `CronCreate` job `17 * * * *` and the desktop task `valvur-build-resume`,
+     `43 */3 * * *`.
+
+  `tests/test_task_list_shape.py`: `shape_errors` in `build_status.py` reports a task under
+  another phase's heading and a gap in a phase's numbering, and the live file has neither.
+  Renumbering R9.2 to R9.9 fails the test.
 - [ ] **R9.2** **The decisions written.** ADR-0026 (D21, D22), ADR-0027 (D23 to D26),
   ADR-0028 (D27, D28), ADR-0029 (D29), ADR-0030 (D32) and ADR-0031 (D39 to D41), each
   citing the requirement IDs it adds to `requirements.md`: N4.1 to N4.4; F6.12, F6.13,
