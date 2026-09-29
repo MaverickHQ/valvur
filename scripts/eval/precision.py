@@ -19,6 +19,13 @@ from pathlib import Path
 VERDICTS = ("tp", "fp")
 
 
+def note(finding: dict) -> bool:
+    """A coverage note: what valvur did not inspect, never a claim about the code."""
+    from valvur.coverage import NOTE_RULES
+
+    return finding.get("rule") in NOTE_RULES
+
+
 def owned(finding: dict) -> bool:
     """Judged here: a rule of valvur's own, or a Gitleaks secret."""
     return str(finding.get("rule", "")).startswith("valvur.") or \
@@ -48,6 +55,8 @@ class Precision:
     unlabelled: list[str] = field(default_factory=list)
     #: Other Scanners' active findings, counted and not judged.
     others: dict[str, int] = field(default_factory=dict)
+    #: Coverage notes, counted and not judged.
+    notes: int = 0
 
     @property
     def score(self) -> float:
@@ -60,6 +69,9 @@ def judge(findings_by_repo: dict[str, list[dict]],
     for repo, findings in sorted(findings_by_repo.items()):
         for finding in findings:
             if not _active(finding):
+                continue
+            if note(finding):
+                result.notes += 1
                 continue
             if not owned(finding):
                 others.update((finding.get("sources") or ["?"])[:1])

@@ -79,3 +79,13 @@ def test_a_label_without_a_reason_or_a_verdict_is_refused(tmp_path):
 
     with pytest.raises(ValueError, match="flask a1"):
         p.load(tmp_path / "labels.toml")
+
+
+def test_a_coverage_note_is_valvur_s_own_limit_and_not_judged(tmp_path):
+    p = _precision()
+    (tmp_path / "labels.toml").write_text(LABELS)
+
+    result = p.judge({"express": [_f("n1", "valvur.dependency.vulnerabilities-unchecked",
+                                     "trivy")]}, p.load(tmp_path / "labels.toml"))
+
+    assert (result.tp, result.fp, result.unlabelled, result.notes) == (0, 0, [], 1)
