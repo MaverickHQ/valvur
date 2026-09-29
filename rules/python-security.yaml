@@ -20,6 +20,8 @@ rules:
   - id: valvur.python.dangerous-eval
     languages: [python]
     severity: INFO
+    metadata:
+      cwe: ["CWE-95: Eval Injection"]
     message: >-
       A code-execution sink: eval() on a non-literal expression. Not a vulnerability
       by itself — Flask evaluates PYTHONSTARTUP this way — but if model output,
@@ -32,6 +34,8 @@ rules:
   - id: valvur.python.dangerous-exec
     languages: [python]
     severity: INFO
+    metadata:
+      cwe: ["CWE-95: Eval Injection"]
     message: >-
       A code-execution sink: exec() on a non-literal expression. Not a vulnerability
       by itself — Flask loads config files this way — but if model output, network
@@ -44,6 +48,8 @@ rules:
   - id: valvur.python.subprocess-shell-true
     languages: [python]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-78: OS Command Injection"]
     message: >-
       subprocess with shell=True interpolates through a shell. Use the argument-list
       form so arguments cannot be reinterpreted as commands.
@@ -56,6 +62,8 @@ rules:
   - id: valvur.python.insecure-yaml-load
     languages: [python]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
     message: yaml.load() without SafeLoader can instantiate arbitrary Python objects.
     patterns:
       - pattern: yaml.load($X)
@@ -64,6 +72,8 @@ rules:
   - id: valvur.python.string-built-sql
     languages: [python]
     severity: INFO
+    metadata:
+      cwe: ["CWE-89: SQL Injection"]
     message: >-
       A query sink built by string formatting. Not a vulnerability by itself — the
       interpolated value may be a constant — but if model output or user input can
@@ -78,6 +88,8 @@ rules:
   - id: valvur.python.weak-hash
     languages: [python]
     severity: INFO
+    metadata:
+      cwe: ["CWE-328: Use of Weak Hash"]
     message: >-
       MD5 or SHA-1. Fine for a cache key or a content id; unsuitable where a
       collision or preimage matters. Note that swapping the algorithm invalidates

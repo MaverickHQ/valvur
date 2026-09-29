@@ -11,6 +11,8 @@ rules:
     paths:
       include: ["*.txt", "*.toml", "*.json", "*.yaml", "*.yml", "*.cfg"]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere"]
     message: >-
       Dependency on a mutable git ref. Every install may fetch different code, and
       nothing records what actually ran. Pin to a commit SHA.

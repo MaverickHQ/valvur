@@ -32,6 +32,8 @@ rules:
     mode: taint
     languages: [python]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-94: Code Injection"]
     message: >-
       Model output reaches code execution. The value is attacker-influenceable
       wherever any part of the prompt is (OWASP LLM05). Never execute generated
@@ -65,6 +67,8 @@ rules:
     mode: taint
     languages: [python]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-78: OS Command Injection"]
     message: >-
       Model output reaches a shell. Use an argument list, and validate against an
       allowlist before running anything a model chose.
@@ -78,6 +82,8 @@ rules:
     mode: taint
     languages: [python]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-89: SQL Injection"]
     message: >-
       Model output reaches a database query. Injection is injection regardless of
       whether a human or a model wrote the value — a model must never choose the
@@ -94,6 +100,8 @@ rules:
     mode: taint
     languages: [javascript, typescript]
     severity: ERROR
+    metadata:
+      cwe: ["CWE-79: Cross-site Scripting"]
     message: Model output assigned to innerHTML is stored XSS. Use textContent.
     pattern-sources:
       - pattern: await $CLIENT.messages.create(...)
