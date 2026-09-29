@@ -193,3 +193,26 @@ def test_real_code_precision_is_scored_and_unlabelled_findings_fail_the_comparis
     assert harness.compare(result, {"tracks": {"real-code-precision": 100.0}}) == [
         "real-code-precision: 1 finding(s) with no label: "
         "flask: valvur.python.weak-hash at b.py (b2)"]
+
+
+def test_the_agent_track_holds_the_real_files_on_every_lane(tmp_path):
+    """The first Linux run built the agent-configuration track before anything had
+    fetched awesome-cursorrules, and held ten safe cases fewer than the Mac's: the
+    same score, by luck. The track now fetches what it reads."""
+    harness = _harness()
+    fetched: list[str] = []
+    checkout = tmp_path / "awesome-cursorrules"
+
+    def fetch() -> Path:
+        fetched.append("awesome-cursorrules")
+        (checkout / "rules").mkdir(parents=True, exist_ok=True)
+        for n in range(3):
+            (checkout / "rules" / f"r{n}.mdc").write_text("Prefer small functions.\n")
+        return checkout
+
+    result = harness.run(["agent-configuration"], tmp_path / "work",
+                         scan=lambda root: _results(root, []), image="valvur:dev",
+                         image_id=lambda image: "sha256:abc", cursorrules=fetch)
+
+    assert fetched == ["awesome-cursorrules"]
+    assert result["tracks"]["agent-configuration"]["safe"] == 23 + 3

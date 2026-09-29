@@ -34,9 +34,6 @@ TRACKS = ["sast-python", *twins.BUILDERS, "real-code-precision"]
 CORPUS = REPO / "tests" / "corpus"
 LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
 
-#: The awesome-cursorrules checkout the corpus keeps, whose real files join the
-#: agent-configuration track's safe cases.
-CURSORRULES = REPO / "tests" / "corpus" / ".checkouts" / "awesome-cursorrules"
 
 
 def _cli_scan(workspace: Path) -> None:
@@ -95,6 +92,14 @@ def _corpus_harness():
     return module
 
 
+def _cursorrules() -> Path:
+    """awesome-cursorrules at the corpus's pin, fetched when absent: its real files
+    join the agent-configuration track's safe cases on every lane."""
+    harness = _corpus_harness()
+    harness.fetch([e for e in harness.repos() if e["name"] == "awesome-cursorrules"])
+    return harness.CHECKOUTS / "awesome-cursorrules"
+
+
 def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
                checkouts: Path | None, labels: Path) -> dict:
     """Track 8: scan each corpus project at its pin and judge the owned findings."""
@@ -122,7 +127,8 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         seed: int = 20260929, tasks_text: str | None = None,
         index_dir: Path | None = None, benchmark: Path | None = None,
         verify: Callable[[Path], None] = owasp.verify, corpus: list[dict] | None = None,
-        checkouts: Path | None = None, labels: Path = LABELS) -> dict:
+        checkouts: Path | None = None, labels: Path = LABELS,
+        cursorrules: Callable[[], Path] = _cursorrules) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt. The
     benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
@@ -144,8 +150,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             root = work / track
             if root.exists():
                 shutil.rmtree(root)
-            extra = {"corpus": CURSORRULES if CURSORRULES.is_dir() else None} \
-                if track == "agent-configuration" else {}
+            extra = {"corpus": cursorrules()} if track == "agent-configuration" else {}
             cases = twins.build(track, root, seed=seed, **extra)
         began = time.monotonic()
         scan(root)
