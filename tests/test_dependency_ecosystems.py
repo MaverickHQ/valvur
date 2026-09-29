@@ -380,6 +380,7 @@ def _fresh_lib(days: int) -> dict:
     return {"releases": {"1.0": [{"upload_time_iso_8601": stamp}]}}
 
 
+@pytest.mark.timing
 def test_registry_lookups_run_concurrently(tmp_path, name_index, network_granted, monkeypatch):
     """Measured 2026-09-12: 159ms a name serial, 123s on a real monorepo. The
     lookups are independent and I/O-bound; eight of them at 200ms each must not

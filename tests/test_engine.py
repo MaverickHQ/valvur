@@ -92,6 +92,7 @@ def _run(tmp_path, plan, events=None):
     return scratch, json.loads((scratch / "manifest.json").read_text())
 
 
+@pytest.mark.timing
 def test_the_tools_run_in_parallel(tmp_path):
     import time
 
@@ -104,6 +105,7 @@ def test_the_tools_run_in_parallel(tmp_path):
     assert sorted(e["tool"] for e in manifest["tools"]) == ["a", "b", "c"]
 
 
+@pytest.mark.timing
 def test_a_tool_past_its_timeout_is_killed_with_its_whole_group(tmp_path):
     import os
     import time

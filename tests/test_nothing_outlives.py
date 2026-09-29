@@ -167,6 +167,7 @@ def test_doctor_reaps_the_orphans_and_names_them(runtime, monkeypatch):
 
 # ------------------------------------------------------------------ the server
 
+@pytest.mark.timing
 def test_the_servers_shutdown_kills_its_containers_by_label_within_three_seconds(
         runtime, monkeypatch):
     from valvur.mcp import jobs, server

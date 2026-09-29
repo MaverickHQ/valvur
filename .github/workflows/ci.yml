@@ -48,7 +48,7 @@ jobs:
       - run: uv venv --python "${{ matrix.python }}"
       - run: uv sync --extra dev --locked
       - run: uv run --no-sync python -c "import sys; assert sys.version_info[:2] == tuple(int(p) for p in '${{ matrix.python }}'.split('.')), sys.version"
-      - run: uv run --no-sync pytest -q -p no:cacheprovider -m "not e2e"
+      - run: uv run --no-sync pytest -q -p no:cacheprovider -m "not e2e and not timing"
 
   test:
     name: lint, types, tests
@@ -125,7 +125,7 @@ jobs:
           VALVUR_IMAGE: valvur:dev
         # -rP shows the output of tests that PASSED and printed: the N1.4 memory
         # measurement (24.3) is one number a passing run must still leave in the log.
-        run: uv run pytest -q -m e2e -rP
+        run: uv run pytest -q -m "e2e or timing" -rP
       - name: Runtime parity actually ran on both runtimes
         # The parity tests skip when a runtime has no local image. That is right
         # locally and wrong here: docker and podman both have it, so a skip means

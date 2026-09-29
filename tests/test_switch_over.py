@@ -99,6 +99,7 @@ def _sleepers(n: int) -> list[Invocation]:
                        argv=("fake-sleep", "1", f"/results/t{i}.json")) for i in range(n)]
 
 
+@pytest.mark.timing
 def test_jobs_bounds_how_many_tools_the_engine_runs_at_once(tmp_path):
     from valvur.engine_host import snapshot
 

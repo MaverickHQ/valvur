@@ -54,7 +54,10 @@ exclude = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["e2e: requires a real container runtime"]
+markers = [
+    "e2e: requires a real container runtime",
+    "timing: asserts on wall-clock time; runs in the e2e job and at phase exits, never in the unit run (D35)",
+]
 
 [tool.ruff]
 line-length = 100

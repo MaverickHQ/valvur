@@ -31,6 +31,7 @@ def _sleepers(*seconds: float) -> list[Invocation]:
             for i, s in enumerate(seconds)]
 
 
+@pytest.mark.timing
 def test_at_the_budget_the_engine_stops_what_runs_and_names_each_cut(tmp_path):
     _ws, tar = _tree(tmp_path)
     scratch = tmp_path / "scratch"
@@ -89,6 +90,7 @@ def test_when_the_budget_cuts_everything_the_refusal_names_the_levers(tmp_path, 
         api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[_Slow()], budget_s=1.0)
 
 
+@pytest.mark.timing
 def test_past_its_grace_the_host_kills_the_engine_and_everything_it_started(tmp_path):
     import os
 

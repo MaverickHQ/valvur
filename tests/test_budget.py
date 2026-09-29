@@ -72,6 +72,7 @@ def _scan(workspace, runner, adapters, **kwargs):
 # ------------------------------------------------------------- the cut itself
 
 
+@pytest.mark.timing
 def test_past_the_budget_running_scanners_are_stopped_and_queued_ones_never_start(workspace):
     runner = _Runner()
     # Two workers: `fast` finishes and `slow2` takes its place, so at the cut both

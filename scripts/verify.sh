@@ -80,7 +80,7 @@ fi
 want lint         && run "lint"         uv run ruff check "${LINT_PATHS[@]}"
 want types        && run "types"        uv run mypy src
 want traceability && run "traceability" uv run python scripts/check_traceability.py
-want tests        && run "tests"        uv run pytest -q -m "not e2e"
+want tests        && run "tests"        uv run pytest -q -m "not e2e and not timing"
 want build        && run "build"        uv build --out-dir "${TMPDIR:-/tmp}/valvur-verify-dist"
 
 # Opt-in by name, because it needs a container runtime and a local image, and this

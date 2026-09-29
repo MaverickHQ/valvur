@@ -115,7 +115,7 @@ Two mechanisms, armed by R9.1.
   2. run it and see it fail for the expected reason;
   3. write the least code that passes;
   4. run `ruff`, `mypy` and the unit suite
-     (`PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider -m "not e2e"`,
+     (`PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider -m "not e2e and not timing"`,
      after clearing `__pycache__`). A slice that touches only `scripts/`, documents or a
      new test file runs its own tests and lint; the full suite runs at the end of every
      task and before every push. *The unit suite takes one to two minutes on this Mac; the
@@ -490,10 +490,25 @@ duration recorded, the release's share by R9.6's rule.
      finding, in 3 to 9 turns, five of eight in six or fewer.
   4. The pipeline example restores and saves `$RUNNER_TEMP/valvur-cache` with
      `actions/cache`, pinned by commit, before `valvur update`.
-- [ ] **R10.6** **Wall-clock tests marked** (D35). Behaviours: every test asserting on
+- [x] **R10.6** **Wall-clock tests marked** (D35). Behaviours: every test asserting on
   wall-clock time carries `timing`, registered in `pyproject.toml`; the unit suite selects
   none; CI's e2e job and the phase exits run them. §3's command and `CLAUDE.md` then read
   `-m "not e2e and not timing"`.
+  **STATUS 2026-09-29:** ✅ all three.
+  - **The guard.** `tests/test_timing_marked.py` reads every test's code. A test that
+    reads a clock and asserts something under a number must be marked `timing` or
+    `e2e`. It found thirteen, now marked, 24 cases with their parameters:
+    - deadlines, budgets and timeouts;
+    - the MCP server's start and shutdown latency;
+    - the concurrency checks.
+
+    Its first version also caught two timestamps compared in order, and a lower bound
+    that load cannot break; it now looks only for upper bounds.
+  - **The selections.** `pyproject.toml` registers the mark. `verify.sh` and CI's unit
+    job run `-m "not e2e and not timing"`, 1567 tests; CI's e2e job runs `-m "e2e or
+    timing"`; the release's whole suite runs everything. §3's command and `CLAUDE.md`
+    say so.
+  - **Measured on this Mac:** the timing run passes, 24 in 16 s.
 - [ ] **R10.7** **A dual licence is one licence** (added by R9.5, measured). The
   licence-file Check reported ripgrep's `COPYING`, which states *Unlicense and MIT*, as
   contradicting `Cargo.toml`'s `Unlicense OR MIT`. Behaviours: a licence file naming

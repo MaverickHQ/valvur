@@ -101,6 +101,7 @@ def test_every_way_the_server_ends_stops_the_fleet(tmp_path, monkeypatch, raised
     assert held.stopped.is_set(), f"{raised.__name__} left the fleet running"
 
 
+@pytest.mark.timing
 def test_a_shutdown_waits_for_the_job_to_settle_but_not_for_ever(tmp_path, monkeypatch):
     """A job that will not settle must not hang the exit: the wait is bounded and
     the server says what it gave up on, rather than blocking a client's restart."""

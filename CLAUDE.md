@@ -162,9 +162,9 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 - **Landing.** `main` is protected (six required checks, signed commits, linear history); a
   phase lands by fast-forward. Auto mode refuses that push and a tag push, so the executor
   never makes them: phases stack, and the owner approves the landing in manual approve mode.
-- **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider`,
-  `-m "not e2e"` unless the container is the point; scans use `VALVUR_CACHE=~/.cache/valvur-build
-  VALVUR_IMAGE=valvur:dev`, never the owner's `~/.cache/valvur` or pulled `ghcr.io` images.
+- **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider
+  -m "not e2e and not timing"` unless the container or the clock is the point; scans use
+  `VALVUR_CACHE=~/.cache/valvur-build VALVUR_IMAGE=valvur:dev`, never the owner's cache or images.
 - **The acceptance set and the Score judge** (`scripts/acceptance.py`, `scripts/eval.py`): a
   phase's exit is measured on this Mac and on Linux. **After R9, a change to detection,
   ranking, data or the reply** runs `scripts/eval.py --compare tests/eval/baseline.json` before

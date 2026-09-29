@@ -391,6 +391,7 @@ def _clean_jobs():
     jobs.reset()
 
 
+@pytest.mark.timing
 def test_a_scan_returns_before_it_finishes(tmp_path):
     """Measured: 20s for a standard profile on a TOY fixture. A real project is
     minutes, and many MCP clients time out at 30-60 seconds."""
@@ -484,6 +485,7 @@ def test_scan_status_tells_the_agent_not_to_report_a_result_yet(tmp_path, monkey
     assert "do not report a result yet" in text
 
 
+@pytest.mark.timing
 def test_scan_status_waits_rather_than_answering_instantly(tmp_path, monkeypatch):
     """Measured with a real agent (task 10.2.5): a 51-second scan cost **14 status
     polls in 20 turns**, because each returned instantly and the agent had nothing
@@ -520,6 +522,7 @@ def test_scan_status_waits_rather_than_answering_instantly(tmp_path, monkeypatch
     assert 0.4 < waited < 3.0, f"waited {waited:.2f}s"
 
 
+@pytest.mark.timing
 def test_the_wait_is_bounded_so_a_client_never_times_out(tmp_path, monkeypatch):
     """The pair. The docstring's constraint is that many clients give up at 30-60
     seconds; a wait that outlived a stuck scan would turn a slow result into a dead

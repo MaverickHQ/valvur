@@ -136,6 +136,7 @@ def test_every_tools_arguments_are_closed():
     ("findings", {}, "no-results"),
     ("findings", {"fingerprint": "nope"}, "no-results"),
 ])
+@pytest.mark.timing
 def test_every_violation_fails_at_the_call_with_a_kind_and_one_sentence(
         tmp_path, tool, arguments, kind):
     if "workspace" not in arguments:
