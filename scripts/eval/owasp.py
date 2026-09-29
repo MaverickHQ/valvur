@@ -11,6 +11,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from score import Case
+
 REPO = Path(__file__).resolve().parents[2]
 SOURCES = REPO / "tests" / "eval" / "sources.toml"
 KEY = "owasp-benchmark-python"
@@ -34,3 +36,20 @@ def verify(checkout: Path) -> None:
     head = _git(checkout, "rev-parse", "HEAD").stdout.strip()
     if head != pinned:
         raise PinMismatch(f"{checkout} is at {head or 'no commit'}, not the pinned {pinned}")
+
+
+#: The file the benchmark publishes its answers in, one case per line.
+EXPECTED = "expectedresults-0.1.csv"
+
+
+def cases(checkout: Path) -> list[Case]:
+    """Each test case: its file, its category, whether it is a real vulnerability,
+    and the CWE that names the category."""
+    found = []
+    for line in (checkout / EXPECTED).read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        name, category, real, cwe = (part.strip() for part in line.split(",")[:4])
+        found.append(Case(name, "sast-python", category, f"testcode/{name}.py",
+                          real == "true", cwes=(int(cwe),)))
+    return found

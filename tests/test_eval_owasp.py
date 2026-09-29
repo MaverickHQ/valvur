@@ -53,3 +53,38 @@ def test_nothing_of_the_benchmark_is_tracked_here():
     tracked = _git(REPO, "ls-files").splitlines()
 
     assert not [p for p in tracked if "BenchmarkTest" in p or "expectedresults" in p]
+
+
+SAMPLE = """# test name, category, real vulnerability, cwe, Benchmark version: 0.1, 2026-01-9
+BenchmarkTest00001,pathtraver,true,22
+BenchmarkTest00004,pathtraver,false,22
+BenchmarkTest00100,sqli,true,89
+"""
+
+
+def test_the_expected_results_become_cases(tmp_path):
+    owasp = _owasp()
+    (tmp_path / "expectedresults-0.1.csv").write_text(SAMPLE)
+
+    cases = owasp.cases(tmp_path)
+
+    assert [(c.id, c.category, c.path, c.vulnerable, c.cwes) for c in cases] == [
+        ("BenchmarkTest00001", "pathtraver", "testcode/BenchmarkTest00001.py", True, (22,)),
+        ("BenchmarkTest00004", "pathtraver", "testcode/BenchmarkTest00004.py", False, (22,)),
+        ("BenchmarkTest00100", "sqli", "testcode/BenchmarkTest00100.py", True, (89,)),
+    ]
+
+
+CHECKOUT = Path.home() / ".cache" / "valvur-build" / "eval" / "BenchmarkPython"
+
+
+@pytest.mark.skipif(not (CHECKOUT / "expectedresults-0.1.csv").is_file(),
+                    reason="the benchmark is not checked out in the build cache")
+def test_the_pinned_benchmark_holds_its_published_counts():
+    owasp = _owasp()
+    owasp.verify(CHECKOUT)
+
+    cases = owasp.cases(CHECKOUT)
+
+    assert (len(cases), sum(c.vulnerable for c in cases)) == (1230, 452)
+    assert len({c.category for c in cases}) == 14
