@@ -563,6 +563,19 @@ duration recorded, the release's share by R9.6's rule.
 **Exit:** the Score on both lanes: tracks 3, 5 and 8 at or above the baseline, and the
 honesty gate green; track 5's private-registry cases scored.
 
+**Exit STATUS 2026-09-29** (`docs/acceptance/r10.md`):
+- **The Score, both lanes:** ✅ **62.0**, from 59.3, track for track.
+  - Secrets rose 90 to 100, package reality 81 to 92, real-code precision 4.0 to 4.2;
+    no track fell.
+  - `--compare` passes; the baseline is raised from Linux run 36627939298.
+- **The honesty gate:** ✅ judged from R10, and green on both lanes.
+- **Track 5's private-registry cases:** ✅ scored: every privately registered case reads
+  as private. The two left are R11's still-registered malicious names.
+- **The acceptance set:** ✅ both lanes. Linux is run 36627938279; the Mac's set is
+  regenerated.
+- **The suites:** the e2e and timing run passes on Linux but for one test of this phase's,
+  since fixed. The Mac's two failures under swap are recorded.
+
 ### Phase R11: fresh data
 
 - [ ] **R11.1** **KEV's age is its catalog's** (D23; F6.12). Behaviours:

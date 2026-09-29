@@ -8,6 +8,28 @@ break things, and has.
 
 ## [Unreleased]
 
+- **A failed Scanner with nothing found reads `inconclusive`**, naming the Scanner
+  (F7.19). Such a run read `clean` beside `complete: false`.
+- **A project's own registries are read** (Phase R10, ADR-0028): npm's `.npmrc` and
+  `.yarnrc.yml`, Python's pip.conf, index options, uv, Poetry and Pipfile sources, and
+  Composer's repositories.
+  - A name bound to a private registry is never looked up publicly; a note names the
+    registry.
+  - Where a private source is merged with the public one, a missing name is a
+    **dependency-confusion** finding, high.
+  - Where the public registry is replaced, or searched after a private one, it is
+    low advice to reserve the name.
+  - An internal package no longer reads as hallucinated.
+- **A Pipfile's packages are read** for existence.
+- **Checkov no longer reports secrets**, which Gitleaks does: the same key was two
+  findings that never merged.
+- **A secret committed and deleted in history is found when a placeholder key block
+  was committed beside it**: history is read one file per commit and path. A
+  placeholder key block (`...` between the markers) is no longer reported.
+- **A dual licence is one licence**: `Unlicense OR MIT` against a file stating both no
+  longer reads as a contradiction.
+- The README says a machine needs Docker or Podman, and what CI tests on each
+  architecture. The GitHub pipeline example caches its data between runs.
 - **The Score** (Phase R9, ADR-0026): `scripts/eval.py` measures what valvur finds.
   - Eight tracks, each scored by the OWASP Benchmark's formula: the OWASP Benchmark for
     Python at a pinned commit, six generated tracks of vulnerable cases and their safe

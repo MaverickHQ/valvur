@@ -1,26 +1,26 @@
 {
   "schema": 1,
   "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason. The Mac lane is beside it.",
-  "recorded": "2026-09-29, R9.6",
+  "recorded": "2026-09-29, R10's exit (eval run 36627939298); R9.6 first",
   "tracks": {
     "sast-python": 0.4,
     "sast-js": 10.0,
-    "secrets": 90.0,
+    "secrets": 100.0,
     "dependencies": 100.0,
-    "package-reality": 81.0,
+    "package-reality": 92.0,
     "agent-configuration": 94.3,
     "infrastructure": 95.0,
-    "real-code-precision": 4.0
+    "real-code-precision": 4.2
   },
-  "score": 59.3,
+  "score": 62.0,
   "recorded_on": {
     "image": {
       "name": "valvur:dev",
-      "id": "sha256:c658ed2b25c5578718fbec694ed751e6bfc07405b9f55add661228efa4dc830a"
+      "id": "sha256:b7b6677e1e072d3e123716ffcb79942dcd4b0ac824e9fc365def04ca39d73652"
     },
     "data": {
-      "database_age_days": 0.27,
-      "name_index_age_days": 0.4,
+      "database_age_days": 0.07,
+      "name_index_age_days": 0.45,
       "kev_age_days": 0.0
     },
     "seed": 20260929
@@ -43,5 +43,25 @@
     },
     "duration_s": 191.9
   },
-  "linux_duration_s": 268.0
+  "linux_duration_s": 268.0,
+  "raised": [
+    {
+      "at": "R10",
+      "run": 36627939298,
+      "tracks": {
+        "secrets": [
+          90.0,
+          100.0
+        ],
+        "package-reality": [
+          81.0,
+          92.0
+        ],
+        "real-code-precision": [
+          4.0,
+          4.2
+        ]
+      }
+    }
+  ]
 }
