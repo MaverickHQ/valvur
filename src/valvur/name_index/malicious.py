@@ -70,7 +70,9 @@ class Entry:
         locked is covered only when every version is (D26)."""
         if self.versions is None:
             return True
-        return bool(version) and any(_covers(token, version) for token in self.versions)
+        if not version:
+            return False
+        return any(_covers(token, version) for token in self.versions)
 
 
 def _release(version: str) -> tuple[tuple[int, ...], int] | None:
