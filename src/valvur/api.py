@@ -107,6 +107,8 @@ class ScanRun:
     boundary: str = "the Scan Container"
     kev_age_days: float | None = None
     kev_source: str = ""
+    #: The KEV catalog's release day, `YYYY-MM-DD`; empty when it does not say (D23).
+    kev_catalog: str = ""
     # The database that decides whether findings EXIST, as opposed to KEV which only
     # decides how they rank. Until 2026-09-05 only the latter was instrumented.
     db_age_days: float | None = None
@@ -1060,6 +1062,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         db_overdue_days=_cache.db_overdue_days(),
         name_index_age_days=_cache.name_index_age_days(),
         kev_source=outcome.provider.kev_source,
+        kev_catalog=outcome.provider.kev_catalog,
         config_dropped=outcome.config_dropped,
         unpinned_dropped=outcome.unpinned_dropped,
         unpinned_files=outcome.unpinned_files,

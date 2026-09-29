@@ -150,6 +150,7 @@ def render(run: ScanRun) -> str:
                 },
                 "enrichment": {
                     "kev_source": run.kev_source,
+                    "kev_catalog": run.kev_catalog,
                     "kev_age_days": round(run.kev_age_days or 0, 2),
                     "stale": (run.kev_age_days or 0) > 30,
                 },

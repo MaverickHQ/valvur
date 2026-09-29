@@ -330,9 +330,10 @@ def test_kev_names_which_copy_a_scan_would_rank_with(healthy):
     kev = _by_name(doctor.run(healthy))["kev"]
     assert kev.level == "info" and "bundled snapshot" in kev.detail
 
+    # A copy with no release date is aged by its fetch, and says so (R11.1, D23).
     (cache.root() / "kev.json").write_text('{"entries": {}}')
     kev = _by_name(doctor.run(healthy))["kev"]
-    assert "host cache, 0.0 days old" in kev.detail
+    assert "host cache, no release date, aged by fetch, 0.0 days old" in kev.detail
 
 
 # --------------------------------------------------------------------- SELinux

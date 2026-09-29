@@ -578,10 +578,19 @@ honesty gate green; track 5's private-registry cases scored.
 
 ### Phase R11: fresh data
 
-- [ ] **R11.1** **KEV's age is its catalog's** (D23; F6.12). Behaviours:
+- [x] **R11.1** **KEV's age is its catalog's** (D23; F6.12). Behaviours:
   1. the bundled snapshot reads 2026-08-27's age however recently the file was written;
   2. between the cache and the bundle, the newer catalog wins, not the newer file;
   3. `run.json` records KEV's catalog date, age and source; `doctor` shows them.
+  **STATUS 2026-09-29:** ✅ all three.
+  - `_load_kev` takes each copy's age from its `dateReleased`, and the younger catalog
+    wins. A copy with no release date is aged by its file and labelled `fetched`.
+  - `valvur update` now keeps the date it fetched with the catalog.
+  - `run.json`'s enrichment records `kev_catalog`; `doctor` and the cache listing name
+    the copy, its catalog's day and age.
+  - The bundled snapshot now reads its true 33 days, and with it KEV's 30-day staleness
+    says what it was built to say. Two tests pinned the old `doctor` line; they now hold
+    the new one.
 - [ ] **R11.2** **Every dataset's age is its data's** (D23). Behaviours: an OSV fetch
   records `Last-Modified` in a sidecar and its age is read from it; a source with no date
   reads *fetched* on every surface.

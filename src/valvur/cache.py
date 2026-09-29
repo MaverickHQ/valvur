@@ -202,9 +202,21 @@ def inventory() -> list[Entry]:
 
     kev = root() / "kev.json"
     present = kev.is_file()
-    age = (time.time() - kev.stat().st_mtime) / 86400 if present else None
+    age = _kev_age(kev) if present else None
     entries.append(Entry("kev", kev, present, kev.stat().st_size if present else 0, age))
     return entries
+
+
+def _kev_age(path: Path) -> float | None:
+    """The cached catalog's age from its own release date (D23), else its file's."""
+    import json
+
+    try:
+        released = json.loads(path.read_text(encoding="utf-8")).get("dateReleased")
+    except (OSError, ValueError, AttributeError):
+        released = None
+    age = stamp_age_days(released) if released else None
+    return age if age is not None else (time.time() - path.stat().st_mtime) / 86400
 
 
 def clear() -> list[str]:

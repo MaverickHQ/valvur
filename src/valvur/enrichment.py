@@ -51,7 +51,8 @@ class LocalProvider:
     """KEV from disk, EPSS from FIRST. No account, no platform, no lock-in."""
 
     def __init__(self) -> None:
-        self._kev, self._kev_age, self._kev_source = _load_kev()
+        (self._kev, self._kev_age, self._kev_source, self._kev_catalog,
+         self._kev_basis) = _load_kev()
 
     @property
     def kev_age_days(self) -> float | None:
@@ -60,6 +61,18 @@ class LocalProvider:
     @property
     def kev_source(self) -> str:
         return self._kev_source
+
+    @property
+    def kev_catalog(self) -> str:
+        """The day the catalog in use was released, `YYYY-MM-DD`; empty when it does
+        not say, and then its age is its fetch's (`kev_age_basis`)."""
+        return self._kev_catalog
+
+    @property
+    def kev_age_basis(self) -> str:
+        """`released` when the age is the catalog's own, `fetched` when it is the
+        file's (D23): a copy with no release date is labelled as such."""
+        return self._kev_basis
 
     @property
     def is_stale(self) -> bool:
@@ -97,16 +110,20 @@ class LocalProvider:
         return enriched
 
 
-def _load_kev() -> tuple[dict, float | None, str]:
-    """Prefer a fresher host-cached copy over the bundled snapshot.
+def _load_kev() -> tuple[dict, float | None, str, str, str]:
+    """The newer of the host-cached copy and the bundled snapshot, by the catalog's
+    own release date: (entries, age in days, source, release day, basis).
 
-    The bundle is a floor so `quick` works offline on a clean machine; the cache is
-    how the data stays current without republishing the image (the ADR-0012
-    argument, applied to a second dataset).
+    The bundle is a floor so `offline` works on a clean machine; the cache is how
+    the data stays current without republishing the image (the ADR-0012 argument,
+    applied to a second dataset). Its age is the catalog's `dateReleased` (D23,
+    F6.12): it was the file's time, so a package installed today called a month-old
+    catalog new. A copy that carries no release date is aged by its file and says
+    so, `fetched`, never `released`.
     """
     cached = cache.root() / "kev.json"
     candidates = [(cached, "host cache"), (_BUNDLED, "bundled snapshot")]
-    best: tuple[dict, float | None, str] = ({}, None, "unavailable")
+    best: tuple[dict, float | None, str, str, str] = ({}, None, "unavailable", "", "")
     for path, label in candidates:
         if not path.is_file():
             continue
@@ -114,9 +131,13 @@ def _load_kev() -> tuple[dict, float | None, str]:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
-        age = (time.time() - path.stat().st_mtime) / 86400
+        released = data.get("dateReleased") if isinstance(data, dict) else None
+        age = cache.stamp_age_days(released) if released else None
+        catalog, basis = (str(released)[:10], "released") if age is not None else ("", "fetched")
+        if age is None:
+            age = (time.time() - path.stat().st_mtime) / 86400
         if best[1] is None or age < best[1]:
-            best = (data.get("entries", {}), age, label)
+            best = (data.get("entries", {}), age, label, catalog, basis)
     return best
 
 

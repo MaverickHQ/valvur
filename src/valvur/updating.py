@@ -140,6 +140,9 @@ def refresh_kev(say: Say) -> bool:
     (root / "kev.json").write_text(json.dumps({
         "source": url,
         "catalogVersion": raw.get("catalogVersion", ""),
+        # The catalog's own date, which is its age (D23, F6.12): the file's time is
+        # when it was fetched, not what it knows.
+        "dateReleased": raw.get("dateReleased", ""),
         "count": len(entries),
         "entries": entries,
     }, separators=(",", ":")), encoding="utf-8")

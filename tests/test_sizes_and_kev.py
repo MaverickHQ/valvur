@@ -42,7 +42,10 @@ def test_doctor_says_both_numbers_for_the_database_and_the_index(healthy):  # no
 def test_the_kev_line_reads_the_same_on_both_surfaces(healthy, capsys):  # noqa: F811
     from valvur.cli import _print_cache
 
-    assert doctor._check_kev().detail == cache.KEV_ABSENT_MEANS
+    # With no cached copy, the bundled snapshot is named with its catalog's day and
+    # age (R11.1), and both surfaces say what that means.
+    assert doctor._check_kev().detail.startswith("bundled snapshot, catalog 2026-08-27, ")
+    assert doctor._check_kev().detail.endswith(cache.KEV_ABSENT_MEANS)
     _print_cache(clear=False)
     out = capsys.readouterr().out
     assert f"kev       absent — {cache.KEV_ABSENT_MEANS}" in out

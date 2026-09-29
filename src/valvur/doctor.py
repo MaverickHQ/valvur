@@ -420,13 +420,17 @@ def _check_index() -> Check:
 
 
 def _check_kev() -> Check:
-    import time
+    """The catalog a scan would rank with, its release day and age (D23)."""
+    from .enrichment import LocalProvider
 
-    cached = _cache.root() / "kev.json"
-    if cached.is_file():
-        age = (time.time() - cached.stat().st_mtime) / 86400
-        return Check("kev", "info", f"host cache, {age:.1f} days old — {_cache.KEV_PRESENT_MEANS}")
-    return Check("kev", "info", _cache.KEV_ABSENT_MEANS)
+    kev = LocalProvider()
+    if kev.kev_age_days is None:
+        return Check("kev", "info", _cache.KEV_ABSENT_MEANS)
+    when = f"catalog {kev.kev_catalog}" if kev.kev_catalog else "no release date, aged by fetch"
+    means = (_cache.KEV_PRESENT_MEANS if kev.kev_source == "host cache"
+             else _cache.KEV_ABSENT_MEANS)
+    return Check("kev", "info",
+                 f"{kev.kev_source}, {when}, {kev.kev_age_days:.1f} days old — {means}")
 
 
 def _check_cache() -> Check:
