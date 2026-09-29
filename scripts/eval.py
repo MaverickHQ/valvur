@@ -76,7 +76,8 @@ def _safe_flagged_high(cases: list, findings: list[dict]) -> list[str]:
 
 def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_scan,
         image: str = "valvur:dev", image_id: Callable[[str], str] = _image_id,
-        seed: int = 20260929, tasks_text: str | None = None) -> dict:
+        seed: int = 20260929, tasks_text: str | None = None,
+        index_dir: Path | None = None) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt."""
     started = time.monotonic()
     ranking_first: bool | None = None
@@ -92,6 +93,12 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         began = time.monotonic()
         scan(root)
         findings, run_json = _read(root)
+        invalid: dict[str, str] = {}
+        if track == "package-reality":
+            from valvur import cache
+
+            invalid = twins.invalid_cases(cases, index_dir or cache.name_index())
+            cases = [case for case in cases if case.id not in invalid]
         scored = score.score_track(cases, findings)
         result["tracks"][track] = {
             "score": scored.score,
@@ -106,6 +113,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
                 "what_left_the_machine"),
             "seconds": round(time.monotonic() - began, 1),
             "safe_flagged_high": _safe_flagged_high(cases, findings),
+            "invalid": invalid,
         }
         if track == "dependencies":
             ranking_first = _ranked_first(findings)

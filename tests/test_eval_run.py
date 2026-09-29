@@ -122,3 +122,22 @@ def test_a_run_judges_its_gates_from_what_the_scans_wrote(tmp_path):
     assert result["gates"]["ranking"]["ok"] is True
     assert result["gates"]["offline"]["ok"] is True
     assert "examples/aws.env.example" in result["gates"]["honesty"]["reason"]
+
+
+def test_a_case_whose_premise_broke_is_recorded_and_not_scored(tmp_path):
+    harness = _harness()
+    index = tmp_path / "names"
+    index.mkdir()
+    # Only PyPI is indexed here: every other ecosystem's case cannot be checked.
+    (index / "pypi.txt").write_text("\n".join(sorted({"flask", "humanize", "requests"})) + "\n")
+
+    result = harness.run(["package-reality"], tmp_path / "work",
+                         scan=lambda root: _results(root, []), image="valvur:dev",
+                         image_id=lambda image: "sha256:abc", index_dir=index)
+
+    track = result["tracks"]["package-reality"]
+    assert "package-reality-pkg/pip/real-1" not in track["invalid"]
+    assert track["invalid"]["package-reality-pkg/npm/real-1"] == \
+        "no npm index to check 'express' against"
+    # PyPI's ten cases, and npm's two malicious names, which no premise constrains.
+    assert (track["vulnerable"], track["safe"]) == (8, 4)

@@ -101,3 +101,23 @@ def test_every_generated_config_file_parses(tmp_path, track):
                 value = plain.match(line)
                 assert not (value and ": " in value.group(1)), \
                     f"{path.relative_to(root)}:{n} is not a YAML plain scalar: {line!r}"
+
+
+def test_a_package_case_whose_premise_broke_is_named_and_set_aside(tmp_path):
+    """A planted name someone has since registered, or a real one since removed, is
+    no longer the case it was written as: the run names it and does not score it."""
+    twins = _twins()
+    cases = twins.build("package-reality", tmp_path / "package-reality")
+    index = tmp_path / "names"
+    index.mkdir()
+    # PyPI's list, sorted as the index stores it: `reqeusts` registered since, and
+    # `requests` absent; every other PyPI premise holds.
+    names = sorted({"flask", "humanize", "reqeusts"})
+    (index / "pypi.txt").write_text("\n".join(names) + "\n")
+
+    invalid = twins.invalid_cases([c for c in cases if "/pip/" in c.path], index)
+
+    assert invalid == {
+        "package-reality-pkg/pip/near-miss-1": "'reqeusts' is in the pip index now",
+        "package-reality-pkg/pip/real-1": "'requests' is not in the pip index",
+    }

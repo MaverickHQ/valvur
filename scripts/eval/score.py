@@ -29,6 +29,8 @@ class Case:
     advisories: tuple[str, ...] = ()
     cwes: tuple[int, ...] = ()
     sources: tuple[str, ...] = ()
+    #: What the case is about, where its premise needs it: a declared package name.
+    subject: str = ""
 
 
 @dataclass

@@ -536,9 +536,40 @@ def package_reality(root: Path, seed: int) -> list[Case]:
                 for file, text in _manifest(ecosystem, name, kind == "private").items():
                     files[f"{case_dir}/{file}"] = text
                 cases.append(Case(f"package-reality-{case_dir}", "package-reality", ecosystem,
-                                  case_dir, vulnerable, prefixes=("valvur.dependency.",)))
+                                  case_dir, vulnerable, prefixes=("valvur.dependency.",),
+                                  subject=name))
     _write(root, files)
     return cases
+
+
+#: The package-reality kinds whose name must be absent from the public index, and
+#: the one whose name must be present; a malicious name may be either.
+_ABSENT = ("nonexistent", "near-miss", "private")
+_PRESENT = ("real",)
+
+
+def invalid_cases(cases: list[Case], index_dir: Path) -> dict[str, str]:
+    """Each package-reality case whose premise the index a run used no longer holds:
+    a planted name since registered, a real one since gone. Named, and not scored."""
+    from valvur.ecosystems import index_form
+    from valvur.name_index.reader import open_index
+
+    invalid: dict[str, str] = {}
+    for case in cases:
+        kind = case.path.rsplit("/", 1)[-1].rsplit("-", 1)[0]
+        if case.track != "package-reality" or kind not in _ABSENT + _PRESENT:
+            continue
+        index = open_index(index_dir, case.category)
+        if index is None:
+            invalid[case.id] = f"no {case.category} index to check '{case.subject}' against"
+            continue
+        with index:
+            present = index.contains(index_form(case.category, case.subject))
+        if kind in _ABSENT and present:
+            invalid[case.id] = f"'{case.subject}' is in the {case.category} index now"
+        elif kind in _PRESENT and not present:
+            invalid[case.id] = f"'{case.subject}' is not in the {case.category} index"
+    return invalid
 
 
 # ------------------------------------------------------------ 6. agent configuration
