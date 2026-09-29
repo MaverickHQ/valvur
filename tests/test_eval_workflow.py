@@ -34,3 +34,15 @@ def test_it_scans_with_the_image_built_from_the_tree_and_compares_when_it_can():
     assert "docker buildx bake dev" in WORKFLOW
     assert "VALVUR_IMAGE: valvur:dev" in WORKFLOW
     assert "--compare tests/eval/baseline.json" in WORKFLOW
+
+
+def test_a_release_is_stopped_by_a_score_under_its_baseline():
+    """N4.3: the detection a release ships is measured before it leaves. The Score
+    runs in `verify`, before anything is pushed, against the committed baseline."""
+    release = (REPO / ".github" / "workflows" / "release.yml").read_text()
+    verify = release.split("\n  verify:", 1)[1].split("\n  build:", 1)[0]
+
+    assert "python scripts/eval.py" in verify
+    assert "--compare tests/eval/baseline.json" in verify
+    assert "VALVUR_IMAGE: valvur:dev" in verify.split("python scripts/eval.py")[0].rsplit(
+        "- name:", 1)[1]

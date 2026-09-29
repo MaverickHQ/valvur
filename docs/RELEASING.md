@@ -170,9 +170,13 @@ Keep the window short: bump, verify, tag and push in one sitting.
 
 **`verify` — refuses to release a tree that does not agree with itself.** The tag
 must match `pyproject.toml`; lint, types and the *whole* test suite including
-end-to-end must pass; valvur must add no GPL component (F10.4); and valvur must scan
+end-to-end must pass; valvur must add no GPL component (F10.4); valvur must scan
 itself clean, with no unsuppressed finding, no expired suppression and no scanner
-that failed to complete (N2.5).
+that failed to complete (N2.5); and the Score must hold its baseline (N4.3,
+ADR-0026). Every track runs, since all eight fit in a few minutes. A track more than
+2 points under `tests/eval/baseline.json`, a failed gate whose phase has closed, or
+a corpus finding with no label stops the release. The weekly `eval.yml` runs the
+same command, so a fall is usually known before release day.
 
 **`build` — each architecture, natively (23.4.3).** One job per architecture, on
 its own runner — `ubuntu-24.04` and `ubuntu-24.04-arm` — each running `docker
