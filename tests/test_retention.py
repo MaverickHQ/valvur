@@ -58,5 +58,5 @@ def test_the_rehearsal_and_the_index_are_kept_by_count_and_the_image_is_never_na
         return int(match.group(1))
 
     assert keeps("valvur-rehearsal") >= 25, "fewer than the last five rehearsals whole"
-    assert keeps("valvur-index") >= 90, "fewer than the thirty dated tags the task asks for"
+    assert keeps("valvur-index") >= 180, "fewer than thirty dated tags of both artifacts"
     assert "package-name: valvur\n" not in _text(), "the published image is pruned by schedule"

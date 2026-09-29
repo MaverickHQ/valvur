@@ -4,13 +4,15 @@ Three modules, one job each (28.4.2): `reader` is what a scan needs — the
 memory-mapped file, the on-disk contract, the environment names — and imports
 nothing that fetches; `published` pulls the signed OCI artifact every
 `valvur update` uses; `build` walks the registries, which only the publishing
-workflow and the fallback do. This package re-exports the names callers use; a
-test that patches a name patches the module that defines it.
+workflow and the fallback do. `malicious` is the known-malicious list
+published beside the index (D26), read, built and pulled the same ways. This
+package re-exports the names callers use; a test that patches a name patches the
+module that defines it.
 """
 
 from __future__ import annotations
 
-from . import build, published, reader
+from . import build, malicious, published, reader
 from .build import (  # noqa: F401
     CRATES_DUMP,
     FULL_REPULL_AFTER_DAYS,
@@ -53,4 +55,4 @@ from .reader import (  # noqa: F401
     open_index,
 )
 
-__all__ = ["build", "published", "reader"]
+__all__ = ["build", "malicious", "published", "reader"]

@@ -174,3 +174,20 @@ def test_a_package_case_is_flagged_only_by_a_claim_about_the_package(tmp_path):
         assert hit(f"valvur.dependency.{claim}"), claim
     for statement in ("not-public", "ecosystem-not-covered", "private-registry"):
         assert not hit(f"valvur.dependency.{statement}"), statement
+
+
+def test_a_malicious_dependency_case_counts_the_finding_osv_folds_into(tmp_path):
+    """R11.5: OSV-Scanner's `MAL-` finding for a package folds into the
+    dependency-reality Check's `valvur.dependency.malicious`, so a case the advisory
+    alone flagged is flagged by the one finding that remains."""
+    sys.path.insert(0, str(EVAL))
+    try:
+        import score  # type: ignore[import-not-found]
+    finally:
+        sys.path.remove(str(EVAL))
+    cases = _twins().build("dependencies", tmp_path / "deps")
+    [case] = [c for c in cases if c.vulnerable and c.advisories == ("MAL-2023-1",)]
+    folded = {"path": f"{case.path}/package-lock.json", "rule": "valvur.dependency.malicious",
+              "status": "new"}
+
+    assert score.flagged(case, [folded])

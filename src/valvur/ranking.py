@@ -17,6 +17,7 @@ from .findings import SEVERITIES, Finding
 # things being exploited today. An unknown dependency licence matters at release
 # time; it does not matter more than a hallucinated package.
 CLASS_WEIGHT = {
+    "valvur.dependency.malicious": 0,        # it runs at install (D26)
     "valvur.dependency.nonexistent": 0,      # someone can register that name today
     "valvur.ai-artifact.prompt-injection": 0,
     # R5.6: Cisco mcp-scanner's classes, beside the one they extend.

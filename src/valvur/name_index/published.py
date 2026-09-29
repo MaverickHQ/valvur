@@ -187,11 +187,12 @@ def _reverify(directory: Path, metadata: dict, wanted: list[str], reference,
     return metadata
 
 
-def _stream_layer(registry, layer: dict, handle, ecosystem: str) -> int:
+def _stream_layer(registry, layer: dict, handle, ecosystem: str, *, floor: bool = True) -> int:
     """Blob → gunzip → file, checking as it goes what the reader will later assume:
     bytewise-sorted lines, none of them empty. A file that is not sorted would make
     `_reader.NameIndex.contains` answer "absent" for names it holds, so it is refused here,
-    where the fix is to fetch again, rather than reported per package."""
+    where the fix is to fetch again, rather than reported per package. `floor` is the
+    index's minimum count; the malicious list (D26) has none."""
     import zlib
 
     inflater = zlib.decompressobj(16 + zlib.MAX_WBITS)
@@ -218,7 +219,8 @@ def _stream_layer(registry, layer: dict, handle, ecosystem: str) -> int:
     registry.blob(layer["digest"], take, size=layer.get("size"))
     if inflater.flush() or tail:
         raise _reader.IndexUnavailable(f"{ecosystem}: the published file does not end in a newline")
-    _reader._refuse_if_truncated(ecosystem, count, "the published index holds")
+    if floor:
+        _reader._refuse_if_truncated(ecosystem, count, "the published index holds")
     return count
 
 

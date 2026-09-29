@@ -440,8 +440,11 @@ def dependencies(root: Path, seed: int) -> list[Case]:
             case_dir = f"deps/malicious/{_slug(pkg)}-{ver}"
             for file, text in _lockfiles(ecosystem, pkg, ver).items():
                 files[f"{case_dir}/{file}"] = text
+            # OSV-Scanner's `MAL-` finding folds into the dependency-reality Check's
+            # for the same package since R11.5: one finding, either path.
             cases.append(Case(f"dependencies-{case_dir}", "dependencies", "malicious",
-                              case_dir, vulnerable, advisories=(mal_id,)))
+                              case_dir, vulnerable, advisories=(mal_id,),
+                              rules=("valvur.dependency.malicious",)))
     # The ranking gate's fixture, not a case: a KEV-listed CVE beside a test-scoped
     # critical, which ranking must put second (D21). Versions no case uses: a
     # dependency finding's identity has no path (ADR-0003), so the same package and

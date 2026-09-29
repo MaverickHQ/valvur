@@ -15,6 +15,7 @@ from pathlib import Path
 
 from . import parsers as _parsers
 from . import registry as _registry
+from .locked import locked  # noqa: F401 — the package's surface (D26)
 from .registry import (  # noqa: F401 — the package's surface
     BY_KEY,
     ECOSYSTEMS,

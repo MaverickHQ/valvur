@@ -146,14 +146,18 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
             f"{name} cannot open an issue: no issues: write"
         failure_steps = [block for block in text.split("      - name: ")
                          if re.search(r"^\s*if:\s*failure\(\)", block, re.M)]
-        assert failure_steps, f"{name} has no `if: failure()` step"
-        [step] = failure_steps
-        assert "gh issue" in step, f"{name}'s failure step does not use `gh issue`"
-        assert "github.run_id" in step and "$RUN" in step, \
-            f"{name}'s issue does not carry a link to the run that failed"
-        # One issue, not one per run: a job broken for a week is one problem.
-        assert "gh issue comment" in step and "gh issue list" in step, \
-            f"{name} files a new issue for every failure"
+        # One per job: `index.yml` has two since R11.5, the index and the
+        # malicious list, and either can fail alone.
+        jobs = re.findall(r"^  [a-z][\w-]*:$", text.split("\njobs:\n", 1)[1], re.M)
+        assert len(failure_steps) == len(jobs), \
+            f"{name} has {len(failure_steps)} `if: failure()` steps for {len(jobs)} jobs"
+        for step in failure_steps:
+            assert "gh issue" in step, f"{name}'s failure step does not use `gh issue`"
+            assert "github.run_id" in step and "$RUN" in step, \
+                f"{name}'s issue does not carry a link to the run that failed"
+            # One issue, not one per run: a job broken for a week is one problem.
+            assert "gh issue comment" in step and "gh issue list" in step, \
+                f"{name} files a new issue for every failure"
         # The permission is per job, not repository-wide: `contents: read` at the
         # top of the file is what a pull request from a fork gets.
         assert re.search(r"^permissions:\n  contents: read\n", text, re.M), \

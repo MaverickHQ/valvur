@@ -170,4 +170,43 @@ def merge(findings: list[Finding]) -> list[Finding]:
             dependency=existing.dependency or finding.dependency,
             exploit=existing.exploit or finding.exploit,
         )
-    return list(by_fp.values())
+    return _fold_malicious(list(by_fp.values()))
+
+
+#: The rule the dependency-reality Check reports a known-malicious package under
+#: (D26), which a Scanner's `MAL-` advisory for the same package folds into.
+MALICIOUS_RULE = "valvur.dependency.malicious"
+
+
+def _fold_malicious(findings: list[Finding]) -> list[Finding]:
+    """OSV-Scanner reports a malicious package as its `MAL-` advisory, and the
+    dependency-reality Check as `MALICIOUS_RULE`, under identities of two classes
+    (ADR-0003): a vulnerability's has the version, a package's does not. One package
+    is one finding (F3.14), so the advisory folds into the Check's: its Scanner is
+    named, its identifier kept, and the Check's finding stands for both."""
+    from .ecosystems import index_form
+
+    def key(dependency: Dependency) -> tuple[str, str]:
+        try:
+            return dependency.ecosystem, index_form(dependency.ecosystem, dependency.package)
+        except KeyError:
+            return dependency.ecosystem, dependency.package
+
+    malicious = {key(f.dependency): i for i, f in enumerate(findings)
+                 if f.rule == MALICIOUS_RULE and f.dependency}
+    if not malicious:
+        return findings
+    folded = list(findings)
+    dropped: set[int] = set()
+    for i, finding in enumerate(findings):
+        target = (malicious.get(key(finding.dependency))
+                  if finding.rule.startswith("MAL-") and finding.dependency else None)
+        if target is None:
+            continue
+        into = folded[target]
+        folded[target] = replace(
+            into, sources=tuple(dict.fromkeys(into.sources + finding.sources)),
+            title=into.title if finding.rule in into.title
+            else into.title.replace(")", f", {finding.rule})", 1))
+        dropped.add(i)
+    return [f for i, f in enumerate(folded) if i not in dropped]

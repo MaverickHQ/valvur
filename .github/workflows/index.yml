@@ -223,3 +223,127 @@ jobs:
             echo "opened an issue"
           fi
 
+  malicious:
+    # The known-malicious list (D26, F3.14, ADR-0027), beside the index in the same
+    # package: a sorted list per ecosystem of the packages ossf/malicious-packages
+    # records (Apache-2.0), built from the day's tarball of that repository (46 MB,
+    # 1.8 s; OSV's exports of the same records are 296 MB). The index's order,
+    # exactly: pushed under `malicious-candidate`, signed, pulled back with the
+    # client every `valvur update` runs and compared byte for byte, and only then
+    # tagged with the day and `malicious`. Its own job, so a red list leaves the
+    # index's day alone, and the index's the list's. Nothing moves off main.
+    name: the malicious list, built, pushed, signed and pulled back
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - run: uv venv --python 3.12
+      - run: uv sync --locked
+
+      - name: Build the list from the repository's tarball
+        run: |
+          uv run python -m valvur.name_index build-malicious ~/.cache/valvur/names
+          echo "## Built" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat ~/.cache/valvur/names/malicious/metadata.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package the layers
+        run: |
+          set -eu
+          mkdir -p artifact && cd artifact
+          for f in pypi npm rubygems packagist crates; do
+            test -f ~/.cache/valvur/names/malicious/$f.txt
+            gzip -9 -n -c ~/.cache/valvur/names/malicious/$f.txt > $f.txt.gz
+          done
+          cp ~/.cache/valvur/names/malicious/metadata.json .
+          ls -l
+
+      - name: Push, under the candidate tag only
+        id: push
+        if: github.ref == 'refs/heads/main'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          echo "$REGISTRY_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          DATE=$(date -u +%Y-%m-%d)
+          cd artifact
+          oras push "$REPOSITORY:malicious-candidate" \
+            --artifact-type application/vnd.valvur.malicious-list.v1 \
+            --config metadata.json:application/vnd.valvur.malicious-list.config.v1+json \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${{ github.sha }}" \
+            --annotation "org.opencontainers.image.description=valvur known-malicious packages, from ossf/malicious-packages (D26)" \
+            pypi.txt.gz:application/vnd.valvur.malicious-list.layer.v1+gzip \
+            npm.txt.gz:application/vnd.valvur.malicious-list.layer.v1+gzip \
+            rubygems.txt.gz:application/vnd.valvur.malicious-list.layer.v1+gzip \
+            packagist.txt.gz:application/vnd.valvur.malicious-list.layer.v1+gzip \
+            crates.txt.gz:application/vnd.valvur.malicious-list.layer.v1+gzip
+          DIGEST=$(oras resolve "$REPOSITORY:malicious-candidate")
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Sign, keylessly
+        if: github.ref == 'refs/heads/main'
+        run: cosign sign --yes "${REPOSITORY}@${{ steps.push.outputs.digest }}"
+
+      - name: Pull it back with the shim's own client, cosign included
+        if: github.ref == 'refs/heads/main'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          uv run python -m valvur.name_index pull-malicious /tmp/roundtrip "$REPOSITORY:malicious-candidate"
+          for f in pypi npm rubygems packagist crates; do
+            cmp ~/.cache/valvur/names/malicious/$f.txt /tmp/roundtrip/malicious/$f.txt
+          done
+          python3 - <<'PY'
+          import json, os
+          published = json.load(open("/tmp/roundtrip/malicious/metadata.json"))["published"]
+          print(f"signature {published['signature']}, digest {published['digest'][:19]}")
+          assert published["signature"] == "verified", published["signature"]
+          assert published["digest"] == os.environ["DIGEST"], published["digest"]
+          PY
+
+      - name: Tag the verified digest with today's date and malicious
+        if: github.ref == 'refs/heads/main'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          DATE: ${{ steps.push.outputs.date }}
+        run: |
+          set -eu
+          oras tag "$REPOSITORY@$DIGEST" "malicious-$DATE" malicious
+          for t in "malicious-$DATE" malicious; do
+            resolved=$(oras resolve "$REPOSITORY:$t")
+            test "$resolved" = "$DIGEST" || { echo "::error::$REPOSITORY:$t resolves to $resolved, not $DIGEST"; exit 1; }
+          done
+
+      - name: A failure is a tracked thing, not an email
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the daily malicious list stopped building
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n' \
+            "The scheduled \`index\` run's malicious list failed: $RUN" \
+            "Users keep the last published list, and OSV's database still reports malicious packages. Recovery: re-run this workflow; nothing is tagged until the round trip verifies the build.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi

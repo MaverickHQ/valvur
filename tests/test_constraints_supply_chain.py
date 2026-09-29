@@ -292,7 +292,9 @@ def _index_steps() -> list[tuple[str, str]]:
     import re
 
     text = Path(".github/workflows/index.yml").read_text()
-    body = text.split("\n    steps:\n", 1)[1]
+    # The `publish` job alone: the malicious list's job (R11.5) follows it with
+    # steps of its own, in the same order, held by `test_malicious_list.py`.
+    body = text.split("\n    steps:\n", 1)[1].split("\n  malicious:\n", 1)[0]
     parts = re.split(r"^      - (name: .+|uses: .+|run: .+)$", body, flags=re.M)
     return [(parts[i].partition(": ")[2].strip(), parts[i + 1])
             for i in range(1, len(parts) - 1, 2)]

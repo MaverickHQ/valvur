@@ -653,7 +653,7 @@ honesty gate green; track 5's private-registry cases scored.
       ADR-0025 was silent on a terminal. `refreshing` now counts as a fetch starting.
     - The falsifiability constraint relied on `full`'s API call. It now relies on a
       scan due a fetch. A new constraint asserts `full`'s host process opens nothing.
-- [ ] **R11.5** **The malicious list, published daily** (D26; F3.14). Behaviours:
+- [x] **R11.5** **The malicious list, published daily** (D26; F3.14). Behaviours:
   1. `python -m valvur.name_index build-malicious` builds the sorted per-ecosystem lists
      from a pinned fixture of OSV records;
   2. `index.yml` builds, pushes as a candidate, signs, pulls back and compares it, and
@@ -666,6 +666,41 @@ honesty gate green; track 5's private-registry cases scored.
   6. `valvur update` and a stale scan fetch it with the index; the Score's lanes build it
      locally until `main` publishes it;
   7. `retention.yml` keeps the `malicious` tags as it keeps the index's.
+  **STATUS 2026-09-29:** ✅ all seven. D26's fallback is not needed.
+  - **Measured first.** The repository's tarball is 46 MB and arrives in 1.8 s. OSV's
+    exports for the same ecosystems are 296 MB, so the tarball is the source. It is
+    read as a stream: unpacking its 238,545 files took 72 s on the Mac. A build from
+    it takes 12.9 s and writes 2.2 MB compressed, under D26's 10 MB.
+  - **The records.** 213,266 cover every version (a range from 0), 24,745 name
+    versions, and 533 state a range from a later version. Ranges are kept as `>=A`,
+    `>=A<B` or `>=A<=B` and compared by release number. Go, Maven, NuGet and VS Code
+    (823 records) are passed over and counted. The build skips withdrawn records, and
+    the nine package directories named `*.json`.
+  - **The format.** One line per name: name, versions or `*`, and `MAL-` IDs,
+    tab-separated. The tab sorts below any name character, so the index's bisection
+    now keys on the text before a tab and serves both files.
+  - **The Check.** It reads the list beside the index, in the mount the index
+    already has, for declared and locked packages. `ecosystems/locked.py` reads the
+    lockfiles once per walk: npm (package-lock, shrinkwrap, yarn, pnpm, and exact
+    `package.json` pins), PyPI (requirements pins, poetry, uv, Pipfile.lock),
+    Cargo.lock, composer.lock and Gemfile.lock.
+    - A name on the list is reported as `valvur.dependency.malicious`, critical,
+      ranked first, and is not also asked about existence.
+    - OSV-Scanner's `MAL-` finding for the same package folds into it in
+      `findings.merge`: one finding, both Scanners, both identifiers.
+  - **Published.** `index.yml` gains a `malicious` job in the index's order:
+    build, push `malicious-candidate`, sign, pull back with `pull-malicious` and
+    `cmp`, and only then tag `malicious-<date>` and `malicious`, all of it on `main`
+    only. `retention.yml` keeps 180 versions, six weeks of both artifacts with their
+    signatures.
+  - **Fetched.** `valvur update` pulls the list with the index and, until `main`
+    publishes it, builds it from the tarball. A scan pulls it past two days and
+    never builds it. Both are recorded, and a failure costs nothing: OSV's database
+    still reports what it knows.
+  - **The Score.** The dependency track's `MAL-` cases also accept the folded rule,
+    since the advisory's own rule no longer stands alone.
+  - **Found on the way.** `NOTICE` still said EPSS was fetched on `full`; it now
+    says what R11.4 made true, and credits ossf/malicious-packages.
 - [ ] **R11.6** **Freshness on every surface.** Behaviours: `SUMMARY.md` gains one line of
   each dataset's data age; the MCP reply carries them as fields; the Score's freshness
   gate reads them from `run.json`.

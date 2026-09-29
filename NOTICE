@@ -90,4 +90,13 @@ CISA Known Exploited Vulnerabilities catalog
 
 FIRST EPSS
     https://www.first.org/epss
-    Fetched on demand on the `full` profile, never bundled.
+    The daily scores file, fetched into the host cache by `valvur update` and by
+    a scan when it is two days old, on every profile; never bundled (R11.4).
+
+OpenSSF Malicious Packages
+    https://github.com/ossf/malicious-packages
+    Apache License 2.0
+    Copyright the OpenSSF Malicious Packages contributors. Its records are
+    reduced, daily, to the known-malicious list published beside the package-name
+    index (`ghcr.io/maverickhq/valvur-index:malicious`, D26); ten of them, as
+    published, are test fixtures under `tests/fixtures/malicious-packages`.

@@ -36,6 +36,8 @@ The sizes were measured on 2026-09-28 (`docs/acceptance/r7.md`).
 #    so copy the signature with it (`--recursive` for oras, or `cosign copy`).
 oras cp mirror.gcr.io/aquasec/trivy-db:2 registry.internal/mirror/trivy-db:2
 oras cp --recursive ghcr.io/maverickhq/valvur-index:latest registry.internal/mirror/valvur-index:latest
+# The known-malicious list, beside the index in the same repository (D26, R11.5).
+oras cp --recursive ghcr.io/maverickhq/valvur-index:malicious registry.internal/mirror/valvur-index:malicious
 
 # 2. KEV and OSV's databases, from anywhere connected: one file each, per ecosystem
 #    your projects use (PyPI, npm, crates.io, Go, Maven, RubyGems, Packagist).
@@ -93,9 +95,9 @@ says which value came from where.
 |---|---|---|
 | `db_repository` | `VALVUR_DB_REPOSITORY` | The OCI repository Trivy fetches its database from. |
 | `db_insecure` | `VALVUR_DB_INSECURE=1` | Allows plain HTTP, or a certificate the container does not trust. Trivy assumes TLS for any registry that is not `localhost` or a private-range IP literal; without this an internal mirror on HTTP fails with *"server gave HTTP response to HTTPS client"*. Found by the first real test, not by reading the docs. |
-| `index_repository` | `VALVUR_INDEX_REPOSITORY` | The OCI repository the package-name index is pulled from, `host/name[:tag]`. Default `ghcr.io/maverickhq/valvur-index:latest`. Set explicitly, it is the only source tried: a mirror that fails is reported, not worked around by walking the registries. |
+| `index_repository` | `VALVUR_INDEX_REPOSITORY` | The OCI repository the package-name index is pulled from, `host/name[:tag]`. Default `ghcr.io/maverickhq/valvur-index:latest`. Set explicitly, it is the only source tried: a mirror that fails is reported, not worked around by walking the registries. The known-malicious list is pulled from the same repository's `malicious` tag. |
 | `index_insecure` | `VALVUR_INDEX_INSECURE=1` | Plain HTTP, or an untrusted certificate, for that repository. The shim pulls the index itself, no container involved, so this is the shim's own switch, not Trivy's. |
-| `name_index_url` | `VALVUR_NAME_INDEX_URL` | A URL under which the index's files, `pypi.txt`, `npm.txt`, `rubygems.txt`, `packagist.txt`, `crates.txt` and `metadata.json`, are served verbatim. Wins over the repository when both are set. |
+| `name_index_url` | `VALVUR_NAME_INDEX_URL` | A URL under which the index's files, `pypi.txt`, `npm.txt`, `rubygems.txt`, `packagist.txt`, `crates.txt` and `metadata.json`, are served verbatim, and the known-malicious list's under `malicious/`, as `valvur update` leaves them in the cache. Wins over the repository when both are set. |
 | `kev_url` | `VALVUR_KEV_URL` | A URL for the CISA KEV catalog JSON. Without it, an air-gapped `valvur update` tries cisa.gov, fails softly, and keeps the snapshot shipped in the image. |
 | `epss_url` | `VALVUR_EPSS_URL` | A URL for FIRST's daily EPSS file, `epss_scores-current.csv.gz`, served verbatim. Without it, an air-gapped `valvur update` tries epss.cyentia.com, fails softly, and findings rank without EPSS. |
 | `osv_url` | `VALVUR_OSV_URL` | A URL under which OSV's databases are served as `<ecosystem>/all.zip`, OSV's own layout. The shim fetches them itself. |

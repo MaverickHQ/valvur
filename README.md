@@ -500,7 +500,7 @@ records the version of each that ran, and `raw/` keeps what each said.
 | Check | Reads |
 |---|---|
 | `ai-artifact` | Agent configuration: injected directives, hidden Unicode, unpinned MCP servers, blanket approval, hooks that run a command, and local settings that would leak |
-| `dependency-reality` | Every declared dependency against the Name Index: does it exist, and on `full`, how old and how adopted is it |
+| `dependency-reality` | Every declared dependency against the Name Index: does it exist, and on `full`, how old and how adopted is it. Every declared or locked one against the known-malicious list, built daily from OpenSSF's malicious-packages |
 | `licence-file` | The project's own licence: missing, or contradicting what the manifest declares |
 
 Exploit intelligence comes from CISA KEV and FIRST EPSS: public primary sources,

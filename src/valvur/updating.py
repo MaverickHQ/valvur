@@ -72,6 +72,7 @@ def refresh_index(say: Say, *, build: bool = False) -> bool:
         with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
             name_index.build.refresh(cache.name_index(), published=not build,
                                      progress=lambda msg: say(f"  {msg}"))
+            refresh_malicious(say, build=build, fallback=True)
     except oci.SignatureInvalid as exc:
         # Not softened into the fallback and not swallowed: a refused signature on a
         # supply-chain artifact is the one failure that must stop the command.
@@ -86,6 +87,26 @@ def refresh_index(say: Say, *, build: bool = False) -> bool:
         else:
             say("Without it, the dependency-reality Check cannot verify package "
                 "existence offline and will report that rather than a clean result.")
+        return False
+    return True
+
+
+def refresh_malicious(say: Say, *, build: bool = False, fallback: bool = False) -> bool:
+    """The known-malicious list beside the index (D26, R11.5), with it. It adds to
+    what OSV's database already reports, so a failure is said and costs the index
+    nothing. `fallback` builds it from its source when it is not published, as
+    `valvur update` does until `index.yml` publishes it from `main`; a scan never
+    does. The caller holds the cache lock. A refused signature is not caught."""
+    from . import cache, name_index
+    from .name_index import malicious
+
+    try:
+        malicious.refresh(cache.name_index(), build=build, fallback=fallback,
+                          progress=lambda msg: say(f"  {msg}"))
+    except name_index.IndexUnavailable as exc:
+        say(f"  malicious list not refreshed ({exc}); "
+            + ("the previous list remains in use." if malicious.age_days(cache.name_index())
+               is not None else "OSV's database still reports malicious packages."))
         return False
     return True
 

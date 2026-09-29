@@ -347,7 +347,8 @@ def _fetch_record(what: str, source: str, size_mb: int | None, seconds: float,
 FETCH_STARTED = ("pulling ", "fetching ", "refreshing ")
 FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
                "index fetched", "index not fetched", "OSV database fetched",
-               "OSV database not fetched", "KEV refreshed", "KEV refresh skipped",
+               "OSV database not fetched", "malicious list fetched",
+               "malicious list not fetched", "KEV refreshed", "KEV refresh skipped",
                "EPSS refreshed", "EPSS refresh skipped")
 
 
@@ -432,6 +433,7 @@ def _ensure_data(runner, on_progress, *, workspace=None,
                 "package-name index", name_index.published.repository(), index_size, seconds,
                 signature=_index_signature(metadata)))
     _stop_if_cancelled(runner, "during the first run's fetches")
+    _ensure_malicious(say, fetched)
     _ensure_kev(say, fetched)
     _ensure_epss(say, fetched)
     if workspace is not None and any(getattr(a, "offline", False) for a in adapters
@@ -439,6 +441,35 @@ def _ensure_data(runner, on_progress, *, workspace=None,
         _stop_if_cancelled(runner, "during the first run's fetches")
         _ensure_osv(workspace, say, fetched, unfetched)
     return fetched, unfetched
+
+
+def _ensure_malicious(say, fetched: list[dict]) -> None:
+    """The known-malicious list absent or past two days (D24, D26, R11.5), pulled as
+    published and never built inside a scan. A failure keeps the list in use and
+    costs no Scanner: OSV-Scanner still reports what its database knows."""
+    from . import locking, updating
+    from .name_index import malicious
+
+    if not _cache.name_index_present():
+        return                       # nothing to put it beside; the index said why
+    age = malicious.age_days(_cache.name_index())
+    if age is not None and age <= _cache.INDEX_REFRESH_AFTER_DAYS:
+        return
+    say("fetching the malicious list — the first run only" if age is None else
+        f"refreshing the malicious list ({age:.0f} days old)")
+    started = time.monotonic()
+    with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
+        refreshed = updating.refresh_malicious(say)
+    seconds = time.monotonic() - started
+    if not refreshed:
+        say("malicious list not fetched")
+        return
+    say(f"malicious list fetched ({seconds:.0f}s)")
+    from . import settings
+
+    fetched.append(_fetch_record(
+        "malicious list", settings.get("name_index_url") or malicious.reference(), None,
+        seconds))
 
 
 def _ensure_kev(say, fetched: list[dict]) -> None:

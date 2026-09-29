@@ -45,10 +45,12 @@ jobs:
         with:
           package-name: valvur-index
           package-type: container
-          # A daily build pushes the artifact and its cosign signature: ninety
-          # versions is about forty-five days, which covers the thirty dated
-          # tags the task asks for, `latest` and `candidate` among them.
-          min-versions-to-keep: 90
+          # A daily build pushes the index and its cosign signature, and since
+          # R11.5 the malicious list and its signature too (D26): 180 versions is
+          # about forty-five days of both, which covers the thirty dated tags of
+          # each the task asks for, `latest`, `malicious` and the candidates among
+          # them.
+          min-versions-to-keep: 180
 
       - name: A failure is a tracked thing, not an email
         # The rule every scheduled workflow here follows (27.2.7): GitHub mails a

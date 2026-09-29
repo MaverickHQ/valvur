@@ -57,6 +57,15 @@ def write_name_index(directory: Path, *, built_at=None, **names) -> Path:
         (directory / filename).write_bytes(b"".join(n + b"\n" for n in ordered))
         entries[ecosystem] = {"built_at": stamp, "count": len(given), "source": "test"}
     (directory / METADATA).write_text(json.dumps({"schema": 1, "ecosystems": entries}))
+    # The malicious list beside it (R11.5), empty and built now: what `valvur update`
+    # leaves, so a scan does not try to fetch one. A test that wants names on it
+    # builds its own from `tests/fixtures/malicious-packages`.
+    listed = directory / "malicious"
+    listed.mkdir(exist_ok=True)
+    for filename in FILES.values():
+        (listed / filename).write_bytes(b"")
+    (listed / METADATA).write_text(json.dumps({"schema": 1, "built_at": _now(),
+                                               "ecosystems": {}}))
     return directory
 
 

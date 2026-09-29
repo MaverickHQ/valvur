@@ -98,8 +98,15 @@ class NameIndex:
         self._file.close()
 
     def contains(self, name: str) -> bool:
+        return self.line(name) is not None
+
+    def line(self, name: str) -> bytes | None:
+        """The line whose key is `name`, or None. A line's key is all of it, or what
+        precedes its first tab: the malicious list (D26) carries versions after one,
+        and a tab sorts below every character a name holds, so its order is its
+        keys' order and one bisection serves both files."""
         if self._map is None or not name:
-            return False
+            return None
         target = name.encode("utf-8")
         view = self._map
         lo, hi = 0, len(view)
@@ -111,13 +118,14 @@ class NameIndex:
             if end == -1:
                 end = hi
             line = view[start:end]
-            if line == target:
-                return True
-            if line < target:
+            key = line.partition(b"\t")[0]
+            if key == target:
+                return line
+            if key < target:
                 lo = end + 1
             else:
                 hi = start
-        return False
+        return None
 
 
 def open_index(directory: Path, ecosystem: str) -> NameIndex | None:

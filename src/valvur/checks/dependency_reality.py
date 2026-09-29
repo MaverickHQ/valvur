@@ -100,6 +100,11 @@ class DependencyRealityCheck(Check):
                 # index could be built from. A Profile omission, stated as one.
                 ignores.append(f"{manifests.label}: existence checked on `full` only "
                                "(no offline index exists for this registry)")
+        # The known-malicious list (D26): the indexed ecosystems only, where 99.99%
+        # of its records are; Go and Maven hold 20, and OSV's database has them.
+        reads.append("known-malicious packages, declared or locked: Python, npm, Ruby, "
+                     "PHP and Rust, from the list built daily from OpenSSF's "
+                     "malicious-packages")
         # Stated rather than left implicit: names are checked for existence in every
         # indexed ecosystem, but the near-miss typosquat comparison needs a corpus of
         # popular package names and only PyPI's ships in the image.
@@ -130,12 +135,21 @@ class DependencyRealityCheck(Check):
         # could not help you" was absent from the Profile almost everyone uses. The
         # gap is a static fact about files on disk — it belongs somewhere that runs
         # unconditionally. See `valvur/coverage.py` (task 19.D.1, C1).
-        findings: list[dict] = []
-
+        # Known-malicious names first (D26, F3.14), from the daily list beside the
+        # index, declared or locked: a name on it is reported as that and nothing
+        # else, since whether it still exists is beside the point.
         declared = _declared_packages(workspace, exclude)
+        malicious = _malicious(declared, _ecosystems.locked(workspace, exclude))
+        flagged = {(f["dependency"]["ecosystem"], f["dependency"]["package"])
+                   for f in malicious}
+        declared = {(eco, name, source) for eco, name, source in declared
+                    if (eco, _ecosystems.index_form(eco, name)) not in flagged}
         if not declared:
-            return findings
+            return malicious
+        return malicious + self._existence(workspace, declared)
 
+    def _existence(self, workspace: Path, declared: set[tuple[str, str, str]]) -> list[dict]:
+        findings: list[dict] = []
         from .. import name_index as _index
 
         popular = _popular()
@@ -348,6 +362,55 @@ def _private_source(configured: _registries.Registries, name: str) -> tuple[str,
     if scope and scope in configured.private_scopes:
         return scope, configured.private_scopes[scope]
     return None
+
+
+def _malicious(declared: set[tuple[str, str, str]],
+               locked: set[tuple[str, str, str, str]]) -> list[dict]:
+    """Each declared or locked package the malicious list names (D26), once per
+    package: a declared name matches an entry for every version, a locked version
+    an entry naming it. Declared first, so a match on both is reported where the
+    dependency was written."""
+    from ..name_index import malicious as _list
+
+    lists: dict[str, _list.MaliciousList | None] = {}
+    found: dict[tuple[str, str], dict] = {}
+    candidates = ([(eco, name, None, source) for eco, name, source in sorted(declared)]
+                  + sorted(locked))
+    try:
+        for ecosystem, name, version, source in candidates:
+            if ecosystem not in _list.FILES:
+                continue
+            if ecosystem not in lists:
+                lists[ecosystem] = _list.open_list(_index_dir(), ecosystem)
+            listed = lists[ecosystem]
+            key = (ecosystem, _ecosystems.index_form(ecosystem, name))
+            entry = listed.lookup(key[1]) if listed is not None and key not in found else None
+            if entry is None or not entry.names(version):
+                continue
+            ids = ", ".join(entry.ids)
+            at = f"{name}@{version}" if version else name
+            finding = _finding(
+                "valvur.dependency.malicious", ecosystem, key[1], source, "critical",
+                f"{name} was published as malicious ({ids})",
+                f"{_REGISTRY_NAME[ecosystem].removeprefix('the ')} package {at} is on the "
+                f"known-malicious list ({ids}), built on {_malicious_built_on()} from "
+                "ossf/malicious-packages. Remove it; a machine that installed it should "
+                "be treated as compromised.",
+            )
+            finding["dependency"] = {"ecosystem": ecosystem, "package": key[1],
+                                     "version": version or ""}
+            found[key] = finding
+    finally:
+        for listed in lists.values():
+            if listed is not None:
+                listed.close()
+    return list(found.values())
+
+
+def _malicious_built_on() -> str:
+    from ..name_index import malicious as _list
+
+    return str(_list.metadata(_index_dir()).get("built_at") or "")[:10] or "an unrecorded date"
 
 
 def _index_built_on(ecosystem: str) -> str:
