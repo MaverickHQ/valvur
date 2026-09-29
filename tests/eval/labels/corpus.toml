@@ -1,0 +1,199 @@
+# Labels for the Score's real-code precision track (R9.5, ADR-0026).
+#
+# Every active finding of a rule valvur owns, or of Gitleaks, on the corpus at its
+# pins: `tp` when a maintainer would act on it (change code, rotate, pin), `fp`
+# otherwise, and why. The executor's judgement, 2026-09-29, read against the code at
+# each finding; committed for the owner to read and overrule. A finding with no
+# label here fails the track. Coverage notes are valvur's own limits, not judged.
+
+[[label]]
+repo = "fastify"
+fingerprint = "3c1b84343c57c49529d5e2fcf299f967"
+rule = "generic-api-key"
+path = "test/upgrade.test.js"
+verdict = "fp"
+reason = "The RFC 6455 example Sec-WebSocket-Key, a handshake nonce in a test, not a credential."
+
+[[label]]
+repo = "flask"
+fingerprint = "319fbf6de377ae4141e09fd0e2ef4843"
+rule = "generic-api-key"
+path = "docs/config.rst"
+verdict = "fp"
+reason = "An example SECRET_KEY in the documentation, shown so readers see the shape of a generated value."
+
+[[label]]
+repo = "flask"
+fingerprint = "a60d122b0b952daa9105ae694ff6a85d"
+rule = "generic-api-key"
+path = "docs/config.rst"
+verdict = "fp"
+reason = "An example FLASK_SECRET_KEY in the documentation's shell transcript."
+
+[[label]]
+repo = "flask"
+fingerprint = "4c9c06bb1fda0cace13966dcfbfb076f"
+rule = "generic-api-key"
+path = "docs/tutorial/deploy.rst"
+verdict = "fp"
+reason = "The tutorial's example SECRET_KEY, printed so readers can see one; theirs is generated."
+
+[[label]]
+repo = "flask"
+fingerprint = "cd7a1deb045dc0d1f911f37add6bad79"
+rule = "valvur.python.dangerous-eval"
+path = "src/flask/cli.py"
+verdict = "fp"
+reason = "Runs the user's own PYTHONSTARTUP file in `flask shell`, as the Python REPL does; the feature."
+
+[[label]]
+repo = "flask"
+fingerprint = "ad1d6f72a99fc5599246df77d341cc77"
+rule = "valvur.python.dangerous-exec"
+path = "src/flask/config.py"
+verdict = "fp"
+reason = "`Config.from_pyfile` executes the application's own config file; the feature."
+
+[[label]]
+repo = "flask"
+fingerprint = "19642c36684205446a04c57d17654030"
+rule = "valvur.python.weak-hash"
+path = "src/flask/sessions.py"
+verdict = "fp"
+reason = "SHA-1 as the digest of itsdangerous's HMAC session signature; HMAC-SHA1 is not broken."
+
+[[label]]
+repo = "llm"
+fingerprint = "098962bdce1b0e017f376465dd431187"
+rule = "valvur.python.dangerous-exec"
+path = "llm/cli.py"
+verdict = "fp"
+reason = "`llm --functions` executes Python the user passed on its own command line; the feature."
+
+[[label]]
+repo = "llm"
+fingerprint = "53a5d9b8a48af82ea76852aa472cc458"
+rule = "valvur.python.weak-hash"
+path = "llm/embeddings.py"
+verdict = "fp"
+reason = "MD5 as a content key for de-duplicating embeddings, not for security."
+
+[[label]]
+repo = "llm"
+fingerprint = "f39a6e25d9dbc17951f7fa101f302a61"
+rule = "valvur.python.weak-hash"
+path = "llm/embeddings_migrations.py"
+verdict = "fp"
+reason = "MD5 as a content key in a migration, not for security."
+
+[[label]]
+repo = "llm"
+fingerprint = "1f3f0652d63e07c85d4987af30d887c3"
+rule = "valvur.python.weak-hash"
+path = "llm/embeddings_migrations.py"
+verdict = "fp"
+reason = "MD5 of the clock for a placeholder value in a migration, not for security."
+
+[[label]]
+repo = "monolog"
+fingerprint = "713f840426dc13eaccb5ec9d29ad6683"
+rule = "generic-api-key"
+path = "tests/Monolog/Handler/RollbarHandlerTest.php"
+verdict = "fp"
+reason = "A token handed to a mocked Rollbar logger in a test; nothing is sent."
+
+[[label]]
+repo = "monolog"
+fingerprint = "6e2f06e0fba7d1c387d73c3a97ccf290"
+rule = "slack-webhook-url"
+path = "tests/Monolog/Handler/SlackWebhookHandlerTest.php"
+verdict = "fp"
+reason = "A Slack webhook URL used only to build handlers in tests that assert on the payload; nothing is posted. Unchanged for years."
+
+[[label]]
+repo = "requests"
+fingerprint = "ac470a14f67cdfc1dc3dad2942622db7"
+rule = "private-key"
+path = "tests/certs/expired/ca/ca-private.key"
+verdict = "fp"
+reason = "A TLS key for the test suite's own self-signed certificates, generated for the tests."
+
+[[label]]
+repo = "requests"
+fingerprint = "4287eb6b3459db62c370cad8182c2290"
+rule = "private-key"
+path = "tests/certs/expired/server/server.key"
+verdict = "fp"
+reason = "A TLS key for the test suite's own self-signed certificates, generated for the tests."
+
+[[label]]
+repo = "requests"
+fingerprint = "ea327228426d3d0612ebe911ee4243a8"
+rule = "private-key"
+path = "tests/certs/mtls/client/client.key"
+verdict = "fp"
+reason = "A TLS key for the test suite's own self-signed certificates, generated for the tests."
+
+[[label]]
+repo = "requests"
+fingerprint = "5a8e7406df3fab5975698b2bcc515fa9"
+rule = "private-key"
+path = "tests/certs/valid/server/server.key"
+verdict = "fp"
+reason = "A TLS key for the test suite's own self-signed certificates, generated for the tests."
+
+[[label]]
+repo = "ripgrep"
+fingerprint = "e98797bb8124df501f39f9d05d32fccd"
+rule = "valvur.licence.mismatch"
+path = "Cargo.toml"
+verdict = "fp"
+reason = "valvur's false positive: COPYING states the dual licence Cargo.toml declares, Unlicense OR MIT, and the Check read it as MIT alone."
+
+[[label]]
+repo = "sinatra"
+fingerprint = "e2f270201d58ec58f2e4e66612680051"
+rule = "generic-api-key"
+path = "README.md"
+verdict = "fp"
+reason = "A snipped example session secret in the README (`99ae8af...snip...ec0f262ac`)."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "48ebe65efde9c52a1acc9adab525ac0d"
+rule = "valvur.python.dangerous-exec"
+path = "src/smolagents/tools.py"
+verdict = "fp"
+reason = "Loads a tool's code by design, behind smolagents' trust_remote_code; the maintainers would not change it."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "57f167b7f8a799ce7d2097050bdc2e29"
+rule = "valvur.python.dangerous-exec"
+path = "tests/test_remote_executors.py"
+verdict = "fp"
+reason = "A test executing code the test itself generated."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "c29f8c84ff9d86abd7850f66b69ea241"
+rule = "valvur.python.dangerous-exec"
+path = "tests/test_remote_executors.py"
+verdict = "fp"
+reason = "A test executing code the test itself generated."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "fca00a86d64483776a6ab6897367fa75"
+rule = "valvur.python.dangerous-exec"
+path = "tests/test_serialization.py"
+verdict = "fp"
+reason = "A test executing code the test itself generated."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "75ba325ac4592751432bd3a622db1dcd"
+rule = "valvur.python.dangerous-exec"
+path = "tests/test_serialization.py"
+verdict = "fp"
+reason = "A test executing code the test itself generated."

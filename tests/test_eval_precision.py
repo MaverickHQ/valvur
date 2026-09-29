@@ -93,7 +93,7 @@ def test_a_coverage_note_is_valvur_s_own_limit_and_not_judged(tmp_path):
 
 
 def test_a_silent_corpus_scores_100_and_every_false_alarm_costs():
-    """Maintained code rarely holds a real finding: the first measurement judged 21
+    """Maintained code rarely holds a real finding: the first measurement judged 24
     findings on the corpus, none a maintainer would act on. Plain precision is then
     0 for one false alarm and for forty, and 0/0 for none, so the ratchet could not
     see noise grow. One imaginary true positive makes silence 100 and each false
@@ -102,5 +102,5 @@ def test_a_silent_corpus_scores_100_and_every_false_alarm_costs():
 
     assert p.Precision(tp=0, fp=0).score == 100.0
     assert p.Precision(tp=0, fp=1).score == 50.0
-    assert p.Precision(tp=0, fp=21).score == 4.5
+    assert p.Precision(tp=0, fp=24).score == 4.0
     assert p.Precision(tp=0, fp=40).score == 2.4

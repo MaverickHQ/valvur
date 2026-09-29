@@ -39,7 +39,7 @@ that halved what a Scanner found would pass every check the repository had.
       own limits and are not judged.
 
       *Amended 2026-09-29 by R9.5, on the first measurement:* the track is
-      **smoothed precision**, 100 × (tp + 1) / (tp + fp + 1). The corpus's 21 judged
+      **smoothed precision**, 100 × (tp + 1) / (tp + fp + 1). The corpus's 24 judged
       findings held no true positive. Plain precision was therefore 0 for one false
       alarm and for forty, and 0/0 for none, so the ratchet could not see noise grow.
       With one imaginary true positive, a silent corpus scores 100 and each false
