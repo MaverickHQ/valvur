@@ -474,13 +474,22 @@ duration recorded, the release's share by R9.6's rule.
   - **A Pipfile's packages are now read for existence**, so its sources have something
     to apply to. A lone Pipfile keeps only the vulnerability gap; the coverage tests
     move their unread example to `setup.py`, and the README and `EVALUATING.md` say so.
-- [ ] **R10.5** **What the README and the pipeline example claim.** Behaviours:
+- [x] **R10.5** **What the README and the pipeline example claim.** Behaviours:
   1. the README's quick start names Docker or Podman as a prerequisite;
   2. the platform table says what CI tests on each architecture, until D38's leg lands;
   3. the agent paragraph states R7's final record, every answer naming every expected
      finding;
   4. `docs/examples/github-actions.yml` caches the valvur cache with a pinned
      `actions/cache`, and the test that runs it still passes.
+  **STATUS 2026-09-29:** ✅ all four, held by `tests/test_readme_claims.py`.
+  1. The quick start says a machine needs Docker or Podman, and that `doctor` says which.
+  2. The Linux row says every commit runs the e2e suite against both runtimes on
+     `amd64`, and the published image on both architectures. The test reads `ci.yml`'s
+     e2e job, so R16.1's arm64 leg can widen the claim.
+  3. The agent paragraph states R7's final record: every answer named every expected
+     finding, in 3 to 9 turns, five of eight in six or fewer.
+  4. The pipeline example restores and saves `$RUNNER_TEMP/valvur-cache` with
+     `actions/cache`, pinned by commit, before `valvur update`.
 - [ ] **R10.6** **Wall-clock tests marked** (D35). Behaviours: every test asserting on
   wall-clock time carries `timing`, registered in `pyproject.toml`; the unit suite selects
   none; CI's e2e job and the phase exits run them. §3's command and `CLAUDE.md` then read

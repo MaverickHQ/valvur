@@ -22,6 +22,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Keep what a scan reads between runs
+        # The database, the name index and OSV's databases: 160 to 400 MB each run
+        # without this. `valvur update` below refreshes whatever is stale in it.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/valvur-cache
+          key: valvur-cache-${{ github.run_id }}
+          restore-keys: valvur-cache-
       - name: Fetch what a scan reads
         run: |
           mkdir -p "$RUNNER_TEMP/valvur-cache" "$RUNNER_TEMP/valvur-out"

@@ -337,9 +337,9 @@ on a small Docker Desktop VM, where the Scan Container is held to three quarters
 memory, and never above 3 GiB.
 
 Measured on the acceptance set with Claude Code, one sentence per repository, *scan
-this project with valvur and tell me what it found*: the agent reached its answer in
-3 to 9 turns, and named every expected finding by path and rule on five of the eight
-repositories; the other three described one without naming it. The record, misses
+this project with valvur and tell me what it found*: once the handshake and the
+Summary asked for each finding's rule ID and path, every answer named every expected
+finding, in 3 to 9 turns, five of the eight in six turns or fewer. The record, misses
 included, is in [`docs/acceptance/r7.md`](docs/acceptance/r7.md).
 
 The server's handshake carries the rules an agent needs as MCP `instructions`: never
@@ -359,6 +359,9 @@ autonomously.
 ```
 
 ## For developers
+
+valvur runs its Scanners in a container, so a machine needs Docker or Podman; `valvur
+doctor` says whether it has one, and what to install if not.
 
 ```bash
 pip install valvur          # or: uv tool install valvur
@@ -516,7 +519,7 @@ auditable and mirrorable. No proprietary database, and nothing to lock you in.
 
 | | |
 |---|---|
-| Linux, Docker **and** Podman | **Supported**, and tested on every commit against both runtimes, on `amd64` and `arm64`; the acceptance set runs nightly on GitHub's Linux runner |
+| Linux, Docker **and** Podman | **Supported**. Every commit runs the e2e suite against Docker and Podman on `amd64`, and a scan with the published image on `amd64` and `arm64`; the acceptance set runs nightly on GitHub's Linux runner |
 | macOS, Docker Desktop or Podman | **Supported**, and tested by hand on an Apple-silicon Mac through Docker Desktop at every phase's exit: the acceptance set and the e2e suite against the image built from that commit ([`docs/acceptance/`](docs/acceptance/)). Not on every commit: a container runtime needs nested virtualisation, which GitHub's macOS runners do not offer |
 | `linux/amd64` and `linux/arm64` | Both, **from 0.2.0**. `0.1.0rc1` was published `arm64` only, a defect and not a policy |
 | Windows via **WSL2** | Supported: inside WSL valvur is running on Linux |
