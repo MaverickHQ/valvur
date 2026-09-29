@@ -69,13 +69,49 @@ def absent(names: list[str]) -> list[str]:
 STALE_AFTER_DAYS = 7
 
 
-def stale(names: list[str]) -> list[str]:
-    """The present databases older than `STALE_AFTER_DAYS`, by their file's age."""
-    import time
+#: Where each fetch keeps its export's date (D23): beside the databases, not in
+#: OSV-Scanner's own layout.
+AGES = "ages.json"
 
-    limit = time.time() - STALE_AFTER_DAYS * 86400
-    return [name for name in names if path(name).is_file()
-            and path(name).stat().st_mtime < limit]
+
+def _ages() -> dict:
+    import json
+
+    try:
+        data = json.loads((directory() / AGES).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def age(name: str) -> tuple[float | None, str]:
+    """(days, basis): the export's age from the `Last-Modified` its fetch kept,
+    `published`; else the file's, `fetched` (D23, F6.12). (None, "") when absent."""
+    import time
+    from email.utils import parsedate_to_datetime
+
+    if not path(name).is_file():
+        return None, ""
+    stamp = (_ages().get(name) or {}).get("last_modified")
+    if stamp:
+        try:
+            published = parsedate_to_datetime(stamp).timestamp()
+        except (TypeError, ValueError):
+            published = None
+        if published is not None:
+            return (time.time() - published) / 86400, "published"
+    return (time.time() - path(name).stat().st_mtime) / 86400, "fetched"
+
+
+def stale(names: list[str]) -> list[str]:
+    """The present databases older than `STALE_AFTER_DAYS`, by the export's own date
+    where the fetch kept it (R11.2): a mirror can serve an old export today."""
+    found = []
+    for name in names:
+        days, _ = age(name)
+        if days is not None and days > STALE_AFTER_DAYS:
+            found.append(name)
+    return found
 
 
 def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> dict:
@@ -94,13 +130,28 @@ def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> di
                 open(partial, "wb") as out:
             while chunk := response.read(1 << 20):
                 out.write(chunk)
+            published = (getattr(response, "headers", None) or {}).get("Last-Modified")
         partial.replace(target)
+        _keep_age(name, published)
     except BaseException:
         partial.unlink(missing_ok=True)
         raise
     return {"what": f"OSV database ({name})", "source": url,
             "size_mb": max(1, round(target.stat().st_size / 1_000_000)),
             "seconds": round(time.monotonic() - started, 1)}
+
+
+def _keep_age(name: str, published: str | None) -> None:
+    """Record the export's date beside the databases, or drop a stale record: a
+    fetch without the header is aged by its file, and says so."""
+    import json
+
+    ages = _ages()
+    if published:
+        ages[name] = {"last_modified": published}
+    else:
+        ages.pop(name, None)
+    (directory() / AGES).write_text(json.dumps(ages, indent=1) + "\n", encoding="utf-8")
 
 
 def ensure(files: list[str], say: Callable[[str], None]) -> tuple[list[dict], list[str]]:

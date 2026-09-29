@@ -591,9 +591,14 @@ honesty gate green; track 5's private-registry cases scored.
   - The bundled snapshot now reads its true 33 days, and with it KEV's 30-day staleness
     says what it was built to say. Two tests pinned the old `doctor` line; they now hold
     the new one.
-- [ ] **R11.2** **Every dataset's age is its data's** (D23). Behaviours: an OSV fetch
+- [x] **R11.2** **Every dataset's age is its data's** (D23). Behaviours: an OSV fetch
   records `Last-Modified` in a sidecar and its age is read from it; a source with no date
   reads *fetched* on every surface.
+  **STATUS 2026-09-29:** ✅ both. `osv_offline.fetch` keeps each export's
+  `Last-Modified` in `osv/ages.json`, outside OSV-Scanner's own layout. `age(name)`
+  reads it, `published`, else the file's time, `fetched`, and `stale` judges by it: a
+  fresh file of an export ten days old is stale. R11.6 carries the basis onto every
+  surface.
 - [ ] **R11.3** **A scan refreshes past D24's thresholds** (F10.9). Behaviours, through
   `tests/fake_registry.py`:
   1. the index and KEV past two days are refreshed, announced and recorded under
