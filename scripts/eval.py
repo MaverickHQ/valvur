@@ -179,7 +179,9 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         }
         if track == "dependencies":
             ranking_first = _ranked_first(findings)
-        result["data"] = data_ages(run_json)
+        # The oldest each dataset was in any track's scan: only some tracks read
+        # some data (OSV's databases, for one), and the last track need not.
+        result["data"] = _oldest(result["data"], data_ages(run_json))
     result["gates"] = judge_gates(result["tracks"], result["data"],
                                   ranking_first=ranking_first,
                                   tasks_text=_tasks_text() if tasks_text is None else tasks_text)
@@ -197,6 +199,16 @@ GATES = {"offline": 9, "honesty": 10, "freshness": 11, "ranking": 11, "speed": 1
 #: D24's refresh thresholds, in days: the oldest data a scan should be using.
 FRESH_DAYS = {"database": 7.0, "name_index": 2.0, "malicious": 2.0, "kev": 2.0,
               "epss": 2.0, "osv": 7.0}
+
+
+def _oldest(seen: dict, ages: dict) -> dict:
+    """Each age the older of the two, where either says one."""
+    merged = dict(seen)
+    for name, age in ages.items():
+        if age is not None and (merged.get(name) is None or age > merged[name]):
+            merged[name] = age
+        merged.setdefault(name, None)
+    return merged
 
 
 def data_ages(run_json: dict) -> dict:

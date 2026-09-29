@@ -221,3 +221,25 @@ def test_the_agent_track_holds_the_real_files_on_every_lane(tmp_path):
 
     assert fetched == ["awesome-cursorrules"]
     assert result["tracks"]["agent-configuration"]["safe"] == 23 + 3
+
+
+def test_the_data_ages_are_the_oldest_any_track_read(tmp_path):
+    """R11.6: each track's scan reads the data it needs, and only the dependency track
+    reads OSV's databases. The gate judges the oldest age any scan read, not the last
+    track's, which on the Mac lane was a track with no lockfile."""
+    harness = _harness()
+
+    def scan(root: Path) -> None:
+        _results(root, [])
+        if root.name == "dependencies":
+            path = root / ".security-scan" / "run.json"
+            data = json.loads(path.read_text())
+            data["data"]["osv"] = {"npm": {"age_days": 8.4, "basis": "published"}}
+            data["data"]["kev"]["age_days"] = 40.0
+            path.write_text(json.dumps(data))
+
+    result = harness.run(["dependencies", "secrets"], tmp_path / "work", scan=scan,
+                         image="valvur:dev", image_id=lambda image: "sha256:abc")
+
+    assert result["data"]["osv_age_days"] == 8.4
+    assert result["data"]["kev_age_days"] == 40.0
