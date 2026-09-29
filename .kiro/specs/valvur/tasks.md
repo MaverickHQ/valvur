@@ -410,11 +410,11 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 
 | item | ready after | what the owner does |
 |---|---|---|
-| `v0.6.0` | **ready 2026-09-27**: R1 landed at `bbf77ef`; rehearsal 36353560849 green through validation on both architectures in 13 minutes, cancelled at the brake | sign and push the tag `v0.6.0` on `bbf77ef`; approve the real run at the brake |
-| land R2, PR #145 | **ready 2026-09-28**: every check green on `d04e72f`, the Linux acceptance run included | fast-forward `main`: `git push origin refs/remotes/origin/build/r2-the-acceptance-set:refs/heads/main`. The build's own push to `main` was refused by the session's permission classifier on 2026-09-28 00:40; R3 continues on a branch rebased onto R2 and lands after it |
-| `v0.7.0` | R3 lands (after R2's PR #145), then its rehearsal | sign and push the tag `v0.7.0` on the rehearsed commit, after `v0.6.0`; approve the real run at the brake |
-| `v1.1.0` | R8 lands, then its rehearsal | sign and push the tag `v1.1.0` on the rehearsed commit, after `v1.0.0`; approve the real run at the brake. The pipeline step and the examples need it: `1.0.0`'s image predates them |
-| `v1.0.0` | R7 lands, then its rehearsal | sign and push the tag `v1.0.0` on the rehearsed commit, after `v0.7.0`; approve the real run at the brake. D17's agent criterion is the one unmet (the row below) |
+| ~~`v0.6.0`~~ **released 2026-09-29** | R1 | the owner's signed tag on `bbf77ef`, run 36535100652, approved at the brake |
+| ~~land R2 to R7, #145 to #151~~ **landed 2026-09-29** | R1 | one fast-forward of `main` to `f1016e2`, the owner's approval in the session's manual mode |
+| ~~`v0.7.0`~~ **released 2026-09-29** | R3 | rehearsal 36539751736 on `853af0e`, then the signed tag, run 36544552477, approved at the brake |
+| ~~`v1.1.0`~~ **released 2026-09-29** | R8 | rehearsal 36574050016 on `bebfa7c`, then the signed tag, run 36585829159, approved at the brake |
+| ~~`v1.0.0`~~ **released 2026-09-29** | R7 | the first rehearsal, 36544594332, failed in its whole-suite step: a test left `runner.IMAGE` at the unpublished tag for the tests after it. Fixed by #156, landed as `7682643`; rehearsal 36557790800 green, then the signed tag, run 36560663805, approved at the brake |
 | the gate with a person (12b.3, 10.1) | `1.0.0` | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | R6 | one scan through Kiro, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | R2 | register one with the label `docker-desktop` |
@@ -425,13 +425,13 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
 | ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
 | ~~pre-approve the durable resume task~~ **moot 2026-09-28** | R0 | the build finished and its schedules are deleted |
-| land R3, PR #146, then R4, PR #148 | R2 lands | the same fast-forward, one branch at a time, in order. Not a squash or a rebase merge: repository 6 of the acceptance set is pinned to R4's commit `eb3a199` and needs that hash on `main` |
+| ~~land R3, #146, and R4, #148~~ **landed 2026-09-29** | R2 | in the fast-forward above |
 | ~~R4's speed exit, missed~~ **decided 2026-09-28: accepted** | R4's exit | the fastest application-repository scan on Linux stays 63% of R2's baseline, not half; no task follows |
-| land R5, PR #149 | R4 lands; **every check green on `7b4e6a6`** | the same fast-forward, after #148 |
-| land R6, PR #150 | R5 lands | the same fast-forward, after #149 |
+| ~~land R5, #149~~ **landed 2026-09-29** | R4 | in the fast-forward above |
+| ~~land R6, #150~~ **landed 2026-09-29** | R5 | in the fast-forward above |
 | ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so; re-run on the three that missed, every answer names every expected finding, and 5 of 8 fit six turns (`docs/acceptance/r7.md`). Agent scoring ended at $24.60 of $25 |
-| land R7, PR #151 | R6 lands; **every check green on `f1016e2`**, the owner's decisions applied, the Linux lane included (`docs/acceptance/r8.md`) | the same fast-forward, after #150 |
-| land R8, PR #153 | R7 lands | the same fast-forward, after #151. #153 supersedes #152, which held R8 before its rebase onto R7's amended head; the session's classifier refused the force-push that would have updated #152 in place |
+| ~~land R7, #151~~ **landed 2026-09-29** | R6 | in the fast-forward above, then #156, the test fix, as `7682643` |
+| ~~land R8, #153~~ **landed 2026-09-29** | R7 | rebased onto `7682643`, then fast-forwarded to `bebfa7c`. #153 superseded #152 |
 | the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
 | ~~D9 and the SBOM~~ **decided 2026-09-28: the SBOM is opt-in** | R4.4 | Syft runs, and the dependency licence policy (F4.4 to F4.6) with it, when a scan asks: `--sbom`, or `sbom = true` under `[scan]`. In `1.0.0`, whose Results Folder contract says so |
 | revisit a decision in §5 | any time | `/grill-with-docs` |

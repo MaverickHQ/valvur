@@ -15,15 +15,14 @@ launched by a small host shim. **The goal every change is judged against:** from
 session, one request scans the project and writes a report into it that is fast, complete or
 honest about why not, and trustworthy. Locally.
 
-**Status (2026-09-28).**
-- `0.5.0` is published: PyPI, GHCR on both architectures, signed and attested.
-- `main` is R1's close, `bbf77ef`: `0.6.0` prepared and rehearsed, waiting for its tag.
-- R2 to R8 rebuilt the engine, as the [review](docs/history/REVIEW-2026-09-27.md) the owner
-  accepted asked; each waits on a stacked PR (#145 to #151, then #153) for the owner to land
-  it, in order (`tasks.md` §8). `0.7.0`, `1.0.0` and `1.1.0` are prepared on R3, R7 and R8.
+**Status (2026-09-29).**
+- `1.1.0` is published: PyPI, GHCR on both architectures, signed and attested. `0.6.0`,
+  `0.7.0` and `1.0.0` were released the same day, each rehearsed on its commit first.
+- The build, R0 to R8, has landed on `main`, as the owner accepted
+  [the review](docs/history/REVIEW-2026-09-27.md); its PRs are merged.
 
-**Next:** the build is finished and its schedules deleted; [`tasks.md`](.kiro/specs/valvur/tasks.md)
-§8 is the owner's queue, and R8.4's STATUS is the build's summary.
+**Next:** nothing is open in [`tasks.md`](.kiro/specs/valvur/tasks.md); its §8 holds the
+owner's remaining items, and R8.4's STATUS is the build's summary.
 
 **Size, 2026-09-28:** 89 modules, 1,562 tests in 142 files, 25 ADRs, 136 requirement IDs,
 traceability debt zero, no open tasks.
@@ -162,8 +161,9 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 - **Unattended** (`tasks.md` §1 and §2): the build runs without the owner and, after a
   usage limit, resumes through the schedules R0.1 arms. Owner-only steps wait in its §8.
 - **Landing.** `main` is protected (six required checks, signed commits, linear history). A
-  phase lands by fast-forward, `git push origin refs/remotes/origin/<branch>:refs/heads/main`,
-  which the classifier refuses the executor: the owner lands each phase, in order.
+  phase lands by fast-forward, `git push origin refs/remotes/origin/<branch>:refs/heads/main`.
+  Auto mode's classifier refuses that push and a tag push; in manual approve mode the
+  owner approves each one, as on 2026-09-29. A merged PR's branch is deleted.
 - **Local tests:** `PYTHONDONTWRITEBYTECODE=1 uv run --extra dev pytest -q -p no:cacheprovider`
   after clearing `__pycache__`; `-m "not e2e"` unless the container is the point. Scans and
   e2e use `VALVUR_CACHE=~/.cache/valvur-build VALVUR_IMAGE=valvur:dev`. Never remove the
