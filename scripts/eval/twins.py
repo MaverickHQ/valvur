@@ -771,9 +771,9 @@ WORKFLOWS: list[tuple[str, str, str]] = [
      "          persist-credentials: false\n      - run: make test\n"),
     ("template-injection",
      "on: issues\npermissions: {}\njobs:\n  triage:\n    runs-on: ubuntu-24.04\n    steps:\n"
-     "      - run: echo \"New issue: ${{ github.event.issue.title }}\"\n",
+     "      - run: |\n          echo \"New issue: ${{ github.event.issue.title }}\"\n",
      "on: issues\npermissions: {}\njobs:\n  triage:\n    runs-on: ubuntu-24.04\n    steps:\n"
-     "      - run: echo \"New issue: ${TITLE}\"\n        env:\n"
+     "      - run: |\n          echo \"New issue: ${TITLE}\"\n        env:\n"
      "          TITLE: ${{ github.event.issue.title }}\n"),
     ("excessive-permissions",
      "on: push\npermissions: write-all\njobs:\n  build:\n    runs-on: ubuntu-24.04\n"

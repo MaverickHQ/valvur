@@ -77,3 +77,27 @@ def test_each_track_holds_twenty_vulnerable_and_twenty_safe_cases(tmp_path, trac
             ["git", "log", "--all", "--format=%H", "--", path], cwd=root,
             capture_output=True, text=True, check=False).stdout if (root / ".git").exists() else ""
         assert (root / path).exists() or in_history, f"{track}: {path} is nowhere"
+
+
+@pytest.mark.parametrize("track", TRACKS)
+def test_every_generated_config_file_parses(tmp_path, track):
+    """A case whose file does not parse is read by no Scanner, so its vulnerable half
+    is a miss and its safe half a free pass: the first run's template-injection
+    workflow was invalid YAML, a plain scalar holding `: `."""
+    import re
+
+    twins = _twins()
+    root = tmp_path / track
+    twins.build(track, root)
+    plain = re.compile(r"^\s*(?:- )?[\w.-]+: (?![\"'|>{\[&*!])(.*)$")
+    for path in root.rglob("*"):
+        if not path.is_file() or ".git" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".json":
+            json.loads(text)
+        elif path.suffix in (".yml", ".yaml"):
+            for n, line in enumerate(text.splitlines(), 1):
+                value = plain.match(line)
+                assert not (value and ": " in value.group(1)), \
+                    f"{path.relative_to(root)}:{n} is not a YAML plain scalar: {line!r}"
