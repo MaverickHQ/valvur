@@ -95,6 +95,43 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
     return result
 
 
+#: How far a track may fall under its baseline before a comparison fails (N4.2).
+TOLERANCE = 2.0
+
+
+def compare(result: dict, baseline: dict) -> list[str]:
+    """What fails against the baseline: a track more than `TOLERANCE` points under
+    it, or a gate judged and failed. A track this run did not measure is not judged."""
+    failures = []
+    for name, recorded in (baseline.get("tracks") or {}).items():
+        track = result["tracks"].get(name)
+        if track is not None and track["score"] < recorded - TOLERANCE:
+            failures.append(f"{name}: {track['score']}, more than {TOLERANCE:g} points "
+                            f"under its baseline of {recorded}")
+    for name, gate in (result.get("gates") or {}).items():
+        if gate.get("judged") and not gate.get("ok"):
+            failures.append(f"gate {name}: {gate.get('reason', 'failed')}")
+    return failures
+
+
+def update_baseline(result: dict, path: Path) -> list[str]:
+    """Raise each track the run beat, keep the others (N4.2: only upward). Returns
+    a sentence per track kept."""
+    baseline = json.loads(path.read_text()) if path.is_file() else {"tracks": {}}
+    tracks, kept = dict(baseline.get("tracks") or {}), []
+    for name, track in result["tracks"].items():
+        recorded = tracks.get(name)
+        if recorded is not None and track["score"] < recorded:
+            kept.append(f"{name}: {track['score']} is under the recorded {recorded}; kept")
+            continue
+        tracks[name] = track["score"]
+    baseline["tracks"] = tracks
+    baseline["recorded_on"] = {"image": result.get("image"), "data": result.get("data"),
+                               "seed": result.get("seed")}
+    path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
+    return kept
+
+
 def scorecard(result: dict) -> str:
     lines = [f"**The Score: {result['score']}** on `{result['image']['name']}` "
              f"(`{result['image']['id'][:19]}`), {result['duration_s']} s", "",
@@ -124,12 +161,25 @@ def main(argv: list[str] | None = None) -> int:
                         help="comma-separated; all of the generated tracks by default")
     parser.add_argument("--work", type=Path, default=home / "eval" / "work")
     parser.add_argument("--out", type=Path, default=home / "eval" / "report")
+    parser.add_argument("--compare", type=Path, metavar="BASELINE",
+                        help="fail when a track falls more than 2 points under it")
+    parser.add_argument("--update-baseline", type=Path, metavar="BASELINE",
+                        help="raise the tracks this run beat; never lower one")
     args = parser.parse_args(argv)
     image = os.environ.get("VALVUR_IMAGE", "valvur:dev")
     result = run([t for t in args.tracks.split(",") if t], args.work.resolve(), image=image)
     write(result, args.out.resolve())
     print(scorecard(result))
-    return 0
+    status = 0
+    if args.compare:
+        failures = compare(result, json.loads(args.compare.read_text()))
+        for failure in failures:
+            print(f"FAIL {failure}")
+        status = 1 if failures else 0
+    if args.update_baseline:
+        for sentence in update_baseline(result, args.update_baseline):
+            print(sentence)
+    return status
 
 
 if __name__ == "__main__":

@@ -72,3 +72,29 @@ def test_the_result_and_its_scorecard_are_written(tmp_path):
     card = written["markdown"].read_text()
     assert "| secrets | 50.0 |" in card
     assert "**The Score: 50.0**" in card
+
+
+def _result(**scores: float) -> dict:
+    return {"tracks": {name.replace("_", "-"): {"score": value}
+                       for name, value in scores.items()},
+            "gates": {}, "image": {"name": "valvur:dev", "id": "sha256:abc"}}
+
+
+def test_a_track_more_than_two_points_under_its_baseline_fails_the_comparison():
+    harness = _harness()
+    baseline = {"tracks": {"secrets": 90.0, "dependencies": 100.0}}
+
+    assert harness.compare(_result(secrets=88.0, dependencies=100.0), baseline) == []
+    assert harness.compare(_result(secrets=87.9, dependencies=100.0), baseline) == [
+        "secrets: 87.9, more than 2 points under its baseline of 90.0"]
+
+
+def test_a_baseline_is_raised_by_a_better_run_and_never_lowered(tmp_path):
+    harness = _harness()
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"tracks": {"secrets": 90.0, "dependencies": 100.0}}))
+
+    kept = harness.update_baseline(_result(secrets=95.0, dependencies=97.0), path)
+
+    assert kept == ["dependencies: 97.0 is under the recorded 100.0; kept"]
+    assert json.loads(path.read_text())["tracks"] == {"secrets": 95.0, "dependencies": 100.0}
