@@ -166,3 +166,30 @@ def test_the_benchmark_track_is_scored_as_the_owasp_scorecard_scores(tmp_path):
     # pathtraver: TPR 0; sqli: TPR 1, FPR 0. The scorecard's mean: 50.
     assert track["score"] == 50.0
     assert (track["vulnerable"], track["safe"]) == (2, 1)
+
+
+def test_real_code_precision_is_scored_and_unlabelled_findings_fail_the_comparison(tmp_path):
+    harness = _harness()
+    checkouts = tmp_path / "checkouts"
+    (checkouts / "flask").mkdir(parents=True)
+    labels = tmp_path / "labels.toml"
+    labels.write_text('[[label]]\nrepo = "flask"\nfingerprint = "a1"\nrule = "r"\n'
+                      'verdict = "tp"\nreason = "a real shell injection"\n')
+
+    def scan(root: Path) -> None:
+        _results(root, [
+            {"fingerprint": "a1", "rule": "valvur.python.subprocess-shell-true",
+             "path": "a.py", "sources": ["opengrep"], "suppressed": None, "status": "new"},
+            {"fingerprint": "b2", "rule": "valvur.python.weak-hash", "path": "b.py",
+             "sources": ["opengrep"], "suppressed": None, "status": "new"}])
+
+    result = harness.run(["real-code-precision"], tmp_path / "work", scan=scan,
+                         image="valvur:dev", image_id=lambda image: "sha256:abc",
+                         corpus=[{"name": "flask"}], checkouts=checkouts, labels=labels)
+
+    track = result["tracks"]["real-code-precision"]
+    assert (track["score"], track["tp"], track["fp"]) == (100.0, 1, 0)
+    assert track["unlabelled"] == ["flask: valvur.python.weak-hash at b.py (b2)"]
+    assert harness.compare(result, {"tracks": {"real-code-precision": 100.0}}) == [
+        "real-code-precision: 1 finding(s) with no label: "
+        "flask: valvur.python.weak-hash at b.py (b2)"]

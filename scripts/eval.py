@@ -24,12 +24,15 @@ sys.path.insert(0, str(REPO / "scripts" / "eval"))
 
 import cwe  # type: ignore[import-not-found]  # noqa: E402
 import owasp  # type: ignore[import-not-found]  # noqa: E402
+import precision  # type: ignore[import-not-found]  # noqa: E402
 import score  # type: ignore[import-not-found]  # noqa: E402
 import twins  # type: ignore[import-not-found]  # noqa: E402
 
 #: Every track, in the order the Score reports them: the OWASP Benchmark first,
-#: then the generated ones (ADR-0026).
-TRACKS = ["sast-python", *twins.BUILDERS]
+#: then the generated ones, then precision on the corpus (ADR-0026).
+TRACKS = ["sast-python", *twins.BUILDERS, "real-code-precision"]
+CORPUS = REPO / "tests" / "corpus"
+LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
 
 #: The awesome-cursorrules checkout the corpus keeps, whose real files join the
 #: agent-configuration track's safe cases.
@@ -80,11 +83,46 @@ def _safe_flagged_high(cases: list, findings: list[dict]) -> list[str]:
             if not case.vulnerable and score.flagged(case, loud)]
 
 
+def _corpus_harness():
+    """`scripts/corpus.py`, which pins and fetches the corpus's checkouts."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("corpus_harness",
+                                                  REPO / "scripts" / "corpus.py")
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["corpus_harness"] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
+
+
+def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
+               checkouts: Path | None, labels: Path) -> dict:
+    """Track 8: scan each corpus project at its pin and judge the owned findings."""
+    if corpus is None or checkouts is None:
+        harness = _corpus_harness()
+        corpus, checkouts = harness.repos(), harness.CHECKOUTS
+        harness.fetch(corpus)
+    findings_by_repo, complete = {}, True
+    for entry in corpus:
+        root = checkouts / entry["name"]
+        scan(root)
+        findings, run_json = _read(root)
+        findings_by_repo[entry["name"]] = findings
+        complete = complete and bool(run_json.get("complete"))
+    judged = precision.judge(findings_by_repo, precision.load(labels) if labels.is_file() else {})
+    return {"score": judged.score, "tp": judged.tp, "fp": judged.fp,
+            "unlabelled": judged.unlabelled, "others": judged.others,
+            "repositories": len(corpus), "complete": complete, "status": None,
+            "what_left_the_machine": "nothing", "safe_flagged_high": [], "invalid": {},
+            "vulnerable": judged.tp, "safe": judged.fp}
+
+
 def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_scan,
         image: str = "valvur:dev", image_id: Callable[[str], str] = _image_id,
         seed: int = 20260929, tasks_text: str | None = None,
         index_dir: Path | None = None, benchmark: Path | None = None,
-        verify: Callable[[Path], None] = owasp.verify) -> dict:
+        verify: Callable[[Path], None] = owasp.verify, corpus: list[dict] | None = None,
+        checkouts: Path | None = None, labels: Path = LABELS) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt. The
     benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
@@ -93,6 +131,11 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
                     "seed": seed, "tracks": {}, "data": {}}
     cwe_of = cwe.lookup(REPO / "rules")
     for track in tracks:
+        if track == "real-code-precision":
+            began = time.monotonic()
+            result["tracks"][track] = _real_code(scan, corpus, checkouts, labels)
+            result["tracks"][track]["seconds"] = round(time.monotonic() - began, 1)
+            continue
         if track == "sast-python":
             root = benchmark or owasp.checkout(work.parent / "BenchmarkPython")
             verify(root)
@@ -217,6 +260,10 @@ def compare(result: dict, baseline: dict) -> list[str]:
         if track is not None and track["score"] < recorded - TOLERANCE:
             failures.append(f"{name}: {track['score']}, more than {TOLERANCE:g} points "
                             f"under its baseline of {recorded}")
+    for name, track in result["tracks"].items():
+        if track.get("unlabelled"):
+            failures.append(f"{name}: {len(track['unlabelled'])} finding(s) with no label: "
+                            + "; ".join(track["unlabelled"]))
     for name, gate in (result.get("gates") or {}).items():
         if gate.get("judged") and not gate.get("ok"):
             failures.append(f"gate {name}: {gate.get('reason', 'failed')}")
