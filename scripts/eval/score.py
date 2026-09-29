@@ -22,12 +22,13 @@ class Case:
     path: str
     vulnerable: bool
     #: A finding flags the case when it matches any one of these: its rule ID, a
-    #: prefix of its rule ID, its advisory (the rule or the CVE it carries), or a
-    #: CWE its rule declares.
+    #: prefix of its rule ID, its advisory (the rule or the CVE it carries), a CWE
+    #: its rule declares, or the Scanner that reported it.
     rules: tuple[str, ...] = ()
     prefixes: tuple[str, ...] = ()
     advisories: tuple[str, ...] = ()
     cwes: tuple[int, ...] = ()
+    sources: tuple[str, ...] = ()
 
 
 @dataclass
@@ -73,7 +74,8 @@ def _of_its_kind(case: Case, finding: dict, cwe_of: Callable[[dict], set[int]]) 
     return (rule in case.rules
             or any(rule.startswith(prefix) for prefix in case.prefixes)
             or bool({rule, cve} & set(case.advisories))
-            or bool(cwe_of(finding) & set(case.cwes)))
+            or bool(cwe_of(finding) & set(case.cwes))
+            or bool(set(finding.get("sources") or ()) & set(case.sources)))
 
 
 def flagged(case: Case, findings: Iterable[dict],

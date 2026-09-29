@@ -72,3 +72,13 @@ def test_only_an_active_finding_of_the_case_s_kind_on_its_path_flags_it():
     assert not hit(by_cwe, _finding("testcode/T1.py", "other-rule"))
     assert hit(in_a_directory, _finding("cases/hooks/.claude/settings.json", "r"))
     assert not hit(in_a_directory, _finding("cases/hooks-safe/.claude/settings.json", "r"))
+
+
+def test_a_case_keyed_by_scanner_is_flagged_by_any_of_its_findings():
+    s = _score()
+    case = s.Case("k", "secrets", "aws", "config/aws.env", True, sources=("gitleaks",))
+
+    assert s.flagged(case, [_finding("config/aws.env", "generic-api-key",
+                                     sources=["gitleaks"])])
+    assert not s.flagged(case, [_finding("config/aws.env", "CKV_SECRET_2",
+                                         sources=["checkov"])])
