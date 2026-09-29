@@ -141,3 +141,28 @@ def test_a_case_whose_premise_broke_is_recorded_and_not_scored(tmp_path):
         "no npm index to check 'express' against"
     # PyPI's ten cases, and npm's two malicious names, which no premise constrains.
     assert (track["vulnerable"], track["safe"]) == (8, 4)
+
+
+def test_the_benchmark_track_is_scored_as_the_owasp_scorecard_scores(tmp_path):
+    harness = _harness()
+    benchmark = tmp_path / "BenchmarkPython"
+    benchmark.mkdir()
+    (benchmark / "expectedresults-0.1.csv").write_text(
+        "# test name, category, real vulnerability, cwe\n"
+        "BenchmarkTest00001,pathtraver,true,22\n"
+        "BenchmarkTest00100,sqli,true,89\n"
+        "BenchmarkTest00101,sqli,false,89\n")
+
+    def scan(root: Path) -> None:
+        _results(root, [{"path": "testcode/BenchmarkTest00100.py",
+                         "rule": "valvur.python.string-built-sql", "suppressed": None,
+                         "status": "new", "sources": ["opengrep"]}])
+
+    result = harness.run(["sast-python"], tmp_path / "work", scan=scan, image="valvur:dev",
+                         image_id=lambda image: "sha256:abc", benchmark=benchmark,
+                         verify=lambda checkout: None)
+
+    track = result["tracks"]["sast-python"]
+    # pathtraver: TPR 0; sqli: TPR 1, FPR 0. The scorecard's mean: 50.
+    assert track["score"] == 50.0
+    assert (track["vulnerable"], track["safe"]) == (2, 1)

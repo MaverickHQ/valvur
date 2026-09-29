@@ -53,3 +53,17 @@ def cases(checkout: Path) -> list[Case]:
         found.append(Case(name, "sast-python", category, f"testcode/{name}.py",
                           real == "true", cwes=(int(cwe),)))
     return found
+
+
+def checkout(dest: Path) -> Path:
+    """The benchmark at its pinned commit in `dest`, cloned there when absent."""
+    if not (dest / ".git").is_dir():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        clone = _git(dest.parent, "clone", "-q", "--filter=blob:none", source()["url"],
+                     str(dest))
+        if clone.returncode != 0:
+            raise RuntimeError(f"could not clone the benchmark: {clone.stderr.strip()}")
+    if _git(dest, "rev-parse", "HEAD").stdout.strip() != source()["commit"]:
+        _git(dest, "checkout", "-q", source()["commit"])
+    verify(dest)
+    return dest

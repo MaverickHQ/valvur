@@ -22,8 +22,14 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "eval"))
 
+import cwe  # type: ignore[import-not-found]  # noqa: E402
+import owasp  # type: ignore[import-not-found]  # noqa: E402
 import score  # type: ignore[import-not-found]  # noqa: E402
 import twins  # type: ignore[import-not-found]  # noqa: E402
+
+#: Every track, in the order the Score reports them: the OWASP Benchmark first,
+#: then the generated ones (ADR-0026).
+TRACKS = ["sast-python", *twins.BUILDERS]
 
 #: The awesome-cursorrules checkout the corpus keeps, whose real files join the
 #: agent-configuration track's safe cases.
@@ -77,19 +83,27 @@ def _safe_flagged_high(cases: list, findings: list[dict]) -> list[str]:
 def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_scan,
         image: str = "valvur:dev", image_id: Callable[[str], str] = _image_id,
         seed: int = 20260929, tasks_text: str | None = None,
-        index_dir: Path | None = None) -> dict:
-    """Build, scan and score each track under `work`, which is rebuilt."""
+        index_dir: Path | None = None, benchmark: Path | None = None,
+        verify: Callable[[Path], None] = owasp.verify) -> dict:
+    """Build, scan and score each track under `work`, which is rebuilt. The
+    benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
     ranking_first: bool | None = None
     result: dict = {"schema": 1, "image": {"name": image, "id": image_id(image)},
                     "seed": seed, "tracks": {}, "data": {}}
+    cwe_of = cwe.lookup(REPO / "rules")
     for track in tracks:
-        root = work / track
-        if root.exists():
-            shutil.rmtree(root)
-        extra = {"corpus": CURSORRULES if CURSORRULES.is_dir() else None} \
-            if track == "agent-configuration" else {}
-        cases = twins.build(track, root, seed=seed, **extra)
+        if track == "sast-python":
+            root = benchmark or owasp.checkout(work.parent / "BenchmarkPython")
+            verify(root)
+            cases = owasp.cases(root)
+        else:
+            root = work / track
+            if root.exists():
+                shutil.rmtree(root)
+            extra = {"corpus": CURSORRULES if CURSORRULES.is_dir() else None} \
+                if track == "agent-configuration" else {}
+            cases = twins.build(track, root, seed=seed, **extra)
         began = time.monotonic()
         scan(root)
         findings, run_json = _read(root)
@@ -99,7 +113,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
 
             invalid = twins.invalid_cases(cases, index_dir or cache.name_index())
             cases = [case for case in cases if case.id not in invalid]
-        scored = score.score_track(cases, findings)
+        scored = score.score_track(cases, findings, cwe_of)
         result["tracks"][track] = {
             "score": scored.score,
             "categories": {name: {"tp": r.tp, "fn": r.fn, "fp": r.fp, "tn": r.tn,
@@ -252,8 +266,8 @@ def main(argv: list[str] | None = None) -> int:
 
     home = Path(os.environ.get("HOME", "~")) / ".cache" / "valvur-build"
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--tracks", default=",".join(twins.BUILDERS),
-                        help="comma-separated; all of the generated tracks by default")
+    parser.add_argument("--tracks", default=",".join(TRACKS),
+                        help="comma-separated; every track by default")
     parser.add_argument("--work", type=Path, default=home / "eval" / "work")
     parser.add_argument("--out", type=Path, default=home / "eval" / "report")
     parser.add_argument("--compare", type=Path, metavar="BASELINE",
