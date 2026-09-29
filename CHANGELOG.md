@@ -8,6 +8,14 @@ break things, and has.
 
 ## [Unreleased]
 
+- **Syft 1.52.0.** Its adapter declares the version, so `run.json` records the one
+  that ran, and its golden output is recaptured.
+- **A test holds each Scanner's image pin to its adapter's declared version** and to
+  its golden fixture. Dependabot bumps the image alone: Syft's bump passed every check
+  while `run.json` would have recorded the old version.
+- Dependabot no longer proposes a new minor or major Python for the image, which is
+  a deliberate change; a new digest of the same Python still arrives.
+
 ## [1.1.0] — 2026-09-28
 
 The image as a pipeline step (Phase R8, D15), and `init --write`. Additions only:

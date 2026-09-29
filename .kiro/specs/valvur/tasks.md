@@ -422,7 +422,7 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | **ready**: R8 closed; the ECR steps are in `AIR-GAPPED.md`, the pipeline step in `docs/examples/` | run once in an AWS account and record the numbers |
 | ~~`init --write`~~ **decided 2026-09-28: yes** | R6 | the owner approved `init` writing files into the project (CLAUDE.md §10); built in R8, `init --write`, an addition in `1.1.0`: never overwrites (`tests/test_init_write.py`) |
-| free memory and disk on the build Mac | now | quit Chrome or restart the Mac: host swap was 14.05 of 14.34 GB and the Docker VM almost entirely paged out (R0.2); optionally `docker builder prune` to reclaim 21 GB of build cache the build will not touch itself |
+| free disk on the build Mac | now | memory was freed on 2026-09-29 by quitting Docker Desktop, which held a 4 GB VM: free memory 29% to 41%, swap 9.8 GB to 7.1 GB on this 8 GB Mac. Left: `docker builder prune`, with Docker running, reclaims about 21 GB of build cache |
 | ~~stop: Docker Desktop is not running~~ **resolved 21:41** | 2026-09-27 21:38 | it was quit from its menu at 21:33:48, midway through R0.6's e2e run; the owner started it again at 21:41 and the build resumed |
 | ~~pre-approve the durable resume task~~ **moot 2026-09-28** | R0 | the build finished and its schedules are deleted |
 | ~~land R3, #146, and R4, #148~~ **landed 2026-09-29** | R2 | in the fast-forward above |
@@ -432,9 +432,12 @@ Nothing here blocks the build. The executor adds a row when an item becomes read
 | ~~R6's agent exit, and D17's agent criterion, missed~~ **decided 2026-09-28: a correct report names the rule ID and the path** | R6's and R7's exits | the scorer stands. The MCP handshake and `SUMMARY.md` now tell the agent so; re-run on the three that missed, every answer names every expected finding, and 5 of 8 fit six turns (`docs/acceptance/r7.md`). Agent scoring ended at $24.60 of $25 |
 | ~~land R7, #151~~ **landed 2026-09-29** | R6 | in the fast-forward above, then #156, the test fix, as `7682643` |
 | ~~land R8, #153~~ **landed 2026-09-29** | R7 | rebased onto `7682643`, then fast-forwarded to `bebfa7c`. #153 superseded #152 |
-| the MCP tools `list_findings` and `explain_finding` | R6 (removed) | removed at R6's exit, not kept a release: each cost an agent a deferred-tool load. A client that allowed them by name needs `findings` instead; the CHANGELOG says so |
+| ~~the MCP tools `list_findings` and `explain_finding`~~ **done** | R6 (removed) | nothing to do: the removal is in the CHANGELOG, which says to allow `findings` instead |
 | ~~D9 and the SBOM~~ **decided 2026-09-28: the SBOM is opt-in** | R4.4 | Syft runs, and the dependency licence policy (F4.4 to F4.6) with it, when a scan asks: `--sbom`, or `sbom = true` under `[scan]`. In `1.0.0`, whose Results Folder contract says so |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
+| a scan with a failed Scanner can read `clean` | backlog (R4, `docs/acceptance/r5.md`) | the Status is `clean` beside `complete: false` when a Scanner failed and nothing was found. The gate fails such a run and every surface says *incomplete*, but the verdict word could say `inconclusive` instead. Decide whether it should |
+| a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare, since a person or agent cancels seconds in; a fix would queue the cancel for the job about to start |
+| Checkov's secrets check reports a data-file flood twice | backlog (R5) | on a repository with infrastructure, Checkov's secrets framework reports the same machine-written flood Gitleaks does, so the group appears twice. Excluding Checkov's secrets framework, since Gitleaks owns secrets, would remove the duplicate |
 
 ## 9. Where the earlier IDs went
 
