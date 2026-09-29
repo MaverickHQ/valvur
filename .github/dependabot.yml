@@ -75,3 +75,10 @@ updates:
     commit-message:
       prefix: "chore"
     labels: ["dependencies", "supply-chain"]
+    ignore:
+      # The image installs valvur into Python 3.12's own site-packages and compiles
+      # it there, so a new Python is a deliberate change, not a bump: #154 (3.12 to
+      # 3.14) failed e2e, the self-scan and the reproducible build. A new digest of
+      # the same Python still arrives, as the security fix it usually is.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
