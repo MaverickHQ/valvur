@@ -8,7 +8,7 @@ one that flags nothing does; only telling the two apart scores.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 
@@ -21,8 +21,13 @@ class Case:
     category: str
     path: str
     vulnerable: bool
-    #: Any of these rule IDs flags the case.
+    #: A finding flags the case when it matches any one of these: its rule ID, a
+    #: prefix of its rule ID, its advisory (the rule or the CVE it carries), or a
+    #: CWE its rule declares.
     rules: tuple[str, ...] = ()
+    prefixes: tuple[str, ...] = ()
+    advisories: tuple[str, ...] = ()
+    cwes: tuple[int, ...] = ()
 
 
 @dataclass
@@ -47,16 +52,42 @@ class TrackResult:
     categories: dict[str, Rates] = field(default_factory=dict)
 
 
-def flagged(case: Case, findings: Iterable[dict]) -> bool:
-    return any(finding.get("path") == case.path and finding.get("rule") in case.rules
-               for finding in findings)
+def _active(finding: dict) -> bool:
+    """What `findings.json` counts toward the verdict: neither suppressed nor fixed."""
+    return not finding.get("suppressed") and finding.get("status") != "fixed"
 
 
-def score_track(cases: list[Case], findings: list[dict]) -> TrackResult:
+def _lands_on(case: Case, finding: dict) -> bool:
+    """On the case's file, or anywhere under the case's directory."""
+    path = str(finding.get("path", ""))
+    return path == case.path or path.startswith(case.path.rstrip("/") + "/")
+
+
+def _no_cwe(finding: dict) -> set[int]:
+    return set()
+
+
+def _of_its_kind(case: Case, finding: dict, cwe_of: Callable[[dict], set[int]]) -> bool:
+    rule = str(finding.get("rule", ""))
+    cve = (finding.get("exploit") or {}).get("cve")
+    return (rule in case.rules
+            or any(rule.startswith(prefix) for prefix in case.prefixes)
+            or bool({rule, cve} & set(case.advisories))
+            or bool(cwe_of(finding) & set(case.cwes)))
+
+
+def flagged(case: Case, findings: Iterable[dict],
+            cwe_of: Callable[[dict], set[int]] = _no_cwe) -> bool:
+    return any(_active(f) and _lands_on(case, f) and _of_its_kind(case, f, cwe_of)
+               for f in findings)
+
+
+def score_track(cases: list[Case], findings: list[dict],
+                cwe_of: Callable[[dict], set[int]] = _no_cwe) -> TrackResult:
     categories: dict[str, Rates] = {}
     for case in cases:
         rates = categories.setdefault(case.category, Rates())
-        hit = flagged(case, findings)
+        hit = flagged(case, findings, cwe_of)
         if case.vulnerable:
             rates.tp += hit
             rates.fn += not hit
