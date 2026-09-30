@@ -1282,9 +1282,29 @@ no track under the baseline.
 
 - [ ] **R16.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
   `ubuntu-24.04-arm`, green, or D38's fallback applied.
-- [ ] **R16.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
+- [x] **R16.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
   every version surface `test_version.py` reads, the plugin's and the power's included;
   `--published` flips the README's wording; a dry run changes nothing.
+  **STATUS 2026-09-30:** ✅ all three, and two refusals.
+  - **One commit, `chore: release <version>`, sets twelve files.**
+    - The version and the lock.
+    - The README's status line, worded *release in progress* and naming the
+      version PyPI still serves.
+    - `SECURITY.md`'s series, and the CHANGELOG's heading under an empty
+      *Unreleased*.
+    - The skill's version in the package and in both copies, which stay byte for
+      byte the package's.
+    - The plugin's and the power's manifests, and both servers' pins.
+  - **`--published <version>`** flips the status line to *published and installable*,
+    in `docs: <version> published`.
+  - **`--dry-run`** prints the diff and changes nothing. On this tree, `1.2.0 --dry-run`
+    lists the twelve files.
+  - **Refused, exit 2:** a version not after the tree's, `--published` of a version
+    the tree is not, and a tree with uncommitted changes, since the release commit
+    holds the release alone.
+  - **Tested** against a copy of those files in a repository of its own.
+    `docs/RELEASING.md`'s steps use the script now; the tag, the push and the brake
+    stay the owner's.
 - [ ] **R16.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
   compares `main`'s pins with the latest release's by `test_scanner_pins.py`'s parser;
   runs the Score; opens one issue; a test holds its schedule and permissions.
