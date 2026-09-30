@@ -1,0 +1,3656 @@
+{
+ "source": "https://gitlab.com/gitlab-org/security-products/sast-rules",
+ "commit": "53bf5cf6df3c51b6c02110f5a638b5e6213666cd",
+ "eligible": 106,
+ "rules": [
+  {
+   "id": "go_blocklist_rule-blocklist-des",
+   "path": "go/blocklist/rule-blocklist-des.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_blocklist_rule-blocklist-md5",
+   "path": "go/blocklist/rule-blocklist-md5.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_blocklist_rule-blocklist-rc4",
+   "path": "go/blocklist/rule-blocklist-rc4.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_blocklist_rule-blocklist-sha1",
+   "path": "go/blocklist/rule-blocklist-sha1.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_crypto_rule-badtlssettings",
+   "path": "go/crypto/rule-badtlssettings.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_crypto_rule-insecure-ignore-host-key",
+   "path": "go/crypto/rule-insecure-ignore-host-key.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-322",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_crypto_rule-tlsversion",
+   "path": "go/crypto/rule-tlsversion.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-757",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "go_crypto_rule-weakkeystrength",
+   "path": "go/crypto/rule-weakkeystrength.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-326",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_crypto_rule-weakrandsource",
+   "path": "go/crypto/rule-weakrandsource.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-338",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_file-permissions_rule-fileperm",
+   "path": "go/file_permissions/rule-fileperm.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-732",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_file-permissions_rule-mkdir",
+   "path": "go/file_permissions/rule-mkdir.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-732",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_filesystem_rule-decompression-bomb",
+   "path": "go/filesystem/rule-decompression-bomb.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-409",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_filesystem_rule-fileread",
+   "path": "go/filesystem/rule-fileread.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-22",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_filesystem_rule-httprootdir",
+   "path": "go/filesystem/rule-httprootdir.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-552",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_filesystem_rule-poorwritepermissions",
+   "path": "go/filesystem/rule-poorwritepermissions.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-276",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_filesystem_rule-tempfiles",
+   "path": "go/filesystem/rule-tempfiles.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-378",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_filesystem_rule-ziparchive",
+   "path": "go/filesystem/rule-ziparchive.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-22",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_http_rule-http-serve",
+   "path": "go/http/rule-http-serve.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-770",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_injection_rule-ssrf",
+   "path": "go/injection/rule-ssrf.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-918",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_injection_rule-template-injection",
+   "path": "go/injection/rule-template-injection.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-79",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_leak_rule-pprof-endpoint",
+   "path": "go/leak/rule-pprof-endpoint.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-489",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_memory_rule-integer-overflow",
+   "path": "go/memory/rule-integer-overflow.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-190",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_memory_rule-memoryaliasing",
+   "path": "go/memory/rule-memoryaliasing.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-118",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_network_rule-bind-to-all-interfaces",
+   "path": "go/network/rule-bind-to-all-interfaces.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-1327",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_sql_rule-concat-sqli",
+   "path": "go/sql/rule-concat-sqli.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-89",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_subproc_rule-subproc",
+   "path": "go/subproc/rule-subproc.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-78",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "go_unsafe_rule-unsafe",
+   "path": "go/unsafe/rule-unsafe.yml",
+   "languages": [
+    "go"
+   ],
+   "cwe": "CWE-242",
+   "origin": "gosec",
+   "origin_licence": "Apache-2.0",
+   "licence": "Apache-2.0",
+   "eligible": true
+  },
+  {
+   "id": "java_cookie_rule-CookieInsecure",
+   "path": "java/cookie/rule-CookieInsecure.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-614",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_cookie_rule-HttpResponseSplitting",
+   "path": "java/cookie/rule-HttpResponseSplitting.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-113",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_cookie_rule-RequestParamToHeader",
+   "path": "java/cookie/rule-RequestParamToHeader.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-113",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_cors_rule-PermissiveCORSInjection",
+   "path": "java/cors/rule-PermissiveCORSInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-942",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-BlowfishKeySize",
+   "path": "java/crypto/rule-BlowfishKeySize.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-CipherDESInsecure",
+   "path": "java/crypto/rule-CipherDESInsecure.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-CipherDESedeInsecure",
+   "path": "java/crypto/rule-CipherDESedeInsecure.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-CipherECBMode",
+   "path": "java/crypto/rule-CipherECBMode.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-CipherIntegrity",
+   "path": "java/crypto/rule-CipherIntegrity.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-CipherPaddingOracle",
+   "path": "java/crypto/rule-CipherPaddingOracle.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-CustomMessageDigest",
+   "path": "java/crypto/rule-CustomMessageDigest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-HazelcastSymmetricEncryption",
+   "path": "java/crypto/rule-HazelcastSymmetricEncryption.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-InsufficientKeySizeRsa",
+   "path": "java/crypto/rule-InsufficientKeySizeRsa.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-NullCipher",
+   "path": "java/crypto/rule-NullCipher.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-RsaNoPadding",
+   "path": "java/crypto/rule-RsaNoPadding.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-780",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-WeakMessageDigest",
+   "path": "java/crypto/rule-WeakMessageDigest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-WeakTLSProtocol-DefaultHttpClient",
+   "path": "java/crypto/rule-WeakTLSProtocolDefaultHttpClient.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-295",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-WeakTLSProtocol-SSLContext",
+   "path": "java/crypto/rule-WeakTLSProtocolSSLContext.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-WeakTLSProtocolVersion",
+   "path": "java/crypto/rule-WeakTLSProtocolVersion.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_endpoint_rule-HostnameVerifier",
+   "path": "java/endpoint/rule-HostnameVerifier.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-295",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_endpoint_rule-UnvalidatedRedirect",
+   "path": "java/endpoint/rule-UnvalidatedRedirect.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-601",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_endpoint_rule-X509TrustManager",
+   "path": "java/endpoint/rule-X509TrustManager.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-295",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_file_rule-FileUploadFileName",
+   "path": "java/file/rule-FileUploadFileName.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-22",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_file_rule-FilenameUtils",
+   "path": "java/file/rule-FilenameUtils.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-22",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-CommandInjection",
+   "path": "java/inject/rule-CommandInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-78",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-ELInjection",
+   "path": "java/inject/rule-ELInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-917",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-FileDisclosureRequestDispatcher",
+   "path": "java/inject/rule-FileDisclosureRequestDispatcher.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-552",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-FileDisclosureSpringFramework",
+   "path": "java/inject/rule-FileDisclosureSpringFramework.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-552",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-HttpParameterPollution",
+   "path": "java/inject/rule-HttpParameterPollution.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-88",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-LDAPInjection",
+   "path": "java/inject/rule-LDAPInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-90",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-OgnlInjection",
+   "path": "java/inject/rule-OgnlInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-917",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-SpotbugsPathTraversalAbsolute",
+   "path": "java/inject/rule-SpotbugsPathTraversalAbsolute.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-22",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_ldap_rule-AnonymousLDAP",
+   "path": "java/ldap/rule-AnonymousLDAP.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-306",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_password_rule-ConstantDBPassword",
+   "path": "java/password/rule-ConstantDBPassword.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-259",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_password_rule-EmptyDBPassword",
+   "path": "java/password/rule-EmptyDBPassword.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-306",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_password_rule-HardcodePassword",
+   "path": "java/password/rule-HardcodePassword.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-259",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_perm_rule-DangerousPermissions",
+   "path": "java/perm/rule-DangerousPermissions.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-732",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_perm_rule-OverlyPermissiveFilePermissionInline",
+   "path": "java/perm/rule-OverlyPermissiveFilePermissionInline.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-732",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_script_rule-ScriptInjection",
+   "path": "java/script/rule-ScriptInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-94",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_script_rule-SpringSpelExpressionParser",
+   "path": "java/script/rule-SpringSpelExpressionParser.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-917",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_smtp_rule-InsecureSmtp",
+   "path": "java/smtp/rule-InsecureSmtp.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-297",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_smtp_rule-SmtpClient",
+   "path": "java/smtp/rule-SmtpClient.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-77",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_ssrf_rule-SSRF",
+   "path": "java/ssrf/rule-SSRF.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-918",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_strings_rule-BadHexConversion",
+   "path": "java/strings/rule-BadHexConversion.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-704",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_strings_rule-FormatStringManipulation",
+   "path": "java/strings/rule-FormatStringManipulation.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-134",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_strings_rule-ModifyAfterValidation",
+   "path": "java/strings/rule-ModifyAfterValidation.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-182",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_strings_rule-NormalizeAfterValidation",
+   "path": "java/strings/rule-NormalizeAfterValidation.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-180",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_templateinjection_rule-TemplateInjection",
+   "path": "java/templateinjection/rule-TemplateInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-94",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_unsafe_rule-ExternalConfigControl",
+   "path": "java/unsafe/rule-ExternalConfigControl.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-15",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_xml_rule-SAMLIgnoreComments",
+   "path": "java/xml/rule-SAMLIgnoreComments.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-1390",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_xml_rule-XmlDecoder",
+   "path": "java/xml/rule-XmlDecoder.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-502",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_xml_rule-XsltTransform",
+   "path": "java/xml/rule-XsltTransform.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-91",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_xss_rule-WicketXSS",
+   "path": "java/xss/rule-WicketXSS.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-79",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_xss_rule-XSSReqParamToServletWriter",
+   "path": "java/xss/rule-XSSReqParamToServletWriter.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-79",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-XMLRdr",
+   "path": "java/xxe/rule-XMLRdr.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "find-sec-bugs",
+   "origin_licence": "LGPL-3.0",
+   "licence": "MIT",
+   "eligible": false
+  },
+  {
+   "id": "javascript_buf_rule-buffer-noassert-read",
+   "path": "javascript/buf/rule-buffer-noassert-read.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-125",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_buf_rule-buffer-noassert-write",
+   "path": "javascript/buf/rule-buffer-noassert-write.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-787",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_buf_rule-detect-new-buffer",
+   "path": "javascript/buf/rule-detect-new-buffer.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-770",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_dos_rule-non-literal-regexp",
+   "path": "javascript/dos/rule-non-literal-regexp.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-185",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_eval_rule-eval-with-expression",
+   "path": "javascript/eval/rule-eval-with-expression.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-95",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_pathtraversal_rule-non-literal-fs-filename",
+   "path": "javascript/pathtraversal/rule-non-literal-fs-filename.yml",
+   "languages": [
+    "typescript",
+    "javascript"
+   ],
+   "cwe": "CWE-22",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_random_rule-pseudo-random-bytes",
+   "path": "javascript/random/rule-pseudo-random-bytes.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-338",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_react_rule-dangerouslysetinnerhtml",
+   "path": "javascript/react/rule-dangerouslysetinnerhtml.yml",
+   "languages": [
+    "typescript",
+    "javascript"
+   ],
+   "cwe": "CWE-79",
+   "origin": "eslint-plugin-react",
+   "origin_licence": "MIT",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_require_rule-non-literal-require",
+   "path": "javascript/require/rule-non-literal-require.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-95",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_timing_rule-possible-timing-attacks",
+   "path": "javascript/timing/rule-possible-timing-attacks.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-208",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "javascript_xss_rule-mustache-escape",
+   "path": "javascript/xss/rule-mustache-escape.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-79",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_assert_rule-assert-used",
+   "path": "python/assert/rule-assert-used.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-754",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_bind-all-interfaces_rule-general-bindall-interfaces",
+   "path": "python/bind_all_interfaces/rule-general-bindall-interfaces.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-1327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-cipher-modes",
+   "path": "python/crypto/rule-cipher-modes.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-cipher-blowfish",
+   "path": "python/crypto/rule-crypto-cipher-blowfish.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-cipher-des",
+   "path": "python/crypto/rule-crypto-cipher-des.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-cipher-rc2",
+   "path": "python/crypto/rule-crypto-cipher-rc2.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-cipher-rc4",
+   "path": "python/crypto/rule-crypto-cipher-rc4.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-cipher-xor",
+   "path": "python/crypto/rule-crypto-cipher-xor.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-encrypt-dsa-rsa",
+   "path": "python/crypto/rule-crypto-encrypt-dsa-rsa.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-326",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-encrypt-ec",
+   "path": "python/crypto/rule-crypto-encrypt-ec.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-326",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-hash-md5",
+   "path": "python/crypto/rule-crypto-hash-md5.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-hash-sha1",
+   "path": "python/crypto/rule-crypto-hash-sha1.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-hazmat-cipher-arc4",
+   "path": "python/crypto/rule-crypto-hazmat-cipher-arc4.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-hazmat-cipher-blowfish",
+   "path": "python/crypto/rule-crypto-hazmat-cipher-blowfish.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto-hazmat-cipher-idea",
+   "path": "python/crypto/rule-crypto-hazmat-cipher-idea.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto.hazmat-hash-md5",
+   "path": "python/crypto/rule-crypto-hazmat-hash-md5.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-crypto.hazmat-hash-sha1",
+   "path": "python/crypto/rule-crypto-hazmat-hash-sha1.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-hash-md2",
+   "path": "python/crypto/rule-hash-md2.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-hash-md4",
+   "path": "python/crypto/rule-hash-md4.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-hash-md5",
+   "path": "python/crypto/rule-hash-md5.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-hash-sha1",
+   "path": "python/crypto/rule-hash-sha1.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-hashlib-new-insecure-functions",
+   "path": "python/crypto/rule-hashlib-new-insecure-functions.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_crypto_rule-import-pycrypto",
+   "path": "python/crypto/rule-import-pycrypto.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-1104",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_deserialization_rule-cpickle",
+   "path": "python/deserialization/rule-cpickle.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_deserialization_rule-dill",
+   "path": "python/deserialization/rule-dill.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_deserialization_rule-marshal",
+   "path": "python/deserialization/rule-marshal.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_deserialization_rule-pickle",
+   "path": "python/deserialization/rule-pickle.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_deserialization_rule-shelve",
+   "path": "python/deserialization/rule-shelve.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_deserialization_rule-yaml-load",
+   "path": "python/deserialization/rule-yaml-load.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_django_rule-django-extra-used",
+   "path": "python/django/rule-django-extra-used.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-89",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_escaping_rule-jinja2-autoescape-false",
+   "path": "python/escaping/rule-jinja2-autoescape-false.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-116",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_escaping_rule-use-of-mako-templates",
+   "path": "python/escaping/rule-use-of-mako-templates.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-79",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_eval_rule-eval",
+   "path": "python/eval/rule-eval.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-95",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-exec-used",
+   "path": "python/exec/rule-exec-used.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-95",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-linux-command-wildcard-injection",
+   "path": "python/exec/rule-linux-command-wildcard-injection.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-155",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-os-path",
+   "path": "python/exec/rule-os-path.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-os-popen2",
+   "path": "python/exec/rule-os-popen2.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-start-process-with-no-shell",
+   "path": "python/exec/rule-start-process-with-no-shell.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-subprocess-call",
+   "path": "python/exec/rule-subprocess-call.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-subprocess-popen-shell-true",
+   "path": "python/exec/rule-subprocess-popen-shell-true.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_exec_rule-subprocess-shell-TRUE",
+   "path": "python/exec/rule-subprocess-shell-TRUE.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_file-permissions_rule-general-bad-permission",
+   "path": "python/file_permissions/rule-general-bad-permission.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-732",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_files_rule-tarfile-unsafe-members",
+   "path": "python/files/rule-tarfile-unsafe-members.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-22",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_flask_rule-app-debug",
+   "path": "python/flask/rule-app-debug.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-489",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_ftp_rule-ftplib",
+   "path": "python/ftp/rule-ftplib.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-319",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_log_rule-logging-config-insecure-listen",
+   "path": "python/log/rule-logging-config-insecure-listen.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-94",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_random_rule-random",
+   "path": "python/random/rule-random.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-338",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_requests_rule-request-without-timeout",
+   "path": "python/requests/rule-request-without-timeout.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-770",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_snmp_rule-insecure-snmp-version",
+   "path": "python/snmp/rule-insecure-snmp-version.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-319",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_snmp_rule-snmp-weak-cryptography",
+   "path": "python/snmp/rule-snmp-weak-cryptography.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-319",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_sql_rule-hardcoded-sql-expression",
+   "path": "python/sql/rule-hardcoded-sql-expression.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-89",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_ssh_rule-ssh-nohost-key-verification",
+   "path": "python/ssh/rule-ssh-nohost-key-verification.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-322",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_ssl_rule-req-no-certvalid",
+   "path": "python/ssl/rule-req-no-certvalid.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-295",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_ssl_rule-ssl-no-version",
+   "path": "python/ssl/rule-ssl-no-version.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-326",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_ssl_rule-ssl-with-bad-version",
+   "path": "python/ssl/rule-ssl-with-bad-version.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-326",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_ssl_rule-unverified-context",
+   "path": "python/ssl/rule-unverified-context.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-295",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_telnet_rule-import-telnib",
+   "path": "python/telnet/rule-import-telnib.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-319",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_tmpdir_rule-hardcodedtmp",
+   "path": "python/tmpdir/rule-hardcodedtmp.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-377",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_tmpdir_rule-mktemp-q",
+   "path": "python/tmpdir/rule-mktemp-q.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-377",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_urlopen_rule-urllib-urlopen",
+   "path": "python/urlopen/rule-urllib-urlopen.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-918",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-celement",
+   "path": "python/xml/rule-celement.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-element",
+   "path": "python/xml/rule-element.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-etree",
+   "path": "python/xml/rule-etree.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-expatbuilder",
+   "path": "python/xml/rule-expatbuilder.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-expatreader",
+   "path": "python/xml/rule-expatreader.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-minidom",
+   "path": "python/xml/rule-minidom.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-pulldom",
+   "path": "python/xml/rule-pulldom.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "python_xml_rule-sax",
+   "path": "python/xml/rule-sax.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-611",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "eligible": true
+  },
+  {
+   "id": "java_deserialization_rule-InsecureDeserialization",
+   "path": "rules/gitlab/java/deserialization/rule-InsecureDeserialization.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-502",
+   "origin": "gitlab",
+   "origin_licence": "GitLab EE",
+   "licence": "GitLab EE",
+   "eligible": false
+  },
+  {
+   "id": "java_deserialization_rule-JacksonUnsafeDeserialization",
+   "path": "rules/gitlab/java/deserialization/rule-JacksonUnsafeDeserialization.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-502",
+   "origin": "gitlab",
+   "origin_licence": "GitLab EE",
+   "licence": "GitLab EE",
+   "eligible": false
+  },
+  {
+   "id": "javascript_crypto_rule-NodeLibcurlSSLVerificationDisable",
+   "path": "rules/gitlab/javascript/crypto/rule-NodeLibcurlSSLVerificationDisable.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-599",
+   "origin": "gitlab",
+   "origin_licence": "GitLab EE",
+   "licence": "GitLab EE",
+   "eligible": false
+  },
+  {
+   "id": "python_exec_rule-start-process-partial-path",
+   "path": "rules/gitlab/python/exec/rule-start-process-partial-path.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "gitlab",
+   "origin_licence": "GitLab EE",
+   "licence": "GitLab EE",
+   "eligible": false
+  },
+  {
+   "id": "python_exec_rule-start-process-path",
+   "path": "rules/gitlab/python/exec/rule-start-process-path.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-426",
+   "origin": "gitlab",
+   "origin_licence": "GitLab EE",
+   "licence": "GitLab EE",
+   "eligible": false
+  },
+  {
+   "id": "python_exec_rule-subprocess-call-array",
+   "path": "rules/gitlab/python/exec/rule-subprocess-call-array.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "gitlab",
+   "origin_licence": "GitLab EE",
+   "licence": "GitLab EE",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_java_webview_rule-ignore-ssl-certificate-errors",
+   "path": "rules/lgpl/java/webview/rule-ignore_ssl_certificate_errors.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-295",
+   "origin": "mobsf",
+   "origin_licence": "GPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_java_webview_rule-webview-debugging",
+   "path": "rules/lgpl/java/webview/rule-webview_debugging.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-489",
+   "origin": "mobsf",
+   "origin_licence": "GPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_java_webview_rule-webview-external-storage",
+   "path": "rules/lgpl/java/webview/rule-webview_external_storage.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-749",
+   "origin": "mobsf",
+   "origin_licence": "GPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_java_webview_rule-webview-set-allow-file-access",
+   "path": "rules/lgpl/java/webview/rule-webview_set_allow_file_access.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-73",
+   "origin": "mobsf",
+   "origin_licence": "GPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-aes-ecb",
+   "path": "rules/lgpl/javascript/crypto/rule-node_aes_ecb.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-327",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-aes-noiv",
+   "path": "rules/lgpl/javascript/crypto/rule-node_aes_noiv.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-327",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-insecure-random-generator",
+   "path": "rules/lgpl/javascript/crypto/rule-node_insecure_random_generator.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-338",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-md5",
+   "path": "rules/lgpl/javascript/crypto/rule-node_md5.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-328",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-sha1",
+   "path": "rules/lgpl/javascript/crypto/rule-node_sha1.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-328",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-timing-attack",
+   "path": "rules/lgpl/javascript/crypto/rule-node_timing_attack.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-208",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-tls-reject",
+   "path": "rules/lgpl/javascript/crypto/rule-node_tls_reject.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-295",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_crypto_rule-node-weak-crypto",
+   "path": "rules/lgpl/javascript/crypto/rule-node_weak_crypto.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-327",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-node-knex-sqli-injection",
+   "path": "rules/lgpl/javascript/database/rule-node_knex_sqli_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-89",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-node-nosqli-injection",
+   "path": "rules/lgpl/javascript/database/rule-node_nosqli_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-943",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-node-nosqli-js-injection",
+   "path": "rules/lgpl/javascript/database/rule-node_nosqli_js_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-943",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-node-sqli-injection",
+   "path": "rules/lgpl/javascript/database/rule-node_sqli_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-89",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-sequelize-tls",
+   "path": "rules/lgpl/javascript/database/rule-sequelize_tls.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-319",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-sequelize-tls-cert-validation",
+   "path": "rules/lgpl/javascript/database/rule-sequelize_tls_cert_validation.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-295",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_database_rule-sequelize-weak-tls",
+   "path": "rules/lgpl/javascript/database/rule-sequelize_weak_tls.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-757",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_dos_rule-layer7-object-dos",
+   "path": "rules/lgpl/javascript/dos/rule-layer7_object_dos.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-606",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_dos_rule-regex-dos",
+   "path": "rules/lgpl/javascript/dos/rule-regex_dos.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-185",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_electronjs_rule-electron-allow-http",
+   "path": "rules/lgpl/javascript/electronjs/rule-electron_allow_http.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-319",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_electronjs_rule-electron-blink-integration",
+   "path": "rules/lgpl/javascript/electronjs/rule-electron_blink_integration.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-272",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_electronjs_rule-electron-context-isolation",
+   "path": "rules/lgpl/javascript/electronjs/rule-electron_context_isolation.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-1321",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_electronjs_rule-electron-disable-websecurity",
+   "path": "rules/lgpl/javascript/electronjs/rule-electron_disable_websecurity.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-346",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_electronjs_rule-electron-experimental-features",
+   "path": "rules/lgpl/javascript/electronjs/rule-electron_experimental_features.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-272",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_electronjs_rule-electron-nodejs-integration",
+   "path": "rules/lgpl/javascript/electronjs/rule-electron_nodejs_integration.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-272",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-eval-nodejs",
+   "path": "rules/lgpl/javascript/eval/rule-eval_nodejs.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-95",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-eval-require",
+   "path": "rules/lgpl/javascript/eval/rule-eval_require.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-95",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-grpc-insecure-connection",
+   "path": "rules/lgpl/javascript/eval/rule-grpc_insecure_connection.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-319",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-node-deserialize",
+   "path": "rules/lgpl/javascript/eval/rule-node_deserialize.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-502",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-sandbox-code-injection",
+   "path": "rules/lgpl/javascript/eval/rule-sandbox_code_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-serializetojs-deserialize",
+   "path": "rules/lgpl/javascript/eval/rule-serializetojs_deserialize.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-502",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-server-side-template-injection",
+   "path": "rules/lgpl/javascript/eval/rule-server_side_template_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-vm2-code-injection",
+   "path": "rules/lgpl/javascript/eval/rule-vm2_code_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-vm2-context-injection",
+   "path": "rules/lgpl/javascript/eval/rule-vm2_context_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-vm-code-injection",
+   "path": "rules/lgpl/javascript/eval/rule-vm_code_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-vm-compilefunction-injection",
+   "path": "rules/lgpl/javascript/eval/rule-vm_compilefunction_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-vm-runincontext-injection",
+   "path": "rules/lgpl/javascript/eval/rule-vm_runincontext_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-vm-runinnewcontext-injection",
+   "path": "rules/lgpl/javascript/eval/rule-vm_runinnewcontext_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-94",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_eval_rule-yaml-deserialize",
+   "path": "rules/lgpl/javascript/eval/rule-yaml_deserialize.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-502",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_exec_rule-shelljs-os-command-exec",
+   "path": "rules/lgpl/javascript/exec/rule-shelljs_os_command_exec.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-78",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-default",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_default.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-522",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-domain",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_no_domain.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-522",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-httponly",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_no_httponly.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-1004",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-maxage",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_no_maxage.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-613",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-path",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_no_path.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-522",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-samesite",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_no_samesite.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-1275",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-secure",
+   "path": "rules/lgpl/javascript/headers/rule-cookie_session_no_secure.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-614",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-express-cors",
+   "path": "rules/lgpl/javascript/headers/rule-express_cors.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-942",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-generic-cors",
+   "path": "rules/lgpl/javascript/headers/rule-generic_cors.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-942",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-generic-header-injection",
+   "path": "rules/lgpl/javascript/headers/rule-generic_header_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-644",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-header-xss-generic",
+   "path": "rules/lgpl/javascript/headers/rule-header_xss_generic.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-358",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-header-xss-lusca",
+   "path": "rules/lgpl/javascript/headers/rule-header_xss_lusca.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-358",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-helmet-feature-disabled",
+   "path": "rules/lgpl/javascript/headers/rule-helmet_feature_disabled.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-358",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_headers_rule-host-header-injection",
+   "path": "rules/lgpl/javascript/headers/rule-host_header_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-348",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_jwt_rule-hardcoded-jwt-secret",
+   "path": "rules/lgpl/javascript/jwt/rule-hardcoded_jwt_secret.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-798",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_jwt_rule-jwt-exposed-credentials",
+   "path": "rules/lgpl/javascript/jwt/rule-jwt_exposed_credentials.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-522",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_jwt_rule-jwt-exposed-data",
+   "path": "rules/lgpl/javascript/jwt/rule-jwt_exposed_data.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-522",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_jwt_rule-jwt-express-hardcoded",
+   "path": "rules/lgpl/javascript/jwt/rule-jwt_express_hardcoded.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-798",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_jwt_rule-jwt-not-revoked",
+   "path": "rules/lgpl/javascript/jwt/rule-jwt_not_revoked.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-522",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_jwt_rule-node-jwt-none-algorithm",
+   "path": "rules/lgpl/javascript/jwt/rule-node_jwt_none_algorithm.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-327",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_redirect_rule-express-open-redirect",
+   "path": "rules/lgpl/javascript/redirect/rule-express_open_redirect.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-601",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_redirect_rule-express-open-redirect2",
+   "path": "rules/lgpl/javascript/redirect/rule-express_open_redirect2.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-601",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_ssrf_rule-node-ssrf",
+   "path": "rules/lgpl/javascript/ssrf/rule-node_ssrf.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-918",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_ssrf_rule-phantom-ssrf",
+   "path": "rules/lgpl/javascript/ssrf/rule-phantom_ssrf.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-918",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_ssrf_rule-playwright-ssrf",
+   "path": "rules/lgpl/javascript/ssrf/rule-playwright_ssrf.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-918",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_ssrf_rule-puppeteer-ssrf",
+   "path": "rules/lgpl/javascript/ssrf/rule-puppeteer_ssrf.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-918",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_ssrf_rule-wkhtmltoimage-ssrf",
+   "path": "rules/lgpl/javascript/ssrf/rule-wkhtmltoimage_ssrf.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-918",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_ssrf_rule-wkhtmltopdf-ssrf",
+   "path": "rules/lgpl/javascript/ssrf/rule-wkhtmltopdf_ssrf.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-918",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-admzip-path-overwrite",
+   "path": "rules/lgpl/javascript/traversal/rule-admzip_path_overwrite.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-22",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-express-lfr",
+   "path": "rules/lgpl/javascript/traversal/rule-express_lfr.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-23",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-express-lfr-warning",
+   "path": "rules/lgpl/javascript/traversal/rule-express_lfr_warning.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-23",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-generic-path-traversal",
+   "path": "rules/lgpl/javascript/traversal/rule-generic_path_traversal.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-23",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-join-resolve-path-traversal",
+   "path": "rules/lgpl/javascript/traversal/rule-join_resolve_path_traversal.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-22",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-tar-path-overwrite",
+   "path": "rules/lgpl/javascript/traversal/rule-tar_path_overwrite.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-22",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_traversal_rule-zip-path-overwrite",
+   "path": "rules/lgpl/javascript/traversal/rule-zip_path_overwrite.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-22",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xml_rule-node-entity-expansion",
+   "path": "rules/lgpl/javascript/xml/rule-node_entity_expansion.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-776",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xml_rule-node-xpath-injection",
+   "path": "rules/lgpl/javascript/xml/rule-node_xpath_injection.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-643",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xml_rule-node-xxe",
+   "path": "rules/lgpl/javascript/xml/rule-node_xxe.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-611",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xml_rule-xxe-expat",
+   "path": "rules/lgpl/javascript/xml/rule-xxe_expat.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-611",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xss_rule-express-xss",
+   "path": "rules/lgpl/javascript/xss/rule-express_xss.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-79",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xss_rule-handlebars-noescape",
+   "path": "rules/lgpl/javascript/xss/rule-handlebars_noescape.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-80",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xss_rule-handlebars-safestring",
+   "path": "rules/lgpl/javascript/xss/rule-handlebars_safestring.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-79",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xss_rule-squirrelly-autoescape",
+   "path": "rules/lgpl/javascript/xss/rule-squirrelly_autoescape.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-79",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xss_rule-xss-disable-mustache-escape",
+   "path": "rules/lgpl/javascript/xss/rule-xss_disable_mustache_escape.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-116",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "rules_lgpl_javascript_xss_rule-xss-serialize-javascript",
+   "path": "rules/lgpl/javascript/xss/rule-xss_serialize_javascript.yml",
+   "languages": [
+    "javascript"
+   ],
+   "cwe": "CWE-80",
+   "origin": "njsscan",
+   "origin_licence": "LGPL-3.0",
+   "licence": "LGPL-3.0",
+   "eligible": false
+  },
+  {
+   "id": "java_cookie_rule-CookieHTTPOnly",
+   "path": "rules/lgpl-cc/java/cookie/rule-CookieHTTPOnly.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-1004",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-DisallowOldTLSVersion",
+   "path": "rules/lgpl-cc/java/crypto/rule-DisallowOldTLSVersion.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-326",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-GCMNonceReuse",
+   "path": "rules/lgpl-cc/java/crypto/rule-GCMNonceReuse.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-323",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-HTTPUrlConnectionHTTPRequest",
+   "path": "rules/lgpl-cc/java/crypto/rule-HTTPUrlConnectionHTTPRequest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-HttpComponentsRequest",
+   "path": "rules/lgpl-cc/java/crypto/rule-HttpComponentsRequest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-HttpGetHTTPRequest",
+   "path": "rules/lgpl-cc/java/crypto/rule-HttpGetHTTPRequest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule_JwtDecodeWithoutVerify",
+   "path": "rules/lgpl-cc/java/crypto/rule-JwtDecodeWithoutVerify.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-347",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule_JwtNoneAlgorithm",
+   "path": "rules/lgpl-cc/java/crypto/rule-JwtNoneAlgorithm.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-SocketRequestUnsafeProtocols",
+   "path": "rules/lgpl-cc/java/crypto/rule-SocketRequestUnsafeProtocols.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-SpringFTPRequest",
+   "path": "rules/lgpl-cc/java/crypto/rule-SpringFTPRequest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-SpringHTTPRequestRestTemplate",
+   "path": "rules/lgpl-cc/java/crypto/rule-SpringHTTPRequestRestTemplate.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-TLSUnsafeRenegotiation",
+   "path": "rules/lgpl-cc/java/crypto/rule-TLSUnsafeRenegotiation.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-TelnetRequest",
+   "path": "rules/lgpl-cc/java/crypto/rule-TelnetRequest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-UnirestHTTPRequest",
+   "path": "rules/lgpl-cc/java/crypto/rule-UnirestHTTPRequest.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-UseOfRC2",
+   "path": "rules/lgpl-cc/java/crypto/rule-UseOfRC2.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_crypto_rule-UseOfRC4",
+   "path": "rules/lgpl-cc/java/crypto/rule-UseOfRC4.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_csrf_rule-SpringCSRFDisabled",
+   "path": "rules/lgpl-cc/java/csrf/rule-SpringCSRFDisabled.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-352",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_csrf_rule-UnrestrictedRequestMapping",
+   "path": "rules/lgpl-cc/java/csrf/rule-UnrestrictedRequestMapping.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-352",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_deserialization_rule-InsecureJmsDeserialization",
+   "path": "rules/lgpl-cc/java/deserialization/rule-InsecureJmsDeserialization.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-502",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_deserialization_rule-ServerDangerousObjectDeserialization",
+   "path": "rules/lgpl-cc/java/deserialization/rule-ServerDangerousObjectDeserialization.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-502",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_deserialization_rule-SnakeYamlConstructor",
+   "path": "rules/lgpl-cc/java/deserialization/rule-SnakeYamlConstructor.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-502",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_endpoint_rule-ManuallyConstructedURLs",
+   "path": "rules/lgpl-cc/java/endpoint/rule-ManuallyConstructedURLs.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-918",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_file_rule_rule-FilePathTraversalHttpServlet",
+   "path": "rules/lgpl-cc/java/file/rule-FilePathTraversalHttpServlet.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-22",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_ftp_rule-FTPInsecureTransport",
+   "path": "rules/lgpl-cc/java/ftp/rule-FTPInsecureTransport.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-DangerousGroovyShell",
+   "path": "rules/lgpl-cc/java/inject/rule-DangerousGroovyShell.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-94",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-EnvInjection",
+   "path": "rules/lgpl-cc/java/inject/rule-EnvInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-78",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-MongodbNoSQLi",
+   "path": "rules/lgpl-cc/java/inject/rule-MongodbNoSQLi.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-943",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-SeamLogInjection",
+   "path": "rules/lgpl-cc/java/inject/rule-SeamLogInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-95",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_inject_rule-SqlInjection",
+   "path": "rules/lgpl-cc/java/inject/rule-SqlInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-89",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_traversal_rule-RelativePathTraversal",
+   "path": "rules/lgpl-cc/java/traversal/rule-RelativePathTraversal.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-23",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xpathi_rule-XpathInjection",
+   "path": "rules/lgpl-cc/java/xpathi/rule-XpathInjection.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-643",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-DisallowDoctypeDeclFalse",
+   "path": "rules/lgpl-cc/java/xxe/rule-DisallowDoctypeDeclFalse.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-DocumentBuilderFactoryDisallowDoctypeDeclMissing",
+   "path": "rules/lgpl-cc/java/xxe/rule-DocumentBuilderFactoryDisallowDoctypeDeclMissing.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-ExternalGeneralEntitiesTrue",
+   "path": "rules/lgpl-cc/java/xxe/rule-ExternalGeneralEntitiesTrue.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-ExternalParameterEntitiesTrue",
+   "path": "rules/lgpl-cc/java/xxe/rule-ExternalParameterEntitiesTrue.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-SAXParserFactoryDisallowDoctypeDeclMissing",
+   "path": "rules/lgpl-cc/java/xxe/rule-SAXParserFactoryDisallowDoctypeDeclMissing.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-TransformerfactoryDTDNotDisabled",
+   "path": "rules/lgpl-cc/java/xxe/rule-TransformerfactoryDTDNotDisabled.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-XMLInputFactoryExternalEntitiesEnabled",
+   "path": "rules/lgpl-cc/java/xxe/rule-XMLInputFactoryExternalEntitiesEnabled.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "java_xxe_rule-XMLStreamRdr",
+   "path": "rules/lgpl-cc/java/xxe/rule-XMLStreamRdr.yml",
+   "languages": [
+    "java"
+   ],
+   "cwe": "CWE-611",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "javascript_exec_rule-child-process",
+   "path": "rules/lgpl-cc/javascript/exec/rule-child-process.yml",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-78",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_crypto_rule-HTTPConnectionPool",
+   "path": "rules/lgpl-cc/python/crypto/rule-HTTPConnectionPool.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-319",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_django_rule-django-raw-used",
+   "path": "rules/lgpl-cc/python/django/security/injection/sql/rule-django-raw-used.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-89",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_django_rule-django-rawsql-used",
+   "path": "rules/lgpl-cc/python/django/security/injection/sql/rule-django-rawsql-used.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-89",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_escaping_rule-django",
+   "path": "rules/lgpl-cc/python/escaping/rule-django.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-79",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_flask_rule-path-traversal-open",
+   "path": "rules/lgpl-cc/python/flask/security/injection/path-traversal/rule-path-traversal-open.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-22",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_flask_rule-tainted-sql-string",
+   "path": "rules/lgpl-cc/python/flask/security/injection/sql/rule-flask-tainted-sql-string.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-89",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_flask_rule-flask-open-redirect",
+   "path": "rules/lgpl-cc/python/flask/security/redirection/rule-flask-open-redirect.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-601",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_jwt_rule-jwt-none-alg",
+   "path": "rules/lgpl-cc/python/jwt/security/rule-jwt-none-alg.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-327",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  },
+  {
+   "id": "python_pyramid_rule-pyramid-csrf-origin-check",
+   "path": "rules/lgpl-cc/python/pyramid/csrf/rule-pyramid-csrf-origin-check.yml",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-352",
+   "origin": "gitlab",
+   "origin_licence": "Commons Clause",
+   "licence": "Commons Clause",
+   "eligible": false
+  }
+ ]
+}

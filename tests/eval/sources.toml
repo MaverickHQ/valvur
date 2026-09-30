@@ -6,3 +6,12 @@
 url = "https://github.com/OWASP-Benchmark/BenchmarkPython"
 commit = "f1291485808b66e20ddb6b01b10dc71b3df8c8ba"
 licence = "GPL-3.0"
+
+# R13 (D29, ADR-0029): candidate static-analysis rules for Python, JavaScript, Go and
+# Java. MIT, but most rules translate another project's checks; each rule's origin
+# and both licences are in `tests/eval/sast-rules.json`, and only a rule whose file
+# and origin are both permissive may be vendored.
+[gitlab-sast-rules]
+url = "https://gitlab.com/gitlab-org/security-products/sast-rules"
+commit = "53bf5cf6df3c51b6c02110f5a638b5e6213666cd"
+licence = "MIT"
