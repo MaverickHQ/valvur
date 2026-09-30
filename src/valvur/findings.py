@@ -174,12 +174,40 @@ def merge(findings: list[Finding]) -> list[Finding]:
             exploit=existing.exploit or finding.exploit,
             cwe=existing.cwe or finding.cwe,
         )
-    return _fold_malicious(list(by_fp.values()))
+    return _fold_repeats(_fold_malicious(list(by_fp.values())))
 
 
 #: The rule the dependency-reality Check reports a known-malicious package under
 #: (D26), which a Scanner's `MAL-` advisory for the same package folds into.
 MALICIOUS_RULE = "valvur.dependency.malicious"
+
+
+def _fold_repeats(findings: list[Finding]) -> list[Finding]:
+    """One flaw, one finding (R13): a vendored rule's finding on a line where one of
+    valvur's own rules reports the same weakness folds into valvur's, at the worse of
+    the two severities. Two rule ids on one line for one weakness were two findings
+    that never merged, since a SAST finding's identity carries its rule (ADR-0003)."""
+    def places(finding: Finding) -> set[tuple[str, int, str]]:
+        return {(finding.path, finding.line, c) for c in finding.cwe} if finding.line else set()
+
+    own = {place: i for i, f in enumerate(findings) if f.rule.startswith("valvur.")
+           for place in places(f)}
+    if not own:
+        return findings
+    kept = list(findings)
+    dropped: set[int] = set()
+    for i, finding in enumerate(findings):
+        if finding.rule.startswith("valvur.") or "opengrep" not in finding.sources:
+            continue
+        target = next((own[place] for place in sorted(places(finding)) if place in own), None)
+        if target is None:
+            continue
+        into = kept[target]
+        kept[target] = replace(into, severity=min(
+            (into.severity, finding.severity),
+            key=lambda s: SEVERITIES.index(s) if s in SEVERITIES else len(SEVERITIES)))
+        dropped.add(i)
+    return [f for i, f in enumerate(kept) if i not in dropped]
 
 
 def _fold_malicious(findings: list[Finding]) -> list[Finding]:

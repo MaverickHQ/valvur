@@ -73,7 +73,9 @@ def test_rule_identity_survives_the_rules_directory_moving(workspace):
     run = scan(workspace, runner=GoldenRunner(opengrep=golden("opengrep")),
                adapters=[OpengrepAdapter()])
 
-    assert all(f.rule.startswith("valvur.") for f in run.findings)
+    # valvur's own ids begin `valvur.`; a vendored rule's (R13.3) is its own, bare.
+    assert all(f.rule.startswith("valvur.") or "." not in f.rule for f in run.findings)
+    assert not any("valvur-rules" in f.rule for f in run.findings)
 
 
 # ------------------------------------------------ OSV-Scanner 2.6.0 (2026-09-20)

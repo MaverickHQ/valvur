@@ -19,8 +19,14 @@ def test_planted_flaws_are_reported_by_the_vendored_rules(tmp_path):
     import subprocess
     import sys
 
+    # Through a variable, which only the vendored taint rule follows; and inline,
+    # which valvur's own `string-built-sql` reports too, so the two are one finding.
     (tmp_path / "app.py").write_text(
         "def find(cursor, name):\n"
+        "    query = \"SELECT * FROM users WHERE name = '%s'\" % name\n"
+        "    cursor.execute(query)\n"
+        "\n\n"
+        "def inline(cursor, name):\n"
         "    cursor.execute(\"SELECT * FROM users WHERE name = '%s'\" % name)\n")
     (tmp_path / "run.js").write_text("function run(expression) {\n"
                                      "  return eval(expression);\n}\n")
@@ -33,6 +39,10 @@ def test_planted_flaws_are_reported_by_the_vendored_rules(tmp_path):
     by_rule = {f["rule"]: f for f in findings}
 
     assert by_rule["python_sql_rule-hardcoded-sql-expression"]["path"] == "app.py"
+    assert by_rule["python_sql_rule-hardcoded-sql-expression"]["line"] == 3
+    at_line_7 = [f for f in findings if f["path"] == "app.py" and f["line"] == 7]
+    assert [(f["rule"], f["severity"]) for f in at_line_7] == [
+        ("valvur.python.string-built-sql", "medium")]     # one flaw, one finding
     assert by_rule["javascript_eval_rule-eval-with-expression"]["path"] == "run.js"
     assert by_rule["python_sql_rule-hardcoded-sql-expression"]["sources"] == ["opengrep"]
     assert by_rule["python_sql_rule-hardcoded-sql-expression"]["cwe"] == ["CWE-89"]  # R13.4
