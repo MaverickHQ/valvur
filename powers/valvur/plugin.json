@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "valvur",
+  "version": "1.1.0",
+  "description": "Scan a project for security problems locally and offline, check a package before installing it, and work through the findings with the human. The skill that runs the workflow, and valvur's MCP server.",
+  "author": {
+    "name": "MaverickHQ",
+    "url": "https://github.com/MaverickHQ"
+  },
+  "homepage": "https://github.com/MaverickHQ/valvur",
+  "repository": "https://github.com/MaverickHQ/valvur",
+  "license": "Apache-2.0",
+  "keywords": ["security", "scan", "vulnerabilities", "secrets", "dependencies", "supply chain", "offline", "valvur"]
+}

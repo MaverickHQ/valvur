@@ -69,7 +69,8 @@ def _held_to_the_package(copy: Path) -> None:
 
     assert present == skill.files(), (
         f"{copy} is not the package's skill; copy it with "
-        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py`, in that order")
+        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py "
+        "tests/test_power.py`, in that order")
     assert not any(p.is_symlink() for p in copy.rglob("*")), "Claude Code skips a symlink"
 
 

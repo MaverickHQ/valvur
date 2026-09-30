@@ -226,3 +226,15 @@ def test_the_plugin_is_this_version_and_pins_its_server_to_it():
     assert config["mcpServers"]["valvur"]["args"] == ["--from", f"valvur=={_declared()}",
                                                       "valvur-mcp"]
     assert manifest["version"] == _declared()
+
+
+def test_the_kiro_power_is_this_version():
+    """R15.3 (D40): the power's manifest moves with the rest; its server's pin is
+    held in `test_power.py`, beside the spec's rules for it."""
+    import json
+
+    manifest = json.loads((REPO / "powers" / "valvur" / "plugin.json").read_text())
+    server = json.loads((REPO / "powers" / "valvur" / "mcp.json").read_text())
+
+    assert manifest["version"] == _declared()
+    assert f"valvur=={_declared()}" in server["mcpServers"]["valvur"]["args"]
