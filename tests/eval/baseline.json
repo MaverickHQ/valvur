@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason. The Mac lane is beside it.",
-  "recorded": "2026-09-30, R11's exit (eval run 36641729214); R10 and R9.6 before",
+  "recorded": "2026-09-30, R13's exit (eval run 36655021422); R11, R10 and R9.6 before",
   "tracks": {
-    "sast-python": 0.4,
-    "sast-js": 10.0,
+    "sast-python": 11.1,
+    "sast-js": 15.0,
     "secrets": 100.0,
     "dependencies": 100.0,
     "package-reality": 100.0,
@@ -12,42 +12,42 @@
     "infrastructure": 95.0,
     "real-code-precision": 4.2
   },
-  "score": 63.0,
+  "score": 64.9,
   "recorded_on": {
     "image": {
       "name": "valvur:dev",
-      "id": "sha256:702f99ec0328e9ad0359ab25cffa5f84d924f08c2decd5a0faa6f93f2fe660c0"
+      "id": "sha256:15d6f95f243daa629f78f8a9be938868c0a4d71ea5d92c495deec96abed6253f"
     },
     "data": {
-      "database_age_days": 0.15,
-      "name_index_age_days": 0.54,
+      "database_age_days": 0.26,
+      "name_index_age_days": 0.65,
       "malicious_age_days": 0.0,
-      "kev_age_days": 0.38,
-      "epss_age_days": 0.45,
-      "osv_age_days": 4.13
+      "kev_age_days": 0.48,
+      "epss_age_days": 0.56,
+      "osv_age_days": 4.24
     },
     "seed": 20260929
   },
   "mac": {
     "tracks": {
-      "sast-python": 0.4,
-      "sast-js": 10.0,
+      "sast-python": 11.1,
+      "sast-js": 15.0,
       "secrets": 100.0,
       "dependencies": 100.0,
       "package-reality": 100.0,
       "agent-configuration": 94.3,
       "infrastructure": 95.0,
-      "real-code-precision": 4.2
+      "real-code-precision": 3.7
     },
-    "score": 63.0,
+    "score": 64.9,
     "image": {
       "name": "valvur:dev",
-      "id": "sha256:8f387f0aee99d298f659d92e145b702eaabb495f1292da3ef82d0a56be3ede22"
+      "id": "sha256:9d85682836846c5105433c9af5771a666c8b37ae81d3ca2aefbcfd0cf30b8743"
     },
-    "duration_s": 212.4,
-    "at": "R11"
+    "duration_s": 226.6,
+    "at": "R13"
   },
-  "linux_duration_s": 273.0,
+  "linux_duration_s": 206.7,
   "raised": [
     {
       "at": "R10",
@@ -74,6 +74,20 @@
         "package-reality": [
           92.0,
           100.0
+        ]
+      }
+    },
+    {
+      "at": "R13",
+      "run": 36655021422,
+      "tracks": {
+        "sast-python": [
+          0.4,
+          11.1
+        ],
+        "sast-js": [
+          10.0,
+          15.0
         ]
       }
     }

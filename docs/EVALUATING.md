@@ -442,3 +442,25 @@ Read it as the review of 2026-09-29 did:
   raise is one a maintainer would act on.**
 
 The phases that follow (`tasks.md`, R10 to R16) are judged by how these numbers move.
+
+**Static analysis after R13, 2026-09-30.** GitLab's `sast-rules` were audited by
+licence and measured rule by rule (`scripts/eval.py --per-rule`). Four of the 106 that
+may be vendored met the bar: Python's weak `random`, string-built SQL and unsafe
+`yaml.load`, and JavaScript's `eval` of an expression.
+
+| track | before (R12) | after (R13) |
+|---|---|---|
+| sast-python | 0.4 | 11.1 |
+| sast-js | 10.0 | 15.0 |
+| real-code-precision | 4.2 | 3.7 |
+
+- **Track 1** rises on three of the benchmark's 14 categories: string-built SQL
+  (sqli, every case found, no false one), weak randomness (35 of 99), and unsafe
+  deserialization (5 of 18, with 5 false). The other 11 are unchanged.
+- **Track 2** rises by one CWE of its ten: code injection, found in one of its two
+  cases.
+- **Track 8** falls by three false positives: `random`'s findings on non-security
+  uses in the corpus.
+
+Most of the benchmark stays unfound: path traversal, XSS, XPath and LDAP injection,
+open redirects and the rest. valvur does not claim them.

@@ -74,14 +74,20 @@ must never fetch, `fetch = "never"` turns every fetch off, and
   a home directory or a credential, is reported too. Forty-one patterns among these
   are translated from Cisco's mcp-scanner, and each Finding they produce names its
   pattern.
-- **A small set of Opengrep rules, which are not the claim.** Pinning rules, a
-  **sink inventory** at INFO (`eval`, `exec`, `shell=True`, unsafe `yaml.load`,
-  string-built SQL), and **taint rules** from a model call to those sinks and to
-  `innerHTML`, with sources for the Anthropic, OpenAI, Gemini, LangChain, litellm and
-  ollama SDKs. The taint rules fire on every planted flow in the fixture and have not
-  fired on real code in the corpus: Opengrep's taint tracking is intra-procedural, so
-  a flow across a class boundary is not seen, while the inventory names the sink.
-  They ship ranked `low`; the checks above carry this section.
+- **Static analysis, measured, and modest.** Opengrep runs valvur's own rules and four
+  of GitLab's.
+  - valvur's own are pinning rules, a **sink inventory** at INFO (`eval`, `exec`,
+    `shell=True`, unsafe `yaml.load`, string-built SQL), and **taint rules** from a
+    model call to those sinks and to `innerHTML`. They have sources for the Anthropic,
+    OpenAI, Gemini, LangChain, litellm and ollama SDKs. The taint rules fire on every
+    planted flow in the fixture and have not fired on real code in the corpus.
+  - GitLab's four were each shipped because they met a measured bar (D29), out of 106
+    whose licences allowed it: Python's weak `random`, string-built SQL and unsafe
+    `yaml.load`, and JavaScript's `eval` of an expression.
+  - On the Score's track 1, the OWASP Benchmark for Python, this is **11.1** out of
+    100: the true-positive rate minus the false-positive rate, averaged over its 14
+    categories. On track 2, valvur's JavaScript twins, it is **15.0**. That is the
+    claim; the checks above carry this section.
 
 What is covered, and what is not, is stated on every scan rather than left to infer:
 

@@ -153,3 +153,20 @@ def test_every_number_the_readme_cites_is_the_acceptance_sets():
     assert cited, "the README cites no measurement at all"
     unsourced = sorted({f"{n} ({kind})" for n, kind in cited if (n, kind) not in known})
     assert not unsourced, f"not in docs/acceptance/ and not a limit: {unsourced}"
+
+
+def test_the_static_analysis_claim_is_tracks_1_and_2_as_the_baseline_records_them():
+    """R13.7: what valvur says of static analysis is the Score's two tracks, measured,
+    and nothing beyond them."""
+    import json
+    import re
+
+    baseline = json.loads((REPO / "tests" / "eval" / "baseline.json").read_text())["tracks"]
+    readme = (REPO / "README.md").read_text()
+    paragraph = re.search(r"^- \*\*Static analysis[^\n]*\n(?:  [^\n]*\n)*", readme, re.M)
+    evaluating = (REPO / "docs" / "EVALUATING.md").read_text()
+
+    assert paragraph, "the README has no static-analysis paragraph"
+    for track in ("sast-python", "sast-js"):
+        assert f"**{baseline[track]}**" in paragraph.group(0), track
+        assert f"| {track} |" in evaluating and f"{baseline[track]}" in evaluating, track

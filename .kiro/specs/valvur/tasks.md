@@ -1012,9 +1012,18 @@ the baseline.
   - **Found by this run.** Repositories 1 and 4 failed, because the vendored
     `subprocess` shell rule reported each planted shell flow a second time. It was
     withdrawn and D29's bar amended (`ea352ce`); the set passes again.
-- [ ] **R13.7** **The claims, from the measurement.** Behaviour: the README's static-analysis
+- [x] **R13.7** **The claims, from the measurement.** Behaviour: the README's static-analysis
   paragraph and `EVALUATING.md` state tracks 1 and 2 as measured and nothing beyond them;
   `test_readme_as_built.py` holds the numbers.
+  **STATUS 2026-09-30:** ✅
+  - **The README's paragraph** is now "Static analysis, measured, and modest". It names
+    valvur's own rules, and GitLab's four with the bar they met. It states track 1 at
+    **11.1** and track 2 at **15.0**, and claims nothing further.
+  - **`EVALUATING.md`** adds the before and after of tracks 1, 2 and 8 and which
+    categories moved, and says what stays unfound.
+  - **The test** holds both documents to the baseline, which is raised from Linux run
+    36655021422 in this commit, since the README cites it.
+  - Both lanes measured 64.9, with tracks 1 and 2 at 11.1 and 15.0.
 
 **Exit:** tracks 1 and 2 at D22's targets or recorded as missed; track 8 at or above 80;
 the speed guard met.
@@ -1117,4 +1126,5 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
+| D22's static-analysis targets, missed | R13 | tracks 1, 2 and 8 measured 11.1, 15.0 and 3.7 against 25, 50 and 80 (`docs/acceptance/r13.md`). Only four of GitLab's permissively licensed rules met D29's bar. Decide whether to write valvur's own rules for the benchmark's unfound categories (D29's fallback, now measurable with `--per-rule`), lower the targets to what is claimed, or accept the gap |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
