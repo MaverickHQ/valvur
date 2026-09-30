@@ -64,10 +64,10 @@ the rest are the image's, and the e2e test checks each of those exists.
 | `/workspace` | the shim: the unpacked Snapshot, in a tmpfs up to 512 MB or a volume named for the scan beyond, removed after it; never a mount of the source | every Scanner and Check — the argument they scan |
 | `/results` | the shim: a scratch directory mounted read-write, one per Scan Container, holding the plan, the reports and the manifest | the engine; every Scanner's report (`Invocation.report`) |
 | `/cache/trivy` | the shim: the vulnerability database, mounted from the host cache (ADR-0012) | Trivy (`--cache-dir`, and `TRIVY_CACHE_DIR`), and `valvur update`'s fetch into it |
-| `/cache/names` | the shim: the package-name index, mounted read-only from the host cache (ADR-0018) | the dependency-reality Check |
+| `/cache/names` | the shim: the package-name index, mounted read-only from the host cache (ADR-0018), with the known-malicious list in `malicious/` beside it (R11.5, ADR-0027) | the dependency-reality Check |
 | `/cache/osv` | the shim: OSV's offline database, one zip per ecosystem, mounted read-only from the host cache (R4.6) | OSV-Scanner on `offline` (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`) |
 | `/tmp` | the shim: a tmpfs (`rw,exec,nosuid,size=512m`); `HOME` points here | Opengrep unpacks and runs opengrep-core here; any tool that needs scratch space |
-| `/opt/valvur-rules` | the image: valvur's own Opengrep rules, licensed with the project (ADR-0004) | Opengrep (`--config`) |
+| `/opt/valvur-rules` | the image: valvur's own Opengrep rules, licensed with the project (ADR-0004), and in `vendor/` the rules vendored on measured precision, each with its origin's licence (R13, ADR-0029) | Opengrep (`--config`) |
 | `/opt/checkov` | the image: Checkov's own virtual environment, hash-locked (23.4.1); `checkov` on PATH links into it | Checkov |
 | `/usr/local/lib/python3.12/site-packages/valvur` | the image: the `valvur` package itself, so the engine and the Checks run in the container (ADR-0013) | `python -m valvur.engine`, `python -m valvur.checks` |
 | `/etc/valvur/inputs.sha256` | the image: the digest of the tree it was built from (22.C.1, 23.4.4); `chmod 0444` | the shim's build-provenance comparison, `doctor`, the e2e guard |
@@ -162,6 +162,10 @@ image so nothing phones home or writes into a read-only root.
 
 ## History
 
+- **Protocol 2, unchanged to 1.2.0** — R11 to R15 added only what this page allows
+  without a new major: the malicious list inside `/cache/names`, the vendored rules
+  inside `/opt/valvur-rules`. Reusing a dependency Scanner's answer (R14, ADR-0030) is
+  the shim's alone: a reused Scanner is left out of the plan the container runs.
 - **Protocol 2** — 2026-09-28 (R3.9, ADR-0022). The Scan Container: the engine, the
   Snapshot on stdin, the plan and the manifest, one container per network boundary,
   the owner labels. Protocol 1's per-Scanner containers, source mount, Checks batch
