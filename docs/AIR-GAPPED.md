@@ -1,8 +1,8 @@
 # Air-gapped operation
 
-A scan reads five things from the host cache, and each has a mirror setting: the
-vulnerability database, the package-name index, CISA KEV, FIRST's EPSS scores (since
-R11.4), and OSV's offline database for each ecosystem a project's lockfiles use. The image comes from any registry the
+A scan reads six things from the host cache, and each has a mirror setting: the
+vulnerability database, the package-name index, the known-malicious list beside it
+(since R11.5), CISA KEV, FIRST's EPSS scores (since R11.4), and OSV's offline database for each ecosystem a project's lockfiles use. The image comes from any registry the
 `image` setting names. Measured end to end on 2026-09-12 for the database, the index
 and KEV (an OCI registry on a Docker network with no route out, a static file server,
 and every other connection refused): `valvur update` and an `offline` scan both
@@ -17,12 +17,13 @@ adoption need the internet, and those are what `full` is. For a machine that mus
 settings stops every fetch a scan would make on its own (ADR-0025): a scan then reads
 what the cache holds, and says so when that is stale.
 
-## The five things, and where each comes from
+## The six things, and where each comes from
 
 | what | to fetch | primary source | mirror as |
 |---|---|---|---|
 | vulnerability database (Trivy) | 123 MB | `mirror.gcr.io/aquasec/trivy-db:2` | an OCI artifact, in any registry |
 | package-name index (PyPI, npm, RubyGems, Packagist, crates.io) | 36 MB | `ghcr.io/maverickhq/valvur-index:latest`, built daily from the five registries and cosign-signed | an OCI artifact, in any registry, **or** six plain files on any web server |
+| known-malicious names, per ecosystem, from ossf/malicious-packages | 9 MB on disk, measured 2026-09-30 | the same repository's `malicious` tag, built daily and cosign-signed | an OCI artifact, beside the index |
 | CISA KEV | one JSON file | `cisa.gov` | one JSON file, on any web server |
 | FIRST EPSS | 3 MB, measured 2026-09-29 | `epss.cyentia.com/epss_scores-current.csv.gz`, which redirects to `epss.empiricalsecurity.com` | one gzip file, on any web server |
 | OSV's offline database, per ecosystem | 35 MB for PyPI, 217 MB for npm | `osv-vulnerabilities.storage.googleapis.com/<ecosystem>/all.zip` | the same paths, on any web server |
