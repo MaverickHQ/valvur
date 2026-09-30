@@ -56,3 +56,14 @@ def test_the_skill_is_never_written_over_what_is_there(project, capsys):  # noqa
     before = _tree(project)
     assert cli.main(["init", str(project), "--write", "--client", "claude-code"]) == 0
     assert _tree(project) == before
+
+
+def test_init_alone_names_where_the_skill_goes(project, capsys):  # noqa: F811
+    before = _tree(project)
+
+    assert cli.main(["init", str(project)]) == 0
+    out = capsys.readouterr().out
+
+    assert _tree(project) == before
+    assert "Kiro reads the skill from .kiro/skills/valvur/" in out
+    assert "valvur init --write" in out and "/plugin install valvur@valvur" in out

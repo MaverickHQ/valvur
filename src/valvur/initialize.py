@@ -7,8 +7,9 @@ commented, because an exclusion hides a directory from every Scanner and is the
 human's to decide (CLAUDE.md §4).
 
 `--write` was the owner's to allow, and was allowed on 2026-09-28 (CLAUDE.md §10). It
-writes the starter when there is none, and the valvur server into each client's file
-in the project, beside what is there. It never overwrites: a file already naming
+writes the starter when there is none, the valvur server into each client's file in
+the project, beside what is there, and the skill where Claude Code and Kiro read it
+(R15.4). It never overwrites: a file already naming
 valvur is left, a file it cannot read is left and said, and a client whose file
 lives outside the project is said, not written.
 """
@@ -35,6 +36,16 @@ def render(workspace: Path) -> str:
         lines += [f"{entry.name} reads {' or '.join(entry.files)}:", "",
                   f"```{_clients.fence(entry)}", _clients.snippet(entry).rstrip("\n"), "```",
                   "", f"Then: {entry.after}.", ""]
+    from . import skill
+
+    # The skill, which tells an agent how to run valvur's workflow (R15.4, D40).
+    for entry in present:
+        if entry.key in skill.LOCATIONS:
+            lines.append(f"{entry.name} reads the skill from {skill.LOCATIONS[entry.key]}/; "
+                         "`valvur init --write` writes it there.")
+    lines += ["In Claude Code, the plugin brings the skill and the server to every project: "
+              "`/plugin marketplace add MaverickHQ/valvur`, then "
+              "`/plugin install valvur@valvur`.", ""]
     from .summary import CHECK_RULE
 
     lines += [f"For an agent working here: {CHECK_RULE.replace('**', '')}", ""]

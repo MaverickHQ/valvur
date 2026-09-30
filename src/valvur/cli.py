@@ -474,8 +474,8 @@ def build_parser() -> argparse.ArgumentParser:
     init_cmd.add_argument(
         "--write", action="store_true",
         help="Write what init prints: the starter .security-scan.toml when there is none, "
-        "and valvur into each client's file in the project, beside what is there. Never "
-        "overwrites.",
+        "valvur into each client's file in the project, beside what is there, and the "
+        "skill for Claude Code and Kiro. Never overwrites.",
     )
     from .mcp.clients import CLIENTS as _CLIENTS
 
