@@ -1280,8 +1280,17 @@ no track under the baseline.
 
 ### Phase R16: less drag, the documents as built, and 1.2.0 prepared
 
-- [ ] **R16.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
+- [x] **R16.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
   `ubuntu-24.04-arm`, green, or D38's fallback applied.
+  **STATUS 2026-09-30:** ✅ green on its first run, with no fallback.
+  - **The matrix.** The `e2e` job runs on `ubuntu-24.04` and `ubuntu-24.04-arm`,
+    `fail-fast: false`. The x86 leg keeps the name `main`'s protection requires,
+    *end-to-end (real container)*.
+  - **Docker only on arm64.** Podman and its parity guard run on the x86 leg alone.
+    Each leg has its own build cache and name-index cache.
+  - **Measured.** CI run 36674704216 on #169: the arm64 leg took 9.4 minutes and the
+    x86 leg 12.9, side by side, so the job's wall time does not grow. R15's x86 leg
+    took 12.5. `test_e2e_arm.py` holds the shape, and zizmor finds nothing in it.
 - [x] **R16.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
   every version surface `test_version.py` reads, the plugin's and the power's included;
   `--published` flips the README's wording; a dry run changes nothing.
@@ -1305,9 +1314,27 @@ no track under the baseline.
   - **Tested** against a copy of those files in a repository of its own.
     `docs/RELEASING.md`'s steps use the script now; the tag, the push and the brake
     stay the owner's.
-- [ ] **R16.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
+- [x] **R16.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
   compares `main`'s pins with the latest release's by `test_scanner_pins.py`'s parser;
   runs the Score; opens one issue; a test holds its schedule and permissions.
+  **STATUS 2026-09-30:** ✅ all four; the first real run is the owner's, after landing.
+  - **One parser.** `scripts/scanner_pins.py` reads the image's pins, and
+    `test_scanner_pins.py` now calls it. `--since <tag>` reads the release's files
+    from its tag. On this tree, since `v1.1.0`, it names Syft, 1.51.1 to 1.52.0.
+  - **`refresh.yml`.** It wakes each Monday, and its first step lets only the first
+    seven days of the month through, since cron cannot say "first Monday".
+    - When the pins moved, it builds `main`, runs the Score with `--compare`, and,
+      only when the Score held, dispatches a rehearsal of `main`.
+    - It then opens one issue, or comments on the open one, with what moved and
+      what to do.
+    - A Score that fell is reported in that issue, not as a red run. A breakage of
+      the run is its own issue, as in every scheduled workflow (27.2.7). The release
+      constraint listing them now names it too.
+  - **Permissions:** `contents: read`, `issues: write` and `actions: write`, held by
+    a test. It never tags, pushes or publishes, and zizmor finds nothing in it.
+  - **Not run here.** GitHub dispatches only a workflow on the default branch. A run
+    would also dispatch a rehearsal and open an issue in the owner's repository, so
+    §8 asks the owner to dispatch it once after landing.
 - [ ] **R16.4** **The documents as built.** The README (the Score and its tracks, freshness,
   `check_package`, seven tools, nine commands, the skill, and installing the plugin or the
   power), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS and malicious-list mirrors),
@@ -1336,6 +1363,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | land R9 to R16 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
 | `v1.2.0` | R16 landed | the signed tag on the landed commit, then the approval at the brake |
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
+| dispatch `refresh.yml` once | R16 landed | it cannot run before it is on `main`; one dispatch shows it end to end: Syft moved since `v1.1.0`, so it scores, dispatches a rehearsal and opens its issue |
 | the plugin is whole from 1.2.0 | R15 landed | the plugin and the power pin the published release, and 1.1.0's server lacks `check_package`, which the skill names (R15.2's smoke run). Landing R15 puts the marketplace on `main` at once, so land R15 and R16 together and publish 1.2.0 before telling anyone to install it; after publishing, run `scripts/acceptance/plugin_smoke.py`, as shipped, for all seven tools |
 | D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
 | a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
