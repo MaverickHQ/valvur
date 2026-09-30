@@ -36,13 +36,20 @@ LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
 
 
 
-def _cli_scan(workspace: Path) -> None:
-    """`valvur scan <workspace>` through the CLI, as a user runs it."""
+def _cli_scan(workspace: Path, *, fresh: bool = False) -> None:
+    """`valvur scan <workspace>` through the CLI, as a user runs it. `fresh` runs every
+    Scanner, reusing no stored result (R14's exit compares the two)."""
     import subprocess
 
     subprocess.run([sys.executable, "-c",  # noqa: S603 — this interpreter, the CLI
                     "from valvur.cli import main; raise SystemExit(main())",
-                    "scan", str(workspace)], check=False, capture_output=True)
+                    "scan", str(workspace), *(["--fresh"] if fresh else [])],
+                   check=False, capture_output=True)
+
+
+def _reused(run_json: dict) -> list[str]:
+    """The Scanners whose answer the scan took from an earlier one (R14.3)."""
+    return sorted(s["tool"] for s in run_json.get("scanners") or [] if s.get("reused_from"))
 
 
 def _image_id(image: str) -> str:
@@ -107,19 +114,20 @@ def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
         harness = _corpus_harness()
         corpus, checkouts = harness.repos(), harness.CHECKOUTS
         harness.fetch(corpus)
-    findings_by_repo, complete = {}, True
+    findings_by_repo, complete, reused = {}, True, set()
     for entry in corpus:
         root = checkouts / entry["name"]
         scan(root)
         findings, run_json = _read(root)
         findings_by_repo[entry["name"]] = findings
         complete = complete and bool(run_json.get("complete"))
+        reused.update(_reused(run_json))
     judged = precision.judge(findings_by_repo, precision.load(labels) if labels.is_file() else {})
     return {"score": judged.score, "tp": judged.tp, "fp": judged.fp,
             "unlabelled": judged.unlabelled, "others": judged.others,
             "repositories": len(corpus), "complete": complete, "status": None,
             "what_left_the_machine": "nothing", "safe_flagged_high": [], "invalid": {},
-            "vulnerable": judged.tp, "safe": judged.fp}
+            "vulnerable": judged.tp, "safe": judged.fp, "reused": sorted(reused)}
 
 
 def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_scan,
@@ -176,6 +184,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             "seconds": round(time.monotonic() - began, 1),
             "safe_flagged_high": _safe_flagged_high(cases, findings),
             "invalid": invalid,
+            "reused": _reused(run_json),
         }
         if track == "package-reality":
             # R12.4: the same cases asked of `check_package`, the tool an agent calls
@@ -373,6 +382,10 @@ def scorecard(result: dict) -> str:
     for name, track in result["tracks"].items():
         lines.append(f"| {name} | {track['score']} | {track['vulnerable']} | {track['safe']} "
                      f"| {'yes' if track['complete'] else 'NO'} | {track['seconds']} |")
+    reused = sorted({tool for track in result["tracks"].values()
+                     for tool in track.get("reused") or []})
+    lines += ["", f"Results reused: {', '.join(reused)}" if reused
+              else "Results reused: none, every Scanner ran"]
     through = (result["tracks"].get("package-reality") or {}).get("check_package")
     if through is not None:
         # R12.4: the same cases, asked of the tool an agent calls before an install.
@@ -441,6 +454,7 @@ def per_rule_table(report: dict) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
+    import functools
     import os
 
     home = Path(os.environ.get("HOME", "~")) / ".cache" / "valvur-build"
@@ -456,6 +470,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--speed", type=Path, metavar="ACCEPTANCE_REPORT",
                         help="judge the speed gate from an acceptance report run with "
                         "--rescan, against the baseline's median warm scan (R14.5)")
+    parser.add_argument("--fresh", action="store_true",
+                        help="run every Scanner, reusing no stored result (R14.3)")
     parser.add_argument("--per-rule", type=Path, metavar="RULES",
                         help="measure each rule in RULES over tracks 1 and 2 and the "
                         "corpus instead (R13.2, D29)")
@@ -473,8 +489,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.speed:
         baseline = args.compare or args.update_baseline or REPO / "tests" / "eval" / "baseline.json"
         speed = speed_of(json.loads(args.speed.read_text()), json.loads(baseline.read_text()))
+    scan = functools.partial(_cli_scan, fresh=True) if args.fresh else _cli_scan
     result = run([t for t in args.tracks.split(",") if t], args.work.resolve(), image=image,
-                 speed=speed)
+                 speed=speed, scan=scan)
     write(result, args.out.resolve())
     print(scorecard(result))
     status = 0

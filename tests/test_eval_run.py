@@ -243,3 +243,37 @@ def test_the_data_ages_are_the_oldest_any_track_read(tmp_path):
 
     assert result["data"]["osv_age_days"] == 8.4
     assert result["data"]["kev_age_days"] == 40.0
+
+
+def test_each_track_records_the_scanners_whose_results_were_reused(tmp_path):
+    """R14's exit: the Score with reuse is compared with the Score run fresh, so a
+    run says which Scanners' answers it took from the last scan rather than ran."""
+    harness = _harness()
+
+    def scan(root: Path) -> None:
+        _results(root, [])
+        path = root / ".security-scan" / "run.json"
+        data = json.loads(path.read_text())
+        data["scanners"] = [{"tool": "trivy", "reused_from": "g1"},
+                            {"tool": "osv-scanner", "reused_from": "g1"},
+                            {"tool": "opengrep"}]
+        path.write_text(json.dumps(data))
+
+    result = harness.run(["dependencies"], tmp_path / "work", scan=scan,
+                         image="valvur:dev", image_id=lambda image: "sha256:abc")
+
+    assert result["tracks"]["dependencies"]["reused"] == ["osv-scanner", "trivy"]
+    assert "reused: osv-scanner, trivy" in harness.scorecard(result)
+
+
+def test_fresh_asks_the_cli_to_run_every_scanner(tmp_path, monkeypatch):
+    import subprocess
+
+    harness = _harness()
+    calls: list[list[str]] = []
+    monkeypatch.setattr(subprocess, "run", lambda args, **kw: calls.append(args))
+
+    harness._cli_scan(tmp_path)
+    harness._cli_scan(tmp_path, fresh=True)
+
+    assert "--fresh" not in calls[0] and calls[1][-1] == "--fresh"
