@@ -1164,13 +1164,35 @@ back to back.
 
 ### Phase R15: the skill that runs the workflow, and where it ships
 
-- [ ] **R15.1** **The skill** (D39; F9.12). Behaviours:
+- [x] **R15.1** **The skill** (D39; F9.12). Behaviours:
   1. the frontmatter holds only the standard's six fields, a valid name and a description
      within the standard's limit;
   2. every MCP tool it names exists, and every tool the server lists is named;
   3. every command it names exists: the documented-commands test reads it;
   4. its rules block equals the handshake's instructions and `SUMMARY.md`'s agent block,
      all three rendered from one source.
+  **STATUS 2026-09-30:** ✅ all four, and three more.
+  - **The skill.** `src/valvur/data/skills/valvur/`: `SKILL.md`, 115 lines, and four
+    references (tools, triage by kind, CI, air-gapped).
+    - Its frontmatter: `name`, a 386-character `description`, `license`, a
+      181-character `compatibility`, and `metadata` with the version and home.
+    - The body is D39's workflow in eight steps, then what never to do, a table of
+      the seven tools, and the rules.
+  - **Tools.** The table names exactly the seven the server lists. Every `call` of a
+    tool in the skill is one of them. `references/tools.md` is rendered from the
+    registry: each tool's description and every field it takes.
+  - **Commands.** The documented-commands test reads the skill's five files, and
+    every command they name is in the CLI's help.
+  - **The rules, written once.** `valvur.agent_rules` holds each rule once, in full
+    and in short.
+    - The handshake renders the full form. Its snapshot is unchanged byte for byte.
+    - The skill's rules block is the handshake's text, held by a test.
+    - `SUMMARY.md`'s agent block renders the short form. It keeps its nine lines and
+      one screen for repository 1; the eight goldens changed only in line breaks
+      and one clause.
+  - **Also held.** The skill's `metadata.version` is the package's, a version
+    surface `prepare_release.py` must move (R16.2). Every reference the skill links
+    exists, and each is linked.
 - [ ] **R15.2** **The Claude Code plugin** (D40; F9.13). Behaviours:
   1. `.claude-plugin/marketplace.json` and `plugins/valvur/.claude-plugin/plugin.json` are
      valid (`claude plugin validate` where the CLI has it);
