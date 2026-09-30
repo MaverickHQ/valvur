@@ -162,6 +162,27 @@ def test_the_cli_reports_its_version(capsys):
     assert capsys.readouterr().out.strip() == f"valvur {_declared()}"
 
 
+def _documents() -> list[Path]:
+    """Every document that tells a person or an agent which command to run."""
+    from valvur import skill
+
+    return [*(REPO / ".github").rglob("*.yml"),
+            REPO / "docs" / "RELEASING.md",
+            REPO / "README.md",
+            REPO / "CONTRIBUTING.md",
+            *sorted(skill.DIRECTORY.rglob("*.md"))]
+
+
+def test_the_skill_is_read_for_the_commands_it_names():
+    """R15.1: the skill tells an agent which commands to run, in CI above all."""
+    from valvur import skill
+
+    documents = _documents()
+
+    for path in skill.DIRECTORY.rglob("*.md"):
+        assert path in documents, path
+
+
 def test_every_command_the_docs_name_actually_exists(capsys):
     """The generalisation of 11.0 and 16.4. Documentation naming a command that does
     not run is worse than no documentation: it is the first thing a sceptical reader
@@ -174,10 +195,7 @@ def test_every_command_the_docs_name_actually_exists(capsys):
     from valvur.cli import main
 
     named = set()
-    for path in [*(REPO / ".github").rglob("*.yml"),
-                 REPO / "docs" / "RELEASING.md",
-                 REPO / "README.md",
-                 REPO / "CONTRIBUTING.md"]:
+    for path in _documents():
         if path.is_file():
             named |= set(re.findall(r"`valvur (--?[\w-]+|\w+)", path.read_text()))
 

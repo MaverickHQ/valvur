@@ -119,3 +119,15 @@ def test_the_tools_reference_is_the_servers_own_description_of_each():
         "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py`")
     for name in _tools():
         assert f"## `{name}`" in rendered
+
+
+def test_every_reference_it_links_exists_and_each_is_linked():
+    """D39's references: the tools, triage by kind, CI, and air-gapped use. A skill
+    loads a reference only when its body links it."""
+    body = skill.SKILL.read_text(encoding="utf-8")
+    linked = set(re.findall(r"\]\((references/[\w-]+\.md)\)", body))
+    present = {p.relative_to(skill.DIRECTORY).as_posix()
+               for p in (skill.DIRECTORY / "references").glob("*.md")}
+
+    assert linked == present == {"references/tools.md", "references/triage.md",
+                                 "references/ci.md", "references/air-gapped.md"}

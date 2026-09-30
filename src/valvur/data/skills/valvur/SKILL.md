@@ -32,9 +32,11 @@ vulnerability fixed.
 3. **Lead with the verdict.** Say the `verdict` and its `reason` before any finding.
    `inconclusive` means nothing was found *and that is not evidence*: never report
    it as clean. When `complete` is false, name each Scanner in `not_run`.
-4. **Triage by group.** The reply's `groups` bundle findings of one kind. Call
-   `findings` with a `group`, then with a `fingerprint` for the one finding you are
-   explaining. Name every finding by its rule ID and its path, as `SUMMARY.md` does.
+4. **Triage by group.** A group in the reply's `groups` is one rule firing many
+   times under one directory. Call `findings` with a `group`, then with a
+   `fingerprint` for the one finding you are explaining. Name every finding by its
+   rule ID and its path, as `SUMMARY.md` does. How to explain each kind of finding
+   is in [`references/triage.md`](references/triage.md).
 5. **Propose, then wait.** Offer the fixes from `.security-scan/REMEDIATION.md`, most
    urgent first. Each item applies on its own; the human chooses which, if any.
 6. **After the human's fix, rescan.** Report a finding as *fixed* only when the
@@ -42,7 +44,9 @@ vulnerability fixed.
 7. **When data is stale, update.** A reason naming an old database or index means
    the verdict could not be trusted: call `update` with `if_stale`, then scan again.
 8. **In CI, gate.** `valvur scan` then `valvur gate` fails the job on an incomplete
-   run, a lapsed suppression, or an active finding at or above `--fail-on`.
+   run, a lapsed suppression, or an active finding at or above `--fail-on`; see
+   [`references/ci.md`](references/ci.md). On a machine that must not fetch, see
+   [`references/air-gapped.md`](references/air-gapped.md).
 
 ## Tools
 
