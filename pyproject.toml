@@ -50,6 +50,11 @@ exclude = [
   # A local agent's working folder: Claude Code writes its scheduler's lock here
   # (R0.1), and nothing in it belongs in a published distribution.
   "/.claude",
+  # The Claude Code plugin, its marketplace and the Kiro power (R15): installed from
+  # the repository by those clients, never from a Python distribution.
+  "/.claude-plugin",
+  "/plugins",
+  "/powers",
 ]
 
 [tool.pytest.ini_options]

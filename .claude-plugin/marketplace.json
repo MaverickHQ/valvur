@@ -1,0 +1,17 @@
+{
+  "name": "valvur",
+  "owner": {
+    "name": "MaverickHQ",
+    "url": "https://github.com/MaverickHQ"
+  },
+  "metadata": {
+    "description": "valvur, the offline security scanner for AI-generated code, as a Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "valvur",
+      "source": "./plugins/valvur",
+      "description": "Scan a project for security problems locally and offline, check a package before installing it, and work through the findings with the human."
+    }
+  ]
+}
