@@ -96,22 +96,27 @@ in [`tasks.md`](../.kiro/specs/valvur/tasks.md).
 ## Cutting a release
 
 ```bash
-# 1. Bump the one place the version lives.
-$EDITOR pyproject.toml            # version = "0.2.0"
+# 1. Prepare the release in one commit, on a branch of its own (D33, R16.2): the
+#    version and the lock, the README's status line, SECURITY.md's series, the
+#    CHANGELOG's heading, and the skill, the Claude Code plugin and the Kiro power,
+#    their servers pinned to the new version. The README says "release in progress"
+#    until the run has promoted: the brake can be held for days, and the README on
+#    main must not call a version published that PyPI does not serve (29.3.1).
+#    `--dry-run` first shows the diff and changes nothing.
+git checkout -b release/0.2.0
+uv run python scripts/prepare_release.py 0.2.0 --dry-run
+uv run python scripts/prepare_release.py 0.2.0   # commits "chore: release 0.2.0"
 
 # 2. Refresh the install, or the version tests fail and are right to.
 uv sync --extra dev --locked
 
-# 3. Move [Unreleased] to [0.2.0] with today's date.
-$EDITOR CHANGELOG.md
+# 3. Write the CHANGELOG entry's opening, above the items moved under [0.2.0].
+$EDITOR CHANGELOG.md && git commit -am "docs: the 0.2.0 entry"
 
-# 4. The README states the version it ships; a test enforces it. Until the release
-#    run has promoted, the line reads "release in progress" — the brake can be held
-#    for days, and the README on main must not call a version published that PyPI
-#    does not serve (29.3.1). The closing PR after the release flips it to
-#    "published and installable"; published.yml checks the claim against PyPI and
-#    GHCR every day and opens an issue when the two disagree.
-$EDITOR README.md                 # > **Status: `0.2.0`** — release in progress: …
+# 4. After the run has promoted, the closing PR flips the README to "published and
+#    installable"; published.yml checks the claim against PyPI and GHCR every day
+#    and opens an issue when the two disagree.
+uv run python scripts/prepare_release.py --published 0.2.0
 
 # 5. Everything must be green BEFORE the tag. The workflow checks again, but
 #    finding out here is cheaper than finding out in a job that has already pushed.
@@ -127,8 +132,6 @@ VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
 #    enforced for administrators. The prep lands by pull request, and a PR lands by
 #    fast-forwarding main to its head once the six checks pass — GitHub's merge
 #    button would create a merge commit, which linear history refuses.
-git checkout -b release/0.2.0
-git commit -am "chore: release 0.2.0"
 git push -u origin release/0.2.0
 gh pr create --fill                 # wait for the six checks
 git push origin release/0.2.0:main  # fast-forward; GitHub records the PR as merged
