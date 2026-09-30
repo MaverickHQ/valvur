@@ -8,6 +8,24 @@ break things, and has.
 
 ## [Unreleased]
 
+- **A skill that runs valvur's workflow** (Phase R15, ADR-0031). One skill, `valvur`, in
+  the open Agent Skills format, which Claude Code, Kiro and other clients load. It covers:
+  - checking a package before adding it, then scanning, and calling `doctor` when a
+    scan fails;
+  - the verdict before any finding, triage by group, and a proposal the human chooses
+    from;
+  - rescanning after a fix, `update` when data is stale, and the gate in CI.
+  Four references go with it: the tools and their fields, triage by kind of finding,
+  CI, and air-gapped use. It ships three ways:
+  - **A Claude Code plugin.** `/plugin marketplace add MaverickHQ/valvur`, then
+    `/plugin install valvur@valvur`, gives the skill and the MCP server, pinned to the
+    release.
+  - **A Kiro power**, from `https://github.com/MaverickHQ/valvur/tree/main/powers/valvur`.
+  - **`valvur init --write`** writes it into a project, `.claude/skills/valvur/` and
+    `.kiro/skills/valvur/`, never over what is there. `valvur doctor` says whether a
+    project's copy is this version's.
+- **The rules an agent is given are written once.** The MCP handshake and the skill
+  carry them in full, and `SUMMARY.md` in short; a test holds the three together.
 - **A rescan reuses what cannot have changed** (Phase R14, ADR-0030). Trivy and
   OSV-Scanner read only a project's dependency files and their own data. When neither
   has changed since the last scan, their answer is that scan's, taken from the host

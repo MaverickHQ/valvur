@@ -18,8 +18,9 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 **Status (2026-09-30).** `1.1.0` is published. R9 measured the [review](docs/history/REVIEW-2026-09-29.md)'s
 gaps as the Score, 59.3; R10 to R13 raised it to **64.9** on both lanes (static analysis 11.1
 and 15.0, real-code precision 3.7, the rest 94 to 100), every judged gate green. R14 reuses
-unchanged dependency answers: warm rescans 63 to 69% faster, the Score the same. **Next:**
-R15 and R16 of [`tasks.md`](.kiro/specs/valvur/tasks.md), stacked: the skill, then `1.2.0`.
+unchanged dependency answers (warm rescans 63 to 69% faster); R15 ships the skill as a Claude
+Code plugin, a Kiro power and by `init --write`. **Next:** R16 of
+[`tasks.md`](.kiro/specs/valvur/tasks.md): the documents as built, then `1.2.0` prepared.
 
 ## 2. What it is NOT
 
