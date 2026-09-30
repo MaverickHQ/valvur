@@ -1252,9 +1252,28 @@ back to back.
     the checkout included, and the direct server's in 15.0 s.
   - **Not done here:** installing the power in Kiro's GUI. It is the owner's, with
     Kiro's GUI pass in §8.
-- [ ] **R15.4** **`init --write` adds the skill** (D40). Behaviours: written for Claude Code
+- [x] **R15.4** **`init --write` adds the skill** (D40). Behaviours: written for Claude Code
   and for Kiro; never over an existing file; `init` without `--write` names it; `doctor`
   says whether the project's skill is present and whether its version matches.
+  **STATUS 2026-09-30:** ✅ all four, and one more.
+  - **Written.** `init --write` writes the package's skill to `.claude/skills/valvur/`
+    and `.kiro/skills/valvur/`, for each client it writes: those named with
+    `--client`, else those found. Each is byte for byte `skill.files()`.
+  - **Never over what is there.** A skill directory that exists is left whole, not
+    filled in, and the output names its version. A second `--write` changes nothing.
+  - **Named.** `init` alone says where each client found reads the skill, and gives
+    the plugin's install commands for Claude Code.
+  - **`doctor`'s `skill` line.**
+    - `ok` names each copy, with its version, as this valvur's.
+    - `warn` names a copy of another version, with the fix: remove it and run
+      `init --write`.
+    - `info`, when there is none, says how to add one.
+  - **And one more.** The agent-configuration Check reads the written skill, all
+    five of Claude Code's files and Kiro's `SKILL.md`, and reports nothing in it.
+    valvur does not flag its own instructions as a planted directive.
+  - **Found on the way.** `valvur.skill` rendered the tools reference by importing
+    the server's tools, which closed an import cycle through `doctor`. The reference
+    now lives with the tools, `valvur.mcp.tools.reference`.
 
 **Exit:** the skill, the plugin and the power pass their tests; the smoke run recorded;
 no track under the baseline.
