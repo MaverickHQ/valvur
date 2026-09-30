@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "valvur": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "valvur==1.1.0",
+        "valvur-mcp"
+      ]
+    }
+  }
+}

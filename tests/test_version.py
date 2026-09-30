@@ -207,3 +207,22 @@ def test_every_command_the_docs_name_actually_exists(capsys):
 
     missing = sorted(n for n in named if n not in help_text)
     assert not missing, f"documented but not available: {missing}"
+
+
+def test_the_plugin_is_this_version_and_pins_its_server_to_it():
+    """R15.2 (D40): the Claude Code plugin's server is the Claude Code block every
+    client is given, `uvx --from valvur valvur-mcp`, pinned to the release, so an
+    installed plugin's skill and server are one version. Both move with the rest."""
+    import json
+
+    from valvur.mcp import clients
+
+    plugin = REPO / "plugins" / "valvur"
+    config = json.loads((plugin / ".mcp.json").read_text())
+    manifest = json.loads((plugin / ".claude-plugin" / "plugin.json").read_text())
+
+    pinned = clients.snippet(clients.client("claude-code"), version=_declared())
+    assert config == json.loads(pinned)
+    assert config["mcpServers"]["valvur"]["args"] == ["--from", f"valvur=={_declared()}",
+                                                      "valvur-mcp"]
+    assert manifest["version"] == _declared()

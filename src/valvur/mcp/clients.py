@@ -163,9 +163,18 @@ def client(key: str) -> Client:
     raise KeyError(f"no such client: {key}; one of {', '.join(c.key for c in CLIENTS)}")
 
 
-def snippet(entry: Client) -> str:
-    """The text a user pastes into that client's file, exactly."""
-    stdio = {"command": COMMAND, "args": list(ARGS)}
+def server_args(version: str | None = None) -> list[str]:
+    """What `uvx` is given: the published shim, or with `version` that release
+    alone, as the Claude Code plugin and the Kiro power pin it (R15.2, D40)."""
+    if version is None:
+        return list(ARGS)
+    return [f"{SERVER}=={version}" if arg == SERVER else arg for arg in ARGS]
+
+
+def snippet(entry: Client, *, version: str | None = None) -> str:
+    """The text a user pastes into that client's file, exactly; with `version`, the
+    server pinned to that release."""
+    stdio = {"command": COMMAND, "args": server_args(version)}
     if entry.shape == "json-mcpServers":
         body: dict = {"mcpServers": {SERVER: stdio}}
         if entry.key == "kiro":
