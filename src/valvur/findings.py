@@ -125,6 +125,9 @@ class Finding:
     #: The group it belongs to when one rule floods one directory (R5.1). Not
     #: identity: grouping drops nothing and changes no Fingerprint.
     group: str | None = None
+    #: The weaknesses its rule declares, as `CWE-n` (F5.10, R13.4). Not identity,
+    #: and neither ranking nor grouping reads it.
+    cwe: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Neutralise evidence at the MODEL boundary, not per-adapter.
@@ -169,6 +172,7 @@ def merge(findings: list[Finding]) -> list[Finding]:
             severity=severity,
             dependency=existing.dependency or finding.dependency,
             exploit=existing.exploit or finding.exploit,
+            cwe=existing.cwe or finding.cwe,
         )
     return _fold_malicious(list(by_fp.values()))
 

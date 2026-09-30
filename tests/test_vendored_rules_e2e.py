@@ -35,5 +35,6 @@ def test_planted_flaws_are_reported_by_the_vendored_rules(tmp_path):
     assert by_rule["python_sql_rule-hardcoded-sql-expression"]["path"] == "app.py"
     assert by_rule["javascript_eval_rule-eval-with-expression"]["path"] == "run.js"
     assert by_rule["python_sql_rule-hardcoded-sql-expression"]["sources"] == ["opengrep"]
+    assert by_rule["python_sql_rule-hardcoded-sql-expression"]["cwe"] == ["CWE-89"]  # R13.4
     run = json.loads((results / "run.json").read_text())
     assert run["rule_sets"]["gitlab-sast-rules"].startswith("53bf5cf")

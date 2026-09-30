@@ -54,6 +54,10 @@ def _serialise(finding: Finding) -> dict:
     record["sources"] = list(finding.sources)
     if finding.dependency:
         record["dependency"]["path"] = list(finding.dependency.path)
+    # Additive to schema 1 (R13.4, F5.10): present when the rule declares one.
+    record["cwe"] = list(finding.cwe)
+    if not finding.cwe:
+        del record["cwe"]
     return record
 
 
@@ -71,7 +75,12 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
         rules.setdefault(finding.rule, {
             "id": finding.rule,
             "shortDescription": {"text": cut(finding.title, 120)},
-            "properties": {"security-severity": _security_severity(finding.severity)},
+            "properties": {"security-severity": _security_severity(finding.severity),
+                           # The rule's weaknesses (R13.4), and the tag code-scanning
+                           # tools read them from.
+                           **({"cwe": list(finding.cwe),
+                               "tags": [f"external/cwe/{c.lower()}" for c in finding.cwe]}
+                              if finding.cwe else {})},
         })
         results.append({
             "ruleId": finding.rule,

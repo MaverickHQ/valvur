@@ -960,9 +960,19 @@ the baseline.
     for them. Their three findings are `random`'s: a toy Markov generator in `llm`'s
     documentation, twice, and retry jitter in `smolagents`. All three are labelled
     `fp`, and track 8 moves from 4.2 to 3.7, inside the ratchet's 2 points.
-- [ ] **R13.4** **CWE on findings** (F5.10). Behaviours: `findings.json` and SARIF carry
+- [x] **R13.4** **CWE on findings** (F5.10). Behaviours: `findings.json` and SARIF carry
   `cwe` when the rule declares one; the findings schema's own rule for additions decides
   whether its version moves; ranking and grouping are unchanged.
+  **STATUS 2026-09-30:** ✅ all three.
+  - A finding's `cwe` is its rule's declared CWEs as `CWE-n`, from the metadata
+    Opengrep passes with each result. valvur's rules write a list with names, GitLab's
+    one string; both are read.
+  - `findings.json` writes `cwe` only when there is one. It is an optional addition,
+    so schema 1 stands, as it did for `generation` and `groups`.
+  - SARIF puts it on the rule, with the `external/cwe/cwe-n` tag that code-scanning
+    tools read.
+  - Neither ranking nor grouping reads it, and a merge keeps it.
+  - Measured through the image: the vendored SQL rule's finding carries `CWE-89`.
 - [ ] **R13.5** **Cross-function taint.** Measure first. Behaviour: adopted per D29, or the
   measurement recorded and nothing changed.
 - [ ] **R13.6** **The speed guard.** Behaviour: Opengrep's median time on the acceptance set

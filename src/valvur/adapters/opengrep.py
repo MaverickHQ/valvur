@@ -88,6 +88,7 @@ class OpengrepAdapter(ScannerAdapter):
                     fingerprint=_fp.for_sast(rule, path, matched, ordinal),
                     sources=(output.tool,),
                     severity=_severity(item),
+                    cwe=_cwe(item),
                 )
             )
         return findings
@@ -100,6 +101,17 @@ def _short_rule(check_id: str) -> str:
     marker = "valvur."
     index = check_id.find(marker)
     return check_id[index:] if index >= 0 else check_id.rsplit(".", 1)[-1]
+
+
+def _cwe(item: dict) -> tuple[str, ...]:
+    """The rule's declared CWEs as `CWE-n` (R13.4): valvur's rules write a list with
+    names, `["CWE-95: Eval Injection"]`; GitLab's one string, `"CWE-89"`."""
+    import re
+
+    declared = (item.get("extra", {}).get("metadata") or {}).get("cwe") or ()
+    values = declared if isinstance(declared, list | tuple) else [declared]
+    return tuple(dict.fromkeys(f"CWE-{n}" for value in values
+                               for n in re.findall(r"CWE-(\d+)", str(value))))
 
 
 _OPENGREP_SEVERITY = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}
