@@ -227,112 +227,8 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 Phases R9 to R15 are closed, each task with its STATUS, in
 [the archive](../../../docs/history/tasks-phases-r9-r16.md) (moved by R16.4).
 
-### Phase R16: less drag, the documents as built, and 1.2.0 prepared
-
-- [x] **R16.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
-  `ubuntu-24.04-arm`, green, or D38's fallback applied.
-  **STATUS 2026-09-30:** ✅ green on its first run, with no fallback.
-  - **The matrix.** The `e2e` job runs on `ubuntu-24.04` and `ubuntu-24.04-arm`,
-    `fail-fast: false`. The x86 leg keeps the name `main`'s protection requires,
-    *end-to-end (real container)*.
-  - **Docker only on arm64.** Podman and its parity guard run on the x86 leg alone.
-    Each leg has its own build cache and name-index cache.
-  - **Measured.** CI run 36674704216 on #169: the arm64 leg took 9.4 minutes and the
-    x86 leg 12.9, side by side, so the job's wall time does not grow. R15's x86 leg
-    took 12.5. `test_e2e_arm.py` holds the shape, and zizmor finds nothing in it.
-- [x] **R16.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
-  every version surface `test_version.py` reads, the plugin's and the power's included;
-  `--published` flips the README's wording; a dry run changes nothing.
-  **STATUS 2026-09-30:** ✅ all three, and two refusals.
-  - **One commit, `chore: release <version>`, sets fourteen files.**
-    - The version and the lock.
-    - The README's status line, worded *release in progress* and naming the
-      version PyPI still serves.
-    - `SECURITY.md`'s series, and the CHANGELOG's heading under an empty
-      *Unreleased*.
-    - The skill's version in the package and in both copies, which stay byte for
-      byte the package's.
-    - The plugin's and the power's manifests, and both servers' pins.
-    - The image the two pipeline examples name. Found by preparing 1.2.0: the first
-      release commit left them at 1.1.0 and a test caught it; the script now sets
-      them, and the tests prepare whatever version follows the tree's.
-  - **`--published <version>`** flips the status line to *published and installable*,
-    in `docs: <version> published`.
-  - **`--dry-run`** prints the diff and changes nothing. On this tree, `1.2.0 --dry-run`
-    lists the fourteen files.
-  - **Refused, exit 2:** a version not after the tree's, `--published` of a version
-    the tree is not, and a tree with uncommitted changes, since the release commit
-    holds the release alone.
-  - **Tested** against a copy of those files in a repository of its own.
-    `docs/RELEASING.md`'s steps use the script now; the tag, the push and the brake
-    stay the owner's.
-- [x] **R16.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
-  compares `main`'s pins with the latest release's by `test_scanner_pins.py`'s parser;
-  runs the Score; opens one issue; a test holds its schedule and permissions.
-  **STATUS 2026-09-30:** ✅ all four; the first real run is the owner's, after landing.
-  - **One parser.** `scripts/scanner_pins.py` reads the image's pins, and
-    `test_scanner_pins.py` now calls it. `--since <tag>` reads the release's files
-    from its tag. On this tree, since `v1.1.0`, it names Syft, 1.51.1 to 1.52.0.
-  - **`refresh.yml`.** It wakes each Monday, and its first step lets only the first
-    seven days of the month through, since cron cannot say "first Monday".
-    - When the pins moved, it builds `main`, runs the Score with `--compare`, and,
-      only when the Score held, dispatches a rehearsal of `main`.
-    - It then opens one issue, or comments on the open one, with what moved and
-      what to do.
-    - A Score that fell is reported in that issue, not as a red run. A breakage of
-      the run is its own issue, as in every scheduled workflow (27.2.7). The release
-      constraint listing them now names it too.
-  - **Permissions:** `contents: read`, `issues: write` and `actions: write`, held by
-    a test. It never tags, pushes or publishes, and zizmor finds nothing in it.
-  - **Not run here.** GitHub dispatches only a workflow on the default branch. A run
-    would also dispatch a rehearsal and open an issue in the owner's repository, so
-    §8 asks the owner to dispatch it once after landing.
-- [x] **R16.4** **The documents as built.** The README (the Score and its tracks, freshness,
-  `check_package`, seven tools, nine commands, the skill, and installing the plugin or the
-  power), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS and malicious-list mirrors),
-  `PROTOCOL.md`, `design.md` and `requirements.md`, amended; `CLAUDE.md` within 200 lines;
-  R9 to R15 moved to `docs/history/tasks-phases-r9-r16.md`. Behaviours: traceability holds;
-  the link check passes; `test_readme_as_built.py` passes.
-  **STATUS 2026-09-30:** ✅ all three behaviours, with three README checks added.
-  - **The README.** It now covers:
-    - the Score, 64.9, and what it measures;
-    - every dataset fetched and the ages at which each is refreshed;
-    - reuse, measured (14.0 to 5.2 s on the Mac, 12.4 to 3.8 s on Linux), and
-      `--fresh`;
-    - the nine commands, and the skill with its three installs;
-    - scan times at R15, and arm64 in CI.
-    `test_readme_as_built.py` gains three checks: every tool and command named, the
-    installs pointing where the plugin and power ship, and the Score cited as the
-    baseline's.
-  - **`EVALUATING.md`** gives each gate's threshold, speed included, and the Score from
-    R9 to R15 by track, with what moved at each phase.
-  - **`AIR-GAPPED.md`** names the malicious list, the sixth thing a scan reads: 9 MB on
-    disk, from the index's `malicious` tag. The EPSS mirror was there since R11.4.
-  - **`PROTOCOL.md`.** Protocol 2 holds to 1.2.0. `/cache/names` carries the malicious
-    list and `/opt/valvur-rules` the vendored rules. Reuse is the shim's alone.
-  - **`design.md`, version 1.5,** describes R9 to R16 as built in its own sections,
-    new ones included: §1.4 reuse, §5.5 vendored rules, §6f the skill, §9a the Score.
-    §11 is a pointer table.
-  - **`requirements.md`.** Every "to be met by" is now "met by", with the date, and an
-    amendment wherever the build differed.
-    - N3.4 and N3.5 were cited by D33, D34, R16.2 and R16.3 since R9.2 but never
-      written. They are written now. The traceability check does not catch a cited ID
-      that is undefined; a separate task is offered for that.
-    - Two merged requirements were split again, F6.11 from F6.12 and F7.18 from F7.19.
-      The Introduction's count is now seven Scanners and three Checks.
-  - **The archive.** R9 to R15 are in `docs/history/tasks-phases-r9-r16.md`, each with
-    its STATUS; R14 and R15 gained their exit STATUS. The harness reads the archive,
-    so each phase's gate is still judged from it.
-  - **`CLAUDE.md`** is 199 lines. Traceability holds, the link check passes, and 1765
-    unit tests pass.
-- [ ] **R16.5** **`1.2.0` prepared** (D37). `prepare_release.py 1.2.0`; the Score on both
-  lanes against R9's baseline and D22's targets, recorded; the rehearsal on R16's branch
-  per §4, validated and cancelled at the brake.
-- [ ] **R16.6** **The build's summary**, written as this task's STATUS: what shipped, the
-  Score at R9 and now per track, the cost of agent runs, and what §8 holds.
-
-**Exit:** the Score recorded on both lanes against the baseline, the rehearsal green, and
-both schedules deleted.
+Phase R16 is closed too, in the same archive. Every task of this list is done; what
+remains is the owner's, in §8.
 
 ---
 
@@ -343,9 +239,8 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land this list | now | the owner's approval of one fast-forward of `main` to the commit that adds it: `scripts/build_status.py` reads `main`, and the build starts from there |
 | land R9 to R16 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
-| `v1.2.0` | R16 landed | the signed tag on the landed commit, then the approval at the brake |
+| `v1.2.0` | R16 landed | the signed tag on the landed commit, then the approval at the brake; rehearsed on R16's branch at `14692b9` (run 36679347319), validated and cancelled at the brake. After promote: `scripts/prepare_release.py --published 1.2.0` |
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
 | dispatch `refresh.yml` once | R16 landed | it cannot run before it is on `main`; one dispatch shows it end to end: Syft moved since `v1.1.0`, so it scores, dispatches a rehearsal and opens its issue |
 | the plugin is whole from 1.2.0 | R15 landed | the plugin and the power pin the published release, and 1.1.0's server lacks `check_package`, which the skill names (R15.2's smoke run). Landing R15 puts the marketplace on `main` at once, so land R15 and R16 together and publish 1.2.0 before telling anyone to install it; after publishing, run `scripts/acceptance/plugin_smoke.py`, as shipped, for all seven tools |

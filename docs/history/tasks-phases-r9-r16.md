@@ -1084,3 +1084,184 @@ no track under the baseline.
   36672336453. All five gates are green on the Mac; the speed median is 5.2 s.
 - **The acceptance set:** ✅ both lanes at `2f86d6e`, Linux run 36672339357.
 - **The suites:** ✅ e2e 84 passed on the Mac, and 1747 unit tests.
+
+### Phase R16: less drag, the documents as built, and 1.2.0 prepared
+
+- [x] **R16.1** **The arm64 e2e leg** (D38). Behaviour: the e2e job's matrix gains
+  `ubuntu-24.04-arm`, green, or D38's fallback applied.
+  **STATUS 2026-09-30:** ✅ green on its first run, with no fallback.
+  - **The matrix.** The `e2e` job runs on `ubuntu-24.04` and `ubuntu-24.04-arm`,
+    `fail-fast: false`. The x86 leg keeps the name `main`'s protection requires,
+    *end-to-end (real container)*.
+  - **Docker only on arm64.** Podman and its parity guard run on the x86 leg alone.
+    Each leg has its own build cache and name-index cache.
+  - **Measured.** CI run 36674704216 on #169: the arm64 leg took 9.4 minutes and the
+    x86 leg 12.9, side by side, so the job's wall time does not grow. R15's x86 leg
+    took 12.5. `test_e2e_arm.py` holds the shape, and zizmor finds nothing in it.
+- [x] **R16.2** **`scripts/prepare_release.py`** (D33; N3.4). Behaviours: one commit sets
+  every version surface `test_version.py` reads, the plugin's and the power's included;
+  `--published` flips the README's wording; a dry run changes nothing.
+  **STATUS 2026-09-30:** ✅ all three, and two refusals.
+  - **One commit, `chore: release <version>`, sets fourteen files.**
+    - The version and the lock.
+    - The README's status line, worded *release in progress* and naming the
+      version PyPI still serves.
+    - `SECURITY.md`'s series, and the CHANGELOG's heading under an empty
+      *Unreleased*.
+    - The skill's version in the package and in both copies, which stay byte for
+      byte the package's.
+    - The plugin's and the power's manifests, and both servers' pins.
+    - The image the two pipeline examples name. Found by preparing 1.2.0: the first
+      release commit left them at 1.1.0 and a test caught it; the script now sets
+      them, and the tests prepare whatever version follows the tree's.
+  - **`--published <version>`** flips the status line to *published and installable*,
+    in `docs: <version> published`.
+  - **`--dry-run`** prints the diff and changes nothing. On this tree, `1.2.0 --dry-run`
+    lists the fourteen files.
+  - **Refused, exit 2:** a version not after the tree's, `--published` of a version
+    the tree is not, and a tree with uncommitted changes, since the release commit
+    holds the release alone.
+  - **Tested** against a copy of those files in a repository of its own.
+    `docs/RELEASING.md`'s steps use the script now; the tag, the push and the brake
+    stay the owner's.
+- [x] **R16.3** **The monthly Scanner refresh** (D34; N3.5). Behaviours: `refresh.yml`
+  compares `main`'s pins with the latest release's by `test_scanner_pins.py`'s parser;
+  runs the Score; opens one issue; a test holds its schedule and permissions.
+  **STATUS 2026-09-30:** ✅ all four; the first real run is the owner's, after landing.
+  - **One parser.** `scripts/scanner_pins.py` reads the image's pins, and
+    `test_scanner_pins.py` now calls it. `--since <tag>` reads the release's files
+    from its tag. On this tree, since `v1.1.0`, it names Syft, 1.51.1 to 1.52.0.
+  - **`refresh.yml`.** It wakes each Monday, and its first step lets only the first
+    seven days of the month through, since cron cannot say "first Monday".
+    - When the pins moved, it builds `main`, runs the Score with `--compare`, and,
+      only when the Score held, dispatches a rehearsal of `main`.
+    - It then opens one issue, or comments on the open one, with what moved and
+      what to do.
+    - A Score that fell is reported in that issue, not as a red run. A breakage of
+      the run is its own issue, as in every scheduled workflow (27.2.7). The release
+      constraint listing them now names it too.
+  - **Permissions:** `contents: read`, `issues: write` and `actions: write`, held by
+    a test. It never tags, pushes or publishes, and zizmor finds nothing in it.
+  - **Not run here.** GitHub dispatches only a workflow on the default branch. A run
+    would also dispatch a rehearsal and open an issue in the owner's repository, so
+    §8 asks the owner to dispatch it once after landing.
+- [x] **R16.4** **The documents as built.** The README (the Score and its tracks, freshness,
+  `check_package`, seven tools, nine commands, the skill, and installing the plugin or the
+  power), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS and malicious-list mirrors),
+  `PROTOCOL.md`, `design.md` and `requirements.md`, amended; `CLAUDE.md` within 200 lines;
+  R9 to R15 moved to `docs/history/tasks-phases-r9-r16.md`. Behaviours: traceability holds;
+  the link check passes; `test_readme_as_built.py` passes.
+  **STATUS 2026-09-30:** ✅ all three behaviours, with three README checks added.
+  - **The README.** It now covers:
+    - the Score, 64.9, and what it measures;
+    - every dataset fetched and the ages at which each is refreshed;
+    - reuse, measured (14.0 to 5.2 s on the Mac, 12.4 to 3.8 s on Linux), and
+      `--fresh`;
+    - the nine commands, and the skill with its three installs;
+    - scan times at R15, and arm64 in CI.
+    `test_readme_as_built.py` gains three checks: every tool and command named, the
+    installs pointing where the plugin and power ship, and the Score cited as the
+    baseline's.
+  - **`EVALUATING.md`** gives each gate's threshold, speed included, and the Score from
+    R9 to R15 by track, with what moved at each phase.
+  - **`AIR-GAPPED.md`** names the malicious list, the sixth thing a scan reads: 9 MB on
+    disk, from the index's `malicious` tag. The EPSS mirror was there since R11.4.
+  - **`PROTOCOL.md`.** Protocol 2 holds to 1.2.0. `/cache/names` carries the malicious
+    list and `/opt/valvur-rules` the vendored rules. Reuse is the shim's alone.
+  - **`design.md`, version 1.5,** describes R9 to R16 as built in its own sections,
+    new ones included: §1.4 reuse, §5.5 vendored rules, §6f the skill, §9a the Score.
+    §11 is a pointer table.
+  - **`requirements.md`.** Every "to be met by" is now "met by", with the date, and an
+    amendment wherever the build differed.
+    - N3.4 and N3.5 were cited by D33, D34, R16.2 and R16.3 since R9.2 but never
+      written. They are written now. The traceability check does not catch a cited ID
+      that is undefined; a separate task is offered for that.
+    - Two merged requirements were split again, F6.11 from F6.12 and F7.18 from F7.19.
+      The Introduction's count is now seven Scanners and three Checks.
+  - **The archive.** R9 to R15 are in `docs/history/tasks-phases-r9-r16.md`, each with
+    its STATUS; R14 and R15 gained their exit STATUS. The harness reads the archive,
+    so each phase's gate is still judged from it.
+  - **`CLAUDE.md`** is 199 lines. Traceability holds, the link check passes, and 1765
+    unit tests pass.
+- [x] **R16.5** **`1.2.0` prepared** (D37). `prepare_release.py 1.2.0`; the Score on both
+  lanes against R9's baseline and D22's targets, recorded; the rehearsal on R16's branch
+  per §4, validated and cancelled at the brake.
+  **STATUS 2026-09-30:** ✅ prepared, measured and rehearsed; the tag and the brake are
+  the owner's (§8). The record is `docs/acceptance/r16.md`.
+  - **Prepared.** `chore: release 1.2.0`, fourteen files, then `docs: the 1.2.0 entry`.
+    The first attempt missed the pipeline examples' image, and a test caught it before
+    the push. The two unpushed commits were set aside, the script fixed, and 1.2.0
+    prepared again.
+  - **The Score for 1.2.0: 64.9 on both lanes, from R9's 59.3.** Linux is run
+    36679307452 and the Mac used the 1.2.0 image. Every gate is green: all five on
+    the Mac, speed 6.0 s against 5.6 s, and four on Linux.
+  - **D22's targets.** Five of eight are met: secrets, dependencies, package reality,
+    agent configuration and infrastructure. Three are missed: SAST-Python 11.1
+    against 25, SAST-JS 15.0 against 50, and real-code precision 3.7 against 80. They
+    are in §8 since R13.
+  - **The rehearsal**, `release.yml` run 36679347319 at `14692b9`. It passed `verify`,
+    both native builds, `stage`, and the artifact on amd64 and arm64. It reached the
+    brake after 37.5 minutes and was cancelled there; `promote` never ran.
+  - **Both lanes' acceptance sets pass**: Linux run 36679309816. The Mac's e2e: 84
+    passed.
+- [x] **R16.6** **The build's summary**, written as this task's STATUS: what shipped, the
+  Score at R9 and now per track, the cost of agent runs, and what §8 holds.
+  **STATUS 2026-09-30: the build of R9 to R16.** Eight phases, each on its own stacked
+  branch and PR, #162 to #169, each closed by a phase commit with its exit measured on
+  both lanes (`docs/acceptance/r9.md` to `r16.md`).
+  - **What shipped.**
+    - **R9, the Score:** eight tracks by the OWASP Benchmark's formula, five gates,
+      and a ratchet.
+    - **R10, trust fixes:** a project's own registries are read, history one file
+      per commit, and a dual licence is one licence.
+    - **R11, fresh data:** every dataset aged by its data, EPSS from FIRST's daily
+      file, and a known-malicious list published daily.
+    - **R12, `check_package`:** offline, before an install, as the seventh tool and
+      the ninth command.
+    - **R13, static analysis widened by measurement:** four licence-audited rules, and
+      `cwe` on findings.
+    - **R14, reuse:** a warm rescan 63 to 69% faster, with the same Score.
+    - **R15, the skill:** a Claude Code plugin, a Kiro power, and `init --write`.
+    - **R16:** an arm64 e2e leg, `prepare_release.py`, the monthly `refresh.yml`, the
+      documents as built, and 1.2.0 prepared and rehearsed.
+  - **The Score, R9 to now**, the same on both lanes:
+
+    | track | R9 | now |
+    |---|---|---|
+    | sast-python | 0.4 | 11.1 |
+    | sast-js | 10.0 | 15.0 |
+    | secrets | 90.0 | 100.0 |
+    | dependencies | 100.0 | 100.0 |
+    | package-reality | 81.0 | 100.0 |
+    | agent-configuration | 94.3 | 94.3 |
+    | infrastructure | 95.0 | 95.0 |
+    | real-code-precision | 4.0 | 3.7 |
+    | **the Score** | **59.3** | **64.9** |
+
+  - **Agent runs: $5.17 of D36's $10.** R12.5's scenarios cost $4.19, and R15.2's two
+    smoke runs $0.98. Each ran without a shell.
+  - **What §8 holds.**
+    - Landing R9 to R16, the tag `v1.2.0`, and the approval at the brake.
+    - One dispatch of `refresh.yml` after landing.
+    - Publishing 1.2.0 before announcing the plugin, whose server pins the release.
+    - D22's three missed targets.
+    - The rest, carried from before.
+  - **Found and repaired on the way**, each recorded in its task.
+    - A unit test once removed the owner's pulled images. They were re-pulled with
+      the same IDs, and removal is now refused in every unit test.
+    - A `--fresh` scan stored nothing.
+    - An import cycle through `doctor`.
+    - N3.4 and N3.5 were cited but never defined.
+    - The release commit first missed the pipeline examples.
+
+**Exit:** the Score recorded on both lanes against the baseline, the rehearsal green, and
+both schedules deleted.
+
+**Exit STATUS 2026-09-30** (`docs/acceptance/r16.md`):
+- **The Score:** ✅ 64.9 on both lanes against the baseline's 64.9. `--compare` passes,
+  and every judged gate is green. Linux run 36679307452.
+- **The rehearsal:** ✅ run 36679347319, green to the brake and cancelled there.
+- **The schedules:** ✅ both deleted: the in-session hourly resume and the desktop task
+  `valvur-build-resume`.
+- **The acceptance set and the suites:** ✅ both lanes at `14692b9`, and the Mac's e2e
+  on the 1.2.0 image.

@@ -15,12 +15,11 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-09-30).** `1.1.0` is published. R9 measured the [review](docs/history/REVIEW-2026-09-29.md)'s
-gaps as the Score, 59.3; R10 to R13 raised it to **64.9** on both lanes (static analysis 11.1
-and 15.0, real-code precision 3.7, the rest 94 to 100), every judged gate green. R14 reuses
-unchanged dependency answers (warm rescans 63 to 69% faster); R15 ships the skill as a Claude
-Code plugin, a Kiro power and by `init --write`. **Next:** R16 of
-[`tasks.md`](.kiro/specs/valvur/tasks.md): the documents as built, then `1.2.0` prepared.
+**Status (2026-09-30).** `1.1.0` is published; **`1.2.0` is prepared and rehearsed** on R16's
+branch, waiting for the owner to land R9 to R16 and tag. The Score went from 59.3 at R9 to
+**64.9** on both lanes; five of D22's eight targets are met, and the three missed (static
+analysis and real-code precision) are in `tasks.md` §8. R14 reuses unchanged dependency
+answers; R15 ships the skill. **Next:** the owner's queue, `tasks.md` §8.
 
 ## 2. What it is NOT
 

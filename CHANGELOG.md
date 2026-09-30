@@ -25,6 +25,9 @@ Every change is additive under 1.x (D37):
 `fp_version` stays 1, so every Suppression written before still applies. The plugin
 and the power pin their server to this release.
 
+- **For maintainers** (Phase R16): `scripts/prepare_release.py` prepares a release in
+  one commit; `refresh.yml` scores moved Scanner pins monthly and tells the owner; CI's
+  e2e suite runs on arm64 as well as amd64.
 - **A skill that runs valvur's workflow** (Phase R15, ADR-0031). One skill, `valvur`, in
   the open Agent Skills format, which Claude Code, Kiro and other clients load. It covers:
   - checking a package before adding it, then scanning, and calling `doctor` when a
