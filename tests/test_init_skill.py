@@ -92,3 +92,19 @@ def test_doctor_says_whether_the_projects_skill_is_here_and_is_this_valvurs(heal
     assert f".claude/skills/valvur/, version 0.9.0, not this valvur's {__version__}" \
         in mixed.detail
     assert "remove .claude/skills/valvur/ and run `valvur init --write`" in mixed.fix
+
+
+def test_the_skill_written_draws_no_finding_from_valvurs_own_checks(project):  # noqa: F811
+    """The agent-configuration Check reads `.claude/` and `.kiro/`, where the skill
+    now lives: valvur must not report its own instructions as a planted directive,
+    hidden Unicode or a bypass in the project it was written into."""
+    from valvur.checks.ai_artifact import AiArtifactCheck, _artifact_files
+
+    assert cli.main(["init", str(project), "--write",
+                     "--client", "claude-code", "--client", "kiro"]) == 0
+
+    read = {p.relative_to(project).as_posix() for p in _artifact_files(project)}
+    assert {".claude/skills/valvur/SKILL.md", ".kiro/skills/valvur/SKILL.md"} <= read
+    findings = AiArtifactCheck().run(project)
+
+    assert not [f for f in findings if "/skills/valvur/" in f.get("path", "")], findings
