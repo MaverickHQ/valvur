@@ -994,8 +994,24 @@ the baseline.
   - It raises neither track, so under D29 it is not adopted. Five of valvur's rules
     are taint rules: four for LLM output sinks, and the vendored SQL rule. Neither
     track's matches changed with the flag.
-- [ ] **R13.6** **The speed guard.** Behaviour: Opengrep's median time on the acceptance set
+- [x] **R13.6** **The speed guard.** Behaviour: Opengrep's median time on the acceptance set
   within 130% of R9's, pruning the slowest rules until it is.
+  **STATUS 2026-09-30:** ✅ met with nothing pruned.
+  - Opengrep's time on each repository comes from its `run.json`, on the Mac through
+    Docker Desktop:
+
+    | set | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | median |
+    |---|---|---|---|---|---|---|---|---|---|
+    | R9's | 6.3 | 11.4 | 33.9 | 34.2 | 8.0 | 10.8 | 28.9 | 15.4 | 13.4 |
+    | R12's, no vendored rule | 2.3 | 2.5 | 2.0 | 2.3 | 2.3 | 4.7 | 2.0 | 2.5 | 2.3 |
+    | R13's, four vendored | 2.3 | 2.8 | 2.0 | 2.2 | 2.3 | 4.8 | 2.1 | 2.6 | 2.3 |
+
+    The limit is 130% of 13.4 s, 17.4 s. Against R12's run on the same machine, the
+    four rules cost nothing measurable. R9's median was taken under heavier host
+    swap.
+  - **Found by this run.** Repositories 1 and 4 failed, because the vendored
+    `subprocess` shell rule reported each planted shell flow a second time. It was
+    withdrawn and D29's bar amended (`ea352ce`); the set passes again.
 - [ ] **R13.7** **The claims, from the measurement.** Behaviour: the README's static-analysis
   paragraph and `EVALUATING.md` state tracks 1 and 2 as measured and nothing beyond them;
   `test_readme_as_built.py` holds the numbers.
