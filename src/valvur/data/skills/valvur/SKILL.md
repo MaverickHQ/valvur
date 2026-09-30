@@ -44,6 +44,21 @@ vulnerability fixed.
 8. **In CI, gate.** `valvur scan` then `valvur gate` fails the job on an incomplete
    run, a lapsed suppression, or an active finding at or above `--fail-on`.
 
+## Tools
+
+Each tool's fields, as the server describes them, are in
+[`references/tools.md`](references/tools.md).
+
+| tool | call it |
+|---|---|
+| `check_package` | before adding or upgrading a dependency; answered offline, from this machine's cache |
+| `scan` | to scan the project; `fresh: true` only when the human doubts a reused answer |
+| `findings` | to read findings one group, rule or path at a time, never the whole file |
+| `scan_status` | to see what the last scan ran, what failed, and whether it was complete |
+| `scan_cancel` | when the human asks to stop a running scan; the previous results stand |
+| `doctor` | when a scan's `state` is `failed`, or before a first scan on a new machine |
+| `update` | when the verdict's reason names stale data |
+
 ## Never
 
 - **Never add a suppression.** A suppression is a risk the human accepts, with an

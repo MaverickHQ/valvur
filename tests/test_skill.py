@@ -72,3 +72,50 @@ def test_its_version_is_the_packages():
     text = skill.SKILL.read_text(encoding="utf-8")
 
     assert re.search(r'^  version: "([^"]+)"$', text, re.M)[1] == __version__ == skill.version()
+
+
+# ------------------------------------------------ 2: every tool, and only tools
+
+def _tools() -> set[str]:
+    from valvur.mcp.tools import registry
+
+    return {tool.name for tool in registry()}
+
+
+def _texts() -> dict[str, str]:
+    """The skill's files, by their path in it: `SKILL.md` and each reference."""
+    return {path.relative_to(skill.DIRECTORY).as_posix(): path.read_text(encoding="utf-8")
+            for path in sorted(skill.DIRECTORY.rglob("*.md"))}
+
+
+def test_its_tools_table_is_every_tool_the_server_lists():
+    _, body = _frontmatter(skill.SKILL.read_text(encoding="utf-8"))
+    table = body.split("\n## Tools\n", 1)[1].split("\n## ", 1)[0]
+
+    named = set(re.findall(r"^\| `(\w+)` \|", table, re.M))
+
+    assert named == _tools()
+
+
+def test_every_tool_it_tells_an_agent_to_call_exists():
+    called = {name for text in _texts().values()
+              for name in re.findall(r"[Cc]all `(\w+)`", text)}
+
+    assert called and called <= _tools(), called - _tools()
+
+
+def test_the_tools_reference_is_the_servers_own_description_of_each():
+    """`references/tools.md`, rendered from the registry: each tool's description and
+    each field it takes, so the skill cannot describe a field the server lacks."""
+    import os
+
+    path = skill.DIRECTORY / "references" / "tools.md"
+    rendered = skill.tools_reference()
+    if os.environ.get("UPDATE_SKILL"):
+        path.write_text(rendered, encoding="utf-8")
+
+    assert path.read_text(encoding="utf-8") == rendered, (
+        "references/tools.md is not the registry's; regenerate it with "
+        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py`")
+    for name in _tools():
+        assert f"## `{name}`" in rendered
