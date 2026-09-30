@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from test_doctor import healthy  # noqa: F401 — the fixture, registered by import
 from test_init import _tree, project  # noqa: F401 — the fixture, registered by import
 
 from valvur import cli, skill
@@ -67,3 +68,27 @@ def test_init_alone_names_where_the_skill_goes(project, capsys):  # noqa: F811
     assert _tree(project) == before
     assert "Kiro reads the skill from .kiro/skills/valvur/" in out
     assert "valvur init --write" in out and "/plugin install valvur@valvur" in out
+
+
+def test_doctor_says_whether_the_projects_skill_is_here_and_is_this_valvurs(healthy):  # noqa: F811
+    from test_doctor import _by_name
+
+    from valvur import doctor
+    from valvur.version import __version__
+
+    absent = _by_name(doctor.run(healthy))["skill"]
+    assert absent.level == "info" and "valvur init --write" in absent.fix
+
+    skill.write_into(healthy, "kiro")
+    present = _by_name(doctor.run(healthy))["skill"]
+    assert present.level == "ok"
+    assert f".kiro/skills/valvur/, version {__version__}, this valvur's" in present.detail
+
+    older = healthy / ".claude" / "skills" / "valvur" / "SKILL.md"
+    older.parent.mkdir(parents=True)
+    older.write_text('---\nname: valvur\nmetadata:\n  version: "0.9.0"\n---\nold\n')
+    mixed = _by_name(doctor.run(healthy))["skill"]
+    assert mixed.level == "warn"
+    assert f".claude/skills/valvur/, version 0.9.0, not this valvur's {__version__}" \
+        in mixed.detail
+    assert "remove .claude/skills/valvur/ and run `valvur init --write`" in mixed.fix

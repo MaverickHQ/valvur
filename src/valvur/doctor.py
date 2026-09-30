@@ -208,6 +208,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_workspace(workspace))
     checks.append(_check_project_file(workspace))
     checks.append(_check_mcp(workspace))
+    checks.append(_check_skill(workspace))
     checks.append(_check_network(network, fetch_due=fetch_due or not image_local))
     return checks
 
@@ -612,6 +613,38 @@ def _check_mcp(workspace: Path) -> Check:
         found.append(f"kiroAgent.configureMCP is Disabled in {switched_off}, so Kiro "
                      "starts no MCP server at all")
     return Check("mcp", "info", "; ".join(found))
+
+
+def _check_skill(workspace: Path) -> Check:
+    """Whether this project carries the skill where Claude Code or Kiro reads it,
+    and whether it is this valvur's (R15.4, D40): an older copy tells an agent about
+    tools and rules this server no longer has, or lacks those it has."""
+    from . import skill
+    from .version import __version__
+
+    present, stale = [], []
+    for where in skill.LOCATIONS.values():
+        path = workspace / where / "SKILL.md"
+        if not path.is_file():
+            continue
+        found = skill.version(path.read_text(encoding="utf-8", errors="replace"))
+        if found == __version__:
+            present.append(f"{where}/, version {found}, this valvur's")
+        else:
+            present.append(f"{where}/, version {found or 'unnamed'}, not this valvur's "
+                           f"{__version__}")
+            stale.append(where)
+    if not present:
+        return Check("skill", "info",
+                     "no project skill (Claude Code: .claude/skills/valvur/; Kiro: "
+                     ".kiro/skills/valvur/)",
+                     "`valvur init --write` adds it; in Claude Code the plugin brings it "
+                     "to every project: `/plugin install valvur@valvur`")
+    if stale:
+        return Check("skill", "warn", "; ".join(present),
+                     "; ".join(f"remove {where}/ and run `valvur init --write`"
+                               for where in stale))
+    return Check("skill", "ok", "; ".join(present))
 
 
 def _read_json(path: Path) -> dict | None:

@@ -110,7 +110,9 @@ def test_the_tools_reference_is_the_servers_own_description_of_each():
     import os
 
     path = skill.DIRECTORY / "references" / "tools.md"
-    rendered = skill.tools_reference()
+    from valvur.mcp.tools import reference
+
+    rendered = reference()
     if os.environ.get("UPDATE_SKILL"):
         path.write_text(rendered, encoding="utf-8")
 

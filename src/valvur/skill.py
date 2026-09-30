@@ -25,39 +25,6 @@ def version(text: str | None = None) -> str | None:
     return match[1] if match else None
 
 
-def _field(name: str, spec: dict, required: bool) -> str:
-    kind = spec.get("type", "")
-    kind = " or ".join(kind) if isinstance(kind, list) else kind
-    if "enum" in spec:
-        kind += ", one of " + ", ".join(f"`{v}`" for v in spec["enum"])
-    note = f": {spec['description']}" if spec.get("description") else ""
-    line = f"- `{name}` ({kind}{', required' if required else ''}){note}"
-    items = spec.get("items") or {}
-    for inner, inner_spec in (items.get("properties") or {}).items():
-        line += "\n  " + _field(inner, inner_spec, inner in items.get("required", []))
-    return line
-
-
-def tools_reference() -> str:
-    """`references/tools.md`: each MCP tool as the server describes it, and each
-    field it takes, rendered from the registry so the two cannot disagree."""
-    from .mcp.tools import registry
-
-    lines = ["# valvur's MCP tools", "",
-             "Rendered from the server's own list of tools; a test holds this file to it.",
-             "Each tool takes only the fields listed: any other is refused, not ignored.",
-             ""]
-    for tool in registry():
-        changes = ("It changes nothing." if tool.read_only else
-                   "It changes this machine as its description says, and never the source.")
-        lines += [f"## `{tool.name}`", "", tool.description, "", changes, ""]
-        properties = tool.schema.get("properties") or {}
-        required = tool.schema.get("required", [])
-        lines += ([_field(name, spec, name in required) for name, spec in properties.items()]
-                  or ["It takes no fields."])
-        lines.append("")
-    return "\n".join(lines)
-
 
 RULES_START = ("<!-- rules:start — rendered from valvur.agent_rules, the handshake's "
                "instructions; a test holds this block to them -->")
