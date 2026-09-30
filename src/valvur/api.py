@@ -927,13 +927,14 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 cut.append(adapters[index].name)
                 outcome = outcome.cut(f"cut by the {budget_s:g}s budget after {spent:.0f}s")
             outcomes[index] = outcome
-            key = keys.get(index)
-            if key is not None and reuse is not None and outcome.scanner.ok \
+            keyed = keys.get(index)
+            if keyed is not None and reuse is not None and outcome.scanner.ok \
                     and not entry.get("cut") and not entry.get("timed_out"):
                 from . import reuse as _reuse
 
-                _reuse.save(adapters[index].name, key, raw=stdout,
-                            version=invocation.version, generation=reuse[1])
+                _reuse.save(adapters[index].name, keyed[0], raw=stdout,
+                            version=invocation.version, generation=reuse[1],
+                            data=keyed[1])
         if cut and on_progress is not None:
             stopping = [n for n in cut if not any(
                 o is not None and o.scanner.tool == n and o.scanner.reason.startswith(
@@ -946,7 +947,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
 
 
 def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress
-            ) -> dict[int, str]:
+            ) -> dict[int, tuple[str, str]]:
     """Take each dependency Scanner whose key has a stored result out of the plan,
     its outcome that result (R14.3, D32); return the keys of those that will run,
     so their clean results can be stored. Nothing, with `reuse` None (`fresh`)."""
@@ -956,7 +957,7 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
     if reuse is None:
         return {}
     profile, _ = reuse
-    keys: dict[int, str] = {}
+    keys: dict[int, tuple[str, str]] = {}
     inputs = None
     for invocation, index in list(zip(plan, planned, strict=True)):
         name = adapters[index].name
@@ -964,11 +965,12 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
             continue
         if inputs is None:
             inputs = _reuse.inputs(workspace, chosen.files)
+        stamp = _reuse.data(name, chosen.files)
         key = _reuse.key(tool=name, version=invocation.version, profile=profile,
-                         inputs=inputs, data=_reuse.data(name, chosen.files))
+                         inputs=inputs, data=stamp)
         stored = _reuse.load(name, key)
         if stored is None:
-            keys[index] = key
+            keys[index] = (key, stamp)
             continue
         output = ScannerOutput(invocation.tool, stored.get("version", invocation.version),
                                stored["raw"], "", 0, argv=invocation.argv)

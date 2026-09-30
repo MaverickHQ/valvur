@@ -217,11 +217,22 @@ def inventory() -> list[Entry]:
     present = scores.is_file()
     entries.append(Entry("epss", scores, present, scores.stat().st_size if present else 0,
                          epss_age()[0], f"scored {epss_scored()}" if present else ""))
+
+    kept = root() / REUSE
+    results = sorted(kept.rglob("*.json")) if kept.is_dir() else []
+    newest = max((p.stat().st_mtime for p in results), default=None)
+    entries.append(Entry("reuse", kept, bool(results), _tree_size(kept),
+                         None if newest is None else (time.time() - newest) / 86400,
+                         f"{len(results)} result{'' if len(results) == 1 else 's'}"
+                         if results else ""))
     return entries
 
 
 #: FIRST's daily EPSS file (D25), kept as fetched: `epss` reads and fetches it.
 EPSS_FILE = "epss_scores.csv.gz"
+#: Where Trivy's and OSV-Scanner's results are kept for reuse (R14.4, D32): named
+#: here so the listing and `--clear` reach it; `reuse` decides what is in it.
+REUSE = "reuse"
 
 
 def epss_path() -> Path:

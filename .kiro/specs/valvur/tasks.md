@@ -1097,9 +1097,27 @@ the speed guard met.
   - **Found on the way.** Deciding which files are dependency files read about 95
     patterns per name, seconds on repository 1's 103,251 files. It is now one
     compiled expression, under a second for 100,000 names (`timing`).
-- [ ] **R14.4** **The reused results' home.** Behaviours: under the host cache and its
+- [x] **R14.4** **The reused results' home.** Behaviours: under the host cache and its
   lock; `update --prune` removes those of superseded keys, `--clear` all; nothing is
   written in the Workspace but the Results Folder.
+  **STATUS 2026-09-30:** ✅ all three.
+  - **Where they live.** Results sit in `~/.cache/valvur/reuse/<tool>/<key>.json`. A
+    scan writes them under its shared cache lock, whole and renamed into place, and
+    a scan's Workspace gains nothing but `.security-scan/`.
+  - **Pruning.** Each stored result carries its Scanner's version and data stamp.
+    `reuse.superseded` names those that can never match again, because the version
+    or data has moved on, and those unused for 30 days; a reuse restarts that clock.
+  - **`update --prune`** lists each before removing it, under the exclusive lock.
+    **`--clear`** removes the directory with the rest, and the cache listing names
+    it (`2 results`).
+  - **An incident, found and repaired here.** The first draft of the `--prune` test
+    ran the real command against this Mac's Docker. It removed the owner's pulled
+    `valvur:0.3.0`, `0.4.0` and `0.5.0`, which `CLAUDE.md` §9 forbids.
+    - All three were re-pulled at once, and their image IDs match the deleted ones.
+    - `tests/conftest.py` now makes image removal raise in every unit test, and a
+      test holds that.
+    - The same draft's `--clear` test removed the suite's shared database stand-in.
+      It now clears a cache of its own.
 - [ ] **R14.5** **The after.** Behaviour: a warm rescan of repository 8 is at least 30%
   faster on both lanes, or D32's fallback is applied and recorded; the speed gate is judged
   from here on.

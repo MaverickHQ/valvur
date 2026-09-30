@@ -232,7 +232,8 @@ def test_the_inventory_says_what_is_cached_how_old_and_how_large(host_cache):
     assert entries["index"].detail.endswith("cargo 1")
     assert entries["kev"].present and entries["kev"].size > 0
     assert entries["epss"].present and entries["epss"].detail == "scored 2026-09-29"
-    assert [e.name for e in cache.inventory()] == ["database", "index", "kev", "epss"]
+    assert [e.name for e in cache.inventory()] == ["database", "index", "kev", "epss",
+                                                   "reuse"]
 
 
 def test_an_empty_cache_is_described_not_invented(host_cache):

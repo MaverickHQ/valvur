@@ -182,6 +182,14 @@ def _installed_name_index(request, default_name_index, default_trivy_db, monkeyp
     monkeypatch.delenv("VALVUR_NETWORK", raising=False)
     monkeypatch.setattr(cache, "name_index", lambda: default_name_index)
     if request.node.get_closest_marker("e2e") is None:
+        # No unit test removes an image from the machine's runtime: on 2026-09-30 a
+        # test that ran `valvur update --prune` untested removed the owner's pulled
+        # `valvur:0.3.0`, `0.4.0` and `0.5.0` (restored by pulling). A test that means
+        # to prune gives `cache.prune` images of its own.
+        def refuse(self, reference):
+            raise AssertionError(f"a unit test tried to remove the image {reference}")
+
+        monkeypatch.setattr(cache.RuntimeImages, "remove", refuse)
         monkeypatch.setattr(cache, "trivy_db", lambda: default_trivy_db)
         # A host cache of the test's own (R11.3), never the owner's `~/.cache/valvur`,
         # which a unit test's scan read and, once a scan refreshes KEV, would write.

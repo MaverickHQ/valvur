@@ -102,6 +102,9 @@ def _print_cache(*, clear: bool, prune: bool = False) -> int:
             # fresher copy of what the image carries; the data is a first-scan
             # fetch.
             means = (cache.KEV_ABSENT_MEANS if entry.name == "kev"
+                     else "none yet: a scan keeps Trivy's and OSV-Scanner's results "
+                     "here, to reuse while nothing they read changes"
+                     if entry.name == "reuse"
                      else f"the first scan fetches it ({cache.fetch_note(entry.name)})")
             print(f"  {entry.name:<9} absent — {means}")
             continue
@@ -134,16 +137,23 @@ def _prune_cache(cache) -> None:
     except Exception as exc:   # broad: no runtime is a reason, not a failure
         images = None
         print(f"  no container runtime found ({exc}); images not pruned")
+    from . import reuse
+
     superseded = cache.superseded_images(images) if images is not None else []
     strays = cache.stray_index_files()
-    if not superseded and not strays:
-        print("prune: nothing to prune — only this shim's image and the files the index names")
+    stale = reuse.superseded()
+    if not superseded and not strays and not stale:
+        print("prune: nothing to prune — only this shim's image, the files the index "
+              "names, and reused results that can still match")
         return
     for reference in superseded:
         print(f"  removing image {reference}")
     for path in strays:
         print(f"  removing file {path}")
+    for path in stale:
+        print(f"  removing reused result {path}")
     removed_images, removed_files = cache.prune(images)
+    removed_files += reuse.prune()
     print(f"pruned: {len(removed_images)} image{'' if len(removed_images) == 1 else 's'}, "
           f"{len(removed_files)} file{'' if len(removed_files) == 1 else 's'}")
 
