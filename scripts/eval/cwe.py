@@ -12,12 +12,17 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-#: CWE children the tracks' categories name by their parent.
-PARENTS = {95: 94}
+#: CWE children the tracks' categories name by their parent, each ChildOf its parent
+#: in MITRE's CWE: eval injection (95) of code injection (94); a cryptographically
+#: weak PRNG (338, R13.2) of insufficiently random values (330). A parent never
+#: answers for its child: CWE-327, a broken algorithm, is not the benchmark's 328.
+PARENTS = {95: 94, 338: 330}
 #: Scanners whose every finding is one class of weakness.
 BY_SOURCE = {"gitleaks": 798}
 
-_ID = re.compile(r"^  - id: (\S+)", re.M)
+#: A rule's id: valvur's own files indent it and leave it bare; GitLab's start it at
+#: the margin and quote it (R13.2).
+_ID = re.compile(r"""^\s*- id:\s*["']?([^"'\s]+)["']?\s*$""", re.M)
 _CWE = re.compile(r"CWE-(\d+)")
 
 

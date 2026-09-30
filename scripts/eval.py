@@ -361,6 +361,49 @@ def write(result: dict, out: Path) -> dict[str, Path]:
     return paths
 
 
+def per_rule(rules: Path, work: Path, *, image: str = "valvur:dev",
+             benchmark: Path | None = None, corpus: list[dict] | None = None,
+             checkouts: Path | None = None, labels: Path = LABELS, run=None,
+             verify: Callable[[Path], None] = owasp.verify) -> dict:
+    """R13.2: each rule in `rules`, measured over track 1, track 2 and the corpus
+    (D29), through the image's Opengrep. `rules` holds `.yaml` files, as
+    `scripts/eval/sast_rules.py --stage` writes them."""
+    import tomllib
+
+    import per_rule as _per_rule  # type: ignore[import-not-found]
+
+    root = benchmark or owasp.checkout(work.parent / "BenchmarkPython")
+    verify(root)
+    js_root = work / "sast-js"
+    if js_root.exists():
+        shutil.rmtree(js_root)
+    js_cases = twins.build("sast-js", js_root)
+    if corpus is None or checkouts is None:
+        harness = _corpus_harness()
+        corpus, checkouts = harness.repos(), harness.CHECKOUTS
+        harness.fetch(corpus)
+    labelled = tomllib.loads(labels.read_text()).get("label", []) if labels.is_file() else []
+    by_place = {(e.get("repo", ""), e.get("rule", ""), e.get("path", "")): e.get("verdict", "")
+                for e in labelled}
+    return _per_rule.measure(
+        rules.resolve(), cwe.rule_cwes(rules),
+        [("sast-python", root, owasp.cases(root)), ("sast-js", js_root, js_cases)],
+        [(entry["name"], checkouts / entry["name"]) for entry in corpus],
+        by_place, work / "per-rule", image=image,
+        **({"run": run} if run is not None else {}))
+
+
+def per_rule_table(report: dict) -> str:
+    lines = ["| rule | CWE | true | false | outside | precision | ships | seconds |",
+             "|---|---|---|---|---|---|---|---|"]
+    for rule, row in report["rules"].items():
+        lines.append(f"| {rule} | {', '.join(str(n) for n in row['cwe'])} | {row['tp']} "
+                     f"| {row['fp']} | {row['outside']} | {row['precision']} "
+                     f"| {'yes' if row['ships'] else 'no'} | {row['seconds']} |")
+    lines += ["", f"{len(report['ships'])} of {len(report['rules'])} meet D29's bar."]
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     import os
@@ -375,8 +418,19 @@ def main(argv: list[str] | None = None) -> int:
                         help="fail when a track falls more than 2 points under it")
     parser.add_argument("--update-baseline", type=Path, metavar="BASELINE",
                         help="raise the tracks this run beat; never lower one")
+    parser.add_argument("--per-rule", type=Path, metavar="RULES",
+                        help="measure each rule in RULES over tracks 1 and 2 and the "
+                        "corpus instead (R13.2, D29)")
     args = parser.parse_args(argv)
     image = os.environ.get("VALVUR_IMAGE", "valvur:dev")
+    if args.per_rule:
+        report = per_rule(args.per_rule, args.work.resolve(), image=image)
+        out = args.out.resolve()
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "per-rule.json").write_text(json.dumps(report, indent=1) + "\n")
+        (out / "per-rule.md").write_text(per_rule_table(report))
+        print(per_rule_table(report))
+        return 0
     result = run([t for t in args.tracks.split(",") if t], args.work.resolve(), image=image)
     write(result, args.out.resolve())
     print(scorecard(result))

@@ -2,6 +2,7 @@
 
     uv run --with pyyaml python scripts/eval/sast_rules.py CHECKOUT \
         > tests/eval/sast-rules.json
+    python scripts/eval/sast_rules.py --stage CHECKOUT DIR    # the eligible, for --per-rule
 
 PyYAML is for the audit alone, which reads each rule whole; nothing else in valvur
 parses YAML, and `refuse`, which the suite runs, reads rule ids by pattern.
@@ -140,5 +141,23 @@ def refuse(vendored: Path, audited: dict) -> list[str]:
     return refused
 
 
+def stage(checkout: Path, audited: dict, dest: Path) -> list[str]:
+    """Each eligible rule's file, copied into `dest` as `.yaml` for Opengrep and for
+    `cwe.rule_cwes` (R13.2): the candidates `eval.py --per-rule` measures."""
+    import shutil
+
+    dest.mkdir(parents=True, exist_ok=True)
+    paths = sorted({rule["path"] for rule in audited["rules"] if rule["eligible"]})
+    for relative in paths:
+        shutil.copy(checkout / relative,
+                    dest / (relative.removesuffix(".yml").replace("/", "__") + ".yaml"))
+    return paths
+
+
 if __name__ == "__main__":
-    print(json.dumps(manifest(Path(sys.argv[1])), indent=1))
+    if sys.argv[1:2] == ["--stage"]:
+        audited = json.loads((REPO / "tests" / "eval" / "sast-rules.json").read_text())
+        staged = stage(Path(sys.argv[2]), audited, Path(sys.argv[3]))
+        print(f"{len(staged)} eligible rule files staged in {sys.argv[3]}")
+    else:
+        print(json.dumps(manifest(Path(sys.argv[1])), indent=1))

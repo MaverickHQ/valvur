@@ -39,3 +39,21 @@ def test_every_rule_of_valvur_s_own_declares_a_cwe():
         blocks = re.split(r"^  - id: ", path.read_text(), flags=re.M)[1:]
         for block in blocks:
             assert re.search(r"^\s+cwe:", block, re.M), f"{path.name}: {block.split()[0]}"
+
+
+def test_a_rule_written_in_gitlabs_layout_declares_its_cwe_too(tmp_path):
+    """R13.2: GitLab's files start a rule at the margin and quote its id."""
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "eval" / "cwe.py"
+    spec = importlib.util.spec_from_file_location("cwe_module", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["cwe_module"] = module
+    spec.loader.exec_module(module)
+    (tmp_path / "rule.yaml").write_text(
+        '---\nrules:\n- id: "python_deserialization_rule-pickle"\n  languages:\n  - "python"\n'
+        '  metadata:\n    shortDescription: "x"\n    cwe: "CWE-502"\n  severity: "WARNING"\n')
+
+    assert module.rule_cwes(tmp_path) == {"python_deserialization_rule-pickle": {502}}
