@@ -406,9 +406,11 @@ uv run python scripts/eval.py --compare tests/eval/baseline.json # fail on a fal
 **The Score** is the unweighted mean of the eight. Beside it are five **gates**:
 - *offline*: nothing left the machine;
 - *honesty*: no false `clean`, and no safe twin at high;
-- *freshness*: the data is within its refresh age;
+- *freshness*: the data is within its refresh age: the index, the malicious list, KEV
+  and EPSS within two days, the database and OSV's within seven;
 - *ranking*: a known-exploited CVE ranks first;
-- *speed*.
+- *speed*: the acceptance set's median warm rescan within 110% of its lane's in the
+  baseline (`--speed`, with a report from `scripts/acceptance.py --rescan`).
 
 `tests/eval/baseline.json` is a ratchet. A comparison fails when a track falls more
 than 2 points under it, and it is re-recorded only upward. It runs weekly
@@ -464,3 +466,32 @@ may be vendored met the bar: Python's weak `random`, string-built SQL and unsafe
 
 Most of the benchmark stays unfound: path traversal, XSS, XPath and LDAP injection,
 open redirects and the rest. valvur does not claim them.
+
+**The Score as built, 2026-09-30**, at R15's exit, on the image built from its branch:
+
+| track | R9, the first | R15, Linux | R15, Mac |
+|---|---|---|---|
+| sast-python | 0.4 | 11.1 | 11.1 |
+| sast-js | 10.0 | 15.0 | 15.0 |
+| secrets | 90.0 | 100.0 | 100.0 |
+| dependencies | 100.0 | 100.0 | 100.0 |
+| package-reality | 81.0 | 100.0 | 100.0 |
+| agent-configuration | 94.3 | 94.3 | 94.3 |
+| infrastructure | 95.0 | 95.0 | 95.0 |
+| real-code-precision | 4.0 | 3.7 | 3.7 |
+| **the Score** | **59.3** | **64.9** | **64.9** |
+
+- **R10** raised secrets to 100: history is read one file per commit, so a
+  placeholder no longer runs into a real key committed after it. It raised package
+  reality to 92: a project's own private registries are read, so a privately
+  registered name is not taken for a hallucinated one.
+- **R11** raised package reality to 100 with the malicious list, and made every
+  dataset's age its data's.
+- **R13** raised both static-analysis tracks, as above.
+- **R14** made a warm rescan 63 to 69% faster and left every track where it was: the
+  Score with reuse equals the Score run `--fresh`, category by category.
+- **R15** added the skill and changed no track.
+
+All five gates are judged from R14 on, and every one is green on the Mac. Linux judges
+four, since its run of the Score takes no acceptance report. Each phase's record is in
+[`docs/acceptance/`](acceptance/).
