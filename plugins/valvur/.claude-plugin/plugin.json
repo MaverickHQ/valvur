@@ -1,6 +1,6 @@
 {
   "name": "valvur",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Scan a project for security problems locally and offline, check a package before installing it, and work through the findings with the human. The skill that runs the workflow, and valvur's MCP server.",
   "author": {
     "name": "MaverickHQ",

@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-30
+
 - **A skill that runs valvur's workflow** (Phase R15, ADR-0031). One skill, `valvur`, in
   the open Agent Skills format, which Claude Code, Kiro and other clients load. It covers:
   - checking a package before adding it, then scanning, and calling `doctor` when a

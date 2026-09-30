@@ -2,7 +2,7 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `1.1.0`** — published and installable. `0.6.0`, `0.7.0`, `1.0.0` and `1.1.0` were released on 2026-09-29, each rehearsed on its commit before its signed tag.
+> **Status: `1.2.0`** — release in progress: this tree is rehearsed and waits at the release brake; `pip install valvur` serves `1.1.0` until the run's `promote` completes.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 ---
