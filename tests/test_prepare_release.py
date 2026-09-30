@@ -76,7 +76,8 @@ def test_one_commit_sets_every_version_surface(tree):
     assert _git(tree, "log", "--format=%s").splitlines()[:2] == [
         f"chore: release {NEXT}", "chore: the tree before"]
     assert _declared(tree) == NEXT
-    assert re.search(r'name = "valvur"\nversion = "1\.2\.0"', (tree / "uv.lock").read_text())
+    assert re.search(rf'name = "valvur"\nversion = "{re.escape(NEXT)}"',
+                     (tree / "uv.lock").read_text())
     status = next(line for line in (tree / "README.md").read_text().splitlines()
                   if "**Status: `" in line)
     assert status.startswith(f"> **Status: `{NEXT}`** — release in progress")
