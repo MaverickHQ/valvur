@@ -1,0 +1,74 @@
+"""R15.1: the skill (D39, F9.12, ADR-0031).
+
+One skill, `valvur`, in the open Agent Skills format, written once in the package and
+shipped three ways (R15.2 to R15.4). It orchestrates the workflow an agent runs with
+valvur's MCP tools. Its frontmatter holds only the standard's six fields, so the one
+file loads in Claude Code, in Kiro and in any client of the standard; every tool and
+command it names exists; and its rules are the handshake's, from one source.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from valvur import skill
+
+#: The Agent Skills standard's frontmatter fields (agentskills.io, 2026-09-30).
+STANDARD_FIELDS = {"name", "description", "license", "compatibility", "metadata",
+                   "allowed-tools"}
+
+
+def _frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """The top-level fields, each to its value on the same line, and the body. The
+    skill's frontmatter is plain enough to read without a YAML parser, which valvur
+    does not depend on; a nested map's lines are indented and belong to its key."""
+    assert text.startswith("---\n"), "a skill opens with its frontmatter"
+    head, body = text[4:].split("\n---\n", 1)
+    fields = {}
+    for line in head.splitlines():
+        match = re.match(r"([A-Za-z][\w-]*):\s*(.*)$", line)
+        if match:
+            fields[match[1]] = match[2]
+        else:
+            assert line.startswith("  "), f"not a field or a nested line: {line!r}"
+    return fields, body
+
+
+def test_the_frontmatter_holds_only_the_standards_fields():
+    fields, _ = _frontmatter(skill.SKILL.read_text(encoding="utf-8"))
+
+    assert set(fields) <= STANDARD_FIELDS, set(fields) - STANDARD_FIELDS
+    assert {"name", "description"} <= set(fields)
+
+
+def test_its_name_is_valid_and_is_its_directorys():
+    fields, _ = _frontmatter(skill.SKILL.read_text(encoding="utf-8"))
+
+    assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", fields["name"])
+    assert len(fields["name"]) <= 64
+    assert fields["name"] == skill.SKILL.parent.name == "valvur"
+
+
+def test_its_description_and_compatibility_are_within_the_standards_limits():
+    fields, body = _frontmatter(skill.SKILL.read_text(encoding="utf-8"))
+
+    assert 0 < len(fields["description"]) <= 1024
+    assert len(fields.get("compatibility", "")) <= 500
+    assert body.strip(), "a skill with no instructions"
+
+
+def test_it_is_in_the_package_and_ships_in_the_wheel():
+    """`init --write`, the plugin and the power all start from this file (D40)."""
+    assert skill.SKILL == Path(skill.__file__).parent / "data" / "skills" / "valvur" / "SKILL.md"
+    assert skill.SKILL.is_file()
+
+
+def test_its_version_is_the_packages():
+    """A version surface (R15.4's `doctor` compares a project's copy with it), so it
+    moves with the release as every other one does."""
+    from valvur.version import __version__
+
+    text = skill.SKILL.read_text(encoding="utf-8")
+
+    assert re.search(r'^  version: "([^"]+)"$', text, re.M)[1] == __version__ == skill.version()
