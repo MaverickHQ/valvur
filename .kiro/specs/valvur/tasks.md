@@ -973,8 +973,23 @@ the baseline.
     tools read.
   - Neither ranking nor grouping reads it, and a merge keeps it.
   - Measured through the image: the vendored SQL rule's finding carries `CWE-89`.
-- [ ] **R13.5** **Cross-function taint.** Measure first. Behaviour: adopted per D29, or the
+- [x] **R13.5** **Cross-function taint.** Measure first. Behaviour: adopted per D29, or the
   measurement recorded and nothing changed.
+  **STATUS 2026-09-30:** ✅ measured, not adopted, nothing changed.
+  - The pinned Opengrep 1.29.0 has `--taint-intrafile` (intra-file inter-procedural
+    taint, Python and JavaScript among its languages).
+  - Measured by `scripts/eval/taint.py`: the shipped rules through the image over
+    tracks 1 and 2, with and without the flag, scored by the Score's own formula.
+    Opengrep's share alone.
+
+    | track | default | `--taint-intrafile` |
+    |---|---|---|
+    | sast-python | 11.1 (109 true, 45 false, 5.9 s) | 11.1 (109, 45, 5.3 s) |
+    | sast-js | 5.0 (1, 0, 2.8 s) | 5.0 (1, 0, 2.9 s) |
+
+  - It raises neither track, so under D29 it is not adopted. Five of valvur's rules
+    are taint rules: four for LLM output sinks, and the vendored SQL rule. Neither
+    track's matches changed with the flag.
 - [ ] **R13.6** **The speed guard.** Behaviour: Opengrep's median time on the acceptance set
   within 130% of R9's, pruning the slowest rules until it is.
 - [ ] **R13.7** **The claims, from the measurement.** Behaviour: the README's static-analysis
