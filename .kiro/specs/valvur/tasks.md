@@ -284,12 +284,44 @@ Phases R9 to R15 are closed, each task with its STATUS, in
   - **Not run here.** GitHub dispatches only a workflow on the default branch. A run
     would also dispatch a rehearsal and open an issue in the owner's repository, so
     §8 asks the owner to dispatch it once after landing.
-- [ ] **R16.4** **The documents as built.** The README (the Score and its tracks, freshness,
+- [x] **R16.4** **The documents as built.** The README (the Score and its tracks, freshness,
   `check_package`, seven tools, nine commands, the skill, and installing the plugin or the
   power), `EVALUATING.md`, `AIR-GAPPED.md` (the EPSS and malicious-list mirrors),
   `PROTOCOL.md`, `design.md` and `requirements.md`, amended; `CLAUDE.md` within 200 lines;
   R9 to R15 moved to `docs/history/tasks-phases-r9-r16.md`. Behaviours: traceability holds;
   the link check passes; `test_readme_as_built.py` passes.
+  **STATUS 2026-09-30:** ✅ all three behaviours, with three README checks added.
+  - **The README.** It now covers:
+    - the Score, 64.9, and what it measures;
+    - every dataset fetched and the ages at which each is refreshed;
+    - reuse, measured (14.0 to 5.2 s on the Mac, 12.4 to 3.8 s on Linux), and
+      `--fresh`;
+    - the nine commands, and the skill with its three installs;
+    - scan times at R15, and arm64 in CI.
+    `test_readme_as_built.py` gains three checks: every tool and command named, the
+    installs pointing where the plugin and power ship, and the Score cited as the
+    baseline's.
+  - **`EVALUATING.md`** gives each gate's threshold, speed included, and the Score from
+    R9 to R15 by track, with what moved at each phase.
+  - **`AIR-GAPPED.md`** names the malicious list, the sixth thing a scan reads: 9 MB on
+    disk, from the index's `malicious` tag. The EPSS mirror was there since R11.4.
+  - **`PROTOCOL.md`.** Protocol 2 holds to 1.2.0. `/cache/names` carries the malicious
+    list and `/opt/valvur-rules` the vendored rules. Reuse is the shim's alone.
+  - **`design.md`, version 1.5,** describes R9 to R16 as built in its own sections,
+    new ones included: §1.4 reuse, §5.5 vendored rules, §6f the skill, §9a the Score.
+    §11 is a pointer table.
+  - **`requirements.md`.** Every "to be met by" is now "met by", with the date, and an
+    amendment wherever the build differed.
+    - N3.4 and N3.5 were cited by D33, D34, R16.2 and R16.3 since R9.2 but never
+      written. They are written now. The traceability check does not catch a cited ID
+      that is undefined; a separate task is offered for that.
+    - Two merged requirements were split again, F6.11 from F6.12 and F7.18 from F7.19.
+      The Introduction's count is now seven Scanners and three Checks.
+  - **The archive.** R9 to R15 are in `docs/history/tasks-phases-r9-r16.md`, each with
+    its STATUS; R14 and R15 gained their exit STATUS. The harness reads the archive,
+    so each phase's gate is still judged from it.
+  - **`CLAUDE.md`** is 199 lines. Traceability holds, the link check passes, and 1765
+    unit tests pass.
 - [ ] **R16.5** **`1.2.0` prepared** (D37). `prepare_release.py 1.2.0`; the Score on both
   lanes against R9's baseline and D22's targets, recorded; the rehearsal on R16's branch
   per §4, validated and cancelled at the brake.
