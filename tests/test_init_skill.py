@@ -38,3 +38,21 @@ def test_by_default_it_follows_the_clients_found_here(project, capsys):  # noqa:
 
     assert (project / ".kiro" / "skills" / "valvur" / "SKILL.md").is_file()
     assert not (project / ".claude").exists()
+
+
+def test_the_skill_is_never_written_over_what_is_there(project, capsys):  # noqa: F811
+    """A project's own skill of that name, or an older valvur's, is left whole and
+    said, its version named; a second `--write` changes nothing."""
+    mine = project / ".claude" / "skills" / "valvur" / "SKILL.md"
+    mine.parent.mkdir(parents=True)
+    mine.write_text('---\nname: valvur\nmetadata:\n  version: "0.9.0"\n---\nmine\n')
+
+    assert cli.main(["init", str(project), "--write", "--client", "claude-code"]) == 0
+    out = capsys.readouterr().out
+
+    assert mine.read_text().endswith("mine\n")
+    assert _copy(mine.parent) == {"SKILL.md": mine.read_bytes()}
+    assert "left .claude/skills/valvur/ as it is: it exists, version 0.9.0" in out
+    before = _tree(project)
+    assert cli.main(["init", str(project), "--write", "--client", "claude-code"]) == 0
+    assert _tree(project) == before
