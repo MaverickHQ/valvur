@@ -77,3 +77,26 @@ def files() -> dict[str, bytes]:
     plugin and the power copy, and what `init --write` writes into a project."""
     return {path.relative_to(DIRECTORY).as_posix(): path.read_bytes()
             for path in sorted(DIRECTORY.rglob("*")) if path.is_file()}
+
+
+#: Where each client reads a project's skills: Claude Code's `.claude/skills/`, and
+#: Kiro's `.kiro/skills/` (kiro.dev/docs/skills/, read 2026-09-30). `init --write`
+#: writes the skill there, and `doctor` looks there (R15.4, D40).
+LOCATIONS = {"claude-code": ".claude/skills/valvur", "kiro": ".kiro/skills/valvur"}
+
+
+def write_into(workspace: Path, client: str) -> str:
+    """The skill into `client`'s place in `workspace`, a line saying what was done.
+    Never over what is there: a directory that exists is left whole, since a copy
+    half this valvur's and half another's would be worse than either."""
+    where = LOCATIONS[client]
+    target = workspace / where
+    if target.exists():
+        present = target / "SKILL.md"
+        found = version(present.read_text(encoding="utf-8")) if present.is_file() else None
+        return (f"left {where}/ as it is: it exists"
+                + (f", version {found}" if found else ""))
+    for relative, data in files().items():
+        (target / relative).parent.mkdir(parents=True, exist_ok=True)
+        (target / relative).write_bytes(data)
+    return f"wrote the skill to {where}/"

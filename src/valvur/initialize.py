@@ -104,6 +104,11 @@ def write(workspace: Path, keys: list[str] | None = None) -> tuple[list[str], bo
         line, done = _write_client(workspace, entry)
         lines.append(line)
         ok = ok and done
+    from . import skill
+
+    # The skill for each client that reads one (R15.4, D40), beside its server.
+    lines += [skill.write_into(workspace, entry.key) for entry in chosen
+              if entry.key in skill.LOCATIONS]
     return lines, ok
 
 
