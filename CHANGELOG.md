@@ -8,6 +8,19 @@ break things, and has.
 
 ## [Unreleased]
 
+- **A rescan reuses what cannot have changed** (Phase R14, ADR-0030). Trivy and
+  OSV-Scanner read only a project's dependency files and their own data. When neither
+  has changed since the last scan, their answer is that scan's, taken from the host
+  cache.
+  - The key: the Scanner, its version, the Profile, each dependency file's sha256 and
+    the data it answered from. A source file is not in it, so source-reading Scanners
+    always run.
+  - A warm rescan of a project with an npm lockfile falls from 14.0 s to 5.2 s on a
+    Mac, and from 12.4 s to 3.8 s on Linux, with the same findings.
+  - `run.json` names each reused result and the run that made it. `--fresh` on the
+    CLI and `fresh: true` on the `scan` tool run everything.
+  - `valvur update --prune` removes results that can never match again or have gone
+    unused for 30 days, listing each; `--clear` removes them all.
 - **Static analysis, widened by measurement** (Phase R13, ADR-0029). GitLab's
   `sast-rules` were audited rule by rule, by the licence of each rule and of the project
   it was translated from, and 106 of 303 candidates were eligible. Each was measured
