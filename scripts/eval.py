@@ -385,20 +385,28 @@ def per_rule(rules: Path, work: Path, *, image: str = "valvur:dev",
     labelled = tomllib.loads(labels.read_text()).get("label", []) if labels.is_file() else []
     by_place = {(e.get("repo", ""), e.get("rule", ""), e.get("path", "")): e.get("verdict", "")
                 for e in labelled}
+    # valvur's own rules, apart, so a candidate's true positive at a line they
+    # already report is not new (D29 as amended by R13.6).
+    own = work / "own-rules"
+    if own.exists():
+        shutil.rmtree(own)
+    own.mkdir(parents=True)
+    for path in (REPO / "rules").glob("*.yaml"):
+        shutil.copy(path, own / path.name)
     return _per_rule.measure(
         rules.resolve(), cwe.rule_cwes(rules),
         [("sast-python", root, owasp.cases(root)), ("sast-js", js_root, js_cases)],
         [(entry["name"], checkouts / entry["name"]) for entry in corpus],
-        by_place, work / "per-rule", image=image,
+        by_place, work / "per-rule", image=image, own_rules=own,
         **({"run": run} if run is not None else {}))
 
 
 def per_rule_table(report: dict) -> str:
-    lines = ["| rule | CWE | true | false | outside | precision | ships | seconds |",
-             "|---|---|---|---|---|---|---|---|"]
+    lines = ["| rule | CWE | true | false | new | outside | precision | ships | seconds |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for rule, row in report["rules"].items():
         lines.append(f"| {rule} | {', '.join(str(n) for n in row['cwe'])} | {row['tp']} "
-                     f"| {row['fp']} | {row['outside']} | {row['precision']} "
+                     f"| {row['fp']} | {row['new']} | {row['outside']} | {row['precision']} "
                      f"| {'yes' if row['ships'] else 'no'} | {row['seconds']} |")
     lines += ["", f"{len(report['ships'])} of {len(report['rules'])} meet D29's bar."]
     return "\n".join(lines) + "\n"

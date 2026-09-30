@@ -36,21 +36,6 @@
    "precision": 0.5
   },
   {
-   "id": "python_exec_rule-subprocess-popen-shell-true",
-   "languages": [
-    "python"
-   ],
-   "cwe": "CWE-78",
-   "origin": "bandit",
-   "origin_licence": "Apache-2.0",
-   "licence": "MIT",
-   "source": "python/exec/rule-subprocess-popen-shell-true.yml",
-   "file": "python/exec/rule-subprocess-popen-shell-true.yaml",
-   "true_positives": 7,
-   "false_positives": 7,
-   "precision": 0.5
-  },
-  {
    "id": "python_random_rule-random",
    "languages": [
     "python"

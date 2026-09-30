@@ -189,7 +189,7 @@ wait for it.
 | D26 | **Known-malicious names, daily** (F3.14): `index.yml` also publishes, as the tags `malicious` and `malicious-<date>` of the existing public `valvur-index` package, signed and pulled back like the index, a sorted list per ecosystem of `MAL-` package names and affected versions from ossf/malicious-packages (Apache-2.0, in `NOTICE`), built from OSV's export or the repository, whichever measures faster. `1.1.0`'s client pulls `latest` and is untouched; `retention.yml` keeps these tags as it keeps the index's. `dependency-reality` reports a declared or locked package in it as `valvur.dependency.malicious`, critical; a version-scoped entry matches only a locked version it names. OSV-Scanner's finding for the same package merges into it: one finding, both Scanners named. Until `index.yml` runs from a landed `main`, the build's lanes build the list locally, as `--build-index` does. | if the list exceeds 10 MB compressed, names only, and a version-scoped entry is reported at high as *a version of this package was published as malicious* |
 | D27 | **Private registries** (F3.15). Read from the File Set: `.npmrc` and `.yarnrc.yml` (scoped and whole registries); `--index-url` and `--extra-index-url` in requirements files, `pip.conf`, `[[tool.uv.index]]` with `[tool.uv.sources]`, `[[tool.poetry.source]]` and a `Pipfile`'s `[[source]]`. A name whose scope or source is a private registry is not looked up publicly and is listed as a coverage note. A name absent from the public index where a supplemental source (`--extra-index-url`, a supplemental uv or Poetry source) is configured is `valvur.dependency.confusion`, **high**: the resolver may take a public package registered under it. Absent where the public registry is replaced entirely: `valvur.dependency.not-public`, **low**, advising the name be reserved. No configuration: `nonexistent`, high, as now, its message naming the index's build date and saying an internal package should declare its registry in the project. | none needed |
 | D28 | **`check_package`** (F3.16, F9.11; ADR-0028). The API `valvur.packages.check`, the CLI `valvur check <ecosystem> <name>[@version] …` (a ninth command; exit 0 when every package exists and is not flagged, 1 when any is, 2 on error; `--json`) and an MCP tool `check_package` (up to 50 packages, `readOnlyHint` true, `openWorldHint` false). Each answer is `exists`, `nonexistent`, `near-miss` with the name it is near, `malicious` with its `MAL-` ID, `confusion` or `not-public` by D27, or `unknown` where no index exists (JVM, Go), with the index's build date. Host-side, **no network, ever**: asking a registry about a hallucinated name tells the registry, and anyone watching it, what to register. Under a second. The handshake's instructions and `SUMMARY.md`'s agent block say: before adding a dependency, call `check_package`, and never add one it flags without the human. | none needed |
-| D29 | **Static-analysis rules by licence and measurement** (F2.9, F5.10; ADR-0029; amends ADR-0004's consequences). Candidates: GitLab's `sast-rules` (MIT, Semgrep syntax) at a pinned commit, for Python, JavaScript and TypeScript, Go and Java. A rule is eligible only if the project it was translated from, named by its metadata, is MIT, Apache-2.0 or BSD: rules from flawfinder, find-sec-bugs, security-code-scan or Brakeman are excluded. `opengrep-rules` (archived, Commons Clause) and Semgrep's registry stay excluded. A rule **ships** when, over tracks 1 and 2 and the corpus, it has at least one true positive and precision of at least 0.5. Shipped rules live in `rules/vendor/gitlab/` with the licence, the commit and a manifest of each rule's origin, and carry their CWE into `findings.json` and SARIF (an optional field). Opengrep's intra-file cross-function taint is adopted if the pinned Opengrep supports it and it raises tracks 1 and 2 without raising their false-positive rate. Opengrep's median time on the acceptance set may grow at most 30%; past that the slowest rules go first. | if no candidate is eligible, valvur writes its own rules (Apache-2.0) for track 2's CWEs and track 1's categories, measured the same way |
+| D29 | **Static-analysis rules by licence and measurement** (F2.9, F5.10; ADR-0029; amends ADR-0004's consequences). Candidates: GitLab's `sast-rules` (MIT, Semgrep syntax) at a pinned commit, for Python, JavaScript and TypeScript, Go and Java. A rule is eligible only if the project it was translated from, named by its metadata, is MIT, Apache-2.0 or BSD: rules from flawfinder, find-sec-bugs, security-code-scan or Brakeman are excluded. `opengrep-rules` (archived, Commons Clause) and Semgrep's registry stay excluded. A rule **ships** when, over tracks 1 and 2 and the corpus, it has at least one true positive and precision of at least 0.5; *amended by R13.6, measured: at least one of its true positives must be at a line valvur's own rules do not already report, since a rule that only repeats one of valvur's makes a second finding for each flaw under another id, never merged (GitLab's `subprocess` shell rule matched exactly the 14 lines valvur's own does).* Shipped rules live in `rules/vendor/gitlab/` with the licence, the commit and a manifest of each rule's origin, and carry their CWE into `findings.json` and SARIF (an optional field). Opengrep's intra-file cross-function taint is adopted if the pinned Opengrep supports it and it raises tracks 1 and 2 without raising their false-positive rate. Opengrep's median time on the acceptance set may grow at most 30%; past that the slowest rules go first. | if no candidate is eligible, valvur writes its own rules (Apache-2.0) for track 2's CWEs and track 1's categories, measured the same way |
 | D30 | **A failed Scanner with nothing found reads `inconclusive`** (F7.19), `status_reason` naming the Scanner. With findings, `findings` and *incomplete*, as now. The three Statuses are unchanged; a false `clean` is removed, which 1.x's contract allows as a fix. | none needed |
 | D31 | **Checkov runs without its secrets framework** (`--skip-framework secrets`): Gitleaks owns secrets. | none needed |
 | D32 | **Reuse what cannot have changed** (N1.5; ADR-0030). Trivy's and OSV-Scanner's raw output is kept in the host cache, keyed on the Scanner, its version, the Profile, the sha256 of every lockfile and manifest they read, and the database's built time, and reused when the key matches. `run.json` names each reused result and the run it came from; `--fresh` on the CLI and `fresh: true` on `scan` run everything. Source-reading Scanners are never reused. | if a warm rescan of acceptance repository 8 is not at least 30% faster, reuse ships off by default, recorded |
@@ -894,7 +894,7 @@ the baseline.
     | python_random_rule-random | 338 | 35 | 3 | 0 | 0.92 | **yes** | 0.30 |
     | python_sql_rule-hardcoded-sql-expression | 89 | 5 | 0 | 0 | 1.00 | **yes** | 0.00 |
     | python_deserialization_rule-yaml-load | 502 | 5 | 5 | 0 | 0.50 | **yes** | 0.02 |
-    | python_exec_rule-subprocess-popen-shell-true | 78 | 7 | 7 | 0 | 0.50 | **yes** | 0.06 |
+    | python_exec_rule-subprocess-popen-shell-true | 78 | 7 | 7 | 0 | 0.50 | no, see below | 0.06 |
     | javascript_eval_rule-eval-with-expression | 95 | 1 | 0 | 0 | 1.00 | **yes** | 1.73 |
     | python_deserialization_rule-pickle | 502 | 13 | 17 | 0 | 0.43 | no | 0.10 |
     | python_eval_rule-eval | 95 | 10 | 17 | 0 | 0.37 | no | 0.20 |
@@ -920,10 +920,12 @@ the baseline.
     | javascript_timing_rule-possible-timing-attacks | 208 | 0 | 1 | 0 | 0 | no | 3.51 |
     | python_escaping_rule-jinja2-autoescape-false | 116 | 0 | 1 | 0 | 0 | no | 0.02 |
 
-  - **Five rules meet D29's bar**: four Python, one JavaScript. No Go rule has a true
-    positive: the tracks hold no Go cases, and gosec's rules matched only the corpus.
-    Between them the five add three corpus matches, all `random`'s, for R13.3 to
-    label.
+  - **Four rules meet D29's bar**, as R13.6 amended it: three Python, one JavaScript.
+    The `subprocess` shell rule met the first bar, but all 7 of its true positives are
+    at lines valvur's own `subprocess-shell-true` already reports. No Go rule has a
+    true positive: the tracks hold no Go cases, and gosec's rules matched only the
+    corpus. Between them the four add three corpus matches, all `random`'s, for R13.3
+    to label.
   - **The first measurement was wrong, and is replaced above.** Opengrep reads
     `.semgrepignore` from its working directory, not from the target. Run from the
     image's default, it applied its own ignore list and skipped every `tests/` tree
@@ -937,10 +939,12 @@ the baseline.
   2. the image carries them, and `run.json` names the rule set's commit;
   3. e2e: a planted SQL injection in a JavaScript file is reported by a vendored rule.
   **STATUS 2026-09-30:** ✅ 1 and 2; 3 as the measurement allows.
-  - **Five rules vendored**, exactly R13.2's corrected list:
-    - Python: `random`, hard-coded SQL, `yaml.load`, and `subprocess` with
-      `shell=True`, all from Bandit;
+  - **Four rules vendored**, exactly R13.2's list under D29 as R13.6 amended it:
+    - Python: `random`, hard-coded SQL and `yaml.load`, from Bandit;
     - JavaScript: `eval` of an expression, from eslint-plugin-security.
+    - The `subprocess` shell rule shipped here first. R13.6's acceptance run found it
+      reporting every planted shell flow a second time beside valvur's own rule, and
+      it was withdrawn.
 
     They sit under `rules/vendor/gitlab/` as GitLab wrote them, with its LICENSE and a
     manifest of each rule's origin, licence, CWE, source path and measurement.

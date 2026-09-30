@@ -1,9 +1,10 @@
 """R13.3: the rules that met D29's bar, vendored and shipped.
 
-Exactly the five R13.2 measured over the bar: their files as GitLab wrote them, its
-licence, the commit they came from, and a manifest of each rule's origin and
-measurement. The image carries them beside valvur's own rules, `run.json` names the
-rule set's commit, and a finding keeps the rule's own id wherever the directory sits.
+Exactly the four R13.2 measured over the bar, as R13.6 amended it: their files as
+GitLab wrote them, its licence, the commit they came from, and a manifest of each
+rule's origin and measurement. The image carries them beside valvur's own rules,
+`run.json` names the rule set's commit, and a finding keeps the rule's own id wherever
+the directory sits.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ def test_exactly_the_rules_that_met_the_bar_are_vendored():
     measured = json.loads(MEASURED.read_text())
 
     assert _ids() == set(measured["ships"])
-    assert len(measured["ships"]) == 5
+    assert len(measured["ships"]) == 4
     assert all(measured["rules"][rule]["ships"] for rule in measured["ships"])
 
 

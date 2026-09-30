@@ -49,7 +49,7 @@ def test_a_match_counts_by_its_cases_label_and_weakness():
 
     counts = per_rule.tally(report, cases, {"pickle": {502}})
 
-    assert counts["pickle"] == per_rule.Counts(tp=1, fp=1, outside=2)
+    assert counts["pickle"] == per_rule.Counts(tp=1, fp=1, outside=2, new=1)
 
 
 def test_a_child_weakness_answers_its_parent():
@@ -70,7 +70,7 @@ def test_a_corpus_match_counts_against_a_rule_unless_labelled_tp():
     counts = per_rule.tally_corpus("requests", report, labels)
 
     assert counts["random"] == per_rule.Counts(fp=1)
-    assert counts["shell"] == per_rule.Counts(tp=1)
+    assert counts["shell"] == per_rule.Counts(tp=1, new=1)
 
 
 def test_each_rules_time_is_summed_over_every_file():
@@ -81,13 +81,27 @@ def test_each_rules_time_is_summed_over_every_file():
     assert per_rule.times(report) == {"pickle": 1.0, "random": 0.5}
 
 
-def test_the_bar_is_one_true_positive_and_precision_of_a_half():
+def test_the_bar_is_one_new_true_positive_and_precision_of_a_half():
     per_rule = _module()
 
-    assert per_rule.Counts(tp=1, fp=1).ships
+    assert per_rule.Counts(tp=1, fp=1, new=1).ships
     assert not per_rule.Counts(tp=0, fp=0).ships
-    assert not per_rule.Counts(tp=2, fp=3).ships
-    assert per_rule.Counts(tp=5, fp=0, outside=40).ships        # another weakness's cases
+    assert not per_rule.Counts(tp=2, fp=3, new=2).ships
+    assert per_rule.Counts(tp=5, fp=0, outside=40, new=5).ships  # another weakness's cases
+    # D29 as amended by R13.6: every true positive at a line valvur's own rules
+    # already report is a second finding for one flaw, never merged.
+    assert not per_rule.Counts(tp=7, fp=7, new=0).ships
+
+
+def test_a_match_at_a_line_valvurs_own_rules_report_is_not_new():
+    per_rule = _module()
+    cases = [_case("a.py", True, 78), _case("b.py", True, 78)]
+    report = {"results": [{"check_id": "rules.shell", "path": "/src/a.py", "start": {"line": 3}},
+                          {"check_id": "rules.shell", "path": "/src/b.py", "start": {"line": 9}}]}
+
+    counts = per_rule.tally(report, cases, {"shell": {78}}, own={("a.py", 3)})
+
+    assert counts["shell"] == per_rule.Counts(tp=2, new=1)
 
 
 def test_a_target_is_read_as_a_scan_reads_it(tmp_path):
@@ -123,6 +137,8 @@ def test_per_rule_measures_the_tracks_and_the_corpus_and_writes_a_table(tmp_path
     seen: list[str] = []
 
     def run(rules_dir, target, image):
+        if rules_dir.name == "own-rules":         # valvur's own report nothing here
+            return {"results": [], "time": {"targets": []}}
         seen.append(target.name)
         found = {"sast-python": ["testcode/BenchmarkTest00001.py"], "sast-js": [],
                  "corpus-requests": ["src/util.py"]}[target.name]
@@ -136,7 +152,7 @@ def test_per_rule_measures_the_tracks_and_the_corpus_and_writes_a_table(tmp_path
     assert seen == ["sast-python", "sast-js", "corpus-requests"]
     row = report["rules"]["pickle"]
     assert (row["tp"], row["fp"], row["ships"]) == (1, 1, True)
-    assert "| pickle | 502 | 1 | 1 | 0 | 0.5 | yes |" in evaluation.per_rule_table(report)
+    assert "| pickle | 502 | 1 | 1 | 1 | 0 | 0.5 | yes |" in evaluation.per_rule_table(report)
 
 
 def test_opengrep_runs_in_the_target_where_it_finds_the_ignore_file(tmp_path, monkeypatch):

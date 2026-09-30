@@ -9,6 +9,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -21,6 +22,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -33,6 +35,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -45,6 +48,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -57,6 +61,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -69,6 +74,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -81,6 +87,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -93,6 +100,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -105,6 +113,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -116,13 +125,15 @@
     "corpus:cobra": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.005,
+   "seconds": 0.003,
    "tp": 0,
    "fp": 1,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -134,13 +145,15 @@
     "corpus:cobra": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.009,
+   "seconds": 0.011,
    "tp": 0,
    "fp": 1,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -153,6 +166,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -164,13 +178,15 @@
     "corpus:cobra": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
    "seconds": 0.0,
    "tp": 0,
    "fp": 2,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -183,6 +199,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -195,6 +212,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -203,10 +221,11 @@
     378
    ],
    "tracks": {},
-   "seconds": 0.045,
+   "seconds": 0.073,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -219,6 +238,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -231,6 +251,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -243,6 +264,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -255,6 +277,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -267,6 +290,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -279,6 +303,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -287,10 +312,11 @@
     118
    ],
    "tracks": {},
-   "seconds": 0.073,
+   "seconds": 0.066,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -303,6 +329,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -315,6 +342,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -323,10 +351,11 @@
     78
    ],
    "tracks": {},
-   "seconds": 0.143,
+   "seconds": 0.112,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -339,6 +368,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -351,6 +381,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -363,6 +394,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -371,10 +403,11 @@
     770
    ],
    "tracks": {},
-   "seconds": 0.51,
+   "seconds": 0.605,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -386,28 +419,33 @@
     "sast-python": {
      "tp": 0,
      "fp": 0,
-     "outside": 15
+     "outside": 15,
+     "new": 0
     },
     "corpus:express": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:fastify": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:awesome-cursorrules": {
      "tp": 0,
      "fp": 7,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 1.49,
+   "seconds": 1.764,
    "tp": 0,
    "fp": 10,
    "outside": 15,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -419,13 +457,15 @@
     "sast-js": {
      "tp": 1,
      "fp": 0,
-     "outside": 0
+     "outside": 0,
+     "new": 1
     }
    },
-   "seconds": 1.732,
+   "seconds": 1.861,
    "tp": 1,
    "fp": 0,
    "outside": 0,
+   "new": 1,
    "precision": 1.0,
    "ships": true
   },
@@ -437,23 +477,27 @@
     "sast-js": {
      "tp": 1,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 1
     },
     "corpus:express": {
      "tp": 0,
      "fp": 6,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:fastify": {
      "tp": 0,
      "fp": 44,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 34.764,
+   "seconds": 37.349,
    "tp": 1,
    "fp": 51,
    "outside": 0,
+   "new": 1,
    "precision": 0.019,
    "ships": false
   },
@@ -466,6 +510,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -478,6 +523,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -489,18 +535,21 @@
     "corpus:express": {
      "tp": 0,
      "fp": 3,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:fastify": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 1.467,
+   "seconds": 1.628,
    "tp": 0,
    "fp": 4,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -512,13 +561,15 @@
     "corpus:express": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 3.509,
+   "seconds": 4.112,
    "tp": 0,
    "fp": 1,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -531,6 +582,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -542,33 +594,39 @@
     "corpus:requests": {
      "tp": 0,
      "fp": 17,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:flask": {
      "tp": 0,
      "fp": 58,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:llm": {
      "tp": 0,
      "fp": 28,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:ripgrep": {
      "tp": 0,
      "fp": 3,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 33,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.78,
+   "seconds": 0.793,
    "tp": 0,
    "fp": 139,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -577,10 +635,11 @@
     1327
    ],
    "tracks": {},
-   "seconds": 0.016,
+   "seconds": 0.014,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -593,6 +652,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -605,6 +665,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -617,6 +678,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -629,6 +691,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -641,6 +704,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -653,6 +717,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -665,6 +730,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -677,6 +743,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -689,6 +756,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -701,6 +769,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -713,6 +782,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -725,6 +795,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -737,6 +808,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -749,6 +821,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -761,6 +834,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -773,6 +847,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -785,6 +860,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -796,23 +872,27 @@
     "sast-python": {
      "tp": 0,
      "fp": 0,
-     "outside": 17
+     "outside": 17,
+     "new": 0
     },
     "corpus:requests": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:llm": {
      "tp": 0,
      "fp": 3,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.014,
+   "seconds": 0.008,
    "tp": 0,
    "fp": 4,
    "outside": 17,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -824,23 +904,27 @@
     "sast-python": {
      "tp": 0,
      "fp": 0,
-     "outside": 20
+     "outside": 20,
+     "new": 0
     },
     "corpus:requests": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:flask": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.013,
+   "seconds": 0.023,
    "tp": 0,
    "fp": 3,
    "outside": 20,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -852,13 +936,15 @@
     "sast-python": {
      "tp": 0,
      "fp": 0,
-     "outside": 34
+     "outside": 34,
+     "new": 0
     }
    },
-   "seconds": 0.135,
+   "seconds": 0.121,
    "tp": 0,
    "fp": 0,
    "outside": 34,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -871,6 +957,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -883,6 +970,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -895,6 +983,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -907,6 +996,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -918,23 +1008,27 @@
     "sast-python": {
      "tp": 13,
      "fp": 7,
-     "outside": 0
+     "outside": 0,
+     "new": 13
     },
     "corpus:requests": {
      "tp": 0,
      "fp": 7,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 3,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.098,
+   "seconds": 0.109,
    "tp": 13,
    "fp": 17,
    "outside": 0,
+   "new": 13,
    "precision": 0.433,
    "ships": false
   },
@@ -947,6 +1041,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -958,13 +1053,15 @@
     "sast-python": {
      "tp": 5,
      "fp": 5,
-     "outside": 0
+     "outside": 0,
+     "new": 5
     }
    },
-   "seconds": 0.017,
+   "seconds": 0.011,
    "tp": 5,
    "fp": 5,
    "outside": 0,
+   "new": 5,
    "precision": 0.5,
    "ships": true
   },
@@ -973,10 +1070,11 @@
     89
    ],
    "tracks": {},
-   "seconds": 0.139,
+   "seconds": 0.157,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -988,13 +1086,15 @@
     "corpus:smolagents": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.015,
+   "seconds": 0.01,
    "tp": 0,
    "fp": 1,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1007,6 +1107,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1018,18 +1119,21 @@
     "sast-python": {
      "tp": 10,
      "fp": 16,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:flask": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.204,
+   "seconds": 0.191,
    "tp": 10,
    "fp": 17,
    "outside": 0,
+   "new": 0,
    "precision": 0.37,
    "ships": false
   },
@@ -1041,28 +1145,33 @@
     "sast-python": {
      "tp": 10,
      "fp": 17,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:flask": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:llm": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 5,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.426,
+   "seconds": 0.32,
    "tp": 10,
    "fp": 24,
    "outside": 0,
+   "new": 0,
    "precision": 0.294,
    "ships": false
   },
@@ -1071,10 +1180,11 @@
     155
    ],
    "tracks": {},
-   "seconds": 0.935,
+   "seconds": 0.975,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1083,10 +1193,11 @@
     78
    ],
    "tracks": {},
-   "seconds": 0.66,
+   "seconds": 0.703,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1095,10 +1206,11 @@
     78
    ],
    "tracks": {},
-   "seconds": 1.099,
+   "seconds": 1.097,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1111,6 +1223,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1122,13 +1235,15 @@
     "corpus:smolagents": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.101,
+   "seconds": 0.164,
    "tp": 0,
    "fp": 2,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1140,25 +1255,28 @@
     "sast-python": {
      "tp": 7,
      "fp": 7,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.064,
+   "seconds": 0.037,
    "tp": 7,
    "fp": 7,
    "outside": 0,
+   "new": 0,
    "precision": 0.5,
-   "ships": true
+   "ships": false
   },
   "python_exec_rule-subprocess-shell-TRUE": {
    "cwe": [
     78
    ],
    "tracks": {},
-   "seconds": 0.031,
+   "seconds": 0.057,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1167,10 +1285,11 @@
     732
    ],
    "tracks": {},
-   "seconds": 0.005,
+   "seconds": 0.004,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1183,6 +1302,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1194,13 +1314,15 @@
     "corpus:flask": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.061,
+   "seconds": 0.058,
    "tp": 0,
    "fp": 2,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1213,6 +1335,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1225,6 +1348,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1236,23 +1360,27 @@
     "sast-python": {
      "tp": 35,
      "fp": 0,
-     "outside": 0
+     "outside": 0,
+     "new": 35
     },
     "corpus:llm": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.296,
+   "seconds": 0.274,
    "tp": 35,
    "fp": 3,
    "outside": 0,
+   "new": 35,
    "precision": 0.921,
    "ships": true
   },
@@ -1264,18 +1392,21 @@
     "corpus:requests": {
      "tp": 0,
      "fp": 114,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 20,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.427,
+   "seconds": 0.472,
    "tp": 0,
    "fp": 134,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1288,6 +1419,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1300,6 +1432,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1311,13 +1444,15 @@
     "sast-python": {
      "tp": 5,
      "fp": 0,
-     "outside": 0
+     "outside": 0,
+     "new": 5
     }
    },
    "seconds": 0.001,
    "tp": 5,
    "fp": 0,
    "outside": 0,
+   "new": 5,
    "precision": 1.0,
    "ships": true
   },
@@ -1330,6 +1465,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1338,10 +1474,11 @@
     295
    ],
    "tracks": {},
-   "seconds": 0.145,
+   "seconds": 0.168,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1354,6 +1491,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1366,6 +1504,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1378,6 +1517,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1390,6 +1530,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1401,18 +1542,21 @@
     "corpus:llm": {
      "tp": 0,
      "fp": 2,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 3,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.767,
+   "seconds": 0.835,
    "tp": 0,
    "fp": 5,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1425,6 +1569,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1433,10 +1578,11 @@
     918
    ],
    "tracks": {},
-   "seconds": 0.005,
+   "seconds": 0.03,
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1449,6 +1595,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1460,18 +1607,21 @@
     "sast-python": {
      "tp": 0,
      "fp": 0,
-     "outside": 57
+     "outside": 57,
+     "new": 0
     },
     "corpus:smolagents": {
      "tp": 0,
      "fp": 1,
-     "outside": 0
+     "outside": 0,
+     "new": 0
     }
    },
-   "seconds": 0.032,
+   "seconds": 0.038,
    "tp": 0,
    "fp": 1,
    "outside": 57,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1483,13 +1633,15 @@
     "sast-python": {
      "tp": 0,
      "fp": 0,
-     "outside": 129
+     "outside": 129,
+     "new": 0
     }
    },
-   "seconds": 0.069,
+   "seconds": 0.066,
    "tp": 0,
    "fp": 0,
    "outside": 129,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1502,6 +1654,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1514,6 +1667,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1525,13 +1679,15 @@
     "sast-python": {
      "tp": 8,
      "fp": 20,
-     "outside": 0
+     "outside": 0,
+     "new": 8
     }
    },
-   "seconds": 0.014,
+   "seconds": 0.008,
    "tp": 8,
    "fp": 20,
    "outside": 0,
+   "new": 8,
    "precision": 0.286,
    "ships": false
   },
@@ -1544,6 +1700,7 @@
    "tp": 0,
    "fp": 0,
    "outside": 0,
+   "new": 0,
    "precision": 0.0,
    "ships": false
   },
@@ -1555,13 +1712,15 @@
     "sast-python": {
      "tp": 8,
      "fp": 20,
-     "outside": 0
+     "outside": 0,
+     "new": 8
     }
    },
-   "seconds": 0.008,
+   "seconds": 0.01,
    "tp": 8,
    "fp": 20,
    "outside": 0,
+   "new": 8,
    "precision": 0.286,
    "ships": false
   }
@@ -1569,7 +1728,6 @@
  "ships": [
   "javascript_eval_rule-eval-with-expression",
   "python_deserialization_rule-yaml-load",
-  "python_exec_rule-subprocess-popen-shell-true",
   "python_random_rule-random",
   "python_sql_rule-hardcoded-sql-expression"
  ]

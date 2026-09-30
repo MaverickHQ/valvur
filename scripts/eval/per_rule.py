@@ -11,8 +11,11 @@ read as a scan reads them. Per rule:
 - a match on a case of another weakness is **outside**: that case's label says
   nothing about this rule.
 
-A child weakness answers its parent, as the Score counts it (`cwe.PARENTS`). A rule
-meets D29's bar with one true positive and precision of at least 0.5.
+A child weakness answers its parent, as the Score counts it (`cwe.PARENTS`). A true
+positive is **new** when none of valvur's own rules reports its line. A rule meets
+D29's bar, as R13.6 amended it, with one new true positive and precision of at least
+0.5: a rule whose every true positive sits on a line valvur already reports only
+makes a second finding for one flaw, under another rule id, that never merges.
 """
 
 from __future__ import annotations
@@ -39,6 +42,8 @@ class Counts:
     tp: int = 0
     fp: int = 0
     outside: int = 0
+    #: True positives at lines no rule of valvur's own reports.
+    new: int = 0
 
     @property
     def precision(self) -> float:
@@ -46,11 +51,16 @@ class Counts:
 
     @property
     def ships(self) -> bool:
-        return self.tp >= 1 and self.precision >= 0.5
+        return self.new >= 1 and self.precision >= 0.5
 
     def add(self, other: Counts) -> None:
-        self.tp, self.fp, self.outside = (self.tp + other.tp, self.fp + other.fp,
-                                          self.outside + other.outside)
+        self.tp, self.fp, self.outside, self.new = (
+            self.tp + other.tp, self.fp + other.fp, self.outside + other.outside,
+            self.new + other.new)
+
+
+def _line(result: dict) -> int:
+    return int((result.get("start") or {}).get("line", 0))
 
 
 def _rule(check_id: str) -> str:
@@ -65,9 +75,10 @@ def _answers(weaknesses: set[int]) -> set[int]:
     return weaknesses | {cwe.PARENTS[n] for n in weaknesses if n in cwe.PARENTS}
 
 
-def tally(report: dict, cases: list[Case], rule_cwes: dict[str, set[int]]
-          ) -> dict[str, Counts]:
-    """Each rule's matches over one track's cases."""
+def tally(report: dict, cases: list[Case], rule_cwes: dict[str, set[int]],
+          own: frozenset[tuple[str, int]] | set = frozenset()) -> dict[str, Counts]:
+    """Each rule's matches over one track's cases; `own` is where valvur's own rules
+    report, as (path, line)."""
     counts: dict[str, Counts] = defaultdict(Counts)
     for result in report.get("results") or []:
         rule, path = _rule(result["check_id"]), _path(result["path"])
@@ -77,22 +88,29 @@ def tally(report: dict, cases: list[Case], rule_cwes: dict[str, set[int]]
             counts[rule].outside += 1
         elif case.vulnerable:
             counts[rule].tp += 1
+            counts[rule].new += (path, _line(result)) not in own
         else:
             counts[rule].fp += 1
     return dict(counts)
 
 
-def tally_corpus(repo: str, report: dict, labels: dict[tuple[str, str, str], str]
-                 ) -> dict[str, Counts]:
+def tally_corpus(repo: str, report: dict, labels: dict[tuple[str, str, str], str],
+                 own: frozenset[tuple[str, int]] | set = frozenset()) -> dict[str, Counts]:
     """Each rule's matches over one corpus project: against it unless labelled `tp`."""
     counts: dict[str, Counts] = defaultdict(Counts)
     for result in report.get("results") or []:
         rule, path = _rule(result["check_id"]), _path(result["path"])
         if labels.get((repo, rule, path)) == "tp":
             counts[rule].tp += 1
+            counts[rule].new += (path, _line(result)) not in own
         else:
             counts[rule].fp += 1
     return dict(counts)
+
+
+def reported(report: dict) -> frozenset[tuple[str, int]]:
+    """Where a report's matches are, as (path, line)."""
+    return frozenset((_path(r["path"]), _line(r)) for r in report.get("results") or [])
 
 
 def times(report: dict) -> dict[str, float]:
@@ -130,9 +148,11 @@ def opengrep(rules: Path, target: Path, image: str) -> dict:
 def measure(rules: Path, rule_cwes: dict[str, set[int]], tracks: list[tuple[str, Path,
             list[Case]]], corpus: list[tuple[str, Path]],
             labels: dict[tuple[str, str, str], str], scratch: Path, *,
-            run=opengrep, image: str = "valvur:dev") -> dict:
+            run=opengrep, image: str = "valvur:dev", own_rules: Path | None = None) -> dict:
     """Every rule in `rules`, over each track and corpus project: per rule, the counts
-    on each, the totals, its time, and whether it meets D29's bar."""
+    on each, the totals, its time, and whether it meets D29's bar. With `own_rules`,
+    valvur's own rules run over each target too, so a true positive at a line they
+    already report is not new."""
     rows: dict[str, dict] = {rule: {"cwe": sorted(cwes), "tracks": {}, "seconds": 0.0}
                              for rule, cwes in rule_cwes.items()}
     totals: dict[str, Counts] = defaultdict(Counts)
@@ -146,15 +166,20 @@ def measure(rules: Path, rule_cwes: dict[str, set[int]], tracks: list[tuple[str,
             rows.setdefault(rule, {"cwe": [], "tracks": {}, "seconds": 0.0})
             rows[rule]["seconds"] = round(rows[rule]["seconds"] + seconds, 3)
 
+    def owned(copy: Path) -> frozenset[tuple[str, int]]:
+        return reported(run(own_rules, copy, image)) if own_rules is not None else frozenset()
+
     for name, target, cases in tracks:
-        report = run(rules, readable(target, scratch / name), image)
-        record(name, tally(report, cases, rule_cwes), report)
+        copy = readable(target, scratch / name)
+        report = run(rules, copy, image)
+        record(name, tally(report, cases, rule_cwes, owned(copy)), report)
     for repo, target in corpus:
-        report = run(rules, readable(target, scratch / f"corpus-{repo}"), image)
-        record(f"corpus:{repo}", tally_corpus(repo, report, labels), report)
+        copy = readable(target, scratch / f"corpus-{repo}")
+        report = run(rules, copy, image)
+        record(f"corpus:{repo}", tally_corpus(repo, report, labels, owned(copy)), report)
     for rule, row in rows.items():
         total = totals[rule]
-        row.update(tp=total.tp, fp=total.fp, outside=total.outside,
+        row.update(tp=total.tp, fp=total.fp, outside=total.outside, new=total.new,
                    precision=round(total.precision, 3), ships=total.ships)
     return {"rules": dict(sorted(rows.items())),
             "ships": sorted(rule for rule, row in rows.items() if row["ships"])}
