@@ -179,7 +179,8 @@ def registry() -> list[Tool]:
                  "fresh": {"type": "boolean",
                            "description": "Run every Scanner. By default Trivy's and "
                            "OSV-Scanner's last result is reused when no dependency "
-                           "file and none of their data has changed since."},
+                           "file and none of their data has changed since; a fresh "
+                           "result replaces it."},
              }}, scan_reply, read_only=False, output_schema=_REPLY_SHAPE),
         Tool("findings", "The last scan's findings, worst first and bounded: filter "
                          "by `group`, `rule`, `path` or `status`, or give a "

@@ -324,7 +324,8 @@ def build_parser() -> argparse.ArgumentParser:
     scan_cmd.add_argument(
         "--fresh", action="store_true",
         help="Run every Scanner. By default Trivy's and OSV-Scanner's last result is "
-        "reused when no dependency file and none of their data has changed since.",
+        "reused when no dependency file and none of their data has changed since; a "
+        "fresh result replaces it.",
     )
     scan_cmd.add_argument(
         "--jobs", type=_positive, default=None, metavar="N",

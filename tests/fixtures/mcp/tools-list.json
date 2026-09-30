@@ -13,7 +13,7 @@
           "type": "integer"
         },
         "fresh": {
-          "description": "Run every Scanner. By default Trivy's and OSV-Scanner's last result is reused when no dependency file and none of their data has changed since.",
+          "description": "Run every Scanner. By default Trivy's and OSV-Scanner's last result is reused when no dependency file and none of their data has changed since; a fresh result replaces it.",
           "type": "boolean"
         },
         "profile": {

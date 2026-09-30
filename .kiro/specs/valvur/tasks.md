@@ -1112,6 +1112,9 @@ the speed guard met.
   - **Found on the way.** Deciding which files are dependency files read about 95
     patterns per name, seconds on repository 1's 103,251 files. It is now one
     compiled expression, under a second for 100,000 names (`timing`).
+  - **Found at R14's exit.** A fresh scan stored nothing, so a doubted result
+    survived `--fresh`, and the next scan reused it again. A fresh scan now stores
+    what it ran, and the next scan reuses that.
 - [x] **R14.4** **The reused results' home.** Behaviours: under the host cache and its
   lock; `update --prune` removes those of superseded keys, `--clear` all; nothing is
   written in the Workspace but the Results Folder.

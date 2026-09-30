@@ -632,7 +632,8 @@ def scan(
     workspace, or in `out` when given (R8.1): a checkout mounted read-only into a
     pipeline step cannot hold it. With `sbom`, Syft writes the SBOM whatever the
     project file says (opt-in since 2026-09-28; D9). With `fresh`, every Scanner
-    runs, and none is reused (R14.3, D32)."""
+    runs and none is reused; what ran is stored, so the next scan reuses the fresh
+    answer rather than the one it replaced (R14.3, D32)."""
     if budget_s is not None and not budget_s > 0:
         raise ValueError(f"the budget must be a positive number of seconds; got {budget_s!r}")
     # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
@@ -771,7 +772,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
                                   budget_s=budget_s, record=beside,
                                   jobs=jobs or _jobs_from_environment(), chosen=chosen,
-                                  reuse=None if fresh else (profile, generation or ""))
+                                  reuse=(profile, generation or ""), fresh=fresh)
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
@@ -794,12 +795,13 @@ def _engine_two(runner) -> bool:
 
 def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                   record: dict | None = None, jobs: int | None = None, chosen=None,
-                  reuse: tuple[str, str] | None = None):
+                  reuse: tuple[str, str] | None = None, fresh: bool = False):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut.
     `record` receives what was read beside the File Set: `history` (R3.7).
     `reuse`, (Profile, this run's generation), lets a dependency Scanner whose
-    inputs and data are unchanged answer from its last clean result (R14.3, D32)."""
+    inputs and data are unchanged answer from its last clean result (R14.3, D32);
+    with `fresh`, none answers so, and each clean result is stored as ever."""
     import json
     import tempfile
 
@@ -826,7 +828,8 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             continue
         planned.append(index)
     chosen = chosen if chosen is not None else fileset.build(workspace)
-    keys = _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress)
+    keys = _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress,
+                   fresh=fresh)
     with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
         scratch = Path(scratch_dir) / "results"
         scratch.mkdir()
@@ -946,11 +949,12 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
     return outcomes, cut
 
 
-def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress
-            ) -> dict[int, tuple[str, str]]:
+def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress, *,
+            fresh: bool = False) -> dict[int, tuple[str, str]]:
     """Take each dependency Scanner whose key has a stored result out of the plan,
     its outcome that result (R14.3, D32); return the keys of those that will run,
-    so their clean results can be stored. Nothing, with `reuse` None (`fresh`)."""
+    so their clean results can be stored. With `fresh`, every one runs and is
+    keyed: a fresh answer replaces the stored one. Nothing, with `reuse` None."""
     from . import reuse as _reuse
     from .invocation import ScannerOutput
 
@@ -968,7 +972,7 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
         stamp = _reuse.data(name, chosen.files)
         key = _reuse.key(tool=name, version=invocation.version, profile=profile,
                          inputs=inputs, data=stamp)
-        stored = _reuse.load(name, key)
+        stored = None if fresh else _reuse.load(name, key)
         if stored is None:
             keys[index] = (key, stamp)
             continue

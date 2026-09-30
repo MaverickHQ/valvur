@@ -100,6 +100,20 @@ def test_fresh_runs_everything(repository_8):
     assert not any(s.reused_from for s in run.scanners)
 
 
+def test_a_fresh_scan_replaces_what_it_did_not_reuse(repository_8):
+    """`--fresh` is how a developer who doubts a reused answer gets a new one, so
+    what it ran is stored: the next scan reuses the fresh answer, not the doubted."""
+    _scan(repository_8)
+    _ran(repository_8)
+
+    fresh = _scan(repository_8, fresh=True)
+    _ran(repository_8)
+    after = _scan(repository_8)
+
+    assert _ran(repository_8) == []
+    assert {s.reused_from for s in after.scanners if s.reused_from} == {fresh.generation}
+
+
 def test_the_cli_and_the_tool_take_fresh(repository_8, monkeypatch):
     from valvur import cli, engine_host
     from valvur.mcp.tools import registry
