@@ -1193,7 +1193,7 @@ back to back.
   - **Also held.** The skill's `metadata.version` is the package's, a version
     surface `prepare_release.py` must move (R16.2). Every reference the skill links
     exists, and each is linked.
-- [ ] **R15.2** **The Claude Code plugin** (D40; F9.13). Behaviours:
+- [x] **R15.2** **The Claude Code plugin** (D40; F9.13). Behaviours:
   1. `.claude-plugin/marketplace.json` and `plugins/valvur/.claude-plugin/plugin.json` are
      valid (`claude plugin validate` where the CLI has it);
   2. the plugin's MCP configuration is `valvur.mcp.clients`' Claude Code block, pinned to
@@ -1201,6 +1201,30 @@ back to back.
   3. the plugin's skill is the package's, byte for byte;
   4. a smoke run, `claude -p --plugin-dir plugins/valvur` with `--disallowedTools Bash`,
      lists the skill and the server's tools (D36).
+  **STATUS 2026-09-30:** ✅ all four.
+  1. **The marketplace and the plugin.** The repository is a marketplace named
+     `valvur`, listing one plugin at `./plugins/valvur`. `claude plugin validate
+     --strict` passes both on Claude Code 2.1.284, and a test runs it wherever the CLI
+     is installed. Neither is in the sdist.
+  2. **The server.** `plugins/valvur/.mcp.json` is the Claude Code block,
+     `uvx --from valvur==1.1.0 valvur-mcp`, rendered by `clients.snippet(…,
+     version=…)`. `test_version.py` holds it and `plugin.json`'s version to the
+     package's.
+  3. **The skill** is a copy, since Claude Code copies a plugin into its cache and
+     skips a symlink under `skills/`. A test holds it to `skill.files()` byte for
+     byte, with no file more and no symlink.
+  4. **The smoke run**, `scripts/acceptance/plugin_smoke.py`, judged from the
+     stream's init event. Run in an empty directory, it cost $0.98 of D36's $10,
+     which now stands at $5.17.
+
+     | form | plugin | skill | server | tools |
+     |---|---|---|---|---|
+     | as shipped, the server `valvur==1.1.0` from PyPI | loaded, 1.1.0 | `valvur:valvur` | connected | 6: all but `check_package` |
+     | `--from-tree`, this checkout's server | loaded | `valvur:valvur` | connected | all 7 |
+
+  - **Found by the smoke run.** The plugin pins the published release, and 1.1.0
+    predates `check_package`, which the skill names. The plugin is whole only from
+    1.2.0; §8 asks the owner to publish 1.2.0 before announcing the marketplace.
 - [ ] **R15.3** **The Kiro power** (D40). Read Kiro's documented layout first. Behaviours: the
   manifest's fields; its `mcp.json` is Kiro's client block; its skill is the package's; the
   Kiro stdio probe (D20) replays against the power's server configuration.
@@ -1249,6 +1273,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | land R9 to R16 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
 | `v1.2.0` | R16 landed | the signed tag on the landed commit, then the approval at the brake |
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
+| the plugin is whole from 1.2.0 | R15 landed | the plugin and the power pin the published release, and 1.1.0's server lacks `check_package`, which the skill names (R15.2's smoke run). Landing R15 puts the marketplace on `main` at once, so land R15 and R16 together and publish 1.2.0 before telling anyone to install it; after publishing, run `scripts/acceptance/plugin_smoke.py`, as shipped, for all seven tools |
 | D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
 | a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
