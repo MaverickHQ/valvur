@@ -945,6 +945,18 @@ the speed guard met.
 **Exit:** the speed gate green; the Score with reuse equals the Score with `--fresh`, run
 back to back.
 
+**Exit STATUS 2026-09-30** (`docs/acceptance/r14.md`):
+- **The speed gate:** ✅ judged on the Mac: the median warm rescan, 5.6 s, within 110%
+  of the baseline, which records 5.6 s for the Mac and 4.8 s for Linux.
+- **Reuse against fresh:** ✅ `eval.py --fresh`, then `eval.py`, back to back on the
+  Mac: 64.9 both times, every category's counts equal, both Scanners reused on all
+  eight tracks, 238 s against 190 s. The first pair found that a fresh scan stored
+  nothing; fixed, and measured again.
+- **The Score:** 64.9 on both lanes, Linux run 36665294454. `--compare` passes and every
+  judged gate is green.
+- **The acceptance set:** ✅ both lanes at `60325f1`, Linux run 36663217973.
+- **The suites:** ✅ e2e 83 passed on the Mac, on the image rebuilt at `9944796`.
+
 ### Phase R15: the skill that runs the workflow, and where it ships
 
 - [x] **R15.1** **The skill** (D39; F9.12). Behaviours:
@@ -1060,3 +1072,15 @@ back to back.
 
 **Exit:** the skill, the plugin and the power pass their tests; the smoke run recorded;
 no track under the baseline.
+
+**Exit STATUS 2026-09-30** (`docs/acceptance/r15.md`):
+- **The tests:** ✅ the skill's, the plugin's and the power's, with `claude plugin
+  validate --strict` passing both manifests, and Kiro's probe replayed through the
+  power's command in the e2e suite.
+- **The smoke run:** ✅ recorded. From this tree: all seven tools. As shipped, pinned to
+  `valvur==1.1.0`: six, since 1.1.0 predates `check_package` (in §8). D36's agent runs
+  stand at $5.17 of $10.
+- **The Score:** ✅ 64.9 on both lanes, no track under the baseline, Linux run
+  36672336453. All five gates are green on the Mac; the speed median is 5.2 s.
+- **The acceptance set:** ✅ both lanes at `2f86d6e`, Linux run 36672339357.
+- **The suites:** ✅ e2e 84 passed on the Mac, and 1747 unit tests.
