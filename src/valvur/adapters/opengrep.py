@@ -23,6 +23,14 @@ _IGNORE_NOTHING = ("# valvur: the File Set decides what a scan reads (ADR-0021);
                    "# turns Opengrep's default ignore list off.\n")
 
 
+#: The rule sets the image carries beside valvur's own, each at its source's commit
+#: (R13.3, D29): `run.json` names them, so a finding can be traced to the rule's text.
+#: A test holds this to `rules/vendor/gitlab/manifest.json` and `sources.toml`.
+RULE_SETS: dict[str, str] = {
+    "gitlab-sast-rules": "53bf5cf6df3c51b6c02110f5a638b5e6213666cd",
+}
+
+
 class OpengrepAdapter(ScannerAdapter):
     kind = "scanner"
     name = "opengrep"
@@ -87,10 +95,11 @@ class OpengrepAdapter(ScannerAdapter):
 
 def _short_rule(check_id: str) -> str:
     """Opengrep prefixes rule ids with the config path. Strip it, or the identity
-    would change whenever the rules directory moved."""
+    would change whenever the rules directory moved. valvur's own ids are dotted and
+    begin `valvur.`; a vendored rule's (R13.3) has no dot, so it is the last part."""
     marker = "valvur."
     index = check_id.find(marker)
-    return check_id[index:] if index >= 0 else check_id
+    return check_id[index:] if index >= 0 else check_id.rsplit(".", 1)[-1]
 
 
 _OPENGREP_SEVERITY = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}

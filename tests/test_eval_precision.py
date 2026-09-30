@@ -104,3 +104,13 @@ def test_a_silent_corpus_scores_100_and_every_false_alarm_costs():
     assert p.Precision(tp=0, fp=1).score == 50.0
     assert p.Precision(tp=0, fp=24).score == 4.0
     assert p.Precision(tp=0, fp=40).score == 2.4
+
+
+def test_a_vendored_rules_finding_is_valvurs_to_answer_for():
+    """R13.3: valvur ships GitLab's rules that met D29's bar, so their corpus findings
+    are judged like its own; an unshipped rule's are not."""
+    precision = _precision()
+
+    assert precision.owned({"rule": "python_random_rule-random", "sources": ["opengrep"]})
+    assert not precision.owned({"rule": "python_assert_rule-assert-used",
+                                "sources": ["opengrep"]})

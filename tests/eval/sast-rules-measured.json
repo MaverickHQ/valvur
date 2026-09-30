@@ -1,0 +1,1576 @@
+{
+ "rules": {
+  "go_blocklist_rule-blocklist-des": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_blocklist_rule-blocklist-md5": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_blocklist_rule-blocklist-rc4": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_blocklist_rule-blocklist-sha1": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_crypto_rule-badtlssettings": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_crypto_rule-insecure-ignore-host-key": {
+   "cwe": [
+    322
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_crypto_rule-tlsversion": {
+   "cwe": [
+    757
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_crypto_rule-weakkeystrength": {
+   "cwe": [
+    326
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_crypto_rule-weakrandsource": {
+   "cwe": [
+    338
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_file-permissions_rule-fileperm": {
+   "cwe": [
+    732
+   ],
+   "tracks": {
+    "corpus:cobra": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.005,
+   "tp": 0,
+   "fp": 1,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_file-permissions_rule-mkdir": {
+   "cwe": [
+    732
+   ],
+   "tracks": {
+    "corpus:cobra": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.009,
+   "tp": 0,
+   "fp": 1,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_filesystem_rule-decompression-bomb": {
+   "cwe": [
+    409
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_filesystem_rule-fileread": {
+   "cwe": [
+    22
+   ],
+   "tracks": {
+    "corpus:cobra": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    }
+   },
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 2,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_filesystem_rule-httprootdir": {
+   "cwe": [
+    552
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_filesystem_rule-poorwritepermissions": {
+   "cwe": [
+    276
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_filesystem_rule-tempfiles": {
+   "cwe": [
+    378
+   ],
+   "tracks": {},
+   "seconds": 0.045,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_filesystem_rule-ziparchive": {
+   "cwe": [
+    22
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_http_rule-http-serve": {
+   "cwe": [
+    770
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_injection_rule-ssrf": {
+   "cwe": [
+    918
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_injection_rule-template-injection": {
+   "cwe": [
+    79
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_leak_rule-pprof-endpoint": {
+   "cwe": [
+    489
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_memory_rule-integer-overflow": {
+   "cwe": [
+    190
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_memory_rule-memoryaliasing": {
+   "cwe": [
+    118
+   ],
+   "tracks": {},
+   "seconds": 0.073,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_network_rule-bind-to-all-interfaces": {
+   "cwe": [
+    1327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_sql_rule-concat-sqli": {
+   "cwe": [
+    89
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_subproc_rule-subproc": {
+   "cwe": [
+    78
+   ],
+   "tracks": {},
+   "seconds": 0.143,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "go_unsafe_rule-unsafe": {
+   "cwe": [
+    242
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_buf_rule-buffer-noassert-read": {
+   "cwe": [
+    125
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_buf_rule-buffer-noassert-write": {
+   "cwe": [
+    787
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_buf_rule-detect-new-buffer": {
+   "cwe": [
+    770
+   ],
+   "tracks": {},
+   "seconds": 0.51,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_dos_rule-non-literal-regexp": {
+   "cwe": [
+    185
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 15
+    },
+    "corpus:express": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    },
+    "corpus:fastify": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    },
+    "corpus:awesome-cursorrules": {
+     "tp": 0,
+     "fp": 7,
+     "outside": 0
+    }
+   },
+   "seconds": 1.49,
+   "tp": 0,
+   "fp": 10,
+   "outside": 15,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_eval_rule-eval-with-expression": {
+   "cwe": [
+    95
+   ],
+   "tracks": {
+    "sast-js": {
+     "tp": 1,
+     "fp": 0,
+     "outside": 0
+    }
+   },
+   "seconds": 1.732,
+   "tp": 1,
+   "fp": 0,
+   "outside": 0,
+   "precision": 1.0,
+   "ships": true
+  },
+  "javascript_pathtraversal_rule-non-literal-fs-filename": {
+   "cwe": [
+    22
+   ],
+   "tracks": {
+    "sast-js": {
+     "tp": 1,
+     "fp": 1,
+     "outside": 0
+    },
+    "corpus:express": {
+     "tp": 0,
+     "fp": 6,
+     "outside": 0
+    },
+    "corpus:fastify": {
+     "tp": 0,
+     "fp": 44,
+     "outside": 0
+    }
+   },
+   "seconds": 34.764,
+   "tp": 1,
+   "fp": 51,
+   "outside": 0,
+   "precision": 0.019,
+   "ships": false
+  },
+  "javascript_random_rule-pseudo-random-bytes": {
+   "cwe": [
+    338
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_react_rule-dangerouslysetinnerhtml": {
+   "cwe": [
+    79
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_require_rule-non-literal-require": {
+   "cwe": [
+    95
+   ],
+   "tracks": {
+    "corpus:express": {
+     "tp": 0,
+     "fp": 3,
+     "outside": 0
+    },
+    "corpus:fastify": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 1.467,
+   "tp": 0,
+   "fp": 4,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_timing_rule-possible-timing-attacks": {
+   "cwe": [
+    208
+   ],
+   "tracks": {
+    "corpus:express": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 3.509,
+   "tp": 0,
+   "fp": 1,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "javascript_xss_rule-mustache-escape": {
+   "cwe": [
+    79
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_assert_rule-assert-used": {
+   "cwe": [
+    754
+   ],
+   "tracks": {
+    "corpus:requests": {
+     "tp": 0,
+     "fp": 17,
+     "outside": 0
+    },
+    "corpus:flask": {
+     "tp": 0,
+     "fp": 58,
+     "outside": 0
+    },
+    "corpus:llm": {
+     "tp": 0,
+     "fp": 28,
+     "outside": 0
+    },
+    "corpus:ripgrep": {
+     "tp": 0,
+     "fp": 3,
+     "outside": 0
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 33,
+     "outside": 0
+    }
+   },
+   "seconds": 0.78,
+   "tp": 0,
+   "fp": 139,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_bind-all-interfaces_rule-general-bindall-interfaces": {
+   "cwe": [
+    1327
+   ],
+   "tracks": {},
+   "seconds": 0.016,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-cipher-modes": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-cipher-blowfish": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-cipher-des": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-cipher-rc2": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-cipher-rc4": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-cipher-xor": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-encrypt-dsa-rsa": {
+   "cwe": [
+    326
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-encrypt-ec": {
+   "cwe": [
+    326
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-hash-md5": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-hash-sha1": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-hazmat-cipher-arc4": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-hazmat-cipher-blowfish": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto-hazmat-cipher-idea": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto.hazmat-hash-md5": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-crypto.hazmat-hash-sha1": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-hash-md2": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-hash-md4": {
+   "cwe": [
+    327
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-hash-md5": {
+   "cwe": [
+    327
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 17
+    },
+    "corpus:requests": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    },
+    "corpus:llm": {
+     "tp": 0,
+     "fp": 3,
+     "outside": 0
+    }
+   },
+   "seconds": 0.014,
+   "tp": 0,
+   "fp": 4,
+   "outside": 17,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-hash-sha1": {
+   "cwe": [
+    327
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 20
+    },
+    "corpus:requests": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    },
+    "corpus:flask": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.013,
+   "tp": 0,
+   "fp": 3,
+   "outside": 20,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-hashlib-new-insecure-functions": {
+   "cwe": [
+    327
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 34
+    }
+   },
+   "seconds": 0.135,
+   "tp": 0,
+   "fp": 0,
+   "outside": 34,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_crypto_rule-import-pycrypto": {
+   "cwe": [
+    1104
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_deserialization_rule-cpickle": {
+   "cwe": [
+    502
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_deserialization_rule-dill": {
+   "cwe": [
+    502
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_deserialization_rule-marshal": {
+   "cwe": [
+    502
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_deserialization_rule-pickle": {
+   "cwe": [
+    502
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 13,
+     "fp": 7,
+     "outside": 0
+    },
+    "corpus:requests": {
+     "tp": 0,
+     "fp": 7,
+     "outside": 0
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 3,
+     "outside": 0
+    }
+   },
+   "seconds": 0.098,
+   "tp": 13,
+   "fp": 17,
+   "outside": 0,
+   "precision": 0.433,
+   "ships": false
+  },
+  "python_deserialization_rule-shelve": {
+   "cwe": [
+    502
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_deserialization_rule-yaml-load": {
+   "cwe": [
+    502
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 5,
+     "fp": 5,
+     "outside": 0
+    }
+   },
+   "seconds": 0.017,
+   "tp": 5,
+   "fp": 5,
+   "outside": 0,
+   "precision": 0.5,
+   "ships": true
+  },
+  "python_django_rule-django-extra-used": {
+   "cwe": [
+    89
+   ],
+   "tracks": {},
+   "seconds": 0.139,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_escaping_rule-jinja2-autoescape-false": {
+   "cwe": [
+    116
+   ],
+   "tracks": {
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.015,
+   "tp": 0,
+   "fp": 1,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_escaping_rule-use-of-mako-templates": {
+   "cwe": [
+    79
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_eval_rule-eval": {
+   "cwe": [
+    95
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 10,
+     "fp": 16,
+     "outside": 0
+    },
+    "corpus:flask": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.204,
+   "tp": 10,
+   "fp": 17,
+   "outside": 0,
+   "precision": 0.37,
+   "ships": false
+  },
+  "python_exec_rule-exec-used": {
+   "cwe": [
+    95
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 10,
+     "fp": 17,
+     "outside": 0
+    },
+    "corpus:flask": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    },
+    "corpus:llm": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 5,
+     "outside": 0
+    }
+   },
+   "seconds": 0.426,
+   "tp": 10,
+   "fp": 24,
+   "outside": 0,
+   "precision": 0.294,
+   "ships": false
+  },
+  "python_exec_rule-linux-command-wildcard-injection": {
+   "cwe": [
+    155
+   ],
+   "tracks": {},
+   "seconds": 0.935,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_exec_rule-os-path": {
+   "cwe": [
+    78
+   ],
+   "tracks": {},
+   "seconds": 0.66,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_exec_rule-os-popen2": {
+   "cwe": [
+    78
+   ],
+   "tracks": {},
+   "seconds": 1.099,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_exec_rule-start-process-with-no-shell": {
+   "cwe": [
+    78
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_exec_rule-subprocess-call": {
+   "cwe": [
+    78
+   ],
+   "tracks": {
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    }
+   },
+   "seconds": 0.101,
+   "tp": 0,
+   "fp": 2,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_exec_rule-subprocess-popen-shell-true": {
+   "cwe": [
+    78
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 7,
+     "fp": 7,
+     "outside": 0
+    }
+   },
+   "seconds": 0.064,
+   "tp": 7,
+   "fp": 7,
+   "outside": 0,
+   "precision": 0.5,
+   "ships": true
+  },
+  "python_exec_rule-subprocess-shell-TRUE": {
+   "cwe": [
+    78
+   ],
+   "tracks": {},
+   "seconds": 0.031,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_file-permissions_rule-general-bad-permission": {
+   "cwe": [
+    732
+   ],
+   "tracks": {},
+   "seconds": 0.005,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_files_rule-tarfile-unsafe-members": {
+   "cwe": [
+    22
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_flask_rule-app-debug": {
+   "cwe": [
+    489
+   ],
+   "tracks": {
+    "corpus:flask": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    }
+   },
+   "seconds": 0.061,
+   "tp": 0,
+   "fp": 2,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_ftp_rule-ftplib": {
+   "cwe": [
+    319
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_log_rule-logging-config-insecure-listen": {
+   "cwe": [
+    94
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_random_rule-random": {
+   "cwe": [
+    338
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 35,
+     "fp": 0,
+     "outside": 0
+    },
+    "corpus:llm": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.296,
+   "tp": 35,
+   "fp": 3,
+   "outside": 0,
+   "precision": 0.921,
+   "ships": true
+  },
+  "python_requests_rule-request-without-timeout": {
+   "cwe": [
+    770
+   ],
+   "tracks": {
+    "corpus:requests": {
+     "tp": 0,
+     "fp": 114,
+     "outside": 0
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 20,
+     "outside": 0
+    }
+   },
+   "seconds": 0.427,
+   "tp": 0,
+   "fp": 134,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_snmp_rule-insecure-snmp-version": {
+   "cwe": [
+    319
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_snmp_rule-snmp-weak-cryptography": {
+   "cwe": [
+    319
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_sql_rule-hardcoded-sql-expression": {
+   "cwe": [
+    89
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 5,
+     "fp": 0,
+     "outside": 0
+    }
+   },
+   "seconds": 0.001,
+   "tp": 5,
+   "fp": 0,
+   "outside": 0,
+   "precision": 1.0,
+   "ships": true
+  },
+  "python_ssh_rule-ssh-nohost-key-verification": {
+   "cwe": [
+    322
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_ssl_rule-req-no-certvalid": {
+   "cwe": [
+    295
+   ],
+   "tracks": {},
+   "seconds": 0.145,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_ssl_rule-ssl-no-version": {
+   "cwe": [
+    326
+   ],
+   "tracks": {},
+   "seconds": 0.001,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_ssl_rule-ssl-with-bad-version": {
+   "cwe": [
+    326
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_ssl_rule-unverified-context": {
+   "cwe": [
+    295
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_telnet_rule-import-telnib": {
+   "cwe": [
+    319
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_tmpdir_rule-hardcodedtmp": {
+   "cwe": [
+    377
+   ],
+   "tracks": {
+    "corpus:llm": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 3,
+     "outside": 0
+    }
+   },
+   "seconds": 0.767,
+   "tp": 0,
+   "fp": 5,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_tmpdir_rule-mktemp-q": {
+   "cwe": [
+    377
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_urlopen_rule-urllib-urlopen": {
+   "cwe": [
+    918
+   ],
+   "tracks": {},
+   "seconds": 0.005,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-celement": {
+   "cwe": [
+    611
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-element": {
+   "cwe": [
+    611
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 57
+    },
+    "corpus:smolagents": {
+     "tp": 0,
+     "fp": 1,
+     "outside": 0
+    }
+   },
+   "seconds": 0.032,
+   "tp": 0,
+   "fp": 1,
+   "outside": 57,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-etree": {
+   "cwe": [
+    611
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 129
+    }
+   },
+   "seconds": 0.069,
+   "tp": 0,
+   "fp": 0,
+   "outside": 129,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-expatbuilder": {
+   "cwe": [
+    611
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-expatreader": {
+   "cwe": [
+    611
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-minidom": {
+   "cwe": [
+    611
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 8,
+     "fp": 20,
+     "outside": 0
+    }
+   },
+   "seconds": 0.014,
+   "tp": 8,
+   "fp": 20,
+   "outside": 0,
+   "precision": 0.286,
+   "ships": false
+  },
+  "python_xml_rule-pulldom": {
+   "cwe": [
+    611
+   ],
+   "tracks": {},
+   "seconds": 0.0,
+   "tp": 0,
+   "fp": 0,
+   "outside": 0,
+   "precision": 0.0,
+   "ships": false
+  },
+  "python_xml_rule-sax": {
+   "cwe": [
+    611
+   ],
+   "tracks": {
+    "sast-python": {
+     "tp": 8,
+     "fp": 20,
+     "outside": 0
+    }
+   },
+   "seconds": 0.008,
+   "tp": 8,
+   "fp": 20,
+   "outside": 0,
+   "precision": 0.286,
+   "ships": false
+  }
+ },
+ "ships": [
+  "javascript_eval_rule-eval-with-expression",
+  "python_deserialization_rule-yaml-load",
+  "python_exec_rule-subprocess-popen-shell-true",
+  "python_random_rule-random",
+  "python_sql_rule-hardcoded-sql-expression"
+ ]
+}

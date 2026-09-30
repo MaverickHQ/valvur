@@ -12,6 +12,7 @@ and is named, so a new rule cannot arrive unjudged. The score is smoothed precis
 
 from __future__ import annotations
 
+import functools
 import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
@@ -27,9 +28,20 @@ def note(finding: dict) -> bool:
     return finding.get("rule") in NOTE_RULES
 
 
+@functools.cache
+def _vendored() -> frozenset[str]:
+    """The ids of the rules valvur vendors (R13.3), from each set's manifest."""
+    import json
+
+    root = Path(__file__).resolve().parents[2] / "rules" / "vendor"
+    return frozenset(rule["id"] for manifest in sorted(root.glob("*/manifest.json"))
+                     for rule in json.loads(manifest.read_text()).get("rules", []))
+
+
 def owned(finding: dict) -> bool:
-    """Judged here: a rule of valvur's own, or a Gitleaks secret."""
-    return str(finding.get("rule", "")).startswith("valvur.") or \
+    """Judged here: a rule of valvur's own or one it vendors, or a Gitleaks secret."""
+    rule = str(finding.get("rule", ""))
+    return rule.startswith("valvur.") or rule in _vendored() or \
         "gitleaks" in (finding.get("sources") or ())
 
 

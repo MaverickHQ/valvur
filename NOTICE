@@ -65,6 +65,19 @@ mcp-scanner
     Check (`src/valvur/checks/borrowed.py`, D14). Each Finding they produce
     names the pattern in its title.
 
+Static-analysis rules vendored into the image
+---------------------------------------------
+
+GitLab SAST rules
+    https://gitlab.com/gitlab-org/security-products/sast-rules
+    MIT License
+    Copyright (c) 2011-present GitLab Inc. Five rules at commit
+    53bf5cf6df3c51b6c02110f5a638b5e6213666cd, under `rules/vendor/gitlab/` with
+    GitLab's LICENSE and a manifest naming each rule's origin: four translated from
+    Bandit (Apache License 2.0, Copyright the PyCQA Bandit developers) and one from
+    eslint-plugin-security (Apache License 2.0). Each was shipped on its measured
+    precision (D29, R13.3).
+
 Base image and runtime
 ----------------------
 

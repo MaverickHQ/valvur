@@ -931,11 +931,35 @@ the baseline.
     the corpus read those trees, and showed seven `pickle` matches in `requests`' tests
     that the measurement never saw. The harness now runs Opengrep with `-w /src`, a
     test holds it, and `pickle` measures 0.43.
-- [ ] **R13.3** **The rules that pass, shipped.** Behaviours:
+- [x] **R13.3** **The rules that pass, shipped.** Behaviours:
   1. `rules/vendor/gitlab/` holds exactly the rules meeting D29's bar, with the licence,
      the commit and the manifest; `NOTICE` credits it;
   2. the image carries them, and `run.json` names the rule set's commit;
   3. e2e: a planted SQL injection in a JavaScript file is reported by a vendored rule.
+  **STATUS 2026-09-30:** ✅ 1 and 2; 3 as the measurement allows.
+  - **Five rules vendored**, exactly R13.2's corrected list:
+    - Python: `random`, hard-coded SQL, `yaml.load`, and `subprocess` with
+      `shell=True`, all from Bandit;
+    - JavaScript: `eval` of an expression, from eslint-plugin-security.
+
+    They sit under `rules/vendor/gitlab/` as GitLab wrote them, with its LICENSE and a
+    manifest of each rule's origin, licence, CWE, source path and measurement.
+    `scripts/eval/sast_rules.py --vendor` writes the directory, and `NOTICE` credits
+    it. The committed measurement is `tests/eval/sast-rules-measured.json`.
+  - **The image** copies them with valvur's own rules. `run.json` gains `rule_sets`,
+    naming `gitlab-sast-rules` at `53bf5cf`. A vendored finding keeps GitLab's own
+    rule id (the last part of Opengrep's check id), so its identity survives the
+    directory moving.
+  - **Behaviour 3, amended by the measurement.** No eligible rule reports a SQL
+    injection in JavaScript: GitLab's JavaScript SQL rules translate njsscan (LGPL-3.0)
+    and were never candidates. The e2e plants what the shipped rules report: a
+    formatted SQL string in Python and an `eval` of an argument in JavaScript. Both
+    are reported through the image, and `run.json` names the rule set.
+  - **Track 8 now judges them.** It judged only `valvur.` rules and Gitleaks, so the
+    vendored rules' corpus findings went unjudged. Since valvur ships them, it answers
+    for them. Their three findings are `random`'s: a toy Markov generator in `llm`'s
+    documentation, twice, and retry jitter in `smolagents`. All three are labelled
+    `fp`, and track 8 moves from 4.2 to 3.7, inside the ratchet's 2 points.
 - [ ] **R13.4** **CWE on findings** (F5.10). Behaviours: `findings.json` and SARIF carry
   `cwe` when the rule declares one; the findings schema's own rule for additions decides
   whether its version moves; ranking and grouping are unchanged.

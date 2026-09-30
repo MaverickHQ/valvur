@@ -197,3 +197,30 @@ rule = "valvur.python.dangerous-exec"
 path = "tests/test_serialization.py"
 verdict = "fp"
 reason = "A test executing code the test itself generated."
+
+# R13.3: the vendored `python_random_rule-random` (GitLab's, from Bandit B311),
+# judged against the code at each finding, 2026-09-30.
+
+[[label]]
+repo = "llm"
+fingerprint = "2d63e5babfc2101b9d8c8b52dcd5bb5b"
+rule = "python_random_rule-random"
+path = "docs/plugins/llm-markov/llm_markov.py"
+verdict = "fp"
+reason = "A toy Markov-chain text generator in a documentation example picks a start word; nothing depends on the choice being unpredictable."
+
+[[label]]
+repo = "llm"
+fingerprint = "ef6fea45d724181db753967834c5487d"
+rule = "python_random_rule-random"
+path = "docs/plugins/llm-markov/llm_markov.py"
+verdict = "fp"
+reason = "The same example picks each next word of generated text; no secret, token or security decision."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "0d418ffa6e6b838cb9d3d1c4d9e7b61f"
+rule = "python_random_rule-random"
+path = "src/smolagents/utils.py"
+verdict = "fp"
+reason = "Jitter on an exponential retry backoff: spreading retries needs no cryptographic randomness."

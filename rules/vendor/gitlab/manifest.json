@@ -1,0 +1,84 @@
+{
+ "source": "https://gitlab.com/gitlab-org/security-products/sast-rules",
+ "commit": "53bf5cf6df3c51b6c02110f5a638b5e6213666cd",
+ "licence": "MIT",
+ "bar": "D29: one true positive and precision of at least 0.5 over tracks 1 and 2 and the corpus (R13.2)",
+ "rules": [
+  {
+   "id": "javascript_eval_rule-eval-with-expression",
+   "languages": [
+    "javascript",
+    "typescript"
+   ],
+   "cwe": "CWE-95",
+   "origin": "eslint-plugin-security",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "source": "javascript/eval/rule-eval-with-expression.yml",
+   "file": "javascript/eval/rule-eval-with-expression.yaml",
+   "true_positives": 1,
+   "false_positives": 0,
+   "precision": 1.0
+  },
+  {
+   "id": "python_deserialization_rule-yaml-load",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-502",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "source": "python/deserialization/rule-yaml-load.yml",
+   "file": "python/deserialization/rule-yaml-load.yaml",
+   "true_positives": 5,
+   "false_positives": 5,
+   "precision": 0.5
+  },
+  {
+   "id": "python_exec_rule-subprocess-popen-shell-true",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-78",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "source": "python/exec/rule-subprocess-popen-shell-true.yml",
+   "file": "python/exec/rule-subprocess-popen-shell-true.yaml",
+   "true_positives": 7,
+   "false_positives": 7,
+   "precision": 0.5
+  },
+  {
+   "id": "python_random_rule-random",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-338",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "source": "python/random/rule-random.yml",
+   "file": "python/random/rule-random.yaml",
+   "true_positives": 35,
+   "false_positives": 3,
+   "precision": 0.921
+  },
+  {
+   "id": "python_sql_rule-hardcoded-sql-expression",
+   "languages": [
+    "python"
+   ],
+   "cwe": "CWE-89",
+   "origin": "bandit",
+   "origin_licence": "Apache-2.0",
+   "licence": "MIT",
+   "source": "python/sql/rule-hardcoded-sql-expression.yml",
+   "file": "python/sql/rule-hardcoded-sql-expression.yaml",
+   "true_positives": 5,
+   "false_positives": 0,
+   "precision": 1.0
+  }
+ ]
+}

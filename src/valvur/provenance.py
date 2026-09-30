@@ -148,6 +148,9 @@ def render(run: ScanRun) -> str:
                     "stale": _staleness.index_is_stale(run),
                     "stale_after_days": _cache.NAME_INDEX_STALE_AFTER_DAYS,
                 },
+                # R13.3: the static-analysis rule sets beside valvur's own, each at
+                # its source's commit, so a finding traces to the rule's text.
+                "rule_sets": dict(_rule_sets()),
                 # R11.6: every dataset's age and what it is measured from, in one
                 # place; the blocks around it keep what each has always said.
                 "data": run.data_ages,
@@ -212,3 +215,9 @@ def _round_or_none(value: float | None) -> float | None:
     """None is not zero. An unreadable database age must not read as "brand new" —
     that is precisely the confident-wrong-answer this phase removes."""
     return None if value is None else round(value, 2)
+
+
+def _rule_sets() -> dict[str, str]:
+    from .adapters.opengrep import RULE_SETS
+
+    return RULE_SETS

@@ -3,6 +3,7 @@
     uv run --with pyyaml python scripts/eval/sast_rules.py CHECKOUT \
         > tests/eval/sast-rules.json
     python scripts/eval/sast_rules.py --stage CHECKOUT DIR    # the eligible, for --per-rule
+    python scripts/eval/sast_rules.py --vendor CHECKOUT       # those that met the bar
 
 PyYAML is for the audit alone, which reads each rule whole; nothing else in valvur
 parses YAML, and `refuse`, which the suite runs, reads rule ids by pattern.
@@ -154,8 +155,47 @@ def stage(checkout: Path, audited: dict, dest: Path) -> list[str]:
     return paths
 
 
+def vendor(checkout: Path, audited: dict, measured: dict, dest: Path) -> list[str]:
+    """The rules that met D29's bar into `dest` (R13.3), as GitLab wrote them, with its
+    licence and a manifest of each rule's origin and measurement. Only what the audit
+    allows: `refuse` over `dest` is empty by construction, and a test holds it so."""
+    import shutil
+
+    by_id = {rule["id"]: rule for rule in audited["rules"]}
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+    shutil.copy(checkout / "LICENSE", dest / "LICENSE")
+    rules = []
+    for rule_id in measured["ships"]:
+        entry = by_id[rule_id]
+        if not entry["eligible"]:
+            raise ValueError(f"{rule_id} met the bar but the audit does not allow it")
+        target = dest / (entry["path"].removesuffix(".yml") + ".yaml")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(checkout / entry["path"], target)
+        row = measured["rules"][rule_id]
+        rules.append({**{k: entry[k] for k in ("id", "languages", "cwe", "origin",
+                                               "origin_licence", "licence")},
+                      "source": entry["path"], "file": target.relative_to(dest).as_posix(),
+                      "true_positives": row["tp"], "false_positives": row["fp"],
+                      "precision": row["precision"]})
+    (dest / "manifest.json").write_text(json.dumps({
+        "source": audited["source"], "commit": audited["commit"], "licence": "MIT",
+        "bar": "D29: one true positive and precision of at least 0.5 over tracks 1 and 2 "
+               "and the corpus (R13.2)",
+        "rules": rules}, indent=1) + "\n")
+    return [rule["id"] for rule in rules]
+
+
 if __name__ == "__main__":
-    if sys.argv[1:2] == ["--stage"]:
+    if sys.argv[1:2] == ["--vendor"]:
+        audited = json.loads((REPO / "tests" / "eval" / "sast-rules.json").read_text())
+        measured = json.loads((REPO / "tests" / "eval" / "sast-rules-measured.json").read_text())
+        shipped = vendor(Path(sys.argv[2]), audited, measured,
+                         REPO / "rules" / "vendor" / "gitlab")
+        print(f"{len(shipped)} rules vendored: {', '.join(shipped)}")
+    elif sys.argv[1:2] == ["--stage"]:
         audited = json.loads((REPO / "tests" / "eval" / "sast-rules.json").read_text())
         staged = stage(Path(sys.argv[2]), audited, Path(sys.argv[3]))
         print(f"{len(staged)} eligible rule files staged in {sys.argv[3]}")
