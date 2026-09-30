@@ -1043,10 +1043,10 @@ the speed guard met.
 
 ### Phase R14: reuse what cannot have changed
 
-- [ ] **R14.1** **Measure.** Each Scanner's warm time on the acceptance set, both lanes,
+- [x] **R14.1** **Measure.** Each Scanner's warm time on the acceptance set, both lanes,
   recorded as the before.
-  **STATUS 2026-09-30, the Mac:** the acceptance report now carries each Scanner's time
-  per repository, from its `run.json`. Measured on the Mac, in seconds:
+  **STATUS 2026-09-30:** ✅ both lanes. The acceptance report now carries each
+  Scanner's time per repository, from its `run.json`. Measured on the Mac, in seconds:
 
   | repository | osv-scanner | trivy | opengrep | checkov | the rest, each |
   |---|---|---|---|---|---|
@@ -1061,7 +1061,22 @@ the speed guard met.
 
   - A warm rescan of repository 8, three times: 14.0, 13.7 and 14.4 s. OSV-Scanner,
     loading its offline npm database, is 10.0 to 10.6 s of it.
-  - Linux's before comes from `acceptance.yml` run 36659345238.
+  - **Linux**, `acceptance.yml` run 36659345238, in seconds:
+
+    | repository | total | osv-scanner | trivy | opengrep | checkov |
+    |---|---|---|---|---|---|
+    | 1-gate-shaped | 8.7 | 0.3 | 0.2 | 3.7 | 0.0 |
+    | 2-lockfiles | 19.1 | 16.0 | 0.3 | 4.1 | 6.0 |
+    | 3-history-secret | 4.5 | 0.3 | 0.2 | 3.5 | 0.0 |
+    | 4-nested-names | 4.7 | 0.3 | 0.3 | 3.7 | 0.0 |
+    | 5-infrastructure | 124.1 | 0.3 | 0.3 | 4.0 | 123.1 |
+    | 6-self | 11.6 | 6.4 | 0.3 | 9.4 | 10.0 |
+    | 7-local-exposure | 4.4 | 0.3 | 0.3 | 3.5 | 0.0 |
+    | 8-malicious-dependency | 12.4 | 11.5 | 0.3 | 3.5 | 0.0 |
+
+  - **What reuse can save.** Trivy is 0.3 s everywhere, and OSV-Scanner is most of
+    any scan with an npm or PyPI lockfile. Checkov, on repository 5, reads source
+    and is never reused.
 - [x] **R14.2** **The reuse key** (D32; N1.5). Behaviours, one test each: a lockfile's byte
   change, the database's built time, the Scanner's version and the Profile each change the
   key; a source file's change does not.
