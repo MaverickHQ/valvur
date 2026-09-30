@@ -12,6 +12,10 @@
           "description": "Seconds the Scanners may take together (default 300). Past it, nothing new starts, what is running is stopped, and the result is reported incomplete with the cut Scanners named. 0 for none.",
           "type": "integer"
         },
+        "fresh": {
+          "description": "Run every Scanner. By default Trivy's and OSV-Scanner's last result is reused when no dependency file and none of their data has changed since.",
+          "type": "boolean"
+        },
         "profile": {
           "description": "offline (the default) runs every Scanner with no network access. full asks the network what local data cannot answer: OSV.dev in place of the offline database, the registries for each package's age and adoption and whether JVM and Go dependencies exist. They receive package names and versions, never source.",
           "enum": [

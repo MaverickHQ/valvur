@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from valvur import reuse
 
 
@@ -92,3 +94,17 @@ def test_only_the_dependency_scanners_are_reused_and_osv_only_offline():
     assert not reuse.reusable("osv-scanner", "full")      # the live API has no stamp
     for tool in ("opengrep", "gitleaks", "checkov", "zizmor", "syft", "dependency-reality"):
         assert not reuse.reusable(tool, "offline"), tool
+
+
+@pytest.mark.timing
+def test_a_hundred_thousand_names_are_sorted_in_well_under_a_second():
+    """Repository 1 holds 103,251 files: the key reads every name of the File Set,
+    so the list is one expression, not ninety patterns tried in turn."""
+    import time
+
+    names = [f"data/part-{n:06d}.json" for n in range(100_000)] + ["web/yarn.lock"]
+    started = time.monotonic()
+    found = [name for name in names if reuse.reads(name)]
+
+    assert found == ["web/yarn.lock"]
+    assert time.monotonic() - started < 1.0

@@ -149,9 +149,10 @@ def _one_line(finding: dict) -> str:
 MCP_BUDGET_S = 300.0
 
 
-def _scan_with_budget(budget_s: float | None):
-    """The work a background job performs, with its budget bound in. Returns the
-    summary it will report. A budget of 0 means none."""
+def _scan_with_budget(budget_s: float | None, fresh: bool = False):
+    """The work a background job performs, with its budget bound in, and with
+    `fresh` whether every Scanner runs (R14.3). Returns the summary it will report.
+    A budget of 0 means none."""
     budget = float(budget_s) if budget_s else None
 
     def run_scan(workspace: Path, profile: str, progress) -> str:
@@ -163,12 +164,24 @@ def _scan_with_budget(budget_s: float | None):
         job = jobs.current(workspace)
         if job is not None:
             job.canceller = runner.kill      # `scan_cancel` stops this fleet, not another's
-        run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                   budget_s=budget)
+        if fresh:                  # passed only when asked, as every caller always did
+            run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
+                       budget_s=budget, fresh=True)
+        else:
+            run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
+                       budget_s=budget)
         return _summarise(workspace, run)
 
     run_scan.budget_s = budget  # type: ignore[attr-defined]
     return run_scan
+
+
+def _work(budget_s: float | None, args: dict):
+    """The job a `scan` call starts: the budget asked, or MCP's, and every Scanner
+    run when `fresh` is asked (R14.3); passed only then, as it always was."""
+    budget = MCP_BUDGET_S if budget_s is None else budget_s
+    return _scan_with_budget(budget, fresh=True) if args.get("fresh") \
+        else _scan_with_budget(budget)
 
 
 def _run_scan(workspace: Path, profile: str, progress) -> str:
@@ -217,8 +230,7 @@ def start_scan(args: dict) -> str:
             "reads CANCELLED, then call `scan` again."
         )
 
-    jobs.start(workspace, profile,
-               _scan_with_budget(MCP_BUDGET_S if budget_s is None else budget_s))
+    jobs.start(workspace, profile, _work(budget_s, args))
     return (
         f"Started a {profile} scan of {workspace}.\n"
         "Scans take seconds to minutes depending on the project, so this returns "
@@ -242,8 +254,7 @@ def scan_reply(args: dict) -> tuple[str, dict]:
     workspace = resolve_workspace(args.get("workspace"))
     profile = _checked_profile(args.get("profile"))
     budget_s = _checked_budget(args.get("budget_s"))
-    job = jobs.start(workspace, profile,
-                     _scan_with_budget(MCP_BUDGET_S if budget_s is None else budget_s))
+    job = jobs.start(workspace, profile, _work(budget_s, args))
     _attach(job, None)
     fields = reply.fields(workspace, job)
     return reply.text(fields), fields

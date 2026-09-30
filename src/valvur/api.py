@@ -626,12 +626,13 @@ def _outcome(adapter, output) -> ScannerOutcome:
 def scan(
     workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
     on_progress=None, jobs: int | None = None, budget_s: float | None = None,
-    sbom: bool = False, out: Path | None = None,
+    sbom: bool = False, out: Path | None = None, fresh: bool = False,
 ) -> ScanRun:
     """One Scan Run of `workspace`. Its Results Folder is `.security-scan/` in the
     workspace, or in `out` when given (R8.1): a checkout mounted read-only into a
     pipeline step cannot hold it. With `sbom`, Syft writes the SBOM whatever the
-    project file says (opt-in since 2026-09-28; D9)."""
+    project file says (opt-in since 2026-09-28; D9). With `fresh`, every Scanner
+    runs, and none is reused (R14.3, D32)."""
     if budget_s is not None and not budget_s > 0:
         raise ValueError(f"the budget must be a positive number of seconds; got {budget_s!r}")
     # Canonicalise once, at the door. Every downstream lookup is a dict.get with a
@@ -686,7 +687,7 @@ def scan(
         return _scan_locked(
             workspace, runner=runner, adapters=adapters, profile=profile,
             on_progress=on_progress, unfetched=unfetched, fetched=fetched, jobs=jobs,
-            budget_s=budget_s, generation=generation, out=out,
+            budget_s=budget_s, generation=generation, out=out, fresh=fresh,
         )
 
 
@@ -739,7 +740,8 @@ def _stop_if_cancelled(runner, where: str) -> None:
 def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                  unfetched: dict[str, str] | None = None, fetched: list[dict] | None = None,
                  jobs: int | None = None, budget_s: float | None = None,
-                 generation: str | None = None, out: Path | None = None) -> ScanRun:
+                 generation: str | None = None, out: Path | None = None,
+                 fresh: bool = False) -> ScanRun:
     """One Scan Run, under the Workspace lock: preflight, the fleet, then the
     assembly of the record — three functions since 28.4.2, one each."""
     shim_built_from, image_built_from = _preflight(runner, workspace)
@@ -768,7 +770,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         raise TypeError(f"{type(runner).__name__} does not run the Scan Container's engine")
     outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
                                   budget_s=budget_s, record=beside,
-                                  jobs=jobs or _jobs_from_environment(), chosen=chosen)
+                                  jobs=jobs or _jobs_from_environment(), chosen=chosen,
+                                  reuse=None if fresh else (profile, generation or ""))
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
         unfetched=unfetched, fetched=fetched, budget_s=budget_s,
@@ -790,10 +793,13 @@ def _engine_two(runner) -> bool:
 
 
 def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
-                  record: dict | None = None, jobs: int | None = None, chosen=None):
+                  record: dict | None = None, jobs: int | None = None, chosen=None,
+                  reuse: tuple[str, str] | None = None):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut.
-    `record` receives what was read beside the File Set: `history` (R3.7)."""
+    `record` receives what was read beside the File Set: `history` (R3.7).
+    `reuse`, (Profile, this run's generation), lets a dependency Scanner whose
+    inputs and data are unchanged answer from its last clean result (R14.3, D32)."""
     import json
     import tempfile
 
@@ -819,10 +825,11 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 reason=str(exc).strip()))
             continue
         planned.append(index)
+    chosen = chosen if chosen is not None else fileset.build(workspace)
+    keys = _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress)
     with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
         scratch = Path(scratch_dir) / "results"
         scratch.mkdir()
-        chosen = chosen if chosen is not None else fileset.build(workspace)
         tar = engine_host.snapshot(workspace, chosen.files)
         written, read = _history_pass(adapters, plan, planned, workspace, chosen, scratch,
                                       on_progress)
@@ -920,6 +927,13 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 cut.append(adapters[index].name)
                 outcome = outcome.cut(f"cut by the {budget_s:g}s budget after {spent:.0f}s")
             outcomes[index] = outcome
+            key = keys.get(index)
+            if key is not None and reuse is not None and outcome.scanner.ok \
+                    and not entry.get("cut") and not entry.get("timed_out"):
+                from . import reuse as _reuse
+
+                _reuse.save(adapters[index].name, key, raw=stdout,
+                            version=invocation.version, generation=reuse[1])
         if cut and on_progress is not None:
             stopping = [n for n in cut if not any(
                 o is not None and o.scanner.tool == n and o.scanner.reason.startswith(
@@ -929,6 +943,44 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                         f"{', '.join(stopping) or 'nothing'}"
                         f"; not starting {', '.join(waiting) or 'nothing'}")
     return outcomes, cut
+
+
+def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress
+            ) -> dict[int, str]:
+    """Take each dependency Scanner whose key has a stored result out of the plan,
+    its outcome that result (R14.3, D32); return the keys of those that will run,
+    so their clean results can be stored. Nothing, with `reuse` None (`fresh`)."""
+    from . import reuse as _reuse
+    from .invocation import ScannerOutput
+
+    if reuse is None:
+        return {}
+    profile, _ = reuse
+    keys: dict[int, str] = {}
+    inputs = None
+    for invocation, index in list(zip(plan, planned, strict=True)):
+        name = adapters[index].name
+        if not _reuse.reusable(name, profile):
+            continue
+        if inputs is None:
+            inputs = _reuse.inputs(workspace, chosen.files)
+        key = _reuse.key(tool=name, version=invocation.version, profile=profile,
+                         inputs=inputs, data=_reuse.data(name, chosen.files))
+        stored = _reuse.load(name, key)
+        if stored is None:
+            keys[index] = key
+            continue
+        output = ScannerOutput(invocation.tool, stored.get("version", invocation.version),
+                               stored["raw"], "", 0, argv=invocation.argv)
+        outcome = _outcome(adapters[index], output)
+        outcomes[index] = dataclasses.replace(outcome, scanner=dataclasses.replace(
+            outcome.scanner, reused_from=str(stored.get("generation", ""))))
+        position = planned.index(index)
+        del plan[position], planned[position]
+        if on_progress is not None:
+            on_progress(f"{name}: reused (its inputs and data are unchanged since run "
+                        f"{str(stored.get('generation', ''))[:8]})")
+    return keys
 
 
 def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s, jobs=None) -> None:

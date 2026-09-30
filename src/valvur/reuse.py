@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from fnmatch import fnmatch
+import re
+from fnmatch import translate
 from pathlib import Path
 
 #: The Scanners whose answer depends on dependency files and data alone.
@@ -53,10 +54,14 @@ KEY_FILES = (
 )
 
 
+#: The list as one expression: the key reads every name in the File Set, 103,251 in
+#: acceptance repository 1, and ninety patterns tried in turn cost seconds there.
+_KEY_FILE = re.compile("|".join(f"(?:{translate(pattern)})" for pattern in KEY_FILES))
+
+
 def reads(path: str) -> bool:
     """Whether `path` is a file the dependency Scanners read."""
-    name = path.rsplit("/", 1)[-1]
-    return any(fnmatch(name, pattern) for pattern in KEY_FILES)
+    return _KEY_FILE.match(path.rsplit("/", 1)[-1]) is not None
 
 
 def reusable(tool: str, profile: str) -> bool:
@@ -80,3 +85,67 @@ def key(*, tool: str, version: str, profile: str, inputs: dict[str, str], data: 
     material = json.dumps({"tool": tool, "version": version, "profile": profile,
                            "inputs": inputs, "data": data}, sort_keys=True)
     return hashlib.sha256(material.encode()).hexdigest()
+
+
+# ------------------------------------------------------------ the data stamp
+
+
+def data(tool: str, files: list[str]) -> str:
+    """What the Scanner answered from, as a stamp that changes when the data does:
+    the vulnerability database's build time for Trivy (and its Java database's, when
+    there is one); each OSV export's date and size for the ecosystems present."""
+    from . import cache, osv_offline
+
+    if tool == "trivy":
+        stamps = []
+        for name in ("db", "java-db"):
+            try:
+                meta = json.loads((cache.trivy_db() / name / "metadata.json").read_text())
+            except (OSError, ValueError):
+                meta = {}
+            stamps.append(f"{name}:{meta.get('UpdatedAt', '')}")
+        return ";".join(stamps)
+    stamps = []
+    for name in osv_offline.needed(files):
+        path = osv_offline.path(name)
+        age = osv_offline._ages().get(name) or {}
+        size = path.stat().st_size if path.is_file() else 0
+        stamps.append(f"{name}:{age.get('last_modified', '')}:{size}")
+    return ";".join(stamps)
+
+
+# ------------------------------------------------------------ the store
+
+
+def directory() -> Path:
+    """Where reused results live: the host cache, under its lock (R14.4)."""
+    from . import cache
+
+    return cache.root() / "reuse"
+
+
+def _path(tool: str, key_: str) -> Path:
+    return directory() / tool / f"{key_}.json"
+
+
+def load(tool: str, key_: str) -> dict | None:
+    """The stored result for `key_`: its raw report, version and the run that made it."""
+    try:
+        stored = json.loads(_path(tool, key_).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return stored if isinstance(stored, dict) and "raw" in stored else None
+
+
+def save(tool: str, key_: str, *, raw: str, version: str, generation: str) -> None:
+    """Keep a clean result under its key, written whole and renamed into place: two
+    scans holding the shared cache lock may write the same key at once."""
+    import os
+    import uuid
+
+    target = _path(tool, key_)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    partial = target.with_name(f"{target.name}.{uuid.uuid4().hex}.tmp")
+    partial.write_text(json.dumps({"raw": raw, "version": version,
+                                   "generation": generation}), encoding="utf-8")
+    os.replace(partial, target)

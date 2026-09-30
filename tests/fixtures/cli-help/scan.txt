@@ -1,5 +1,5 @@
 usage: valvur scan [-h] [--profile {offline,full}] [--offline] [--sbom] [--out DIR]
-                   [--budget SECONDS] [--jobs N]
+                   [--budget SECONDS] [--fresh] [--jobs N]
                    [path]
 
 positional arguments:
@@ -22,6 +22,8 @@ options:
   --budget SECONDS      Stop the Scanners past this many seconds: nothing new starts, what is
                         running is stopped, and the result is reported incomplete with the cut
                         Scanners named. Default: none here (Ctrl-C is yours); 300 over MCP.
+  --fresh               Run every Scanner. By default Trivy's and OSV-Scanner's last result is
+                        reused when no dependency file and none of their data has changed since.
   --jobs N              How many Scanners run at once (default: all of them). Docker Desktop's
                         default memory cannot always start eight containers together; two or three
                         at a time trades speed for not being killed. `jobs` in

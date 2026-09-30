@@ -41,6 +41,9 @@ class ScannerRun:
     #: Invocation (28.3.6): what produced the raw output, beside its version and
     #: duration. Empty when nothing was launched.
     argv: tuple[str, ...] = ()
+    #: The Scan Run whose result this is, when it was reused rather than run (R14.3,
+    #: D32): nothing it reads had changed since. Empty when it ran.
+    reused_from: str = ""
 
     @property
     def failed(self) -> bool:
@@ -201,6 +204,8 @@ def render(run: ScanRun) -> str:
                         "duration_s": round(s.duration_s, 1),
                         # The command line behind `raw/<tool>` (28.3.6).
                         "argv": list(s.argv),
+                        # The run it was reused from (R14.3), when it did not run.
+                        **({"reused_from": s.reused_from} if s.reused_from else {}),
                     }
                     for s in run.scanners
                 ],

@@ -1075,11 +1075,28 @@ the speed guard met.
     added or moved changes the key; a source file or a README does not.
   - Only Trivy and OSV-Scanner are reusable. OSV-Scanner only on `offline`: on
     `full` it answers from api.osv.dev, which has no stamp to key on.
-- [ ] **R14.3** **Reuse in a scan.** Behaviours:
+- [x] **R14.3** **Reuse in a scan.** Behaviours:
   1. through `LocalRuntime`, a second scan of an unchanged repository 8 runs neither Trivy
      nor OSV-Scanner, and its fingerprints equal the first's;
   2. `run.json` names each reused result and its run;
   3. `--fresh` and `fresh: true` run everything.
+  **STATUS 2026-09-30:** ✅ all three, and two more: a changed lockfile runs both
+  again, and a changed source file does not.
+  - **In the scan.** Before the Scan Container starts, each reusable Scanner's key is
+    computed. A stored result for it becomes that Scanner's outcome, parsed as if it
+    had just run, and the Scanner leaves the plan. A clean result that ran is stored
+    under its key, written whole and renamed into place. A cut, a timeout or a failure
+    is never stored.
+  - **Said.** The progress says `trivy: reused (…unchanged since run …)`. Each reused
+    Scanner's entry in `run.json` carries `reused_from`, the generation that ran it.
+  - **`--fresh` and `fresh`.** The CLI's `--fresh` and the `scan` tool's `fresh: true`
+    run everything. Each is passed only when asked, as every existing caller of the
+    scan functions expects.
+  - **Test stand-ins.** Fake `trivy` and `osv-scanner` join the test tools; they log
+    each run.
+  - **Found on the way.** Deciding which files are dependency files read about 95
+    patterns per name, seconds on repository 1's 103,251 files. It is now one
+    compiled expression, under a second for 100,000 names (`timing`).
 - [ ] **R14.4** **The reused results' home.** Behaviours: under the host cache and its
   lock; `update --prune` removes those of superseded keys, `--clear` all; nothing is
   written in the Workspace but the Results Folder.

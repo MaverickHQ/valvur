@@ -312,6 +312,11 @@ def build_parser() -> argparse.ArgumentParser:
         "Scanners named. Default: none here (Ctrl-C is yours); 300 over MCP.",
     )
     scan_cmd.add_argument(
+        "--fresh", action="store_true",
+        help="Run every Scanner. By default Trivy's and OSV-Scanner's last result is "
+        "reused when no dependency file and none of their data has changed since.",
+    )
+    scan_cmd.add_argument(
         "--jobs", type=_positive, default=None, metavar="N",
         help="How many Scanners run at once (default: all of them). Docker Desktop's "
         "default memory cannot always start eight containers together; two or "
@@ -651,6 +656,7 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
         out = Path(args.out).resolve() if getattr(args, "out", None) else None
         run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
                    jobs=args.jobs, budget_s=args.budget, sbom=getattr(args, "sbom", False),
+                   **({"fresh": True} if getattr(args, "fresh", False) else {}),
                    out=out)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
