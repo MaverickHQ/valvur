@@ -833,6 +833,16 @@ the baseline.
 
 **Exit:** track 5 at D22's target through both paths; the scenarios recorded.
 
+**Exit STATUS 2026-09-30** (`docs/acceptance/r12.md`):
+- **Track 5 through both paths:** ✅ 100 through a scan and 100 through `check_package`,
+  on both lanes, against D22's 95. The Score stays 63.0 on both, no track fell, and
+  every judged gate is green.
+- **The scenarios:** ✅ recorded, four of four on the second full run; $4.19 of D36's
+  $10 spent.
+- **The acceptance set:** ✅ both lanes. Linux is run 36647991049; the Mac's set was
+  regenerated.
+- **The suites:** ✅ e2e 81 passed on the Mac.
+
 ### Phase R13: static analysis, widened against the benchmark
 
 - [ ] **R13.1** **The rule source, audited** (D29; F2.9). Behaviours:

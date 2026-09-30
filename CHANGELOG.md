@@ -8,6 +8,21 @@ break things, and has.
 
 ## [Unreleased]
 
+- **`check_package`, before the install** (Phase R12, ADR-0028). It says whether each
+  package exists, is one edit from a far more popular one, was published as malicious,
+  or is exposed to dependency confusion by the project's registry configuration.
+  Answers come from the local index and the malicious list, and no registry is ever
+  asked. Fifty packages take under 0.1 s.
+  - An MCP tool, the seventh, `readOnlyHint: true` and `openWorldHint: false`.
+  - A CLI command, the ninth: `valvur check <ecosystem> NAME[@VERSION] …`, which exits
+    1 when any package is flagged, with `--json`.
+  - The rule is given to agents at the handshake, in `SUMMARY.md` and by `valvur
+    init`: call it before adding a dependency, and never add one it flags, or a
+    replacement for it, without asking the human. Measured with four agents asked to
+    add a hallucinated, a near-miss, a malicious and a real package: all four
+    followed it.
+- A Gemfile's private `source` blocks and a Cargo.toml's `registry` keys bind a name
+  to its private registry, as npm's, Python's and Composer's configuration already did.
 - **Every dataset's age is its data's** (Phase R11, ADR-0027). KEV is aged by its
   catalog's release, OSV's databases by their export's date, and EPSS by its scoring
   date. The bundled KEV snapshot now reads its true month rather than its install day.
