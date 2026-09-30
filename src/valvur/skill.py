@@ -70,3 +70,10 @@ def with_rules(text: str) -> str:
 
     start, end = text.index(RULES_START), text.index(RULES_END)
     return text[:start + len(RULES_START)] + "\n\n" + plain() + "\n" + text[end:]
+
+
+def files() -> dict[str, bytes]:
+    """Every file of the skill, by its path in the skill's directory: what the
+    plugin and the power copy, and what `init --write` writes into a project."""
+    return {path.relative_to(DIRECTORY).as_posix(): path.read_bytes()
+            for path in sorted(DIRECTORY.rglob("*")) if path.is_file()}

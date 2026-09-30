@@ -116,7 +116,7 @@ def test_the_tools_reference_is_the_servers_own_description_of_each():
 
     assert path.read_text(encoding="utf-8") == rendered, (
         "references/tools.md is not the registry's; regenerate it with "
-        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py`")
+        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py`, in that order")
     for name in _tools():
         assert f"## `{name}`" in rendered
 
@@ -150,7 +150,7 @@ def test_its_rules_block_is_the_handshakes_instructions():
 
     assert text[start + len(skill.RULES_START):end].strip("\n") == instructions().strip("\n"), (
         "the skill's rules are not the handshake's; regenerate with "
-        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py`")
+        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py`, in that order")
 
 
 def test_the_handshake_and_summarys_agent_block_render_the_same_rules():
