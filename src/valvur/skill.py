@@ -57,3 +57,16 @@ def tools_reference() -> str:
                   or ["It takes no fields."])
         lines.append("")
     return "\n".join(lines)
+
+
+RULES_START = ("<!-- rules:start — rendered from valvur.agent_rules, the handshake's "
+               "instructions; a test holds this block to them -->")
+RULES_END = "<!-- rules:end -->"
+
+
+def with_rules(text: str) -> str:
+    """`text`, a skill, with its rules block rendered afresh from `agent_rules`."""
+    from .agent_rules import plain
+
+    start, end = text.index(RULES_START), text.index(RULES_END)
+    return text[:start + len(RULES_START)] + "\n\n" + plain() + "\n" + text[end:]

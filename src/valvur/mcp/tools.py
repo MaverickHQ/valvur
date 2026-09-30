@@ -146,17 +146,12 @@ def instructions() -> str:
 
     Over MCP they reached an agent only if a human had pasted the README's snippet
     into `CLAUDE.md`. Since R5.2 this is where they are whole: `SUMMARY.md` ends
-    with a short form of them, and leads with the verdict. The constant, with the
-    Markdown blockquote furniture removed.
+    with a short form of them, and leads with the verdict. Since R15.1 the skill's
+    rules block is this text too, all three from `agent_rules`.
     """
-    from ..summary import AGENT_RULES
+    from ..agent_rules import plain
 
-    lines = ["valvur writes a scan's results into `.security-scan/` in the scanned "
-             "project. These rules apply to it, and `SUMMARY.md` there ends with a "
-             "short form of them; they apply to what these tools answer too.", ""]
-    for line in AGENT_RULES.splitlines():
-        lines.append(line[2:] if line.startswith("> ") else line.removeprefix(">"))
-    return "\n".join(lines).strip() + "\n"
+    return plain()
 
 
 def registry() -> list[Tool]:

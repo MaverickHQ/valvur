@@ -131,3 +131,41 @@ def test_every_reference_it_links_exists_and_each_is_linked():
 
     assert linked == present == {"references/tools.md", "references/triage.md",
                                  "references/ci.md", "references/air-gapped.md"}
+
+
+# ------------------------------------------ 4: the rules, from the one source
+
+def test_its_rules_block_is_the_handshakes_instructions():
+    """What the server hands an agent at `initialize`, word for word: a client that
+    loads the skill and one that only connects are told the same rules."""
+    import os
+
+    from valvur.mcp.tools import instructions
+
+    text = skill.SKILL.read_text(encoding="utf-8")
+    if os.environ.get("UPDATE_SKILL"):
+        skill.SKILL.write_text(skill.with_rules(text), encoding="utf-8")
+        text = skill.SKILL.read_text(encoding="utf-8")
+    start, end = text.index(skill.RULES_START), text.index(skill.RULES_END)
+
+    assert text[start + len(skill.RULES_START):end].strip("\n") == instructions().strip("\n"), (
+        "the skill's rules are not the handshake's; regenerate with "
+        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py`")
+
+
+def test_the_handshake_and_summarys_agent_block_render_the_same_rules():
+    """One source, `valvur.agent_rules`: each rule in full at the handshake and in
+    the skill, and short at the end of `SUMMARY.md`. A rule added there reaches all
+    three; none can say what another does not."""
+    from valvur import agent_rules
+    from valvur.api import ScanRun
+    from valvur.mcp.tools import instructions
+    from valvur.summary import render as render_summary
+
+    said = " ".join(instructions().split())
+    block = render_summary(ScanRun(findings=[])).rsplit("## For AI agents", 1)[1]
+
+    assert len(agent_rules.RULES) >= 8
+    for rule in agent_rules.RULES:
+        assert " ".join(rule.full.split()) in said, rule.full
+        assert rule.short in block, rule.short
