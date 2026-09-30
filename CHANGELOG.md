@@ -10,6 +10,21 @@ break things, and has.
 
 ## [1.2.0] — 2026-09-30
 
+Measured, and measurable. The Score (`scripts/eval.py`) scores what valvur finds on
+eight tracks by the OWASP Benchmark's formula: 59.3 when first measured and **64.9**
+now, on Linux and on a Mac, with a ratchet no change may fall under. Every dataset's
+age is its data's, and a scan refreshes what is stale. `check_package` answers before
+an install, offline. A rescan reuses the dependency Scanners' unchanged answers.
+The skill runs the workflow, from a Claude Code plugin, a Kiro power or
+`valvur init --write`.
+
+Every change is additive under 1.x (D37):
+- a seventh MCP tool and a ninth command;
+- an optional `cwe` on findings, and new rules;
+- the skill, with its plugin and power.
+`fp_version` stays 1, so every Suppression written before still applies. The plugin
+and the power pin their server to this release.
+
 - **A skill that runs valvur's workflow** (Phase R15, ADR-0031). One skill, `valvur`, in
   the open Agent Skills format, which Claude Code, Kiro and other clients load. It covers:
   - checking a package before adding it, then scanning, and calling `doctor` when a
