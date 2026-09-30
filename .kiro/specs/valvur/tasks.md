@@ -1045,9 +1045,36 @@ the speed guard met.
 
 - [ ] **R14.1** **Measure.** Each Scanner's warm time on the acceptance set, both lanes,
   recorded as the before.
-- [ ] **R14.2** **The reuse key** (D32; N1.5). Behaviours, one test each: a lockfile's byte
+  **STATUS 2026-09-30, the Mac:** the acceptance report now carries each Scanner's time
+  per repository, from its `run.json`. Measured on the Mac, in seconds:
+
+  | repository | osv-scanner | trivy | opengrep | checkov | the rest, each |
+  |---|---|---|---|---|---|
+  | 1-gate-shaped | 0.3 | 0.3 | 2.4 | 0.0 | ≤ 0.5 |
+  | 2-lockfiles | 15.0 | 0.4 | 2.9 | 3.6 | ≤ 0.4 |
+  | 3-history-secret | 0.3 | 0.3 | 2.0 | 0.0 | ≤ 0.3 |
+  | 4-nested-names | 0.3 | 0.3 | 2.2 | 0.0 | ≤ 0.3 |
+  | 5-infrastructure | 0.3 | 0.3 | 2.5 | 54.4 | ≤ 0.6 |
+  | 6-self | 3.7 | 0.3 | 4.6 | 4.6 | ≤ 1.8 |
+  | 7-local-exposure | 0.4 | 0.3 | 2.1 | 0.0 | ≤ 0.4 |
+  | 8-malicious-dependency | 10.7 | 0.3 | 2.8 | 0.0 | ≤ 0.4 |
+
+  - A warm rescan of repository 8, three times: 14.0, 13.7 and 14.4 s. OSV-Scanner,
+    loading its offline npm database, is 10.0 to 10.6 s of it.
+  - Linux's before comes from `acceptance.yml` run 36659345238.
+- [x] **R14.2** **The reuse key** (D32; N1.5). Behaviours, one test each: a lockfile's byte
   change, the database's built time, the Scanner's version and the Profile each change the
   key; a source file's change does not.
+  **STATUS 2026-09-30:** ✅ all five, and three more.
+  - `valvur.reuse.key` hashes the Scanner, its version, the Profile, the data stamp,
+    and the path and sha256 of every dependency file in the File Set.
+  - Which files count comes from a named list, erring wide: each ecosystem's
+    lockfiles and manifests as both tools document them, Java archives, SBOMs, and
+    the tools' own configuration.
+  - A test holds every lockfile valvur itself names to the list. A dependency file
+    added or moved changes the key; a source file or a README does not.
+  - Only Trivy and OSV-Scanner are reusable. OSV-Scanner only on `offline`: on
+    `full` it answers from api.osv.dev, which has no stamp to key on.
 - [ ] **R14.3** **Reuse in a scan.** Behaviours:
   1. through `LocalRuntime`, a second scan of an unchanged repository 8 runs neither Trivy
      nor OSV-Scanner, and its fingerprints equal the first's;
