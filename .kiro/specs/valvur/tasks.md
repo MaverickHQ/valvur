@@ -1028,6 +1028,19 @@ the baseline.
 **Exit:** tracks 1 and 2 at D22's targets or recorded as missed; track 8 at or above 80;
 the speed guard met.
 
+**Exit STATUS 2026-09-30** (`docs/acceptance/r13.md`):
+- **Tracks 1 and 2:** recorded as missed. 11.1 and 15.0 on both lanes, from 0.4 and
+  10.0, against D22's 25 and 50. The rise is four vendored rules. The miss is in §8 for
+  the owner.
+- **Track 8:** ❌ 3.7 against 80, from 4.2: `random`'s three corpus findings, labelled
+  `fp`. It is inside the ratchet's 2 points, and in §8 with the others.
+- **The speed guard:** ✅ Opengrep's median on the acceptance set is 2.3 s, against a
+  limit of 17.4 s.
+- **The Score:** 64.9 on both lanes, from 63.0. `--compare` passes, every judged gate
+  is green, and the baseline is raised for tracks 1 and 2 from Linux run 36655021422.
+- **The acceptance set:** ✅ both lanes at `922113c`, Linux run 36657110279.
+- **The suites:** ✅ e2e 82 passed on the Mac, and CI's required checks on #166.
+
 ### Phase R14: reuse what cannot have changed
 
 - [ ] **R14.1** **Measure.** Each Scanner's warm time on the acceptance set, both lanes,

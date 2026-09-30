@@ -8,6 +8,18 @@ break things, and has.
 
 ## [Unreleased]
 
+- **Static analysis, widened by measurement** (Phase R13, ADR-0029). GitLab's
+  `sast-rules` were audited rule by rule, by the licence of each rule and of the project
+  it was translated from, and 106 of 303 candidates were eligible. Each was measured
+  against the OWASP Benchmark for Python, the Score's JavaScript twins and the corpus.
+  - Four met the bar and ship in the image: Python's weak `random`, string-built SQL
+    and unsafe `yaml.load`, and JavaScript's `eval` of an expression.
+  - Track 1 of the Score rises from 0.4 to 11.1, and track 2 from 10.0 to 15.0.
+  - A rule that only repeated one of valvur's own was withdrawn: two findings for one
+    flaw.
+  - `run.json` names the rule set's commit, and `NOTICE` credits it.
+- **A finding carries its rule's CWE**, in `findings.json` and in SARIF, with the tag
+  code-scanning tools read.
 - **`check_package`, before the install** (Phase R12, ADR-0028). It says whether each
   package exists, is one edit from a far more popular one, was published as malicious,
   or is exposed to dependency confusion by the project's registry configuration.
