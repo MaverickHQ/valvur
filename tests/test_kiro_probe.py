@@ -90,16 +90,22 @@ def _until(condition, seconds: float = 10) -> None:
 
 @pytest.mark.e2e
 def test_kiros_sequence_against_the_real_server(mountable_tmp):
+    import sys
+
+    _replay([sys.executable, "-c", "from valvur.mcp.server import main; raise SystemExit(main())"],
+            mountable_tmp / "kiro")
+
+
+def _replay(command: list[str], workspace: Path) -> None:
+    """Kiro's sequence, against the server `command` starts, on a copy of a repository."""
     import shutil
     import subprocess
-    import sys
     import time
 
-    workspace = mountable_tmp / "kiro"
     shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
     messages, spec = _messages(workspace)
     server = subprocess.Popen(
-        [sys.executable, "-c", "from valvur.mcp.server import main; raise SystemExit(main())"],
+        command,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     seen: list[dict] = []
 
@@ -132,3 +138,26 @@ def test_kiros_sequence_against_the_real_server(mountable_tmp):
     reader.join(timeout=5)
 
     _judge(seen, spec)
+
+
+REPO = Path(__file__).resolve().parent.parent
+
+
+def _power_command() -> list[str]:
+    """The Kiro power's server as Kiro starts it (R15.3), from its `mcp.json`:
+    `uvx --from valvur==<version> valvur-mcp`, with the release swapped for this
+    checkout, since the version being built is not published while it is built."""
+    server = json.loads((REPO / "powers" / "valvur" / "mcp.json").read_text())
+    server = server["mcpServers"]["valvur"]
+    return [server["command"],
+            *(str(REPO) if arg.startswith("valvur==") else arg for arg in server["args"])]
+
+
+def test_the_powers_server_is_started_as_its_configuration_says():
+    assert _power_command() == ["uvx", "--from", str(REPO), "valvur-mcp"]
+
+
+@pytest.mark.e2e
+def test_kiros_sequence_against_the_powers_server_configuration(mountable_tmp):
+    """R15.3: the same replay, through the command the power gives Kiro."""
+    _replay(_power_command(), mountable_tmp / "kiro-power")
