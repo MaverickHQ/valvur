@@ -887,39 +887,50 @@ the baseline.
     - CWE-338, a weak PRNG, now answers its parent 330, as 95 answers 94. A parent
       never answers for its child: Bandit's hash rules declare 327, not the
       benchmark's 328, so their 71 matches on weak-hash cases stay outside.
-  - **Measured on the Mac, 106 rules: 82 match nothing at all.** The 24 that match:
+  - **Measured on the Mac, 106 rules: 78 match nothing at all.** The 28 that match:
 
     | rule | CWE | true | false | outside | precision | meets the bar | s |
     |---|---|---|---|---|---|---|---|
-    | python_random_rule-random | 338 | 35 | 3 | 0 | 0.92 | **yes** | 0.16 |
-    | python_deserialization_rule-pickle | 502 | 13 | 10 | 0 | 0.57 | **yes** | 0.02 |
-    | python_deserialization_rule-yaml-load | 502 | 5 | 5 | 0 | 0.50 | **yes** | 0.01 |
-    | python_exec_rule-subprocess-popen-shell-true | 78 | 7 | 7 | 0 | 0.50 | **yes** | 0.09 |
+    | python_random_rule-random | 338 | 35 | 3 | 0 | 0.92 | **yes** | 0.30 |
     | python_sql_rule-hardcoded-sql-expression | 89 | 5 | 0 | 0 | 1.00 | **yes** | 0.00 |
-    | javascript_eval_rule-eval-with-expression | 95 | 1 | 0 | 0 | 1.00 | **yes** | 0.18 |
-    | python_eval_rule-eval | 95 | 10 | 17 | 0 | 0.37 | no | 0.10 |
-    | python_exec_rule-exec-used | 95 | 10 | 20 | 0 | 0.33 | no | 0.17 |
+    | python_deserialization_rule-yaml-load | 502 | 5 | 5 | 0 | 0.50 | **yes** | 0.02 |
+    | python_exec_rule-subprocess-popen-shell-true | 78 | 7 | 7 | 0 | 0.50 | **yes** | 0.06 |
+    | javascript_eval_rule-eval-with-expression | 95 | 1 | 0 | 0 | 1.00 | **yes** | 1.73 |
+    | python_deserialization_rule-pickle | 502 | 13 | 17 | 0 | 0.43 | no | 0.10 |
+    | python_eval_rule-eval | 95 | 10 | 17 | 0 | 0.37 | no | 0.20 |
+    | python_exec_rule-exec-used | 95 | 10 | 24 | 0 | 0.29 | no | 0.43 |
     | python_xml_rule-minidom | 611 | 8 | 20 | 0 | 0.29 | no | 0.01 |
     | python_xml_rule-sax | 611 | 8 | 20 | 0 | 0.29 | no | 0.01 |
-    | javascript_pathtraversal_rule-non-literal-fs-filename | 22 | 1 | 11 | 0 | 0.08 | no | 2.90 |
-    | python_assert_rule-assert-used | 754 | 0 | 59 | 0 | 0 | no | 0.51 |
-    | python_requests_rule-request-without-timeout | 770 | 0 | 20 | 0 | 0 | no | 0.19 |
-    | javascript_dos_rule-non-literal-regexp | 185 | 0 | 7 | 1 | 0 | no | 0.21 |
-    | python_crypto_rule-hash-md5 | 327 | 0 | 4 | 17 | 0 | no | 0.02 |
+    | javascript_pathtraversal_rule-non-literal-fs-filename | 22 | 1 | 51 | 0 | 0.02 | no | 34.76 |
+    | python_assert_rule-assert-used | 754 | 0 | 139 | 0 | 0 | no | 0.78 |
+    | python_requests_rule-request-without-timeout | 770 | 0 | 134 | 0 | 0 | no | 0.43 |
+    | javascript_dos_rule-non-literal-regexp | 185 | 0 | 10 | 15 | 0 | no | 1.49 |
+    | python_tmpdir_rule-hardcodedtmp | 377 | 0 | 5 | 0 | 0 | no | 0.77 |
+    | javascript_require_rule-non-literal-require | 95 | 0 | 4 | 0 | 0 | no | 1.47 |
+    | python_crypto_rule-hash-md5 | 327 | 0 | 4 | 17 | 0 | no | 0.01 |
     | python_crypto_rule-hash-sha1 | 327 | 0 | 3 | 20 | 0 | no | 0.01 |
-    | javascript_require_rule-non-literal-require | 95 | 0 | 3 | 0 | 0 | no | 0.22 |
-    | python_xml_rule-element | 611 | 0 | 1 | 57 | 0 | no | 0.07 |
+    | go_filesystem_rule-fileread | 22 | 0 | 2 | 0 | 0 | no | 0.00 |
+    | python_exec_rule-subprocess-call | 78 | 0 | 2 | 0 | 0 | no | 0.10 |
+    | python_flask_rule-app-debug | 489 | 0 | 2 | 0 | 0 | no | 0.06 |
+    | python_xml_rule-element | 611 | 0 | 1 | 57 | 0 | no | 0.03 |
     | python_crypto_rule-hashlib-new-insecure-functions | 327 | 0 | 0 | 34 | 0 | no | 0.14 |
-    | python_xml_rule-etree | 611 | 0 | 0 | 129 | 0 | no | 0.08 |
-    | go_file-permissions_rule-fileperm | 732 | 0 | 1 | 0 | 0 | no | 0.00 |
-    | go_filesystem_rule-fileread | 22 | 0 | 1 | 0 | 0 | no | 0.00 |
-    | javascript_timing_rule-possible-timing-attacks | 208 | 0 | 1 | 0 | 0 | no | 0.57 |
-    | python_escaping_rule-jinja2-autoescape-false | 116 | 0 | 1 | 0 | 0 | no | 0.00 |
+    | python_xml_rule-etree | 611 | 0 | 0 | 129 | 0 | no | 0.07 |
+    | go_file-permissions_rule-fileperm | 732 | 0 | 1 | 0 | 0 | no | 0.01 |
+    | go_file-permissions_rule-mkdir | 732 | 0 | 1 | 0 | 0 | no | 0.01 |
+    | javascript_timing_rule-possible-timing-attacks | 208 | 0 | 1 | 0 | 0 | no | 3.51 |
+    | python_escaping_rule-jinja2-autoescape-false | 116 | 0 | 1 | 0 | 0 | no | 0.02 |
 
-  - **Six rules meet D29's bar**: five Python, one JavaScript. No Go rule has a true
-    positive: the tracks hold no Go cases, and gosec's rules matched the corpus twice.
-    The six add six corpus matches between them, random's three and pickle's three,
-    for R13.3 to label.
+  - **Five rules meet D29's bar**: four Python, one JavaScript. No Go rule has a true
+    positive: the tracks hold no Go cases, and gosec's rules matched only the corpus.
+    Between them the five add three corpus matches, all `random`'s, for R13.3 to
+    label.
+  - **The first measurement was wrong, and is replaced above.** Opengrep reads
+    `.semgrepignore` from its working directory, not from the target. Run from the
+    image's default, it applied its own ignore list and skipped every `tests/` tree
+    in the corpus, so `pickle` measured 0.57 and met the bar. The scans that labelled
+    the corpus read those trees, and showed seven `pickle` matches in `requests`' tests
+    that the measurement never saw. The harness now runs Opengrep with `-w /src`, a
+    test holds it, and `pickle` measures 0.43.
 - [ ] **R13.3** **The rules that pass, shipped.** Behaviours:
   1. `rules/vendor/gitlab/` holds exactly the rules meeting D29's bar, with the licence,
      the commit and the manifest; `NOTICE` credits it;

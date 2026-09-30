@@ -116,7 +116,9 @@ def readable(target: Path, dest: Path) -> Path:
 def opengrep(rules: Path, target: Path, image: str) -> dict:
     """The image's Opengrep over `target` with `rules`, with no network."""
     done = subprocess.run(  # noqa: S603 — the runtime, fixed arguments
-        ["docker", "run", "--rm", "--network=none", "-v", f"{rules}:/rules:ro",
+        # `-w /src`: Opengrep reads `.semgrepignore` from its working directory, and
+        # from anywhere else it applies its own default list, which skips `tests/`.
+        ["docker", "run", "--rm", "--network=none", "-w", "/src", "-v", f"{rules}:/rules:ro",
          "-v", f"{target}:/src:ro", "--entrypoint", "opengrep", image, "scan",
          "--config", "/rules", "--json", "--time", "--quiet", "--no-git-ignore", "/src"],
         capture_output=True, text=True, check=False, timeout=3600)

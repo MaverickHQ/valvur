@@ -137,3 +137,24 @@ def test_per_rule_measures_the_tracks_and_the_corpus_and_writes_a_table(tmp_path
     row = report["rules"]["pickle"]
     assert (row["tp"], row["fp"], row["ships"]) == (1, 1, True)
     assert "| pickle | 502 | 1 | 1 | 0 | 0.5 | yes |" in evaluation.per_rule_table(report)
+
+
+def test_opengrep_runs_in_the_target_where_it_finds_the_ignore_file(tmp_path, monkeypatch):
+    """Opengrep reads `.semgrepignore` from its working directory, not from the target:
+    run from the image's default, it skipped every `tests/` tree, and R13.2's first
+    measurement missed seven of the corpus's matches in `requests` alone."""
+    import subprocess
+
+    per_rule = _module()
+    ran: list[list[str]] = []
+
+    def run(command, **kwargs):
+        ran.append(command)
+        return subprocess.CompletedProcess(command, 0, '{"results": []}', "")
+
+    monkeypatch.setattr(per_rule.subprocess, "run", run)
+
+    per_rule.opengrep(tmp_path / "rules", tmp_path / "target", "valvur:dev")
+
+    [command] = ran
+    assert command[command.index("-w") + 1] == "/src"
