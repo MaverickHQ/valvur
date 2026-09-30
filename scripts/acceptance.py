@@ -127,6 +127,8 @@ class RepoResult:
     containers_after: int
     #: `judge_time`'s answer: the word and the sentence.
     time: tuple[str, str] = ("none", "")
+    #: Each Scanner's time on this repository, from its run's own record (R14.1).
+    scanners: dict[str, float] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -168,7 +170,19 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
     seconds = round(seconds, 1)
     time = judge_time(seconds, expected, tasks_text,
                       platform if platform is not None else platform_info())
-    return RepoResult(root.name, verdict, seconds, containers(), time)
+    return RepoResult(root.name, verdict, seconds, containers(), time,
+                      _scanner_times(root / ".security-scan" / "run.json"))
+
+
+def _scanner_times(run_json: Path) -> dict[str, float]:
+    import json
+
+    try:
+        scanners = json.loads(run_json.read_text()).get("scanners") or []
+    except (OSError, ValueError):
+        return {}
+    return {s["tool"]: s["duration_s"] for s in scanners
+            if isinstance(s, dict) and isinstance(s.get("duration_s"), int | float)}
 
 
 def render_markdown(results: list[RepoResult], platform: dict) -> str:
@@ -182,6 +196,14 @@ def render_markdown(results: list[RepoResult], platform: dict) -> str:
         lines.append(f"| {r.name} | {'pass' if r.ok else 'FAIL'} | {r.seconds} | "
                      f"{r.time[0]} | {r.containers_after} | {len(r.verdict.missing)} | "
                      f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |")
+    tools = sorted({tool for r in results for tool in r.scanners})
+    if tools:
+        # Each Scanner's time, in seconds, from each run's record (R14.1): what reuse
+        # is measured against.
+        lines += ["", "| repository | " + " | ".join(tools) + " |",
+                  "|---|" + "---|" * len(tools)]
+        lines += [f"| {r.name} | " + " | ".join(str(r.scanners.get(t, "")) for t in tools)
+                  + " |" for r in results]
     return "\n".join(lines) + "\n"
 
 
@@ -191,7 +213,7 @@ def to_json(results: list[RepoResult], platform: dict) -> dict:
          "containers_after": r.containers_after, "missing": r.verdict.missing,
          "pending": r.verdict.pending, "blocking": r.verdict.blocking,
          "forbidden": r.verdict.forbidden, "incomplete": r.verdict.incomplete,
-         "unexpected": r.verdict.unexpected} for r in results]}
+         "unexpected": r.verdict.unexpected, "scanners": r.scanners} for r in results]}
 
 
 def discover(set_dir: Path, only: str | None = None) -> dict[str, Path]:

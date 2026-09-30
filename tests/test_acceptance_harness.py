@@ -230,3 +230,28 @@ def test_a_task_closed_into_the_archive_still_counts_as_done(tmp_path):
     text = harness.task_list(tmp_path)
 
     assert harness.ticked(text) == {"R3.2"}
+
+
+def test_each_scanners_time_is_read_from_the_run_and_reported(tmp_path):
+    """R14.1: the before for reuse is each Scanner's warm time on each repository, on
+    both lanes, so the report carries it, from the run's own record."""
+    harness = _module()
+    root = tmp_path / "8-malicious-dependency"
+    root.mkdir()
+    (root / "expected.toml").write_text('[run]\ncomplete = true\n')
+
+    def scan(ws):
+        folder = _results(ws, [])
+        (folder / "run.json").write_text(json.dumps({
+            "complete": True, "status": "clean",
+            "scanners": [{"tool": "trivy", "duration_s": 3.2},
+                         {"tool": "osv-scanner", "duration_s": 1.4}]}))
+
+    result = harness.run_repo(root, scan=scan, containers=lambda: 0, tasks_text=TASKS)
+    report = harness.to_json([result], {"platform": "test"})
+    table = harness.render_markdown([result], {"platform": "test"})
+
+    assert result.scanners == {"trivy": 3.2, "osv-scanner": 1.4}
+    assert report["repositories"][0]["scanners"] == {"trivy": 3.2, "osv-scanner": 1.4}
+    assert "| repository | osv-scanner | trivy |" in table
+    assert "| 8-malicious-dependency | 1.4 | 3.2 |" in table
