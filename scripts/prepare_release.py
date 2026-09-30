@@ -7,8 +7,9 @@ The first sets every version surface in one commit, `chore: release <version>`:
 `pyproject.toml` and the lock; the README's status line, worded *release in
 progress* until the run has promoted; `SECURITY.md`'s supported series; the
 CHANGELOG's heading, under an empty *Unreleased*; the skill's version in the
-package, copied byte for byte to the Claude Code plugin and the Kiro power; and the
-plugin's and the power's manifests and pinned servers. `--published` makes the
+package, copied byte for byte to the Claude Code plugin and the Kiro power; the
+plugin's and the power's manifests and pinned servers; and the image the pipeline
+examples name. `--published` makes the
 commit that flips the README once `promote` has completed. `--dry-run` prints what
 either would change and changes nothing.
 
@@ -34,6 +35,8 @@ SKILL = Path("src/valvur/data/skills/valvur")
 COPIES = (Path("plugins/valvur/skills/valvur"), Path("powers/valvur/skills/valvur"))
 MANIFESTS = (Path("plugins/valvur/.claude-plugin/plugin.json"), Path("powers/valvur/plugin.json"))
 SERVERS = (Path("plugins/valvur/.mcp.json"), Path("powers/valvur/mcp.json"))
+#: The pipeline examples, which name the image this release publishes (R8.2).
+EXAMPLES = (Path("docs/examples/github-actions.yml"), Path("docs/examples/gitlab-ci.yml"))
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
 
@@ -93,6 +96,10 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
                               (root / manifest).read_text(), str(manifest))
     for server in SERVERS:
         plan[server] = _server(root / server, version)
+    for example in EXAMPLES:
+        plan[example] = _sub(rf"ghcr\.io/maverickhq/valvur:{re.escape(previous)}\b",
+                             f"ghcr.io/maverickhq/valvur:{version}",
+                             (root / example).read_text(), str(example))
     return plan
 
 

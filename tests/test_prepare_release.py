@@ -24,7 +24,7 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "prepare_release.py"
 COPIED = ("pyproject.toml", "uv.lock", "README.md", "SECURITY.md", "CHANGELOG.md",
-          "src/valvur/data/skills", "plugins", "powers")
+          "src/valvur/data/skills", "plugins", "powers", "docs/examples")
 
 
 def _script():
@@ -60,47 +60,56 @@ def _declared(root: Path) -> str:
     return re.search(r'^version = "([^"]+)"', (root / "pyproject.toml").read_text(), re.M)[1]
 
 
+#: The version each test prepares: the next minor of whatever this tree is, so the
+#: tests hold before a release is prepared and after.
+MAJOR, MINOR, _ = (int(n) for n in _declared(REPO).split("."))
+NEXT = f"{MAJOR}.{MINOR + 1}.0"
+SERIES = f"{MAJOR}.{MINOR + 1}.x"
+
+
 def test_one_commit_sets_every_version_surface(tree):
     before = _declared(tree)
 
-    assert _script().main(["1.2.0", "--root", str(tree), "--date", "2026-10-01"]) == 0
+    assert _script().main([NEXT, "--root", str(tree), "--date", "2026-10-01"]) == 0
 
     assert _git(tree, "status", "--porcelain") == ""
     assert _git(tree, "log", "--format=%s").splitlines()[:2] == [
-        "chore: release 1.2.0", "chore: the tree before"]
-    assert _declared(tree) == "1.2.0"
+        f"chore: release {NEXT}", "chore: the tree before"]
+    assert _declared(tree) == NEXT
     assert re.search(r'name = "valvur"\nversion = "1\.2\.0"', (tree / "uv.lock").read_text())
     status = next(line for line in (tree / "README.md").read_text().splitlines()
                   if "**Status: `" in line)
-    assert status.startswith("> **Status: `1.2.0`** — release in progress")
+    assert status.startswith(f"> **Status: `{NEXT}`** — release in progress")
     assert f"serves `{before}`" in status
-    assert re.findall(r"^\| `([^`]+)` \|", (tree / "SECURITY.md").read_text(), re.M) == ["1.2.x"]
+    assert re.findall(r"^\| `([^`]+)` \|", (tree / "SECURITY.md").read_text(), re.M) == [SERIES]
     changelog = (tree / "CHANGELOG.md").read_text()
-    assert "## [Unreleased]\n\n## [1.2.0] — 2026-10-01\n" in changelog
+    assert f"## [Unreleased]\n\n## [{NEXT}] — 2026-10-01\n" in changelog
     for skill in ("src/valvur/data/skills/valvur", "plugins/valvur/skills/valvur",
                   "powers/valvur/skills/valvur"):
-        assert 'version: "1.2.0"' in (tree / skill / "SKILL.md").read_text(), skill
+        assert f'version: "{NEXT}"' in (tree / skill / "SKILL.md").read_text(), skill
     assert (tree / "plugins/valvur/skills/valvur/SKILL.md").read_bytes() == \
         (tree / "src/valvur/data/skills/valvur/SKILL.md").read_bytes()
     for manifest in ("plugins/valvur/.claude-plugin/plugin.json", "powers/valvur/plugin.json"):
-        assert json.loads((tree / manifest).read_text())["version"] == "1.2.0", manifest
+        assert json.loads((tree / manifest).read_text())["version"] == NEXT, manifest
     for server in ("plugins/valvur/.mcp.json", "powers/valvur/mcp.json"):
         args = json.loads((tree / server).read_text())["mcpServers"]["valvur"]["args"]
-        assert "valvur==1.2.0" in args, server
+        assert f"valvur=={NEXT}" in args, server
+    for example in ("docs/examples/github-actions.yml", "docs/examples/gitlab-ci.yml"):
+        assert f"ghcr.io/maverickhq/valvur:{NEXT}" in (tree / example).read_text(), example
 
 
 def test_published_flips_the_readme_once_the_run_has_promoted(tree):
     script = _script()
-    assert script.main(["1.2.0", "--root", str(tree), "--date", "2026-10-01"]) == 0
+    assert script.main([NEXT, "--root", str(tree), "--date", "2026-10-01"]) == 0
 
-    assert script.main(["--published", "1.2.0", "--root", str(tree),
+    assert script.main(["--published", NEXT, "--root", str(tree),
                         "--date", "2026-10-02"]) == 0
 
     status = next(line for line in (tree / "README.md").read_text().splitlines()
                   if "**Status: `" in line)
-    assert status.startswith("> **Status: `1.2.0`** — published and installable")
+    assert status.startswith(f"> **Status: `{NEXT}`** — published and installable")
     assert "release in progress" not in status
-    assert _git(tree, "log", "-1", "--format=%s").strip() == "docs: 1.2.0 published"
+    assert _git(tree, "log", "-1", "--format=%s").strip() == f"docs: {NEXT} published"
 
 
 def test_published_refuses_a_version_the_tree_is_not(tree, capsys):
@@ -112,7 +121,7 @@ def test_a_dry_run_changes_nothing_and_says_what_it_would(tree, capsys):
     head = _git(tree, "rev-parse", "HEAD")
     files = {p: p.read_bytes() for p in tree.rglob("*") if p.is_file() and ".git" not in p.parts}
 
-    assert _script().main(["1.2.0", "--root", str(tree), "--dry-run"]) == 0
+    assert _script().main([NEXT, "--root", str(tree), "--dry-run"]) == 0
     out = capsys.readouterr().out
 
     assert _git(tree, "rev-parse", "HEAD") == head

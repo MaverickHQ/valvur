@@ -244,7 +244,7 @@ Phases R9 to R15 are closed, each task with its STATUS, in
   every version surface `test_version.py` reads, the plugin's and the power's included;
   `--published` flips the README's wording; a dry run changes nothing.
   **STATUS 2026-09-30:** ✅ all three, and two refusals.
-  - **One commit, `chore: release <version>`, sets twelve files.**
+  - **One commit, `chore: release <version>`, sets fourteen files.**
     - The version and the lock.
     - The README's status line, worded *release in progress* and naming the
       version PyPI still serves.
@@ -253,10 +253,13 @@ Phases R9 to R15 are closed, each task with its STATUS, in
     - The skill's version in the package and in both copies, which stay byte for
       byte the package's.
     - The plugin's and the power's manifests, and both servers' pins.
+    - The image the two pipeline examples name. Found by preparing 1.2.0: the first
+      release commit left them at 1.1.0 and a test caught it; the script now sets
+      them, and the tests prepare whatever version follows the tree's.
   - **`--published <version>`** flips the status line to *published and installable*,
     in `docs: <version> published`.
   - **`--dry-run`** prints the diff and changes nothing. On this tree, `1.2.0 --dry-run`
-    lists the twelve files.
+    lists the fourteen files.
   - **Refused, exit 2:** a version not after the tree's, `--published` of a version
     the tree is not, and a tree with uncommitted changes, since the release commit
     holds the release alone.
