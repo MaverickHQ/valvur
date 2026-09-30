@@ -48,6 +48,11 @@
     "at": "R13"
   },
   "linux_duration_s": 206.7,
+  "speed": {
+    "linux": 4.8,
+    "mac": 5.6,
+    "note": "R14.5: the median warm rescan of the acceptance set, in seconds, with reuse. Linux from acceptance run 36663217973 at 60325f1; the Mac through Docker Desktop at 60325f1. The speed gate passes within 110% of its lane's."
+  },
   "raised": [
     {
       "at": "R10",

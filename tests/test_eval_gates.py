@@ -101,3 +101,17 @@ def test_the_speed_gate_is_the_median_warm_scan_within_110_percent_of_the_baseli
     assert (slow["judged"], slow["ok"]) == (True, False)
     assert "7.0 s against 6.0 s" in slow["reason"]
     assert unmeasured["judged"] is False
+
+
+def test_the_baseline_holds_a_median_warm_scan_for_each_lane():
+    """R14.5: the speed gate is judged from here on, on both lanes, so the ratchet
+    holds each lane's median; without it the gate would go unmeasured, silently."""
+    import json
+
+    baseline = json.loads((SCRIPT.parent.parent / "tests" / "eval" / "baseline.json")
+                          .read_text())
+    harness = _harness()
+
+    for platform in ("Linux 6.17.0-1022-azure x86_64", "Darwin 25.6.0 arm64"):
+        report = {"median_rescan_s": 5.0, "platform": {"platform": platform}}
+        assert harness.speed_of(report, baseline) is not None, platform

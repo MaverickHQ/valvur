@@ -1133,9 +1133,28 @@ the speed guard met.
       test holds that.
     - The same draft's `--clear` test removed the suite's shared database stand-in.
       It now clears a cache of its own.
-- [ ] **R14.5** **The after.** Behaviour: a warm rescan of repository 8 is at least 30%
+- [x] **R14.5** **The after.** Behaviour: a warm rescan of repository 8 is at least 30%
   faster on both lanes, or D32's fallback is applied and recorded; the speed gate is judged
   from here on.
+  **STATUS 2026-09-30:** ✅ both lanes, with no fallback: repository 8's warm rescan
+  is 63% faster on the Mac and 69% on Linux, with the same findings.
+
+  | repository 8, warm | before (R14.1) | after | faster |
+  |---|---|---|---|
+  | the Mac | 14.0 s | 5.2 s | 63% |
+  | Linux, run 36663217973 | 12.4 s | 3.8 s | 69% |
+
+  - **The rescan.** `acceptance.py --rescan` scans each repository a second time,
+    unchanged, and reports the median. Every repository passes on both lanes, and
+    zero containers remain after the four probes.
+  - **Where the time went.** OSV-Scanner's 10.9 s on Linux and 10.7 s on the Mac
+    are gone: its answer is the last scan's. Repository 2's rescan falls from 17.4 s
+    to 5.7 s on Linux, the same way.
+  - **The speed gate.** `tests/eval/baseline.json` holds each lane's median warm
+    rescan: 4.8 s on Linux and 5.6 s on the Mac. `eval.py --speed <report>` judges
+    a run within 110% of its lane's, and a test holds both medians in the baseline.
+  - **Said in the Score.** Each track records which Scanners' results were reused,
+    and the scorecard names them. `eval.py --fresh` runs every Scanner.
 
 **Exit:** the speed gate green; the Score with reuse equals the Score with `--fresh`, run
 back to back.
