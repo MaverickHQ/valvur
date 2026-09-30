@@ -8,6 +8,7 @@ reads.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from valvur.mcp import clients
@@ -170,3 +171,44 @@ def test_the_static_analysis_claim_is_tracks_1_and_2_as_the_baseline_records_the
     for track in ("sast-python", "sast-js"):
         assert f"**{baseline[track]}**" in paragraph.group(0), track
         assert f"| {track} |" in evaluating and f"{baseline[track]}" in evaluating, track
+
+
+# --------------------------------------------------- R16.4: the README as built
+
+def test_the_readme_names_every_tool_and_every_command():
+    from test_seven_commands import SEVEN
+
+    from valvur.mcp.tools import registry
+
+    text = README.read_text()
+    tools = re.findall(r"^\| `(\w+)` \|", _section("For AI coding agents: the primary way in"),
+                       re.M)
+    commands = re.search(r"Nine commands in all: (.+?)\. ", text, re.S)
+
+    assert sorted(tools) == sorted(t.name for t in registry())
+    assert commands and sorted(re.findall(r"`(\w+)`", commands[1])) == \
+        sorted([*SEVEN, "init", "check"])
+
+
+def test_the_skill_is_installed_from_where_it_ships():
+    import json
+
+    from valvur import skill
+
+    text = README.read_text()
+    marketplace = json.loads((REPO / ".claude-plugin" / "marketplace.json").read_text())
+    [plugin] = marketplace["plugins"]
+
+    assert f"`/plugin install {plugin['name']}@{marketplace['name']}`" in text
+    power = re.search(r"https://github\.com/MaverickHQ/valvur/tree/main/(powers/\w+)", text)
+    assert power and (REPO / power[1] / "plugin.json").is_file()
+    for where in skill.LOCATIONS.values():
+        assert f"`{where}/`" in text, where
+
+
+def test_the_score_the_readme_cites_is_the_baselines():
+    import json
+
+    baseline = json.loads((REPO / "tests" / "eval" / "baseline.json").read_text())
+
+    assert f"**{baseline['score']}** out of 100" in README.read_text()
