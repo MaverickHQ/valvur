@@ -10,7 +10,6 @@ Scanner upgrade is now all three at once, or red.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from conftest import PINNED_VERSIONS
@@ -19,23 +18,16 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 def _image_pins() -> dict[str, str]:
-    dockerfile = (REPO / "Dockerfile").read_text()
-    pins = {}
-    for image, stage in (("zricethezav/gitleaks", "gitleaks"), ("aquasec/trivy", "trivy"),
-                         ("ghcr.io/google/osv-scanner", "osv-scanner"),
-                         ("anchore/syft", "syft")):
-        found = re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:", dockerfile, re.M)
-        assert found, f"the Dockerfile no longer pins {image} by version and digest"
-        pins[stage] = found.group(1)
-    opengrep = re.search(r"^ARG OPENGREP_URL=\S+/download/v([\d.]+)$", dockerfile, re.M)
-    assert opengrep, "the Dockerfile no longer names Opengrep's release"
-    pins["opengrep"] = opengrep.group(1)
-    for tool, lock in (("checkov", "requirements-checkov.txt"),
-                       ("zizmor", "requirements-zizmor.txt")):
-        found = re.search(rf"^{tool}==([\d.]+) ", (REPO / lock).read_text(), re.M)
-        assert found, f"{lock} no longer pins {tool}"
-        pins[tool] = found.group(1)
-    return pins
+    """The image's pins, by the one parser `refresh.yml` uses too (R16.3)."""
+    import importlib.util
+    import sys
+
+    path = REPO / "scripts" / "scanner_pins.py"
+    spec = importlib.util.spec_from_file_location("scanner_pins", path)
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["scanner_pins"] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module.pins(module.in_tree(REPO))
 
 
 def test_each_scanner_the_image_pins_is_the_version_its_adapter_declares():
