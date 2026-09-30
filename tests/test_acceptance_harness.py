@@ -255,3 +255,39 @@ def test_each_scanners_time_is_read_from_the_run_and_reported(tmp_path):
     assert report["repositories"][0]["scanners"] == {"trivy": 3.2, "osv-scanner": 1.4}
     assert "| repository | osv-scanner | trivy |" in table
     assert "| 8-malicious-dependency | 1.4 | 3.2 |" in table
+
+
+def test_a_rescan_is_timed_and_its_median_reported(tmp_path):
+    """R14.5: the speed gate's measure is a warm scan, the second of each
+    repository, when nothing it reads has changed."""
+    harness = _module()
+    scans: list[str] = []
+    results = []
+    for name in ("1-a", "2-b", "3-c"):
+        root = tmp_path / name
+        root.mkdir()
+        (root / "expected.toml").write_text('[run]\ncomplete = true\n')
+
+        def scan(ws):
+            import shutil
+
+            scans.append(ws.name)
+            shutil.rmtree(ws / ".security-scan", ignore_errors=True)
+            _results(ws, [])
+
+        results.append(harness.run_repo(root, scan=scan, containers=lambda: 0,
+                                        tasks_text=TASKS, rescan=True))
+
+    report = harness.to_json(results, {"platform": "test"})
+
+    assert scans == ["1-a", "1-a", "2-b", "2-b", "3-c", "3-c"]
+    assert all(r.rescan_seconds is not None for r in results)
+    assert report["median_rescan_s"] == sorted(r.rescan_seconds for r in results)[1]
+    assert "rescan" in harness.render_markdown(results, {"platform": "test"})
+
+
+def test_the_linux_workflow_rescans():
+    workflow = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
+                / "acceptance.yml").read_text()
+
+    assert "--rescan" in workflow

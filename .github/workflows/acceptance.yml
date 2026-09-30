@@ -56,7 +56,9 @@ jobs:
         env:
           VALVUR_IMAGE: valvur:dev
         run: |
-          uv run python scripts/acceptance.py --generate --probes \
+          # --rescan: each repository a second time, nothing changed, for the
+          # speed gate's warm scan (R14.5, D21).
+          uv run python scripts/acceptance.py --generate --probes --rescan \
             --set "$RUNNER_TEMP/acceptance" --out acceptance-report
 
       - name: Summary

@@ -128,7 +128,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         index_dir: Path | None = None, benchmark: Path | None = None,
         verify: Callable[[Path], None] = owasp.verify, corpus: list[dict] | None = None,
         checkouts: Path | None = None, labels: Path = LABELS,
-        cursorrules: Callable[[], Path] = _cursorrules) -> dict:
+        cursorrules: Callable[[], Path] = _cursorrules, speed: dict | None = None) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt. The
     benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
@@ -189,7 +189,10 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         result["data"] = _oldest(result["data"], data_ages(run_json))
     result["gates"] = judge_gates(result["tracks"], result["data"],
                                   ranking_first=ranking_first,
-                                  tasks_text=_tasks_text() if tasks_text is None else tasks_text)
+                                  tasks_text=_tasks_text() if tasks_text is None else tasks_text,
+                                  speed=speed)
+    if speed is not None:
+        result["speed"] = speed
     scores = [t["score"] for t in result["tracks"].values()]
     result["score"] = round(sum(scores) / len(scores), 1) if scores else 0.0
     result["duration_s"] = round(time.monotonic() - started, 1)
@@ -264,8 +267,26 @@ def _tasks_text() -> str:
     return module.task_list(REPO)
 
 
+#: How far the median warm scan may rise over its baseline before the speed gate
+#: fails (D21).
+SPEED_TOLERANCE = 1.10
+
+
+def speed_of(report: dict, baseline: dict) -> dict | None:
+    """The speed gate's inputs from an acceptance report run with `--rescan`: its
+    median warm scan, and the baseline's for the same lane. None when either is
+    missing, and the gate is then not measured."""
+    median = report.get("median_rescan_s")
+    platform = str((report.get("platform") or {}).get("platform", ""))
+    lane = "mac" if platform.startswith("Darwin") else "linux"
+    recorded = (baseline.get("speed") or {}).get(lane)
+    if median is None or recorded is None:
+        return None
+    return {"median": median, "baseline": recorded, "lane": lane}
+
+
 def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
-                tasks_text: str) -> dict[str, dict]:
+                tasks_text: str, speed: dict | None = None) -> dict[str, dict]:
     """Pass or fail, each with its reason and whether its phase has closed."""
     leaked = [f"{name} ({t['what_left_the_machine']})" for name, t in tracks.items()
               if t.get("what_left_the_machine") != "nothing"]
@@ -287,11 +308,17 @@ def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
         "ranking": (ranking_first is True,
                     "the known-exploited CVE did not rank first"
                     if ranking_first is False else "the ranking fixture was not scanned"),
-        "speed": (True, "recorded"),
+        "speed": ((True, "the acceptance set's warm scans were not measured")
+                  if speed is None else
+                  (speed["median"] <= speed["baseline"] * SPEED_TOLERANCE,
+                   f"the median warm scan is {speed['median']} s against "
+                   f"{speed['baseline']} s on {speed['lane']}, over 110%")),
     }
     # A partial run (`--tracks`) that scanned no ranking fixture did not measure the
-    # ranking: recorded, never judged, since it cannot pass or fail on nothing.
-    unmeasured = {"ranking"} if ranking_first is None else set()
+    # ranking, and a run given no acceptance report did not measure the speed:
+    # recorded, never judged, since neither can pass or fail on nothing.
+    unmeasured = ({"ranking"} if ranking_first is None else set()) | \
+        ({"speed"} if speed is None else set())
     return {name: {"judged": _phase_closed(GATES[name], tasks_text) and name not in unmeasured,
                    "ok": ok, "reason": "" if ok else reason, "from": f"R{GATES[name]}"}
             for name, (ok, reason) in outcomes.items()}
@@ -426,6 +453,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="fail when a track falls more than 2 points under it")
     parser.add_argument("--update-baseline", type=Path, metavar="BASELINE",
                         help="raise the tracks this run beat; never lower one")
+    parser.add_argument("--speed", type=Path, metavar="ACCEPTANCE_REPORT",
+                        help="judge the speed gate from an acceptance report run with "
+                        "--rescan, against the baseline's median warm scan (R14.5)")
     parser.add_argument("--per-rule", type=Path, metavar="RULES",
                         help="measure each rule in RULES over tracks 1 and 2 and the "
                         "corpus instead (R13.2, D29)")
@@ -439,7 +469,12 @@ def main(argv: list[str] | None = None) -> int:
         (out / "per-rule.md").write_text(per_rule_table(report))
         print(per_rule_table(report))
         return 0
-    result = run([t for t in args.tracks.split(",") if t], args.work.resolve(), image=image)
+    speed = None
+    if args.speed:
+        baseline = args.compare or args.update_baseline or REPO / "tests" / "eval" / "baseline.json"
+        speed = speed_of(json.loads(args.speed.read_text()), json.loads(baseline.read_text()))
+    result = run([t for t in args.tracks.split(",") if t], args.work.resolve(), image=image,
+                 speed=speed)
     write(result, args.out.resolve())
     print(scorecard(result))
     status = 0

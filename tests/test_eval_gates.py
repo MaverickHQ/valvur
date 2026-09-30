@@ -78,3 +78,26 @@ def test_a_run_without_the_dependencies_track_does_not_judge_ranking():
     assert gates["ranking"]["judged"] is False
     assert gates["ranking"]["reason"] == "the ranking fixture was not scanned"
     assert gates["offline"]["judged"] is True
+
+
+def test_the_speed_gate_is_the_median_warm_scan_within_110_percent_of_the_baseline():
+    """R14.5, D21: judged from R14 when an acceptance report is given; without one
+    the speed is not measured, and not judged."""
+    harness = _harness()
+    closed = CLOSED_R9_TO_R11.replace("- [ ] **R14.1**", "- [x] **R14.1**")
+    baseline = {"speed": {"linux": 5.0, "mac": 6.0}}
+
+    def gate(median, platform):
+        speed = harness.speed_of({"median_rescan_s": median,
+                                  "platform": {"platform": platform}}, baseline)
+        return harness.judge_gates({"secrets": _track()}, FRESH, ranking_first=True,
+                                   tasks_text=closed, speed=speed)["speed"]
+
+    fast, slow = gate(5.4, "Linux 6.8 x86_64"), gate(7.0, "Darwin 25.6.0 arm64")
+    unmeasured = harness.judge_gates({"secrets": _track()}, FRESH, ranking_first=True,
+                                     tasks_text=closed)["speed"]
+
+    assert (fast["judged"], fast["ok"]) == (True, True)
+    assert (slow["judged"], slow["ok"]) == (True, False)
+    assert "7.0 s against 6.0 s" in slow["reason"]
+    assert unmeasured["judged"] is False

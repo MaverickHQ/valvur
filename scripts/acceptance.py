@@ -129,6 +129,9 @@ class RepoResult:
     time: tuple[str, str] = ("none", "")
     #: Each Scanner's time on this repository, from its run's own record (R14.1).
     scanners: dict[str, float] = field(default_factory=dict)
+    #: A second scan's seconds, nothing having changed: the warm scan the speed gate
+    #: measures (R14.5, D21). None when not asked for.
+    rescan_seconds: float | None = None
 
     @property
     def ok(self) -> bool:
@@ -155,7 +158,8 @@ def _containers_alive() -> int:
 
 
 def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
-             tasks_text: str | None = None, platform: dict | None = None) -> RepoResult:
+             tasks_text: str | None = None, platform: dict | None = None,
+             rescan: bool = False) -> RepoResult:
     """Scan one acceptance repository and judge it (R2.2)."""
     import time
     import tomllib
@@ -170,8 +174,15 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
     seconds = round(seconds, 1)
     time = judge_time(seconds, expected, tasks_text,
                       platform if platform is not None else platform_info())
-    return RepoResult(root.name, verdict, seconds, containers(), time,
-                      _scanner_times(root / ".security-scan" / "run.json"))
+    scanners = _scanner_times(root / ".security-scan" / "run.json")
+    again = None
+    if rescan:
+        import time as _time
+
+        began = _time.monotonic()
+        scan(root)
+        again = round(_time.monotonic() - began, 1)
+    return RepoResult(root.name, verdict, seconds, containers(), time, scanners, again)
 
 
 def _scanner_times(run_json: Path) -> dict[str, float]:
@@ -188,14 +199,20 @@ def _scanner_times(run_json: Path) -> dict[str, float]:
 def render_markdown(results: list[RepoResult], platform: dict) -> str:
     """One row per repository: verdict, seconds, containers left, then the counts of
     missing, pending and blocking-unexpected findings."""
+    rescanned = any(r.rescan_seconds is not None for r in results)
     lines = [f"Platform: {platform.get('platform', 'unknown')}; host swap in use "
              f"{platform.get('swap_gb', '?')} GB.", "",
              "| repository | verdict | seconds | time target | containers left | missing "
-             "| pending | blocking |", "|---|---|---|---|---|---|---|---|"]
+             "| pending | blocking |" + (" rescan |" if rescanned else ""),
+             "|---|---|---|---|---|---|---|---|" + ("---|" if rescanned else "")]
     for r in results:
         lines.append(f"| {r.name} | {'pass' if r.ok else 'FAIL'} | {r.seconds} | "
                      f"{r.time[0]} | {r.containers_after} | {len(r.verdict.missing)} | "
-                     f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |")
+                     f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |"
+                     + (f" {r.rescan_seconds} |" if rescanned else ""))
+    if rescanned:
+        lines += ["", f"Median warm rescan: {_median_rescan(results)} s (the speed gate's "
+                      "measure, R14.5)."]
     tools = sorted({tool for r in results for tool in r.scanners})
     if tools:
         # Each Scanner's time, in seconds, from each run's record (R14.1): what reuse
@@ -207,13 +224,22 @@ def render_markdown(results: list[RepoResult], platform: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _median_rescan(results: list[RepoResult]) -> float | None:
+    import statistics
+
+    times = [r.rescan_seconds for r in results if r.rescan_seconds is not None]
+    return round(statistics.median(times), 1) if times else None
+
+
 def to_json(results: list[RepoResult], platform: dict) -> dict:
-    return {"platform": platform, "repositories": [
+    return {"platform": platform, "median_rescan_s": _median_rescan(results),
+            "repositories": [
         {"name": r.name, "ok": r.ok, "seconds": r.seconds, "time": list(r.time),
          "containers_after": r.containers_after, "missing": r.verdict.missing,
          "pending": r.verdict.pending, "blocking": r.verdict.blocking,
          "forbidden": r.verdict.forbidden, "incomplete": r.verdict.incomplete,
-         "unexpected": r.verdict.unexpected, "scanners": r.scanners} for r in results]}
+         "unexpected": r.verdict.unexpected, "scanners": r.scanners,
+         "rescan_seconds": r.rescan_seconds} for r in results]}
 
 
 def discover(set_dir: Path, only: str | None = None) -> dict[str, Path]:
@@ -262,6 +288,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=home / "acceptance-report")
     parser.add_argument("--probes", action="store_true",
                         help="also stop a scan four ways and count what is left (R2.3)")
+    parser.add_argument("--rescan", action="store_true",
+                        help="scan each repository a second time, nothing changed, and "
+                             "report that warm scan's time: the speed gate's measure (R14.5)")
     parser.add_argument("--agent", action="store_true",
                         help="also ask `claude -p` to scan each repository (R2.4; costs "
                              "money, capped at $25 for the build)")
@@ -273,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
 
     repos = generate.build(args.set, args.only) if args.generate else discover(
         args.set, args.only)
-    results = [run_repo(root) for root in repos.values()]
+    results = [run_repo(root, rescan=args.rescan) for root in repos.values()]
     info = platform_info()
     args.out.mkdir(parents=True, exist_ok=True)
     report = to_json(results, info)
