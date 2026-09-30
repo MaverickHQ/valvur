@@ -1225,9 +1225,33 @@ back to back.
   - **Found by the smoke run.** The plugin pins the published release, and 1.1.0
     predates `check_package`, which the skill names. The plugin is whole only from
     1.2.0; §8 asks the owner to publish 1.2.0 before announcing the marketplace.
-- [ ] **R15.3** **The Kiro power** (D40). Read Kiro's documented layout first. Behaviours: the
+- [x] **R15.3** **The Kiro power** (D40). Read Kiro's documented layout first. Behaviours: the
   manifest's fields; its `mcp.json` is Kiro's client block; its skill is the package's; the
   Kiro stdio probe (D20) replays against the power's server configuration.
+  **STATUS 2026-09-30:** ✅ all four.
+  - **Kiro's layout, read first.** Sources: kiro.dev's powers pages (`/docs/powers/`,
+    `/create/`, `/installation/`) and the Agent Plugins 1.0.0 spec they follow.
+    - A power is now an Agent Plugin: `plugin.json`, `mcp.json` and
+      `skills/<name>/SKILL.md`.
+    - The older `POWER.md` format still loads but cannot carry a skill, so D40's
+      fallback is not needed.
+    - A symlink that leaves the power's root is rejected, so the skill is a copy.
+    - Kiro installs from `…/tree/main/powers/valvur` and names the power by its
+      folder.
+  - **The manifest** is inside the spec's closed field set, with the fields Kiro
+    requires: `$schema`, `name`, `version`, `description`, `author` and `keywords`,
+    which activate it. Its version is held by `test_version.py`.
+  - **The server.** It is Kiro's client block, `uvx --from valvur==1.1.0 valvur-mcp`,
+    with `type: stdio`. It has no `disabled` or `autoApprove`: the spec makes an
+    entry with an unknown field invalid.
+  - **The skill** is a copy held to the package's byte for byte, by the check the
+    plugin's uses.
+  - **The probe.** Kiro's sequence replays in the e2e suite against the power's own
+    command, the pin swapped for this checkout since the version being built is
+    unpublished. Both replays pass on the Mac: the power's in 16.2 s, `uvx` building
+    the checkout included, and the direct server's in 15.0 s.
+  - **Not done here:** installing the power in Kiro's GUI. It is the owner's, with
+    Kiro's GUI pass in §8.
 - [ ] **R15.4** **`init --write` adds the skill** (D40). Behaviours: written for Claude Code
   and for Kiro; never over an existing file; `init` without `--write` names it; `doctor`
   says whether the project's skill is present and whether its version matches.
