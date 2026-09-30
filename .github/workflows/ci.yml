@@ -76,8 +76,20 @@ jobs:
         run: ./scripts/verify.sh
 
   e2e:
-    name: end-to-end (real container)
-    runs-on: ubuntu-24.04
+    # R16.1 (D38): arm64 too, Docker only. The x86 leg keeps the name `main`'s
+    # protection requires; podman and its parity guard stay with it.
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: end-to-end (real container)
+            runner: ubuntu-24.04
+            podman: true
+          - name: end-to-end (real container, arm64)
+            runner: ubuntu-24.04-arm
+            podman: false
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,12 +97,17 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build image (version label drives the F1.9 compatibility check)
+        env:
+          # Each architecture its own build cache, so neither leg evicts the other's.
+          CACHE_SCOPE: e2e-${{ matrix.runner }}
         run: |
           VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
             VALVUR_VERSION="$VER" docker buildx bake dev \
-              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
+              --set "*.cache-from=type=gha,scope=$CACHE_SCOPE" \
+              --set "*.cache-to=type=gha,mode=max,scope=$CACHE_SCOPE"
       - name: Make the image visible to podman
+        if: matrix.podman
         # Podman keeps its own image store, so a docker build is invisible to it.
         # Transferring is far cheaper than building twice, and without it the podman
         # tests would silently degrade to "scanner failed, zero findings".
@@ -107,7 +124,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/valvur/names
-          key: valvur-name-index-${{ github.job }}-${{ github.run_id }}
+          key: valvur-name-index-${{ github.job }}-${{ matrix.runner }}-${{ github.run_id }}
           restore-keys: valvur-name-index-
       - name: Fetch the vulnerability database and the name index
         # The e2e canary asserts a COMPLETE run on `full`, which needs the database;
@@ -127,6 +144,7 @@ jobs:
         # measurement (24.3) is one number a passing run must still leave in the log.
         run: uv run pytest -q -m "e2e or timing" -rP
       - name: Runtime parity actually ran on both runtimes
+        if: matrix.podman
         # The parity tests skip when a runtime has no local image. That is right
         # locally and wrong here: docker and podman both have it, so a skip means
         # the F1 dual-runtime claim went unverified while CI stayed green.
