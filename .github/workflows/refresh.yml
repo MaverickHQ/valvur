@@ -1,0 +1,158 @@
+name: refresh
+
+# The monthly Scanner refresh (R16.3, D34, N3.5). Dependabot moves a Scanner's pin on
+# main, and nothing then told the owner that a release would ship it. On the first
+# Monday of each month, when main's pins differ from the latest release's, this runs
+# the Score on main; when no track fell under the ratchet and every judged gate held,
+# it dispatches a rehearsal of main and opens one issue for the owner to prepare and
+# tag. The tag and the brake stay the owner's (ADR-0020): nothing here tags, pushes
+# or publishes.
+on:
+  schedule:
+    - cron: "23 5 * * 1"     # Mondays, 05:23 UTC; the first step keeps the first of the month
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: the Scanner pins against the latest release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write         # the one issue the owner gets
+      actions: write        # dispatch the rehearsal of main
+    timeout-minutes: 90
+    steps:
+      - name: The first Monday of the month, or asked
+        id: when
+        # Cron cannot say "the first Monday": a day of the month and a day of the
+        # week together mean either one. So it wakes each Monday, and this lets the
+        # first seven days of the month through.
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ] || [ "$(date -u +%-d)" -le 7 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.when.outputs.run == 'true'
+        with:
+          persist-credentials: false
+          fetch-depth: 0     # the release tags: the latest one's pins are read from it
+
+      - name: What moved since the latest release
+        id: pins
+        if: steps.when.outputs.run == 'true'
+        # The parser test_scanner_pins.py holds the image to, reading the release's
+        # files from its tag.
+        run: |
+          since=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          echo "since=$since" >> "$GITHUB_OUTPUT"
+          python3 scripts/scanner_pins.py --since "$since" --github-output "$GITHUB_OUTPUT" \
+            | tee moved.json
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        if: steps.pins.outputs.changed == 'true'
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.pins.outputs.changed == 'true'
+      - name: Build the image from main
+        if: steps.pins.outputs.changed == 'true'
+        run: |
+          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            VALVUR_VERSION="$VER" docker buildx bake dev
+      - name: Install
+        if: steps.pins.outputs.changed == 'true'
+        run: |
+          uv venv --python 3.12
+          uv sync --extra dev --locked
+      - name: Fetch the vulnerability database and the name index
+        if: steps.pins.outputs.changed == 'true'
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+
+      - name: The Score, against the baseline
+        id: score
+        if: steps.pins.outputs.changed == 'true'
+        # A Score that fell is this run's answer, said in the owner's issue below,
+        # not a breakage of the run: that is the failure step's.
+        continue-on-error: true
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          set -o pipefail
+          uv run python scripts/eval.py --work "$RUNNER_TEMP/eval" --out eval-report \
+            --compare tests/eval/baseline.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.pins.outputs.changed == 'true'
+        with:
+          name: refresh-eval-report
+          path: |
+            eval-report/score.json
+            eval-report/scorecard.md
+          retention-days: 90
+
+      - name: Rehearse main
+        # Only on a Score that held: a rehearsal validates the release run and stops
+        # at the brake, publishing nothing a user installs.
+        if: success() && steps.pins.outputs.changed == 'true' && steps.score.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF: ${{ github.ref_name }}
+        run: gh workflow run release.yml --ref "$REF"
+
+      - name: One issue for the owner
+        if: success() && steps.pins.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SINCE: ${{ steps.pins.outputs.since }}
+          SCORE: ${{ steps.score.outcome }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the Scanner pins moved since the latest release
+        run: |
+          set -eu
+          if [ "$SCORE" = "success" ]; then
+            next="The Score held against the baseline and every judged gate passed, and a rehearsal of main was dispatched. When it is green: \`uv run python scripts/prepare_release.py <version>\`, then docs/RELEASING.md; the tag and the brake are yours."
+          else
+            next="The Score fell under the baseline or a judged gate failed, so nothing was rehearsed. Read the refresh-eval-report artifact before a release ships these pins."
+          fi
+          body=$(printf '%s\n\n```json\n%s\n```\n\n%s\n' \
+            "The Scanner pins on main differ from $SINCE's ($RUN):" "$(cat moved.json)" "$next")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi
+
+      - name: A failure is a tracked thing, not an email
+        # One open issue per workflow, as the other scheduled workflows do (27.2.7):
+        # a second failure comments on the first rather than filing another.
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: the monthly Scanner refresh failed
+        run: |
+          set -eu
+          body=$(printf '%s\n\n%s\n' \
+            "The scheduled \`refresh\` run failed: $RUN" \
+            "Nothing was rehearsed and nothing changed. Recovery: read the run's log, fix the cause, then dispatch this workflow again.")
+          existing=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+            echo "opened an issue"
+          fi

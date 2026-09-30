@@ -73,3 +73,55 @@ def test_the_command_writes_what_moved_for_the_workflow(tmp_path, capsys):
     said = json.loads(capsys.readouterr().out)
     assert set(said) == {"since", "moved"} and said["since"] == "HEAD"
     assert re.search(r"^changed=(true|false)$", output.read_text(), re.M)
+
+
+# ------------------------------------------------------------- refresh.yml
+
+def _workflow() -> str:
+    return WORKFLOW.read_text()
+
+
+def test_it_runs_on_the_first_monday_of_each_month_and_on_dispatch():
+    """Cron cannot say *the first Monday*: a day of the month and a day of the week
+    together mean either. So it wakes each Monday, and its first step lets the first
+    seven days of the month through, and a dispatch always."""
+    text = _workflow()
+
+    [cron] = re.findall(r'^\s+- cron: "([^"]+)"', text, re.M)
+    assert cron.split()[2:] == ["*", "*", "1"]
+    assert "workflow_dispatch:" in text
+    assert re.search(r'date -u \+%-?d\)?"? -le 7', text)
+
+
+def test_its_permissions_are_what_it_does_and_no_more():
+    text = _workflow()
+    top = text.split("\njobs:", 1)[0]
+    job = text.split("\njobs:", 1)[1]
+
+    assert re.search(r"^permissions:\n  contents: read\n", top, re.M)
+    granted = set(re.findall(r"^      (\w[\w-]*): (read|write)", job, re.M))
+    assert granted == {("contents", "read"), ("issues", "write"), ("actions", "write")}
+
+
+def test_it_compares_scores_rehearses_and_opens_one_issue_in_that_order():
+    text = _workflow()
+    order = [text.index(marker) for marker in (
+        "scripts/scanner_pins.py --since",
+        "scripts/eval.py",
+        "gh workflow run release.yml",
+        "gh issue create")]
+
+    assert order == sorted(order)
+    assert "--compare tests/eval/baseline.json" in text
+    assert "steps.pins.outputs.changed == 'true'" in text
+    assert "gh issue list --state open" in text           # one issue, commented on after
+    rehearse = text[text.index("- name: Rehearse"):text.index("gh workflow run release.yml")]
+    assert "success()" in rehearse and "steps.score.outcome == 'success'" in rehearse
+
+
+def test_it_never_tags_pushes_or_publishes():
+    """The tag and the brake are the owner's (ADR-0020)."""
+    text = _workflow()
+
+    assert not re.search(r"git (tag|push)\b", text)
+    assert "contents: write" not in text and "packages: write" not in text

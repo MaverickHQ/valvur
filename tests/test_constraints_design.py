@@ -136,9 +136,11 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # judge stopped passing on Linux, which nothing else would say.
     # `eval.yml` (weekly) joined in R9.6: a red run there means the Score fell under
     # its baseline or a corpus finding has no label (ADR-0026).
+    # `refresh.yml` (monthly) joined in R16.3: a red run there means moved Scanner
+    # pins went unmeasured, and a release would ship them unrehearsed.
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
                                                "published.yml", "acceptance.yml",
-                                               "eval.yml"}, \
+                                               "eval.yml", "refresh.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:
