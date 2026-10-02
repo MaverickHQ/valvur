@@ -19,7 +19,7 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 self-scan stopped it once, for a urllib3 advisory a day old, fixed in #171. The Score went
 from 59.3 at R9 to **64.9** on both lanes; R17 lowered D22's three missed targets to what
 1.2.0 measured (D42). R14 reuses unchanged dependency answers; R15 ships the skill.
-**Next:** R18, a hook that asks before an install (D44); R19 on or after 2026-11-19.
+R18's plugin hook asks before a flagged install (D44). **Next:** R19 on or after 2026-11-19.
 
 ## 2. What it is NOT
 

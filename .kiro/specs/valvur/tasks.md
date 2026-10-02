@@ -448,6 +448,16 @@ Score is unchanged on both lanes; nothing here touches detection.
 unchanged on both lanes; the acceptance set green on both lanes. A release of this is the
 owner's choice (§8).
 
+**Exit STATUS 2026-10-02** (`docs/acceptance/r18.md`):
+- **Behaviours:** ✅ every one green, 1790 unit tests.
+- **The smoke run:** ✅ the hook stopped the install under `claude -p`, and nothing was
+  installed. D46: $1.07 of $5.
+- **The Score:** ✅ 64.9 on both lanes, Linux run 37049523602. All five gates are green
+  on the Mac.
+- **The acceptance set:** ✅ both lanes, Linux run 37052248266. Repository 6's pin moved
+  to 1.2.0's commit after urllib3's advisories reached the old one.
+- **The suites:** ✅ e2e 85 passed on the Mac.
+
 ### Phase R19: the runner move (on or after 2026-11-19)
 
 - [ ] **R19.1** **Every runner on 26.04** (D45; 28.3.8). Behaviours:
