@@ -10,6 +10,18 @@ break things, and has.
 
 ## [1.3.0] — 2026-10-02
 
+The install asks first. `check_package` answered before an install only when an agent
+chose to call it. From 1.3.0, the Claude Code plugin asks for it: before the agent runs
+an install of a package valvur flags, Claude Code shows you each verdict and you decide.
+
+Everything is additive under 1.x:
+- a new console script, `valvur-hook`, beside `valvur-mcp`, with the CLI still at nine
+  commands;
+- the plugin's hook, pinned to this release like its server.
+
+`fp_version` stays 1, the Score is unchanged at 64.9 on both lanes, and Kiro's power is
+unchanged: its hooks can allow or block but not ask.
+
 - **The install asks first** (Phase R18). The Claude Code plugin brings a hook. Before
   the agent runs `npm`, `pnpm`, `yarn`, `bun`, `pip`, `uv`, `poetry`, `cargo`, `gem` or
   `composer` to install a package valvur flags, Claude Code asks you, naming each
