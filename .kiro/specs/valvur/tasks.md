@@ -299,7 +299,7 @@ Score is unchanged on both lanes; nothing here touches detection.
 
 ### Phase R18: the install asks first
 
-- [ ] **R18.1** **Read and measure first** (D44). Read Claude Code's hook documentation and
+- [x] **R18.1** **Read and measure first** (D44). Read Claude Code's hook documentation and
   record, with each source:
   - the `PreToolUse` event and its matcher;
   - the fields on stdin, and the decision output, `ask` in particular;
@@ -308,6 +308,36 @@ Score is unchanged on both lanes; nothing here touches detection.
   Read Kiro's hook documentation the same way. Collect the install commands agents
   actually wrote in R12.5's scenario transcripts and the acceptance agent runs. Behaviour:
   the STATUS records each fact with its source, and each command form with its count.
+  **STATUS 2026-10-02:** ✅ read and measured.
+  - **Claude Code's hook contract** (code.claude.com/docs/en/hooks.md;
+    plugins/manifest-reference.md, plugins/components.md):
+    - `PreToolUse` with `"matcher": "Bash"`.
+    - On stdin: `tool_name`, `tool_input.command`, `cwd`, `session_id`,
+      `hook_event_name` and `permission_mode`.
+    - The answer is `{"hookSpecificOutput": {"hookEventName": "PreToolUse",
+      "permissionDecision": "ask", "permissionDecisionReason": …}}`. `ask` shows the
+      permission dialog, with the reason, to the user and the model.
+    - Exit 0 with no output means the usual permission flow. Exit 2 blocks, which D44
+      forbids. A timeout does not block; the default is 600 s.
+    - A plugin declares hooks in `hooks/hooks.json` under a top-level `"hooks"` key,
+      with `${CLAUDE_PLUGIN_ROOT}`.
+    - **Not documented:** what `ask` does under `claude -p`; where the hook fires
+      relative to `--allowedTools` and `--disallowedTools`; whether plugin hooks are on
+      by default; whether `plugin validate` reads `hooks.json`. R18.4's smoke run
+      measures the first.
+  - **Kiro** (kiro.dev/docs/hooks/, /hooks/types/, /hooks/actions/, /permissions/, and
+    the Agent Plugins spec): a `PreToolUse` command hook on `shell` can only allow (exit 0)
+    or block (exit 2). No hook can ask, and powers cannot carry hooks: the spec leaves
+    hooks out on purpose. `permissions.yaml` can ask, but only by static globs. **By
+    D44's fallback, Kiro does not get the hook**; the skill's rule stands alone there.
+  - **Install commands agents wrote** in R12.5's scenarios and R7's agent runs, which had
+    no shell: `pip install -r requirements.txt` 2, `pip install` 1, `npm install` 1. The
+    `-r` file form must be read; a bare install has no names to check.
+  - **Measured: the pinned command costs about 0.45 s warm**, against 0.06 to 0.14 s for
+    bare Python (three runs each). Paid before *every* shell command, that is too much.
+    So the plugin's hook is a shell script that runs `uvx` only when the command names an
+    installer: a `grep`, milliseconds, and chains are still caught. The script carries
+    the pin.
 - [ ] **R18.2** **Install commands, parsed** (D44). Behaviours, one test each:
   1. npm, pnpm, yarn and bun names, with versions, tags and scopes;
   2. pip, `uv pip`, `uv add` and poetry names, with specifiers and extras;
