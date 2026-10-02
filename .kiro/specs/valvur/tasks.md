@@ -393,7 +393,7 @@ Score is unchanged on both lanes; nothing here touches detection.
     0.30 s through the installed script, of which 45 made-up names were flagged.
   - **Slices.** Behaviours 2 to 6 passed on arrival: slice 1's `answer` already held
     them. They are committed as their tests.
-- [ ] **R18.4** **Shipped in the plugin** (D40, D44). Behaviours:
+- [x] **R18.4** **Shipped in the plugin** (D40, D44). Behaviours:
   1. `plugins/valvur/hooks/hooks.json` names the hook, pinned like the server, and
      `test_version.py` holds the pin, which `prepare_release.py` moves;
   2. `claude plugin validate --strict` passes;
@@ -402,6 +402,28 @@ Score is unchanged on both lanes; nothing here touches detection.
   4. the smoke run, under D46: `claude -p` with the plugin, asked to install a made-up
      npm package. It passes when the transcript shows the hook's `ask` and the stub
      `npm` recorded nothing.
+  **STATUS 2026-10-02:** ✅ all four.
+  1. **Declared.** `plugins/valvur/hooks/hooks.json` holds one `PreToolUse` hook on
+     `Bash`, with a 30 s timeout. It runs `sh "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"`.
+     - The script exits at once unless the command names an installer, so valvur starts
+       only for installs (R18.1's 0.45 s).
+     - It then runs `uvx --from valvur==<version> valvur-hook`, or `VALVUR_HOOK` when
+       set.
+     - `test_version.py` holds the pin, and `prepare_release.py` moves it, so a release
+       now sets 15 files.
+  2. **`claude plugin validate --strict`** passes with the hook.
+  3. **Replayed through the plugin's own command.** A flagged install asks; a real
+     package, another tool, or a command naming no installer says nothing, the last
+     without starting valvur.
+  4. **The smoke run**, `scripts/acceptance/hook_smoke.py`: `claude -p` with the
+     plugin, `Bash` allowed, every installer and fetcher a recording stub, asked to
+     install a made-up npm package.
+     - **What `ask` does under `-p`,** which the hook documentation does not say:
+       Claude Code turns it into a `permission_denied`, with
+       `decision_reason_type: "hook"` and the hook's reason. The model received the
+       reason and reported it.
+     - The stubs recorded no install. It passed twice: the exploratory run, $0.69, and
+       the script's, $0.38. D46 stands at $1.07 of $5.
 - [ ] **R18.5** **Said where it matters.**
   - `CLAUDE.md` §4 records the owner's approval of this one hook.
   - The skill and the README's skill section name the hook, and `valvur init` says the
