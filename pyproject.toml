@@ -14,6 +14,9 @@ dependencies = []          # host shim is stdlib-only by design (F10.6)
 valvur = "valvur.cli:main"
 # MCP is the primary interface (ADR-0015); no extra to opt into.
 "valvur-mcp" = "valvur.mcp.server:main"
+# The check_package hook Claude Code runs before a Bash call (R18.3, D44); a script
+# of its own, so the CLI keeps its nine commands.
+"valvur-hook" = "valvur.hook:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "jsonschema>=4"]
