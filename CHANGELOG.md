@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-02
+
 - **The install asks first** (Phase R18). The Claude Code plugin brings a hook. Before
   the agent runs `npm`, `pnpm`, `yarn`, `bun`, `pip`, `uv`, `poetry`, `cargo`, `gem` or
   `composer` to install a package valvur flags, Claude Code asks you, naming each

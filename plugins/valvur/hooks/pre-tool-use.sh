@@ -11,4 +11,4 @@ case "$event" in
   *npm*|*pnpm*|*yarn*|*bun*|*pip*|*"uv add"*|*poetry*|*cargo*|*gem*|*composer*) ;;
   *) exit 0 ;;
 esac
-printf '%s' "$event" | ${VALVUR_HOOK:-uvx --from valvur==1.2.0 valvur-hook}
+printf '%s' "$event" | ${VALVUR_HOOK:-uvx --from valvur==1.3.0 valvur-hook}
