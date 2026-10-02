@@ -146,7 +146,11 @@ verdict, triage by group, propose fixes and wait for the human, rescan after a f
 gate in CI. Three ways to have it:
 
 - **Claude Code**, the skill and the server together, pinned to the release:
-  `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`.
+  `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`. The
+  plugin also brings a hook: before the agent runs an install of a package valvur
+  flags (nonexistent, one edit from a popular name, malicious, or exposed to
+  dependency confusion), Claude Code asks you, naming why. It never blocks on its own,
+  never runs anything, and reads only this machine's index.
 - **Kiro**, as a power: *Add Custom Power*, *Import power from GitHub*, and
   `https://github.com/MaverickHQ/valvur/tree/main/powers/valvur`.
 - **Any project**: `valvur init --write` writes it to `.claude/skills/valvur/` and

@@ -380,6 +380,10 @@ modes classic scanners miss, so that hallucinated and poisoned inputs are caught
     *Note: where no offline index exists (JVM, Go), or the project binds the name to a
     private registry, the answer is `unknown`, naming why; valvur asks no registry.
     "One edit from a popular name" is answered for PyPI, as F3.4 is.*
+    *Amended 2026-10-02 (R18, D44): in Claude Code the plugin's hook gives the same answer
+    unasked, before an install command runs, and asks the human when a package is
+    flagged; it never denies and never runs anything. Kiro's hooks cannot ask, only allow
+    or block, so there the skill's rule stands alone.*
 
 ## F4 — Licence analysis
 

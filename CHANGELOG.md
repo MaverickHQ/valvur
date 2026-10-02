@@ -8,6 +8,14 @@ break things, and has.
 
 ## [Unreleased]
 
+- **The install asks first** (Phase R18). The Claude Code plugin brings a hook. Before
+  the agent runs `npm`, `pnpm`, `yarn`, `bun`, `pip`, `uv`, `poetry`, `cargo`, `gem` or
+  `composer` to install a package valvur flags, Claude Code asks you, naming each
+  package's verdict. The check reads only this machine's index and answers 50 names in
+  well under a second. The hook never blocks on its own and never runs or changes
+  anything. Under `claude -p`, Claude Code turns the hook's question into a refusal the
+  agent is told about. Kiro's hooks cannot ask, so Kiro keeps the skill's rule.
+
 - **For maintainers** (Phase R17): the traceability check also fails on a requirement ID
   that is cited but defined nowhere, naming where it is first cited. Run on the tree
   before 1.2.0's N3.4 and N3.5 were written, it names exactly those two. The Score's

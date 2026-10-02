@@ -424,7 +424,7 @@ Score is unchanged on both lanes; nothing here touches detection.
        reason and reported it.
      - The stubs recorded no install. It passed twice: the exploratory run, $0.69, and
        the script's, $0.38. D46 stands at $1.07 of $5.
-- [ ] **R18.5** **Said where it matters.**
+- [x] **R18.5** **Said where it matters.**
   - `CLAUDE.md` §4 records the owner's approval of this one hook.
   - The skill and the README's skill section name the hook, and `valvur init` says the
     plugin brings it.
@@ -432,6 +432,17 @@ Score is unchanged on both lanes; nothing here touches detection.
 
   Behaviours: the skill's tests and the documented-commands test pass; `CLAUDE.md` stays
   under 200 lines.
+  **STATUS 2026-10-02:** ✅ both.
+  - **`CLAUDE.md` §4** names the one hook and the owner's approval (D44); 199 lines.
+  - **The skill's first step** says the plugin's hook also asks; the plugin's and the
+    power's copies were refreshed and are held byte for byte.
+  - **The README's plugin line** says what the hook does and never does.
+  - **`valvur init`** says the plugin brings the hook.
+  - **Specs.** F3.16 carries R18's amendment, Kiro's lack included. `design.md` §6f
+    describes the hook, from the prefilter to `-p`.
+  - **`CHANGELOG.md` `[Unreleased]`** gains it.
+  - **Tests:** the skill, plugin, power, version, init and documented-commands tests
+    pass, and traceability holds.
 
 **Exit:** every behaviour green; the smoke run recorded, or D46's fallback; the Score
 unchanged on both lanes; the acceptance set green on both lanes. A release of this is the

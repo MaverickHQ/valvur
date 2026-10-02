@@ -43,7 +43,8 @@ def render(workspace: Path) -> str:
         if entry.key in skill.LOCATIONS:
             lines.append(f"{entry.name} reads the skill from {skill.LOCATIONS[entry.key]}/; "
                          "`valvur init --write` writes it there.")
-    lines += ["In Claude Code, the plugin brings the skill and the server to every project: "
+    lines += ["In Claude Code, the plugin brings the skill, the server, and a hook that asks "
+              "before a flagged install, to every project: "
               "`/plugin marketplace add MaverickHQ/valvur`, then "
               "`/plugin install valvur@valvur`.", ""]
     from .summary import CHECK_RULE

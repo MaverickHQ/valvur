@@ -711,6 +711,26 @@ every version surface together (§6d). As shipped the plugin is whole only from
 `1.2.0`: `1.1.0`'s server predates `check_package`, which the skill names (R15.2's
 smoke run: six tools from `1.1.0`, all seven from the tree).
 
+**The hook that asks before an install** (F3.16, D44, R18). The plugin declares one
+`PreToolUse` hook on `Bash` in `hooks/hooks.json`. Its command, `hooks/pre-tool-use.sh`,
+exits at once unless the command names an installer, since starting valvur costs about
+0.45 s and the hook runs before every shell command. When it names one, it runs
+`valvur-hook`, pinned like the server. `valvur-hook` is a console script beside
+`valvur-mcp`, so the CLI keeps nine commands.
+
+- **What it reads.** `valvur.installs` takes the packages the command would install:
+  npm, pnpm, yarn, bun, pip, uv, poetry, cargo, gem and composer, and `-r` files. It
+  never takes a path, a URL or a git reference for a name.
+- **What it answers.** `packages.check` runs on them. When any is flagged, or cannot be
+  checked for want of an index, the hook answers `ask` with each verdict. Otherwise it
+  says nothing.
+- **What it never does.** It never exits 2 and never answers `deny`, runs nothing, and
+  opens no socket.
+- **Under `claude -p`,** Claude Code turns the `ask` into a `permission_denied` whose
+  reason the agent sees (measured by R18.4's smoke run).
+- **Kiro.** Its `PreToolUse` hooks can only allow or block, and powers cannot carry
+  hooks, so Kiro has none (D44's fallback).
+
 ## 7. Error handling
 
 | Condition | Behaviour | Req |

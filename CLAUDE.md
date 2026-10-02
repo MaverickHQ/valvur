@@ -49,8 +49,9 @@ rejected, or escalated to the owner explicitly.
 The developer chooses which fixes to apply and when to rescan: an agent told to drive
 findings to zero has a cheaper path through deleting code or writing suppressions, and *the
 finding disappeared* is not *the vulnerability is fixed*. No `scan_and_fix` tool (a test
-asserts none exists), no source-modifying MCP tool, no watchers or on-save hooks.
-`REMEDIATION.md` is a proposal whose items apply independently.
+asserts none exists), no source-modifying MCP tool, no watchers or on-save hooks; the one
+hook, the plugin's `valvur-hook`, asks before a flagged install and nothing else (D44, the
+owner 2026-10-02). `REMEDIATION.md` is a proposal whose items apply independently.
 
 ## 5. Who it is for
 

@@ -25,7 +25,9 @@ vulnerability fixed.
 1. **Before adding or upgrading a dependency, check it.** Call `check_package` with
    each package's ecosystem, name and version. Never add a package it flags, or a
    replacement for it, without asking the human: the install is when a squatted or
-   malicious name runs its code, before any scan could report it.
+   malicious name runs its code, before any scan could report it. In Claude Code, the
+   valvur plugin's hook also asks the human before a flagged install runs; check first
+   all the same, so the question never comes as a surprise.
 2. **Scan.** Call `scan`. It returns when the scan ends, with progress on the way; a
    second call while one runs attaches to it. If its `state` is `failed`, call
    `doctor`, and relay its failing lines and their fixes to the human as they are.
