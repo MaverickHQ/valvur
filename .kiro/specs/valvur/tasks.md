@@ -369,7 +369,7 @@ Score is unchanged on both lanes; nothing here touches detection.
     and passed alone and in the next. It probes the real Docker, so a container
     starting or stopping between its two calls can change the answer. Not this task's.
     It is in §8.
-- [ ] **R18.3** **The hook answers** (D44). `valvur hook pre-tool-use` reads Claude Code's
+- [x] **R18.3** **The hook answers** (D44). `valvur hook pre-tool-use` reads Claude Code's
   input on stdin. Behaviours:
   1. a flagged package: `ask`, with each package's verdict and reason;
   2. nothing flagged: no output, exit 0;
@@ -378,6 +378,21 @@ Score is unchanged on both lanes; nothing here touches detection.
   5. it never answers `deny` and never runs the command;
   6. no socket is opened (the conftest guard);
   7. 50 names in under 1 s (`timing`).
+  **STATUS 2026-10-02:** ✅ all seven, in `valvur.hook`.
+  - **The entry point is `valvur-hook`,** a console script beside `valvur-mcp`, not a
+    `valvur hook` subcommand as D44 first wrote it: the CLI keeps its nine commands,
+    which a test and the README hold.
+  - **What it answers.** It reads the event and, for a `Bash` call that installs named
+    packages, runs `packages.check` on up to 50. When any is flagged, or cannot be
+    checked for want of an index, it prints one `ask` with a line per package and its
+    reason. Otherwise it prints nothing.
+  - **What it never does.** It always exits 0, so it never blocks. A test makes process
+    launches and socket connections raise, and five commands, `rm -rf /` among them,
+    pass without either.
+  - **Measured against the real index** (4.4 million npm names): 50 names in 0.16 to
+    0.30 s through the installed script, of which 45 made-up names were flagged.
+  - **Slices.** Behaviours 2 to 6 passed on arrival: slice 1's `answer` already held
+    them. They are committed as their tests.
 - [ ] **R18.4** **Shipped in the plugin** (D40, D44). Behaviours:
   1. `plugins/valvur/hooks/hooks.json` names the hook, pinned like the server, and
      `test_version.py` holds the pin, which `prepare_release.py` moves;

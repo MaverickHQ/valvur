@@ -99,3 +99,16 @@ def test_it_never_denies_never_runs_the_command_and_opens_no_socket(index, monke
         assert code == 0
         if out:
             assert _decision(out)["permissionDecision"] == "ask", command
+
+
+@pytest.mark.timing
+def test_fifty_names_are_answered_in_under_a_second(index):
+    import time
+
+    names = " ".join(f"pkg-{n}" for n in range(49)) + " react"
+    started = time.monotonic()
+    code, out = _run(f"npm install {names}")
+    elapsed = time.monotonic() - started
+
+    assert code == 0 and _decision(out)["permissionDecision"] == "ask"
+    assert elapsed < 1.0, elapsed
