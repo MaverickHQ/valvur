@@ -15,6 +15,12 @@ Both checks are **ratchets against a recorded baseline**. Neither fails on the d
 that exists today; both fail the moment it grows. A check that fails on day one is a
 check somebody disables in week two.
 
+**Every ID cited is defined** (R17.2, D43) is the third, and has no baseline because it
+has no debt. N3.4 and N3.5 were cited by decisions, scripts, tests and a workflow for
+the whole R9 to R16 build and defined nowhere; this check did not look. Requirement IDs
+are never renumbered, so an ID that resolves nowhere is always a mistake, in the
+archives as much as in the code.
+
     python3 scripts/check_traceability.py          # verify
     python3 scripts/check_traceability.py --update # re-record the baseline
 """
@@ -32,9 +38,41 @@ SEARCHED = ("src", "tests", "scripts", ".github", "docs")
 SUFFIXES = {".py", ".yml", ".yaml", ".md", ".sh", ".toml"}
 
 
-def requirement_ids() -> set[str]:
-    text = (REPO / ".kiro" / "specs" / "valvur" / "requirements.md").read_text()
+#: Where a requirement ID can be cited (R17.2): every document, the code, the tests and
+#: the workflows. `requirements.md` is among them, so an amendment naming a missing ID
+#: is caught too.
+CITING = (".kiro", "docs", "src", "scripts", "tests", ".github", "README.md",
+          "CHANGELOG.md", "CONTRIBUTING.md", "CLAUDE.md", "SECURITY.md")
+_CITED_ID = re.compile(r"\b([FN]\d+\.\d+)\b")
+
+
+def requirement_ids(root: Path | None = None) -> set[str]:
+    root = REPO if root is None else root
+    text = (root / ".kiro" / "specs" / "valvur" / "requirements.md").read_text()
     return set(re.findall(r"\b([FNP]\d+(?:\.\d+)?)\s+—", text))
+
+
+def _citing_files(root: Path):
+    for name in CITING:
+        path = root / name
+        candidates = [path] if path.is_file() else sorted(path.rglob("*")) if path.is_dir() else []
+        for candidate in candidates:
+            if (candidate.is_file() and candidate.suffix in SUFFIXES
+                    and candidate.name != BASELINE.name):
+                yield candidate
+
+
+def undefined_citations(root: Path | None = None) -> dict[str, str]:
+    """Each requirement ID cited somewhere and defined nowhere, to where it is first
+    cited, `path:line`."""
+    root = REPO if root is None else root
+    defined, found = requirement_ids(root), {}
+    for path in _citing_files(root):
+        for number, line in enumerate(path.read_text(errors="ignore").splitlines(), 1):
+            for match in _CITED_ID.finditer(line):
+                if match[1] not in defined and match[1] not in found:
+                    found[match[1]] = f"{path.relative_to(root).as_posix()}:{number}"
+    return found
 
 
 def _cited_anywhere() -> str:
@@ -111,6 +149,10 @@ def main(argv: list[str]) -> int:
     known_uncited, known_orphans = _load_baseline()
     failed = False
 
+    for cited, where in sorted(undefined_citations().items()):
+        print(f"::error::requirement cited but defined nowhere: {cited}, first at {where}")
+        failed = True
+
     for label, now, before in (
         ("requirement cited nowhere", uncited, known_uncited),
         ("ADR citing no requirement", orphans, known_orphans),
@@ -130,12 +172,13 @@ def main(argv: list[str]) -> int:
         print(
             "\nTraceability regressed. Either cite the requirement where the "
             "behaviour lives, or add the requirement the behaviour needs — "
-            "whichever is actually true."
+            "whichever is actually true. An ID defined nowhere is a typo or a "
+            "requirement never written: write it, or cite the one meant."
         )
         return 1
 
     print(f"traceability holds: {len(uncited)} uncited, {len(orphans)} orphan ADRs, "
-          "neither grew")
+          "neither grew; every cited ID is defined")
     return 0
 
 

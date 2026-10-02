@@ -265,13 +265,27 @@ Phase R16 is closed too, in the same archive.
   says every target now stands met at `1.2.0`. §8's two target rows closed with the list's
   amendment. The README already claims only the measured 11.1 and 15.0, which its as-built
   test holds.
-- [ ] **R17.2** **Every requirement ID cited is defined** (D43). Behaviours:
+- [x] **R17.2** **Every requirement ID cited is defined** (D43). Behaviours:
   1. an `F` or `N` ID cited in a scanned file and defined nowhere fails the check, named
      with its first `file:line`;
   2. an ID of the first version, mapped in the archive, passes;
   3. the files read are the documents, `src/`, `scripts/`, `tests/` and the workflows,
      and a test holds that list;
   4. the repository passes today, so R16.4's N3.4 and N3.5 are the last such gap.
+  **STATUS 2026-10-02:** ✅ all four, with no baseline: nothing is undefined today, so D43's
+  fallback and its map-based exemption were not needed.
+  - **The check.** `check_traceability.py` now fails on an `F` or `N` ID cited in
+    `CITING` and defined in no `requirements.md` line, naming its first `file:line`.
+    `CITING` is `.kiro`, `docs`, `src`, `scripts`, `tests` and `.github`, plus the five
+    top-level documents. `requirements.md` itself is read, so an amendment that names a
+    missing ID fails too.
+  - **Proved on history.** Run on R16.4's tree before N3.4 and N3.5 were written
+    (`3bb5835`), it names exactly those two, at D33's and D34's rows in `tasks.md`.
+  - **No exemption needed.** The archives cite 156 defined IDs and no undefined one:
+    IDs are never renumbered, so the first version's still resolve, and the archives are
+    checked like everything else.
+  - **Tested** in `tests/test_traceability_defined.py`, five tests. Its own made-up IDs
+    are assembled at runtime, since the check reads the tests too.
 
 **Exit:** traceability holds under the new rule, and the unit suite and CI are green. The
 Score is unchanged on both lanes; nothing here touches detection.
