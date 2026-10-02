@@ -79,3 +79,21 @@ def test_each_command_of_a_chain_is_read_on_its_own():
     assert _read("FOO=1 sudo npm i -g pm2 || echo failed") == [("npm", "pm2", None)]
     assert _read("(cd api && uv add 'starlette==0.41.0')") == [("pip", "starlette", "0.41.0")]
     assert _read("echo 'npm install not-run'") == []
+
+
+def test_flags_urls_paths_and_git_references_are_never_names():
+    assert _read("npm install ./local-pkg ../other /abs/path file:../x "
+                 "git+https://example.test/r.git github:owner/repo owner/repo "
+                 "https://example.test/pkg.tgz pkg.tgz --save-exact") == []
+    assert _read("pip install . ./dist/thing-1.0-py3-none-any.whl -e ../lib "
+                 "'thing @ https://example.test/thing.zip' --no-deps") == []
+    assert _read("pip install --target vendored requests") == [("pip", "requests", None)]
+
+
+def test_a_command_that_names_no_packages_yields_nothing():
+    """A bare install reads the lockfile, whose packages are the scan's to check."""
+    for command in ("npm ci", "npm install", "npm i --production", "yarn install", "yarn",
+                    "pnpm install", "pip install", "pip install -r", "uv sync", "poetry install",
+                    "npm run build", "pip list", "ls -la", "git commit -m 'npm install x'",
+                    "", "npm install 'unterminated"):
+        assert _read(command) == [], command

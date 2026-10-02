@@ -338,7 +338,7 @@ Score is unchanged on both lanes; nothing here touches detection.
     So the plugin's hook is a shell script that runs `uvx` only when the command names an
     installer: a `grep`, milliseconds, and chains are still caught. The script carries
     the pin.
-- [ ] **R18.2** **Install commands, parsed** (D44). Behaviours, one test each:
+- [x] **R18.2** **Install commands, parsed** (D44). Behaviours, one test each:
   1. npm, pnpm, yarn and bun names, with versions, tags and scopes;
   2. pip, `uv pip`, `uv add` and poetry names, with specifiers and extras;
   3. `-r requirements.txt` read as the file it names, from the command's directory;
@@ -347,6 +347,28 @@ Score is unchanged on both lanes; nothing here touches detection.
   6. flags, URLs, paths and git references are never taken for names;
   7. a command that is not an install, or an install with no names (`npm ci`,
      `npm install`), yields nothing: the lockfile's packages are the scan's.
+  **STATUS 2026-10-02:** ✅ all seven, in `valvur.installs.packages(command, cwd)`, which
+  returns `check`'s own `(ecosystem, name, version)` tuples and runs nothing.
+  - **Splitting.** Commands are split at `&&`, `||`, `;`, `|`, `&` and parentheses.
+    Each is read without its variable assignments, `sudo` or `env`. Quoted text stays
+    text, so `echo 'npm install x'` names nothing, and a command that does not parse
+    names nothing.
+  - **What is read.**
+    - npm, pnpm, yarn (`global add` too) and bun, with scopes, tags and ranges.
+    - pip, `pip3`, `python -m pip`, `uv pip`, `uv add` and `poetry add`. An exact pin
+      gives the version; a range gives none, since it names no version.
+    - `-r` and `--requirement`, read as the file they name, with comments, options and
+      direct references skipped and nested `-r` followed three deep.
+    - cargo, gem (`-v` belongs to the name before it) and composer.
+  - **Never a name:** flag values, paths, URLs, archives and wheels, git references,
+    GitHub's `owner/repo`, `name @ url`, and every name of a `cargo add` from `--git`
+    or `--path`.
+  - **Slices.** Behaviours 5 to 7 passed on arrival: slices 1 and 2's splitter and spec
+    filters already did what they test. They are committed as the tests that hold it.
+  - **Seen once in the gate:** `test_cli_parity`'s `doctor` case failed in one full run
+    and passed alone and in the next. It probes the real Docker, so a container
+    starting or stopping between its two calls can change the answer. Not this task's.
+    It is in §8.
 - [ ] **R18.3** **The hook answers** (D44). `valvur hook pre-tool-use` reads Claude Code's
   input on stdin. Behaviours:
   1. a flagged package: `ask`, with each package's verdict and reason;
@@ -414,4 +436,5 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
+| `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. Decide whether it should fake the runtime, as the other readers' cases do |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
