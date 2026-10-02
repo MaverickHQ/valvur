@@ -66,3 +66,13 @@ def test_another_tool_or_a_command_that_installs_nothing_says_nothing(index):
     assert _run("npm ci") == (0, "")
     out = io.StringIO()
     assert hook.main(stdin=io.StringIO("not json"), stdout=out) == 0 and out.getvalue() == ""
+
+
+def test_with_no_index_it_asks_naming_the_cause_rather_than_saying_nothing(no_name_index):
+    """A machine that never ran `valvur update`: the check is not silently off."""
+    code, out = _run("npm install left-pad")
+
+    decision = _decision(out)
+    assert code == 0 and decision["permissionDecision"] == "ask"
+    assert "could not check `left-pad`" in decision["permissionDecisionReason"]
+    assert "valvur update" in decision["permissionDecisionReason"]
