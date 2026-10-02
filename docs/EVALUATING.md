@@ -492,6 +492,13 @@ open redirects and the rest. valvur does not claim them.
   Score with reuse equals the Score run `--fresh`, category by category.
 - **R15** added the skill and changed no track.
 
+**The targets.** `1.2.0`'s targets (D22) were met on five tracks. For SAST-Python,
+SAST-JS and real-code precision, the owner lowered them on 2026-10-02 to what 1.2.0
+measured, 11.1, 15.0 and 3.7, and accepted the gap (D42). No rule-writing phase is planned.
+Static analysis stays modest, and real code still draws false alarms from the sink
+inventory, fixture keys and non-security hashes. What still holds is the ratchet: no track
+may fall more than 2 points under its baseline.
+
 All five gates are judged from R14 on, and every one is green on the Mac. Linux judges
 four, since its run of the Score takes no acceptance report. Each phase's record is in
 [`docs/acceptance/`](acceptance/).
