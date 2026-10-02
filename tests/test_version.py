@@ -238,3 +238,10 @@ def test_the_kiro_power_is_this_version():
 
     assert manifest["version"] == _declared()
     assert f"valvur=={_declared()}" in server["mcpServers"]["valvur"]["args"]
+
+
+def test_the_plugins_hook_is_pinned_to_this_version():
+    """R18.4 (D44): the hook runs the release's own valvur-hook, as the server does."""
+    script = (REPO / "plugins" / "valvur" / "hooks" / "pre-tool-use.sh").read_text()
+
+    assert f"uvx --from valvur=={_declared()} valvur-hook" in script

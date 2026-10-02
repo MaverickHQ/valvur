@@ -95,6 +95,8 @@ def test_one_commit_sets_every_version_surface(tree):
     for server in ("plugins/valvur/.mcp.json", "powers/valvur/mcp.json"):
         args = json.loads((tree / server).read_text())["mcpServers"]["valvur"]["args"]
         assert f"valvur=={NEXT}" in args, server
+    hook = (tree / "plugins/valvur/hooks/pre-tool-use.sh").read_text()
+    assert f"uvx --from valvur=={NEXT} valvur-hook" in hook
     for example in ("docs/examples/github-actions.yml", "docs/examples/gitlab-ci.yml"):
         assert f"ghcr.io/maverickhq/valvur:{NEXT}" in (tree / example).read_text(), example
 

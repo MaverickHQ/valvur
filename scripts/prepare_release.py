@@ -8,8 +8,8 @@ The first sets every version surface in one commit, `chore: release <version>`:
 progress* until the run has promoted; `SECURITY.md`'s supported series; the
 CHANGELOG's heading, under an empty *Unreleased*; the skill's version in the
 package, copied byte for byte to the Claude Code plugin and the Kiro power; the
-plugin's and the power's manifests and pinned servers; and the image the pipeline
-examples name. `--published` makes the
+plugin's and the power's manifests and pinned servers; the plugin's hook; and the
+image the pipeline examples name. `--published` makes the
 commit that flips the README once `promote` has completed. `--dry-run` prints what
 either would change and changes nothing.
 
@@ -35,6 +35,8 @@ SKILL = Path("src/valvur/data/skills/valvur")
 COPIES = (Path("plugins/valvur/skills/valvur"), Path("powers/valvur/skills/valvur"))
 MANIFESTS = (Path("plugins/valvur/.claude-plugin/plugin.json"), Path("powers/valvur/plugin.json"))
 SERVERS = (Path("plugins/valvur/.mcp.json"), Path("powers/valvur/mcp.json"))
+#: The plugin's hook, which runs the release's own valvur-hook (R18.4).
+HOOK = Path("plugins/valvur/hooks/pre-tool-use.sh")
 #: The pipeline examples, which name the image this release publishes (R8.2).
 EXAMPLES = (Path("docs/examples/github-actions.yml"), Path("docs/examples/gitlab-ci.yml"))
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
@@ -96,6 +98,9 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
                               (root / manifest).read_text(), str(manifest))
     for server in SERVERS:
         plan[server] = _server(root / server, version)
+    if (root / HOOK).is_file():
+        plan[HOOK] = _sub(rf"valvur=={re.escape(previous)} valvur-hook",
+                          f"valvur=={version} valvur-hook", (root / HOOK).read_text(), str(HOOK))
     for example in EXAMPLES:
         plan[example] = _sub(rf"ghcr\.io/maverickhq/valvur:{re.escape(previous)}\b",
                              f"ghcr.io/maverickhq/valvur:{version}",
