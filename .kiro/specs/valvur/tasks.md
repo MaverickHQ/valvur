@@ -240,7 +240,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | item | ready after | what the owner does |
 |---|---|---|
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
-| dispatch `refresh.yml` once | R16 landed | it cannot run before it is on `main`; one dispatch shows it end to end: Syft moved since `v1.1.0`, so it scores, dispatches a rehearsal and opens its issue |
 | D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
 | a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
