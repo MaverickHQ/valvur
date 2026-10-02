@@ -61,3 +61,13 @@ def test_a_requirements_file_is_read_as_the_file_it_names(tmp_path):
     assert _read("uv pip install --requirement=requirements.txt six", tmp_path)[-1] == \
         ("pip", "six", None)
     assert _read("pip install -r missing.txt", tmp_path) == []
+
+
+def test_cargo_gem_and_composer_names():
+    assert _read("cargo add serde@1.0.210 --features derive tokio") == [
+        ("cargo", "serde", "1.0.210"), ("cargo", "tokio", None)]
+    assert _read("cargo add --git https://example.test/crate.git thing") == []
+    assert _read("gem install rails -v 8.0.1 rack") == [
+        ("gem", "rails", "8.0.1"), ("gem", "rack", None)]
+    assert _read("composer require monolog/monolog:^3.0 --dev symfony/console") == [
+        ("composer", "monolog/monolog", "^3.0"), ("composer", "symfony/console", None)]

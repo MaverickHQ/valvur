@@ -106,6 +106,12 @@ def _read(words: list[str], cwd: Path) -> list[Package]:
         return _pip(words[2:], cwd)
     if tool == "poetry" and words[1:2] == ["add"]:
         return _pip(words[2:], cwd, at_version=True)
+    if tool == "cargo" and words[1:2] == ["add"]:
+        return _cargo(words[2:])
+    if tool == "gem" and words[1:2] == ["install"]:
+        return _gem(words[2:])
+    if tool == "composer" and words[1:2] in (["require"], ["req"]):
+        return _composer(words[2:])
     if tool in _NPM_VERBS:
         rest = words[1:]
         if tool == "yarn" and rest[:1] == ["global"]:
@@ -222,3 +228,71 @@ def _pip_spec(arg: str, *, at_version: bool = False) -> Package | None:
     if not match or "@" in arg:
         return None
     return "pip", match.group("name"), match.group("version")
+
+
+#: cargo's flags whose next word is their value; `--git` and `--path` make every name
+#: in the command a source other than crates.io, so the command names none to check.
+_CARGO_VALUED = frozenset({"--features", "-F", "--rename", "--package", "-p", "--registry",
+                           "--target", "--branch", "--tag", "--rev", "--manifest-path"})
+_CRATE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+def _cargo(args: list[str]) -> list[Package]:
+    if any(arg in {"--git", "--path"} or arg.startswith(("--git=", "--path=")) for arg in args):
+        return []
+    found: list[Package] = []
+    skip = False
+    for arg in args:
+        if skip:
+            skip = False
+            continue
+        if arg.startswith("-"):
+            skip = arg in _CARGO_VALUED
+            continue
+        name, _, version = arg.partition("@")
+        if _CRATE.fullmatch(name):
+            found.append(("cargo", name, version or None))
+    return found
+
+
+_GEM = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
+
+
+def _gem(args: list[str]) -> list[Package]:
+    """`gem install NAME [-v VERSION] …`: a version flag belongs to the name before it."""
+    found: list[Package] = []
+    take_version, skip = False, False
+    for arg in args:
+        if take_version:
+            take_version = False
+            if found:
+                found[-1] = (found[-1][0], found[-1][1], arg)
+            continue
+        if skip:
+            skip = False
+            continue
+        if arg in {"-v", "--version"}:
+            take_version = True
+            continue
+        if arg.startswith("-"):
+            skip = arg in {"-s", "--source", "-i", "--install-dir", "-n", "--bindir",
+                           "--platform"}
+            continue
+        if _GEM.fullmatch(arg) and not arg.endswith(".gem"):
+            found.append(("gem", arg, None))
+    return found
+
+
+_COMPOSER = re.compile(r"[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*")
+
+
+def _composer(args: list[str]) -> list[Package]:
+    """`composer require vendor/name[:constraint] …`."""
+    found: list[Package] = []
+    for arg in args:
+        if arg.startswith("-"):
+            continue
+        name, _, version = arg.replace("=", ":", 1).partition(":")
+        if _COMPOSER.fullmatch(name.lower()):
+            found.append(("composer", name, version or None))
+    return found
