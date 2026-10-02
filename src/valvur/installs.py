@@ -148,19 +148,62 @@ def _npm_spec(arg: str) -> Package | None:
     return ("npm", name, version) if name else None
 
 
-def _pip(args: list[str], cwd: Path, *, at_version: bool = False) -> list[Package]:
+#: How deep `-r` inside a requirements file is followed, so a file that names itself ends.
+_REQUIREMENTS_DEPTH = 3
+
+
+def _pip(args: list[str], cwd: Path, *, at_version: bool = False,
+         depth: int = 0) -> list[Package]:
     """pip's arguments: requirement specifiers, and `-r FILE` read as the file it names.
     poetry also writes a version as `name@^1.0`."""
     found: list[Package] = []
-    skip = False
+    skip, requirements = False, False
     for arg in args:
+        if requirements:
+            requirements = False
+            found += _requirements(cwd / arg, depth)
+            continue
         if skip:
             skip = False
+            continue
+        if arg in {"-r", "--requirement"}:
+            requirements = True
+            continue
+        if arg.startswith(("--requirement=", "-r")) and len(arg) > 2:
+            found += _requirements(cwd / arg.split("=", 1)[-1].removeprefix("-r"), depth)
             continue
         if arg.startswith("-"):
             skip = arg in _PIP_VALUED
             continue
         spec = _pip_spec(arg, at_version=at_version)
+        if spec:
+            found.append(spec)
+    return found
+
+
+def _requirements(path: Path, depth: int) -> list[Package]:
+    """A requirements file's packages: each line as pip reads it, comments and options
+    aside, `-r` followed into the file it names. A file that cannot be read names none."""
+    if depth >= _REQUIREMENTS_DEPTH:
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    found: list[Package] = []
+    for line in lines:
+        line = line.split(" #", 1)[0].strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            words = shlex.split(line)
+        except ValueError:
+            continue
+        if words[0].startswith("-"):
+            if words[0] in {"-r", "--requirement"} and len(words) > 1:
+                found += _requirements(path.parent / words[1], depth + 1)
+            continue
+        spec = _pip_spec(line)
         if spec:
             found.append(spec)
     return found

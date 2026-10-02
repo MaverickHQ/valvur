@@ -43,3 +43,21 @@ def test_pip_uv_and_poetry_names_with_specifiers_and_extras():
         ("pip", "pytest", None), ("pip", "ruff", None)]
     assert _read("poetry add django@^5.1 --group dev black") == [
         ("pip", "django", "^5.1"), ("pip", "black", None)]
+
+
+def test_a_requirements_file_is_read_as_the_file_it_names(tmp_path):
+    (tmp_path / "requirements.txt").write_text(
+        "# pinned for the demo\n"
+        "--index-url https://pypi.example.test/simple\n"
+        "flask==3.1.0  # the web layer\n"
+        "-r base.txt\n"
+        "-e .\n"
+        "git+https://example.test/repo.git#egg=thing\n"
+        "requests>=2 ; python_version >= '3.11'\n")
+    (tmp_path / "base.txt").write_text("attrs\n")
+
+    assert _read("pip install -r requirements.txt", tmp_path) == [
+        ("pip", "flask", "3.1.0"), ("pip", "attrs", None), ("pip", "requests", None)]
+    assert _read("uv pip install --requirement=requirements.txt six", tmp_path)[-1] == \
+        ("pip", "six", None)
+    assert _read("pip install -r missing.txt", tmp_path) == []
