@@ -8,7 +8,7 @@ break things, and has.
 
 ## [Unreleased]
 
-## [1.2.0] — 2026-09-30
+## [1.2.0] — 2026-10-02
 
 Measured, and measurable. The Score (`scripts/eval.py`) scores what valvur finds on
 eight tracks by the OWASP Benchmark's formula: 59.3 when first measured and **64.9**
