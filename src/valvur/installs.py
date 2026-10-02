@@ -1,0 +1,117 @@
+"""Install commands, read before they run (R18.2, D44).
+
+The `check_package` hook sees the text of a shell command an agent is about to run.
+When the command installs named packages, they are checked as `valvur check` checks
+them, before the install can run a squatted name's code. This module only reads: which
+packages a command would install, in which ecosystem, and at which version when one
+is named. It runs nothing and opens nothing but a requirements file the command names.
+
+A name read wrongly costs a question the human answers; a name missed costs the
+protection. So a spec that is not a registry name (a path, a URL, a git reference) is
+never taken for one, and a command that names no packages (`npm ci`, a bare
+`npm install`) yields nothing: the lockfile's packages are the scan's to check.
+"""
+
+from __future__ import annotations
+
+import shlex
+from pathlib import Path
+
+from .packages import Package
+
+#: Where a chain splits: each command between these is read on its own.
+_SEPARATORS = frozenset({"&&", "||", ";", "|", "&", "(", ")"})
+
+#: npm's install verbs, as each JavaScript package manager spells them.
+_NPM_VERBS = {"npm": {"install", "i", "add", "in"}, "pnpm": {"add", "install", "i"},
+              "yarn": {"add"}, "bun": {"add", "install", "i"}}
+#: npm flags whose next word is their value, not a package.
+_NPM_VALUED = frozenset({"--registry", "--cache", "--prefix", "--tag", "--workspace", "-w",
+                         "--omit", "--include", "--save-prefix", "--filter", "-C", "--dir",
+                         "--cwd", "--userconfig"})
+
+
+def packages(command: str, cwd: Path) -> list[Package]:
+    """Every registry package `command` would install, in order, from each command of a
+    chain. `cwd` is where the command runs, for a requirements file it names."""
+    found: list[Package] = []
+    for words in _commands(command):
+        found += _read(words, cwd)
+    return found
+
+
+def _commands(command: str) -> list[list[str]]:
+    """The words of each command in a chain; a command that does not parse is skipped,
+    since a shell would not run it either."""
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()")
+    lexer.whitespace_split = True
+    try:
+        tokens = list(lexer)
+    except ValueError:
+        return []
+    commands: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if token in _SEPARATORS or set(token) <= set(";&|()"):
+            if current:
+                commands.append(current)
+            current = []
+        else:
+            current.append(token)
+    if current:
+        commands.append(current)
+    return [_bare(words) for words in commands]
+
+
+def _bare(words: list[str]) -> list[str]:
+    """`words` without what only runs the command: variable assignments, `sudo`, `env`."""
+    while words and (("=" in words[0] and not words[0].startswith("-"))
+                     or words[0] in {"sudo", "env", "command", "exec", "time"}):
+        words = words[1:]
+    return words
+
+
+def _read(words: list[str], cwd: Path) -> list[Package]:
+    if not words:
+        return []
+    tool = Path(words[0]).name
+    if tool in _NPM_VERBS:
+        rest = words[1:]
+        if tool == "yarn" and rest[:1] == ["global"]:
+            rest = rest[1:]
+        if rest and rest[0] in _NPM_VERBS[tool]:
+            return _npm(rest[1:])
+    return []
+
+
+def _npm(args: list[str]) -> list[Package]:
+    found: list[Package] = []
+    skip = False
+    for arg in args:
+        if skip:
+            skip = False
+            continue
+        if arg.startswith("-"):
+            skip = arg in _NPM_VALUED
+            continue
+        spec = _npm_spec(arg)
+        if spec:
+            found.append(spec)
+    return found
+
+
+def _npm_spec(arg: str) -> Package | None:
+    """`name`, `name@version` or `@scope/name@version`; None for a path, a URL, a git
+    reference, a tarball or GitHub's `owner/repo` shorthand."""
+    if (arg.startswith((".", "/", "~", "file:", "git", "http:", "https:", "github:",
+                        "npm:", "link:", "workspace:"))
+            or arg.endswith((".tgz", ".tar.gz")) or "://" in arg):
+        return None
+    scoped = arg.startswith("@")
+    at = arg.find("@", 1 if scoped else 0)
+    name, version = (arg[:at], arg[at + 1:] or None) if at > 0 else (arg, None)
+    if "/" in name and not scoped:
+        return None                       # `owner/repo` is a GitHub reference
+    if scoped and name.count("/") != 1:
+        return None
+    return ("npm", name, version) if name else None
