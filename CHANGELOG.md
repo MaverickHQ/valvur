@@ -144,6 +144,10 @@ and the power pin their server to this release.
 - ADR-0026 to ADR-0031 record the decisions of the third task list.
 - **Syft 1.52.0.** Its adapter declares the version, so `run.json` records the one
   that ran, and its golden output is recaptured.
+- **urllib3 2.8.0** in the image's Checkov environment, past three advisories
+  published on 2026-09-30 (GHSA-8988-9cw3-xx77, GHSA-gh4c-6fx4-qh6g,
+  GHSA-vxq7-64xx-v4gw). The release's own self-scan found them, a day after the
+  rehearsal's had passed, and stopped the release before anything was published.
 - **A test holds each Scanner's image pin to its adapter's declared version** and to
   its golden fixture. Dependabot bumps the image alone: Syft's bump passed every check
   while `run.json` would have recorded the old version.
