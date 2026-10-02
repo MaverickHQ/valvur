@@ -239,11 +239,8 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R9 to R16 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, the owner's approval in manual mode; phases may be landed early, in order |
-| `v1.2.0` | R16 landed | the signed tag on the landed commit, then the approval at the brake; rehearsed on R16's branch at `14692b9` (run 36679347319), validated and cancelled at the brake. After promote: `scripts/prepare_release.py --published 1.2.0` |
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
 | dispatch `refresh.yml` once | R16 landed | it cannot run before it is on `main`; one dispatch shows it end to end: Syft moved since `v1.1.0`, so it scores, dispatches a rehearsal and opens its issue |
-| the plugin is whole from 1.2.0 | R15 landed | the plugin and the power pin the published release, and 1.1.0's server lacks `check_package`, which the skill names (R15.2's smoke run). Landing R15 puts the marketplace on `main` at once, so land R15 and R16 together and publish 1.2.0 before telling anyone to install it; after publishing, run `scripts/acceptance/plugin_smoke.py`, as shipped, for all seven tools |
 | D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
 | a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
