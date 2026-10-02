@@ -54,3 +54,15 @@ def test_a_flagged_package_makes_it_ask_with_each_verdict(index):
     assert "npm `reakt`: nonexistent" in reason
     assert "pip `requestz`: near-miss" in reason and "'requests'" in reason
     assert "npm `react`:" not in reason                      # a real package is not listed
+
+
+def test_nothing_flagged_says_nothing(index):
+    assert _run("npm install react left-pad && pip install requests") == (0, "")
+
+
+def test_another_tool_or_a_command_that_installs_nothing_says_nothing(index):
+    assert _run("npm install reakt", tool="Edit") == (0, "")
+    assert _run("npm test && pytest -q") == (0, "")
+    assert _run("npm ci") == (0, "")
+    out = io.StringIO()
+    assert hook.main(stdin=io.StringIO("not json"), stdout=out) == 0 and out.getvalue() == ""
