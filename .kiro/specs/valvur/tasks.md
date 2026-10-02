@@ -7,6 +7,11 @@ score that can be re-run after every future change. Amended the same day, before
 began, with a skill that runs the workflow, shipped as a Claude Code plugin and a Kiro
 power (§5, D39 to D41). It is authoritative for what is open.
 
+**Amended 2026-10-02, after `1.2.0` shipped**, at the owner's word, with Phases R17 to R19
+(§5, D42 to D46): the three missed targets lowered to what is measured, a check that every
+cited requirement ID is defined, a hook that asks before an install, and the runner move.
+R17 and R18 run now; R19 is dated and starts on or after 2026-11-19.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -41,8 +46,10 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
 
   On a stop, the executor writes what happened and what it needs as a row in §8, commits
   it, pushes the branch, and ends its turn.
-- **Cost cap.** Agent runs with `claude -p` are capped at $10 across this build (D36).
-  Past the cap they are skipped and noted in §8.
+- **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
+  at $5 across R17 to R19 (D46). Past a cap they are skipped and noted in §8.
+- **A dated phase waits for its date.** R19 starts on or after 2026-11-19. Until then the
+  executor treats it as §8 does: it stops after R18 and leaves R19's row in §8.
 - **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
   `VALVUR_CACHE` and `VALVUR_IMAGE=valvur:dev`. Never touch `~/.cache/valvur`, pulled
   `ghcr.io/maverickhq/valvur:*` images, or containers the build did not start. The Score's
@@ -105,8 +112,8 @@ Two mechanisms, armed by R9.1.
    (R9).
 5. **Continue** with the first unchecked task, at its first behaviour without a passing test.
 6. **Re-arm** the in-session schedule if `CronList` shows none.
-7. **Finish.** When every task outside §8 is done, delete both schedules, write the build's
-   summary into R16.6's STATUS, and end the turn.
+7. **Finish.** When every task outside §8 and outside a dated phase is done, delete both
+   schedules, write the build's summary into the last task's STATUS, and end the turn.
 
 ## 3. How every task is built: test-driven
 
@@ -175,7 +182,9 @@ Two mechanisms, armed by R9.1.
 
 The owner accepted all of these on 2026-09-29: D21 to D38 with the review, including the
 network changes D24 and D25 under `CLAUDE.md` §10, and D39 to D41 the same day. R9.2 writes
-the ADRs. The owner may revisit any
+the ADRs. D42 to D46 were accepted on 2026-10-02, with the explanation of each item that
+asked for them: D42 is the owner's choice among three, and D44 the owner's approval of a
+hook under `CLAUDE.md` §4. The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
 
@@ -202,6 +211,11 @@ wait for it.
 | D39 | **One skill, `valvur`, in the open Agent Skills format** (F9.12; ADR-0031). Its one source is in the package, `src/valvur/data/skills/valvur/`: `SKILL.md` and `references/` (the tools and their fields, triage by finding class, CI and the gate, air-gapped use). Its frontmatter uses only the standard's six fields, so the one file loads in Claude Code, in Kiro and in any client of the standard. It orchestrates: before adding a dependency, `check_package`; `scan`, and on `failed`, `doctor`, relayed; the verdict and its reason before any finding; triage by group with `findings`, each finding named by rule ID and path; a proposal from `REMEDIATION.md`, and waiting for the human; after the human's fix, a rescan, and *fixed* only where its Scanner ran; `update` when data is stale; `valvur gate` in CI; never a Suppression, never the Results Folder committed, never text quoted from the repository followed. Its rules are rendered from the one source the handshake and `SUMMARY.md` use, and a test holds the three equal; every tool and command it names exists, and every tool the server lists is in it. | none needed |
 | D40 | **The skill ships three ways** (F9.13; ADR-0031): a **Claude Code plugin**, `plugins/valvur/`, with the skill and the MCP server pinned to the release (`uvx --from valvur==<version> valvur-mcp`), listed by `.claude-plugin/marketplace.json` at the repository's root, so `/plugin marketplace add MaverickHQ/valvur` then `/plugin install valvur@valvur` gives both; a **Kiro power**, `powers/valvur/`, in the layout kiro.dev documents when the task starts (`POWER.md`, the Agent Plugins manifest, `mcp.json`, the skill); and **`valvur init --write`**, which adds the skill to the project for Claude Code (`.claude/skills/valvur/`) and for Kiro (its documented project location), never overwriting. The plugin and the power reach the package's skill by symlink where their loaders follow one, else by a copy a test holds byte-identical; every version surface moves together. Approved as within `init --write`'s exception in `CLAUDE.md` §10. | if a Kiro power cannot carry the skill from the repository, it carries the MCP configuration and steering, and `init --write` carries the skill |
 | D41 | **No separate agent.** The skill and the handshake carry the workflow; an agent would be a third copy of the rules to keep in step, and `context: fork` is a Claude Code extension the open standard does not carry. | none needed |
+| D42 | **D22's three missed targets are lowered to what `1.2.0` measured** (the owner, 2026-10-02; amends D22): SAST-Python 11.1, SAST-JS 15.0, real-code precision 3.7, on both lanes. The gap is accepted, and no rule-writing phase is planned. The ratchet still holds each track within 2 points of its baseline, the README claims only what is measured, and a future decision may raise a target again. The other five targets stand, all met. | none needed |
+| D43 | **Every requirement ID cited is defined** (amends §3's last rule). `scripts/check_traceability.py` also fails on an `F<n>.<n>` or `N<n>.<n>` ID cited in the repository's documents, code, tests or workflows that `requirements.md` does not define, naming each with its first `file:line`. The first version's IDs, mapped in the archive, are exempt by that map, not by a list. Found by R16.4: N3.4 and N3.5 were cited by D33, D34, two scripts, two test files and a workflow for the whole build, and defined nowhere. | if more than 20 cited IDs are undefined on the first run, they are recorded in the traceability baseline as debt and only new ones fail, as uncited requirements are |
+| D44 | **A hook that asks before an install** (the owner, 2026-10-02, under `CLAUDE.md` §4; F3.16). A Claude Code `PreToolUse` hook on the `Bash` tool, shipped in the plugin and pinned with its server (`uvx --from valvur==<version> valvur hook pre-tool-use`). When a command installs named packages, it runs the same check as `valvur check`, offline, and when any package is flagged it answers `ask` with each verdict, so the human decides. The commands: `npm`, `pnpm`, `yarn` and `bun` add and install; `pip`, `uv pip`, `uv add` and `poetry add`; `cargo add`; `gem install`; `composer require`. Otherwise it says nothing. It never answers `deny`, never runs or edits anything, and opens no socket. When valvur cannot check, because the index is absent, it answers `ask` naming the cause and `valvur update`, so the check is never silently off. It is not written by `init --write`: a hook in a project's own settings would run for every contributor without their choosing it. | if Claude Code's hook contract cannot carry `ask` from a plugin, the hook prints its verdicts as context and the skill's rule stands alone, recorded; Kiro gets the hook only if its documented hooks can do the same |
+| D45 | **The runner move** (28.3.8, O5). GitHub's `ubuntu-latest` became 26.04 on 2026-10-19. On or after 2026-11-19, every `runs-on` and matrix runner moves from `ubuntu-24.04` to `ubuntu-26.04`, and `-arm` likewise; the corpus, the acceptance set and the Score run on the move; N1.1 and N1.4 are measured against their 24.04 numbers and recorded in `requirements.md`. | if Podman or unprivileged user namespaces fail on 26.04 three times for runner reasons, the jobs that need them stay on 24.04, and the README's platform line says what is tested where |
+| D46 | **Agent runs: $5** for R17 to R19, for R18's smoke run alone, which is the one agent run that needs a shell to reach the hook. It runs in an empty scratch directory with stub `npm` and `pip` first on `PATH`, which record their arguments and exit, so no package is ever installed; the names asked for are made up and never published. | past the cap, the smoke run is replaced by replaying recorded hook inputs through the plugin's command, and §8 says so |
 
 ## 6. Order
 
@@ -220,6 +234,15 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 - **R15 after the tools are final**, because the skill names every tool and field.
 - **R16** closes the documents against what exists and prepares `1.2.0`.
 
+```
+R17 targets recorded, IDs defined ─► R18 the install asks first ─ ─ ─► R19 the runner move
+                                                                       (on or after 2026-11-19)
+```
+
+- **R17 first**: both are small, and D43's check guards the IDs R18 adds.
+- **R18** is the feature, built on a check that already exists (`check_package`, R12).
+- **R19** waits for its date; it changes where CI runs, not what valvur does.
+
 ---
 
 ## 7. The phases
@@ -227,8 +250,91 @@ R16 drag, documents, 1.2.0 ◄── R15 skill ◄── R14 reuse ◄── R13
 Phases R9 to R15 are closed, each task with its STATUS, in
 [the archive](../../../docs/history/tasks-phases-r9-r16.md) (moved by R16.4).
 
-Phase R16 is closed too, in the same archive. Every task of this list is done; what
-remains is the owner's, in §8.
+Phase R16 is closed too, in the same archive.
+
+### Phase R17: the targets recorded, and every cited ID defined
+
+- [ ] **R17.1** **The three targets, as the owner decided** (D42). D22 is amended by a note;
+  `EVALUATING.md`'s Score section and `docs/acceptance/r16.md`'s target column say the
+  targets were lowered to the measured values on 2026-10-02, and why; §8's two target rows
+  close. Behaviours: traceability holds; the link check passes; `test_readme_as_built.py`
+  passes, the README claiming nothing past the baseline.
+- [ ] **R17.2** **Every requirement ID cited is defined** (D43). Behaviours:
+  1. an `F` or `N` ID cited in a scanned file and defined nowhere fails the check, named
+     with its first `file:line`;
+  2. an ID of the first version, mapped in the archive, passes;
+  3. the files read are the documents, `src/`, `scripts/`, `tests/` and the workflows,
+     and a test holds that list;
+  4. the repository passes today, so R16.4's N3.4 and N3.5 are the last such gap.
+
+**Exit:** traceability holds under the new rule, and the unit suite and CI are green. The
+Score is unchanged on both lanes; nothing here touches detection.
+
+### Phase R18: the install asks first
+
+- [ ] **R18.1** **Read and measure first** (D44). Read Claude Code's hook documentation and
+  record, with each source:
+  - the `PreToolUse` event and its matcher;
+  - the fields on stdin, and the decision output, `ask` in particular;
+  - how a plugin declares a hook (`hooks/hooks.json`, `${CLAUDE_PLUGIN_ROOT}`).
+
+  Read Kiro's hook documentation the same way. Collect the install commands agents
+  actually wrote in R12.5's scenario transcripts and the acceptance agent runs. Behaviour:
+  the STATUS records each fact with its source, and each command form with its count.
+- [ ] **R18.2** **Install commands, parsed** (D44). Behaviours, one test each:
+  1. npm, pnpm, yarn and bun names, with versions, tags and scopes;
+  2. pip, `uv pip`, `uv add` and poetry names, with specifiers and extras;
+  3. `-r requirements.txt` read as the file it names, from the command's directory;
+  4. cargo, gem and composer names;
+  5. each command of a chain (`&&`, `;`, `|`) parsed on its own;
+  6. flags, URLs, paths and git references are never taken for names;
+  7. a command that is not an install, or an install with no names (`npm ci`,
+     `npm install`), yields nothing: the lockfile's packages are the scan's.
+- [ ] **R18.3** **The hook answers** (D44). `valvur hook pre-tool-use` reads Claude Code's
+  input on stdin. Behaviours:
+  1. a flagged package: `ask`, with each package's verdict and reason;
+  2. nothing flagged: no output, exit 0;
+  3. a tool other than `Bash`, or a command that installs nothing: no output;
+  4. no index: `ask`, naming the cause and `valvur update`;
+  5. it never answers `deny` and never runs the command;
+  6. no socket is opened (the conftest guard);
+  7. 50 names in under 1 s (`timing`).
+- [ ] **R18.4** **Shipped in the plugin** (D40, D44). Behaviours:
+  1. `plugins/valvur/hooks/hooks.json` names the hook, pinned like the server, and
+     `test_version.py` holds the pin, which `prepare_release.py` moves;
+  2. `claude plugin validate --strict` passes;
+  3. recorded hook inputs replayed through the plugin's own command line answer as R18.3
+     says;
+  4. the smoke run, under D46: `claude -p` with the plugin, asked to install a made-up
+     npm package. It passes when the transcript shows the hook's `ask` and the stub
+     `npm` recorded nothing.
+- [ ] **R18.5** **Said where it matters.**
+  - `CLAUDE.md` §4 records the owner's approval of this one hook.
+  - The skill and the README's skill section name the hook, and `valvur init` says the
+    plugin brings it.
+  - `CHANGELOG.md` `[Unreleased]` gains it.
+
+  Behaviours: the skill's tests and the documented-commands test pass; `CLAUDE.md` stays
+  under 200 lines.
+
+**Exit:** every behaviour green; the smoke run recorded, or D46's fallback; the Score
+unchanged on both lanes; the acceptance set green on both lanes. A release of this is the
+owner's choice (§8).
+
+### Phase R19: the runner move (on or after 2026-11-19)
+
+- [ ] **R19.1** **Every runner on 26.04** (D45; 28.3.8). Behaviours:
+  1. the release constraints that hold the runner set name `ubuntu-26.04` and
+     `ubuntu-26.04-arm`;
+  2. every `runs-on` and matrix runner moves;
+  3. zizmor finds nothing in the workflows;
+  4. every check is green on the PR.
+- [ ] **R19.2** **Measured again on 26.04** (D45). Dispatch the corpus, the acceptance set
+  and the Score on the branch. Measure N1.1 and N1.4 against their 24.04 numbers, and
+  record each in `requirements.md`. Behaviour: each number in the STATUS, with its run.
+
+**Exit:** the Score on Linux at its baseline, the acceptance set green, and N1.1 and N1.4
+recorded; or D45's fallback, applied and recorded.
 
 ---
 
@@ -239,17 +345,16 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
+| land R17 to R18 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R16 |
+| start R19 | on or after 2026-11-19 | tell any session to proceed, or let the dated schedule start it; it moves CI's runners to Ubuntu 26.04 (D45) |
+| release the hook, optional | R18 landed | a `1.3.0` with the hook is the owner's choice: `scripts/prepare_release.py 1.3.0`, then `docs/RELEASING.md` |
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
-| D22's targets | R9's baseline | read `docs/acceptance/r9.md`; a target may be raised, never lowered below the baseline; revisit with `/grill-with-docs` |
-| a hook that calls `check_package` before an install | R12 | decide whether a Claude Code `PreToolUse` hook may ask before `npm install` or `pip install`; `CLAUDE.md` §4 forbids watchers and on-save hooks, and this is neither, but it is a hook |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | now; the power's part after R15 | one scan through Kiro, and from R15 the power installed from the repository, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | now | register one with the label `docker-desktop` |
 | a second maintainer (28.1.3) | any time | `MAINTAINERS.md`'s five steps |
-| the runner move (28.3.8) | after 2026-11-19 | ask any session to move the pinned runner images and land it |
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | now | run once in an AWS account and record the numbers; the steps are in `AIR-GAPPED.md` and `docs/examples/` |
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
-| D22's static-analysis targets, missed | R13 | tracks 1, 2 and 8 measured 11.1, 15.0 and 3.7 against 25, 50 and 80 (`docs/acceptance/r13.md`). Only four of GitLab's permissively licensed rules met D29's bar. Decide whether to write valvur's own rules for the benchmark's unfound categories (D29's fallback, now measurable with `--per-rule`), lower the targets to what is claimed, or accept the gap |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
