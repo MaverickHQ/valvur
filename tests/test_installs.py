@@ -71,3 +71,11 @@ def test_cargo_gem_and_composer_names():
         ("gem", "rails", "8.0.1"), ("gem", "rack", None)]
     assert _read("composer require monolog/monolog:^3.0 --dev symfony/console") == [
         ("composer", "monolog/monolog", "^3.0"), ("composer", "symfony/console", None)]
+
+
+def test_each_command_of_a_chain_is_read_on_its_own():
+    assert _read("cd web && npm install axios; pip install rich | tee log") == [
+        ("npm", "axios", None), ("pip", "rich", None)]
+    assert _read("FOO=1 sudo npm i -g pm2 || echo failed") == [("npm", "pm2", None)]
+    assert _read("(cd api && uv add 'starlette==0.41.0')") == [("pip", "starlette", "0.41.0")]
+    assert _read("echo 'npm install not-run'") == []
