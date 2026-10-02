@@ -14,6 +14,7 @@ never taken for one, and a command that names no packages (`npm ci`, a bare
 
 from __future__ import annotations
 
+import re
 import shlex
 from pathlib import Path
 
@@ -29,6 +30,26 @@ _NPM_VERBS = {"npm": {"install", "i", "add", "in"}, "pnpm": {"add", "install", "
 _NPM_VALUED = frozenset({"--registry", "--cache", "--prefix", "--tag", "--workspace", "-w",
                          "--omit", "--include", "--save-prefix", "--filter", "-C", "--dir",
                          "--cwd", "--userconfig"})
+
+
+#: pip flags whose next word is their value, not a package (`-r` is read, R18.2).
+_PIP_VALUED = frozenset({"-c", "--constraint", "-e", "--editable", "-i", "--index-url",
+                         "--extra-index-url", "-f", "--find-links", "-t", "--target",
+                         "--prefix", "--root", "--platform", "--python-version",
+                         "--implementation", "--abi", "--only-binary", "--no-binary",
+                         "--upgrade-strategy", "--progress-bar", "--log", "--cache-dir",
+                         "--src", "--trusted-host", "--proxy", "--retries", "--timeout",
+                         "--exists-action", "--cert", "--client-cert", "-C",
+                         "--config-settings", "--report", "--python", "-p",
+                         # uv's and poetry's own
+                         "--optional", "--group", "-G", "--source", "-E", "--extras",
+                         "--index", "--default-index", "--package", "--script",
+                         "--directory", "--project", "--extra", "--tag", "--branch",
+                         "--rev", "--lock", "--constraints", "--overrides"})
+#: A PEP 508 requirement's name, extras and an exact pin; any other specifier is a range,
+#: which names no version.
+_PIP_SPEC = re.compile(r"(?P<name>[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)"
+                       r"(?:\[[^\]]*\])?\s*(?:===?\s*(?P<version>[^\s;,]+)|[<>!~=@;,].*)?")
 
 
 def packages(command: str, cwd: Path) -> list[Package]:
@@ -75,6 +96,16 @@ def _read(words: list[str], cwd: Path) -> list[Package]:
     if not words:
         return []
     tool = Path(words[0]).name
+    if tool.startswith("python") and words[1:3] == ["-m", "pip"]:
+        tool, words = "pip", ["pip", *words[3:]]
+    if tool in {"pip", "pip3"} and words[1:2] == ["install"]:
+        return _pip(words[2:], cwd)
+    if tool == "uv" and words[1:3] == ["pip", "install"]:
+        return _pip(words[3:], cwd)
+    if tool == "uv" and words[1:2] == ["add"]:
+        return _pip(words[2:], cwd)
+    if tool == "poetry" and words[1:2] == ["add"]:
+        return _pip(words[2:], cwd, at_version=True)
     if tool in _NPM_VERBS:
         rest = words[1:]
         if tool == "yarn" and rest[:1] == ["global"]:
@@ -115,3 +146,36 @@ def _npm_spec(arg: str) -> Package | None:
     if scoped and name.count("/") != 1:
         return None
     return ("npm", name, version) if name else None
+
+
+def _pip(args: list[str], cwd: Path, *, at_version: bool = False) -> list[Package]:
+    """pip's arguments: requirement specifiers, and `-r FILE` read as the file it names.
+    poetry also writes a version as `name@^1.0`."""
+    found: list[Package] = []
+    skip = False
+    for arg in args:
+        if skip:
+            skip = False
+            continue
+        if arg.startswith("-"):
+            skip = arg in _PIP_VALUED
+            continue
+        spec = _pip_spec(arg, at_version=at_version)
+        if spec:
+            found.append(spec)
+    return found
+
+
+def _pip_spec(arg: str, *, at_version: bool = False) -> Package | None:
+    """A requirement's name and exact pin; None for a path, a URL, a wheel or archive,
+    or a direct reference (`name @ url`)."""
+    if (arg.startswith((".", "/", "~", "git+", "http:", "https:", "file:"))
+            or arg.endswith((".whl", ".tar.gz", ".zip")) or "://" in arg):
+        return None
+    if at_version and "@" in arg:
+        name, _, version = arg.partition("@")
+        return ("pip", name, version or None) if _PIP_SPEC.fullmatch(name) else None
+    match = _PIP_SPEC.fullmatch(arg.strip())
+    if not match or "@" in arg:
+        return None
+    return "pip", match.group("name"), match.group("version")
