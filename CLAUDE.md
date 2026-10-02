@@ -19,7 +19,9 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 self-scan stopped it once, for a urllib3 advisory a day old, fixed in #171. The Score went
 from 59.3 at R9 to **64.9** on both lanes; five of D22's eight targets are met, and the
 three missed (static analysis and real-code precision) are in `tasks.md` §8. R14 reuses
-unchanged dependency answers; R15 ships the skill. **Next:** the owner's queue, `tasks.md` §8.
+unchanged dependency answers; R15 ships the skill; R17 lowered the three missed targets
+to what 1.2.0 measured (D42). **Next:** R18, a hook that asks before an install (D44), then
+R19 on or after 2026-11-19 (`tasks.md` §7).
 
 ## 2. What it is NOT
 

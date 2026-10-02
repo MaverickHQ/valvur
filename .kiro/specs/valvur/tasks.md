@@ -290,6 +290,13 @@ Phase R16 is closed too, in the same archive.
 **Exit:** traceability holds under the new rule, and the unit suite and CI are green. The
 Score is unchanged on both lanes; nothing here touches detection.
 
+**Exit STATUS 2026-10-02** (`docs/acceptance/r17.md`):
+- **Traceability:** ✅ holds under the new rule: 0 uncited, 0 orphan ADRs, every cited ID
+  defined.
+- **The Score:** ✅ 64.9 on both lanes, every track at its baseline. Linux run 37042462329.
+  The four gates judged are green.
+- **The suites:** ✅ 1770 unit tests on the Mac; CI on #175.
+
 ### Phase R18: the install asks first
 
 - [ ] **R18.1** **Read and measure first** (D44). Read Claude Code's hook documentation and

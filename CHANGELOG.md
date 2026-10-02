@@ -8,6 +8,12 @@ break things, and has.
 
 ## [Unreleased]
 
+- **For maintainers** (Phase R17): the traceability check also fails on a requirement ID
+  that is cited but defined nowhere, naming where it is first cited. Run on the tree
+  before 1.2.0's N3.4 and N3.5 were written, it names exactly those two. The Score's
+  three missed 1.2.0 targets are lowered to what 1.2.0 measured, as the owner decided
+  (`docs/EVALUATING.md`).
+
 ## [1.2.0] — 2026-10-02
 
 Measured, and measurable. The Score (`scripts/eval.py`) scores what valvur finds on
