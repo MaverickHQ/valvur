@@ -951,9 +951,15 @@ table.*
   rises from 5.3 to 5.9 as llm's two `random` findings in `docs/` leave the judged
   set, now 16. The eleven secrets in tests and docs stay judged, at `low`. The Score
   is 65.2.
-- [ ] **R20.5** **Non-security hashing** (D47c). Behaviours:
+- [x] **R20.5** **Non-security hashing** (D47c). Behaviours:
   1. `hashlib.md5(data, usedforsecurity=False)` draws no `weak-hash`;
   2. `hashlib.md5(data)` still does.
+  **STATUS 2026-10-03:** ✅ both, and already so in the rule: its two `pattern-not`s
+  for `usedforsecurity=False` date from 22.E.2, and no test had held them. One does
+  now, against the image, for `md5` and `sha1`. Run against a copy of the rule with
+  the `pattern-not`s removed, the image's Opengrep reports the cache-key call, so the
+  test can fail. Its delta on every track is nil, the rule being unchanged. The four
+  `weak-hash` false alarms R20.1 counted carry no `usedforsecurity`, so they stand.
 - [ ] **R20.6** **The corpus judged again.** Re-label what changed in
   `tests/eval/labels/corpus.toml`; run the Score; raise track 8's baseline by what it
   measures. Behaviours: no track 1 to 7 falls more than 2 points; README and
