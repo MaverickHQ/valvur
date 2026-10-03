@@ -24,9 +24,10 @@ class OsvAdapter(ScannerAdapter):
     name = "osv-scanner"
     version = VERSION
 
-    def __init__(self, *, offline: bool = False):
-        #: On `offline` (R4.6): the database fetched into the host cache, no network.
-        self.offline = offline
+    def __init__(self, *, network: bool = True):
+        #: The Profile's grant (D52c): without one (R4.6), the database fetched into
+        #: the host cache, and no network.
+        self.network = network
 
     def for_profile(self, *, network: bool) -> OsvAdapter:
         """This adapter, told whether the Profile grants a network: a copy, so a
@@ -34,13 +35,13 @@ class OsvAdapter(ScannerAdapter):
         import copy
 
         told = copy.copy(self)
-        told.offline = not network
+        told.network = network
         return told
 
     def command(self, workspace: Path) -> Invocation:
         from ..osv_offline import MOUNT
 
-        if self.offline:
+        if not self.network:
             # R4.6, measured in R4.1: the offline database, per ecosystem, from the
             # host cache; it carries the MAL- entries nothing else in valvur has.
             return Invocation(

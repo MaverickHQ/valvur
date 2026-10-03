@@ -120,12 +120,13 @@ class Egress:
 
     def container_flags(self) -> list[str]:
         """The runtime flags that enforce the decision. Without a network: no
-        interface at all (N2.1). With one: the container is told (NETWORK_ENV),
-        handed the database mirror if one is named, and joined to the named
-        network if there is one."""
+        interface at all (N2.1). With one: handed the database mirror if one is
+        named, and joined to the named network if there is one. Which tool inside
+        may use it is the plan's grant, which the engine tells each tool as
+        NETWORK_ENV (D52c)."""
         if not self.network:
             return ["--network=none"]
-        flags = ["--env", f"{NETWORK_ENV}=1"]
+        flags: list[str] = []
         mirror = db_repository()
         if mirror:
             flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]

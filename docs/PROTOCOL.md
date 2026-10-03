@@ -35,9 +35,11 @@ The Scan Container runs `python -m valvur.engine` and nothing else:
    the File Set's count and refuses a scan of a partial Snapshot.
 2. It reads **`/results/plan.json`**: `{"tools": [...], "budget_s": float | null,
    "jobs": int | null}`. Each tool is `{"tool", "version", "argv", "report",
-   "timeout", "env", "files", "empty_when"}`; its argv names `/workspace` and
-   `/results`, its report lands under `/results`, and its `files` are written into
-   its working directory before it starts (Opengrep's `.semgrepignore`).
+   "network", "timeout", "env", "files", "empty_when"}`; its argv names `/workspace`
+   and `/results`, its report lands under `/results`, and its `files` are written
+   into its working directory before it starts (Opengrep's `.semgrepignore`). A tool
+   whose `network` is true is started with `VALVUR_NETWORK=1`, and every other
+   without it, whatever the engine's own environment holds.
 3. It starts the tools, at most `jobs` at once (all when null), each in its own
    process group, and says `{"event": "start", "tool": ...}` and `{"event": "end",
    "tool", "exit_code", "seconds", "timed_out"}` on stderr as each starts and ends.
@@ -104,10 +106,12 @@ It prints a JSON list of findings on stdout — each an object with `rule`, `pat
 `line`, `title`, `evidence`, `severity` and an `identity` for the Fingerprint — and
 nothing else there. A refusal (an index absent, a registry unreachable) is one
 sentence on stderr and exit 1; a wrong call is `usage:` on stderr and exit 2.
-**`VALVUR_NETWORK=1`** in the environment means the container was launched with a
-network, and only then; the dependency-reality Check asks a registry only when it
-sees it (ADR-0018). **`VALVUR_DB_REPOSITORY`** names a database mirror for Trivy's
-fetch (F10.5). Both are set by the shim from `egress.py`. Protocol 1's batch of
+**`VALVUR_NETWORK=1`** in a tool's environment means its plan entry granted it a
+network, which only a container launched with one carries; the engine sets it per
+tool, in a Scan Container and in the image run as a pipeline step alike, and the
+dependency-reality Check asks a registry only when it sees it (ADR-0018).
+**`VALVUR_DB_REPOSITORY`** names a database mirror for Trivy's fetch (F10.5), set by
+the shim from `egress.py`. Protocol 1's batch of
 Checks and its `VALVUR_EXCLUDE` are gone: every tool shares one container, and the
 Snapshot is already the File Set.
 
@@ -141,7 +145,7 @@ The shim starts every Scan Container the same way (`engine_host.ContainerRuntime
 
 - **one per network boundary**: `offline` starts one, with `--network=none`;
   `full` adds a second for what needs the network (OSV-Scanner, the dependency
-  check's registry questions), with `VALVUR_NETWORK=1`, joining the network the
+  check's registry questions), each granted a network in the plan, joining the network the
   `container_network` machine setting names, if it names one; Trivy never runs in it;
 - **`-i`**, the Snapshot on stdin, and **`--rm`**;
 - as user **`10001:10001`** — the image's `USER`, and the shim's `--user` on Linux

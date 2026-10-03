@@ -56,3 +56,68 @@ def test_the_six_sites_call_it_and_none_decides_for_itself():
                 deciding.append(f"{path.relative_to(REPO)}:{node.lineno}")
 
     assert deciding == []
+
+
+# ------------------------------------------------------------- the network grant
+
+def _env_seen(tmp_path, monkeypatch, runtime_cls, *, inherited: bool) -> dict[str, str]:
+    """What `VALVUR_NETWORK` each of two tools saw, one granted a network and one
+    not, run by the engine through `runtime_cls`; with `inherited`, the variable is
+    already in the host's environment, where a tool must not pick it up."""
+    from valvur.engine_host import snapshot
+    from valvur.invocation import Invocation
+
+    if inherited:
+        monkeypatch.setenv("VALVUR_NETWORK", "1")
+    else:
+        monkeypatch.delenv("VALVUR_NETWORK", raising=False)
+    tmp_path = tmp_path / ("inherited" if inherited else "clean")
+    ws = tmp_path / "ws"
+    ws.mkdir(parents=True)
+    (ws / "a.txt").write_text("a\n")
+    say = ("sh", "-c", 'printf %s "${VALVUR_NETWORK:-unset}"')
+    plan = [Invocation(tool="granted", version="0", argv=say, network=True),
+            Invocation(tool="refused", version="0", argv=say, network=False)]
+    scratch = tmp_path / "results"
+    scratch.mkdir(parents=True)
+    runtime_cls().run(plan, snapshot(ws, ["a.txt"]), scratch)
+    return {t: (scratch / f"{t}.stdout").read_text() for t in ("granted", "refused")}
+
+
+def test_the_engine_tells_each_granted_tool_and_no_other(tmp_path, monkeypatch):
+    from valvur.engine_host import LocalRuntime
+
+    for inherited in (False, True):
+        assert _env_seen(tmp_path, monkeypatch, LocalRuntime, inherited=inherited) == {
+            "granted": "1", "refused": "unset"}, inherited
+
+
+def test_the_in_image_runtime_tells_them_too(tmp_path, monkeypatch):
+    """D54(b): in the pipeline-step mode the runtime never set it, so on `full`
+    dependency-reality behaved as offline there and skipped the registry."""
+    from valvur import cache
+    from valvur.engine_host import ImageRuntime
+
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+
+    for inherited in (False, True):
+        assert _env_seen(tmp_path, monkeypatch, ImageRuntime, inherited=inherited) == {
+            "granted": "1", "refused": "unset"}, inherited
+
+
+def test_the_container_is_not_told_the_engine_is():
+    """One source: the plan's grant. The container's flags open or close the network;
+    they no longer carry the variable for every tool inside."""
+    from valvur import egress, profiles
+
+    assert f"{egress.NETWORK_ENV}=1" not in egress.for_profile(profiles.FULL).container_flags()
+
+
+def test_every_adapter_holds_the_grant_as_network():
+    from valvur.adapters import DEFAULT_ADAPTERS
+
+    for adapter in DEFAULT_ADAPTERS:
+        assert not hasattr(adapter, "offline"), adapter.name
+        granted = adapter.for_profile(network=True)
+        assert getattr(granted, "network", True) is True or not getattr(
+            granted, "uses_network", True), adapter.name

@@ -36,6 +36,8 @@ def snapshot(root: Path, files: Iterable[str]) -> bytes:
 def plan_entry(invocation: Invocation) -> dict:
     return {"tool": invocation.tool, "version": invocation.version,
             "argv": list(invocation.argv), "report": invocation.report,
+            # The grant (D52c): the engine tells this tool, and only it, so.
+            "network": invocation.network,
             "timeout": invocation.timeout, "env": [list(e) for e in invocation.env],
             "files": [list(f) for f in invocation.files],
             "empty_when": list(invocation.empty_when)}

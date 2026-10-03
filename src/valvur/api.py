@@ -440,7 +440,7 @@ def _ensure_data(runner, on_progress, *, workspace=None,
     _ensure_malicious(say, fetched)
     _ensure_kev(say, fetched)
     _ensure_epss(say, fetched)
-    if workspace is not None and any(getattr(a, "offline", False) for a in adapters
+    if workspace is not None and any(not getattr(a, "network", True) for a in adapters
                                      if getattr(a, "name", "") == "osv-scanner"):
         _stop_if_cancelled(runner, "during the first run's fetches")
         _ensure_osv(workspace, say, fetched, unfetched)
@@ -783,7 +783,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         generation=generation, history=beside.get("history"),
         # OSV's offline databases this File Set needs, when OSV-Scanner reads them.
         osv_read=tuple(_osv_offline.needed(chosen.files))
-        if any(a.name == "osv-scanner" and getattr(a, "offline", False) for a in adapters)
+        if any(a.name == "osv-scanner" and not getattr(a, "network", True) for a in adapters)
         else (),
     )
 

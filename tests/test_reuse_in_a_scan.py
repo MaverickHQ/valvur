@@ -44,7 +44,7 @@ def _ran(root: Path) -> list[str]:
 
 def _scan(root: Path, **kwargs):
     return api.scan(root, runner=LocalRuntime(FAKE_TOOLS),
-                    adapters=[TrivyAdapter(), OsvAdapter(offline=True)], **kwargs)
+                    adapters=[TrivyAdapter(), OsvAdapter(network=False)], **kwargs)
 
 
 def test_a_second_scan_of_an_unchanged_repository_runs_neither_and_finds_the_same(
@@ -119,7 +119,7 @@ def test_the_cli_and_the_tool_take_fresh(repository_8, monkeypatch):
     from valvur.mcp.tools import registry
 
     monkeypatch.setattr(engine_host, "for_scan", lambda: LocalRuntime(FAKE_TOOLS))
-    monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [TrivyAdapter(), OsvAdapter(offline=True)])
+    monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [TrivyAdapter(), OsvAdapter(network=False)])
     cli.main(["scan", str(repository_8)])
     _ran(repository_8)
 
