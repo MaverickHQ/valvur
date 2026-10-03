@@ -8,6 +8,21 @@ break things, and has.
 
 ## [Unreleased]
 
+### The machinery made lighter (Phase R24)
+
+Internal: the docs, the tests and CI. Nothing a scan does changes.
+
+- **The docs' facts are generated.** `scripts/generate_docs.py` writes the MCP tools
+  reference, the skill's rules, the README's client snippets and command list,
+  `PROTOCOL.md`'s paths, binaries and labels, and `AIR-GAPPED.md`'s settings from the
+  code. A test names any block that differs, in place of a test per fact.
+- **No test writes the repository.** `scripts/sync_skill.py` copies the skill to the
+  Claude Code plugin and the Kiro power.
+- **CI builds the image once per architecture** for the e2e jobs, the self-scan and
+  the reproducibility comparison: three builds per pull request, five before. One
+  action reads the version and one files the issue a failure gets.
+- **The traceability check reads no archive.** `docs/history` is a record.
+
 ### The host side in layers (Phase R23)
 
 Internal, with a few fixes it found. The Score and every contract are unchanged.
