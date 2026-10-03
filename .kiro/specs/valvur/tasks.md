@@ -978,10 +978,37 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
 
 ### Phase R25: what the code rules find
 
-- [ ] **R25.1** **Measure the gap per category** (D60). For each of track 1's 14 categories
+- [x] **R25.1** **Measure the gap per category** (D60). For each of track 1's 14 categories
   and track 2's 10 types, record the true and false positives today, the rule that fires,
   and the eligible candidates in GitLab's `sast-rules` at its pin. Behaviour: the STATUS
   gives the table, and the order D60's work takes.
+  **STATUS 2026-10-03:** ✅ measured at R20's head, track 1 at 11.1 and track 2 at 15.0.
+  - **Track 1, by category** (true positives, false positives of all cases; the rule):
+    - `cmdi` 7 of 13, 7 of 7 (`subprocess-shell-true`), −46.2;
+    - `codeinj` 0 of 20, 0 of 33, 0.0: the `eval` and `exec` sinks fired on both until
+      R20.3 made them inventory;
+    - `deserialization` 5/18, 5/36 (vendored `yaml-load`), 13.9;
+    - `hash` 37/71, 0/80 (`weak-hash`), 52.1;
+    - `sqli` 5/5, 0/11 (vendored `hardcoded-sql-expression`), 100;
+    - `weakrand` 35/99, 0/227 (vendored `random`), 35.4;
+    - nothing in `ldapi`, `pathtraver`, `redirect`, `securecookie`, `trustbound`,
+      `xpathi`, `xss` or `xxe`.
+  - **Track 2, by type:** CWE-798 2 of 2 (Gitleaks) and CWE-94 1 of 2 (vendored
+    `eval-with-expression`); nothing in CWE-22, 78, 79, 89, 327, 601, 918 or 1321.
+  - **Eligible candidates at GitLab's pin** for D60's categories, from
+    `tests/eval/sast-rules-measured.json`:
+    - XXE: `minidom` and `sax`, 8 true and 20 false each, under D29's 0.5;
+    - path traversal: `tarfile-unsafe-members`, which finds nothing;
+    - command injection: `subprocess-popen-shell-true`, the same 7 and 7 as valvur's
+      own;
+    - code injection: `eval` 10/17 and `exec-used` 10/24;
+    - JavaScript path traversal: `non-literal-fs-filename`, 1 against 51.
+    - Nothing for secure cookies, open redirects, or JavaScript's SQL injection,
+      command injection or SSRF.
+    So valvur writes its own rules, as D29's fallback says.
+  - **The order, as D60 sets it:** command and code injection by taint first (R25.2),
+    then Python's path traversal, secure cookies, open redirects and XXE (R25.3), then
+    JavaScript's SQL injection, command injection, path traversal and SSRF (R25.4).
 - [ ] **R25.2** **Command and code injection tell safe from unsafe** (D60). Behaviours:
   1. a flow from request data to `subprocess` with `shell=True`, or to `eval` or `exec`,
      still fires;
