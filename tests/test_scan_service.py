@@ -100,3 +100,84 @@ def test_the_scan_is_summarised_once():
     assert "summary" not in {f.name for f in dataclasses.fields(jobs.Job)}
     for gone in ("_summarise", "start_scan", "_run_scan", "_scan_with_budget"):
         assert not hasattr(operations, gone), gone
+
+
+def test_a_cancel_sent_before_the_scans_job_exists_stops_that_scan(tmp_path, monkeypatch):
+    """R6's backlog row: a `scan_cancel` sent within milliseconds of `scan`, before
+    the scan's job existed, cancelled nothing, and the scan then ran. The server
+    reads calls in order, so it knows a scan is coming; the cancel is held for it."""
+    import threading
+    import time
+
+    from conftest import McpSession
+
+    from valvur import operations
+    from valvur.mcp import handlers
+
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
+    real_profile = operations.checked_profile
+
+    def slow_profile(value):
+        time.sleep(0.5)               # the scan's call is still on its way to its job
+        return real_profile(value)
+
+    stopped = threading.Event()
+
+    def held(budget_s, *, fresh=False):
+        def run(workspace, profile, progress):
+            jobs.current(workspace).canceller = lambda: stopped.set() or 1
+            assert stopped.wait(10), "the cancel never reached the scan"
+            raise RuntimeError("stopped")        # what a killed fleet raises
+        return run
+
+    monkeypatch.setattr(operations, "checked_profile", slow_profile)
+    monkeypatch.setattr(handlers, "_work", held)
+    ws = _workspace(tmp_path)
+    session = McpSession()
+    try:
+        session.send({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "scan", "arguments": {"workspace": str(ws)}}})
+        session.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                      "params": {"name": "scan_cancel", "arguments": {"workspace": str(ws)}}})
+        cancelled = session.reply(2)["result"]["content"][0]["text"]
+        scanned = session.reply(1)["result"]["structuredContent"]
+    finally:
+        session.close()
+        jobs.reset()
+
+    assert cancelled.startswith("Cancelling the offline scan"), cancelled
+    assert scanned["state"] == "cancelled", scanned
+
+
+def test_a_cancel_with_no_scan_coming_still_answers_at_once(tmp_path):
+    from valvur.mcp import handlers
+
+    assert handlers.cancel_scan({"workspace": str(tmp_path)}) == (
+        f"No scan is running in {tmp_path}.")
+
+
+def test_a_scan_refused_at_its_arguments_leaves_no_cancel_waiting(tmp_path, monkeypatch):
+    """An announced scan whose call is refused before its handler runs must not
+    leave a later cancel waiting for a job that will never come."""
+    import threading
+
+    from conftest import McpSession
+
+    from valvur.mcp import handlers
+
+    monkeypatch.setattr(jobs, "EXPECTED_WAIT_S", 600.0)    # a wait would hang the test
+    session = McpSession()
+    try:
+        session.send({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "scan", "arguments": {"workspace": 7}}})
+        assert session.reply(1)["result"]["isError"] is True
+    finally:
+        session.close()
+    said: list[str] = []
+    cancel = threading.Thread(target=lambda: said.append(
+        handlers.cancel_scan({"workspace": str(tmp_path)})), daemon=True)
+    cancel.start()
+    cancel.join(10)
+
+    assert said and said[0].startswith("No scan"), said

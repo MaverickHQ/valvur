@@ -140,9 +140,14 @@ class Job:
 
 _jobs: dict[str, Job] = {}
 _lock = threading.Lock()
+#: Signalled when a job starts or an expected scan is settled, under `_lock`.
+_changed = threading.Condition(_lock)
 #: `scan` calls the server has read and whose jobs have not started yet (R23.4):
 #: a `scan_cancel` that arrives in between is held for the scan about to start.
 _expected = 0
+#: How long a cancel waits for a scan the server has read and not yet started:
+#: its call resolves the workspace first, which may ask the client for its roots.
+EXPECTED_WAIT_S = 15.0
 
 
 def _doctor_may_help(exc: BaseException) -> bool:
@@ -180,6 +185,7 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
             return existing
         job = Job(workspace=workspace, profile=profile, started=time.monotonic())
         _jobs[key] = job
+        _changed.notify_all()
 
     def work() -> None:
         try:
@@ -216,9 +222,20 @@ def cancel(workspace: Path) -> tuple[Job | None, int]:
 
     The mark and the read of the canceller happen under the lock the setter
     takes, so a canceller attached a moment later finds the mark (see
-    `Job.canceller`). The kill itself runs outside the lock — it is I/O."""
-    with _lock:
+    `Job.canceller`). The kill itself runs outside the lock — it is I/O.
+
+    While a scan the server has read has not started its job, a cancel waits for
+    it, up to `EXPECTED_WAIT_S` (R23.4): sent just after `scan`, it used to find
+    nothing, and the scan then ran (R6's backlog row)."""
+    with _changed:
+        deadline = time.monotonic() + EXPECTED_WAIT_S
         job = _jobs.get(str(workspace))
+        while (job is None or job.state is not State.RUNNING) and _expected > 0:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            _changed.wait(remaining)
+            job = _jobs.get(str(workspace))
         if job is None or job.state is not State.RUNNING:
             return None, 0
         job.transition(State.CANCELLING)
@@ -248,6 +265,7 @@ def arrived() -> None:
     global _expected
     with _lock:
         _expected = max(0, _expected - 1)
+        _changed.notify_all()
 
 
 def reset() -> None:

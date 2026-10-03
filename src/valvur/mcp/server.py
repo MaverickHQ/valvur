@@ -114,7 +114,9 @@ class Tool:
     def __init__(self, name: str, description: str, schema: dict,
                  handler: Callable[[dict], str | tuple[str, dict]], *,
                  read_only: bool = True, destructive: bool = False,
-                 open_world: bool | None = None, output_schema: dict | None = None):
+                 open_world: bool | None = None, output_schema: dict | None = None,
+                 announce: Callable[[], None] | None = None,
+                 settle: Callable[[], None] | None = None):
         self.name = name
         self.description = description
         # Closed, whatever the caller wrote (R6.4): an argument no tool takes is
@@ -136,6 +138,11 @@ class Tool:
         #: Stated where it is known: `check_package` answers from this machine's
         #: cache and reaches no one (D28), which MCP's default, open-world, denies.
         self.open_world = open_world
+        #: Said by the server's reader when a call to this tool is read, before the
+        #: call's thread runs: `scan` says a job is coming (R23.4). The handler
+        #: settles what it announced; `settle` is for a call refused before it.
+        self.announce = announce
+        self.settle = settle
 
     def describe(self) -> dict:
         described = {
@@ -217,7 +224,7 @@ def _default_instructions() -> str:
 
 
 def build(tools: list[Tool], *, instructions: str | None = None,
-          ) -> dict[str, Callable[[dict], Any]]:
+          ) -> protocol.Handlers:
     """The handlers for one server. `instructions` is what `initialize` hands the
     client; None means the machine block's rules, "" means none."""
     by_name = {tool.name: tool for tool in tools}
@@ -259,7 +266,12 @@ def build(tools: list[Tool], *, instructions: str | None = None,
             call.served = tuple(by_name)
         try:
             arguments = params.get("arguments") or {}
-            _check_arguments(tool.schema, arguments)
+            try:
+                _check_arguments(tool.schema, arguments)
+            except Exception:
+                if tool.settle is not None:
+                    tool.settle()       # announced, and its handler will never run
+                raise
             answer = tool.handler(arguments)
         except RpcError:
             raise
@@ -284,13 +296,19 @@ def build(tools: list[Tool], *, instructions: str | None = None,
             reply["structuredContent"] = structured
         return reply
 
-    return {
+    def announce(params: dict) -> None:
+        name = params.get("name")
+        tool = by_name.get(name) if isinstance(name, str) else None
+        if tool is not None and tool.announce is not None:
+            tool.announce()
+
+    return protocol.Handlers({
         "initialize": initialize,
         "notifications/initialized": lambda _: None,
         "ping": lambda _: {},
         "tools/list": list_tools,
         "tools/call": call_tool,
-    }
+    }, announce=announce)
 
 
 #: What `valvur-mcp --help` prints. Not argparse: this entry point takes no options

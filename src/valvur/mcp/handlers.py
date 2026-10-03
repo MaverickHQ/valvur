@@ -49,6 +49,12 @@ def _work(budget_s: float | None, *, fresh: bool):
     return work
 
 
+def announce_scan() -> None:
+    """Said by the server's reader as it reads a `scan` call: its job is coming, so
+    a `scan_cancel` read after it waits for that job rather than finding none."""
+    jobs.expect()
+
+
 def scan_reply(args: dict) -> tuple[str, dict]:
     """`scan` (R6.3, ADR-0024): start the scan, or attach to the one already running
     here, and return its result in schema 2, sending each progress message as a
