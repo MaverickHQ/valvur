@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-10-03
+
 - **The plugin's hook asks when valvur cannot start.** A hook that fails is non-blocking
   to Claude Code, so when the hook's `uvx` command could not run (for an hour after
   1.3.0, `uvx` on a machine that had cached PyPI's index before the release could not
