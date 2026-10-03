@@ -16,6 +16,7 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -133,22 +134,59 @@ def _newest_ssh_signed(git: str, repo: Path, start: str, limit: int = 20) -> str
     could not land. The signers file is a claim about the maintainer's key; a
     commit by anyone else is nobody's claim about it.
     """
+    return next(_ssh_signed(git, repo, start, limit), None)
+
+
+def _ssh_signed(git: str, repo: Path, start: str, limit: int = 20) -> Iterator[str]:
+    """Each commit on `start`'s first-parent chain carrying an SSH signature, newest
+    first, as full ids. The walk ends when the chain runs out (a shallow clone) or
+    after `limit` commits."""
     ref = start
     for _ in range(limit):
         raw = _commit_object(git, repo, ref)
         if not raw:
-            return None
+            return
         header, _, _ = raw.partition("\n\n")
         if SSH_SIGNATURE in header:
             done = subprocess.run(
                 [git, "-C", str(repo), "rev-parse", "--verify", f"{ref}^{{commit}}"],
                 capture_output=True, text=True, check=False)
-            return done.stdout.strip() or None
+            if done.stdout.strip():
+                yield done.stdout.strip()
         parents = [line.split()[1] for line in header.splitlines() if line.startswith("parent ")]
         if not parents:
-            return None
+            return
         ref = parents[0]
-    return None
+
+
+def _verify(git: str, keygen: str, repo: Path, signers: Path, commit: str) -> str | None:
+    """None when `commit`'s signature verifies with `signers`, else why not. Always
+    through `ssh-keygen`, never the signing program git is configured with: a Claude
+    Code cloud session's can only sign (`-Y sign`), so verifying through it failed
+    every signature (D61, measured 2026-10-03)."""
+    done = subprocess.run(
+        [git, "-C", str(repo), "-c", f"gpg.ssh.program={keygen}",
+         "-c", f"gpg.ssh.allowedSignersFile={signers}", "verify-commit", commit],
+        capture_output=True, text=True, check=False, timeout=30)
+    return None if done.returncode == 0 else done.stderr.strip()
+
+
+def _newest_verified(git: str, keygen: str, repo: Path, signers: Path, start: str,
+                     limit: int = 1000) -> tuple[str | None, list[str]]:
+    """The newest SSH-signed commit on `start`'s chain that `signers` verifies, and the
+    SSH-signed commits passed over on the way to it.
+
+    A cloud session signs its commits with its own key, which GitHub verifies and the
+    signers file does not name (D61, measured 2026-10-03). Like Dependabot's, those
+    commits are nobody's claim about the maintainer's key, so they are stepped over.
+    `limit` is wide because a stack of cloud-built phases can be hundreds of commits
+    deep before the maintainer's newest."""
+    passed = []
+    for commit in _ssh_signed(git, repo, start, limit):
+        if _verify(git, keygen, repo, signers, commit) is None:
+            return commit, passed
+        passed.append(commit)
+    return None, passed
 
 
 def _git_or_skip() -> str:
@@ -216,7 +254,8 @@ def test_the_allowed_signers_file_verifies_the_tree_it_is_committed_to():
     PR's own commit is deliberately not the claim under test, because a
     contributor's key, or Dependabot's GPG signature, says nothing about the
     release key — and until 2026-09-26 this test failed every Dependabot PR
-    (#103 to #107) for exactly that reason."""
+    (#103 to #107) for exactly that reason. A commit signed by a key the file does
+    not name, a cloud session's (D61), is stepped over the same way."""
     assert ALLOWED_SIGNERS.is_file(), "no .github/allowed_signers"
     lines = [line for line in ALLOWED_SIGNERS.read_text().splitlines()
              if line.strip() and not line.startswith("#")]
@@ -233,17 +272,23 @@ def test_the_allowed_signers_file_verifies_the_tree_it_is_committed_to():
     if committer and committer.group(1) == "noreply@github.com" and len(parents) == 2:
         candidates = [parents[0], parents[1]]
 
-    target = next((c for c in (_newest_ssh_signed(git, REPO, c) for c in candidates) if c), None)
-    if target is None:
+    keygen = shutil.which("ssh-keygen")
+    if keygen is None:
+        pytest.skip("ssh-keygen is not installed")
+    verified, passed = None, []
+    for candidate in candidates:
+        verified, over = _newest_verified(git, keygen, REPO, ALLOWED_SIGNERS, candidate)
+        passed += over
+        if verified:
+            break
+    if verified is None and not passed:
         pytest.skip("no SSH-signed commit within reach of HEAD — a shallow clone of "
                     "GPG-signed or unsigned history")
-    done = subprocess.run(
-        [git, "-C", str(REPO), "-c", f"gpg.ssh.allowedSignersFile={ALLOWED_SIGNERS}",
-         "verify-commit", target],
-        capture_output=True, text=True, check=False, timeout=30)
 
-    assert done.returncode == 0, \
-        f"{target} does not verify with the committed signers: {done.stderr}"
+    assert verified, (
+        f"{len(passed)} SSH-signed commits within reach and none verifies with the "
+        f"committed signers; the newest, {passed[0]}: "
+        f"{_verify(git, keygen, REPO, ALLOWED_SIGNERS, passed[0])}")
 
 
 def _gh(*args: str) -> str:
