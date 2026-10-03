@@ -29,29 +29,21 @@ class Profile(StrEnum):
 OFFLINE = Profile.OFFLINE
 FULL = Profile.FULL
 
-# Scanner names per Profile. Names not yet implemented are simply absent from the
-# adapter registry and are skipped — the matrix is declared up front so that adding
-# a Scanner is a one-line change here rather than a hunt through the orchestrator.
-SCANNERS: dict[str, tuple[str, ...]] = {
-    # Everything here runs under --network=none. Verified, not assumed: checkov with
-    # --skip-download and syft cataloguing local files both complete with no socket.
-    OFFLINE: (
-        "gitleaks", "opengrep", "trivy", "checkov", "zizmor", "syft",
-        # From its offline database, fetched into the host cache (R4.6, ADR-0023).
-        "osv-scanner",
-        "licence-file", "ai-artifact",
-        # Existence is answered from the package-name index in the host cache
-        # (ADR-0018), so the hallucination check runs with no socket at all.
-        "dependency-reality",
-    ),
-    FULL: (
-        "gitleaks", "opengrep", "trivy", "checkov", "zizmor", "syft",
-        "licence-file", "ai-artifact", "dependency-reality",
-        # The only Scanner that genuinely needs a socket: osv-scanner queries
-        # api.osv.dev with the names and versions in your lockfiles, never source.
-        "osv-scanner",
-    ),
-}
+#: Every Scanner, run on both Profiles (D54d): they differ in the network grant, not
+#: in what runs. Names not yet implemented are simply absent from the adapter registry
+#: and are skipped. Under `offline` every one runs with --network=none, verified, not
+#: assumed: Checkov with --skip-download and Syft cataloguing local files complete
+#: with no socket; OSV-Scanner reads its offline database from the host cache (R4.6,
+#: ADR-0023); and dependency-reality answers existence from the package-name index
+#: there (ADR-0018). Under `full`, OSV-Scanner queries api.osv.dev with the names and
+#: versions in your lockfiles, never source, and the Check asks the registries.
+FLEET: tuple[str, ...] = (
+    "gitleaks", "opengrep", "trivy", "checkov", "zizmor", "syft", "osv-scanner",
+    "licence-file", "ai-artifact", "dependency-reality",
+)
+
+#: Each Profile's Scanners: one list, shared, so a Scanner added runs on both.
+SCANNERS: dict[str, tuple[str, ...]] = {OFFLINE: FLEET, FULL: FLEET}
 
 ALLOWS_NETWORK: dict[str, bool] = {OFFLINE: False, FULL: True}
 

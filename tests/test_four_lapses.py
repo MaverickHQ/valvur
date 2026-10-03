@@ -133,3 +133,26 @@ def test_valvur_cache_wins_over_xdg_cache_home(tmp_path, monkeypatch):
     assert _ROOT() == tmp_path / "configured" / "valvur"
     (tmp_path / "config" / "valvur" / "config.toml").unlink()
     assert _ROOT() == tmp_path / "xdg" / "valvur"
+
+
+# ---------------------------------------------- (d) one Scanner list, two Profiles
+
+def test_the_profiles_share_one_scanner_list_and_differ_in_the_network():
+    """Both listed the same ten Scanners in two tuples (the review's §3.5), so
+    selection filtered nothing; they differ in the grant alone."""
+    from valvur import profiles
+
+    assert profiles.SCANNERS[profiles.OFFLINE] is profiles.FLEET
+    assert profiles.SCANNERS[profiles.FULL] is profiles.FLEET
+    assert profiles.ALLOWS_NETWORK == {profiles.OFFLINE: False, profiles.FULL: True}
+
+
+def test_run_json_keeps_scanners_not_run_for_its_schema(workspace, runner_finding_nothing):
+    import json
+
+    from valvur import api
+
+    api.scan(workspace, runner=runner_finding_nothing)
+
+    record = json.loads((workspace / ".security-scan" / "run.json").read_text())
+    assert record["scanners_not_run"] == []
