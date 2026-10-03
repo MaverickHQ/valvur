@@ -39,11 +39,21 @@ def agent_rules() -> str:
     return instructions().strip("\n") + "\n"
 
 
+def mcp_clients() -> str:
+    """Each MCP client: the file valvur's server goes in, what to do after, and the
+    snippet, from the clients' table."""
+    from valvur.mcp.clients import readme_section
+
+    return readme_section()
+
+
 BLOCKS: dict[str, Callable[[], str]] = {
     "mcp-tools": mcp_tools,
     "agent-rules": agent_rules,
+    "mcp-clients": mcp_clients,
 }
 FILES: tuple[Path, ...] = (
+    REPO / "README.md",
     SKILL / "SKILL.md",
     SKILL / "references" / "tools.md",
 )
