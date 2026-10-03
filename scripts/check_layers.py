@@ -12,7 +12,8 @@ each module's imports from the AST with the standard library, as
 as much as one at the top: a deferred import still runs, and still couples. Modules
 are not moved; a module's layer is its entry in the table.
 
-    python3 scripts/check_layers.py            # verify
+    python3 scripts/check_layers.py              # verify
+    python3 scripts/check_layers.py --core-files # the core layer's files, for mypy --strict
 """
 
 from __future__ import annotations
@@ -203,7 +204,18 @@ def check(package: Path = PACKAGE, config_path: Path = CONFIG) -> Found:
     return found
 
 
+def core_files(package: Path = PACKAGE, config_path: Path = CONFIG) -> list[str]:
+    """The source files of the `core` layer, which `mypy --strict` holds (D53)."""
+    config = load(config_path)
+    present = modules(package)
+    return sorted(str(present[m].relative_to(REPO)) for m, layer in config.assignment.items()
+                  if layer == "core" and m in present)
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--core-files"]:
+        print("\n".join(core_files()))
+        return 0
     found = check()
     for upward in found.upward:
         print(upward.message)

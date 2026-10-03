@@ -205,7 +205,9 @@ def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def merged(findings: list[Finding], ctx: Context) -> list[Finding]:
     """One Finding per identity, whichever Scanners reported it."""
-    return merge(findings)
+    from .ecosystems import index_form
+
+    return merge(findings, index_form)
 
 
 def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:

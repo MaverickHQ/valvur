@@ -163,3 +163,11 @@ def _verify(tmp_path: Path, *selected: str) -> list[str]:
 def test_the_gate_runs_the_layer_check(tmp_path):
     assert "run python scripts/check_layers.py" in _verify(tmp_path)
     assert _verify(tmp_path / "named", "layers")[-1] == "run python scripts/check_layers.py"
+
+
+def test_the_gate_holds_core_to_strict_types(tmp_path, layers):
+    ran = _verify(tmp_path, "strict")
+    assert ran[-1] == "run python scripts/check_layers.py --core-files" or any(
+        "mypy --strict" in line for line in ran), ran
+    files = layers.core_files()
+    assert "src/valvur/findings.py" in files and "src/valvur/api.py" not in files

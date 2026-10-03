@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from . import fingerprint as _fp
 from .findings import Finding, Severity
@@ -19,7 +20,7 @@ COPYLEFT = re.compile(r"\b(AGPL|GPL|SSPL|OSL|EUPL)\b", re.IGNORECASE)
 PERMISSIVE = re.compile(r"\b(MIT|Apache|BSD|ISC|Unlicense|Zlib)\b", re.IGNORECASE)
 
 
-def _is_dependency(component: dict) -> bool:
+def _is_dependency(component: dict[str, Any]) -> bool:
     """Whether an SBOM component is a dependency whose licence we can sensibly ask
     about.
 
@@ -117,7 +118,7 @@ def evaluate(project_licence: str | None, sbom_json: str) -> list[Finding]:
     return findings
 
 
-def _licences(component: dict) -> list[str]:
+def _licences(component: dict[str, Any]) -> list[str]:
     out = []
     for entry in component.get("licenses") or []:
         value = entry.get("license", {}).get("id") or entry.get("license", {}).get("name")
@@ -128,7 +129,8 @@ def _licences(component: dict) -> list[str]:
     return out
 
 
-def _finding(rule, name, version, licence, title, evidence) -> Finding:
+def _finding(rule: str, name: str, version: str, licence: str, title: str,
+             evidence: str) -> Finding:
     return Finding(
         rule=rule,
         path="sbom.cdx.json",

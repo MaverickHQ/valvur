@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
@@ -147,11 +147,15 @@ class Finding:
         object.__setattr__(self, "status", Status(self.status))
 
 
-def merge(findings: list[Finding]) -> list[Finding]:
+def merge(findings: list[Finding],
+          index_form: Callable[[str, str], str] | None = None) -> list[Finding]:
     """Collapse Findings sharing a Fingerprint, keeping every reporting source.
 
     Trivy and OSV-Scanner overlap heavily. Disagreement between them is signal about
     data quality, so sources accumulate rather than the later one winning (F5.8).
+    `index_form` spells a package's name as its registry identifies it, so one
+    malicious package reported two ways is one finding; the pipeline passes the
+    ecosystems' (D50: the model reaches no registry code itself).
     """
     by_fp: dict[str, Finding] = {}
     for finding in findings:
@@ -174,7 +178,7 @@ def merge(findings: list[Finding]) -> list[Finding]:
             exploit=existing.exploit or finding.exploit,
             cwe=existing.cwe or finding.cwe,
         )
-    return _fold_repeats(_fold_malicious(list(by_fp.values())))
+    return _fold_repeats(_fold_malicious(list(by_fp.values()), index_form))
 
 
 #: The rule the dependency-reality Check reports a known-malicious package under
@@ -210,15 +214,17 @@ def _fold_repeats(findings: list[Finding]) -> list[Finding]:
     return [f for i, f in enumerate(kept) if i not in dropped]
 
 
-def _fold_malicious(findings: list[Finding]) -> list[Finding]:
+def _fold_malicious(findings: list[Finding],
+                    index_form: Callable[[str, str], str] | None) -> list[Finding]:
     """OSV-Scanner reports a malicious package as its `MAL-` advisory, and the
     dependency-reality Check as `MALICIOUS_RULE`, under identities of two classes
     (ADR-0003): a vulnerability's has the version, a package's does not. One package
     is one finding (F3.14), so the advisory folds into the Check's: its Scanner is
     named, its identifier kept, and the Check's finding stands for both."""
-    from .ecosystems import index_form
 
     def key(dependency: Dependency) -> tuple[str, str]:
+        if index_form is None:
+            return dependency.ecosystem, dependency.package
         try:
             return dependency.ecosystem, index_form(dependency.ecosystem, dependency.package)
         except KeyError:

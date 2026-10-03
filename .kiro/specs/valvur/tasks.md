@@ -673,12 +673,33 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
     image for the Scan Container and the database fetch; `_base_flags` and the second
     list in `ContainerRuntime.command` are gone, and a test watches both launchers call
     it.
-- [ ] **R23.7** **Typed messages** (D53). Behaviours:
+- [x] **R23.7** **Typed messages** (D53). Behaviours:
   1. the engine's events carry a `kind`, and the reply reads kinds, never a prefix;
   2. the budget's state is a field;
   3. `Runtime` and `ScannerAdapter` declare every member `app` uses, and an AST test
      finds no `getattr` on either;
   4. `mypy --strict` passes on `core`, or D53's fallback lists what does not.
+  **STATUS 2026-10-03:** ✅ all four, D53's fallback not needed.
+  - **Events.** `valvur.events`, in `core`, gives each thing a scan says a kind and
+    fields: a fetch's start and end, the workspace line, the fleet, a Scanner's start,
+    end and reuse, the budget, history and notes. `render` writes their words, the ones
+    every surface showed, which R23.1's goldens hold. `api` passes events on, the job
+    keeps them, and the reply places each by its kind; `FETCH_STARTED`, `FETCH_ENDED`
+    and `WORKSPACE_PREFIX` are gone, and a test finds no prefix match left. The CLI
+    prints fetch events by kind; MCP notifications render at the surface.
+  - **The budget's state** is `ScannerRun.budget`, `cut` or `not-started`, set where
+    the budget acts; the refusal, its fields and the budget line read it. `ScannerRun`
+    moved to `core` (`valvur.scanner_run`; `provenance` names it), so the field closes
+    no cycle.
+  - **The protocols.** `engine_host.Runtime` declares every member the scan uses, and
+    `RuntimeDefaults` gives those of a runtime with nothing to fetch, compare or pull;
+    `fetches` replaces probing for `update_db`. `ScannerAdapter` declares `version`,
+    `artifact` and `network`. An AST test finds no `getattr` or `hasattr` on a runner or
+    an adapter in any `app` module (there were 19); the dead `verify_workspace_readable`
+    probe went with them. The suite's fakes inherit the defaults.
+  - **`mypy --strict`** passes on all 19 `core` modules, and `verify.sh` runs it as
+    `strict`. Fixing it took `findings` off `ecosystems`: the pipeline passes
+    `index_form` to `merge`. That emptied the layer baseline.
 - [ ] **R23.8** **The four lapses** (D54). Behaviours:
   1. `/tmp` is `noexec` for every tool, and Opengrep runs from its unpacked tree
      (`e2e`), or D54's fallback;

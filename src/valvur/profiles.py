@@ -12,7 +12,9 @@ ADR-0016. Old names still resolve so existing agent configuration keeps working.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import StrEnum
+from typing import Protocol
 
 
 class Profile(StrEnum):
@@ -108,7 +110,15 @@ def scanners_for(profile: str) -> tuple[str, ...]:
     return SCANNERS[resolve(profile)]
 
 
-def select(adapters, profile: str):
+class Selectable(Protocol):
+    """What selection asks of an adapter: its name, and a copy told the grant."""
+
+    name: str
+
+    def for_profile(self, *, network: bool) -> Selectable: ...
+
+
+def select(adapters: Iterable[Selectable], profile: str) -> list[Selectable]:
     """Filter a registry down to the Scanners this Profile runs, each told what the
     Profile permits. This is the only place a network is granted to an adapter."""
     wanted = scanners_for(profile)

@@ -11,9 +11,7 @@ generated = ["valvur._build"]
 # The upward imports the check found on its first run (R23.2), by module. The list may
 # only shrink: an entry that no longer happens fails until it is removed, and R23's
 # exit empties it.
-baseline = [
-    "valvur.findings -> valvur.ecosystems",
-]
+baseline = []
 
 [layers]
 # The Finding, identity, the verdict, ranking; the words and shapes everything else

@@ -61,7 +61,8 @@ def _exploit_tier(finding: Finding) -> int | None:
     return None
 
 
-def sort_key(finding: Finding, flooded: frozenset[str] = frozenset()) -> tuple:
+def sort_key(finding: Finding,
+             flooded: frozenset[str] = frozenset()) -> tuple[object, ...]:
     exploit = finding.exploit
     epss = exploit.epss if exploit and exploit.epss is not None else 0.0
 
