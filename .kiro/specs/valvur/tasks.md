@@ -881,10 +881,27 @@ unchanged on both lanes; CI green.
 *Reshaped 2026-10-03 by D56: path classes first, and D47's (b) and (c) as rows of one
 table.*
 
-- [ ] **R20.1** **Measure first** (D47, D56). For each of the 26 corpus false alarms,
+- [x] **R20.1** **Measure first** (D47, D56). For each of the 26 corpus false alarms,
   record its rule, its path class and its severity. Run each change against tracks 1 to 8
   separately, before any ships. Behaviour: the STATUS gives each change's delta per track;
   a change past the ratchet is withdrawn there.
+  **STATUS 2026-10-03:** ✅ the false alarms measured at R24's head, from
+  `tests/eval/labels/corpus.toml` and each repository's `findings.json`. The file holds
+  27 labels, all `fp`; one, ripgrep's `valvur.licence.mismatch` on `Cargo.toml`, no
+  longer appears in a scan, so 26 are judged, as D47 counts. By path class, read by
+  D56's segments: 11 `test`, 5 `docs` and 11 `source`, with the licence label among
+  the source ones.
+  - **Secrets, 12, all `critical`, ranked first in their repositories:**
+    `generic-api-key` 6 (fastify, flask ×3 in `docs/`, monolog, sinatra's
+    `README.md`), `private-key` 4 (requests' test certificates), `slack-webhook-url`
+    1 (monolog's tests). 11 are in `test` or `docs`; sinatra's README is `source`.
+  - **The sink inventory, 9, `low`:** `dangerous-exec` 8 and `dangerous-eval` 1, in
+    flask, llm and smolagents, four of them in `test`.
+  - **`weak-hash`, 4, `low`,** all `source` (flask's sessions, llm's embeddings).
+  - **The vendored `random` rule, 3, `medium`:** two in llm's `docs/` plugin and one
+    in smolagents' `source`.
+  Each change below records its delta per track in its own STATUS: R20.3's inventory,
+  R20.4's table, R20.5's `usedforsecurity`.
 - [ ] **R20.2** **Path classes** (D56). Behaviours:
   1. the File Set gives every path one class, by whole segments:
      `testcode/BenchmarkTest00001.py`, `latest/x.py` and `contest/y.py` are `source`;
