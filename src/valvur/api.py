@@ -13,6 +13,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import cache as _cache
 from . import datasets as _datasets
@@ -33,6 +34,9 @@ from .coverage import DOUBT_RULES as _DOUBT_RULES
 from .findings import Finding
 from .scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
 from .text import cut as _cut
+
+if TYPE_CHECKING:
+    from .engine_host import Runtime
 
 
 class ScannerFailed(RuntimeError):
@@ -311,7 +315,7 @@ class ScanRun:
         return "nothing was found, by a scan able to support the claim"
 
 
-def _ensure_image(runner, on_progress) -> dict | None:
+def _ensure_image(runner: Runtime, on_progress) -> dict | None:
     """Pull the image when absent (23.2.4). Returns the fetch record, or None."""
     from .runner import ImagePullFailed
 
@@ -345,7 +349,7 @@ def _fetch_record(what: str, source: str, size_mb: int | None, seconds: float,
             "seconds": round(seconds, 1), **extra}
 
 
-def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
+def _ensure_data(runner: Runtime, on_progress, *, workspace=None, adapters=(),
                  context=None) -> tuple[list[dict], dict[str, str]]:
     """The vulnerability database, the package-name index and OSV's offline
     databases, when absent (24.1) or stale (ADR-0025, R6.6).
@@ -603,7 +607,7 @@ def _outcome(adapter, output) -> ScannerOutcome:
 
 
 def scan(
-    workspace: Path, *, runner, adapters=None, profile: str = _profiles.DEFAULT,
+    workspace: Path, *, runner: Runtime, adapters=None, profile: str = _profiles.DEFAULT,
     on_progress=None, jobs: int | None = None, budget_s: float | None = None,
     sbom: bool = False, out: Path | None = None, fresh: bool = False,
 ) -> ScanRun:
@@ -674,7 +678,7 @@ def scan(
         )
 
 
-def _begin(runner, on_progress) -> str:
+def _begin(runner: Runtime, on_progress) -> str:
     """The Scan Run's generation, handed to the runner so every container it starts
     carries it (R3.6); and first, the containers an ended process left, removed.
     The second gate's next scan met the fleet a killed server had left running."""
@@ -698,7 +702,7 @@ def _jobs_from_environment() -> int | None:
     return int(raw) if raw.isdigit() and int(raw) > 0 else None
 
 
-def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
+def _refuse_if_cancelled(runner: Runtime, finished: int, total: int) -> None:
     if runner.cancelled:
         # CANCELLED is the job's word once this raises, so it must be true when
         # said (R1.1): `docker kill` returns before `--rm` removes the container,
@@ -708,7 +712,7 @@ def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
                             "the rest were stopped and nothing was written")
 
 
-def _stop_if_cancelled(runner, where: str) -> None:
+def _stop_if_cancelled(runner: Runtime, where: str) -> None:
     """The cancel checks before the fleet (26.0.2): a first run fetches the image,
     the database and the index — up to ~45s measured — and a cancel that lands
     during one was honoured only once all of them had finished. Now before each."""
@@ -1055,7 +1059,7 @@ def _with_history(outcome, adapter, output, entry, written, workspace, budget_s,
     return dataclasses.replace(outcome, findings=[*outcome.findings, *found])
 
 
-def _preflight(runner, workspace) -> tuple[str | None, str | None]:
+def _preflight(runner: Runtime, workspace) -> tuple[str | None, str | None]:
     """What has to be true before a container starts (F1.9, the mount, 23.4.4).
     Returns the tree the shim and the image were built from."""
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
