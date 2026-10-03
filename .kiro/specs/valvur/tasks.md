@@ -20,7 +20,8 @@ evaluator looks for. They run before R19, which stays last until its date.
 of the same day, at the owner's word, with Phases R23 and R24 (§5, D50 to D55) and R20
 reshaped around path classes (D56). R23 and R24 run first, then R20 to R22, then R19 at its
 date. D57 records what a 2.0 would change; its phases are not written here. The same day,
-the owner's first run on a new project added R21.3 (D58).
+the owner's first run on a new project added R21.3 and R21.4 (D58, D59), and the owner
+brought back the rule-writing D42 had set aside, as Phase R25 after R20 (D60).
 
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
@@ -58,7 +59,7 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
   at $5 across R17 to R19 (D46). R21.3's smoke run is capped at $2 (D58); R20 and R22 to
-  R24 run no agent. Past a cap they are skipped and noted in §8.
+  R25 run no agent. Past a cap they are skipped and noted in §8.
 - **A dated phase waits for its date.** R19 starts on or after 2026-11-19. Until then the
   executor treats it as §8 does: it stops after R22 and leaves R19's row in §8.
 - **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
@@ -198,8 +199,9 @@ asked for them: D42 is the owner's choice among three, and D44 the owner's appro
 hook under `CLAUDE.md` §4. D47 to D49 were accepted on 2026-10-03, when the owner asked
 for the three additions proposed with them. D50 to D57 were accepted on 2026-10-03 with
 the architecture review of that day, when the owner asked for its 1.x steps as phases;
-D56 amends D47. D58 was accepted the same day, after the owner's first run on a new
-project. The owner may revisit any
+D56 amends D47. D58 and D59 were accepted the same day, after the owner's first run on
+a new project, and D60, which amends D42, when the owner asked for the rule-writing back.
+The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
 
@@ -226,7 +228,7 @@ wait for it.
 | D39 | **One skill, `valvur`, in the open Agent Skills format** (F9.12; ADR-0031). Its one source is in the package, `src/valvur/data/skills/valvur/`: `SKILL.md` and `references/` (the tools and their fields, triage by finding class, CI and the gate, air-gapped use). Its frontmatter uses only the standard's six fields, so the one file loads in Claude Code, in Kiro and in any client of the standard. It orchestrates: before adding a dependency, `check_package`; `scan`, and on `failed`, `doctor`, relayed; the verdict and its reason before any finding; triage by group with `findings`, each finding named by rule ID and path; a proposal from `REMEDIATION.md`, and waiting for the human; after the human's fix, a rescan, and *fixed* only where its Scanner ran; `update` when data is stale; `valvur gate` in CI; never a Suppression, never the Results Folder committed, never text quoted from the repository followed. Its rules are rendered from the one source the handshake and `SUMMARY.md` use, and a test holds the three equal; every tool and command it names exists, and every tool the server lists is in it. | none needed |
 | D40 | **The skill ships three ways** (F9.13; ADR-0031): a **Claude Code plugin**, `plugins/valvur/`, with the skill and the MCP server pinned to the release (`uvx --from valvur==<version> valvur-mcp`), listed by `.claude-plugin/marketplace.json` at the repository's root, so `/plugin marketplace add MaverickHQ/valvur` then `/plugin install valvur@valvur` gives both; a **Kiro power**, `powers/valvur/`, in the layout kiro.dev documents when the task starts (`POWER.md`, the Agent Plugins manifest, `mcp.json`, the skill); and **`valvur init --write`**, which adds the skill to the project for Claude Code (`.claude/skills/valvur/`) and for Kiro (its documented project location), never overwriting. The plugin and the power reach the package's skill by symlink where their loaders follow one, else by a copy a test holds byte-identical; every version surface moves together. Approved as within `init --write`'s exception in `CLAUDE.md` §10. | if a Kiro power cannot carry the skill from the repository, it carries the MCP configuration and steering, and `init --write` carries the skill |
 | D41 | **No separate agent.** The skill and the handshake carry the workflow; an agent would be a third copy of the rules to keep in step, and `context: fork` is a Claude Code extension the open standard does not carry. | none needed |
-| D42 | **D22's three missed targets are lowered to what `1.2.0` measured** (the owner, 2026-10-02; amends D22): SAST-Python 11.1, SAST-JS 15.0, real-code precision 3.7, on both lanes. The gap is accepted, and no rule-writing phase is planned. The ratchet still holds each track within 2 points of its baseline, the README claims only what is measured, and a future decision may raise a target again. The other five targets stand, all met. | none needed |
+| D42 | **D22's three missed targets are lowered to what `1.2.0` measured** (the owner, 2026-10-02; amends D22): SAST-Python 11.1, SAST-JS 15.0, real-code precision 3.7, on both lanes. The gap is accepted, and no rule-writing phase is planned. The ratchet still holds each track within 2 points of its baseline, the README claims only what is measured, and a future decision may raise a target again. The other five targets stand, all met. *Amended 2026-10-03 by D60: a rule-writing phase is planned after all, R25; the lowered targets stand until the baseline passes them.* | none needed |
 | D43 | **Every requirement ID cited is defined** (amends §3's last rule). `scripts/check_traceability.py` also fails on an `F<n>.<n>` or `N<n>.<n>` ID cited in the repository's documents, code, tests or workflows that `requirements.md` does not define, naming each with its first `file:line`. The first version's IDs, mapped in the archive, are exempt by that map, not by a list. Found by R16.4: N3.4 and N3.5 were cited by D33, D34, two scripts, two test files and a workflow for the whole build, and defined nowhere. | if more than 20 cited IDs are undefined on the first run, they are recorded in the traceability baseline as debt and only new ones fail, as uncited requirements are |
 | D44 | **A hook that asks before an install** (the owner, 2026-10-02, under `CLAUDE.md` §4; F3.16). A Claude Code `PreToolUse` hook on the `Bash` tool, shipped in the plugin and pinned with its server (`uvx --from valvur==<version> valvur hook pre-tool-use`). When a command installs named packages, it runs the same check as `valvur check`, offline, and when any package is flagged it answers `ask` with each verdict, so the human decides. The commands: `npm`, `pnpm`, `yarn` and `bun` add and install; `pip`, `uv pip`, `uv add` and `poetry add`; `cargo add`; `gem install`; `composer require`. Otherwise it says nothing. It never answers `deny`, never runs or edits anything, and opens no socket. When valvur cannot check, because the index is absent, it answers `ask` naming the cause and `valvur update`, so the check is never silently off. It is not written by `init --write`: a hook in a project's own settings would run for every contributor without their choosing it. | if Claude Code's hook contract cannot carry `ask` from a plugin, the hook prints its verdicts as context and the skill's rule stands alone, recorded; Kiro gets the hook only if its documented hooks can do the same |
 | D45 | **The runner move** (28.3.8, O5). GitHub's `ubuntu-latest` became 26.04 on 2026-10-19. On or after 2026-11-19, every `runs-on` and matrix runner moves from `ubuntu-24.04` to `ubuntu-26.04`, and `-arm` likewise; the corpus, the acceptance set and the Score run on the move; N1.1 and N1.4 are measured against their 24.04 numbers and recorded in `requirements.md`. | if Podman or unprivileged user namespaces fail on 26.04 three times for runner reasons, the jobs that need them stay on 24.04, and the README's platform line says what is tested where |
@@ -235,7 +237,7 @@ wait for it.
 | D48 | **Findable** (F10). **(a) A demo:** one CLI scan of acceptance repository 8, recorded by a script that regenerates it, committed under `docs/` as an animated SVG under 1 MB and shown in the README's first screen. No hosted service is used. **(b) Ready to list:** the README gains *Privacy*, valvur collects nothing, with the proof's link, and *Support*, the issue tracker. Kiro's catalog requires both. `docs/LISTING.md` holds the text each directory asks for, the plugin's and the power's, drawn from their manifests. Submitting stays the owner's (§8). | if the recorder cannot run headless on this Mac, the README shows a captured terminal transcript instead, as text, and §8 says so |
 | D49 | **OpenSSF signals** (N3). **(a) Scorecard:** `scorecard.yml` runs `ossf/scorecard-action`, pinned by commit, weekly and on `main`, with `publish_results: true`. That uploads its results to the public OpenSSF API and earns the README badge; the result describes the repository, never a user's code. Permissions are the action's documented minimum (`security-events: write`, `id-token: write`) and nothing more. The first score and each check below 10 are recorded, and the cheap ones are fixed. **(b) Best Practices:** `docs/BEST-PRACTICES.md` answers every *passing* criterion of the OpenSSF Best Practices badge with a link to its evidence. The form itself needs the owner's account (§8). | if a Scorecard check needs a setting only the owner can change (branch protection's review count, say), it is listed in §8, not worked around |
 | D50 | **The host side in four layers** (the review of 2026-10-03, §3.1). `core` holds the Finding, identity, the verdict, ranking and path classes, with no I/O. `app` holds the scan service, the read models and the jobs. `infra` holds the runtimes, the datasets, the registries, git, the OCI client, the adapters, and the image's side, `engine` and `checks`. `surfaces` holds the CLI, the MCP server and the hook. Each layer imports only from the layers below it. `scripts/layers.toml` assigns every module under `src/valvur` to one layer. **Modules are not moved,** so every import path stays: the protocol's entry points (`python -m valvur.engine`, `python -m valvur.checks`) and the console scripts included. `scripts/check_layers.py` reads the AST with the standard library, as `check_traceability.py` does, and runs in `verify.sh`. It fails on an import that points upward, deferred imports included, and on a module in no layer. The upward imports found on its first run are a baseline that may only shrink, and R23's exit empties it. `valvur/__init__.py` exports `scan`, `ScanRun`, `ScannerFailed`, `Finding` and `__version__` lazily (PEP 562), so the public names stay, and importing a module no longer loads `api`: measured, `import valvur.hook` loads 52 of valvur's modules today. | if the baseline cannot be emptied without changing a contract, what remains is listed in R23's exit with each reason, and §8 holds it for the owner |
-| D51 | **One scan service** (review §3.2). The CLI's `scan` and the MCP tool both run a scan through one function, `service.run_scan`. It owns the runner, the locks, the budget and cancellation. The MCP job wraps that call in its thread and adds nothing else. The CLI's text, the MCP reply's fields and its text render from one read model of the result, and their output is unchanged, held by goldens. `operations` and `reply` import nothing from `valvur.mcp`: what they need of a job is passed in. `Job.summary`, `operations._summarise`, `start_scan` and `_run_scan` are deleted, since nothing reads them. | none needed |
+| D51 | **One scan service** (review §3.2). The CLI's `scan` and the MCP tool both run a scan through one function, `service.run_scan`. It owns the runner, the locks, the budget and cancellation. The MCP job wraps that call in its thread and adds nothing else. The CLI's text, the MCP reply's fields and its text render from one read model of the result, and their output is unchanged, held by goldens. `operations` and `reply` import nothing from `valvur.mcp`: what they need of a job is passed in. `Job.summary`, `operations._summarise`, `start_scan` and `_run_scan` are deleted, since nothing reads them. A `scan_cancel` that arrives before the scan's job exists is held for the scan about to start: the backlog row R6 left in §8, moved here. | none needed |
 | D52 | **Each concept modelled once** (review §3.3). **(a) Datasets.** One table, `valvur.datasets`, holds each dataset's source setting, verifier, age reader, refresh threshold, `inconclusive` threshold and mirror. A scan, `update`, `doctor`, `run.json` and the reply all read it. The thresholds stay D24's. `update --if-stale` refreshes exactly what a scan would, KEV and EPSS included (a scan's refresh is already an approved fetch, ADR-0027). **(b) Active.** One predicate decides that a Finding counts, for the in-memory form and for `findings.json`'s records, and the six sites that decide it today call it. **(c) The network grant** is `Invocation.network` alone. The engine sets `VALVUR_NETWORK` for each granted tool in every runtime, the in-image runtime included. **(d) A scan context**, built once per scan, holds the File Set, the parsed `.security-scan.toml` and the settings, and is passed to the adapters, the pipeline and coverage. **(e) One function builds a container's flags,** for the Scan Container and for the database fetch. | none needed |
 | D53 | **Typed messages inside** (review §3.4). The engine's events carry a `kind` and fields. Prose is rendered only at a surface, and the reply reads kinds, never a prefix. The text the MCP client and the CLI show is unchanged. The budget's state is a field of the outcome. `Runtime` and `ScannerAdapter` declare every member `app` uses, and no `getattr` is called on a runner or an adapter. `mypy --strict` holds `core`. | a `core` module that needs a behaviour change to pass `--strict` stays at the current level, listed in R23's exit |
 | D54 | **The four lapses the review found, fixed** (review §3.5; fixes 1.x allows). **(a)** `/tmp` is `noexec` for every tool. Opengrep's core is unpacked at image build, so no tool needs an executable `/tmp`, and `allow_exec` goes. That also saves the 243 MB Opengrep unpacks on every scan. **(b)** On `full` in the image, dependency-reality asks the registry questions, through D52(c). **(c)** `VALVUR_CACHE`, then the `cache` setting, win over `XDG_CACHE_HOME`. **(d)** The Profiles share one Scanner list, since they run the same Scanners and differ in the network grant. `run.json` keeps `scanners_not_run` for its schema. The dead code and duplicated constants the review names go with these. | if Opengrep cannot run from an unpacked tree, `/tmp` stays executable for the Scan Container, and `invocation.py` and `PROTOCOL.md` say so truthfully; recorded |
@@ -243,6 +245,8 @@ wait for it.
 | D56 | **Path classes** (review §5; amends D47, reshaping R20). The File Set gives every path one class: `source`, `test`, `fixture`, `docs`, `example`, `vendored` or `generated`. It matches whole segments, as D47(b) lists them. `vendor`, `third_party` and `node_modules` are `vendored`. A path `.gitattributes` marks `linguist-generated`, or whose first lines say it is generated and not to be edited, is `generated`; only paths a finding lands on are read. Each finding carries its path's class as `context`, in `findings.json` and in SARIF's `properties`. The field is additive, and identity and `fp_version` are unchanged. One table in `core` decides what a class changes, and D47's (b) and (c) are its first rows. A secret in `test`, `fixture`, `docs` or `example` ranks `low` and stays active. `weak-hash` and the vendored `random` rule are not reported in those classes, and `run.json` counts what the table removed, by class and rule, so nothing disappears without a number. A class with no row changes nothing. D47(a) and the `usedforsecurity=False` half of D47(c) concern rules, not paths, and stand as written. | a row that costs tracks 1 to 7 more than 2 points is withdrawn and recorded, as D47 says |
 | D57 | **2.0 is scoped here, not planned** (review §4.1, §4.2, §5). **Three artifacts, versioned apart:** the host side on PyPI; the Scanner image, versioned by protocol and rebuildable for an advisory without a host release; and the rules and Check data, a signed OCI artifact tagged only when the Score holds. The host accepts a compatible range and records each digest in `run.json`. **Protocol 3:** the engine emits normalised findings, which the host validates against the schema and still neutralises. **Reuse by declared inputs:** ADR-0030 generalised to every Scanner that declares what it reads. **One settings model:** two files, the project's and the machine's, with environment variables only as overrides. Its phases are written when the owner asks, after R24's exit, each part with its ADR. Until then 1.x keeps protocol 2, `fp_version` 1, the reply's schema 2 and every documented setting. | none needed |
 | D58 | **The first run in a new project** (the owner, 2026-10-03). The plugin worked on a new project: the skill loaded, the scan ran, and the reply led with the verdict and a ranked list. Under Claude Code's *don't ask* permission mode, the `scan` tool and the shell were both refused, and the agent found the way out on its own. **(a) The plugin first.** The README's first screen gives the plugin's two commands as the first way in, and `uvx valvur scan` second. **(b) The permission rule, documented, never written.** The README and the skill's references give the allow rules for a mode that refuses unlisted tools: the read-only tools (`check_package`, `findings`, `scan_status`, `doctor`); `scan`, which writes only the Results Folder and fetches only public data; and `scan_cancel`. `update` is left to ask. valvur writes no permission rule into any settings file: a rule in a project's settings grants it to every contributor's agent, which is why D44 keeps the hook out of `init --write`. **(c) When a tool is refused,** the skill says so, gives (b)'s allow rules and the pinned `! uvx valvur==<version> scan`, and changes nothing else. A test holds the pin to the release, and `prepare_release.py` moves it. **(d) The hook under *don't ask*, measured.** Under `claude -p`, the hook's `ask` became a refusal (R18.4). One smoke run, with R18.4's harness and D46's stubs under *don't ask*, records what that mode does with it, capped at $2. | if *don't ask* lets a flagged install through, the README and D44's record say which modes the hook protects, and §8 holds it for the owner; past the cap, the result is recorded as not measured |
+| D59 | **The loop closed** (the owner's run on a new project, 2026-10-03). The agent edited three findings and could not rescan, so nothing was confirmed, and the run felt unfinished. Today a rescan names what it fixed by title alone, which cannot be matched line for line with the first report. **(a) A resolution table.** On a rescan, `SUMMARY.md` and the `scan` reply open with every finding of the previous run, named by rule ID and path as the first report named it. Each gets its state now: `fixed` (its Scanner ran again and the finding is gone), `open`, or `not re-checked`. New findings follow. The reply's field is additive under schema 2. **(b) The skill closes the loop.** After the human's fixes, the agent rescans and leads with that table. When it cannot rescan, it says nothing is confirmed until a rescan, and names the findings it changed. **(c) Lookups the human can run.** For a fix that needs data valvur does not hold offline, `REMEDIATION.md` gives the exact command and the line to write. For zizmor's `unpinned-uses`, that is `gh api repos/<owner>/<repo>/commits/<ref> --jq .sha` for each action, and the `uses:` line with the SHA and the tag as a comment. valvur runs none of them. | if the table would push `SUMMARY.md` past its bound, it lists the first 20 by rank and counts the rest |
+| D60 | **The code rules find more** (the owner, 2026-10-03; amends D42). This is the work D42 set aside. On track 1, the command-injection rule flags all 7 safe cases (the category scores below zero), the code-injection rule flags all 33 safe ones (zero), and 8 of 14 categories find nothing. On track 2, 8 of 10 types find nothing. **Order:** first, command and code injection learn to tell safe code from unsafe, using Opengrep's taint mode where it is measured to help (worth about 10 points on track 1). Then Python's path traversal, secure cookies, open redirects and XXE. Then JavaScript's SQL injection, command injection, path traversal and SSRF. **Every rule ships by D29's bar:** from a licence-audited source, or valvur's own (Apache-2.0); at least one true positive at a line no other rule reports; precision of at least 0.5 over tracks 1 and 2 and the corpus; track 8 not lower; and Opengrep's median time on the acceptance set at most 30% higher. **Aims, not gates:** D22's first targets, 25 for track 1 and 50 for track 2. What is measured is recorded, and D42's lowered targets stand until the baseline passes them. The MD5 and `random` rules earn track 1 points and cost track 8; R20's path classes resolve that, which is why R25 follows R20. | a rule below the bar is not shipped, and is recorded as D29 does; where no source has an eligible rule for a category, valvur writes its own, measured the same way |
 
 ## 6. Order
 
@@ -271,7 +275,9 @@ R17 targets recorded, IDs defined ─► R18 the install asks first ─ ─ ─�
 - **R19** waits for its date; it changes where CI runs, not what valvur does.
 
 ```
-R23 layers ─► R24 machinery ─► R20 noise ─► R21 findable ─► R22 OpenSSF ─ ─ ─► R19 (dated)
+R23 layers ─► R24 machinery ─► R20 noise ─► R25 code rules
+                                                  │
+R19 (dated) ◄─ ─ ─ R22 OpenSSF signals ◄── R21 findable
 ```
 
 - **R23 first**: it changes no contract and no number, and every later phase lands in its
@@ -280,7 +286,9 @@ R23 layers ─► R24 machinery ─► R20 noise ─► R21 findable ─► R22 
   `SUMMARY.md`, so R20 pays once. Its CI changes come before R22 measures the workflows.
 - **R20** changes what a scan reports, so it is judged by the Score before the documents
   and the demo show it.
-- **R21** records the demo after R20, so the demo shows the quieter output.
+- **R25 after R20**: path classes decide where the MD5 and `random` rules fire, and every
+  new rule is measured with the noise already cut.
+- **R21** records the demo after R20 and R25, so the demo shows the quieter, fuller output.
 - **R22** measures the repository as R20 and R21 left it.
 - **R19** keeps its date and comes last in §7. R23 comes first there, so
   `build_status.py` finds it first.
@@ -531,7 +539,9 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
      replaces it and drives both surfaces;
   2. `operations` and `reply` import nothing from `valvur.mcp`;
   3. the CLI's text and the MCP reply match R23.1's goldens;
-  4. `Job.summary`, `operations._summarise`, `start_scan` and `_run_scan` are gone.
+  4. `Job.summary`, `operations._summarise`, `start_scan` and `_run_scan` are gone;
+  5. a `scan_cancel` sent before the scan's job exists stops that scan (R6's backlog row,
+     moved here from §8).
 - [ ] **R23.5** **The datasets, once** (D52a). Behaviours:
   1. every dataset's refresh and `inconclusive` thresholds come from one table, and a
      test holds the table to D24;
@@ -646,6 +656,38 @@ table.*
 **Exit:** the Score on both lanes, track 8 up and no other track past the ratchet; the
 acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a fix.
 
+### Phase R25: what the code rules find
+
+- [ ] **R25.1** **Measure the gap per category** (D60). For each of track 1's 14 categories
+  and track 2's 10 types, record the true and false positives today, the rule that fires,
+  and the eligible candidates in GitLab's `sast-rules` at its pin. Behaviour: the STATUS
+  gives the table, and the order D60's work takes.
+- [ ] **R25.2** **Command and code injection tell safe from unsafe** (D60). Behaviours:
+  1. a flow from request data to `subprocess` with `shell=True`, or to `eval` or `exec`,
+     still fires;
+  2. a constant, or a value that passes a sanitiser on the way, draws nothing;
+  3. track 1's command-injection and code-injection categories rise, and no other falls;
+  4. track 8 is not lower.
+- [ ] **R25.3** **Python: path traversal, secure cookies, open redirects, XXE** (D60).
+  Behaviours:
+  1. each category's rules have vulnerable and safe twins as tests;
+  2. each rule ships only on D29's bar, or is recorded as withdrawn;
+  3. the STATUS gives track 1's delta per category.
+- [ ] **R25.4** **JavaScript: SQL injection, command injection, path traversal, SSRF**
+  (D60). Behaviours:
+  1. each type's rules have vulnerable and safe twins as tests;
+  2. each rule ships only on D29's bar, or is recorded as withdrawn;
+  3. the STATUS gives track 2's delta per type.
+- [ ] **R25.5** **The Score and the corpus** (D60). Behaviours:
+  1. track 8 is not lower than at R20's exit;
+  2. Opengrep's median time on the acceptance set is within 130% of R25.1's;
+  3. every shipped rule carries its CWE into `findings.json` and SARIF;
+  4. the baselines rise for every track that rose, and the README and `EVALUATING.md`
+     cite only what is measured.
+
+**Exit:** the Score on both lanes, tracks 1 and 2 up and measured against D60's aims, no
+track past the ratchet; the acceptance set green on both lanes.
+
 ### Phase R21: findable
 
 - [ ] **R21.1** **The demo** (D48a). `scripts/demo.py` records one CLI scan of acceptance
@@ -668,6 +710,15 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
      `test_version.py` holds and `prepare_release.py` moves;
   4. the smoke run under *don't ask* records what happens to the hook's `ask`, or D58's
      fallback applies.
+- [ ] **R21.4** **The loop closed** (D59). Behaviours:
+  1. on a rescan, `SUMMARY.md` and the `scan` reply open with every earlier finding, by
+     rule ID and path, as `fixed`, `open` or `not re-checked`, then the new ones;
+  2. `fixed` only where its Scanner ran again, as now;
+  3. the skill rescans after the human's fixes and leads with the table, and says nothing
+     is confirmed when it cannot rescan;
+  4. `REMEDIATION.md` gives each `unpinned-uses` finding its lookup command and the line
+     to write, and valvur runs none of them;
+  5. the Score is unchanged on both lanes.
 
 **Exit:** the README's first screen, measured in lines, holds what valvur is, the plugin's
 two commands and the demo; the documents' tests pass; the hook's behaviour under *don't
@@ -715,7 +766,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R23, R24 and R20 to R22 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R18 |
+| land R23, R24, R20, R25, R21 and R22 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R18 |
 | start R19 | on or after 2026-11-19 | tell any session to proceed, or let the dated schedule start it; it moves CI's runners to Ubuntu 26.04 (D45) |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
@@ -726,7 +777,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | now | run once in an AWS account and record the numbers; the steps are in `AIR-GAPPED.md` and `docs/examples/` |
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
-| a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
 | `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. Decide whether it should fake the runtime, as the other readers' cases do |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | revisit a decision in §5 | any time | `/grill-with-docs` |

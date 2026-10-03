@@ -19,7 +19,7 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 install (D44). `1.2.0` shipped R9 to R16; the Score went from 59.3 to **64.9** on both lanes,
 and R17 lowered D22's three missed targets to what it measured (D42). [The review of
 2026-10-03](docs/history/REVIEW-2026-10-03.md) kept the outer architecture, found the host side
-unlayered, and scoped a 2.0 (D57). **Next:** R23, R24, then R20 to R22; R19 from 2026-11-19.
+unlayered, and scoped 2.0 (D57). **Next:** R23, R24, R20, R25, R21, R22; R19 (2026-11-19).
 
 ## 2. What it is NOT
 
