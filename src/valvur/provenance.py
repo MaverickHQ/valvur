@@ -161,7 +161,7 @@ def render(run: ScanRun) -> str:
                     "kev_source": run.kev_source,
                     "kev_catalog": run.kev_catalog,
                     "kev_age_days": round(run.kev_age_days or 0, 2),
-                    "stale": (run.kev_age_days or 0) > 30,
+                    "stale": _datasets.KEV.warns(run.kev_age_days),
                     # D25: the day FIRST scored them, read on every Profile; empty
                     # and null when none was in the cache and nothing had EPSS.
                     "epss_scored": run.epss_scored,

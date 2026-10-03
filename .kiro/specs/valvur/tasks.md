@@ -617,12 +617,33 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
     settles its announcement, so no cancel waits for nothing. Held in-process.
   - **A failed pull, or no runtime,** is one `!` line and exit 1 on the CLI, never a
     traceback.
-- [ ] **R23.5** **The datasets, once** (D52a). Behaviours:
+- [x] **R23.5** **The datasets, once** (D52a). Behaviours:
   1. every dataset's refresh and `inconclusive` thresholds come from one table, and a
      test holds the table to D24;
   2. `update --if-stale` refreshes exactly what a scan would, KEV and EPSS included;
   3. `doctor`, `run.json` and the reply read ages through the table;
   4. no other module compares a dataset's age with a number, which an AST test holds.
+  **STATUS 2026-10-03:** ✅ all four.
+  - **The table.** `valvur.datasets` has one row each for the database, the index, the
+    malicious list, KEV, EPSS and OSV's databases: the mirror setting, the verifier, the
+    age reader and the refresh and `inconclusive` thresholds, D24's and F7.16's, which a
+    test holds. KEV's row carries the thirty days past which the summary and
+    `run.json`'s `enrichment.stale` say its age. The constants in `cache`,
+    `enrichment` and `osv_offline` are gone; `osv_offline` takes the table's `due`.
+  - **`update --if-stale`** now refreshes, for each of seven cache states, exactly the
+    datasets a scan's own fetch step does, KEV, EPSS and the malicious list included,
+    and the index past 2 days, not 30. `--if-stale` no longer refreshes a database that
+    is past Trivy's `NextUpdate` but under a week old, which a scan never did. Its help
+    says so; the help golden was regenerated.
+  - **Read through the table:** `doctor`'s database and index lines, `run.json`'s
+    `database`, `name_index`, `data` and `enrichment.stale`, and so the reply. A test
+    changes one row and reads each surface.
+  - **The AST test** finds no comparison of an age with a number outside `datasets`.
+    It first found two: `run.json`'s KEV flag (a literal 30, now the row's) and the
+    dependency-reality Check's package age, a package's and not a dataset's, renamed
+    `on_registry`. The registry walk's cadence in `name_index/build.py`, which builds the
+    index for the publishing workflow and decides neither a refresh nor a verdict, is
+    named as the one exception.
 - [ ] **R23.6** **Every other concept, once** (D52b to e). Behaviours:
   1. one predicate decides that a Finding is active, and the six sites call it;
   2. the network grant is `Invocation.network` alone, and the engine sets

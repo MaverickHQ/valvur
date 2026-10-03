@@ -335,9 +335,11 @@ class DependencyRealityCheck(Check):
                         "has it. A name that has just been freed is the slopsquat target.",
                     ))
                     continue
-            age = _age_days(ecosystem, meta)
-            if age is not None and age < NEW_PACKAGE_DAYS:
-                findings.append(_newly_registered(ecosystem, name, source, int(age)))
+            # How long the package has been on its registry: its own age, not a
+            # dataset's (D52a).
+            on_registry = _age_days(ecosystem, meta)
+            if on_registry is not None and on_registry < NEW_PACKAGE_DAYS:
+                findings.append(_newly_registered(ecosystem, name, source, int(on_registry)))
 
         for (ecosystem, source, label, url), names in sorted(private.items()):
             host = urlparse(url).hostname or url

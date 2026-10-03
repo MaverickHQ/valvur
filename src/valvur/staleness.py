@@ -48,5 +48,6 @@ def data_ages(provider=None, osv=()) -> dict:
         "malicious": entry(_datasets.MALICIOUS.age(), "built"),
         "kev": entry(provider.kev_age_days, provider.kev_age_basis or "fetched"),
         "epss": entry(provider.epss_age_days, provider.epss_age_basis or "fetched"),
-        "osv": {name: entry(*osv_offline.age(name)) for name in osv},
+        "osv": {name: entry(_datasets.OSV.age(name), osv_offline.age(name)[1])
+                for name in osv},
     }

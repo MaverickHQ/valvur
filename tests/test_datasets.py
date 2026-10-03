@@ -107,3 +107,90 @@ def test_update_if_stale_refreshes_exactly_what_a_scan_would(monkeypatch, case):
     updating.run(lambda _: None, runner, if_stale=True)
 
     assert sorted(by_update) == sorted(by_scan), case
+
+
+def test_doctor_run_json_and_the_reply_read_ages_through_the_table(tmp_path, monkeypatch):
+    """One row changed in the table, and each surface says what the row says."""
+    import json
+    import shutil
+    from pathlib import Path
+
+    from valvur import api, doctor, engine_host, operations
+    from valvur.adapters import GitleaksAdapter
+
+    fixtures = Path(__file__).parent / "fixtures"
+    monkeypatch.setattr(datasets, "DATABASE", dataclasses.replace(
+        datasets.DATABASE, reader=lambda _: 9.5, refresh_after_days=8,
+        inconclusive_after_days=8))
+    monkeypatch.setattr(engine_host, "for_scan",
+                        lambda: engine_host.LocalRuntime(fixtures / "fake-tools"))
+    monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [GitleaksAdapter()])
+    ws = tmp_path / "ws"
+    shutil.copytree(fixtures / "clean-repo", ws)
+
+    [line] = [c for c in doctor.run(ws) if c.name == "database"]
+    assert "9.5 days old (threshold 8)" in line.detail
+
+    from valvur import service
+
+    service.run_scan(ws, runner=engine_host.LocalRuntime(fixtures / "fake-tools"))
+    record = json.loads((ws / ".security-scan" / "run.json").read_text())
+    assert record["database"]["age_days"] == 9.5
+    assert (record["database"]["stale"], record["database"]["stale_after_days"]) == (True, 8)
+    assert record["data"]["database"] == {"age_days": 9.5, "basis": "built"}
+
+    _, fields = operations.status_of(ws)
+    assert any("database is 10 days old" in line for line in fields["caveats"])
+
+
+#: The registry walk's own cadence, which builds the index for the publishing
+#: workflow and `--build-index`: how soon a walk may repeat, and when npm's change
+#: feed is too old to follow. Neither decides a refresh or a verdict.
+_WALK_CADENCE = {"src/valvur/name_index/build.py"}
+
+
+def _compares_an_age_with_a_number(node) -> bool:
+    import ast
+
+    if not isinstance(node, ast.Compare) or not any(
+            isinstance(op, ast.Lt | ast.LtE | ast.Gt | ast.GtE) for op in node.ops):
+        return False
+    operands = [node.left, *node.comparators]
+
+    def names(operand) -> set[str]:
+        return {part for n in ast.walk(operand)
+                for part in (n.id if isinstance(n, ast.Name) else
+                             n.attr if isinstance(n, ast.Attribute) else "").lower().split("_")}
+
+    aged = any("age" in names(o) for o in operands)
+    numbered = any((isinstance(o, ast.Constant) and isinstance(o.value, int | float)
+                    and not isinstance(o.value, bool) and o.value != 0)
+                   or ast.unparse(o).endswith("_DAYS") for o in operands)
+    return aged and numbered
+
+
+def test_no_other_module_compares_a_datasets_age_with_a_number():
+    import ast
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parent.parent
+    found = []
+    for path in sorted((repo / "src" / "valvur").rglob("*.py")):
+        rel = path.relative_to(repo).as_posix()
+        if rel in {"src/valvur/datasets.py", *_WALK_CADENCE}:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if _compares_an_age_with_a_number(node):
+                found.append(f"{rel}:{node.lineno}: {ast.unparse(node)}")
+
+    assert found == []
+
+
+def test_the_check_sees_a_threshold_compared_by_hand():
+    import ast
+
+    for written in ("age > 30", "db_age <= cache.DB_STALE_AFTER_DAYS",
+                    "run.kev_age_days >= 2.0"):
+        assert _compares_an_age_with_a_number(ast.parse(written, mode="eval").body), written
+    for written in ("age is None", "overdue > 0", "len(pages) > 30", "age > other_age"):
+        assert not _compares_an_age_with_a_number(ast.parse(written, mode="eval").body)
