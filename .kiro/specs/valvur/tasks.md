@@ -732,12 +732,37 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
     project file's, the image's digest path, the workspace mount, the history pass's
     tool and the server's name had two definitions, and eleven `VALVUR_*` names were
     spelt beside `settings.ENVIRONMENT`, which now names them all. Two tests hold it.
-- [ ] **R23.9** **The orchestrator, small** (D50). Behaviours:
+- [x] **R23.9** **The orchestrator, small** (D50). Behaviours:
   1. `api.py` is under 400 lines, and no function in `app` is over 80 lines;
   2. the layer baseline is empty, and no import cycle remains, counting deferred imports
      and the package's `__init__`;
   3. every deferred import left says why in a comment, such as startup cost, and a test
      lists them.
+  **STATUS 2026-10-03:** ✅ all three, D50's fallback not needed.
+  - **(1)** `api.py` is 185 lines (1,245 at R23.1): the locks, the fetches, the count,
+    the fleet and the record, in order. What a first run fetches is `fetching`, the
+    Scan Container's fleet `fleet`, the assembly `assembly`, and the record `scanrun`,
+    which `summary`, `provenance`, `results` and `staleness` now import instead of the
+    scan. The longest `app` function was `provenance.render` at 164 lines; none is over
+    80 now, and `tests/test_orchestrator_small.py` holds both numbers.
+  - **(2)** No cycle, by `check_layers.py`'s count (deferred imports and the implicit
+    edge to each ancestor `__init__`) and by the older soft-cycle test's (annotations
+    too), which accepted two groups and accepts none now. The packages' `__init__`
+    files load their names through `valvur.lazy` (PEP 562); the registries they held
+    moved to `adapters.registry`, `checks.registry` and `ecosystems.vocabulary`, the
+    MCP `Tool` to `mcp.tool`, and `staleness` reads a run through a Protocol.
+  - **(3)** 229 deferred imports at R23.1, 62 now in 56 statements (115 modules, 484
+    edges). The rest moved to the top of their module, and five that tests patched
+    read the module's attribute instead. Each left carries `# deferred: <why>`: the
+    plugin's hook (`cache`, `packages`, `ecosystems.registries`), the MCP server's
+    handshake (`operations`, `mcp.server`, `mcp.tools`), the CLI's commands, the
+    registry client and the TLS stack, or the generated `_build`.
+    `check_layers.py --deferred` lists them into `tests/fixtures/deferred-imports.txt`,
+    and `tests/test_deferred_imports.py` fails on one without a reason or off the list.
+    **The cost, measured:** `import valvur.hook` loads 9 modules, as before;
+    `import valvur.mcp.server` loads 86 (72 before) and `import valvur.cli` 79 (65),
+    about 15 ms more at the median of 21 runs (about 205 ms against 190), with neither
+    loading the TLS stack.
 
 **Exit:** the layer baseline empty and no import cycle, or D50's fallback; `api.py` under
 400 lines; R23.1's goldens unchanged; the Score unchanged on both lanes; the acceptance set
