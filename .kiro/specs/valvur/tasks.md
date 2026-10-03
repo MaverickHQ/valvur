@@ -902,7 +902,7 @@ table.*
     in smolagents' `source`.
   Each change below records its delta per track in its own STATUS: R20.3's inventory,
   R20.4's table, R20.5's `usedforsecurity`.
-- [ ] **R20.2** **Path classes** (D56). Behaviours:
+- [x] **R20.2** **Path classes** (D56). Behaviours:
   1. the File Set gives every path one class, by whole segments:
      `testcode/BenchmarkTest00001.py`, `latest/x.py` and `contest/y.py` are `source`;
   2. `vendor/`, `third_party/` and `node_modules/` are `vendored`; `linguist-generated`
@@ -910,6 +910,14 @@ table.*
   3. every finding carries `context` in `findings.json` and SARIF, and its fingerprint is
      unchanged;
   4. the corpus's count per class is in the STATUS.
+  **STATUS 2026-10-03:** ✅ all four. `valvur.pathclass` (core) classes by segments,
+  in the order vendored, fixture, test, example, docs; `fileset.classes` adds
+  `generated` from `.gitattributes` or a "generated … do not edit" line in the first
+  kilobyte. A `context` stage after `merged` sets each Finding's class, which
+  `findings.json` and SARIF's result properties carry. A test runs a scan with every
+  path classed `vendored` and gets the same fingerprints. **The corpus**, over the
+  235 findings of the 13 repositories at R24's scan: 189 `source`, 30 `example`, 11
+  `test` and 5 `docs`; none `fixture`, `vendored` or `generated`.
 - [ ] **R20.3** **The sink inventory is inventory** (D47a). Behaviours:
   1. an inventory rule's finding is marked `inventory` in `findings.json` and SARIF;
   2. it is not active: a project whose only results are inventory reads `clean`, with
