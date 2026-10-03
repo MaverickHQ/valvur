@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from fake_registry import FakeRegistry
 
-from valvur import api, oci
+from valvur import api, events, oci
 from valvur.runner import ContainerRunner, ImagePullFailed, ScannerOutput
 
 
@@ -55,7 +55,7 @@ def test_a_present_image_is_not_pulled_and_no_line_is_said():
     runner = _Runner(present=True)
     said: list[str] = []
 
-    api._ensure_image(runner, said.append)
+    api._ensure_image(runner, lambda event: said.append(str(event)))
 
     assert runner.calls == ["inspect"]
     assert said == []
@@ -65,7 +65,7 @@ def test_an_absent_image_is_pulled_and_the_line_names_it_and_its_size():
     runner = _Runner(present=False)
     said: list[str] = []
 
-    api._ensure_image(runner, said.append)
+    api._ensure_image(runner, lambda event: said.append(str(event)))
 
     assert runner.calls == ["inspect", "size", "pull"]
     assert said[0].startswith("pulling ghcr.io/maverickhq/valvur:9.9.9 (243MB)")
@@ -77,7 +77,7 @@ def test_a_size_the_registry_cannot_state_is_left_out_rather_than_invented():
     runner = _Runner(present=False, size=None)
     said: list[str] = []
 
-    api._ensure_image(runner, said.append)
+    api._ensure_image(runner, lambda event: said.append(str(event)))
 
     assert said[0].startswith("pulling ghcr.io/maverickhq/valvur:9.9.9 —")
     assert "MB" not in said[0]
@@ -143,10 +143,10 @@ def test_scan_status_says_the_image_is_being_pulled_while_it_is(tmp_path, monkey
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        progress("pulling ghcr.io/maverickhq/valvur:0.2.0 (243MB) — the first run only; "
-                 "the runtime keeps it")
+        progress(events.fetch_started("image", name="ghcr.io/maverickhq/valvur:0.2.0",
+                                      size_mb=243, age_days=None))
         time.sleep(0.6)
-        progress("image pulled (30s)")
+        progress(events.fetch_ended("image", seconds=30.0))
         progress("trivy: ok")
         time.sleep(0.6)
         return "done"

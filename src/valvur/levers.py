@@ -20,31 +20,8 @@ LEVERS = (
 )
 
 
-#: The pre-flight's messages start with this (29.1.2); `scan_status` gives them
-#: their own line rather than listing them as a completion.
-WORKSPACE_PREFIX = "workspace: "
-
-
 def _largest(largest) -> str:
     return ", ".join(f"{d} {n:,}" for d, n in largest) or "none"
-
-
-def workspace_line(files: int, largest) -> str:
-    return f"{WORKSPACE_PREFIX}{files:,} files to scan; largest: {_largest(largest)}"
-
-
-def large_tree_line(files: int, largest) -> str | None:
-    """The sentence a first run needed before its budget was spent, not after:
-    the directory, its count, and the one line that drops it. None below the
-    threshold, or when the files are at the root."""
-    from .exclusions import LARGE_TREE
-
-    if files < LARGE_TREE or not largest or largest[0][0] == ".":
-        return None
-    top, count = largest[0]
-    return (f"{WORKSPACE_PREFIX}{top} holds {count:,} of them — if it is not source, "
-            f'`[scan] exclude = ["{top}"]` in `.security-scan.toml` drops it before the '
-            "Scanners start")
 
 
 def budget_fields(scanners, budget_s: float, files: int | None = None, largest=()) -> dict:

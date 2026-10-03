@@ -17,6 +17,7 @@ from pathlib import Path
 from . import cache as _cache
 from . import datasets as _datasets
 from . import egress as _egress
+from . import events as _events
 from . import hygiene as _hygiene
 from . import osv_offline as _osv_offline
 from . import pipeline as _pipeline
@@ -317,10 +318,9 @@ def _ensure_image(runner, on_progress) -> dict | None:
     if present is None or present():
         return None
     size = runner.pull_size_mb()
-    stated = f" ({size}MB)" if size else ""
     if on_progress is not None:
-        on_progress(f"pulling {runner.image}{stated} — the first run only; the runtime "
-                    "keeps it")
+        on_progress(_events.fetch_started("image", name=runner.image, size_mb=size,
+                                          age_days=None))
     started = time.monotonic()
     result = runner.pull_image()
     if result.exit_code != 0:
@@ -332,7 +332,7 @@ def _ensure_image(runner, on_progress) -> dict | None:
         )
     seconds = time.monotonic() - started
     if on_progress is not None:
-        on_progress(f"image pulled ({seconds:.0f}s)")
+        on_progress(_events.fetch_ended("image", seconds=seconds))
     return _fetch_record("image", runner.image, size, seconds)
 
 
@@ -343,18 +343,6 @@ def _fetch_record(what: str, source: str, size_mb: int | None, seconds: float,
     duration `run.json` carries."""
     return {"what": what, "source": source, "size_mb": size_mb,
             "seconds": round(seconds, 1), **extra}
-
-
-#: What a first run says on `on_progress` while it fetches (23.2.4, 24.1): one line
-#: as each fetch starts, one as it ends. `scan_status` shows the current one as
-#: `Now:`; the CLI prints both kinds to stderr. Every other progress message is a
-#: Scanner finishing.
-FETCH_STARTED = ("pulling ", "fetching ", "refreshing ")
-FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
-               "index fetched", "index not fetched", "OSV database fetched",
-               "OSV database not fetched", "malicious list fetched",
-               "malicious list not fetched", "KEV refreshed", "KEV refresh skipped",
-               "EPSS refreshed", "EPSS refresh skipped")
 
 
 def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
@@ -394,18 +382,16 @@ def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
         # Absent since 24.1; stale since ADR-0025 (R6.6), reversing 14.2: an agent has
         # no terminal, and a week-old database left it `inconclusive` with no way out.
         db_size = runner.db_size_mb()
-        say(f"fetching the vulnerability database{_mb(db_size)} — the first run only"
-            if db_age is None else
-            f"refreshing the vulnerability database ({db_age:.0f} days old){_mb(db_size)}")
+        say(_events.fetch_started("database", age_days=db_age, size_mb=db_size))
         started = time.monotonic()
         result = update()
         if result.exit_code != 0:
             detail = (result.stderr.strip() or result.stdout.strip() or "(no output)")[-300:]
             unfetched["trivy"] = f"the vulnerability database could not be fetched: {detail}"
-            say(f"database not fetched: {detail}")
+            say(_events.fetch_ended("database", ok=False, detail=detail))
         else:
             seconds = time.monotonic() - started
-            say(f"database fetched ({seconds:.0f}s)")
+            say(_events.fetch_ended("database", seconds=seconds))
             fetched.append(_fetch_record(
                 "vulnerability database",
                 _egress.db_repository() or _egress.DEFAULT_DB_REPOSITORY, db_size, seconds))
@@ -418,9 +404,7 @@ def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
         from . import locking, name_index
 
         index_size = name_index.published.published_size_mb()
-        say(f"fetching the package-name index{_mb(index_size)} — the first run only"
-            if index_age is None else
-            f"refreshing the package-name index ({index_age:.0f} days old){_mb(index_size)}")
+        say(_events.fetch_started("index", age_days=index_age, size_mb=index_size))
         started = time.monotonic()
         try:
             with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
@@ -430,10 +414,10 @@ def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
         except name_index.IndexUnavailable as exc:
             unfetched["dependency-reality"] = (
                 f"the package-name index could not be fetched: {exc}")
-            say(f"index not fetched: {exc}")
+            say(_events.fetch_ended("index", ok=False, detail=str(exc)))
         else:
             seconds = time.monotonic() - started
-            say(f"index fetched ({seconds:.0f}s)")
+            say(_events.fetch_ended("index", seconds=seconds))
             fetched.append(_fetch_record(
                 "package-name index", name_index.published.repository(), index_size, seconds,
                 signature=_index_signature(metadata)))
@@ -460,16 +444,15 @@ def _ensure_malicious(say, fetched: list[dict]) -> None:
     age = _datasets.MALICIOUS.age()
     if not _datasets.MALICIOUS.due(age):
         return
-    say("fetching the malicious list — the first run only" if age is None else
-        f"refreshing the malicious list ({age:.0f} days old)")
+    say(_events.fetch_started("malicious", age_days=age))
     started = time.monotonic()
     with locking.held(locking.cache_lock(_cache.root()), exclusive=True, wait=True):
-        refreshed = updating.refresh_malicious(say)
+        refreshed = updating.refresh_malicious(lambda line: say(_events.note(line)))
     seconds = time.monotonic() - started
     if not refreshed:
-        say("malicious list not fetched")
+        say(_events.fetch_ended("malicious", ok=False))
         return
-    say(f"malicious list fetched ({seconds:.0f}s)")
+    say(_events.fetch_ended("malicious", seconds=seconds))
     from . import settings
 
     fetched.append(_fetch_record(
@@ -487,9 +470,9 @@ def _ensure_kev(say, fetched: list[dict]) -> None:
     age = _datasets.KEV.age()
     if not _datasets.KEV.due(age):
         return
-    say("refreshing KEV" + (f" ({age:.0f} days old)" if age is not None else ""))
+    say(_events.fetch_started("kev", age_days=age))
     started = time.monotonic()
-    if updating.refresh_kev(say):
+    if updating.refresh_kev(lambda line: say(_events.fetch_ended("kev", said=line))):
         from . import settings
 
         fetched.append(_fetch_record(
@@ -505,10 +488,9 @@ def _ensure_epss(say, fetched: list[dict]) -> None:
     age = _datasets.EPSS.age()
     if not _datasets.EPSS.due(age):
         return
-    say("fetching EPSS scores (about 3MB) — the first run only" if age is None else
-        f"refreshing EPSS ({age:.0f} days old)")
+    say(_events.fetch_started("epss", age_days=age))
     started = time.monotonic()
-    if updating.refresh_epss(say):
+    if updating.refresh_epss(lambda line: say(_events.fetch_ended("epss", said=line))):
         fetched.append(_fetch_record(
             "EPSS scores", settings.get("epss_url") or epss.URL,
             max(1, round(epss.path().stat().st_size / 1_000_000)),
@@ -543,10 +525,6 @@ def _index_signature(metadata: object) -> str:
         if isinstance(published, dict) and published.get("signature"):
             return str(published["signature"])
     return "not recorded"
-
-
-def _mb(size: int | None) -> str:
-    return f" ({size}MB)" if size else ""
 
 
 def _say_why_unfetched(scanners: list[ScannerRun], unfetched: dict[str, str]) -> list[ScannerRun]:
@@ -712,8 +690,8 @@ def _begin(runner, on_progress) -> str:
     if isinstance(runtime, str):
         reaped = owner.reap(runtime)
         if reaped and on_progress is not None:
-            on_progress(f"removed {len(reaped)} container(s) left by a scan whose process "
-                        f"had ended: {', '.join(reaped)}")
+            on_progress(_events.note(f"removed {len(reaped)} container(s) left by a scan "
+                                     f"whose process had ended: {', '.join(reaped)}"))
     return generation
 
 
@@ -758,7 +736,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     # the largest directories, and — past the threshold — the one line that
     # would drop the largest, said before the budget is spent rather than after.
     from . import fileset as _fileset
-    from . import levers as _levers
+    from .exclusions import LARGE_TREE
 
     # The File Set (ADR-0021), once: what the Snapshot holds, what every host-side
     # count reads, and what the record says was and was not read.
@@ -767,10 +745,12 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     chosen = context.file_set
     files, largest = len(chosen.files), _fileset.largest(chosen.files)
     if on_progress is not None:
-        on_progress(_levers.workspace_line(files, largest))
-        warning = chosen.warning or _levers.large_tree_line(files, largest)
-        if warning is not None:
-            on_progress(warning)
+        on_progress(_events.workspace(files, largest))
+        if chosen.warning:
+            on_progress(_events.note(chosen.warning))
+        elif files >= LARGE_TREE and largest and largest[0][0] != ".":
+            # The sentence a first run needed before its budget was spent, not after.
+            on_progress(_events.large_tree(*largest[0]))
 
     beside: dict = {}
     if not _engine_two(runner):
@@ -853,19 +833,19 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                  if i.tool != _HISTORY_TOOL}
         fleet = len(set(planned))
         # The words the fleet used, which `scan_status` reads (29.0.4).
-        say(f"fleet: {fleet} Scanners, {min(jobs or fleet, fleet)} at a time")
+        say(_events.fleet(fleet, min(jobs or fleet, fleet)))
 
         def on_event(event: dict) -> None:
             name = named.get(event.get("tool", ""))
             if event.get("event") == "start" and name:
-                say(f"{name}: started")
+                say(_events.scanner_started(name))
             elif event.get("event") == "end":
                 ok = event.get("exit_code") == 0 and not event.get("timed_out")
                 if ok:
                     ended.append(event.get("tool", ""))       # finished, for a cancel's count
                 if name:
-                    say(f"{name}: {'ok' if ok else 'failed'} "
-                        f"({float(event.get('seconds', 0)):.1f}s)")
+                    say(_events.scanner_ended(name, ok=ok,
+                                              seconds=float(event.get("seconds", 0))))
 
         # One Scan Container per network boundary (ADR-0022, R3.8): what needs a
         # network runs in its own, and everything else, Trivy included, in one
@@ -952,9 +932,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 o is not None and o.scanner.tool == n and o.scanner.reason.startswith(
                     "not started") for o in outcomes)]
             waiting = [n for n in cut if n not in stopping]
-            on_progress(f"budget spent after {spent:.0f}s: stopping "
-                        f"{', '.join(stopping) or 'nothing'}"
-                        f"; not starting {', '.join(waiting) or 'nothing'}")
+            on_progress(_events.budget(spent, stopping, waiting))
     return outcomes, cut
 
 
@@ -993,8 +971,7 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
         position = planned.index(index)
         del plan[position], planned[position]
         if on_progress is not None:
-            on_progress(f"{name}: reused (its inputs and data are unchanged since run "
-                        f"{str(stored.get('generation', ''))[:8]})")
+            on_progress(_events.reused(name, str(stored.get("generation", ""))))
     return keys
 
 
@@ -1048,13 +1025,13 @@ def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progr
     if chosen.note:
         # A repository walked for want of `git` (R8.1): its history cannot be read,
         # and a record that said nothing would read as a repository with none.
-        say("history: not read (git is not on PATH here)")
+        say(_events.history_not_read("git is not on PATH here"))
         return None, {"unavailable": "git is not on PATH here (the image carries none, "
                                      "ADR-0005)"}
     if chosen.scope != "git":
         return None, None
     if not context.settings.history:
-        say("history: not read ([scan] history = false)")
+        say(_events.history_not_read("[scan] history = false"))
         return None, {"off": "[scan] history = false"}
     written = _history.write(workspace, scratch / HISTORY_DIR)
     if written is None:
@@ -1062,9 +1039,7 @@ def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progr
     plan.append(adapters[index].history_command(
         project_config=PROJECT_GITLEAKS_CONFIG in chosen.files))
     planned.append(index)
-    bound = f", stopped at {written.bounded}" if written.bounded else ""
-    say(f"history: {written.commits} commits read for secrets "
-        f"({written.bytes / 2**20:.1f} MB{bound})")
+    say(_events.history_read(written.commits, written.bytes, written.bounded))
     return written, {"commits": written.commits, "bytes": written.bytes,
                      "bounded": written.bounded}
 

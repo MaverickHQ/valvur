@@ -18,6 +18,8 @@ import time
 from pathlib import Path
 from typing import Any, Protocol
 
+from . import events
+from .events import Event, Kind
 from .results import RESULTS_DIR
 
 SCHEMA = 2
@@ -64,7 +66,7 @@ class JobView(Protocol):
     doctor_may_help: bool
     next_moves: tuple[str, ...]
     failure: dict | None
-    progress: list[str]
+    progress: list[Event]
     progress_at: list[float]
 
     @property
@@ -125,42 +127,37 @@ def fields(workspace: Path, job: JobView | None = None, *,
 
 def _progress(job: JobView, waited_s: float) -> dict:
     """A running scan, as fields: what is being fetched, what is running and for
-    how long, what finished, and what the workspace line said (29.0.4)."""
-    from . import levers as _levers
-    from .api import FETCH_STARTED
-
+    how long, what finished, and what the workspace line said (29.0.4). Each event
+    is placed by its kind (D53), and only its words are carried."""
     now: str | None = None
     completed: list[str] = []
     started: dict[str, float] = {}
     finished: list[str] = []
+    done: set[str] = set()
     fleet: int | None = None
     workspace_lines: list[str] = []
     stamps = list(job.progress_at) + [job.elapsed + job.started] * len(job.progress)
-    for message, at in zip(job.progress, stamps, strict=False):
-        if message.startswith(FETCH_STARTED):
-            now = message
+    for event, at in zip(job.progress, stamps, strict=False):
+        if event.kind is Kind.FETCH_STARTED:
+            now = str(event)
             continue
         now = None
-        if message.startswith("fleet: "):
-            fleet = int(message.split()[1])
-            continue
-        if message.startswith(_levers.WORKSPACE_PREFIX):
-            workspace_lines.append("Workspace: " + message[len(_levers.WORKSPACE_PREFIX):])
-            continue
-        tool, sep, rest = message.partition(": ")
-        if sep and rest == "started":
-            started[tool] = at
-            continue
-        if sep and tool in started:
-            finished.append(message)
-            continue
-        completed.append(message)
-    done = {m.partition(": ")[0] for m in finished}
+        if event.kind is Kind.FLEET:
+            fleet = int(event.fields["count"])
+        elif event.kind is Kind.WORKSPACE:
+            workspace_lines.append("Workspace: " + events.workspace_body(event))
+        elif event.kind is Kind.SCANNER_STARTED:
+            started[str(event.fields["name"])] = at
+        elif event.kind is Kind.SCANNER_ENDED and event.fields["name"] in started:
+            finished.append(str(event))
+            done.add(str(event.fields["name"]))
+        else:
+            completed.append(str(event))
     running = {tool: round(time.monotonic() - at, 1) for tool, at in started.items()
                if tool not in done}
     return {"now": now, "running": running, "finished": finished, "fleet": fleet,
             "completed": completed, "workspace": workspace_lines,
-            "waited_s": waited_s, "messages": list(job.progress)}
+            "waited_s": waited_s, "messages": [str(event) for event in job.progress]}
 
 
 def _done(workspace: Path, data: dict) -> dict:

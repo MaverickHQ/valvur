@@ -16,6 +16,7 @@ from typing import Any
 
 from . import api, profiles
 from .api import ScanRun
+from .events import Event
 
 
 class Cancellation:
@@ -60,7 +61,7 @@ def new_runner() -> Any:
 
 def run_scan(
     workspace: Path, *, profile: str = profiles.DEFAULT,
-    on_progress: Callable[[str], None] | None = None, budget_s: float | None = None,
+    on_progress: Callable[[Event], None] | None = None, budget_s: float | None = None,
     fresh: bool = False, jobs: int | None = None, sbom: bool = False,
     out: Path | None = None, runner: Any = None, cancellation: Cancellation | None = None,
 ) -> ScanRun:

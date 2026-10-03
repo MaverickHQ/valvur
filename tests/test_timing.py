@@ -23,6 +23,12 @@ from valvur.summary import render as _summary
 # ------------------------------------------------------------- the measurement
 
 
+def _words(said: list[str]):
+    """A progress callback keeping each event's words."""
+    return lambda event: said.append(str(event))
+
+
+
 FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
 
 
@@ -92,7 +98,7 @@ def test_the_progress_line_says_how_long_each_scanner_took(tmp_path, monkeypatch
     """`scan_status`'s "Completed so far" is where a user watching a slow first scan
     learns which Scanner is slow — before run.json exists."""
     said: list[str] = []
-    _scan(tmp_path, monkeypatch, _Adapter(sleep=0.1), on_progress=said.append)
+    _scan(tmp_path, monkeypatch, _Adapter(sleep=0.1), on_progress=_words(said))
 
     [line] = [s for s in said if s.startswith("slowpoke: ok")]
     seconds = float(line.removeprefix("slowpoke: ok (").removesuffix("s)"))

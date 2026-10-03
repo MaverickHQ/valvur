@@ -23,6 +23,7 @@ core = [
     "valvur.agent_rules",
     "valvur.agent_surfaces",
     "valvur.defang",
+    "valvur.events",
     "valvur.findings",
     "valvur.fingerprint",
     "valvur.grouping",

@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from conftest import McpSession
 
-from valvur import api, engine_host
+from valvur import api, engine_host, events
 from valvur.engine_host import LocalRuntime
 from valvur.mcp import jobs
 
@@ -76,7 +76,7 @@ def held(ws, monkeypatch):
 
         def run(workspace, profile, progress):
             started.append(1)
-            progress("fleet: 1 Scanners, 1 at a time")
+            progress(events.fleet(1, 1))
             assert release.wait(20), "the test never released the scan"
             return work(workspace, profile, progress)
         return run

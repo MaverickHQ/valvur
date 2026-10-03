@@ -16,7 +16,7 @@ import time
 
 from test_budget import _Adapter, _Runner, _scan
 
-from valvur import api
+from valvur import api, events
 
 
 def test_the_fleet_announces_its_size_and_each_start(workspace):
@@ -63,7 +63,7 @@ def test_a_fetch_in_progress_still_has_its_own_line_and_a_job_timestamps_message
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     job = jobs.Job(workspace=tmp_path, profile="offline", started=time.monotonic())
-    job.note("image pulled (17s)")
-    job.note(f"{api.FETCH_STARTED}the vulnerability database (118MB) — the first run only")
+    job.note(events.fetch_ended("image", seconds=17.0))
+    job.note(events.fetch_started("database", age_days=None, size_mb=118))
     assert len(job.progress) == len(job.progress_at) == 2
     assert job.progress_at[0] <= job.progress_at[1]

@@ -155,8 +155,8 @@ def _forward(job: jobs.Job, call: Any, sent: int) -> int:
     """Each progress message the job has said since `sent`, as a notification."""
     said = list(job.progress)
     if call is not None:
-        for message in said[sent:]:
-            call.progress(message)
+        for event in said[sent:]:
+            call.progress(str(event))         # its words, rendered here (D53)
     return len(said)
 
 

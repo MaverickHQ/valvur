@@ -26,6 +26,12 @@ FAKE_RUNTIME = Path(__file__).parent / "fixtures" / "fake-runtime" / "docker"
 SRC = Path(__file__).parent.parent / "src" / "valvur"
 
 
+def _words(said: list[str]):
+    """A progress callback keeping each event's words."""
+    return lambda event: said.append(str(event))
+
+
+
 def _dead_pid() -> int:
     process = subprocess.Popen([sys.executable, "-c", "pass"])
     process.wait()
@@ -153,7 +159,7 @@ def test_each_scan_start_reaps_the_orphans_and_says_so(runtime, tmp_path, monkey
     local = LocalRuntime(Path(__file__).parent / "fixtures" / "fake-tools")
     local.runtime = runtime.path                   # type: ignore[attr-defined]
     said: list[str] = []
-    api.scan(ws, runner=local, adapters=[GitleaksAdapter()], on_progress=said.append)
+    api.scan(ws, runner=local, adapters=[GitleaksAdapter()], on_progress=_words(said))
     assert runtime.names() == []
     assert any("valvur-orphan" in line and "ended" in line for line in said), said
 
@@ -321,7 +327,7 @@ def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mou
         server.kill()
 
     said: list[str] = []
-    run = api.scan(workspace, runner=ContainerRuntime(), on_progress=said.append)
+    run = api.scan(workspace, runner=ContainerRuntime(), on_progress=_words(said))
     assert owned_by(server.pid) == []
     assert any("left by a scan whose process had ended" in line for line in said), said
     assert run.status in ("findings", "clean", "inconclusive")

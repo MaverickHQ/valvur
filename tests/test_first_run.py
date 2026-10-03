@@ -22,7 +22,7 @@ import pytest
 from conftest import LegacyDispatch, write_name_index
 from fake_registry import FakeRegistry
 
-from valvur import api, cache, locking, name_index, oci
+from valvur import api, cache, events, locking, name_index, oci
 from valvur.adapters import GitleaksAdapter, TrivyAdapter
 from valvur.runner import ScannerOutput
 
@@ -113,7 +113,7 @@ class _Runner(LegacyDispatch):
 def _scan(workspace, runner, **kwargs):
     said: list[str] = []
     run = api.scan(workspace, runner=runner, adapters=[GitleaksAdapter(), TrivyAdapter()],
-                   on_progress=said.append, **kwargs)
+                   on_progress=lambda event: said.append(str(event)), **kwargs)
     return run, said
 
 
@@ -374,7 +374,7 @@ def test_a_runner_without_the_ability_is_left_alone(workspace, host_cache):
 
     said: list[str] = []
     api.scan(workspace, runner=FakeRunner(), adapters=[GitleaksAdapter()],
-             on_progress=said.append)
+             on_progress=lambda event: said.append(str(event)))
 
     assert not cache.db_present()
     ends = [line for line in said if not line.startswith(("fleet: ", "workspace: "))
@@ -486,15 +486,15 @@ def test_scan_status_says_what_is_being_fetched_while_it_is(tmp_path, monkeypatc
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        progress("pulling ghcr.io/maverickhq/valvur:0.2.0 (243MB) — the first run only; "
-                 "the runtime keeps it")
-        progress("image pulled (30s)")
-        progress("fetching the vulnerability database (118MB) — the first run only")
+        progress(events.fetch_started("image", name="ghcr.io/maverickhq/valvur:0.2.0",
+                                      size_mb=243, age_days=None))
+        progress(events.fetch_ended("image", seconds=30.0))
+        progress(events.fetch_started("database", age_days=None, size_mb=118))
         time.sleep(0.6)
-        progress("database fetched (25s)")
-        progress("fetching the package-name index (34MB) — the first run only")
+        progress(events.fetch_ended("database", seconds=25.0))
+        progress(events.fetch_started("index", age_days=None, size_mb=34))
         time.sleep(0.6)
-        progress("index fetched (8s)")
+        progress(events.fetch_ended("index", seconds=8.0))
         progress("trivy: ok")
         time.sleep(0.6)
         return "done"
@@ -523,8 +523,8 @@ def test_a_failed_fetch_is_not_a_now_line_but_stays_in_the_record(tmp_path, monk
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        progress("fetching the vulnerability database (118MB) — the first run only")
-        progress("database not fetched: FATAL no such host")
+        progress(events.fetch_started("database", age_days=None, size_mb=118))
+        progress(events.fetch_ended("database", ok=False, detail="FATAL no such host"))
         time.sleep(0.5)
         return "done"
 

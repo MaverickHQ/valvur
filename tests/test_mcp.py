@@ -433,7 +433,7 @@ def test_status_reports_running_then_done(tmp_path):
         time.sleep(0.1)
 
     assert job.state == "done"
-    assert "gitleaks: ok" in job.progress
+    assert "gitleaks: ok" in [str(event) for event in job.progress]
 
 
 def test_a_second_scan_while_one_runs_is_refused_not_queued(tmp_path):

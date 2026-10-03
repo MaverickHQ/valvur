@@ -39,7 +39,7 @@ def _scan(ws: Path):
 
     said: list[str] = []
     run = api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[GitleaksAdapter()],
-                   on_progress=said.append)
+                   on_progress=lambda event: said.append(str(event)))
     return run, said
 
 

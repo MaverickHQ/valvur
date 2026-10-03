@@ -14,7 +14,7 @@ from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
 from . import service
-from .api import FETCH_ENDED, FETCH_STARTED
+from .events import Event, Kind
 from .version import __version__
 
 
@@ -661,12 +661,12 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     workspace = Path(args.path).resolve()
     profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
 
-    def progress(message: str) -> None:
+    def progress(event: Event) -> None:
         # The CLI prints its own per-Scanner lines already; what is worth a line here
         # is a first run fetching — the image (23.2.4), the database and the index
         # (24.1) — which otherwise looks like a hang.
-        if message.startswith(FETCH_STARTED + FETCH_ENDED):
-            print(f"  {message}", file=sys.stderr)
+        if event.kind in (Kind.FETCH_STARTED, Kind.FETCH_ENDED):
+            print(f"  {event}", file=sys.stderr)
 
     try:
         out = Path(args.out).resolve() if getattr(args, "out", None) else None

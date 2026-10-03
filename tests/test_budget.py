@@ -21,6 +21,12 @@ from valvur.invocation import Invocation
 FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
 
 
+def _words(said: list[str]):
+    """A progress callback keeping each event's words."""
+    return lambda event: said.append(str(event))
+
+
+
 class _Adapter:
     """A Scanner whose tool takes `seconds`, unless the budget stops it first.
     Run by the engine as a host process (R3.9), with the sleeping fake tool."""
@@ -64,7 +70,7 @@ def workspace(tmp_path, monkeypatch):
 
 def _scan(workspace, runner, adapters, **kwargs):
     said: list[str] = []
-    run = api.scan(workspace, runner=runner, adapters=adapters, on_progress=said.append,
+    run = api.scan(workspace, runner=runner, adapters=adapters, on_progress=_words(said),
                    **kwargs)
     return run, said
 

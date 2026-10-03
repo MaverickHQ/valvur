@@ -22,6 +22,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .. import events
+from ..events import Event
+
 #: How long `scan_status` waits for a running job before answering.
 #:
 #: Fifteen seconds from task 10.2.5, when clients were said to time out at 30 to
@@ -84,7 +87,8 @@ class Job:
     #: The failure as fields, when the exception carried any (29.2.4): the budget
     #: cut's seconds, what it cut, what never started, and the levers.
     failure: dict | None = None
-    progress: list[str] = field(default_factory=list)
+    #: What the scan has said, as typed events (D53); rendered at the surface.
+    progress: list[Event] = field(default_factory=list)
     #: When each progress message arrived (monotonic), beside it (29.0.4): what
     #: lets a status line say how long a Scanner has been running.
     progress_at: list[float] = field(default_factory=list)
@@ -125,10 +129,10 @@ class Job:
     def elapsed(self) -> float:
         return (self.finished or time.monotonic()) - self.started
 
-    def note(self, message: str) -> None:
-        """Record a progress message and when it arrived — the callback the scan
-        is given (29.0.4)."""
-        self.progress.append(message)
+    def note(self, message: Event | str) -> None:
+        """Record a progress event and when it arrived — the callback the scan is
+        given (29.0.4). Words with no kind are a note."""
+        self.progress.append(message if isinstance(message, Event) else events.note(message))
         self.progress_at.append(time.monotonic())
 
     def wait(self, seconds: float | None = None) -> bool:

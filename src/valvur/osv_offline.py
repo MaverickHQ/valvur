@@ -16,6 +16,9 @@ from collections.abc import Callable
 from fnmatch import fnmatch
 from pathlib import Path
 
+from . import events
+from .events import Event
+
 #: OSV's public export, one zip per ecosystem (https://google.github.io/osv.dev/data/).
 #: `VALVUR_OSV_URL` names a mirror for air-gapped use.
 DEFAULT_URL = "https://osv-vulnerabilities.storage.googleapis.com"
@@ -145,7 +148,7 @@ def _keep_age(name: str, published: str | None) -> None:
     (directory() / AGES).write_text(json.dumps(ages, indent=1) + "\n", encoding="utf-8")
 
 
-def ensure(files: list[str], say: Callable[[str], None], *,
+def ensure(files: list[str], say: Callable[[Event], None], *,
            due: Callable[[float | None], bool]) -> tuple[list[dict], list[str]]:
     """OSV's database for each ecosystem `files` hold a lockfile for, fetched when
     absent or stale (R4.6, ADR-0025), each under the cache lock and said: the
@@ -158,16 +161,15 @@ def ensure(files: list[str], say: Callable[[str], None], *,
     records: list[dict] = []
     failed: list[str] = []
     for name in missing + old:
-        say(f"fetching the OSV database for {name} — the first run for it only"
-            if name in missing else
-            f"refreshing the OSV database for {name} ({age(name)[0] or 0:.0f} days old)")
+        say(events.fetch_started("osv", name=name,
+                                 age_days=None if name in missing else age(name)[0] or 0.0))
         try:
             with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
                 record = fetch(name)
         except OSError as exc:
             failed.append(f"{name}: {exc}")
-            say(f"OSV database not fetched for {name}: {exc}")
+            say(events.fetch_ended("osv", name=name, ok=False, detail=str(exc)))
             continue
-        say(f"OSV database fetched for {name} ({record['seconds']:.0f}s)")
+        say(events.fetch_ended("osv", name=name, seconds=float(record["seconds"])))
         records.append(record)
     return records, failed

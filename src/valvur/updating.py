@@ -208,8 +208,8 @@ def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
         return
     from . import datasets, fileset, osv_offline
 
-    records, failed = osv_offline.ensure(fileset.build(workspace).files, say,
-                                         due=datasets.OSV.due)
+    records, failed = osv_offline.ensure(fileset.build(workspace).files,
+                                         lambda event: say(str(event)), due=datasets.OSV.due)
     updated.fetched += [record["what"] for record in records]
     if failed:
         updated.ok = False

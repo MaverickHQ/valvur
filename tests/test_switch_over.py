@@ -46,7 +46,7 @@ def test_the_status_lines_keep_the_words_scan_status_reads(ws):
 
     said: list[str] = []
     api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[GitleaksAdapter()],
-             on_progress=said.append)
+             on_progress=lambda event: said.append(str(event)))
     assert "fleet: 1 Scanners, 1 at a time" in said
     assert "gitleaks: started" in said
     assert any(line.startswith("gitleaks: ok (") and line.endswith("s)") for line in said)
