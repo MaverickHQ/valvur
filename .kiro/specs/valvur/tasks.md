@@ -19,7 +19,8 @@ evaluator looks for. They run before R19, which stays last until its date.
 **Amended a third time 2026-10-03**, after [the architecture review](../../../docs/history/REVIEW-2026-10-03.md)
 of the same day, at the owner's word, with Phases R23 and R24 (§5, D50 to D55) and R20
 reshaped around path classes (D56). R23 and R24 run first, then R20 to R22, then R19 at its
-date. D57 records what a 2.0 would change; its phases are not written here.
+date. D57 records what a 2.0 would change; its phases are not written here. The same day,
+the owner's first run on a new project added R21.3 (D58).
 
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
@@ -56,8 +57,8 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
   On a stop, the executor writes what happened and what it needs as a row in §8, commits
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
-  at $5 across R17 to R19 (D46). R20 to R24 run no agent. Past a cap they are skipped and
-  noted in §8.
+  at $5 across R17 to R19 (D46). R21.3's smoke run is capped at $2 (D58); R20 and R22 to
+  R24 run no agent. Past a cap they are skipped and noted in §8.
 - **A dated phase waits for its date.** R19 starts on or after 2026-11-19. Until then the
   executor treats it as §8 does: it stops after R22 and leaves R19's row in §8.
 - **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
@@ -197,7 +198,8 @@ asked for them: D42 is the owner's choice among three, and D44 the owner's appro
 hook under `CLAUDE.md` §4. D47 to D49 were accepted on 2026-10-03, when the owner asked
 for the three additions proposed with them. D50 to D57 were accepted on 2026-10-03 with
 the architecture review of that day, when the owner asked for its 1.x steps as phases;
-D56 amends D47. The owner may revisit any
+D56 amends D47. D58 was accepted the same day, after the owner's first run on a new
+project. The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
 
@@ -240,6 +242,7 @@ wait for it.
 | D55 | **The machinery made lighter** (review §4.3, §4.4). **(a) Generated, not compared.** `scripts/generate_docs.py` writes marked blocks, `<!-- generated: <name> -->` to `<!-- /generated -->`, from the code: the MCP tools and their fields, the protocol's paths and pins, the settings and their variables, and the CLI's commands. The blocks sit in the README, `PROTOCOL.md`, `AIR-GAPPED.md` and the skill's `references/tools.md`. One test regenerates every block and fails on a difference, naming the block. Each test that compared one of those facts with prose is deleted in the commit that adds its block. A test stays where the sentence is the contract, and the constraint suite keeps its 54. **(b) No test writes the repository.** `scripts/sync_skill.py` refreshes the plugin's and the power's copies of the skill, and `prepare_release.py` runs it. `UPDATE_SKILL` goes. **(c) One version source.** Workflows read the version through one composite action, and the issue-on-failure step is one composite action too. **(d) CI builds once.** Each architecture builds the image once per commit, and the e2e, the self-scan and the reproducibility comparison use that build. Only the second reproducibility build is made again, with no cache. **(e) Planning IDs.** New tests are named for what they test. New comments in `src` cite ADRs and requirements, not tasks. Existing ones change only when they are touched. **(f) The archive is a record** (amends D43). `check_traceability.py` no longer reads `docs/history`. | if handing the image between jobs takes longer than building it, the jobs build their own as now, recorded |
 | D56 | **Path classes** (review §5; amends D47, reshaping R20). The File Set gives every path one class: `source`, `test`, `fixture`, `docs`, `example`, `vendored` or `generated`. It matches whole segments, as D47(b) lists them. `vendor`, `third_party` and `node_modules` are `vendored`. A path `.gitattributes` marks `linguist-generated`, or whose first lines say it is generated and not to be edited, is `generated`; only paths a finding lands on are read. Each finding carries its path's class as `context`, in `findings.json` and in SARIF's `properties`. The field is additive, and identity and `fp_version` are unchanged. One table in `core` decides what a class changes, and D47's (b) and (c) are its first rows. A secret in `test`, `fixture`, `docs` or `example` ranks `low` and stays active. `weak-hash` and the vendored `random` rule are not reported in those classes, and `run.json` counts what the table removed, by class and rule, so nothing disappears without a number. A class with no row changes nothing. D47(a) and the `usedforsecurity=False` half of D47(c) concern rules, not paths, and stand as written. | a row that costs tracks 1 to 7 more than 2 points is withdrawn and recorded, as D47 says |
 | D57 | **2.0 is scoped here, not planned** (review §4.1, §4.2, §5). **Three artifacts, versioned apart:** the host side on PyPI; the Scanner image, versioned by protocol and rebuildable for an advisory without a host release; and the rules and Check data, a signed OCI artifact tagged only when the Score holds. The host accepts a compatible range and records each digest in `run.json`. **Protocol 3:** the engine emits normalised findings, which the host validates against the schema and still neutralises. **Reuse by declared inputs:** ADR-0030 generalised to every Scanner that declares what it reads. **One settings model:** two files, the project's and the machine's, with environment variables only as overrides. Its phases are written when the owner asks, after R24's exit, each part with its ADR. Until then 1.x keeps protocol 2, `fp_version` 1, the reply's schema 2 and every documented setting. | none needed |
+| D58 | **The first run in a new project** (the owner, 2026-10-03). The plugin worked on a new project: the skill loaded, the scan ran, and the reply led with the verdict and a ranked list. Under Claude Code's *don't ask* permission mode, the `scan` tool and the shell were both refused, and the agent found the way out on its own. **(a) The plugin first.** The README's first screen gives the plugin's two commands as the first way in, and `uvx valvur scan` second. **(b) The permission rule, documented, never written.** The README and the skill's references give the allow rules for a mode that refuses unlisted tools: the read-only tools (`check_package`, `findings`, `scan_status`, `doctor`); `scan`, which writes only the Results Folder and fetches only public data; and `scan_cancel`. `update` is left to ask. valvur writes no permission rule into any settings file: a rule in a project's settings grants it to every contributor's agent, which is why D44 keeps the hook out of `init --write`. **(c) When a tool is refused,** the skill says so, gives (b)'s allow rules and the pinned `! uvx valvur==<version> scan`, and changes nothing else. A test holds the pin to the release, and `prepare_release.py` moves it. **(d) The hook under *don't ask*, measured.** Under `claude -p`, the hook's `ask` became a refusal (R18.4). One smoke run, with R18.4's harness and D46's stubs under *don't ask*, records what that mode does with it, capped at $2. | if *don't ask* lets a flagged install through, the README and D44's record say which modes the hook protects, and §8 holds it for the owner; past the cap, the result is recorded as not measured |
 
 ## 6. Order
 
@@ -656,9 +659,19 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
   2. `docs/LISTING.md` holds each directory's text, drawn from the manifests, and a test
      holds it to them;
   3. §8's listing row points to it.
+- [ ] **R21.3** **The first run in a new project** (D58). Behaviours:
+  1. the README's first screen gives the plugin's two commands first, and
+     `uvx valvur scan` second;
+  2. the README and the skill's references give the allow rules, and a test holds each to
+     a tool the server lists, `update` excluded;
+  3. the skill says what to do when a tool is refused, with the pinned command, which
+     `test_version.py` holds and `prepare_release.py` moves;
+  4. the smoke run under *don't ask* records what happens to the hook's `ask`, or D58's
+     fallback applies.
 
-**Exit:** the README's first screen, measured in lines, holds what valvur is, one install
-line and the demo; the documents' tests pass.
+**Exit:** the README's first screen, measured in lines, holds what valvur is, the plugin's
+two commands and the demo; the documents' tests pass; the hook's behaviour under *don't
+ask* recorded.
 
 ### Phase R22: OpenSSF signals
 
