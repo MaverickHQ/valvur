@@ -492,11 +492,28 @@ open redirects and the rest. valvur does not claim them.
   Score with reuse equals the Score run `--fresh`, category by category.
 - **R15** added the skill and changed no track.
 
+**Real code after R20, 2026-10-03.** On the 13-project corpus, every one of the 26
+findings judged was a false alarm, and track 8 stood at 3.7. R20 changed what a
+finding's place and kind mean, each change measured against every track first:
+
+| change | track 8 | judged findings |
+|---|---|---|
+| before | 3.7 | 26 |
+| the sink inventory is reported for review and never active (D47a) | 5.3 | 18 |
+| `weak-hash` and `random` are not reported where tests, fixtures, docs and examples live (D56) | 5.9 | 16 |
+
+- **Tracks 1 to 7 did not move.** The Benchmark's cases live in `testcode/`, which is
+  `source`, so no path class touches them.
+- **The 16 still judged are still false alarms:** the 11 secrets in tests and docs rank
+  `low` now, and stay active, because a real key in a test is still a key. The rest
+  are `weak-hash` on cache keys and one `random` in source.
+- **The Score is 65.2**, and track 8's baseline 5.9.
+
 **The targets.** `1.2.0`'s targets (D22) were met on five tracks. For SAST-Python,
 SAST-JS and real-code precision, the owner lowered them on 2026-10-02 to what 1.2.0
 measured, 11.1, 15.0 and 3.7, and accepted the gap (D42). No rule-writing phase is planned.
-Static analysis stays modest, and real code still draws false alarms from the sink
-inventory, fixture keys and non-security hashes. What still holds is the ratchet: no track
+Static analysis stays modest, and real code still draws false alarms from fixture
+keys, ranked last since R20, and non-security hashes. What still holds is the ratchet: no track
 may fall more than 2 points under its baseline.
 
 All five gates are judged from R14 on, and every one is green on the Mac. Linux judges

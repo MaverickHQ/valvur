@@ -105,6 +105,19 @@ def test_a_baseline_is_raised_by_a_better_run_and_never_lowered(tmp_path):
     assert json.loads(path.read_text())["tracks"] == {"secrets": 95.0, "dependencies": 100.0}
 
 
+def test_a_raised_baseline_records_the_score_of_its_tracks(tmp_path):
+    """R20.6: tracks were raised and `score` kept, so the baseline said 64.9 beside
+    tracks whose mean was 65.2."""
+    harness = _harness()
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"tracks": {"secrets": 90.0, "dependencies": 100.0},
+                                "score": 95.0}))
+
+    harness.update_baseline(_result(secrets=95.0, dependencies=97.0), path)
+
+    assert json.loads(path.read_text())["score"] == 97.5
+
+
 def test_a_run_judges_its_gates_from_what_the_scans_wrote(tmp_path):
     harness = _harness()
 

@@ -960,10 +960,18 @@ table.*
   the `pattern-not`s removed, the image's Opengrep reports the cache-key call, so the
   test can fail. Its delta on every track is nil, the rule being unchanged. The four
   `weak-hash` false alarms R20.1 counted carry no `usedforsecurity`, so they stand.
-- [ ] **R20.6** **The corpus judged again.** Re-label what changed in
+- [x] **R20.6** **The corpus judged again.** Re-label what changed in
   `tests/eval/labels/corpus.toml`; run the Score; raise track 8's baseline by what it
   measures. Behaviours: no track 1 to 7 falls more than 2 points; README and
   `EVALUATING.md` cite the new track 8.
+  **STATUS 2026-10-03:** ✅ both. Ten labels went with the findings no longer judged:
+  the 8 inventory sinks, and llm's 2 `random` hits in `docs/`. The 16 still judged
+  keep their `fp` verdicts, 11 of them secrets now at `low`. On the image built from
+  this branch, tracks 1 to 7 are where they were and track 8 is 5.9.
+  `--update-baseline` raised track 8's baseline from 4.2 to 5.9. It had raised tracks
+  without recomputing the recorded score, which would have read 64.9 beside tracks
+  averaging 65.2; it records their mean now, under a test. The README cites 65.2, and
+  `EVALUATING.md` gives R20's table of track 8 by change.
 
 **Exit:** the Score on both lanes, track 8 up and no other track past the ratchet; the
 acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a fix.
