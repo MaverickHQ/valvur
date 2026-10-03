@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason. The Mac lane is beside it.",
-  "recorded": "2026-09-30, R13's exit (eval run 36655021422); R11, R10 and R9.6 before",
+  "recorded": "2026-10-03, R25.5 on the image built from its branch; R20, R13 (eval run 36655021422), R11, R10 and R9.6 before",
   "tracks": {
-    "sast-python": 11.1,
-    "sast-js": 15.0,
+    "sast-python": 40.9,
+    "sast-js": 55.0,
     "secrets": 100.0,
     "dependencies": 100.0,
     "package-reality": 100.0,
@@ -12,19 +12,19 @@
     "infrastructure": 95.0,
     "real-code-precision": 5.9
   },
-  "score": 65.2,
+  "score": 73.9,
   "recorded_on": {
     "image": {
       "name": "valvur:dev",
-      "id": "sha256:74d0a6204a837cf3b80c294f2153c1b19cedf8f568ed77af05bdaa9deb0db9bc"
+      "id": "sha256:96cea3442637807048c690786d0f97219c599fe4548d2d3302ce507a4ba45e1f"
     },
     "data": {
-      "database_age_days": 0.34,
-      "name_index_age_days": 0.56,
-      "malicious_age_days": 0.56,
-      "kev_age_days": 1.31,
-      "epss_age_days": 0.45,
-      "osv_age_days": 0.96
+      "database_age_days": 0.38,
+      "name_index_age_days": 0.6,
+      "malicious_age_days": 0.6,
+      "kev_age_days": 1.35,
+      "epss_age_days": 0.49,
+      "osv_age_days": 1.01
     },
     "seed": 20260929
   },

@@ -1080,12 +1080,23 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
   Track 2 has four cases per type, so its 100s say the rules fit those cases and the
   independent twins say they are not fitted to them alone; the corpus's express and
   fastify are the real-code check.
-- [ ] **R25.5** **The Score and the corpus** (D60). Behaviours:
+- [x] **R25.5** **The Score and the corpus** (D60). Behaviours:
   1. track 8 is not lower than at R20's exit;
   2. Opengrep's median time on the acceptance set is within 130% of R25.1's;
   3. every shipped rule carries its CWE into `findings.json` and SARIF;
   4. the baselines rise for every track that rose, and the README and `EVALUATING.md`
      cite only what is measured.
+  **STATUS 2026-10-03:** ✅ all four.
+  1. Track 8 is 5.9, as at R20's exit: none of the twelve rules fires on the corpus.
+  2. Opengrep's median time on the acceptance set is 4.45 s against R25.1's 3.5 s, R20's
+     exit run on the same machine: **127%**, inside the 130% bar, and the closest of
+     D29's margins. Each new taint rule costs about a tenth of a second per repository.
+  3. `tests/test_rule_cwes_reach_artifacts.py` passes every rule under `rules/` through
+     the adapter with its own metadata and finds its CWE in `findings.json` and SARIF;
+     the twin tests assert it on real findings.
+  4. `--update-baseline` raised track 1 from 11.1 to 40.9 and track 2 from 15.0 to 55.0,
+     and the Score to **73.9**; no other track moved. The README cites 73.9, 40.9 and
+     55.0 and the new rules, and `EVALUATING.md` gives R25's table by change and category.
 
 **Exit:** the Score on both lanes, tracks 1 and 2 up and measured against D60's aims, no
 track past the ratchet; the acceptance set green on both lanes.

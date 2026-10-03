@@ -464,8 +464,8 @@ may be vendored met the bar: Python's weak `random`, string-built SQL and unsafe
 - **Track 8** falls by three false positives: `random`'s findings on non-security
   uses in the corpus.
 
-Most of the benchmark stays unfound: path traversal, XSS, XPath and LDAP injection,
-open redirects and the rest. valvur does not claim them.
+Most of the benchmark stayed unfound: path traversal, XSS, XPath and LDAP injection,
+open redirects and the rest, until R25 below.
 
 **The Score as built, 2026-09-30**, at R15's exit, on the image built from its branch:
 
@@ -509,12 +509,38 @@ finding's place and kind mean, each change measured against every track first:
   are `weak-hash` on cache keys and one `random` in source.
 - **The Score is 65.2**, and track 8's baseline 5.9.
 
+**Static analysis after R25, 2026-10-03.** Measured per category first (R25.1), then
+one rule at a time against D29's bar: precision of at least 0.5 over tracks 1 and 2 and
+the corpus, track 8 not lower, Opengrep no more than 30% slower. GitLab's audited set
+had nothing eligible for these categories, so all twelve rules are valvur's own, each
+with a vulnerable and a safe twin as a test. All twelve shipped.
+
+| change | track 1 | track 2 |
+|---|---|---|
+| before (R20) | 11.1 | 15.0 |
+| command and code injection by taint; `shell=True` joins the inventory | 22.3 | 15.0 |
+| Python path traversal, insecure cookies, open redirects, XXE | 40.9 | 15.0 |
+| JavaScript SQL and command injection, path traversal, SSRF | 40.9 | 55.0 |
+
+- **Track 1, by category:** command injection from −46.2 to 69.2, code injection from 0
+  to 42.0, path traversal 0 to 34.7, secure cookies 0 to 100, open redirects 0 to 59.7,
+  XXE 0 to 65.0. The other eight did not move: XSS, LDAP and XPath injection, and
+  trust boundaries still find nothing.
+- **Track 2:** SQL injection, command injection, path traversal and SSRF each find both
+  vulnerable cases and neither safe one. Track 2 has four cases per type, so the twins
+  under `tests/` are written apart from them, and pass too.
+- **Track 8 stays at 5.9:** none of the twelve fires on the corpus.
+- **The misses** are mostly Opengrep's taint losing the flow through a slice, a `match`
+  or a `configparser` read, which the Benchmark uses often.
+- **The Score is 73.9.**
+
 **The targets.** `1.2.0`'s targets (D22) were met on five tracks. For SAST-Python,
 SAST-JS and real-code precision, the owner lowered them on 2026-10-02 to what 1.2.0
-measured, 11.1, 15.0 and 3.7, and accepted the gap (D42). No rule-writing phase is planned.
-Static analysis stays modest, and real code still draws false alarms from fixture
-keys, ranked last since R20, and non-security hashes. What still holds is the ratchet: no track
-may fall more than 2 points under its baseline.
+measured, 11.1, 15.0 and 3.7, and accepted the gap (D42). R25 brought the rule-writing
+back (D60), with D22's first targets of 25 and 50 as aims: track 1 is at 40.9 and track
+2 at 55.0, past both. Real code still draws false alarms from fixture keys, ranked last
+since R20, and non-security hashes. What still holds is the ratchet: no track may fall
+more than 2 points under its baseline.
 
 All five gates are judged from R14 on, and every one is green on the Mac. Linux judges
 four, since its run of the Score takes no acceptance report. Each phase's record is in

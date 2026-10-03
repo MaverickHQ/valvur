@@ -29,7 +29,7 @@ verification commands, the three Statuses, and a plain list of what valvur does 
 claim. Read that one sceptically. How much of what valvur claims it actually finds is
 measured as **the Score**: eight tracks scored by the OWASP Benchmark's formula, from
 static analysis to agent configuration, with a ratchet in `tests/eval/` that no change
-may fall under. It is **65.2** out of 100 on both lanes, from 59.3 when first measured;
+may fall under. It is **73.9** out of 100 on both lanes, from 59.3 when first measured;
 `EVALUATING.md` gives each track, and one command reproduces it.
 
 ### 1. It cannot exfiltrate your code, and you can verify it
@@ -87,13 +87,17 @@ must never fetch, `fetch = "never"` turns every fetch off, and
     model call to those sinks and to `innerHTML`. They have sources for the Anthropic,
     OpenAI, Gemini, LangChain, litellm and ollama SDKs. The taint rules fire on every
     planted flow in the fixture and have not fired on real code in the corpus.
+  - Since R25, **taint rules from request data**: for Python, command and code
+    injection, path traversal and open redirects, with insecure cookies and XXE by
+    pattern; for JavaScript, SQL and command injection, path traversal and SSRF. None
+    has fired on real code in the corpus.
   - GitLab's four were each shipped because they met a measured bar (D29), out of 106
     whose licences allowed it: Python's weak `random`, string-built SQL and unsafe
     `yaml.load`, and JavaScript's `eval` of an expression.
-  - On the Score's track 1, the OWASP Benchmark for Python, this is **11.1** out of
+  - On the Score's track 1, the OWASP Benchmark for Python, this is **40.9** out of
     100: the true-positive rate minus the false-positive rate, averaged over its 14
-    categories. On track 2, valvur's JavaScript twins, it is **15.0**. That is the
-    claim; the checks above carry this section.
+    categories, of which 10 find something. On track 2, valvur's JavaScript twins, it
+    is **55.0**. That is the claim; the checks above carry this section.
 
 What is covered, and what is not, is stated on every scan rather than left to infer:
 
@@ -535,7 +539,7 @@ records the version of each that ran, and `raw/` keeps what each said.
 | [Gitleaks](https://github.com/gitleaks/gitleaks) | MIT | Secrets in the files scanned and in git history, the newest 5,000 commits or 200 MB | always |
 | [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | Known vulnerabilities in dependencies, from lockfiles, against its database in the host cache | always |
 | [OSV-Scanner](https://github.com/google/osv-scanner) | Apache-2.0 | Lockfiles against OSV's data, which carries the known-malicious `MAL-` packages nothing else here reports. On `offline`, OSV's offline database for each ecosystem present, fetched into the host cache; on `full`, OSV.dev's API, which receives lockfile names and versions | always |
-| [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis: pinning rules, a sink inventory at INFO, and taint rules from a model call to a sink | always |
+| [Opengrep](https://github.com/opengrep/opengrep) | LGPL-2.1 | Static analysis: pinning rules, a sink inventory at INFO, taint rules from a model call to a sink, and taint rules from request data | always |
 | [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | Infrastructure misconfiguration: Terraform, CloudFormation, Kubernetes, Dockerfiles, other CI systems | where there is infrastructure other than GitHub workflows |
 | [zizmor](https://github.com/zizmorcore/zizmor) | MIT | GitHub Actions workflows: unpinned actions, write permissions, template injection | where there are workflows |
 | [Syft](https://github.com/anchore/syft) | Apache-2.0 | The SBOM, and the dependency licences read from it | when asked for: `scan --sbom`, or `sbom = true` under `[scan]` |
