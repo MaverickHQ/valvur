@@ -1056,6 +1056,30 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
   1. each type's rules have vulnerable and safe twins as tests;
   2. each rule ships only on D29's bar, or is recorded as withdrawn;
   3. the STATUS gives track 2's delta per type.
+  **STATUS 2026-10-03:** ✅ all three, and all four rules ship, in
+  `rules/javascript-security.yaml`. They are taint rules from what a handler reads off its
+  request (`query`, `body`, `params`, `cookies`, `headers`). `tests/test_javascript_web_rules.py`
+  holds a vulnerable and a safe twin per rule, written differently from track 2's, so a
+  rule fitted to the Score's cases alone would fail it.
+  - `valvur.javascript.sql-injection` (CWE-89): text concatenated or interpolated into
+    `query`, `execute` or `raw`; a bound parameter is never in the text. CWE-89 0 to
+    **100**: 2 of 2, none of 2.
+  - `valvur.javascript.command-injection` (CWE-78): to `exec` and `execSync`, not
+    `execFile` or `spawn` with a list. CWE-78 0 to **100**.
+  - `valvur.javascript.path-traversal` (CWE-22): to `sendFile`, `download` and `fs`;
+    `path.basename`, a `startsWith` check, or Express's `root` option guard. CWE-22 0
+    to **100**. Without the `root` exclusion it flagged one call in express's own
+    `examples/downloads`, which `root` confines.
+  - `valvur.javascript.ssrf` (CWE-918): to `fetch`, `axios`, `http` and `https`; a host
+    checked against a list, or a destination looked up in the program's own table,
+    guard. Opengrep does not carry a sanitiser out of `bad || !allowed`, so a
+    `pattern-not-inside` names that form. CWE-918 0 to **100**.
+  D29's bar: none of these types was reported before, precision is 1.0 on track 2, no
+  finding on track 1 or the corpus, track 8 at 5.9. Track 2 from 15.0 to **55.0**,
+  past D60's aim of 50; track 1 stays at 40.9, past its aim of 25. The Score is 73.9.
+  Track 2 has four cases per type, so its 100s say the rules fit those cases and the
+  independent twins say they are not fitted to them alone; the corpus's express and
+  fastify are the real-code check.
 - [ ] **R25.5** **The Score and the corpus** (D60). Behaviours:
   1. track 8 is not lower than at R20's exit;
   2. Opengrep's median time on the acceptance set is within 130% of R25.1's;
