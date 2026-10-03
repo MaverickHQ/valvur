@@ -96,7 +96,7 @@ def test_the_budgets_state_is_a_field_not_a_reasons_first_words():
     Scanner's record; the refusal and its fields read that, whatever the reason's
     words (they used to match `cut by the ` and `not started: `)."""
     from valvur import levers
-    from valvur.provenance import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
+    from valvur.scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
 
     scanners = [ScannerRun("trivy", ok=False, reason="stopped", duration_s=30.0,
                            budget=BUDGET_CUT),
@@ -112,7 +112,7 @@ def test_a_budget_cut_scan_records_the_state_on_each_scanner(tmp_path):
     from test_budget import _Adapter, _Runner
 
     from valvur import api
-    from valvur.provenance import BUDGET_CUT
+    from valvur.scanner_run import BUDGET_CUT
 
     ws = tmp_path / "ws"
     ws.mkdir()

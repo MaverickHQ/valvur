@@ -89,8 +89,10 @@ def test_a_budget_cut_is_fields_beside_the_error(tmp_path):
     from valvur import levers
     from valvur.provenance import ScannerRun
 
-    scanners = [ScannerRun("checkov", ok=False, reason="cut by the 30s budget", duration_s=30.2),
-                ScannerRun("trivy", ok=False, reason="not started: the 30s budget was spent")]
+    scanners = [ScannerRun("checkov", ok=False, reason="cut by the 30s budget", duration_s=30.2,
+                           budget="cut"),
+                ScannerRun("trivy", ok=False, reason="not started: the 30s budget was spent",
+                           budget="not-started")]
     fields_in = levers.budget_fields(scanners, 30.0, files=327, largest=[("docs", 108)])
 
     def cut(workspace, profile, progress):

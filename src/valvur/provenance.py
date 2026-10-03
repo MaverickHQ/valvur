@@ -9,7 +9,6 @@ gates a release, that distinction is the whole point (N3.1).
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from . import datasets as _datasets
@@ -18,45 +17,11 @@ from . import profiles as _profiles
 from . import staleness as _staleness
 from .fingerprint import FP_VERSION
 
+# One Scanner's record is core's (D50); named here as ever.
+from .scanner_run import ScannerRun as ScannerRun
+
 if TYPE_CHECKING:
     from .api import ScanRun
-
-
-#: The two things a budget does to a Scanner (`ScannerRun.budget`).
-BUDGET_CUT = "cut"
-BUDGET_NOT_STARTED = "not-started"
-
-
-@dataclass(frozen=True)
-class ScannerRun:
-    tool: str
-    ok: bool
-    version: str = ""
-    reason: str = ""
-    # A third state, distinct from both. A Scanner with nothing to analyse has not
-    # failed, and the Scan Run is still complete — but it has not run either, and
-    # letting that look identical to "ran and found nothing" is how a conditional
-    # Scanner silently stops working.
-    skipped: bool = False
-    #: Wall-clock seconds this Scanner took, container start to report read (23.3.2).
-    #: The fleet runs concurrently, so a scan takes about as long as its slowest —
-    #: which is how a user finds the Checkov cost, and how 23.4.2 is measured.
-    duration_s: float = 0.0
-    #: The command line the runner launched after the image name, from the
-    #: Invocation (28.3.6): what produced the raw output, beside its version and
-    #: duration. Empty when nothing was launched.
-    argv: tuple[str, ...] = ()
-    #: The Scan Run whose result this is, when it was reused rather than run (R14.3,
-    #: D32): nothing it reads had changed since. Empty when it ran.
-    reused_from: str = ""
-    #: What the scan's budget did to it (R3.5, D53): `cut` while it ran, `not-started`
-    #: before its turn, empty when the budget did nothing. A field, not the first
-    #: words of `reason`, which is for a reader.
-    budget: str = ""
-
-    @property
-    def failed(self) -> bool:
-        return not self.ok
 
 
 def render(run: ScanRun) -> str:

@@ -11,7 +11,7 @@ Measured at the first gate: the 300 s default budget cut every Scanner on a
 
 from __future__ import annotations
 
-from .provenance import BUDGET_CUT, BUDGET_NOT_STARTED
+from .scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED
 
 #: The three things that make a scan finish, in the order they usually help.
 LEVERS = (

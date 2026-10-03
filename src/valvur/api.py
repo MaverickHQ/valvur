@@ -31,7 +31,7 @@ from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
 from .coverage import DOUBT_RULES as _DOUBT_RULES
 from .findings import Finding
-from .provenance import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
+from .scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
 from .text import cut as _cut
 
 
