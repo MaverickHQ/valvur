@@ -117,3 +117,101 @@ commit, so the owner has to decide how the gate treats this test in a cloud sess
 
 This file's commit is reported to the owner with GitHub's `commit.verification` for it.
 D61g decides what an unverified result means.
+
+## Second pre-flight
+
+Run on 2026-10-03 in a new session on the same VM type, at `3651ed3` (D61 as amended),
+before any R23 work.
+
+**Verdict.** The image now builds in the session and checks as built from this tree.
+**Downloads made inside running containers do not work:** the containers do not trust the
+session's CA, so Trivy cannot fetch its vulnerability database (`x509: certificate signed
+by unknown authority`, from `mirror.gcr.io`), and every scan is incomplete. **D61(i)'s
+failure branch applies:** R20 and R25 move to the Mac. R23, R24, R21 and R22 stay, with
+GitHub's CI as their container lane, and each exit says so. Downloads made on the host
+work, except EPSS, whose host the session's network policy refuses.
+
+### Docker
+
+The daemon was down again at the start (a session does not keep it running), and started
+in 2 s. **`scripts/cloud_image.py` needs the classic image store.** On the daemon's
+default, Docker's containerd image store (`io.containerd.snapshotter.v1`), every build step
+passed, including `apk add` and both `pip install`s through the CA secret, and then the
+export failed after 107 s: `exporter option "rewrite-timestamp" conflicts with "unpack"`.
+Bake's `dev` target asks for `type=docker,rewrite-timestamp=true`, and with the containerd
+store the docker exporter unpacks, so the two conflict. With the daemon restarted as `dockerd
+--feature containerd-snapshotter=false` (storage driver `overlay2`), the same script built
+`valvur:dev` in **66 s** (691 MB; the first attempt's build cache may have been warm), and
+`scripts/check_image.py` passed: `valvur:dev was built from this tree (b1ff1c8ddfb2)`. So a
+session starts the daemon with that flag. `dl-cdn.alpinelinux.org`, which the first
+pre-flight found refused, is now allowed (200).
+
+### `valvur update`
+
+**Exit 1 after less than a second.** The image was present. **The vulnerability database
+failed**: `failed to download artifact from mirror.gcr.io/aquasec/trivy-db:2 ... tls: failed
+to verify certificate: x509: certificate signed by unknown authority`. Trivy fetches it
+inside the image's container, which does not trust the session's CA. `update` stops at the
+first failure, so KEV, EPSS, the index and OSV were not attempted by it. The scan below
+attempted them.
+
+### `valvur scan tests/fixtures/broken-repo`
+
+**Exit 0 after 35 s. Status `findings`, reason `97 active finding(s)`, and the scan is
+INCOMPLETE because Trivy did not finish.** 8 critical, 49 high, 27 medium, 12 low and 1
+unknown; 1 in KEV; npm dependencies not checked. Gitleaks, OSV-Scanner, Opengrep, Checkov,
+zizmor and valvur's own Checks ran. The scan fetches absent data, and here is how each
+fetch went:
+
+| dataset | fetched by | result |
+|---|---|---|
+| vulnerability database (127 MB) | Trivy, in a container | **failed**: x509, unknown authority |
+| package-name index (36 MB) | the host | fetched, 6 s |
+| malicious list | the host | fetched, 3 s |
+| KEV | the host | refreshed: 1733 entries, catalog 2026.10.02 |
+| EPSS | the host | **failed**: `Tunnel connection failed: 403 Forbidden`. `epss.cyentia.com` redirects to `epss.empiricalsecurity.com`, which the session's network policy refuses (the proxy logs `connect_rejected`). Findings rank without EPSS. |
+| OSV, PyPI and npm | the host | fetched, 1 s and 2 s |
+
+### The e2e suite, `-m "e2e and not timing"`
+
+**12 failed, 46 passed, 6 skipped, 1832 deselected, in 715 s.** Downloads inside containers
+cause ten of the failures. One is probably a result of them. One comes from the session's
+GitHub token:
+
+| test | cause |
+|---|---|
+| `test_constraints_budgets.py::test_the_offline_profile_meets_its_time_budget` | Trivy, no database |
+| `test_constraints_budgets.py::test_the_full_profile_meets_its_time_budget` | Trivy, no database; `dependency-reality` also failed because no registry was reachable from its container |
+| `test_constraints_budgets.py::test_a_full_scan_stays_within_its_memory_budget` | as above |
+| `test_constraints_canary.py::test_the_canary_fixture_still_exercises_every_scanner` | as above |
+| `test_exclude_means_one_thing.py::test_every_scanner_reads_a_nested_directory_that_shares_an_excluded_name` | Trivy, no database |
+| `test_file_set_e2e.py::test_a_data_directory_is_skipped_not_walked` | Trivy, no database |
+| `test_pipeline_example.py::test_the_github_example_runs_against_the_image` | the example's `valvur update` in the image: x509 |
+| `test_runtimes.py::test_the_offline_profile_finds_dev_dependency_vulnerabilities[docker]` | Trivy, no database |
+| `test_two_scan_containers.py::test_a_full_scan_runs_both_containers_and_leaves_neither` | Trivy, no database |
+| `test_licences.py::test_our_real_image_adds_no_gpl_component` | Syft, in a container, cannot pull `python:3.12-alpine3.22` from `index.docker.io`: x509 |
+| `test_constraints_interruption.py::test_after_a_cancel_no_container_is_left` | `runtime.kill()` returned 0, not 1: probably the scan's own database fetch was the container it saw and had already exited; to rerun once the database is present |
+| `test_repository_guards.py::test_the_repositorys_own_guards_are_on` | `gh api repos/MaverickHQ/valvur --jq .security_and_analysis` returns nothing to the session's token, so the test's JSON parse fails. The test skips when `gh` fails, but not when `gh` succeeds and returns nothing |
+
+### The Score, `--tracks dependencies,secrets --compare tests/eval/baseline.json`
+
+**Exit 0, 43 s, no track under its baseline.** The two tracks were measured without
+Trivy's database (`database_age_days: null`, EPSS absent), so neither run is complete:
+
+| track | score | baseline | complete | seconds |
+|---|---|---|---|---|
+| dependencies | 100.0 | 100.0 | **no** | 36.0 |
+| secrets | 100.0 | 100.0 | **no** | 6.2 |
+
+OSV-Scanner alone found every dependency case, so the track's score does not show Trivy's
+absence. Only its completeness does.
+
+### What D61(i) decides, and what would reopen it
+
+Downloads inside containers failed, so the failure branch holds: R20 and R25, whose exits
+rerun the Score, move to the Mac. R23, R24, R21 and R22 build here, and their e2e and
+acceptance lanes are GitHub's CI. Two things would change that, both the owner's to decide:
+handing the session's CA to the containers that fetch (the database update, and a `full`
+scan), the way `cloud_image.py` hands it to the build, which touches the network boundary
+in `CLAUDE.md` §3; or seeding `VALVUR_CACHE` with a database fetched elsewhere.
+`epss.empiricalsecurity.com` would also need adding to the environment's allowed domains.
