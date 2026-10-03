@@ -18,7 +18,7 @@ from valvur.findings import Finding
 
 ORDER = [
     "coverage", "licence", "configured", "ignored", "unpinned", "merged",
-    "context", "gitcontext", "enrich", "suppress", "group", "rank", "diff",
+    "context", "classes", "gitcontext", "enrich", "suppress", "group", "rank", "diff",
 ]
 
 

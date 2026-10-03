@@ -21,6 +21,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from . import classtable as _classtable
 from . import coverage as _coverage
 from . import enrichment as _enrichment
 from . import exclusions as _exclusions
@@ -69,6 +70,7 @@ class Context:
     configured: tuple[str, ...] = ()
     coverage: dict = field(default_factory=dict)
     config_dropped: int = 0
+    removed_by_class: dict[str, dict[str, int]] = field(default_factory=dict)
     unpinned_dropped: int = 0
     unpinned_files: tuple[str, ...] = ()
     provider: _enrichment.LocalProvider | None = None
@@ -98,6 +100,7 @@ class PipelineResult:
     configured: tuple[str, ...]
     coverage: dict
     config_dropped: int
+    removed_by_class: dict[str, dict[str, int]]
     unpinned_dropped: int
     unpinned_files: tuple[str, ...]
     provider: _enrichment.LocalProvider | None
@@ -216,6 +219,13 @@ def context(findings: list[Finding], ctx: Context) -> list[Finding]:
     return [replace(f, context=classes[f.path]) for f in findings]
 
 
+def classes(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """What a path's class changes (D56): a secret in a test ranks low, `weak-hash`
+    in docs is not reported, and what is removed is counted for `run.json`."""
+    kept, ctx.removed_by_class = _classtable.apply(findings)
+    return kept
+
+
 def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:
     """A secret git is not carrying is a local credential, not a leak."""
     return _gitcontext.apply(ctx.workspace, findings)
@@ -285,6 +295,9 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("context", context,
           "After `merged`, so each identity's class is read once; before anything "
           "that decides by class."),
+    Stage("classes", classes,
+          "Right after `context`, which it reads; before `enrich` and `rank`, which "
+          "read the severity it lowers."),
     Stage("gitcontext", gitcontext,
           "After `merged`, so a secret's git status is decided once per identity "
           "rather than once per Scanner that saw it."),

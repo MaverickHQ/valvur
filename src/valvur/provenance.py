@@ -110,6 +110,9 @@ def _scope(run: ScanRun) -> dict:
         },
         # OSV-Scanner's answers against the lower bounds of unpinned ranges
         # (25.3): not the project's Findings, and not silently gone either.
+        # What the class table removed, by path class and rule (D56): a finding a
+        # class rules out is counted here rather than gone without a number.
+        "removed_by_class": run.removed_by_class,
         "excluded_unpinned": {
             "advisories_dropped": run.unpinned_dropped,
             "files": list(run.unpinned_files),

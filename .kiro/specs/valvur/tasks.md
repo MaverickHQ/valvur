@@ -933,7 +933,7 @@ table.*
   verdict, excludes it too. **Measured** on the image built from this change: tracks 1
   to 7 unchanged; track 8 from 3.7 to 5.3, its judged set from 26 findings to 18; the
   Score from 64.9 to 65.1.
-- [ ] **R20.4** **One table decides what a class changes** (D56; D47b, c). Behaviours:
+- [x] **R20.4** **One table decides what a class changes** (D56; D47b, c). Behaviours:
   1. a Gitleaks finding in `test`, `fixture`, `docs` or `example` is `low`, still
      active, and still makes the verdict `findings`;
   2. `weak-hash` and the vendored `random` rule are not reported in those classes, and
@@ -941,6 +941,16 @@ table.*
   3. a class with no row changes nothing;
   4. track 3 holds 100, and track 1's `hash` and `weakrand` categories keep every true
      positive they have.
+  **STATUS 2026-10-03:** ✅ all four. `valvur.classtable` (core) holds two rows: a
+  Gitleaks finding where examples live (`test`, `fixture`, `docs`, `example`) is
+  lowered to `low`, and `weak-hash` and `python_random_rule-random` there are removed
+  and counted. A `classes` stage after `context` applies it, and `run.json` carries
+  `removed_by_class`. `source`, `vendored` and `generated` have no row. **Measured:**
+  tracks 1 to 7 unchanged, track 3 at 100. Every track 1 case lives in `testcode/`,
+  which is `source`, so no true positive of `hash` or `weakrand` is touched. Track 8
+  rises from 5.3 to 5.9 as llm's two `random` findings in `docs/` leave the judged
+  set, now 16. The eleven secrets in tests and docs stay judged, at `low`. The Score
+  is 65.2.
 - [ ] **R20.5** **Non-security hashing** (D47c). Behaviours:
   1. `hashlib.md5(data, usedforsecurity=False)` draws no `weak-hash`;
   2. `hashlib.md5(data)` still does.

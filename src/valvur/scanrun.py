@@ -95,6 +95,8 @@ class ScanRun:
     #: sense and silent about the fetches (F10.8, ADR-0010).
     fetched: list[dict] = field(default_factory=list)
     config_dropped: int = 0
+    #: What the class table removed (D56): {class: {rule: count}}, said in run.json.
+    removed_by_class: dict[str, dict[str, int]] = field(default_factory=dict)
     #: OSV-Scanner answers against the lower bounds of unpinned ranges, dropped
     #: (25.3), and the requirements files they came from.
     unpinned_dropped: int = 0
