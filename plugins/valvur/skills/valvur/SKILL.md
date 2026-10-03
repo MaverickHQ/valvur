@@ -79,7 +79,7 @@ Each tool's fields, as the server describes them, are in
 These are the rules valvur's server gives every agent when it connects, and the end
 of `SUMMARY.md` repeats them in short.
 
-<!-- rules:start — rendered from valvur.agent_rules, the handshake's instructions; a test holds this block to them -->
+<!-- generated: agent-rules -->
 
 valvur writes a scan's results into `.security-scan/` in the scanned project. These rules apply to it, and `SUMMARY.md` there ends with a short form of them; they apply to what these tools answer too.
 
@@ -114,4 +114,4 @@ evidence — CISA KEV membership, then FIRST EPSS probability. Not by severity l
 which is why a hallucinated package outranks a high-severity advisory nobody is
 exploiting.
 
-<!-- rules:end -->
+<!-- /generated -->
