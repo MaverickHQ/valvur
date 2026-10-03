@@ -61,6 +61,8 @@ to `/results/history.txt` and plans a second Gitleaks pass over it (R3.7).
 Inside a Scan Container. Six are the shim's (`engine_host.ContainerRuntime.command`);
 the rest are the image's, and the e2e test checks each of those exists.
 
+<!-- generated: protocol-paths -->
+
 | path | provided by | who relies on it |
 |---|---|---|
 | `/workspace` | the shim: the unpacked Snapshot, in a tmpfs up to 512 MB or a volume named for the scan beyond, removed after it; never a mount of the source | every Scanner and Check — the argument they scan |
@@ -75,12 +77,16 @@ the rest are the image's, and the e2e test checks each of those exists.
 | `/etc/valvur/inputs.sha256` | the image: the digest of the tree it was built from (22.C.1, 23.4.4); `chmod 0444` | the shim's build-provenance comparison, `doctor`, the e2e guard |
 | `/etc/valvur/Dockerfile` | the image: the Dockerfile it was built from — one of the digest's inputs | the digest |
 
+<!-- /generated -->
+
 ## Binaries
 
 On `PATH`, each invoked by name as the first element of its adapter's argv. The
 versions are the image's to pin (`Dockerfile`, by digest) and the adapters' to
 declare (`version` on each adapter); a golden fixture per Scanner holds the two
 together.
+
+<!-- generated: protocol-binaries -->
 
 | binary | from | pinned at |
 |---|---|---|
@@ -93,6 +99,8 @@ together.
 | `zizmor` | `/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash (R4.2) | 1.30.1 |
 | `python` | the base image's Python 3.12 | with the Checks |
 | `valvur` | `/usr/local/bin/valvur`, which runs `python3 -m valvur.cli`: the image as a pipeline step (R8.1) | the image's own version |
+
+<!-- /generated -->
 
 ## The Checks' entry point
 
@@ -131,12 +139,16 @@ here is specific to a cloud (F1.10).
 
 ## Labels
 
+<!-- generated: protocol-labels -->
+
 | label | value | read by |
 |---|---|---|
 | `org.opencontainers.image.version` | the valvur version the image was built as | `compat.image_version` — F1.9's version rule, and `doctor` |
 | `org.valvur.protocol` | the protocol major, `2` | `compat.image_protocol` — the rule above |
 | `org.opencontainers.image.source` | `https://github.com/MaverickHQ/valvur` | GHCR, to link the package to the repository |
 | `org.opencontainers.image.licenses` | `Apache-2.0` | readers |
+
+<!-- /generated -->
 
 ## The process
 

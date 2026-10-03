@@ -12,6 +12,7 @@ regenerates every block and names the one that differs.
 
 from __future__ import annotations
 
+import itertools
 import re
 import sys
 from collections.abc import Callable, Iterable, Mapping
@@ -65,14 +66,160 @@ def cli_commands() -> str:
             "each says what it takes.\n")
 
 
+#: Each path in the Scan Container: who provides it, and who relies on it. The
+#: paths the code assumes are read from it, and each must fall under a row here.
+PATHS: dict[str, tuple[str, str]] = {
+    '/workspace': (
+        'the shim: the unpacked Snapshot, in a tmpfs up to 512 MB or a volume named for the '
+        'scan beyond, removed after it; never a mount of the source',
+        'every Scanner and Check — the argument they scan'),
+    '/results': (
+        'the shim: a scratch directory mounted read-write, one per Scan Container, holding the '
+        'plan, the reports and the manifest',
+        "the engine; every Scanner's report (`Invocation.report`)"),
+    '/cache/trivy': (
+        'the shim: the vulnerability database, mounted from the host cache (ADR-0012)',
+        "Trivy (`--cache-dir`, and `TRIVY_CACHE_DIR`), and `valvur update`'s fetch into it"),
+    '/cache/names': (
+        'the shim: the package-name index, mounted read-only from the host cache (ADR-0018), '
+        'with the known-malicious list in `malicious/` beside it (R11.5, ADR-0027)',
+        'the dependency-reality Check'),
+    '/cache/osv': (
+        "the shim: OSV's offline database, one zip per ecosystem, mounted read-only from the "
+        'host cache (R4.6)',
+        'OSV-Scanner on `offline` (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`)'),
+    '/tmp': (  # noqa: S108 — a path in the container, documented
+        'the shim: a tmpfs (`rw,noexec,nosuid,size=512m`); `HOME` points here',
+        "any tool that needs scratch space; nothing runs from here, since Opengrep's core is "
+        'unpacked in the image at `/opt/opengrep`'),
+    '/opt/valvur-rules': (
+        "the image: valvur's own Opengrep rules, licensed with the project (ADR-0004), and in "
+        "`vendor/` the rules vendored on measured precision, each with its origin's licence "
+        '(R13, ADR-0029)',
+        'Opengrep (`--config`)'),
+    '/opt/checkov': (
+        "the image: Checkov's own virtual environment, hash-locked (23.4.1); `checkov` on PATH "
+        'links into it',
+        'Checkov'),
+    '/usr/local/lib/python3.12/site-packages/valvur': (
+        'the image: the `valvur` package itself, so the engine and the Checks run in the '
+        'container (ADR-0013)',
+        '`python -m valvur.engine`, `python -m valvur.checks`'),
+    '/etc/valvur/inputs.sha256': (
+        'the image: the digest of the tree it was built from (22.C.1, 23.4.4); `chmod 0444`',
+        "the shim's build-provenance comparison, `doctor`, the e2e guard"),
+    '/etc/valvur/Dockerfile': (
+        "the image: the Dockerfile it was built from — one of the digest's inputs",
+        'the digest'),
+}
+#: Each binary on PATH and where it comes from; the version is its adapter's, or the
+#: text here for the two no adapter pins.
+BINARIES: dict[str, tuple[str, str | None]] = {
+    'gitleaks': ('`zricethezav/gitleaks`', None),
+    'trivy': ('`aquasec/trivy`', None),
+    'osv-scanner': ('`ghcr.io/google/osv-scanner`', None),
+    'syft': ('`anchore/syft`', None),
+    'opengrep': ('`opengrep/opengrep`', None),
+    'checkov': ('`/opt/checkov`, from `requirements-checkov.txt`', None),
+    'zizmor': ('`/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash '
+               '(R4.2)', None),
+    'python': ("the base image's Python 3.12", 'with the Checks'),
+    'valvur': ('`/usr/local/bin/valvur`, which runs `python3 -m valvur.cli`: the image as a '
+               'pipeline step (R8.1)', "the image's own version"),
+}
+
+
+def _table(header: tuple[str, ...], rows: Iterable[tuple[str, ...]]) -> str:
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    lines += ["| " + " | ".join(row) + " |" for row in rows]
+    return "\n".join(lines) + "\n"
+
+
+def _assumed_paths() -> set[str]:
+    """Every absolute path the code assumes in a Scan Container: each in an adapter's
+    command, each mount and tmpfs the shim's command makes, and the image's digest."""
+    import tempfile
+    from unittest import mock
+
+    from valvur import cache, compat, tree_hash
+    from valvur.adapters.registry import DEFAULT_ADAPTERS
+    from valvur.engine_host import ContainerRuntime
+
+    assumed = {compat.IMAGE_INPUTS_FILE, tree_hash.IMAGE_DOCKERFILE}
+    with tempfile.TemporaryDirectory() as scratch, \
+            mock.patch.object(cache, "db_present", return_value=True):
+        for adapter in DEFAULT_ADAPTERS:
+            for arg in adapter.command(Path(scratch)).argv:
+                assumed |= {t for t in re.split(r"[=,]", arg) if t.startswith("/")}
+        command = ContainerRuntime(image="valvur:docs", runtime="docker").command(
+            Path(scratch), name="valvur-docs")
+    for flag, value in itertools.pairwise(command):
+        if flag == "-v":
+            assumed.add(value.split(":")[1])
+        elif flag == "--tmpfs":
+            assumed.add(value.split(":")[0])
+    return assumed
+
+
+def protocol_paths() -> str:
+    """Each path in a Scan Container, and who provides and relies on it; every path the
+    code assumes falls under one, or this refuses."""
+    def covered(path: str) -> bool:
+        return any(path == d or path.startswith(d.rstrip("/") + "/") for d in PATHS)
+
+    missing = sorted(p for p in _assumed_paths() if not covered(p))
+    if missing:
+        raise SystemExit(f"PATHS in scripts/generate_docs.py does not describe: {missing}")
+    return _table(("path", "provided by", "who relies on it"),
+                  ((f"`{path}`", provided, relied) for path, (provided, relied) in PATHS.items()))
+
+
+def protocol_binaries() -> str:
+    """Each binary on PATH, where it comes from, and the version its adapter declares."""
+    from valvur.adapters.registry import DEFAULT_ADAPTERS
+
+    pinned = {a.command(Path("/nonexistent")).argv[0]: a.version for a in DEFAULT_ADAPTERS
+              if a.kind == "scanner" and a.name != "trivy"}
+    pinned["trivy"] = next(a.version for a in DEFAULT_ADAPTERS if a.name == "trivy")
+    missing = sorted(set(pinned) - set(BINARIES))
+    if missing:
+        raise SystemExit(f"BINARIES in scripts/generate_docs.py does not name: {missing}")
+    return _table(("binary", "from", "pinned at"),
+                  ((f"`{name}`", source, pin if pin is not None else pinned[name])
+                   for name, (source, pin) in BINARIES.items()))
+
+
+def protocol_labels() -> str:
+    """The image's labels, their values from the Dockerfile, and who reads each."""
+    from valvur import compat
+
+    declared = dict(re.findall(r'^LABEL ([\w.]+)="([^"]*)"', (REPO / "Dockerfile").read_text(),
+                               re.M))
+    if declared.get(compat.PROTOCOL_LABEL) != str(compat.PROTOCOL):
+        raise SystemExit(f"the Dockerfile's {compat.PROTOCOL_LABEL} is not {compat.PROTOCOL}")
+    source, licences = "org.opencontainers.image.source", "org.opencontainers.image.licenses"
+    return _table(("label", "value", "read by"), (
+        (f"`{compat.LABEL}`", "the valvur version the image was built as",
+         "`compat.image_version` — F1.9's version rule, and `doctor`"),
+        (f"`{compat.PROTOCOL_LABEL}`", f"the protocol major, `{compat.PROTOCOL}`",
+         "`compat.image_protocol` — the rule above"),
+        (f"`{source}`", f"`{declared[source]}`", "GHCR, to link the package to the repository"),
+        (f"`{licences}`", f"`{declared[licences]}`", "readers"),
+    ))
+
+
 BLOCKS: dict[str, Callable[[], str]] = {
     "mcp-tools": mcp_tools,
     "agent-rules": agent_rules,
     "mcp-clients": mcp_clients,
     "cli-commands": cli_commands,
+    "protocol-paths": protocol_paths,
+    "protocol-binaries": protocol_binaries,
+    "protocol-labels": protocol_labels,
 }
 FILES: tuple[Path, ...] = (
     REPO / "README.md",
+    REPO / "docs" / "PROTOCOL.md",
     SKILL / "SKILL.md",
     SKILL / "references" / "tools.md",
 )
