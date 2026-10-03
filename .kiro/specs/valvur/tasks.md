@@ -831,18 +831,46 @@ green on both lanes; `CLAUDE.md` names the layers and the check.
   **STATUS 2026-10-03:** ✅ both. `sync_skill.sync` rewrites a copy only when it
   differs, and `prepare_release.py` calls it where its own copy loop was. No test file
   names `UPDATE_SKILL`, and a test holds that.
-- [ ] **R24.4** **CI builds once** (D55c, d). Behaviours:
+- [x] **R24.4** **CI builds once** (D55c, d). Behaviours:
   1. a pull request builds the image at most three times: once per architecture, and once
      more for reproducibility;
   2. the e2e, the self-scan and the reproducibility comparison use the commit's build;
   3. one composite action reads the version, and one files the issue on failure;
   4. the eight required checks keep their names, and a test holds the list;
   5. zizmor finds nothing in the workflows, and every required check is green.
-- [ ] **R24.5** **Planning IDs out of the way** (D55e, f). Behaviours:
+  **STATUS 2026-10-03:** ✅ all five, D55's fallback not needed.
+  - **Three builds.** A new `image` job builds each architecture once, without cache
+    and at the commit's timestamp, and hands it on as an artifact. The e2e jobs, the
+    self-scan and the reproducibility comparison load it, and the comparison builds
+    its second image alone. A job whose build failed fails itself: GitHub counts a
+    skipped required check as passed.
+  - **Measured on #185, run 37155498359,** against #184's run 37153055991 (R24.1). The
+    amd64 build takes 78 s, saving it 19 s and uploading it 5 s. Each job that uses it
+    downloads it in 4 to 10 s and loads it in 17 to 22 s, where it built for 62 to 68 s.
+    So handing it over is faster than building it, and the fallback does not apply.
+    Building took about 3.6 minutes in all, 5.3 before. The cost is wall-clock: the
+    jobs that need the image now wait for it. The required checks finished 11.1
+    minutes after the run started, 8.4 before. About half of that is the wait; the
+    other half is the e2e tests themselves, 448 s this time against 352 s.
+  - **One version source, one issue step.** `.github/actions/version` replaces eleven
+    reads, in seven workflows with `release.yml`. `.github/actions/file-issue`
+    replaces nine copies; `retention.yml` checks out for it. The refresh workflow's
+    issue for the owner is not a failure step, and stays as it is.
+  - **The eight required checks** keep their names; `tests/test_ci_builds_once.py`
+    holds them, the build count, the shared build and the two actions. zizmor
+    (pedantic, medium and above) finds nothing in `.github/`. Every check on #185 is
+    green, the eight among them.
+- [x] **R24.5** **Planning IDs out of the way** (D55e, f). Behaviours:
   1. traceability does not read `docs/history`, and a test holds the list of what it
      reads;
   2. `CONTRIBUTING.md` says new tests are named for what they test, and new comments cite
      ADRs and requirements, not tasks.
+  **STATUS 2026-10-03:** ✅ both. `check_traceability.py` skips `docs/history`, and
+  nothing became uncited. `tests/test_traceability_reads.py` holds its sources. The
+  test that gave the archive no exemption now covers `requirements.md` alone, as D55f
+  amends D43. `CONTRIBUTING.md` carries the naming rule and the citation rule, and
+  says how the docs are generated and the skill copied. That is prose, so by D55's own
+  rule no test compares it.
 
 **Exit:** the prose-comparing tests R24.1 counted, less those kept as contracts, gone; at
 most three image builds per pull request, with CI's time against R24.1's; the Score
