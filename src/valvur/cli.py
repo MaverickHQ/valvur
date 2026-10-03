@@ -639,12 +639,20 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     return 0 if updated.ok else 1
 
 
+def _one_line(text: str) -> str:
+    """A multi-line message as one line, each line but the last ended as a sentence;
+    the last is often a command to copy, and keeps no stop."""
+    parts = [line.strip() for line in text.splitlines() if line.strip()]
+    return " ".join([*(part if part.endswith((".", ":", ";", "!", "?")) else part + "."
+                       for part in parts[:-1]), *parts[-1:]])
+
+
 def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     """`scan`: the Scan Run, from the terminal, through the one scan service (D51)."""
     cancellation = service.Cancellation()
     _stop_on_interrupt(cancellation)
 
-    from .runner import unsupported_platform_warning
+    from .runner import ImagePullFailed, NoContainerRuntime, unsupported_platform_warning
 
     if warning := unsupported_platform_warning():
         print(warning, file=sys.stderr)
@@ -670,6 +678,11 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.
         print(f"  ! {busy}", file=sys.stderr)
+        return 1
+    except (ImagePullFailed, NoContainerRuntime) as missing:
+        # A precondition, said in one line as `update` says it, and non-zero: the
+        # cloud pre-flight met a traceback here for an image that could not be pulled.
+        print(f"  ! {_one_line(str(missing))}", file=sys.stderr)
         return 1
 
     for failure in run.failures:

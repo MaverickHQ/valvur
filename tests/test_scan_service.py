@@ -181,3 +181,63 @@ def test_a_scan_refused_at_its_arguments_leaves_no_cancel_waiting(tmp_path, monk
     cancel.join(10)
 
     assert said and said[0].startswith("No scan"), said
+
+
+class _NoImage:
+    """A runtime whose image is not local and cannot be pulled."""
+
+    engine = True
+    image = "valvur:dev"
+    runtime = "docker"
+    cancelled = False
+
+    def image_present(self) -> bool:
+        return False
+
+    def pull_size_mb(self):
+        return None
+
+    def pull_image(self, on_line=None):
+        from valvur.invocation import ScannerOutput
+
+        return ScannerOutput("docker", "", "", "Error response from daemon: pull access "
+                             "denied for valvur, repository does not exist", 1)
+
+    def kill(self) -> int:
+        return 0
+
+
+def test_a_scan_whose_image_cannot_be_pulled_says_why_in_one_line(tmp_path, monkeypatch,
+                                                                    capsys):
+    """Found by the cloud pre-flight: `update` said so, and `scan` raised a traceback."""
+    from valvur import owner
+
+    monkeypatch.setattr(owner, "reap", lambda runtime: [])
+
+    code = cli.main(["scan", str(_workspace(tmp_path))], runner=_NoImage())
+
+    said = capsys.readouterr()
+    # The pull's own progress line comes first, as on any first run; then the cause.
+    lines = [line for line in said.err.splitlines() if line.lstrip().startswith("!")]
+    assert code == 1
+    assert len(lines) == 1, said.err
+    assert "valvur:dev" in lines[0] and "could not be pulled" in lines[0]
+    assert "pull access denied" in lines[0] and "docker pull valvur:dev" in lines[0]
+    assert "Traceback" not in said.err + said.out
+
+
+def test_a_scan_with_no_container_runtime_says_why_without_a_traceback(tmp_path,
+                                                                         monkeypatch, capsys):
+    from valvur import engine_host
+    from valvur.runner import NoContainerRuntime
+
+    def refuse():
+        raise NoContainerRuntime("No container runtime found. Install Docker or Podman.")
+
+    monkeypatch.setattr(engine_host, "for_scan", refuse)
+
+    code = cli.main(["scan", str(_workspace(tmp_path))])
+
+    said = capsys.readouterr()
+    assert code == 1
+    assert "No container runtime found" in said.err and "Traceback" not in said.err

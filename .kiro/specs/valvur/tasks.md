@@ -585,7 +585,7 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
   `version` and the five `ecosystems` modules), neither `api` nor `pipeline`, and a test
   holds the count. Its cost: 0.075 s in-process against 0.13 s, and as a process a median
   0.10 s against 0.17 s, five runs each, on the cloud VM.
-- [ ] **R23.4** **One scan service** (D51). Behaviours:
+- [x] **R23.4** **One scan service** (D51). Behaviours:
   1. the CLI's `scan` and the MCP tool both run through `service.run_scan`; a test
      replaces it and drives both surfaces;
   2. `operations` and `reply` import nothing from `valvur.mcp`;
@@ -595,6 +595,28 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
      moved here from §8);
   6. a scan whose image cannot be pulled says why in one line and exits non-zero, as
      `update` does, never with a traceback (found by the cloud pre-flight).
+  **STATUS 2026-10-03:** ✅ all six.
+  - **The service.** `service.run_scan` owns the runner (`service.new_runner`), the locks
+    and budget through `api.scan`, and a `Cancellation` that holds a cancel arriving
+    before the runner exists. The CLI's `scan` calls it, its Ctrl-C handler reading the
+    runner from the cancellation; the MCP job calls it in its thread and adds nothing
+    else. A test replaces `service.run_scan` and drives both surfaces.
+  - **The MCP side.** Every tool's handler moved to `mcp/handlers.py`, a surface: it
+    passes the client's roots, the call's progress, the scan's job and the served tools
+    to `operations`, `reply` and `doctor`, which import nothing from `valvur.mcp` (a test
+    reads their imports). The layer baseline lost `doctor` and `operations` reaching
+    `mcp.protocol`; two entries remain. `reply` reads a job through a `JobView`
+    protocol. The F9.3 structural test now holds every handler to that module and to a
+    shared operation, `scan_cancel` aside, the CLI's cancel being Ctrl-C.
+  - **Unchanged words.** R23.1's goldens pass, both surfaces, all three workspaces.
+  - **Gone:** `Job.summary`, `operations._summarise`, `start_scan`, `_run_scan` and
+    `_scan_with_budget`; 26 test files that reached into them were moved to the handlers.
+  - **The early cancel.** The server's reader announces each `scan` call before its
+    thread runs (`protocol.Handlers.announce`, `jobs.expect`); a `scan_cancel` read
+    after it waits up to 15 s for that job and stops it. A scan refused at its arguments
+    settles its announcement, so no cancel waits for nothing. Held in-process.
+  - **A failed pull, or no runtime,** is one `!` line and exit 1 on the CLI, never a
+    traceback.
 - [ ] **R23.5** **The datasets, once** (D52a). Behaviours:
   1. every dataset's refresh and `inconclusive` thresholds come from one table, and a
      test holds the table to D24;
