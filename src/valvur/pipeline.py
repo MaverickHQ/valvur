@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from . import coverage as _coverage
 from . import enrichment as _enrichment
 from . import exclusions as _exclusions
+from . import fileset as _fileset
 from . import gitcontext as _gitcontext
 from . import grouping as _grouping
 from . import licence_policy as _licence
@@ -208,6 +209,13 @@ def merged(findings: list[Finding], ctx: Context) -> list[Finding]:
     return merge(findings, index_form)
 
 
+def context(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """Each Finding's path class (D56), which the class table and every reader of
+    `findings.json` and SARIF read."""
+    classes = _fileset.classes(ctx.workspace, [f.path for f in findings])
+    return [replace(f, context=classes[f.path]) for f in findings]
+
+
 def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:
     """A secret git is not carrying is a local credential, not a leak."""
     return _gitcontext.apply(ctx.workspace, findings)
@@ -274,6 +282,9 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("merged", merged,
           "After every filter and every source of Findings, so identity is settled "
           "once over the final set."),
+    Stage("context", context,
+          "After `merged`, so each identity's class is read once; before anything "
+          "that decides by class."),
     Stage("gitcontext", gitcontext,
           "After `merged`, so a secret's git status is decided once per identity "
           "rather than once per Scanner that saw it."),

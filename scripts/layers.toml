@@ -28,6 +28,7 @@ core = [
     "valvur.invocation",
     "valvur.lazy",
     "valvur.licence_policy",
+    "valvur.pathclass",
     "valvur.profiles",
     "valvur.project_schema",
     "valvur.ranking",

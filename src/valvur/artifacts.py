@@ -93,7 +93,9 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
                 }
             }],
             "partialFingerprints": {FINGERPRINT_KEY: finding.fingerprint},
-            "properties": {"status": finding.status, "rank": finding.rank},
+            "properties": {"status": finding.status, "rank": finding.rank,
+                           # The path's class (D56), which is not identity.
+                           **({"context": finding.context} if finding.context else {})},
         })
         if finding.suppressed:
             # SARIF's own concept. An invented property would make IDEs show

@@ -129,6 +129,10 @@ class Finding:
     #: The weaknesses its rule declares, as `CWE-n` (F5.10, R13.4). Not identity,
     #: and neither ranking nor grouping reads it.
     cwe: tuple[str, ...] = ()
+    #: Its path's class (D56): `source`, `test`, `fixture`, `docs`, `example`,
+    #: `vendored` or `generated`. Not identity: a test's secret is the same Finding
+    #: whatever its directory is called.
+    context: str = ""
 
     def __post_init__(self) -> None:
         """Neutralise evidence at the MODEL boundary, not per-adapter.
