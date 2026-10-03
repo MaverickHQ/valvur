@@ -88,15 +88,11 @@ def test_the_readme_the_server_help_and_doctor_say_seven_tools():
 
 
 def test_doctor_inside_the_server_names_the_tools_it_serves(tmp_path, monkeypatch):
-    from types import SimpleNamespace
-
     from valvur import doctor
-    from valvur.mcp import protocol
 
     served = tuple(tool.name for tool in tools.registry())
-    monkeypatch.setattr(protocol, "current_call", lambda: SimpleNamespace(served=served))
 
-    line = doctor._check_session(tmp_path)
+    line = doctor._check_session(tmp_path, served)
 
     assert "7 tools" in line.detail and "check_package" in line.detail
 

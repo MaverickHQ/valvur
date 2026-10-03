@@ -19,8 +19,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REQUIREMENTS_GLOB = "requirements*.txt"
-
 _LINE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*(.*)$")
 _PIN = re.compile(r"^={2,3}\s*[^\s,;*]+$")
 

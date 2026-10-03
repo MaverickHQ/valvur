@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+clean: 0 active
+results: <TMP>/cli/clean/.security-scan
+--- stderr

@@ -65,6 +65,8 @@ def test_a_scan_due_a_fetch_does_connect_so_the_previous_test_can_fail(
     from valvur.runner import ScannerOutput
 
     class Fetching(CveRunner):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 
@@ -217,6 +219,8 @@ class _RecordingRuntime:
             def __init__(self):
                 super().__init__(runtime="/usr/local/bin/docker")
                 self.launched: list[tuple[list[str], list[str]]] = []
+                #: Each launch's plan: whether it grants each tool a network (D52c).
+                self.grants: list[dict[str, bool]] = []
 
             # The preflight asks the real runtime about the image; not here.
             def image_present(self):
@@ -235,6 +239,7 @@ class _RecordingRuntime:
                 results = next(a for a in command if a.endswith(":/results"))
                 plan = _json.loads((_Path(results.rsplit(":", 1)[0]) / "plan.json").read_text())
                 self.launched.append((command, [t["tool"] for t in plan["tools"]]))
+                self.grants.append({t["tool"]: bool(t.get("network")) for t in plan["tools"]})
                 return 0
 
         return Recorder()
@@ -259,7 +264,12 @@ def _launches(profile: str, tmp_path, monkeypatch, *, index: bool = True):
     runtime = _RecordingRuntime()
     with contextlib.suppress(api.ScannerFailed):       # nothing ran, so nothing reported
         api.scan(ws, runner=runtime, profile=profile)
+    _GRANTS[:] = runtime.grants
     return runtime.launched
+
+
+#: The grants of the launches `_launches` last recorded, in the same order.
+_GRANTS: list[dict[str, bool]] = []
 
 
 def test_offline_starts_exactly_one_scan_container_and_it_has_no_network(
@@ -274,17 +284,13 @@ def test_offline_starts_exactly_one_scan_container_and_it_has_no_network(
 
 def test_full_adds_one_networked_container_holding_only_what_needs_the_network(
         tmp_path, monkeypatch):
-    from valvur.runner import NETWORK_ENV
-
     launched = _launches(profiles.FULL, tmp_path, monkeypatch)
     assert len(launched) == 2, [tools for _, tools in launched]
     offline = [(a, t) for a, t in launched if "--network=none" in a]
     networked = [(a, t) for a, t in launched if "--network=none" not in a]
     assert len(offline) == 1 and len(networked) == 1
-    argv, tools = networked[0]
-    assert f"{NETWORK_ENV}=1" in argv
+    _argv, tools = networked[0]
     assert set(tools) == {"osv-scanner", "dependency-reality"}, tools
-    assert f"{NETWORK_ENV}=1" not in offline[0][0]
 
 
 def test_trivy_never_runs_in_the_networked_container(tmp_path, monkeypatch):
@@ -318,14 +324,17 @@ def test_the_networked_scanner_is_not_launched_with_no_network(monkeypatch, tmp_
 
 
 def test_the_networked_containers_are_told_and_the_offline_ones_are_not(monkeypatch, tmp_path):
-    """The Check reads VALVUR_NETWORK; the runtime sets it in exactly the case it
-    omits --network=none. Both halves, because either alone would pass with the
-    variable set unconditionally."""
+    """The Check reads VALVUR_NETWORK, which the engine sets for each tool its plan
+    grants a network (D52c): the grant is in exactly the case the runtime omits
+    --network=none. Both halves, because either alone would pass with the grant
+    set unconditionally; and never on the container, which would tell every tool."""
     from valvur.runner import NETWORK_ENV
 
-    for argv, tools in _launches(profiles.FULL, tmp_path, monkeypatch):
-        told = f"{NETWORK_ENV}=1" in argv
-        assert told is ("--network=none" not in argv), tools
+    launched = _launches(profiles.FULL, tmp_path, monkeypatch)
+    for (argv, tools), grants in zip(launched, _GRANTS, strict=True):
+        networked = "--network=none" not in argv
+        assert all(granted is networked for granted in grants.values()), tools
+        assert f"{NETWORK_ENV}=1" not in argv, tools
 
 
 def test_the_index_is_mounted_read_only_into_every_container(monkeypatch, tmp_path):

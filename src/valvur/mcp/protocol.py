@@ -176,6 +176,18 @@ class Call:
                                           "progress": self._sent, "message": message}}))
 
 
+class Handlers(dict):
+    """The methods a server answers, by name, and `announce`: what the reader does
+    with a `tools/call` as it reads it, before the call's own thread runs (R23.4).
+    Calls run on threads of their own, so only the reader knows the order they
+    arrived in: a `scan_cancel` sent just after `scan` can otherwise find no scan."""
+
+    def __init__(self, methods: dict[str, Callable[[dict], Any]],
+                 announce: Callable[[dict], None] | None = None):
+        super().__init__(methods)
+        self.announce = announce
+
+
 _local = threading.local()
 
 
@@ -246,7 +258,12 @@ def serve(
             continue
         if isinstance(message, dict) and message.get("method") == "tools/call" \
                 and message.get("id") is not None:
-            meta = (message.get("params") or {}).get("_meta") or {}
+            params = message.get("params") or {}
+            params = params if isinstance(params, dict) else {}
+            meta = params.get("_meta") or {}
+            announce = getattr(handlers, "announce", None)
+            if announce is not None:
+                announce(params)
             call = Call(message["id"], meta.get("progressToken"), emit, client)
             for done in [key for key, (_, t) in calls.items() if not t.is_alive()]:
                 del calls[done]              # a long session keeps only what runs

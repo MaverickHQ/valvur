@@ -28,7 +28,7 @@ def test_interrupting_a_scan_stops_the_containers(monkeypatch, tmp_path):
     import socket
     from pathlib import Path
 
-    from valvur import cli, owner
+    from valvur import cli, owner, service
 
     fake = Path(__file__).parent / "fixtures" / "fake-runtime" / "docker"
     state = tmp_path / "runtime.json"
@@ -45,7 +45,9 @@ def test_interrupting_a_scan_stops_the_containers(monkeypatch, tmp_path):
 
     previous = signal.getsignal(signal.SIGINT), signal.getsignal(signal.SIGTERM)
     try:
-        cli._stop_on_interrupt(Runtime())
+        cancellation = service.Cancellation()
+        cancellation.attach(Runtime())         # the scan's runner, as the service holds it
+        cli._stop_on_interrupt(cancellation)
         with pytest.raises(SystemExit) as stopped:
             signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
     finally:
@@ -148,7 +150,7 @@ class _InImageSleeper:
     name = "sleeper"
     version = "0"
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def parse(self, output):

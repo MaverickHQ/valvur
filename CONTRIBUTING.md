@@ -83,6 +83,17 @@ network activity" passes trivially against a repository with nothing to scan. So
 
 Run `pytest -q -m "not e2e"` constantly and the full suite before pushing.
 
+**Name a test for what it tests,** module and function alike:
+`test_suppressions.py::test_an_expired_suppression_is_reported`, not after the task
+that wrote it. A task number says when a test was written; its name has to say what
+breaks when it fails.
+
+**A fact the code holds is generated into the docs, not compared with them.**
+`scripts/generate_docs.py` writes each `<!-- generated: … -->` block, and one test
+names any that differs; run it after changing a tool, a command, a setting, a path
+or a pin. `scripts/sync_skill.py` copies the skill to the plugin and the power. No
+test writes the repository.
+
 **The MCP surface is a committed snapshot.** `tests/fixtures/mcp/tools-list.json` is
 the `tools/list` reply byte for byte — the JSON every client sees. A change to a
 tool's name, description, schema or annotations fails
@@ -97,6 +108,11 @@ so the schema change is a diff a reviewer reads rather than one an agent finds.
 Comments explain **why**, especially why an obvious alternative was not taken. A
 comment saying what the line does is noise; one saying "found by CI on Linux, not
 locally" saves the next person a day.
+
+A new comment in `src` cites the ADR or the requirement behind it (`ADR-0022`,
+`F1.9`), not the task or phase that wrote it: those are planning, and they move to
+`docs/history` when the work closes. Existing citations change only when the code
+around them does.
 
 ## What will be turned down
 

@@ -60,21 +60,9 @@ jobs:
           fi
       - name: Open, or comment on, the one issue a failure gets (27.2.7)
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TITLE: the README's status line does not match PyPI and GHCR
-        run: |
-          set -eu
-          body=$(printf '%s\n\n%s\n' \
-            "The daily \`published\` check failed: $RUN" \
-            "Either the README says a version is published that PyPI or GHCR does not serve, or it still says release in progress after the release ran. Fix the one line (RELEASING.md, step 4) and dispatch this workflow again.")
-          existing=$(gh issue list --state open --search "$TITLE in:title" \
-                       --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-            echo "commented on #$existing"
-          else
-            gh issue create --title "$TITLE" --body "$body"
-            echo "opened an issue"
-          fi
+        uses: ./.github/actions/file-issue
+        with:
+          title: the README's status line does not match PyPI and GHCR
+          failed: "The daily `published` check failed"
+          body: |-
+            Either the README says a version is published that PyPI or GHCR does not serve, or it still says release in progress after the release ran. Fix the one line (RELEASING.md, step 4) and dispatch this workflow again.

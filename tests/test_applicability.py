@@ -147,7 +147,7 @@ def test_a_skipped_scanner_is_not_a_failure_and_is_reported(workspace, runner_fi
         kind = "scanner"
         name = "checkov"
 
-        def applies_to(self, workspace):
+        def applies_to(self, workspace, context=None):
             return False, "no infrastructure files found"
 
         def run(self, runner, workspace):

@@ -285,7 +285,7 @@ def test_a_mismatched_pair_is_a_warning_on_every_surface_and_never_a_refusal(
 ):
     """The rc1 hole: same version, different code. Said in run.json, SUMMARY.md and
     scan_status — and the scan still ran, because a mismatch is a diagnosis."""
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     run, results = _scan(tmp_path, monkeypatch, "a" * 64, "b" * 64)
 

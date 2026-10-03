@@ -64,17 +64,18 @@ def test_the_check_fails_on_one_and_says_which(traceability, tmp_path, monkeypat
     assert "N3.5" in out and ".github/workflows/refresh.yml:1" in out
 
 
-def test_the_archives_and_the_requirements_get_no_exemption(traceability, tmp_path):
-    """IDs are never renumbered, so the first version's IDs still resolve: an archive
-    citing one that does not is as wrong as code doing so. An amendment inside
-    `requirements.md` that names a missing ID is caught too."""
+def test_the_requirements_get_no_exemption_and_the_archive_is_not_read(traceability,
+                                                                       tmp_path):
+    """An amendment inside `requirements.md` that names a missing ID is caught. The
+    archive is a record, not a citation (D55f, amending D43), so an ID it names is
+    not read there, whether it resolves or not."""
     root = _repo(tmp_path, {
         "docs/history/tasks-phases-0-30.md": f"- [x] **12.3** met F1.1 and {MISSING_A}\n",
     })
     (root / ".kiro/specs/valvur/requirements.md").write_text(
         f"1. F1.1 — valvur SHALL scan. *Amends {MISSING_B}.*\n")
 
-    assert set(traceability.undefined_citations(root)) == {MISSING_A, MISSING_B}
+    assert set(traceability.undefined_citations(root)) == {MISSING_B}
 
 
 def test_the_files_read_are_the_documents_the_code_the_tests_and_the_workflows(

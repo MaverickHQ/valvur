@@ -347,7 +347,7 @@ def test_the_adapter_forwards_coverage_to_the_check_and_names_no_check_itself(mo
         def run(self, workspace):
             return []
 
-        def coverage(self, workspace, exclude=(), *, network=False):
+        def coverage(self, workspace, exclude=(), *, network=False, files=None):
             seen.append((workspace, exclude, network))
             return Coverage(inspects=("everything",), ignores=("nothing",))
 

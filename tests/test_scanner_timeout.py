@@ -48,7 +48,7 @@ def test_the_record_says_timed_out_and_stopped_without_the_argv():
     not `Command '[docker run … 1,500 characters …]' timed out`, which is what
     `str(TimeoutExpired)` gave the record until now (the gate's B6)."""
     from valvur.adapters import GitleaksAdapter
-    from valvur.api import _outcome
+    from valvur.fleet import outcome as _outcome
     from valvur.invocation import ScannerOutput
 
     long_argv = tuple(f"--flag-{i}" for i in range(60))
@@ -75,7 +75,9 @@ def test_the_cli_stops_on_sigterm_as_well_as_sigint(monkeypatch):
     installed: list[int] = []
     monkeypatch.setattr(signal, "signal", lambda signum, handler: installed.append(signum))
 
-    cli._stop_on_interrupt(runner=object())
+    from valvur import service
+
+    cli._stop_on_interrupt(service.Cancellation())
 
     assert {signal.SIGINT, signal.SIGTERM} <= set(installed)
 

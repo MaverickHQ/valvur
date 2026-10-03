@@ -11,6 +11,8 @@ Measured at the first gate: the 300 s default budget cut every Scanner on a
 
 from __future__ import annotations
 
+from .scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED
+
 #: The three things that make a scan finish, in the order they usually help.
 LEVERS = (
     "To finish: exclude what is not source (`[scan] exclude` in `.security-scan.toml`), "
@@ -20,31 +22,8 @@ LEVERS = (
 )
 
 
-#: The pre-flight's messages start with this (29.1.2); `scan_status` gives them
-#: their own line rather than listing them as a completion.
-WORKSPACE_PREFIX = "workspace: "
-
-
 def _largest(largest) -> str:
     return ", ".join(f"{d} {n:,}" for d, n in largest) or "none"
-
-
-def workspace_line(files: int, largest) -> str:
-    return f"{WORKSPACE_PREFIX}{files:,} files to scan; largest: {_largest(largest)}"
-
-
-def large_tree_line(files: int, largest) -> str | None:
-    """The sentence a first run needed before its budget was spent, not after:
-    the directory, its count, and the one line that drops it. None below the
-    threshold, or when the files are at the root."""
-    from .exclusions import LARGE_TREE
-
-    if files < LARGE_TREE or not largest or largest[0][0] == ".":
-        return None
-    top, count = largest[0]
-    return (f"{WORKSPACE_PREFIX}{top} holds {count:,} of them — if it is not source, "
-            f'`[scan] exclude = ["{top}"]` in `.security-scan.toml` drops it before the '
-            "Scanners start")
 
 
 def budget_fields(scanners, budget_s: float, files: int | None = None, largest=()) -> dict:
@@ -54,9 +33,8 @@ def budget_fields(scanners, budget_s: float, files: int | None = None, largest=(
     model the fields and not the text."""
     return {
         "seconds": float(budget_s),
-        "cut": {s.tool: round(s.duration_s, 1) for s in scanners
-                if s.reason.startswith("cut by the ")},
-        "not_started": [s.tool for s in scanners if s.reason.startswith("not started: ")],
+        "cut": {s.tool: round(s.duration_s, 1) for s in scanners if s.budget == BUDGET_CUT},
+        "not_started": [s.tool for s in scanners if s.budget == BUDGET_NOT_STARTED],
         "files": files,
         "largest": [[d, n] for d, n in largest],
         "levers": LEVERS,
@@ -69,8 +47,8 @@ def budget_exhausted_message(scanners, budget_s: float, files: int | None = None
     what never started, and the levers — never *every scanner failed*, which is
     what killing them looks like from inside, and never *run doctor*, which says
     *ready* on a machine that is."""
-    cut = [s for s in scanners if s.reason.startswith("cut by the ")]
-    unstarted = [s for s in scanners if s.reason.startswith("not started: ")]
+    cut = [s for s in scanners if s.budget == BUDGET_CUT]
+    unstarted = [s for s in scanners if s.budget == BUDGET_NOT_STARTED]
     ran = ", ".join(f"{s.tool} {s.duration_s:.0f}s" for s in cut) or "nothing"
     parts = [f"the {budget_s:g}s budget ran out before any Scanner finished: "
              f"{len(cut)} cut ({ran})"]

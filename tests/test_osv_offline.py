@@ -17,6 +17,12 @@ import pytest
 from valvur import osv_offline
 
 
+def _words(said: list[str]):
+    """A progress callback keeping each event's words."""
+    return lambda event: said.append(str(event))
+
+
+
 @pytest.fixture
 def cache_root(tmp_path, monkeypatch):
     from valvur import cache
@@ -124,6 +130,8 @@ def test_a_first_offline_scan_fetches_what_the_file_set_needs_and_records_it(
     monkeypatch.setattr(osv_offline, "fetch", fake_fetch)
 
     class Runtime(LocalRuntime):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):                      # a runtime that can fetch
             raise AssertionError("the Trivy database is present")
 
@@ -132,7 +140,7 @@ def test_a_first_offline_scan_fetches_what_the_file_set_needs_and_records_it(
     (ws / "package-lock.json").write_text('{"packages": {}}')
     said: list[str] = []
     run = api.scan(ws, runner=Runtime(Path(__file__).parent / "fixtures" / "fake-tools"),
-                   adapters=[OsvAdapter().for_profile(network=False)], on_progress=said.append)
+                   adapters=[OsvAdapter().for_profile(network=False)], on_progress=_words(said))
     assert fetched == ["npm"]
     assert any(r["what"] == "OSV database (npm)" for r in run.fetched)
     assert any(line.startswith("fetching the OSV database for npm") for line in said), said

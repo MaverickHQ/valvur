@@ -29,7 +29,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .. import cache
 from .. import ecosystems as _ecosystems
+from ..settings import ENVIRONMENT as _ENVIRONMENT
 
 #: An air-gapped site's copy of the index (22.B.3): a URL under which the files of
 #: this directory — one per ecosystem, and `metadata.json` — are served as-is, by
@@ -37,12 +39,12 @@ from .. import ecosystems as _ecosystems
 #: `built_at` travels with them, so the age a scan reports is the age of the data
 #: (F6.11), not of the copy. Plain HTTP is accepted here and nowhere else: this URL
 #: is set by an operator, never derived from a package name.
-MIRROR_ENV = "VALVUR_NAME_INDEX_URL"
-INDEX_REPOSITORY_ENV = "VALVUR_INDEX_REPOSITORY"
+MIRROR_ENV = _ENVIRONMENT["name_index_url"]
+INDEX_REPOSITORY_ENV = _ENVIRONMENT["index_repository"]
 DEFAULT_INDEX_REPOSITORY = "ghcr.io/maverickhq/valvur-index:latest"
 #: `VALVUR_DB_INSECURE`'s counterpart: TLS without verification, or plain HTTP, for
 #: a mirror registry that has neither a public certificate nor any TLS at all.
-INDEX_INSECURE_ENV = "VALVUR_INDEX_INSECURE"
+INDEX_INSECURE_ENV = _ENVIRONMENT["index_insecure"]
 #: One file per ecosystem, keyed by the ecosystem name the Check already uses for
 #: Finding identity (ADR-0003) — so the Check can go from a declared package to a file
 #: without a second table that could disagree with the first.
@@ -195,8 +197,6 @@ def _now() -> str:
 
 
 def _age_days(stamp: object) -> float | None:
-    from .. import cache
-
     return cache.stamp_age_days(stamp)
 
 

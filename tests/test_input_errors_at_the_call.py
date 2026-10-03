@@ -47,9 +47,9 @@ def test_a_bad_scan_argument_is_refused_at_the_call_in_one_plain_sentence(tmp_pa
 
 
 def test_a_number_sent_as_a_string_is_still_a_number():
-    from valvur.operations import _checked_budget
+    from valvur.operations import checked_budget
 
-    assert _checked_budget("300") == 300.0
+    assert checked_budget("300") == 300.0
 
 
 @pytest.mark.parametrize("tool, arguments", [
@@ -69,7 +69,7 @@ def test_a_readers_bad_argument_is_refused_in_one_plain_sentence(tmp_path, tool,
 
 
 def _settled(tmp_path, work):
-    from valvur.operations import scan_status_reply
+    from valvur.mcp.handlers import scan_status_reply
 
     jobs.reset()
     job = jobs.start(tmp_path, "offline", work)
@@ -82,7 +82,7 @@ def _settled(tmp_path, work):
 def test_a_running_scan_does_not_suggest_doctor(tmp_path, monkeypatch):
     import threading
 
-    from valvur.operations import scan_status_reply
+    from valvur.mcp.handlers import scan_status_reply
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.05)   # answer while it runs
     jobs.reset()

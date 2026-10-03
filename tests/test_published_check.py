@@ -24,7 +24,7 @@ def test_the_check_runs_daily_and_by_hand_and_may_open_an_issue():
     assert re.search(r"^\s+- cron: ", text, re.M), "no schedule"
     assert "workflow_dispatch:" in text
     assert "issues: write" in text and "if: failure()" in text
-    assert "gh issue create" in text and "gh issue comment" in text
+    assert "uses: ./.github/actions/file-issue" in text
 
 
 def test_the_check_reads_the_readme_and_asks_both_registries():
@@ -40,4 +40,6 @@ def test_the_check_reads_the_readme_and_asks_both_registries():
 
 def test_every_action_is_pinned_by_commit():
     for step in _text().split("uses: ")[1:]:
+        if step.startswith("./"):
+            continue                       # the repository's own, at this commit
         assert re.match(r"\S+@[0-9a-f]{40} # v", step), "an action pinned by tag"

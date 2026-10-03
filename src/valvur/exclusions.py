@@ -46,18 +46,32 @@ def _prefixes(entries) -> tuple[str, ...]:
     return tuple(str(e).strip().strip("/") for e in entries or [] if str(e).strip().strip("/"))
 
 
+PROJECT_FILE = ".security-scan.toml"
+
+
+def read_project(workspace: Path) -> tuple[dict, str | None]:
+    """The project file, parsed: its tables, and why it could not be read, if it
+    could not. Empty and None when there is none. A scan reads it once, into its
+    scan context (D52d); `[scan]` and the suppressions are both drawn from it."""
+    import tomllib
+
+    path = workspace / PROJECT_FILE
+    if not path.is_file():
+        return {}, None
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8")), None
+    except (tomllib.TOMLDecodeError, OSError) as exc:
+        return {}, f"{PROJECT_FILE} could not be read: {exc}"
+
+
 def load_scan_settings(workspace: Path) -> ScanSettings:
     """The `[scan]` table, or the defaults when there is no file or it is
     malformed — the suppression loader reads the same file and reports that."""
-    import tomllib
+    return scan_settings(read_project(workspace)[0])
 
-    path = workspace / ".security-scan.toml"
-    if not path.is_file():
-        return ScanSettings()
-    try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, OSError):
-        return ScanSettings()
+
+def scan_settings(raw: dict) -> ScanSettings:
+    """The `[scan]` table of a parsed project file, with its defaults."""
     scan = raw.get("scan") or {}
     return ScanSettings(
         exclude=_prefixes(scan.get("exclude")),

@@ -110,6 +110,8 @@ def test_valvur_update_fetches_it_and_says_so(served, monkeypatch):
         def image_present(self):
             return True
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 

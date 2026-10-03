@@ -30,6 +30,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from .owner import alive
+
 
 class Busy(RuntimeError):
     """Someone else holds the lock, and we chose not to wait. The message names
@@ -74,8 +76,6 @@ def held(path: Path, *, exclusive: bool = True, wait: bool = True,
 
 def holder(path: Path) -> tuple[int | None, bool]:
     """The PID an exclusive holder wrote, and whether it runs on this host."""
-    from .owner import alive
-
     try:
         raw = path.read_text(encoding="utf-8").strip()
     except OSError:

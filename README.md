@@ -157,7 +157,7 @@ gate in CI. Three ways to have it:
   `.kiro/skills/valvur/`, never over what is there, and `valvur doctor` says whether a
   project's copy is this version's.
 
-<!-- clients:start — rendered from valvur.mcp.clients; a test holds this block to it -->
+<!-- generated: mcp-clients -->
 
 **Claude Code** — `.mcp.json` or `~/.claude.json`. Approve the project server once in an interactive `claude`; a headless or SDK session passes `--mcp-config .mcp.json --strict-mcp-config`. *Measured 2026-09-28 at R6's exit: `claude -p` scanned the eight acceptance repositories through this server; `claude mcp list` health-checks a project server only once it is approved.*
 
@@ -336,7 +336,7 @@ mcpServers:
 }
 ```
 
-<!-- clients:end -->
+<!-- /generated -->
 
 Then ask it to scan. The server is **stdio only**, no listener and no port, and it has
 seven tools:
@@ -402,8 +402,11 @@ valvur doctor               # if that did not work: what this machine is missing
 valvur check npm left-pad   # before an install: real, a near-miss, or malicious? Offline
 ```
 
-Nine commands in all: `scan`, `findings`, `status`, `update`, `doctor`, `gate` and
-`suppress`, with `init` and `check`. `--help` on each says what it takes.
+<!-- generated: cli-commands -->
+
+Nine commands in all: `scan`, `update`, `findings`, `status`, `doctor`, `gate`, `suppress`, `init` and `check`. `--help` on each says what it takes.
+
+<!-- /generated -->
 
 A first scan fetches what it lacks and says so as it goes. Measured from an empty cache
 with the image already local, on this Mac: 59 s in all, of which 21.5 s fetched the

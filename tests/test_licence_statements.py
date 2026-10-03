@@ -169,7 +169,7 @@ def test_the_gate_never_sees_a_licence_statement_at_any_threshold(tmp_path):
 
 def test_scan_status_reports_a_statement_as_not_covered_not_active(tmp_path):
     from valvur import results
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     results.write(tmp_path, ScanRun(findings=[_statement(STATEMENTS[0])]))
 
@@ -313,13 +313,12 @@ def test_the_terminal_says_could_not_read_rather_than_not_checked(
     would be false of a licence file valvur opened and could not identify."""
     from conftest import FakeRunner
 
-    from valvur import cli
+    from valvur import cli, service
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False, out=None):
+    def fake_scan(workspace, *, profile, jobs=None, sbom=False, **asked):
         return ScanRun(findings=[_statement(STATEMENTS[2]), _gap()], profile=profile)
 
-    monkeypatch.setattr(cli, "scan", fake_scan)
+    monkeypatch.setattr(service, "run_scan", fake_scan)
     (tmp_path / "ws").mkdir()
 
     assert cli.main(["scan", str(tmp_path / "ws")], runner=FakeRunner()) == 0

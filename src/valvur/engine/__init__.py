@@ -22,6 +22,8 @@ import time
 from pathlib import Path
 from typing import IO
 
+from ..egress import NETWORK_ENV
+
 WORKSPACE = "/workspace"
 RESULTS = "/results"
 CACHE = "/cache"
@@ -94,6 +96,11 @@ class _Running:
         argv = [_mapped(a, workspace, results, cache) for a in tool["argv"]]
         env = {**os.environ, **{name: _mapped(value, workspace, results, cache)
                                 for name, value in tool.get("env", [])}}
+        # The network grant is the plan's, per tool (D52c), in every runtime: told
+        # to the tool it names and to no other, whatever this process inherited.
+        env.pop(NETWORK_ENV, None)
+        if tool.get("network"):
+            env[NETWORK_ENV] = "1"
         self.stderr_path = scratch / f"{self.name}.stderr"
         stdout_path = results / f"{self.name}.stdout"
         self.started = time.monotonic()

@@ -134,9 +134,10 @@ def _recorded() -> set[tuple[str, str]]:
 
 def _limits() -> set[tuple[str, str]]:
     """The code's own limits, which the README states and no measurement produces."""
-    from valvur import fileset, history, operations, runner
+    from valvur import fileset, history, runner
+    from valvur.mcp import handlers
 
-    budget = f"{operations.MCP_BUDGET_S:.0f}"
+    budget = f"{handlers.MCP_BUDGET_S:.0f}"
     return {(budget, "time"), (f"{history.MAX_COMMITS:,}", "commits"),
             (f"{history.MAX_BYTES // 2**20}", "size"),
             (f"{runner.SCAN_CEILING_BYTES // 2**30}", "size"),
@@ -175,19 +176,15 @@ def test_the_static_analysis_claim_is_tracks_1_and_2_as_the_baseline_records_the
 
 # --------------------------------------------------- R16.4: the README as built
 
-def test_the_readme_names_every_tool_and_every_command():
-    from test_seven_commands import SEVEN
-
+def test_the_readme_names_every_tool():
+    """The commands are a generated block (R24.2); the tools' table is prose, each
+    row the README's own words for what the tool does."""
     from valvur.mcp.tools import registry
 
-    text = README.read_text()
     tools = re.findall(r"^\| `(\w+)` \|", _section("For AI coding agents: the primary way in"),
                        re.M)
-    commands = re.search(r"Nine commands in all: (.+?)\. ", text, re.S)
 
     assert sorted(tools) == sorted(t.name for t in registry())
-    assert commands and sorted(re.findall(r"`(\w+)`", commands[1])) == \
-        sorted([*SEVEN, "init", "check"])
 
 
 def test_the_skill_is_installed_from_where_it_ships():

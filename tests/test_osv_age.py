@@ -62,4 +62,6 @@ def test_staleness_is_the_exports_age_however_new_the_file():
     now = time.time()
     os.utime(osv_offline.path("Go"), (now, now))
 
-    assert osv_offline.stale(["Go"]) == ["Go"]
+    from valvur import datasets
+
+    assert osv_offline.stale(["Go"], datasets.OSV.due) == ["Go"]

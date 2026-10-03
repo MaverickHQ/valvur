@@ -1,3 +1,5 @@
+<!-- generated: mcp-tools -->
+
 # valvur's MCP tools
 
 Rendered from the server's own list of tools; a test holds this file to it.
@@ -73,3 +75,5 @@ It changes nothing.
   - `ecosystem` (string, required): npm, pip, cargo, gem or composer; go and maven answer unknown
   - `name` (string, required)
   - `version` (string): The version to be installed, when known: some are malicious only at one version.
+
+<!-- /generated -->

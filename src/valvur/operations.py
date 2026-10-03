@@ -4,20 +4,18 @@ Both the MCP tools and the CLI call these functions, so the two surfaces cannot
 drift (F9.3). Parity is structural rather than tested by comparing formatted output,
 which would be brittle and would keep passing while the semantics diverged.
 
-Each returns plain text: an agent reads it, and so does a person.
+Each returns plain text: an agent reads it, and so does a person. What only a
+surface knows (an MCP client's roots, a call's progress, a scan's job) is passed in,
+so nothing here imports `valvur.mcp` (D51).
 """
 
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
-from typing import Any
 
 from . import profiles as _profiles
 from .findings import exploit_badge as _exploit_badge
-from .mcp import jobs
-from .mcp.jobs import State
 from .results import RESULTS_DIR
 
 DEFAULT_LIMIT = 20
@@ -30,14 +28,14 @@ PROJECT_DIR_ENV = "CLAUDE_PROJECT_DIR"
 from .refusal import Refusal  # noqa: E402 — re-exported: callers import it from here
 
 
-def resolve_workspace(raw: str | None) -> Path:
+def resolve_workspace(raw: str | None, *, roots: list[Path] | None = None) -> Path:
     """The Workspace a call names, or a Refusal. Never creates anything (R1.2):
     a relative path in the second gate became `relative/path/.security-scan/`
-    inside the project, and a confident report on an empty folder."""
+    inside the project, and a confident report on an empty folder. `roots` are the
+    MCP client's, when it declared any (R6.4)."""
     import os
 
     project = os.environ.get(PROJECT_DIR_ENV) or None
-    roots = _client_roots()
     if not raw:
         # The client's project (R6.4): Claude Code's variable, or the first root it
         # names over `roots/list`; a person at a terminal means where they stand.
@@ -65,16 +63,7 @@ def resolve_workspace(raw: str | None) -> Path:
     return path
 
 
-def _client_roots() -> list[Path] | None:
-    """The roots of the MCP client this call comes from; None outside a call, or
-    when the client declared none."""
-    from .mcp import protocol
-
-    call = protocol.current_call()
-    return call.client.roots() if call is not None and call.client is not None else None
-
-
-def _checked_profile(value) -> str:
+def checked_profile(value) -> str:
     """The Profile a call names, or a Refusal in one sentence (R1.5)."""
     try:
         return _profiles.resolve(value or _profiles.DEFAULT)
@@ -82,7 +71,7 @@ def _checked_profile(value) -> str:
         raise Refusal(f"`profile` must be offline or full; got {value!r}.") from None
 
 
-def _checked_budget(value) -> float | None:
+def checked_budget(value) -> float | None:
     """`budget_s` as seconds, None when not given, or a Refusal (R1.5). Zero means
     no budget, as it always has; a negative or non-numeric value used to start a
     job that failed a moment later in Python's words."""
@@ -113,9 +102,9 @@ def _checked_limit(value) -> int:
     return number
 
 
-def _checked(args: dict) -> dict:
+def _checked(args: dict, roots: list[Path] | None = None) -> dict:
     """The call's arguments with its Workspace resolved and checked (R1.2)."""
-    return {**args, "workspace": str(resolve_workspace(args.get("workspace")))}
+    return {**args, "workspace": str(resolve_workspace(args.get("workspace"), roots=roots))}
 
 def _results(workspace: str | None) -> Path:
     return Path(workspace or ".").resolve() / RESULTS_DIR
@@ -143,177 +132,28 @@ def _one_line(finding: dict) -> str:
 
 # ----------------------------------------------------------------- the tools
 
-#: The scan budget over MCP when the client names none (23.3.7): F2.6's five
-#: minutes. The CLI has none unless `--budget` is given — a person at a terminal
-#: can press Ctrl-C; an agent session with a runaway Scanner waited ten minutes.
-MCP_BUDGET_S = 300.0
+def update_reply(args: dict, *, progress=None) -> tuple[str, dict]:
+    """`update` (ADR-0025, R6.6; F10.8): what `valvur update` does, each step said
+    to `progress` when given, and the answer the list of what was fetched. An
+    explicit request, so `fetch = never` does not refuse it: an air-gapped site runs
+    it against its mirrors."""
+    # deferred: startup; the MCP server loads this module before its handshake.
+    from . import service, updating
 
-
-def _scan_with_budget(budget_s: float | None, fresh: bool = False):
-    """The work a background job performs, with its budget bound in, and with
-    `fresh` whether every Scanner runs (R14.3). Returns the summary it will report.
-    A budget of 0 means none."""
-    budget = float(budget_s) if budget_s else None
-
-    def run_scan(workspace: Path, profile: str, progress) -> str:
-        from . import engine_host
-        from .api import scan
-
-        # The Scan Container (ADR-0022): the only engine since R3.9.
-        runner: Any = engine_host.for_scan()
-        job = jobs.current(workspace)
-        if job is not None:
-            job.canceller = runner.kill      # `scan_cancel` stops this fleet, not another's
-        if fresh:                  # passed only when asked, as every caller always did
-            run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                       budget_s=budget, fresh=True)
-        else:
-            run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                       budget_s=budget)
-        return _summarise(workspace, run)
-
-    run_scan.budget_s = budget  # type: ignore[attr-defined]
-    return run_scan
-
-
-def _work(budget_s: float | None, args: dict):
-    """The job a `scan` call starts: the budget asked, or MCP's, and every Scanner
-    run when `fresh` is asked (R14.3); passed only then, as it always was."""
-    budget = MCP_BUDGET_S if budget_s is None else budget_s
-    return _scan_with_budget(budget, fresh=True) if args.get("fresh") \
-        else _scan_with_budget(budget)
-
-
-def _run_scan(workspace: Path, profile: str, progress) -> str:
-    return _scan_with_budget(MCP_BUDGET_S)(workspace, profile, progress)
-
-
-def _summarise(workspace: Path, run) -> str:
-    lines = [f"{run.status}: {len(run.findings)} finding(s). {run.status_reason}."]
-    if run.failures:
-        lines += ["", "INCOMPLETE — these scanners did not run:"]
-        lines += [f"  - {f.tool}: {f.reason}" for f in run.failures]
-        lines.append("Findings are partial; do not treat this as a clean result.")
-    if run.fixed:
-        lines.append(f"Fixed since the last scan: {len(run.fixed)}")
-    if run.not_rechecked:
-        lines.append(f"Not re-checked since the last scan: {len(run.not_rechecked)} — their "
-                     "Scanner did not run this time; neither fixed nor persisting")
-    # The first thing an agent reads after `start_scan` completes. Saying
-    # "inconclusive: 0 finding(s)" without the reason invites it to treat the number
-    # as the answer.
-    lines += _staleness_note(str(workspace), found_nothing=not run.findings)
-    return "\n".join(lines)
-
-
-def start_scan(args: dict) -> str:
-    """Start a scan and return at once (F9.1).
-
-    Always asynchronous, never "synchronous when fast": a contract that changes shape
-    with project size is one an agent cannot reason about, and the slow case is
-    exactly the repository that matters.
-    """
-    workspace = resolve_workspace(args.get("workspace"))
-    profile = _checked_profile(args.get("profile"))
-    budget_s = _checked_budget(args.get("budget_s"))
-
-    existing = jobs.current(workspace)
-    if existing and existing.state is State.RUNNING:
-        return (
-            f"A {existing.profile} scan is already running here "
-            f"({existing.elapsed:.0f}s so far). Poll `scan_status`."
-        )
-    if existing and existing.state is State.CANCELLING:
-        return (
-            f"The previous {existing.profile} scan here is still stopping "
-            f"({existing.elapsed:.0f}s since it started). Poll `scan_status` until it "
-            "reads CANCELLED, then call `scan` again."
-        )
-
-    jobs.start(workspace, profile, _work(budget_s, args))
-    return (
-        f"Started a {profile} scan of {workspace}.\n"
-        "Scans take seconds to minutes depending on the project, so this returns "
-        "immediately.\n\n"
-        "Poll `scan_status` until it reports done, then use `findings`."
-    )
-
-
-def scan_reply(args: dict) -> tuple[str, dict]:
-    """`scan` over MCP (R6.3, ADR-0024): start the scan, or attach to the one
-    already running here, and return its result in schema 2, sending each progress
-    message as a notification on the way.
-
-    R6.1 measured that Claude Code keeps a 150-second call's result, and start-and-
-    poll cost the second gate's agent sixteen turns. A client that lets go of the
-    call, by cancelling it or by closing stdin, stops the wait and not the scan: the
-    next `scan` here attaches and returns the same generation, and `scan_cancel` is
-    what stops one."""
-    from . import reply
-
-    workspace = resolve_workspace(args.get("workspace"))
-    profile = _checked_profile(args.get("profile"))
-    budget_s = _checked_budget(args.get("budget_s"))
-    job = jobs.start(workspace, profile, _work(budget_s, args))
-    _attach(job, None)
-    fields = reply.fields(workspace, job)
-    return reply.text(fields), fields
-
-
-def update_reply(args: dict) -> tuple[str, dict]:
-    """`update` over MCP (ADR-0025, R6.6; F10.8): what `valvur update` does, each
-    step sent as progress, and the answer the list of what was fetched. An explicit
-    request, so `fetch = never` does not refuse it: an air-gapped site runs it
-    against its mirrors."""
-    from . import engine_host, updating
-    from .mcp import protocol
-
-    call = protocol.current_call()
     said: list[str] = []
 
     def say(line: str) -> None:
         said.append(line)
-        if call is not None:
-            call.progress(line)
+        if progress is not None:
+            progress(line)
 
-    updated = updating.run(say, engine_host.for_scan(),
-                           if_stale=bool(args.get("if_stale")))
+    updated = updating.run(say, service.new_runner(), if_stale=bool(args.get("if_stale")))
     fetched = ", ".join(updated.fetched) or "nothing"
     verdict = (f"Fetched: {fetched}." if updated.ok else
                f"The update did not finish; fetched: {fetched}. The reason is above.")
     return "\n".join([*said, "", verdict]), {"ok": updated.ok,
                                               "fetched": list(updated.fetched),
                                               "said": said}
-
-
-def _attach(job, seconds: float | None) -> None:
-    """Wait for `job` to settle, for `seconds` at most (None: as long as it takes),
-    sending each progress message as a notification to the call being answered,
-    and stopping once the client lets go of the call (R6.3)."""
-    from .mcp import protocol
-
-    call = protocol.current_call()
-    deadline = None if seconds is None else time.monotonic() + seconds
-    sent = 0
-    while True:
-        step = 0.25 if deadline is None else min(0.25, max(0.0, deadline - time.monotonic()))
-        if job.settled.wait(timeout=step):
-            break
-        sent = _forward(job, call, sent)
-        if call is not None and call.detached.is_set():
-            break
-        if deadline is not None and time.monotonic() >= deadline:
-            break
-    _forward(job, call, sent)
-
-
-def _forward(job, call, sent: int) -> int:
-    """Each progress message the job has said since `sent`, as a notification."""
-    said = list(job.progress)
-    if call is not None:
-        for message in said[sent:]:
-            call.progress(message)
-    return len(said)
 
 
 def _provenance(workspace: str | None) -> dict:
@@ -329,6 +169,7 @@ def _provenance(workspace: str | None) -> dict:
 def _staleness_note(workspace: str | None, *, found_nothing: bool) -> list[str]:
     """What an agent must be told when the data was too old to be evidence (the
     words are `reply`'s, one copy for every surface)."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from .reply import staleness_note
 
     return staleness_note(Path(workspace or ".").resolve(), _provenance(workspace),
@@ -350,13 +191,13 @@ def _text_of(reply):
     return text
 
 
-def findings_reply(args: dict) -> tuple[str, dict]:
+def findings_reply(args: dict, *, roots: list[Path] | None = None) -> tuple[str, dict]:
     """`findings` (R6.5, D12): the last scan's Findings, worst first, filtered by
     fingerprint, group, rule and path prefix, by status and suppression; with a
     fingerprint, that Finding in full. It says when it clamped the limit, and what
     it did not show. The text, and the same answer as a dict for
     `structuredContent`, from one computation (28.2.2)."""
-    args = _checked(args)
+    args = _checked(args, roots)
     asked = _checked_limit(args.get("limit"))
     limit = min(asked, MAX_LIMIT)
     status = args.get("status")
@@ -424,6 +265,7 @@ def _structured_finding(finding: dict) -> dict:
     on the way out (F9.9) — idempotent on a `findings.json` this valvur wrote,
     where the model boundary already did it, and a guard on one an older valvur
     did. The reply is bounded by `limit` and by `defang.MAX_EVIDENCE` per entry."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import defang
 
     exploit = finding.get("exploit") or {}
@@ -502,6 +344,7 @@ def _explained(finding: dict) -> str:
         # Neutralised at the model boundary (F3.13, F9.9), and fenced here always
         # (29.3.3): quoted, never presented as prose the agent might read as
         # addressed to it — the markers `SUMMARY.md` says quoted text carries.
+        # deferred: startup; the MCP server loads this module before its handshake.
         from . import defang
 
         lines += ["", "Evidence:", defang.neutralise(finding["evidence"], always_fence=True)]
@@ -514,41 +357,25 @@ def _explained(finding: dict) -> str:
     return "\n".join(lines)
 
 
-def cancel_scan(args: dict) -> str:
-    """Stop a running scan (23.3.3): the same outcome Ctrl-C gives the CLI (F1.11)
-    — containers stopped, nothing written, not a failure."""
-    workspace = resolve_workspace(args.get("workspace"))
-    job, stopped = jobs.cancel(workspace)
-    if job is None:
-        return f"No scan is running in {workspace}."
-    containers = (
-        f"stopped {stopped} container(s)" if stopped
-        else "no container had started; the scan stops at its next step"
-    )
-    return (
-        f"Cancelling the {job.profile} scan of {workspace} after {job.elapsed:.0f}s — "
-        f"{containers}.\n"
-        "No results are written for a cancelled scan; the previous results, if any, "
-        "stand. `scan_status` will read CANCELLED once the fleet has stopped; call "
-        "`scan` to start again."
-    )
-
-
-def doctor(args: dict) -> str:
+def doctor(args: dict, *, roots: list[Path] | None = None,
+           served: tuple[str, ...] | None = None) -> str:
     """Every precondition a scan has, checked and named before one runs (23.3.1).
-    Read-only; opens no socket unless `network` is asked for."""
+    Read-only; opens no socket unless `network` is asked for. `served` is the tools
+    of the MCP server answering, when it is one (R6.9)."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import doctor as _doctor
 
-    workspace = resolve_workspace(args.get("workspace"))
-    checks = _doctor.run(workspace, network=bool(args.get("network")))
+    workspace = resolve_workspace(args.get("workspace"), roots=roots)
+    checks = _doctor.run(workspace, network=bool(args.get("network")), served=served)
     return _doctor.render(checks, workspace)
 
 
-def check_package_reply(args: dict) -> tuple[str, dict]:
+def check_package_reply(args: dict, *,
+                        roots: list[Path] | None = None) -> tuple[str, dict]:
     """`check_package` (D28, F9.11): each package's answer, from this machine's cache
     and never from a registry, as `valvur check --json` gives them."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import packages
-    from .refusal import Refusal
 
     asked = args.get("packages") or []
     if not isinstance(asked, list) or not asked:
@@ -564,7 +391,8 @@ def check_package_reply(args: dict) -> tuple[str, dict]:
             raise Refusal("Each package needs an `ecosystem` and a `name`.",
                           kind="missing-argument")
         wanted.append((item["ecosystem"], item["name"], item.get("version") or None))
-    answers = packages.check(wanted, workspace=resolve_workspace(args.get("workspace")))
+    answers = packages.check(wanted, workspace=resolve_workspace(args.get("workspace"),
+                                                                 roots=roots))
     flagged = sum(answer.flagged for answer in answers)
     lines = [f"{a.verdict}: {a.ecosystem} {a.name}"
              + (f"@{a.version}" if a.version else "") + f" — {a.reason}" for a in answers]
@@ -575,21 +403,21 @@ def check_package_reply(args: dict) -> tuple[str, dict]:
                                "flagged": flagged, "checked": len(answers)}
 
 
-def scan_status_reply(args: dict) -> tuple[str, dict]:
-    """Schema 2 (R6.2, ADR-0024): the fields, and the text rendered from them.
-
-    A running scan is attached to (R6.3): the call waits for its result, sending
-    its progress, up to `jobs.STATUS_WAIT_SECONDS`, and never starts one. Returning
-    instantly made an agent pay fourteen turns for one scan (task 10.2.5)."""
+def status_of(workspace: Path, job=None, *, waited_s: float | None = None
+              ) -> tuple[str, dict]:
+    """Schema 2 (R6.2, ADR-0024): the fields, and the text rendered from them, for
+    the scan of `workspace`: `job`'s state when a surface holds one that has not
+    finished well, else what the Results Folder holds."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import reply
 
-    args = _checked(args)
-    workspace = Path(args["workspace"])
-    job = jobs.current(workspace)
-    if job is not None and job.state in jobs.ACTIVE:
-        _attach(job, jobs.STATUS_WAIT_SECONDS)
-    fields = reply.fields(workspace, job)
+    fields = reply.fields(workspace, job, waited_s=waited_s)
     return reply.text(fields), fields
+
+
+def scan_status_reply(args: dict, *, roots: list[Path] | None = None) -> tuple[str, dict]:
+    """`status`: what the last scan here actually did, from its Results Folder."""
+    return status_of(Path(_checked(args, roots)["workspace"]))
 
 
 scan_status = _text_of(scan_status_reply)

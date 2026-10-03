@@ -53,24 +53,15 @@ def test_claude_code_validates_it_strictly(path):
 
 def _held_to_the_package(copy: Path) -> None:
     """`copy` holds the package's skill exactly: every file, byte for byte, and no
-    other. `UPDATE_SKILL=1` writes it, as it renders the skill's own blocks."""
-    import os
-
+    other. `scripts/sync_skill.py` writes it; this only compares (R24.3)."""
     from valvur import skill
 
-    if os.environ.get("UPDATE_SKILL"):
-        if copy.exists():
-            shutil.rmtree(copy)
-        for relative, data in skill.files().items():
-            (copy / relative).parent.mkdir(parents=True, exist_ok=True)
-            (copy / relative).write_bytes(data)
     present = {p.relative_to(copy).as_posix(): p.read_bytes()
                for p in sorted(copy.rglob("*")) if p.is_file()}
 
     assert present == skill.files(), (
         f"{copy} is not the package's skill; copy it with "
-        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py "
-        "tests/test_power.py`, in that order")
+        "`uv run python scripts/sync_skill.py`")
     assert not any(p.is_symlink() for p in copy.rglob("*")), "Claude Code skips a symlink"
 
 

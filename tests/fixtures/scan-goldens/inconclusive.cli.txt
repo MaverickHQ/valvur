@@ -1,0 +1,9 @@
+exit 0
+--- stdout
+  ! trivy did not complete: Trivy vulnerability database not present. Fetch it once with:
+  valvur update
+Scans then run fully offline against the cached database.
+  ! this scan is INCOMPLETE
+inconclusive: 0 active
+results: <TMP>/cli/inconclusive/.security-scan
+--- stderr

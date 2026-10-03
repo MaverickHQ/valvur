@@ -14,13 +14,18 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from .. import cache
 from .. import fingerprint as _fp
 from ..coverage import Coverage
 from ..findings import Dependency, Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from ..version import __version__ as _VERSION
 from .base import ScannerAdapter
+
+if TYPE_CHECKING:
+    from ..scancontext import ScanContext
 
 INDEX_REFUSAL = (
     "Package-name index not present, so dependency existence cannot be checked "
@@ -36,12 +41,11 @@ def _refuses_offline(name: str, network: bool) -> bool:
     with the fix rather than arriving as the Check's stderr; the Check refuses
     too, in case the mount is empty or partial — this is the version a
     first-time user actually reads."""
-    from .. import cache
-
     return name == "dependency-reality" and not network and not cache.name_index_present()
 
 
 def single_command(name: str, workspace: Path, *, network: bool) -> Invocation:
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
     from ..checks.dependency_reality import INDEX_ENV, INDEX_MOUNT
 
     # The index's path by variable, as OSV-Scanner's database is named, so an engine
@@ -77,17 +81,20 @@ class CheckAdapter(ScannerAdapter):
             raise RuntimeError(INDEX_REFUSAL)
         return single_command(self.name, workspace, network=self.network)
 
-    def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = (),
+                 context: ScanContext | None = None) -> Coverage:
         """Forwarded to the Check, which is the only thing that knows (22.D.3). The
         adapter used to answer this itself by testing `self.name` — ADR-0013's
         boundary crossed the wrong way, and a second place a Check's limits could
         be stated and drift from the first."""
-        from ..checks import REGISTRY
+        # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
+        from ..checks.registry import REGISTRY
 
         check = REGISTRY.get(self.name)
         if check is None:
             return Coverage()
-        return check.coverage(workspace, exclude, network=self.network)
+        return check.coverage(workspace, exclude, network=self.network,
+                              files=context.files if context is not None else None)
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
         findings = []
