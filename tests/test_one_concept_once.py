@@ -161,3 +161,39 @@ def test_one_scan_parses_the_project_file_once_and_builds_the_file_set_once(
     assert cli.main(["scan", str(ws)]) == 0
 
     assert (len(parses), len(builds)) == (1, 1)
+
+
+# ------------------------------------------------------- one flag builder
+
+def test_both_launchers_build_their_flags_with_one_function(tmp_path, monkeypatch):
+    """The Scan Container and the database fetch each had a flag builder of their
+    own (`ContainerRuntime.command`, `ContainerRunner._base_flags`), and the
+    invariants they share (read-only, no capabilities, the labels, the mounts the
+    network decision) were written twice."""
+    from valvur import runner as runner_module
+    from valvur.engine_host import ContainerRuntime
+    from valvur.invocation import Invocation
+    from valvur.runner import ContainerRunner
+
+    asked: list[dict] = []
+    real = runner_module.launch_flags
+
+    def recording(runtime, **kwargs):
+        asked.append(kwargs)
+        return real(runtime, **kwargs)
+
+    monkeypatch.setattr(runner_module, "launch_flags", recording)
+    scan = ContainerRuntime(image="valvur:dev", runtime="docker").command(tmp_path,
+                                                                          network=False)
+    fetch = ContainerRunner(image="valvur:dev", runtime="docker")
+    launched: list[list[str]] = []
+    monkeypatch.setattr(fetch, "_launch", lambda cmd, **_: launched.append(cmd) or (
+        _ for _ in ()).throw(RuntimeError("recorded")))
+    try:
+        fetch.run(Invocation(tool="trivy", version="0", argv=("trivy", "--version")))
+    except RuntimeError:
+        pass
+
+    assert len(asked) == 2
+    for argv in (scan, launched[0]):
+        assert {"--read-only", "--cap-drop=ALL", "--network=none"} <= set(argv)

@@ -30,7 +30,7 @@ def test_the_runner_records_the_argv_it_launched_on_the_output(tmp_path, monkeyp
         return subprocess.CompletedProcess(cmd, 0, stdout="[]", stderr="")
 
     monkeypatch.setattr(_runner.ContainerRunner, "_launch", fake_launch)
-    monkeypatch.setattr(_runner.ContainerRunner, "_base_flags", lambda self, *a, **k: ["run"])
+    monkeypatch.setattr(_runner, "launch_flags", lambda runtime, **k: ["run"])
     container = _runner.ContainerRunner(runtime="/usr/local/bin/docker", image="valvur:test")
     invocation = Invocation(tool="gitleaks", version="8.30.1",
                             argv=("gitleaks", "dir", "/workspace", "--report-format", "json"))

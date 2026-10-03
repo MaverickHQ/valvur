@@ -350,37 +350,24 @@ class ContainerRuntime(_Runtime):
                 snapshot_bytes: int = 0) -> list[str]:
         import uuid
 
-        from . import cache, egress, osv_offline, owner
-        from .runner import _user_flags, scan_resource_flags
+        from . import runner
 
-        db, names, osv = cache.trivy_db(), cache.name_index(), osv_offline.directory()
-        for directory in (db, names, osv):
-            directory.mkdir(parents=True, exist_ok=True)
         name = name or f"valvur-{uuid.uuid4().hex[:16]}"
-        # F1.6: on an enforcing host every mount valvur owns is labelled, or the
-        # plan, the reports and the cache are denied. The source is not mounted.
         z = ":z" if selinux_enforcing() else ""
         if snapshot_bytes > TMPFS_LIMIT:
             # Past the tmpfs: a volume named for this scan, removed after it.
-            landing = ["-v", f"{name}-snapshot:/workspace{z}"]
+            landing: tuple[str, ...] = ("-v", f"{name}-snapshot:/workspace{z}")
         else:
             # In memory, gone with the container.
-            landing = ["--tmpfs", "/workspace:rw,nosuid,size=512m,mode=1777"]
+            landing = ("--tmpfs", "/workspace:rw,nosuid,size=512m,mode=1777")
         return [
-            self.runtime, "run", "-i", "--rm", *owner.labels(self.generation),
-            "--name", name,
-            *_user_flags(self.runtime),
-            "--read-only", "--cap-drop=ALL", *scan_resource_flags(self.runtime),
-            # Opengrep's one-file binary unpacks 243 MB into $HOME, here, and execs
-            # it, on every scan; unpacking it in the image is in tasks.md §8.
-            "--tmpfs", "/tmp:rw,exec,nosuid,size=512m",   # noqa: S108 — the container's
-            *landing,
-            "-v", f"{scratch}:/results{z}",
-            "-v", f"{db}:/cache/trivy{z}",
-            "-v", f"{names}:/cache/names:ro{z and ',z'}",
-            # OSV's offline database (R4.6), read-only like the index.
-            "-v", f"{osv}:{osv_offline.MOUNT}:ro{z and ',z'}",
-            *egress.Egress(network=network).container_flags(),
+            *runner.launch_flags(
+                self.runtime, generation=self.generation, name=name, scratch=scratch,
+                network=network, interactive=True, landing=landing, osv=True,
+                resources=runner.scan_resource_flags(self.runtime),
+                # Opengrep's one-file binary unpacks 243 MB into $HOME, here, and
+                # execs it, on every scan; unpacking it in the image is D54(a).
+                exec_tmp=True),
             self.image, "python", "-m", "valvur.engine",
         ]
 

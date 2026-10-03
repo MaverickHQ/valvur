@@ -98,7 +98,6 @@ def test_no_code_outside_egress_carries_the_network_flag_literal():
 
 def test_the_runner_and_both_probes_launch_with_egress_flags(monkeypatch, tmp_path):
     from valvur import compat, doctor
-    from valvur.runner import ContainerRunner
 
     launched: list[list[str]] = []
 
@@ -111,8 +110,6 @@ def test_the_runner_and_both_probes_launch_with_egress_flags(monkeypatch, tmp_pa
     monkeypatch.setattr(subprocess, "run", capture)
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
 
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-    runner._base_flags(str(tmp_path / "scratch"), network=False)
     compat.image_inputs("/usr/local/bin/docker", "x/y:1")
     doctor._image_starts("/usr/local/bin/docker", "x/y:1")
 

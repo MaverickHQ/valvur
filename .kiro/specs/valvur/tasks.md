@@ -644,12 +644,35 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
     `on_registry`. The registry walk's cadence in `name_index/build.py`, which builds the
     index for the publishing workflow and decides neither a refresh nor a verdict, is
     named as the one exception.
-- [ ] **R23.6** **Every other concept, once** (D52b to e). Behaviours:
+- [x] **R23.6** **Every other concept, once** (D52b to e). Behaviours:
   1. one predicate decides that a Finding is active, and the six sites call it;
   2. the network grant is `Invocation.network` alone, and the engine sets
      `VALVUR_NETWORK` for each granted tool in every runtime;
   3. one scan parses `.security-scan.toml` once and builds the File Set once, counted;
   4. both launchers build their flags with one function.
+  **STATUS 2026-10-03:** ✅ all four.
+  - **Active.** `valvur.verdict`, in `core`, holds the note rules (`coverage` names them
+    as before) and `active` and `note`, for a Finding and for a `findings.json` record.
+    `api`, `summary`, `gate`, `reply` and `grouping` call `active`; `remediation`, whose
+    proposals have always covered every Finding but notes, calls `note`. An AST test
+    finds no other `in NOTE_RULES`. The layer baseline lost `grouping` reaching
+    `coverage`; one entry remains, `findings` reaching `ecosystems`.
+  - **The network grant.** Each plan entry carries `network`, and the engine sets
+    `VALVUR_NETWORK` for that tool and clears it for every other, whatever it inherited,
+    in a Scan Container and in the image as a pipeline step (D54b's lapse, fixed here
+    and held again by R23.8). The container's flags no longer carry it; OSV's adapter
+    holds its grant as `network`, as the Check adapter does. Two constraint tests were
+    restated over the plan's grants, the suite still 54; `PROTOCOL.md` says so.
+  - **One read per scan.** `valvur.scancontext` reads `.security-scan.toml` once (its
+    tables, why it could not be read, its `[scan]` settings) and builds the File Set
+    once; the scan passes it to the adapters' applicability and coverage, the history
+    pass, OSV's fetch and the pipeline, whose suppressions come from the same parse.
+    Counted on one CLI scan of `broken-repo` with every default adapter: 77 parses and
+    37 File Sets before, 1 and 1 after.
+  - **One flag builder.** `runner.launch_flags` builds `<runtime> run …` up to the
+    image for the Scan Container and the database fetch; `_base_flags` and the second
+    list in `ContainerRuntime.command` are gone, and a test watches both launchers call
+    it.
 - [ ] **R23.7** **Typed messages** (D53). Behaviours:
   1. the engine's events carry a `kind`, and the reply reads kinds, never a prefix;
   2. the budget's state is a field;

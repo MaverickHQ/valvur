@@ -249,6 +249,49 @@ def scan_resource_flags(runtime: str) -> list[str]:
             for flag in flags]
 
 
+def launch_flags(runtime: str, *, generation: str | None, name: str, scratch: str | Path,
+                 network: bool, interactive: bool = False, landing: tuple[str, ...] = (),
+                 osv: bool = False, resources: list[str] | None = None,
+                 exec_tmp: bool = False) -> list[str]:
+    """`<runtime> run …` up to the image, for every container valvur starts (D52e):
+    the Scan Container and the database fetch alike, so what they share is written
+    once. F10.2, with the Dockerfile's USER 10001: non-root, a read-only root
+    filesystem, every capability dropped. The source is never mounted (ADR-0022);
+    every mount is valvur's own, labelled on an enforcing SELinux host (F1.6), where
+    an unlabelled mount is denied. Whether there is an interface at all is egress's
+    decision, which the kernel enforces (N2.1)."""
+    from . import cache, owner
+
+    db, names = cache.trivy_db(), cache.name_index()
+    for directory in (db, names):
+        directory.mkdir(parents=True, exist_ok=True)
+    z = ":z" if selinux_enforcing() else ""
+    flags = [
+        runtime, "run", *(["-i"] if interactive else []), "--rm", *owner.labels(generation),
+        "--name", name,
+        *_user_flags(runtime),
+        "--read-only", "--cap-drop=ALL",
+        # The memory, PID and privilege ceiling (28.0.3).
+        *(resources if resources is not None else _resource_flags(runtime)),
+        # Scratch space the read-only root still needs: in memory, gone with the
+        # container, nosuid.
+        "--tmpfs", f"/tmp:rw,{'exec' if exec_tmp else 'noexec'},nosuid,size=512m",  # noqa: S108
+        *landing,
+        "-v", f"{scratch}:/results{z}",
+        "-v", f"{db}:/cache/trivy{z}",                  # ADR-0012: the DB outside the image
+        # ADR-0018: the package-name index, read-only, since the Check only asks it.
+        "-v", f"{names}:/cache/names:ro{z and ',z'}",
+    ]
+    if osv:
+        from . import osv_offline
+
+        offline = osv_offline.directory()
+        offline.mkdir(parents=True, exist_ok=True)
+        # OSV's offline database (R4.6), read-only like the index.
+        flags += ["-v", f"{offline}:{osv_offline.MOUNT}:ro{z and ',z'}"]
+    return flags + egress.Egress(network=network).container_flags()
+
+
 def _container_name() -> str:
     return f"valvur-{_uuid.uuid4().hex[:16]}"
 
@@ -406,50 +449,6 @@ class ContainerRunner:
                 _wait_gone(self.runtime, name)
             raise _ScannerTimedOut(exc.timeout, _text(exc.stderr)) from exc
 
-    def _base_flags(
-        self, scratch: str, *, network: bool = False, allow_exec: bool = False
-    ) -> list[str]:
-        from . import cache
-
-        db = cache.trivy_db()
-        db.mkdir(parents=True, exist_ok=True)
-        names = cache.name_index()
-        names.mkdir(parents=True, exist_ok=True)
-        enforcing = selinux_enforcing()
-        own_label = ":z" if enforcing else ""
-        from . import owner
-
-        flags = [
-            self.runtime, "run", "--rm", *owner.labels(self.generation),
-            "--name", _container_name(),
-            *_user_flags(self.runtime),
-            # F10.2, with the Dockerfile's USER 10001: non-root, read-only root
-            # filesystem, every capability dropped.
-            "--read-only",
-            # A read-only root filesystem still needs scratch space. This tmpfs is in
-            # memory, non-persistent and nosuid. `exec` is granted only to Scanners
-            # that genuinely need it (Opengrep unpacks and runs opengrep-core), never
-            # to the whole fleet — least privilege per Scanner.
-            "--tmpfs",
-            f"/tmp:rw,{'exec' if allow_exec else 'noexec'},nosuid,size=512m",  # noqa: S108
-            "--cap-drop=ALL",
-            # The memory, PID and privilege ceiling (28.0.3), from one tuple above.
-            *_resource_flags(self.runtime),
-            # SELinux mount labelling (F1.6, task 20.2): measured on an enforcing
-            # host, an unlabelled mount is denied. Every mount here is valvur's own;
-            # the source is never mounted (ADR-0022).
-            "-v", f"{scratch}:/results{own_label}",
-            "-v", f"{db}:/cache/trivy{own_label}",  # ADR-0012 - DB outside the image
-            # ADR-0018 - the package-name index, beside the database and for the
-            # same reason. Read-only: the Check only ever asks it questions.
-            "-v", f"{names}:/cache/names:ro{own_label and ',z'}",
-        ]
-        # Whether this container has an interface at all is the one decision this
-        # module does not make: egress answers it, and the kernel enforces what
-        # egress says (N2.1, 26.2.2).
-        flags += egress.Egress(network=network).container_flags()
-        return flags
-
     def update_db(self) -> ScannerOutput:
         """Fetch the vulnerability DB out of band, so scans never need network."""
         from . import cache, locking
@@ -482,8 +481,9 @@ class ContainerRunner:
             for name, text in invocation.files:
                 (Path(scratch) / name).write_text(text, encoding="utf-8")
             cmd = [
-                *self._base_flags(scratch, network=invocation.network,
-                                  allow_exec=invocation.allow_exec),
+                *launch_flags(self.runtime, generation=self.generation,
+                              name=_container_name(), scratch=scratch,
+                              network=invocation.network, exec_tmp=invocation.allow_exec),
                 *[flag for key, value in invocation.env for flag in ("--env", f"{key}={value}")],
                 self.image, *invocation.argv,
             ]

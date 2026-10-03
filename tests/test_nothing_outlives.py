@@ -77,24 +77,28 @@ def test_every_container_valvur_starts_is_labelled_with_its_owner():
     launches = 0
     for path in SRC.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r'"run",\s*(?:"-i",\s*)?"--rm"', text):
+        for match in re.finditer(
+                r'"run",\s*(?:"-i",\s*|\*\(\["-i"\] if interactive else \[\]\),\s*)?"--rm"',
+                text):
             launches += 1
             window = text[match.start():match.start() + 400]
             assert "owner.labels(" in window, f"{path.name}: a container with no owner"
-    assert launches >= 4
+    # `runner.launch_flags`, which both launchers use since D52e, and the two probes.
+    assert launches >= 3
 
 
 def test_the_scan_container_and_the_fleet_carry_the_scan_runs_generation(
         tmp_path, monkeypatch):
     from valvur import cache
     from valvur.engine_host import ContainerRuntime
-    from valvur.runner import ContainerRunner
+    from valvur.runner import ContainerRunner, launch_flags
 
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     for built in (ContainerRuntime(runtime="docker"), ContainerRunner(runtime="docker")):
         built.generation = "gen-7"
         argv = (built.command(tmp_path) if isinstance(built, ContainerRuntime)
-                else built._base_flags(str(tmp_path)))
+                else launch_flags(built.runtime, generation=built.generation, name="n",
+                                  scratch=tmp_path, network=False))
         assert f"{owner.GENERATION_LABEL}=gen-7" in argv
         assert f"{owner.PID_LABEL}={os.getpid()}" in argv
 

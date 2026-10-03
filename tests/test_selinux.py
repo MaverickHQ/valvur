@@ -79,9 +79,8 @@ def test_valvurs_own_directories_are_relabelled_without_being_asked(enforcing, t
     """The scratch mount and the DB cache are a temporary directory we created and a
     cache we own. Measured: without a label the container cannot write its results at
     all, so valvur would be unusable on an enforcing host for no principled gain."""
-    flags = runner.ContainerRunner(image="x", runtime="podman")._base_flags(
-        str(tmp_path / "scratch")
-    )
+    flags = runner.launch_flags("podman", generation=None, name="n",
+                                scratch=tmp_path / "scratch", network=False)
     mounts = _mounts(flags)
 
     assert mounts["/results"].endswith(":z")
@@ -93,9 +92,8 @@ def test_nothing_is_relabelled_on_a_host_without_selinux(not_enforcing, tmp_path
     valvur emits, and noise in a command line is how a real flag gets overlooked."""
     monkeypatch.setenv(runner.RELABEL_ENV, "1")
 
-    flags = runner.ContainerRunner(image="x", runtime="podman")._base_flags(
-        str(tmp_path / "scratch")
-    )
+    flags = runner.launch_flags("podman", generation=None, name="n",
+                                scratch=tmp_path / "scratch", network=False)
     mounts = _mounts(flags)
 
     assert mounts["/results"].endswith("/results")
@@ -116,8 +114,8 @@ def test_the_source_is_never_mounted_so_never_relabelled_even_when_asked(
     monkeypatch.setattr(engine_host, "selinux_enforcing", lambda: True)
     monkeypatch.setenv(runner.RELABEL_ENV, "1")
     workspace = tmp_path / "ws"
-    for argv in (runner.ContainerRunner(image="x", runtime="podman")._base_flags(
-                     str(tmp_path / "scratch")),
+    for argv in (runner.launch_flags("podman", generation=None, name="n",
+                                     scratch=tmp_path / "scratch", network=False),
                  engine_host.ContainerRuntime(image="x", runtime="podman").command(
                      tmp_path / "scratch")):
         mounts = _mounts(argv)
