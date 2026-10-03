@@ -13,7 +13,6 @@ generated = ["valvur._build"]
 # exit empties it.
 baseline = [
     "valvur.findings -> valvur.ecosystems",
-    "valvur.grouping -> valvur.coverage",
 ]
 
 [layers]
@@ -35,6 +34,7 @@ core = [
     "valvur.redact",
     "valvur.refusal",
     "valvur.text",
+    "valvur.verdict",
     "valvur.version",
     "valvur.versions",
 ]

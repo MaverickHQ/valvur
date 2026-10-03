@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import grouping as _grouping
-from .coverage import NOTE_RULES
+from . import verdict
 from .findings import Finding
 from .text import cut
 from .versions import release_line, version_key
@@ -143,8 +143,8 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
     # not read — and nothing in the user's code resolves it, so it is not an action.
     # Until 23.5.5 every note went through `_key`, and the lockfile gap came out as
     # "Remove the hallucinated dependencies" on every repository without one.
-    notes = [f for f in findings if f.rule in NOTE_RULES]
-    findings = [f for f in findings if f.rule not in NOTE_RULES]
+    notes = [f for f in findings if verdict.note(f)]
+    findings = [f for f in findings if not verdict.note(f)]
     items = group(findings)
     lines = [
         "# Remediation proposal",

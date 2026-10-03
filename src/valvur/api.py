@@ -21,14 +21,13 @@ from . import hygiene as _hygiene
 from . import osv_offline as _osv_offline
 from . import pipeline as _pipeline
 from . import profiles as _profiles
-from . import results
+from . import results, verdict
 from . import results as _results
 from . import settings as _settings
 from . import staleness as _staleness
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
 from .coverage import DOUBT_RULES as _DOUBT_RULES
-from .coverage import NOTE_RULES as _NOTE_RULES
 from .findings import Finding
 from .provenance import ScannerRun
 from .text import cut as _cut
@@ -201,7 +200,7 @@ class ScanRun:
         make the verdict permanently negative for something they cannot fix, and would
         fail their CI for our missing feature.
         """
-        return [f for f in self.findings if not f.suppressed and f.rule not in _NOTE_RULES]
+        return [f for f in self.findings if verdict.active(f)]
 
     @property
     def suppressed(self) -> list[Finding]:
@@ -212,7 +211,7 @@ class ScanRun:
         """What valvur did not inspect or could not read, as opposed to what it did
         not find. Two kinds: the gaps, which make a nil result `inconclusive`, and
         the licence statements, which do not (`coverage.DOUBT_RULES`, 23.5.5)."""
-        return [f for f in self.findings if f.rule in _NOTE_RULES and not f.suppressed]
+        return [f for f in self.findings if verdict.note(f) and not f.suppressed]
 
     @property
     def status(self) -> str:

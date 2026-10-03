@@ -32,32 +32,18 @@ from . import ecosystems as _ecosystems
 from . import fingerprint as _fp
 from .findings import Finding, Severity
 
-RULE = "valvur.dependency.ecosystem-not-covered"
-#: Dependencies present, but nothing Trivy reads for vulnerabilities — no lockfile.
-#: Found by the public corpus on its first run: Express read `clean` (task 22.E.1).
-VULNERABILITY_RULE = "valvur.dependency.vulnerabilities-unchecked"
-#: Statements about what valvur could *read* of the licences, not about the code
-#: (task 23.5.5). "Licences could not be determined for 600 of 618 dependencies" is a
-#: fact about the lockfile's metadata; "no known licence signature matched" is a fact
-#: about our signatures. Measured on the corpus: an active Finding on eight of twelve
-#: real repositories, and one read `findings` on nothing else.
-LICENCE_STATEMENT_RULES = frozenset({
-    "valvur.licence.dependencies-unreadable",
-    "valvur.licence.dependency-unknown",
-    "valvur.licence.unidentified",
-})
-#: Every rule that is a statement about valvur rather than about the scanned code.
-#: Never active: none of them makes a status `findings` or fails a gate.
-#: A private registry's packages, which valvur does not look up publicly (R10.3,
-#: D27). A statement about where the project installs from; it casts no doubt on a
-#: verdict, because a name bound to a private registry cannot be taken publicly.
-PRIVATE_RULE = "valvur.dependency.private-registry"
-NOTE_RULES = frozenset({RULE, VULNERABILITY_RULE, PRIVATE_RULE}) | LICENCE_STATEMENT_RULES
-#: The notes that make a nil result `inconclusive` — we did not look, so `clean` is
-#: not ours to claim. A licence statement is deliberately not one: a licence we could
-#: not read is not a vulnerability we did not look for, and the verdict is about
-#: security. The two sets are pinned apart by test, so a new note has to choose.
-DOUBT_RULES = frozenset({RULE, VULNERABILITY_RULE})
+# The note rules are the verdict's (D52b): defined there, named here as ever.
+from .verdict import (
+    DOUBT_RULES,
+    LICENCE_STATEMENT_RULES,
+    NOTE_RULES,
+    PRIVATE_RULE,
+    RULE,
+    VULNERABILITY_RULE,
+)
+
+__all__ = ["DOUBT_RULES", "LICENCE_STATEMENT_RULES", "NOTE_RULES", "PRIVATE_RULE", "RULE",
+           "VULNERABILITY_RULE"]
 
 
 @dataclass(frozen=True)

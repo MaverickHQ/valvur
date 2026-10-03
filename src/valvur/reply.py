@@ -365,14 +365,14 @@ def next_moves(workspace: Path) -> list[str]:
     `report` took each pointer as a turn to spend, and three of eight reports ran
     past six. The top Finding's fingerprint stays, as data. Nothing when nothing is
     active; nothing invented for results an older valvur wrote."""
-    from .coverage import NOTE_RULES
+    from . import verdict
 
     try:
         findings = json.loads((workspace / RESULTS_DIR / "findings.json").read_text(
             encoding="utf-8"))["findings"]
     except (OSError, ValueError, KeyError):
         return []
-    active = [f for f in findings if not f.get("suppressed") and f.get("rule") not in NOTE_RULES]
+    active = [f for f in findings if verdict.active(f)]
     if not active:
         return []
     top = min(active, key=lambda f: f.get("rank") or 10**9)

@@ -21,6 +21,7 @@ from . import coverage as _coverage
 from . import datasets as _datasets
 from . import grouping as _grouping
 from . import profiles as _profiles
+from . import verdict
 from .findings import exploit_badge as _exploit_badge
 from .staleness import db_is_stale as _db_is_stale
 from .staleness import index_is_stale as _index_is_stale
@@ -97,8 +98,8 @@ def render(run: ScanRun) -> str:
     ordered = sorted(run.findings, key=lambda x: x.rank or 10**9)
     findings = [f for f in ordered if not f.suppressed]
     suppressed = [f for f in ordered if f.suppressed]
-    notes = [f for f in findings if f.rule in _coverage.NOTE_RULES]
-    active = [f for f in findings if f.rule not in _coverage.NOTE_RULES]
+    notes = [f for f in findings if verdict.note(f)]
+    active = [f for f in findings if verdict.active(f)]
 
     lines = [COMMENT, "# Security scan summary", "", _verdict(run), ""]
     lines += _qualifiers(run, findings)
