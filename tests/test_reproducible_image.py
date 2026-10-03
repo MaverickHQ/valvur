@@ -60,14 +60,18 @@ def test_the_contributor_command_passes_it_too():
 
 
 def test_ci_builds_twice_without_cache_and_compares():
-    """The test the task asks for, where it can run: a job that builds the tree
-    twice with no cache and fails unless the two images are one."""
+    """The test the task asks for, where it can run: two builds of the tree with no
+    cache, and a job that fails unless they are one image. Since R24.4 the first is
+    the image job's, which the other jobs use too, and only the second is made again."""
     ci = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    image = ci.split("\n  image:", 1)[1].split("\n  e2e:", 1)[0]
+    assert image.count("docker buildx bake dev --no-cache") == 1
+    assert 'SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"' in image
     job = ci.split("\n  reproducible:", 1)
     assert len(job) == 2, "ci.yml has no reproducible job"
     body = job[1].split("\n  selfscan:", 1)[0]
+    assert "name: image-amd64" in body and "docker load" in body
     assert body.count("docker buildx bake dev --no-cache") == 1
-    assert "for tag in first second" in body
     assert 'test "$first" = "$second"' in body
 
 

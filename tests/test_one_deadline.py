@@ -52,7 +52,7 @@ class _Slow:
     name = "slow"
     version = "0"
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def command(self, workspace):
@@ -186,8 +186,8 @@ def test_a_cancel_before_the_engine_starts_starts_nothing(tmp_path, monkeypatch)
 
 def test_scan_cancel_over_mcp_says_cancelled_only_once_the_engine_is_gone(
         tmp_path, monkeypatch):
-    from valvur import api, cache, engine_host, operations
-    from valvur.mcp import jobs
+    from valvur import api, cache, engine_host
+    from valvur.mcp import handlers, jobs
 
     monkeypatch.setenv("VALVUR_ENGINE", "2")
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
@@ -206,9 +206,9 @@ def test_scan_cancel_over_mcp_says_cancelled_only_once_the_engine_is_gone(
     monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [spawner])
     jobs.reset()
     try:
-        operations.start_scan({"workspace": str(ws)})
+        jobs.start(ws.resolve(), "offline", handlers._work(None, fresh=False))
         grandchild = _grandchild(pidfile)
-        operations.cancel_scan({"workspace": str(ws)})
+        handlers.cancel_scan({"workspace": str(ws)})
         job = jobs.current(ws.resolve())
         assert job is not None and job.wait(20)
         assert job.state is jobs.State.CANCELLED

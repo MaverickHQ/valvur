@@ -109,8 +109,13 @@ def _configured(workspace: Path | None, ecosystem: str) -> _registries.Registrie
 def check(asked: Iterable[Package], *, workspace: Path | None = None) -> list[Answer]:
     """An answer for each package, in the order asked, from the host cache. At most
     `MOST` at once: a caller with more asks again."""
+    # deferred: startup; the plugin's hook loads this module on every install.
     from .checks import dependency_reality as _reality
+
+    # deferred: startup; the plugin's hook loads this module on every install.
     from .name_index import malicious as _malicious
+
+    # deferred: startup; the plugin's hook loads this module on every install.
     from .name_index import reader as _reader
 
     wanted = [(_ecosystems.normalise(eco), name.strip(), (version or "").strip() or None)
@@ -141,6 +146,7 @@ def check(asked: Iterable[Package], *, workspace: Path | None = None) -> list[An
 
 
 def _answer(ecosystem, name, version, index, listed, configured, built, popular) -> Answer:
+    # deferred: startup; the plugin's hook loads this module on every install.
     from .checks import dependency_reality as _reality
 
     def said(verdict: str, reason: str, **extra) -> Answer:

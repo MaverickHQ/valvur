@@ -10,21 +10,21 @@
     "package-reality": 100.0,
     "agent-configuration": 94.3,
     "infrastructure": 95.0,
-    "real-code-precision": 4.2
+    "real-code-precision": 5.9
   },
-  "score": 64.9,
+  "score": 65.2,
   "recorded_on": {
     "image": {
       "name": "valvur:dev",
-      "id": "sha256:15d6f95f243daa629f78f8a9be938868c0a4d71ea5d92c495deec96abed6253f"
+      "id": "sha256:74d0a6204a837cf3b80c294f2153c1b19cedf8f568ed77af05bdaa9deb0db9bc"
     },
     "data": {
-      "database_age_days": 0.26,
-      "name_index_age_days": 0.65,
-      "malicious_age_days": 0.0,
-      "kev_age_days": 0.48,
-      "epss_age_days": 0.56,
-      "osv_age_days": 4.24
+      "database_age_days": 0.34,
+      "name_index_age_days": 0.56,
+      "malicious_age_days": 0.56,
+      "kev_age_days": 1.31,
+      "epss_age_days": 0.45,
+      "osv_age_days": 0.96
     },
     "seed": 20260929
   },

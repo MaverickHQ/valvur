@@ -13,6 +13,7 @@ import shutil
 from collections.abc import Iterable
 from pathlib import Path
 
+from .. import oci, settings
 from . import reader as _reader
 from .reader import Progress
 
@@ -35,8 +36,6 @@ LAYER_TYPE = "application/vnd.valvur.name-index.layer.v1+gzip"
 def repository() -> str:
     """The OCI repository the published index is pulled from: the operator's mirror
     when named, the one this project publishes otherwise."""
-    from .. import settings
-
     return settings.get("index_repository") or _reader.DEFAULT_INDEX_REPOSITORY
 
 
@@ -44,8 +43,6 @@ def published_size_mb() -> int | None:
     """What pulling the published index will cost, from its manifest — for the line
     that says a first scan is fetching it (24.1). None when the registry cannot say,
     and for a static mirror, which has no manifest to ask."""
-    from .. import oci, settings
-
     if settings.get("name_index_url"):
         return None
     size = oci.image_size(repository(), insecure=settings.get("index_insecure") == "1")
@@ -70,10 +67,7 @@ def fetch_published(repository: str, directory: Path, *, ecosystems: Iterable[st
     installed (`oci.verify_signature`); the outcome is recorded in the metadata so
     `run.json` can carry it.
     """
-    from .. import oci
-
     directory.mkdir(parents=True, exist_ok=True)
-    from .. import settings
 
     insecure = settings.get("index_insecure") == "1"
     try:
@@ -169,8 +163,6 @@ def _reverify(directory: Path, metadata: dict, wanted: list[str], reference,
     there is nothing of this run's to undo, and a half-deleted index would leave
     the machine worse than the one it distrusts.
     """
-    from .. import oci
-
     stale = [e for e in wanted
              if ((metadata["ecosystems"].get(e) or {}).get("published") or {})
              .get("signature", "").startswith(_COSIGN_ABSENT)]

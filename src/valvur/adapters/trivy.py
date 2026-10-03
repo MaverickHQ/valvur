@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from .. import cache, egress, settings
+from .. import coverage as _coverage
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..coverage import Coverage
@@ -16,6 +19,9 @@ from ..findings import Dependency, Exploit, Finding, Severity
 from ..invocation import Invocation, ScannerOutput
 from ..versions import version_key
 from .base import ScannerAdapter, container_relative
+
+if TYPE_CHECKING:
+    from ..scancontext import ScanContext
 
 VERSION = "0.74.0"
 
@@ -32,13 +38,10 @@ def db_flags() -> list[str]:
     certificate the container does not trust. Read from the two settings the
     runner names; the flags are Trivy's and so are here."""
 
-    from .. import egress
-
     mirror = egress.db_repository()
     if not mirror:
         return []                    # the default path is TLS to ghcr.io; never insecure
     flags = ["--db-repository", mirror]
-    from .. import settings
 
     if settings.get("db_insecure") == "1":
         flags.append("--insecure")
@@ -70,8 +73,6 @@ class TrivyAdapter(ScannerAdapter):
     version = VERSION
 
     def command(self, workspace: Path) -> Invocation:
-        from .. import cache
-
         if not cache.db_present():
             # Refused here, before a container starts, so the message leads with
             # the fix rather than arriving as Trivy's stderr.
@@ -97,12 +98,11 @@ class TrivyAdapter(ScannerAdapter):
             report="trivy.json", timeout=600,
         )
 
-    def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = (),
+                 context: ScanContext | None = None) -> Coverage:
         """What Trivy reads for known vulnerabilities, and the ecosystems present here
         for which none of it exists (22.E.1). The corpus's first finding: Express
         commits no lockfile, Trivy produced no result, and the run read `clean`."""
-        from .. import coverage as _coverage
-
         reads = tuple(
             f"{_ecosystems.MANIFESTS[key].label}: {', '.join(files)}"
             for key, files in sorted(_ecosystems.VULNERABILITY_MANIFESTS.items())
@@ -112,7 +112,8 @@ class TrivyAdapter(ScannerAdapter):
             inspects=reads,
             ignores=("a manifest with no lockfile beside it: package.json, "
                      "pyproject.toml, Gemfile, Cargo.toml alone are not scanned",),
-            gaps=tuple(_coverage.vulnerability_gaps(workspace, exclude)),
+            gaps=tuple(_coverage.vulnerability_gaps(
+                workspace, exclude, context.files if context is not None else None)),
         )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:

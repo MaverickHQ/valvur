@@ -368,6 +368,8 @@ def update_baseline(result: dict, path: Path) -> list[str]:
             continue
         tracks[name] = track["score"]
     baseline["tracks"] = tracks
+    # The Score of the tracks recorded, as `run` computes a run's: the mean.
+    baseline["score"] = round(sum(tracks.values()) / len(tracks), 1) if tracks else 0.0
     baseline["recorded_on"] = {"image": result.get("image"), "data": result.get("data"),
                                "seed": result.get("seed")}
     path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")

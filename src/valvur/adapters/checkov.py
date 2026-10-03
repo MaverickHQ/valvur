@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .. import fingerprint as _fp
+from ..applicability import iac_present
 from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
+
+if TYPE_CHECKING:
+    from ..scancontext import ScanContext
 
 VERSION = "3.3.19"
 
@@ -18,7 +23,8 @@ class CheckovAdapter(ScannerAdapter):
     name = "checkov"
     version = VERSION
 
-    def applies_to(self, workspace: Path) -> tuple[bool, str]:
+    def applies_to(self, workspace: Path,
+                   context: ScanContext | None = None) -> tuple[bool, str]:
         """Checkov costs 11.2s of fixed startup — measured 2026-09-05, more than
         every other Scanner in `offline` combined — and a repository with no
         infrastructure code pays all of it for nothing.
@@ -26,9 +32,8 @@ class CheckovAdapter(ScannerAdapter):
         Biased towards running: anything unrecognised counts as infrastructure. The
         skip is reported, never silent.
         """
-        from ..applicability import iac_present
-
-        found, evidence = iac_present(workspace)
+        found, evidence = iac_present(workspace,
+                                      context.files if context is not None else None)
         if found:
             return True, evidence
         return False, ("no Dockerfile, terraform, Kubernetes, CI or template files found; "

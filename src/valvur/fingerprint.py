@@ -53,10 +53,6 @@ def for_licence(package: str, license_id: str) -> str:
     return derive("licence", package, license_id)
 
 
-def for_dependency_reality(ecosystem: str, package: str) -> str:
-    return derive("dependency_reality", ecosystem, package)
-
-
 def for_sast(rule: str, path: str, matched_text: str, ordinal: int = 0) -> str:
     """The only class needing a content hash.
 

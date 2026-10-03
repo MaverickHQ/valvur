@@ -6,8 +6,9 @@ positional arguments:
 
 options:
   -h, --help     show this help message and exit
-  --if-stale     Do nothing unless the database or the index is actually out of date. Cheap enough
-                 to put in a pre-commit hook, a cron entry or CI — the freshness check needs no
+  --if-stale     Refresh only what a scan would refresh now: the database, the index, the
+                 malicious list, KEV or EPSS, each when absent or past its age. Cheap enough to
+                 put in a pre-commit hook, a cron entry or CI — the freshness check needs no
                  network at all.
   --prune        Fetch nothing; remove the published image's local tags that are not this shim's
                  version, and index files the metadata no longer names, each listed first. Never

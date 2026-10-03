@@ -53,4 +53,6 @@ def test_the_corpus_scans_through_a_runtime_the_scan_accepts(monkeypatch, tmp_pa
     corpus._scan(tmp_path, "offline")
 
     [runner] = handed
-    assert api._engine_two(runner), f"{type(runner).__name__} is refused by scan"
+    from valvur.engine_host import RuntimeDefaults
+
+    assert isinstance(runner, RuntimeDefaults) and runner.engine is True, type(runner).__name__

@@ -19,18 +19,26 @@ import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from . import classtable as _classtable
 from . import coverage as _coverage
 from . import enrichment as _enrichment
 from . import exclusions as _exclusions
+from . import fileset as _fileset
 from . import gitcontext as _gitcontext
 from . import grouping as _grouping
 from . import licence_policy as _licence
 from . import ranking as _ranking
+from . import requirements as _requirements
 from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
+from .ecosystems import index_form
 from .findings import Finding, merge
+
+if TYPE_CHECKING:
+    from .scancontext import ScanContext
 
 
 @dataclass
@@ -54,11 +62,15 @@ class Context:
     ignored: frozenset[str] = frozenset()
     #: The Results Folder, when it is not the workspace's (`--out`, R8.1).
     results: Path | None = None
+    #: What the scan read of the project once (D52d): the project file, its `[scan]`
+    #: table and the File Set. None outside a scan, when a stage reads them itself.
+    scan: ScanContext | None = None
 
     # ---- recorded by stages, read when the ScanRun is assembled
     configured: tuple[str, ...] = ()
     coverage: dict = field(default_factory=dict)
     config_dropped: int = 0
+    removed_by_class: dict[str, dict[str, int]] = field(default_factory=dict)
     unpinned_dropped: int = 0
     unpinned_files: tuple[str, ...] = ()
     provider: _enrichment.LocalProvider | None = None
@@ -88,6 +100,7 @@ class PipelineResult:
     configured: tuple[str, ...]
     coverage: dict
     config_dropped: int
+    removed_by_class: dict[str, dict[str, int]]
     unpinned_dropped: int
     unpinned_files: tuple[str, ...]
     provider: _enrichment.LocalProvider | None
@@ -133,11 +146,13 @@ def coverage(findings: list[Finding], ctx: Context) -> list[Finding]:
     did not run — so the one message saying "this scan could not help you" was
     missing exactly where it mattered.
     """
-    settings = _exclusions.load_scan_settings(ctx.workspace)
+    settings = (ctx.scan.settings if ctx.scan is not None
+                else _exclusions.load_scan_settings(ctx.workspace))
     ctx.configured = settings.exclude
     skipped = ctx.configured
-    ctx.coverage = _coverage.collect(ctx.declaring, ctx.workspace, skipped)
-    gaps = [g for a in ctx.declaring for g in a.coverage(ctx.workspace, skipped).gaps]
+    ctx.coverage = _coverage.collect(ctx.declaring, ctx.workspace, skipped, ctx.scan)
+    gaps = [g for a in ctx.declaring
+            for g in a.coverage(ctx.workspace, skipped, ctx.scan).gaps]
     return findings + gaps
 
 
@@ -174,8 +189,6 @@ def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
     the first stage says the file was never a check. Trivy reads pinned lines only,
     so only OSV-Scanner's answers are in question; a package the file does not
     name is unknown, not unpinned, and stays."""
-    from . import requirements as _requirements
-
     kept: list[Finding] = []
     files: set[str] = set()
     cache: dict[str, dict[str, bool]] = {}
@@ -196,7 +209,21 @@ def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def merged(findings: list[Finding], ctx: Context) -> list[Finding]:
     """One Finding per identity, whichever Scanners reported it."""
-    return merge(findings)
+    return merge(findings, index_form)
+
+
+def context(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """Each Finding's path class (D56), which the class table and every reader of
+    `findings.json` and SARIF read."""
+    classes = _fileset.classes(ctx.workspace, [f.path for f in findings])
+    return [replace(f, context=classes[f.path]) for f in findings]
+
+
+def classes(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """What a path's class changes (D56): a secret in a test ranks low, `weak-hash`
+    in docs is not reported, and what is removed is counted for `run.json`."""
+    kept, ctx.removed_by_class = _classtable.apply(findings)
+    return kept
 
 
 def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:
@@ -215,7 +242,8 @@ def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Suppressions are policy, applied after detection and enrichment and before
     ranking. They never touch the Fingerprint or the Status diff: a suppressed
     Finding is still present, and un-suppressing it must not read as new."""
-    policy = _suppressions.load(ctx.workspace)
+    policy = _suppressions.load(
+        ctx.workspace, (ctx.scan.project, ctx.scan.problem) if ctx.scan is not None else None)
     findings = _suppressions.apply(findings, policy)
     return findings + _suppressions.policy_findings(policy, findings)
 
@@ -264,6 +292,12 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("merged", merged,
           "After every filter and every source of Findings, so identity is settled "
           "once over the final set."),
+    Stage("context", context,
+          "After `merged`, so each identity's class is read once; before anything "
+          "that decides by class."),
+    Stage("classes", classes,
+          "Right after `context`, which it reads; before `enrich` and `rank`, which "
+          "read the severity it lowers."),
     Stage("gitcontext", gitcontext,
           "After `merged`, so a secret's git status is decided once per identity "
           "rather than once per Scanner that saw it."),

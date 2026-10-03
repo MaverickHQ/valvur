@@ -16,6 +16,10 @@ from collections.abc import Callable
 from fnmatch import fnmatch
 from pathlib import Path
 
+from . import cache, events, locking, settings
+from .ecosystems import VULNERABILITY_MANIFESTS
+from .events import Event
+
 #: OSV's public export, one zip per ecosystem (https://google.github.io/osv.dev/data/).
 #: `VALVUR_OSV_URL` names a mirror for air-gapped use.
 DEFAULT_URL = "https://osv-vulnerabilities.storage.googleapis.com"
@@ -23,8 +27,6 @@ DEFAULT_URL = "https://osv-vulnerabilities.storage.googleapis.com"
 
 def base_url() -> str:
     """OSV's bucket, or the mirror the machine names (`osv_url`, R6.7)."""
-    from . import settings
-
     return settings.get("osv_url") or DEFAULT_URL
 #: Where OSV-Scanner 2.6 looks under `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`.
 LAYOUT = "osv-scalibr"
@@ -38,8 +40,6 @@ OSV_NAMES = {"pip": "PyPI", "npm": "npm", "cargo": "crates.io", "gomod": "Go",
 
 
 def directory() -> Path:
-    from . import cache
-
     return cache.root() / "osv"
 
 
@@ -49,8 +49,6 @@ def path(name: str) -> Path:
 
 def needed(files: list[str]) -> list[str]:
     """OSV's names for the ecosystems whose lockfiles the File Set holds."""
-    from .ecosystems import VULNERABILITY_MANIFESTS
-
     found = set()
     for rel in files:
         name = rel.rsplit("/", 1)[-1]
@@ -62,11 +60,6 @@ def needed(files: list[str]) -> list[str]:
 
 def absent(names: list[str]) -> list[str]:
     return [name for name in names if not path(name).is_file()]
-
-
-#: An OSV database older than this is refreshed by a scan (ADR-0025): the same
-#: week as the vulnerability database's, since both carry advisories.
-STALE_AFTER_DAYS = 7
 
 
 #: Where each fetch keeps its export's date (D23): beside the databases, not in
@@ -103,15 +96,11 @@ def age(name: str) -> tuple[float | None, str]:
     return (time.time() - path(name).stat().st_mtime) / 86400, "fetched"
 
 
-def stale(names: list[str]) -> list[str]:
-    """The present databases older than `STALE_AFTER_DAYS`, by the export's own date
-    where the fetch kept it (R11.2): a mirror can serve an old export today."""
-    found = []
-    for name in names:
-        days, _ = age(name)
-        if days is not None and days > STALE_AFTER_DAYS:
-            found.append(name)
-    return found
+def stale(names: list[str], due: Callable[[float | None], bool]) -> list[str]:
+    """The present databases `due` says are old enough to refresh, by the export's
+    own date where the fetch kept it (R11.2): a mirror can serve an old export today.
+    `due` is the datasets table's (D52a), which this module does not import."""
+    return [name for name in names if path(name).is_file() and due(age(name)[0])]
 
 
 def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> dict:
@@ -154,28 +143,26 @@ def _keep_age(name: str, published: str | None) -> None:
     (directory() / AGES).write_text(json.dumps(ages, indent=1) + "\n", encoding="utf-8")
 
 
-def ensure(files: list[str], say: Callable[[str], None]) -> tuple[list[dict], list[str]]:
+def ensure(files: list[str], say: Callable[[Event], None], *,
+           due: Callable[[float | None], bool]) -> tuple[list[dict], list[str]]:
     """OSV's database for each ecosystem `files` hold a lockfile for, fetched when
     absent or stale (R4.6, ADR-0025), each under the cache lock and said: the
     records `run.json` keeps, and a sentence per failure. What a scan does before
     its Scanners start, and `valvur update PATH` ahead of one (R8.2)."""
-    from . import cache, locking
-
     names = needed(files)
-    missing, old = absent(names), stale(names)
+    missing, old = absent(names), stale(names, due)
     records: list[dict] = []
     failed: list[str] = []
     for name in missing + old:
-        say(f"fetching the OSV database for {name} — the first run for it only"
-            if name in missing else
-            f"refreshing the OSV database for {name} (over {STALE_AFTER_DAYS} days old)")
+        say(events.fetch_started("osv", name=name,
+                                 age_days=None if name in missing else age(name)[0] or 0.0))
         try:
             with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
                 record = fetch(name)
         except OSError as exc:
             failed.append(f"{name}: {exc}")
-            say(f"OSV database not fetched for {name}: {exc}")
+            say(events.fetch_ended("osv", name=name, ok=False, detail=str(exc)))
             continue
-        say(f"OSV database fetched for {name} ({record['seconds']:.0f}s)")
+        say(events.fetch_ended("osv", name=name, seconds=float(record["seconds"])))
         records.append(record)
     return records, failed

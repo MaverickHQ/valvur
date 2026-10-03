@@ -33,7 +33,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .. import ecosystems as _ecosystems
+from .. import oci, settings
+from . import published
 from . import reader as _reader
+from .build import _get
 from .reader import IndexUnavailable, Progress
 
 #: The day's state of the repository, as one gzip tarball.
@@ -270,9 +273,6 @@ def build_lists(names: Path, source: str, *, progress: Progress = lambda _: None
 
 def reference() -> str:
     """The list's tag in the index's own repository, or the operator's mirror of it."""
-    from .. import oci
-    from . import published
-
     try:
         parsed = oci.Reference.parse(published.repository())
     except oci.RegistryError as exc:
@@ -285,9 +285,6 @@ def fetch_published(ref: str, names: Path, *, progress: Progress = lambda _: Non
     signature verified before anything is written, each layer checked sorted as it
     streams, each file renamed into place. Nothing moves when the list on disk is
     the one published."""
-    from .. import oci, settings
-    from . import published
-
     insecure = settings.get("index_insecure") == "1"
     try:
         parsed = oci.Reference.parse(ref)
@@ -338,8 +335,6 @@ def fetch_published(ref: str, names: Path, *, progress: Progress = lambda _: Non
 
 def fetch_mirror(base: str, names: Path, *, progress: Progress = lambda _: None) -> dict:
     """The list from a static mirror of the index, under its `malicious/`."""
-    from .build import _get
-
     base = f"{base.rstrip('/')}/{DIRECTORY}"
     progress(f"fetching the malicious list from the mirror at {base}")
     remote = _reader._json(_get(f"{base}/{_reader.METADATA}", allow_http=True))
@@ -364,8 +359,6 @@ def refresh(names: Path, *, build: bool = False, fallback: bool = True,
     passes `fallback=False` and never builds; `valvur update` builds when the list
     is not published, which it is not until `index.yml` runs from `main`, and
     `build` (`--build-index`) builds without asking."""
-    from .. import settings
-
     mirror = settings.get("name_index_url")
     if mirror:
         return fetch_mirror(mirror, names, progress=progress)

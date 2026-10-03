@@ -19,7 +19,8 @@ check somebody disables in week two.
 has no debt. N3.4 and N3.5 were cited by decisions, scripts, tests and a workflow for
 the whole R9 to R16 build and defined nowhere; this check did not look. Requirement IDs
 are never renumbered, so an ID that resolves nowhere is always a mistake, in the
-archives as much as in the code.
+documents as much as in the code. `docs/history` is not read: the archive is a
+record, not a citation (D55f).
 
     python3 scripts/check_traceability.py          # verify
     python3 scripts/check_traceability.py --update # re-record the baseline
@@ -36,6 +37,14 @@ REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "docs" / "traceability-baseline.toml"
 SEARCHED = ("src", "tests", "scripts", ".github", "docs")
 SUFFIXES = {".py", ".yml", ".yaml", ".md", ".sh", ".toml"}
+#: The archive is a record, not a citation (D55f, amending D43): a closed phase's
+#: notes do not keep a requirement cited that the living text has stopped citing.
+SKIPPED = ("docs/history",)
+
+
+def _skipped(path: Path, root: Path) -> bool:
+    relative = path.relative_to(root).as_posix()
+    return any(relative == s or relative.startswith(s + "/") for s in SKIPPED)
 
 
 #: Where a requirement ID can be cited (R17.2): every document, the code, the tests and
@@ -58,7 +67,7 @@ def _citing_files(root: Path):
         candidates = [path] if path.is_file() else sorted(path.rglob("*")) if path.is_dir() else []
         for candidate in candidates:
             if (candidate.is_file() and candidate.suffix in SUFFIXES
-                    and candidate.name != BASELINE.name):
+                    and candidate.name != BASELINE.name and not _skipped(candidate, root)):
                 yield candidate
 
 
@@ -75,20 +84,22 @@ def undefined_citations(root: Path | None = None) -> dict[str, str]:
     return found
 
 
-def _cited_anywhere() -> str:
-    parts = []
+def _searched_files(root: Path = REPO):
     for directory in SEARCHED:
-        for path in (REPO / directory).rglob("*"):
+        for path in sorted((root / directory).rglob("*")):
             # Two files must not count as citations. The requirements document
             # names every ID by definition, and the baseline file lists precisely
             # the uncited ones — including it made every ID look cited the moment
             # the baseline was written, which the first run reported as 25
             # requirements resolving simultaneously.
-            if path.name in {"requirements.md", BASELINE.name}:
+            if path.name in {"requirements.md", BASELINE.name} or _skipped(path, root):
                 continue
             if path.is_file() and path.suffix in SUFFIXES:
-                parts.append(path.read_text(errors="ignore"))
-    return "\n".join(parts)
+                yield path
+
+
+def _cited_anywhere() -> str:
+    return "\n".join(path.read_text(errors="ignore") for path in _searched_files())
 
 
 def uncited_requirements() -> set[str]:

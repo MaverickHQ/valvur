@@ -56,8 +56,10 @@ class TrackResult:
 
 
 def _active(finding: dict) -> bool:
-    """What `findings.json` counts toward the verdict: neither suppressed nor fixed."""
-    return not finding.get("suppressed") and finding.get("status") != "fixed"
+    """What `findings.json` counts toward the verdict: neither suppressed, fixed nor the
+    sink inventory (D47a)."""
+    return (not finding.get("suppressed") and finding.get("status") != "fixed"
+            and not finding.get("inventory"))
 
 
 def _lands_on(case: Case, finding: dict) -> bool:

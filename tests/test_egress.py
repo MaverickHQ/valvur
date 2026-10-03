@@ -45,7 +45,8 @@ def test_full_is_told_not_probed_and_reaches_exactly_the_listed_hosts(monkeypatc
 
     flags = e.container_flags()
     assert "--network=none" not in flags
-    assert flags[:2] == ["--env", f"{egress.NETWORK_ENV}=1"], flags
+    # Which tool inside may use it is the plan's grant, told by the engine (D52c).
+    assert f"{egress.NETWORK_ENV}=1" not in flags, flags
     assert e.hosts() == egress.FULL_HOSTS
     assert len(egress.FULL_HOSTS) == 9          # FIRST's API left for its file (R11.4)
 
@@ -61,7 +62,7 @@ def test_a_networked_container_joins_the_named_network_and_carries_the_mirror(mo
     offline = egress.for_profile(profiles.OFFLINE).container_flags()
 
     assert "--network=airgap" in full
-    assert ["--env", f"{egress.DB_REPOSITORY_ENV}=registry.internal/trivy-db:2"] == full[2:4]
+    assert ["--env", f"{egress.DB_REPOSITORY_ENV}=registry.internal/trivy-db:2"] == full[0:2]
     assert offline == ["--network=none"], "a scan container never joins anything"
 
 
@@ -97,7 +98,6 @@ def test_no_code_outside_egress_carries_the_network_flag_literal():
 
 def test_the_runner_and_both_probes_launch_with_egress_flags(monkeypatch, tmp_path):
     from valvur import compat, doctor
-    from valvur.runner import ContainerRunner
 
     launched: list[list[str]] = []
 
@@ -110,8 +110,6 @@ def test_the_runner_and_both_probes_launch_with_egress_flags(monkeypatch, tmp_pa
     monkeypatch.setattr(subprocess, "run", capture)
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
 
-    runner = ContainerRunner(image="x/y:1", runtime="/usr/local/bin/docker")
-    runner._base_flags(str(tmp_path / "scratch"), network=False)
     compat.image_inputs("/usr/local/bin/docker", "x/y:1")
     doctor._image_starts("/usr/local/bin/docker", "x/y:1")
 

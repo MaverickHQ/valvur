@@ -23,12 +23,12 @@ def served(monkeypatch):
     """`doctor` answering inside the MCP server, whose executable is this one."""
     running = Path("/opt/valvur-0.6/bin/valvur-mcp")
     monkeypatch.setattr(sys, "argv", [str(running)])
-    monkeypatch.setattr(doctor, "_as_server", lambda: True)
     return running
 
 
-def _session(workspace: Path):
-    return [c for c in doctor.run(workspace) if c.name == "session"]
+def _session(workspace: Path, served: tuple[str, ...] | None = ()):
+    """The session line `doctor` gives; `served` None is a terminal (D51)."""
+    return [c for c in doctor.run(workspace, served=served) if c.name == "session"]
 
 
 def test_doctor_says_the_server_is_not_the_one_the_configuration_names(tmp_path, served,
@@ -58,10 +58,8 @@ def test_doctor_says_nothing_when_they_agree_or_cannot_be_compared(tmp_path, ser
     assert [c.level for c in _session(tmp_path)] == ["ok"]
 
 
-def test_on_the_command_line_there_is_no_session_to_check(tmp_path, monkeypatch):
-    monkeypatch.setattr(doctor, "_as_server", lambda: False)
-
-    assert _session(tmp_path) == []
+def test_on_the_command_line_there_is_no_session_to_check(tmp_path):
+    assert _session(tmp_path, served=None) == []
 
 
 # ------------------------------------------ 30.1.3: the folder ignores itself

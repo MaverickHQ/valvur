@@ -46,7 +46,9 @@ def owned(finding: dict) -> bool:
 
 
 def _active(finding: dict) -> bool:
-    return not finding.get("suppressed") and finding.get("status") != "fixed"
+    """As `score._active`: what counts toward the verdict (D47a's inventory does not)."""
+    return (not finding.get("suppressed") and finding.get("status") != "fixed"
+            and not finding.get("inventory"))
 
 
 def load(path: Path) -> dict[tuple[str, str], tuple[str, str]]:

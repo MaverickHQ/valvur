@@ -24,15 +24,17 @@ import datetime
 import difflib
 import json
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SKILL = Path("src/valvur/data/skills/valvur")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sync_skill  # noqa: E402 — the script beside this one, which writes the copies
+
+SKILL = sync_skill.SKILL
 #: The skill's copies, which Claude Code and Kiro load from the repository (R15).
-COPIES = (Path("plugins/valvur/skills/valvur"), Path("powers/valvur/skills/valvur"))
+COPIES = sync_skill.COPIES
 MANIFESTS = (Path("plugins/valvur/.claude-plugin/plugin.json"), Path("powers/valvur/plugin.json"))
 SERVERS = (Path("plugins/valvur/.mcp.json"), Path("powers/valvur/mcp.json"))
 #: The plugin's hook, which runs the release's own valvur-hook (R18.4).
@@ -128,10 +130,7 @@ def _apply(root: Path, plan: dict[Path, str], message: str) -> None:
     for path, text in plan.items():
         (root / path).write_text(text)
     # Every other file of the skill is the package's too: the copies stay whole.
-    for copy in COPIES:
-        if (root / copy).parent.is_dir():
-            shutil.rmtree(root / copy, ignore_errors=True)
-            shutil.copytree(root / SKILL, root / copy)
+    sync_skill.sync(root)
     paths = [str(p) for p in plan] + [str(c) for c in COPIES if (root / c).exists()]
     subprocess.run(["git", "-C", str(root), "add", "-A", "--", *paths], check=True)  # noqa: S603
     subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", message], check=True)  # noqa: S603

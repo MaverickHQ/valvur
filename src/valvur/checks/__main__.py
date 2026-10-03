@@ -14,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import REGISTRY
+from .registry import REGISTRY
 
 
 def main(argv: list[str] | None = None) -> int:

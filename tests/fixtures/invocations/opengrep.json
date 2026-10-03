@@ -13,7 +13,6 @@
   ],
   "timeout": 600,
   "network": false,
-  "allow_exec": true,
   "flags_shape": [
     "--rm",
     "--user",

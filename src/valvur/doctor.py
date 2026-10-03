@@ -21,12 +21,31 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import cache as _cache
-from . import egress, owner
+from . import (
+    compat,
+    datasets,
+    egress,
+    epss,
+    exclusions,
+    fileset,
+    name_index,
+    oci,
+    owner,
+    project_schema,
+    selinux,
+    skill,
+)
+from . import runner as _runner
 from . import settings as _settings
-from .version import __version__
-
-#: What each level means, in the order they are worth reading.
-LEVELS = ("fail", "warn", "info", "ok", "skip")
+from .egress import DEFAULT_DB_REPOSITORY, db_repository
+from .engine_host import in_image
+from .enrichment import KEV_URL, LocalProvider
+from .mcp import clients as _clients
+from .refusal import Refusal
+from .results import RESULTS_DIR
+from .selinux import RELABEL_ENV
+from .tree_hash import IMAGE_DIGEST_FILE
+from .version import __version__, default_image
 
 
 @dataclass(frozen=True)
@@ -58,9 +77,7 @@ def _trusted_roots() -> int:
 
 
 def _find_runtime() -> str:
-    from .runner import detect_runtime
-
-    return detect_runtime()
+    return _runner.detect_runtime()
 
 
 def _runtime_version(runtime: str) -> str:
@@ -103,15 +120,11 @@ def _image_present(runtime: str, image: str) -> bool:
 
 
 def _image_label(runtime: str, image: str) -> str | None:
-    from .compat import image_version
-
-    return image_version(runtime, image)
+    return compat.image_version(runtime, image)
 
 
 def _image_protocol(runtime: str, image: str) -> int | None:
-    from .compat import image_protocol
-
-    return image_protocol(runtime, image)
+    return compat.image_protocol(runtime, image)
 
 
 def _image_starts(runtime: str, image: str) -> tuple[bool, str]:
@@ -119,8 +132,6 @@ def _image_starts(runtime: str, image: str) -> tuple[bool, str]:
     built from. The digest is information; that a container *started* is the
     measurement — the runtime, the image and this architecture, together."""
     import subprocess
-
-    from .tree_hash import IMAGE_DIGEST_FILE
 
     cmd = [runtime, "run", "--rm", *owner.labels(), *egress.NONE.container_flags(),
            "--entrypoint", "cat", image, IMAGE_DIGEST_FILE]
@@ -144,9 +155,7 @@ def _platform() -> str:
 
 
 def _selinux_enforcing() -> bool:
-    from .selinux import selinux_enforcing
-
-    return selinux_enforcing()
+    return selinux.selinux_enforcing()
 
 
 def _reachable(host: str, port: int = 443) -> bool:
@@ -166,25 +175,22 @@ def _reachable(host: str, port: int = 443) -> bool:
 def _image_reference() -> str:
     """The same expression `runner.IMAGE` is built from, read now rather than at
     import, so `VALVUR_IMAGE=… valvur doctor` checks what it names."""
-    from . import settings
-    from .version import default_image
-
-    return settings.get("image") or default_image()
+    return _settings.get("image") or default_image()
 
 
-def run(workspace: Path, *, network: bool = False) -> list[Check]:
+def run(workspace: Path, *, network: bool = False,
+        served: tuple[str, ...] | None = None) -> list[Check]:
+    """Every check, in order. `served` is the tools of the MCP server answering,
+    when `doctor` answers inside one; None at a terminal."""
     workspace = Path(workspace).resolve()
     fetch_due = not _cache.db_present() or not _cache.name_index_present()
     checks: list[Check] = []
 
     checks.append(_check_python(fetch_due))
-    from .engine_host import in_image
 
     if in_image():
         # The image as a pipeline step (R8.1): a scan runs its engine here, and
         # there is no runtime to find and none to need.
-        from .version import __version__
-
         runtime, image_local = None, True
         checks.append(Check("runtime", "ok", "none needed: this is the image itself, "
                             "and a scan runs its engine here"))
@@ -201,7 +207,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_kev())
     checks.append(_check_cache())
     checks.append(_check_settings())
-    session = _check_session(workspace)
+    session = _check_session(workspace, served)
     if session is not None:
         checks.append(session)
     checks.append(_check_selinux(workspace))
@@ -235,14 +241,6 @@ def _check_python(fetch_due: bool) -> Check:
     )
 
 
-def _default_fleet() -> tuple:
-    """The default Profile's Scanners — how wide the fleet is when nobody narrows it."""
-    from . import profiles
-    from .adapters import DEFAULT_ADAPTERS
-
-    return tuple(profiles.select(DEFAULT_ADAPTERS, profiles.DEFAULT))
-
-
 def _check_runtime() -> tuple[str | None, Check]:
     """Returns the runtime's path when it is found and running, else None."""
     try:
@@ -259,10 +257,7 @@ def _check_runtime() -> tuple[str | None, Check]:
             "start it — Docker Desktop (or `open -a Docker`), `systemctl start docker`, "
             "or `podman machine start` — and run doctor again",
         )
-    from . import runner as _runner
-    from .runner import memory_ceiling_note
-
-    note = memory_ceiling_note(runtime)
+    note = _runner.memory_ceiling_note(runtime)
     detail = f"{version} at {runtime}, running" + (f"; {note}" if note else "")
     memory, cpus = _runner.runtime_resources(runtime)
     if memory is not None:
@@ -275,8 +270,6 @@ def _check_runtime() -> tuple[str | None, Check]:
 
 def _check_image(runtime: str | None) -> tuple[Check, bool]:
     """Returns the check and whether the image is local."""
-    from . import compat
-
     image = _image_reference()
     if runtime is None:
         return Check("image", "skip", f"{image}: not checked without a runtime"), False
@@ -311,8 +304,6 @@ def _check_image(runtime: str | None) -> tuple[Check, bool]:
             "an 'exec format error' means the image is for another architecture",
         ), True
     # The tree, not the version (23.4.4): the one thing F1.9 cannot see.
-    from . import compat
-
     mine = compat.shim_inputs()
     if digest and mine and digest != mine:
         return Check(
@@ -362,14 +353,16 @@ def _check_database() -> Check:
     if not _cache.db_present():
         return Check("database", "info", "not present; the first scan fetches it and says "
                      f"so ({_cache.fetch_note('database')}, about 1.4 GB on disk)")
-    age = _cache.db_age_days()
+
+    age = datasets.DATABASE.age()
     if age is None:
         return Check("database", "warn", "present, but its age cannot be read; a scan "
                      "that finds nothing reads inconclusive", "valvur update")
-    if age > _cache.DB_STALE_AFTER_DAYS:
+    if datasets.DATABASE.stale(age):
         return Check(
             "database", "warn",
-            f"{age:.1f} days old (threshold {_cache.DB_STALE_AFTER_DAYS}); a scan that "
+            f"{age:.1f} days old (threshold "
+            f"{datasets.DATABASE.inconclusive_after_days:g}); a scan that "
             "finds nothing reads inconclusive",
             "valvur update — or `valvur update --if-stale` from a hook, which costs one "
             "file read when current",
@@ -381,8 +374,6 @@ def _check_database() -> Check:
 
 def _check_index() -> Check:
     import json
-
-    from . import name_index
 
     if not _cache.name_index_present():
         return Check("index", "info", "not present; the first scan fetches it and says so "
@@ -399,7 +390,8 @@ def _check_index() -> Check:
     )
     missing = [eco for eco, filename in name_index.FILES.items()
                if not (directory / filename).is_file()]
-    age = _cache.name_index_age_days()
+
+    age = datasets.NAME_INDEX.age()
     aged = f"{age:.1f} days old" if age is not None else "age unknown"
     if missing:
         return Check(
@@ -408,10 +400,11 @@ def _check_index() -> Check:
             "those dependencies fails its existence check",
             "valvur update",
         )
-    if age is None or age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
+    if age is None or datasets.NAME_INDEX.stale(age):
         return Check(
             "index", "warn",
-            f"{aged} (threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS}) — {counts}; a name "
+            f"{aged} (threshold {datasets.NAME_INDEX.inconclusive_after_days:g}) — "
+            f"{counts}; a name "
             "registered since is reported as nonexistent",
             "valvur update",
         )
@@ -422,8 +415,6 @@ def _check_index() -> Check:
 
 def _check_kev() -> Check:
     """The catalog a scan would rank with, its release day and age (D23)."""
-    from .enrichment import LocalProvider
-
     kev = LocalProvider()
     if kev.kev_age_days is None:
         return Check("kev", "info", _cache.KEV_ABSENT_MEANS)
@@ -451,8 +442,6 @@ def _check_project_file(workspace: Path) -> Check:
     named, since a misspelt `exclud` was otherwise ignored in silence."""
     import tomllib
 
-    from . import project_schema
-
     path = workspace / ".security-scan.toml"
     if not path.is_file():
         return Check("project file", "info", "none; `valvur init` prints a starter")
@@ -470,14 +459,7 @@ def _check_project_file(workspace: Path) -> Check:
 _LAUNCHERS = frozenset({"uvx", "uv", "pipx", "npx", "python", "python3"})
 
 
-def _as_server() -> bool:
-    """Whether this `doctor` answers inside the MCP server, over a call."""
-    from .mcp import protocol
-
-    return protocol.current_call() is not None
-
-
-def _check_session(workspace: Path) -> Check | None:
+def _check_session(workspace: Path, served: tuple[str, ...] | None) -> Check | None:
     """Whether the server answering is the one the configuration names (30.1.2, C5).
 
     A client keeps the server it spawned when the session began; a changed `.mcp.json`
@@ -487,13 +469,10 @@ def _check_session(workspace: Path) -> Check | None:
     import shutil
     import sys
 
-    from .mcp import protocol
-    from .version import __version__
-
-    if not _as_server():
-        return None
+    if served is None:
+        return None              # a terminal has no session to check
     running = Path(sys.argv[0])
-    names = getattr(protocol.current_call(), "served", ())
+    names = served
     serving = f", serving {len(names)} tools: {', '.join(names)}" if names else ""
     for label, command, args in _configured_servers(workspace):
         if command in _LAUNCHERS:
@@ -536,8 +515,6 @@ def _check_settings() -> Check:
 
 
 def _check_selinux(workspace: Path) -> Check:
-    from .selinux import RELABEL_ENV
-
     system = _platform()
     if system != "Linux":
         return Check("selinux", "ok", f"not applicable on {system}")
@@ -557,9 +534,6 @@ def _check_workspace(workspace: Path) -> Check:
     """How much a scan here will read, and the directory that would drop most of
     it (29.1.2). The first gate's tree held 107,544 files, 103,251 of them in
     one gitignored archive, and nothing said so until the budget was spent."""
-    from . import exclusions, fileset
-    from .refusal import Refusal
-
     prefixes = exclusions.excluded_prefixes(workspace)
     try:
         chosen = fileset.build(workspace)
@@ -590,8 +564,6 @@ def _check_mcp(workspace: Path) -> Check:
     `mcp.clients` (29.2.2), each file in its own shape, and whether the command
     it names is on PATH (10.2's claim 3: a server that cannot start must not
     look like one that does nothing)."""
-    from .mcp import clients as _clients
-
     home = Path.home()
     found: list[str] = []
 
@@ -619,9 +591,6 @@ def _check_skill(workspace: Path) -> Check:
     """Whether this project carries the skill where Claude Code or Kiro reads it,
     and whether it is this valvur's (R15.4, D40): an older copy tells an agent about
     tools and rules this server no longer has, or lacks those it has."""
-    from . import skill
-    from .version import __version__
-
     present, stale = [], []
     for where in skill.LOCATIONS.values():
         path = workspace / where / "SKILL.md"
@@ -770,10 +739,6 @@ def _first_run_hosts() -> list[tuple[str, int]]:
     mirror setting the air-gapped guide documents."""
     from urllib.parse import urlsplit
 
-    from . import epss, name_index, oci
-    from .egress import DEFAULT_DB_REPOSITORY, db_repository
-    from .enrichment import KEV_URL
-
     hosts: list[tuple[str, int]] = []
 
     def registry(reference: str) -> None:
@@ -859,9 +824,6 @@ def bundle(workspace: Path, checks: list[Check], out_dir: Path) -> Path:
     import tarfile
     from datetime import UTC, datetime
 
-    from . import cache as _cache_module
-    from .results import RESULTS_DIR
-
     workspace = Path(workspace).resolve()
     run_json = workspace / RESULTS_DIR / "run.json"
     report = render(checks, workspace)
@@ -873,8 +835,8 @@ def bundle(workspace: Path, checks: list[Check], out_dir: Path) -> Path:
         f"platform {platform.platform()}",
         f"runtime {_runtime_line()}",
         f"image {_image_reference()}",
-        f"database age_days {_cache_module.db_age_days()}",
-        f"index age_days {_cache_module.name_index_age_days()}",
+        f"database age_days {_cache.db_age_days()}",
+        f"index age_days {_cache.name_index_age_days()}",
     ]) + "\n"
     members: list[tuple[str, bytes]] = [
         ("doctor.txt", report.encode("utf-8")),

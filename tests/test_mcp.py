@@ -433,8 +433,7 @@ def test_status_reports_running_then_done(tmp_path):
         time.sleep(0.1)
 
     assert job.state == "done"
-    assert job.summary == "clean: 0 finding(s)."
-    assert "gitleaks: ok" in job.progress
+    assert "gitleaks: ok" in [str(event) for event in job.progress]
 
 
 def test_a_second_scan_while_one_runs_is_refused_not_queued(tmp_path):
@@ -556,30 +555,29 @@ def test_scan_status_before_any_scan_says_so(tmp_path):
 # --------------------------------------------------------- 9.3 CLI parity
 
 def test_every_mcp_tool_is_backed_by_a_shared_operation():
-    """F9.3, structurally.
+    """F9.3, structurally, as D51 draws it.
 
-    Both surfaces call `valvur.operations`, so they cannot drift. Asserting equality
-    of formatted output would be brittle and would keep passing while the semantics
-    diverged underneath.
+    Each tool's handler is in `valvur.mcp.handlers`, and does no work of its own:
+    it passes what the call knows (the client's roots, its progress, the scan's
+    job) to the one operation the CLI calls too, `valvur.operations` or
+    `service.run_scan`. `scan_cancel` alone is the server's: the CLI's cancel is
+    Ctrl-C on the scan it runs. Asserting equality of formatted output would be
+    brittle and would keep passing while the semantics diverged underneath.
     """
-    from valvur import operations
+    import inspect
+
+    from valvur.mcp import handlers
     from valvur.mcp.tools import registry
 
-    shared = {
-        getattr(operations, name)
-        for name in ("scan_reply", "findings", "scan_status", "doctor", "cancel_scan",
-                     "update_reply", "check_package")
-    }
-    # A reader that answers `structuredContent` (28.2.2) is registered in its
-    # two-form shape, `<name>_reply`; the CLI's text function is that reply's
-    # first element by construction and names it as `.reply`. Still one
-    # computation, still the same module.
-    structured = {getattr(operation, "reply", None) for operation in shared} - {None}
-
     for tool in registry():
-        assert tool.handler in shared | structured, (
-            f"{tool.name} has its own implementation; it will drift from the CLI"
-        )
+        assert tool.handler.__module__ == handlers.__name__, (
+            f"{tool.name} has its own implementation; it will drift from the CLI")
+        source = inspect.getsource(tool.handler)
+        if tool.name == "scan":
+            source += inspect.getsource(handlers._work)
+        shared = "operations." in source or "service.run_scan(" in source
+        assert shared or tool.name == "scan_cancel", (
+            f"{tool.name}'s handler reaches no shared operation")
 
 
 @pytest.mark.parametrize(

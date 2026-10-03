@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, replace
 
-from .coverage import NOTE_RULES
+from . import verdict
 from .findings import Finding
 
 #: Hits of one rule under one top-level directory that make a group (R5.2).
@@ -69,7 +69,7 @@ def _key(finding: Finding) -> tuple[str, str, bool]:
 def _eligible(finding: Finding) -> bool:
     """An accepted risk is not part of a flood, and a coverage note is about
     valvur, not the code."""
-    return not finding.suppressed and finding.rule not in NOTE_RULES
+    return verdict.active(finding)
 
 
 def _id(rule: str, directory: str, data: bool) -> str:
