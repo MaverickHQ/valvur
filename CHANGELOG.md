@@ -10,11 +10,15 @@ break things, and has.
 
 ## [1.3.1] — 2026-10-03
 
+A fix to 1.3.0's install hook, so that it never goes silently off. Nothing else changes:
+the Score, the CLI and every contract are as in 1.3.0.
+
 - **The plugin's hook asks when valvur cannot start.** A hook that fails is non-blocking
   to Claude Code, so when the hook's `uvx` command could not run (for an hour after
   1.3.0, `uvx` on a machine that had cached PyPI's index before the release could not
   find it), an install went ahead unasked. The plugin's script now answers `ask`, naming
-  why the check did not run. It reaches plugin users with the plugin's next version.
+  why the check did not run. The plugin's version is 1.3.1, so `/plugin update` in
+  Claude Code brings it.
 
 ## [1.3.0] — 2026-10-03
 
