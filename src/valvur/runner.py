@@ -251,8 +251,7 @@ def scan_resource_flags(runtime: str) -> list[str]:
 
 def launch_flags(runtime: str, *, generation: str | None, name: str, scratch: str | Path,
                  network: bool, interactive: bool = False, landing: tuple[str, ...] = (),
-                 osv: bool = False, resources: list[str] | None = None,
-                 exec_tmp: bool = False) -> list[str]:
+                 osv: bool = False, resources: list[str] | None = None) -> list[str]:
     """`<runtime> run …` up to the image, for every container valvur starts (D52e):
     the Scan Container and the database fetch alike, so what they share is written
     once. F10.2, with the Dockerfile's USER 10001: non-root, a read-only root
@@ -274,8 +273,9 @@ def launch_flags(runtime: str, *, generation: str | None, name: str, scratch: st
         # The memory, PID and privilege ceiling (28.0.3).
         *(resources if resources is not None else _resource_flags(runtime)),
         # Scratch space the read-only root still needs: in memory, gone with the
-        # container, nosuid.
-        "--tmpfs", f"/tmp:rw,{'exec' if exec_tmp else 'noexec'},nosuid,size=512m",  # noqa: S108
+        # container, nosuid, and noexec for every tool (D54a): Opengrep's core is
+        # unpacked in the image, so nothing needs to run from here.
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=512m",  # noqa: S108
         *landing,
         "-v", f"{scratch}:/results{z}",
         "-v", f"{db}:/cache/trivy{z}",                  # ADR-0012: the DB outside the image
@@ -483,7 +483,7 @@ class ContainerRunner:
             cmd = [
                 *launch_flags(self.runtime, generation=self.generation,
                               name=_container_name(), scratch=scratch,
-                              network=invocation.network, exec_tmp=invocation.allow_exec),
+                              network=invocation.network),
                 *[flag for key, value in invocation.env for flag in ("--env", f"{key}={value}")],
                 self.image, *invocation.argv,
             ]

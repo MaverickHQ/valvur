@@ -68,7 +68,7 @@ the rest are the image's, and the e2e test checks each of those exists.
 | `/cache/trivy` | the shim: the vulnerability database, mounted from the host cache (ADR-0012) | Trivy (`--cache-dir`, and `TRIVY_CACHE_DIR`), and `valvur update`'s fetch into it |
 | `/cache/names` | the shim: the package-name index, mounted read-only from the host cache (ADR-0018), with the known-malicious list in `malicious/` beside it (R11.5, ADR-0027) | the dependency-reality Check |
 | `/cache/osv` | the shim: OSV's offline database, one zip per ecosystem, mounted read-only from the host cache (R4.6) | OSV-Scanner on `offline` (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`) |
-| `/tmp` | the shim: a tmpfs (`rw,exec,nosuid,size=512m`); `HOME` points here | Opengrep unpacks and runs opengrep-core here; any tool that needs scratch space |
+| `/tmp` | the shim: a tmpfs (`rw,noexec,nosuid,size=512m`); `HOME` points here | any tool that needs scratch space; nothing runs from here, since Opengrep's core is unpacked in the image at `/opt/opengrep` |
 | `/opt/valvur-rules` | the image: valvur's own Opengrep rules, licensed with the project (ADR-0004), and in `vendor/` the rules vendored on measured precision, each with its origin's licence (R13, ADR-0029) | Opengrep (`--config`) |
 | `/opt/checkov` | the image: Checkov's own virtual environment, hash-locked (23.4.1); `checkov` on PATH links into it | Checkov |
 | `/usr/local/lib/python3.12/site-packages/valvur` | the image: the `valvur` package itself, so the engine and the Checks run in the container (ADR-0013) | `python -m valvur.engine`, `python -m valvur.checks` |

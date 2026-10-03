@@ -35,7 +35,6 @@ def _assert_matches(invocation: Invocation, tool: str) -> None:
     assert list(invocation.argv) == expected["argv"], f"{tool}'s argv changed"
     assert invocation.timeout == expected["timeout"]
     assert invocation.network is expected["network"]
-    assert invocation.allow_exec is expected["allow_exec"]
     assert invocation.tool == tool if tool != "checks-batch" else invocation.tool == "checks"
 
 
@@ -115,22 +114,6 @@ def test_the_other_four_reproduce_the_runners_argv(tmp_path, tool, adapter_name,
     # These four opt into the empty-result allowance the runner gave them; Trivy
     # and Gitleaks never had it and still do not.
     assert invocation.empty_when == __import__("valvur.invocation").invocation.NOTHING_TO_SCAN
-
-
-def test_only_opengrep_is_granted_an_executable_scratch(tmp_path, monkeypatch):
-    """Least privilege per Scanner: `exec` on /tmp is Opengrep's alone, because it
-    unpacks and runs opengrep-core. A second adapter asking for it is a review
-    question, not a default."""
-    from valvur import adapters
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    granted = {
-        a.name: a.command(tmp_path).allow_exec
-        for a in adapters.DEFAULT_ADAPTERS if getattr(a, "kind", "") == "scanner"
-    }
-
-    assert granted == {"gitleaks": False, "trivy": False, "osv-scanner": False,
-                       "opengrep": True, "checkov": False, "zizmor": False, "syft": False}
 
 
 def test_only_osv_scanner_asks_for_a_network_among_the_scanners(tmp_path, monkeypatch):

@@ -449,10 +449,7 @@ class ContainerRuntime(_Runtime):
             *runner.launch_flags(
                 self.runtime, generation=self.generation, name=name, scratch=scratch,
                 network=network, interactive=True, landing=landing, osv=True,
-                resources=runner.scan_resource_flags(self.runtime),
-                # Opengrep's one-file binary unpacks 243 MB into $HOME, here, and
-                # execs it, on every scan; unpacking it in the image is D54(a).
-                exec_tmp=True),
+                resources=runner.scan_resource_flags(self.runtime)),
             self.image, "python", "-m", "valvur.engine",
         ]
 
