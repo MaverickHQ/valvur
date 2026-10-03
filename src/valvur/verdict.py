@@ -6,7 +6,8 @@ reported, never hidden, and not a live problem. A **coverage note** is valvur's 
 limit, not the user's defect: counting "we have no existence check for Rust" against
 their code would make the verdict permanently negative for something they cannot
 fix (task 19.C.1). Neither is active. Until R23.6 six modules decided this each its
-own way.
+own way. The **sink inventory** (D47a) names where model output or input could do
+harm, for review; the flow into a sink is the finding, so the sink alone is not.
 """
 
 from __future__ import annotations
@@ -50,6 +51,13 @@ def note(finding: Any) -> bool:
     return _field(finding, "rule") in NOTE_RULES
 
 
+def inventory(finding: Any) -> bool:
+    """A sink named for review (D47a), which is reported and never active."""
+    return bool(finding.get("inventory") if isinstance(finding, dict)
+                else getattr(finding, "inventory", False))
+
+
 def active(finding: Any) -> bool:
-    """About the scanned project, live: neither suppressed nor a coverage note."""
-    return not _field(finding, "suppressed") and not note(finding)
+    """About the scanned project, live: neither suppressed, nor a coverage note, nor
+    the sink inventory."""
+    return not _field(finding, "suppressed") and not note(finding) and not inventory(finding)

@@ -213,6 +213,9 @@ def findings_reply(args: dict, *, roots: list[Path] | None = None) -> tuple[str,
                       "scan; `findings` gives each finding's.", kind="unknown-fingerprint")
     if not args.get("include_suppressed") and not filters.get("fingerprint"):
         findings = [f for f in findings if not f.get("suppressed")]
+    if not args.get("inventory") and not filters.get("fingerprint"):
+        # The sink inventory is listed when asked for (D47a).
+        findings = [f for f in findings if not f.get("inventory")]
     findings.sort(key=lambda f: f.get("rank") or 10**9)
 
     shown, omitted = findings[:limit], max(0, len(findings) - limit)

@@ -918,12 +918,21 @@ table.*
   path classed `vendored` and gets the same fingerprints. **The corpus**, over the
   235 findings of the 13 repositories at R24's scan: 189 `source`, 30 `example`, 11
   `test` and 5 `docs`; none `fixture`, `vendored` or `generated`.
-- [ ] **R20.3** **The sink inventory is inventory** (D47a). Behaviours:
+- [x] **R20.3** **The sink inventory is inventory** (D47a). Behaviours:
   1. an inventory rule's finding is marked `inventory` in `findings.json` and SARIF;
   2. it is not active: a project whose only results are inventory reads `clean`, with
      *Sinks to review* counting them in `SUMMARY.md`;
   3. `findings` lists inventory only when asked (`inventory: true`);
   4. a non-inventory finding at the same line still counts.
+  **STATUS 2026-10-03:** ✅ all four. `dangerous-eval`, `dangerous-exec` and
+  `string-built-sql` declare `inventory: true` in their metadata, and no other rule
+  does (a test reads the rules). The Opengrep adapter carries it to the Finding,
+  `verdict.active` excludes it, and `findings.json` and SARIF mark it. `SUMMARY.md`
+  counts *Sinks to review* and says how to list them. The `findings` tool takes
+  `inventory`, and the CLI `--inventory`. The Score's own `_active`, which mirrors the
+  verdict, excludes it too. **Measured** on the image built from this change: tracks 1
+  to 7 unchanged; track 8 from 3.7 to 5.3, its judged set from 26 findings to 18; the
+  Score from 64.9 to 65.1.
 - [ ] **R20.4** **One table decides what a class changes** (D56; D47b, c). Behaviours:
   1. a Gitleaks finding in `test`, `fixture`, `docs` or `example` is `low`, still
      active, and still makes the verdict `findings`;

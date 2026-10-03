@@ -133,6 +133,9 @@ class Finding:
     #: `vendored` or `generated`. Not identity: a test's secret is the same Finding
     #: whatever its directory is called.
     context: str = ""
+    #: A sink its rule names for review, not a finding by itself (D47a): reported,
+    #: and counted under *Sinks to review*, but never active. Not identity.
+    inventory: bool = False
 
     def __post_init__(self) -> None:
         """Neutralise evidence at the MODEL boundary, not per-adapter.

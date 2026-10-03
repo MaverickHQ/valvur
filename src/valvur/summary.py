@@ -214,15 +214,22 @@ def _qualifiers(run: ScanRun, findings) -> list[str]:
     return lines
 
 
+def _sinks(run: ScanRun) -> list:
+    """The sink inventory (D47a): named for review, not findings by themselves."""
+    return [f for f in run.findings if verdict.inventory(f) and not f.suppressed]
+
+
 def _status(run: ScanRun, active, suppressed, notes) -> list[str]:
     """The Status and the counts, on two lines. "Findings: 4" for four accepted
     risks read exactly like four live problems; active is the number that means
     "there is work here" (task 19.C.1)."""
+    sinks = _sinks(run)
     lines = [
         f"**Status:** {run.status}",
         f"**Active findings:** {len(active)}"
         + (f" · **suppressed:** {len(suppressed)}" if suppressed else "")
         + (f" · **not covered:** {len(notes)}" if notes else "")
+        + (f" · **Sinks to review:** {len(sinks)}" if sinks else "")
         + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else "")
         + (f" · **not re-checked:** {len(run.not_rechecked)}" if run.not_rechecked else "")
         + (f". {_counts(active)}" if active else ""),
@@ -233,6 +240,13 @@ def _status(run: ScanRun, active, suppressed, notes) -> list[str]:
             f"> **Nothing live was found.** The {len(suppressed)} finding(s) below are "
             "accepted risks recorded in `.security-scan.toml`, with expiry dates. They "
             "are listed, never hidden — but this scan did not find a new problem.",
+            "",
+        ]
+    if sinks:
+        lines += [
+            f"_{len(sinks)} sink(s) to review: places where code is executed or a query "
+            "built from a value, named so a reviewer can check what reaches them. Not "
+            "findings by themselves; `findings` with `inventory: true` lists them._",
             "",
         ]
     return lines

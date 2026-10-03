@@ -1,6 +1,6 @@
 usage: valvur findings [-h] [--fingerprint FINGERPRINT] [--group GROUP] [--rule RULE]
                        [--path PREFIX] [--status {new,persisting,regressed}] [--limit LIMIT]
-                       [--include-suppressed]
+                       [--include-suppressed] [--inventory]
                        [path]
 
 positional arguments:
@@ -16,3 +16,4 @@ options:
   --status {new,persisting,regressed}
   --limit LIMIT
   --include-suppressed
+  --inventory           Also list the sinks named for review, which are not findings by themselves

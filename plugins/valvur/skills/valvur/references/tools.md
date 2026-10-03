@@ -30,6 +30,7 @@ It changes nothing.
 - `status` (string, one of `new`, `persisting`, `regressed`)
 - `limit` (integer): Default 20, max 100; a larger one is clamped, and said so.
 - `include_suppressed` (boolean)
+- `inventory` (boolean): Also list the sinks named for review (code execution, queries built from a value), which are not findings by themselves.
 
 ## `scan_status`
 

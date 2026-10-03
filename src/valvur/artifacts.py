@@ -58,6 +58,9 @@ def _serialise(finding: Finding) -> dict:
     record["cwe"] = list(finding.cwe)
     if not finding.cwe:
         del record["cwe"]
+    # Additive (D47a): present on the sink inventory alone.
+    if not finding.inventory:
+        del record["inventory"]
     return record
 
 
@@ -95,7 +98,8 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
             "partialFingerprints": {FINGERPRINT_KEY: finding.fingerprint},
             "properties": {"status": finding.status, "rank": finding.rank,
                            # The path's class (D56), which is not identity.
-                           **({"context": finding.context} if finding.context else {})},
+                           **({"context": finding.context} if finding.context else {}),
+                           **({"inventory": True} if finding.inventory else {})},
         })
         if finding.suppressed:
             # SARIF's own concept. An invented property would make IDEs show

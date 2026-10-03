@@ -94,6 +94,9 @@ class OpengrepAdapter(ScannerAdapter):
                     sources=(output.tool,),
                     severity=_severity(item),
                     cwe=_cwe(item),
+                    # The rule says it names a sink for review (D47a).
+                    inventory=bool((item.get("extra", {}).get("metadata") or {})
+                                   .get("inventory")),
                 )
             )
         return findings

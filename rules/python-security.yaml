@@ -21,6 +21,7 @@ rules:
     languages: [python]
     severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-95: Eval Injection"]
     message: >-
       A code-execution sink: eval() on a non-literal expression. Not a vulnerability
@@ -35,6 +36,7 @@ rules:
     languages: [python]
     severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-95: Eval Injection"]
     message: >-
       A code-execution sink: exec() on a non-literal expression. Not a vulnerability
@@ -73,6 +75,7 @@ rules:
     languages: [python]
     severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-89: SQL Injection"]
     message: >-
       A query sink built by string formatting. Not a vulnerability by itself — the

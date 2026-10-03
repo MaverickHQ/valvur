@@ -200,6 +200,11 @@ def registry() -> list[Tool]:
                            "description": f"Default {DEFAULT_LIMIT}, max {MAX_LIMIT}; "
                                           "a larger one is clamped, and said so."},
                  "include_suppressed": {"type": "boolean"},
+                 "inventory": {"type": "boolean",
+                               "description": "Also list the sinks named for review "
+                                              "(code execution, queries built from a "
+                                              "value), which are not findings by "
+                                              "themselves."},
              }}, findings_reply, output_schema=_LIST_FINDINGS_SHAPE),
         Tool("scan_status", "What the last scan actually did: which scanners ran, "
                             "which failed, and whether the result is complete.",

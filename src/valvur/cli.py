@@ -401,6 +401,9 @@ def build_parser() -> argparse.ArgumentParser:
     findings_cmd.add_argument("--status", choices=["new", "persisting", "regressed"])
     findings_cmd.add_argument("--limit", type=int)
     findings_cmd.add_argument("--include-suppressed", action="store_true")
+    findings_cmd.add_argument(
+        "--inventory", action="store_true",
+        help="Also list the sinks named for review, which are not findings by themselves")
 
     explain_cmd = sub.add_parser("explain", help="Now `findings --fingerprint`")
     explain_cmd.add_argument("fingerprint")
@@ -588,6 +591,8 @@ def _cmd_read(args: argparse.Namespace, runner=None) -> int:
             payload[key] = getattr(args, field)
     if getattr(args, "include_suppressed", False):
         payload["include_suppressed"] = True
+    if getattr(args, "inventory", False):
+        payload["inventory"] = True
     try:
         print(handler(payload))
     except (FileNotFoundError, ValueError) as exc:
