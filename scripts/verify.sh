@@ -11,7 +11,7 @@
 # This is the fast half: the checks worth having before every push.
 #
 #   scripts/verify.sh              # everything that needs no container
-#   scripts/verify.sh lint types   # just those
+#   scripts/verify.sh lint types   # just those (lint types traceability layers tests build)
 #   scripts/verify.sh image        # the local image was built from this tree (22.C.1)
 #
 set -uo pipefail
@@ -80,6 +80,8 @@ fi
 want lint         && run "lint"         uv run ruff check "${LINT_PATHS[@]}"
 want types        && run "types"        uv run mypy src
 want traceability && run "traceability" uv run python scripts/check_traceability.py
+# The host side in layers (D50): every module in one, every import pointing down.
+want layers       && run "layers"       uv run python scripts/check_layers.py
 want tests        && run "tests"        uv run pytest -q -m "not e2e and not timing"
 want build        && run "build"        uv build --out-dir "${TMPDIR:-/tmp}/valvur-verify-dist"
 
@@ -92,7 +94,7 @@ want image        && run "image"        uv run python scripts/check_image.py
 
 printf '\n'
 if [ "$RAN" -eq 0 ]; then
-  printf '\033[31mno checks ran\033[0m — %s matched nothing. Known checks: lint types traceability tests build image\n' "${*:-(no arguments)}"
+  printf '\033[31mno checks ran\033[0m — %s matched nothing. Known checks: lint types traceability layers tests build image\n' "${*:-(no arguments)}"
   exit 1
 fi
 if [ "${#FAILED[@]}" -ne 0 ]; then

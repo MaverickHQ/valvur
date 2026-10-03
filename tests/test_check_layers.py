@@ -140,3 +140,26 @@ def test_the_repositorys_baseline_holds_todays_upward_imports_and_no_more(layers
 
     assert found.upward == [], [v.message for v in found.upward]
     assert (found.unassigned, found.stray, found.gone) == ([], [], [])
+
+
+def _verify(tmp_path: Path, *selected: str) -> list[str]:
+    """`scripts/verify.sh` run with a `uv` that records what it was asked and
+    succeeds, so the gate's own wiring is what is tested."""
+    import os
+    import subprocess
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    log = tmp_path / "uv.log"
+    (bin_dir / "uv").write_text(f'#!/bin/sh\necho "$*" >> "{log}"\n')
+    (bin_dir / "uv").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+    done = subprocess.run(["bash", str(SCRIPTS / "verify.sh"), *selected], env=env,
+                          capture_output=True, text=True, check=False)
+    assert done.returncode == 0, done.stdout + done.stderr
+    return log.read_text().splitlines()
+
+
+def test_the_gate_runs_the_layer_check(tmp_path):
+    assert "run python scripts/check_layers.py" in _verify(tmp_path)
+    assert _verify(tmp_path / "named", "layers")[-1] == "run python scripts/check_layers.py"

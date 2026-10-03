@@ -558,12 +558,22 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
     `LocalRuntime`, times, ids, dates and paths normalised, in
     `tests/fixtures/scan-goldens/`; `python tests/test_scan_goldens.py` regenerates them
     through the tests, which write only to a scratch directory. 9 pass, twice running.
-- [ ] **R23.2** **The layer check** (D50). Behaviours:
+- [x] **R23.2** **The layer check** (D50). Behaviours:
   1. an import of a higher layer from a lower one fails, named with its `file:line`,
      deferred imports included;
   2. a module in no layer fails;
   3. today's upward imports are the baseline, which may only shrink;
   4. it runs in `verify.sh`.
+  **STATUS 2026-10-03:** ✅ all four. `scripts/check_layers.py` reads every import from
+  the AST, a deferred one marked so, and resolves `from . import x` to the module `x`.
+  `scripts/layers.toml` assigns all 99 modules: 17 to `core`, 55 to `infra`, 21 to
+  `app` and 7 to `surfaces`, with `valvur._build` named as generated. A module in no
+  layer fails, and so does a name the table assigns to no module. The first run found 7
+  upward imports, 4 by module, now the baseline: `doctor` and `operations` reach
+  `mcp.protocol` for the client's session and roots, `findings` reaches `ecosystems`
+  for `index_form`, and `grouping` reaches `coverage` for `NOTE_RULES`. An entry that
+  stops happening fails until it is removed. `verify.sh` runs it as `layers`, held by a
+  test that runs the gate with a recording `uv`.
 - [ ] **R23.3** **The package loads only what is asked** (D50). Behaviours:
   1. `from valvur import scan, ScanRun, ScannerFailed, Finding, __version__` still works;
   2. `import valvur.hook` loads neither `api` nor `pipeline`, and a test counts the
