@@ -349,9 +349,10 @@ def build_parser() -> argparse.ArgumentParser:
     update_cmd.add_argument(
         "--if-stale",
         action="store_true",
-        help="Do nothing unless the database or the index is actually out of date. "
-        "Cheap enough to put in a pre-commit hook, a cron entry or CI — the "
-        "freshness check needs no network at all.",
+        help="Refresh only what a scan would refresh now: the database, the index, "
+        "the malicious list, KEV or EPSS, each when absent or past its age. Cheap "
+        "enough to put in a pre-commit hook, a cron entry or CI — the freshness "
+        "check needs no network at all.",
     )
     update_cmd.add_argument(
         "--prune", action="store_true",
