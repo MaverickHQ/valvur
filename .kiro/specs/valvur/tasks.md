@@ -517,7 +517,7 @@ owner's choice (§8).
 
 Internal only: no contract changes, and the Score unchanged on both lanes.
 
-- [ ] **R23.1** **Measure first** (D50 to D54). Record:
+- [x] **R23.1** **Measure first** (D50 to D54). Record:
   - the import graph: modules, cycles with and without the package's `__init__` as an
     edge, and deferred imports;
   - `api.py`'s length and its longest functions;
@@ -528,6 +528,36 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
   fixture workspaces (one with findings, one clean, one inconclusive), with times and
   generation IDs normalised. Behaviour: the STATUS gives each number; the goldens are
   committed and pass.
+  **STATUS 2026-10-03:** ✅ measured in the cloud session at `3691d2f`, from the AST of
+  `src/valvur` (99 modules, 378 import edges between them).
+  - **The import graph.** 229 import statements sit inside function bodies. Counting the
+    package's `__init__` as an edge of every `from . import x`, two cycles: 58 modules
+    and 6 (34, 2, 4 and 4 with the deferred imports left out). Without that edge, two:
+    ten modules around `api`, `engine_host` and `runner` (`valvur`, `api`, `compat`,
+    `engine_host`, `pipeline`, `provenance`, `results`, `runner`, `staleness`,
+    `summary`; `compat`'s generated `_build` resolves to the package), and
+    `mcp.server` with `mcp.tools`. At import time alone, six: `api`, `pipeline`,
+    `provenance`, `results`, `staleness` and `summary`, as the review found.
+  - **`api.py`:** 1,245 lines, importing 33 of valvur's modules. Its longest functions:
+    `_engine_fleet` 154 lines, `_assemble` 135, `_ensure_data` 89, `scan` 67,
+    `_outcome` 63, `_scan_locked` 48.
+  - **`import valvur.hook`** loads 52 of valvur's modules, `api` and `pipeline` among
+    them: 0.13 s in-process; as a process, a median 0.17 s against 0.017 s for a bare
+    interpreter (five runs each).
+  - **Each concept's copies** (the review's §3.3). Staleness: 28 references to a
+    threshold, across 11 modules, and `update --if-stale` still refreshes the index only
+    past 30 days, where a scan does past 2. Active: six sites (`api`, `summary`,
+    `remediation`, `gate`, `reply`, `grouping`). The network grant: four
+    (`adapters/check.py`, OSV's adapter, `Invocation.network`, `VALVUR_NETWORK`).
+    Launching a container: two flag builders (`runner.ContainerRunner._base_flags`,
+    `engine_host.ContainerRuntime.command`). `.security-scan.toml`: one CLI scan of
+    `broken-repo` with every default adapter, counted by patching, parsed `[scan]` 76
+    times and built the File Set 37 times.
+  - **The goldens:** `tests/test_scan_goldens.py` holds the CLI's text and the MCP `scan`
+    reply, text and fields, for `findings`, `clean` and `inconclusive` workspaces through
+    `LocalRuntime`, times, ids, dates and paths normalised, in
+    `tests/fixtures/scan-goldens/`; `python tests/test_scan_goldens.py` regenerates them
+    through the tests, which write only to a scratch directory. 9 pass, twice running.
 - [ ] **R23.2** **The layer check** (D50). Behaviours:
   1. an import of a higher layer from a lower one fails, named with its `file:line`,
      deferred imports included;
