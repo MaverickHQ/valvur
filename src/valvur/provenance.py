@@ -22,6 +22,11 @@ if TYPE_CHECKING:
     from .api import ScanRun
 
 
+#: The two things a budget does to a Scanner (`ScannerRun.budget`).
+BUDGET_CUT = "cut"
+BUDGET_NOT_STARTED = "not-started"
+
+
 @dataclass(frozen=True)
 class ScannerRun:
     tool: str
@@ -44,6 +49,10 @@ class ScannerRun:
     #: The Scan Run whose result this is, when it was reused rather than run (R14.3,
     #: D32): nothing it reads had changed since. Empty when it ran.
     reused_from: str = ""
+    #: What the scan's budget did to it (R3.5, D53): `cut` while it ran, `not-started`
+    #: before its turn, empty when the budget did nothing. A field, not the first
+    #: words of `reason`, which is for a reader.
+    budget: str = ""
 
     @property
     def failed(self) -> bool:

@@ -87,3 +87,38 @@ def test_each_kind_renders_the_words_every_surface_has_shown():
     }
     for event, words in rendered.items():
         assert str(event) == words, event
+
+
+# ----------------------------------------------------------- the budget's state
+
+def test_the_budgets_state_is_a_field_not_a_reasons_first_words():
+    """What the budget cut, and what it never started, is said by a field on each
+    Scanner's record; the refusal and its fields read that, whatever the reason's
+    words (they used to match `cut by the ` and `not started: `)."""
+    from valvur import levers
+    from valvur.provenance import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
+
+    scanners = [ScannerRun("trivy", ok=False, reason="stopped", duration_s=30.0,
+                           budget=BUDGET_CUT),
+                ScannerRun("checkov", ok=False, reason="waited", budget=BUDGET_NOT_STARTED),
+                ScannerRun("gitleaks", ok=False, reason="cut by the 5s budget, it says")]
+
+    fields = levers.budget_fields(scanners, 30.0)
+
+    assert fields["cut"] == {"trivy": 30.0} and fields["not_started"] == ["checkov"]
+
+
+def test_a_budget_cut_scan_records_the_state_on_each_scanner(tmp_path):
+    from test_budget import _Adapter, _Runner
+
+    from valvur import api
+    from valvur.provenance import BUDGET_CUT
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.py").write_text("x = 1\n")
+    run = api.scan(ws, runner=_Runner(), adapters=[_Adapter("fast", 0.05),
+                                                   _Adapter("slow", 30.0)], budget_s=1.5)
+
+    by_tool = {s.tool: s for s in run.scanners}
+    assert by_tool["slow"].budget == BUDGET_CUT and by_tool["fast"].budget == ""

@@ -31,7 +31,7 @@ from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
 from .coverage import DOUBT_RULES as _DOUBT_RULES
 from .findings import Finding
-from .provenance import ScannerRun
+from .provenance import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
 from .text import cut as _cut
 
 
@@ -87,9 +87,10 @@ class ScannerOutcome:
             self, scanner=dataclasses.replace(self.scanner, duration_s=seconds))
 
     def cut(self, reason: str) -> ScannerOutcome:
-        """The same outcome, its ScannerRun's reason rewritten — what the budget
+        """The same outcome, marked cut and its reason rewritten — what the budget
         does to a Scanner it stopped (23.3.7)."""
-        return dataclasses.replace(self, scanner=dataclasses.replace(self.scanner, reason=reason))
+        return dataclasses.replace(self, scanner=dataclasses.replace(
+            self.scanner, reason=reason, budget=BUDGET_CUT))
 
 
 @dataclass
@@ -883,7 +884,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 # The budget was spent before `--jobs` reached it.
                 cut.append(adapters[index].name)
                 outcomes[index] = ScannerOutcome(ScannerRun(
-                    adapters[index].name, ok=False,
+                    adapters[index].name, ok=False, budget=BUDGET_NOT_STARTED,
                     reason=f"not started: the {budget_s:g}s budget was spent before its turn"))
                 continue
             where = scratches[invocation.network]
@@ -929,8 +930,8 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                             data=keyed[1])
         if cut and on_progress is not None:
             stopping = [n for n in cut if not any(
-                o is not None and o.scanner.tool == n and o.scanner.reason.startswith(
-                    "not started") for o in outcomes)]
+                o is not None and o.scanner.tool == n
+                and o.scanner.budget == BUDGET_NOT_STARTED for o in outcomes)]
             waiting = [n for n in cut if n not in stopping]
             on_progress(_events.budget(spent, stopping, waiting))
     return outcomes, cut
@@ -1056,7 +1057,8 @@ def _with_history(outcome, adapter, output, entry, written, workspace, budget_s,
                else f"timed out after {output.stopped_after:g}s" if entry.get("timed_out")
                else f"exit {entry['exit_code']}: {output.stderr.strip()[-200:]}")
         return dataclasses.replace(outcome, scanner=dataclasses.replace(
-            outcome.scanner, ok=False, reason=f"its git history pass did not finish: {why}"))
+            outcome.scanner, ok=False, reason=f"its git history pass did not finish: {why}",
+            budget=BUDGET_CUT if entry.get("cut") else outcome.scanner.budget))
     try:
         found = adapter.parse_history(output, written, workspace, excluded)
     except (ValueError, KeyError) as exc:
@@ -1086,10 +1088,6 @@ def _preflight(runner, workspace) -> tuple[str | None, str | None]:
 
 
 
-def _budget_shaped(reason: str) -> bool:
-    return reason.startswith(("cut by the ", "not started: the "))
-
-
 def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched, fetched,
               budget_s, shim_built_from, image_built_from,
               workspace_files: int = 0, largest_dirs=(), not_read=(), scope=None,
@@ -1110,7 +1108,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
 
     # Total failure is a failed Scan Run (N3.2). Partial failure is a reported one.
     if scanners and all(s.failed for s in scanners):
-        if budget_s is not None and all(_budget_shaped(s.reason) for s in scanners):
+        if budget_s is not None and all(s.budget for s in scanners):
             # Not "every scanner failed" — the budget ran out, which is what
             # killing them looks like from inside (29.0.3). The message names
             # what ran, what did not start, and the three levers.
