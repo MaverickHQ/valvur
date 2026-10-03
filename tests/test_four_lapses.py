@@ -59,3 +59,54 @@ def test_opengrep_completes_in_the_scan_container_with_tmp_noexec(mountable_tmp)
     [opengrep] = run.scanners
     assert opengrep.ok, opengrep.reason
     assert any(f.sources == ("opengrep",) for f in run.findings)
+
+
+# ------------------------------------- (b) `full` in the image asks the registry
+
+_PYPI_REQUESTS = "https://pypi.org/pypi/requests/json"
+
+
+def _in_image_scan(tmp_path, monkeypatch, profile: str):
+    """A scan as the image runs one in a pipeline step (R8.1): the engine as a
+    process, dependency-reality as its own process beneath it, the registries a
+    stand-in that records what the Check asked."""
+    from conftest import write_name_index
+    from fake_registry import FakePackageRegistry
+
+    from valvur import api, cache
+    from valvur.adapters.check import CheckAdapter
+    from valvur.engine_host import ImageRuntime
+
+    registry = FakePackageRegistry(tmp_path / "registry", {_PYPI_REQUESTS: {
+        "info": {"name": "requests"},
+        "releases": {"2.31.0": [{"upload_time_iso_8601": "2023-05-22T15:12:44Z"}]}}})
+    registry.install(monkeypatch)
+    monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
+    # The job's cache, where the image keeps the index beside the database.
+    write_name_index(tmp_path / "cache" / "names", pip=["requests"])
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "requirements.txt").write_text("requests==2.31.0\n")
+    adapter = CheckAdapter("dependency-reality", uses_network=True)
+    network = profile == "full"
+    run = api.scan(ws, runner=ImageRuntime(), profile=profile,
+                   adapters=[adapter.for_profile(network=network)])
+    return run, registry.asked
+
+
+def test_on_full_in_the_image_dependency_reality_asks_the_registry(tmp_path, monkeypatch):
+    """D54(b): in the pipeline-step mode the runtime never set VALVUR_NETWORK, so
+    on `full` the Check behaved as offline there and skipped the registry."""
+    run, asked = _in_image_scan(tmp_path, monkeypatch, "full")
+
+    assert _PYPI_REQUESTS in asked, asked
+    [check] = run.scanners
+    assert check.ok, check.reason
+
+
+def test_on_offline_in_the_image_it_asks_nothing(tmp_path, monkeypatch):
+    run, asked = _in_image_scan(tmp_path, monkeypatch, "offline")
+
+    assert asked == []
+    [check] = run.scanners
+    assert check.ok, check.reason
