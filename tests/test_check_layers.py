@@ -74,3 +74,22 @@ def test_an_import_from_below_or_beside_passes(tmp_path, layers):
                      '[layers]\ncore = ["pkg", "pkg.model", "pkg.other"]\napp = ["pkg.service"]\n')
 
     assert layers.check(package, config).upward == []
+
+
+def test_a_module_in_no_layer_fails(tmp_path, layers):
+    package = _package(tmp_path, {"model.py": "", "orphan.py": "", "sub/__init__.py": "",
+                                  "sub/inner.py": ""})
+    config = _config(tmp_path, '[layers]\ncore = ["pkg", "pkg.model", "pkg.sub"]\n')
+
+    found = layers.check(package, config)
+
+    assert found.unassigned == ["pkg.orphan", "pkg.sub.inner"]
+
+
+def test_a_layer_naming_no_module_fails(tmp_path, layers):
+    """A table that names a module the package no longer has would assign nothing
+    and read as complete."""
+    package = _package(tmp_path, {"model.py": ""})
+    config = _config(tmp_path, '[layers]\ncore = ["pkg", "pkg.model", "pkg.gone"]\n')
+
+    assert layers.check(package, config).stray == ["pkg.gone"]

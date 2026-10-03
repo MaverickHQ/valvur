@@ -65,6 +65,14 @@ class Upward:
 @dataclass
 class Found:
     upward: list[Upward] = field(default_factory=list)
+    #: Modules the table assigns to no layer.
+    unassigned: list[str] = field(default_factory=list)
+    #: Names the table assigns that are no module of the package.
+    stray: list[str] = field(default_factory=list)
+
+    @property
+    def failed(self) -> bool:
+        return bool(self.upward or self.unassigned or self.stray)
 
 
 def module_name(package: Path, path: Path) -> str:
@@ -143,6 +151,9 @@ def _walk(body: list[ast.stmt], *, deferred: bool):
 class Config:
     order: tuple[str, ...]
     assignment: dict[str, str]
+    #: Modules written at build time, absent from the source tree, which an import
+    #: may still name (`valvur._build`).
+    generated: frozenset[str] = frozenset()
 
 
 def load(path: Path) -> Config:
@@ -150,16 +161,24 @@ def load(path: Path) -> Config:
     order = tuple(data["order"])
     assignment: dict[str, str] = {}
     for layer, names in (data.get("layers") or {}).items():
+        if layer not in order:
+            raise ValueError(f"{path}: the layer {layer!r} is not in `order`")
         for name in names:
+            if name in assignment:
+                raise ValueError(f"{path}: {name} is in two layers")
             assignment[name] = layer
-    return Config(order, assignment)
+    return Config(order, assignment, frozenset(data.get("generated") or ()))
 
 
 def check(package: Path = PACKAGE, config_path: Path = CONFIG) -> Found:
     config = load(config_path)
     rank = {layer: index for index, layer in enumerate(config.order)}
-    found = Found()
-    for edge in imports(package):
+    present = set(modules(package))
+    found = Found(
+        unassigned=sorted(present - set(config.assignment)),
+        stray=sorted(set(config.assignment) - present - config.generated),
+    )
+    for edge in imports(package, config.generated):
         here, there = config.assignment.get(edge.module), config.assignment.get(edge.target)
         if here is None or there is None:
             continue
@@ -172,10 +191,15 @@ def main() -> int:
     found = check()
     for upward in found.upward:
         print(upward.message)
-    if found.upward:
-        print(f"\n{len(found.upward)} import(s) point upward (D50).")
+    for module in found.unassigned:
+        print(f"{module}: in no layer; assign it in {CONFIG.relative_to(REPO)}")
+    for name in found.stray:
+        print(f"{name}: assigned in {CONFIG.relative_to(REPO)}, and no such module")
+    if found.failed:
+        print(f"\nlayers: {len(found.upward)} upward, {len(found.unassigned)} unassigned, "
+              f"{len(found.stray)} stray (D50).")
         return 1
-    print("layers: every import points down or across")
+    print("layers: every module has a layer, and every import points down or across")
     return 0
 
 
