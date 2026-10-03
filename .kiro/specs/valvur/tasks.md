@@ -1028,11 +1028,29 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
   from 11.1 to 22.3, track 8 at 5.9, the Score 66.6. Opengrep's taint does not survive
   a slice or a `match`, nor tell `configparser`'s keys apart, which accounts for most
   of the misses.
-- [ ] **R25.3** **Python: path traversal, secure cookies, open redirects, XXE** (D60).
+- [x] **R25.3** **Python: path traversal, secure cookies, open redirects, XXE** (D60).
   Behaviours:
   1. each category's rules have vulnerable and safe twins as tests;
   2. each rule ships only on D29's bar, or is recorded as withdrawn;
   3. the STATUS gives track 1's delta per category.
+  **STATUS 2026-10-03:** ✅ all three, and all four rules ship.
+  `tests/test_python_web_rules.py` holds a vulnerable and a safe twin per rule.
+  - `valvur.python.path-traversal` (CWE-22), taint from request data to `open`,
+    `io.open`, `codecs.open`, `os.open`, `pathlib.Path` and `send_file`; `basename`,
+    `secure_filename` and a refusal of `"../"` sanitise. pathtraver 0 to **34.7**: 27
+    of 65 found, 7 of 103 safe cases flagged.
+  - `valvur.python.insecure-cookie` (CWE-614), `set_cookie(..., secure=False)`.
+    securecookie 0 to **100**: 24 of 24, none of 15.
+  - `valvur.python.open-redirect` (CWE-601), taint to `redirect`; a URL parsed for its
+    host sanitises. redirect 0 to **59.7**: 9 of 13, 2 of 21.
+  - `valvur.python.xml-external-entities` (CWE-611), external entities switched on.
+    xxe 0 to **65.0**: 8 of 8, 7 of 20, precision 0.53.
+  D29's bar: each rule's true positives are at lines no other rule reports, since none
+  reported these categories; precision is 0.79, 1.0, 0.82 and 0.53 over track 1, with
+  no finding on track 2 or the corpus; track 8 stays at 5.9. Opengrep's time on track
+  1 went from 24.3 s to 26.3 s. Track 1 from 22.3 to **40.9**, no other category
+  moved, and the Score 68.9. The path-traversal misses are mostly the slices and
+  `configparser` reads R25.2 named.
 - [ ] **R25.4** **JavaScript: SQL injection, command injection, path traversal, SSRF**
   (D60). Behaviours:
   1. each type's rules have vulnerable and safe twins as tests;
