@@ -402,8 +402,11 @@ valvur doctor               # if that did not work: what this machine is missing
 valvur check npm left-pad   # before an install: real, a near-miss, or malicious? Offline
 ```
 
-Nine commands in all: `scan`, `findings`, `status`, `update`, `doctor`, `gate` and
-`suppress`, with `init` and `check`. `--help` on each says what it takes.
+<!-- generated: cli-commands -->
+
+Nine commands in all: `scan`, `update`, `findings`, `status`, `doctor`, `gate`, `suppress`, `init` and `check`. `--help` on each says what it takes.
+
+<!-- /generated -->
 
 A first scan fetches what it lacks and says so as it goes. Measured from an empty cache
 with the image already local, on this Mac: 59 s in all, of which 21.5 s fetched the

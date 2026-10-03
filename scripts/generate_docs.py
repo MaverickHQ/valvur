@@ -47,10 +47,29 @@ def mcp_clients() -> str:
     return readme_section()
 
 
+NUMBERS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+           "ten", "eleven", "twelve")
+
+
+def cli_commands() -> str:
+    """The CLI's commands, as `valvur --help` names them: the retired ones that still
+    parse for a release are not among them."""
+    import argparse
+
+    from valvur.cli import build_parser
+
+    [sub] = [a for a in build_parser()._actions if isinstance(a, argparse._SubParsersAction)]
+    commands = [f"`{name}`" for name in sub.metavar.strip("{}").split(",")]
+    listed = ", ".join(commands[:-1]) + f" and {commands[-1]}"
+    return (f"{NUMBERS[len(commands)].capitalize()} commands in all: {listed}. `--help` on "
+            "each says what it takes.\n")
+
+
 BLOCKS: dict[str, Callable[[], str]] = {
     "mcp-tools": mcp_tools,
     "agent-rules": agent_rules,
     "mcp-clients": mcp_clients,
+    "cli-commands": cli_commands,
 }
 FILES: tuple[Path, ...] = (
     REPO / "README.md",

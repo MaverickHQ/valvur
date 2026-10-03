@@ -176,19 +176,15 @@ def test_the_static_analysis_claim_is_tracks_1_and_2_as_the_baseline_records_the
 
 # --------------------------------------------------- R16.4: the README as built
 
-def test_the_readme_names_every_tool_and_every_command():
-    from test_seven_commands import SEVEN
-
+def test_the_readme_names_every_tool():
+    """The commands are a generated block (R24.2); the tools' table is prose, each
+    row the README's own words for what the tool does."""
     from valvur.mcp.tools import registry
 
-    text = README.read_text()
     tools = re.findall(r"^\| `(\w+)` \|", _section("For AI coding agents: the primary way in"),
                        re.M)
-    commands = re.search(r"Nine commands in all: (.+?)\. ", text, re.S)
 
     assert sorted(tools) == sorted(t.name for t in registry())
-    assert commands and sorted(re.findall(r"`(\w+)`", commands[1])) == \
-        sorted([*SEVEN, "init", "check"])
 
 
 def test_the_skill_is_installed_from_where_it_ships():
