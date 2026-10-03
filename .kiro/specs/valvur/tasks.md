@@ -12,6 +12,10 @@ power (§5, D39 to D41). It is authoritative for what is open.
 cited requirement ID is defined, a hook that asks before an install, and the runner move.
 R17 and R18 run now; R19 is dated and starts on or after 2026-11-19.
 
+**Amended again 2026-10-03, after `1.3.1`**, at the owner's word, with Phases R20 to R22
+(§5, D47 to D49): the noise real projects draw, being findable, and the OpenSSF signals an
+evaluator looks for. They run before R19, which stays last until its date.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -47,7 +51,8 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
   On a stop, the executor writes what happened and what it needs as a row in §8, commits
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
-  at $5 across R17 to R19 (D46). Past a cap they are skipped and noted in §8.
+  at $5 across R17 to R19 (D46). R20 to R22 run no agent. Past a cap they are skipped and
+  noted in §8.
 - **A dated phase waits for its date.** R19 starts on or after 2026-11-19. Until then the
   executor treats it as §8 does: it stops after R18 and leaves R19's row in §8.
 - **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
@@ -184,7 +189,8 @@ The owner accepted all of these on 2026-09-29: D21 to D38 with the review, inclu
 network changes D24 and D25 under `CLAUDE.md` §10, and D39 to D41 the same day. R9.2 writes
 the ADRs. D42 to D46 were accepted on 2026-10-02, with the explanation of each item that
 asked for them: D42 is the owner's choice among three, and D44 the owner's approval of a
-hook under `CLAUDE.md` §4. The owner may revisit any
+hook under `CLAUDE.md` §4. D47 to D49 were accepted on 2026-10-03, when the owner asked
+for the three additions proposed with them. The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
 
@@ -216,6 +222,9 @@ wait for it.
 | D44 | **A hook that asks before an install** (the owner, 2026-10-02, under `CLAUDE.md` §4; F3.16). A Claude Code `PreToolUse` hook on the `Bash` tool, shipped in the plugin and pinned with its server (`uvx --from valvur==<version> valvur hook pre-tool-use`). When a command installs named packages, it runs the same check as `valvur check`, offline, and when any package is flagged it answers `ask` with each verdict, so the human decides. The commands: `npm`, `pnpm`, `yarn` and `bun` add and install; `pip`, `uv pip`, `uv add` and `poetry add`; `cargo add`; `gem install`; `composer require`. Otherwise it says nothing. It never answers `deny`, never runs or edits anything, and opens no socket. When valvur cannot check, because the index is absent, it answers `ask` naming the cause and `valvur update`, so the check is never silently off. It is not written by `init --write`: a hook in a project's own settings would run for every contributor without their choosing it. | if Claude Code's hook contract cannot carry `ask` from a plugin, the hook prints its verdicts as context and the skill's rule stands alone, recorded; Kiro gets the hook only if its documented hooks can do the same |
 | D45 | **The runner move** (28.3.8, O5). GitHub's `ubuntu-latest` became 26.04 on 2026-10-19. On or after 2026-11-19, every `runs-on` and matrix runner moves from `ubuntu-24.04` to `ubuntu-26.04`, and `-arm` likewise; the corpus, the acceptance set and the Score run on the move; N1.1 and N1.4 are measured against their 24.04 numbers and recorded in `requirements.md`. | if Podman or unprivileged user namespaces fail on 26.04 three times for runner reasons, the jobs that need them stay on 24.04, and the README's platform line says what is tested where |
 | D46 | **Agent runs: $5** for R17 to R19, for R18's smoke run alone, which is the one agent run that needs a shell to reach the hook. It runs in an empty scratch directory with stub `npm` and `pip` first on `PATH`, which record their arguments and exit, so no package is ever installed; the names asked for are made up and never published. | past the cap, the smoke run is replaced by replaying recorded hook inputs through the plugin's command, and §8 says so |
+| D47 | **The noise real projects draw** (F7; tracks 3 and 8; amends the verdict as D30 did, as a fix 1.x allows). On the 13-project corpus every one of 26 judged findings is a false alarm. Of them, 16 land in test, fixture or docs paths and 11 in source (R17's labels, measured 2026-10-03). Three changes, each measured before it ships. **(a) The sink inventory is inventory.** valvur's information-level sink rules (`dangerous-exec`, `dangerous-eval` and the rest of the inventory) stay in `findings.json`, marked `inventory`. `SUMMARY.md` counts them under *Sinks to review*. They no longer make a verdict `findings` by themselves, and a project whose only results are inventory reads `clean`. **(b) Secrets in fixtures and docs rank last.** Gitleaks findings whose path has a segment `tests`, `test`, `__tests__`, `spec`, `fixtures`, `testdata`, `examples` or `docs`, or a name `test_*` or `*_test.*`, become `low` and carry a `fixture` tag. They are still reported and still active, never suppressed. The match is on whole segments: the OWASP Benchmark's cases live in `testcode/`, and a substring rule would erase track 1. **(c) Non-security hashing and randomness.** `weak-hash` does not fire on `usedforsecurity=False`. `weak-hash` and the vendored `random` rule do not fire under the fixture paths of (b). | each change ships only if tracks 1 to 7 stay within the ratchet's 2 points; one that costs more is withdrawn and recorded, as D29 does for a rule |
+| D48 | **Findable** (F10). **(a) A demo:** one CLI scan of acceptance repository 8, recorded by a script that regenerates it, committed under `docs/` as an animated SVG under 1 MB and shown in the README's first screen. No hosted service is used. **(b) Ready to list:** the README gains *Privacy*, valvur collects nothing, with the proof's link, and *Support*, the issue tracker. Kiro's catalog requires both. `docs/LISTING.md` holds the text each directory asks for, the plugin's and the power's, drawn from their manifests. Submitting stays the owner's (§8). | if the recorder cannot run headless on this Mac, the README shows a captured terminal transcript instead, as text, and §8 says so |
+| D49 | **OpenSSF signals** (N3). **(a) Scorecard:** `scorecard.yml` runs `ossf/scorecard-action`, pinned by commit, weekly and on `main`, with `publish_results: true`. That uploads its results to the public OpenSSF API and earns the README badge; the result describes the repository, never a user's code. Permissions are the action's documented minimum (`security-events: write`, `id-token: write`) and nothing more. The first score and each check below 10 are recorded, and the cheap ones are fixed. **(b) Best Practices:** `docs/BEST-PRACTICES.md` answers every *passing* criterion of the OpenSSF Best Practices badge with a link to its evidence. The form itself needs the owner's account (§8). | if a Scorecard check needs a setting only the owner can change (branch protection's review count, say), it is listed in §8, not worked around |
 
 ## 6. Order
 
@@ -242,6 +251,16 @@ R17 targets recorded, IDs defined ─► R18 the install asks first ─ ─ ─�
 - **R17 first**: both are small, and D43's check guards the IDs R18 adds.
 - **R18** is the feature, built on a check that already exists (`check_package`, R12).
 - **R19** waits for its date; it changes where CI runs, not what valvur does.
+
+```
+R20 the noise real projects draw ─► R21 findable ─► R22 OpenSSF signals ─ ─ ─► R19 (dated)
+```
+
+- **R20 first**: it changes what a scan reports, so it is judged by the Score before the
+  documents and the demo show it.
+- **R21** records the demo after R20, so the demo shows the quieter output.
+- **R22** measures the repository as R20 and R21 left it.
+- **R19** keeps its date; in §7 it comes after R22, so `build_status.py` finds R20 first.
 
 ---
 
@@ -458,6 +477,71 @@ owner's choice (§8).
   to 1.2.0's commit after urllib3's advisories reached the old one.
 - **The suites:** ✅ e2e 85 passed on the Mac.
 
+### Phase R20: the noise real projects draw
+
+- [ ] **R20.1** **Measure first** (D47). For each of the 26 corpus false alarms, record its
+  rule, its path class (source, or which fixture segment) and its severity. Run each of
+  D47's three changes against tracks 1 to 8 separately, before any ships. Behaviour: the
+  STATUS gives each change's delta per track; a change past the ratchet is withdrawn there.
+- [ ] **R20.2** **The sink inventory is inventory** (D47a). Behaviours:
+  1. an inventory rule's finding is marked `inventory` in `findings.json` and SARIF;
+  2. it is not active: a project whose only results are inventory reads `clean`, with
+     *Sinks to review* counting them in `SUMMARY.md`;
+  3. `findings` lists inventory only when asked (`inventory: true`);
+  4. a non-inventory finding at the same line still counts.
+- [ ] **R20.3** **Secrets in fixtures and docs rank last** (D47b). Behaviours:
+  1. a Gitleaks finding under a fixture segment is `low` and tagged `fixture`;
+  2. it is still active, and still makes the verdict `findings`;
+  3. `testcode/BenchmarkTest00001.py`, `latest/x.py` and `contest/y.py` are not fixture
+     paths: whole segments only;
+  4. track 3 holds 100.
+- [ ] **R20.4** **Non-security hashing and randomness** (D47c). Behaviours:
+  1. `hashlib.md5(data, usedforsecurity=False)` draws no `weak-hash`;
+  2. `weak-hash` and the vendored `random` rule draw nothing under a fixture segment;
+  3. track 1's `hash` and `weakrand` categories keep every true positive they have.
+- [ ] **R20.5** **The corpus judged again.** Re-label what changed in
+  `tests/eval/labels/corpus.toml`; run the Score; raise track 8's baseline by what it
+  measures. Behaviours: no track 1 to 7 falls more than 2 points; README and
+  `EVALUATING.md` cite the new track 8.
+
+**Exit:** the Score on both lanes, track 8 up and no other track past the ratchet; the
+acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a fix.
+
+### Phase R21: findable
+
+- [ ] **R21.1** **The demo** (D48a). `scripts/demo.py` records one CLI scan of acceptance
+  repository 8 and writes `docs/demo.svg`. Behaviours:
+  1. the script regenerates the file, so it never drifts from the CLI;
+  2. the SVG is under 1 MB and shows the verdict and the malicious package;
+  3. the README's first screen shows it;
+  4. it holds no path of this machine and no secret: a test reads it.
+- [ ] **R21.2** **Ready to list** (D48b). Behaviours:
+  1. the README has *Privacy* and *Support* sections, and the link check passes;
+  2. `docs/LISTING.md` holds each directory's text, drawn from the manifests, and a test
+     holds it to them;
+  3. §8's listing row points to it.
+
+**Exit:** the README's first screen, measured in lines, holds what valvur is, one install
+line and the demo; the documents' tests pass.
+
+### Phase R22: OpenSSF signals
+
+- [ ] **R22.1** **Scorecard** (D49a). Behaviours:
+  1. `scorecard.yml` is pinned by commit, with the documented minimum permissions, and a
+     test holds both;
+  2. zizmor finds nothing in it;
+  3. the first run's score and each check under 10 are recorded, and the cheap ones are
+     fixed;
+  4. the README shows the badge.
+- [ ] **R22.2** **Best Practices, prepared** (D49b). Behaviours:
+  1. `docs/BEST-PRACTICES.md` answers every *passing* criterion, each with a link to its
+     evidence;
+  2. the link check reads it;
+  3. §8 holds the form for the owner.
+
+**Exit:** the Scorecard result recorded, with its run; the Best Practices answers ready;
+CI green.
+
 ### Phase R19: the runner move (on or after 2026-11-19)
 
 - [ ] **R19.1** **Every runner on 26.04** (D45; 28.3.8). Behaviours:
@@ -484,7 +568,8 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 |---|---|---|
 | land R17 to R18 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R16 |
 | start R19 | on or after 2026-11-19 | tell any session to proceed, or let the dated schedule start it; it moves CI's runners to Ubuntu 26.04 (D45) |
-| list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
+| list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
+| the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | now; the power's part after R15 | one scan through Kiro, and from R15 the power installed from the repository, recorded in `docs/acceptance/` |
 | a self-hosted Mac runner, optional | now | register one with the label `docker-desktop` |
