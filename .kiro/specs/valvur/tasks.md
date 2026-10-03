@@ -484,7 +484,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 |---|---|---|
 | land R17 to R18 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R16 |
 | start R19 | on or after 2026-11-19 | tell any session to proceed, or let the dated schedule start it; it moves CI's runners to Ubuntu 26.04 (D45) |
-| release the hook, optional | R18 landed | a `1.3.0` with the hook is the owner's choice: `scripts/prepare_release.py 1.3.0`, then `docs/RELEASING.md` |
 | list the plugin and the power, optional | R16 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | now; the power's part after R15 | one scan through Kiro, and from R15 the power installed from the repository, recorded in `docs/acceptance/` |

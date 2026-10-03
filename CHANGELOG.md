@@ -8,7 +8,13 @@ break things, and has.
 
 ## [Unreleased]
 
-## [1.3.0] — 2026-10-02
+- **The plugin's hook asks when valvur cannot start.** A hook that fails is non-blocking
+  to Claude Code, so when the hook's `uvx` command could not run (for an hour after
+  1.3.0, `uvx` on a machine that had cached PyPI's index before the release could not
+  find it), an install went ahead unasked. The plugin's script now answers `ask`, naming
+  why the check did not run. It reaches plugin users with the plugin's next version.
+
+## [1.3.0] — 2026-10-03
 
 The install asks first. `check_package` answered before an install only when an agent
 chose to call it. From 1.3.0, the Claude Code plugin asks for it: before the agent runs

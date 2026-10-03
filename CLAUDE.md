@@ -15,11 +15,11 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-02).** **`1.2.0` is published**: R9 to R16 landed, and the release's own
-self-scan stopped it once, for a urllib3 advisory a day old, fixed in #171. The Score went
-from 59.3 at R9 to **64.9** on both lanes; R17 lowered D22's three missed targets to what
-1.2.0 measured (D42). R14 reuses unchanged dependency answers; R15 ships the skill.
-R18's plugin hook asks before a flagged install (D44). **Next:** R19 on or after 2026-11-19.
+**Status (2026-10-03).** **`1.3.0` is published**, with R18's plugin hook that asks before a
+flagged install (D44). `1.2.0` shipped R9 to R16, after its own self-scan stopped it once
+for a day-old urllib3 advisory (#171). The Score went from 59.3 at R9 to **64.9** on both
+lanes; R17 lowered D22's three missed targets to what 1.2.0 measured (D42). R14 reuses
+unchanged dependency answers; R15 ships the skill. **Next:** R19 on or after 2026-11-19.
 
 ## 2. What it is NOT
 
