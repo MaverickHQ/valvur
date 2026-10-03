@@ -18,9 +18,11 @@ from .version import IMAGE_REPOSITORY, __version__
 
 
 def root() -> Path:
+    """`VALVUR_CACHE`, then the machine's `cache` setting, then `XDG_CACHE_HOME`,
+    then `~/.cache`: the more specific wins (D54c), which XDG's once overrode."""
     from . import settings
 
-    base = os.environ.get("XDG_CACHE_HOME") or settings.get("cache")
+    base = settings.get("cache") or os.environ.get("XDG_CACHE_HOME")
     return Path(base or (Path.home() / ".cache")) / "valvur"
 
 

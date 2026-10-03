@@ -13,6 +13,9 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 FIXTURES = REPO / "tests" / "fixtures"
+#: `cache.root` as written: the suite replaces it for every test (conftest), after
+#: this module is imported.
+_ROOT = __import__("valvur.cache", fromlist=["root"]).root
 #: The container's scratch mount, as the runtime is told it.
 SCRATCH = "/tmp:"  # noqa: S108 — the container's mount, not a file on this host
 
@@ -110,3 +113,23 @@ def test_on_offline_in_the_image_it_asks_nothing(tmp_path, monkeypatch):
     assert asked == []
     [check] = run.scanners
     assert check.ok, check.reason
+
+
+# --------------------------------------------------- (c) the cache's precedence
+
+def test_valvur_cache_wins_over_xdg_cache_home(tmp_path, monkeypatch):
+    """`XDG_CACHE_HOME` overrode `VALVUR_CACHE` (the review's §3.5): the more
+    specific setting should win, and now does; then the machine's `cache` setting;
+    then XDG's, then `~/.cache`."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setenv("VALVUR_CACHE", str(tmp_path / "valvur"))
+
+    assert _ROOT() == tmp_path / "valvur" / "valvur"
+    monkeypatch.delenv("VALVUR_CACHE")
+    (tmp_path / "config" / "valvur").mkdir(parents=True)
+    (tmp_path / "config" / "valvur" / "config.toml").write_text(
+        f'cache = "{tmp_path / "configured"}"\n')
+    assert _ROOT() == tmp_path / "configured" / "valvur"
+    (tmp_path / "config" / "valvur" / "config.toml").unlink()
+    assert _ROOT() == tmp_path / "xdg" / "valvur"
