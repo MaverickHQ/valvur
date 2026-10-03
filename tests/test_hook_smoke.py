@@ -98,3 +98,15 @@ def test_an_agent_that_never_ran_the_install_is_inconclusive_not_a_failure():
 
     assert not judged.attempted and not judged.ok and not judged.installed
     assert _smoke().judge(_stream(), installs="", name=NAME).attempted
+
+
+def test_only_an_install_of_the_name_counts_as_an_attempt():
+    """Seen in 1.3.1's as-shipped run: the agent ran `valvur check npm <name>` through
+    Bash, which names the package and installs nothing; the hook rightly said nothing."""
+    events = [{"type": "assistant", "message": {"content": [
+                  {"type": "tool_use", "name": "Bash",
+                   "input": {"command": f"valvur check npm {NAME}"}}]}},
+              {"type": "result", "subtype": "success", "total_cost_usd": 0.3}]
+    stream = "\n".join(json.dumps(e) for e in events) + "\n"
+
+    assert not _smoke().judge(stream, installs="", name=NAME).attempted

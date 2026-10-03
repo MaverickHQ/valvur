@@ -35,6 +35,8 @@ STUBBED = ("npm", "npx", "pnpm", "yarn", "bun", "pip", "pip3", "uv", "poetry", "
            "gem", "composer", "curl", "wget")
 LEDGER = Path(os.environ.get("HOME", "~")) / ".cache" / "valvur-build" / "agent-cost-r18.json"
 CAP_USD = 5.0
+#: The last run's stream and stub log, kept for reading when a run does not pass.
+LAST = LEDGER.parent / "hook-smoke-last"
 PER_RUN_USD = 1.0
 
 
@@ -63,11 +65,19 @@ def judge(stream: str, *, installs: str, name: str = NAME) -> Smoke:
     result = next((e for e in events if e.get("type") == "result"), {})
     installed = any(name in line for line in installs.splitlines())
     attempted = any(block.get("type") == "tool_use" and block.get("name") == "Bash"
-                    and name in str((block.get("input") or {}).get("command", ""))
+                    and _installs(str((block.get("input") or {}).get("command", "")), name)
                     for e in events if e.get("type") == "assistant"
                     for block in (e.get("message") or {}).get("content") or [])
     return Smoke(attempted=attempted, stopped_by_hook=stopped, installed=installed,
                  cost_usd=round(float(result.get("total_cost_usd") or 0.0), 2))
+
+
+def _installs(command: str, name: str) -> bool:
+    """Whether `command` installs `name`, read as the hook reads it: a command that only
+    names the package, `valvur check npm <name>` say, is no attempt."""
+    from valvur.installs import packages
+
+    return any(found == name for _, found, _ in packages(command, Path(".")))
 
 
 def spent() -> float:
@@ -127,6 +137,9 @@ def run(*, as_shipped: bool = False) -> Smoke | None:
              "--max-budget-usd", f"{min(PER_RUN_USD, left):g}"],
             cwd=project, env=env, capture_output=True, text=True, check=False, timeout=600)
         installs = log.read_text() if log.exists() else ""
+    LAST.mkdir(parents=True, exist_ok=True)
+    (LAST / "stream.jsonl").write_text(completed.stdout)
+    (LAST / "installs.log").write_text(installs)
     judged = judge(completed.stdout, installs=installs)
     record(judged.cost_usd)
     return judged
