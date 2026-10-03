@@ -100,11 +100,11 @@ def _recording(monkeypatch) -> tuple[list[str], object]:
 
 @pytest.mark.parametrize("case", list(CASES))
 def test_update_if_stale_refreshes_exactly_what_a_scan_would(monkeypatch, case):
-    from valvur import api, updating
+    from valvur import fetching, updating
 
     _aged(monkeypatch, CASES[case])
     by_scan, runner = _recording(monkeypatch)
-    api._ensure_data(runner, None)
+    fetching.ensure_data(runner, None)
     by_update, runner = _recording(monkeypatch)
     updating.run(lambda _: None, runner, if_stale=True)
 

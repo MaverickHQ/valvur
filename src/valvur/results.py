@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     # tests all build a real ScanRun — so the defaults were dead code that could
     # silently paper over a renamed field. The type is what enforces it now; the
     # import is annotation-only because `api` imports this module.
-    from .api import ScanRun
+    from .scanrun import ScanRun
 
 from .exclusions import RESULTS_DIR as RESULTS_DIR
 

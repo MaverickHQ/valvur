@@ -173,49 +173,57 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
     lines.append("")
 
     for number, item in enumerate(items[:top], start=1):
-        flag = " **[known exploited]**" if item.exploited else ""
-        lines.append(f"## {number}. {item.action}{flag}")
-        lines.append("")
-        unfixed = sum(
-            1 for f in item.findings
-            if f.dependency and f.dependency.package and not f.dependency.fixed_version
-        )
-        # Never claim an upgrade resolves a finding whose advisory has no published
-        # fix. Overstating this is how a developer stops looking at a live issue.
-        resolved = len(item.findings) - unfixed
-        lines.append(f"Resolves {resolved} finding(s) in `{item.where}`:")
-        if unfixed:
-            lines.append("")
-            lines.append(
-                f"> ⚠ {unfixed} further finding(s) here have **no published fix** and "
-                "this upgrade does not resolve them."
-            )
-        lines.append("")
-        if item.flood and item.where != "./":
-            # The exclude line, and whose decision it is: an exclusion hides the
-            # directory from every Scanner, as a suppression hides one Finding, and
-            # an agent told to reach zero has no cheaper path (CLAUDE.md §4).
-            lines += [
-                "If it is generated data rather than the project's own, the line that "
-                "leaves it out is, in `.security-scan.toml`:",
-                "",
-                "```toml",
-                "[scan]",
-                f'exclude = ["{item.where.rstrip("/")}"]',
-                "```",
-                "",
-                "**Ask the human before adding it**: an exclusion hides the directory from "
-                "every Scanner. If it is the project's own, every hit is in `findings.json` "
-                "under its group.",
-                "",
-            ]
-        for finding in sorted(item.findings, key=lambda f: f.rank or 10**9)[:8]:
-            lines.append(f"- {finding.rule} — {cut(finding.title, 100)}")
-        if len(item.findings) > 8:
-            lines.append(f"- _…and {len(item.findings) - 8} more_")
-        lines.append("")
+        lines += _item(number, item)
 
     if len(items) > top:
         lines.append(f"_{len(items) - top} further action(s) in `findings.json`._")
         lines.append("")
     return "\n".join(lines)
+
+
+def _item(number: int, item) -> list[str]:
+    """One action: what it resolves, what it does not, and, for a flood, the line
+    that would leave the directory out and whose decision that is."""
+    out: list[str] = []
+    flag = " **[known exploited]**" if item.exploited else ""
+    out.append(f"## {number}. {item.action}{flag}")
+    out.append("")
+    unfixed = sum(
+        1 for f in item.findings
+        if f.dependency and f.dependency.package and not f.dependency.fixed_version
+    )
+    # Never claim an upgrade resolves a finding whose advisory has no published
+    # fix. Overstating this is how a developer stops looking at a live issue.
+    resolved = len(item.findings) - unfixed
+    out.append(f"Resolves {resolved} finding(s) in `{item.where}`:")
+    if unfixed:
+        out.append("")
+        out.append(
+            f"> ⚠ {unfixed} further finding(s) here have **no published fix** and "
+            "this upgrade does not resolve them."
+        )
+    out.append("")
+    if item.flood and item.where != "./":
+        # The exclude line, and whose decision it is: an exclusion hides the
+        # directory from every Scanner, as a suppression hides one Finding, and
+        # an agent told to reach zero has no cheaper path (CLAUDE.md §4).
+        out += [
+            "If it is generated data rather than the project's own, the line that "
+            "leaves it out is, in `.security-scan.toml`:",
+            "",
+            "```toml",
+            "[scan]",
+            f'exclude = ["{item.where.rstrip("/")}"]',
+            "```",
+            "",
+            "**Ask the human before adding it**: an exclusion hides the directory from "
+            "every Scanner. If it is the project's own, every hit is in `findings.json` "
+            "under its group.",
+            "",
+        ]
+    for finding in sorted(item.findings, key=lambda f: f.rank or 10**9)[:8]:
+        out.append(f"- {finding.rule} — {cut(finding.title, 100)}")
+    if len(item.findings) > 8:
+        out.append(f"- _…and {len(item.findings) - 8} more_")
+    out.append("")
+    return out

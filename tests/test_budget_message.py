@@ -83,7 +83,7 @@ def test_the_failed_reply_names_doctor_only_for_a_precondition(tmp_path, monkeyp
 
 def test_the_record_names_a_runtime_kill_and_keeps_the_argv_out_of_it():
     from valvur.adapters import GitleaksAdapter
-    from valvur.api import _outcome
+    from valvur.fleet import outcome as _outcome
     from valvur.invocation import ScannerOutput
 
     argv = tuple(f"--flag-{i}" for i in range(60))

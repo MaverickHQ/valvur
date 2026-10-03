@@ -28,7 +28,7 @@ from .staleness import index_is_stale as _index_is_stale
 from .text import cut as _cut
 
 if TYPE_CHECKING:
-    from .api import ScanRun
+    from .scanrun import ScanRun
 
 
 TOP_N = 15
@@ -123,33 +123,41 @@ def render(run: ScanRun) -> str:
     return _enforce_cap("\n".join(lines) + "\n", tail=_agent_block(run))
 
 
+def _db_warning(run: ScanRun, findings) -> list[str]:
+    """A database too old to have found things, said hardest when nothing was found."""
+    if not _db_is_stale(run):
+        return []
+    lines: list[str] = []
+    db_age = run.db_age_days
+    lines += [
+        f"> ⚠ **The vulnerability database is {db_age:.0f} days old.** "
+        "Run `valvur update`.",
+    ]
+    if not findings:
+        # The dangerous combination, and the reason for the whole phase. Nothing
+        # found, by data too old to have found it.
+        lines += [
+            "> **This scan found nothing, and it is not evidence that there is "
+            "nothing.** Trivy rebuilds daily, so this result is missing roughly "
+            f"{db_age:.0f} days of advisories. Update and rescan before trusting "
+            "it.",
+        ]
+    else:
+        lines += [
+            "> Findings below are real, but the list is not complete: roughly "
+            f"{db_age:.0f} days of advisories are missing.",
+        ]
+    lines += [""]
+    return lines
+
+
 def _qualifiers(run: ScanRun, findings) -> list[str]:
     """What stops the verdict meaning what it says: data too old to have found
     things, a shim and image from different trees, identities that changed."""
     lines: list[str] = []
     # The database first, and above the exploit-intelligence warning below it. KEV
     # decides how findings RANK; this decides whether they exist.
-    if _db_is_stale(run):
-        db_age = run.db_age_days
-        lines += [
-            f"> ⚠ **The vulnerability database is {db_age:.0f} days old.** "
-            "Run `valvur update`.",
-        ]
-        if not findings:
-            # The dangerous combination, and the reason for the whole phase. Nothing
-            # found, by data too old to have found it.
-            lines += [
-                "> **This scan found nothing, and it is not evidence that there is "
-                "nothing.** Trivy rebuilds daily, so this result is missing roughly "
-                f"{db_age:.0f} days of advisories. Update and rescan before trusting "
-                "it.",
-            ]
-        else:
-            lines += [
-                "> Findings below are real, but the list is not complete: roughly "
-                f"{db_age:.0f} days of advisories are missing.",
-            ]
-        lines += [""]
+    lines += _db_warning(run, findings)
 
     if _index_is_stale(run):
         index_age = run.name_index_age_days
@@ -267,6 +275,22 @@ def _data_line(ages: dict) -> str:
     return "Data: " + ", ".join(parts) + "."
 
 
+def _history_lines(history: dict) -> list[str]:
+    """What git history was read for secrets (R3.7), or why none was."""
+    if history.get("off"):
+        return [f"> **Git history was not read for secrets:** `{history['off']}`."]
+    if history.get("unavailable"):
+        return [f"> **Git history was not read for secrets:** {history['unavailable']}."]
+    if history.get("bounded"):
+        return [f"> **Git history was read for secrets up to {history['bounded']}:** the "
+                f"newest {history.get('commits', 0):,} commits; older commits were not read."]
+    if history:
+        commits = history.get("commits", 0)
+        return [f"Git history: {commits:,} commit{'' if commits == 1 else 's'} "
+                "read for secrets."]
+    return []
+
+
 def _scope(run: ScanRun, active) -> list[str]:
     """What was read, by what, and what the Profile leaves to the network (R5.2):
     the report said none of this, and a reader could not check it."""
@@ -283,18 +307,7 @@ def _scope(run: ScanRun, active) -> list[str]:
         lines.append(f"Ran: {', '.join(ran)}. Versions are in `run.json`.")
     if run.data_ages:
         lines.append(_data_line(run.data_ages))
-    history = run.history or {}
-    if history.get("off"):
-        lines.append(f"> **Git history was not read for secrets:** `{history['off']}`.")
-    elif history.get("unavailable"):
-        lines.append(f"> **Git history was not read for secrets:** {history['unavailable']}.")
-    elif history.get("bounded"):
-        lines.append(f"> **Git history was read for secrets up to {history['bounded']}:** the "
-                     f"newest {history.get('commits', 0):,} commits; older commits were not read.")
-    elif history:
-        commits = history.get("commits", 0)
-        lines.append(f"Git history: {commits:,} commit{'' if commits == 1 else 's'} "
-                     "read for secrets.")
+    lines += _history_lines(run.history or {})
     lines.append("")
 
     if run.not_read:

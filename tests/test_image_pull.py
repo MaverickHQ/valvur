@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from fake_registry import FakeRegistry
 
-from valvur import api, events, oci
+from valvur import api, events, fetching, oci
 from valvur.engine_host import RuntimeDefaults
 from valvur.runner import ContainerRunner, ImagePullFailed, ScannerOutput
 
@@ -56,7 +56,7 @@ def test_a_present_image_is_not_pulled_and_no_line_is_said():
     runner = _Runner(present=True)
     said: list[str] = []
 
-    api._ensure_image(runner, lambda event: said.append(str(event)))
+    fetching.ensure_image(runner, lambda event: said.append(str(event)))
 
     assert runner.calls == ["inspect"]
     assert said == []
@@ -66,7 +66,7 @@ def test_an_absent_image_is_pulled_and_the_line_names_it_and_its_size():
     runner = _Runner(present=False)
     said: list[str] = []
 
-    api._ensure_image(runner, lambda event: said.append(str(event)))
+    fetching.ensure_image(runner, lambda event: said.append(str(event)))
 
     assert runner.calls == ["inspect", "size", "pull"]
     assert said[0].startswith("pulling ghcr.io/maverickhq/valvur:9.9.9 (243MB)")
@@ -78,7 +78,7 @@ def test_a_size_the_registry_cannot_state_is_left_out_rather_than_invented():
     runner = _Runner(present=False, size=None)
     said: list[str] = []
 
-    api._ensure_image(runner, lambda event: said.append(str(event)))
+    fetching.ensure_image(runner, lambda event: said.append(str(event)))
 
     assert said[0].startswith("pulling ghcr.io/maverickhq/valvur:9.9.9 —")
     assert "MB" not in said[0]
@@ -88,7 +88,7 @@ def test_a_failed_pull_is_a_named_failure_with_the_runtime_words_and_the_fix():
     runner = _Runner(present=False, pull_exit=1)
 
     with pytest.raises(ImagePullFailed) as caught:
-        api._ensure_image(runner, None)
+        fetching.ensure_image(runner, None)
 
     text = str(caught.value)
     assert "requested access to the resource is denied" in text
@@ -101,7 +101,7 @@ def test_a_runner_without_the_ability_is_left_alone():
     class Bare(RuntimeDefaults):
         pass
 
-    api._ensure_image(Bare(), None)
+    fetching.ensure_image(Bare(), None)
 
 
 def test_the_pull_happens_before_the_compatibility_check(tmp_path, monkeypatch):

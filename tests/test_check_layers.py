@@ -171,3 +171,43 @@ def test_the_gate_holds_core_to_strict_types(tmp_path, layers):
         "mypy --strict" in line for line in ran), ran
     files = layers.core_files()
     assert "src/valvur/findings.py" in files and "src/valvur/api.py" not in files
+
+
+# ------------------------------------------------------------------ cycles (R23.9)
+
+def test_a_cycle_through_a_deferred_import_is_found(tmp_path, layers):
+    package = _package(tmp_path, {
+        "a.py": "from . import b\n",
+        "b.py": "def later():\n    from . import a\n",
+    })
+    config = _config(tmp_path, '[layers]\ncore = ["pkg", "pkg.a", "pkg.b"]\n')
+
+    assert layers.check(package, config).cycles == [["pkg.a", "pkg.b"]]
+
+
+def test_a_cycle_through_the_packages_init_is_found(tmp_path, layers):
+    """Python runs a package's `__init__` before any of its modules, so a module
+    that the `__init__` imports, and that imports anything of the package, is in a
+    cycle with it."""
+    package = _package(tmp_path, {
+        "__init__.py": "def get():\n    from .a import x\n",
+        "a.py": "from . import b\n",
+        "b.py": "",
+    })
+    config = _config(tmp_path, '[layers]\ncore = ["pkg", "pkg.a", "pkg.b"]\n')
+
+    assert layers.check(package, config).cycles == [["pkg", "pkg.a", "pkg.b"]]
+
+
+def test_an_import_for_type_checking_alone_closes_no_cycle(tmp_path, layers):
+    package = _package(tmp_path, {
+        "a.py": "from . import b\n",
+        "b.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from . import a\n",
+    })
+    config = _config(tmp_path, '[layers]\ncore = ["pkg", "pkg.a", "pkg.b"]\n')
+
+    assert layers.check(package, config).cycles == []
+
+
+def test_the_repository_has_no_import_cycle(layers):
+    assert layers.check().cycles == []

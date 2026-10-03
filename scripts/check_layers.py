@@ -38,6 +38,8 @@ class Import:
     path: str
     line: int
     deferred: bool
+    #: Inside `if TYPE_CHECKING:`: an annotation's import, which never runs.
+    type_checking: bool = False
 
 
 @dataclass(frozen=True)
@@ -81,10 +83,12 @@ class Found:
     #: Baseline entries that no longer happen, which must be removed: the baseline
     #: only shrinks, and says what is true.
     gone: list[str] = field(default_factory=list)
+    #: Groups of modules that import one another, each sorted (R23.9).
+    cycles: list[list[str]] = field(default_factory=list)
 
     @property
     def failed(self) -> bool:
-        return bool(self.upward or self.unassigned or self.stray or self.gone)
+        return bool(self.upward or self.unassigned or self.stray or self.gone or self.cycles)
 
 
 def module_name(package: Path, path: Path) -> str:
@@ -135,28 +139,31 @@ def imports(package: Path, extra: frozenset[str] = frozenset()) -> list[Import]:
     for module, path in found.items():
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         rel = path.relative_to(package.parent).as_posix()
-        for node, deferred in _walk(tree.body, deferred=False):
+        for node, deferred, typing_only in _walk(tree.body, deferred=False):
             for target in _targets(node, module, path.name == "__init__.py", known, top):
-                edges.append(Import(module, target, rel, node.lineno, deferred))
+                edges.append(Import(module, target, rel, node.lineno, deferred, typing_only))
     return edges
 
 
-def _walk(body: list[ast.stmt], *, deferred: bool):
-    """Each import statement in `body`, and whether a function or class encloses it;
-    a module-level `if` or `try` does not defer."""
+def _walk(body: list[ast.stmt], *, deferred: bool, typing_only: bool = False):
+    """Each import statement in `body`, whether a function or class encloses it (a
+    module-level `if` or `try` does not defer), and whether it sits under `if
+    TYPE_CHECKING:`, which never runs."""
     for node in body:
         if isinstance(node, ast.Import | ast.ImportFrom):
-            yield node, deferred
+            yield node, deferred, typing_only
             continue
         inner = deferred or isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef
                                        | ast.ClassDef)
+        typing = typing_only or (isinstance(node, ast.If)
+                                 and ast.unparse(node.test).endswith("TYPE_CHECKING"))
         for child in ast.iter_child_nodes(node):
             # Statements nest directly (`if`, `with`, a body) or through a handler
             # or a match case, which are not statements themselves.
             nested = [child] if isinstance(child, ast.stmt) else [
                 grandchild for grandchild in ast.iter_child_nodes(child)
                 if isinstance(grandchild, ast.stmt)]
-            yield from _walk(nested, deferred=inner)
+            yield from _walk(nested, deferred=inner, typing_only=typing)
 
 
 @dataclass(frozen=True)
@@ -185,6 +192,52 @@ def load(path: Path) -> Config:
                   frozenset(data.get("baseline") or ()))
 
 
+def cycles(edges: list[Import], names: set[str]) -> list[list[str]]:
+    """The groups of modules that can reach one another (Tarjan's strongly connected
+    components), counting deferred imports, and each module's import of its
+    packages' `__init__`, which Python runs first. An import for type checking alone
+    never runs, and closes no cycle."""
+    graph: dict[str, set[str]] = {name: set() for name in names}
+    for edge in edges:
+        if not edge.type_checking and edge.target in graph:
+            graph[edge.module].add(edge.target)
+    for name in names:
+        parts = name.split(".")
+        graph[name] |= {".".join(parts[:i]) for i in range(1, len(parts))} & names
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    found: list[list[str]] = []
+
+    def strong(node: str) -> None:
+        index[node] = low[node] = len(index)
+        stack.append(node)
+        on_stack.add(node)
+        for target in sorted(graph[node]):
+            if target not in index:
+                strong(target)
+                low[node] = min(low[node], low[target])
+            elif target in on_stack:
+                low[node] = min(low[node], index[target])
+        if low[node] == index[node]:
+            component = []
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                component.append(member)
+                if member == node:
+                    break
+            if len(component) > 1:
+                found.append(sorted(component))
+
+    sys.setrecursionlimit(max(sys.getrecursionlimit(), 10 * len(graph) + 100))
+    for node in sorted(graph):
+        if node not in index:
+            strong(node)
+    return sorted(found)
+
+
 def check(package: Path = PACKAGE, config_path: Path = CONFIG) -> Found:
     config = load(config_path)
     rank = {layer: index for index, layer in enumerate(config.order)}
@@ -193,7 +246,9 @@ def check(package: Path = PACKAGE, config_path: Path = CONFIG) -> Found:
         unassigned=sorted(present - set(config.assignment)),
         stray=sorted(set(config.assignment) - present - config.generated),
     )
-    for edge in imports(package, config.generated):
+    edges = imports(package, config.generated)
+    found.cycles = cycles(edges, present)
+    for edge in edges:
         here, there = config.assignment.get(edge.module), config.assignment.get(edge.target)
         if here is None or there is None:
             continue
@@ -225,13 +280,17 @@ def main() -> int:
         print(f"{name}: assigned in {CONFIG.relative_to(REPO)}, and no such module")
     for key in found.gone:
         print(f"{key}: in the baseline and no longer imported; remove it, so it stays gone")
+    for cycle in found.cycles:
+        print(f"an import cycle: {', '.join(cycle)}")
     if found.failed:
         print(f"\nlayers: {len(found.upward)} upward, {len(found.unassigned)} unassigned, "
-              f"{len(found.stray)} stray, {len(found.gone)} gone from the baseline (D50).")
+              f"{len(found.stray)} stray, {len(found.gone)} gone from the baseline, "
+              f"{len(found.cycles)} cycle(s) (D50).")
         return 1
     held = f"; {len(found.baselined)} upward import(s) held by the baseline" \
         if found.baselined else ""
-    print(f"layers: every module has a layer, and every import points down or across{held}")
+    print("layers: every module has a layer, every import points down or across, and "
+          f"none closes a cycle{held}")
     return 0
 
 

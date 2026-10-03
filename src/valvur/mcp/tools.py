@@ -33,7 +33,7 @@ from .handlers import (
     scan_status_reply,
     update_reply,
 )
-from .server import Tool
+from .tool import Tool
 
 # Names that must never appear here. Asserted by test, not by convention.
 FORBIDDEN = ("scan_and_fix", "apply", "write", "remediate", "fix", "patch", "edit")

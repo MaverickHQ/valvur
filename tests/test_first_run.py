@@ -22,7 +22,7 @@ import pytest
 from conftest import LegacyDispatch, write_name_index
 from fake_registry import FakeRegistry
 
-from valvur import api, cache, events, locking, name_index, oci
+from valvur import api, cache, events, fetching, locking, name_index, oci
 from valvur.adapters import GitleaksAdapter, TrivyAdapter
 from valvur.runner import ScannerOutput
 
@@ -466,7 +466,7 @@ def test_the_index_fetch_failure_reaches_the_dependency_reality_reason(host_cach
     """The annotation itself, on the Scanner it costs — without a container."""
     from valvur.provenance import ScannerRun
 
-    annotated = api._say_why_unfetched(
+    annotated = fetching.say_why_unfetched(
         [ScannerRun("dependency-reality", ok=False, reason="Package-name index not present."),
          ScannerRun("trivy", ok=False, reason="exited 1"),
          ScannerRun("gitleaks", ok=True)],

@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from . import api, profiles
-from .api import ScanRun
 from .events import Event
+from .scanrun import ScanRun
 
 
 class Cancellation:

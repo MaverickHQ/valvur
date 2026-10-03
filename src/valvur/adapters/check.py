@@ -87,7 +87,7 @@ class CheckAdapter(ScannerAdapter):
         adapter used to answer this itself by testing `self.name` — ADR-0013's
         boundary crossed the wrong way, and a second place a Check's limits could
         be stated and drift from the first."""
-        from ..checks import REGISTRY
+        from ..checks.registry import REGISTRY
 
         check = REGISTRY.get(self.name)
         if check is None:

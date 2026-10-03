@@ -9,19 +9,25 @@ surface says: `run.json`'s `data`, `SUMMARY.md`'s `Data:` line, the MCP reply.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from . import datasets as _datasets
 
-if TYPE_CHECKING:
-    from .api import ScanRun
+
+class Aged(Protocol):
+    """What the predicates read of a ScanRun: named by its fields rather than its
+    type, since `ScanRun.doubts` asks them, and an import of the record here would
+    close a cycle (R23.9)."""
+
+    db_age_days: float | None
+    name_index_age_days: float | None
 
 
-def db_is_stale(run: ScanRun) -> bool:
+def db_is_stale(run: Aged) -> bool:
     return _datasets.DATABASE.stale(run.db_age_days)
 
 
-def index_is_stale(run: ScanRun) -> bool:
+def index_is_stale(run: Aged) -> bool:
     return _datasets.NAME_INDEX.stale(run.name_index_age_days)
 
 

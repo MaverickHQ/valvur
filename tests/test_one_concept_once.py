@@ -15,7 +15,7 @@ REPO = Path(__file__).resolve().parent.parent
 SRC = REPO / "src" / "valvur"
 
 #: The six places that decided, each its own way, whether a Finding counts.
-ACTIVE_SITES = ("api", "summary", "remediation", "gate", "reply", "grouping")
+ACTIVE_SITES = ("scanrun", "summary", "remediation", "gate", "reply", "grouping")
 
 
 def _calls(module: str) -> set[str]:

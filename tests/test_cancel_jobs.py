@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from conftest import LegacyDispatch
 
-from valvur import api
+from valvur import api, pipeline
 from valvur.adapters import GitleaksAdapter
 from valvur.engine_host import RuntimeDefaults
 from valvur.runner import ScannerOutput
@@ -115,13 +115,13 @@ def test_a_cancel_that_lands_after_the_fleet_still_writes_nothing(tmp_path, monk
     workspace = tmp_path / "ws"
     workspace.mkdir()
     runner = _Runner()
-    real = api._pipeline.run
+    real = pipeline.run
 
     def cancel_then_run(findings, ctx):
         runner.kill()
         return real(findings, ctx)
 
-    monkeypatch.setattr(api._pipeline, "run", cancel_then_run)
+    monkeypatch.setattr(pipeline, "run", cancel_then_run)
 
     with pytest.raises(api.ScanCancelled):
         api.scan(workspace, runner=runner, adapters=[GitleaksAdapter()])

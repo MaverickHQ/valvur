@@ -13,9 +13,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from valvur import api
-from valvur.api import ScannerOutcome, ScannerRun
+from valvur import fleet
+from valvur.fleet import ScannerOutcome
 from valvur.invocation import ScannerOutput
+from valvur.scanner_run import ScannerRun
 
 
 class _Adapter:
@@ -39,7 +40,7 @@ class _Adapter:
 
 def test_a_run_is_a_scanner_outcome_with_named_fields(tmp_path):
     output = ScannerOutput("probe", "1", '{"x": 1}', "", 0)
-    outcome = api._outcome(_Adapter(output), output).timed(0.0)
+    outcome = fleet.outcome(_Adapter(output), output).timed(0.0)
 
     assert isinstance(outcome, ScannerOutcome)
     assert isinstance(outcome.scanner, ScannerRun) and outcome.scanner.ok
@@ -50,7 +51,7 @@ def test_a_run_is_a_scanner_outcome_with_named_fields(tmp_path):
 
 
 def test_a_failure_keeps_the_raw_text_and_no_artifact(tmp_path):
-    outcome = api._outcome(_Adapter(ScannerOutput("probe", "1", "", "boom", 1)),
+    outcome = fleet.outcome(_Adapter(ScannerOutput("probe", "1", "", "boom", 1)),
                            ScannerOutput("probe", "1", "", "boom", 1))
 
     assert not outcome.scanner.ok and "boom" in outcome.scanner.reason
@@ -68,7 +69,7 @@ def test_the_budget_cut_rewrites_the_scanner_and_keeps_the_rest(tmp_path):
     the adapter could not read (26.0.1) — so a cut that rebuilt the outcome from
     the ScannerRun alone would be seen to drop it."""
     output = ScannerOutput("probe", "1", '{"Results": [{"Vuln', "", 0)
-    outcome = api._outcome(_Unreadable(output), output)
+    outcome = fleet.outcome(_Unreadable(output), output)
     assert not outcome.scanner.ok and outcome.raw == '{"Results": [{"Vuln'
 
     cut = outcome.cut("cut by the 20s budget after 20s")
@@ -80,8 +81,9 @@ def test_the_budget_cut_rewrites_the_scanner_and_keeps_the_rest(tmp_path):
 
 
 def test_the_fleet_reads_names_not_positions():
-    """Eleven positional reads became none."""
-    source = Path("src/valvur/api.py").read_text()
+    """Eleven positional reads became none, wherever the fleet's code now lives."""
+    source = "".join(Path(f"src/valvur/{name}.py").read_text()
+                     for name in ("api", "fleet", "assembly"))
 
     positional = re.findall(r"\b(?:outcome|o)\[[0-3]\]|\*outcome\[1:\]", source)
-    assert positional == [], f"api.py still indexes an outcome by position: {positional}"
+    assert positional == [], f"the fleet still indexes an outcome by position: {positional}"
