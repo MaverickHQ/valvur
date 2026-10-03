@@ -93,3 +93,50 @@ def test_a_layer_naming_no_module_fails(tmp_path, layers):
     config = _config(tmp_path, '[layers]\ncore = ["pkg", "pkg.model", "pkg.gone"]\n')
 
     assert layers.check(package, config).stray == ["pkg.gone"]
+
+
+_TWO_UPWARD = {
+    "model.py": "from . import service\n",
+    "rank.py": "def later():\n    from . import service\n",
+    "service.py": "",
+}
+_ASSIGNED = '[layers]\ncore = ["pkg", "pkg.model", "pkg.rank"]\napp = ["pkg.service"]\n'
+
+
+def test_an_upward_import_in_the_baseline_passes(tmp_path, layers):
+    package = _package(tmp_path, _TWO_UPWARD)
+    config = _config(tmp_path, 'baseline = ["pkg.model -> pkg.service", '
+                               '"pkg.rank -> pkg.service"]\n' + _ASSIGNED)
+
+    found = layers.check(package, config)
+
+    assert (found.upward, found.failed) == ([], False)
+    assert len(found.baselined) == 2
+
+
+def test_an_upward_import_outside_the_baseline_fails(tmp_path, layers):
+    package = _package(tmp_path, _TWO_UPWARD)
+    config = _config(tmp_path, 'baseline = ["pkg.model -> pkg.service"]\n' + _ASSIGNED)
+
+    found = layers.check(package, config)
+
+    assert [v.where for v in found.upward] == ["pkg/rank.py:2"]
+
+
+def test_the_baseline_may_only_shrink(tmp_path, layers):
+    """An entry that no longer happens fails until it is removed, so the baseline
+    says what is true and a fixed import cannot come back unnoticed."""
+    package = _package(tmp_path, {"model.py": "", "service.py": ""})
+    config = _config(tmp_path, 'baseline = ["pkg.model -> pkg.service"]\n'
+                               '[layers]\ncore = ["pkg", "pkg.model"]\napp = ["pkg.service"]\n')
+
+    found = layers.check(package, config)
+
+    assert (found.gone, found.failed) == (["pkg.model -> pkg.service"], True)
+
+
+def test_the_repositorys_baseline_holds_todays_upward_imports_and_no_more(layers):
+    found = layers.check()
+
+    assert found.upward == [], [v.message for v in found.upward]
+    assert (found.unassigned, found.stray, found.gone) == ([], [], [])

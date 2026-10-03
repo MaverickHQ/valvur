@@ -56,6 +56,11 @@ class Upward:
         return self.edge.deferred
 
     @property
+    def key(self) -> str:
+        """How the baseline names it: by module, not by line, which moves."""
+        return f"{self.edge.module} -> {self.edge.target}"
+
+    @property
     def message(self) -> str:
         kind = "a deferred import" if self.edge.deferred else "an import"
         return (f"{self.where}: {self.edge.module} ({self.from_layer}) imports "
@@ -69,10 +74,16 @@ class Found:
     unassigned: list[str] = field(default_factory=list)
     #: Names the table assigns that are no module of the package.
     stray: list[str] = field(default_factory=list)
+    #: Upward imports the baseline holds: recorded on the check's first run, and
+    #: allowed until they are fixed.
+    baselined: list[Upward] = field(default_factory=list)
+    #: Baseline entries that no longer happen, which must be removed: the baseline
+    #: only shrinks, and says what is true.
+    gone: list[str] = field(default_factory=list)
 
     @property
     def failed(self) -> bool:
-        return bool(self.upward or self.unassigned or self.stray)
+        return bool(self.upward or self.unassigned or self.stray or self.gone)
 
 
 def module_name(package: Path, path: Path) -> str:
@@ -154,6 +165,8 @@ class Config:
     #: Modules written at build time, absent from the source tree, which an import
     #: may still name (`valvur._build`).
     generated: frozenset[str] = frozenset()
+    #: The upward imports allowed for now, as `module -> target`.
+    baseline: frozenset[str] = frozenset()
 
 
 def load(path: Path) -> Config:
@@ -167,7 +180,8 @@ def load(path: Path) -> Config:
             if name in assignment:
                 raise ValueError(f"{path}: {name} is in two layers")
             assignment[name] = layer
-    return Config(order, assignment, frozenset(data.get("generated") or ()))
+    return Config(order, assignment, frozenset(data.get("generated") or ()),
+                  frozenset(data.get("baseline") or ()))
 
 
 def check(package: Path = PACKAGE, config_path: Path = CONFIG) -> Found:
@@ -183,7 +197,9 @@ def check(package: Path = PACKAGE, config_path: Path = CONFIG) -> Found:
         if here is None or there is None:
             continue
         if rank[there] > rank[here]:
-            found.upward.append(Upward(edge, here, there))
+            upward = Upward(edge, here, there)
+            (found.baselined if upward.key in config.baseline else found.upward).append(upward)
+    found.gone = sorted(config.baseline - {u.key for u in found.baselined})
     return found
 
 
@@ -195,11 +211,15 @@ def main() -> int:
         print(f"{module}: in no layer; assign it in {CONFIG.relative_to(REPO)}")
     for name in found.stray:
         print(f"{name}: assigned in {CONFIG.relative_to(REPO)}, and no such module")
+    for key in found.gone:
+        print(f"{key}: in the baseline and no longer imported; remove it, so it stays gone")
     if found.failed:
         print(f"\nlayers: {len(found.upward)} upward, {len(found.unassigned)} unassigned, "
-              f"{len(found.stray)} stray (D50).")
+              f"{len(found.stray)} stray, {len(found.gone)} gone from the baseline (D50).")
         return 1
-    print("layers: every module has a layer, and every import points down or across")
+    held = f"; {len(found.baselined)} upward import(s) held by the baseline" \
+        if found.baselined else ""
+    print(f"layers: every module has a layer, and every import points down or across{held}")
     return 0
 
 
