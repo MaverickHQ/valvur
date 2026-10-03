@@ -16,6 +16,11 @@ R17 and R18 run now; R19 is dated and starts on or after 2026-11-19.
 (§5, D47 to D49): the noise real projects draw, being findable, and the OpenSSF signals an
 evaluator looks for. They run before R19, which stays last until its date.
 
+**Amended a third time 2026-10-03**, after [the architecture review](../../../docs/history/REVIEW-2026-10-03.md)
+of the same day, at the owner's word, with Phases R23 and R24 (§5, D50 to D55) and R20
+reshaped around path classes (D56). R23 and R24 run first, then R20 to R22, then R19 at its
+date. D57 records what a 2.0 would change; its phases are not written here.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -51,10 +56,10 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
   On a stop, the executor writes what happened and what it needs as a row in §8, commits
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
-  at $5 across R17 to R19 (D46). R20 to R22 run no agent. Past a cap they are skipped and
+  at $5 across R17 to R19 (D46). R20 to R24 run no agent. Past a cap they are skipped and
   noted in §8.
 - **A dated phase waits for its date.** R19 starts on or after 2026-11-19. Until then the
-  executor treats it as §8 does: it stops after R18 and leaves R19's row in §8.
+  executor treats it as §8 does: it stops after R22 and leaves R19's row in §8.
 - **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
   `VALVUR_CACHE` and `VALVUR_IMAGE=valvur:dev`. Never touch `~/.cache/valvur`, pulled
   `ghcr.io/maverickhq/valvur:*` images, or containers the build did not start. The Score's
@@ -190,7 +195,9 @@ network changes D24 and D25 under `CLAUDE.md` §10, and D39 to D41 the same day.
 the ADRs. D42 to D46 were accepted on 2026-10-02, with the explanation of each item that
 asked for them: D42 is the owner's choice among three, and D44 the owner's approval of a
 hook under `CLAUDE.md` §4. D47 to D49 were accepted on 2026-10-03, when the owner asked
-for the three additions proposed with them. The owner may revisit any
+for the three additions proposed with them. D50 to D57 were accepted on 2026-10-03 with
+the architecture review of that day, when the owner asked for its 1.x steps as phases;
+D56 amends D47. The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
 
@@ -222,9 +229,17 @@ wait for it.
 | D44 | **A hook that asks before an install** (the owner, 2026-10-02, under `CLAUDE.md` §4; F3.16). A Claude Code `PreToolUse` hook on the `Bash` tool, shipped in the plugin and pinned with its server (`uvx --from valvur==<version> valvur hook pre-tool-use`). When a command installs named packages, it runs the same check as `valvur check`, offline, and when any package is flagged it answers `ask` with each verdict, so the human decides. The commands: `npm`, `pnpm`, `yarn` and `bun` add and install; `pip`, `uv pip`, `uv add` and `poetry add`; `cargo add`; `gem install`; `composer require`. Otherwise it says nothing. It never answers `deny`, never runs or edits anything, and opens no socket. When valvur cannot check, because the index is absent, it answers `ask` naming the cause and `valvur update`, so the check is never silently off. It is not written by `init --write`: a hook in a project's own settings would run for every contributor without their choosing it. | if Claude Code's hook contract cannot carry `ask` from a plugin, the hook prints its verdicts as context and the skill's rule stands alone, recorded; Kiro gets the hook only if its documented hooks can do the same |
 | D45 | **The runner move** (28.3.8, O5). GitHub's `ubuntu-latest` became 26.04 on 2026-10-19. On or after 2026-11-19, every `runs-on` and matrix runner moves from `ubuntu-24.04` to `ubuntu-26.04`, and `-arm` likewise; the corpus, the acceptance set and the Score run on the move; N1.1 and N1.4 are measured against their 24.04 numbers and recorded in `requirements.md`. | if Podman or unprivileged user namespaces fail on 26.04 three times for runner reasons, the jobs that need them stay on 24.04, and the README's platform line says what is tested where |
 | D46 | **Agent runs: $5** for R17 to R19, for R18's smoke run alone, which is the one agent run that needs a shell to reach the hook. It runs in an empty scratch directory with stub `npm` and `pip` first on `PATH`, which record their arguments and exit, so no package is ever installed; the names asked for are made up and never published. | past the cap, the smoke run is replaced by replaying recorded hook inputs through the plugin's command, and §8 says so |
-| D47 | **The noise real projects draw** (F7; tracks 3 and 8; amends the verdict as D30 did, as a fix 1.x allows). On the 13-project corpus every one of 26 judged findings is a false alarm. Of them, 16 land in test, fixture or docs paths and 11 in source (R17's labels, measured 2026-10-03). Three changes, each measured before it ships. **(a) The sink inventory is inventory.** valvur's information-level sink rules (`dangerous-exec`, `dangerous-eval` and the rest of the inventory) stay in `findings.json`, marked `inventory`. `SUMMARY.md` counts them under *Sinks to review*. They no longer make a verdict `findings` by themselves, and a project whose only results are inventory reads `clean`. **(b) Secrets in fixtures and docs rank last.** Gitleaks findings whose path has a segment `tests`, `test`, `__tests__`, `spec`, `fixtures`, `testdata`, `examples` or `docs`, or a name `test_*` or `*_test.*`, become `low` and carry a `fixture` tag. They are still reported and still active, never suppressed. The match is on whole segments: the OWASP Benchmark's cases live in `testcode/`, and a substring rule would erase track 1. **(c) Non-security hashing and randomness.** `weak-hash` does not fire on `usedforsecurity=False`. `weak-hash` and the vendored `random` rule do not fire under the fixture paths of (b). | each change ships only if tracks 1 to 7 stay within the ratchet's 2 points; one that costs more is withdrawn and recorded, as D29 does for a rule |
+| D47 | **The noise real projects draw** (F7; tracks 3 and 8; amends the verdict as D30 did, as a fix 1.x allows). On the 13-project corpus every one of 26 judged findings is a false alarm. Of them, 16 land in test, fixture or docs paths and 11 in source (R17's labels, measured 2026-10-03). Three changes, each measured before it ships. **(a) The sink inventory is inventory.** valvur's information-level sink rules (`dangerous-exec`, `dangerous-eval` and the rest of the inventory) stay in `findings.json`, marked `inventory`. `SUMMARY.md` counts them under *Sinks to review*. They no longer make a verdict `findings` by themselves, and a project whose only results are inventory reads `clean`. **(b) Secrets in fixtures and docs rank last.** Gitleaks findings whose path has a segment `tests`, `test`, `__tests__`, `spec`, `fixtures`, `testdata`, `examples` or `docs`, or a name `test_*` or `*_test.*`, become `low` and carry a `fixture` tag. They are still reported and still active, never suppressed. The match is on whole segments: the OWASP Benchmark's cases live in `testcode/`, and a substring rule would erase track 1. **(c) Non-security hashing and randomness.** `weak-hash` does not fire on `usedforsecurity=False`. `weak-hash` and the vendored `random` rule do not fire under the fixture paths of (b). *Amended 2026-10-03 by D56: (b) and (c)'s paths are path classes, decided once by the File Set; (b) and (c) are the first rows of one table that decides what a class changes; and (b)'s `fixture` tag is the finding's `context`.* | each change ships only if tracks 1 to 7 stay within the ratchet's 2 points; one that costs more is withdrawn and recorded, as D29 does for a rule |
 | D48 | **Findable** (F10). **(a) A demo:** one CLI scan of acceptance repository 8, recorded by a script that regenerates it, committed under `docs/` as an animated SVG under 1 MB and shown in the README's first screen. No hosted service is used. **(b) Ready to list:** the README gains *Privacy*, valvur collects nothing, with the proof's link, and *Support*, the issue tracker. Kiro's catalog requires both. `docs/LISTING.md` holds the text each directory asks for, the plugin's and the power's, drawn from their manifests. Submitting stays the owner's (§8). | if the recorder cannot run headless on this Mac, the README shows a captured terminal transcript instead, as text, and §8 says so |
 | D49 | **OpenSSF signals** (N3). **(a) Scorecard:** `scorecard.yml` runs `ossf/scorecard-action`, pinned by commit, weekly and on `main`, with `publish_results: true`. That uploads its results to the public OpenSSF API and earns the README badge; the result describes the repository, never a user's code. Permissions are the action's documented minimum (`security-events: write`, `id-token: write`) and nothing more. The first score and each check below 10 are recorded, and the cheap ones are fixed. **(b) Best Practices:** `docs/BEST-PRACTICES.md` answers every *passing* criterion of the OpenSSF Best Practices badge with a link to its evidence. The form itself needs the owner's account (§8). | if a Scorecard check needs a setting only the owner can change (branch protection's review count, say), it is listed in §8, not worked around |
+| D50 | **The host side in four layers** (the review of 2026-10-03, §3.1). `core` holds the Finding, identity, the verdict, ranking and path classes, with no I/O. `app` holds the scan service, the read models and the jobs. `infra` holds the runtimes, the datasets, the registries, git, the OCI client, the adapters, and the image's side, `engine` and `checks`. `surfaces` holds the CLI, the MCP server and the hook. Each layer imports only from the layers below it. `scripts/layers.toml` assigns every module under `src/valvur` to one layer. **Modules are not moved,** so every import path stays: the protocol's entry points (`python -m valvur.engine`, `python -m valvur.checks`) and the console scripts included. `scripts/check_layers.py` reads the AST with the standard library, as `check_traceability.py` does, and runs in `verify.sh`. It fails on an import that points upward, deferred imports included, and on a module in no layer. The upward imports found on its first run are a baseline that may only shrink, and R23's exit empties it. `valvur/__init__.py` exports `scan`, `ScanRun`, `ScannerFailed`, `Finding` and `__version__` lazily (PEP 562), so the public names stay, and importing a module no longer loads `api`: measured, `import valvur.hook` loads 52 of valvur's modules today. | if the baseline cannot be emptied without changing a contract, what remains is listed in R23's exit with each reason, and §8 holds it for the owner |
+| D51 | **One scan service** (review §3.2). The CLI's `scan` and the MCP tool both run a scan through one function, `service.run_scan`. It owns the runner, the locks, the budget and cancellation. The MCP job wraps that call in its thread and adds nothing else. The CLI's text, the MCP reply's fields and its text render from one read model of the result, and their output is unchanged, held by goldens. `operations` and `reply` import nothing from `valvur.mcp`: what they need of a job is passed in. `Job.summary`, `operations._summarise`, `start_scan` and `_run_scan` are deleted, since nothing reads them. | none needed |
+| D52 | **Each concept modelled once** (review §3.3). **(a) Datasets.** One table, `valvur.datasets`, holds each dataset's source setting, verifier, age reader, refresh threshold, `inconclusive` threshold and mirror. A scan, `update`, `doctor`, `run.json` and the reply all read it. The thresholds stay D24's. `update --if-stale` refreshes exactly what a scan would, KEV and EPSS included (a scan's refresh is already an approved fetch, ADR-0027). **(b) Active.** One predicate decides that a Finding counts, for the in-memory form and for `findings.json`'s records, and the six sites that decide it today call it. **(c) The network grant** is `Invocation.network` alone. The engine sets `VALVUR_NETWORK` for each granted tool in every runtime, the in-image runtime included. **(d) A scan context**, built once per scan, holds the File Set, the parsed `.security-scan.toml` and the settings, and is passed to the adapters, the pipeline and coverage. **(e) One function builds a container's flags,** for the Scan Container and for the database fetch. | none needed |
+| D53 | **Typed messages inside** (review §3.4). The engine's events carry a `kind` and fields. Prose is rendered only at a surface, and the reply reads kinds, never a prefix. The text the MCP client and the CLI show is unchanged. The budget's state is a field of the outcome. `Runtime` and `ScannerAdapter` declare every member `app` uses, and no `getattr` is called on a runner or an adapter. `mypy --strict` holds `core`. | a `core` module that needs a behaviour change to pass `--strict` stays at the current level, listed in R23's exit |
+| D54 | **The four lapses the review found, fixed** (review §3.5; fixes 1.x allows). **(a)** `/tmp` is `noexec` for every tool. Opengrep's core is unpacked at image build, so no tool needs an executable `/tmp`, and `allow_exec` goes. That also saves the 243 MB Opengrep unpacks on every scan. **(b)** On `full` in the image, dependency-reality asks the registry questions, through D52(c). **(c)** `VALVUR_CACHE`, then the `cache` setting, win over `XDG_CACHE_HOME`. **(d)** The Profiles share one Scanner list, since they run the same Scanners and differ in the network grant. `run.json` keeps `scanners_not_run` for its schema. The dead code and duplicated constants the review names go with these. | if Opengrep cannot run from an unpacked tree, `/tmp` stays executable for the Scan Container, and `invocation.py` and `PROTOCOL.md` say so truthfully; recorded |
+| D55 | **The machinery made lighter** (review §4.3, §4.4). **(a) Generated, not compared.** `scripts/generate_docs.py` writes marked blocks, `<!-- generated: <name> -->` to `<!-- /generated -->`, from the code: the MCP tools and their fields, the protocol's paths and pins, the settings and their variables, and the CLI's commands. The blocks sit in the README, `PROTOCOL.md`, `AIR-GAPPED.md` and the skill's `references/tools.md`. One test regenerates every block and fails on a difference, naming the block. Each test that compared one of those facts with prose is deleted in the commit that adds its block. A test stays where the sentence is the contract, and the constraint suite keeps its 54. **(b) No test writes the repository.** `scripts/sync_skill.py` refreshes the plugin's and the power's copies of the skill, and `prepare_release.py` runs it. `UPDATE_SKILL` goes. **(c) One version source.** Workflows read the version through one composite action, and the issue-on-failure step is one composite action too. **(d) CI builds once.** Each architecture builds the image once per commit, and the e2e, the self-scan and the reproducibility comparison use that build. Only the second reproducibility build is made again, with no cache. **(e) Planning IDs.** New tests are named for what they test. New comments in `src` cite ADRs and requirements, not tasks. Existing ones change only when they are touched. **(f) The archive is a record** (amends D43). `check_traceability.py` no longer reads `docs/history`. | if handing the image between jobs takes longer than building it, the jobs build their own as now, recorded |
+| D56 | **Path classes** (review §5; amends D47, reshaping R20). The File Set gives every path one class: `source`, `test`, `fixture`, `docs`, `example`, `vendored` or `generated`. It matches whole segments, as D47(b) lists them. `vendor`, `third_party` and `node_modules` are `vendored`. A path `.gitattributes` marks `linguist-generated`, or whose first lines say it is generated and not to be edited, is `generated`; only paths a finding lands on are read. Each finding carries its path's class as `context`, in `findings.json` and in SARIF's `properties`. The field is additive, and identity and `fp_version` are unchanged. One table in `core` decides what a class changes, and D47's (b) and (c) are its first rows. A secret in `test`, `fixture`, `docs` or `example` ranks `low` and stays active. `weak-hash` and the vendored `random` rule are not reported in those classes, and `run.json` counts what the table removed, by class and rule, so nothing disappears without a number. A class with no row changes nothing. D47(a) and the `usedforsecurity=False` half of D47(c) concern rules, not paths, and stand as written. | a row that costs tracks 1 to 7 more than 2 points is withdrawn and recorded, as D47 says |
+| D57 | **2.0 is scoped here, not planned** (review §4.1, §4.2, §5). **Three artifacts, versioned apart:** the host side on PyPI; the Scanner image, versioned by protocol and rebuildable for an advisory without a host release; and the rules and Check data, a signed OCI artifact tagged only when the Score holds. The host accepts a compatible range and records each digest in `run.json`. **Protocol 3:** the engine emits normalised findings, which the host validates against the schema and still neutralises. **Reuse by declared inputs:** ADR-0030 generalised to every Scanner that declares what it reads. **One settings model:** two files, the project's and the machine's, with environment variables only as overrides. Its phases are written when the owner asks, after R24's exit, each part with its ADR. Until then 1.x keeps protocol 2, `fp_version` 1, the reply's schema 2 and every documented setting. | none needed |
 
 ## 6. Order
 
@@ -253,14 +268,19 @@ R17 targets recorded, IDs defined ─► R18 the install asks first ─ ─ ─�
 - **R19** waits for its date; it changes where CI runs, not what valvur does.
 
 ```
-R20 the noise real projects draw ─► R21 findable ─► R22 OpenSSF signals ─ ─ ─► R19 (dated)
+R23 layers ─► R24 machinery ─► R20 noise ─► R21 findable ─► R22 OpenSSF ─ ─ ─► R19 (dated)
 ```
 
-- **R20 first**: it changes what a scan reports, so it is judged by the Score before the
-  documents and the demo show it.
+- **R23 first**: it changes no contract and no number, and every later phase lands in its
+  layers. R20's path classes go into `core`, and their table beside ranking.
+- **R24 next**: it replaces the tests that compare prose before R20 changes the reply and
+  `SUMMARY.md`, so R20 pays once. Its CI changes come before R22 measures the workflows.
+- **R20** changes what a scan reports, so it is judged by the Score before the documents
+  and the demo show it.
 - **R21** records the demo after R20, so the demo shows the quieter output.
 - **R22** measures the repository as R20 and R21 left it.
-- **R19** keeps its date; in §7 it comes after R22, so `build_status.py` finds R20 first.
+- **R19** keeps its date and comes last in §7. R23 comes first there, so
+  `build_status.py` finds it first.
 
 ---
 
@@ -477,29 +497,145 @@ owner's choice (§8).
   to 1.2.0's commit after urllib3's advisories reached the old one.
 - **The suites:** ✅ e2e 85 passed on the Mac.
 
+### Phase R23: the host side in layers
+
+Internal only: no contract changes, and the Score unchanged on both lanes.
+
+- [ ] **R23.1** **Measure first** (D50 to D54). Record:
+  - the import graph: modules, cycles with and without the package's `__init__` as an
+    edge, and deferred imports;
+  - `api.py`'s length and its longest functions;
+  - what `import valvur.hook` loads, and its time;
+  - each concept's copies, from the review's §3.3.
+
+  Record goldens of the CLI's text and the MCP reply through `LocalRuntime`, for three
+  fixture workspaces (one with findings, one clean, one inconclusive), with times and
+  generation IDs normalised. Behaviour: the STATUS gives each number; the goldens are
+  committed and pass.
+- [ ] **R23.2** **The layer check** (D50). Behaviours:
+  1. an import of a higher layer from a lower one fails, named with its `file:line`,
+     deferred imports included;
+  2. a module in no layer fails;
+  3. today's upward imports are the baseline, which may only shrink;
+  4. it runs in `verify.sh`.
+- [ ] **R23.3** **The package loads only what is asked** (D50). Behaviours:
+  1. `from valvur import scan, ScanRun, ScannerFailed, Finding, __version__` still works;
+  2. `import valvur.hook` loads neither `api` nor `pipeline`, and a test counts the
+     modules it loads;
+  3. the hook's import time is in the STATUS, against R23.1's.
+- [ ] **R23.4** **One scan service** (D51). Behaviours:
+  1. the CLI's `scan` and the MCP tool both run through `service.run_scan`; a test
+     replaces it and drives both surfaces;
+  2. `operations` and `reply` import nothing from `valvur.mcp`;
+  3. the CLI's text and the MCP reply match R23.1's goldens;
+  4. `Job.summary`, `operations._summarise`, `start_scan` and `_run_scan` are gone.
+- [ ] **R23.5** **The datasets, once** (D52a). Behaviours:
+  1. every dataset's refresh and `inconclusive` thresholds come from one table, and a
+     test holds the table to D24;
+  2. `update --if-stale` refreshes exactly what a scan would, KEV and EPSS included;
+  3. `doctor`, `run.json` and the reply read ages through the table;
+  4. no other module compares a dataset's age with a number, which an AST test holds.
+- [ ] **R23.6** **Every other concept, once** (D52b to e). Behaviours:
+  1. one predicate decides that a Finding is active, and the six sites call it;
+  2. the network grant is `Invocation.network` alone, and the engine sets
+     `VALVUR_NETWORK` for each granted tool in every runtime;
+  3. one scan parses `.security-scan.toml` once and builds the File Set once, counted;
+  4. both launchers build their flags with one function.
+- [ ] **R23.7** **Typed messages** (D53). Behaviours:
+  1. the engine's events carry a `kind`, and the reply reads kinds, never a prefix;
+  2. the budget's state is a field;
+  3. `Runtime` and `ScannerAdapter` declare every member `app` uses, and an AST test
+     finds no `getattr` on either;
+  4. `mypy --strict` passes on `core`, or D53's fallback lists what does not.
+- [ ] **R23.8** **The four lapses** (D54). Behaviours:
+  1. `/tmp` is `noexec` for every tool, and Opengrep runs from its unpacked tree
+     (`e2e`), or D54's fallback;
+  2. on `full` in the image, dependency-reality asks the registry, through
+     `tests/fake_registry.py`;
+  3. `VALVUR_CACHE` wins over `XDG_CACHE_HOME`;
+  4. the Profiles share one Scanner list, and `run.json` keeps `scanners_not_run`;
+  5. the dead code the review names is gone, and each duplicated constant is one.
+- [ ] **R23.9** **The orchestrator, small** (D50). Behaviours:
+  1. `api.py` is under 400 lines, and no function in `app` is over 80 lines;
+  2. the layer baseline is empty, and no import cycle remains, counting deferred imports
+     and the package's `__init__`;
+  3. every deferred import left says why in a comment, such as startup cost, and a test
+     lists them.
+
+**Exit:** the layer baseline empty and no import cycle, or D50's fallback; `api.py` under
+400 lines; R23.1's goldens unchanged; the Score unchanged on both lanes; the acceptance set
+green on both lanes; `CLAUDE.md` names the layers and the check.
+
+### Phase R24: the machinery made lighter
+
+- [ ] **R24.1** **Measure first** (D55). Record:
+  - the tests that read prose or other files' text, by file;
+  - the image builds a pull request makes, and their minutes;
+  - every surface that states the version;
+  - the steps copied between workflows.
+
+  Behaviour: the STATUS gives each count.
+- [ ] **R24.2** **Generated, not compared** (D55a). Behaviours:
+  1. `scripts/generate_docs.py` writes each marked block from the code;
+  2. one test regenerates every block and fails on a difference, naming the block;
+  3. each test that compared prose with a fact a block now carries is deleted with it,
+     and the constraint suite keeps its 54;
+  4. the link check passes.
+- [ ] **R24.3** **No test writes the repository** (D55b). Behaviours:
+  1. `scripts/sync_skill.py` refreshes the plugin's and the power's copies of the skill,
+     and `prepare_release.py` runs it;
+  2. `UPDATE_SKILL` is gone, and the byte-equality tests stay.
+- [ ] **R24.4** **CI builds once** (D55c, d). Behaviours:
+  1. a pull request builds the image at most three times: once per architecture, and once
+     more for reproducibility;
+  2. the e2e, the self-scan and the reproducibility comparison use the commit's build;
+  3. one composite action reads the version, and one files the issue on failure;
+  4. zizmor finds nothing in the workflows, and every required check is green.
+- [ ] **R24.5** **Planning IDs out of the way** (D55e, f). Behaviours:
+  1. traceability does not read `docs/history`, and a test holds the list of what it
+     reads;
+  2. `CONTRIBUTING.md` says new tests are named for what they test, and new comments cite
+     ADRs and requirements, not tasks.
+
+**Exit:** the prose-comparing tests R24.1 counted, less those kept as contracts, gone; at
+most three image builds per pull request, with CI's time against R24.1's; the Score
+unchanged on both lanes; CI green.
+
 ### Phase R20: the noise real projects draw
 
-- [ ] **R20.1** **Measure first** (D47). For each of the 26 corpus false alarms, record its
-  rule, its path class (source, or which fixture segment) and its severity. Run each of
-  D47's three changes against tracks 1 to 8 separately, before any ships. Behaviour: the
-  STATUS gives each change's delta per track; a change past the ratchet is withdrawn there.
-- [ ] **R20.2** **The sink inventory is inventory** (D47a). Behaviours:
+*Reshaped 2026-10-03 by D56: path classes first, and D47's (b) and (c) as rows of one
+table.*
+
+- [ ] **R20.1** **Measure first** (D47, D56). For each of the 26 corpus false alarms,
+  record its rule, its path class and its severity. Run each change against tracks 1 to 8
+  separately, before any ships. Behaviour: the STATUS gives each change's delta per track;
+  a change past the ratchet is withdrawn there.
+- [ ] **R20.2** **Path classes** (D56). Behaviours:
+  1. the File Set gives every path one class, by whole segments:
+     `testcode/BenchmarkTest00001.py`, `latest/x.py` and `contest/y.py` are `source`;
+  2. `vendor/`, `third_party/` and `node_modules/` are `vendored`; `linguist-generated`
+     and a header saying not to edit are `generated`;
+  3. every finding carries `context` in `findings.json` and SARIF, and its fingerprint is
+     unchanged;
+  4. the corpus's count per class is in the STATUS.
+- [ ] **R20.3** **The sink inventory is inventory** (D47a). Behaviours:
   1. an inventory rule's finding is marked `inventory` in `findings.json` and SARIF;
   2. it is not active: a project whose only results are inventory reads `clean`, with
      *Sinks to review* counting them in `SUMMARY.md`;
   3. `findings` lists inventory only when asked (`inventory: true`);
   4. a non-inventory finding at the same line still counts.
-- [ ] **R20.3** **Secrets in fixtures and docs rank last** (D47b). Behaviours:
-  1. a Gitleaks finding under a fixture segment is `low` and tagged `fixture`;
-  2. it is still active, and still makes the verdict `findings`;
-  3. `testcode/BenchmarkTest00001.py`, `latest/x.py` and `contest/y.py` are not fixture
-     paths: whole segments only;
-  4. track 3 holds 100.
-- [ ] **R20.4** **Non-security hashing and randomness** (D47c). Behaviours:
+- [ ] **R20.4** **One table decides what a class changes** (D56; D47b, c). Behaviours:
+  1. a Gitleaks finding in `test`, `fixture`, `docs` or `example` is `low`, still
+     active, and still makes the verdict `findings`;
+  2. `weak-hash` and the vendored `random` rule are not reported in those classes, and
+     `run.json` counts what the table removed, by class and rule;
+  3. a class with no row changes nothing;
+  4. track 3 holds 100, and track 1's `hash` and `weakrand` categories keep every true
+     positive they have.
+- [ ] **R20.5** **Non-security hashing** (D47c). Behaviours:
   1. `hashlib.md5(data, usedforsecurity=False)` draws no `weak-hash`;
-  2. `weak-hash` and the vendored `random` rule draw nothing under a fixture segment;
-  3. track 1's `hash` and `weakrand` categories keep every true positive they have.
-- [ ] **R20.5** **The corpus judged again.** Re-label what changed in
+  2. `hashlib.md5(data)` still does.
+- [ ] **R20.6** **The corpus judged again.** Re-label what changed in
   `tests/eval/labels/corpus.toml`; run the Score; raise track 8's baseline by what it
   measures. Behaviours: no track 1 to 7 falls more than 2 points; README and
   `EVALUATING.md` cite the new track 8.
@@ -566,7 +702,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R17 to R18 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R16 |
+| land R23, R24 and R20 to R22 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R18 |
 | start R19 | on or after 2026-11-19 | tell any session to proceed, or let the dated schedule start it; it moves CI's runners to Ubuntu 26.04 (D45) |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
@@ -579,4 +715,5 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | a `scan_cancel` in the first milliseconds cancels nothing | backlog (R6) | sent before the scan's job exists, the cancel finds no job and the scan then runs to the end. Rare; a fix would queue the cancel for the job about to start |
 | `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. Decide whether it should fake the runtime, as the other readers' cases do |
+| plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
