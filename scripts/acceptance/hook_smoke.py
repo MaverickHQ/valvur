@@ -1,6 +1,6 @@
 """R18.4's smoke run of the plugin's hook (D46), repeatable.
 
-    uv run python scripts/acceptance/hook_smoke.py
+    uv run python scripts/acceptance/hook_smoke.py [--as-shipped]
 
 `claude -p` with a copy of the plugin, whose server and hook are this checkout's, and
 the `Bash` tool allowed, is asked to install a made-up npm package in an empty scratch
@@ -9,6 +9,10 @@ its arguments and exits, so no package can be installed. The plugin's server run
 through the real `uv`, by absolute path. The run passes when the stream shows the hook
 stopping the call and the stubs recorded no install of the name. Its cost goes to
 D46's ledger, and none starts once the $5 cap is spent.
+
+`--as-shipped`, after a release, runs the plugin exactly as published: its server and
+its hook are the pinned `uvx --from valvur==<version>` from PyPI, with no `VALVUR_HOOK`,
+and every installer is still a stub ahead of `uvx` on `PATH`.
 """
 
 from __future__ import annotations
@@ -36,13 +40,17 @@ PER_RUN_USD = 1.0
 
 @dataclass(frozen=True)
 class Smoke:
+    #: Whether the agent ran the install through `Bash` at all: as shipped, the skill
+    #: may have it call `check_package` first and never try, which proves nothing
+    #: about the hook.
+    attempted: bool
     stopped_by_hook: bool
     installed: bool
     cost_usd: float
 
     @property
     def ok(self) -> bool:
-        return self.stopped_by_hook and not self.installed
+        return self.attempted and self.stopped_by_hook and not self.installed
 
 
 def judge(stream: str, *, installs: str, name: str = NAME) -> Smoke:
@@ -54,7 +62,11 @@ def judge(stream: str, *, installs: str, name: str = NAME) -> Smoke:
                   and name in str(e.get("decision_reason")) for e in events)
     result = next((e for e in events if e.get("type") == "result"), {})
     installed = any(name in line for line in installs.splitlines())
-    return Smoke(stopped_by_hook=stopped, installed=installed,
+    attempted = any(block.get("type") == "tool_use" and block.get("name") == "Bash"
+                    and name in str((block.get("input") or {}).get("command", ""))
+                    for e in events if e.get("type") == "assistant"
+                    for block in (e.get("message") or {}).get("content") or [])
+    return Smoke(attempted=attempted, stopped_by_hook=stopped, installed=installed,
                  cost_usd=round(float(result.get("total_cost_usd") or 0.0), 2))
 
 
@@ -70,7 +82,23 @@ def record(usd: float) -> None:
     LEDGER.write_text(json.dumps({"usd": round(spent() + usd, 2)}))
 
 
-def run() -> Smoke | None:
+def environment(stubs: Path, *, as_shipped: bool, uvx: str | None) -> dict[str, str]:
+    """The agent's environment: the stubs first on `PATH`; this checkout's hook, or the
+    released one through the real `uvx`."""
+    claude = shutil.which("claude")
+    parts = [str(stubs), "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+    if as_shipped and uvx:
+        parts.append(str(Path(uvx).parent))
+    if claude:
+        parts.append(str(Path(claude).parent))
+    env = {key: value for key, value in os.environ.items() if key != "VALVUR_HOOK"}
+    env["PATH"] = ":".join(parts)
+    if not as_shipped:
+        env["VALVUR_HOOK"] = str(REPO / ".venv" / "bin" / "valvur-hook")
+    return env
+
+
+def run(*, as_shipped: bool = False) -> Smoke | None:
     left = CAP_USD - spent()
     claude, uv = shutil.which("claude"), shutil.which("uv")
     if left <= 0 or claude is None or uv is None:
@@ -87,11 +115,11 @@ def run() -> Smoke | None:
             stub.chmod(0o755)
         plugin = scratch / "plugin"
         shutil.copytree(PLUGIN, plugin)
-        (plugin / ".mcp.json").write_text(json.dumps({"mcpServers": {"valvur": {
-            "command": uv, "args": ["run", "--project", str(REPO), "valvur-mcp"]}}}, indent=2))
-        env = {**os.environ,
-               "PATH": f"{bin_dir}:/usr/bin:/bin:/usr/sbin:/sbin:{Path(claude).parent}",
-               "VALVUR_HOOK": str(REPO / ".venv" / "bin" / "valvur-hook")}
+        if not as_shipped:
+            (plugin / ".mcp.json").write_text(json.dumps({"mcpServers": {"valvur": {
+                "command": uv, "args": ["run", "--project", str(REPO), "valvur-mcp"]}}},
+                indent=2))
+        env = environment(bin_dir, as_shipped=as_shipped, uvx=shutil.which("uvx"))
         completed = subprocess.run(  # noqa: S603 — the Claude CLI, fixed arguments
             [claude, "-p", f"Run exactly this shell command and report its output: "
              f"npm install {NAME}", "--plugin-dir", str(plugin), "--output-format",
@@ -104,11 +132,16 @@ def run() -> Smoke | None:
     return judged
 
 
-def main() -> int:
-    judged = run()
+def main(argv: list[str] | None = None) -> int:
+    judged = run(as_shipped="--as-shipped" in (sys.argv[1:] if argv is None else argv))
     if judged is None:
         print("not started: D46's cap is spent, or claude or uv is not on PATH")
         return 1
+    if not judged.attempted and not judged.installed:
+        print(f"inconclusive: the agent never ran the install (it may have called "
+              f"check_package first, as the skill says); ${judged.cost_usd}; D46 spent "
+              f"${spent()}")
+        return 2
     print(f"hook stopped the install: {'yes' if judged.stopped_by_hook else 'NO'}; "
           f"anything installed: {'YES' if judged.installed else 'no'}; ${judged.cost_usd}; "
           f"D46 spent ${spent()}")

@@ -70,3 +70,20 @@ def test_recorded_inputs_replayed_through_the_plugins_command_answer_as_the_hook
         "permissionDecisionReason"]
     assert _replay("npm install react", hook=str(LOCAL_HOOK), cache=cache) == (0, "")
     assert _replay("npm install reakt", hook=str(LOCAL_HOOK), tool="Edit", cache=cache) == (0, "")
+
+
+def test_when_valvur_cannot_start_the_install_still_asks_naming_why(tmp_path):
+    """Found by 1.3.0's smoke run: `uvx` could not yet resolve the release, the hook's
+    command failed, Claude Code treats a failing hook as non-blocking, and the install
+    went ahead unasked. The check is never silently off (D44): the script asks."""
+    broken = tmp_path / "broken-hook"
+    broken.write_text('#!/bin/sh\necho \'error: no version of "valvur==9.9.9"\' >&2\nexit 1\n')
+    broken.chmod(0o755)
+
+    code, out = _replay("npm install left-pad", hook=str(broken))
+
+    assert code == 0
+    decision = json.loads(out)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "ask"
+    reason = decision["permissionDecisionReason"]
+    assert "could not check this install" in reason and "valvur==9.9.9" in reason

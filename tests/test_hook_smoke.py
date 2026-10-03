@@ -65,3 +65,36 @@ def test_a_denial_that_was_not_the_hooks_or_not_about_the_name_fails():
 def test_the_stubs_cover_every_installer_and_the_fetchers():
     assert set(_smoke().STUBBED) >= {"npm", "npx", "pnpm", "yarn", "bun", "pip", "pip3", "uv",
                                      "poetry", "cargo", "gem", "composer", "curl", "wget"}
+
+
+def test_as_shipped_the_hook_is_the_released_one_and_installers_stay_stubbed(tmp_path):
+    """After a release, the smoke run uses the plugin exactly as published: no
+    `VALVUR_HOOK`, the pinned `uvx --from valvur==<version>` reachable, and every
+    installer still a stub ahead of it on `PATH`."""
+    smoke = _smoke()
+    stubs = tmp_path / "bin"
+
+    shipped = smoke.environment(stubs, as_shipped=True, uvx="/opt/tools/uvx")
+    from_tree = smoke.environment(stubs, as_shipped=False, uvx="/opt/tools/uvx")
+
+    assert "VALVUR_HOOK" not in shipped and from_tree["VALVUR_HOOK"].endswith("valvur-hook")
+    path = shipped["PATH"].split(":")
+    assert path[0] == str(stubs) and "/opt/tools" in path
+    assert path.index(str(stubs)) < path.index("/opt/tools")
+
+
+def test_an_agent_that_never_ran_the_install_is_inconclusive_not_a_failure():
+    """As shipped, the skill tells the agent to call `check_package` first; one that does
+    may never run the install, so the hook is never asked. That run proves nothing about
+    the hook, and says so, rather than failing it."""
+    events = [{"type": "system", "subtype": "init", "plugins": [{"name": "valvur"}]},
+              {"type": "assistant", "message": {"content": [
+                  {"type": "tool_use", "name": "mcp__plugin_valvur_valvur__check_package",
+                   "input": {"packages": [{"ecosystem": "npm", "name": NAME}]}}]}},
+              {"type": "result", "subtype": "success", "total_cost_usd": 0.4}]
+    stream = "\n".join(json.dumps(e) for e in events) + "\n"
+
+    judged = _smoke().judge(stream, installs="", name=NAME)
+
+    assert not judged.attempted and not judged.ok and not judged.installed
+    assert _smoke().judge(_stream(), installs="", name=NAME).attempted

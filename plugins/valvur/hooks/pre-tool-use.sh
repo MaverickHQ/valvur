@@ -11,4 +11,14 @@ case "$event" in
   *npm*|*pnpm*|*yarn*|*bun*|*pip*|*"uv add"*|*poetry*|*cargo*|*gem*|*composer*) ;;
   *) exit 0 ;;
 esac
-printf '%s' "$event" | ${VALVUR_HOOK:-uvx --from valvur==1.3.0 valvur-hook}
+# A hook that fails is non-blocking to Claude Code, so a valvur that cannot start (uvx
+# not yet resolving a fresh release, no network for a first fetch) would let the install
+# through unasked. The check is never silently off (D44): it asks, naming why.
+err=$(mktemp 2>/dev/null) || err=/dev/null
+if out=$(printf '%s' "$event" | ${VALVUR_HOOK:-uvx --from valvur==1.3.0 valvur-hook} 2>"$err"); then
+  printf '%s' "$out"
+else
+  why=$(head -c 300 "$err" 2>/dev/null | tr '\n\r\t"\\' "     ")
+  printf '{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "valvur could not check this install: its check did not start (%s). Install only if you are sure of every package name."}}\n' "$why"
+fi
+[ "$err" = /dev/null ] || rm -f "$err"
