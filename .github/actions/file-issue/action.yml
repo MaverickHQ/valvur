@@ -1,0 +1,41 @@
+name: A failure is a tracked thing, not an email
+description: >-
+  One open issue per title: the first failure opens it and each later one comments
+  on it, because a job broken for a week is one problem, not seven (27.2.7, D55c).
+  GitHub mails a scheduled failure to one person and does nothing else. The calling
+  job needs `issues: write`.
+inputs:
+  title:
+    description: The issue's title, which is also how the open one is found
+    required: true
+  failed:
+    description: What failed, as the first sentence; the run's URL follows it
+    required: true
+  body:
+    description: What is lost, and how to recover, as the paragraphs after it
+    required: true
+  token:
+    description: A token that may open issues
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TITLE: ${{ inputs.title }}
+        FAILED: ${{ inputs.failed }}
+        BODY: ${{ inputs.body }}
+        RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -eu
+        body=$(printf '%s: %s\n\n%s\n' "$FAILED" "$RUN" "$BODY")
+        existing=$(gh issue list --state open --search "$TITLE in:title" \
+                     --json number --jq '.[0].number // empty')
+        if [ -n "$existing" ]; then
+          gh issue comment "$existing" --body "$body"
+          echo "commented on #$existing"
+        else
+          gh issue create --title "$TITLE" --body "$body"
+          echo "opened an issue"
+        fi
