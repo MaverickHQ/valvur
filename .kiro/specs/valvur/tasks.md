@@ -770,23 +770,67 @@ green on both lanes; `CLAUDE.md` names the layers and the check.
 
 ### Phase R24: the machinery made lighter
 
-- [ ] **R24.1** **Measure first** (D55). Record:
+- [x] **R24.1** **Measure first** (D55). Record:
   - the tests that read prose or other files' text, by file;
   - the image builds a pull request makes, and their minutes;
   - every surface that states the version;
   - the steps copied between workflows.
 
   Behaviour: the STATUS gives each count.
-- [ ] **R24.2** **Generated, not compared** (D55a). Behaviours:
+  **STATUS 2026-10-03:** ✅ measured at `80b1d37`, R23's head.
+  - **Tests that read text** (each test's body, its helpers and the module constants
+    they name, read from the AST): 80 tests in 36 files read the repository's prose,
+    43 read workflow text and 22 read Python source. By file, for prose: `test_skill`
+    9, `test_readme_as_built` 6, `test_engine` 6, `test_protocol` 5, `test_version` 4,
+    `test_readme_claims` 4, `test_constraints_design` 4, `test_prepare_release` 3,
+    `test_mcp_clients` 3, `test_mcp` 3, `test_init_write` 3, `test_scan_goldens`,
+    `test_published_index`, `test_pipeline_example`, `test_init_skill` and
+    `test_hygiene` 2 each, and 20 more files with one each.
+  - **Image builds per pull request:** five in `ci.yml` on #184's run 37153055991:
+    the two e2e jobs' (64 s amd64, 62 s arm64), the self-scan's (68 s), and the
+    reproducibility job's two, without cache (125 s together): 5.3 minutes of
+    building. `eval.yml` and `acceptance.yml` add one each (75 s and 82 s) when their
+    paths change. The required jobs finished 8.4 minutes after the run started.
+  - **Version surfaces:** 12 files state it: `pyproject.toml`, the README's status,
+    the package's skill and its two copies, the plugin's manifest, server and hook,
+    the power's manifest and server, and the two pipeline examples. The workflows read
+    it from `pyproject.toml` ten times, by the same `grep | cut`, in six of them.
+  - **Steps copied between workflows:** the version read 10 times in 6 workflows; the
+    issue on failure 9 times in 7; fetching the database and the index 7 times;
+    restoring the index cache 3; building the image from the tree 3 (5 with
+    `ci.yml`'s differently named ones); `uv venv` 10 and `uv sync` 7.
+  - **The eight required checks**, read from branch protection: `no scan output in
+    tree`, `lint, types, tests`, `end-to-end (real container)`, `self-scan release
+    gate (N2.5)`, `the published image, on amd64`, `the published image, on arm64`,
+    `the tests on Python 3.11` and `the tests on Python 3.13`.
+- [x] **R24.2** **Generated, not compared** (D55a). Behaviours:
   1. `scripts/generate_docs.py` writes each marked block from the code;
   2. one test regenerates every block and fails on a difference, naming the block;
   3. each test that compared prose with a fact a block now carries is deleted with it,
      and the constraint suite keeps its 54;
   4. the link check passes.
-- [ ] **R24.3** **No test writes the repository** (D55b). Behaviours:
+  **STATUS 2026-10-03:** ✅ all four.
+  - **Eight blocks in five files:** the skill's `mcp-tools` (`references/tools.md`) and
+    `agent-rules` (`SKILL.md`); the README's `mcp-clients` and `cli-commands`;
+    `PROTOCOL.md`'s `protocol-paths`, `protocol-binaries` and `protocol-labels`; and
+    `AIR-GAPPED.md`'s `settings`. The facts are the code's: the server's tool list and
+    handshake, the clients' table, the parser's commands, the paths in every adapter's
+    command and the shim's own mounts, each adapter's version, the Dockerfile's labels,
+    and `settings.ENVIRONMENT`. The generator refuses a path, binary or mirror setting
+    the code adds and its table does not describe. The two older markers (`rules:`,
+    `clients:`) are gone.
+  - **Deleted with their blocks:** five tests and half of a sixth. The skill's tools
+    reference and rules tests, the README's clients test, `PROTOCOL.md`'s paths and
+    binaries tests, and the commands half of the README test. The README's tools table
+    stays prose, and its test with it. 76 tests now read prose, 80 at R24.1. The
+    constraint suite is untouched, at 54. `test_links.py` passes.
+- [x] **R24.3** **No test writes the repository** (D55b). Behaviours:
   1. `scripts/sync_skill.py` refreshes the plugin's and the power's copies of the skill,
      and `prepare_release.py` runs it;
   2. `UPDATE_SKILL` is gone, and the byte-equality tests stay.
+  **STATUS 2026-10-03:** ✅ both. `sync_skill.sync` rewrites a copy only when it
+  differs, and `prepare_release.py` calls it where its own copy loop was. No test file
+  names `UPDATE_SKILL`, and a test holds that.
 - [ ] **R24.4** **CI builds once** (D55c, d). Behaviours:
   1. a pull request builds the image at most three times: once per architecture, and once
      more for reproducibility;
