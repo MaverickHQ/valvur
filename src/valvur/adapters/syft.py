@@ -7,10 +7,14 @@ adapter declares in `artifact` straight into the Results Folder.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..findings import Finding
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter
+
+if TYPE_CHECKING:
+    from ..scancontext import ScanContext
 
 VERSION = "1.52.0"
 
@@ -30,10 +34,12 @@ class SyftAdapter(ScannerAdapter):
         #: Asked for on this scan (`--sbom`); the project may ask in its own file.
         self.enabled = enabled
 
-    def applies_to(self, workspace: Path) -> tuple[bool, str]:
+    def applies_to(self, workspace: Path,
+                   context: ScanContext | None = None) -> tuple[bool, str]:
         from ..exclusions import load_scan_settings
 
-        if self.enabled or load_scan_settings(workspace).sbom:
+        settings = context.settings if context is not None else load_scan_settings(workspace)
+        if self.enabled or settings.sbom:
             return True, ""
         return False, OPT_IN
 

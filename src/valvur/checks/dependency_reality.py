@@ -82,7 +82,7 @@ class DependencyRealityCheck(Check):
     name = "dependency-reality"
 
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = (),
-                 *, network: bool = False) -> Coverage:
+                 *, network: bool = False, files: list[str] | None = None) -> Coverage:
         """The one Check whose limits are worth stating, because nothing else in the
         product substitutes for it. Host-side, static, per Profile."""
         from .. import coverage as _coverage
@@ -125,7 +125,7 @@ class DependencyRealityCheck(Check):
         return Coverage(
             inspects=tuple(sorted(reads)),
             ignores=tuple(sorted(ignores)),
-            gaps=tuple(_coverage.dependency_gaps(workspace, exclude)),
+            gaps=tuple(_coverage.dependency_gaps(workspace, exclude, files)),
         )
 
     def run(self, workspace: Path, exclude: tuple[str, ...] = ()) -> list[dict]:

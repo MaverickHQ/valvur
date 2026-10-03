@@ -61,14 +61,21 @@ class Policy:
         return {s.fingerprint: s for s in self.suppressions}
 
 
-def load(workspace: Path) -> Policy:
-    path = workspace / SUPPRESSION_FILE
-    if not path.is_file():
-        return Policy([], [])
-    try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, OSError) as exc:
-        return Policy([], [Problem(f"{SUPPRESSION_FILE} could not be read: {exc}", {})])
+def load(workspace: Path, project: tuple[dict, str | None] | None = None) -> Policy:
+    """The suppressions in the project file; from `project`, the file as a scan
+    context already parsed it (D52d), when given."""
+    if project is None:
+        path = workspace / SUPPRESSION_FILE
+        if not path.is_file():
+            return Policy([], [])
+        try:
+            raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, OSError) as exc:
+            return Policy([], [Problem(f"{SUPPRESSION_FILE} could not be read: {exc}", {})])
+    else:
+        raw, problem = project
+        if problem is not None:
+            return Policy([], [Problem(problem, {})])
 
     suppressions: list[Suppression] = []
     problems: list[Problem] = []

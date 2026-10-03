@@ -39,7 +39,7 @@ class _Adapter:
         self.sleep = sleep
         self.ending = ending
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         if self.ending == "skipped":
             return False, "nothing to analyse"
         return True, ""

@@ -43,7 +43,7 @@ class _Finder:
         self.finds = finds
         self.seconds = seconds
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def for_profile(self, *, network):

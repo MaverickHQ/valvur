@@ -11,7 +11,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .exclusions import RESULTS_DIR  # a leaf: importing results would close a cycle
+from .exclusions import RESULTS_DIR, ScanSettings  # a leaf: results would close a cycle
 
 
 def git() -> str | None:
@@ -239,12 +239,15 @@ def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
     return result
 
 
-def build(workspace: Path) -> FileSet:
-    from .exclusions import load_configured, load_scan_settings
+def build(workspace: Path, settings: ScanSettings | None = None) -> FileSet:
+    """The File Set; `settings` is the project's `[scan]` table when the caller has
+    already read it, as a scan context has (D52d)."""
+    from .exclusions import load_scan_settings
 
-    prefixes = load_configured(workspace)
+    settings = settings if settings is not None else load_scan_settings(workspace)
+    prefixes = settings.exclude
     # `scope = "tree"` walks instead, for a user who wants it (ADR-0021, decision 7).
-    view = None if load_scan_settings(workspace).scope == "tree" else git_view(workspace)
+    view = None if settings.scope == "tree" else git_view(workspace)
     if view is not None:
         tracked, left_out = view
         kept, skipped = _ignored(workspace)

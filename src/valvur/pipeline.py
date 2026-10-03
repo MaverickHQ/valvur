@@ -19,6 +19,7 @@ import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import coverage as _coverage
 from . import enrichment as _enrichment
@@ -31,6 +32,9 @@ from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
 from .findings import Finding, merge
+
+if TYPE_CHECKING:
+    from .scancontext import ScanContext
 
 
 @dataclass
@@ -54,6 +58,9 @@ class Context:
     ignored: frozenset[str] = frozenset()
     #: The Results Folder, when it is not the workspace's (`--out`, R8.1).
     results: Path | None = None
+    #: What the scan read of the project once (D52d): the project file, its `[scan]`
+    #: table and the File Set. None outside a scan, when a stage reads them itself.
+    scan: ScanContext | None = None
 
     # ---- recorded by stages, read when the ScanRun is assembled
     configured: tuple[str, ...] = ()
@@ -133,11 +140,13 @@ def coverage(findings: list[Finding], ctx: Context) -> list[Finding]:
     did not run — so the one message saying "this scan could not help you" was
     missing exactly where it mattered.
     """
-    settings = _exclusions.load_scan_settings(ctx.workspace)
+    settings = (ctx.scan.settings if ctx.scan is not None
+                else _exclusions.load_scan_settings(ctx.workspace))
     ctx.configured = settings.exclude
     skipped = ctx.configured
-    ctx.coverage = _coverage.collect(ctx.declaring, ctx.workspace, skipped)
-    gaps = [g for a in ctx.declaring for g in a.coverage(ctx.workspace, skipped).gaps]
+    ctx.coverage = _coverage.collect(ctx.declaring, ctx.workspace, skipped, ctx.scan)
+    gaps = [g for a in ctx.declaring
+            for g in a.coverage(ctx.workspace, skipped, ctx.scan).gaps]
     return findings + gaps
 
 
@@ -215,7 +224,8 @@ def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Suppressions are policy, applied after detection and enrichment and before
     ranking. They never touch the Fingerprint or the Status diff: a suppressed
     Finding is still present, and un-suppressing it must not read as new."""
-    policy = _suppressions.load(ctx.workspace)
+    policy = _suppressions.load(
+        ctx.workspace, (ctx.scan.project, ctx.scan.problem) if ctx.scan is not None else None)
     findings = _suppressions.apply(findings, policy)
     return findings + _suppressions.policy_findings(policy, findings)
 

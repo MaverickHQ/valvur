@@ -11,11 +11,15 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .. import fingerprint as _fp
 from ..findings import Finding, Severity
 from ..invocation import Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
+
+if TYPE_CHECKING:
+    from ..scancontext import ScanContext
 
 VERSION = "1.30.1"
 
@@ -38,15 +42,17 @@ class ZizmorAdapter(ScannerAdapter):
     name = "zizmor"
     version = VERSION
 
-    def applies_to(self, workspace: Path) -> tuple[bool, str]:
+    def applies_to(self, workspace: Path,
+                   context: ScanContext | None = None) -> tuple[bool, str]:
         """Only where there is a workflow or an action definition, read from the
         File Set (ADR-0021). Biased to running: a File Set that cannot be listed
         runs zizmor, which finds nothing where there is nothing."""
-        from ..fileset import files
+        from .. import fileset
         from ..refusal import Refusal
 
         try:
-            listed = files(workspace)
+            listed = (context.files if context is not None
+                      else fileset.build(workspace).files)
         except Refusal:
             return True, "the File Set could not be listed"
         found = next((rel for rel in listed if _workflow(rel)), None)

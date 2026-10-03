@@ -23,6 +23,7 @@ from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results, verdict
 from . import results as _results
+from . import scancontext as _scancontext
 from . import settings as _settings
 from . import staleness as _staleness
 from . import state as _state
@@ -356,8 +357,8 @@ FETCH_ENDED = ("image pulled", "database fetched", "database not fetched",
                "EPSS refreshed", "EPSS refresh skipped")
 
 
-def _ensure_data(runner, on_progress, *, workspace=None,
-                 adapters=()) -> tuple[list[dict], dict[str, str]]:
+def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
+                 context=None) -> tuple[list[dict], dict[str, str]]:
     """The vulnerability database, the package-name index and OSV's offline
     databases, when absent (24.1) or stale (ADR-0025, R6.6).
 
@@ -443,7 +444,7 @@ def _ensure_data(runner, on_progress, *, workspace=None,
     if workspace is not None and any(not getattr(a, "network", True) for a in adapters
                                      if getattr(a, "name", "") == "osv-scanner"):
         _stop_if_cancelled(runner, "during the first run's fetches")
-        _ensure_osv(workspace, say, fetched, unfetched)
+        _ensure_osv(workspace, say, fetched, unfetched, context)
     return fetched, unfetched
 
 
@@ -514,7 +515,8 @@ def _ensure_epss(say, fetched: list[dict]) -> None:
             time.monotonic() - started))
 
 
-def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) -> None:
+def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str],
+                context=None) -> None:
     """OSV's offline database for each ecosystem the File Set holds a lockfile for,
     when absent (R4.6, 24.1): announced, recorded, and a failure costs OSV-Scanner
     alone, with the reason."""
@@ -522,7 +524,7 @@ def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) 
     from .refusal import Refusal
 
     try:
-        files = fileset.build(workspace).files
+        files = context.files if context is not None else fileset.build(workspace).files
     except Refusal:
         return                       # the scan refuses the walk itself, with the reason
     records, failed = osv_offline.ensure(files, say, due=_datasets.OSV.due)
@@ -679,8 +681,10 @@ def scan(
 
             adapters = [SyftAdapter(enabled=True) if a.name == "syft" else a
                         for a in adapters]
+        # What the scan reads of the project, read once and passed on (D52d).
+        context = _scancontext.build(workspace)
         data, unfetched = _ensure_data(runner, on_progress, workspace=workspace,
-                                       adapters=adapters)
+                                       adapters=adapters, context=context)
         fetched += data
         _locks.enter_context(_locking.held(
             _locking.cache_lock(_cache_mod.root()), exclusive=False, wait=True,
@@ -689,6 +693,7 @@ def scan(
             workspace, runner=runner, adapters=adapters, profile=profile,
             on_progress=on_progress, unfetched=unfetched, fetched=fetched, jobs=jobs,
             budget_s=budget_s, generation=generation, out=out, fresh=fresh,
+            context=context,
         )
 
 
@@ -742,7 +747,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
                  unfetched: dict[str, str] | None = None, fetched: list[dict] | None = None,
                  jobs: int | None = None, budget_s: float | None = None,
                  generation: str | None = None, out: Path | None = None,
-                 fresh: bool = False) -> ScanRun:
+                 fresh: bool = False, context=None) -> ScanRun:
     """One Scan Run, under the Workspace lock: preflight, the fleet, then the
     assembly of the record — three functions since 28.4.2, one each."""
     shim_built_from, image_built_from = _preflight(runner, workspace)
@@ -757,7 +762,9 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
 
     # The File Set (ADR-0021), once: what the Snapshot holds, what every host-side
     # count reads, and what the record says was and was not read.
-    chosen = _fileset.build(workspace)
+    if context is None:
+        context = _scancontext.build(workspace)
+    chosen = context.file_set
     files, largest = len(chosen.files), _fileset.largest(chosen.files)
     if on_progress is not None:
         on_progress(_levers.workspace_line(files, largest))
@@ -771,7 +778,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         raise TypeError(f"{type(runner).__name__} does not run the Scan Container's engine")
     outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
                                   budget_s=budget_s, record=beside,
-                                  jobs=jobs or _jobs_from_environment(), chosen=chosen,
+                                  jobs=jobs or _jobs_from_environment(), context=context,
                                   reuse=(profile, generation or ""), fresh=fresh)
     return _assemble(
         outcomes, cut, adapters=adapters, runner=runner, workspace=workspace, profile=profile,
@@ -780,7 +787,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         workspace_files=files, largest_dirs=largest, not_read=tuple(chosen.skipped),
         scope=chosen.manifest(workspace), ignored=frozenset(chosen.ignored),
         hygiene=_hygiene.assess(workspace, chosen.files), out=out,
-        generation=generation, history=beside.get("history"),
+        generation=generation, history=beside.get("history"), context=context,
         # OSV's offline databases this File Set needs, when OSV-Scanner reads them.
         osv_read=tuple(_osv_offline.needed(chosen.files))
         if any(a.name == "osv-scanner" and not getattr(a, "network", True) for a in adapters)
@@ -794,7 +801,7 @@ def _engine_two(runner) -> bool:
 
 
 def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
-                  record: dict | None = None, jobs: int | None = None, chosen=None,
+                  record: dict | None = None, jobs: int | None = None, context=None,
                   reuse: tuple[str, str] | None = None, fresh: bool = False):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut.
@@ -805,14 +812,14 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
     import json
     import tempfile
 
-    from . import engine_host, fileset
+    from . import engine_host
     from .invocation import ScannerOutput, nothing_to_scan
 
     outcomes: list[ScannerOutcome | None] = [None] * len(adapters)
     cut: list[str] = []
     plan, planned = [], []
     for index, adapter in enumerate(adapters):
-        should_run, why = adapter.applies_to(workspace)
+        should_run, why = adapter.applies_to(workspace, context)
         if not should_run:
             outcomes[index] = ScannerOutcome(
                 ScannerRun(adapter.name, ok=True, skipped=True, reason=why))
@@ -827,14 +834,15 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 reason=str(exc).strip()))
             continue
         planned.append(index)
-    chosen = chosen if chosen is not None else fileset.build(workspace)
+    context = context if context is not None else _scancontext.build(workspace)
+    chosen = context.file_set
     keys = _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_progress,
                    fresh=fresh)
     with tempfile.TemporaryDirectory(prefix="valvur-") as scratch_dir:
         scratch = Path(scratch_dir) / "results"
         scratch.mkdir()
         tar = engine_host.snapshot(workspace, chosen.files)
-        written, read = _history_pass(adapters, plan, planned, workspace, chosen, scratch,
+        written, read = _history_pass(adapters, plan, planned, workspace, context, scratch,
                                       on_progress)
         if record is not None and read is not None:
             record["history"] = read
@@ -919,7 +927,8 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
                 stopped_after=float(invocation.timeout) if entry.get("timed_out") else None)
             if written is not None and invocation.tool == _HISTORY_TOOL:
                 outcomes[index] = _with_history(outcomes[index], adapters[index], output,
-                                                entry, written, workspace, budget_s, spent)
+                                                entry, written, workspace, budget_s, spent,
+                                                context.settings.exclude)
                 if entry.get("cut") and adapters[index].name not in cut:
                     cut.append(adapters[index].name)
                 continue
@@ -1023,12 +1032,11 @@ def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s, jobs=None
 _HISTORY_TOOL = "gitleaks-history"
 
 
-def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progress):
+def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progress):
     """Git history, for Gitleaks (R3.7, D3): written into the scratch directory
     when Gitleaks runs on a repository and the project has not said
     `history = false`, and its pass added to the plan. Returns what was written
     and what the record says: what was read, or why nothing was."""
-    from . import exclusions as _exclusions
     from . import history as _history
     from .adapters.gitleaks import HISTORY_DIR, PROJECT_GITLEAKS_CONFIG
 
@@ -1036,6 +1044,7 @@ def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progre
     index = next((i for i in planned if adapters[i].name == "gitleaks"), None)
     if index is None:
         return None, None
+    chosen = context.file_set
     if chosen.note:
         # A repository walked for want of `git` (R8.1): its history cannot be read,
         # and a record that said nothing would read as a repository with none.
@@ -1044,7 +1053,7 @@ def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progre
                                      "ADR-0005)"}
     if chosen.scope != "git":
         return None, None
-    if not _exclusions.load_scan_settings(workspace).history:
+    if not context.settings.history:
         say("history: not read ([scan] history = false)")
         return None, {"off": "[scan] history = false"}
     written = _history.write(workspace, scratch / HISTORY_DIR)
@@ -1060,12 +1069,11 @@ def _history_pass(adapters, plan, planned, workspace, chosen, scratch, on_progre
                      "bounded": written.bounded}
 
 
-def _with_history(outcome, adapter, output, entry, written, workspace, budget_s, spent):
+def _with_history(outcome, adapter, output, entry, written, workspace, budget_s, spent,
+                  excluded: tuple[str, ...] = ()):
     """Gitleaks's outcome with its history pass folded in: the hits after the
     tree's, so a secret still in the tree keeps its line; a pass that did not
     finish makes Gitleaks's run incomplete, with the reason."""
-    from . import exclusions as _exclusions
-
     if outcome is None:
         return outcome
     if entry.get("cut") or entry.get("timed_out") or entry["exit_code"] != 0:
@@ -1075,8 +1083,7 @@ def _with_history(outcome, adapter, output, entry, written, workspace, budget_s,
         return dataclasses.replace(outcome, scanner=dataclasses.replace(
             outcome.scanner, ok=False, reason=f"its git history pass did not finish: {why}"))
     try:
-        found = adapter.parse_history(output, written, workspace,
-                                      _exclusions.excluded_prefixes(workspace))
+        found = adapter.parse_history(output, written, workspace, excluded)
     except (ValueError, KeyError) as exc:
         return dataclasses.replace(outcome, scanner=dataclasses.replace(
             outcome.scanner, ok=False,
@@ -1114,7 +1121,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
               generation: str | None = None, history: dict | None = None,
               ignored: frozenset[str] = frozenset(), hygiene: dict | None = None,
               osv_read: tuple[str, ...] = (),
-              out: Path | None = None) -> ScanRun:
+              out: Path | None = None, context=None) -> ScanRun:
     """The record: the fleet's outcomes through the named pipeline into one
     ScanRun, written as one generation (26.0.3)."""
     completed = [o for o in outcomes if o is not None]
@@ -1152,7 +1159,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         # network the Profile granted (ADR-0018), not on whether the adapter was run.
         declaring=[a.for_profile(network=network) for a in DEFAULT_ADAPTERS],
         artifacts=artifacts, ignored=ignored,
-        results=(out or workspace) / _results.RESULTS_DIR,
+        results=(out or workspace) / _results.RESULTS_DIR, scan=context,
     )
     # One value out, with every field a stage recorded (27.3.4): the ScanRun below
     # is assembled from it rather than by reaching into the Context the stages

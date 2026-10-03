@@ -89,19 +89,26 @@ def _representative(paths: list[str], order: tuple[str, ...]) -> str:
     return min(paths, key=rank)
 
 
-def _present(
-    workspace: Path, patterns: tuple[str, ...], exclude: tuple[str, ...]
-) -> list[str]:
-    from .fileset import files
+def _listed(workspace: Path, files: list[str] | None) -> list[str]:
+    """The File Set (ADR-0021, R3.9), as the scan's context holds it when given: an
+    installed `node_modules` is full of other people's manifests, and git ignores
+    it, so it is not what was scanned."""
+    from . import fileset
     from .refusal import Refusal
 
-    # The File Set (ADR-0021, R3.9): an installed `node_modules` is full of other
-    # people's manifests, and git ignores it, so it is not what was scanned.
+    if files is not None:
+        return files
     try:
-        listed = files(workspace)
+        return fileset.build(workspace).files
     except Refusal:
-        listed = [p.relative_to(workspace).as_posix() for p in workspace.rglob("*")
-                  if p.is_file()]
+        return [p.relative_to(workspace).as_posix() for p in workspace.rglob("*")
+                if p.is_file()]
+
+
+def _present(
+    workspace: Path, patterns: tuple[str, ...], exclude: tuple[str, ...],
+    listed: list[str],
+) -> list[str]:
     found: list[str] = []
     for pattern in patterns:
         for relative in listed:
@@ -119,7 +126,8 @@ def _present(
     return sorted(set(found))
 
 
-def dependency_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Finding]:
+def dependency_gaps(workspace: Path, exclude: tuple[str, ...] = (),
+                    files: list[str] | None = None) -> list[Finding]:
     """One Finding per ecosystem whose dependencies nothing here verifies.
 
     Per **ecosystem**, never per file: a monorepo with forty `package.json` files has
@@ -131,12 +139,13 @@ def dependency_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Find
     resolved tree we skip on purpose, not a hole.
     """
     findings: list[Finding] = []
+    listed = _listed(workspace, files)
 
     for key, manifests in sorted(_ecosystems.MANIFESTS.items()):
-        seen = _present(workspace, manifests.sees, exclude)
+        seen = _present(workspace, manifests.sees, exclude, listed)
         if not seen:
             continue
-        if _present(workspace, manifests.reads, exclude):
+        if _present(workspace, manifests.reads, exclude, listed):
             continue          # something readable covers this ecosystem
 
         shown = ", ".join(seen[:3])
@@ -168,7 +177,8 @@ def dependency_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Find
     return findings
 
 
-def vulnerability_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Finding]:
+def vulnerability_gaps(workspace: Path, exclude: tuple[str, ...] = (),
+                       files: list[str] | None = None) -> list[Finding]:
     """One Finding per ecosystem present whose dependencies Trivy could not check.
 
     The mirror of `dependency_gaps`, for the other question. Trivy needs a lockfile
@@ -178,12 +188,13 @@ def vulnerability_gaps(workspace: Path, exclude: tuple[str, ...] = ()) -> list[F
     MANIFESTS` records what was measured; this says when none of it is present.
     """
     findings: list[Finding] = []
+    listed = _listed(workspace, files)
     for key, manifests in sorted(_ecosystems.MANIFESTS.items()):
-        present = _present(workspace, manifests.reads + manifests.sees, exclude)
+        present = _present(workspace, manifests.reads + manifests.sees, exclude, listed)
         if not present:
             continue
         readable = _ecosystems.VULNERABILITY_MANIFESTS.get(key, ())
-        found = _present(workspace, readable, exclude)
+        found = _present(workspace, readable, exclude, listed)
         if found:
             # Present is not the same as a check for Python (25.3): a requirements
             # file of ranges is read by Trivy and reports nothing.
@@ -246,7 +257,8 @@ def _unpinned_requirements(workspace: Path, found: list[str]) -> str | None:
     )
 
 
-def collect(adapters, workspace: Path, exclude: tuple[str, ...] = ()) -> dict[str, dict]:
+def collect(adapters, workspace: Path, exclude: tuple[str, ...] = (),
+            context=None) -> dict[str, dict]:
     """Every adapter's declared coverage, for Provenance (task 19.E.1).
 
     Called over the whole registry rather than the Profile's selection: a limit does
@@ -254,7 +266,7 @@ def collect(adapters, workspace: Path, exclude: tuple[str, ...] = ()) -> dict[st
     """
     declared: dict[str, dict] = {}
     for adapter in adapters:
-        coverage = adapter.coverage(workspace, exclude)
+        coverage = adapter.coverage(workspace, exclude, context)
         if not coverage.declared():
             continue
         declared[adapter.name] = {

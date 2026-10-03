@@ -121,3 +121,43 @@ def test_every_adapter_holds_the_grant_as_network():
         granted = adapter.for_profile(network=True)
         assert getattr(granted, "network", True) is True or not getattr(
             granted, "uses_network", True), adapter.name
+
+
+# ------------------------------------------------- one scan, one parse, one File Set
+
+def test_one_scan_parses_the_project_file_once_and_builds_the_file_set_once(
+        tmp_path, monkeypatch):
+    """R23.1 counted 76 parses of `[scan]` and 37 File Sets in one CLI scan of
+    `broken-repo` with every default adapter: each adapter's applicability and
+    coverage asked again. A scan context is built once and passed (D52d)."""
+    import shutil
+    import tomllib
+
+    from valvur import cli, engine_host, fileset
+
+    parses: list[str] = []
+    builds: list[str] = []
+    real_loads, real_build = tomllib.loads, fileset.build
+
+    def loads(text, *args, **kwargs):
+        if "[scan]" in text or "[[suppress]]" in text:
+            parses.append(text)
+        return real_loads(text, *args, **kwargs)
+
+    def build(*args, **kwargs):
+        builds.append(str(args[0]))
+        return real_build(*args, **kwargs)
+
+    monkeypatch.setattr(tomllib, "loads", loads)
+    monkeypatch.setattr(fileset, "build", build)
+    monkeypatch.setattr(engine_host, "for_scan", lambda: engine_host.LocalRuntime(
+        REPO / "tests" / "fixtures" / "fake-tools"))
+    ws = tmp_path / "ws"
+    shutil.copytree(REPO / "tests" / "fixtures" / "broken-repo", ws)
+    (ws / ".security-scan.toml").write_text(
+        '[scan]\nexclude = ["docs"]\n\n[[suppress]]\nfingerprint = "0"\nrule = "r"\n'
+        'path = "p"\nexpires = 2099-01-01\nreason = "a test"\n')
+
+    assert cli.main(["scan", str(ws)]) == 0
+
+    assert (len(parses), len(builds)) == (1, 1)

@@ -94,6 +94,7 @@ infra = [
     "valvur.requirements",
     "valvur.reuse",
     "valvur.runner",
+    "valvur.scancontext",
     "valvur.selinux",
     "valvur.settings",
     "valvur.state",

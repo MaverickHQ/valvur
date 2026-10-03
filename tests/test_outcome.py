@@ -27,7 +27,7 @@ class _Adapter:
         self._output = output
         self._findings = list(findings)
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def run(self, runner, workspace):

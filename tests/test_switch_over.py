@@ -125,7 +125,7 @@ class _Quiet:
     def __init__(self, name: str, code: int, message: str, empty_when=()):
         self.name, self.code, self.message, self.empty_when = name, code, message, empty_when
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def command(self, workspace):

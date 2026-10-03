@@ -52,7 +52,7 @@ class _Slow:
     name = "slow"
     version = "0"
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def command(self, workspace):

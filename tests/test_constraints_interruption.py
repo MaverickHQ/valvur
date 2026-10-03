@@ -150,7 +150,7 @@ class _InImageSleeper:
     name = "sleeper"
     version = "0"
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def parse(self, output):
