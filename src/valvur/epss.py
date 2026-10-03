@@ -22,6 +22,7 @@ from .cache import epss_age as age
 from .cache import epss_path as path
 from .cache import epss_scored as scored
 from .cache import score_date as _score_date
+from .settings import ENVIRONMENT as _ENVIRONMENT
 
 __all__ = ["URL", "URL_ENV", "NotTheFile", "age", "fetch", "path", "scored", "scores"]
 
@@ -30,7 +31,7 @@ __all__ = ["URL", "URL_ENV", "NotTheFile", "age", "fetch", "path", "scored", "sc
 #: `egress.EPSS_HOSTS` names both, and nothing else is reached for EPSS.
 URL = "https://epss.cyentia.com/epss_scores-current.csv.gz"
 #: An air-gapped mirror: one file, so any static server holding a copy will do.
-URL_ENV = "VALVUR_EPSS_URL"
+URL_ENV = _ENVIRONMENT["epss_url"]
 _HEADER = "cve,epss,percentile"
 
 

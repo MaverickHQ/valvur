@@ -700,7 +700,7 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
   - **`mypy --strict`** passes on all 19 `core` modules, and `verify.sh` runs it as
     `strict`. Fixing it took `findings` off `ecosystems`: the pipeline passes
     `index_form` to `merge`. That emptied the layer baseline.
-- [ ] **R23.8** **The four lapses** (D54). Behaviours:
+- [x] **R23.8** **The four lapses** (D54). Behaviours:
   1. `/tmp` is `noexec` for every tool, and Opengrep runs from its unpacked tree
      (`e2e`), or D54's fallback;
   2. on `full` in the image, dependency-reality asks the registry, through
@@ -708,6 +708,30 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
   3. `VALVUR_CACHE` wins over `XDG_CACHE_HOME`;
   4. the Profiles share one Scanner list, and `run.json` keeps `scanners_not_run`;
   5. the dead code the review names is gone, and each duplicated constant is one.
+  **STATUS 2026-10-03:** ✅ all five, D54's fallback not needed.
+  - **(a) `/tmp` noexec.** The image unpacks Opengrep's one-file binary at build into
+    `/opt/opengrep` (`XDG_CACHE_HOME`, which it honours), and the adapter points it
+    there. `/tmp` is `rw,noexec,nosuid` for every container valvur starts;
+    `Invocation.allow_exec` and the launchers' exec flag are gone, and each scan no
+    longer unpacks 239 MB. Measured first with a derived image, then held by an e2e
+    test against `valvur:dev` rebuilt by the script: Opengrep completes on
+    `broken-repo` and reports, with `/tmp` noexec.
+  - **(b) `full` in the image.** A test runs the image's pipeline-step runtime on
+    `full` with dependency-reality as its own process, through a stand-in for the
+    package registries added to `tests/fake_registry.py` (a `sitecustomize` on the
+    Check's `PYTHONPATH` that answers and records): the Check asks PyPI, and on
+    `offline` asks nothing. With R23.6's per-tool grant switched off, the test fails.
+  - **(c)** `cache.root` takes `VALVUR_CACHE`, then the `cache` setting, then
+    `XDG_CACHE_HOME`, then `~/.cache`.
+  - **(d)** One tuple, `profiles.FLEET`, is both Profiles' list; `run.json` keeps
+    `scanners_not_run`, empty.
+  - **(e) Dead code:** `api.JOBS_ENV`, `doctor.LEVELS` and `_default_fleet`,
+    `fingerprint.for_dependency_reality`, `requirements.REQUIREMENTS_GLOB`,
+    `runner.ContainerStartFailed` and `summary._counts_table`, found by counting each
+    top-level name's references. **One constant each:** the Results Folder's name, the
+    project file's, the image's digest path, the workspace mount, the history pass's
+    tool and the server's name had two definitions, and eleven `VALVUR_*` names were
+    spelt beside `settings.ENVIRONMENT`, which now names them all. Two tests hold it.
 - [ ] **R23.9** **The orchestrator, small** (D50). Behaviours:
   1. `api.py` is under 400 lines, and no function in `app` is over 80 lines;
   2. the layer baseline is empty, and no import cycle remains, counting deferred imports

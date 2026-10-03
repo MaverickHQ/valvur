@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 from . import egress, owner
+from .tree_hash import IMAGE_DIGEST_FILE as IMAGE_INPUTS_FILE
 from .version import __version__
 
 LABEL = "org.opencontainers.image.version"
@@ -86,8 +87,8 @@ def _series(raw: str) -> tuple[int, int]:
 # scan compares the two and WARNS on a mismatch — never refuses: a mismatch is a
 # diagnosis, and hiding results behind it would help nobody.
 
-#: Where an image records the digest of the tree it was built from.
-IMAGE_INPUTS_FILE = "/etc/valvur/inputs.sha256"
+#: Where an image records the digest of the tree it was built from:
+#: `tree_hash.IMAGE_DIGEST_FILE`, imported above as `IMAGE_INPUTS_FILE`.
 
 
 def shim_inputs() -> str | None:

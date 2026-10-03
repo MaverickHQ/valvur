@@ -17,8 +17,7 @@ if TYPE_CHECKING:
     # import is annotation-only because `api` imports this module.
     from .api import ScanRun
 
-RESULTS_DIR = ".security-scan"
-
+from .exclusions import RESULTS_DIR as RESULTS_DIR
 
 #: Artifacts a Scanner may or may not produce on a given run — today Syft's SBOM.
 #: One this run did not produce is REMOVED, so a failed or skipped Syft cannot

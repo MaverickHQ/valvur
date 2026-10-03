@@ -17,9 +17,8 @@ from collections.abc import Callable
 from typing import Any
 
 from . import jobs, protocol
+from .clients import SERVER as SERVER_NAME
 from .protocol import PROTOCOL_VERSION, SUPPORTED_VERSIONS, RpcError
-
-SERVER_NAME = "valvur"
 
 #: How long the exit waits for each cancelled job to settle (task 27.1.1). Long
 #: enough for a `docker kill` of a full fleet and the scan's own unwinding —

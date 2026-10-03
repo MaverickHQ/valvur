@@ -30,6 +30,7 @@ from . import settings as _settings
 from . import staleness as _staleness
 from . import state as _state
 from .adapters import DEFAULT_ADAPTERS
+from .adapters.gitleaks import HISTORY_TOOL as _HISTORY_TOOL
 from .coverage import DOUBT_RULES as _DOUBT_RULES
 from .findings import Finding
 from .scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
@@ -66,12 +67,6 @@ class ScanCancelled(RuntimeError):
     """The developer stopped the scan (F1.11). Not a failure and not a result: the
     containers were killed, and nothing is written. Deliberately not a
     `ScannerFailed` — "every Scanner failed" is what killing them looks like."""
-
-
-#: The default number of Scanners the fleet runs at once, for every surface: the
-#: MCP server takes no flags, so a laptop whose Docker Desktop cannot start eight
-#: containers at once says so here, and `--jobs` overrides it on the CLI (23.3.3).
-JOBS_ENV = "VALVUR_JOBS"
 
 
 @dataclass(frozen=True)
@@ -998,7 +993,6 @@ def _run_by_network(runtime, plan, tar, scratches, on_event, budget_s, jobs=None
         raise failed[0]
 
 
-_HISTORY_TOOL = "gitleaks-history"
 
 
 def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progress):

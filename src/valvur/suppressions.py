@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+# F8.1: read from the Workspace root; the project file, named once.
+from .exclusions import PROJECT_FILE as SUPPRESSION_FILE
 from .findings import Severity
-
-SUPPRESSION_FILE = ".security-scan.toml"   # F8.1: read from the Workspace root
 
 # Context is mandatory, not decorative. A pull request containing only a hash tells a
 # reviewer nothing about what is being accepted, which throws away the whole reason

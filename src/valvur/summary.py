@@ -520,32 +520,6 @@ def _slowest(scanners):
     return max(ran, key=lambda s: s.duration_s) if ran else None
 
 
-def _counts_table(findings) -> list[str]:
-    from collections import Counter
-
-    if not findings:
-        return []
-    severity = Counter(f.severity for f in findings)
-    status = Counter(f.status for f in findings)
-    exploited = sum(1 for f in findings if f.exploit and f.exploit.kev)
-
-    rows = ["## Counts", ""]
-    rows.append("| | |")
-    rows.append("|---|---|")
-    for name in ("critical", "high", "medium", "low", "info", "unknown"):
-        if severity.get(name):
-            rows.append(f"| {name} | {severity[name]} |")
-    if exploited:
-        rows.append(f"| **known exploited (KEV)** | **{exploited}** |")
-    rows.append(
-        "| new / persisting / regressed | "
-        f"{status.get('new', 0)} / {status.get('persisting', 0)} / "
-        f"{status.get('regressed', 0)} |"
-    )
-    rows.append("")
-    return rows
-
-
 def _group_line(members) -> str:
     """A group as one entry: the count, the rule, where, and the first locations."""
     best = members[0]

@@ -13,6 +13,7 @@ from . import egress
 from . import settings as _settings
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput, nothing_to_scan
 from .selinux import RELABEL_ENV, selinux_enforcing
+from .settings import ENVIRONMENT as _ENVIRONMENT
 from .version import __version__, default_image
 
 __all__ = ["NOTHING_TO_SCAN", "RELABEL_ENV", "Invocation", "ScannerOutput", "selinux_enforcing"]
@@ -29,24 +30,12 @@ db_repository = egress.db_repository
 # who is not us.
 IMAGE = _settings.get("image") or default_image()
 #: `VALVUR_DEBUG=1`: every container command echoed to stderr as it runs (28.3.6).
-DEBUG_ENV = "VALVUR_DEBUG"
+DEBUG_ENV = _ENVIRONMENT["debug"]
 
 
 _VERSION = __version__
 
 _RUNTIMES = ("docker", "podman", "nerdctl")
-
-class ContainerStartFailed(RuntimeError):
-    """The runtime could not start the container at all.
-
-    Distinct from an unreadable Workspace, and the distinction matters: the probe
-    used to discard stderr, so a failed image pull was reported as "the container
-    cannot read the workspace" and sent the reader to check mount permissions. The
-    runtime already said exactly what was wrong; we were throwing it away.
-    """
-
-    #: A precondition `doctor` checks (R1.5).
-    doctor_may_help = True
 
 
 class NoContainerRuntime(RuntimeError):

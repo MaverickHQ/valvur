@@ -12,13 +12,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from ..coverage import Coverage
+
+# Where every Scanner sees the Workspace: the engine's, named once.
+from ..engine import WORKSPACE as CONTAINER_WORKSPACE
 from ..findings import Finding
 from ..invocation import Invocation, ScannerOutput
 
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
-
-CONTAINER_WORKSPACE = "/workspace"
 
 
 def container_relative(path: str) -> str:

@@ -25,9 +25,6 @@ from . import egress, owner
 from . import settings as _settings
 from .version import __version__
 
-#: What each level means, in the order they are worth reading.
-LEVELS = ("fail", "warn", "info", "ok", "skip")
-
 
 @dataclass(frozen=True)
 class Check:
@@ -236,14 +233,6 @@ def _check_python(fetch_due: bool) -> Check:
         "python -c 'import certifi; print(certifi.where())' prints one), or use a "
         "Python from Homebrew, uv or your distribution, which trust the system store.",
     )
-
-
-def _default_fleet() -> tuple:
-    """The default Profile's Scanners — how wide the fleet is when nobody narrows it."""
-    from . import profiles
-    from .adapters import DEFAULT_ADAPTERS
-
-    return tuple(profiles.select(DEFAULT_ADAPTERS, profiles.DEFAULT))
 
 
 def _check_runtime() -> tuple[str | None, Check]:

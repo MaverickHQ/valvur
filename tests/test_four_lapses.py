@@ -156,3 +156,57 @@ def test_run_json_keeps_scanners_not_run_for_its_schema(workspace, runner_findin
 
     record = json.loads((workspace / ".security-scan" / "run.json").read_text())
     assert record["scanners_not_run"] == []
+
+
+# --------------------------------------------- (e) dead code, duplicated constants
+
+#: Two constants that hold the same word for different things: the malicious
+#: list's directory beside the index, and its tag on the published artifact.
+_SAME_WORD_TWO_MEANINGS = {"malicious"}
+
+
+def _constants() -> dict[str, list[str]]:
+    import ast
+
+    held: dict[str, list[str]] = {}
+    for path in sorted((REPO / "src" / "valvur").rglob("*.py")):
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id.isupper()
+                    and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)):
+                held.setdefault(node.value.value, []).append(
+                    f"{path.relative_to(REPO)}:{node.targets[0].id}")
+    return held
+
+
+def test_each_constant_is_stated_once():
+    """The Results Folder's name, the project file's, the image's digest path, the
+    workspace's mount, the history pass's tool and the server's name were each a
+    constant in two modules (the review's §3.5)."""
+    twice = {value: where for value, where in _constants().items()
+             if len(where) > 1 and value not in _SAME_WORD_TWO_MEANINGS}
+
+    assert twice == {}
+
+
+def test_every_settings_variable_is_named_by_the_settings_table():
+    """`settings.ENVIRONMENT` names each machine setting's variable; a module that
+    needs the name takes it from there rather than spelling it again."""
+    from valvur import settings
+
+    variables = set(settings.ENVIRONMENT.values())
+    spelt = {value: where for value, where in _constants().items() if value in variables}
+
+    assert spelt == {}
+
+
+def test_the_dead_code_the_review_names_is_gone():
+    from valvur import api, doctor, fingerprint, requirements, runner, summary
+
+    for module, name in ((api, "JOBS_ENV"), (doctor, "LEVELS"), (doctor, "_default_fleet"),
+                         (fingerprint, "for_dependency_reality"),
+                         (requirements, "REQUIREMENTS_GLOB"), (runner, "ContainerStartFailed"),
+                         (summary, "_counts_table")):
+        assert not hasattr(module, name), f"{module.__name__}.{name}"
