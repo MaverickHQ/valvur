@@ -48,18 +48,17 @@ def test_the_project_or_the_command_line_asks_for_it(tmp_path):
 
 
 def test_scan_sbom_reaches_the_scan(tmp_path, monkeypatch):
-    from valvur import cli
+    from valvur import cli, service
 
     seen = {}
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False, out=None):
+    def fake_scan(workspace, *, profile, jobs=None, sbom=False, **asked):
         seen["sbom"] = sbom
         from valvur.api import ScanRun
 
         return ScanRun()
 
-    monkeypatch.setattr(cli, "scan", fake_scan)
+    monkeypatch.setattr(service, "run_scan", fake_scan)
     ws = _workspace(tmp_path)
     assert cli.main(["scan", str(ws), "--sbom"], runner=LocalRuntime(FAKE_TOOLS)) == 0
     assert seen["sbom"] is True

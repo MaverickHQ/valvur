@@ -26,6 +26,12 @@ FAKE_RUNTIME = Path(__file__).parent / "fixtures" / "fake-runtime" / "docker"
 SRC = Path(__file__).parent.parent / "src" / "valvur"
 
 
+def _words(said: list[str]):
+    """A progress callback keeping each event's words."""
+    return lambda event: said.append(str(event))
+
+
+
 def _dead_pid() -> int:
     process = subprocess.Popen([sys.executable, "-c", "pass"])
     process.wait()
@@ -77,24 +83,28 @@ def test_every_container_valvur_starts_is_labelled_with_its_owner():
     launches = 0
     for path in SRC.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r'"run",\s*(?:"-i",\s*)?"--rm"', text):
+        for match in re.finditer(
+                r'"run",\s*(?:"-i",\s*|\*\(\["-i"\] if interactive else \[\]\),\s*)?"--rm"',
+                text):
             launches += 1
             window = text[match.start():match.start() + 400]
             assert "owner.labels(" in window, f"{path.name}: a container with no owner"
-    assert launches >= 4
+    # `runner.launch_flags`, which both launchers use since D52e, and the two probes.
+    assert launches >= 3
 
 
 def test_the_scan_container_and_the_fleet_carry_the_scan_runs_generation(
         tmp_path, monkeypatch):
     from valvur import cache
     from valvur.engine_host import ContainerRuntime
-    from valvur.runner import ContainerRunner
+    from valvur.runner import ContainerRunner, launch_flags
 
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     for built in (ContainerRuntime(runtime="docker"), ContainerRunner(runtime="docker")):
         built.generation = "gen-7"
         argv = (built.command(tmp_path) if isinstance(built, ContainerRuntime)
-                else built._base_flags(str(tmp_path)))
+                else launch_flags(built.runtime, generation=built.generation, name="n",
+                                  scratch=tmp_path, network=False))
         assert f"{owner.GENERATION_LABEL}=gen-7" in argv
         assert f"{owner.PID_LABEL}={os.getpid()}" in argv
 
@@ -149,7 +159,7 @@ def test_each_scan_start_reaps_the_orphans_and_says_so(runtime, tmp_path, monkey
     local = LocalRuntime(Path(__file__).parent / "fixtures" / "fake-tools")
     local.runtime = runtime.path                   # type: ignore[attr-defined]
     said: list[str] = []
-    api.scan(ws, runner=local, adapters=[GitleaksAdapter()], on_progress=said.append)
+    api.scan(ws, runner=local, adapters=[GitleaksAdapter()], on_progress=_words(said))
     assert runtime.names() == []
     assert any("valvur-orphan" in line and "ended" in line for line in said), said
 
@@ -317,7 +327,7 @@ def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mou
         server.kill()
 
     said: list[str] = []
-    run = api.scan(workspace, runner=ContainerRuntime(), on_progress=said.append)
+    run = api.scan(workspace, runner=ContainerRuntime(), on_progress=_words(said))
     assert owned_by(server.pid) == []
     assert any("left by a scan whose process had ended" in line for line in said), said
     assert run.status in ("findings", "clean", "inconclusive")

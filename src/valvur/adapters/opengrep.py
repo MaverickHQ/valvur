@@ -31,6 +31,12 @@ RULE_SETS: dict[str, str] = {
 }
 
 
+#: Where the image unpacked Opengrep's one-file binary at build (D54a): its core
+#: runs from here, read-only, and nothing is unpacked into `/tmp`, which no tool
+#: may execute from. The binary looks for its unpacked self under XDG_CACHE_HOME.
+UNPACKED = "/opt/opengrep"
+
+
 class OpengrepAdapter(ScannerAdapter):
     kind = "scanner"
     name = "opengrep"
@@ -46,10 +52,9 @@ class OpengrepAdapter(ScannerAdapter):
                   "--quiet", "--no-git-ignore",
                   "/workspace"),
             report="opengrep.json", timeout=600, empty_when=NOTHING_TO_SCAN,
-            # Opengrep unpacks and execs opengrep-core. Granted only here: the root
-            # filesystem stays read-only, the container stays non-root and
-            # capability-less, and the exec surface is in-memory and non-persistent.
-            allow_exec=True,
+            # The tree the image unpacked (D54a): until then Opengrep unpacked 243 MB
+            # into an executable `/tmp` on every scan, granted to every tool there.
+            env=(("XDG_CACHE_HOME", UNPACKED),),
             # With no `.semgrepignore` where it starts, Opengrep skips `build/`,
             # `dist/`, `vendor/`, `test/` and `tests/` of its own accord: measured
             # inside the image, a flaw in `mypkg/build/` and one in `tests/` were

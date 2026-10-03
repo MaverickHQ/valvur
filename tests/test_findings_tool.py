@@ -71,10 +71,12 @@ def test_it_says_when_it_clamped_the_limit(scanned):
 
 
 def test_the_mcp_tool_is_findings(scanned):
+    from valvur.mcp import handlers
     from valvur.mcp.tools import registry
 
     tools = {tool.name: tool for tool in registry()}
 
-    assert tools["findings"].handler is findings_reply
+    # The tool's handler passes the client's roots to the one operation (D51).
+    assert tools["findings"].handler is handlers.findings_reply
     assert set(tools["findings"].schema["properties"]) >= {
         "workspace", "fingerprint", "group", "rule", "path", "status", "limit"}

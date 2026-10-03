@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import profiles as _profiles
+from . import settings
+from .settings import ENVIRONMENT as _ENVIRONMENT
 
 # ------------------------------------------------------------------- settings
 
@@ -35,12 +37,12 @@ NETWORK_ENV = "VALVUR_NETWORK"
 #: registry lives on a user-defined network (or an `--internal` one, which is how
 #: 22.B.3 proves the air gap structurally) names it here. Never applied to a
 #: container launched without a network: `--network=none` is not negotiable.
-CONTAINER_NETWORK_ENV = "VALVUR_CONTAINER_NETWORK"
+CONTAINER_NETWORK_ENV = _ENVIRONMENT["container_network"]
 #: Air-gapped operation (F10.5). Enterprises mirror Trivy's DB into an internal OCI
 #: registry rather than granting egress to ghcr.io. ADR-0012 already made this
 #: reachable by keeping the DB out of the image, so mirroring needs no special
 #: build. Handed into every networked container so Trivy's fetch sees it.
-DB_REPOSITORY_ENV = "VALVUR_DB_REPOSITORY"
+DB_REPOSITORY_ENV = _ENVIRONMENT["db_repository"]
 #: Where Trivy fetches its database from when no mirror is named — the first of
 #: its own two defaults (`trivy image --help`, 0.74: this, then ghcr.io), and what
 #: a first scan sizes its "fetching" line from (24.1). Both answered 118.5MB in
@@ -52,12 +54,10 @@ DEFAULT_DB_REPOSITORY = "mirror.gcr.io/aquasec/trivy-db:2"
 #: HTTPS client", because Trivy (go-containerregistry underneath) assumes TLS for
 #: any host that is not localhost or a private-range IP literal. Trivy's own
 #: `--insecure` is the switch; this is how it is reached from a shim with no flags.
-DB_INSECURE_ENV = "VALVUR_DB_INSECURE"
+DB_INSECURE_ENV = _ENVIRONMENT["db_insecure"]
 
 
 def db_repository() -> str | None:
-    from . import settings
-
     return settings.get("db_repository")
 
 
@@ -120,16 +120,16 @@ class Egress:
 
     def container_flags(self) -> list[str]:
         """The runtime flags that enforce the decision. Without a network: no
-        interface at all (N2.1). With one: the container is told (NETWORK_ENV),
-        handed the database mirror if one is named, and joined to the named
-        network if there is one."""
+        interface at all (N2.1). With one: handed the database mirror if one is
+        named, and joined to the named network if there is one. Which tool inside
+        may use it is the plan's grant, which the engine tells each tool as
+        NETWORK_ENV (D52c)."""
         if not self.network:
             return ["--network=none"]
-        flags = ["--env", f"{NETWORK_ENV}=1"]
+        flags: list[str] = []
         mirror = db_repository()
         if mirror:
             flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
-        from . import settings
 
         joined = settings.get("container_network")
         if joined:

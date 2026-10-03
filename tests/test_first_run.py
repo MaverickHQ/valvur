@@ -22,7 +22,7 @@ import pytest
 from conftest import LegacyDispatch, write_name_index
 from fake_registry import FakeRegistry
 
-from valvur import api, cache, locking, name_index, oci
+from valvur import api, cache, events, fetching, locking, name_index, oci
 from valvur.adapters import GitleaksAdapter, TrivyAdapter
 from valvur.runner import ScannerOutput
 
@@ -89,6 +89,8 @@ class _Runner(LegacyDispatch):
         self.calls.append("size")
         return self.db_size
 
+    fetches = True                 # it fetches before a scan (24.1)
+
     def update_db(self) -> ScannerOutput:
         self.calls.append("db")
         if self.db_exit == 0:
@@ -113,7 +115,7 @@ class _Runner(LegacyDispatch):
 def _scan(workspace, runner, **kwargs):
     said: list[str] = []
     run = api.scan(workspace, runner=runner, adapters=[GitleaksAdapter(), TrivyAdapter()],
-                   on_progress=said.append, **kwargs)
+                   on_progress=lambda event: said.append(str(event)), **kwargs)
     return run, said
 
 
@@ -263,6 +265,8 @@ def test_both_absent_means_image_then_database_then_index_then_the_scanners(
             order.append("pull")
             return ScannerOutput("pull", "", "", "", 0)
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             order.append("db")
             return super().update_db()
@@ -291,6 +295,8 @@ def test_a_cancel_during_the_fetches_is_honoured_at_the_next_boundary(
 
     class Runner(_Runner):
         cancelled = False
+
+        fetches = True                 # it fetches before a scan (24.1)
 
         def update_db(self):
             order.append("db")
@@ -374,7 +380,7 @@ def test_a_runner_without_the_ability_is_left_alone(workspace, host_cache):
 
     said: list[str] = []
     api.scan(workspace, runner=FakeRunner(), adapters=[GitleaksAdapter()],
-             on_progress=said.append)
+             on_progress=lambda event: said.append(str(event)))
 
     assert not cache.db_present()
     ends = [line for line in said if not line.startswith(("fleet: ", "workspace: "))
@@ -460,7 +466,7 @@ def test_the_index_fetch_failure_reaches_the_dependency_reality_reason(host_cach
     """The annotation itself, on the Scanner it costs — without a container."""
     from valvur.provenance import ScannerRun
 
-    annotated = api._say_why_unfetched(
+    annotated = fetching.say_why_unfetched(
         [ScannerRun("dependency-reality", ok=False, reason="Package-name index not present."),
          ScannerRun("trivy", ok=False, reason="exited 1"),
          ScannerRun("gitleaks", ok=True)],
@@ -481,20 +487,20 @@ def test_scan_status_says_what_is_being_fetched_while_it_is(tmp_path, monkeypatc
     which fetch, its size, and that this is the first run only — each in turn, each
     gone once it is over (10.2 claim 4, extended to the data)."""
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        progress("pulling ghcr.io/maverickhq/valvur:0.2.0 (243MB) — the first run only; "
-                 "the runtime keeps it")
-        progress("image pulled (30s)")
-        progress("fetching the vulnerability database (118MB) — the first run only")
+        progress(events.fetch_started("image", name="ghcr.io/maverickhq/valvur:0.2.0",
+                                      size_mb=243, age_days=None))
+        progress(events.fetch_ended("image", seconds=30.0))
+        progress(events.fetch_started("database", age_days=None, size_mb=118))
         time.sleep(0.6)
-        progress("database fetched (25s)")
-        progress("fetching the package-name index (34MB) — the first run only")
+        progress(events.fetch_ended("database", seconds=25.0))
+        progress(events.fetch_started("index", age_days=None, size_mb=34))
         time.sleep(0.6)
-        progress("index fetched (8s)")
+        progress(events.fetch_ended("index", seconds=8.0))
         progress("trivy: ok")
         time.sleep(0.6)
         return "done"
@@ -518,13 +524,13 @@ def test_scan_status_says_what_is_being_fetched_while_it_is(tmp_path, monkeypatc
 
 def test_a_failed_fetch_is_not_a_now_line_but_stays_in_the_record(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        progress("fetching the vulnerability database (118MB) — the first run only")
-        progress("database not fetched: FATAL no such host")
+        progress(events.fetch_started("database", age_days=None, size_mb=118))
+        progress(events.fetch_ended("database", ok=False, detail="FATAL no such host"))
         time.sleep(0.5)
         return "done"
 
@@ -546,6 +552,7 @@ def test_the_cli_prints_each_fetch_to_stderr(workspace, host_cache, capsys, monk
     from valvur import cli
 
     class Runner(FakeRunner):
+        fetches = True
         image = _Runner.image
         image_present = _Runner.image_present
         db_size_mb = _Runner.db_size_mb

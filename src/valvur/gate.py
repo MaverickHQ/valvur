@@ -25,7 +25,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .coverage import NOTE_RULES
+from . import verdict
 from .findings import SEVERITIES
 from .results import RESULTS_DIR
 
@@ -73,7 +73,7 @@ def evaluate(workspace: Path, *, fail_on: str = DEFAULT_THRESHOLD,
     if no_inconclusive and run.get("status") == "inconclusive":
         failures.append(f"inconclusive: {run.get('status_reason') or 'reason not recorded'}")
 
-    active = [f for f in findings if not f.get("suppressed") and f.get("rule") not in NOTE_RULES]
+    active = [f for f in findings if verdict.active(f)]
     over = [f for f in active if _at_or_above(f.get("severity", "unknown"), fail_on)
             and f.get("rule") not in SUPPRESSION_RULES]
     lapsed = [f for f in active if f.get("rule") in SUPPRESSION_RULES]

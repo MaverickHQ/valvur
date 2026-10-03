@@ -8,6 +8,27 @@ break things, and has.
 
 ## [Unreleased]
 
+### The host side in layers (Phase R23)
+
+Internal, with a few fixes it found. The Score and every contract are unchanged.
+
+- **Four layers, checked.** `core`, `infra`, `app` and `surfaces`, each importing only
+  from those below it. `scripts/layers.toml` assigns every module and
+  `scripts/check_layers.py` holds the direction and the absence of cycles in
+  `verify.sh`. No module moved, so every import path stays. `mypy --strict` passes on
+  `core`.
+- **Importing a part of valvur no longer loads the scan.** The package's names load
+  when first asked for: the plugin's hook loads 9 of valvur's modules instead of 52.
+- **One scan service.** The CLI and the MCP `scan` tool both scan through
+  `service.run_scan`, and `api.py` is 185 lines instead of 1,245.
+- **One table of datasets** decides when each is refreshed and when its age makes a
+  nil result inconclusive. `valvur update --if-stale` now refreshes exactly what a scan
+  would, KEV and EPSS included.
+- **Fixed:** a `scan_cancel` sent before the scan's job exists stops that scan; a scan
+  whose image cannot be pulled says why in one line and exits 1; `VALVUR_CACHE` wins
+  over `XDG_CACHE_HOME`; `/tmp` is `noexec` for every tool, and Opengrep runs from the
+  tree the image unpacked at build, so a scan no longer unpacks 239 MB.
+
 ## [1.3.1] — 2026-10-03
 
 A fix to 1.3.0's install hook, so that it never goes silently off. Nothing else changes:

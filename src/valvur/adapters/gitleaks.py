@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .. import fingerprint as _fp
 from .. import redact as _redact
-from ..exclusions import PROJECT_GITLEAKS_CONFIG
+from ..exclusions import PROJECT_GITLEAKS_CONFIG, is_configured_out
 from ..findings import Finding, Severity
 from ..invocation import Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
@@ -59,8 +59,6 @@ class GitleaksAdapter(ScannerAdapter):
                       excluded: tuple[str, ...]) -> list[Finding]:
         """Each hit at the path and commit it came from; one under an excluded
         path or a path the project allowlists is dropped, as in the tree."""
-        from ..exclusions import is_configured_out
-
         allowed = project_path_allowlist(workspace)
         findings = []
         for item in json.loads(output.stdout or "[]"):

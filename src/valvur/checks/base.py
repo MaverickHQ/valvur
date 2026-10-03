@@ -32,7 +32,7 @@ class Check(Protocol):
         ...
 
     def coverage(self, workspace: Path, exclude: tuple[str, ...] = (),
-                 *, network: bool = False) -> Coverage:
+                 *, network: bool = False, files: list[str] | None = None) -> Coverage:
         """What this Check reads and what it deliberately does not (19.E.1) — the
         Check's own knowledge, declared by the Check (22.D.3).
 

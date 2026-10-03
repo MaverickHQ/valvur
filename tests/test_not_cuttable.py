@@ -64,15 +64,17 @@ def test_no_dependency_exists_that_could_watch_files():
 
 def test_every_scan_entry_point_requires_an_explicit_call():
     """A scan starts from `valvur scan` or the `scan` MCP tool. Neither fires on a
-    timer, and nothing else calls `api.scan`."""
+    timer, and nothing else calls `api.scan`: both go through the one scan service
+    (D51), which alone calls it."""
     callers = {
         path.relative_to(REPO).as_posix()
         for path, text in SOURCE.items()
-        if re.search(r"\bscan\(|_run_scan\b", text)
+        if re.search(r"\bscan\(|\brun_scan\(", text)
     }
 
     assert callers <= {
-        "src/valvur/api.py", "src/valvur/cli.py", "src/valvur/operations.py",
+        "src/valvur/api.py", "src/valvur/service.py", "src/valvur/cli.py",
+        "src/valvur/mcp/handlers.py",
     }, f"something other than the CLI or the MCP surface starts scans: {callers}"
 
 

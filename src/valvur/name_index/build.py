@@ -20,6 +20,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from .. import ecosystems as _ecosystems
+from .. import settings
 from . import published as _published
 from . import reader as _reader
 from .reader import Progress
@@ -66,7 +67,6 @@ def refresh(directory: Path, *, ecosystems: Iterable[str] | None = None,
     caller holds the cache lock (exclusive) around this; see `cli.py` and `api.py`.
     """
     directory.mkdir(parents=True, exist_ok=True)
-    from .. import settings
 
     mirror = settings.get("name_index_url") or ""
     if mirror:

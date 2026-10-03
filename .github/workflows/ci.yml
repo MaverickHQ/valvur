@@ -258,14 +258,18 @@ jobs:
           restore-keys: valvur-name-index-
       - name: Scan a real repository with the PUBLISHED image
         if: steps.reachable.outputs.reachable == 'true'
+        # With the shim published beside it, the pair a user installs (R23). The
+        # tree's own shim is ahead of the last release's image whenever the image
+        # side changes, as R23.8's unpacked Opengrep did; that pair is no one's, and
+        # every other job judges the tree against an image built from it.
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           uv venv --python 3.12
           uv sync --extra dev --locked
           export VALVUR_IMAGE="ghcr.io/maverickhq/valvur:$VERSION"
-          uv run valvur update
+          uvx --from "valvur==$VERSION" valvur update
           docker image inspect "$VALVUR_IMAGE" --format 'pulled the {{ .Architecture }} child on '"$(uname -m)"
-          uv run valvur scan tests/fixtures/broken-repo --profile offline
+          uvx --from "valvur==$VERSION" valvur scan tests/fixtures/broken-repo --profile offline
           uv run python - <<'PY'
           import json, os, pathlib, sys
           arch = os.environ["ARCH"]

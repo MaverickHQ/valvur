@@ -20,16 +20,17 @@ PATH = Path(__file__).parent / "data" / "security-scan.schema.json"
 _TYPES = {"object": dict, "array": list, "string": str, "boolean": bool, "integer": int}
 
 
-def schema() -> dict:
-    return json.loads(PATH.read_text(encoding="utf-8"))
+def schema() -> dict[str, Any]:
+    loaded: dict[str, Any] = json.loads(PATH.read_text(encoding="utf-8"))
+    return loaded
 
 
-def problem(document: dict) -> str | None:
+def problem(document: dict[str, Any]) -> str | None:
     """The first way `document` breaks the schema, one sentence naming the key."""
     return _check(document, schema(), "")
 
 
-def _check(value: Any, rule: dict, where: str) -> str | None:
+def _check(value: Any, rule: dict[str, Any], where: str) -> str | None:
     name = where or "the file"
     if "enum" in rule and value not in rule["enum"]:
         allowed = ", ".join(json.dumps(v) for v in rule["enum"])

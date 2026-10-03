@@ -80,9 +80,6 @@ class Invocation:
     #: against 6.4 s on the gate's tree once its archive was excluded — and past
     #: it the container is stopped and the record says so (29.0.2).
     timeout: int = 600
-    #: Whether `/tmp` may hold executables — Opengrep unpacks and runs
-    #: opengrep-core. Granted per Scanner, never to the fleet.
-    allow_exec: bool = False
     #: Stderr phrases that mean an empty result, honestly earned (see
     #: NOTHING_TO_SCAN). Empty: a missing report is always a failure.
     empty_when: tuple[str, ...] = ()

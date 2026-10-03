@@ -134,9 +134,10 @@ def _recorded() -> set[tuple[str, str]]:
 
 def _limits() -> set[tuple[str, str]]:
     """The code's own limits, which the README states and no measurement produces."""
-    from valvur import fileset, history, operations, runner
+    from valvur import fileset, history, runner
+    from valvur.mcp import handlers
 
-    budget = f"{operations.MCP_BUDGET_S:.0f}"
+    budget = f"{handlers.MCP_BUDGET_S:.0f}"
     return {(budget, "time"), (f"{history.MAX_COMMITS:,}", "commits"),
             (f"{history.MAX_BYTES // 2**20}", "size"),
             (f"{runner.SCAN_CEILING_BYTES // 2**30}", "size"),
