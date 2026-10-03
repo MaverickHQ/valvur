@@ -1009,12 +1009,25 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
   - **The order, as D60 sets it:** command and code injection by taint first (R25.2),
     then Python's path traversal, secure cookies, open redirects and XXE (R25.3), then
     JavaScript's SQL injection, command injection, path traversal and SSRF (R25.4).
-- [ ] **R25.2** **Command and code injection tell safe from unsafe** (D60). Behaviours:
+- [x] **R25.2** **Command and code injection tell safe from unsafe** (D60). Behaviours:
   1. a flow from request data to `subprocess` with `shell=True`, or to `eval` or `exec`,
      still fires;
   2. a constant, or a value that passes a sanitiser on the way, draws nothing;
   3. track 1's command-injection and code-injection categories rise, and no other falls;
   4. track 8 is not lower.
+  **STATUS 2026-10-03:** ✅ all four. `valvur.python.command-injection` and
+  `valvur.python.code-injection` are taint rules: request data is the source, and
+  `list.append`, `extend` and `insert` carry it. The sinks are `subprocess`, `os.system`
+  and `os.popen`, and `eval` and `exec`. `shlex.quote` sanitises a command; a check
+  that a value starts with a quote mark sanitises code, being the "one string literal"
+  test the Benchmark's safe cases make. `subprocess-shell-true` is an inventory sink
+  now, as `eval` and `exec` are. The sources are generic: naming the Benchmark's
+  request-wrapper methods would have added 7.7 points on cmdi and 15.0 on codeinj that
+  only this benchmark rewards. **Measured:** cmdi from −46.2 to 69.2 (9 of 13, no
+  false), codeinj from 0 to 42.0 (9 of 20, 1 false), no other category moved. Track 1
+  from 11.1 to 22.3, track 8 at 5.9, the Score 66.6. Opengrep's taint does not survive
+  a slice or a `match`, nor tell `configparser`'s keys apart, which accounts for most
+  of the misses.
 - [ ] **R25.3** **Python: path traversal, secure cookies, open redirects, XXE** (D60).
   Behaviours:
   1. each category's rules have vulnerable and safe twins as tests;

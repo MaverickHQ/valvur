@@ -23,7 +23,9 @@ from valvur.scanrun import ScanRun
 
 RULES = Path(__file__).resolve().parents[1] / "rules"
 INVENTORY = {"valvur.python.dangerous-eval", "valvur.python.dangerous-exec",
-             "valvur.python.string-built-sql"}
+             "valvur.python.string-built-sql",
+             # Since R25.2, which reports the flow into a shell by taint.
+             "valvur.python.subprocess-shell-true"}
 
 
 def _sink(**kw) -> Finding:
@@ -32,7 +34,7 @@ def _sink(**kw) -> Finding:
                       "severity": "low", "inventory": True, **kw})
 
 
-def test_the_three_sink_rules_and_no_other_declare_themselves_inventory():
+def test_the_sink_rules_and_no_other_declare_themselves_inventory():
     declared = set()
     for path in RULES.glob("*.yaml"):
         for block in path.read_text().split("\n  - id: ")[1:]:
