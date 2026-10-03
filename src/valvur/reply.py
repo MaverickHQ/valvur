@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from typing import Any, Protocol
 
-from . import events
+from . import events, verdict
 from .events import Event, Kind
 from .results import RESULTS_DIR
 
@@ -362,8 +362,6 @@ def next_moves(workspace: Path) -> list[str]:
     `report` took each pointer as a turn to spend, and three of eight reports ran
     past six. The top Finding's fingerprint stays, as data. Nothing when nothing is
     active; nothing invented for results an older valvur wrote."""
-    from . import verdict
-
     try:
         findings = json.loads((workspace / RESULTS_DIR / "findings.json").read_text(
             encoding="utf-8"))["findings"]

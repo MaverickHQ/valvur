@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .. import fingerprint as _fp
+from ..applicability import iac_present
 from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
@@ -31,8 +32,6 @@ class CheckovAdapter(ScannerAdapter):
         Biased towards running: anything unrecognised counts as infrastructure. The
         skip is reported, never silent.
         """
-        from ..applicability import iac_present
-
         found, evidence = iac_present(workspace,
                                       context.files if context is not None else None)
         if found:

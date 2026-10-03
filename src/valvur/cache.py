@@ -20,6 +20,7 @@ from .version import IMAGE_REPOSITORY, __version__
 def root() -> Path:
     """`VALVUR_CACHE`, then the machine's `cache` setting, then `XDG_CACHE_HOME`,
     then `~/.cache`: the more specific wins (D54c), which XDG's once overrode."""
+    # deferred: startup; the plugin's hook loads this module on every install.
     from . import settings
 
     base = settings.get("cache") or os.environ.get("XDG_CACHE_HOME")
@@ -274,6 +275,7 @@ def clear() -> list[str]:
     Returns what was removed."""
     import shutil
 
+    # deferred: startup; the plugin's hook loads this module on every install.
     from . import locking
 
     removed: list[str] = []
@@ -369,6 +371,7 @@ def prune(images: LocalImages | None) -> tuple[list[str], list[str]]:
     """Remove the superseded images and the stray index files, under the exclusive
     cache lock like `clear`. Returns (images removed, files removed). `images`
     is None where no runtime was found: the files are still pruned."""
+    # deferred: startup; the plugin's hook loads this module on every install.
     from . import locking
 
     removed_images: list[str] = []

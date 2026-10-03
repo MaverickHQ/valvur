@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from . import api, profiles
+from . import api, engine_host, profiles
 from .events import Event
 from .scanrun import ScanRun
 
@@ -54,8 +54,6 @@ class Cancellation:
 def new_runner() -> Any:
     """The runtime a scan uses (R3.9): the Scan Container, or inside the image the
     engine as a process there (R8.1)."""
-    from . import engine_host
-
     return engine_host.for_scan()
 
 

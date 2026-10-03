@@ -9,8 +9,9 @@ import uuid as _uuid
 from contextlib import suppress as _suppress
 from pathlib import Path
 
-from . import egress
+from . import cache, compat, egress, locking, osv_offline, owner
 from . import settings as _settings
+from .adapters.trivy import database_fetch
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput, nothing_to_scan
 from .selinux import RELABEL_ENV, selinux_enforcing
 from .settings import ENVIRONMENT as _ENVIRONMENT
@@ -70,9 +71,7 @@ def detect_runtime() -> str:
     import os
     import shutil
 
-    from . import settings
-
-    override = settings.get("runtime")
+    override = _settings.get("runtime")
     if override:
         return override
 
@@ -248,8 +247,6 @@ def launch_flags(runtime: str, *, generation: str | None, name: str, scratch: st
     every mount is valvur's own, labelled on an enforcing SELinux host (F1.6), where
     an unlabelled mount is denied. Whether there is an interface at all is egress's
     decision, which the kernel enforces (N2.1)."""
-    from . import cache, owner
-
     db, names = cache.trivy_db(), cache.name_index()
     for directory in (db, names):
         directory.mkdir(parents=True, exist_ok=True)
@@ -272,8 +269,6 @@ def launch_flags(runtime: str, *, generation: str | None, name: str, scratch: st
         "-v", f"{names}:/cache/names:ro{z and ',z'}",
     ]
     if osv:
-        from . import osv_offline
-
         offline = osv_offline.directory()
         offline.mkdir(parents=True, exist_ok=True)
         # OSV's offline database (R4.6), read-only like the index.
@@ -332,6 +327,7 @@ def _text(raw) -> str:
 def database_size_mb() -> int | None:
     """What fetching the vulnerability database will cost, from the registry Trivy
     will pull it from, or None if it cannot say (24.1)."""
+    # deferred: startup; the registry client and the TLS stack load only for a pull.
     from . import oci
 
     size = oci.image_size(egress.db_repository() or egress.DEFAULT_DB_REPOSITORY,
@@ -353,16 +349,12 @@ class ContainerRunner:
         self.generation: str | None = None
 
     def verify_compatible(self) -> None:
-        from . import compat
-
         compat.check(self.runtime, self.image)
 
     def build_provenance(self) -> tuple[str | None, str | None]:
         """(the tree this shim was built beside, the tree the image was built
         from) — either None when unrecorded (23.4.4). Compared by the scan and
         reported, never refused."""
-        from . import compat
-
         return compat.shim_inputs(), compat.image_inputs(self.runtime, self.image)
 
     # ------------------------------------------------------- the image itself
@@ -379,6 +371,7 @@ class ContainerRunner:
 
     def pull_size_mb(self) -> int | None:
         """What the pull will cost, from the registry, or None if it cannot say."""
+        # deferred: startup; the registry client and the TLS stack load only for a pull.
         from . import oci
 
         size = oci.image_size(self.image)
@@ -440,8 +433,6 @@ class ContainerRunner:
 
     def update_db(self) -> ScannerOutput:
         """Fetch the vulnerability DB out of band, so scans never need network."""
-        from . import cache, locking
-
         # Exclusive, and it waits: readers finish, then new ones queue behind us
         # (task 16.3). trivy.db is a 1.35GB BoltDB and Trivy takes no lock of its
         # own — measured, there is no lock file anywhere in the cache directory.
@@ -451,8 +442,6 @@ class ContainerRunner:
     def _update_db_locked(self) -> ScannerOutput:
         # The one place the runner asks an adapter for a command: the database is
         # Trivy's, fetched by Trivy, and the adapter knows how (26.2.1).
-        from .adapters.trivy import database_fetch
-
         return self.run(database_fetch())
 
     def run(self, invocation: Invocation) -> ScannerOutput:

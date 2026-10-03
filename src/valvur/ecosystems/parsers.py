@@ -25,6 +25,8 @@ import json
 import re
 from pathlib import Path
 
+from .. import exclusions
+
 REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")
 
 #: `pyproject.toml` keys that hold dependency *names*, in the two shapes that are
@@ -102,8 +104,6 @@ def manifests(workspace: Path, pattern: str, exclude: tuple[str, ...] = ()):
     vendored directory or an excluded prefix (29.0.1) — `rglob` visited every
     file of a 107,544-file tree, five times over, to find a handful."""
     from fnmatch import fnmatch
-
-    from .. import exclusions
 
     # A pattern with a directory in it (`gradle/libs.versions.toml`) matches the
     # tail of the relative path, as `rglob` did; a bare name matches the name.

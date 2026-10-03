@@ -16,7 +16,8 @@ from collections.abc import Callable
 from fnmatch import fnmatch
 from pathlib import Path
 
-from . import events
+from . import cache, events, locking, settings
+from .ecosystems import VULNERABILITY_MANIFESTS
 from .events import Event
 
 #: OSV's public export, one zip per ecosystem (https://google.github.io/osv.dev/data/).
@@ -26,8 +27,6 @@ DEFAULT_URL = "https://osv-vulnerabilities.storage.googleapis.com"
 
 def base_url() -> str:
     """OSV's bucket, or the mirror the machine names (`osv_url`, R6.7)."""
-    from . import settings
-
     return settings.get("osv_url") or DEFAULT_URL
 #: Where OSV-Scanner 2.6 looks under `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`.
 LAYOUT = "osv-scalibr"
@@ -41,8 +40,6 @@ OSV_NAMES = {"pip": "PyPI", "npm": "npm", "cargo": "crates.io", "gomod": "Go",
 
 
 def directory() -> Path:
-    from . import cache
-
     return cache.root() / "osv"
 
 
@@ -52,8 +49,6 @@ def path(name: str) -> Path:
 
 def needed(files: list[str]) -> list[str]:
     """OSV's names for the ecosystems whose lockfiles the File Set holds."""
-    from .ecosystems import VULNERABILITY_MANIFESTS
-
     found = set()
     for rel in files:
         name = rel.rsplit("/", 1)[-1]
@@ -154,8 +149,6 @@ def ensure(files: list[str], say: Callable[[Event], None], *,
     absent or stale (R4.6, ADR-0025), each under the cache lock and said: the
     records `run.json` keeps, and a sentence per failure. What a scan does before
     its Scanners start, and `valvur update PATH` ahead of one (R8.2)."""
-    from . import cache, locking
-
     names = needed(files)
     missing, old = absent(names), stale(names, due)
     records: list[dict] = []

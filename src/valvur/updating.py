@@ -14,7 +14,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import cache, datasets, epss, fileset, locking, name_index, oci, osv_offline, settings
 from .enrichment import KEV_URL, KEV_URL_ENV
+from .name_index import malicious
 
 Say = Callable[[str], None]
 
@@ -30,16 +32,12 @@ def database_due() -> bool:
     """Whether the database is absent or past the age a scan refreshes it at (D24),
     decided without touching the network: Trivy stamps `UpdatedAt` in its own
     metadata, the data's build time, which a mirror cannot forward-date."""
-    from . import datasets
-
     return datasets.DATABASE.due(datasets.DATABASE.age())
 
 
 def index_due() -> bool:
     """Absent, past the age a scan refreshes it at, or missing an ecosystem this
     version indexes (ADR-0018)."""
-    from . import cache, datasets, name_index
-
     if datasets.NAME_INDEX.due(datasets.NAME_INDEX.age()):
         return True
     directory = cache.name_index()
@@ -50,8 +48,6 @@ def due() -> list[str]:
     """What a scan would fetch or refresh now, by dataset (D52a): what `update
     --if-stale` refreshes. OSV's databases depend on a project's lockfiles, and are
     refreshed for the project `update` is given."""
-    from . import datasets
-
     wanted = [d.key for d in datasets.ALL if d.key != "osv" and d.due(d.age())]
     if "name_index" not in wanted and index_due():
         wanted.append("name_index")
@@ -63,8 +59,6 @@ def refresh_index(say: Say, *, build: bool = False, malicious: bool = True) -> b
     signed pull, or the registries when it is unreachable or `build` says so. Under
     the cache's exclusive lock. False on failure, having said why; what was on disk
     is still there and still valid."""
-    from . import cache, locking, name_index, oci
-
     if build:
         say("Building the package-name index from the registries (PyPI, npm, RubyGems, "
             "Packagist and crates.io; about 550MB the first time, a few MB after)...")
@@ -101,9 +95,6 @@ def refresh_malicious(say: Say, *, build: bool = False, fallback: bool = False) 
     nothing. `fallback` builds it from its source when it is not published, as
     `valvur update` does until `index.yml` publishes it from `main`; a scan never
     does. The caller holds the cache lock. A refused signature is not caught."""
-    from . import cache, name_index
-    from .name_index import malicious
-
     try:
         malicious.refresh(cache.name_index(), build=build, fallback=fallback,
                           progress=lambda msg: say(f"  {msg}"))
@@ -140,8 +131,6 @@ def refresh_kev(say: Say) -> bool:
     # One JSON file, so an air-gapped mirror is any static server holding a copy
     # (22.B.3). Plain HTTP is accepted because the URL is set by an operator,
     # never derived from anything in a Workspace.
-    from . import cache, settings
-
     url = settings.get("kev_url") or KEV_URL
     if not url.startswith(("https://", "http://")):
         say(f"KEV refresh skipped ({KEV_URL_ENV} is not an http(s) URL); "
@@ -180,8 +169,6 @@ def refresh_epss(say: Say) -> bool:
     fresh copy was written; a skip is said, and the copy in use, if any, stays."""
     import urllib.error
 
-    from . import epss, settings
-
     url = settings.get("epss_url") or epss.URL
     if not url.startswith(("https://", "http://")):
         say(f"EPSS refresh skipped ({epss.URL_ENV} is not an http(s) URL); "
@@ -205,7 +192,6 @@ def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
     which ecosystems it needs."""
     if workspace is None:
         return
-    from . import datasets, fileset, osv_offline
 
     records, failed = osv_offline.ensure(fileset.build(workspace).files,
                                          lambda event: say(str(event)), due=datasets.OSV.due)
@@ -219,8 +205,6 @@ def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False,
     """Every step, in order: what `valvur update` and the `update` tool both run;
     with `if_stale`, only the datasets a scan would refresh now (D52a); with
     `workspace`, OSV's databases for its lockfiles as well (R8.2)."""
-    from . import cache, datasets
-
     wanted = set(due()) if if_stale else {d.key for d in datasets.ALL}
     updated = Updated(ok=True)
     if if_stale and not wanted:
@@ -259,8 +243,6 @@ def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False,
         else:
             updated.ok = False
     elif "malicious" in wanted:
-        from . import locking
-
         with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
             if refresh_malicious(say, build=build_index, fallback=True):
                 updated.fetched.append("malicious list")

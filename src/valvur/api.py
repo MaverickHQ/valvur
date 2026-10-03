@@ -12,14 +12,20 @@ import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from . import cache as _cache_mod
 from . import events as _events
+from . import exclusions as _exclusions
+from . import fileset as _fileset
 from . import hygiene as _hygiene
+from . import locking as _locking
 from . import osv_offline as _osv_offline
+from . import owner
 from . import profiles as _profiles
 from . import results as _results
 from . import scancontext as _scancontext
 from . import settings as _settings
 from .adapters.registry import DEFAULT_ADAPTERS
+from .adapters.syft import SyftAdapter
 from .assembly import assemble
 from .fetching import ensure_data, ensure_image
 from .fleet import ScannerOutcome, engine_fleet, stop_if_cancelled
@@ -54,9 +60,6 @@ def scan(
     # order — Workspace, then cache — so two scans can never deadlock against each
     # other. The cache lock is SHARED: any number of scans may read the database at
     # once, and only a writer — `valvur update`, or a first run — excludes them.
-    from . import cache as _cache_mod
-    from . import locking as _locking
-
     out = Path(out) if out is not None else workspace
     with contextlib.ExitStack() as _locks:
         _locks.enter_context(_locking.held(
@@ -84,8 +87,6 @@ def scan(
         if adapters is None:
             adapters = _profiles.select(DEFAULT_ADAPTERS, profile)
         if sbom:
-            from .adapters.syft import SyftAdapter
-
             adapters = [SyftAdapter(enabled=True) if a.name == "syft" else a
                         for a in adapters]
         # What the scan reads of the project, read once and passed on (D52d).
@@ -109,8 +110,6 @@ def _begin(runner: Runtime, on_progress) -> str:
     carries it (R3.6); and first, the containers an ended process left, removed.
     The second gate's next scan met the fleet a killed server had left running."""
     import uuid
-
-    from . import owner
 
     generation = str(uuid.uuid4())
     runner.generation = generation
@@ -142,9 +141,6 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     # The count (29.1.2), before a container starts: what the Scanners will read,
     # the largest directories, and — past the threshold — the one line that
     # would drop the largest, said before the budget is spent rather than after.
-    from . import fileset as _fileset
-    from .exclusions import LARGE_TREE
-
     # The File Set (ADR-0021), once: what the Snapshot holds, what every host-side
     # count reads, and what the record says was and was not read.
     if context is None:
@@ -155,7 +151,7 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         on_progress(_events.workspace(files, largest))
         if chosen.warning:
             on_progress(_events.note(chosen.warning))
-        elif files >= LARGE_TREE and largest and largest[0][0] != ".":
+        elif files >= _exclusions.LARGE_TREE and largest and largest[0][0] != ".":
             # The sentence a first run needed before its budget was spent, not after.
             on_progress(_events.large_tree(*largest[0]))
 

@@ -15,7 +15,10 @@ from . import cache as _cache
 from . import datasets as _datasets
 from . import egress as _egress
 from . import events as _events
+from . import fileset, locking, osv_offline, settings
 from .fleet import stop_if_cancelled
+from .refusal import Refusal
+from .runner import ImagePullFailed
 from .scanner_run import ScannerRun
 
 if TYPE_CHECKING:
@@ -24,8 +27,6 @@ if TYPE_CHECKING:
 
 def ensure_image(runner: Runtime, on_progress) -> dict | None:
     """Pull the image when absent (23.2.4). Returns the fetch record, or None."""
-    from .runner import ImagePullFailed
-
     if runner.image_present():
         return None
     size = runner.pull_size_mb()
@@ -74,8 +75,6 @@ def ensure_data(runner: Runtime, on_progress, *, workspace=None, adapters=(),
     the Scanner it costs, so that Scanner's failure says the fetch was tried and why
     it failed rather than only naming `valvur update`.
     """
-    from . import settings
-
     if not runner.fetches:
         return [], {}      # a process runtime has no image to fill and no fetch to run
     if settings.fetch() == settings.NEVER:
@@ -132,7 +131,8 @@ def _ensure_index(say, fetched: list[dict], unfetched: dict[str, str]) -> None:
     # Past two days, not thirty (D24): the index is published daily, and a real
     # package published since the last pull read as hallucinated, at high.
     if _datasets.NAME_INDEX.due(index_age):
-        from . import locking, name_index
+        # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
+        from . import name_index
 
         index_size = name_index.published.published_size_mb()
         say(_events.fetch_started("index", age_days=index_age, size_mb=index_size))
@@ -158,7 +158,10 @@ def _ensure_malicious(say, fetched: list[dict]) -> None:
     """The known-malicious list absent or past two days (D24, D26, R11.5), pulled as
     published and never built inside a scan. A failure keeps the list in use and
     costs no Scanner: OSV-Scanner still reports what its database knows."""
-    from . import locking, updating
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
+    from . import updating
+
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
     from .name_index import malicious
 
     if not _cache.name_index_present():
@@ -175,7 +178,6 @@ def _ensure_malicious(say, fetched: list[dict]) -> None:
         say(_events.fetch_ended("malicious", ok=False))
         return
     say(_events.fetch_ended("malicious", seconds=seconds))
-    from . import settings
 
     fetched.append(fetch_record(
         "malicious list", settings.get("name_index_url") or malicious.reference(), None,
@@ -187,6 +189,7 @@ def _ensure_kev(say, fetched: list[dict]) -> None:
     had not run `valvur update` ranked with the image's snapshot for ever. A failed
     refresh keeps the catalog in use, which says why; it costs no Scanner, since
     KEV ranks findings and finds none."""
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
     from . import enrichment, updating
 
     age = _datasets.KEV.age()
@@ -195,8 +198,6 @@ def _ensure_kev(say, fetched: list[dict]) -> None:
     say(_events.fetch_started("kev", age_days=age))
     started = time.monotonic()
     if updating.refresh_kev(lambda line: say(_events.fetch_ended("kev", said=line))):
-        from . import settings
-
         fetched.append(fetch_record(
             "KEV catalog", settings.get("kev_url") or enrichment.KEV_URL, None,
             time.monotonic() - started))
@@ -205,7 +206,8 @@ def _ensure_kev(say, fetched: list[dict]) -> None:
 def _ensure_epss(say, fetched: list[dict]) -> None:
     """EPSS absent or past two days (D24, D25, R11.4), as KEV: a failure keeps the
     scores in use, or ranks without EPSS, and costs no Scanner."""
-    from . import epss, settings, updating
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
+    from . import epss, updating
 
     age = _datasets.EPSS.age()
     if not _datasets.EPSS.due(age):
@@ -224,9 +226,6 @@ def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str],
     """OSV's offline database for each ecosystem the File Set holds a lockfile for,
     when absent (R4.6, 24.1): announced, recorded, and a failure costs OSV-Scanner
     alone, with the reason."""
-    from . import fileset, osv_offline
-    from .refusal import Refusal
-
     try:
         files = context.files if context is not None else fileset.build(workspace).files
     except Refusal:

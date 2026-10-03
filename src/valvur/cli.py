@@ -47,6 +47,7 @@ def _stop_on_interrupt(cancellation: service.Cancellation) -> None:
     """
     import signal
 
+    # deferred: startup; each command loads only what it runs.
     from . import owner
 
     def handle(_signum, _frame):
@@ -74,24 +75,28 @@ def _stop_on_interrupt(cancellation: service.Cancellation) -> None:
 
 
 def _database_needs_refresh() -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.database_due()
 
 
 def _name_index_needs_refresh() -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.index_due()
 
 
 def _refresh_name_index(*, build: bool = False) -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.refresh_index(print, build=build)
 
 
 def _print_cache(*, clear: bool, prune: bool = False) -> int:
+    # deferred: startup; each command loads only what it runs.
     from . import cache
 
     root = cache.root()
@@ -131,6 +136,7 @@ def _print_cache(*, clear: bool, prune: bool = False) -> int:
 def _prune_cache(cache) -> None:
     """`--prune` (28.3.7): what would go is listed before anything goes, and
     without the flag nothing ever does."""
+    # deferred: startup; each command loads only what it runs.
     from . import runner
 
     try:
@@ -138,6 +144,7 @@ def _prune_cache(cache) -> None:
     except Exception as exc:   # broad: no runtime is a reason, not a failure
         images = None
         print(f"  no container runtime found ({exc}); images not pruned")
+    # deferred: startup; each command loads only what it runs.
     from . import reuse
 
     superseded = cache.superseded_images(images) if images is not None else []
@@ -160,6 +167,7 @@ def _prune_cache(cache) -> None:
 
 
 def _ensure_image_for_update(runner) -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.ensure_image(runner, print)
@@ -169,6 +177,7 @@ def _warn_if_name_index_stale(run) -> None:
     """The index's counterpart to the warning above (ADR-0018). Its failure
     direction is the opposite — an old index overstates rather than misses — so it
     gets its own sentence rather than a copy of the database's."""
+    # deferred: startup; each command loads only what it runs.
     from . import datasets
 
     age = run.name_index_age_days
@@ -186,6 +195,7 @@ def _warn_if_database_stale(run) -> None:
     Until 2026-09-05 the age of the database that decides whether findings exist was
     computed and reported nowhere at all.
     """
+    # deferred: startup; each command loads only what it runs.
     from . import datasets
 
     age = run.db_age_days
@@ -245,6 +255,7 @@ def _print_suppression(args) -> int:
     print(f"expires = {expires}")
     print(f'reason = "{reason}"')
     print()
+    # deferred: startup; each command loads only what it runs.
     from .text import cut
 
     print(f"# {cut(match['title'], 100)}")
@@ -252,6 +263,7 @@ def _print_suppression(args) -> int:
 
 
 def _refresh_kev() -> None:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     updating.refresh_kev(print)
@@ -263,6 +275,7 @@ def _workspace(value: str) -> str:
     directory, as it always has; nothing is created for a path that is wrong."""
     import argparse
 
+    # deferred: startup; each command loads only what it runs.
     from .operations import Refusal, resolve_workspace
 
     try:
@@ -409,6 +422,7 @@ def build_parser() -> argparse.ArgumentParser:
         "are reachable (one bounded TCP connect per host). Off by default: without it "
         "doctor opens no socket.",
     )
+    # deferred: startup; each command loads only what it runs.
     from .mcp.clients import CLIENTS as _CLIENTS
 
     doctor_cmd.add_argument(
@@ -479,6 +493,7 @@ def build_parser() -> argparse.ArgumentParser:
         "valvur into each client's file in the project, beside what is there, and the "
         "skill for Claude Code and Kiro. Never overwrites.",
     )
+    # deferred: startup; each command loads only what it runs.
     from .mcp.clients import CLIENTS as _CLIENTS
 
     init_cmd.add_argument(
@@ -514,7 +529,10 @@ def _cmd_check(args: argparse.Namespace, runner=None) -> int:
     both (F9.3), and whether any package should stop an install."""
     import json
 
+    # deferred: startup; each command loads only what it runs.
     from . import operations, packages
+
+    # deferred: startup; each command loads only what it runs.
     from .refusal import Refusal
 
     asked = [dict(zip(("ecosystem", "name", "version"),
@@ -533,6 +551,7 @@ def _cmd_check(args: argparse.Namespace, runner=None) -> int:
 def _cmd_init(args: argparse.Namespace, runner=None) -> int:
     """`init` (D10): prints; with `--write`, writes what it prints, never over what is
     there (the owner's decision, 2026-09-28)."""
+    # deferred: startup; each command loads only what it runs.
     from . import initialize
 
     workspace = Path(args.path).resolve()
@@ -548,6 +567,7 @@ def _cmd_init(args: argparse.Namespace, runner=None) -> int:
 
 def _cmd_read(args: argparse.Namespace, runner=None) -> int:
     """`findings`, `explain`, `status`: the same operations the MCP tools call (F9.3)."""
+    # deferred: startup; each command loads only what it runs.
     from . import operations
 
     if args.command == "explain":
@@ -602,11 +622,13 @@ def _cmd_cache(args: argparse.Namespace, runner=None) -> int:
 
 def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
     """`doctor`: every precondition a scan needs, and `--bundle`."""
+    # deferred: startup; each command loads only what it runs.
     from . import doctor as _doctor
 
     if getattr(args, "client", None):
         # The snippet a person pastes (29.2.2), from the one table the README
         # renders from, so the two cannot disagree.
+        # deferred: startup; each command loads only what it runs.
         from .mcp import clients as _clients
 
         entry = _clients.client(args.client)
@@ -627,6 +649,7 @@ def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
 def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     """`update`: the image, the database, the KEV copy and the index, as the MCP
     tool runs them (`updating.run`); or, with --prune or --clear, tidy the cache."""
+    # deferred: startup; each command loads only what it runs.
     from . import engine_host, updating
 
     if getattr(args, "prune", False) or getattr(args, "clear", False):
@@ -653,6 +676,7 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     cancellation = service.Cancellation()
     _stop_on_interrupt(cancellation)
 
+    # deferred: startup; each command loads only what it runs.
     from .runner import ImagePullFailed, NoContainerRuntime, unsupported_platform_warning
 
     if warning := unsupported_platform_warning():

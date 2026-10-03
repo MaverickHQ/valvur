@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .agent_rules import plain
+
 #: The skill's directory, as the standard lays one out: `SKILL.md` and `references/`.
 DIRECTORY = Path(__file__).parent / "data" / "skills" / "valvur"
 SKILL = DIRECTORY / "SKILL.md"
@@ -33,8 +35,6 @@ RULES_END = "<!-- rules:end -->"
 
 def with_rules(text: str) -> str:
     """`text`, a skill, with its rules block rendered afresh from `agent_rules`."""
-    from .agent_rules import plain
-
     start, end = text.index(RULES_START), text.index(RULES_END)
     return text[:start + len(RULES_START)] + "\n\n" + plain() + "\n" + text[end:]
 

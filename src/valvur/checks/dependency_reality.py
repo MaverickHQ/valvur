@@ -40,12 +40,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
+from .. import coverage as _coverage
 from .. import ecosystems as _ecosystems
 from .. import egress as _egress
+from .. import name_index as _index
 from ..coverage import PRIVATE_RULE, Coverage
 from ..ecosystems import parsers as _parsers
 from ..ecosystems import registries as _registries
 from ..ecosystems.registry import pep503 as _pep503
+from ..name_index import malicious as _list
 from .base import Check
 
 TIMEOUT = 10
@@ -85,7 +88,6 @@ class DependencyRealityCheck(Check):
                  *, network: bool = False, files: list[str] | None = None) -> Coverage:
         """The one Check whose limits are worth stating, because nothing else in the
         product substitutes for it. Host-side, static, per Profile."""
-        from .. import coverage as _coverage
         _INDEXED = _ecosystems.INDEX_FILES
 
         reads, ignores = [], []
@@ -150,7 +152,6 @@ class DependencyRealityCheck(Check):
 
     def _existence(self, workspace: Path, declared: set[tuple[str, str, str]]) -> list[dict]:
         findings: list[dict] = []
-        from .. import name_index as _index
 
         popular = _popular()
         network = _network_allowed()
@@ -372,8 +373,6 @@ def _malicious(declared: set[tuple[str, str, str]],
     package: a declared name matches an entry for every version, a locked version
     an entry naming it. Declared first, so a match on both is reported where the
     dependency was written."""
-    from ..name_index import malicious as _list
-
     lists: dict[str, _list.MaliciousList | None] = {}
     found: dict[tuple[str, str], dict] = {}
     candidates = ([(eco, name, None, source) for eco, name, source in sorted(declared)]
@@ -410,8 +409,6 @@ def _malicious(declared: set[tuple[str, str, str]],
 
 
 def _malicious_built_on() -> str:
-    from ..name_index import malicious as _list
-
     return str(_list.metadata(_index_dir()).get("built_at") or "")[:10] or "an unrecorded date"
 
 

@@ -21,6 +21,8 @@ from collections.abc import Callable, Iterator
 from fnmatch import fnmatch
 from pathlib import Path
 
+from .. import exclusions
+
 Pins = Iterator[tuple[str, str]]
 
 _EXACT = re.compile(r"=?v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)")
@@ -168,8 +170,6 @@ READERS: tuple[tuple[str, str, Callable[[Path], Pins]], ...] = (
 
 def locked(workspace: Path, exclude: tuple[str, ...] = ()) -> set[tuple[str, str, str, str]]:
     """Every pinned package, as (ecosystem, name, version, lockfile path)."""
-    from .. import exclusions
-
     found: set[tuple[str, str, str, str]] = set()
     for path in exclusions.walk_files(workspace, exclude):
         for pattern, ecosystem, read in READERS:

@@ -18,9 +18,11 @@ from typing import TYPE_CHECKING, Any
 
 from . import engine_host
 from . import events as _events
+from . import history as _history
 from . import reuse as _reuse
+from . import runner as _runner
 from . import scancontext as _scancontext
-from .adapters.gitleaks import HISTORY_TOOL
+from .adapters.gitleaks import HISTORY_DIR, HISTORY_TOOL, PROJECT_GITLEAKS_CONFIG
 from .invocation import Invocation, ScannerOutput, nothing_to_scan
 from .scanner_run import BUDGET_CUT, BUDGET_NOT_STARTED, ScannerRun
 from .scanrun import ScanCancelled, ScannerFailed
@@ -76,7 +78,6 @@ def outcome(adapter, output) -> ScannerOutcome:
             # SIGKILL, and valvur did not send it — the budget's and the timeout's
             # kills are rewritten above and in the engine. What is left is the
             # runtime: the Scan Container's ceiling (D4, R3.9) or the VM's (29.0.3).
-            from . import runner as _runner
 
             reason = ("exit 137: killed by the runtime — the Scan Container's memory "
                       f"ceiling ({_runner.SCAN_CEILING_BYTES // 2**30} GiB, or three "
@@ -343,9 +344,6 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
     its outcome that result (R14.3, D32); return the keys of those that will run,
     so their clean results can be stored. With `fresh`, every one runs and is
     keyed: a fresh answer replaces the stored one. Nothing, with `reuse` None."""
-    from . import reuse as _reuse
-    from .invocation import ScannerOutput
-
     if reuse is None:
         return {}
     profile, _ = reuse
@@ -410,9 +408,6 @@ def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progr
     when Gitleaks runs on a repository and the project has not said
     `history = false`, and its pass added to the plan. Returns what was written
     and what the record says: what was read, or why nothing was."""
-    from . import history as _history
-    from .adapters.gitleaks import HISTORY_DIR, PROJECT_GITLEAKS_CONFIG
-
     say = on_progress if on_progress is not None else (lambda _: None)
     index = next((i for i in planned if adapters[i].name == "gitleaks"), None)
     if index is None:

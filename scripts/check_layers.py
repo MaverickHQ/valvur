@@ -267,9 +267,63 @@ def core_files(package: Path = PACKAGE, config_path: Path = CONFIG) -> list[str]
                   if layer == "core" and m in present)
 
 
+#: What a deferred import's comment starts with: `# deferred: <why>`, on its line or
+#: in the comments directly above it (R23.9).
+DEFERRED_MARK = "deferred:"
+
+
+@dataclass(frozen=True)
+class Deferred:
+    """One deferred import of the package's own modules, and why it is deferred."""
+
+    module: str
+    targets: tuple[str, ...]
+    path: str
+    line: int
+    reason: str | None
+
+    @property
+    def listed(self) -> str:
+        return f"{self.module} -> {', '.join(self.targets)}: {self.reason or '(no reason)'}"
+
+
+def _reason(lines: list[str], line: int) -> str | None:
+    """The `# deferred:` comment on line `line` (1-based) or directly above it."""
+    candidates = [lines[line - 1].partition("#")[2]]
+    above = line - 2
+    while above >= 0 and lines[above].lstrip().startswith("#"):
+        candidates.append(lines[above].lstrip()[1:])
+        above -= 1
+    for text in candidates:
+        text = text.strip()
+        if text.lower().startswith(DEFERRED_MARK):
+            return text[len(DEFERRED_MARK):].strip()
+    return None
+
+
+def deferred(package: Path = PACKAGE, config_path: Path = CONFIG) -> list[Deferred]:
+    """Every deferred import of the package's own modules that runs (one under `if
+    TYPE_CHECKING:` never does), by statement, with its reason or None."""
+    config = load(config_path)
+    statements: dict[tuple[str, int], list[Import]] = {}
+    for edge in imports(package, frozenset(config.generated)):
+        if edge.deferred and not edge.type_checking:
+            statements.setdefault((edge.path, edge.line), []).append(edge)
+    found = []
+    for (path, line), edges in sorted(statements.items()):
+        lines = (package.parent / path).read_text(encoding="utf-8").splitlines()
+        found.append(Deferred(edges[0].module, tuple(sorted({e.target for e in edges})),
+                              path, line, _reason(lines, line)))
+    return found
+
+
 def main() -> int:
     if sys.argv[1:] == ["--core-files"]:
         print("\n".join(core_files()))
+        return 0
+    if sys.argv[1:] == ["--deferred"]:
+        # The listing `tests/fixtures/deferred-imports.txt` holds (R23.9).
+        print("\n".join(sorted(d.listed for d in deferred())))
         return 0
     found = check()
     for upward in found.upward:

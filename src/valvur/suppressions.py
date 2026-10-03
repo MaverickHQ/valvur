@@ -17,7 +17,8 @@ from pathlib import Path
 
 # F8.1: read from the Workspace root; the project file, named once.
 from .exclusions import PROJECT_FILE as SUPPRESSION_FILE
-from .findings import Severity
+from .findings import Finding, Severity
+from .fingerprint import derive
 
 # Context is mandatory, not decorative. A pull request containing only a hash tells a
 # reviewer nothing about what is being accepted, which throws away the whole reason
@@ -143,9 +144,6 @@ def policy_findings(policy: Policy, findings, *, today: date | None = None):
     An unexpiring or stale suppression is exactly how a real finding gets buried for
     years. Reporting it in the same place as everything else is what stops that.
     """
-    from .findings import Finding
-    from .fingerprint import derive
-
     out = []
 
     for problem in policy.problems:

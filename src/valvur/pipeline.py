@@ -28,9 +28,11 @@ from . import gitcontext as _gitcontext
 from . import grouping as _grouping
 from . import licence_policy as _licence
 from . import ranking as _ranking
+from . import requirements as _requirements
 from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
+from .ecosystems import index_form
 from .findings import Finding, merge
 
 if TYPE_CHECKING:
@@ -183,8 +185,6 @@ def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
     the first stage says the file was never a check. Trivy reads pinned lines only,
     so only OSV-Scanner's answers are in question; a package the file does not
     name is unknown, not unpinned, and stays."""
-    from . import requirements as _requirements
-
     kept: list[Finding] = []
     files: set[str] = set()
     cache: dict[str, dict[str, bool]] = {}
@@ -205,8 +205,6 @@ def unpinned(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def merged(findings: list[Finding], ctx: Context) -> list[Finding]:
     """One Finding per identity, whichever Scanners reported it."""
-    from .ecosystems import index_form
-
     return merge(findings, index_form)
 
 

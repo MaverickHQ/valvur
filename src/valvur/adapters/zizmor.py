@@ -13,9 +13,11 @@ from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .. import fileset
 from .. import fingerprint as _fp
 from ..findings import Finding, Severity
 from ..invocation import Invocation, ScannerOutput
+from ..refusal import Refusal
 from .base import ScannerAdapter, container_relative
 
 if TYPE_CHECKING:
@@ -47,9 +49,6 @@ class ZizmorAdapter(ScannerAdapter):
         """Only where there is a workflow or an action definition, read from the
         File Set (ADR-0021). Biased to running: a File Set that cannot be listed
         runs zizmor, which finds nothing where there is nothing."""
-        from .. import fileset
-        from ..refusal import Refusal
-
         try:
             listed = (context.files if context is not None
                       else fileset.build(workspace).files)

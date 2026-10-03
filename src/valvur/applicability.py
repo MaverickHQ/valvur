@@ -21,6 +21,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import fileset
+from .refusal import Refusal
+
 # Names and suffixes that are infrastructure code beyond argument. Matching one of
 # these is enough on its own — no content check, no ambiguity.
 _IAC_SUFFIXES = frozenset({
@@ -94,9 +97,6 @@ def _candidates(workspace: Path, given: list[str] | None = None):
     Terraform file in an ignored `node_modules` never decides that Checkov runs.
     `given` is the scan's, when it has one. A folder the File Set refuses is walked
     whole: bias to running."""
-    from . import fileset
-    from .refusal import Refusal
-
     try:
         chosen = given if given is not None else fileset.build(workspace).files
     except Refusal:

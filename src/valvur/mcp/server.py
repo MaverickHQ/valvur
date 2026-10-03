@@ -49,6 +49,7 @@ def shutdown(out=None) -> None:
     kill, or a database fetch. Nothing here raises: a server that cannot clean up
     must still exit.
     """
+    # deferred: startup; the server answers its handshake before a tool loads.
     from .. import owner, runner
 
     stream = out or sys.stderr
@@ -110,6 +111,7 @@ def _check_arguments(schema: dict, arguments: Any) -> None:
     an unknown one, a missing one, or one of the wrong type is refused in one
     sentence with its kind. A number sent as a string is still a number (R1.5);
     what a value means is the tool's to check."""
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..refusal import Refusal
 
     if not isinstance(arguments, dict):
@@ -150,6 +152,7 @@ def _typed(value: Any, expected: str | None) -> bool:
 
 
 def version() -> str:
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..compat import shim_version
 
     return shim_version()
@@ -280,8 +283,13 @@ this command. `valvur --help` documents the CLI."""
 def main(argv: list[str] | None = None) -> int:
     # stderr, never stdout: stdout is the JSON-RPC channel, and a line of prose
     # there corrupts the stream for every client.
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..runner import unsupported_platform_warning
+
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..version import __version__
+
+    # deferred: startup; the server answers its handshake before a tool loads.
     from .tools import registry
 
     # Silence on stdout is correct for stdio and terrible for a first-run diagnosis:

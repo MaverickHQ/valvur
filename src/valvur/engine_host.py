@@ -20,8 +20,12 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Protocol
 
-from .engine import CACHE_ENV, RESULTS_ENV, WORKSPACE_ENV
+from . import cache, locking, runner
+from .adapters.trivy import database_fetch
+from .compat import IMAGE_INPUTS_FILE
+from .engine import CACHE_ENV, RESULTS, RESULTS_ENV, WORKSPACE, WORKSPACE_ENV, _mapped
 from .invocation import Invocation, ScannerOutput
+from .runner import IMAGE, ContainerRunner, database_size_mb
 from .selinux import selinux_enforcing
 
 
@@ -322,8 +326,6 @@ def as_the_container_saw(scratch: Path, workspace: Path) -> None:
     name it: a tool reports the absolute path it was given, and the adapters read
     `/workspace/...`. Run as a process, the workspace is a directory of its own, and
     its path is put back (R8.1)."""
-    from .engine import WORKSPACE
-
     prefixes = sorted({str(workspace), str(workspace.resolve())}, key=len, reverse=True)
     for report in scratch.iterdir():
         if not report.is_file():
@@ -347,8 +349,6 @@ class ContainerRuntime(_Runtime):
     `/results`; the source tree never mounted."""
 
     def __init__(self, image: str | None = None, runtime: str | None = None):
-        from .runner import IMAGE
-
         super().__init__()
         self.image = image or IMAGE
         self._runtime = runtime
@@ -362,8 +362,6 @@ class ContainerRuntime(_Runtime):
 
     @property
     def _fetcher(self):
-        from .runner import ContainerRunner
-
         if self.__dict__.get("_runner") is None:
             self.__dict__["_runner"] = ContainerRunner(self.image, self._runtime)
         return self.__dict__["_runner"]
@@ -410,10 +408,8 @@ class ContainerRuntime(_Runtime):
 
     @property  # type: ignore[override]
     def runtime(self) -> str:
-        from .runner import detect_runtime
-
         if self._runtime is None:
-            self._runtime = detect_runtime()
+            self._runtime = runner.detect_runtime()
         return self._runtime
 
     @runtime.setter
@@ -434,8 +430,6 @@ class ContainerRuntime(_Runtime):
     def command(self, scratch: Path, *, network: bool = False, name: str | None = None,
                 snapshot_bytes: int = 0) -> list[str]:
         import uuid
-
-        from . import runner
 
         name = name or f"valvur-{uuid.uuid4().hex[:16]}"
         z = ":z" if selinux_enforcing() else ""
@@ -490,8 +484,6 @@ class ImageRuntime(LocalRuntime):
     fetches = True
 
     def __init__(self) -> None:
-        from . import cache
-
         super().__init__(cache=cache.root())
 
     def image_present(self) -> bool:
@@ -507,8 +499,6 @@ class ImageRuntime(LocalRuntime):
         return None
 
     def build_provenance(self) -> tuple[str | None, str | None]:
-        from .compat import IMAGE_INPUTS_FILE
-
         try:
             own = Path(IMAGE_INPUTS_FILE).read_text(encoding="utf-8").strip() or None
         except OSError:
@@ -516,17 +506,10 @@ class ImageRuntime(LocalRuntime):
         return own, own
 
     def db_size_mb(self) -> int | None:
-        from .runner import database_size_mb
-
         return database_size_mb()
 
     def update_db(self):
         """Trivy's own fetch, run here, into the job's cache (ADR-0012)."""
-        from . import cache, locking
-        from .adapters.trivy import database_fetch
-        from .engine import RESULTS, WORKSPACE, _mapped
-        from .invocation import ScannerOutput
-
         fetch = database_fetch()
         root = cache.root()
         (root / "trivy").mkdir(parents=True, exist_ok=True)

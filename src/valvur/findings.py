@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
+from .defang import neutralise
 from .fingerprint import FP_VERSION
 
 
@@ -136,8 +137,6 @@ class Finding:
         adapter is how SAST findings ended up carrying raw workspace lines while the
         AI-artifact check fenced its own. One place, applied to everything (F3.13).
         """
-        from .defang import neutralise
-
         if self.evidence:
             object.__setattr__(self, "evidence", neutralise(self.evidence))
         # The vocabulary, whatever a caller passed (28.4.1): a Scanner's word

@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .. import cache
 from .. import fingerprint as _fp
 from ..coverage import Coverage
 from ..findings import Dependency, Finding, Severity
@@ -40,12 +41,11 @@ def _refuses_offline(name: str, network: bool) -> bool:
     with the fix rather than arriving as the Check's stderr; the Check refuses
     too, in case the mount is empty or partial — this is the version a
     first-time user actually reads."""
-    from .. import cache
-
     return name == "dependency-reality" and not network and not cache.name_index_present()
 
 
 def single_command(name: str, workspace: Path, *, network: bool) -> Invocation:
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
     from ..checks.dependency_reality import INDEX_ENV, INDEX_MOUNT
 
     # The index's path by variable, as OSV-Scanner's database is named, so an engine
@@ -87,6 +87,7 @@ class CheckAdapter(ScannerAdapter):
         adapter used to answer this itself by testing `self.name` — ADR-0013's
         boundary crossed the wrong way, and a second place a Check's limits could
         be stated and drift from the first."""
+        # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
         from ..checks.registry import REGISTRY
 
         check = REGISTRY.get(self.name)

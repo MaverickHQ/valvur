@@ -19,13 +19,16 @@ from __future__ import annotations
 import platform
 from pathlib import Path
 
+from . import fileset, skill
+from .mcp import clients as _clients
+from .refusal import Refusal
+from .summary import CHECK_RULE
+
 #: A directory holding more than this share of the files is suggested as an exclude.
 SUGGEST_SHARE = 0.5
 
 
 def render(workspace: Path) -> str:
-    from .mcp import clients as _clients
-
     lines = ["valvur init prints and writes nothing: paste what you choose.", ""]
     present = _clients.found(workspace, Path.home(), platform.system())
     if not present:
@@ -36,7 +39,6 @@ def render(workspace: Path) -> str:
         lines += [f"{entry.name} reads {' or '.join(entry.files)}:", "",
                   f"```{_clients.fence(entry)}", _clients.snippet(entry).rstrip("\n"), "```",
                   "", f"Then: {entry.after}.", ""]
-    from . import skill
 
     # The skill, which tells an agent how to run valvur's workflow (R15.4, D40).
     for entry in present:
@@ -47,7 +49,6 @@ def render(workspace: Path) -> str:
               "before a flagged install, to every project: "
               "`/plugin marketplace add MaverickHQ/valvur`, then "
               "`/plugin install valvur@valvur`.", ""]
-    from .summary import CHECK_RULE
 
     lines += [f"For an agent working here: {CHECK_RULE.replace('**', '')}", ""]
     lines += [f"A starter `.security-scan.toml` for {workspace.name}, committed with it:",
@@ -57,9 +58,6 @@ def render(workspace: Path) -> str:
 
 def starter(workspace: Path) -> str:
     """The project file, every choice stated and every default left as it is."""
-    from . import fileset
-    from .refusal import Refusal
-
     try:
         files = fileset.build(workspace).files
     except Refusal:
@@ -99,8 +97,6 @@ def write(workspace: Path, keys: list[str] | None = None) -> tuple[list[str], bo
     """What `init --write` did, a line each, and whether all of it could be done:
     the project file, then each client named, or each found here (Claude Code when
     none is)."""
-    from .mcp import clients as _clients
-
     lines: list[str] = []
     policy = workspace / ".security-scan.toml"
     if policy.exists():
@@ -116,7 +112,6 @@ def write(workspace: Path, keys: list[str] | None = None) -> tuple[list[str], bo
         line, done = _write_client(workspace, entry)
         lines.append(line)
         ok = ok and done
-    from . import skill
 
     # The skill for each client that reads one (R15.4, D40), beside its server.
     lines += [skill.write_into(workspace, entry.key) for entry in chosen
@@ -128,8 +123,6 @@ def _write_client(workspace: Path, entry) -> tuple[str, bool]:
     """The valvur server into `entry`'s file in the project, merged; never over a
     file that names it already or that cannot be read."""
     import json
-
-    from .mcp import clients as _clients
 
     local = next((f for f in entry.files if not f.startswith("~") and " " not in f), None)
     if local is None:

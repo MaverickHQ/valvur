@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from . import cache as _cache
 from . import datasets as _datasets
+from . import levers
 from . import pipeline as _pipeline
 from . import profiles as _profiles
 from . import results as _results
@@ -93,8 +94,6 @@ def _refuse_total_failure(scanners: list[ScannerRun], budget_s, *, files: int,
         # Not "every scanner failed": the budget ran out, which is what killing
         # them looks like from inside (29.0.3). The message names what ran, what
         # did not start, and the three levers.
-        from . import levers
-
         raise BudgetExhausted(
             levers.budget_exhausted_message(scanners, budget_s, files=files, largest=largest),
             levers.budget_fields(scanners, budget_s, files=files, largest=largest))

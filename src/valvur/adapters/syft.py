@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..exclusions import load_scan_settings
 from ..findings import Finding
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter
@@ -36,8 +37,6 @@ class SyftAdapter(ScannerAdapter):
 
     def applies_to(self, workspace: Path,
                    context: ScanContext | None = None) -> tuple[bool, str]:
-        from ..exclusions import load_scan_settings
-
         settings = context.settings if context is not None else load_scan_settings(workspace)
         if self.enabled or settings.sbom:
             return True, ""

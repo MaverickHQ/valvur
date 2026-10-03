@@ -151,6 +151,7 @@ def instructions() -> str:
     with a short form of them, and leads with the verdict. Since R15.1 the skill's
     rules block is this text too, all three from `agent_rules`.
     """
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..agent_rules import plain
 
     return plain()

@@ -137,6 +137,7 @@ def update_reply(args: dict, *, progress=None) -> tuple[str, dict]:
     to `progress` when given, and the answer the list of what was fetched. An
     explicit request, so `fetch = never` does not refuse it: an air-gapped site runs
     it against its mirrors."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import service, updating
 
     said: list[str] = []
@@ -168,6 +169,7 @@ def _provenance(workspace: str | None) -> dict:
 def _staleness_note(workspace: str | None, *, found_nothing: bool) -> list[str]:
     """What an agent must be told when the data was too old to be evidence (the
     words are `reply`'s, one copy for every surface)."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from .reply import staleness_note
 
     return staleness_note(Path(workspace or ".").resolve(), _provenance(workspace),
@@ -263,6 +265,7 @@ def _structured_finding(finding: dict) -> dict:
     on the way out (F9.9) — idempotent on a `findings.json` this valvur wrote,
     where the model boundary already did it, and a guard on one an older valvur
     did. The reply is bounded by `limit` and by `defang.MAX_EVIDENCE` per entry."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import defang
 
     exploit = finding.get("exploit") or {}
@@ -341,6 +344,7 @@ def _explained(finding: dict) -> str:
         # Neutralised at the model boundary (F3.13, F9.9), and fenced here always
         # (29.3.3): quoted, never presented as prose the agent might read as
         # addressed to it — the markers `SUMMARY.md` says quoted text carries.
+        # deferred: startup; the MCP server loads this module before its handshake.
         from . import defang
 
         lines += ["", "Evidence:", defang.neutralise(finding["evidence"], always_fence=True)]
@@ -358,6 +362,7 @@ def doctor(args: dict, *, roots: list[Path] | None = None,
     """Every precondition a scan has, checked and named before one runs (23.3.1).
     Read-only; opens no socket unless `network` is asked for. `served` is the tools
     of the MCP server answering, when it is one (R6.9)."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import doctor as _doctor
 
     workspace = resolve_workspace(args.get("workspace"), roots=roots)
@@ -369,8 +374,8 @@ def check_package_reply(args: dict, *,
                         roots: list[Path] | None = None) -> tuple[str, dict]:
     """`check_package` (D28, F9.11): each package's answer, from this machine's cache
     and never from a registry, as `valvur check --json` gives them."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import packages
-    from .refusal import Refusal
 
     asked = args.get("packages") or []
     if not isinstance(asked, list) or not asked:
@@ -403,6 +408,7 @@ def status_of(workspace: Path, job=None, *, waited_s: float | None = None
     """Schema 2 (R6.2, ADR-0024): the fields, and the text rendered from them, for
     the scan of `workspace`: `job`'s state when a surface holds one that has not
     finished well, else what the Results Folder holds."""
+    # deferred: startup; the MCP server loads this module before its handshake.
     from . import reply
 
     fields = reply.fields(workspace, job, waited_s=waited_s)

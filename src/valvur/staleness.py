@@ -12,6 +12,8 @@ from __future__ import annotations
 from typing import Protocol
 
 from . import datasets as _datasets
+from . import osv_offline
+from .enrichment import LocalProvider
 
 
 class Aged(Protocol):
@@ -38,15 +40,11 @@ def data_ages(provider=None, osv=()) -> dict:
     say, and `absent` with no age when there is no copy. `osv` names the ecosystems
     whose offline database the scan read; `provider` the enrichment that ranked it,
     else KEV and EPSS are read afresh."""
-    from . import osv_offline
-
     def entry(age: float | None, basis: str) -> dict:
         return ({"age_days": None, "basis": "absent"} if age is None
                 else {"age_days": round(age, 2), "basis": basis})
 
     if provider is None:
-        from .enrichment import LocalProvider
-
         provider = LocalProvider()
     return {
         "database": entry(_datasets.DATABASE.age(), "built"),

@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import profiles as _profiles
+from . import settings
 from .settings import ENVIRONMENT as _ENVIRONMENT
 
 # ------------------------------------------------------------------- settings
@@ -57,8 +58,6 @@ DB_INSECURE_ENV = _ENVIRONMENT["db_insecure"]
 
 
 def db_repository() -> str | None:
-    from . import settings
-
     return settings.get("db_repository")
 
 
@@ -131,7 +130,6 @@ class Egress:
         mirror = db_repository()
         if mirror:
             flags += ["--env", f"{DB_REPOSITORY_ENV}={mirror}"]
-        from . import settings
 
         joined = settings.get("container_network")
         if joined:

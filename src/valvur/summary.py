@@ -20,8 +20,8 @@ from . import agent_rules as _agent_rules
 from . import coverage as _coverage
 from . import datasets as _datasets
 from . import grouping as _grouping
+from . import hygiene, levers, verdict
 from . import profiles as _profiles
-from . import verdict
 from .findings import exploit_badge as _exploit_badge
 from .staleness import db_is_stale as _db_is_stale
 from .staleness import index_is_stale as _index_is_stale
@@ -382,8 +382,6 @@ def _not_run(run: ScanRun, notes) -> list[str]:
         lines += ["", "**This scan is incomplete.** Findings below are partial.", ""]
         if run.budget_cut and run.budget_s is not None:
             # The cut and what to turn, in the same breath (29.0.3).
-            from . import levers
-
             lines += [f"> The {run.budget_s:g}s budget cut {', '.join(run.budget_cut)}. "
                       f"{levers.LEVERS}", ""]
 
@@ -489,8 +487,6 @@ def _top(active) -> list[str]:
 
 def _hygiene(run: ScanRun) -> list[str]:
     """Facts about the repository, never Findings and never the Status (D13)."""
-    from . import hygiene
-
     said = hygiene.lines(run.hygiene)
     if not said:
         return []

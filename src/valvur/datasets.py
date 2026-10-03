@@ -16,41 +16,33 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from . import cache, enrichment, epss, osv_offline
+
 
 def _database_age(_: str | None) -> float | None:
-    from . import cache
-
     return cache.db_age_days() if cache.db_present() else None
 
 
 def _index_age(_: str | None) -> float | None:
-    from . import cache
-
     return cache.name_index_age_days() if cache.name_index_present() else None
 
 
 def _malicious_age(_: str | None) -> float | None:
-    from . import cache
+    # deferred: startup; the registry client and the TLS stack load only for a fetch or a Check.
     from .name_index import malicious
 
     return malicious.age_days(cache.name_index())
 
 
 def _kev_age(_: str | None) -> float | None:
-    from . import enrichment
-
     return enrichment.LocalProvider().kev_age_days
 
 
 def _epss_age(_: str | None) -> float | None:
-    from . import epss
-
     return epss.age()[0]
 
 
 def _osv_age(ecosystem: str | None) -> float | None:
-    from . import osv_offline
-
     return osv_offline.age(ecosystem)[0] if ecosystem else None
 
 

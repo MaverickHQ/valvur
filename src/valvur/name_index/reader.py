@@ -29,6 +29,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .. import cache
 from .. import ecosystems as _ecosystems
 from ..settings import ENVIRONMENT as _ENVIRONMENT
 
@@ -196,8 +197,6 @@ def _now() -> str:
 
 
 def _age_days(stamp: object) -> float | None:
-    from .. import cache
-
     return cache.stamp_age_days(stamp)
 
 

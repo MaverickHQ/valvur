@@ -15,6 +15,7 @@ from . import datasets as _datasets
 from . import egress as _egress
 from . import profiles as _profiles
 from . import staleness as _staleness
+from .adapters.opengrep import RULE_SETS
 from .fingerprint import FP_VERSION
 
 # One Scanner's record is core's (D50); named here as ever.
@@ -215,6 +216,4 @@ def _round_or_none(value: float | None) -> float | None:
 
 
 def _rule_sets() -> dict[str, str]:
-    from .adapters.opengrep import RULE_SETS
-
     return RULE_SETS

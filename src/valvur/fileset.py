@@ -11,7 +11,14 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .exclusions import RESULTS_DIR, ScanSettings  # a leaf: results would close a cycle
+from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
+from .exclusions import (  # a leaf: results would close a cycle
+    RESULTS_DIR,
+    ScanSettings,
+    is_configured_out,
+    load_scan_settings,
+)
+from .refusal import Refusal
 
 
 def git() -> str | None:
@@ -171,8 +178,6 @@ def _kept_when_ignored(rel: str) -> bool:
     project keeps out of git is still what its agent obeys)."""
     from pathlib import PurePosixPath
 
-    from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
-
     path = PurePosixPath(rel)
     parents = set(path.parts[:-1])
     return (path.name.startswith(".env") or path.name in ARTIFACT_NAMES
@@ -230,8 +235,6 @@ def _ignored(workspace: Path) -> tuple[list[str], list[tuple[str, str]]]:
 
 def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
     """The project's `[scan] exclude`, applied once, root-relative (ADR-0021)."""
-    from .exclusions import is_configured_out
-
     if not prefixes:
         return result
     result.files = [f for f in result.files if not is_configured_out(f, prefixes)]
@@ -242,8 +245,6 @@ def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
 def build(workspace: Path, settings: ScanSettings | None = None) -> FileSet:
     """The File Set; `settings` is the project's `[scan]` table when the caller has
     already read it, as a scan context has (D52d)."""
-    from .exclusions import load_scan_settings
-
     settings = settings if settings is not None else load_scan_settings(workspace)
     prefixes = settings.exclude
     # `scope = "tree"` walks instead, for a user who wants it (ADR-0021, decision 7).
@@ -264,8 +265,6 @@ def build(workspace: Path, settings: ScanSettings | None = None) -> FileSet:
     if (workspace / ".git").exists() and git() is None:
         result.note = NO_GIT
     if len(result.files) > CEILING:
-        from .refusal import Refusal
-
         raise Refusal(f"Refused before any Scanner started: {workspace} is not a git "
                       f"repository and holds {_ceiling_sentence(result.files)}, or scan "
                       "a repository, whose ignored files are left out.")

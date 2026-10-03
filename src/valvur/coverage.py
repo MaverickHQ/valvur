@@ -29,8 +29,11 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from . import ecosystems as _ecosystems
+from . import fileset
 from . import fingerprint as _fp
+from . import requirements as _requirements
 from .findings import Finding, Severity
+from .refusal import Refusal
 
 # The note rules are the verdict's (D52b): defined there, named here as ever.
 from .verdict import (
@@ -93,9 +96,6 @@ def _listed(workspace: Path, files: list[str] | None) -> list[str]:
     """The File Set (ADR-0021, R3.9), as the scan's context holds it when given: an
     installed `node_modules` is full of other people's manifests, and git ignores
     it, so it is not what was scanned."""
-    from . import fileset
-    from .refusal import Refusal
-
     if files is not None:
         return files
     try:
@@ -235,8 +235,6 @@ def _unpinned_requirements(workspace: Path, found: list[str]) -> str | None:
     a file of ranges reads as checked while nothing was, and a mixed file is
     *partly* checked — the note says how much, per file.
     """
-    from . import requirements as _requirements
-
     if any(not _requirements.is_requirements_file(rel) for rel in found):
         return None                                   # a lockfile is present
     unpinned: list[str] = []

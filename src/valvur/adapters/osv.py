@@ -13,6 +13,7 @@ from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..findings import Dependency, Exploit, Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
+from ..osv_offline import MOUNT
 from ..versions import version_key as _version_key
 from .base import ScannerAdapter, container_relative
 
@@ -39,8 +40,6 @@ class OsvAdapter(ScannerAdapter):
         return told
 
     def command(self, workspace: Path) -> Invocation:
-        from ..osv_offline import MOUNT
-
         if not self.network:
             # R4.6, measured in R4.1: the offline database, per ecosystem, from the
             # host cache; it carries the MAL- entries nothing else in valvur has.
