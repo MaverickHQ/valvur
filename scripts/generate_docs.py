@@ -208,6 +208,71 @@ def protocol_labels() -> str:
     ))
 
 
+#: The settings a mirror needs, in the order AIR-GAPPED.md gives them, and what each
+#: does; each variable is `settings.ENVIRONMENT`'s, `=1` after a switch.
+MIRROR_SETTINGS: dict[str, str] = {
+    'db_repository': (
+        'The OCI repository Trivy fetches its database from.'),
+    'db_insecure': (
+        'Allows plain HTTP, or a certificate the container does not trust. Trivy assumes TLS '
+        'for any registry that is not `localhost` or a private-range IP literal; without this '
+        'an internal mirror on HTTP fails with *"server gave HTTP response to HTTPS client"*. '
+        'Found by the first real test, not by reading the docs.'),
+    'index_repository': (
+        'The OCI repository the package-name index is pulled from, `host/name[:tag]`. Default '
+        '`ghcr.io/maverickhq/valvur-index:latest`. Set explicitly, it is the only source '
+        'tried: a mirror that fails is reported, not worked around by walking the registries. '
+        "The known-malicious list is pulled from the same repository's `malicious` tag."),
+    'index_insecure': (
+        'Plain HTTP, or an untrusted certificate, for that repository. The shim pulls the '
+        "index itself, no container involved, so this is the shim's own switch, not Trivy's."),
+    'name_index_url': (
+        "A URL under which the index's files, `pypi.txt`, `npm.txt`, `rubygems.txt`, "
+        '`packagist.txt`, `crates.txt` and `metadata.json`, are served verbatim, and the '
+        "known-malicious list's under `malicious/`, as `valvur update` leaves them in the "
+        'cache. Wins over the repository when both are set.'),
+    'kev_url': (
+        'A URL for the CISA KEV catalog JSON. Without it, an air-gapped `valvur update` tries '
+        'cisa.gov, fails softly, and keeps the snapshot shipped in the image.'),
+    'epss_url': (
+        "A URL for FIRST's daily EPSS file, `epss_scores-current.csv.gz`, served verbatim. "
+        'Without it, an air-gapped `valvur update` tries epss.cyentia.com, fails softly, and '
+        'findings rank without EPSS.'),
+    'osv_url': (
+        "A URL under which OSV's databases are served as `<ecosystem>/all.zip`, OSV's own "
+        'layout. The shim fetches them itself.'),
+    'image': (
+        'The image, from any registry: a mirror of `ghcr.io/maverickhq/valvur`.'),
+    'fetch': (
+        '`never` stops every fetch a scan would make on its own (ADR-0025); `valvur update` '
+        'and the `update` tool still fetch from the mirrors when asked.'),
+    'container_network': (
+        'The container network the **update** container joins, when the mirror registry lives '
+        'on a named one. Never applied to a scan container: `--network=none` is not '
+        'negotiable. The variable still works through 1.x, and says so once.'),
+}
+SWITCHES = frozenset({'db_insecure', 'index_insecure'})
+
+
+def settings_table() -> str:
+    """The settings a mirror needs, each with its variable, from `settings.ENVIRONMENT`;
+    a mirror setting the code adds and this does not describe is refused."""
+    from valvur import settings
+
+    unknown = sorted(set(MIRROR_SETTINGS) - set(settings.ENVIRONMENT))
+    mirrors = {k for k in settings.ENVIRONMENT if k.endswith(("_url", "_repository", "_insecure"))}
+    missing = sorted(mirrors - set(MIRROR_SETTINGS))
+    if unknown or missing:
+        raise SystemExit(f"MIRROR_SETTINGS: no such setting {unknown}; undescribed {missing}")
+
+    def variable(key: str) -> str:
+        name = settings.ENVIRONMENT[key] + ("=1" if key in SWITCHES else "")
+        return f"`{name}`" + (", retired to the file" if key in settings.RETIRED else "")
+
+    return _table(("key", "variable", "what it does"),
+                  ((f"`{key}`", variable(key), text) for key, text in MIRROR_SETTINGS.items()))
+
+
 BLOCKS: dict[str, Callable[[], str]] = {
     "mcp-tools": mcp_tools,
     "agent-rules": agent_rules,
@@ -216,10 +281,12 @@ BLOCKS: dict[str, Callable[[], str]] = {
     "protocol-paths": protocol_paths,
     "protocol-binaries": protocol_binaries,
     "protocol-labels": protocol_labels,
+    "settings": settings_table,
 }
 FILES: tuple[Path, ...] = (
     REPO / "README.md",
     REPO / "docs" / "PROTOCOL.md",
+    REPO / "docs" / "AIR-GAPPED.md",
     SKILL / "SKILL.md",
     SKILL / "references" / "tools.md",
 )
