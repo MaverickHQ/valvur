@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from . import agent_rules as _agent_rules
 from . import coverage as _coverage
+from . import datasets as _datasets
 from . import grouping as _grouping
 from . import profiles as _profiles
 from .findings import exploit_badge as _exploit_badge
@@ -161,7 +162,7 @@ def _qualifiers(run: ScanRun, findings) -> list[str]:
         ]
 
     age = run.kev_age_days
-    if age is not None and age > 30:
+    if _datasets.KEV.warns(age):
         lines += [
             f"> ⚠ Exploit intelligence is {age:.0f} days old. Run `valvur update`.",
             "> Confident answers from stale data are worse than no answer.",

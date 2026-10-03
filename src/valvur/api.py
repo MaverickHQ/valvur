@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import cache as _cache
+from . import datasets as _datasets
 from . import egress as _egress
 from . import hygiene as _hygiene
 from . import osv_offline as _osv_offline
@@ -275,14 +276,14 @@ class ScanRun:
         if _staleness.db_is_stale(self):
             reasons.append(
                 f"the vulnerability database is {self.db_age_days:.0f} days old "
-                f"(threshold {_cache.DB_STALE_AFTER_DAYS})"
+                f"(threshold {_datasets.DATABASE.inconclusive_after_days:g})"
             )
         # The same rule for the name index (ADR-0018): "no hallucinated packages"
         # from a month-old list of names is not a claim about today's registry.
         if _staleness.index_is_stale(self):
             reasons.append(
                 f"the package-name index is {self.name_index_age_days:.0f} days old "
-                f"(threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS})"
+                f"(threshold {_datasets.NAME_INDEX.inconclusive_after_days:g})"
             )
         if reasons and _settings.fetch() == _settings.NEVER:
             # Why it was not refreshed (ADR-0025): the machine said never.
@@ -388,8 +389,8 @@ def _ensure_data(runner, on_progress, *, workspace=None,
     fetched: list[dict] = []
     unfetched: dict[str, str] = {}
 
-    db_age = _cache.db_age_days() if _cache.db_present() else None
-    if db_age is None or db_age > _cache.DB_STALE_AFTER_DAYS:
+    db_age = _datasets.DATABASE.age()
+    if _datasets.DATABASE.due(db_age):
         # Absent since 24.1; stale since ADR-0025 (R6.6), reversing 14.2: an agent has
         # no terminal, and a week-old database left it `inconclusive` with no way out.
         db_size = runner.db_size_mb()
@@ -410,10 +411,10 @@ def _ensure_data(runner, on_progress, *, workspace=None,
                 _egress.db_repository() or _egress.DEFAULT_DB_REPOSITORY, db_size, seconds))
 
     _stop_if_cancelled(runner, "during the first run's fetches")
-    index_age = _cache.name_index_age_days() if _cache.name_index_present() else None
+    index_age = _datasets.NAME_INDEX.age()
     # Past two days, not thirty (D24): the index is published daily, and a real
     # package published since the last pull read as hallucinated, at high.
-    if index_age is None or index_age > _cache.INDEX_REFRESH_AFTER_DAYS:
+    if _datasets.NAME_INDEX.due(index_age):
         from . import locking, name_index
 
         index_size = name_index.published.published_size_mb()
@@ -456,8 +457,8 @@ def _ensure_malicious(say, fetched: list[dict]) -> None:
 
     if not _cache.name_index_present():
         return                       # nothing to put it beside; the index said why
-    age = malicious.age_days(_cache.name_index())
-    if age is not None and age <= _cache.INDEX_REFRESH_AFTER_DAYS:
+    age = _datasets.MALICIOUS.age()
+    if not _datasets.MALICIOUS.due(age):
         return
     say("fetching the malicious list — the first run only" if age is None else
         f"refreshing the malicious list ({age:.0f} days old)")
@@ -483,8 +484,8 @@ def _ensure_kev(say, fetched: list[dict]) -> None:
     KEV ranks findings and finds none."""
     from . import enrichment, updating
 
-    _, age, _, _, _ = enrichment._load_kev()
-    if age is not None and age <= _cache.KEV_REFRESH_AFTER_DAYS:
+    age = _datasets.KEV.age()
+    if not _datasets.KEV.due(age):
         return
     say("refreshing KEV" + (f" ({age:.0f} days old)" if age is not None else ""))
     started = time.monotonic()
@@ -501,8 +502,8 @@ def _ensure_epss(say, fetched: list[dict]) -> None:
     scores in use, or ranks without EPSS, and costs no Scanner."""
     from . import epss, settings, updating
 
-    age, _ = epss.age()
-    if age is not None and age <= _cache.EPSS_REFRESH_AFTER_DAYS:
+    age = _datasets.EPSS.age()
+    if not _datasets.EPSS.due(age):
         return
     say("fetching EPSS scores (about 3MB) — the first run only" if age is None else
         f"refreshing EPSS ({age:.0f} days old)")
@@ -525,7 +526,7 @@ def _ensure_osv(workspace, say, fetched: list[dict], unfetched: dict[str, str]) 
         files = fileset.build(workspace).files
     except Refusal:
         return                       # the scan refuses the walk itself, with the reason
-    records, failed = osv_offline.ensure(files, say)
+    records, failed = osv_offline.ensure(files, say, due=_datasets.OSV.due)
     fetched += records
     if failed:
         unfetched["osv-scanner"] = ("the OSV offline database could not be fetched: "

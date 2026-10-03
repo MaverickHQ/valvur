@@ -12,7 +12,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from . import cache as _cache
+from . import datasets as _datasets
 from . import egress as _egress
 from . import profiles as _profiles
 from . import staleness as _staleness
@@ -139,7 +139,7 @@ def render(run: ScanRun) -> str:
                     "age_days": _round_or_none(run.db_age_days),
                     "overdue_days": _round_or_none(run.db_overdue_days),
                     "stale": _staleness.db_is_stale(run),
-                    "stale_after_days": _cache.DB_STALE_AFTER_DAYS,
+                    "stale_after_days": _datasets.DATABASE.inconclusive_after_days,
                 },
                 # ADR-0018. The list of names that decides whether a dependency
                 # EXISTS, as the database decides whether a CVE does. `present` is
@@ -149,7 +149,7 @@ def render(run: ScanRun) -> str:
                     "present": run.name_index_age_days is not None,
                     "age_days": _round_or_none(run.name_index_age_days),
                     "stale": _staleness.index_is_stale(run),
-                    "stale_after_days": _cache.NAME_INDEX_STALE_AFTER_DAYS,
+                    "stale_after_days": _datasets.NAME_INDEX.inconclusive_after_days,
                 },
                 # R13.3: the static-analysis rule sets beside valvur's own, each at
                 # its source's commit, so a finding traces to the rule's text.

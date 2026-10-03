@@ -37,7 +37,6 @@ KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulner
 #: holding a copy of it will do (22.B.3, `docs/AIR-GAPPED.md`).
 KEV_URL_ENV = "VALVUR_KEV_URL"
 
-STALE_AFTER_DAYS = 30
 #: F6.2: the KEV snapshot shipped in the image, ransomware-campaign flag included
 #: (`r` in each entry), refreshed into the host cache by `valvur update`.
 _BUNDLED = Path(__file__).resolve().parent / "data" / "kev.json"
@@ -90,10 +89,6 @@ class LocalProvider:
     def epss_age_basis(self) -> str:
         """`scored` from the file's own date, `fetched` from its time (D23)."""
         return self._epss_basis
-
-    @property
-    def is_stale(self) -> bool:
-        return self._kev_age is not None and self._kev_age > STALE_AFTER_DAYS
 
     def enrich(self, findings: list[Finding]) -> list[Finding]:
         # F6.1: every Finding carrying a CVE gets its Exploit Signals, KEV and EPSS,

@@ -32,24 +32,23 @@ def database_due() -> bool:
     Trivy stamps `NextUpdate` in its own metadata, so being past due is knowable for
     free, and `UpdatedAt` says when the data was built: both, because a mirror can
     serve old data with a forward-dated `NextUpdate` (2026-09-05)."""
-    from . import cache
+    from . import cache, datasets
 
     if not cache.db_present():
         return True
     overdue = cache.db_overdue_days()
     if overdue is None or overdue > 0:
         return True
-    age = cache.db_age_days()
-    return age is None or age > cache.DB_STALE_AFTER_DAYS
+    return datasets.DATABASE.due(datasets.DATABASE.age())
 
 
 def index_due() -> bool:
     """Absent, unreadable, past the threshold that makes a scan `inconclusive`, or
     missing an ecosystem this version indexes (ADR-0018)."""
-    from . import cache, name_index
+    from . import cache, datasets, name_index
 
-    age = cache.name_index_age_days()
-    if age is None or age > cache.NAME_INDEX_STALE_AFTER_DAYS:
+    age = datasets.NAME_INDEX.age()
+    if age is None or datasets.NAME_INDEX.stale(age):
         return True
     directory = cache.name_index()
     return any(not (directory / filename).is_file() for filename in name_index.FILES.values())
@@ -202,9 +201,10 @@ def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
     which ecosystems it needs."""
     if workspace is None:
         return
-    from . import fileset, osv_offline
+    from . import datasets, fileset, osv_offline
 
-    records, failed = osv_offline.ensure(fileset.build(workspace).files, say)
+    records, failed = osv_offline.ensure(fileset.build(workspace).files, say,
+                                         due=datasets.OSV.due)
     updated.fetched += [record["what"] for record in records]
     if failed:
         updated.ok = False

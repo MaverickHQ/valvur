@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from valvur import cache
+from valvur import cache, datasets
 from valvur.api import ScanRun
 from valvur.provenance import render as _provenance
 from valvur.summary import render as _summary
@@ -87,8 +87,10 @@ def test_the_threshold_is_tighter_than_the_enrichment_one():
     """Justified rather than chosen. Trivy rebuilds every 24 hours, so seven days is
     seven missed rebuilds. KEV's 30 days is looser on purpose: it changes how
     findings rank, not whether they are found."""
-    assert cache.DB_STALE_AFTER_DAYS < cache.STALE_AFTER_DAYS
-    assert cache.DB_STALE_AFTER_DAYS == 7
+    from valvur import datasets
+
+    assert datasets.DATABASE.inconclusive_after_days < datasets.KEV.warn_after_days
+    assert datasets.DATABASE.inconclusive_after_days == 7
 
 
 # ------------------------------------------------ a stale clean is not a clean
@@ -145,7 +147,7 @@ def test_run_json_records_enough_to_judge_a_clean_result_afterwards():
         "age_days": 9.4,
         "overdue_days": 8.4,
         "stale": True,
-        "stale_after_days": cache.DB_STALE_AFTER_DAYS,
+        "stale_after_days": datasets.DATABASE.inconclusive_after_days,
     }
 
 
@@ -209,7 +211,8 @@ def test_with_fetch_never_valvur_never_updates_a_database_it_has(tmp_path, monke
 
     run = scan(workspace, runner=Runner(), adapters=[GitleaksAdapter()])
 
-    assert run.db_age_days is not None and run.db_age_days > cache.DB_STALE_AFTER_DAYS
+    assert run.db_age_days is not None
+    assert run.db_age_days > datasets.DATABASE.inconclusive_after_days
 
 
 # ------------------------- the machine-readable claim, not just the prose (14.2)

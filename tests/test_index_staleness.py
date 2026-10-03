@@ -13,12 +13,12 @@ import json
 
 import pytest
 
-from valvur import cache, operations
+from valvur import cache, datasets, operations
 from valvur.api import ScanRun
 from valvur.provenance import render as _provenance
 from valvur.summary import render as _summary
 
-STALE = cache.NAME_INDEX_STALE_AFTER_DAYS + 5.0
+STALE = datasets.NAME_INDEX.inconclusive_after_days + 5.0
 
 
 # ------------------------------------------------------------------ the verdict
@@ -29,7 +29,7 @@ def test_a_stale_index_with_nothing_found_is_inconclusive():
     )
 
 
-@pytest.mark.parametrize("age", [0.0, 1.0, cache.NAME_INDEX_STALE_AFTER_DAYS - 0.5])
+@pytest.mark.parametrize("age", [0.0, 1.0, datasets.NAME_INDEX.inconclusive_after_days - 0.5])
 def test_a_fresh_index_leaves_a_clean_result_clean(age):
     assert ScanRun(findings=[], profile="offline", name_index_age_days=age).status == "clean"
 
@@ -55,8 +55,10 @@ def test_the_threshold_is_justified_not_chosen():
     """Thirty days: ~16,000 PyPI and ~48,000 npm names of drift, and the KEV
     threshold already reported beside it. Looser than the database's seven because
     the failure direction is the opposite — an old index overstates, it does not miss."""
-    assert cache.NAME_INDEX_STALE_AFTER_DAYS == 30
-    assert cache.NAME_INDEX_STALE_AFTER_DAYS > cache.DB_STALE_AFTER_DAYS
+    from valvur import datasets
+
+    assert datasets.NAME_INDEX.inconclusive_after_days == 30
+    assert datasets.NAME_INDEX.inconclusive_after_days > datasets.DATABASE.inconclusive_after_days
 
 
 # --------------------------------------------------------------------- run.json
@@ -70,7 +72,7 @@ def test_run_json_records_the_index_age_so_a_clean_result_stays_falsifiable():
         "present": True,
         "age_days": STALE,
         "stale": True,
-        "stale_after_days": cache.NAME_INDEX_STALE_AFTER_DAYS,
+        "stale_after_days": datasets.NAME_INDEX.inconclusive_after_days,
     }
     assert document["status"] == "inconclusive"
 

@@ -64,6 +64,7 @@ infra = [
     "valvur.checks.licence_file",
     "valvur.compat",
     "valvur.coverage",
+    "valvur.datasets",
     "valvur.ecosystems",
     "valvur.ecosystems.locked",
     "valvur.ecosystems.parsers",

@@ -365,14 +365,17 @@ def _check_database() -> Check:
     if not _cache.db_present():
         return Check("database", "info", "not present; the first scan fetches it and says "
                      f"so ({_cache.fetch_note('database')}, about 1.4 GB on disk)")
-    age = _cache.db_age_days()
+    from . import datasets
+
+    age = datasets.DATABASE.age()
     if age is None:
         return Check("database", "warn", "present, but its age cannot be read; a scan "
                      "that finds nothing reads inconclusive", "valvur update")
-    if age > _cache.DB_STALE_AFTER_DAYS:
+    if datasets.DATABASE.stale(age):
         return Check(
             "database", "warn",
-            f"{age:.1f} days old (threshold {_cache.DB_STALE_AFTER_DAYS}); a scan that "
+            f"{age:.1f} days old (threshold "
+            f"{datasets.DATABASE.inconclusive_after_days:g}); a scan that "
             "finds nothing reads inconclusive",
             "valvur update — or `valvur update --if-stale` from a hook, which costs one "
             "file read when current",
@@ -402,7 +405,9 @@ def _check_index() -> Check:
     )
     missing = [eco for eco, filename in name_index.FILES.items()
                if not (directory / filename).is_file()]
-    age = _cache.name_index_age_days()
+    from . import datasets
+
+    age = datasets.NAME_INDEX.age()
     aged = f"{age:.1f} days old" if age is not None else "age unknown"
     if missing:
         return Check(
@@ -411,10 +416,11 @@ def _check_index() -> Check:
             "those dependencies fails its existence check",
             "valvur update",
         )
-    if age is None or age > _cache.NAME_INDEX_STALE_AFTER_DAYS:
+    if age is None or datasets.NAME_INDEX.stale(age):
         return Check(
             "index", "warn",
-            f"{aged} (threshold {_cache.NAME_INDEX_STALE_AFTER_DAYS}) — {counts}; a name "
+            f"{aged} (threshold {datasets.NAME_INDEX.inconclusive_after_days:g}) — "
+            f"{counts}; a name "
             "registered since is reported as nonexistent",
             "valvur update",
         )

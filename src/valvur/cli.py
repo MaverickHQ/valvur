@@ -169,10 +169,10 @@ def _warn_if_name_index_stale(run) -> None:
     """The index's counterpart to the warning above (ADR-0018). Its failure
     direction is the opposite — an old index overstates rather than misses — so it
     gets its own sentence rather than a copy of the database's."""
-    from . import cache
+    from . import datasets
 
     age = run.name_index_age_days
-    if age is None or age <= cache.NAME_INDEX_STALE_AFTER_DAYS:
+    if not datasets.NAME_INDEX.stale(age):
         return
     print(f"  ! the package-name index is {age:.0f} days old. Run `valvur update`.",
           file=sys.stderr)
@@ -186,10 +186,10 @@ def _warn_if_database_stale(run) -> None:
     Until 2026-09-05 the age of the database that decides whether findings exist was
     computed and reported nowhere at all.
     """
-    from . import cache
+    from . import datasets
 
     age = run.db_age_days
-    if age is None or age <= cache.DB_STALE_AFTER_DAYS:
+    if not datasets.DATABASE.stale(age):
         return
 
     unsuppressed = [f for f in run.findings if not f.suppressed]

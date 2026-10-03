@@ -64,11 +64,6 @@ def absent(names: list[str]) -> list[str]:
     return [name for name in names if not path(name).is_file()]
 
 
-#: An OSV database older than this is refreshed by a scan (ADR-0025): the same
-#: week as the vulnerability database's, since both carry advisories.
-STALE_AFTER_DAYS = 7
-
-
 #: Where each fetch keeps its export's date (D23): beside the databases, not in
 #: OSV-Scanner's own layout.
 AGES = "ages.json"
@@ -103,15 +98,11 @@ def age(name: str) -> tuple[float | None, str]:
     return (time.time() - path(name).stat().st_mtime) / 86400, "fetched"
 
 
-def stale(names: list[str]) -> list[str]:
-    """The present databases older than `STALE_AFTER_DAYS`, by the export's own date
-    where the fetch kept it (R11.2): a mirror can serve an old export today."""
-    found = []
-    for name in names:
-        days, _ = age(name)
-        if days is not None and days > STALE_AFTER_DAYS:
-            found.append(name)
-    return found
+def stale(names: list[str], due: Callable[[float | None], bool]) -> list[str]:
+    """The present databases `due` says are old enough to refresh, by the export's
+    own date where the fetch kept it (R11.2): a mirror can serve an old export today.
+    `due` is the datasets table's (D52a), which this module does not import."""
+    return [name for name in names if path(name).is_file() and due(age(name)[0])]
 
 
 def fetch(name: str, opener: Callable | None = None, timeout: float = 600) -> dict:
@@ -154,7 +145,8 @@ def _keep_age(name: str, published: str | None) -> None:
     (directory() / AGES).write_text(json.dumps(ages, indent=1) + "\n", encoding="utf-8")
 
 
-def ensure(files: list[str], say: Callable[[str], None]) -> tuple[list[dict], list[str]]:
+def ensure(files: list[str], say: Callable[[str], None], *,
+           due: Callable[[float | None], bool]) -> tuple[list[dict], list[str]]:
     """OSV's database for each ecosystem `files` hold a lockfile for, fetched when
     absent or stale (R4.6, ADR-0025), each under the cache lock and said: the
     records `run.json` keeps, and a sentence per failure. What a scan does before
@@ -162,13 +154,13 @@ def ensure(files: list[str], say: Callable[[str], None]) -> tuple[list[dict], li
     from . import cache, locking
 
     names = needed(files)
-    missing, old = absent(names), stale(names)
+    missing, old = absent(names), stale(names, due)
     records: list[dict] = []
     failed: list[str] = []
     for name in missing + old:
         say(f"fetching the OSV database for {name} — the first run for it only"
             if name in missing else
-            f"refreshing the OSV database for {name} (over {STALE_AFTER_DAYS} days old)")
+            f"refreshing the OSV database for {name} ({age(name)[0] or 0:.0f} days old)")
         try:
             with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
                 record = fetch(name)

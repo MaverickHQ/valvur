@@ -11,20 +11,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import cache as _cache
+from . import datasets as _datasets
 
 if TYPE_CHECKING:
     from .api import ScanRun
 
 
 def db_is_stale(run: ScanRun) -> bool:
-    age = run.db_age_days
-    return age is not None and age > _cache.DB_STALE_AFTER_DAYS
+    return _datasets.DATABASE.stale(run.db_age_days)
 
 
 def index_is_stale(run: ScanRun) -> bool:
-    age = run.name_index_age_days
-    return age is not None and age > _cache.NAME_INDEX_STALE_AFTER_DAYS
+    return _datasets.NAME_INDEX.stale(run.name_index_age_days)
 
 
 def data_ages(provider=None, osv=()) -> dict:
@@ -35,7 +33,6 @@ def data_ages(provider=None, osv=()) -> dict:
     whose offline database the scan read; `provider` the enrichment that ranked it,
     else KEV and EPSS are read afresh."""
     from . import osv_offline
-    from .name_index import malicious
 
     def entry(age: float | None, basis: str) -> dict:
         return ({"age_days": None, "basis": "absent"} if age is None
@@ -45,11 +42,10 @@ def data_ages(provider=None, osv=()) -> dict:
         from .enrichment import LocalProvider
 
         provider = LocalProvider()
-    index = _cache.name_index_age_days() if _cache.name_index_present() else None
     return {
-        "database": entry(_cache.db_age_days(), "built"),
-        "name_index": entry(index, "built"),
-        "malicious": entry(malicious.age_days(_cache.name_index()), "built"),
+        "database": entry(_datasets.DATABASE.age(), "built"),
+        "name_index": entry(_datasets.NAME_INDEX.age(), "built"),
+        "malicious": entry(_datasets.MALICIOUS.age(), "built"),
         "kev": entry(provider.kev_age_days, provider.kev_age_basis or "fetched"),
         "epss": entry(provider.epss_age_days, provider.epss_age_basis or "fetched"),
         "osv": {name: entry(*osv_offline.age(name)) for name in osv},

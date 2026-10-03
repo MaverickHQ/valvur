@@ -16,32 +16,6 @@ from typing import Protocol
 from . import ecosystems as _ecosystems
 from .version import IMAGE_REPOSITORY, __version__
 
-STALE_AFTER_DAYS = 30
-
-#: When a clean result stops being trustworthy. Trivy rebuilds its database every
-#: 24 hours — `NextUpdate` is always `UpdatedAt + 24h` — so seven days is seven
-#: missed rebuilds, not a number chosen because it sounded careful. Being a few
-#: hours past due is normal and says nothing; a week of missed advisories is the
-#: difference between "we looked and found nothing" and "we did not look recently
-#: enough to know".
-DB_STALE_AFTER_DAYS = 7
-
-#: When the package-name index stops being evidence (ADR-0018). Thirty days is
-#: roughly 16,000 PyPI and 48,000 npm names of drift, and matches the KEV threshold
-#: already reported beside it. The failure direction is the opposite of the
-#: database's: an old index is MISSING names, so it overstates — a package newer than
-#: the index is reported nonexistent — rather than letting a hallucination through.
-#: The threshold keeps the answer's age visible; it is not a cliff.
-NAME_INDEX_STALE_AFTER_DAYS = 30
-
-#: When a scan refreshes what it reads (D24, F10.9, ADR-0027): the index and EPSS,
-#: published daily, and KEV, released most days, once over two days old. These are
-#: not the thresholds above, which decide when a verdict is `inconclusive`: fresh
-#: data is fetched well before old data stops being evidence.
-INDEX_REFRESH_AFTER_DAYS = 2
-KEV_REFRESH_AFTER_DAYS = 2
-EPSS_REFRESH_AFTER_DAYS = 2
-
 
 def root() -> Path:
     from . import settings
