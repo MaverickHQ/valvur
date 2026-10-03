@@ -574,11 +574,17 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
   for `index_form`, and `grouping` reaches `coverage` for `NOTE_RULES`. An entry that
   stops happening fails until it is removed. `verify.sh` runs it as `layers`, held by a
   test that runs the gate with a recording `uv`.
-- [ ] **R23.3** **The package loads only what is asked** (D50). Behaviours:
+- [x] **R23.3** **The package loads only what is asked** (D50). Behaviours:
   1. `from valvur import scan, ScanRun, ScannerFailed, Finding, __version__` still works;
   2. `import valvur.hook` loads neither `api` nor `pipeline`, and a test counts the
      modules it loads;
   3. the hook's import time is in the STATUS, against R23.1's.
+  **STATUS 2026-10-03:** ✅ all three. `valvur/__init__.py` exports its five names through
+  PEP 562's `__getattr__`, and `import valvur` loads nothing else. `import valvur.hook`
+  loads 11 of valvur's modules, down from 52 (the hook, `installs`, `packages`, `cache`,
+  `version` and the five `ecosystems` modules), neither `api` nor `pipeline`, and a test
+  holds the count. Its cost: 0.075 s in-process against 0.13 s, and as a process a median
+  0.10 s against 0.17 s, five runs each, on the cloud VM.
 - [ ] **R23.4** **One scan service** (D51). Behaviours:
   1. the CLI's `scan` and the MCP tool both run through `service.run_scan`; a test
      replaces it and drives both surfaces;
