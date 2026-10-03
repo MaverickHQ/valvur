@@ -15,9 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-03).** **`1.3.1` is published** (R18's install hook, D44); `1.2.0` took the Score
-to **64.9**. [The review](docs/history/REVIEW-2026-10-03.md) found the host side unlayered and
-scoped 2.0 (D57); R23 layered it, R24 lightened CI. **Next:** R20, R25, R21, R22; R19 (2026-11-19).
+**Status (2026-10-03).** **`1.3.1` is published** (D44); `1.2.0` took the Score to **64.9**, R20 to
+**65.2**. [The review](docs/history/REVIEW-2026-10-03.md) scoped 2.0 (D57); R23 and R24 layered the
+host side, R20 cut the noise. **Next:** R25, R21, R22; R19 (2026-11-19).
 
 ## 2. What it is NOT
 

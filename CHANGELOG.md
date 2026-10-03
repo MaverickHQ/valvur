@@ -8,6 +8,26 @@ break things, and has.
 
 ## [Unreleased]
 
+### The noise real projects draw (Phase R20)
+
+On thirteen maintained projects, every finding valvur's own rules and Gitleaks raised
+was a false alarm. Three changes, each measured on all eight tracks first. Tracks 1 to
+7 hold, and real-code precision rises from 3.7 to 5.9.
+
+- **Fixed: a code-execution or query sink alone no longer makes a verdict
+  `findings`.** `dangerous-eval`, `dangerous-exec` and `string-built-sql` name a sink
+  for review, and the LLM-output rules report the flow into one. They stay in
+  `findings.json` and SARIF, marked `inventory`. `SUMMARY.md` counts them under
+  *Sinks to review*, and `findings` lists them with `inventory: true` (`--inventory`).
+  A project whose only results are sinks now reads `clean`; the verdict counted them
+  until now, which this fix corrects under 1.x.
+- **Every finding says what kind of path it is on.** `context` in `findings.json` and
+  SARIF is `source`, `test`, `fixture`, `docs`, `example`, `vendored` or `generated`,
+  decided by whole path segments. It is additive, and no fingerprint changes.
+- **Secrets in tests, fixtures, docs and examples rank `low`,** still reported and
+  still active. `weak-hash` and the weak `random` rule are not reported there, and
+  `run.json`'s `removed_by_class` counts what was left out, by class and rule.
+
 ### The machinery made lighter (Phase R24)
 
 Internal: the docs, the tests and CI. Nothing a scan does changes.

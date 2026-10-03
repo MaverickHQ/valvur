@@ -29,7 +29,7 @@ verification commands, the three Statuses, and a plain list of what valvur does 
 claim. Read that one sceptically. How much of what valvur claims it actually finds is
 measured as **the Score**: eight tracks scored by the OWASP Benchmark's formula, from
 static analysis to agent configuration, with a ratchet in `tests/eval/` that no change
-may fall under. It is **65.2** out of 100, from 59.3 when first measured;
+may fall under. It is **65.2** out of 100 on both lanes, from 59.3 when first measured;
 `EVALUATING.md` gives each track, and one command reproduces it.
 
 ### 1. It cannot exfiltrate your code, and you can verify it
