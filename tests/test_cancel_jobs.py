@@ -156,7 +156,7 @@ def _clean_jobs():
 
 def test_cancelling_a_running_job_stops_it_and_status_says_cancelled(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import cancel_scan, scan_status
+    from valvur.mcp.handlers import cancel_scan, scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     stopped: list[str] = []
@@ -188,7 +188,7 @@ def test_cancelling_a_running_job_stops_it_and_status_says_cancelled(tmp_path, m
 
 
 def test_cancelling_when_nothing_runs_says_so(tmp_path):
-    from valvur.operations import cancel_scan
+    from valvur.mcp.handlers import cancel_scan
 
     assert cancel_scan({"workspace": str(tmp_path)}) == f"No scan is running in {tmp_path}."
 
@@ -199,7 +199,7 @@ def test_a_cancel_request_that_arrives_after_the_work_finished_is_reported_as_do
     """Cancel is a request: if the scan completed before the containers could be
     stopped, the result stands and the status says DONE, not CANCELLED."""
     from valvur.mcp import jobs
-    from valvur.operations import cancel_scan
+    from valvur.mcp.handlers import cancel_scan
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     jobs.start(tmp_path, "offline", lambda workspace, profile, progress: "done")
@@ -213,7 +213,7 @@ def test_a_cancel_request_that_arrives_after_the_work_finished_is_reported_as_do
 
 def test_a_cancelling_job_is_shown_as_such_while_containers_stop(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import cancel_scan, scan_status
+    from valvur.mcp.handlers import cancel_scan, scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     let_go = threading.Event()
@@ -282,7 +282,6 @@ def test_a_cancel_that_lands_before_the_runner_is_attached_is_honoured_when_it_i
     assert cancelled is job and stopped == 0
     assert killed == [1], "the runner was never told to stop"
     assert job.state == "cancelled", job.state
-    assert job.summary == ""
 
 
 def test_a_second_scan_while_the_first_is_still_stopping_is_refused_and_the_first_kept(
@@ -293,7 +292,7 @@ def test_a_second_scan_while_the_first_is_still_stopping_is_refused_and_the_firs
     scan failed on the workspace lock with a message about a scan the agent
     thought it had stopped."""
     from valvur.mcp import jobs
-    from valvur.operations import cancel_scan, scan_status, start_scan
+    from valvur.mcp.handlers import cancel_scan, scan_reply, scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     let_go = threading.Event()
@@ -307,13 +306,19 @@ def test_a_second_scan_while_the_first_is_still_stopping_is_refused_and_the_firs
     time.sleep(0.05)
     cancel_scan({"workspace": str(tmp_path)})
 
-    reply = start_scan({"workspace": str(tmp_path), "profile": "offline"})
+    # A second `scan` attaches to the one still stopping, and answers with its end.
+    replies: list = []
+    second = threading.Thread(target=lambda: replies.append(scan_reply(
+        {"workspace": str(tmp_path), "profile": "offline"})))
+    second.start()
+    time.sleep(0.05)
     assert jobs.start(tmp_path, "offline", work) is first
     assert jobs.current(tmp_path) is first
-    assert "still stopping" in reply and "CANCELLED" in reply, reply
 
     let_go.set()
     first.wait(2)
+    second.join(5)
+    assert replies[0][1]["state"] == "cancelled", replies
     assert scan_status({"workspace": str(tmp_path)}).startswith("CANCELLED after ")
 
 
@@ -321,7 +326,7 @@ def test_a_cancel_before_any_container_says_the_scan_stops_at_its_next_step(tmp_
     """The reply is true either way: containers stopped, or none had started and
     the scan stops at its next boundary."""
     from valvur.mcp import jobs
-    from valvur.operations import cancel_scan
+    from valvur.mcp.handlers import cancel_scan
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     let_go = threading.Event()
@@ -335,41 +340,41 @@ def test_a_cancel_before_any_container_says_the_scan_stops_at_its_next_step(tmp_
 
 
 def test_the_scan_job_registers_its_own_runner_as_the_canceller(tmp_path, monkeypatch):
-    """`_run_scan` is where the runner exists; a cancel stops THAT fleet."""
+    """The service owns the runner (D51); a cancel of the job stops THAT fleet."""
     from valvur import api as api_module
-    from valvur import engine_host, operations
-    from valvur.mcp import jobs
+    from valvur import engine_host
+    from valvur.mcp import handlers, jobs
+
+    killed: list = []
 
     class Runner:
         def kill(self):
-            return 0
+            killed.append(self)
+            return 1
 
     seen: dict = {}
     monkeypatch.setattr(engine_host, "for_scan", Runner)
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False):
-        seen["canceller"] = jobs_module_current(workspace).canceller
+    def fake_scan(workspace, *, runner, profile, **asked):
+        seen["stopped"] = jobs.current(workspace).canceller()
         seen["runner"] = runner
         return api_module.ScanRun(findings=[], profile=profile)
 
-    jobs_module_current = jobs.current
     monkeypatch.setattr(api_module, "scan", fake_scan)
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
-    jobs.start(tmp_path, "offline", operations._run_scan)
+    jobs.start(tmp_path, "offline", handlers._work(None, fresh=False))
     jobs.current(tmp_path).wait(2)
 
-    assert seen["canceller"].__func__ is Runner.kill
-    assert seen["canceller"].__self__ is seen["runner"]
+    assert seen["stopped"] == 1 and killed == [seen["runner"]]
 
 
 def test_the_tool_is_registered_as_acting_and_shared_with_the_operation():
     """A cancel kills containers and moves a job's state, so it is not read-only
     (27.1.2) — and it writes nothing, of ours or the user's, so it is not
     destructive either (F1.11)."""
+    from valvur.mcp.handlers import cancel_scan
     from valvur.mcp.tools import registry
-    from valvur.operations import cancel_scan
 
     [tool] = [t for t in registry() if t.name == "scan_cancel"]
 
@@ -474,16 +479,15 @@ def test_a_nonsense_environment_value_is_ignored_not_fatal(tmp_path, monkeypatch
 def test_the_cli_takes_jobs_and_refuses_zero(monkeypatch, tmp_path, capsys):
     from conftest import FakeRunner
 
-    from valvur import cli
+    from valvur import cli, service
 
     seen: dict = {}
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False, out=None):
+    def fake_scan(workspace, *, profile, jobs=None, sbom=False, **asked):
         seen["jobs"] = jobs
         return api.ScanRun(findings=[], profile=profile)
 
-    monkeypatch.setattr(cli, "scan", fake_scan)
+    monkeypatch.setattr(service, "run_scan", fake_scan)
     (tmp_path / "ws").mkdir()
 
     assert cli.main(["scan", str(tmp_path / "ws"), "--jobs", "2"], runner=FakeRunner()) == 0

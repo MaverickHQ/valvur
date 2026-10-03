@@ -18,7 +18,7 @@ import pytest
 
 from valvur import reply
 from valvur.mcp import jobs
-from valvur.operations import scan_status_reply
+from valvur.mcp.handlers import scan_status_reply
 from valvur.runner import NoContainerRuntime
 
 FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"

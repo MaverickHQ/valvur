@@ -13,7 +13,8 @@ from . import coverage as _coverage
 from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
-from .api import FETCH_ENDED, FETCH_STARTED, scan
+from . import service
+from .api import FETCH_ENDED, FETCH_STARTED
 from .version import __version__
 
 
@@ -31,7 +32,7 @@ def _positive_seconds(raw: str) -> float:
     return value
 
 
-def _stop_on_interrupt(runner) -> None:
+def _stop_on_interrupt(cancellation: service.Cancellation) -> None:
     """Make Ctrl-C mean stop (F1.11, task 16.2).
 
     Without this the shim exits and the Scanner containers run to completion, because
@@ -51,7 +52,7 @@ def _stop_on_interrupt(runner) -> None:
     def handle(_signum, _frame):
         runtime = None
         with contextlib.suppress(Exception):
-            runtime = runner.runtime
+            runtime = cancellation.runner.runtime
         # By label, synchronously (R3.6): this handler runs on the thread that
         # reads the engine, so nothing may wait on that thread here.
         stopped = owner.kill_mine(runtime) if isinstance(runtime, str) else 0
@@ -639,14 +640,9 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
 
 
 def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
-    """`scan`: the Scan Run, from the terminal."""
-    if runner is None:
-        from . import engine_host
-
-        # The Scan Container (ADR-0022): the only engine since R3.9.
-        runner = engine_host.for_scan()
-
-    _stop_on_interrupt(runner)
+    """`scan`: the Scan Run, from the terminal, through the one scan service (D51)."""
+    cancellation = service.Cancellation()
+    _stop_on_interrupt(cancellation)
 
     from .runner import unsupported_platform_warning
 
@@ -665,10 +661,11 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
 
     try:
         out = Path(args.out).resolve() if getattr(args, "out", None) else None
-        run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                   jobs=args.jobs, budget_s=args.budget, sbom=getattr(args, "sbom", False),
-                   **({"fresh": True} if getattr(args, "fresh", False) else {}),
-                   out=out)
+        run = service.run_scan(
+            workspace, runner=runner, cancellation=cancellation, profile=profile,
+            on_progress=progress, jobs=args.jobs, budget_s=args.budget,
+            sbom=getattr(args, "sbom", False), fresh=bool(getattr(args, "fresh", False)),
+            out=out)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.

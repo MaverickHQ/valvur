@@ -55,7 +55,7 @@ def test_a_partial_cut_names_the_levers_where_the_cut_is_reported(workspace):
 
 def test_the_failed_reply_names_doctor_only_for_a_precondition(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import scan_status, scan_status_reply
+    from valvur.mcp.handlers import scan_status, scan_status_reply
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 

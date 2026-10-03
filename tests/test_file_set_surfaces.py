@@ -100,7 +100,7 @@ def test_a_manifest_outside_the_file_set_is_not_a_coverage_gap(tmp_path):
 def test_the_cli_and_scan_status_name_what_was_not_read(ws, capsys, monkeypatch):
     from valvur import cli, engine_host
     from valvur.adapters import GitleaksAdapter
-    from valvur.operations import scan_status_reply
+    from valvur.mcp.handlers import scan_status_reply
 
     monkeypatch.setattr(engine_host, "for_scan", lambda: LocalRuntime(FAKE_TOOLS))
     monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [GitleaksAdapter()])

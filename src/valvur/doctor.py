@@ -172,7 +172,10 @@ def _image_reference() -> str:
     return settings.get("image") or default_image()
 
 
-def run(workspace: Path, *, network: bool = False) -> list[Check]:
+def run(workspace: Path, *, network: bool = False,
+        served: tuple[str, ...] | None = None) -> list[Check]:
+    """Every check, in order. `served` is the tools of the MCP server answering,
+    when `doctor` answers inside one; None at a terminal."""
     workspace = Path(workspace).resolve()
     fetch_due = not _cache.db_present() or not _cache.name_index_present()
     checks: list[Check] = []
@@ -201,7 +204,7 @@ def run(workspace: Path, *, network: bool = False) -> list[Check]:
     checks.append(_check_kev())
     checks.append(_check_cache())
     checks.append(_check_settings())
-    session = _check_session(workspace)
+    session = _check_session(workspace, served)
     if session is not None:
         checks.append(session)
     checks.append(_check_selinux(workspace))
@@ -470,14 +473,7 @@ def _check_project_file(workspace: Path) -> Check:
 _LAUNCHERS = frozenset({"uvx", "uv", "pipx", "npx", "python", "python3"})
 
 
-def _as_server() -> bool:
-    """Whether this `doctor` answers inside the MCP server, over a call."""
-    from .mcp import protocol
-
-    return protocol.current_call() is not None
-
-
-def _check_session(workspace: Path) -> Check | None:
+def _check_session(workspace: Path, served: tuple[str, ...] | None) -> Check | None:
     """Whether the server answering is the one the configuration names (30.1.2, C5).
 
     A client keeps the server it spawned when the session began; a changed `.mcp.json`
@@ -487,13 +483,12 @@ def _check_session(workspace: Path) -> Check | None:
     import shutil
     import sys
 
-    from .mcp import protocol
     from .version import __version__
 
-    if not _as_server():
-        return None
+    if served is None:
+        return None              # a terminal has no session to check
     running = Path(sys.argv[0])
-    names = getattr(protocol.current_call(), "served", ())
+    names = served
     serving = f", serving {len(names)} tools: {', '.join(names)}" if names else ""
     for label, command, args in _configured_servers(workspace):
         if command in _LAUNCHERS:

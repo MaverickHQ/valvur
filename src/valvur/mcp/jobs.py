@@ -73,7 +73,6 @@ class Job:
     started: float
     state: State = State.RUNNING
     finished: float | None = None
-    summary: str = ""
     error: str = ""
     #: Whether `doctor` could name the cause of a failure (29.0.3, R1.5): only a
     #: precondition failure says yes — runtime, image, database, index, SELinux,
@@ -141,6 +140,9 @@ class Job:
 
 _jobs: dict[str, Job] = {}
 _lock = threading.Lock()
+#: `scan` calls the server has read and whose jobs have not started yet (R23.4):
+#: a `scan_cancel` that arrives in between is held for the scan about to start.
+_expected = 0
 
 
 def _doctor_may_help(exc: BaseException) -> bool:
@@ -181,7 +183,7 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
 
     def work() -> None:
         try:
-            job.summary = run(workspace, profile, job.note)
+            run(workspace, profile, job.note)
             with _lock:
                 job.transition(State.DONE)
         except Exception as exc:
@@ -233,7 +235,24 @@ def active() -> list[Path]:
         return [Path(key) for key, job in reversed(_jobs.items()) if job.state in ACTIVE]
 
 
+def expect() -> None:
+    """A `scan` call has been read, and its job will follow: said by the server's
+    reader, in the order the calls arrived, before the call's own thread runs."""
+    global _expected
+    with _lock:
+        _expected += 1
+
+
+def arrived() -> None:
+    """The expected scan's job started, or its call was refused before it could."""
+    global _expected
+    with _lock:
+        _expected = max(0, _expected - 1)
+
+
 def reset() -> None:
     """Test seam. Never called in normal operation."""
+    global _expected
     with _lock:
         _jobs.clear()
+        _expected = 0

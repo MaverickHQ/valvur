@@ -65,14 +65,14 @@ def test_one_call_returns_the_result_with_progress_on_the_way(ws):
 @pytest.fixture
 def held(ws, monkeypatch):
     """A scan that waits for `release` before it runs, counting how many start."""
-    from valvur import operations
+    from valvur.mcp import handlers
 
     release = threading.Event()
     started: list[int] = []
-    real = operations._scan_with_budget
+    real = handlers._work
 
-    def slow(budget_s):
-        work = real(budget_s)
+    def slow(budget_s, *, fresh=False):
+        work = real(budget_s, fresh=fresh)
 
         def run(workspace, profile, progress):
             started.append(1)
@@ -81,7 +81,7 @@ def held(ws, monkeypatch):
             return work(workspace, profile, progress)
         return run
 
-    monkeypatch.setattr(operations, "_scan_with_budget", slow)
+    monkeypatch.setattr(handlers, "_work", slow)
     return release, started
 
 

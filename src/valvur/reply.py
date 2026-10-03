@@ -16,9 +16,8 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any, Protocol
 
-from .mcp import jobs
-from .mcp.jobs import State
 from .results import RESULTS_DIR
 
 SCHEMA = 2
@@ -45,33 +44,62 @@ DOCTOR_NEXT = ("Run `doctor` (the tool; `valvur doctor` on a shell) before scann
 NO_RESULT = "No result to report."
 
 
-def running_next() -> str:
-    return (f"Call `scan_status` again; it waits up to {jobs.STATUS_WAIT_SECONDS:g} s and "
+#: How long a status call waits for a running scan, when the surface does not say:
+#: the MCP jobs' `STATUS_WAIT_SECONDS`, which the server passes in.
+WAITED_S = 330.0
+
+
+def running_next(waited_s: float = WAITED_S) -> str:
+    return (f"Call `scan_status` again; it waits up to {waited_s:g} s and "
             "returns the moment the scan finishes; do not report a result yet.")
+
+
+class JobView(Protocol):
+    """What the reply reads of a surface's scan job (D51): passed in, so this module
+    imports nothing from the surface that holds one."""
+
+    profile: str
+    started: float
+    error: str
+    doctor_may_help: bool
+    next_moves: tuple[str, ...]
+    failure: dict | None
+    progress: list[str]
+    progress_at: list[float]
+
+    @property
+    def state(self) -> Any: ...
+
+    @property
+    def elapsed(self) -> float: ...
 
 
 # ------------------------------------------------------------------ the fields
 
-def fields(workspace: Path, job: jobs.Job | None = None) -> dict:
+def fields(workspace: Path, job: JobView | None = None, *,
+           waited_s: float | None = None) -> dict:
     """Schema 2 for the scan of `workspace`: the job's state if there is one that
-    has not finished well, otherwise what the Results Folder holds."""
+    has not finished well, otherwise what the Results Folder holds. `waited_s` is
+    how long the surface waits for a running scan before answering."""
+    waited = WAITED_S if waited_s is None else waited_s
     base: dict = {"schema": SCHEMA, "workspace": str(workspace), "profile": None,
                   "elapsed_s": None, "generation": None, "verdict": None, "reason": "",
                   "complete": None, "next": [], "error": None}
     if job is not None:
         base.update(profile=job.profile, elapsed_s=round(job.elapsed, 1))
-    if job is not None and job.state is State.RUNNING:
-        return {**base, "state": "running", "progress": _progress(job),
-                "next": [running_next()]}
-    if job is not None and job.state is State.CANCELLING:
+    state = str(job.state) if job is not None else None
+    if job is not None and state == "running":
+        return {**base, "state": "running", "progress": _progress(job, waited),
+                "next": [running_next(waited)]}
+    if job is not None and state == "cancelling":
         return {**base, "state": "cancelling", "next": [CANCELLING_NEXT],
                 "error": {"kind": "cancelled", "message": (
                     f"the {job.profile} scan, {job.elapsed:.0f}s in; its containers are "
                     "being stopped")}}
-    if job is not None and job.state is State.CANCELLED:
+    if job is not None and state == "cancelled":
         return {**base, "state": "cancelled", "next": [CANCELLED_NEXT],
                 "error": {"kind": "cancelled", "message": job.error}}
-    if job is not None and job.state is State.FAILED:
+    if job is not None and state == "failed":
         advice = list(job.next_moves)
         if job.doctor_may_help and not advice:
             # Only when a precondition could be the cause (29.0.3): the budget's
@@ -95,7 +123,7 @@ def fields(workspace: Path, job: jobs.Job | None = None) -> dict:
             "state": "done"}
 
 
-def _progress(job: jobs.Job) -> dict:
+def _progress(job: JobView, waited_s: float) -> dict:
     """A running scan, as fields: what is being fetched, what is running and for
     how long, what finished, and what the workspace line said (29.0.4)."""
     from . import levers as _levers
@@ -132,7 +160,7 @@ def _progress(job: jobs.Job) -> dict:
                if tool not in done}
     return {"now": now, "running": running, "finished": finished, "fleet": fleet,
             "completed": completed, "workspace": workspace_lines,
-            "waited_s": jobs.STATUS_WAIT_SECONDS, "messages": list(job.progress)}
+            "waited_s": waited_s, "messages": list(job.progress)}
 
 
 def _done(workspace: Path, data: dict) -> dict:

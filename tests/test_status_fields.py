@@ -19,7 +19,7 @@ import pytest
 from valvur import api
 from valvur.levers import LEVERS
 from valvur.mcp import jobs
-from valvur.operations import scan_status_reply
+from valvur.mcp.handlers import scan_status_reply
 from valvur.runner import NoContainerRuntime
 
 

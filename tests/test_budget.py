@@ -124,7 +124,7 @@ def test_no_budget_means_no_cut_however_long(workspace):
 def test_the_cut_is_reported_incomplete_on_every_surface(workspace):
     """The same paths a crashed Scanner takes: run.json, SUMMARY.md's failures
     section, and scan_status through both — with the budget named."""
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     runner = _Runner()
     _scan(workspace, runner, [_Adapter("ok", 0.05), _Adapter("slow", 5.0)], budget_s=1.0)
@@ -167,8 +167,8 @@ def test_a_budget_must_be_positive(workspace):
 
 def test_mcp_scans_default_to_f2_6s_five_minutes_and_a_client_may_change_it(tmp_path, monkeypatch):
     from valvur import api as api_module
-    from valvur import engine_host, operations
-    from valvur.mcp import jobs
+    from valvur import engine_host
+    from valvur.mcp import handlers, jobs
 
     seen: list = []
 
@@ -185,32 +185,34 @@ def test_mcp_scans_default_to_f2_6s_five_minutes_and_a_client_may_change_it(tmp_
     monkeypatch.setattr(api_module, "scan", fake_scan)
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
-    jobs.start(tmp_path, "offline", operations._run_scan)
+    jobs.start(tmp_path, "offline", handlers._work(None, fresh=False))
     jobs.current(tmp_path).wait(2)
     jobs.reset()
-    jobs.start(tmp_path, "offline", operations._scan_with_budget(90))
+    jobs.start(tmp_path, "offline", handlers._work(90, fresh=False))
     jobs.current(tmp_path).wait(2)
     jobs.reset()
-    jobs.start(tmp_path, "offline", operations._scan_with_budget(0))
+    jobs.start(tmp_path, "offline", handlers._work(0, fresh=False))
     jobs.current(tmp_path).wait(2)
     jobs.reset()
 
     assert seen == [300.0, 90.0, None]
-    assert operations.MCP_BUDGET_S == 300
+    assert handlers.MCP_BUDGET_S == 300
 
 
 def test_the_scan_tool_accepts_a_budget(tmp_path, monkeypatch):
-    from valvur.mcp import jobs
+    from valvur import operations
+    from valvur.mcp import handlers, jobs
     from valvur.mcp.tools import registry
-    from valvur.operations import start_scan
 
     [tool] = [t for t in registry() if t.name == "scan"]
     assert tool.schema["properties"]["budget_s"]["type"] == "integer"
 
     started: list = []
     monkeypatch.setattr(jobs, "start", lambda workspace, profile, run: started.append(run))
-    start_scan({"workspace": str(tmp_path), "budget_s": 45})
-    start_scan({"workspace": str(tmp_path)})
+    monkeypatch.setattr(handlers, "_attach", lambda job, seconds: None)
+    monkeypatch.setattr(operations, "status_of", lambda *a, **k: ("", {}))
+    handlers.scan_reply({"workspace": str(tmp_path), "budget_s": 45})
+    handlers.scan_reply({"workspace": str(tmp_path)})
 
     assert started[0].budget_s == 45.0
     assert started[1].budget_s == 300.0
@@ -219,16 +221,15 @@ def test_the_scan_tool_accepts_a_budget(tmp_path, monkeypatch):
 def test_the_cli_has_no_budget_unless_asked(monkeypatch, tmp_path, capsys):
     from conftest import FakeRunner
 
-    from valvur import cli
+    from valvur import cli, service
 
     seen: list = []
 
-    def fake_scan(workspace, *, runner, profile, on_progress, jobs=None, budget_s=None,
-                  sbom=False, out=None):
+    def fake_scan(workspace, *, profile, budget_s=None, **asked):
         seen.append(budget_s)
         return api.ScanRun(findings=[], profile=profile)
 
-    monkeypatch.setattr(cli, "scan", fake_scan)
+    monkeypatch.setattr(service, "run_scan", fake_scan)
     (tmp_path / "ws").mkdir()
 
     assert cli.main(["scan", str(tmp_path / "ws")], runner=FakeRunner()) == 0

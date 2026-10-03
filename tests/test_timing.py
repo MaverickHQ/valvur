@@ -151,7 +151,7 @@ def test_a_skipped_scanner_is_never_the_slowest():
 
 
 def test_scan_status_shows_each_scanners_time_and_tolerates_a_run_without_it(tmp_path):
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     results = tmp_path / ".security-scan"
     results.mkdir()

@@ -12,10 +12,8 @@ generated = ["valvur._build"]
 # only shrink: an entry that no longer happens fails until it is removed, and R23's
 # exit empties it.
 baseline = [
-    "valvur.doctor -> valvur.mcp.protocol",
     "valvur.findings -> valvur.ecosystems",
     "valvur.grouping -> valvur.coverage",
-    "valvur.operations -> valvur.mcp.protocol",
 ]
 
 [layers]
@@ -122,6 +120,7 @@ app = [
     "valvur.remediation",
     "valvur.reply",
     "valvur.results",
+    "valvur.service",
     "valvur.skill",
     "valvur.staleness",
     "valvur.summary",
@@ -135,6 +134,7 @@ surfaces = [
     "valvur.cli",
     "valvur.hook",
     "valvur.mcp",
+    "valvur.mcp.handlers",
     "valvur.mcp.protocol",
     "valvur.mcp.server",
     "valvur.mcp.tools",

@@ -481,7 +481,7 @@ def test_scan_status_says_what_is_being_fetched_while_it_is(tmp_path, monkeypatc
     which fetch, its size, and that this is the first run only — each in turn, each
     gone once it is over (10.2 claim 4, extended to the data)."""
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
@@ -518,7 +518,7 @@ def test_scan_status_says_what_is_being_fetched_while_it_is(tmp_path, monkeypatc
 
 def test_a_failed_fetch_is_not_a_now_line_but_stays_in_the_record(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 

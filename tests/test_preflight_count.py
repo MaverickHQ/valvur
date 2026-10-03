@@ -82,7 +82,7 @@ def test_the_budget_refusal_names_the_count(workspace):
 
 def test_scan_status_gives_the_workspace_its_own_line(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     hold = jobs.threading.Event()

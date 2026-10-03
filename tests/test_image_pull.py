@@ -138,7 +138,7 @@ def test_scan_status_says_the_image_is_being_pulled_while_it_is(tmp_path, monkey
     """Claim 4 of 10.2 on the surface an agent reads: not "starting" for a minute,
     but the image, its size, and that this is the first run only."""
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 

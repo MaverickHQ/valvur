@@ -1,7 +1,8 @@
 """The tools valvur exposes over MCP.
 
-Thin wrappers over `valvur.operations`, which the CLI calls too — so the two surfaces
-cannot drift (F9.3).
+Each tool's handler is in `handlers`, and passes what the call knows to the one
+operation the CLI calls too (`valvur.operations`, or `service.run_scan` for a scan),
+so the two surfaces cannot drift (F9.3, D51).
 
 Every tool is read-only with respect to the **Workspace**. There is no `scan_and_fix`,
 no `apply`, no `write` and no `remediate`, and a test asserts their absence, because
@@ -20,9 +21,8 @@ from __future__ import annotations
 from typing import Any
 
 from .. import profiles
-from ..operations import (
-    DEFAULT_LIMIT,
-    MAX_LIMIT,
+from ..operations import DEFAULT_LIMIT, MAX_LIMIT
+from .handlers import (
     cancel_scan,
     check_package_reply,
     doctor,

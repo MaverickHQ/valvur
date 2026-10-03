@@ -75,7 +75,9 @@ def test_the_cli_stops_on_sigterm_as_well_as_sigint(monkeypatch):
     installed: list[int] = []
     monkeypatch.setattr(signal, "signal", lambda signum, handler: installed.append(signum))
 
-    cli._stop_on_interrupt(runner=object())
+    from valvur import service
+
+    cli._stop_on_interrupt(service.Cancellation())
 
     assert {signal.SIGINT, signal.SIGTERM} <= set(installed)
 

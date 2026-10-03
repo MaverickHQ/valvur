@@ -30,7 +30,7 @@ def test_the_fleet_announces_its_size_and_each_start(workspace):
 
 def test_the_running_line_names_what_runs_and_what_finished(workspace, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import scan_status_reply
+    from valvur.mcp.handlers import scan_status_reply
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     runner = _Runner()

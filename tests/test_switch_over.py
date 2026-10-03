@@ -53,9 +53,9 @@ def test_the_status_lines_keep_the_words_scan_status_reads(ws):
 
 
 def test_the_cli_and_the_mcp_server_scan_through_the_scan_container(ws, monkeypatch):
-    from valvur import api, cli, engine_host, operations
+    from valvur import api, cli, engine_host
     from valvur.adapters import GitleaksAdapter
-    from valvur.mcp import jobs
+    from valvur.mcp import handlers, jobs
 
     built: list[LocalRuntime] = []
 
@@ -69,7 +69,7 @@ def test_the_cli_and_the_mcp_server_scan_through_the_scan_container(ws, monkeypa
     assert len(built) == 1
     jobs.reset()
     try:
-        operations.start_scan({"workspace": str(ws)})
+        jobs.start(ws.resolve(), "offline", handlers._work(None, fresh=False))
         job = jobs.current(ws.resolve())
         assert job is not None and job.wait(30)
         assert job.state is jobs.State.DONE, job.error
