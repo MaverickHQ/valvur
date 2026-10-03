@@ -219,6 +219,8 @@ def test_update_if_stale_refreshes_only_the_index_when_only_it_is_due(monkeypatc
                         lambda say, **_: calls.append("index") or True)
 
     class NeverRunner:
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             raise AssertionError("the database was refreshed")
 
@@ -243,9 +245,12 @@ def test_a_failed_index_refresh_fails_the_update_command(monkeypatch, capsys):
     makes the default Profile's dependency check fail — so an update that could not
     fetch it did not do its job, and says so with a non-zero exit."""
     from valvur import cli, updating
+    from valvur.engine_host import RuntimeDefaults
     from valvur.runner import ScannerOutput
 
-    class FineRunner:
+    class FineRunner(RuntimeDefaults):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 

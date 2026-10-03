@@ -19,6 +19,7 @@ from conftest import LegacyDispatch
 
 from valvur import api
 from valvur.adapters import GitleaksAdapter
+from valvur.engine_host import RuntimeDefaults
 from valvur.runner import ScannerOutput
 
 # ------------------------------------------------------------ the runner's kill
@@ -414,7 +415,7 @@ class _Counting:
         return self
 
 
-class _Recording:
+class _Recording(RuntimeDefaults):
     """A Scan Container runtime that records the width it is given."""
 
     engine = True

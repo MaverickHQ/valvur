@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from valvur.adapters.base import ScannerAdapter
 from valvur.engine_host import LocalRuntime
 from valvur.invocation import Invocation
 
@@ -116,7 +117,7 @@ def test_jobs_bounds_how_many_tools_the_engine_runs_at_once(tmp_path):
     assert timings[None] < 2.5 <= timings[1], timings
 
 
-class _Quiet:
+class _Quiet(ScannerAdapter):
     """A Scanner whose tool writes no report and says why on stderr."""
 
     kind = "scanner"

@@ -117,8 +117,7 @@ def refresh_malicious(say: Say, *, build: bool = False, fallback: bool = False) 
 
 def ensure_image(runner, say: Say) -> bool:
     """Pull the image if the runtime does not have it, saying what and how much."""
-    present = getattr(runner, "image_present", None)
-    if present is None or present():
+    if runner.image_present():
         return True
     size = runner.pull_size_mb()
     say(f"Pulling the image {runner.image}{f' (about {size}MB)' if size else ''} — "
@@ -233,7 +232,7 @@ def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False,
         return updated
     if "database" in wanted:
         # The image first (23.2.4): the database update runs Trivy inside it.
-        had_image = getattr(runner, "image_present", lambda: True)()
+        had_image = runner.image_present()
         if not ensure_image(runner, say):
             return Updated(ok=False)
         if not had_image:

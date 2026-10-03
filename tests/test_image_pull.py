@@ -18,10 +18,11 @@ import pytest
 from fake_registry import FakeRegistry
 
 from valvur import api, events, oci
+from valvur.engine_host import RuntimeDefaults
 from valvur.runner import ContainerRunner, ImagePullFailed, ScannerOutput
 
 
-class _Runner:
+class _Runner(RuntimeDefaults):
     """A runner whose image may or may not be local, recording what was asked."""
 
     image = "ghcr.io/maverickhq/valvur:9.9.9"
@@ -95,9 +96,9 @@ def test_a_failed_pull_is_a_named_failure_with_the_runtime_words_and_the_fix():
 
 
 def test_a_runner_without_the_ability_is_left_alone():
-    """The fake runners in the suite have no `image_present`; a scan through them
-    must not need one."""
-    class Bare:
+    """A runtime with nothing to pull, as the suite's process runtimes are, is
+    asked nothing more: its `image_present` is the declared default (D53)."""
+    class Bare(RuntimeDefaults):
         pass
 
     api._ensure_image(Bare(), None)
@@ -216,6 +217,8 @@ def test_update_pulls_the_image_first_and_streams_it(monkeypatch, capsys):
             on_line("Status: Downloaded newer image")
             return ScannerOutput("pull", "", "", "", 0)
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             order.append("db")
             return ScannerOutput("trivy-db", "", "", "", 0)
@@ -237,6 +240,8 @@ def test_update_does_not_pull_an_image_it_already_has(monkeypatch, capsys):
     from valvur import cli, updating
 
     class Runner(_Runner):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 
@@ -253,6 +258,8 @@ def test_a_failed_pull_fails_the_update_before_the_database(monkeypatch, capsys)
     from valvur import cli
 
     class Runner(_Runner):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             raise AssertionError("the database update ran without an image")
 

@@ -89,6 +89,8 @@ def _recording(monkeypatch) -> tuple[list[str], object]:
         def db_size_mb(self):
             return None
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             fetched.append("database")
             return ScannerOutput("trivy", "", "", "", 0)

@@ -130,6 +130,8 @@ def test_a_first_offline_scan_fetches_what_the_file_set_needs_and_records_it(
     monkeypatch.setattr(osv_offline, "fetch", fake_fetch)
 
     class Runtime(LocalRuntime):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):                      # a runtime that can fetch
             raise AssertionError("the Trivy database is present")
 

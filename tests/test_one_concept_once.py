@@ -118,9 +118,10 @@ def test_every_adapter_holds_the_grant_as_network():
 
     for adapter in DEFAULT_ADAPTERS:
         assert not hasattr(adapter, "offline"), adapter.name
-        granted = adapter.for_profile(network=True)
-        assert getattr(granted, "network", True) is True or not getattr(
-            granted, "uses_network", True), adapter.name
+        assert adapter.for_profile(network=False).network is False, adapter.name
+    # The two that do more with a network hold the grant when given it.
+    granted = {a.name: a.for_profile(network=True).network for a in DEFAULT_ADAPTERS}
+    assert granted["osv-scanner"] and granted["dependency-reality"]
 
 
 # ------------------------------------------------- one scan, one parse, one File Set

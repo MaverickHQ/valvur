@@ -89,6 +89,8 @@ class _Runner(LegacyDispatch):
         self.calls.append("size")
         return self.db_size
 
+    fetches = True                 # it fetches before a scan (24.1)
+
     def update_db(self) -> ScannerOutput:
         self.calls.append("db")
         if self.db_exit == 0:
@@ -263,6 +265,8 @@ def test_both_absent_means_image_then_database_then_index_then_the_scanners(
             order.append("pull")
             return ScannerOutput("pull", "", "", "", 0)
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             order.append("db")
             return super().update_db()
@@ -291,6 +295,8 @@ def test_a_cancel_during_the_fetches_is_honoured_at_the_next_boundary(
 
     class Runner(_Runner):
         cancelled = False
+
+        fetches = True                 # it fetches before a scan (24.1)
 
         def update_db(self):
             order.append("db")
@@ -546,6 +552,7 @@ def test_the_cli_prints_each_fetch_to_stderr(workspace, host_cache, capsys, monk
     from valvur import cli
 
     class Runner(FakeRunner):
+        fetches = True
         image = _Runner.image
         image_present = _Runner.image_present
         db_size_mb = _Runner.db_size_mb

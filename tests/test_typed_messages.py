@@ -122,3 +122,39 @@ def test_a_budget_cut_scan_records_the_state_on_each_scanner(tmp_path):
 
     by_tool = {s.tool: s for s in run.scanners}
     assert by_tool["slow"].budget == BUDGET_CUT and by_tool["fast"].budget == ""
+
+
+# ------------------------------------------------- the protocols, complete
+
+def test_no_app_module_asks_a_runner_or_an_adapter_what_it_has():
+    """`api` asked the runner what it supported with eleven `getattr` calls, and
+    adapters carried members outside their Protocol, found the same way. Every
+    member `app` uses is declared now, so mypy checks what tests pinned by hand."""
+    import tomllib
+
+    layers = tomllib.loads((REPO / "scripts" / "layers.toml").read_text())["layers"]
+    asked = []
+    for module in layers["app"]:
+        path = REPO / "src" / Path(*module.split(".")).with_suffix(".py")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and ast.unparse(node.func) in ("getattr", "hasattr")
+                    and node.args and ast.unparse(node.args[0]).split(".")[-1]
+                    in ("runner", "runtime", "adapter", "a")):
+                asked.append(f"{module}:{node.lineno}: {ast.unparse(node)}")
+
+    assert asked == []
+
+
+def test_the_runtime_protocol_names_every_member_the_scan_uses():
+    from valvur.engine_host import ContainerRuntime, ImageRuntime, LocalRuntime, Runtime
+
+    members = {"engine", "run", "cancelled", "generation", "kill", "wait_stopped", "runtime",
+               "image", "image_present", "pull_size_mb", "pull_image", "fetches",
+               "db_size_mb", "update_db", "verify_compatible", "build_provenance", "boundary"}
+    declared = set(Runtime.__annotations__) | {
+        name for name in vars(Runtime) if not name.startswith("_")}
+    assert members <= declared, members - declared
+    for runtime in (LocalRuntime, ImageRuntime, ContainerRuntime):
+        assert all(hasattr(runtime, member) or member in ("generation", "cancelled")
+                   for member in members), runtime

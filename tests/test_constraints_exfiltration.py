@@ -65,6 +65,8 @@ def test_a_scan_due_a_fetch_does_connect_so_the_previous_test_can_fail(
     from valvur.runner import ScannerOutput
 
     class Fetching(CveRunner):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 

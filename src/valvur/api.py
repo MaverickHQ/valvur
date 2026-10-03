@@ -315,8 +315,7 @@ def _ensure_image(runner, on_progress) -> dict | None:
     """Pull the image when absent (23.2.4). Returns the fetch record, or None."""
     from .runner import ImagePullFailed
 
-    present = getattr(runner, "image_present", None)
-    if present is None or present():
+    if runner.image_present():
         return None
     size = runner.pull_size_mb()
     if on_progress is not None:
@@ -366,9 +365,8 @@ def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
     """
     from . import settings
 
-    update = getattr(runner, "update_db", None)
-    if update is None:
-        return [], {}      # the suite's fakes; the rule `_ensure_image` applies too
+    if not runner.fetches:
+        return [], {}      # a process runtime has no image to fill and no fetch to run
     if settings.fetch() == settings.NEVER:
         # Air-gapped (ADR-0025): nothing is fetched, absent or stale. An absent
         # database fails its Scanner with the reason; a stale one makes a nil
@@ -385,7 +383,7 @@ def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
         db_size = runner.db_size_mb()
         say(_events.fetch_started("database", age_days=db_age, size_mb=db_size))
         started = time.monotonic()
-        result = update()
+        result = runner.update_db()
         if result.exit_code != 0:
             detail = (result.stderr.strip() or result.stdout.strip() or "(no output)")[-300:]
             unfetched["trivy"] = f"the vulnerability database could not be fetched: {detail}"
@@ -426,8 +424,8 @@ def _ensure_data(runner, on_progress, *, workspace=None, adapters=(),
     _ensure_malicious(say, fetched)
     _ensure_kev(say, fetched)
     _ensure_epss(say, fetched)
-    if workspace is not None and any(not getattr(a, "network", True) for a in adapters
-                                     if getattr(a, "name", "") == "osv-scanner"):
+    if workspace is not None and any(not a.network for a in adapters
+                                     if a.name == "osv-scanner"):
         _stop_if_cancelled(runner, "during the first run's fetches")
         _ensure_osv(workspace, say, fetched, unfetched, context)
     return fetched, unfetched
@@ -596,7 +594,7 @@ def _outcome(adapter, output) -> ScannerOutcome:
     # An adapter may produce an artifact (an SBOM) instead of, or as well as, Findings.
     # Not on the protocol: see the note in adapters/base.py — a Protocol class
     # attribute's default is not inherited, only a method body is.
-    artifact = getattr(adapter, "artifact", None)
+    artifact = adapter.artifact
     produced = (artifact, output.stdout) if artifact and output.stdout.strip() else None
     return ScannerOutcome(
         ScannerRun(adapter.name, ok=True, version=output.version, argv=output.argv),
@@ -685,9 +683,8 @@ def _begin(runner, on_progress) -> str:
     from . import owner
 
     generation = str(uuid.uuid4())
-    with contextlib.suppress(AttributeError):
-        runner.generation = generation
-    runtime = getattr(runner, "runtime", None)
+    runner.generation = generation
+    runtime = runner.runtime
     if isinstance(runtime, str):
         reaped = owner.reap(runtime)
         if reaped and on_progress is not None:
@@ -702,13 +699,11 @@ def _jobs_from_environment() -> int | None:
 
 
 def _refuse_if_cancelled(runner, finished: int, total: int) -> None:
-    if getattr(runner, "cancelled", False):
+    if runner.cancelled:
         # CANCELLED is the job's word once this raises, so it must be true when
         # said (R1.1): `docker kill` returns before `--rm` removes the container,
         # and the second gate saw CANCELLED with a container still up.
-        wait_stopped = getattr(runner, "wait_stopped", None)
-        if wait_stopped is not None:
-            wait_stopped()
+        runner.wait_stopped()
         raise ScanCancelled(f"cancelled: {finished} of {total} Scanner(s) had finished; "
                             "the rest were stopped and nothing was written")
 
@@ -717,7 +712,7 @@ def _stop_if_cancelled(runner, where: str) -> None:
     """The cancel checks before the fleet (26.0.2): a first run fetches the image,
     the database and the index — up to ~45s measured — and a cancel that lands
     during one was honoured only once all of them had finished. Now before each."""
-    if getattr(runner, "cancelled", False):
+    if runner.cancelled:
         raise ScanCancelled(f"cancelled {where}: no Scanner had started and nothing "
                             "was written")
 
@@ -754,9 +749,6 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
             on_progress(_events.large_tree(*largest[0]))
 
     beside: dict = {}
-    if not _engine_two(runner):
-        # The Scan Container is the only engine since R3.9 (ADR-0022).
-        raise TypeError(f"{type(runner).__name__} does not run the Scan Container's engine")
     outcomes, cut = _engine_fleet(adapters, runner, workspace, on_progress=on_progress,
                                   budget_s=budget_s, record=beside,
                                   jobs=jobs or _jobs_from_environment(), context=context,
@@ -771,14 +763,9 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
         generation=generation, history=beside.get("history"), context=context,
         # OSV's offline databases this File Set needs, when OSV-Scanner reads them.
         osv_read=tuple(_osv_offline.needed(chosen.files))
-        if any(a.name == "osv-scanner" and not getattr(a, "network", True) for a in adapters)
+        if any(a.name == "osv-scanner" and not a.network for a in adapters)
         else (),
     )
-
-
-def _engine_two(runner) -> bool:
-    """A runtime that runs the Scan Container's engine (ADR-0022) says so."""
-    return getattr(runner, "engine", False) is True and hasattr(runner, "run")
 
 
 def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
@@ -811,7 +798,7 @@ def _engine_fleet(adapters, runtime, workspace, *, on_progress, budget_s=None,
             # A Scanner that cannot be asked — Trivy with no database, the name
             # Check with no index — fails alone, with its reason (F2.5).
             outcomes[index] = ScannerOutcome(ScannerRun(
-                adapter.name, ok=False, version=getattr(adapter, "version", ""),
+                adapter.name, ok=False, version=adapter.version,
                 reason=str(exc).strip()))
             continue
         planned.append(index)
@@ -1072,19 +1059,9 @@ def _preflight(runner, workspace) -> tuple[str | None, str | None]:
     """What has to be true before a container starts (F1.9, the mount, 23.4.4).
     Returns the tree the shim and the image were built from."""
     # Refuse a mismatched shim/image pair before doing any work (F1.9).
-    verify = getattr(runner, "verify_compatible", None)
-    if verify is not None:
-        verify()
-
-    # And confirm the container can actually see the source. An unreadable workspace
-    # is indistinguishable from a clean one from inside a Scanner.
-    readable = getattr(runner, "verify_workspace_readable", None)
-    if readable is not None:
-        readable(workspace)
-
+    runner.verify_compatible()
     # The tree, not the version (23.4.4): recorded now, judged in the report.
-    provenance = getattr(runner, "build_provenance", None)
-    return provenance() if provenance is not None else (None, None)
+    return runner.build_provenance()
 
 
 
@@ -1207,7 +1184,7 @@ def _assemble(outcomes, cut, *, adapters, runner, workspace, profile, unfetched,
         scope=scope,
         hygiene=hygiene,
         image_built_from=image_built_from,
-        boundary=getattr(runner, "boundary", lambda: "the Scan Container")(),
+        boundary=runner.boundary(),
     )
 
     still_fixed = {fp for fp in outcome.previously_fixed if fp not in current}

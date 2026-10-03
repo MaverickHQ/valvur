@@ -47,6 +47,12 @@ def _undeclared(name: str) -> Invocation:
 @runtime_checkable
 class ScannerAdapter(Protocol):
     name: str
+    #: The tool's version, pinned beside its image (the record's, F2.7).
+    version: str = ""
+    #: The file an adapter produces instead of, or beside, Findings: Syft's SBOM.
+    artifact: str | None = None
+    #: The network the Profile granted it (D52c); False until `for_profile` says.
+    network: bool = False
 
     def command(self, workspace: Path) -> Invocation:
         """How to invoke this Scanner: its argv, report file, timeout and grants

@@ -18,9 +18,10 @@ import threading
 import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import Protocol
 
 from .engine import CACHE_ENV, RESULTS_ENV, WORKSPACE_ENV
-from .invocation import Invocation
+from .invocation import Invocation, ScannerOutput
 from .selinux import selinux_enforcing
 
 
@@ -157,15 +158,98 @@ def job_boundary(net: Path = Path("/sys/class/net")) -> str:
     return f"this job's container, with a network: {', '.join(interfaces)}"
 
 
-class _Runtime:
+class Runtime(Protocol):
+    """Every member a scan uses of the runtime that runs its engine (D53): declared,
+    so mypy checks what `api` once found out with eleven `getattr` calls."""
+
+    #: Runs the Scan Container's engine (ADR-0022).
+    engine: bool
+    #: Set by `kill`; read before anything is written (F1.11).
+    cancelled: bool
+    #: The Scan Run's generation, carried by every container it starts (R3.6).
+    generation: str | None
+    #: The image the engine runs in, for the record and a pull.
+    image: str
+    #: The container runtime's command, `docker` or `podman`; None for a process.
+    runtime: str | None
+    #: Whether this runtime fetches what a first run lacks before a scan (24.1):
+    #: the image, the database. A process runtime in a test fetches nothing.
+    fetches: bool
+
+    def run(self, plan: list[Invocation], tar: bytes, scratch: Path,
+            on_event: Callable[[dict], None] | None = None,
+            budget_s: float | None = None, jobs: int | None = None) -> int: ...
+
+    def kill(self) -> int: ...
+
+    def wait_stopped(self, timeout: float = 15.0) -> bool: ...
+
+    def image_present(self) -> bool: ...
+
+    def pull_size_mb(self) -> int | None: ...
+
+    def pull_image(self, on_line: Callable[[str], None] | None = None) -> ScannerOutput: ...
+
+    def db_size_mb(self) -> int | None: ...
+
+    def update_db(self) -> ScannerOutput: ...
+
+    def verify_compatible(self) -> None: ...
+
+    def build_provenance(self) -> tuple[str | None, str | None]: ...
+
+    def boundary(self) -> str: ...
+
+
+class RuntimeDefaults:
+    """`Runtime`'s members for a runtime that has nothing to fetch, compare or pull:
+    the process runtimes, and the suite's fakes. A runtime that does more says so."""
+
+    engine = True
+    cancelled = False
+    generation: str | None = None
+    image = ""
+    runtime: str | None = None
+    fetches = False
+
+    def kill(self) -> int:
+        self.cancelled = True
+        return 0
+
+    def wait_stopped(self, timeout: float = 15.0) -> bool:
+        return True
+
+    def image_present(self) -> bool:
+        return True
+
+    def pull_size_mb(self) -> int | None:
+        return None
+
+    def pull_image(self, on_line: Callable[[str], None] | None = None) -> ScannerOutput:
+        raise NotImplementedError(f"{type(self).__name__} pulls no image")
+
+    def db_size_mb(self) -> int | None:
+        return None
+
+    def update_db(self) -> ScannerOutput:
+        raise NotImplementedError(f"{type(self).__name__} fetches no database")
+
+    def verify_compatible(self) -> None:
+        return None
+
+    def build_provenance(self) -> tuple[str | None, str | None]:
+        return None, None
+
+    def boundary(self) -> str:
+        return SCAN_CONTAINER
+
+
+class _Runtime(RuntimeDefaults):
     """What both runtimes share: one engine at a time, and one way to stop it.
 
     `kill` is the cancel (F1.11): it marks the runtime cancelled, which `api`
     reads before and after the engine runs, and stops the engine if one is
     running. `wait_stopped` is the confirmation CANCELLED waits for (R3.5)."""
-
-    #: What `api` asks to choose the Scan Container's path (ADR-0022).
-    engine = True
 
     def __init__(self) -> None:
         #: Set by `kill`. The scan checks it before it writes anything (F1.11).
@@ -178,10 +262,6 @@ class _Runtime:
         self._count = threading.Lock()
         #: The Scan Run's generation, carried by the Scan Container (R3.6).
         self.generation: str | None = None
-
-    def boundary(self) -> str:
-        """Where the Scanners run, for `run.json` (R8.1)."""
-        return SCAN_CONTAINER
 
     def kill(self) -> int:
         """Stop the engine, and remember that the scan was cancelled. Returns 1
@@ -272,6 +352,7 @@ class ContainerRuntime(_Runtime):
         super().__init__()
         self.image = image or IMAGE
         self._runtime = runtime
+        self.fetches = True
         #: Every Scan Container this runtime started, for `wait_stopped`.
         self._names: set[str] = set()
 
@@ -327,13 +408,17 @@ class ContainerRuntime(_Runtime):
             [self.runtime, "ps", "-a", "--filter", "name=valvur-", "--format", "{{.Names}}"],
             capture_output=True, text=True, timeout=30, check=False).stdout.split())
 
-    @property
+    @property  # type: ignore[override]
     def runtime(self) -> str:
         from .runner import detect_runtime
 
         if self._runtime is None:
             self._runtime = detect_runtime()
         return self._runtime
+
+    @runtime.setter
+    def runtime(self, value: str | None) -> None:
+        self._runtime = value
 
     def _kill(self, name: str, confirm_s: float = 15.0) -> None:
         """Stop the Scan Container by name: killing `docker run` would leave it
@@ -405,6 +490,7 @@ class ImageRuntime(LocalRuntime):
 
     image = "this image"
     runtime = None
+    fetches = True
 
     def __init__(self) -> None:
         from . import cache

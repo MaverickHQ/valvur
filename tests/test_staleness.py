@@ -206,6 +206,8 @@ def test_with_fetch_never_valvur_never_updates_a_database_it_has(tmp_path, monke
         def db_size_mb(self):
             return 118
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             pytest.fail("a scan updated the database with fetch = never (ADR-0025)")
 
