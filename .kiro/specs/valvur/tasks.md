@@ -610,7 +610,7 @@ Internal only: no contract changes, and the Score unchanged on both lanes.
     shared operation, `scan_cancel` aside, the CLI's cancel being Ctrl-C.
   - **Unchanged words.** R23.1's goldens pass, both surfaces, all three workspaces.
   - **Gone:** `Job.summary`, `operations._summarise`, `start_scan`, `_run_scan` and
-    `_scan_with_budget`; 26 test files that reached into them were moved to the handlers.
+    `_scan_with_budget`; the 31 test files that reached into them now go through the handlers.
   - **The early cancel.** The server's reader announces each `scan` call before its
     thread runs (`protocol.Handlers.announce`, `jobs.expect`); a `scan_cancel` read
     after it waits up to 15 s for that job and stops it. A scan refused at its arguments
