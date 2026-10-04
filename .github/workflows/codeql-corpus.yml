@@ -1,0 +1,78 @@
+name: codeql-corpus
+
+# What valvur misses, by a second engine (R29.4, D65c). CodeQL's default queries over
+# each corpus project CodeQL can analyse without a build, Python and JavaScript or
+# TypeScript, at its pin. Each result is printed to the log as one line, and
+# `scripts/codeql_corpus.py candidates` reads the log against valvur's own scan of the
+# same projects: the lines valvur does not report are candidate rules, listed in
+# docs/acceptance/r29.md. Nothing of CodeQL ships, and nothing is uploaded.
+#
+# Allowed by the GitHub CodeQL Terms and Conditions (github/codeql-cli-binaries, read
+# 2026-10-04): analysis of an Open Source Codebase, one under an OSI-approved licence,
+# and automated analysis in CI of one hosted and maintained on GitHub.com. Each
+# corpus project is; one whose licence is not OSI-approved is left out by the script.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/codeql-corpus.yml"
+      - "tests/corpus/corpus.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  projects:
+    name: the corpus projects CodeQL may analyse
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: matrix
+        run: |
+          echo "matrix=$(python3 scripts/codeql_corpus.py matrix)" >> "$GITHUB_OUTPUT"
+
+  analyse:
+    name: CodeQL on a corpus project
+    needs: projects
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        project: ${{ fromJSON(needs.projects.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The project at its pin
+        env:
+          URL: ${{ matrix.project.url }}
+          COMMIT: ${{ matrix.project.commit }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/src"
+          cd "$RUNNER_TEMP/src"
+          git init -q
+          git remote add origin "$URL"
+          git fetch -q --depth 1 origin "$COMMIT"
+          git checkout -q FETCH_HEAD
+      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: ${{ matrix.project.codeql }}
+          build-mode: none
+          source-root: ${{ runner.temp }}/src
+      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          upload: never
+          output: ${{ runner.temp }}/sarif
+          checkout_path: ${{ runner.temp }}/src
+      - name: Each result, one line in the log
+        env:
+          NAME: ${{ matrix.project.name }}
+        run: python3 scripts/codeql_corpus.py lines "$NAME" "$RUNNER_TEMP"/sarif/*.sarif
