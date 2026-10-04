@@ -9,6 +9,7 @@
     "/results/opengrep.json",
     "--quiet",
     "--no-git-ignore",
+    "--disable-nosem",
     "/workspace"
   ],
   "timeout": 600,

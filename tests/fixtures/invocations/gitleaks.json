@@ -9,7 +9,10 @@
     "/results/gitleaks.json",
     "--no-banner",
     "--exit-code",
-    "0"
+    "0",
+    "--ignore-gitleaks-allow",
+    "--gitleaks-ignore-path",
+    "/dev/null"
   ],
   "timeout": 300,
   "network": false,

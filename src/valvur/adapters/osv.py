@@ -20,6 +20,11 @@ from .base import ScannerAdapter, container_relative
 VERSION = "2.6.0"
 
 
+#: The project's own `osv-scanner.toml` ignores nothing (R38.2, D77a): an empty
+#: configuration, given explicitly, outranks the one beside each manifest.
+IGNORES_OFF = ("--config", "/dev/null")
+
+
 class OsvAdapter(ScannerAdapter):
     kind = "scanner"
     name = "osv-scanner"
@@ -48,7 +53,7 @@ class OsvAdapter(ScannerAdapter):
                 argv=("osv-scanner", "scan", "source", "--recursive",
                       "--offline-vulnerabilities",
                       "--format", "json", "--output-file", "/results/osv.json",
-                      "/workspace"),
+                      *IGNORES_OFF, "/workspace"),
                 report="osv.json", network=False, timeout=600, empty_when=NOTHING_TO_SCAN,
                 env=(("OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY", MOUNT),),
             )
@@ -59,7 +64,7 @@ class OsvAdapter(ScannerAdapter):
             argv=("osv-scanner", "scan", "source", "--recursive",
                   # `--output-file`: 2.6.0 deprecates `--output` with a warning.
                   "--format", "json", "--output-file", "/results/osv.json",
-                  "/workspace"),
+                  *IGNORES_OFF, "/workspace"),
             report="osv.json", network=True, timeout=600, empty_when=NOTHING_TO_SCAN,
         )
 

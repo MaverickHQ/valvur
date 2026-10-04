@@ -71,6 +71,7 @@ the rest are the image's, and the e2e test checks each of those exists.
 | `/cache/names` | the shim: the package-name index, mounted read-only from the host cache (ADR-0018), with the known-malicious list in `malicious/` beside it (R11.5, ADR-0027) | the dependency-reality Check |
 | `/cache/osv` | the shim: OSV's offline database, one zip per ecosystem, mounted read-only from the host cache (R4.6) | OSV-Scanner on `offline` (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`) |
 | `/tmp` | the shim: a tmpfs (`rw,noexec,nosuid,size=512m`); `HOME` points here | any tool that needs scratch space; nothing runs from here, since Opengrep's core is unpacked in the image at `/opt/opengrep` |
+| `/dev/null` | the image, as every Linux system has it: empty | an ignore file or configuration a Scanner would otherwise read from the project (Gitleaks's `--gitleaks-ignore-path`, Trivy's `--ignorefile`, OSV-Scanner's `--config`): a project's own ignores hide nothing (R38, D77) |
 | `/opt/valvur-rules` | the image: valvur's own Opengrep rules, licensed with the project (ADR-0004), and in `vendor/` the rules vendored on measured precision, each with its origin's licence (R13, ADR-0029) | Opengrep (`--config`) |
 | `/opt/checkov` | the image: Checkov's own virtual environment, hash-locked (23.4.1); `checkov` on PATH links into it | Checkov |
 | `/usr/local/lib/python3.12/site-packages/valvur` | the image: the `valvur` package itself, so the engine and the Checks run in the container (ADR-0013) | `python -m valvur.engine`, `python -m valvur.checks` |

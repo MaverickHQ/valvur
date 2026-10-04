@@ -94,6 +94,10 @@ class TrivyAdapter(ScannerAdapter):
                 # runs on the developer's machine and in CI, which is precisely the
                 # supply-chain surface this product exists to cover.
                 "--include-dev-deps",
+                # The project's `.trivyignore` ignores nothing (R38.2, D77a); it was
+                # unread only because the engine's working directory is not the
+                # Workspace.
+                "--ignorefile", "/dev/null",
             ),
             report="trivy.json", timeout=600,
         )

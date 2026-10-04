@@ -92,6 +92,11 @@ PATHS: dict[str, tuple[str, str]] = {
         'the shim: a tmpfs (`rw,noexec,nosuid,size=512m`); `HOME` points here',
         "any tool that needs scratch space; nothing runs from here, since Opengrep's core is "
         'unpacked in the image at `/opt/opengrep`'),
+    '/dev/null': (
+        'the image, as every Linux system has it: empty',
+        "an ignore file or configuration a Scanner would otherwise read from the project "
+        "(Gitleaks's `--gitleaks-ignore-path`, Trivy's `--ignorefile`, OSV-Scanner's "
+        '`--config`): a project\'s own ignores hide nothing (R38, D77)'),
     '/opt/valvur-rules': (
         "the image: valvur's own Opengrep rules, licensed with the project (ADR-0004), and in "
         "`vendor/` the rules vendored on measured precision, each with its origin's licence "

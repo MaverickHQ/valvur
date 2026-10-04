@@ -152,7 +152,10 @@ def test_a_secret_still_in_the_tree_is_one_finding_at_its_line(repo, monkeypatch
     assert (finding.path, finding.line, finding.commit) == ("config.py", 2, None)
 
 
-def test_history_respects_the_projects_excludes_and_its_path_allowlist(repo, monkeypatch):
+def test_history_respects_the_projects_excludes_and_reports_what_its_allowlist_hid(
+        repo, monkeypatch):
+    """An excluded path is not scanned. A path the project's `.gitleaks.toml`
+    allowlists is, since R38 (D77): a project's own ignore hides nothing silently."""
     _commit(repo, {".security-scan.toml": '[scan]\nexclude = ["archive"]\n',
                    ".gitleaks.toml": "[extend]\nuseDefault = true\n\n[allowlist]\n"
                                      "paths = ['''^tests/''']\n",
@@ -160,7 +163,7 @@ def test_history_respects_the_projects_excludes_and_its_path_allowlist(repo, mon
                    "tests/keys.py": f"KEY = '{KEY}'\n"}, "planted")
     _commit(repo, {"archive/old.py": "", "tests/keys.py": ""}, "emptied")
     run, _ = _scan(repo, monkeypatch)
-    assert [f for f in run.findings if f.rule == "aws-access-token"] == []
+    assert [f.path for f in run.findings if f.rule == "aws-access-token"] == ["tests/keys.py"]
 
 
 def test_a_folder_that_is_not_a_repository_reads_no_history(tmp_path, monkeypatch):

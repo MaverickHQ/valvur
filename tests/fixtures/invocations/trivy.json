@@ -16,7 +16,9 @@
     "--quiet",
     "--scanners",
     "vuln",
-    "--include-dev-deps"
+    "--include-dev-deps",
+    "--ignorefile",
+    "/dev/null"
   ],
   "timeout": 600,
   "network": false,

@@ -14,6 +14,14 @@ from .base import ScannerAdapter, container_relative
 
 VERSION = "8.30.1"
 
+#: What turns the project's own ignores off (R38.2, D77a), measured from 8.30.1's help:
+#: `gitleaks:allow` comments are reported, and no `.gitleaksignore` is read. Its
+#: `.gitleaks.toml` allowlists go with the configuration below.
+IGNORES_OFF = ("--ignore-gitleaks-allow", "--gitleaks-ignore-path", "/dev/null")
+#: Gitleaks reads a configuration from this variable before the scanned directory's
+#: `.gitleaks.toml`, so the project's file cannot add its allowlists back.
+CONFIG_ENV = "GITLEAKS_CONFIG_TOML"
+
 
 class GitleaksAdapter(ScannerAdapter):
     kind = "scanner"
@@ -31,8 +39,9 @@ class GitleaksAdapter(ScannerAdapter):
             argv=("gitleaks", "dir", "/workspace",
                   "--report-format", "json",
                   "--report-path", "/results/gitleaks.json",
-                  "--no-banner", "--exit-code", "0"),
+                  "--no-banner", "--exit-code", "0", *IGNORES_OFF),
             report="gitleaks.json", timeout=300,
+            env=((CONFIG_ENV, config_without_allowlists(workspace)),),
         )
 
     def parse(self, output: ScannerOutput) -> list[Finding]:
@@ -40,26 +49,28 @@ class GitleaksAdapter(ScannerAdapter):
                          self.name)
                 for item in json.loads(output.stdout or "[]") if not _placeholder(item)]
 
-    def history_command(self, *, project_config: bool) -> Invocation:
+    def history_command(self, *, project_config: bool,
+                        workspace: Path | None = None) -> Invocation:
         """The second pass (R3.7): the history directory the host wrote into the
         scratch directory, one file per commit and path (R10.9). The project's own
         `.gitleaks.toml`, when the File Set carries it, keeps its rules and content
         allowlists; its path allowlists are applied by `parse_history`, because
         every hit here is under one directory."""
-        config = ("--config", f"/workspace/{PROJECT_GITLEAKS_CONFIG}") if project_config else ()
+        project = workspace if project_config else None
         return Invocation(
             tool=HISTORY_TOOL, version=VERSION,
             argv=("gitleaks", "dir", f"/results/{HISTORY_DIR}",
                   "--report-format", "json",
                   "--report-path", f"/results/{HISTORY_REPORT}",
-                  "--no-banner", "--exit-code", "0", *config),
-            report=HISTORY_REPORT, timeout=300)
+                  "--no-banner", "--exit-code", "0", *IGNORES_OFF),
+            report=HISTORY_REPORT, timeout=300,
+            env=((CONFIG_ENV, config_without_allowlists(project)),))
 
     def parse_history(self, output: ScannerOutput, written, workspace: Path,
                       excluded: tuple[str, ...]) -> list[Finding]:
-        """Each hit at the path and commit it came from; one under an excluded
-        path or a path the project allowlists is dropped, as in the tree."""
-        allowed = project_path_allowlist(workspace)
+        """Each hit at the path and commit it came from; one under an excluded path is
+        dropped, as in the tree. One under a path the project's `.gitleaks.toml`
+        allowlists is kept: a project's own ignore hides nothing (R38.2, D77a)."""
         findings = []
         for item in json.loads(output.stdout or "[]"):
             if _placeholder(item):
@@ -68,7 +79,7 @@ class GitleaksAdapter(ScannerAdapter):
             if where is None:
                 continue
             commit, path = where
-            if is_configured_out(path, excluded) or any(p.search(path) for p in allowed):
+            if is_configured_out(path, excluded):
                 continue
             findings.append(_finding(item, path, 0, self.name, commit=commit))
         return findings
@@ -140,3 +151,50 @@ def project_path_allowlist(workspace: Path) -> list:
             except re.error:
                 continue
     return patterns
+
+
+def config_without_allowlists(workspace: Path | None) -> str:
+    """The project's `.gitleaks.toml` with every allowlist taken out, as TOML: its own
+    rules still add detection, and nothing in it hides a finding (D77a). Gitleaks's
+    defaults when there is no file. A file Python cannot parse is passed as it is, so
+    Gitleaks fails on it loudly, as it did reading the file itself."""
+    import tomllib
+
+    path = workspace / PROJECT_GITLEAKS_CONFIG if workspace is not None else None
+    if path is None or not path.is_file():
+        return _toml({"extend": {"useDefault": True}})
+    text = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        raw = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return text
+    for table in (raw, *(r for r in raw.get("rules") or [] if isinstance(r, dict))):
+        table.pop("allowlist", None)
+        table.pop("allowlists", None)
+    extend = raw.get("extend")
+    if isinstance(extend, dict) and extend.pop("path", None) is not None:
+        # A base file of the project's own would bring its allowlists back; its rules
+        # are Gitleaks's defaults or the project's, and the defaults stand in.
+        extend["useDefault"] = True
+    return _toml(raw)
+
+
+def _toml(document: dict) -> str:
+    """`document` as TOML, every table inline: enough for a Gitleaks configuration,
+    whose values are strings, numbers, booleans, lists and tables."""
+    return "".join(f"{json.dumps(key)} = {_toml_value(value)}\n"
+                   for key, value in document.items())
+
+
+def _toml_value(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return repr(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_value(v) for v in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{json.dumps(str(k))} = {_toml_value(v)}"
+                               for k, v in value.items()) + "}"
+    # A JSON string is a TOML basic string: the same escapes, `\uXXXX` included.
+    return json.dumps(str(value))

@@ -50,6 +50,10 @@ class OpengrepAdapter(ScannerAdapter):
             argv=("opengrep", "scan", "--config", "/opt/valvur-rules",
                   "--json", "--output", "/results/opengrep.json",
                   "--quiet", "--no-git-ignore",
+                  # A `nosem`, `nosemgrep` or `noopengrep` comment in the project
+                  # hides nothing (R38.2, D77a): valvur reads it and says what it
+                  # would have hidden.
+                  "--disable-nosem",
                   "/workspace"),
             report="opengrep.json", timeout=600, empty_when=NOTHING_TO_SCAN,
             # The tree the image unpacked (D54a): until then Opengrep unpacked 243 MB

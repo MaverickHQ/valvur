@@ -428,7 +428,7 @@ def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progr
     if written is None:
         return None, None
     plan.append(adapters[index].history_command(
-        project_config=PROJECT_GITLEAKS_CONFIG in chosen.files))
+        project_config=PROJECT_GITLEAKS_CONFIG in chosen.files, workspace=workspace))
     planned.append(index)
     say(_events.history_read(written.commits, written.bytes, written.bounded))
     return written, {"commits": written.commits, "bytes": written.bytes,

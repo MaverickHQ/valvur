@@ -8,6 +8,8 @@
     "json",
     "--output-file",
     "/results/osv.json",
+    "--config",
+    "/dev/null",
     "/workspace"
   ],
   "timeout": 600,

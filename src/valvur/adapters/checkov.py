@@ -43,7 +43,10 @@ class CheckovAdapter(ScannerAdapter):
         return Invocation(
             tool=self.name, version=VERSION,
             argv=("checkov", "--directory", "/workspace", "--output", "json",
-                  "--output-file-path", "/results", "--quiet", "--compact",
+                  # No `--quiet`: Checkov has no switch for a `checkov:skip` comment,
+                  # which it matches before the check runs, and only without
+                  # `--quiet` does its report list each skip (R38.2, D77's fallback).
+                  "--output-file-path", "/results", "--compact",
                   # No network, ever: skip external data downloads outright.
                   "--skip-download",
                   # Workflows are zizmor's (R4.3, ADR-0023): without this one

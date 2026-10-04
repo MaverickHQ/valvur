@@ -7,7 +7,6 @@
     "json",
     "--output-file-path",
     "/results",
-    "--quiet",
     "--compact",
     "--skip-download",
     "--skip-framework",
