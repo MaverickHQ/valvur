@@ -4,9 +4,11 @@ name: refresh
 # main, and nothing then told the owner that a release would ship it. On the first
 # Monday of each month, when main's pins differ from the latest release's, this runs
 # the Score on main; when no track fell under the ratchet and every judged gate held,
-# it dispatches a rehearsal of main and opens one issue for the owner to prepare and
-# tag. The tag and the brake stay the owner's (ADR-0020): nothing here tags, pushes
-# or publishes.
+# it dispatches a rehearsal of main and opens a pull request of the next patch
+# release, prepared by `prepare_release.py`, for the owner to land and tag (R28.4,
+# D64c). A Score that fell is said in one issue instead. The tag and the brake stay
+# the owner's (ADR-0020): nothing here tags or publishes, and it writes only a
+# `release/` branch.
 on:
   schedule:
     - cron: "23 5 * * 1"     # Mondays, 05:23 UTC; the first step keeps the first of the month
@@ -20,9 +22,10 @@ jobs:
     name: the Scanner pins against the latest release
     runs-on: ubuntu-26.04
     permissions:
-      contents: read
-      issues: write         # the one issue the owner gets
+      contents: write       # the release/ branch and its commit, which GitHub signs
+      issues: write         # the one issue a Score that fell gets
       actions: write        # dispatch the rehearsal of main
+      pull-requests: write  # the release pull request
     timeout-minutes: 90
     steps:
       - name: The first Monday of the month, or asked
@@ -47,6 +50,8 @@ jobs:
 
       - name: What moved since the latest release
         id: pins
+        # Everything this run writes goes under the runner's temporary directory, so
+        # the checkout stays clean for `prepare_release.py`, which refuses a dirty tree.
         if: steps.when.outputs.run == 'true'
         # The parser test_scanner_pins.py holds the image to, reading the release's
         # files from its tag.
@@ -54,7 +59,7 @@ jobs:
           since=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
           echo "since=$since" >> "$GITHUB_OUTPUT"
           python3 scripts/scanner_pins.py --since "$since" --github-output "$GITHUB_OUTPUT" \
-            | tee moved.json
+            | tee "$RUNNER_TEMP/moved.json"
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         if: steps.pins.outputs.changed == 'true'
@@ -90,15 +95,15 @@ jobs:
           VALVUR_IMAGE: valvur:dev
         run: |
           set -o pipefail
-          uv run python scripts/eval.py --work "$RUNNER_TEMP/eval" --out eval-report \
+          uv run python scripts/eval.py --work "$RUNNER_TEMP/eval" --out "$RUNNER_TEMP/eval-report" \
             --compare tests/eval/baseline.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && steps.pins.outputs.changed == 'true'
         with:
           name: refresh-eval-report
           path: |
-            eval-report/score.json
-            eval-report/scorecard.md
+            ${{ runner.temp }}/eval-report/score.json
+            ${{ runner.temp }}/eval-report/scorecard.md
           retention-days: 90
 
       - name: Rehearse main
@@ -110,23 +115,45 @@ jobs:
           REF: ${{ github.ref_name }}
         run: gh workflow run release.yml --ref "$REF"
 
-      - name: One issue for the owner
-        if: success() && steps.pins.outputs.changed == 'true'
+      - name: A release pull request for the owner
+        # The Score held: the next patch release, prepared and offered (R28.4, D64c).
+        # A pull request opened with the workflow's token starts no workflow, so its
+        # body asks the owner to close and reopen it, which runs the required checks.
+        if: success() && steps.pins.outputs.changed == 'true' && steps.score.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SINCE: ${{ steps.pins.outputs.since }}
-          SCORE: ${{ steps.score.outcome }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -eu
+          ver="${SINCE#v}"
+          next="${ver%.*}.$(( ${ver##*.} + 1 ))"
+          branch="release/v$next"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          uv run python scripts/prepare_release.py "$next"
+          python3 scripts/signed_push.py "$REPO" "$branch"
+          body=$(printf '%s\n\n```json\n%s\n```\n\n%s\n' \
+            "The Scanner pins on main moved since $SINCE, and the Score held against the baseline with every judged gate passing ($RUN). This is \`prepare_release.py $next\`, in one commit GitHub signed:" \
+            "$(cat "$RUNNER_TEMP/moved.json")" \
+            "A pull request opened by a workflow starts no workflow: close and reopen it to run the required checks. Then land it by fast-forward, and follow docs/RELEASING.md from the tag; the tag and the brake are yours.")
+          gh pr create --repo "$REPO" --head "$branch" --base main \
+            --title "chore: release $next" --body "$body"
+
+      - name: One issue for the owner
+        # The Score fell under the baseline or a judged gate failed: nothing to release.
+        if: success() && steps.pins.outputs.changed == 'true' && steps.score.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SINCE: ${{ steps.pins.outputs.since }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TITLE: the Scanner pins moved since the latest release
         run: |
           set -eu
-          if [ "$SCORE" = "success" ]; then
-            next="The Score held against the baseline and every judged gate passed, and a rehearsal of main was dispatched. When it is green: \`uv run python scripts/prepare_release.py <version>\`, then docs/RELEASING.md; the tag and the brake are yours."
-          else
-            next="The Score fell under the baseline or a judged gate failed, so nothing was rehearsed. Read the refresh-eval-report artifact before a release ships these pins."
-          fi
+          next="The Score fell under the baseline or a judged gate failed, so nothing was rehearsed or prepared. Read the refresh-eval-report artifact before a release ships these pins."
           body=$(printf '%s\n\n```json\n%s\n```\n\n%s\n' \
-            "The Scanner pins on main differ from $SINCE's ($RUN):" "$(cat moved.json)" "$next")
+            "The Scanner pins on main differ from $SINCE's ($RUN):" "$(cat "$RUNNER_TEMP/moved.json")" "$next")
           existing=$(gh issue list --state open --search "$TITLE in:title" \
                        --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then

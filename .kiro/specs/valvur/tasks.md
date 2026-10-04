@@ -1795,10 +1795,24 @@ movement recorded and explained; the acceptance set green on both lanes.
   which there is any needed job's, and the closing step reads `needs.*.result`.
   `tests/test_issues_close_themselves.py` holds the pairs. A close is exercised by the
   first passing scheduled run after one fails, once this lands.
-- [ ] **R28.4** **The refresh opens a release pull request** (D64c). Behaviours:
+- [x] **R28.4** **The refresh opens a release pull request** (D64c). Behaviours:
   1. when the pins moved and the Score held, `refresh.yml` runs `prepare_release.py` at the
      next patch version on a branch and opens a pull request;
   2. it never tags, and a test holds that.
+
+  STATUS (2026-10-04): when the Score held, `refresh.yml` runs `prepare_release.py` at the
+  latest release's patch plus one. `scripts/signed_push.py` then restates that commit on a
+  new `release/vX.Y.Z` branch through GitHub's `createCommitOnBranch`, which GitHub signs,
+  since `main` takes only signed commits and a push from a workflow is unsigned. Then
+  `gh pr create` opens the pull request. A Score that fell still files the one issue. The
+  run writes its report and `moved.json` under the runner's temporary directory, so the
+  tree stays clean for `prepare_release.py`. The job gains `contents: write` and
+  `pull-requests: write`. `signed_push.py` refuses any branch but `release/vX.Y.Z`, and
+  `tests/test_refresh_release_pr.py` holds that, the step, the version arithmetic, and that
+  nothing tags or publishes. R16.3's tests are restated for the new grant. zizmor finds
+  nothing in `.github/`. A pull request opened by the workflow's token starts no workflow,
+  so its body asks the owner to close and reopen it. The exit's run of it is §8's: the
+  next first Monday after this lands, or a dispatch of `refresh` on `main`.
 - [ ] **R28.5** **The weekly maintenance routine** (D64d). Behaviours:
   1. `docs/MAINTENANCE.md` holds the routine's prompt and procedure, and the link check
      reads it;
@@ -2036,6 +2050,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | land R19 | its PR green, and `1.4.0` released | one fast-forward of `main` to `build/r19-the-runner-move`, after `1.4.0`'s promote, so the release is built on 24.04 |
 | land R26 to R29 | each phase's PR green | one fast-forward of `main` to the newest stacked branch |
 | allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
+| the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
 | R28.2's auto-merge workflow (D64a) | now | the executor's auto mode refused to write a workflow that merges without review (2026-10-04). Write it from R28.2's STATUS, or let a session write it in manual approve mode; until then Dependabot's pull requests stay yours to land |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |

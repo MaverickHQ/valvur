@@ -100,7 +100,9 @@ def test_its_permissions_are_what_it_does_and_no_more():
 
     assert re.search(r"^permissions:\n  contents: read\n", top, re.M)
     granted = set(re.findall(r"^      (\w[\w-]*): (read|write)", job, re.M))
-    assert granted == {("contents", "read"), ("issues", "write"), ("actions", "write")}
+    # Since R28.4 (D64c) it writes a `release/` branch and opens a pull request of it.
+    assert granted == {("contents", "write"), ("issues", "write"), ("actions", "write"),
+                       ("pull-requests", "write")}
 
 
 def test_it_compares_scores_rehearses_and_opens_one_issue_in_that_order():
@@ -124,4 +126,7 @@ def test_it_never_tags_pushes_or_publishes():
     text = _workflow()
 
     assert not re.search(r"git (tag|push)\b", text)
-    assert "contents: write" not in text and "packages: write" not in text
+    assert "packages: write" not in text
+    # `contents: write` since R28.4 is for one `release/` branch, written through the
+    # API by `signed_push.py`, which refuses any other ref (`test_refresh_release_pr`).
+    assert text.count("contents: write") == 1 and "scripts/signed_push.py" in text
