@@ -71,3 +71,51 @@ def test_every_copy_of_a_fixture_goes_through_the_helper():
         if path.name in {"fixtures.py", "fixture_copy.py"}:
             continue
         assert not copies.search(path.read_text()), f"{path.name} copies a fixture itself"
+
+
+def _suppression(rule: str) -> dict:
+    import tomllib
+
+    config = tomllib.loads((REPO / ".security-scan.toml").read_text())
+    [entry] = [s for s in config["suppress"] if s["rule"] == rule]
+    return entry
+
+
+def test_checkovs_accepted_advisory_is_recorded_where_osv_scanner_reads_ignores():
+    """The one real advisory of the 44: accepted in `.security-scan.toml` since the
+    lock moved, and now in the file OSV-Scanner, and so Scorecard, reads, with the
+    same reason and the same review date. Nothing else is ignored there."""
+    import tomllib
+
+    ignored = tomllib.loads((REPO / "osv-scanner.toml").read_text())["IgnoredVulns"]
+    accepted = _suppression("CVE-2024-23342")
+
+    assert [entry["id"] for entry in ignored] == ["PYSEC-2026-1325"]
+    [entry] = ignored
+    assert entry["reason"].startswith(accepted["reason"][:60])
+    assert "CVE-2024-23342" in entry["reason"] and "requirements-checkov.txt" in entry["reason"]
+    assert entry["ignoreUntil"].date() == accepted["expires"]
+
+
+@pytest.mark.e2e
+def test_osv_scanner_honours_the_ignore_on_checkovs_lock():
+    from valvur import osv_offline
+    from valvur.runner import IMAGE, detect_runtime
+
+    database = osv_offline.directory()
+    if not (database / "osv-scalibr" / "PyPI" / "all.zip").is_file():
+        pytest.skip("OSV's PyPI database is not in this cache; `valvur update` fetches it")
+    probe = subprocess.run(
+        [detect_runtime(), "run", "--rm", "--network=none", "-v", f"{REPO}:/workspace:ro",
+         "-v", f"{database}:/cache/osv:ro", "-e", "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/cache/osv",
+         "--entrypoint", "osv-scanner", IMAGE, "scan", "source", "--lockfile",
+         "requirements.txt:/workspace/requirements-checkov.txt", "--offline-vulnerabilities",
+         "--format", "json"],
+        capture_output=True, text=True, timeout=300, check=False)
+
+    import json
+
+    found = [v["id"] for result in json.loads(probe.stdout or "{}").get("results", [])
+             for package in result["packages"] for v in package.get("vulnerabilities", [])]
+    assert probe.returncode == 0, probe.stderr[-800:]
+    assert "PYSEC-2026-1325" not in found and found == [], found

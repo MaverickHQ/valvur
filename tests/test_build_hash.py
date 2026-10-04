@@ -80,6 +80,8 @@ SDIST_TOP_LEVEL = {
     "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md", "MAINTAINERS.md",
     ".gitignore", ".gitattributes", ".security-scan.toml",
+    # OSV-Scanner's ignores, beside the lock they name (R27.2).
+    "osv-scanner.toml",
 }
 
 
