@@ -1401,9 +1401,14 @@ recorded; or D45's fallback, applied and recorded.
   `test_version.py` are gone, and the scheduled-workflow constraint lost the one name, its
   count unchanged. `test_readme_as_built.py` holds the line. `RELEASING.md`'s *Cutting a
   release* has nine steps, three marked *(owner)*, the last the approval at the brake.
-- [ ] **R26.5** **Local pre-checks only where CI cannot reach** (D62d). Behaviour:
+- [x] **R26.5** **Local pre-checks only where CI cannot reach** (D62d). Behaviour:
   `RELEASING.md`'s pre-checks are the self-scan gate and, when detection changed since the
   last Mac measurement, the Mac lane; a test holds the list.
+  **STATUS 2026-10-04:** ✅ step 4 of *Cutting a release* runs two commands, the self-scan
+  and its gate on the day's data, and names the Mac lane's two for when detection changed
+  since its last measurement; `verify.sh` and the e2e suite are gone from the section,
+  since the pull request's required checks run them and `verify` reads their verdict.
+  `test_release_prechecks.py` holds the list.
 
 **Exit:** a rehearsal of the new flow on R26's branch, measured against R26.1's; the owner's
 actions per release counted from `RELEASING.md` (three, from four); CI green; the Score
