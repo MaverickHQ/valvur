@@ -16,8 +16,8 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
 **Status (2026-10-04).** **`1.4.0` is published**, with R23 to R25, R21 and R22: the Score
-**73.9** on Linux, the cloud VM and the Mac (64.9 at `1.2.0`), and releases carry their provenance.
-R26 lightened the release; R27 took the branch's Scorecard to 9.2. **Next:** R38, R28, R29, then R30 to R37, [the path to OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md).
+**73.9** on Linux, the cloud VM and the Mac (64.9 at `1.2.0`). R26 lightened the release; R27
+took Scorecard to 9.2; R38 turns a project's own ignores off and names them (D77). **Next:** R28, R29, then R30 to R37, [the path to OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md).
 
 ## 2. What it is NOT
 

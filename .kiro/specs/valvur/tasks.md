@@ -1720,11 +1720,18 @@ measurement, or each one's measured reason; CI green; the Score unchanged.
   so each is accepted in `.security-scan.toml` with a reason and 2027-09-14; the key is in
   the 200 commits history reads, so moving it out of the tree would not clear it. After:
   `clean`, 12 suppressed, 0 active.
-- [ ] **R38.5** **The Score and the corpus** (D77d). Behaviours:
+- [x] **R38.5** **The Score and the corpus** (D77d). Behaviours:
   1. every track on both lanes; a track that moves because the corpus's projects carry
      ignores is recorded with the findings that moved, and any other move past the ratchet
      blocks;
   2. `CHANGELOG.md` names the verdict change as a fix.
+
+  STATUS (2026-10-04): the cloud VM at R38's head, `valvur:dev` `sha256:318b95d30db7`:
+  **73.9**, every track equal to the baseline, every judged gate passing. No track moved:
+  none of the tracks' inputs or the corpus's 13 projects carries an ignore D77 names. The
+  acceptance set passes, eight of eight. The CHANGELOG's entry is *Fixed: a project's own
+  ignores hid findings silently*. Linux is CI's on the pull request; the Mac is D61a's.
+  The record: `docs/acceptance/r38.md`.
 
 **Exit:** every ignore D77 names is visible in the report; the Score on both lanes, with any
 movement recorded and explained; the acceptance set green on both lanes.
