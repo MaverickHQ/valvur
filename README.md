@@ -7,6 +7,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/valvur)](https://pypi.org/project/valvur/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MaverickHQ/valvur/badge)](https://scorecard.dev/viewer/?uri=github.com/MaverickHQ/valvur)
+<sub>Scorecard's Code-Review, Branch-Protection and Contributors checks, and the Best Practices badge's silver and gold, each need a second maintainer; valvur has one ([MAINTAINERS.md](MAINTAINERS.md)).</sub>
 
 **Start in Claude Code** with two commands, then ask it to scan the project:
 `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`.

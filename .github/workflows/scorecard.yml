@@ -3,7 +3,7 @@ name: scorecard
 # OpenSSF Scorecard (R22.1, D49a): how this repository is run, scored by
 # ossf/scorecard-action. Weekly, and on every push to `main`, where the result is
 # published to the public OpenSSF API and read by the README's badge. A pull request
-# that changes this file runs it with publishing off, since Scorecard publishes only
+# that changes what it reads runs it with publishing off, since Scorecard publishes only
 # from the default branch: that run is how a branch measures its score. The result
 # describes the repository, never a user's code. Permissions are the action's
 # documented minimum, granted to the one job, and the workflow holds no env and no
@@ -15,8 +15,18 @@ on:
   push:
     branches: [main]
   pull_request:
+    # A change to what Scorecard reads measures itself, publishing off (R27.5): the
+    # workflows, this one among them, the Dockerfiles, OSV-Scanner's ignores, the
+    # manifests, the fixtures and the fuzzers.
     paths:
-      - ".github/workflows/scorecard.yml"
+      - ".github/workflows/**"
+      - "Dockerfile"
+      - ".clusterfuzzlite/**"
+      - "osv-scanner.toml"
+      - "fuzz/**"
+      - "tests/fixtures/**"
+      - "requirements-*.txt"
+      - "uv.lock"
 
 permissions:
   contents: read
