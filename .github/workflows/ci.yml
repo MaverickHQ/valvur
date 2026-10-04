@@ -249,8 +249,9 @@ jobs:
         run: |
           echo "reachable=false" >> "$GITHUB_OUTPUT"
 
+          # jq reads the token out; nothing downloaded is run (Scorecard, R22.1).
           TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:maverickhq/valvur:pull&service=ghcr.io" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
+            | jq -r '.token // empty' 2>/dev/null || true)
           if [ -z "$TOKEN" ]; then
             echo "::error::ghcr.io/maverickhq/valvur gave no anonymous pull token; the package is meant to be public (12a.1)"
             exit 1
