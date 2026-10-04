@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-10-04
+
 ### Releases carry their build provenance
 
 - **Every release now carries its SLSA build provenance as assets:**
