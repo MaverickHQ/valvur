@@ -312,6 +312,7 @@ jobs:
         # until 2026-09-21 — a week after the repository went public (12a.1), and
         # a way for a real failure to read as an expected skip. `artifact` verifies
         # what this produces.
+        id: attest-image
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
@@ -392,6 +393,34 @@ jobs:
 
       - name: Build the Python distributions
         run: uv build
+
+      - name: Attest the Python distributions' build provenance (SLSA)
+        # Scorecard's Signed-Releases scores a release 10 when one of its assets is
+        # provenance, `.intoto.jsonl`, and 0 without (its probes, read 2026-10-04).
+        # The releases carried PyPI's `.publish.attestation`, which it does not count,
+        # so the check read 0 though the image was attested. `promote` attaches both.
+        id: attest-dist
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+
+      - name: Keep both provenance bundles for the release
+        env:
+          PUBLISH: ${{ needs.verify.outputs.publish_version }}
+          IMAGE_BUNDLE: ${{ steps.attest-image.outputs.bundle-path }}
+          DIST_BUNDLE: ${{ steps.attest-dist.outputs.bundle-path }}
+        run: |
+          mkdir -p provenance
+          cp "$IMAGE_BUNDLE" "provenance/valvur-${PUBLISH}.image.intoto.jsonl"
+          cp "$DIST_BUNDLE" "provenance/valvur-${PUBLISH}.dist.intoto.jsonl"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # For `promote` to attach to the GitHub release, beside the SBOMs.
+        with:
+          name: provenance
+          path: provenance/*
+          if-no-files-found: error
+          retention-days: 1
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # The same files `artifact` tests and `promote` uploads to PyPI and attaches
@@ -504,6 +533,12 @@ jobs:
           gh attestation verify "oci://$IMAGE@$DIGEST" --repo MaverickHQ/valvur \
             --predicate-type https://slsa.dev/provenance/v1
           echo "build provenance verified on $IMAGE@$DIGEST"
+          # The distributions' too (1.4.0): `stage` attests them, `promote` attaches it.
+          for file in dist/*.whl dist/*.tar.gz; do
+            gh attestation verify "$file" --repo MaverickHQ/valvur \
+              --predicate-type https://slsa.dev/provenance/v1
+            echo "build provenance verified on $file"
+          done
 
       - name: The shim and the image agree they were built from the same tree
         # F1.9 and 23.4.4, on the release pair itself: the version label and the
@@ -573,6 +608,10 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sbom
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: provenance
+          path: provenance
 
       - name: Promote by re-tagging the signed digest as the version and latest
         env:
@@ -683,6 +722,7 @@ jobs:
             "valvur-$VERSION.linux-arm64.cdx.json" \
             "valvur-$VERSION.linux-amd64.spdx.json" \
             "valvur-$VERSION.linux-arm64.spdx.json" \
+            provenance/*.intoto.jsonl \
             dist/*
 
       - name: Remove the rehearsal's release and tag
