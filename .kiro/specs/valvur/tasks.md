@@ -1159,7 +1159,7 @@ track past the ratchet; the acceptance set green on both lanes.
   4. **Deferred** (D61h): the smoke run under *don't ask* needs `claude -p` with the
      owner's login, which the cloud session does not have. §8 holds it; D58's $2 is
      unspent.
-- [ ] **R21.4** **The loop closed** (D59). Behaviours:
+- [x] **R21.4** **The loop closed** (D59). Behaviours:
   1. on a rescan, `SUMMARY.md` and the `scan` reply open with every earlier finding, by
      rule ID and path, as `fixed`, `open` or `not re-checked`, then the new ones;
   2. `fixed` only where its Scanner ran again, as now;
@@ -1168,6 +1168,26 @@ track past the ratchet; the acceptance set green on both lanes.
   4. `REMEDIATION.md` gives each `unpinned-uses` finding its lookup command and the line
      to write, and valvur runs none of them;
   5. the Score is unchanged on both lanes.
+  **STATUS 2026-10-04:** ✅ all five.
+  1. `state.json` keeps the active findings' rule and path in rank order (`named`). On a
+     rescan, `SUMMARY.md` opens, after the verdict, with *Since the last scan*: a row
+     per earlier finding, `fixed`, `open` or `not re-checked`, then *New since the last
+     scan*. `run.json` records it as `resolution`, and the `scan` reply carries it as an
+     additive field under schema 2, the first 20 of each list with totals, and leads its
+     text with it. A first scan, or a state from before, draws no table.
+  2. `fixed` is decided as before (29.0.5): a finding whose Scanner was cut keeps its row
+     as `not re-checked`, stays in the next state, and the next run that looks names it
+     `fixed`; forcing every gone finding to `fixed` fails the test. Past 20 rows the
+     table counts the rest, as D59's fallback says.
+  3. The skill's step 6 rescans after the human's fixes and leads with `resolution`;
+     when it cannot rescan, it says nothing is confirmed and names each finding it
+     changed.
+  4. `REMEDIATION.md` gives each `unpinned-uses` finding `gh api
+     repos/<owner>/<repo>/commits/<ref> --jq .sha` and the `uses:` line with `<sha>` and
+     the tag as a comment, for an action at a subpath too; evidence without a reference
+     draws no command, and the module holds no `subprocess` or `urllib`.
+  5. The Score on the image built from this branch is 73.9, every track at its
+     baseline; the Linux lane is in the exit.
 
 **Exit:** the README's first screen, measured in lines, holds what valvur is, the plugin's
 two commands and the demo; the documents' tests pass; the hook's behaviour under *don't
