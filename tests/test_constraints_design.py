@@ -139,9 +139,13 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # its baseline or a corpus finding has no label (ADR-0026).
     # `refresh.yml` (monthly) joined in R16.3: a red run there means moved Scanner
     # pins went unmeasured, and a release would ship them unrehearsed.
+    # `scorecard.yml` (weekly) joined in R22.1: a red run there means the badge keeps
+    # an old score. Its scorecard job may hold only the actions the OpenSSF API
+    # approves for a published result, so a job that needs it files the issue.
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
                                                "published.yml", "acceptance.yml",
-                                               "eval.yml", "refresh.yml"}, \
+                                               "eval.yml", "refresh.yml",
+                                               "scorecard.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:
@@ -150,10 +154,21 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
         failure_steps = [block for block in text.split("      - name: ")
                          if re.search(r"^\s*if:\s*failure\(\)", block, re.M)]
         # One per job: `index.yml` has two since R11.5, the index and the
-        # malicious list, and either can fail alone.
-        jobs = re.findall(r"^  [a-z][\w-]*:$", text.split("\njobs:\n", 1)[1], re.M)
-        assert len(failure_steps) == len(jobs), \
-            f"{name} has {len(failure_steps)} `if: failure()` steps for {len(jobs)} jobs"
+        # malicious list, and either can fail alone. A job is covered by its own
+        # failure step, or by one in a job that needs it (R22.1).
+        body = text.split("\njobs:\n", 1)[1]
+        keys = list(re.finditer(r"^  ([a-z][\w-]*):$", body, re.M))
+        blocks = {k[1]: body[k.end():keys[i + 1].start() if i + 1 < len(keys) else len(body)]
+                  for i, k in enumerate(keys)}
+        filing = {job for job, block in blocks.items()
+                  if re.search(r"^\s*if:\s*failure\(\)", block, re.M)}
+        covered = set(filing)
+        for job in filing:
+            needs = re.search(r"^    needs: \[?([^\]\n]+)\]?$", blocks[job], re.M)
+            covered |= {n.strip() for n in needs.group(1).split(",")} if needs else set()
+        assert covered == set(blocks), \
+            f"{name}: no `if: failure()` step covers {sorted(set(blocks) - covered)}"
+        assert len(failure_steps) == len(filing), name
         for step in failure_steps:
             # One action files every failure's issue (D55c), held below.
             assert "uses: ./.github/actions/file-issue" in step, \
