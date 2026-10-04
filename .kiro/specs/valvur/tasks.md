@@ -1285,9 +1285,24 @@ CI green.
      its bar as on `main`.
   4. Every check on the PR is green at `3e1c6d5`, 21 of them, the end-to-end jobs on
      both architectures among them, Podman's leg included: D45's fallback was not needed.
-- [ ] **R19.2** **Measured again on 26.04** (D45). Dispatch the corpus, the acceptance set
+- [x] **R19.2** **Measured again on 26.04** (D45). Dispatch the corpus, the acceptance set
   and the Score on the branch. Measure N1.1 and N1.4 against their 24.04 numbers, and
   record each in `requirements.md`. Behaviour: each number in the STATUS, with its run.
+  **STATUS 2026-10-04:** ✅ each number, with its run, all on the code `1.4.0` was built
+  from, the runner the one difference.
+  - **The corpus** passes on `ubuntu-26.04` (run 37197695670), both Profiles, every
+    Scanner completed and every finding count as on `ubuntu-24.04` (run 37198467230,
+    dispatched on `main` for the comparison).
+  - **N1.1:** application repositories 5.6–10.9 s offline on 26.04 against 4.7–10.6 s
+    on 24.04, 84.3 s against 81.3 s summed over the twelve (+3.7%); the Terraform module
+    114.9 s against 113.8 s. Recorded in `requirements.md`.
+  - **N1.4:** 503 MiB on `ubuntu-26.04` against 491 on `ubuntu-24.04`, 538 MiB on
+    `ubuntu-26.04-arm` against 507 (CI runs 37197693142 and 37196873643). Recorded in
+    `requirements.md`.
+  - **The Score:** 73.9 on `ubuntu-26.04` (run 37197692104), every track at its baseline.
+  - **The acceptance set:** every repository passes with nothing pending and no
+    container left after the four probes (run 37197694119); median warm rescan 4.9 s
+    against 4.4 s on 24.04 at R21's exit.
 
 **Exit:** the Score on Linux at its baseline, the acceptance set green, and N1.1 and N1.4
 recorded; or D45's fallback, applied and recorded.

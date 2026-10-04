@@ -885,6 +885,13 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    tree or archive is walked by no Scanner once named, and is named before the
    fleet starts past 20,000 files (29.1.2). On the first gate's tree the same
    Mac read 88 s at eight Scanners at once and 83.5 s at two (29.1.3).*
+   *Re-measured 2026-10-04 (R19.2, D45), when the runners moved to Ubuntu 26.04, on
+   the same code (`1.4.0`'s tree, the runner the only difference): every application
+   repository **5.6–10.9 s** on `ubuntu-26.04` (run 37197695670) against **4.7–10.6 s**
+   on `ubuntu-24.04` (run 37198467230), 84.3 s against 81.3 s summed over the twelve,
+   +3.7%, and every finding count the same; the Terraform module 114.9 s against
+   113.8 s. Opengrep is the slowest Scanner on most since R25's taint rules. The 60 s
+   claim is met with a margin of five on the new runner.*
 2. N1.2 — `full` **Profile** SHALL complete in under 5 minutes on the same. *Note
    2026-09-13 (task 24.3): measured beside N1.1 on the same run — `full` is `offline`
    plus 0–1s on every corpus repository (osv-scanner 0.9–1.9s), 15–17s on
@@ -909,6 +916,11 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    On macOS the same sampler read a 493 MiB fleet peak and a 38 MiB shim on the
    ten-file fixture (2026-09-13), but through Docker Desktop's VM that is the VM's
    view, so the assertion is Linux-only and macOS keeps the hand measurement.*
+   *Re-measured 2026-10-04 (R19.2, D45), when the runners moved to Ubuntu 26.04, on
+   the same code: **503 MiB** on `ubuntu-26.04` (a 420 MiB fleet, an 83 MiB shim; run
+   37197693142) against 491 MiB on `ubuntu-24.04` (run 37196873643), and **538 MiB**
+   on `ubuntu-26.04-arm` (447 and 91) against 507 MiB on `ubuntu-24.04-arm`: +2% and
+   +6%, about a quarter of the 2 GiB budget either way.*
 5. N1.5 — valvur SHALL reuse a dependency **Scanner**'s result when its version, the
    **Profile**, every lockfile and manifest it reads and the database it reads are
    unchanged, SHALL record each reuse in **Provenance**, and SHALL run everything when
