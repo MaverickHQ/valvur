@@ -49,4 +49,7 @@ jobs:
             gh pr merge --auto --squash "$PR_URL"
           else
             echo "left for the owner"
+            # Off if an earlier run turned it on: a commit pushed since must not merge
+            # unreviewed. GitHub answers an error when it was never on, which is fine.
+            gh pr merge --disable-auto "$PR_URL" || true
           fi

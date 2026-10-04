@@ -156,3 +156,17 @@ def test_no_expression_is_expanded_inside_a_shell_command():
     text = _workflow()
     for block in re.findall(r"run: \|\n((?:          .*\n)+)", text):
         assert "${{" not in block, block
+
+
+def test_a_pull_request_that_stops_qualifying_has_its_auto_merge_turned_off():
+    """Found while choosing the live proof: #199 and #200 are red, as a Checkov bump is
+    until its adapter's pin moves with it. Auto-merge, turned on while it qualified,
+    would survive the owner's fix pushed onto Dependabot's branch, and merge that code
+    unreviewed. A run that finds it no longer qualifies turns auto-merge off."""
+    text = _workflow()
+    otherwise = re.search(r"^\s+else\n(.*?)^\s+fi$", text, re.M | re.S)
+
+    assert otherwise, "no else branch"
+    otherwise = otherwise.group(1)
+
+    assert re.search(r'gh pr merge --disable-auto "\$PR_URL"', otherwise)
