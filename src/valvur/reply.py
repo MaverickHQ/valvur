@@ -199,6 +199,7 @@ def _done(workspace: Path, data: dict) -> dict:
                       for k in ("active", "suppressed", "not_covered", "total")},
                    "fixed": int(data.get("fixed") or 0),
                    "not_rechecked": int(data.get("not_rechecked") or 0)},
+        "resolution": _resolution(data.get("resolution")),
         "groups": groups[:GROUPS_SHOWN],
         "not_run": not_run,
         "not_read": [{"path": e.get("path"), "reason": e.get("reason")}
@@ -222,6 +223,19 @@ def _done(workspace: Path, data: dict) -> dict:
         "results": {"path": str(results), "ignores_itself": _ignores_itself(results)},
         "report": _bounded(report.read_text(encoding="utf-8")) if report.is_file() else None,
     }
+
+
+#: Rows of each list the reply carries; the totals count the rest (D59).
+SINCE_SHOWN = 20
+
+
+def _resolution(block: object) -> dict | None:
+    """On a rescan, every earlier Finding's state and the new ones, bounded (R21.4)."""
+    if not isinstance(block, dict):
+        return None
+    earlier, new = list(block.get("earlier") or []), list(block.get("new") or [])
+    return {"earlier": earlier[:SINCE_SHOWN], "earlier_total": len(earlier),
+            "new": new[:SINCE_SHOWN], "new_total": len(new)}
 
 
 def _ignores_itself(results: Path) -> bool:
@@ -288,6 +302,7 @@ def _done_text(f: dict) -> list[str]:
     if f["elapsed_s"] is not None:
         stamp = f" Generation {f['generation']}." if f["generation"] else ""
         lines = [f"DONE in {f['elapsed_s']:.0f}s.{stamp}", "", *lines]
+    lines += _resolution_text(f.get("resolution"))
     not_read = f["not_read"]
     if not_read:
         more = f["not_read_total"] - min(len(not_read), 8)
@@ -339,6 +354,25 @@ def _done_text(f: dict) -> list[str]:
 
 
 # ------------------------------------------------------------------ helpers
+
+def _resolution_text(block: dict | None) -> list[str]:
+    """The rescan table, right after the verdict: each earlier Finding by rule and
+    path with its state now, then the new ones (R21.4)."""
+    if block is None:
+        return []
+    lines = ["", "since the last scan:"]
+    lines += [f"  {e['now']}: {e['rule']} at {e['path']}" for e in block["earlier"]]
+    if not block["earlier_total"]:
+        lines.append("  the last scan had no active findings")
+    elif block["earlier_total"] > len(block["earlier"]):
+        lines.append(f"  …and {block['earlier_total'] - len(block['earlier'])} more")
+    lines.append(f"new since the last scan: {block['new_total']}")
+    lines += [f"  {e['rule']} at {e['path']}" + (" (regressed)" if e.get("regressed") else "")
+              for e in block["new"]]
+    if block["new_total"] > len(block["new"]):
+        lines.append(f"  …and {block['new_total'] - len(block['new'])} more")
+    return lines
+
 
 def whole_reason(reason: str) -> str:
     """A failure reason as the Scanner gave it, every sentence intact, continuation

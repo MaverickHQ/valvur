@@ -70,6 +70,16 @@ _REPLY_SHAPE: dict[str, Any] = {"type": "object", "required": ["schema", "state"
                  "description": "False when a Scanner failed or was cut: not a clean result."},
     "scope": {"type": ["object", "null"]},
     "counts": _COUNTS,
+    "resolution": {"type": ["object", "null"], "description": (
+        "On a rescan, every active finding of the previous scan by rule and path, each "
+        "`fixed`, `open` or `not re-checked`, then the new ones; lead with it. Null on a "
+        "first scan."), "properties": {
+        "earlier": {"type": "array", "items": {"type": "object", "properties": {
+            "now": {"type": "string", "enum": ["fixed", "open", "not re-checked"]},
+            "rule": {"type": "string"}, "path": {"type": "string"}}}},
+        "earlier_total": {"type": "integer"},
+        "new": {"type": "array", "items": {"type": "object"}},
+        "new_total": {"type": "integer"}}},
     "groups": {"type": "array", "items": {"type": "object"}},
     "not_run": {"type": "array", "items": {"type": "object", "properties": {
         "tool": {"type": "string"}, "reason": {"type": "string"},

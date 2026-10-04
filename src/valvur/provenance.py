@@ -195,6 +195,15 @@ def _counts(run: ScanRun) -> dict:
         # Previous Findings whose Scanner did not run this time (29.0.5):
         # neither fixed nor persisting, and `fixed` above excludes them.
         "not_rechecked": len(run.not_rechecked),
+        # On a rescan, each active Finding of the previous run and its state now,
+        # then the new ones, in rank order (R21.4); null on a first scan.
+        "resolution": None if run.earlier is None else {
+            "earlier": [{"now": now, "rule": rule, "path": path}
+                        for now, rule, path in run.earlier],
+            "new": [{"rule": f.rule, "path": f.path, "regressed": f.status == "regressed"}
+                    for f in sorted(run.active, key=lambda f: f.rank or 10**9)
+                    if f.status in ("new", "regressed")],
+        },
         "scanners": [
             {
                 "tool": s.tool,

@@ -125,3 +125,33 @@ def test_the_table_shows_twenty_rows_by_rank_and_counts_the_rest(workspace):
     since = _since(_summary(workspace))
     assert since.count("| fixed |") == 20
     assert "| _…and 5 more_ | | |" in since
+
+
+def test_the_scan_reply_opens_with_the_same_table_in_both_forms(workspace):
+    """The structured form is all Claude Code hands the model (CLAUDE.md §11), so the
+    table is a field of it, additive under schema 2, and the text leads with it too."""
+    from valvur import reply
+
+    _scan(workspace, _Planted([("r.fixed", "src/a.py")]))
+    _scan(workspace, _Planted([("r.new", "src/c.py")]))
+
+    fields = reply.fields(workspace)
+    text = reply.text(fields)
+
+    assert fields["schema"] == 2
+    assert fields["resolution"] == {
+        "earlier": [{"now": "fixed", "rule": "r.fixed", "path": "src/a.py"}],
+        "earlier_total": 1,
+        "new": [{"rule": "r.new", "path": "src/c.py", "regressed": False}],
+        "new_total": 1}
+    assert "since the last scan:\n  fixed: r.fixed at src/a.py" in text
+    assert "new since the last scan: 1\n  r.new at src/c.py" in text
+    assert text.index("since the last scan:") < text.index("Scanners:")
+
+
+def test_a_first_scan_s_reply_has_no_table(workspace):
+    from valvur import reply
+
+    _scan(workspace, _Planted([("r.one", "a.py")]))
+
+    assert reply.fields(workspace)["resolution"] is None
