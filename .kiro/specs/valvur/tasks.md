@@ -1103,18 +1103,35 @@ track past the ratchet; the acceptance set green on both lanes.
 
 ### Phase R21: findable
 
-- [ ] **R21.1** **The demo** (D48a). `scripts/demo.py` records one CLI scan of acceptance
+- [x] **R21.1** **The demo** (D48a). `scripts/demo.py` records one CLI scan of acceptance
   repository 8 and writes `docs/demo.svg`. Behaviours:
   1. the script regenerates the file, so it never drifts from the CLI, and it uses the
      standard library alone;
   2. the SVG is under 1 MB and shows the verdict and the malicious package;
   3. the README's first screen shows it;
   4. it holds no path of this machine and no secret: a test reads it.
-- [ ] **R21.2** **Ready to list** (D48b). Behaviours:
+  **STATUS 2026-10-04:** ✅ all four. `scripts/demo.py` generates acceptance repository 8,
+  copies it to a scratch `acceptance-8`, runs `valvur scan .` and `valvur findings` there
+  through the CLI, and renders their output as `docs/demo.svg`: 1.9 KB, a terminal whose
+  lines appear in turn and then stay, so a renderer without animation shows the whole
+  run. It imports only the standard library, under a test. `tests/test_demo.py` reads
+  the committed file for the verdict line (`findings: 2 active`), the malicious package
+  (`@hyperion-util/cookies`, MAL-2023-1), and no home, temporary or user path and no
+  credential pattern; its end-to-end test renders it again and finds the same lines,
+  so a CLI change that alters them fails until the file is regenerated. The README
+  shows it at line 8.
+- [x] **R21.2** **Ready to list** (D48b). Behaviours:
   1. the README has *Privacy* and *Support* sections, and the link check passes;
   2. `docs/LISTING.md` holds each directory's text, drawn from the manifests, and a test
      holds it to them;
   3. §8's listing row points to it.
+  **STATUS 2026-10-04:** ✅ all three. The README's *Privacy* says valvur collects nothing
+  and names its proof, `scripts/verify-offline.py` and `unshare -rn`; *Support* names
+  the issue tracker, `SECURITY.md` and `MAINTAINERS.md`. `docs/LISTING.md` gives the
+  plugin's and the power's name, description, keywords, repository, licence, author,
+  install line, privacy and support; `tests/test_listing.py` holds each drawn field to
+  its manifest (a keyword changed in the listing alone fails it) and §8's row to the
+  file. The link check passes.
 - [ ] **R21.3** **The first run in a new project** (D58). Behaviours:
   1. the README's first screen gives the plugin's two commands first, and
      `uvx valvur scan` second;
