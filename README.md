@@ -162,7 +162,8 @@ gate in CI. Three ways to have it:
   plugin also brings a hook: before the agent runs an install of a package valvur
   flags (nonexistent, one edit from a popular name, malicious, or exposed to
   dependency confusion), Claude Code asks you, naming why. It never blocks on its own,
-  never runs anything, and reads only this machine's index.
+  never runs anything, and reads only this machine's index. Where Claude Code cannot ask,
+  under `claude -p` or *don't ask*, it refuses the install instead (measured).
 - **Kiro**, as a power: *Add Custom Power*, *Import power from GitHub*, and
   `https://github.com/MaverickHQ/valvur/tree/main/powers/valvur`.
 - **Any project**: `valvur init --write` writes it to `.claude/skills/valvur/` and

@@ -1158,7 +1158,10 @@ track past the ratchet; the acceptance set green on both lanes.
      `test_prepare_release.py`.
   4. **Deferred** (D61h): the smoke run under *don't ask* needs `claude -p` with the
      owner's login, which the cloud session does not have. §8 holds it; D58's $2 is
-     unspent.
+     unspent. **Measured 2026-10-04, locally**, with `hook_smoke.py --permission-mode
+     dontAsk`: Claude Code turns the hook's `ask` into a refusal, `permission_denied`
+     with `decision_reason_type: "hook"` and the hook's reason, which the model relayed.
+     The stubs recorded no install. $0.13 of D58's $2. D58's fallback is not needed.
 - [x] **R21.4** **The loop closed** (D59). Behaviours:
   1. on a rescan, `SUMMARY.md` and the `scan` reply open with every earlier finding, by
      rule ID and path, as `fixed`, `open` or `not re-checked`, then the new ones;
@@ -1294,6 +1297,5 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. Decide whether it should fake the runtime, as the other readers' cases do |
-| R21.3's smoke run, locally (D61h) | R21 landed | ask a local session to run it, within D58's $2 |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
