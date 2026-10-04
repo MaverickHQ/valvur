@@ -13,6 +13,10 @@ D46's ledger, and none starts once the $5 cap is spent.
 `--as-shipped`, after a release, runs the plugin exactly as published: its server and
 its hook are the pinned `uvx --from valvur==<version>` from PyPI, with no `VALVUR_HOOK`,
 and every installer is still a stub ahead of `uvx` on `PATH`.
+
+`--permission-mode dontAsk` (R21.3, D58d) runs it under Claude Code's *don't ask* mode,
+which refuses every tool not allowed beforehand, to record what that mode does with the
+hook's `ask`. It is paid from D58's own $2 ledger, not D46's.
 """
 
 from __future__ import annotations
@@ -38,6 +42,19 @@ CAP_USD = 5.0
 #: The last run's stream and stub log, kept for reading when a run does not pass.
 LAST = LEDGER.parent / "hook-smoke-last"
 PER_RUN_USD = 1.0
+
+
+@dataclass(frozen=True)
+class Budget:
+    ledger: Path
+    cap_usd: float
+
+
+def budget(mode: str | None) -> Budget:
+    """D46's $5 for the default mode; D58's own $2 for *don't ask* (R21.3)."""
+    if mode == "dontAsk":
+        return Budget(LEDGER.parent / "agent-cost-r21.json", 2.0)
+    return Budget(LEDGER, CAP_USD)
 
 
 @dataclass(frozen=True)
@@ -80,16 +97,26 @@ def _installs(command: str, name: str) -> bool:
     return any(found == name for _, found, _ in packages(command, Path(".")))
 
 
-def spent() -> float:
+def spent(ledger: Path = LEDGER) -> float:
     try:
-        return float(json.loads(LEDGER.read_text()).get("usd", 0.0))
+        return float(json.loads(ledger.read_text()).get("usd", 0.0))
     except (OSError, ValueError):
         return 0.0
 
 
-def record(usd: float) -> None:
-    LEDGER.parent.mkdir(parents=True, exist_ok=True)
-    LEDGER.write_text(json.dumps({"usd": round(spent() + usd, 2)}))
+def record(usd: float, ledger: Path = LEDGER) -> None:
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_text(json.dumps({"usd": round(spent(ledger) + usd, 2)}))
+
+
+def arguments(claude: str, plugin: Path, *, mode: str | None, budget_usd: float) -> list[str]:
+    """The `claude -p` command line; `mode` is passed as `--permission-mode` and changes
+    nothing else."""
+    command = [claude, "-p", f"Run exactly this shell command and report its output: "
+               f"npm install {NAME}", "--plugin-dir", str(plugin), "--output-format",
+               "stream-json", "--verbose", "--allowedTools", "Bash", "--max-turns", "3",
+               "--max-budget-usd", f"{budget_usd:g}"]
+    return [*command, "--permission-mode", mode] if mode else command
 
 
 def environment(stubs: Path, *, as_shipped: bool, uvx: str | None) -> dict[str, str]:
@@ -108,8 +135,9 @@ def environment(stubs: Path, *, as_shipped: bool, uvx: str | None) -> dict[str, 
     return env
 
 
-def run(*, as_shipped: bool = False) -> Smoke | None:
-    left = CAP_USD - spent()
+def run(*, as_shipped: bool = False, mode: str | None = None) -> Smoke | None:
+    paid = budget(mode)
+    left = paid.cap_usd - spent(paid.ledger)
     claude, uv = shutil.which("claude"), shutil.which("uv")
     if left <= 0 or claude is None or uv is None:
         return None
@@ -131,33 +159,38 @@ def run(*, as_shipped: bool = False) -> Smoke | None:
                 indent=2))
         env = environment(bin_dir, as_shipped=as_shipped, uvx=shutil.which("uvx"))
         completed = subprocess.run(  # noqa: S603 — the Claude CLI, fixed arguments
-            [claude, "-p", f"Run exactly this shell command and report its output: "
-             f"npm install {NAME}", "--plugin-dir", str(plugin), "--output-format",
-             "stream-json", "--verbose", "--allowedTools", "Bash", "--max-turns", "3",
-             "--max-budget-usd", f"{min(PER_RUN_USD, left):g}"],
+            arguments(claude, plugin, mode=mode, budget_usd=min(PER_RUN_USD, left)),
             cwd=project, env=env, capture_output=True, text=True, check=False, timeout=600)
         installs = log.read_text() if log.exists() else ""
     LAST.mkdir(parents=True, exist_ok=True)
     (LAST / "stream.jsonl").write_text(completed.stdout)
     (LAST / "installs.log").write_text(installs)
     judged = judge(completed.stdout, installs=installs)
-    record(judged.cost_usd)
+    record(judged.cost_usd, paid.ledger)
     return judged
 
 
+def options(argv: list[str]) -> tuple[bool, str | None]:
+    """`--as-shipped`, and the `--permission-mode` given, if any."""
+    mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else None
+    return "--as-shipped" in argv, mode
+
+
 def main(argv: list[str] | None = None) -> int:
-    judged = run(as_shipped="--as-shipped" in (sys.argv[1:] if argv is None else argv))
+    as_shipped, mode = options(sys.argv[1:] if argv is None else argv)
+    paid, ledger = budget(mode), "D58" if mode == "dontAsk" else "D46"
+    judged = run(as_shipped=as_shipped, mode=mode)
     if judged is None:
-        print("not started: D46's cap is spent, or claude or uv is not on PATH")
+        print(f"not started: {ledger}'s cap is spent, or claude or uv is not on PATH")
         return 1
     if not judged.attempted and not judged.installed:
         print(f"inconclusive: the agent never ran the install (it may have called "
-              f"check_package first, as the skill says); ${judged.cost_usd}; D46 spent "
-              f"${spent()}")
+              f"check_package first, as the skill says); ${judged.cost_usd}; {ledger} spent "
+              f"${spent(paid.ledger)}")
         return 2
     print(f"hook stopped the install: {'yes' if judged.stopped_by_hook else 'NO'}; "
           f"anything installed: {'YES' if judged.installed else 'no'}; ${judged.cost_usd}; "
-          f"D46 spent ${spent()}")
+          f"{ledger} spent ${spent(paid.ledger)}")
     return 0 if judged.ok else 1
 
 
