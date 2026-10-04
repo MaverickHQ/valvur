@@ -8,6 +8,24 @@ break things, and has.
 
 ## [Unreleased]
 
+### Findable (Phase R21)
+
+- **A rescan says what became of each earlier finding.** `SUMMARY.md` opens, after the
+  verdict, with every active finding of the previous scan by rule ID and path, each
+  `fixed`, `open` or `not re-checked`, then the new ones; the `scan` reply carries the
+  same as `resolution`, additive under schema 2, and `run.json` records it. `fixed`
+  still needs the finding's Scanner to have run again.
+- **`REMEDIATION.md` gives each unpinned action its lookup**: the `gh api` command that
+  finds the commit its tag names, and the `uses:` line to write. valvur runs neither.
+- **The skill closes the loop**: it rescans after the human's fixes and leads with what
+  changed, and says nothing is confirmed when it cannot rescan. When a tool is refused,
+  it gives the allow rules, now in `references/permissions.md` and the README, and a
+  pinned `! uvx valvur==<version> scan`. valvur writes no permission rule.
+- **The README's first screen** shows the plugin's two commands, then `uvx valvur scan`,
+  and a demo rendered from the CLI's own output by `scripts/demo.py`. It gains *Privacy*
+  and *Support*, and `docs/LISTING.md` holds the text for the plugin and power
+  directories.
+
 ### What the code rules find (Phase R25)
 
 Twelve rules of valvur's own, each shipped only on D29's measured bar and each with a
