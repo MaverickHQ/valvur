@@ -1813,11 +1813,31 @@ movement recorded and explained; the acceptance set green on both lanes.
   nothing in `.github/`. A pull request opened by the workflow's token starts no workflow,
   so its body asks the owner to close and reopen it. The exit's run of it is §8's: the
   next first Monday after this lands, or a dispatch of `refresh` on `main`.
-- [ ] **R28.5** **The weekly maintenance routine** (D64d). Behaviours:
+- [x] **R28.5** **The weekly maintenance routine** (D64d). Behaviours:
   1. `docs/MAINTENANCE.md` holds the routine's prompt and procedure, and the link check
      reads it;
   2. a dry run by a cloud session, on a branch, is recorded;
   3. §8 holds creating the routine and its monthly cap.
+
+  STATUS (2026-10-04): `docs/MAINTENANCE.md` holds the prompt and the four-step
+  procedure. `tests/test_maintenance_routine.py` holds it to the eight scheduled
+  workflows that exist, to its limits (never push to `main`, tag, approve, merge or
+  enable auto-merge, nor suppress, skip or disable anything to get green), and to the
+  link check. **The dry run**, by this cloud session on `build/r28-…`, read-only, for
+  2026-09-27 to 2026-10-04:
+  1. *Scheduled runs:* all 39 read. Three failed. `published` on 2026-10-03 has had no
+     workflow since R26.4. `acceptance` on 10-01 and 10-02 were answered by #170, and
+     three runs passed after. Nothing to fix.
+  2. *Open issues:* #181, filed by `published.yml`, whose workflow R26.4 removed, so no
+     run will close it. Listed for the owner to close.
+  3. *Stalled Dependabot pull requests:* #199 and #200, Checkov 3.3.20, both red. The
+     lint, test and self-scan gates fail, because the adapter pins 3.3.19: the
+     pinned-twice case. The routine would bump `src/valvur/adapters/checkov.py`'s
+     version, the fixtures and the image on `maintenance/2026-10-04`, as #122 did, and
+     the Score would judge it. Not done here: it changes detection, which is no part of
+     R28.
+  4. *Pull request:* none opened, since this was a dry run. §8 holds creating the
+     routine and its cap.
 - [ ] **R28.6** **KEV is current while it is CISA's newest** (D76). Behaviours:
   1. a check within two days that finds no newer catalog makes KEV current, through a
      conditional request;
@@ -2052,6 +2072,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
 | R28.2's auto-merge workflow (D64a) | now | the executor's auto mode refused to write a workflow that merges without review (2026-10-04). Write it from R28.2's STATUS, or let a session write it in manual approve mode; until then Dependabot's pull requests stay yours to land |
+| close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
