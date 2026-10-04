@@ -11,7 +11,9 @@ pins in the package, copied byte for byte to the Claude Code plugin and the Kiro
 plugin's and the power's manifests and pinned servers; the plugin's hook; and the
 image the pipeline examples name. `--published` makes the
 commit that flips the README once `promote` has completed. `--dry-run` prints what
-either would change and changes nothing.
+either would change and changes nothing. Both name each file the release run builds
+from that changed since the last tag, or say none did: a rehearsal is asked for then and
+only then (D62a, R26.2).
 
 What it never does: tag, push, or approve the brake. Those are the owner's
 (`docs/RELEASING.md`). After it, `uv sync` brings the installed metadata along.
@@ -42,6 +44,15 @@ HOOK = Path("plugins/valvur/hooks/pre-tool-use.sh")
 #: The pipeline examples, which name the image this release publishes (R8.2).
 EXAMPLES = (Path("docs/examples/github-actions.yml"), Path("docs/examples/gitlab-ci.yml"))
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+#: What `release.yml` builds from besides the product itself: the workflow, the
+#: actions it runs from this repository, the bake file and the Dockerfile, the locks
+#: the Dockerfile installs, and the wheel's build hook. A change to one is a change
+#: to the pipeline, which only a rehearsal proves (D62a). A test holds the list to
+#: what `release.yml` reads.
+MACHINERY = (".github/workflows/release.yml", ".github/actions/version/action.yml",
+             "docker-bake.hcl", "Dockerfile", "requirements-checkov.txt",
+             "requirements-zizmor.txt", "hatch_build.py")
+REHEARSE = "rehearse before the tag (docs/RELEASING.md)"
 
 
 def declared(root: Path) -> str:
@@ -120,6 +131,24 @@ def published(root: Path, version: str, date: str) -> dict[Path, str]:
         "rehearsed on its commit before its signed tag.")}
 
 
+def machinery(root: Path) -> str:
+    """One line: which of `MACHINERY` changed since the newest version tag reachable
+    from HEAD, or that none did. Without a tag to compare with, it cannot tell, and
+    asks for the rehearsal."""
+    found = subprocess.run(["git", "-C", str(root), "describe", "--tags", "--abbrev=0",  # noqa: S603
+                            "--match", "v*", "HEAD"], capture_output=True, text=True,
+                           check=False)
+    tag = found.stdout.strip()
+    if found.returncode != 0 or not tag:
+        return f"machinery: no earlier tag here to compare with; {REHEARSE}"
+    changed = subprocess.run(["git", "-C", str(root), "diff", "--name-only", tag, "HEAD",  # noqa: S603
+                              "--", *MACHINERY], capture_output=True, text=True,
+                             check=True).stdout.split()
+    if not changed:
+        return f"machinery unchanged since {tag}: no rehearsal needed"
+    return f"machinery changed since {tag}: {', '.join(sorted(changed))}; {REHEARSE}"
+
+
 def _show(root: Path, plan: dict[Path, str]) -> None:
     for path, text in plan.items():
         before = (root / path).read_text()
@@ -167,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
         plan, message = planned(root, version, args.date), f"chore: release {version}"
+    if not args.published:
+        print(machinery(root))
     if args.dry_run:
         _show(root, plan)
         print(f"\n(dry run: {message}, {len(plan)} files; nothing changed)")
