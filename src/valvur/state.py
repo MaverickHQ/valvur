@@ -74,8 +74,20 @@ def load_sources(results_dir: Path) -> dict[str, tuple[str, ...]]:
     return {fp: tuple(names) for fp, names in (data.get("sources") or {}).items()}
 
 
+def load_named(results_dir: Path) -> list[tuple[str, str, str]] | None:
+    """The previous run's active Findings as its report named them, (fingerprint,
+    rule, path) in rank order (R21.4): what a rescan's table opens with. None when
+    there is no previous run, or its state predates the names: a table built from
+    titles could not be matched with the first report, which is the point of it."""
+    data = _document(results_dir, note_reset=False)
+    if data is None or not isinstance(data.get("named"), list):
+        return None
+    return [(str(fp), str(rule), str(path)) for fp, rule, path in data["named"]]
+
+
 def render(present: dict[str, str], fixed: set[str], *, generation: str = "",
-           sources: dict[str, tuple[str, ...]] | None = None) -> str:
+           sources: dict[str, tuple[str, ...]] | None = None,
+           named: list[tuple[str, str, str]] | None = None) -> str:
     """The state document. Written by `results.write` in the same generation as
     the artifacts it describes (26.0.3), so a state.json from one run beside a
     findings.json from another is detectable rather than silent."""
@@ -88,6 +100,8 @@ def render(present: dict[str, str], fixed: set[str], *, generation: str = "",
             "fixed": sorted(fixed),
             # Per present Fingerprint, the Scanners that reported it (29.0.5).
             "sources": {fp: sorted(set(names)) for fp, names in sorted((sources or {}).items())},
+            # The active Findings, in rank order, as the report named them (R21.4).
+            "named": [list(entry) for entry in named or ()],
         },
         indent=2,
     ) + "\n"

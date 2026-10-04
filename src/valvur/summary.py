@@ -22,6 +22,7 @@ from . import datasets as _datasets
 from . import grouping as _grouping
 from . import hygiene, levers, verdict
 from . import profiles as _profiles
+from .findings import Status
 from .findings import exploit_badge as _exploit_badge
 from .staleness import db_is_stale as _db_is_stale
 from .staleness import index_is_stale as _index_is_stale
@@ -103,6 +104,7 @@ def render(run: ScanRun) -> str:
 
     lines = [COMMENT, "# Security scan summary", "", _verdict(run), ""]
     lines += _qualifiers(run, findings)
+    lines += _since(run, active)
     lines += _status(run, active, suppressed, notes)
     lines += _scope(run, active)
     lines += _not_run(run, notes)
@@ -461,6 +463,36 @@ def _not_run(run: ScanRun, notes) -> list[str]:
     return ["## What did not run", "", *lines] if lines else []
 
 
+#: How many rows of each list the rescan table shows; the rest are counted (D59).
+SINCE_SHOWN = 20
+
+
+def _since(run: ScanRun, active) -> list[str]:
+    """On a rescan, every active Finding of the previous run by rule ID and path, as
+    its report named it, with its state now; then the new ones (R21.4, D59). A
+    Finding is `fixed` only where its Scanner ran again; otherwise it is `not
+    re-checked`."""
+    if run.earlier is None:
+        return []
+    lines = ["## Since the last scan", ""]
+    if run.earlier:
+        lines += ["| now | rule | path |", "|---|---|---|"]
+        lines += [f"| {state} | `{rule}` | `{path}` |"
+                  for state, rule, path in run.earlier[:SINCE_SHOWN]]
+        if len(run.earlier) > SINCE_SHOWN:
+            lines.append(f"| _…and {len(run.earlier) - SINCE_SHOWN} more_ | | |")
+    else:
+        lines.append("The last scan had no active findings.")
+    new = [f for f in active if f.status in (Status.NEW, Status.REGRESSED)]
+    lines += ["", f"**New since the last scan:** {len(new)}", ""]
+    lines += [f"- `{f.rule}` at `{f.path}`"
+              + (" (regressed: it was fixed before)" if f.status == Status.REGRESSED else "")
+              for f in new[:SINCE_SHOWN]]
+    if len(new) > SINCE_SHOWN:
+        lines.append(f"- _…and {len(new) - SINCE_SHOWN} more_")
+    return [*lines, ""] if new else lines
+
+
 def _top(active) -> list[str]:
     """The most urgent entries, a group as one (R5.1, R5.2)."""
     if not active:
@@ -520,7 +552,9 @@ def _accepted_and_fixed(run: ScanRun, suppressed) -> list[str]:
         if len(suppressed) > 10:
             lines.append(f"- _…and {len(suppressed) - 10} more_")
         lines.append("")
-    if run.fixed:
+    if run.fixed and run.earlier is None:
+        # A rescan's table names them by rule and path (R21.4); titles are for a
+        # previous state that did not keep the names.
         lines += ["## Fixed since the last scan", ""]
         lines += [f"- {title}" for title in run.fixed[:10]]
         if len(run.fixed) > 10:

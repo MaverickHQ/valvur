@@ -18,6 +18,7 @@ from . import profiles as _profiles
 from . import results as _results
 from . import staleness as _staleness
 from . import state as _state
+from . import verdict as _verdict
 from .fetching import say_why_unfetched
 from .fleet import refuse_if_cancelled
 from .scanrun import BudgetExhausted, ScannerFailed, ScanRun
@@ -74,7 +75,8 @@ def assemble(outcomes: list[ScannerOutcome | None], cut: list[str], *, declaring
     run = ScanRun(
         **named,
         history=history, findings=staged.findings, fixed=diff.fixed,
-        not_rechecked=diff.not_rechecked, scanners=scanners, network_used=network,
+        not_rechecked=diff.not_rechecked, earlier=diff.earlier, scanners=scanners,
+        network_used=network,
         fetched=list(fetched or []), profile=profile, budget_s=budget_s, budget_cut=cut,
         shim_built_from=shim_built_from, image_built_from=image_built_from,
         workspace_files=workspace_files, largest_dirs=tuple(largest_dirs),
@@ -138,6 +140,11 @@ class _Diff:
     present_next: dict[str, str]
     still_fixed: set[str]
     sources_next: dict
+    #: Each active Finding of the previous run, (state, rule, path), in its rank
+    #: order (R21.4); None when the previous state did not name them.
+    earlier: list[tuple[str, str, str]] | None
+    #: This run's active Findings as the next run's table will name them.
+    named_next: list[tuple[str, str, str]]
 
 
 def _diff(staged: _pipeline.PipelineResult, scanners: list[ScannerRun], cut: list[str],
@@ -173,17 +180,29 @@ def _diff(staged: _pipeline.PipelineResult, scanners: list[ScannerRun], cut: lis
     # that looks for it says persisting or fixed rather than new or regressed.
     sources_next = {f.fingerprint: f.sources for f in staged.findings}
     sources_next.update({fp: previous_sources.get(fp, ()) for fp in carried})
+    # The table a rescan opens with (R21.4): the previous run's active Findings,
+    # named as its report named them, each fixed only where its Scanner looked.
+    previous_named = _state.load_named(results_dir)
+    earlier = None if previous_named is None else [
+        ("open" if fp in current else "fixed" if not_run_for(fp) is None
+         else "not re-checked", rule, path)
+        for fp, rule, path in previous_named]
+    ranked = sorted((f for f in staged.findings if _verdict.active(f)),
+                    key=lambda f: f.rank or 10**9)
+    named_next = [(f.fingerprint, f.rule, f.path) for f in ranked]
+    # A carried Finding keeps its place in the next table, which will say what it is.
+    named_next += [entry for entry in previous_named or () if entry[0] in carried]
     return _Diff(
         fixed=sorted(fixed),
         not_rechecked=sorted((title or fp, not_run_for(fp) or "")
                              for fp, title in carried.items()),
         present_next={**current, **carried}, still_fixed=still_fixed,
-        sources_next=sources_next)
+        sources_next=sources_next, earlier=earlier, named_next=named_next)
 
 
 def _results_written(where: Path, run: ScanRun, diff: _Diff, artifacts, raw_outputs) -> None:
     _results.write(
         where, run, scanner_artifacts=artifacts, raw_outputs=raw_outputs,
         state=_state.render(diff.present_next, diff.still_fixed, sources=diff.sources_next,
-                            generation=run.generation),
+                            generation=run.generation, named=diff.named_next),
     )

@@ -60,6 +60,10 @@ class ScanRun:
     #: failed — as (title, the Scanners that did not run), so neither fixed nor
     #: persisting (29.0.5). Carried in the state for the next run to decide.
     not_rechecked: list[tuple[str, str]] = field(default_factory=list)
+    #: On a rescan, each active Finding of the previous run as (state, rule, path), in
+    #: its rank order: `fixed`, `open` or `not re-checked` (R21.4). None on a first
+    #: scan, or after a state that did not keep the names.
+    earlier: list[tuple[str, str, str]] | None = None
     scanners: list[ScannerRun] = field(default_factory=list)
     network_used: bool = False
     #: Where the Scanners ran (R8.1): the Scan Container, or a job's own container
