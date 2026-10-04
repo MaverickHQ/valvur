@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 from conftest import LegacyDispatch
+from fixture_copy import copy_fixture
 
 from valvur import api
 from valvur.adapters import GitleaksAdapter, TrivyAdapter
@@ -123,7 +124,6 @@ def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_be
     so the rest are queued when the cancel lands. Before the fix the fleet
     launched two or three containers after the client had gone (R0.6). Since
     R3.9 the queue is inside the one Scan Container, and the cancel stops it."""
-    import shutil
     import subprocess
     import time
     from pathlib import Path
@@ -141,7 +141,7 @@ def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_be
         return set(out.stdout.split())
 
     workspace = mountable_tmp / "ws"
-    shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
+    copy_fixture(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
     monkeypatch.setenv("VALVUR_JOBS", "2")
     jobs.reset()
     before = live()

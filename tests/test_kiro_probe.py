@@ -15,6 +15,7 @@ import threading
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import events
 
@@ -99,11 +100,10 @@ def test_kiros_sequence_against_the_real_server(mountable_tmp):
 
 def _replay(command: list[str], workspace: Path) -> None:
     """Kiro's sequence, against the server `command` starts, on a copy of a repository."""
-    import shutil
     import subprocess
     import time
 
-    shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
+    copy_fixture(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
     messages, spec = _messages(workspace)
     server = subprocess.Popen(
         command,

@@ -8,10 +8,10 @@ jobs and a closure of its own, and one scan was summarised three times.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import cli, service
 from valvur.api import ScanRun
@@ -38,7 +38,7 @@ def recorded(monkeypatch):
 
 def _workspace(tmp_path: Path) -> Path:
     ws = tmp_path / "ws"
-    shutil.copytree(FIXTURES / "clean-repo", ws)
+    copy_fixture(FIXTURES / "clean-repo", ws)
     return ws
 
 

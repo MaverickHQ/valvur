@@ -318,12 +318,15 @@ jobs:
           export VALVUR_IMAGE="ghcr.io/maverickhq/valvur:$VERSION"
           uvx --from "valvur==$VERSION" valvur update
           docker image inspect "$VALVUR_IMAGE" --format 'pulled the {{ .Architecture }} child on '"$(uname -m)"
-          uvx --from "valvur==$VERSION" valvur scan tests/fixtures/broken-repo --profile offline
+          # A copy, with the fixture's manifests under their real names (R27.2).
+          python3 scripts/fixtures.py broken-repo "$RUNNER_TEMP/broken-repo"
+          uvx --from "valvur==$VERSION" valvur scan "$RUNNER_TEMP/broken-repo" --profile offline
           uv run python - <<'PY'
           import json, os, pathlib, sys
           arch = os.environ["ARCH"]
-          run = json.loads(pathlib.Path("tests/fixtures/broken-repo/.security-scan/run.json").read_text())
-          findings = json.loads(pathlib.Path("tests/fixtures/broken-repo/.security-scan/findings.json").read_text())["findings"]
+          results = pathlib.Path(os.environ["RUNNER_TEMP"], "broken-repo", ".security-scan")
+          run = json.loads((results / "run.json").read_text())
+          findings = json.loads((results / "findings.json").read_text())["findings"]
           if not run.get("complete"):
               print(f"::error::the published image could not complete a scan on {arch}")
               sys.exit(1)

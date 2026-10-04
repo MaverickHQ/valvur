@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import scan
 from valvur.adapters import GitleaksAdapter
@@ -127,7 +128,7 @@ def test_a_workspace_path_containing_spaces_scans_correctly(mountable_tmp):
     from conftest import FIXTURES
 
     awkward = mountable_tmp / "my project (v2)" / "the repo"
-    shutil.copytree(FIXTURES / "broken-repo", awkward)
+    copy_fixture(FIXTURES / "broken-repo", awkward)
 
     run = scan(awkward, runner=ContainerRuntime(), adapters=[GitleaksAdapter()],
                profile="quick")
@@ -144,7 +145,7 @@ def test_a_symlink_pointing_outside_the_workspace_reaches_nothing(mountable_tmp)
     from conftest import FIXTURES
 
     workspace = mountable_tmp / "ws"
-    shutil.copytree(FIXTURES / "broken-repo", workspace)
+    copy_fixture(FIXTURES / "broken-repo", workspace)
     secret = mountable_tmp / "outside-secret.txt"
     secret.write_text("AKIAV7Q2XR4TVBN6WLKJ\n")
     (workspace / "escape.txt").symlink_to(secret)
@@ -438,7 +439,7 @@ def test_the_offline_profile_finds_dev_dependency_vulnerabilities(mountable_tmp,
     from valvur.adapters import TrivyAdapter
 
     ws = mountable_tmp / "pnpm"
-    shutil.copytree(FIXTURES / "pnpm-dev-repo", ws)
+    copy_fixture(FIXTURES / "pnpm-dev-repo", ws)
 
     run = scan(ws, runner=ContainerRuntime(runtime=_available(runtime)),
                adapters=[TrivyAdapter()], profile="quick")

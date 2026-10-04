@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import api, cli, engine_host
 from valvur.engine_host import LocalRuntime
@@ -43,7 +44,7 @@ def scanned(tmp_path, monkeypatch) -> Path:
     monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [GitleaksAdapter()])
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
     root = tmp_path / "ws"
-    shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", root)
+    copy_fixture(Path(__file__).parent / "fixtures" / "broken-repo", root)
     assert cli.main(["scan", str(root)]) in (0, 1)
     yield root
     jobs.reset()

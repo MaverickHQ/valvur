@@ -214,6 +214,8 @@ def probe(kind: str, workspace: Path) -> ProbeResult:
 KINDS = ("cancel", "budget", "stdin", "kill")
 
 BROKEN = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "broken-repo"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import fixtures  # noqa: E402 — copies a fixture with its manifests' real names (R27.2)
 
 
 def workspace(dest: Path, data_files: int = 30_000) -> Path:
@@ -226,7 +228,7 @@ def workspace(dest: Path, data_files: int = 30_000) -> Path:
     root = (dest / "probe-workspace").resolve()
     if root.exists():
         shutil.rmtree(root)
-    shutil.copytree(BROKEN, root)
+    fixtures.copy(BROKEN, root)
     for i in range(data_files):
         path = root / "data" / f"{i // 1000:02}" / f"{i:05}.txt"
         path.parent.mkdir(parents=True, exist_ok=True)

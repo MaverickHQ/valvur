@@ -6,10 +6,10 @@ one container.
 from __future__ import annotations
 
 import dataclasses
-import shutil
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 REPO = Path(__file__).resolve().parent.parent
 FIXTURES = REPO / "tests" / "fixtures"
@@ -56,7 +56,7 @@ def test_opengrep_completes_in_the_scan_container_with_tmp_noexec(mountable_tmp)
     from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "ws"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
     run = api.scan(ws, runner=ContainerRuntime(), adapters=[OpengrepAdapter()])
 
     [opengrep] = run.scanners

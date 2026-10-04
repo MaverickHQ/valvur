@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import profiles
 from valvur.api import scan
@@ -44,14 +45,13 @@ def test_a_scan_writes_nothing_outside_the_results_folder(mountable_tmp):
     beside the Workspace rather than inside it, where the other test cannot see it.
     """
     import hashlib
-    import shutil
 
     from conftest import FIXTURES
 
     from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "repo"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
     sentinel = mountable_tmp / "DO-NOT-TOUCH.txt"
     sentinel.write_text("untouched")
     neighbour = mountable_tmp / "sibling"
@@ -82,7 +82,6 @@ def test_the_host_scratch_is_removed_after_a_scan(mountable_tmp):
     TemporaryDirectory, so it must not survive the run — a scanner's raw output
     contains live credentials (F5.7), and leaving it in /tmp puts them in a second
     cleartext location nobody knows to clean up."""
-    import shutil
     import tempfile
 
     from conftest import FIXTURES
@@ -90,7 +89,7 @@ def test_the_host_scratch_is_removed_after_a_scan(mountable_tmp):
     from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "repo"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
 
     root = Path(tempfile.gettempdir())
     before = {p.name for p in root.glob("valvur-*")}

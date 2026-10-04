@@ -348,7 +348,8 @@ VALVUR_CACHE=$(mktemp -d) \
 VALVUR_DB_REPOSITORY=mirror:5000/trivy-db VALVUR_DB_INSECURE=1 \
 VALVUR_CONTAINER_NETWORK=airgap \
 VALVUR_NAME_INDEX_URL=http://127.0.0.1:8080 VALVUR_KEV_URL=http://127.0.0.1:8080/kev.json \
-python3 scripts/verify-mirror.py tests/fixtures/broken-repo
+python3 scripts/fixtures.py broken-repo /tmp/broken-repo   # the fixture's manifests, named
+python3 scripts/verify-mirror.py /tmp/broken-repo
 ```
 
 Result on 2026-09-12: update and offline scan complete from a fresh cache, 76

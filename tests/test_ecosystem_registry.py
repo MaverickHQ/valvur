@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 GOLDEN = Path(__file__).parent / "fixtures" / "dependency-reality"
 UPDATE = "UPDATE_DEPENDENCY_GOLDEN"
@@ -92,10 +93,9 @@ def test_what_the_check_reads_from_each_manifest_is_unchanged(name, tmp_path):
 def test_the_broken_fixture_reads_the_same_as_before(tmp_path):
     """The repository's own deliberately-broken tree, which is what the e2e suite
     and every demo scan use: the two planted hallucinations are in here."""
-    import shutil
 
     workspace = tmp_path / "broken"
-    shutil.copytree(FIXTURES / "broken-repo", workspace)
+    copy_fixture(FIXTURES / "broken-repo", workspace)
     path = GOLDEN / "broken-repo.json"
     declared = _declared(workspace)
 

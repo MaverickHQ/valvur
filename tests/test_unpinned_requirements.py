@@ -159,12 +159,14 @@ def test_one_pinned_file_does_not_cover_an_unpinned_one(tmp_path):
     assert "4 of 4" in gap.evidence
 
 
-def test_the_broken_repo_fixture_is_still_fully_checked():
+def test_the_broken_repo_fixture_is_still_fully_checked(tmp_path):
     """Its three requirements files are pins and one git reference: no note, so
     every golden and canary count stands."""
     from conftest import FIXTURES
+    from fixture_copy import copy_fixture
 
-    assert coverage.vulnerability_gaps(FIXTURES / "broken-repo") == []
+    assert coverage.vulnerability_gaps(copy_fixture(FIXTURES / "broken-repo",
+                                                    tmp_path / "broken-repo")) == []
 
 
 def test_the_gap_keeps_the_ecosystem_identity_so_a_suppression_travels(tmp_path):

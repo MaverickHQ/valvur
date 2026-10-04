@@ -8,8 +8,9 @@ the reply parsed the prose back by its first words (the review of 2026-10-03, §
 from __future__ import annotations
 
 import ast
-import shutil
 from pathlib import Path
+
+from fixture_copy import copy_fixture
 
 from valvur import events
 
@@ -23,7 +24,7 @@ def test_a_scan_says_events_with_kinds_and_fields(tmp_path):
     from valvur.engine_host import LocalRuntime
 
     ws = tmp_path / "ws"
-    shutil.copytree(FIXTURES / "clean-repo", ws)
+    copy_fixture(FIXTURES / "clean-repo", ws)
     said: list = []
 
     api.scan(ws, runner=LocalRuntime(FIXTURES / "fake-tools"), adapters=[GitleaksAdapter()],

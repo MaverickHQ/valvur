@@ -26,6 +26,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 BROKEN = REPO / "tests" / "fixtures" / "broken-repo"
 CORPUS_CHECKOUTS = REPO / "tests" / "corpus" / ".checkouts"
+sys.path.insert(0, str(REPO / "scripts"))
+import fixtures  # noqa: E402 — the helper beside the scripts, standard library alone (R27.2)
+
 TERRAFORM_URL = "https://github.com/terraform-aws-modules/terraform-aws-vpc"
 TERRAFORM_PIN = "cf0e3ca46fd51f47bf095957f2a6ac6127c89045"   # tests/corpus/corpus.toml
 #: This repository at a commit that passes its own gate (N2.5): `1.2.0`'s, whose release
@@ -111,7 +114,7 @@ path_prefix = ".venv/"
 
 def lockfiles(root: Path) -> None:
     """2. `broken-repo`: lockfiles with known CVEs, a secret, agent files, Terraform."""
-    shutil.copytree(BROKEN, root, dirs_exist_ok=True)
+    fixtures.copy(BROKEN, root, dirs_exist_ok=True)
     _expected(root, """
 [run]
 complete = true

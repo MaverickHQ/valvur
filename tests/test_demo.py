@@ -37,13 +37,15 @@ def _text(svg: str) -> list[str]:
 
 
 def test_the_script_uses_the_standard_library_alone():
-    for path in (REPO / "scripts" / "demo.py", REPO / "scripts" / "acceptance" / "generate.py"):
+    for path in (REPO / "scripts" / "demo.py", REPO / "scripts" / "acceptance" / "generate.py",
+                 REPO / "scripts" / "fixtures.py"):
         tree = ast.parse(path.read_text())
         names = {alias.name.split(".")[0] for node in ast.walk(tree)
                  if isinstance(node, ast.Import) for alias in node.names}
         names |= {node.module.split(".")[0] for node in ast.walk(tree)
                   if isinstance(node, ast.ImportFrom) and node.module and not node.level}
-        assert names - {"generate", "__future__"} <= sys.stdlib_module_names, (path, names)
+        assert names - {"generate", "fixtures", "__future__"} <= sys.stdlib_module_names, \
+            (path, names)
 
 
 def test_a_capture_renders_every_line_in_order_and_neutralises_the_path(tmp_path):

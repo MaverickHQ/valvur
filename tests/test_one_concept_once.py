@@ -11,6 +11,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from fixture_copy import copy_fixture
+
 REPO = Path(__file__).resolve().parent.parent
 SRC = REPO / "src" / "valvur"
 
@@ -131,7 +133,6 @@ def test_one_scan_parses_the_project_file_once_and_builds_the_file_set_once(
     """R23.1 counted 76 parses of `[scan]` and 37 File Sets in one CLI scan of
     `broken-repo` with every default adapter: each adapter's applicability and
     coverage asked again. A scan context is built once and passed (D52d)."""
-    import shutil
     import tomllib
 
     from valvur import cli, engine_host, fileset
@@ -154,7 +155,7 @@ def test_one_scan_parses_the_project_file_once_and_builds_the_file_set_once(
     monkeypatch.setattr(engine_host, "for_scan", lambda: engine_host.LocalRuntime(
         REPO / "tests" / "fixtures" / "fake-tools"))
     ws = tmp_path / "ws"
-    shutil.copytree(REPO / "tests" / "fixtures" / "broken-repo", ws)
+    copy_fixture(REPO / "tests" / "fixtures" / "broken-repo", ws)
     (ws / ".security-scan.toml").write_text(
         '[scan]\nexclude = ["docs"]\n\n[[suppress]]\nfingerprint = "0"\nrule = "r"\n'
         'path = "p"\nexpires = 2099-01-01\nreason = "a test"\n')

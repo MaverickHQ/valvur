@@ -4,6 +4,8 @@ Findings must survive editing, or the scan -> fix -> rescan loop cannot tell
 progress from noise. See docs/adr/0003-per-class-finding-identity.md.
 """
 
+from fixture_copy import copy_fixture
+
 from valvur import scan
 
 
@@ -93,14 +95,13 @@ def test_fingerprints_do_not_depend_on_where_the_workspace_lives(
 ):
     """F5.4 — Suppressions are committed and shared, so fingerprints must match
     byte-for-byte on a colleague's machine with a different checkout path."""
-    import shutil
 
     from conftest import FIXTURES
 
     here = tmp_path / "alice" / "checkout"
     there = tmp_path / "bob" / "some" / "deeper" / "path"
-    shutil.copytree(FIXTURES / "broken-repo", here)
-    shutil.copytree(FIXTURES / "broken-repo", there)
+    copy_fixture(FIXTURES / "broken-repo", here)
+    copy_fixture(FIXTURES / "broken-repo", there)
 
     alice = scan(here, runner=runner_finding_one_secret)
     bob = scan(there, runner=runner_finding_one_secret)

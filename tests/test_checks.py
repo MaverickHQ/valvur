@@ -5,6 +5,7 @@ third-party tool we orchestrate. Checks run in the container exactly as Scanners
 """
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import scan
 from valvur.adapters import CheckAdapter
@@ -155,12 +156,11 @@ def test_a_licence_file_contradicting_package_metadata_is_a_finding(
 ):
     """F4.3 — a GPL LICENSE in a project whose metadata claims MIT is a real problem,
     and no Scanner we orchestrate looks for it."""
-    import shutil
 
     from conftest import FIXTURES
 
     ws = tmp_path / "mismatch"
-    shutil.copytree(FIXTURES / "licence-mismatch-repo", ws)
+    copy_fixture(FIXTURES / "licence-mismatch-repo", ws)
 
     run = scan(ws, runner=runner_finding_nothing, adapters=[CheckAdapter("licence-file")])
 

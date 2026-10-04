@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import owner
 
@@ -281,7 +282,6 @@ def test_the_holder_of_a_lock_is_read_back_with_whether_it_is_alive(tmp_path):
 def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mountable_tmp):
     """The second gate's shape: a server killed mid-scan cannot clean up, so its
     fleet runs on with nobody to read it. The next scan finds them by label."""
-    import shutil
 
     from valvur import api
     from valvur.engine_host import ContainerRuntime
@@ -289,7 +289,7 @@ def test_after_kill_9_of_the_server_the_next_scan_reaps_the_orphans_and_runs(mou
 
     runtime = detect_runtime()
     workspace = mountable_tmp / "ws"
-    shutil.copytree(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
+    copy_fixture(Path(__file__).parent / "fixtures" / "broken-repo", workspace)
     data = workspace / "data"                  # enough to keep a Scanner busy
     data.mkdir()
     for i in range(5000):

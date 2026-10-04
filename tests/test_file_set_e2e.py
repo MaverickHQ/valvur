@@ -7,11 +7,11 @@ property is the same, the mechanism is the File Set (ADR-0021).
 from __future__ import annotations
 
 import hashlib
-import shutil
 import time
 
 import pytest
 from conftest import FIXTURES
+from fixture_copy import copy_fixture
 
 
 @pytest.mark.e2e
@@ -31,7 +31,7 @@ def test_a_data_directory_is_skipped_not_walked(mountable_tmp):
         return "ghp_" + hashlib.sha256(str(i).encode()).hexdigest()[:36]
 
     ws = mountable_tmp / "repo"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
     (ws / ".security-scan.toml").write_text('[scan]\nexclude = ["archive"]\n')
     (ws / "planted.py").write_text(f'token = "{token(-1)}"\n')
     for top, count in (("archive", 20_000), ("node_modules", 2_000)):

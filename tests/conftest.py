@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import ClassVar
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur.adapters.base import ScannerAdapter
 from valvur.engine_host import RuntimeDefaults
@@ -300,14 +301,14 @@ def mountable_tmp(tmp_path):
 def workspace(mountable_tmp):
     """A disposable copy of the broken fixture repo."""
     ws = mountable_tmp / "ws"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
     return ws
 
 
 @pytest.fixture
 def clean_workspace(mountable_tmp):
     ws = mountable_tmp / "clean"
-    shutil.copytree(FIXTURES / "clean-repo", ws)
+    copy_fixture(FIXTURES / "clean-repo", ws)
     return ws
 
 

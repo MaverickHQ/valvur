@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from conftest import golden
+from fixture_copy import copy_fixture
 
 from valvur.findings import Severity
 from valvur.invocation import ScannerOutput
@@ -94,13 +95,12 @@ def test_the_tree_hash_covers_the_zizmor_lock(tmp_path):
 
 @pytest.mark.e2e
 def test_a_real_scan_reports_each_planted_problem_once_and_ranked(mountable_tmp):
-    import shutil
 
     from valvur import api, engine_host
     from valvur.adapters import ZizmorAdapter
 
     ws = mountable_tmp / "workflows"
-    shutil.copytree(FIXTURE, ws)
+    copy_fixture(FIXTURE, ws)
     run = api.scan(ws, runner=engine_host.for_scan(), adapters=[ZizmorAdapter()])
 
     assert all(s.ok for s in run.scanners), run.scanners

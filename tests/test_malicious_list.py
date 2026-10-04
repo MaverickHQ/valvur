@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import tarfile
 from pathlib import Path
 
 import pytest
 from conftest import GoldenRunner
+from fixture_copy import copy_fixture
 from test_first_run import host_cache  # noqa: F401 — the fixture, registered by import
 
 from valvur import api, cache, name_index, updating
@@ -93,7 +93,7 @@ def test_the_tarball_index_yml_reads_builds_the_same_lists(tmp_path):
 
 def test_withdrawn_records_and_a_directory_named_like_a_record_are_passed_over(tmp_path):
     source = tmp_path / "source"
-    shutil.copytree(FIXTURE, source)
+    copy_fixture(FIXTURE, source)
     root = source / "malicious-packages-main"
     _record(root, "npm", "left-pad-ok", "MAL-2099-1", withdrawn="2099-01-01T00:00:00Z",
             versions=["1.0.0"])

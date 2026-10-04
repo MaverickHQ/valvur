@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import signal
 import subprocess
 import sys
@@ -23,6 +22,7 @@ import time
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur.mcp import jobs, server
 
@@ -170,7 +170,7 @@ def test_a_real_server_leaves_no_container_behind_when_its_client_disconnects(mo
 
     runtime = detect_runtime()
     workspace = mountable_tmp / "ws"
-    shutil.copytree(FIXTURES / "broken-repo", workspace)
+    copy_fixture(FIXTURES / "broken-repo", workspace)
 
     def live() -> list[str]:
         out = subprocess.run(

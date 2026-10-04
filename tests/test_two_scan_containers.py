@@ -6,11 +6,11 @@ containers on the image and reads what came back.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -22,7 +22,7 @@ def test_a_full_scan_runs_both_containers_and_leaves_neither(mountable_tmp, monk
 
     monkeypatch.setenv("VALVUR_ENGINE", "2")
     ws = mountable_tmp / "ws"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
 
     def listed() -> set[str]:
         return set(subprocess.run(["docker", "ps", "-a", "--filter", "name=valvur-",

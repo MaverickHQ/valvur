@@ -2,6 +2,7 @@
 
 import pytest
 from conftest import GoldenRunner, golden
+from fixture_copy import copy_fixture
 
 from valvur import scan
 from valvur.adapters import OpengrepAdapter
@@ -116,7 +117,6 @@ def test_the_golden_matches_what_the_image_reports_on_the_fixture(mountable_tmp)
     """The tests above pin the golden; this pins the golden to the image. A source
     pattern removed from `rules/` fails here, not in a recapture someone forgot."""
     import json
-    import shutil
 
     from conftest import FIXTURES
 
@@ -125,7 +125,7 @@ def test_the_golden_matches_what_the_image_reports_on_the_fixture(mountable_tmp)
     from valvur.engine_host import ContainerRuntime, snapshot
 
     ws = mountable_tmp / "rules"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
     scratch = mountable_tmp / "scratch"
     scratch.mkdir()
 

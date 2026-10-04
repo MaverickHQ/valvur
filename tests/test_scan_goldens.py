@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from fixture_copy import copy_fixture
 
 HERE = Path(__file__).parent
 GOLDEN = HERE / "fixtures" / "scan-goldens"
@@ -76,7 +77,7 @@ def _scrub(value, key: str = ""):
 def _workspace(root: Path, name: str) -> Path:
     fixture, extra, _ = CASES[name]
     ws = root / name
-    shutil.copytree(FIXTURES / fixture, ws)
+    copy_fixture(FIXTURES / fixture, ws)
     if extra is not None:
         (ws / extra[0]).write_text(extra[1], encoding="utf-8")
     return ws

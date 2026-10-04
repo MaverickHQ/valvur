@@ -8,6 +8,8 @@ while the database was current (the review of 2026-10-03, §3.3).
 
 from __future__ import annotations
 
+from fixture_copy import copy_fixture
+
 from valvur import datasets
 
 
@@ -114,7 +116,6 @@ def test_update_if_stale_refreshes_exactly_what_a_scan_would(monkeypatch, case):
 def test_doctor_run_json_and_the_reply_read_ages_through_the_table(tmp_path, monkeypatch):
     """One row changed in the table, and each surface says what the row says."""
     import json
-    import shutil
     from pathlib import Path
 
     from valvur import api, doctor, engine_host, operations
@@ -128,7 +129,7 @@ def test_doctor_run_json_and_the_reply_read_ages_through_the_table(tmp_path, mon
                         lambda: engine_host.LocalRuntime(fixtures / "fake-tools"))
     monkeypatch.setattr(api, "DEFAULT_ADAPTERS", [GitleaksAdapter()])
     ws = tmp_path / "ws"
-    shutil.copytree(fixtures / "clean-repo", ws)
+    copy_fixture(fixtures / "clean-repo", ws)
 
     [line] = [c for c in doctor.run(ws) if c.name == "database"]
     assert "9.5 days old (threshold 8)" in line.detail

@@ -5,6 +5,7 @@ misses nothing a networked one finds. Split from `test_constraints.py` (28.4.3).
 from __future__ import annotations
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import profiles
 from valvur.api import scan
@@ -45,14 +46,13 @@ def test_the_canary_fixture_still_exercises_every_scanner(mountable_tmp):
     would have been caught by a constraint test. All of them move a number here.
     """
     import collections
-    import shutil
 
     from conftest import FIXTURES
 
     from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "canary"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
 
     run = scan(ws, runner=ContainerRuntime(), profile=profiles.FULL)
     counts = collections.Counter(s for f in run.findings for s in f.sources)
@@ -78,14 +78,13 @@ def test_the_canary_covers_dev_only_dependencies(mountable_tmp):
     flag the production tree still reports and minimist alone disappears, which is
     exactly the shape of a silent narrowing.
     """
-    import shutil
 
     from conftest import FIXTURES
 
     from valvur.engine_host import ContainerRuntime
 
     ws = mountable_tmp / "canary"
-    shutil.copytree(FIXTURES / "broken-repo", ws)
+    copy_fixture(FIXTURES / "broken-repo", ws)
 
     run = scan(ws, runner=ContainerRuntime(), profile=profiles.OFFLINE)
     packages = {
@@ -115,7 +114,6 @@ def test_the_offline_profile_misses_no_vulnerable_package(mountable_tmp):
     package disappearing, which is what the CLU failure looked like: seven packages
     to zero.
     """
-    import shutil
 
     from conftest import FIXTURES
 
@@ -123,7 +121,7 @@ def test_the_offline_profile_misses_no_vulnerable_package(mountable_tmp):
 
     def packages(profile):
         ws = mountable_tmp / profile
-        shutil.copytree(FIXTURES / "broken-repo", ws)
+        copy_fixture(FIXTURES / "broken-repo", ws)
         run = scan(ws, runner=ContainerRuntime(), profile=profile)
         return {
             f.dependency.package.lower()

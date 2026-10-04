@@ -5,6 +5,7 @@ injected fake at the container boundary.
 """
 
 import pytest
+from fixture_copy import copy_fixture
 
 from valvur import scan
 from valvur.adapters import GitleaksAdapter
@@ -31,13 +32,12 @@ def test_a_real_container_scan_redacts_the_secret_it_found(workspace):
 def test_a_workspace_path_with_shell_metacharacters_scans_safely(tmp_path):
     """N2.3 — argument-list invocation means a path can never be reinterpreted as a
     command. The canary file must not exist afterwards."""
-    import shutil
 
     from conftest import FIXTURES
 
     canary = tmp_path / "PWNED"
     nasty = tmp_path / f"repo; touch {canary}; echo 'x' && whoami #$(id)"
-    shutil.copytree(FIXTURES / "broken-repo", nasty)
+    copy_fixture(FIXTURES / "broken-repo", nasty)
 
     run = scan(nasty, runner=ContainerRuntime(), adapters=[GitleaksAdapter()])
 
