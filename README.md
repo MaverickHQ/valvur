@@ -167,6 +167,31 @@ gate in CI. Three ways to have it:
   `.kiro/skills/valvur/`, never over what is there, and `valvur doctor` says whether a
   project's copy is this version's.
 
+**When the agent may not call valvur's tools.** A permission mode that refuses every
+tool not on an allow list, such as Claude Code's *don't ask*, refuses `scan` too. Allow
+the read-only tools, `scan`, which writes only `.security-scan/` and fetches only
+public data, and `scan_cancel`, in your own `~/.claude/settings.json` or the
+project's uncommitted `.claude/settings.local.json`. valvur never writes this for you:
+a rule in a project's committed settings grants every contributor's agent.
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_valvur_valvur__check_package",
+      "mcp__plugin_valvur_valvur__findings",
+      "mcp__plugin_valvur_valvur__scan_status",
+      "mcp__plugin_valvur_valvur__doctor",
+      "mcp__plugin_valvur_valvur__scan",
+      "mcp__plugin_valvur_valvur__scan_cancel"
+    ]
+  }
+}
+```
+
+Those are the plugin's names; a server configured by hand as `valvur` names them
+`mcp__valvur__check_package` and so on. `update` is left to ask.
+
 <!-- generated: mcp-clients -->
 
 **Claude Code** — `.mcp.json` or `~/.claude.json`. Approve the project server once in an interactive `claude`; a headless or SDK session passes `--mcp-config .mcp.json --strict-mcp-config`. *Measured 2026-09-28 at R6's exit: `claude -p` scanned the eight acceptance repositories through this server; `claude mcp list` health-checks a project server only once it is approved.*

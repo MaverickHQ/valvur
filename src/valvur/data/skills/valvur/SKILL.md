@@ -54,6 +54,8 @@ vulnerability fixed.
 
 Each tool's fields, as the server describes them, are in
 [`references/tools.md`](references/tools.md).
+The allow rules for a client that refuses unlisted tools are in
+[`references/permissions.md`](references/permissions.md).
 
 | tool | call it |
 |---|---|

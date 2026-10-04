@@ -13,11 +13,15 @@ contributor's agent.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 #: The README's first screen, in lines, as `test_demo.py` counts it.
 FIRST_SCREEN = 24
+#: What D58b allows: the read-only tools, `scan` and `scan_cancel`. Never `update`.
+ALLOWED = {"check_package", "findings", "scan_status", "doctor", "scan", "scan_cancel"}
+RULE = re.compile(r"mcp__(?:plugin_valvur_valvur|valvur)__(\w+)")
 
 
 def test_the_readme_s_first_screen_gives_the_plugin_first_and_uvx_second():
@@ -30,3 +34,20 @@ def test_the_readme_s_first_screen_gives_the_plugin_first_and_uvx_second():
     uvx = first.find("uvx valvur scan")
 
     assert -1 < add < install < uvx, (add, install, uvx)
+
+
+def _rules(text: str) -> set[str]:
+    return set(RULE.findall(text))
+
+
+def test_the_readme_and_the_skill_give_allow_rules_for_tools_the_server_lists():
+    from valvur.mcp.tools import registry
+    from valvur.skill import DIRECTORY
+
+    listed = {tool.name for tool in registry()}
+    readme = _rules((REPO / "README.md").read_text())
+    skill = set().union(*(_rules(p.read_text())
+                          for p in sorted((DIRECTORY / "references").glob("*.md"))))
+
+    assert readme == skill == ALLOWED, (readme, skill)
+    assert ALLOWED <= listed and "update" in listed - ALLOWED
