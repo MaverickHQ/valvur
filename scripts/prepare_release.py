@@ -1,19 +1,18 @@
-"""Prepare a release in one commit, or mark one published (D33, N3.4; R16.2).
+"""Prepare a release in one commit (D33, N3.4; R16.2).
 
     uv run python scripts/prepare_release.py 1.2.0 [--dry-run]
-    uv run python scripts/prepare_release.py --published 1.2.0 [--dry-run]
 
-The first sets every version surface in one commit, `chore: release <version>`:
-`pyproject.toml` and the lock; the README's status line, worded *release in
-progress* until the run has promoted; `SECURITY.md`'s supported series; the
+It sets every version surface in one commit, `chore: release <version>`:
+`pyproject.toml` and the lock; the README's status line, which names the version
+alone (R26.4); `SECURITY.md`'s supported series; the
 CHANGELOG's heading, under an empty *Unreleased*; the skill's version and the scan it
 pins in the package, copied byte for byte to the Claude Code plugin and the Kiro power; the
 plugin's and the power's manifests and pinned servers; the plugin's hook; and the
-image the pipeline examples name. `--published` makes the
-commit that flips the README once `promote` has completed. `--dry-run` prints what
-either would change and changes nothing. Both name each file the release run builds
-from that changed since the last tag, or say none did: a rehearsal is asked for then and
-only then (D62a, R26.2).
+image the pipeline examples name. `--dry-run` prints what it would change and
+changes nothing. Either way it first names each file the release run builds from that
+changed since the last tag, or says none did: a rehearsal is asked for then and only
+then (D62a, R26.2). Nothing follows the release run: PyPI's badge says what is
+published, so there is no closing commit (D62c).
 
 What it never does: tag, push, or approve the brake. Those are the owner's
 (`docs/RELEASING.md`). After it, `uv sync` brings the installed metadata along.
@@ -124,13 +123,6 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
     return plan
 
 
-def published(root: Path, version: str, date: str) -> dict[Path, str]:
-    return {Path("README.md"): _status_line(
-        (root / "README.md").read_text(),
-        f"> **Status: `{version}`** — published and installable, released on {date}; "
-        "rehearsed on its commit before its signed tag.")}
-
-
 def machinery(root: Path) -> str:
     """One line: which of `MACHINERY` changed since the newest version tag reachable
     from HEAD, or that none did. Without a tag to compare with, it cannot tell, and
@@ -170,34 +162,23 @@ def _apply(root: Path, plan: dict[Path, str], message: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("version", nargs="?", help="the version to prepare, X.Y.Z")
-    parser.add_argument("--published", metavar="VERSION",
-                        help="the version the run has promoted: flip the README")
+    parser.add_argument("version", help="the version to prepare, X.Y.Z")
     parser.add_argument("--dry-run", action="store_true", help="print, change nothing")
     parser.add_argument("--date", default=datetime.date.today().isoformat())
     parser.add_argument("--root", type=Path, default=REPO)
     args = parser.parse_args(argv)
     root = args.root.resolve()
-    version = args.published or args.version
-    if not version or not _VERSION.match(version) or (args.published and args.version):
-        print("prepare_release: give one version, X.Y.Z, or --published X.Y.Z",
-              file=sys.stderr)
+    version = args.version
+    if not _VERSION.match(version):
+        print("prepare_release: give one version, X.Y.Z", file=sys.stderr)
         return 2
     current = declared(root)
-    if args.published:
-        if version != current:
-            print(f"prepare_release: this tree is {current}, not {version}; prepare "
-                  f"{version} first", file=sys.stderr)
-            return 2
-        plan, message = published(root, version, args.date), f"docs: {version} published"
-    else:
-        if tuple(map(int, version.split("."))) <= tuple(map(int, current.split("."))):
-            print(f"prepare_release: {version} is not after this tree's {current}",
-                  file=sys.stderr)
-            return 2
-        plan, message = planned(root, version, args.date), f"chore: release {version}"
-    if not args.published:
-        print(machinery(root))
+    if tuple(map(int, version.split("."))) <= tuple(map(int, current.split("."))):
+        print(f"prepare_release: {version} is not after this tree's {current}",
+              file=sys.stderr)
+        return 2
+    plan, message = planned(root, version, args.date), f"chore: release {version}"
+    print(machinery(root))
     if args.dry_run:
         _show(root, plan)
         print(f"\n(dry run: {message}, {len(plan)} files; nothing changed)")

@@ -131,8 +131,8 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
 
     # `retention.yml` (weekly) joined in 28.3.1: a red run there means the
     # packages stopped being pruned, which nobody would notice for months.
-    # `published.yml` (daily) joined in 29.3.1: a red run there means the README
-    # claims a version PyPI or GHCR does not serve, or the closing PR is overdue.
+    # `published.yml` (daily) joined in 29.3.1 and left in R26.4: the README's status
+    # line names no release state since then, so there is no claim for it to check.
     # `acceptance.yml` (nightly) joined in R2.5: a red run there means a phase's
     # judge stopped passing on Linux, which nothing else would say.
     # `eval.yml` (weekly) joined in R9.6: a red run there means the Score fell under
@@ -143,7 +143,7 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # an old score. Its scorecard job may hold only the actions the OpenSSF API
     # approves for a published result, so a job that needs it files the issue.
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
-                                               "published.yml", "acceptance.yml",
+                                               "acceptance.yml",
                                                "eval.yml", "refresh.yml",
                                                "scorecard.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"

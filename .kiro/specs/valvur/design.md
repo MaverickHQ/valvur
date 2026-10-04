@@ -624,14 +624,16 @@ baseline, every track, since the whole Score takes under five minutes (N4.3, R9.
 
 **Prepared by one command** (D33, R16.2). `scripts/prepare_release.py <version>` makes
 one commit, `chore: release <version>`, that sets every version surface
-`test_version.py` reads: the version and the lock, the README's status line worded
-*release in progress*, `SECURITY.md`'s series, the CHANGELOG's heading under an empty
-*Unreleased*, the skill's version in the package and in both copies, and the plugin's
-and the power's manifests and pinned servers. `--published <version>` makes the commit
-that flips the README once `promote` has run; `--dry-run` prints the diff and changes
-nothing. It refuses, exit 2, a version not after the tree's, `--published` of a version
-the tree is not, and a tree with uncommitted changes. It never tags, pushes or approves
-the brake: those stay the owner's (`docs/RELEASING.md`).
+`test_version.py` reads: the version and the lock, the README's status line, which
+names the version and no release state (R26.4), `SECURITY.md`'s series, the
+CHANGELOG's heading under an empty *Unreleased*, the skill's version in the package
+and in both copies, and the plugin's and the power's manifests and pinned servers.
+Its first line names each file the release run builds from that changed since the
+last tag, which is when a rehearsal is asked for (R26.2); `--dry-run` prints the diff
+and changes nothing. It refuses, exit 2, a version not after the tree's and a tree
+with uncommitted changes. It never tags, pushes or approves the brake: those stay the
+owner's (`docs/RELEASING.md`), and nothing follows them. PyPI's badge says what is
+published, so there is no closing commit (D62c).
 
 **A monthly Scanner refresh** (D34, R16.3). Dependabot moves a Scanner's pin on `main`,
 and nothing said a release would ship it. `refresh.yml` wakes each Monday and lets

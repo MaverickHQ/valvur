@@ -1,10 +1,9 @@
 """R16.2: `scripts/prepare_release.py` (D33, N3.4).
 
 A release is prepared by one command, in one commit: the version, the lock, the
-README's *release in progress*, `SECURITY.md`'s series, the CHANGELOG's heading, and
-since R15 the skill, the plugin and the power. `--published` makes the commit that
-flips the README once the run has promoted. `--dry-run` says what either would change
-and changes nothing. The tag and the brake stay the owner's.
+README's status line, `SECURITY.md`'s series, the CHANGELOG's heading, and since R15
+the skill, the plugin and the power. `--dry-run` says what it would change and changes
+nothing. The tag and the brake stay the owner's, and since R26.4 nothing follows them.
 
 Run here against a copy of the files the script edits, in a repository of its own.
 """
@@ -100,25 +99,6 @@ def test_one_commit_sets_every_version_surface(tree):
     assert f"uvx --from valvur=={NEXT} valvur-hook" in hook
     for example in ("docs/examples/github-actions.yml", "docs/examples/gitlab-ci.yml"):
         assert f"ghcr.io/maverickhq/valvur:{NEXT}" in (tree / example).read_text(), example
-
-
-def test_published_flips_the_readme_once_the_run_has_promoted(tree):
-    script = _script()
-    assert script.main([NEXT, "--root", str(tree), "--date", "2026-10-01"]) == 0
-
-    assert script.main(["--published", NEXT, "--root", str(tree),
-                        "--date", "2026-10-02"]) == 0
-
-    status = next(line for line in (tree / "README.md").read_text().splitlines()
-                  if "**Status: `" in line)
-    assert status.startswith(f"> **Status: `{NEXT}`** — published and installable")
-    assert "release in progress" not in status
-    assert _git(tree, "log", "-1", "--format=%s").strip() == f"docs: {NEXT} published"
-
-
-def test_published_refuses_a_version_the_tree_is_not(tree, capsys):
-    assert _script().main(["--published", "9.9.9", "--root", str(tree)]) == 2
-    assert "9.9.9" in capsys.readouterr().err
 
 
 def test_a_dry_run_changes_nothing_and_says_what_it_would(tree, capsys):
