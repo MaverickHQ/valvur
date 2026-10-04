@@ -40,11 +40,22 @@ These cannot be automated, and the workflow fails without them.
    real release would otherwise have met at its last step, after the image was
    pushed and signed.
 
-## Rehearse before you release
+## Rehearse when the machinery changed
 
 `release.yml` runs every step against throwaway targets when dispatched by hand
-(22.B.1). Do this before every real tag; it is the only way to find out what broke
-since the last one without finding out in public.
+(22.B.1). A rehearsal proves the pipeline, and the pipeline is what the run builds
+from: `.github/workflows/release.yml`, `.github/actions/version/action.yml`,
+`docker-bake.hcl`, `Dockerfile`, the locks the Dockerfile installs
+(`requirements-checkov.txt`, `requirements-zizmor.txt`) and the wheel's build hook,
+`hatch_build.py`. **Rehearse when one of them changed since the last tag, and only
+then** (D62a): the product itself is proven by the pull request's checks, which the
+tag's run reads back. `prepare_release.py` says which, on its first line:
+
+    machinery changed since v1.4.0: .github/workflows/release.yml; rehearse before the tag (docs/RELEASING.md)
+    machinery unchanged since v1.4.0: no rehearsal needed
+
+Measured on `1.4.0`, a rehearsal is 31 minutes for a pipeline no commit since `1.3.1`
+had touched.
 
 ```bash
 gh workflow run release.yml --ref main
@@ -136,7 +147,8 @@ git push -u origin release/0.2.0
 gh pr create --fill                 # wait for the required checks
 git push origin release/0.2.0:main  # fast-forward; GitHub records the PR as merged
 
-# 7. Rehearse on that exact commit (above), then tag it. The tag is the publish.
+# 7. Rehearse on that exact commit when step 1 said the machinery changed (above),
+#    then tag it. The tag is the publish.
 git tag -s v0.2.0 <that commit>   # must match pyproject exactly; the workflow rejects a mismatch
 git push origin v0.2.0
 ```

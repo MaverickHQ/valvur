@@ -1368,11 +1368,19 @@ recorded; or D45's fallback, applied and recorded.
   required check measures. The owner's actions, four: land the release PR (#191, by
   fast-forward), push the signed tag `v1.4.0`, approve `promote` at the brake, and land
   the closing PR (#192) that flipped the README to *published*.
-- [ ] **R26.2** **Rehearse when the machinery changed** (D62a). Behaviours:
+- [x] **R26.2** **Rehearse when the machinery changed** (D62a). Behaviours:
   1. `prepare_release.py` names each machinery file changed since the last tag, or says
      none did;
   2. a test holds the machinery list to the files `release.yml` builds from;
   3. `RELEASING.md` asks for a rehearsal exactly when one changed.
+  **STATUS 2026-10-04:** ✅ all three. `prepare_release.py` prints one line before its
+  plan, from `git diff` between the newest `v*` tag and HEAD over seven files: the
+  workflow, the version action, the bake file, the Dockerfile, the two locks it installs
+  and the wheel's hook. Without a tag it cannot tell, and asks for the rehearsal. On this
+  branch it says *machinery changed since v1.4.0: .github/workflows/release.yml*: R19
+  moved the runners, so `1.5.0` is rehearsed. The test finds the list by reading
+  `release.yml`, the bake file, the Dockerfile and `pyproject.toml`, and `RELEASING.md`'s
+  section, *Rehearse when the machinery changed*, names every file on it.
 - [ ] **R26.3** **The tag's run trusts CI's verdict** (D62b). Behaviours:
   1. `verify` passes when every required check passed on the tagged commit, and fails
      naming each that did not;

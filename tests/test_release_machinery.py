@@ -132,3 +132,14 @@ def test_the_machinery_list_is_what_the_release_builds_from():
         f"listed and not read: {sorted(listed - _read_by_the_release())}; "
         f"read and not listed: {sorted(_read_by_the_release() - listed)}")
     assert all((REPO / path).is_file() for path in listed), "a listed file does not exist"
+
+
+def test_releasing_asks_for_a_rehearsal_exactly_when_the_machinery_changed():
+    releasing = (REPO / "docs" / "RELEASING.md").read_text()
+    section = releasing.split("\n## Rehearse when the machinery changed\n", 1)[1]
+    section = section.split("\n## ", 1)[0]
+
+    assert "Do this before every real tag" not in releasing
+    assert "machinery changed since" in section and "no rehearsal needed" in section
+    for path in _script().MACHINERY:
+        assert f"`{path}`" in section, f"the section does not name {path}"
