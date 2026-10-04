@@ -103,3 +103,32 @@ def test_without_a_tag_it_cannot_tell_and_asks_for_the_rehearsal(tagged, capsys)
 
     assert ("machinery: no earlier tag here to compare with; rehearse before the tag "
             "(docs/RELEASING.md)" in capsys.readouterr().out.splitlines())
+
+
+def _read_by_the_release() -> set[str]:
+    """What `release.yml` builds from besides the product, found by reading it: the
+    workflow, each action it uses from this repository, the bake file and the
+    Dockerfile it names, each lock the Dockerfile copies, and the wheel's hook."""
+    release = (REPO / ".github" / "workflows" / "release.yml").read_text()
+    found = {".github/workflows/release.yml"}
+    found |= {f"{path}/action.yml" for path in re.findall(r"uses: \./(\S+)", release)}
+    if "docker buildx bake" in release:
+        bake = (REPO / "docker-bake.hcl").read_text()
+        dockerfile = re.search(r'dockerfile\s*=\s*"([^"]+)"', bake)[1]
+        found |= {"docker-bake.hcl", dockerfile}
+        found |= set(re.findall(r"^COPY (requirements-[\w-]+\.txt) ",
+                                (REPO / dockerfile).read_text(), re.M))
+    if "uv build" in release:
+        hook = re.search(r'\[tool\.hatch\.build\.hooks\.custom\][^\[]*?^path = "([^"]+)"',
+                         (REPO / "pyproject.toml").read_text(), re.M | re.S)
+        found.add(hook[1])
+    return found
+
+
+def test_the_machinery_list_is_what_the_release_builds_from():
+    listed = set(_script().MACHINERY)
+
+    assert listed == _read_by_the_release(), (
+        f"listed and not read: {sorted(listed - _read_by_the_release())}; "
+        f"read and not listed: {sorted(_read_by_the_release() - listed)}")
+    assert all((REPO / path).is_file() for path in listed), "a listed file does not exist"
