@@ -1623,10 +1623,27 @@ measurement, or each one's measured reason; CI green; the Score unchanged.
 
 ### Phase R38: what a project's own ignores hide
 
-- [ ] **R38.1** **Measure first** (D77). For each ignore D77 names, a fixture whose ignore hides
+- [x] **R38.1** **Measure first** (D77). For each ignore D77 names, a fixture whose ignore hides
   a planted finding: record which of them valvur reports today, and for each pinned Scanner the
   switch that turns its ignores off, read from its own help. Behaviour: the STATUS gives the
   table.
+  **STATUS 2026-10-04:** ✅ the table. `tests/project_ignores.py` builds, at runtime, one
+  project in which each ignore hides one planted finding beside a twin it does not hide.
+  Scanned as `1.4.0` scans it, and then each Scanner run by hand in the image, from
+  `/workspace` so that every ignore would be read:
+
+  | ignore | its Scanner | hidden by valvur today | the switch, from the pinned binary's help, measured |
+  |---|---|---|---|
+  | `# nosemgrep` | Opengrep 1.29.0 | **yes**, `valvur.python.subprocess-shell-true` | `--disable-nosem`: reported |
+  | `# gitleaks:allow` | Gitleaks 8.30.1 | **yes** | `--ignore-gitleaks-allow`: reported |
+  | `.gitleaksignore` | Gitleaks | no, by accident: `-i` defaults to the working directory, which is the scratch directory, and a fingerprint carries `/workspace/` | `-i /dev/null`: unread whatever the directory |
+  | `.gitleaks.toml` allowlist | Gitleaks | **yes**, read from the scanned directory, and by the history pass as `--config` | `GITLEAKS_CONFIG_TOML`, which outranks the scanned directory's file: reported |
+  | `#checkov:skip=` | Checkov 3.3.19 | **yes**, CKV_AWS_18 | none: inline suppressions are matched by `COMMENT_REGEX` before a check runs. D77's fallback: without `--quiet`, the JSON lists each skip with its comment |
+  | `.trivyignore` | Trivy 0.74.0 | no, by accident: `--ignorefile` defaults to the working directory | `--ignorefile /dev/null`: CVE-2019-11324 reported |
+  | `osv-scanner.toml` | OSV-Scanner 2.6.0 | **yes**, PYSEC-2019-132 (Trivy still reported CVE-2019-11236) | `--config /dev/null`: reported |
+
+  So five of the seven hid their finding, and the other two stayed unread only because of
+  the engine's working directory.
 - [ ] **R38.2** **Every Scanner runs with its own ignores off** (D77a). Behaviours:
   1. each adapter's arguments carry the switch, and the invocation snapshots hold them;
   2. every fixture's planted finding is reported (`e2e`);
