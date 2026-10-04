@@ -180,6 +180,12 @@ RUN printf '#!/bin/sh\nexec python3 -m valvur.cli "$@"\n' > /usr/local/bin/valvu
  && chmod 0755 /usr/local/bin/valvur
 ENV VALVUR_IN_IMAGE=1
 
+# The Snapshot's landing (ADR-0022): a tmpfs made 1777 up to the shim's TMPFS_LIMIT,
+# and past it a per-scan volume, which Docker's classic store initialises from this
+# directory's owner and mode. The scan runs as the invoking user with every
+# capability dropped, so it must be writable by anyone, sticky as /tmp is. Under
+# WORKDIR alone it was 10001's and 755, and a large Snapshot could not be unpacked.
+RUN mkdir -p /workspace && chmod 1777 /workspace
 RUN adduser -D -u 10001 valvur
 USER 10001:10001
 WORKDIR /workspace

@@ -66,16 +66,27 @@ def test_a_snapshot_that_arrives_short_refuses_the_scan(tmp_path, monkeypatch):
     assert "received 1 of 2 files" in str(refused.value)
 
 
-def _running_mounts(runtime, plan, tar, scratch):
-    """Start the Scan Container in a thread and read its mounts while it runs."""
+def _running_mounts(runtime, plan, tar, scratch, outcome=None):
+    """Start the Scan Container in a thread and read its mounts while it runs. What
+    the run returned, or raised, goes into `outcome`, so a container never seen says
+    why: rehearsal run 37210754192 failed here with nothing to read, and the reason
+    was a volume the scan could not write (`test_workspace_landing.py`)."""
     import json
     import subprocess
     import threading
     import time
 
+    outcome = {} if outcome is None else outcome
+
+    def run():
+        try:
+            outcome["returned"] = runtime.run(plan, tar, scratch)
+        except Exception as error:
+            outcome["raised"] = repr(error)
+
     before = set(subprocess.run(["docker", "ps", "-q"], capture_output=True, text=True,
                                 check=True).stdout.split())
-    worker = threading.Thread(target=runtime.run, args=(plan, tar, scratch))
+    worker = threading.Thread(target=run)
     worker.start()
     mounts = None
     deadline = time.monotonic() + 60
@@ -111,8 +122,10 @@ def test_a_running_scan_container_has_no_mount_of_the_source_tree(mountable_tmp,
         monkeypatch.setattr(engine_host, "TMPFS_LIMIT", limit)
         scratch = mountable_tmp / f"scratch-{limit}"
         scratch.mkdir()
-        mounts = _running_mounts(ContainerRuntime(), plan, snapshot(ws, ["app.py"]), scratch)
-        assert mounts is not None, "the container was never seen running"
+        outcome: dict = {}
+        mounts = _running_mounts(ContainerRuntime(), plan, snapshot(ws, ["app.py"]), scratch,
+                                 outcome)
+        assert mounts is not None, f"the container was never seen running: {outcome}"
         sources = {m.get("Source", "") for m in mounts}
         assert not any(str(ws) in s for s in sources), sources
         volumes = [m for m in mounts if m.get("Type") == "volume"]
