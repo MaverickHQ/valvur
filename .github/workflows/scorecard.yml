@@ -24,7 +24,7 @@ permissions:
 jobs:
   analysis:
     name: the Scorecard
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       security-events: write    # the SARIF, to code scanning
       id-token: write           # the signed upload of a published result
@@ -56,7 +56,7 @@ jobs:
     name: the Scorecard, each check
     if: github.event_name == 'pull_request'
     needs: analysis
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions: {}
     timeout-minutes: 5
     steps:
@@ -72,7 +72,7 @@ jobs:
     name: a failed run, tracked
     needs: [analysis, report]
     if: ${{ failure() && github.event_name == 'schedule' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       issues: write         # open the one issue a failure gets (27.2.7)

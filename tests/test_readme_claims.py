@@ -28,7 +28,7 @@ def test_the_platform_table_claims_only_the_architectures_ci_tests_end_to_end():
     e2e = ci.split("\n  e2e:", 1)[1].split("\n  published:", 1)[0]
     row = next(line for line in README.splitlines() if line.startswith("| Linux, Docker"))
 
-    if "ubuntu-24.04-arm" not in e2e:
+    if "ubuntu-26.04-arm" not in e2e:
         # Until R16.1's arm64 leg: the e2e claim names amd64 alone, and arm64 only
         # where the published image is scanned.
         e2e_claim, published = row.split("published image", 1)

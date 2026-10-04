@@ -35,7 +35,7 @@ env:
 jobs:
   publish:
     name: build, push, sign, and pull it back
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     permissions:
       contents: read
@@ -222,7 +222,7 @@ jobs:
     # tagged with the day and `malicious`. Its own job, so a red list leaves the
     # index's day alone, and the index's the list's. Nothing moves off main.
     name: the malicious list, built, pushed, signed and pulled back
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read

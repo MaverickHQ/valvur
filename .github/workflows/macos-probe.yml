@@ -3,8 +3,8 @@ name: macos probe
 # Not a lane, and not a claim: one question, asked by hand (task 27.2.1).
 #
 # The README says valvur is supported on macOS, and macOS is where the primary
-# client runs — but every real-container job in `ci.yml` is `ubuntu-24.04` or
-# `ubuntu-24.04-arm`, and `test_portability.py`'s macOS cases monkeypatch
+# client runs — but every real-container job in `ci.yml` is `ubuntu-26.04` or
+# `ubuntu-26.04-arm`, and `test_portability.py`'s macOS cases monkeypatch
 # `platform.system()`, which cannot exercise Docker Desktop's mount sharing, a
 # Podman VM's paths, or UID translation in a container. So the claim is "tested by
 # hand on a Mac", which is true, and a continuous lane would be better if one can

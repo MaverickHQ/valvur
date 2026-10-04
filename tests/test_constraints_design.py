@@ -78,7 +78,7 @@ def test_the_design_states_the_version_it_describes():
 def test_the_platform_table_claims_only_the_testing_that_exists():
     """27.2.1. The README put macOS and Linux in one row — *"tested on every commit
     against both runtimes"* — and that is true of Linux and not of macOS: every
-    real-container job runs on `ubuntu-24.04` or `ubuntu-24.04-arm`, and
+    real-container job runs on `ubuntu-26.04` or `ubuntu-26.04-arm`, and
     `test_portability.py`'s macOS cases monkeypatch `platform.system()`, which
     cannot exercise Docker Desktop's mount sharing, a Podman VM's paths, or UID
     translation. A claim about continuous testing needs a workflow that runs

@@ -42,7 +42,7 @@ env:
 jobs:
   verify:
     name: the tag says what the tree says
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       # `version` is what the tree declares and what the tests run against — F1.9
       # compares the shim to the image label, so it must be the real one even in a
@@ -167,9 +167,9 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -220,7 +220,7 @@ jobs:
     # nothing else; the version number is not burned.
     name: stage — push the candidate, sign, attest, build the wheel
     needs: [verify, build]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       # The digest of the signed index — what `artifact` pulls and `promote`
       # re-tags, so both act on the bytes this job signed and nothing a tag could
@@ -458,9 +458,9 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -589,7 +589,7 @@ jobs:
     # first: the tags can be re-pointed, PyPI cannot be un-uploaded.
     name: promote — the version tag, latest, PyPI, the GitHub release
     needs: [verify, stage, artifact]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: release
     permissions:
       contents: write       # create the GitHub release

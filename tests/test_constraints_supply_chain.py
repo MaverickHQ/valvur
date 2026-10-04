@@ -53,6 +53,10 @@ def test_every_runner_in_every_workflow_is_a_named_image():
                 floating.append(f"{path.name}:{number} {line.strip()}")
 
     assert not floating, "runners on a floating label: " + "; ".join(floating)
+    # R19.1 (D45): the named image is 26.04 on both architectures, every Linux job.
+    named = sorted({m for path in Path(".github/workflows").glob("*.yml")
+                    for m in re.findall(r"\bubuntu-\d\d\.\d\d(?:-arm)?\b", path.read_text())})
+    assert named == ["ubuntu-26.04", "ubuntu-26.04-arm"], f"runners named: {named}"
 
 
 def test_no_workflow_grants_write_permission_it_does_not_need():
@@ -187,7 +191,7 @@ def test_every_image_build_goes_through_the_bake_file():
     assert "docker buildx bake" in contributing and "docker buildx build" not in contributing
 
     release = Path(".github/workflows/release.yml").read_text()
-    assert "ubuntu-24.04-arm" in release, "the arm64 half is not built natively"
+    assert "ubuntu-26.04-arm" in release, "the arm64 half is not built natively"
     assert "setup-qemu-action" not in release, "QEMU is still installed for the release"
     assert "docker buildx imagetools create" in release
     assert 'needs: [verify, build]' in release
@@ -248,15 +252,15 @@ def test_the_published_artifact_runs_on_both_architectures():
     jobs = _release_jobs()
     artifact = jobs["artifact"]
     runners = set(re.findall(r"runner:\s*(\S+)", artifact))
-    assert runners == {"ubuntu-24.04", "ubuntu-24.04-arm"}, \
+    assert runners == {"ubuntu-26.04", "ubuntu-26.04-arm"}, \
         f"artifact does not run on both architectures: {sorted(runners)}"
     assert "runs-on: ${{ matrix.runner }}" in artifact
 
     ci = Path(".github/workflows/ci.yml").read_text()
     published = ci.split("\n  published:\n", 1)[1].split("\n  selfscan:\n", 1)[0]
-    assert re.search(r"runner:\s*ubuntu-24\.04-arm", published), \
+    assert re.search(r"runner:\s*ubuntu-26\.04-arm", published), \
         "ci.yml's published job does not run the published image on arm64"
-    assert re.search(r"runner:\s*ubuntu-24\.04\n", published)
+    assert re.search(r"runner:\s*ubuntu-26\.04\n", published)
     # The amd64 leg keeps the name main's branch protection requires.
     assert "name: the published image, on ${{ matrix.arch }}" in published
 

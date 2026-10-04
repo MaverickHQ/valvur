@@ -16,7 +16,7 @@ jobs:
     # A pre-commit hook lives on one machine and dies to --no-verify. CI cannot be
     # bypassed, so this is the real enforcement of ADR-0011.
     name: no scan output in tree
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,7 +35,7 @@ jobs:
   # package build stay on the job above, once.
   floor:
     name: the tests on Python ${{ matrix.python }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -52,7 +52,7 @@ jobs:
 
   test:
     name: lint, types, tests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,9 +86,9 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -125,11 +125,11 @@ jobs:
         include:
           - name: end-to-end (real container)
             arch: amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             podman: true
           - name: end-to-end (real container, arm64)
             arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
             podman: false
     runs-on: ${{ matrix.runner }}
     steps:
@@ -225,9 +225,9 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
     runs-on: ${{ matrix.runner }}
     env:
       ARCH: ${{ matrix.arch }}
@@ -340,7 +340,7 @@ jobs:
   mutation:
     name: each hunk reverted, does a test notice (non-required)
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -365,7 +365,7 @@ jobs:
     name: two builds of one tree are one image
     needs: image
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -404,7 +404,7 @@ jobs:
     name: self-scan release gate (N2.5)
     needs: image
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write      # the action uploads results.sarif to code scanning

@@ -18,7 +18,7 @@ permissions:
 jobs:
   refresh:
     name: the Scanner pins against the latest release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       issues: write         # the one issue the owner gets

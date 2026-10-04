@@ -26,7 +26,7 @@ permissions:
 jobs:
   prune:
     name: old package versions, gone
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       packages: write
       issues: write         # open the one issue a failure gets (27.2.7)

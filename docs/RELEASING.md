@@ -182,7 +182,7 @@ a corpus finding with no label stops the release. The weekly `eval.yml` runs the
 same command, so a fall is usually known before release day.
 
 **`build` — each architecture, natively (23.4.3).** One job per architecture, on
-its own runner — `ubuntu-24.04` and `ubuntu-24.04-arm` — each running `docker
+its own runner — `ubuntu-26.04` and `ubuntu-26.04-arm` since R19 — each running `docker
 buildx bake release`: the runner's own architecture, no QEMU (which cost the amd64
 runner 4m50s for both on v0.2.0), pushed to the package by digest and untagged, the
 digest handed on as an artifact. `docker-bake.hcl` is the one place the build
@@ -219,7 +219,7 @@ name yet (26.1.1).**
   on as run artifacts: one build, tested by `artifact`, published by `promote`.
 
 **`artifact` — the pair, tested** (above) — **on both architectures** (26.1.2):
-one leg on `ubuntu-24.04`, one on `ubuntu-24.04-arm`, each pulling its own child
+one leg on `ubuntu-26.04`, one on `ubuntu-26.04-arm`, each pulling its own child
 of the signed digest and verifying both claims on it, the signature and the SLSA
 provenance (26.1.3). `promote` waits for both. Measured on the first rehearsal
 with the arm64 leg: 6m06s against amd64's 7m02s, and a peak of 391–410 MiB

@@ -1,8 +1,8 @@
 """R16.1: the arm64 e2e leg (D38).
 
 The image is published for amd64 and arm64, and the Mac every phase is measured on
-is arm64, but CI's e2e job ran on x86 alone. It gains `ubuntu-24.04-arm`, Docker
-only: podman and the parity guard stay the x86 leg's. The x86 leg keeps its name,
+is arm64, but CI's e2e job ran on x86 alone. It gains an arm leg (`ubuntu-26.04-arm`
+since R19), Docker only: podman and the parity guard stay the x86 leg's. The x86 leg keeps its name,
 since `main`'s protection requires a check by that name.
 """
 
@@ -31,8 +31,8 @@ def test_the_e2e_job_runs_on_x86_and_on_arm():
     job = _job("e2e")
 
     assert "runs-on: ${{ matrix.runner }}" in job
-    assert re.search(r"runner: ubuntu-24\.04\n", job)
-    assert re.search(r"runner: ubuntu-24\.04-arm\n", job)
+    assert re.search(r"runner: ubuntu-26\.04\n", job)
+    assert re.search(r"runner: ubuntu-26\.04-arm\n", job)
     assert "fail-fast: false" in job          # one leg failing never hides the other
 
 
