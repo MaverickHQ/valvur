@@ -2,9 +2,10 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `1.4.0`** — published and installable, released on 2026-10-04; rehearsed on its commit before its signed tag.
+> **Status: `1.4.0`**, the version this tree declares; the PyPI badge below shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) what each version changed.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
+[![PyPI](https://img.shields.io/pypi/v/valvur)](https://pypi.org/project/valvur/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MaverickHQ/valvur/badge)](https://scorecard.dev/viewer/?uri=github.com/MaverickHQ/valvur)
 
 **Start in Claude Code** with two commands, then ask it to scan the project:

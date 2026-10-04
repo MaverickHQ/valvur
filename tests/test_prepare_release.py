@@ -80,8 +80,8 @@ def test_one_commit_sets_every_version_surface(tree):
                      (tree / "uv.lock").read_text())
     status = next(line for line in (tree / "README.md").read_text().splitlines()
                   if "**Status: `" in line)
-    assert status.startswith(f"> **Status: `{NEXT}`** — release in progress")
-    assert f"serves `{before}`" in status
+    assert status.startswith(f"> **Status: `{NEXT}`**, the version this tree declares;")
+    assert before not in status, "the line names no other version"
     assert re.findall(r"^\| `([^`]+)` \|", (tree / "SECURITY.md").read_text(), re.M) == [SERIES]
     changelog = (tree / "CHANGELOG.md").read_text()
     assert f"## [Unreleased]\n\n## [{NEXT}] — 2026-10-01\n" in changelog

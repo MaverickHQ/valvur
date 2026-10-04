@@ -18,8 +18,6 @@ import tomllib
 from importlib.metadata import version as installed_version
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -69,34 +67,6 @@ def test_the_skill_s_pinned_scan_is_this_release():
     pinned = re.findall(r"! uvx valvur==([^\s`]+) scan", SKILL.read_text())
 
     assert pinned == [_declared()]
-
-
-def test_the_readme_does_not_call_a_version_published_before_its_tag_exists():
-    """29.3.1. The prep commit bumps the line before the tag and the release brake
-    can be held for days; at the first gate the README said `0.4.0 — published`
-    while PyPI served `0.3.0`. Two wordings: *release in progress* until the run
-    has promoted, *published and installable* after — and *published* is refused
-    here when the tree's tags are known and `v<version>` is not among them. The
-    daily `published.yml` asks PyPI and GHCR, which no unit test may."""
-    import shutil
-    import subprocess
-
-    readme = (REPO / "README.md").read_text()
-    line = next(row for row in readme.splitlines() if "**Status: `" in row)
-    published = "published and installable" in line
-    assert published or "release in progress" in line, f"neither wording: {line}"
-    if not published:
-        return
-    git = shutil.which("git")
-    if git is None or not (REPO / ".git").exists():
-        pytest.skip("not a git checkout")
-    tags = subprocess.run([git, "-C", str(REPO), "tag", "--list", "v*"],
-                          capture_output=True, text=True, check=False).stdout.split()
-    if not tags:
-        pytest.skip("no tags fetched here (a shallow checkout); published.yml asks PyPI")
-    assert f"v{_declared()}" in tags, (
-        f"the README says {_declared()} is published, and no tag v{_declared()} exists"
-    )
 
 
 def test_the_security_policy_names_the_series_it_supports():

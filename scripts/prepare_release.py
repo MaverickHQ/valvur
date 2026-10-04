@@ -92,9 +92,9 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
                               (root / "uv.lock").read_text(), "uv.lock"),
         Path("README.md"): _status_line(
             (root / "README.md").read_text(),
-            f"> **Status: `{version}`** — release in progress: this tree is rehearsed and "
-            "waits at the release brake; `pip install valvur` serves "
-            f"`{previous}` until the run's `promote` completes."),
+            f"> **Status: `{version}`**, the version this tree declares; the PyPI badge "
+            "below shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) "
+            "what each version changed."),
         Path("SECURITY.md"): _sub(r"^\| `[^`]+` \|", "| `" + ".".join(version.split(".")[:2])
                                   + ".x` |", (root / "SECURITY.md").read_text(),
                                   "SECURITY.md", re.M),

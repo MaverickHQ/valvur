@@ -209,3 +209,20 @@ def test_the_score_the_readme_cites_is_the_baselines():
     baseline = json.loads((REPO / "tests" / "eval" / "baseline.json").read_text())
 
     assert f"**{baseline['score']}** out of 100" in README.read_text()
+
+
+def test_the_status_line_names_no_release_state_and_a_badge_says_what_is_published():
+    """R26.4 (D62c). The line said *release in progress* from the release commit until
+    a closing pull request flipped it to *published*, the fourth owner action of a
+    release (R26.1), and a daily workflow checked which was true. It now names the
+    version the tree declares, which is true before the release run and after it,
+    and PyPI's own badge says what is published."""
+    text = README.read_text(encoding="utf-8")
+    line = next(row for row in text.splitlines() if "**Status: `" in row)
+    head = text.split("\n## ", 1)[0]
+
+    for state in ("published", "installable", "in progress", "released on", "rehearsed"):
+        assert state not in line, f"the status line names a release state: {state}"
+    assert "the version this tree declares" in line
+    assert "[![PyPI](https://img.shields.io/pypi/v/valvur" in head
+    assert "](https://pypi.org/project/valvur/)" in head
