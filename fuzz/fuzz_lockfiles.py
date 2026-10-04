@@ -7,17 +7,28 @@ The first byte picks the reader; the rest is the file.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import tempfile
 from pathlib import Path
 
-# The module behind the package's `locked` function. Importing it by name would set
-# the package's `locked` to the module and break every later `ecosystems.locked()`
-# in this process, so the function is resolved first, the package's way.
-from valvur import ecosystems
+try:
+    import atheris  # the `fuzz` extra; the unit suite runs the seeds without it
+except ImportError:
+    atheris = None
 
-ecosystems.locked  # noqa: B018 — resolves the function, which imports its module
-locked = sys.modules["valvur.ecosystems.locked"]
+# Instrumented as imported: valvur, and the parsers whose branches shape its input.
+# Instrumenting everything loaded took 10 s to start one input, and ClusterFuzzLite's
+# 30 s reproduction dropped two real crashes (PR #196).
+with (atheris.instrument_imports(include=["valvur", "tomllib", "json", "shlex"]) if atheris
+      else contextlib.nullcontext()):
+    # The module behind the package's `locked` function. Importing it by name would set
+    # the package's `locked` to the module and break every later `ecosystems.locked()`
+    # in this process, so the function is resolved first, the package's way.
+    from valvur import ecosystems
+
+    ecosystems.locked  # noqa: B018 — resolves the function, which imports its module
+    locked = sys.modules["valvur.ecosystems.locked"]
 
 ROOT = Path(tempfile.mkdtemp(prefix="valvur-fuzz-lockfiles-"))
 SEEDS = [b"\x00" + b'{"packages": {"node_modules/a": {"version": "1.0.0"}}}',
@@ -47,10 +58,7 @@ def test_one_input(data: bytes) -> None:
 
 
 def main() -> None:
-    """Run as a fuzzer: atheris only here, so the unit suite runs the seeds without it."""
-    import atheris  # deferred: a dev dependency (the `fuzz` extra), never the shim's
-
-    atheris.instrument_all()
+    """Run as a fuzzer, with atheris; the unit suite calls `test_one_input` alone."""
     atheris.Setup(sys.argv, test_one_input)
     atheris.Fuzz()
 

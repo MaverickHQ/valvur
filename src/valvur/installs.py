@@ -194,7 +194,7 @@ def _requirements(path: Path, depth: int) -> list[Package]:
         return []
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
+    except (OSError, ValueError):  # ValueError: a path no file can have, a NUL in it (R27.4)
         return []
     found: list[Package] = []
     for line in lines:

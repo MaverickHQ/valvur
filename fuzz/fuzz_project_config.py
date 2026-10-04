@@ -7,11 +7,22 @@ problem the scan reports, never an exception.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import tempfile
 from pathlib import Path
 
-from valvur import exclusions, suppressions
+try:
+    import atheris  # the `fuzz` extra; the unit suite runs the seeds without it
+except ImportError:
+    atheris = None
+
+# Instrumented as imported: valvur, and the parsers whose branches shape its input.
+# Instrumenting everything loaded took 10 s to start one input, and ClusterFuzzLite's
+# 30 s reproduction dropped two real crashes (PR #196).
+with (atheris.instrument_imports(include=["valvur", "tomllib", "json", "shlex"]) if atheris
+      else contextlib.nullcontext()):
+    from valvur import exclusions, suppressions
 
 WORKSPACE = Path(tempfile.mkdtemp(prefix="valvur-fuzz-config-"))
 SEEDS = [b'[scan]\nexclude = ["vendor", "tests/fixtures"]\n',
@@ -30,10 +41,7 @@ def test_one_input(data: bytes) -> None:
 
 
 def main() -> None:
-    """Run as a fuzzer: atheris only here, so the unit suite runs the seeds without it."""
-    import atheris  # deferred: a dev dependency (the `fuzz` extra), never the shim's
-
-    atheris.instrument_all()
+    """Run as a fuzzer, with atheris; the unit suite calls `test_one_input` alone."""
     atheris.Setup(sys.argv, test_one_input)
     atheris.Fuzz()
 

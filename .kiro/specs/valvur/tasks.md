@@ -1539,6 +1539,17 @@ unchanged.
      Each is fixed and has a regression test in `test_fuzz_crashes.py`, and its input is a
      seed. The shape check is one function, `results.findings_of`. Afterwards, 120 s each,
      about 970,000 executions in all, found nothing.
+
+     ClusterFuzzLite's first run on the pull request found two more:
+     - a NUL in a `pip install -r` path;
+     - a finding with no `fingerprint` key, which `findings_of` now refuses, since every
+       finding valvur writes carries its identity's keys.
+
+     ClusterFuzzLite dropped both as *not reproducible*: its 30 s reproduction timed out,
+     because instrumenting every loaded module took 10 s to start one input. Each fuzzer
+     now instruments only valvur and the parsers that shape its input, as they are
+     imported, and one input starts in 0.5 to 1 s. Both crashes are fixed and are seeds,
+     and 120 s each, about 1,050,000 executions, found nothing more.
   4. atheris is the `fuzz` extra alone, apart from `dev`, so `verify.sh` never builds it,
      and nothing under `src/` imports it.
 - [ ] **R27.5** **Scorecard measured again** (D63d). Behaviours:

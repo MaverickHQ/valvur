@@ -99,3 +99,24 @@ def test_the_scan_reply_over_results_that_are_not_valvurs_raises_nothing(tmp_pat
 
     assert fields["state"] == "done" and reply.next_moves(tmp_path) == []
     assert isinstance(reply.text(fields), str)
+
+
+def test_a_requirements_path_with_a_nul_names_no_packages(tmp_path):
+    """Found by ClusterFuzzLite on PR #196: `pip install -r` with a NUL in the path."""
+    from valvur import installs
+
+    assert installs.packages("pip install -r requirements.tx\x00t", tmp_path) == []
+
+
+def test_a_finding_without_its_fingerprint_is_not_named_by_one(tmp_path):
+    """Found by ClusterFuzzLite on PR #196: a finding with no `fingerprint` key."""
+    from valvur import reply
+
+    results = tmp_path / RESULTS_DIR
+    results.mkdir()
+    (results / "run.json").write_text(json.dumps({"complete": True, "status": "findings"}))
+    (results / "findings.json").write_text(json.dumps({"schema": 2, "findings": [
+        {"rule": "R", "path": "a.py", "line": 1, "severity": "high", "title": "t",
+         "suppressed": False}]}))
+
+    assert isinstance(reply.text(reply.fields(tmp_path)), str)

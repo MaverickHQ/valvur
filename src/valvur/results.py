@@ -43,6 +43,10 @@ def findings_of(document: object) -> list[dict] | None:
                 not isinstance(finding.get(key, ""), str)
                 for key in ("rule", "severity", "path", "title", "fingerprint")):
             return None
+        # Every finding valvur writes carries its identity's keys (CLAUDE.md §8),
+        # empty only where nothing set them.
+        if not all(key in finding for key in ("rule", "path", "fingerprint")):
+            return None
     return findings
 
 

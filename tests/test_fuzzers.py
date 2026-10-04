@@ -47,8 +47,12 @@ def test_clusterfuzzlite_builds_every_fuzzer_and_every_target_has_one():
     assert {p.stem for p in _fuzzers()} == set(TARGETS)
     for path in _fuzzers():
         assert TARGETS[path.stem] in path.read_text(), path.name
-        assert "atheris" not in path.read_text().split("def main", 1)[0], \
-            f"{path.name} imports atheris outside main(); the unit suite runs without it"
+        text = path.read_text()
+        # Optional, so the unit suite runs without it; and only valvur instrumented:
+        # instrument_all() took 10 s to start one input here, and ClusterFuzzLite's
+        # 30 s reproduction timed out on two real crashes on PR #196 and dropped them.
+        assert "except ImportError:" in text and "instrument_all" not in text, path.name
+        assert 'instrument_imports(include=["valvur"' in text, path.name
 
 
 @pytest.mark.parametrize("path", _fuzzers(), ids=lambda p: p.stem)
