@@ -250,3 +250,21 @@ def test_opengrep_is_told_to_ignore_nothing():
     files = dict(OpengrepAdapter().command(Path("/nonexistent")).files)
     ignore = files[".semgrepignore"]
     assert [line for line in ignore.splitlines() if line and not line.startswith("#")] == []
+
+
+def test_a_symlink_the_file_set_holds_is_counted_as_received(tmp_path):
+    """Found by R29.2's wider corpus: aiohttp tracks 18 symlinks (CHANGES/*.rst to their
+    twins), each in the File Set and the Snapshot, but the engine counted regular files
+    alone. The Snapshot arrived whole and was refused as partial, 560 of 578."""
+    import io
+
+    from valvur.engine import unpack
+
+    ws = _workspace(tmp_path)
+    (ws / "link.md").symlink_to("README.md")
+    files = ["config.py", "README.md", "link.md"]
+
+    received = unpack(io.BytesIO(snapshot(ws, files)), tmp_path / "unpacked")
+
+    assert received == len(files)
+    assert (tmp_path / "unpacked" / "link.md").is_symlink()

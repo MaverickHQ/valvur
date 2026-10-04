@@ -37,12 +37,14 @@ def _event(record: dict) -> None:
 
 
 def unpack(stream: IO[bytes], workspace: Path) -> int:
-    """Extract the Snapshot into `workspace`; return how many files it held."""
+    """Extract the Snapshot into `workspace`; return how many File Set entries it held:
+    files and symbolic links alike, as the File Set counts them. A project that tracks
+    a link was refused as a partial Snapshot until R29.2's corpus met one."""
     workspace.mkdir(parents=True, exist_ok=True)
     count = 0
     with tarfile.open(fileobj=stream, mode="r|") as archive:
         for member in archive:
-            if member.isfile():
+            if member.isfile() or member.issym():
                 count += 1
             if hasattr(tarfile, "data_filter"):
                 archive.extract(member, workspace, filter="data")
