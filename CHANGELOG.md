@@ -8,6 +8,26 @@ break things, and has.
 
 ## [Unreleased]
 
+### Scorecard, as far as one maintainer reaches (Phase R27)
+
+Internal, and four fixes users see:
+
+- The manifests planted for valvur's own tests are stored as `<name>.fixture` and copied
+  back under their real names for each test. OpenSSF Scorecard and GitHub no longer count
+  their advisories as the repository's.
+- Checkov's accepted python-ecdsa advisory is recorded in `osv-scanner.toml`.
+- No Dockerfile `FROM` names a variable.
+- ClusterFuzzLite fuzzes the parsers of untrusted text on every pull request and nightly.
+
+### Fixed by fuzzing (Phase R27)
+
+- A lockfile of an unexpected shape (a `packages` that is a list, say) stopped a scan's
+  dependency reading. It now holds no pins.
+- A `.security-scan.toml` that is not UTF-8, or whose `[scan]`, `exclude` or `suppress`
+  has the wrong type, raised. It is now a reported problem, and the defaults apply.
+- `valvur gate` and the `scan` reply raised on a `findings.json` that valvur did not
+  write. The gate now refuses with exit 2, and the reply has nothing to show.
+
 ### A lighter release (Phase R26)
 
 Internal: a release asks less of its owner and of CI. Three owner actions, not four:

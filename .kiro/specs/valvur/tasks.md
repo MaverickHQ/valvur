@@ -1496,10 +1496,21 @@ unchanged.
      record, in the file both read; on its date it comes back in Scorecard and in
      valvur's own scan alike. Whether valvur should report what a project's
      `osv-scanner.toml` ignores as suppressed findings is a question for the owner (§8).
-- [ ] **R27.3** **Opengrep's stage without a variable `FROM`** (D63b). Behaviours:
+- [x] **R27.3** **Opengrep's stage without a variable `FROM`** (D63b). Behaviours:
   1. no `FROM` names a variable;
   2. one checksum-verified download per architecture, as now;
   3. the reproducibility job passes, and the image's size moves by under 1%.
+  **STATUS 2026-10-04:** ✅ all three. One stage, `AS opengrep`, downloads the platform's
+  binary with Python's urllib, chosen by `case "$TARGETARCH"`, checks it against that
+  architecture's pinned digest, and fails by name on any other platform. `COPY --from`
+  cannot take the variable instead: BuildKit refuses it ("variable expansion is not
+  supported for --from", measured). No `FROM` names a variable
+  (`test_opengrep_stage.py`), and the two constraints that held the old form are restated,
+  their count unchanged. The binary is byte-identical (`1b474bf2…` before and after). The
+  image moved by 452 bytes of 941,088,465 (0.00005%), and the reproducibility job,
+  *two builds of one tree are one image*, passes on the pull request. The two
+  suppressions for the old `ADD` and variable `FROM` went with them; the self-scan gate
+  passes.
 - [x] **R27.4** **Fuzzing** (D63c). Behaviours:
   1. `.clusterfuzzlite/` builds fuzzers for `valvur.installs`, the lockfile parsers, the
      project configuration and the readers of `findings.json`;
