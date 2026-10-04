@@ -106,14 +106,18 @@ in [`tasks.md`](../.kiro/specs/valvur/tasks.md).
 
 ## Cutting a release
 
+Three owner actions, marked *(owner)*: land the prepared commit, tag it, and approve
+`promote` at the brake. Everything else a session can do (D62, R26): `1.4.0` took four,
+the last a pull request that only flipped the README to *published*, and the README now
+names the version alone while PyPI's badge says what is published.
+
 ```bash
 # 1. Prepare the release in one commit, on a branch of its own (D33, R16.2): the
 #    version and the lock, the README's status line, SECURITY.md's series, the
 #    CHANGELOG's heading, and the skill, the Claude Code plugin and the Kiro power,
-#    their servers pinned to the new version. The README says "release in progress"
-#    until the run has promoted: the brake can be held for days, and the README on
-#    main must not call a version published that PyPI does not serve (29.3.1).
-#    `--dry-run` first shows the diff and changes nothing.
+#    their servers pinned to the new version. Its first line says whether the
+#    machinery changed since the last tag, which decides step 6. `--dry-run` first
+#    shows the diff and changes nothing.
 git checkout -b release/0.2.0
 uv run python scripts/prepare_release.py 0.2.0 --dry-run
 uv run python scripts/prepare_release.py 0.2.0   # commits "chore: release 0.2.0"
@@ -124,33 +128,36 @@ uv sync --extra dev --locked
 # 3. Write the CHANGELOG entry's opening, above the items moved under [0.2.0].
 $EDITOR CHANGELOG.md && git commit -am "docs: the 0.2.0 entry"
 
-# 4. After the run has promoted, the closing PR flips the README to "published and
-#    installable"; published.yml checks the claim against PyPI and GHCR every day
-#    and opens an issue when the two disagree.
-uv run python scripts/prepare_release.py --published 0.2.0
+# 4. Local pre-checks, only what no check on GitHub reaches (D62d, R26.5). The
+#    pull request's required checks run verify.sh and the e2e suite on both
+#    architectures, and the tag's run reads their verdict back. What they cannot
+#    do: the self-scan on today's data, which the release gates on,
+uv run valvur scan . --profile full
+uv run valvur gate . --fail-on any --no-inconclusive
+#    and the Mac lane, which GitHub's macOS runners cannot host. Run it on the Mac
+#    when detection changed since the Mac lane's last measurement (CLAUDE.md §9):
+#    `scripts/acceptance.py --generate` and `scripts/eval.py --compare tests/eval/baseline.json`.
 
-# 5. Everything must be green BEFORE the tag. The workflow checks again, but
-#    finding out here is cheaper than finding out in a job that has already pushed.
-#    This is the same script CI and release.yml both call (19.A.3) — the commands
-#    used to be written out here as a third copy, and third copies drift.
-./scripts/verify.sh
-
-#    verify.sh skips the e2e suite because it must run without a container. You have
-#    one, so run that half too, against the image built below.
-VALVUR_IMAGE=valvur:dev uv run pytest -q -m e2e
-
-# 6. main is protected (0.14): required checks, signed commits, linear history,
-#    enforced for administrators. The prep lands by pull request, and a PR lands by
-#    fast-forwarding main to its head once the required checks pass — GitHub's merge
-#    button would create a merge commit, which linear history refuses.
+# 5. Push and open the pull request; wait for the required checks.
 git push -u origin release/0.2.0
-gh pr create --fill                 # wait for the required checks
-git push origin release/0.2.0:main  # fast-forward; GitHub records the PR as merged
+gh pr create --fill
 
-# 7. Rehearse on that exact commit when step 1 said the machinery changed (above),
-#    then tag it. The tag is the publish.
-git tag -s v0.2.0 <that commit>   # must match pyproject exactly; the workflow rejects a mismatch
+# 6. Rehearse on that exact commit when step 1 said the machinery changed (above):
+#    gh workflow run release.yml --ref release/0.2.0, and cancel it at the brake.
+
+# 7. (owner) Land it. main is protected (0.14): required checks, signed commits,
+#    linear history, enforced for administrators, so a pull request lands by
+#    fast-forwarding main to its head; GitHub's merge button would make a merge commit.
+git push origin release/0.2.0:main   # GitHub records the PR as merged
+
+# 8. (owner) Tag that commit. The tag is the publish; it must match pyproject
+#    exactly, and the workflow rejects a mismatch.
+git tag -s v0.2.0 <that commit>
 git push origin v0.2.0
+
+# 9. (owner) Approve promote at the brake once artifact has validated the pair
+#    (Settings → Environments → release). The release ends here: PyPI's badge and
+#    the GitHub release say it is published, and nothing in the tree changes after it.
 ```
 
 ### The window between bumping and publishing

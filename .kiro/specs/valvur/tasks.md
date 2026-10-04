@@ -1388,12 +1388,19 @@ recorded; or D45's fallback, applied and recorded.
   3. when the checks cannot be read, it reruns `verify.sh`, and says so;
   4. the release constraint suite keeps its 54 tests;
   5. a rehearsal on the branch measures `verify`'s minutes against R26.1's.
-- [ ] **R26.4** **No closing pull request** (D62c). Behaviours:
+- [x] **R26.4** **No closing pull request** (D62c). Behaviours:
   1. the README's status line names no release state, and a PyPI version badge says what
      is published;
   2. `--published` and `published.yml` are gone with their tests, and the README's
      as-built test holds the new line;
   3. `RELEASING.md`'s steps end at the owner's approval.
+  **STATUS 2026-10-04:** ✅ all three. The status line reads *`1.4.0`, the version this
+  tree declares*, true before the release run and after it, and a PyPI badge sits beside
+  Scorecard's. `prepare_release.py` writes that line and has no `--published`;
+  `published.yml`, `test_published_check.py` and the two-wording test in
+  `test_version.py` are gone, and the scheduled-workflow constraint lost the one name, its
+  count unchanged. `test_readme_as_built.py` holds the line. `RELEASING.md`'s *Cutting a
+  release* has nine steps, three marked *(owner)*, the last the approval at the brake.
 - [ ] **R26.5** **Local pre-checks only where CI cannot reach** (D62d). Behaviour:
   `RELEASING.md`'s pre-checks are the self-scan gate and, when detection changed since the
   last Mac measurement, the Mac lane; a test holds the list.

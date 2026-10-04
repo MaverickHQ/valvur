@@ -36,3 +36,21 @@ def test_the_flip_its_flag_and_its_daily_check_are_gone(capsys):
     assert not hasattr(_script(), "published")
     assert not (REPO / ".github" / "workflows" / "published.yml").exists()
     assert not (REPO / "tests" / "test_published_check.py").exists()
+
+
+def _cutting() -> str:
+    text = (REPO / "docs" / "RELEASING.md").read_text(encoding="utf-8")
+    return text.split("\n## Cutting a release\n", 1)[1].split("\n## ", 1)[0].split("\n### ", 1)[0]
+
+
+def test_the_steps_end_at_the_owner_s_approval_and_the_owner_acts_three_times():
+    """R26's exit counts the owner's actions from `RELEASING.md`: three, from four."""
+    import re
+
+    steps = re.findall(r"^# (\d+)\. (.*)$", _cutting(), re.M)
+    owner = [text for _, text in steps if text.startswith("(owner)")]
+
+    assert [int(n) for n, _ in steps] == list(range(1, len(steps) + 1))
+    assert len(owner) == 3, owner
+    assert "approve" in steps[-1][1].lower() and steps[-1][1].startswith("(owner)")
+    assert "--published" not in _cutting() and "closing" not in _cutting()
