@@ -43,6 +43,9 @@ jobs:
   verify:
     name: the tag says what the tree says
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: read          # CI's verdict on this commit (D62b)
     outputs:
       # `version` is what the tree declares and what the tests run against — F1.9
       # compares the shim to the image label, so it must be the real one even in a
@@ -101,12 +104,26 @@ jobs:
           fi
           echo "${GITHUB_REF_NAME} is signed by a known key and is on main"
 
+      - name: CI's verdict on this commit (D62b)
+        # Every check main's protection requires ran on this commit before it
+        # landed: lint, types, the unit suite on three Pythons, the e2e suite, the
+        # self-scan and the published image. Read back, not rerun (R26.3; on 1.4.0
+        # the rerun was 10 of verify's 14 minutes). A failed one stops the release
+        # here, named. One that cannot be judged (skipped, never run here, the API
+        # silent) makes the verdict `unreadable`, and the two steps below rerun the
+        # suites as before.
+        id: ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/ci_verdict.py "$GITHUB_SHA"
+
       - run: uv venv --python 3.12
 
-      - name: Lint, types, traceability, unit tests, package build
+      - name: Lint, types, traceability, unit tests, package build, if CI's verdict is unreadable
         # The same script CI and contributors run (19.A.3). Release used to hold its
         # own copy of these commands, which is how it ended up linting a wider set
         # than CI did (19.A.2).
+        if: steps.ci.outputs.verdict == 'unreadable'
         run: ./scripts/verify.sh
 
       - name: Build the image the tests will run against
@@ -128,9 +145,10 @@ jobs:
           VALVUR_IMAGE: valvur:dev
         run: uv run valvur update
 
-      - name: The whole suite, not just the fast half
-        # verify.sh runs `-m "not e2e"` because it must work without a container.
-        # Release is the one place that has one, so the e2e half runs here.
+      - name: The whole suite, if CI's verdict is unreadable
+        # verify.sh runs `-m "not e2e"` because it must work without a container;
+        # CI's e2e jobs run the rest. When their verdict cannot be read, it runs here.
+        if: steps.ci.outputs.verdict == 'unreadable'
         env:
           VALVUR_IMAGE: valvur:dev
         run: uv run pytest -q

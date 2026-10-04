@@ -139,3 +139,44 @@ def test_a_failure_outweighs_what_cannot_be_read(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
 
     assert _script().main([SHA, "--wait", "0"], fetch=lambda sha: runs) == 1
+
+
+def _verify_steps() -> list[str]:
+    release = (REPO / ".github" / "workflows" / "release.yml").read_text()
+    verify = release.split("\n  verify:", 1)[1].split("\n  build:", 1)[0]
+    return verify.split("\n      - ")[1:]
+
+
+def _step(steps: list[str], needle: str) -> tuple[int, str]:
+    [found] = [(i, s) for i, s in enumerate(steps) if needle in s]
+    return found
+
+
+def test_verify_reads_the_verdict_and_reruns_the_suites_only_when_it_cannot():
+    release = (REPO / ".github" / "workflows" / "release.yml").read_text()
+    verify = release.split("\n  verify:", 1)[1].split("\n  build:", 1)[0]
+    steps = _verify_steps()
+
+    assert "checks: read" in verify and "checks: write" not in verify
+    at, verdict = _step(steps, "scripts/ci_verdict.py")
+    assert "id: ci" in verdict and '"$GITHUB_SHA"' in verdict
+    assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in verdict
+    for needle in ("./scripts/verify.sh", "uv run pytest -q"):
+        i, step = _step(steps, needle)
+        assert "if: steps.ci.outputs.verdict == 'unreadable'" in step, needle
+        assert i > at, f"{needle} runs before the verdict is read"
+
+
+def test_verify_still_checks_the_tag_and_still_runs_the_score_and_the_gate():
+    """What no required check measures stays, unconditionally: the tag against the
+    tree, its signature and `main`, the self-scan on today's data, and the Score."""
+    steps = _verify_steps()
+    _, version = _step(steps, "does not match pyproject.toml version")
+    _, signed = _step(steps, " tag -v ")
+    _, gate = _step(steps, "valvur gate . --fail-on any --no-inconclusive")
+    _, score = _step(steps, "python scripts/eval.py")
+
+    assert "merge-base --is-ancestor" in signed
+    assert "if: env.REHEARSAL != 'true'" in signed
+    for step in (version, gate, score):
+        assert "\n        if:" not in step, step.splitlines()[0]
