@@ -117,3 +117,26 @@ def test_sarif_with_ignores_is_valid_2_1_0(marked):
 
     jsonschema.validate(json.loads(artifacts.sarif(list(marked.values()), version="1.5.0")),
                         schema)
+
+
+@pytest.mark.parametrize("allowlist", ["regexes", "stopwords"])
+def test_a_gitleaks_allowlist_on_the_secret_names_the_finding_and_keeps_the_secret_out(
+        tmp_path, allowlist):
+    """Found by valvur's own scan of itself: its `.gitleaks.toml` allowlists the keys
+    its tests plant by `regexes`, which match the secret, not the path. A Finding never
+    carries the secret, so the line it was found on is read, as Gitleaks read it; the
+    ignore's text says which allowlist, never the secret or the pattern that is it."""
+    ws = build(tmp_path / "project")
+    pattern = KEYS["toml"] if allowlist == "regexes" else KEYS["toml"][4:12].lower()
+    (ws / ".gitleaks.toml").write_text(
+        "[extend]\nuseDefault = true\n\n[allowlist]\n"
+        f"{allowlist} = ['''{pattern}''']\n")
+
+    named = {f.path: f.ignored_by for f in _ignores.mark(ws, REPORTED) if f.ignored_by}
+
+    by = named["vendored/secret.py"]
+    assert (by.ignore, by.where, by.kind) == (".gitleaks.toml", ".gitleaks.toml", "external")
+    assert allowlist in by.text
+    assert "secrets/twin.py" not in named, "the twin's secret matches no allowlist"
+    assert not any(KEYS["toml"] in json.dumps(vars(b)) or pattern in json.dumps(vars(b))
+                   for b in named.values())

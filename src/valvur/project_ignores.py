@@ -8,16 +8,19 @@ and names on each Finding the one that matches it: an Opengrep `nosem` comment, 
 applies only to its own Scanner's findings, as the Scanner itself would apply it.
 Whether one counts as a suppression is the next stage's to decide (D77c).
 
-Read and not applied: a `.gitleaks.toml` allowlist's `regexes` and `stopwords`, which
-match the secret itself, which no Finding carries. What they would hide is reported,
-since Gitleaks ran without them, and is not named here.
+A `.gitleaks.toml` allowlist's `regexes` and `stopwords` match the secret, which no
+Finding carries: they are matched against the line the secret was found on, read from
+the Workspace, which holds it. That can name a Finding whose line, not its secret,
+matches, never miss one; and the name only explains, since such an allowlist has no
+reason or expiry to make it a suppression. A Finding from history has no line in the
+Workspace, so only an allowlist's paths and commits name it.
 """
 
 from __future__ import annotations
 
 import re
 import tomllib
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 
@@ -136,14 +139,18 @@ class _Ignores:
         return None
 
     def _gitleaks_toml(self, finding: Finding) -> IgnoredBy | None:
-        for scope, paths, commits in self.allowlists:
-            if scope and scope != finding.rule:
+        """Any of an allowlist's criteria, Gitleaks's default condition (`OR`). Its text
+        names the criterion, never the pattern, which may be the secret itself."""
+        line = "" if finding.commit or not 1 <= finding.line <= len(
+            self.lines(finding.path)) else self.lines(finding.path)[finding.line - 1]
+        for allowlist in self.allowlists:
+            if allowlist.scope and allowlist.scope != finding.rule:
                 continue
-            if any(p.search(finding.path) for p in paths) or \
-                    (finding.commit and any(finding.commit.startswith(c) for c in commits)):
+            if criterion := allowlist.matches(finding, line):
+                scope = f" of rule {allowlist.scope}" if allowlist.scope else ""
                 return IgnoredBy(".gitleaks.toml", ".gitleaks.toml",
-                                 f"an allowlist{f' of rule {scope}' if scope else ''} "
-                                 "matching this path or commit", "external")
+                                 f"an allowlist{scope} whose {criterion} match this finding",
+                                 "external")
         return None
 
     def _trivyignore(self, finding: Finding) -> IgnoredBy | None:
@@ -191,9 +198,31 @@ class _Ignores:
         return self._osv[config]
 
 
-def _gitleaks_allowlists(path: Path) -> list[tuple[str, list[re.Pattern], list[str]]]:
-    """Each allowlist's scope (a rule ID, or "" for every rule), its path patterns and
-    its commits, both spellings Gitleaks reads (`[allowlist]`, `[[allowlists]]`)."""
+@dataclass(frozen=True)
+class _Allowlist:
+    scope: str
+    paths: list[re.Pattern]
+    commits: list[str]
+    regexes: list[re.Pattern]
+    stopwords: list[str]
+
+    def matches(self, finding: Finding, line: str) -> str:
+        """Which of the allowlist's criteria matches, by its key; "" when none does."""
+        if any(p.search(finding.path) for p in self.paths):
+            return "paths"
+        if finding.commit and any(finding.commit.startswith(c) for c in self.commits):
+            return "commits"
+        if line and any(r.search(line) for r in self.regexes):
+            return "regexes"
+        if line and any(w in line.lower() for w in self.stopwords):
+            return "stopwords"
+        return ""
+
+
+def _gitleaks_allowlists(path: Path) -> list[_Allowlist]:
+    """Each allowlist's scope (a rule ID, or "" for every rule) and its criteria, both
+    spellings Gitleaks reads (`[allowlist]`, `[[allowlists]]`). A pattern Python cannot
+    compile (RE2 is not `re`) is passed over."""
     try:
         raw = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -207,14 +236,21 @@ def _gitleaks_allowlists(path: Path) -> list[tuple[str, list[re.Pattern], list[s
     for scope, table in tables:
         if not isinstance(table, dict):
             continue
-        paths = []
-        for text in _list(table.get("paths")):
-            try:
-                paths.append(re.compile(str(text)))
-            except re.error:
-                continue
-        found.append((scope, paths, [str(c) for c in _list(table.get("commits"))]))
+        found.append(_Allowlist(
+            scope, _patterns(table.get("paths")), [str(c) for c in _list(table.get("commits"))],
+            _patterns(table.get("regexes")),
+            [str(w).lower() for w in _list(table.get("stopwords")) if str(w)]))
     return found
+
+
+def _patterns(value) -> list[re.Pattern]:
+    patterns = []
+    for text in _list(value):
+        try:
+            patterns.append(re.compile(str(text)))
+        except re.error:
+            continue
+    return patterns
 
 
 def _list(value) -> list:
