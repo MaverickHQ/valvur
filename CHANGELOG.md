@@ -8,6 +8,17 @@ break things, and has.
 
 ## [Unreleased]
 
+### OpenSSF signals (Phase R22)
+
+Internal: how the repository is run, measured in public. Nothing a scan does changes.
+
+- **OpenSSF Scorecard** runs weekly and on `main`, pinned by commit at the action's
+  documented minimum permissions, and publishes from `main` alone; the README shows its
+  badge. Measured on the branch, publishing off: 7.3.
+- **The OpenSSF Best Practices answers** are prepared in `docs/BEST-PRACTICES.md`, each
+  with a link to its evidence, for the owner to submit.
+- The published-image check in CI reads its registry token with `jq`.
+
 ### Findable (Phase R21)
 
 - **A rescan says what became of each earlier finding.** `SUMMARY.md` opens, after the

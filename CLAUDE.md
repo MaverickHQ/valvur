@@ -16,8 +16,8 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
 **Status (2026-10-04).** **`1.3.1` is published** (D44); `1.2.0` took the Score to **64.9**, R25 to
-**73.9**. [The review](docs/history/REVIEW-2026-10-03.md) scoped 2.0 (D57); R23 and R24 layered the
-host side, R20 cut the noise, R25 wrote rules, R21 closed the loop. **Next:** R22; R19 (2026-11-19).
+**73.9**. [The review](docs/history/REVIEW-2026-10-03.md) scoped 2.0 (D57); R23, R24 layered the host,
+R20 cut noise, R25 wrote rules, R21 closed the loop, R22 added Scorecard. **Next:** R19 (2026-11-19).
 
 ## 2. What it is NOT
 
