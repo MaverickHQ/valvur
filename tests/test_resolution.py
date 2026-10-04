@@ -155,3 +155,20 @@ def test_a_first_scan_s_reply_has_no_table(workspace):
     _scan(workspace, _Planted([("r.one", "a.py")]))
 
     assert reply.fields(workspace)["resolution"] is None
+
+
+def test_the_skill_rescans_after_the_fixes_and_leads_with_the_table():
+    """D59b. The owner's agent edited three findings, could not rescan, and the run
+    ended with nothing confirmed and nothing said about it."""
+    import re
+
+    from valvur.skill import SKILL
+
+    workflow = SKILL.read_text().split("## The workflow", 1)[1].split("\n## ", 1)[0]
+    step = " ".join(re.search(r"^6\. (.*?)(?=^\d+\. )", workflow, re.M | re.S)
+                    .group(1).split())
+
+    assert "`resolution`" in step, "the rescan's table, by the field the reply carries"
+    assert "lead with" in step.lower()
+    assert "nothing is confirmed" in step.lower()
+    assert "name each finding you changed" in step.lower()

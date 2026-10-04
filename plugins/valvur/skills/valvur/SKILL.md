@@ -41,8 +41,12 @@ vulnerability fixed.
    is in [`references/triage.md`](references/triage.md).
 5. **Propose, then wait.** Offer the fixes from `.security-scan/REMEDIATION.md`, most
    urgent first. Each item applies on its own; the human chooses which, if any.
-6. **After the human's fix, rescan.** Report a finding as *fixed* only when the
-   Scanner that reported it ran again. Otherwise it is *not re-checked*.
+6. **After the human's fixes, rescan, and lead with what changed.** The reply's
+   `resolution` names every finding of the scan before by rule ID and path, as
+   `fixed`, `open` or `not re-checked`, then the new ones: lead with it, after the
+   verdict. A finding is *fixed* only when the Scanner that reported it ran again.
+   If you cannot rescan, say that nothing is confirmed until a rescan, and name each
+   finding you changed, by rule ID and path, with what you changed.
 7. **When data is stale, update.** A reason naming an old database or index means
    the verdict could not be trusted: call `update` with `if_stale`, then scan again.
 8. **In CI, gate.** `valvur scan` then `valvur gate` fails the job on an incomplete
