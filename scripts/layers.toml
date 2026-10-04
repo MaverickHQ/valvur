@@ -97,6 +97,7 @@ infra = [
     "valvur.oci",
     "valvur.osv_offline",
     "valvur.owner",
+    "valvur.project_ignores",
     "valvur.requirements",
     "valvur.reuse",
     "valvur.runner",

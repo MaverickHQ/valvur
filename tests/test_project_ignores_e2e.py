@@ -33,6 +33,15 @@ def test_every_finding_a_project_ignore_would_hide_is_reported(mountable_tmp):
     found = {(f.path, f.rule): f for f in run.findings}
     missing = {name: where for name, where in PLANTED.items() if where not in found}
     assert missing == {}, f"still hidden: {missing}"
-    by_cve = {f.rule: set(f.sources) for f in run.findings if f.rule.startswith("CVE-")}
-    assert "trivy" in by_cve["CVE-2019-11324"], f".trivyignore still hid {TRIVY_IGNORED}"
-    assert "osv-scanner" in by_cve["CVE-2019-11236"], f"osv-scanner.toml still hid {OSV_IGNORED}"
+    by_cve = {f.rule: f for f in run.findings if f.rule.startswith("CVE-")}
+    assert "trivy" in by_cve["CVE-2019-11324"].sources, f".trivyignore still hid {TRIVY_IGNORED}"
+    assert "osv-scanner" in by_cve["CVE-2019-11236"].sources, \
+        f"osv-scanner.toml still hid {OSV_IGNORED}"
+
+    # R38.3 (D77b): each names the ignore that would have hidden it.
+    named = {name: found[where].ignored_by.ignore if found[where].ignored_by else None
+             for name, where in PLANTED.items()}
+    assert named == {name: name for name in PLANTED}
+    assert by_cve["CVE-2019-11324"].ignored_by.ignore == ".trivyignore"
+    assert by_cve["CVE-2019-11236"].ignored_by.ignore == "osv-scanner.toml"
+    assert found[("app/twin.py", "valvur.python.subprocess-shell-true")].ignored_by is None

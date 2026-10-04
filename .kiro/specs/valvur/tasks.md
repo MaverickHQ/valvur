@@ -1668,10 +1668,36 @@ measurement, or each one's measured reason; CI green; the Score unchanged.
      fallback applies. It runs without `--quiet`, and each `skipped_checks` entry becomes
      the finding the check would make, with the same identity, titled *not evaluated: the
      project's checkov:skip comment skipped it*.
-- [ ] **R38.3** **What each ignore hides** (D77b). Behaviours:
+- [x] **R38.3** **What each ignore hides** (D77b). Behaviours:
   1. valvur reads each ignore D77 names, and every finding one matches carries `ignored_by`;
   2. SARIF carries it as a suppression of kind `inSource` or `external`, and stays valid 2.1.0;
   3. the comment's text is evidence from the repository, neutralised like any other.
+  **STATUS 2026-10-04:** ✅ all three.
+  1. `valvur.project_ignores` (infra) reads each ignore from the Workspace, host-side, as
+     the `own_ignores` stage between `merged` and `suppress`. Each ignore applies only to
+     its own Scanner's findings, as that Scanner would apply it:
+     - a `nosem` comment on the line or the one above;
+     - `gitleaks:allow` on the line;
+     - a `.gitleaksignore` fingerprint, written from the root or as `/workspace/`, a
+       commit's included;
+     - a `.gitleaks.toml` allowlist's `paths` and `commits`, global or a rule's own;
+     - `checkov:skip=ID` inside the resource;
+     - a `.trivyignore` ID, with Trivy's `exp:` expiry;
+     - `osv-scanner.toml` beside the manifest or above it.
+
+     Every finding one matches carries `ignored_by`: which ignore, where, its text, its
+     SARIF kind, and its reason and expiry when stated. OSV-Scanner's findings now carry
+     their `aliases`, which merging unions, so an ignore naming `PYSEC-2019-132` matches
+     the finding valvur names CVE-2019-11236. Not read: an allowlist's `regexes` and
+     `stopwords`, which match the secret itself, which no finding carries. What they would
+     hide is still reported, since Gitleaks runs without them.
+  2. SARIF carries each as a suppression of its kind, `rejected` until R38.4 accepts one,
+     so the result stays live, and validates against SARIF 2.1.0's schema. `findings.json`
+     gains `ignored_by` and `aliases`, both additive and present only when set.
+  3. The text goes through `neutralise`, as evidence does. A `gitleaks:allow` keeps only
+     its comment, never the line holding the secret.
+
+  The e2e test finds all seven named.
 - [ ] **R38.4** **A suppression only with a reason and an expiry** (D77c). Behaviours:
   1. an `osv-scanner.toml` entry with `reason` and `ignoreUntil` suppresses, and a lapsed one
      fails the gate;

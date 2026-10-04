@@ -94,6 +94,10 @@ class OsvAdapter(ScannerAdapter):
                             sources=(output.tool,),
                             severity=_severity(vuln),
                             exploit=Exploit(cve=vid if vid.startswith("CVE-") else ""),
+                            # What a project's ignore file may name it by (R38.3).
+                            aliases=tuple(a for a in dict.fromkeys(
+                                [vuln.get("id", ""), *(vuln.get("aliases") or [])])
+                                if a and a != vid),
                             dependency=Dependency(
                                 ecosystem=ecosystem,
                                 package=name,

@@ -100,6 +100,25 @@ class Dependency:
 
 
 @dataclass(frozen=True)
+class IgnoredBy:
+    """A project's own ignore that would have hidden a Finding (R38.3, D77b): a
+    comment (`kind` `inSource`, SARIF's word) or an ignore file (`external`). The
+    Scanners run with these off, so the Finding is reported; this names what the
+    project asked, and its reason and expiry when it states them (D77c)."""
+    ignore: str      # nosemgrep, gitleaks:allow, .gitleaksignore, .gitleaks.toml, ...
+    where: str       # the comment's `path:line`, or the file and its line
+    text: str        # the comment or the entry, as evidence from the repository
+    kind: str        # "inSource" or "external"
+    reason: str = ""
+    expires: str = ""  # ISO date, or "" when the ignore states none
+
+    def __post_init__(self) -> None:
+        # The repository's words, neutralised as evidence is (F3.13).
+        object.__setattr__(self, "text", neutralise(self.text))
+        object.__setattr__(self, "reason", neutralise(self.reason))
+
+
+@dataclass(frozen=True)
 class Finding:
     rule: str
     path: str
@@ -136,6 +155,12 @@ class Finding:
     #: A sink its rule names for review, not a finding by itself (D47a): reported,
     #: and counted under *Sinks to review*, but never active. Not identity.
     inventory: bool = False
+    #: The advisory's other IDs, as OSV-Scanner lists them (R38.3): what a project's
+    #: ignore file may name it by. Not identity.
+    aliases: tuple[str, ...] = ()
+    #: The project's own ignore that would have hidden it (R38.3, D77b). Policy, not
+    #: identity, like `suppressed`.
+    ignored_by: IgnoredBy | None = None
 
     def __post_init__(self) -> None:
         """Neutralise evidence at the MODEL boundary, not per-adapter.
@@ -183,6 +208,7 @@ def merge(findings: list[Finding],
             dependency=existing.dependency or finding.dependency,
             exploit=existing.exploit or finding.exploit,
             cwe=existing.cwe or finding.cwe,
+            aliases=tuple(dict.fromkeys(existing.aliases + finding.aliases)),
         )
     return _fold_repeats(_fold_malicious(list(by_fp.values()), index_form))
 

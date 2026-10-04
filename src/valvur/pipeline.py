@@ -29,6 +29,7 @@ from . import fileset as _fileset
 from . import gitcontext as _gitcontext
 from . import grouping as _grouping
 from . import licence_policy as _licence
+from . import project_ignores as _project_ignores
 from . import ranking as _ranking
 from . import requirements as _requirements
 from . import results as _results
@@ -238,6 +239,12 @@ def enrich(findings: list[Finding], ctx: Context) -> list[Finding]:
     return ctx.provider.enrich(findings)
 
 
+def own_ignores(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """A project's own ignores, named on what they would hide (R38.3, D77b): the
+    Scanners ran with them off, so nothing is hidden, and this says what was asked."""
+    return _project_ignores.mark(ctx.workspace, findings)
+
+
 def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Suppressions are policy, applied after detection and enrichment and before
     ranking. They never touch the Fingerprint or the Status diff: a suppressed
@@ -304,6 +311,9 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("enrich", enrich,
           "After `merged`: one lookup per CVE, not one per duplicate — and before "
           "`rank`, which reads what enrichment attached."),
+    Stage("own_ignores", own_ignores,
+          "After `merged`, so an advisory's aliases are gathered from every Scanner; "
+          "before `suppress`, which reads what the project's ignore states (D77c)."),
     Stage("suppress", suppress,
           "After `enrich` and before `rank`: a suppression is a decision about an "
           "enriched Finding, and suppressed Findings rank last."),

@@ -61,6 +61,12 @@ def _serialise(finding: Finding) -> dict:
     # Additive (D47a): present on the sink inventory alone.
     if not finding.inventory:
         del record["inventory"]
+    # Additive (R38.3): present when a project's ignore names the finding.
+    record["aliases"] = list(finding.aliases)
+    if not finding.aliases:
+        del record["aliases"]
+    if finding.ignored_by is None:
+        del record["ignored_by"]
     return record
 
 
@@ -106,9 +112,19 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
             # suppressed findings as live — worse than emitting no SARIF, because the
             # tool would look wrong rather than misconfigured.
             results[-1]["suppressions"] = [{
-                "kind": "external",
+                "kind": finding.ignored_by.kind if finding.ignored_by else "external",
                 "status": "accepted",
                 "justification": finding.suppressed,
+            }]
+        elif finding.ignored_by:
+            # The project's own ignore, which valvur did not accept (R38.3, D77c): a
+            # suppression SARIF readers show as rejected, so the result stays live.
+            by = finding.ignored_by
+            results[-1]["suppressions"] = [{
+                "kind": by.kind,
+                "status": "rejected",
+                "justification": (f"{by.ignore} at {by.where}, with no reason and expiry "
+                                  "valvur accepts as a suppression"),
             }]
 
     return json.dumps({
