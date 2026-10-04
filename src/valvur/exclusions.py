@@ -43,7 +43,8 @@ class ScanSettings:
 
 
 def _prefixes(entries) -> tuple[str, ...]:
-    return tuple(str(e).strip().strip("/") for e in entries or [] if str(e).strip().strip("/"))
+    entries = entries if isinstance(entries, list) else []
+    return tuple(str(e).strip().strip("/") for e in entries if str(e).strip().strip("/"))
 
 
 PROJECT_FILE = ".security-scan.toml"
@@ -60,7 +61,8 @@ def read_project(workspace: Path) -> tuple[dict, str | None]:
         return {}, None
     try:
         return tomllib.loads(path.read_text(encoding="utf-8")), None
-    except (tomllib.TOMLDecodeError, OSError) as exc:
+    except (ValueError, OSError) as exc:
+        # ValueError: TOML that does not parse, and text that is not UTF-8 (R27.4).
         return {}, f"{PROJECT_FILE} could not be read: {exc}"
 
 
@@ -72,7 +74,9 @@ def load_scan_settings(workspace: Path) -> ScanSettings:
 
 def scan_settings(raw: dict) -> ScanSettings:
     """The `[scan]` table of a parsed project file, with its defaults."""
-    scan = raw.get("scan") or {}
+    scan = raw.get("scan")
+    # A `[scan]` of the wrong shape is the defaults; `doctor` names the problem.
+    scan = scan if isinstance(scan, dict) else {}
     return ScanSettings(
         exclude=_prefixes(scan.get("exclude")),
         history=scan.get("history", True) is not False,

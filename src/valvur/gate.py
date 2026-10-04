@@ -27,7 +27,7 @@ from pathlib import Path
 
 from . import verdict
 from .findings import SEVERITIES
-from .results import RESULTS_DIR
+from .results import RESULTS_DIR, findings_of
 
 #: `--fail-on` accepts a severity, or `any` — every active Finding, N2.5's own bar.
 THRESHOLDS = (*SEVERITIES[:4], "any")
@@ -57,10 +57,14 @@ def evaluate(workspace: Path, *, fail_on: str = DEFAULT_THRESHOLD,
     results = Path(workspace).resolve() / RESULTS_DIR
     try:
         run = json.loads((results / "run.json").read_text(encoding="utf-8"))
-        findings = json.loads((results / "findings.json").read_text(encoding="utf-8"))["findings"]
-    except (OSError, ValueError, KeyError):
+        document = json.loads((results / "findings.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return Verdict([f"no scan results in {results}; run `valvur scan` first"],
                        "gate: nothing to gate", 2)
+    findings = findings_of(document)
+    if findings is None or not isinstance(run, dict):
+        return Verdict([f"{results / 'findings.json'} is not a valvur result; run "
+                        "`valvur scan` again"], "gate: nothing to gate", 2)
 
     failures: list[str] = []
 

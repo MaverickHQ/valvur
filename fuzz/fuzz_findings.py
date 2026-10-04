@@ -23,7 +23,10 @@ RESULTS.mkdir()
 SEEDS = [json.dumps({"schema": 2, "findings": [
              {"rule": "R", "path": "a.py", "line": 1, "severity": "high",
               "title": "t", "fingerprint": "f", "suppressed": False}]}).encode(),
-         b'{"findings": []}', b"{"]
+         b'{"findings": []}', b"{",
+         # Each crash found, fixed with a test in tests/test_fuzz_crashes.py.
+         b"7", b"[]", b'{"findings": [1, "x", null]}', b'{"findings": {"a": 1}}',
+         b'{"findings": [{"severity": 5, "rule": []}]}']
 
 
 def test_one_input(data: bytes) -> None:

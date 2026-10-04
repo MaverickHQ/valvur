@@ -7,13 +7,17 @@ The first byte picks the reader; the rest is the file.
 
 from __future__ import annotations
 
-import importlib
 import sys
 import tempfile
 from pathlib import Path
 
-# The module, not the package's `locked` function of the same name.
-locked = importlib.import_module("valvur.ecosystems.locked")
+# The module behind the package's `locked` function. Importing it by name would set
+# the package's `locked` to the module and break every later `ecosystems.locked()`
+# in this process, so the function is resolved first, the package's way.
+from valvur import ecosystems
+
+ecosystems.locked  # noqa: B018 — resolves the function, which imports its module
+locked = sys.modules["valvur.ecosystems.locked"]
 
 ROOT = Path(tempfile.mkdtemp(prefix="valvur-fuzz-lockfiles-"))
 SEEDS = [b"\x00" + b'{"packages": {"node_modules/a": {"version": "1.0.0"}}}',
@@ -23,7 +27,11 @@ SEEDS = [b"\x00" + b'{"packages": {"node_modules/a": {"version": "1.0.0"}}}',
          b"\x06" + b'[[package]]\nname = "a"\nversion = "1.0.0"\n',
          b"\x08" + b'{"default": {"a": {"version": "==1.0.0"}}}',
          b"\x0a" + b'{"packages": [{"name": "a/b", "version": "v1.0.0"}]}',
-         b"\x0b" + b"GEM\n  specs:\n    rails (7.1.0)\n"]
+         b"\x0b" + b"GEM\n  specs:\n    rails (7.1.0)\n",
+         # Each crash found, fixed with a test in tests/test_fuzz_crashes.py.
+         b"\x00" + b'{"packages": [1]}', b"\x00" + b'{"dependencies": [1]}',
+         b"\x02" + b'{"dependencies": [1]}', b"\x08" + b'{"default": [1]}',
+         b"\x06" + b"package = 1"]
 
 
 def test_one_input(data: bytes) -> None:

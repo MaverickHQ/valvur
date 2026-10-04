@@ -30,6 +30,22 @@ OPTIONAL_ARTIFACTS = frozenset({"sbom.cdx.json"})
 STAGED = ".tmp"
 
 
+def findings_of(document: object) -> list[dict] | None:
+    """The findings of a parsed `findings.json`, or None when it is not one valvur
+    wrote. The folder sits in the project, where anything can change it before the
+    gate or a client reads it; a reader that crashed on it answered nothing (R27.4,
+    found by fuzzing)."""
+    findings = document.get("findings") if isinstance(document, dict) else None
+    if not isinstance(findings, list):
+        return None
+    for finding in findings:
+        if not isinstance(finding, dict) or any(
+                not isinstance(finding.get(key, ""), str)
+                for key in ("rule", "severity", "path", "title", "fingerprint")):
+            return None
+    return findings
+
+
 def write(workspace: Path, run: ScanRun, scanner_artifacts=(), raw_outputs=(),
           state: str | None = None) -> Path:
     """The Results Folder, `.security-scan/` in the Workspace (F7.1): SUMMARY.md,

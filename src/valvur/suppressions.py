@@ -71,7 +71,7 @@ def load(workspace: Path, project: tuple[dict, str | None] | None = None) -> Pol
             return Policy([], [])
         try:
             raw = tomllib.loads(path.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError) as exc:
+        except (ValueError, OSError) as exc:  # not TOML, or not UTF-8 (R27.4)
             return Policy([], [Problem(f"{SUPPRESSION_FILE} could not be read: {exc}", {})])
     else:
         raw, problem = project
@@ -81,7 +81,13 @@ def load(workspace: Path, project: tuple[dict, str | None] | None = None) -> Pol
     suppressions: list[Suppression] = []
     problems: list[Problem] = []
 
-    for entry in raw.get("suppress") or []:
+    entries = raw.get("suppress") or []
+    if not isinstance(entries, list):
+        return Policy([], [Problem("suppress must be an array of tables, [[suppress]]", {})])
+    for entry in entries:
+        if not isinstance(entry, dict):
+            problems.append(Problem(f"a suppression must be a table (got {entry!r})", {}))
+            continue
         missing = [field for field in REQUIRED if not entry.get(field)]
         if missing:
             problems.append(Problem(

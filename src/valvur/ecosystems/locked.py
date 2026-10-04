@@ -38,6 +38,16 @@ def _json(path: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _table(value: object) -> dict:
+    """`value` when it is a JSON object or TOML table, else empty: a lockfile is the
+    project's text, and one of the wrong shape holds no pins (R27.4, found by fuzzing)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _array(value: object) -> list:
+    return value if isinstance(value, list) else []
+
+
 def _lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8", errors="replace").splitlines()
 
@@ -45,12 +55,12 @@ def _lines(path: Path) -> list[str]:
 def package_lock(path: Path) -> Pins:
     """`packages` (lockfile v2 and v3) and `dependencies` (v1), nested."""
     data = _json(path)
-    for key, entry in (data.get("packages") or {}).items():
+    for key, entry in _table(data.get("packages")).items():
         if key and isinstance(entry, dict) and not entry.get("link") and entry.get("version"):
             yield entry.get("name") or key.rpartition("node_modules/")[2], str(entry["version"])
 
     def nested(dependencies: object) -> Pins:
-        for name, entry in (dependencies if isinstance(dependencies, dict) else {}).items():
+        for name, entry in _table(dependencies).items():
             if isinstance(entry, dict):
                 if entry.get("version"):
                     yield name, str(entry["version"])
@@ -63,7 +73,7 @@ def package_json(path: Path) -> Pins:
     """A range that is one exact version pins it as a lockfile would."""
     data = _json(path)
     for section in ("dependencies", "devDependencies", "optionalDependencies"):
-        for name, spec in (data.get(section) or {}).items():
+        for name, spec in _table(data.get(section)).items():
             exact = _EXACT.fullmatch(str(spec).strip())
             if exact:
                 yield name, exact.group(1)
@@ -122,7 +132,7 @@ def toml_packages(path: Path) -> Pins:
         data = tomllib.loads(path.read_text(encoding="utf-8", errors="replace"))
     except tomllib.TOMLDecodeError:
         return
-    for package in data.get("package") or []:
+    for package in _array(data.get("package")):
         if isinstance(package, dict) and package.get("name") and package.get("version"):
             yield str(package["name"]), str(package["version"])
 
@@ -130,8 +140,8 @@ def toml_packages(path: Path) -> Pins:
 def pipfile_lock(path: Path) -> Pins:
     data = _json(path)
     for section in ("default", "develop"):
-        for name, entry in (data.get(section) or {}).items():
-            version = str((entry or {}).get("version", "")) if isinstance(entry, dict) else ""
+        for name, entry in _table(data.get(section)).items():
+            version = str(entry.get("version", "")) if isinstance(entry, dict) else ""
             if version.startswith("=="):
                 yield name, version[2:]
 
@@ -139,7 +149,7 @@ def pipfile_lock(path: Path) -> Pins:
 def composer_lock(path: Path) -> Pins:
     data = _json(path)
     for section in ("packages", "packages-dev"):
-        for package in data.get(section) or []:
+        for package in _array(data.get(section)):
             if isinstance(package, dict) and package.get("name") and package.get("version"):
                 yield str(package["name"]), str(package["version"]).removeprefix("v")
 

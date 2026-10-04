@@ -20,7 +20,7 @@ from typing import Any, Protocol
 
 from . import events, verdict
 from .events import Event, Kind
-from .results import RESULTS_DIR
+from .results import RESULTS_DIR, findings_of
 
 SCHEMA = 2
 #: The groups a reply names, best-ranked first; `findings.json` has all.
@@ -180,10 +180,12 @@ def _done(workspace: Path, data: dict) -> dict:
                 for tool in data.get("scanners_not_run") or []]
     report = results / "SUMMARY.md"
     try:
-        groups = json.loads((results / "findings.json").read_text(encoding="utf-8")).get(
-            "groups") or []
+        document = json.loads((results / "findings.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        groups = []
+        document = None
+    # Results that are not valvur's have no groups to show (R27.4, found by fuzzing).
+    groups = document.get("groups") or [] if findings_of(document) is not None else []
+    groups = [g for g in groups if isinstance(g, dict)] if isinstance(groups, list) else []
     reason = data.get("status_reason") or ""
     if data.get("status") == "inconclusive" and not reason:
         reason = ("nothing live was found, and the reason is not recorded — a run.json "
@@ -397,9 +399,11 @@ def next_moves(workspace: Path) -> list[str]:
     past six. The top Finding's fingerprint stays, as data. Nothing when nothing is
     active; nothing invented for results an older valvur wrote."""
     try:
-        findings = json.loads((workspace / RESULTS_DIR / "findings.json").read_text(
-            encoding="utf-8"))["findings"]
-    except (OSError, ValueError, KeyError):
+        findings = findings_of(json.loads((workspace / RESULTS_DIR / "findings.json")
+                                          .read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return []
+    if findings is None:
         return []
     active = [f for f in findings if verdict.active(f)]
     if not active:

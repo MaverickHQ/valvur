@@ -17,7 +17,9 @@ WORKSPACE = Path(tempfile.mkdtemp(prefix="valvur-fuzz-config-"))
 SEEDS = [b'[scan]\nexclude = ["vendor", "tests/fixtures"]\n',
          b'[[suppress]]\nfingerprint = "0e2cb52a1e48b5c3e8507724afdc67b4"\nrule = "R"\n'
          b'path = "Dockerfile"\nexpires = 2027-08-31\nreason = "why"\n',
-         b"[scan]\nfetch = \"never\"\nbudget = 120\n", b"not = [toml", b""]
+         b"[scan]\nfetch = \"never\"\nbudget = 120\n", b"not = [toml", b"",
+         # Each crash found, fixed with a test in tests/test_fuzz_crashes.py.
+         b"\xdc", b"[scan]\nexclude = 5", b"scan = 3", b"suppress = 3", b"suppress = [1, 'x']"]
 
 
 def test_one_input(data: bytes) -> None:
