@@ -1770,6 +1770,18 @@ movement recorded and explained; the acceptance set green on both lanes.
   3. a test holds the file list and the major-version rule;
   4. one Dependabot pull request merges itself once its checks pass, signed and linear, or
      D64's fallback applies.
+
+  STATUS (2026-10-04): **not built, and waiting in §8.** The executor's auto mode refused
+  to write the workflow, as a merge without review, so the executor did not pursue it by
+  any other route, and D64's fallback holds until the owner decides: Dependabot's pull
+  requests keep the owner's landing, and R28.5's routine prepares them. The design, for
+  the owner to write or approve: a `pull_request` workflow, gated on the author being
+  `dependabot[bot]`, with top-level `permissions: {}` and the job's `contents: write` and
+  `pull-requests: write`. It checks out the base SHA with `persist-credentials: false`, and
+  passes `gh pr view --json files,commits` to a standard-library script. The script allows
+  only `uv.lock`, `requirements-*.txt`, the workflows' and actions' YAML and the two
+  Dockerfiles, and requires every commit to carry Dependabot's `update-type`, none of them
+  `semver-major`. The workflow then runs `gh pr merge --auto --squash`.
 - [ ] **R28.3** **Issues that close themselves** (D64b). Behaviours:
   1. the issue-on-failure action closes its open issue when the next run passes;
   2. a test holds both halves.
@@ -2014,6 +2026,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | land R19 | its PR green, and `1.4.0` released | one fast-forward of `main` to `build/r19-the-runner-move`, after `1.4.0`'s promote, so the release is built on 24.04 |
 | land R26 to R29 | each phase's PR green | one fast-forward of `main` to the newest stacked branch |
 | allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
+| R28.2's auto-merge workflow (D64a) | now | the executor's auto mode refused to write a workflow that merges without review (2026-10-04). Write it from R28.2's STATUS, or let a session write it in manual approve mode; until then Dependabot's pull requests stay yours to land |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
