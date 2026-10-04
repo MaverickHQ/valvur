@@ -1466,13 +1466,36 @@ unchanged.
 
   So 43 of 44 are planted fixtures. OSV-Scanner reads five manifests under `tests/`: those
   four, and `broken-repo/requirements-dev.txt`, which holds no package.
-- [ ] **R27.2** **No manifest under `tests/` reads as one** (D63a). Behaviours:
+- [x] **R27.2** **No manifest under `tests/` reads as one** (D63a). Behaviours:
   1. OSV-Scanner over `tests/` finds no manifest (`e2e`);
   2. one helper copies a fixture and restores its real names, and every test that copied a
      fixture uses it;
   3. the unit and e2e suites pass with their counts unchanged;
   4. Checkov's accepted advisory is recorded with its reason where OSV-Scanner reads
      ignores.
+  **STATUS 2026-10-04:** ✅ all four.
+  1. The five manifests OSV-Scanner read under `tests/` (four in `broken-repo`, one in
+     `pnpm-dev-repo`) are stored as `<name>.fixture`. OSV-Scanner, from the image, over
+     the checkout, now reads `uv.lock` and the two image locks and nothing under `tests/`
+     (`test_fixture_manifests.py`, e2e).
+  2. `scripts/fixtures.py` (standard library alone) copies a fixture and gives each
+     `.fixture` its real name in the copy. It is used by 24 test files, the acceptance
+     generator and probes, CI's published-image job and `RELEASING.md`'s air-gap recipe.
+     A test fails any `copytree` of a fixture outside it.
+  3. Unit 1,995 → 2,001 and e2e 70 → 72: the eight new tests, and nothing else moved.
+     The unit suite passes. On the VM, the e2e suite ran 58 passed, 7 skipped and 6
+     failed of the 71 it then held, and the 72nd, added after, passes; the six are
+     D61i's cloud-only kind, a `full` scan's registries or Trivy's TLS inside a
+     container, and CI's e2e on the pull request decides them.
+  4. Checkov's python-ecdsa advisory (PYSEC-2026-1325, CVE-2024-23342) is in
+     `osv-scanner.toml`, with its reason and its review date, 2027-09-14, as
+     `ignoreUntil`. **Measured on the way:** valvur honours a project's own
+     `osv-scanner.toml`, as it does `.gitleaks.toml`, so its self-scan read the ignore,
+     and the suppression beside it in `.security-scan.toml` matched nothing
+     (`valvur.suppression.stale`, the gate failed). The acceptance is therefore one
+     record, in the file both read; on its date it comes back in Scorecard and in
+     valvur's own scan alike. Whether valvur should report what a project's
+     `osv-scanner.toml` ignores as suppressed findings is a question for the owner (§8).
 - [ ] **R27.3** **Opengrep's stage without a variable `FROM`** (D63b). Behaviours:
   1. no `FROM` names a variable;
   2. one checksum-verified download per architecture, as now;
@@ -1568,6 +1591,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
 | the freshness gate over a weekend (R26) | now | decide: the Score's freshness gate fails when KEV is past 2 days by its catalog's release date, and CISA does not release at weekends, so every Score run from Friday afternoon to CISA's next release fails it, a release's `verify` among them (rehearsal run 37215618801, `kev 2.04 days`). Proposed: judge KEV fresh when the copy in use is CISA's newest, or allow 4 days for KEV; D24's refresh threshold can stay |
 | R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
+| how valvur treats a project's `osv-scanner.toml` (R27.2) | now | decide: valvur's OSV-Scanner honours a scanned project's ignores silently, as Gitleaks honours `.gitleaks.toml`, so an ignored advisory leaves valvur's report without a suppression, an expiry or a count. Keep that and document it; or run OSV-Scanner with an empty config so only `.security-scan.toml` suppresses; or read the file and report each ignore as a suppression. Measured when R27.2's ignore made valvur's own suppression stale |
 | release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
