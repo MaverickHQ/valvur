@@ -80,7 +80,7 @@ and why. Where only the owner can confirm an answer, the line says so.
 - **crypto_random**: N/A. valvur generates no cryptographic keys or nonces. [README, Privacy](../README.md#privacy)
 - **delivery_mitm**: Met. PyPI and GHCR over HTTPS, with PyPI's attestations and the image's signed provenance. [RELEASING.md](RELEASING.md)
 - **delivery_unsigned**: Met. Every binary the image fetches is checked against a pinned SHA-256, and releases are verified by their provenance. [Dockerfile](../Dockerfile)
-- **vulnerabilities_fixed_60_days**: Met. The release gate scans valvur with itself, clean, before each release. Scorecard's count of vulnerabilities comes from the lockfiles planted in `tests/fixtures/` to be found, which are not dependencies. [RELEASING.md](RELEASING.md)
+- **vulnerabilities_fixed_60_days**: Met, for the owner to judge. The release gate scans valvur with itself, clean, before each release. Scorecard's count of vulnerabilities is mostly the manifests planted in `tests/fixtures/` to be found, which are not dependencies; the one real advisory is python-ecdsa's CVE-2024-23342, reached only through Checkov, with no fix upstream and no signing in any scan, accepted with its reason until 2027-09-14. [.security-scan.toml](../.security-scan.toml), [RELEASING.md](RELEASING.md)
 - **vulnerabilities_critical_fixed**: Met. The self-scan gate blocks a release with an active finding. [RELEASING.md](RELEASING.md)
 - **no_leaked_credentials**: Met. Gitleaks scans the repository and its history on every pull request; planted test credentials are assembled at runtime. [ci.yml](../.github/workflows/ci.yml)
 

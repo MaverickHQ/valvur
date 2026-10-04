@@ -1195,7 +1195,7 @@ ask* recorded.
 
 ### Phase R22: OpenSSF signals
 
-- [ ] **R22.1** **Scorecard** (D49a). Behaviours:
+- [x] **R22.1** **Scorecard** (D49a). Behaviours:
   1. `scorecard.yml` is pinned by commit, with the documented minimum permissions, and a
      test holds both;
   2. zizmor finds nothing in it;
@@ -1203,11 +1203,55 @@ ask* recorded.
   4. the score measured on the branch, with publishing off, and each check under 10 are
      recorded, and the cheap ones are fixed;
   5. the README shows the badge, which reads the first result published from `main`.
-- [ ] **R22.2** **Best Practices, prepared** (D49b). Behaviours:
+  **STATUS 2026-10-04:** ✅ all five.
+  1. `scorecard.yml` runs `ossf/scorecard-action` v2.4.4 by commit, weekly and on every
+     push to `main`; every action is pinned by SHA, the scorecard job holds
+     `security-events: write` and `id-token: write` alone, the workflow `contents: read`,
+     no env and no defaults. `tests/test_scorecard.py` holds all of it. The job may hold
+     only the actions the API approves, so a scheduled failure's issue is filed by a job
+     that needs it, and `test_constraints_design.py` now reads a failure step in a job
+     that needs another as covering it (the constraint count is unchanged).
+  2. zizmor, as valvur runs it (`--persona pedantic --min-severity medium`), finds
+     nothing in it; the two low `self-repository` notes are the ones every workflow here
+     carries.
+  3. `publish_results` is `github.event_name != 'pull_request' && github.ref ==
+     'refs/heads/main'`, under the test.
+  4. **Measured on the branch,** publishing off, by the pull request's run (37168106863,
+     then 37168489052 after the fix): **7.3**. The pull-request mode scores 11 checks:
+     Security-Policy, Dependency-Update-Tool, Packaging, Binary-Artifacts,
+     Dangerous-Workflow and Token-Permissions 10; under 10:
+     - License 9: "does not contain an FSF or OSI license" on the branch's checkout,
+       while GitHub's API detects Apache-2.0 on `main`; nothing to fix in the file.
+     - Pinned-Dependencies 9: `ci.yml` piped `curl` into `python3` to read a token,
+       counted as a download that is run; **fixed** with `jq`. The one left,
+       `Dockerfile:54`, is `FROM opengrep-${TARGETARCH}`, a build stage, not an image.
+     - SAST 0: no tool Scorecard recognises (CodeQL, Sonar and the like); valvur's own
+       Opengrep and ruff are not among them. §8.
+     - Fuzzing 0: no fuzzer. §8.
+     - Vulnerabilities 0: 44 OSV advisories, most from the manifests planted in
+       `tests/fixtures/broken-repo` to be found, and python-ecdsa's CVE-2024-23342 in
+       Checkov's lock, which has no fix and is a suppression with its reason in
+       `.security-scan.toml`; `uv.lock` has none (a scan of the four real dependency
+       files, 2026-10-04). An `osv-scanner.toml` beside the fixtures would change what
+       valvur's own OSV-Scanner reads there, so it is not cheap. §8.
+     Branch-Protection, Code-Review, Maintained, Signed-Releases, CI-Tests,
+     CII-Best-Practices and Contributors are scored only on the default branch.
+  5. The README's first screen shows the badge, which reads the result `main`
+     publishes, under the test.
+- [x] **R22.2** **Best Practices, prepared** (D49b). Behaviours:
   1. `docs/BEST-PRACTICES.md` answers every *passing* criterion, each with a link to its
      evidence;
   2. the link check reads it;
   3. §8 holds the form for the owner.
+  **STATUS 2026-10-04:** ✅ all three. `docs/BEST-PRACTICES.md` answers all 68 criteria
+  of the passing level, by the badge project's identifiers: 60 met, 7 not applicable,
+  and one unmet, `dynamic_analysis`, which is suggested, not required. Each answer
+  links its evidence. Six need the owner's word, about the owner, the tracker's
+  history or a judgement: `report_responses`, `enhancement_responses`,
+  `vulnerability_report_response`, `know_secure_design`, `know_common_errors` and
+  `vulnerabilities_fixed_60_days`, which names the accepted python-ecdsa advisory. `tests/test_best_practices.py` holds
+  the page to the identifiers, a link per answer, and §8's row; the link check reads
+  it.
 
 **Exit:** the Scorecard result recorded, with its run; the Best Practices answers ready;
 CI green.
@@ -1240,6 +1284,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | start R19 | on or after 2026-11-19 | tell any session to proceed, or let the dated schedule start it; it moves CI's runners to Ubuntu 26.04 (D45) |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the Scorecard badge's first score | R22 landed | nothing to do: the first run on `main` publishes it; check the README's badge shows a score |
+| Scorecard's checks under 10 (R22.1) | R22 landed | decide each: SAST, by adding a tool Scorecard recognises such as CodeQL (a GitHub-hosted analysis, so ADR-0008 is yours to weigh); Fuzzing; Vulnerabilities, which counts the planted fixture lockfiles; and read the checks only `main` scores (branch protection's review count among them) from the first published result |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | now; the power's part after R15 | one scan through Kiro, and from R15 the power installed from the repository, recorded in `docs/acceptance/` |
