@@ -1552,9 +1552,21 @@ unchanged.
      and 120 s each, about 1,050,000 executions, found nothing more.
   4. atheris is the `fuzz` extra alone, apart from `dev`, so `verify.sh` never builds it,
      and nothing under `src/` imports it.
-- [ ] **R27.5** **Scorecard measured again** (D63d). Behaviours:
+- [x] **R27.5** **Scorecard measured again** (D63d). Behaviours:
   1. the branch's score, measured with publishing off, is recorded check by check;
   2. the README's note beside the badge names what only a second maintainer lifts.
+  **STATUS 2026-10-04:** ✅ both.
+  1. `scorecard.yml` now runs on a pull request that changes anything it reads: the
+     workflows, the Dockerfiles, `osv-scanner.toml`, the fixtures and the fuzzers. Before,
+     only a change to the workflow itself ran it.
+     - The branch measures **9.2** over the eleven checks a pull request scores (run
+       37217025501), against 7.3 in R22's branch measurement.
+     - Vulnerabilities, Fuzzing and Pinned-Dependencies are at 10 each.
+     - SAST reads 0 on a branch and 10 on `main`; License 9 on a branch and 10 on `main`.
+     - The rest are 10.
+  2. The README's note beside the badge names Code-Review, Branch-Protection,
+     Contributors and the Best Practices badge's silver and gold, each needing a second
+     maintainer, and §8 holds them.
 
 **Exit:** Vulnerabilities, Pinned-Dependencies and Fuzzing at 10 on the branch's
 measurement, or each one's measured reason; CI green; the Score unchanged.
