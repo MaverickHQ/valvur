@@ -1897,8 +1897,25 @@ weekend run; CI green.
 
 ### Phase R29: precision that is measured
 
-- [ ] **R29.1** **Measure first** (D65). Record track 8 by rule, the corpus's 13 projects and
+- [x] **R29.1** **Measure first** (D65). Record track 8 by rule, the corpus's 13 projects and
   16 judged findings, and today's mutation score. Behaviour: the STATUS gives each.
+
+  STATUS (2026-10-04), at R28's head (`valvur:dev` `sha256:b338c4acf1e9`):
+  - **Track 8: 5.9**, with 0 true and 16 false positives judged, on 13 projects.
+    `labels/corpus.toml` holds 17 labels, all `fp`: Gitleaks `generic-api-key` 6,
+    `private-key` 4 and `slack-webhook-url` 1; `valvur.python.weak-hash` 4; the vendored
+    `python_random_rule-random` 1; `valvur.licence.mismatch` 1. One label matched nothing
+    at this head. By project: flask 4, requests 4, llm 3, monolog 2, and one each in
+    fastify, ripgrep, sinatra and smolagents. Five projects had nothing judged.
+    Unjudged, the other Scanners' findings: zizmor 128, Checkov 46, Trivy 26,
+    OSV-Scanner 1.
+  - **The corpus:** 13 projects. 5 are Python or JS/TS (requests, flask, llm, smolagents;
+    express, fastify), and the rest are Go, Java, Rust, Ruby, PHP, Terraform and a rules
+    collection. 1.9 to 8.0 MB each, in `tests/corpus/.checkouts/`. Licences are recorded,
+    sizes are not.
+  - **Mutation score:** CI's run on R38's diff (#202's *each hunk reverted* job) caught
+    31 of 37 code hunks, **83.8%**. The 6 that survived are in `adapters/gitleaks.py`,
+    `adapters/osv.py`, `artifacts.py`, `findings.py`, `fleet.py` and `summary.py`.
 - [ ] **R29.2** **A wider corpus** (D65a). Behaviours:
   1. at least 40 projects, each pinned with its licence and size, and a test holds every
      entry's fields;
