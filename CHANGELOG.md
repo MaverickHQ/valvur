@@ -8,6 +8,13 @@ break things, and has.
 
 ## [Unreleased]
 
+### The runner move (Phase R19)
+
+Internal: CI and the release run on GitHub's Ubuntu 26.04 runners, `ubuntu-26.04` and
+`ubuntu-26.04-arm`, from 24.04. Measured on the same code, scans take 3.7% longer on
+the corpus and 2 to 6% more memory, well inside N1.1's 60 seconds and N1.4's 2 GB, and
+the Score, the acceptance set and every finding are unchanged.
+
 ## [1.4.0] — 2026-10-04
 
 What a scan finds, and how quietly. valvur's own code rules now report injection, path
