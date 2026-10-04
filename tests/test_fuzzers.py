@@ -39,7 +39,11 @@ def test_clusterfuzzlite_builds_every_fuzzer_and_every_target_has_one():
     assert (REPO / ".clusterfuzzlite" / "project.yaml").read_text().strip() == \
         "language: python"
     assert "for fuzzer in fuzz/fuzz_*.py" in build and "compile_python_fuzzer" in build
-    assert "pip3 install --no-deps ." in build
+    # No pip at all: Scorecard counts any pip install not pinned by hash, `--no-deps .`
+    # among them (measured on PR #196), and the package is found by PYTHONPATH.
+    commands = [line for line in build.splitlines() if not line.lstrip().startswith("#")]
+    assert not [line for line in commands if "pip" in line], commands
+    assert 'export PYTHONPATH="$SRC/valvur/src"' in build
     assert {p.stem for p in _fuzzers()} == set(TARGETS)
     for path in _fuzzers():
         assert TARGETS[path.stem] in path.read_text(), path.name

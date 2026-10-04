@@ -1,9 +1,10 @@
 #!/bin/bash -eu
 # Builds every fuzzer under fuzz (R27.4, D63c), each with its seeds.
 #
-# `--no-deps .`: the shim is standard-library alone, so there is nothing to resolve,
-# and a local install with no dependencies is one Scorecard reads as pinned.
-pip3 install --no-deps .
+# No install: the shim is standard-library alone, so PyInstaller, and the
+# subprocesses it collects data in, find the package on PYTHONPATH. Scorecard counts
+# any pip install not pinned by hash, a local `--no-deps .` among them (measured).
+export PYTHONPATH="$SRC/valvur/src"
 
 for fuzzer in fuzz/fuzz_*.py; do
   name=$(basename "$fuzzer" .py)
