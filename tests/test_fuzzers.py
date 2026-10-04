@@ -109,3 +109,13 @@ def test_atheris_is_a_development_dependency_alone():
                 for d in deps if d.startswith("atheris")]
     for path in (REPO / "src").rglob("*.py"):
         assert not re.search(r"^\s*(import|from) atheris", path.read_text(), re.M), path
+
+
+def test_the_builder_image_is_pinned_by_digest():
+    """Scorecard's Pinned-Dependencies reads every Dockerfile, this one too."""
+    import re
+
+    froms = re.findall(r"^FROM\s+(\S+)", (REPO / ".clusterfuzzlite" / "Dockerfile").read_text(),
+                       re.M)
+
+    assert froms and all(re.search(r"@sha256:[0-9a-f]{64}$", image) for image in froms), froms

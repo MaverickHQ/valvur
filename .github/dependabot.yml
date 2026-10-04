@@ -82,3 +82,14 @@ updates:
       # the same Python still arrives, as the security fix it usually is.
       - dependency-name: "python"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # ClusterFuzzLite's builder (R27.4), pinned by digest like the image's bases.
+  - package-ecosystem: docker
+    directory: /.clusterfuzzlite
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies"]
