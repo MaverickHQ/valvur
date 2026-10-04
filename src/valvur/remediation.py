@@ -181,6 +181,22 @@ def render(findings: list[Finding], *, top: int = 25) -> str:
     return "\n".join(lines)
 
 
+#: An action reference as zizmor quotes it: `owner/repo[/path]@ref` (R21.4).
+_ACTION = re.compile(r"(?<![\w./-])([\w.-]+)/([\w.-]+)((?:/[\w./-]*)?)@([\w./-]+)")
+
+
+def _lookup(finding: Finding) -> list[str]:
+    """For a fix that needs what only the network knows, the command that asks and
+    the line to write with its answer (D59c). For `unpinned-uses`, the commit the
+    tag names today. Printed for the human to run; valvur runs none of it."""
+    match = _ACTION.search(finding.evidence or "") if finding.rule == "unpinned-uses" else None
+    if match is None:
+        return []
+    owner, repo, path, ref = match.groups()
+    return [f"  look up the commit: `gh api repos/{owner}/{repo}/commits/{ref} --jq .sha`, "
+            f"then write `uses: {owner}/{repo}{path}@<sha> # {ref}`"]
+
+
 def _item(number: int, item) -> list[str]:
     """One action: what it resolves, what it does not, and, for a flood, the line
     that would leave the directory out and whose decision that is."""
@@ -223,6 +239,7 @@ def _item(number: int, item) -> list[str]:
         ]
     for finding in sorted(item.findings, key=lambda f: f.rank or 10**9)[:8]:
         out.append(f"- {finding.rule} — {cut(finding.title, 100)}")
+        out += _lookup(finding)
     if len(item.findings) > 8:
         out.append(f"- _…and {len(item.findings) - 8} more_")
     out.append("")
