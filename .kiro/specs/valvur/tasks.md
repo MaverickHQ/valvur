@@ -1266,12 +1266,25 @@ CI green.
 
 ### Phase R19: the runner move
 
-- [ ] **R19.1** **Every runner on 26.04** (D45; 28.3.8). Behaviours:
+- [x] **R19.1** **Every runner on 26.04** (D45; 28.3.8). Behaviours:
   1. the release constraints that hold the runner set name `ubuntu-26.04` and
      `ubuntu-26.04-arm`;
   2. every `runs-on` and matrix runner moves;
   3. zizmor finds nothing in the workflows;
   4. every check is green on the PR.
+  **STATUS 2026-10-04:** ✅ all four.
+  1. `test_the_published_artifact_runs_on_both_architectures` and the bake constraint
+     name `ubuntu-26.04` and `ubuntu-26.04-arm`, and
+     `test_every_runner_in_every_workflow_is_a_named_image` now holds every Linux runner
+     the workflows name to exactly those two; the constraint count is unchanged.
+  2. Every `runs-on` and matrix runner in eleven workflows moved, 32 in all; macOS's
+     probe stays on `macos-15`. `RELEASING.md` and the tests that describe the runner
+     follow. The planted workflows in `scripts/eval/twins.py` and the acceptance
+     generator are test inputs and keep theirs.
+  3. zizmor, as valvur runs it, finds nothing in the workflows: the same 43 notes below
+     its bar as on `main`.
+  4. Every check on the PR is green at `3e1c6d5`, 21 of them, the end-to-end jobs on
+     both architectures among them, Podman's leg included: D45's fallback was not needed.
 - [ ] **R19.2** **Measured again on 26.04** (D45). Dispatch the corpus, the acceptance set
   and the Score on the branch. Measure N1.1 and N1.4 against their 24.04 numbers, and
   record each in `requirements.md`. Behaviour: each number in the STATUS, with its run.
