@@ -44,3 +44,32 @@ def test_the_readme_says_what_it_collects_and_where_to_get_help():
     assert "collects nothing" in privacy
     assert "scripts/verify-offline.py" in privacy, "the claim without its proof"
     assert "https://github.com/MaverickHQ/valvur/issues" in support
+
+
+def test_each_listing_is_drawn_from_its_manifest():
+    for word, path in (("plugin directory", "plugins/valvur/.claude-plugin/plugin.json"),
+                       ("Kiro", "powers/valvur/plugin.json")):
+        fields, manifest = _section(word), _manifest(path)
+
+        assert fields["Name"] == manifest["name"], path
+        assert fields["Description"] == manifest["description"], path
+        assert fields["Keywords"] == ", ".join(manifest["keywords"]), path
+        assert fields["Repository"] == manifest["repository"], path
+        assert fields["Licence"] == manifest["license"], path
+        assert fields["Author"] == f"{manifest['author']['name']}, {manifest['author']['url']}"
+        assert path in LISTING.read_text(), f"the listing does not name {path}"
+
+
+def test_the_plugin_s_install_line_names_the_marketplace_and_the_plugin():
+    marketplace = _manifest(".claude-plugin/marketplace.json")
+    [plugin] = marketplace["plugins"]
+
+    assert f"/plugin install {plugin['name']}@{marketplace['name']}" in \
+        _section("plugin directory")["Install"]
+
+
+def test_the_owner_s_queue_points_to_it():
+    tasks = (REPO / ".kiro" / "specs" / "valvur" / "tasks.md").read_text()
+    queue = tasks.split("## 8. The owner queue", 1)[1]
+
+    assert re.search(r"^\| list the plugin and the power.*`docs/LISTING\.md`", queue, re.M)
