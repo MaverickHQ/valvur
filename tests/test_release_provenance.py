@@ -37,7 +37,8 @@ def test_stage_attests_the_python_distributions_with_the_pinned_action():
 
     assert stage.count(ATTEST) == 2, "the image's attestation and the distributions'"
     assert "id: attest-image" in stage and "id: attest-dist" in stage
-    assert re.search(r"subject-path: dist/\*", stage)
+    assert re.search(r"subject-path: \|\n\s+dist/\*\.whl\n\s+dist/\*\.tar\.gz\n", stage), \
+        "the wheel and the sdist alone: `dist/*` named uv's dist/.gitignore in 1.4.0's"
 
 
 def test_stage_keeps_both_bundles_as_intoto_jsonl_named_for_the_version():
