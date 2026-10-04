@@ -29,6 +29,11 @@ the owner's word, R19 runs now rather than from 2026-11-19 (D45 as amended), in 
 session under D61. Its pull request lands after `1.4.0` is released, so that release is
 built on the runners all three lanes measured.
 
+**Amended again 2026-10-04, after `1.4.0` was released**, at the owner's word, with Phases
+R26 to R29 for `1.5.0` (§5, D62 to D66): a lighter release, Scorecard as far as one
+maintainer reaches, a repository that keeps itself current, and precision that is
+measured. They run after R19. D66 records what comes after `1.5.0`, without phases.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -64,8 +69,8 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue
   On a stop, the executor writes what happened and what it needs as a row in §8, commits
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
-  at $5 across R17 to R19 (D46). R21.3's smoke run is capped at $2 (D58); R20 and R22 to
-  R25 run no agent. Past a cap they are skipped and noted in §8.
+  at $5 across R17 to R19 (D46). R21.3's smoke run is capped at $2 (D58); R20, R22 to R25
+  and R26 to R29 run no agent. Past a cap they are skipped and noted in §8.
 - **In a cloud session** (D61), the build runs on the session's VM, and D61 says what
   changes there: the lanes, the gate, the caches, resuming, and what is left for a local run.
 - **R19 is no longer dated** (D45 as amended 2026-10-04). It runs now, and its pull request
@@ -209,7 +214,8 @@ for the three additions proposed with them. D50 to D57 were accepted on 2026-10-
 the architecture review of that day, when the owner asked for its 1.x steps as phases;
 D56 amends D47. D58 and D59 were accepted the same day, after the owner's first run on
 a new project, and D60, which amends D42, when the owner asked for the rule-writing back. D61 the
-same day, when the owner chose to run the build in a cloud session.
+same day, when the owner chose to run the build in a cloud session. D62 to D66 were
+accepted on 2026-10-04, when the owner asked for 1.5.0's phases after `1.4.0` shipped.
 The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
@@ -257,6 +263,11 @@ wait for it.
 | D59 | **The loop closed** (the owner's run on a new project, 2026-10-03). The agent edited three findings and could not rescan, so nothing was confirmed, and the run felt unfinished. Today a rescan names what it fixed by title alone, which cannot be matched line for line with the first report. **(a) A resolution table.** On a rescan, `SUMMARY.md` and the `scan` reply open with every finding of the previous run, named by rule ID and path as the first report named it. Each gets its state now: `fixed` (its Scanner ran again and the finding is gone), `open`, or `not re-checked`. New findings follow. The reply's field is additive under schema 2. **(b) The skill closes the loop.** After the human's fixes, the agent rescans and leads with that table. When it cannot rescan, it says nothing is confirmed until a rescan, and names the findings it changed. **(c) Lookups the human can run.** For a fix that needs data valvur does not hold offline, `REMEDIATION.md` gives the exact command and the line to write. For zizmor's `unpinned-uses`, that is `gh api repos/<owner>/<repo>/commits/<ref> --jq .sha` for each action, and the `uses:` line with the SHA and the tag as a comment. valvur runs none of them. | if the table would push `SUMMARY.md` past its bound, it lists the first 20 by rank and counts the rest |
 | D60 | **The code rules find more** (the owner, 2026-10-03; amends D42). This is the work D42 set aside. On track 1, the command-injection rule flags all 7 safe cases (the category scores below zero), the code-injection rule flags all 33 safe ones (zero), and 8 of 14 categories find nothing. On track 2, 8 of 10 types find nothing. **Order:** first, command and code injection learn to tell safe code from unsafe, using Opengrep's taint mode where it is measured to help (worth about 10 points on track 1). Then Python's path traversal, secure cookies, open redirects and XXE. Then JavaScript's SQL injection, command injection, path traversal and SSRF. **Every rule ships by D29's bar:** from a licence-audited source, or valvur's own (Apache-2.0); at least one true positive at a line no other rule reports; precision of at least 0.5 over tracks 1 and 2 and the corpus; track 8 not lower; and Opengrep's median time on the acceptance set at most 30% higher. **Aims, not gates:** D22's first targets, 25 for track 1 and 50 for track 2. What is measured is recorded, and D42's lowered targets stand until the baseline passes them. The MD5 and `random` rules earn track 1 points and cost track 8; R20's path classes resolve that, which is why R25 follows R20. | a rule below the bar is not shipped, and is recorded as D29 does; where no source has an eligible rule for a category, valvur writes its own, measured the same way |
 | D61 | **The build may run in a Claude Code cloud session** (the owner, 2026-10-03, on promotional credit that expires 2026-11-04). The session's VM is Ubuntu 24.04 on x86_64, with 4 vCPUs, 16 GB of memory, 30 GB of disk and Docker. What changes there: **(a) Lanes.** The VM is the exit's local lane, beside GitHub's Linux lane. The Mac lane is not available: each exit records it as *pending*, and §8 holds one Mac run of the acceptance set and the Score over the landed stack, before the next release. **(b) The gate** is `scripts/verify.sh`, piped only under `set -o pipefail`, with the commit chained by `&&`, never `;`. It passes in a session: the signers test steps over the session's signing key and verifies through `ssh-keygen` by name. **(c) Caches.** The VM starts empty, so `VALVUR_CACHE` and `VALVUR_IMAGE` come from the environment (`$HOME/.cache/valvur-build`, `valvur:dev`). The image, the data, the OWASP Benchmark, GitLab's rules at the manifest's commit and the corpus are fetched on first use, from hosts §1's stop condition 5 already allows. A session does not start Docker's daemon, so every session starts it, as `dockerd --feature containerd-snapshotter=false` in the background (the VM runs as root), before stop condition 4 applies. On the default containerd store, bake's export fails: `rewrite-timestamp` conflicts with `unpack` (measured). **The image is built by `scripts/cloud_image.py`**, never plain `docker buildx bake`. The session's network re-terminates TLS with its own CA, which a build's `RUN` steps do not trust, so the script hands the build the host's CA bundle as a secret for `RUN` steps only (measured with a test CA on 2026-10-03: apk and pip both trust it through `SSL_CERT_FILE`). **The vulnerability database** is fetched by Trivy inside a container, which rejects the session's CA (`x509: certificate signed by unknown authority`, measured). The environment therefore sets `VALVUR_DB_REPOSITORY=mirror.gcr.io/aquasec/trivy-db:2` and `VALVUR_DB_INSECURE=1`, the product's documented switch for a certificate the container does not trust. They are set in the cloud environment alone, never in the repository, and the Linux and Mac lanes fetch with verification as before. **A fixture is never scanned in place:** it is copied to a scratch directory first. A Results Folder left in one is read as a previous run by every test that copies it, and `test_fixtures_unscanned.py` names it. Docker's build cache is pruned whenever the disk has under 8 GB free. **(d) Long commands.** A command that can pass 10 minutes (an image build, the e2e suite, the acceptance set, the Score) runs in the background. **(e) Resuming.** The session runs with the laptop closed, so §2's in-session schedule and desktop task are not armed. If the session stops (a usage limit, or a reclaimed VM), the owner starts a new cloud session with §2's prompt, and §2's step 1 still decides whether another executor is alive. **(f) GitHub.** Pushes, pull requests and workflow dispatches go through the session's GitHub proxy. `gh` refuses every GraphQL call there (`HTTP 403`, measured), so REST is used: a pull request is opened with `gh api -X POST repos/MaverickHQ/valvur/pulls -f title=… -f head=… -f base=main -f body=…`, and its checks are read from `gh api repos/MaverickHQ/valvur/commits/<sha>/check-runs`. `gh workflow run` works as it is. The proxy refuses tag pushes and branch deletions, and the executor still never pushes to `main`. **(g) Signed commits, measured.** A session's commits are SSH-signed as `Claude <noreply@anthropic.com>`, and GitHub verifies them, so `main`'s rule accepts them and they land as they are, as Dependabot's do. **(h) Left for a local run:** R21.3's smoke run, which needs `claude -p` with the owner's login. R21.3 is ticked with that behaviour recorded as deferred, and D58's $2 stays unspent. The owner's personal skills and memory are not in the VM; this list and `CLAUDE.md` carry what the build needs. **(i) Runtime fetches, measured by the second pre-flight.** With the database fetched through the mirror switch, everything a phase measures works in the session: scans on `offline` fetch nothing inside a container, and neither does the Score or the acceptance set. Two things still need a network inside a container and fail there: a `full` scan's registry and OSV questions, and the e2e test in which Syft pulls an image from Docker Hub. A failure counts as cloud-only when it is a network or certificate error inside a container and the same test passes in CI's e2e on the phase's pull request. The exit names each one, and none counts toward stop condition 3. **(j) Readiness.** Every session checks, before its first task: the daemon answers, the image is built by the script and `check_image.py` passes, and `valvur update` fetches the database. If the database cannot be fetched, the session stops there, under stop condition 4, and §8 says so. | if the VM cannot build or run the image, the build stops there (stop condition 4) and continues on the Mac |
+| D62 | **The release made lighter** (the owner, 2026-10-04, for `1.5.0`; amends D33). Measured on `1.4.0`: the rehearsal (run 37189078227) took 31 minutes, the release (run 37191050681) 30 minutes of work plus the wait at the brake, and in each the `verify` job took 13 to 14 minutes rerunning `verify.sh`, the whole suite with e2e and the image build on a commit whose required checks had just passed them. A release took four owner actions: land the release PR, tag, approve, land the closing PR. **(a) Rehearse when the machinery changed.** `prepare_release.py` names each of `release.yml`, the Dockerfile, `docker-bake.hcl` and the requirement locks that changed since the last tag, or says none did, and `RELEASING.md` asks for a rehearsal then and only then. The release run keeps its brake, and a run that fails before it publishes nothing. **(b) The tag's run trusts CI's verdict on the same commit.** `verify` still checks the tag (signed, on `main`, the declared version) and still runs the Score, which no required check measures; instead of rerunning the required checks, it reads from the API that every one passed on the tagged commit, and names any that did not. `artifact` is unchanged: it tests what users get, which no pull request sees. **(c) No closing pull request.** The README's status line names no release state; a PyPI version badge and the CHANGELOG say what is published. `prepare_release.py --published` and `published.yml` go, with their tests. **(d) Local pre-checks** are the self-scan gate and, when detection changed since the last Mac measurement, the Mac lane; the e2e suite runs in CI and in `artifact`. The trust model stands: a signed tag only the owner creates, on `main`, the brake, and the artifact's signature and provenance verified; the release constraint suite keeps its 54 tests, restated where they named a removed step. | if the required checks of a tagged commit cannot be read reliably (a re-run, a check skipped by a path filter), `verify` reruns `verify.sh` as now, recorded |
+| D63 | **Scorecard, as far as one maintainer reaches** (the owner, 2026-10-04). First published on 2026-10-04 at 5.7. Signed-Releases is answered by `1.4.0` and the provenance attached to its four predecessors. Maintained follows from the repository's age, about 28 November. **(a) Vulnerabilities** (0; 44 advisories): every deliberately vulnerable manifest under `tests/` is stored under a name no scanner reads as a manifest (`<name>.fixture`), and one helper restores the real names when a test copies a fixture. Checkov's accepted python-ecdsa advisory, CVE-2024-23342, is recorded with its reason where OSV-Scanner reads ignores, and measured against Scorecard. GitHub's own alerts on the fixtures go with them. **(b) Pinned-Dependencies** (9): the Opengrep stage is chosen without a variable in `FROM`, keeping one checksum-verified download per architecture and a reproducible digest. **(c) Fuzzing** (0): ClusterFuzzLite with atheris fuzzes the parsers that read untrusted text: `valvur.installs`, the lockfile parsers, `.security-scan.toml` and the readers of `findings.json`. It runs briefly on each pull request and longer nightly, and a crash is a bug, fixed with a test. atheris is a dev dependency; the shim stays standard-library. **(d) What one maintainer cannot lift** is named in §8 and beside the README's badge: Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold. | a check that cannot be lifted as described is recorded with its measured reason, never worked around: no bot approvals, and no ignore that hides a real advisory |
+| D64 | **A repository that keeps itself current** (the owner, 2026-10-04). In the 30 days to `1.4.0` the owner landed every pull request, 15 of them Dependabot's, tagged and approved each release, and answered the scanner refresh's issue and the scheduled jobs' issues; #181 stayed open after its cause had passed. **(a) Dependabot updates land themselves.** A workflow enables GitHub's auto-merge on a Dependabot pull request that changes only dependency files (locks, requirements, pinned actions, base-image digests) and is not a major version, by whichever merge method keeps `main`'s signed commits and linear history, measured first; GitHub merges it once every required check passes. It runs on `pull_request`, never `pull_request_target`, and never checks out the pull request's code with a token. **(b) Scheduled jobs close their own issues**: the issue-on-failure action closes its open issue when the next run of the same workflow passes. **(c) The monthly refresh opens a release pull request** instead of an issue: when the Scanner pins moved and the Score held, `prepare_release.py` at the next patch version, on a branch, for the owner to land and tag. **(d) A weekly maintenance routine.** `docs/MAINTENANCE.md` holds the prompt and procedure a scheduled Claude Code cloud routine follows: read the week's failed scheduled runs, open issues and stalled Dependabot pull requests, and fix what it can on a branch, with a pull request. It never pushes to `main`, tags or approves. Creating the routine and its monthly cap are the owner's (§8). **(e) The signed tag and the brake stay the owner's**, by design. | if auto-merge cannot keep signed commits and linear history together, Dependabot's pull requests keep the owner's landing, and the routine prepares them; recorded |
+| D65 | **Precision that is measured** (the owner, 2026-10-04; track 8 and the rules). Real-code precision is the Score's weakest track, 5.9 from 13 projects and 16 judged findings, too few to tell one rule from another. **(a) A wider corpus:** at least 40 real projects, Python and JavaScript/TypeScript in the proportion valvur's rules cover, each pinned by commit with its licence and size recorded, fetched into the build cache, never vendored. Every active finding of a valvur-owned rule or of Gitleaks is labelled `tp` or `fp` with a reason in `tests/eval/labels/corpus.toml`, as D21 says. A random tenth of the labels is listed for the owner to audit (§8); a disagreement changes the label and is recorded. Since the track's corpus changes, its baseline is re-recorded at what the wider corpus measures, recorded as a re-basing with both numbers, not as a fall. **(b) Each rule's precision, published:** `docs/RULES.md`, generated, gives every shipped rule its true and false positives on tracks 1, 2 and the corpus. A rule under D29's bar on the wider corpus is demoted to the inventory by the build, never dropped silently, and the change is recorded. **(c) What valvur misses:** a second engine's findings on the corpus, CodeQL's default queries in a CI workflow, are listed as candidate rules. Nothing of it ships, and its licence terms are read before it runs. **(d) The mutation score ratchets:** `mutation_check.py` runs weekly, and its score is a baseline that may only rise. Aims, not gates: tracks 1 to 7 stay within the ratchet. | if fewer than 40 projects meet the licence and size rules, as many as do, recorded; if CodeQL's terms do not cover the corpus, (c) is dropped and recorded |
+| D66 | **After `1.5.0`, scoped and not planned** (the review of 2026-10-03, and the owner's comparison with `aws-samples/sample-mcp-security-scanner` on 2026-10-04). Each needs a Score track or an ADR before its phase: languages beyond Python and JavaScript, each behind its own track (OWASP's Java Benchmark for Java); scans limited to given paths, for an agent's edit loop; container images scanned offline from a tar the host saves; findings' CWEs mapped to the OWASP Top 10 and ASVS from published mappings alone; SLSA build level 3 through the reusable generator; Amazon Q Developer's configuration in `valvur init`; and 2.0's parts (D57). Their phases are written when the owner asks. | none needed |
 
 ## 6. Order
 
@@ -302,6 +313,16 @@ R19 the runner move ◄── R22 OpenSSF signals ◄── R21 findable
 - **R22** measures the repository as R20 and R21 left it.
 - **R19** comes last, and since D45's amendment it runs as soon as R22 has landed. Its pull
   request lands after `1.4.0` is released.
+
+```
+R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─► R29 measured precision ─ ─► 1.5.0
+```
+
+- **R26 first**: `1.5.0`'s own release then takes the lighter path, and R27 to R29's pull
+  requests run on its CI.
+- **R27 before R29**: renaming the fixture manifests touches the tests R29 widens.
+- **R28** needs two owner settings (§8), so it follows the work that needs none.
+- **R29 last**: the largest, and its corpus sets track 8 for `1.5.0`.
 
 ---
 
@@ -1307,6 +1328,128 @@ CI green.
 **Exit:** the Score on Linux at its baseline, the acceptance set green, and N1.1 and N1.4
 recorded; or D45's fallback, applied and recorded.
 
+### Phase R26: a lighter release
+
+- [ ] **R26.1** **Measure first** (D62). Record, for `1.4.0`'s rehearsal (run 37189078227)
+  and release (run 37191050681), each job's minutes; which suites ran where (locally, in
+  the pull request's CI, in the rehearsal, in the release); and the owner's actions.
+  Behaviour: the STATUS gives the table.
+- [ ] **R26.2** **Rehearse when the machinery changed** (D62a). Behaviours:
+  1. `prepare_release.py` names each machinery file changed since the last tag, or says
+     none did;
+  2. a test holds the machinery list to the files `release.yml` builds from;
+  3. `RELEASING.md` asks for a rehearsal exactly when one changed.
+- [ ] **R26.3** **The tag's run trusts CI's verdict** (D62b). Behaviours:
+  1. `verify` passes when every required check passed on the tagged commit, and fails
+     naming each that did not;
+  2. it still checks the tag's signature, `main` and the version, and still runs the Score;
+  3. when the checks cannot be read, it reruns `verify.sh`, and says so;
+  4. the release constraint suite keeps its 54 tests;
+  5. a rehearsal on the branch measures `verify`'s minutes against R26.1's.
+- [ ] **R26.4** **No closing pull request** (D62c). Behaviours:
+  1. the README's status line names no release state, and a PyPI version badge says what
+     is published;
+  2. `--published` and `published.yml` are gone with their tests, and the README's
+     as-built test holds the new line;
+  3. `RELEASING.md`'s steps end at the owner's approval.
+- [ ] **R26.5** **Local pre-checks only where CI cannot reach** (D62d). Behaviour:
+  `RELEASING.md`'s pre-checks are the self-scan gate and, when detection changed since the
+  last Mac measurement, the Mac lane; a test holds the list.
+
+**Exit:** a rehearsal of the new flow on R26's branch, measured against R26.1's; the owner's
+actions per release counted from `RELEASING.md` (three, from four); CI green; the Score
+unchanged.
+
+### Phase R27: Scorecard, as far as one maintainer reaches
+
+- [ ] **R27.1** **Measure first** (D63). Record the published Scorecard check by check, with
+  the details behind Vulnerabilities (each advisory and its file) and Pinned-Dependencies
+  (each line). Behaviour: the STATUS gives the table.
+- [ ] **R27.2** **No manifest under `tests/` reads as one** (D63a). Behaviours:
+  1. OSV-Scanner over `tests/` finds no manifest (`e2e`);
+  2. one helper copies a fixture and restores its real names, and every test that copied a
+     fixture uses it;
+  3. the unit and e2e suites pass with their counts unchanged;
+  4. Checkov's accepted advisory is recorded with its reason where OSV-Scanner reads
+     ignores.
+- [ ] **R27.3** **Opengrep's stage without a variable `FROM`** (D63b). Behaviours:
+  1. no `FROM` names a variable;
+  2. one checksum-verified download per architecture, as now;
+  3. the reproducibility job passes, and the image's size moves by under 1%.
+- [ ] **R27.4** **Fuzzing** (D63c). Behaviours:
+  1. `.clusterfuzzlite/` builds fuzzers for `valvur.installs`, the lockfile parsers, the
+     project configuration and the readers of `findings.json`;
+  2. they run briefly on each pull request and longer nightly, with pinned actions and the
+     minimum permissions, and zizmor finds nothing;
+  3. every crash found is fixed, with a regression test;
+  4. atheris is a dev dependency alone.
+- [ ] **R27.5** **Scorecard measured again** (D63d). Behaviours:
+  1. the branch's score, measured with publishing off, is recorded check by check;
+  2. the README's note beside the badge names what only a second maintainer lifts.
+
+**Exit:** Vulnerabilities, Pinned-Dependencies and Fuzzing at 10 on the branch's
+measurement, or each one's measured reason; CI green; the Score unchanged.
+
+### Phase R28: a repository that keeps itself current
+
+- [ ] **R28.1** **Measure first** (D64). Record the owner's actions in the 30 days to
+  `1.4.0`, by kind, and which merge methods `main`'s protection allows with signed commits
+  and linear history. Behaviour: the STATUS gives both.
+- [ ] **R28.2** **Dependabot updates land themselves** (D64a). Behaviours:
+  1. the workflow enables auto-merge only for a Dependabot pull request that changes only
+     dependency files, and never for a major version;
+  2. it runs on `pull_request`, never `pull_request_target`, with pinned actions and the
+     minimum permissions, and zizmor finds nothing;
+  3. a test holds the file list and the major-version rule;
+  4. one Dependabot pull request merges itself once its checks pass, signed and linear, or
+     D64's fallback applies.
+- [ ] **R28.3** **Issues that close themselves** (D64b). Behaviours:
+  1. the issue-on-failure action closes its open issue when the next run passes;
+  2. a test holds both halves.
+- [ ] **R28.4** **The refresh opens a release pull request** (D64c). Behaviours:
+  1. when the pins moved and the Score held, `refresh.yml` runs `prepare_release.py` at the
+     next patch version on a branch and opens a pull request;
+  2. it never tags, and a test holds that.
+- [ ] **R28.5** **The weekly maintenance routine** (D64d). Behaviours:
+  1. `docs/MAINTENANCE.md` holds the routine's prompt and procedure, and the link check
+     reads it;
+  2. a dry run by a cloud session, on a branch, is recorded;
+  3. §8 holds creating the routine and its monthly cap.
+
+**Exit:** each mechanism exercised once: a Dependabot pull request merged by itself or the
+fallback, a scheduled job's issue closed by its next green run, the refresh's pull request
+opened on a branch, and the routine's dry run recorded; CI green.
+
+### Phase R29: precision that is measured
+
+- [ ] **R29.1** **Measure first** (D65). Record track 8 by rule, the corpus's 13 projects and
+  16 judged findings, and today's mutation score. Behaviour: the STATUS gives each.
+- [ ] **R29.2** **A wider corpus** (D65a). Behaviours:
+  1. at least 40 projects, each pinned with its licence and size, and a test holds every
+     entry's fields;
+  2. `scripts/corpus.py` fetches them into the build cache;
+  3. every active finding is labelled with a reason, and an unlabelled one fails the track;
+  4. §8 lists the owner's tenth to audit.
+- [ ] **R29.3** **Each rule's precision, published** (D65b). Behaviours:
+  1. `docs/RULES.md` is generated, and a test holds it current;
+  2. a rule under the bar is demoted to the inventory, with the reason recorded;
+  3. tracks 1 to 7 stay within the ratchet.
+- [ ] **R29.4** **What valvur misses** (D65c). Behaviours:
+  1. CodeQL's licence terms read and recorded before it runs;
+  2. its findings on the corpus at lines valvur does not report are listed in
+     `docs/acceptance/r29.md` as candidate rules, and nothing of it ships.
+- [ ] **R29.5** **The mutation score ratchets** (D65d). Behaviours:
+  1. a weekly workflow runs `mutation_check.py`;
+  2. its score is a baseline that may only rise, and a fall fails the run.
+- [ ] **R29.6** **The Score on the wider corpus** (D65a). Behaviours:
+  1. track 8 is measured on both lanes, and its baseline is re-based with both numbers
+     recorded;
+  2. the README and `EVALUATING.md` cite the new corpus and track.
+
+**Exit:** the Score on both lanes, track 8 re-based and tracks 1 to 7 within the ratchet;
+at least 40 labelled projects; `docs/RULES.md` and the mutation baseline recorded; the
+acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
+
 ---
 
 ## 8. The owner queue
@@ -1316,11 +1459,14 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R23, R24, R20, R25, R21 and R22 | each phase's PR green | one fast-forward of `main` to the newest stacked branch, as for R9 to R18 |
 | land R19 | its PR green, and `1.4.0` released | one fast-forward of `main` to `build/r19-the-runner-move`, after `1.4.0`'s promote, so the release is built on 24.04 |
+| land R26 to R29 | each phase's PR green | one fast-forward of `main` to the newest stacked branch |
+| allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
+| create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
+| audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
+| Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
+| release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
-| the Scorecard badge's first score | R22 landed | nothing to do: the first run on `main` publishes it; check the README's badge shows a score |
-| Scorecard's checks under 10 (R22.1) | R22 landed | decide each: SAST, by adding a tool Scorecard recognises such as CodeQL (a GitHub-hosted analysis, so ADR-0008 is yours to weigh); Fuzzing; Vulnerabilities, which counts the planted fixture lockfiles; and read the checks only `main` scores (branch protection's review count among them) from the first published result |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
 | Kiro's GUI pass | now; the power's part after R15 | one scan through Kiro, and from R15 the power installed from the repository, recorded in `docs/acceptance/` |
