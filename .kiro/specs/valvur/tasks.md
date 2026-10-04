@@ -1294,7 +1294,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. Decide whether it should fake the runtime, as the other readers' cases do |
-| the Mac lane over a cloud-built stack (D61a) | the stack landed | `scripts/acceptance.py --generate` and `scripts/eval.py --compare tests/eval/baseline.json` on the Mac, recorded in the last phase's `docs/acceptance/r<n>.md` |
 | R21.3's smoke run, locally (D61h) | R21 landed | ask a local session to run it, within D58's $2 |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | revisit a decision in §5 | any time | `/grill-with-docs` |

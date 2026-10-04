@@ -30,22 +30,22 @@
   },
   "mac": {
     "tracks": {
-      "sast-python": 11.1,
-      "sast-js": 15.0,
+      "sast-python": 40.9,
+      "sast-js": 55.0,
       "secrets": 100.0,
       "dependencies": 100.0,
       "package-reality": 100.0,
       "agent-configuration": 94.3,
       "infrastructure": 95.0,
-      "real-code-precision": 3.7
+      "real-code-precision": 5.9
     },
-    "score": 64.9,
+    "score": 73.9,
     "image": {
       "name": "valvur:dev",
-      "id": "sha256:9d85682836846c5105433c9af5771a666c8b37ae81d3ca2aefbcfd0cf30b8743"
+      "id": "sha256:ff43392fe3cc317910dae5e7440c0be94c4dc97b9614fc3c564e898e7e3a14eb"
     },
-    "duration_s": 226.6,
-    "at": "R13"
+    "duration_s": 214.7,
+    "at": "the R23 to R22 stack, landed at 908e8c6 (2026-10-04)"
   },
   "linux_duration_s": 206.7,
   "speed": {
