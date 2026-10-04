@@ -81,3 +81,61 @@ def test_the_newest_completed_run_of_a_check_decides(tmp_path, capsys, monkeypat
                      _run(name, "failure", at="2026-10-04T08:30:00Z")]
     code, _, _ = _verdict(_all_passed()[1:] + later_failure, tmp_path, capsys, monkeypatch)
     assert code == 1
+
+
+def _unreadable(runs, tmp_path, capsys, monkeypatch, **kwargs) -> str:
+    output = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    fetch = kwargs.pop("fetch", lambda sha: runs)
+    assert _script().main([SHA, "--wait", "0"], fetch=fetch, **kwargs) == 0
+    assert "verdict=unreadable" in output.read_text().splitlines()
+    return capsys.readouterr().out
+
+
+def test_a_check_with_no_completed_run_or_skipped_is_unreadable_and_says_so(
+        tmp_path, capsys, monkeypatch):
+    """D62's fallback: a check skipped by a path filter, or never run here, says
+    nothing about this commit, so the job reruns the suites itself."""
+    runs = _all_passed()
+    missing, skipped = runs.pop(0)["name"], runs[0]["name"]
+    runs[0] = _run(skipped, "skipped")
+
+    out = _unreadable(runs, tmp_path, capsys, monkeypatch)
+
+    assert f"::warning::{missing}: missing" in out.splitlines()
+    assert f"::warning::{skipped}: skipped" in out.splitlines()
+    assert "CI's verdict cannot be read; rerunning verify.sh and the e2e suite" in out
+
+
+def test_an_api_that_does_not_answer_is_unreadable(tmp_path, capsys, monkeypatch):
+    def refused(sha):
+        raise OSError("HTTP Error 403: Forbidden")
+
+    out = _unreadable([], tmp_path, capsys, monkeypatch, fetch=refused)
+
+    assert "::warning::the check runs could not be read: HTTP Error 403: Forbidden" in out
+
+
+def test_it_waits_for_a_run_in_progress_and_then_judges_it(tmp_path, capsys, monkeypatch):
+    """The push to `main` runs the checks again; a tag pushed straight after the
+    landing finds them running."""
+    name = _script().REQUIRED[0]
+    pending = [*_all_passed()[1:], _run(name, None, status="in_progress")]
+    answers = iter([pending, _all_passed()])
+    slept = []
+    monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
+
+    code = _script().main([SHA, "--wait", "60"], fetch=lambda sha: next(answers),
+                          sleep=slept.append)
+
+    assert code == 0 and slept == [30]
+    assert "verdict=passed" in (tmp_path / "output").read_text()
+
+
+def test_a_failure_outweighs_what_cannot_be_read(tmp_path, capsys, monkeypatch):
+    runs = _all_passed()
+    runs[0] = _run(runs[0]["name"], "failure")
+    runs[1] = _run(runs[1]["name"], "skipped")
+    monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "output"))
+
+    assert _script().main([SHA, "--wait", "0"], fetch=lambda sha: runs) == 1
