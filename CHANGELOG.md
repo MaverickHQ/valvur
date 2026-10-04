@@ -8,6 +8,24 @@ break things, and has.
 
 ## [Unreleased]
 
+### Releases carry their build provenance
+
+- **Every release now carries its SLSA build provenance as assets:**
+  `valvur-<version>.image.intoto.jsonl` for the image, and
+  `valvur-<version>.dist.intoto.jsonl` for the wheel and sdist, which the release
+  workflow now attests too. The `artifact` job verifies the distributions' provenance, as
+  it already did the image's. Verify a wheel with
+  `gh attestation verify <wheel> --repo MaverickHQ/valvur`.
+- `scripts/release_provenance.py` attaches each earlier release's existing image
+  attestation the same way. OpenSSF Scorecard counts these files, and before this it
+  counted none, though the image has been attested since 0.4.0.
+
+### The hook under *don't ask*, measured
+
+- In Claude Code's *don't ask* mode, as under `claude -p`, Claude Code cannot ask, so the
+  plugin's hook refuses a flagged install instead, giving its reason. Measured with the
+  smoke run's new `--permission-mode`; the README says so.
+
 ### OpenSSF signals (Phase R22)
 
 Internal: how the repository is run, measured in public. Nothing a scan does changes.
