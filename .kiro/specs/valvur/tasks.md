@@ -1738,9 +1738,30 @@ movement recorded and explained; the acceptance set green on both lanes.
 
 ### Phase R28: a repository that keeps itself current
 
-- [ ] **R28.1** **Measure first** (D64). Record the owner's actions in the 30 days to
+- [x] **R28.1** **Measure first** (D64). Record the owner's actions in the 30 days to
   `1.4.0`, by kind, and which merge methods `main`'s protection allows with signed commits
   and linear history. Behaviour: the STATUS gives both.
+
+  STATUS (2026-10-04), read through the GitHub connector for 2026-09-04 to 2026-10-04:
+
+  | the owner's action | count |
+  |---|---|
+  | pull requests landed | 180: 176 of their own or the executor's, 4 of Dependabot's (#19, #39, #40, #105) |
+  | Dependabot pull requests otherwise answered | 11 closed unmerged, superseded by a pull request of the owner's (Checkov's lock, Syft's adapter, Python's base image); 2 open, #199 and #200 |
+  | releases tagged and approved at the brake | 11, `v0.2.0` to `v1.4.0` |
+  | scheduled jobs' issues | 3: #147 and #170 closed by hand once their cause passed, #181 still open after it passed |
+
+  **Merge methods.** The repository's merge settings and `main`'s protection are not
+  readable through this session's connector, and docs.github.com is outside the egress
+  allowance, so this is measured from `main`'s history. `main` holds no merge commit, so
+  *merge* is excluded by linear history. Each landed Dependabot change is Dependabot's own
+  commit, committed and signed by GitHub, with the pull request's head SHA unchanged
+  (#105: `f98e016`, committer `GitHub`): the owner fast-forwarded it. Of GitHub's two
+  linear methods, *rebase* rewrites the commit and GitHub does not sign what it rebases;
+  *squash* writes one commit that GitHub signs. So R28.2 asks for **squash**, and §8's row
+  names it. The proof is R28.2's fourth behaviour, after the workflow lands: if GitHub
+  refuses to squash a pull request whose author is not the merger under signed commits,
+  auto-merge stays enabled and unmerged, and D64's fallback applies.
 - [ ] **R28.2** **Dependabot updates land themselves** (D64a). Behaviours:
   1. the workflow enables auto-merge only for a Dependabot pull request that changes only
      dependency files, and never for a major version;
