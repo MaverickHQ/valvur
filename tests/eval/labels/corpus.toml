@@ -10,6 +10,11 @@
 # for review and never active, and the vendored `random` rule is not reported where
 # docs live; their ten labels went with them. The secrets in tests and docs rank
 # `low` now and are still judged, as false alarms.
+#
+# R29.2 (D65a), 2026-10-04: the corpus widened to forty-eight projects, and every active
+# finding on the thirty-five new ones is labelled below, read against the code at each.
+# Nine more were valvur's own false positives, and were fixed rather than labelled: npm
+# aliases, three licence readings, and RegExp's exec read as a shell (R29.2's fixes).
 
 [[label]]
 repo = "fastify"
@@ -146,3 +151,1243 @@ rule = "python_random_rule-random"
 path = "src/smolagents/utils.py"
 verdict = "fp"
 reason = "Jitter on an exponential retry backoff: spreading retries needs no cryptographic randomness."
+
+[[label]]
+repo = "httpx"
+fingerprint = "73a977c04d7d3845826258fff68adcae"
+rule = "valvur.python.weak-hash"
+path = "httpx/_auth.py"
+verdict = "fp"
+reason = "SHA-1 as HTTP digest authentication (RFC 7616) specifies, for the client's nonce or response."
+
+[[label]]
+repo = "starlette"
+fingerprint = "96bc8658d3a07b9bbdf7faa516b2a646"
+rule = "generic-api-key"
+path = "docs/config.md"
+verdict = "fp"
+reason = "An example secret in the configuration documentation."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "d2ff3d4aa39004f7a6a4aa6f79fa6fbf"
+rule = "generic-api-key"
+path = "docs_src/security/tutorial004_an_py310.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example signing key; the tutorial tells readers to generate their own with `openssl rand -hex 32`."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "c7139058611234870eadca837d79b482"
+rule = "generic-api-key"
+path = "docs_src/security/tutorial004_py310.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example signing key; the tutorial tells readers to generate their own with `openssl rand -hex 32`."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "79e8cb51504a7a8ee2f3f62ff914b599"
+rule = "generic-api-key"
+path = "docs_src/security/tutorial005_an_py310.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example signing key; the tutorial tells readers to generate their own with `openssl rand -hex 32`."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "687c1d7dc3b5b4011065f566da1eaa01"
+rule = "generic-api-key"
+path = "docs_src/security/tutorial005_py310.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example signing key; the tutorial tells readers to generate their own with `openssl rand -hex 32`."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "1a6a0ec0ecd91b792d9d8f754fa4f420"
+rule = "valvur.pinning.mutable-git-ref"
+path = ".github/workflows/test.yml"
+verdict = "fp"
+reason = "A CI matrix entry that tests against Starlette's main branch on purpose; nothing users install."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "8e203468b11e9bbba75fd6fa2afaffa3"
+rule = "valvur.python.path-traversal"
+path = "scripts/tests/test_translation_fixer/conftest.py"
+verdict = "fp"
+reason = "A test fixture's parameters, chosen by the test, not request data."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "1792c99edf15086c3a520b2b925bd14f"
+rule = "valvur.python.path-traversal"
+path = "scripts/tests/test_translation_fixer/conftest.py"
+verdict = "fp"
+reason = "A test fixture's parameters, chosen by the test, not request data."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "d712c3e09b383c8aff4cca88ecc5ca31"
+rule = "python_random_rule-random"
+path = "docs_src/query_params_str_validations/tutorial015_an_py310.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "f3c112ba20b507586c3661025aefd468"
+rule = "python_random_rule-random"
+path = "scripts/notify_translations.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "eec65c18d7ecdecc55cf23d8db2f9714"
+rule = "jwt"
+path = "docs/de/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "7e831810bc22a8407b6460cecef9241b"
+rule = "jwt"
+path = "docs/en/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "f9b17e4e4bd49870c48284f0f2700e3e"
+rule = "jwt"
+path = "docs/es/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "795b55b11c79d3bfa5f3ca2abf2d94f4"
+rule = "jwt"
+path = "docs/fr/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "e2c64e2a8cdfe74324de6367ed124740"
+rule = "jwt"
+path = "docs/hi/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "5ba8eb6c202dd8a0d045ec1d1f2242a3"
+rule = "jwt"
+path = "docs/ja/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "1e3575926559965b22daf447338e218d"
+rule = "jwt"
+path = "docs/ko/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "69319548f0c61c063b16ad98156e8b85"
+rule = "jwt"
+path = "docs/pt/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "58aa6d8adcd3b876261240c657b96ea5"
+rule = "jwt"
+path = "docs/ru/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "f7866ee43138d11fe59c6675449e238c"
+rule = "jwt"
+path = "docs/tr/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "663db258a16cbf9b6dc8a62cd1857aa2"
+rule = "jwt"
+path = "docs/uk/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "a6e3c5eefafa83376e603ddcff76ab3b"
+rule = "jwt"
+path = "docs/zh-hant/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "7a1d6af16bbf5a98c2ad5d356ea26a1b"
+rule = "jwt"
+path = "docs/zh/docs/tutorial/security/oauth2-jwt.md"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, shown in the documentation and signed with its published example key."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "6ddf1ca7256a25af5cb16e2c6b723a95"
+rule = "jwt"
+path = "tests/test_tutorial/test_security/test_tutorial004.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, asserted by the tutorial's own tests."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "04f6d73747f51ec22342f85236f7698c"
+rule = "jwt"
+path = "tests/test_tutorial/test_security/test_tutorial004.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, asserted by the tutorial's own tests."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "5f4f2d369c9c971355c2226b129ac365"
+rule = "jwt"
+path = "tests/test_tutorial/test_security/test_tutorial005.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, asserted by the tutorial's own tests."
+
+[[label]]
+repo = "fastapi"
+fingerprint = "7d017ecf16bec367d70f2f4b1d17ef28"
+rule = "jwt"
+path = "tests/test_tutorial/test_security/test_tutorial005.py"
+verdict = "fp"
+reason = "The OAuth2 tutorial's example token, asserted by the tutorial's own tests."
+
+[[label]]
+repo = "bottle"
+fingerprint = "e2c58759e55149a168f4991c554126ff"
+rule = "valvur.python.insecure-cookie"
+path = "test/test_environ.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "bottle"
+fingerprint = "81d46537980b3d3b7bbf6e111d05f7b8"
+rule = "valvur.python.weak-hash"
+path = "bottle.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "falcon"
+fingerprint = "3ea4fac5e22b5d7b5ea82d8ee1110273"
+rule = "python_random_rule-random"
+path = "falcon/testing/helpers.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "falcon"
+fingerprint = "c5011b1207265f7600af8fe45b46b6e5"
+rule = "valvur.python.insecure-cookie"
+path = "tests/test_cookies.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "falcon"
+fingerprint = "99e7664879c570883ac89acca00a45ce"
+rule = "valvur.python.insecure-cookie"
+path = "tests/test_cookies.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "falcon"
+fingerprint = "76d5cd78b8e16afee5b4745bcd582e19"
+rule = "valvur.python.insecure-cookie"
+path = "tests/test_cookies.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "falcon"
+fingerprint = "6f633f013ee17e3d0d79e1a1f7874f6d"
+rule = "valvur.python.insecure-cookie"
+path = "tests/test_cookies.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "sanic"
+fingerprint = "a69d6e707138917c9cc80e6973c277ad"
+rule = "curl-auth-header"
+path = "guide/content/en/guide/basics/headers.md"
+verdict = "fp"
+reason = "An example Authorization header in a curl command in the guide or release notes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "b664f2e0cd1f467fcc5653fb0e965a1e"
+rule = "curl-auth-header"
+path = "guide/content/en/guide/basics/headers.md"
+verdict = "fp"
+reason = "An example Authorization header in a curl command in the guide or release notes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "c9b899e6b4d64410d7eb8554639ebde5"
+rule = "jwt"
+path = "guide/content/en/guide/basics/headers.md"
+verdict = "fp"
+reason = "An example bearer token in a curl command in the guide."
+
+[[label]]
+repo = "sanic"
+fingerprint = "fe0d40d66de5797ebff67b98fe47bf49"
+rule = "curl-auth-header"
+path = "guide/content/en/guide/how-to/authentication.md"
+verdict = "fp"
+reason = "An example Authorization header in a curl command in the guide or release notes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "6ce81a6af3a6eeb11adc879cd267f815"
+rule = "curl-auth-header"
+path = "guide/content/en/guide/how-to/authentication.md"
+verdict = "fp"
+reason = "An example Authorization header in a curl command in the guide or release notes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "688afbe4fff2283a581533291cbf4c3e"
+rule = "curl-auth-header"
+path = "guide/content/en/guide/running/inspector.md"
+verdict = "fp"
+reason = "An example Authorization header in a curl command in the guide or release notes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "75cb5248916088ed914fe4b68096dc3d"
+rule = "curl-auth-header"
+path = "guide/content/en/release-notes/2022/v22.12.md"
+verdict = "fp"
+reason = "An example Authorization header in a curl command in the guide or release notes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "63b7f4f42747a198b4ccd0338ab9ea85"
+rule = "generic-api-key"
+path = "guide/content/en/release-notes/2022/v22.3.md"
+verdict = "fp"
+reason = "Example credentials in release notes, as a demo request prints them."
+
+[[label]]
+repo = "sanic"
+fingerprint = "852e6ee3618971e20f2b9f9069cd4e2c"
+rule = "valvur.python.open-redirect"
+path = "guide/webapp/worker/factory.py"
+verdict = "fp"
+reason = "A redirect to a URL the application builds with url_for; not request data."
+
+[[label]]
+repo = "sanic"
+fingerprint = "84a1308dd61289368c4c7ef12022a32d"
+rule = "valvur.python.open-redirect"
+path = "guide/webapp/worker/factory.py"
+verdict = "fp"
+reason = "A redirect to a URL the application builds with url_for; not request data."
+
+[[label]]
+repo = "sanic"
+fingerprint = "6bfa35e69710bc37c7fdb0e51dd46360"
+rule = "valvur.python.open-redirect"
+path = "guide/webapp/worker/factory.py"
+verdict = "fp"
+reason = "A redirect to a URL the application builds with url_for; not request data."
+
+[[label]]
+repo = "sanic"
+fingerprint = "fb4572c5c23d609ce480b3e11e2a5719"
+rule = "python_random_rule-random"
+path = "sanic/server/goodbye.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "sanic"
+fingerprint = "a300c6959458d52c9a3498b64d9d7a2c"
+rule = "python_random_rule-random"
+path = "sanic/worker/manager.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "sanic"
+fingerprint = "cca5d9b989d871b4cbd26b426211fb71"
+rule = "private-key"
+path = "tests/certs/invalid.certmissing/privkey.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "sanic"
+fingerprint = "646fd0263d97ac9a017c220d6d991759"
+rule = "private-key"
+path = "tests/certs/localhost/privkey.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "sanic"
+fingerprint = "62a4bc2664ea7a2b0bbd0fb20bc354f2"
+rule = "private-key"
+path = "tests/certs/password/privkey.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "sanic"
+fingerprint = "c81f1d7fd0fca95fa20e6a4acd08ad3d"
+rule = "private-key"
+path = "tests/certs/sanic.example/privkey.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "sanic"
+fingerprint = "1b73e681f1bb357fd768a0566a622bf1"
+rule = "generic-api-key"
+path = "tests/test_blueprint_group.py"
+verdict = "fp"
+reason = "A basic-auth or token header value the tests send."
+
+[[label]]
+repo = "sanic"
+fingerprint = "e362fa0c55f45b007d1a4af8f057ee9c"
+rule = "generic-api-key"
+path = "tests/test_requests.py"
+verdict = "fp"
+reason = "A basic-auth or token header value the tests send."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "a5ed5eba4922c990004a0aa7dcad7c1f"
+rule = "valvur.python.path-traversal"
+path = "aiohttp/web_urldispatcher.py"
+verdict = "fp"
+reason = "The static-file handler's own guard: it refuses an absolute name before resolving it under the root."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "e683b9f7da96c2b28f3d4bd637e36ae6"
+rule = "valvur.python.weak-hash"
+path = "aiohttp/client.py"
+verdict = "fp"
+reason = "SHA-1 as RFC 6455 requires for the WebSocket handshake's accept key."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "9721a5c8abfca16c6095ec08eebb59d8"
+rule = "valvur.python.weak-hash"
+path = "aiohttp/client_middleware_digest_auth.py"
+verdict = "fp"
+reason = "SHA-1 as HTTP digest authentication (RFC 7616) specifies, for the client's nonce or response."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "065e2b1bf5fc839068bd03d1de01a2d9"
+rule = "valvur.python.weak-hash"
+path = "aiohttp/web_ws.py"
+verdict = "fp"
+reason = "SHA-1 as RFC 6455 requires for the WebSocket handshake's accept key."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "54753d3dca5c530c23f8460d9cd730cd"
+rule = "generic-api-key"
+path = "examples/fake_server.py"
+verdict = "fp"
+reason = "A made-up token for the example's fake server."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "01553291cf9ab784809d6364826d0b70"
+rule = "private-key"
+path = "examples/server.key"
+verdict = "fp"
+reason = "The example server's TLS key, shipped beside the examples; it guards nothing."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "a278e1867e7832eb38d02387d4f6dd8d"
+rule = "generic-api-key"
+path = "tests/test_client_functional.py"
+verdict = "fp"
+reason = "A cookie value in a client test."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "cb39c98d721aa2e80efac1acd7eafca2"
+rule = "generic-api-key"
+path = "tests/test_web_functional.py"
+verdict = "fp"
+reason = "A Sec-WebSocket-Key in a test: the handshake's nonce, not a credential."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1ba2180ca2ac5852571ae7c0ffe6c9f9"
+rule = "generic-api-key"
+path = "tests/test_web_websocket.py"
+verdict = "fp"
+reason = "A Sec-WebSocket-Key in a test: the handshake's nonce, not a credential."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "b42829ba6212f96100b6054406770cd2"
+rule = "generic-api-key"
+path = "tests/test_web_websocket_functional.py"
+verdict = "fp"
+reason = "A Sec-WebSocket-Key in a test: the handshake's nonce, not a credential."
+
+[[label]]
+repo = "click"
+fingerprint = "cae28dcd12c6aa8578d8d7fa0f6f4ce9"
+rule = "python_random_rule-random"
+path = "src/click/_compat.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "jinja"
+fingerprint = "a9d111eb4e2a0e461b9c812be4cb8077"
+rule = "python_random_rule-random"
+path = "src/jinja2/filters.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "jinja"
+fingerprint = "d6faf3dde5196de8267e1bebcd02ff68"
+rule = "python_random_rule-random"
+path = "src/jinja2/utils.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "jinja"
+fingerprint = "031b57e8ad618e2ef12a1e5e77cc3cf8"
+rule = "python_random_rule-random"
+path = "src/jinja2/utils.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "jinja"
+fingerprint = "a44ccc9f21237f82a8d0a8659a82c2c0"
+rule = "python_random_rule-random"
+path = "src/jinja2/utils.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "jinja"
+fingerprint = "2b240bba07d0c53e6a1ee68fa4ae0226"
+rule = "python_random_rule-random"
+path = "src/jinja2/utils.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "jinja"
+fingerprint = "2a4cd7e0370eb88a8aa0295b027586c0"
+rule = "valvur.python.weak-hash"
+path = "src/jinja2/bccache.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "jinja"
+fingerprint = "71ceedcda1476661cdb2d5cb614bd98e"
+rule = "valvur.python.weak-hash"
+path = "src/jinja2/bccache.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "jinja"
+fingerprint = "ab6165fb770d20e526f1bc661d649683"
+rule = "valvur.python.weak-hash"
+path = "src/jinja2/loaders.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "bd61e8dd9c28546a858a874420ba1920"
+rule = "valvur.python.open-redirect"
+path = "examples/couchy/views.py"
+verdict = "fp"
+reason = "A redirect to a URL the application builds with url_for; not request data."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "0dfd7c9ce5eff1986412d418b8c0fc82"
+rule = "valvur.python.open-redirect"
+path = "examples/shortly/shortly.py"
+verdict = "fp"
+reason = "A redirect to a relative path the example builds itself."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "1702497ee77d43e91d07e90bbfb4364e"
+rule = "valvur.python.open-redirect"
+path = "examples/shorty/views.py"
+verdict = "fp"
+reason = "A redirect to a URL the application builds with url_for; not request data."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "c26469bd9998b876d70e409de582e277"
+rule = "python_random_rule-random"
+path = "src/werkzeug/test.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "bca8b031cc13fdcb09acd5149e3e3400"
+rule = "valvur.python.open-redirect"
+path = "tests/middleware/test_proxy_fix.py"
+verdict = "fp"
+reason = "A test of the proxy-fix middleware that redirects to a URL the test chose."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "ce01e1391fe34f22f4e73411a6fdbfb1"
+rule = "valvur.python.insecure-cookie"
+path = "tests/test_wrappers.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "werkzeug"
+fingerprint = "66fd6651a8d915e5b21dc189a7a821fd"
+rule = "valvur.python.insecure-cookie"
+path = "tests/test_wrappers.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "rich"
+fingerprint = "b8eabada396a90671bf186f22eeb21c2"
+rule = "python_random_rule-random"
+path = "rich/live.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "rich"
+fingerprint = "cb7f1e313f75b5b84de753c9803b5ae9"
+rule = "python_random_rule-random"
+path = "rich/live.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "rich"
+fingerprint = "aeba45e7c6bcafd7ebcbd7cacd5bd6ef"
+rule = "python_random_rule-random"
+path = "rich/progress.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "httpie"
+fingerprint = "0852497252f170a4cbec1c22ffd8e0ca"
+rule = "private-key"
+path = "tests/client_certs/client.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "httpie"
+fingerprint = "0f74de14b08247f2c8de9b7cfc22974b"
+rule = "private-key"
+path = "tests/client_certs/client.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "httpie"
+fingerprint = "0c00725c98cfc06a1d9cfd13fc684076"
+rule = "private-key"
+path = "tests/client_certs/password_protected/client.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "tornado"
+fingerprint = "153609af28279177222bc40177dd7831"
+rule = "javascript_eval_rule-eval-with-expression"
+path = "demos/chat/static/chat.js"
+verdict = "tp"
+reason = "The chat demo parses each server response with `eval('(' + response + ')')`; a maintainer would take JSON.parse, and readers copy demos."
+
+[[label]]
+repo = "tornado"
+fingerprint = "8e6b0bd715b45cf606f74213ffbb7554"
+rule = "javascript_eval_rule-eval-with-expression"
+path = "demos/chat/static/chat.js"
+verdict = "tp"
+reason = "The chat demo parses each server response with `eval('(' + response + ')')`; a maintainer would take JSON.parse, and readers copy demos."
+
+[[label]]
+repo = "tornado"
+fingerprint = "2426839717097d6cade19cef187fb576"
+rule = "python_random_rule-random"
+path = "maint/benchmark/benchmark.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "tornado"
+fingerprint = "884c8db900a8dade32e0afebbfc7d131"
+rule = "python_random_rule-random"
+path = "tornado/ioloop.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "tornado"
+fingerprint = "7ec9d0087ee19f6e1aaca6355be58abd"
+rule = "valvur.python.insecure-cookie"
+path = "tornado/test/web_test.py"
+verdict = "fp"
+reason = "A test that sets `secure=False` on purpose, to check how the framework writes the attribute."
+
+[[label]]
+repo = "tornado"
+fingerprint = "3f6d22ef973786cbc1cefb795bfbf06e"
+rule = "private-key"
+path = "tornado/test/test.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "tornado"
+fingerprint = "7e1704f841df253ea2fde2575b12d3f4"
+rule = "valvur.python.weak-hash"
+path = "tornado/web.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "tornado"
+fingerprint = "f122e6ed6837bd844a03a63526318318"
+rule = "valvur.python.weak-hash"
+path = "tornado/websocket.py"
+verdict = "fp"
+reason = "SHA-1 as RFC 6455 requires for the WebSocket handshake's accept key."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "5361254afb633176f2f43f0ddb2b75d9"
+rule = "valvur.dependency.near-miss"
+path = "pyproject.toml"
+verdict = "fp"
+reason = "bpython is a long-established REPL of its own, not a misspelling of ipython; scrapy offers both as shells."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "3f3d6f35c2b5f6e37915979b2fde5506"
+rule = "valvur.python.path-traversal"
+path = "scrapy/core/downloader/handlers/file.py"
+verdict = "fp"
+reason = "The file:// download handler, which reads the path a crawl was told to; reading it is its purpose."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "3062a1c67987b6bebbddc8bf92855b8a"
+rule = "valvur.python.path-traversal"
+path = "scrapy/pipelines/files.py"
+verdict = "fp"
+reason = "A file name or extension taken from a URL's last part, under a directory the pipeline chooses."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "e9d7e7638e3cb89ce4c1d5ebc3a07d4c"
+rule = "valvur.python.path-traversal"
+path = "tests/test_pipeline_files.py"
+verdict = "fp"
+reason = "A file name or extension taken from a URL's last part, under a directory the pipeline chooses."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "bd0f407ad08fbb128da75a31b42f611a"
+rule = "python_random_rule-random"
+path = "scrapy/core/downloader/__init__.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "d2f72f012e44f39082e7ab798ebe6012"
+rule = "python_random_rule-random"
+path = "scrapy/utils/_benchserver.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "a8d58ea31c4bd8560149817bee927b88"
+rule = "valvur.python.weak-hash"
+path = "scrapy/pipelines/files.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "10c5c245fdcc3bc760c710ac99560c00"
+rule = "valvur.python.weak-hash"
+path = "scrapy/pipelines/files.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "890422b3447d90a8e5f64352bdb2c0cd"
+rule = "valvur.python.weak-hash"
+path = "scrapy/pipelines/images.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "8567a33255df6fa8b9f407f1e258d010"
+rule = "valvur.python.weak-hash"
+path = "scrapy/pipelines/images.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "a6138085996fd20d7188a62c406beca0"
+rule = "valvur.python.weak-hash"
+path = "scrapy/pqueues.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "7b28e2cbfe1b29935c9c66ee953fd8da"
+rule = "valvur.python.weak-hash"
+path = "scrapy/utils/request.py"
+verdict = "fp"
+reason = "A hash used as a cache key, file name, ETag or slot id; nothing depends on it resisting collisions."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "b70969c865906d8ad0ca01a5a4a43cca"
+rule = "private-key"
+path = "tests/keys/example-com.key.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "300dc2bf03d58f4e8fdfe2cfcf9a1151"
+rule = "private-key"
+path = "tests/keys/localhost.ip.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "0f22099531999dba328d6862e3ca5a63"
+rule = "private-key"
+path = "tests/keys/mitmproxy-ca.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "scrapy"
+fingerprint = "db44bf41e89d07b4d4d4549829bb32c5"
+rule = "generic-api-key"
+path = "tests/test_downloader_handlers.py"
+verdict = "fp"
+reason = "Placeholder AWS keys the S3 download handler's tests pass; never issued."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "e50420f57e5157c295d7879442429e4e"
+rule = "javascript_eval_rule-eval-with-expression"
+path = "mkdocs/themes/readthedocs/js/html5shiv.min.js"
+verdict = "fp"
+reason = "A minified, vendored html5shiv for old browsers, in a theme; not the project's code."
+
+[[label]]
+repo = "typer"
+fingerprint = "bc21b36ae9554de32aeb2421c0fe2fb0"
+rule = "python_random_rule-random"
+path = "docs_src/arguments/default/tutorial002_an_py310.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "typer"
+fingerprint = "0753ec3f984ca52d7cbd9905ba323362"
+rule = "python_random_rule-random"
+path = "docs_src/arguments/default/tutorial002_py310.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "typer"
+fingerprint = "1ee68b82530243c755cd7aa518d28cd7"
+rule = "python_random_rule-random"
+path = "typer/_click/_compat.py"
+verdict = "fp"
+reason = "`random` for something no one needs to be unpredictable: jitter, a port, a temporary name, sample text or a demo's pick."
+
+[[label]]
+repo = "litestar"
+fingerprint = "c51b5098fcdd04c3cbeea18936d22618"
+rule = "valvur.pinning.mutable-git-ref"
+path = "pyproject.toml"
+verdict = "tp"
+reason = "The `sqlalchemy` extra resolves to whatever advanced-alchemy's main branch holds for anyone installing it; a maintainer pins it to a release."
+
+[[label]]
+repo = "litestar"
+fingerprint = "221215357bd0f94354a81a86e10dce32"
+rule = "generic-api-key"
+path = "tests/unit/test_plugins/test_pydantic/test_integration.py"
+verdict = "fp"
+reason = "Test data for pydantic's SecretStr and SecretBytes serialisation."
+
+[[label]]
+repo = "litestar"
+fingerprint = "0946b225f715d0ccfa87c6bb689f3298"
+rule = "generic-api-key"
+path = "tests/unit/test_plugins/test_pydantic/test_plugin_serialization.py"
+verdict = "fp"
+reason = "Test data for pydantic's SecretStr and SecretBytes serialisation."
+
+[[label]]
+repo = "litestar"
+fingerprint = "96651836cd8f7eae3abcef4f0086bea3"
+rule = "generic-api-key"
+path = "tests/unit/test_plugins/test_pydantic/test_plugin_serialization.py"
+verdict = "fp"
+reason = "Test data for pydantic's SecretStr and SecretBytes serialisation."
+
+[[label]]
+repo = "itsdangerous"
+fingerprint = "8fa1161d32af9d2a969319f884a059b0"
+rule = "valvur.python.weak-hash"
+path = "src/itsdangerous/signer.py"
+verdict = "fp"
+reason = "The default digest of an HMAC signer: HMAC-SHA1 is not broken by SHA-1's collisions, and the digest is configurable."
+
+[[label]]
+repo = "hapi"
+fingerprint = "7c44a36a141caefd8eab2c1ea208a92c"
+rule = "private-key"
+path = "test/core.js"
+verdict = "fp"
+reason = "A TLS key written inline in a test, for the test server it starts; it guards nothing."
+
+[[label]]
+repo = "hapi"
+fingerprint = "bd7c33b296ecd372f00762970d6a70ef"
+rule = "private-key"
+path = "test/transmit.js"
+verdict = "fp"
+reason = "A TLS key written inline in a test, for the test server it starts; it guards nothing."
+
+[[label]]
+repo = "axios"
+fingerprint = "8a2c1bee8783a0130e238a0fc873ab22"
+rule = "private-key"
+path = "tests/unit/adapters/key.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "957fb117edb6e81703c5bf38e2f03a5a"
+rule = "generic-api-key"
+path = "examples/nestjs-example/README.md"
+verdict = "fp"
+reason = "A placeholder token in a badge URL in an example's README."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "1cd841b1af272471981be4ff947d6219"
+rule = "private-key"
+path = "packages/engine.io/test/fixtures/ca.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "5a24644029ff5e223d9b23946bde18ab"
+rule = "private-key"
+path = "packages/engine.io/test/fixtures/client.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "b158b3206392a7d146e3e63ffb73417b"
+rule = "pkcs12-file"
+path = "packages/engine.io/test/fixtures/client.pfx"
+verdict = "fp"
+reason = "A client certificate bundle among the TLS test fixtures; it guards nothing."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "e0d85d0a1114a0987c5f32e633e23b87"
+rule = "private-key"
+path = "packages/engine.io/test/fixtures/server.key"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "5cdd2616c82d607fb4d5996cacf65de6"
+rule = "generic-api-key"
+path = "packages/engine.io/test/server.js"
+verdict = "fp"
+reason = "A Sec-WebSocket-Key in a test: the handshake's nonce, not a credential."
+
+[[label]]
+repo = "ws"
+fingerprint = "a88b666ad2d555e4fdf5569dfc1d5449"
+rule = "private-key"
+path = "test/fixtures/ca-key.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "ws"
+fingerprint = "312973e9ec1e015d29d8cdc2c20893af"
+rule = "private-key"
+path = "test/fixtures/client-key.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "ws"
+fingerprint = "77bf69e95548b2dd648b1932ce354101"
+rule = "private-key"
+path = "test/fixtures/key.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+[[label]]
+repo = "ws"
+fingerprint = "ad66cb111a61b6ea10ef499b38ee2425"
+rule = "generic-api-key"
+path = "test/websocket-server.test.js"
+verdict = "fp"
+reason = "A Sec-WebSocket-Key in a test: the handshake's nonce, not a credential."
+
+[[label]]
+repo = "got"
+fingerprint = "a9c619116a804075ceb29992823efb03"
+rule = "valvur.javascript.ssrf"
+path = "source/core/utils/http2-client.ts"
+verdict = "fp"
+reason = "An HTTP client library sending the request its caller asked for; fetching a caller's URL is its purpose."
+
+[[label]]
+repo = "node-fetch"
+fingerprint = "34511db94f8b1690100ffbd542014987"
+rule = "valvur.javascript.ssrf"
+path = "src/index.js"
+verdict = "fp"
+reason = "An HTTP client library sending the request its caller asked for; fetching a caller's URL is its purpose."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "fee40f137c95e107160d4803e6dd5b86"
+rule = "private-key"
+path = "test/dsa-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "39b25f31c31e938cac04d56d252961f8"
+rule = "private-key"
+path = "test/ecdsa-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "4c0e6cb563bad596265779aafd906423"
+rule = "jwt"
+path = "test/invalid_exp.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "f9bdd31a23c7a68a499e4307e1929380"
+rule = "jwt"
+path = "test/invalid_exp.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "b2011068d2f05f0a1ae7cee17e6d924e"
+rule = "jwt"
+path = "test/invalid_exp.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "58570e495956659fc7742938b10043a3"
+rule = "jwt"
+path = "test/invalid_exp.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "8c13f7ddd7afd50749dce808b3508755"
+rule = "jwt"
+path = "test/invalid_exp.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "645ce7748a58438c6673588b36241ddf"
+rule = "jwt"
+path = "test/jwt.malicious.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "b59d2af7128b95d9f9bc0d9ed66dc16f"
+rule = "private-key"
+path = "test/prime256v1-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "a76b2bfe7dd566340f9e896695f4a00f"
+rule = "private-key"
+path = "test/priv.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "cbed05d57685deb411bc9711f56517f8"
+rule = "private-key"
+path = "test/rsa-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "4bd33cb2fdda477da2923322a757d2b2"
+rule = "private-key"
+path = "test/rsa-pss-invalid-salt-length-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "8197161ac76ce1cb2b4ea622636e4611"
+rule = "private-key"
+path = "test/rsa-pss-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "e22ee92a842d615b9b229188de8096c2"
+rule = "private-key"
+path = "test/secp384r1-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "936bd9b36e47c2ca4ad57881b6f4e053"
+rule = "private-key"
+path = "test/secp521r1-private.pem"
+verdict = "fp"
+reason = "A key pair the JWT tests sign and verify with; generated for the suite and guarding nothing."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "27ad14a5d8ccf1329fbde9c802632231"
+rule = "jwt"
+path = "test/verify.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "b7bb2b64760fa84a559f4385d8689427"
+rule = "jwt"
+path = "test/verify.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "32bffcfc98ca28ee44edc3685779847d"
+rule = "jwt"
+path = "test/verify.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "f2ce25b2d24915eebf0fbf2fdd04d11c"
+rule = "jwt"
+path = "test/verify.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "b980abf7f9200fad50b8e1a1bd165663"
+rule = "jwt"
+path = "test/wrong_alg.tests.js"
+verdict = "fp"
+reason = "A token the tests build to be expired, malformed or wrongly signed: the library's own test data."
+
+[[label]]
+repo = "undici"
+fingerprint = "a4f61d4853ed7e325f2f1ce3f1e01205"
+rule = "private-key"
+path = "test/fixtures/key.pem"
+verdict = "fp"
+reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."

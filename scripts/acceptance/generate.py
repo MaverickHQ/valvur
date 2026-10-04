@@ -25,7 +25,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 BROKEN = REPO / "tests" / "fixtures" / "broken-repo"
-CORPUS_CHECKOUTS = REPO / "tests" / "corpus" / ".checkouts"
+#: The corpus's checkouts, where `scripts/corpus.py` fetches them (D65a).
+CORPUS_CHECKOUTS = Path(os.environ.get("VALVUR_CORPUS", "").strip()
+                        or Path.home() / ".cache" / "valvur-build" / "corpus")
 sys.path.insert(0, str(REPO / "scripts"))
 import fixtures  # noqa: E402 — the helper beside the scripts, standard library alone (R27.2)
 

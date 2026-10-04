@@ -1,6 +1,6 @@
 """Track 8 of the Score: precision on real code (ADR-0026, D21).
 
-The corpus's thirteen projects are real and maintained, so most of what is found on
+The corpus's projects (forty-eight since R29.2) are real and maintained, so most of what is found on
 them is not a vulnerability. Every active finding of a rule valvur owns, and of
 Gitleaks, whose noise users meet first, carries a label in
 `tests/eval/labels/corpus.toml`: `tp` when a maintainer would act on it (change

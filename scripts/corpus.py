@@ -8,7 +8,8 @@
                                                     # (task 23.4.5), from two reports
 
 `tests/corpus/corpus.toml` is the corpus: pinned commits and expectations. The bytes
-live in `tests/corpus/.checkouts/`, ignored by git and by the self-scan. `run` writes
+live in the build cache, `~/.cache/valvur-build/corpus/` or `VALVUR_CORPUS`, never in
+the tree (D65a). `run` writes
 `tests/corpus/report.json` and prints a table; it exits non-zero when any of the four
 19.F.5 conditions fails on any repository, and names which.
 
@@ -22,6 +23,7 @@ Checks accusing a real project of something a reviewer would laugh at.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -32,7 +34,16 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 CORPUS = REPO / "tests" / "corpus"
 MANIFEST = CORPUS / "corpus.toml"
-CHECKOUTS = CORPUS / ".checkouts"
+
+
+def checkouts() -> Path:
+    """Where the checkouts live: `VALVUR_CORPUS`, else the build cache (D65a), so
+    forty projects of someone else's code are never in the tree or its scans."""
+    named = os.environ.get("VALVUR_CORPUS", "").strip()
+    return Path(named) if named else Path.home() / ".cache" / "valvur-build" / "corpus"
+
+
+CHECKOUTS = checkouts()
 REPORT = CORPUS / "report.json"
 
 #: Findings from valvur's own Checks that, on a maintained real project, are far

@@ -1916,12 +1916,44 @@ weekend run; CI green.
   - **Mutation score:** CI's run on R38's diff (#202's *each hunk reverted* job) caught
     31 of 37 code hunks, **83.8%**. The 6 that survived are in `adapters/gitleaks.py`,
     `adapters/osv.py`, `artifacts.py`, `findings.py`, `fleet.py` and `summary.py`.
-- [ ] **R29.2** **A wider corpus** (D65a). Behaviours:
+- [x] **R29.2** **A wider corpus** (D65a). Behaviours:
   1. at least 40 projects, each pinned with its licence and size, and a test holds every
      entry's fields;
   2. `scripts/corpus.py` fetches them into the build cache;
   3. every active finding is labelled with a reason, and an unlabelled one fails the track;
   4. §8 lists the owner's tenth to audit.
+
+  STATUS (2026-10-04):
+  - **48 projects:** 22 Python, 19 JavaScript or TypeScript, and the 7 others the corpus
+    held. Each entry now has a `language` and a `size_mb` (0.1 to 41.6 MB, `.git`
+    excluded). Each licence was read from the project's own file and is permissive:
+    MIT, Apache-2.0, BSD-2 or BSD-3-Clause, ISC, Unlicense or CC0. The new 35 are pinned
+    at their default branch's head on 2026-10-04, fetched from github.com as the corpus
+    always was. `tests/test_corpus_manifest.py` holds every entry's fields, the
+    proportion, and the location.
+  - **The checkouts** are in the build cache, `~/.cache/valvur-build/corpus/` or
+    `VALVUR_CORPUS`, no longer in the tree. The 13 already fetched were moved there.
+  - **The wider corpus found five of valvur's own defects**, each fixed test-first rather
+    than labelled:
+    1. A project that tracks a symbolic link was refused as a partial Snapshot. aiohttp
+       arrived as 560 of 578; the engine counted regular files alone.
+    2. npm aliases were reported as hallucinated (hapi, socket.io).
+    3. Licences were misread: a lowercase `license` (got), an `AND` expression
+       (aiohttp), and two-clause BSD read as three (MkDocs).
+    4. RegExp's `.exec` was read as a shell command (hapi, undici).
+  - **Labels:** 155 new, read against the code at each: 152 `fp`, 3 `tp`. The `tp` are
+    tornado's chat demo parsing responses with `eval`, twice, and litestar's
+    `sqlalchemy` extra resolving to a git `main`. Of the corpus's 172 labels, none is
+    unmatched at this head. An unlabelled finding already fails the track
+    (`eval.py`'s gate, R9.5). scrapy's `bpython` near-miss is labelled and accepted in
+    the manifest, by rule, with its reason, so the weekly corpus run's condition 4
+    holds.
+  - **Track 8 re-judged** on the 48: **2.3** (3 true, 168 false), against 5.9 on 13. R29.6
+    re-bases it. In passing: the fastapi `docs_src/` tutorials and sanic's `guide/`
+    rank their example secrets critical. Neither directory is a docs path class (R20),
+    which is recorded in `docs/acceptance/r29.md` and not changed here.
+  - **The audit:** `scripts/audit_sample.py` draws 18 of the 172 with a fixed seed, and
+    §8 names it.
 - [ ] **R29.3** **Each rule's precision, published** (D65b). Behaviours:
   1. `docs/RULES.md` is generated, and a test holds it current;
   2. a rule under the bar is demoted to the inventory, with the reason recorded;
@@ -2143,7 +2175,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |
 | close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
-| audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
+| audit a tenth of the corpus's labels (D65a) | R29.2 | `python3 scripts/audit_sample.py` lists the 18 of 172 labels, drawn with a fixed seed; read each finding and its label in `tests/eval/labels/corpus.toml`. A disagreement changes the label, with the change in its reason |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
 | R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
 | how valvur treats a project's `osv-scanner.toml` (R27.2) | decided 2026-10-04 | D77: no project ignore hides a finding silently; built by R38 |

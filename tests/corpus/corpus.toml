@@ -1,10 +1,11 @@
-# The public corpus (task 22.E.1): thirteen real repositories, pinned, scanned weekly.
+# The public corpus (task 22.E.1; widened to 48 by R29.2, D65a): real repositories,
+# pinned, scanned weekly.
 #
 # The local corpus found three false positives in an hour — two introduced by the
 # block before, with every test green — and was then deleted because it held private
 # repositories and a live credential. This is its public replacement. Everything here
 # is permissively licensed, fetched at the pinned commit by `scripts/corpus.py fetch`
-# into `tests/corpus/.checkouts/` (ignored by git and by the self-scan), and judged by
+# into the build cache (`~/.cache/valvur-build/corpus/`, or `VALVUR_CORPUS`), and judged by
 # `scripts/corpus.py run` against the 19.F.5 conditions:
 #
 #   1. no Scanner failed                      (`complete` is true)
@@ -19,93 +20,121 @@
 #                                              a reviewer agreed and wrote it down here)
 #
 # Pinned by commit, not branch, so a run is reproducible and a failure is ours. Bump a
-# pin deliberately, and say what changed. The bytes are not committed: thirteen real
-# projects are tens of megabytes of someone else's code in our history forever, and
+# pin deliberately, and say what changed. The bytes are not committed: forty-eight real
+# projects are hundreds of megabytes of someone else's code in our history forever, and
 # every self-scan would have to exclude them. The pins and the expectations are the
 # corpus; the bytes follow from the pins.
+#
+# Since R29.2 (D65a) each entry also says its `language` and its `size_mb`, the checkout
+# without `.git`. The `licence` is read from the checkout's own licence file, and only a
+# permissive one is taken; a checkout over 50 MB is too much for one track's runtime.
 
 [[repo]]
 name = "requests"
 url = "https://github.com/psf/requests"
 commit = "dae7ef63b4df6eded86637f251fc4e3a06c3b479"
+language = "python"
 licence = "Apache-2.0"
+size_mb = 4.8
 why = "Python: setup.py, requirements-dev.txt, pyproject.toml; the most-installed package there is"
 
 [[repo]]
 name = "flask"
 url = "https://github.com/pallets/flask"
 commit = "d73fa1cdcbd8b1465c151db8924ba58b1dd14e35"
+language = "python"
 licence = "BSD-3-Clause"
+size_mb = 3.1
 why = "Python: PEP 621 pyproject with optional-dependencies, a docs tree, GitHub workflows"
 
 [[repo]]
 name = "llm"
 url = "https://github.com/simonw/llm"
 commit = "1df47ddcac20d58726a993949da8ef84f4081085"
+language = "python"
 licence = "Apache-2.0"
+size_mb = 2.3
 why = "Python and an AI tool: pyproject, AGENTS.md — an agent file on a maintained project"
 
 [[repo]]
 name = "express"
 url = "https://github.com/expressjs/express"
 commit = "53d4a0d606c0388f764f192b306ce0e90200e7e8"
+language = "javascript"
 licence = "MIT"
+size_mb = 1.6
 why = "npm: package.json with many dependencies, plain JavaScript"
 
 [[repo]]
 name = "fastify"
 url = "https://github.com/fastify/fastify"
 commit = "d266f833f2bff34c6115c026e461b682e94d0b9c"
+language = "javascript"
 licence = "MIT"
+size_mb = 4.0
 why = "npm: TypeScript, many devDependencies, and no lockfile committed — the Express case again"
 
 [[repo]]
 name = "cobra"
 url = "https://github.com/spf13/cobra"
 commit = "adbc8813901bba65827259daa8e22ff94ec1f30e"
+language = "go"
 licence = "Apache-2.0"
+size_mb = 1.0
 why = "Go: go.mod with direct and indirect requires — existence on full only (22.A.4)"
 
 [[repo]]
 name = "gson"
 url = "https://github.com/google/gson"
 commit = "ed99017a3b7ff41a08b96f3b972e7599743abe99"
+language = "java"
 licence = "Apache-2.0"
+size_mb = 3.6
 why = "JVM: a Maven reactor with a parent pom and modules — existence on full only (22.A.4)"
 
 [[repo]]
 name = "ripgrep"
 url = "https://github.com/BurntSushi/ripgrep"
 commit = "3fce3b5bb0236da2df6d99672afb8a719642eca7"
+language = "rust"
 licence = "Unlicense"
+size_mb = 4.2
 why = "Rust: a Cargo workspace with many members and path dependencies — existence offline since 23.2.3, and every member must be recognised as local"
 
 [[repo]]
 name = "terraform-aws-vpc"
 url = "https://github.com/terraform-aws-modules/terraform-aws-vpc"
 commit = "cf0e3ca46fd51f47bf095957f2a6ac6127c89045"
+language = "terraform"
 licence = "Apache-2.0"
+size_mb = 5.0
 why = "Infrastructure: Terraform throughout, so Checkov runs and has plenty to say"
 
 [[repo]]
 name = "sinatra"
 url = "https://github.com/sinatra/sinatra"
 commit = "cb22afd7902b566b6eaba6c4ea89739494a65d12"
+language = "ruby"
 licence = "MIT"
+size_mb = 2.0
 why = "Ruby: a Gemfile with git: and github: sources, groups, and gemspecs — existence offline since 23.2.2"
 
 [[repo]]
 name = "monolog"
 url = "https://github.com/Seldaek/monolog"
 commit = "2dc40e8f3b76a0b657e0a25c932dc6edef215891"
+language = "php"
 licence = "MIT"
+size_mb = 2.5
 why = "PHP: composer.json with require, require-dev, platform packages and a lockfile — existence offline since 23.2.2"
 
 [[repo]]
 name = "awesome-cursorrules"
 url = "https://github.com/PatrickJS/awesome-cursorrules"
 commit = "b044f956f021b6e8877f16781bcfc466a6a120e9"
+language = "markdown"
 licence = "CC0-1.0"
+size_mb = 3.3
 why = "Hundreds of real .cursorrules files: the AI Artifact Check's false-positive test"
 # Real instruction files legitimately contain phrases like "ignore previous
 # instructions" when they are ABOUT prompt injection. Anything the Check reports here
@@ -116,5 +145,328 @@ why = "Hundreds of real .cursorrules files: the AI Artifact Check's false-positi
 name = "smolagents"
 url = "https://github.com/huggingface/smolagents"
 commit = "30bb1161095dbae2271e6bc3cc4c219cc3897a57"
+language = "python"
 licence = "Apache-2.0"
+size_mb = 4.7
 why = "Python, Apache-2.0: an agent framework that EXECUTES model-generated tool code (`exec` in tools.py) — the repository the corpus lacked for F3.10. The flow crosses a class boundary, so the taint rules do not see it and the INFO sink inventory does; that limit is measured here weekly (task 23.5.3)"
+
+# R29.2 (D65a): twenty-seven or more projects more, in the languages valvur's own rules
+# cover, each with its licence read from its own checkout and its size measured.
+
+[[repo]]
+name = "httpx"
+url = "https://github.com/encode/httpx"
+commit = "b5addb64f0161ff6bfe94c124ef76f6a1fba5254"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 3.5
+why = "An HTTP client: URLs, redirects and TLS from callers' input"
+
+[[repo]]
+name = "starlette"
+url = "https://github.com/encode/starlette"
+commit = "7cb2f09c1858ea1400afbd355a900ce14d720533"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 4.3
+why = "An ASGI framework: routing, sessions, static files and responses built from requests"
+
+[[repo]]
+name = "fastapi"
+url = "https://github.com/fastapi/fastapi"
+commit = "5f9fc5c59a9bb54608aa35376715f3ba9708188e"
+language = "python"
+licence = "MIT"
+size_mb = 42.0
+why = "The most-used new Python web framework, and its tutorial code, which users copy"
+
+[[repo]]
+name = "bottle"
+url = "https://github.com/bottlepy/bottle"
+commit = "cbd569c447b3fd53f194cef9a306146ce6a07a59"
+language = "python"
+licence = "MIT"
+size_mb = 3.4
+why = "A one-file web framework: templates, cookies, static files and redirects"
+
+[[repo]]
+name = "falcon"
+url = "https://github.com/falconry/falcon"
+commit = "0fd2cbeea520f74f91bc020640c7fb2bd04d8ba2"
+language = "python"
+licence = "Apache-2.0"
+size_mb = 5.4
+why = "A REST framework: request parsing, media handlers and routing"
+
+[[repo]]
+name = "sanic"
+url = "https://github.com/sanic-org/sanic"
+commit = "5ffc7b3710838eaf016d2f9612a86a08626915e5"
+language = "python"
+licence = "MIT"
+size_mb = 9.1
+why = "An async web server and framework: cookies, static files, workers"
+
+[[repo]]
+name = "aiohttp"
+url = "https://github.com/aio-libs/aiohttp"
+commit = "b1f6c87b2bd3bd80f2b6c22ff46e11d00921e412"
+language = "python"
+licence = "Apache-2.0"
+size_mb = 6.8
+why = "An async HTTP client and server: both sides of request handling"
+
+[[repo]]
+name = "click"
+url = "https://github.com/pallets/click"
+commit = "06b2a678741131fd577ce170e23e5ca0aeba0309"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 2.2
+why = "A CLI library: shells out, opens files and editors from arguments"
+
+[[repo]]
+name = "jinja"
+url = "https://github.com/pallets/jinja"
+commit = "5ef70112a1ff19c05324ff889dd30405b1002044"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 1.4
+why = "A template engine: autoescaping, sandboxing and code generation"
+
+[[repo]]
+name = "werkzeug"
+url = "https://github.com/pallets/werkzeug"
+commit = "594452f6a4fe4de38a544962fbf04bfc9d37fbc2"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 3.2
+why = "A WSGI toolkit: cookies, redirects, file uploads, a debugger that evaluates code"
+
+[[repo]]
+name = "rich"
+url = "https://github.com/Textualize/rich"
+commit = "9d8f9a372cc5916fd4781fec207ced7ddac2f08f"
+language = "python"
+licence = "MIT"
+size_mb = 20.0
+why = "A terminal library with no web surface: what the rules should leave alone"
+
+[[repo]]
+name = "httpie"
+url = "https://github.com/httpie/cli"
+commit = "5b604c37c6c67e18e7c3e9aee6c88a8c22b98345"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 2.9
+why = "An HTTP CLI: sessions, credentials and downloads from user input"
+
+[[repo]]
+name = "tornado"
+url = "https://github.com/tornadoweb/tornado"
+commit = "566c605e7faec6d5ff7d22a4c8dd4fd437557d7e"
+language = "python"
+licence = "Apache-2.0"
+size_mb = 3.2
+why = "A web framework and server: secure cookies, XSRF, templates, redirects"
+
+[[repo]]
+name = "scrapy"
+url = "https://github.com/scrapy/scrapy"
+commit = "fc9a59c43f3b9b7f0212a233617912407e0ae8c0"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 7.3
+why = "A crawler: fetches URLs, parses XML and HTML, writes files"
+# bpython is a REPL of its own, offered beside ipython as a shell; the near-miss Check
+# reads the pair as a typo. Reviewed 2026-10-04 (R29.2).
+expect.accept = { "valvur.dependency.near-miss" = "bpython is its own long-established project, not a misspelling of ipython" }
+
+[[repo]]
+name = "mkdocs"
+url = "https://github.com/mkdocs/mkdocs"
+commit = "2862536793b3c67d9d83c33e0dd6d50a791928f8"
+language = "python"
+licence = "BSD-2-Clause"
+size_mb = 8.4
+why = "A static site generator: paths, templates and a development server"
+
+[[repo]]
+name = "typer"
+url = "https://github.com/fastapi/typer"
+commit = "a80f6e5ecd74f32b983cca336a2f3cba98d9853a"
+language = "python"
+licence = "MIT"
+size_mb = 4.5
+why = "A CLI library built on click, with many tutorial programs"
+
+[[repo]]
+name = "litestar"
+url = "https://github.com/litestar-org/litestar"
+commit = "f8a06ef942d9b92f4abc8db0287e56cc5538cc0b"
+language = "python"
+licence = "MIT"
+size_mb = 12.3
+why = "An ASGI framework: sessions, CSRF, static files, templates, uploads"
+
+[[repo]]
+name = "itsdangerous"
+url = "https://github.com/pallets/itsdangerous"
+commit = "672971d66a2ef9f85151e53283113f33d642dabd"
+language = "python"
+licence = "BSD-3-Clause"
+size_mb = 0.4
+why = "Signing and serialisation: keys, digests and timestamps"
+
+[[repo]]
+name = "koa"
+url = "https://github.com/koajs/koa"
+commit = "824c1cf8de9a91a2941973b25dc8a3d3029b9e4f"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.9
+why = "A web framework: context, cookies, redirects"
+
+[[repo]]
+name = "hapi"
+url = "https://github.com/hapijs/hapi"
+commit = "b90c41b9006143421dc715c01d86e6f4933af1e4"
+language = "javascript"
+licence = "BSD-3-Clause"
+size_mb = 1.8
+why = "A web framework: routes, payload parsing, state cookies"
+
+[[repo]]
+name = "axios"
+url = "https://github.com/axios/axios"
+commit = "e1a8a57519d1b896c2a795d0ec0138fe24a77a33"
+language = "javascript"
+licence = "MIT"
+size_mb = 5.7
+why = "The most-used HTTP client in JavaScript: URLs from callers, both browser and Node"
+
+[[repo]]
+name = "socket.io"
+url = "https://github.com/socketio/socket.io"
+commit = "1eaa582d3b453e3e6f522300ed05b10da0a0799b"
+language = "typescript"
+licence = "MIT"
+size_mb = 21.7
+why = "A realtime server and client: handshakes, CORS, payloads"
+
+[[repo]]
+name = "ws"
+url = "https://github.com/websockets/ws"
+commit = "297202cdae9b0590629821373b3b679c407f3431"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.7
+why = "A WebSocket server and client: upgrade handling and frames"
+
+[[repo]]
+name = "got"
+url = "https://github.com/sindresorhus/got"
+commit = "e1d87d2ced01d5b7d855a7dc8b091bf7b014a1e4"
+language = "typescript"
+licence = "MIT"
+size_mb = 2.5
+why = "An HTTP client: redirects, retries and streams"
+
+[[repo]]
+name = "multer"
+url = "https://github.com/expressjs/multer"
+commit = "35979e5afbb814bdb4b750ce028b125eb84c53af"
+language = "javascript"
+licence = "MIT"
+size_mb = 2.8
+why = "Express's upload middleware: file names and paths from requests"
+
+[[repo]]
+name = "passport"
+url = "https://github.com/jaredhanson/passport"
+commit = "217018dbc46dcd4118dd6f2c60c8d97010c587f8"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.9
+why = "Authentication middleware: sessions, redirects, strategies"
+
+[[repo]]
+name = "helmet"
+url = "https://github.com/helmetjs/helmet"
+commit = "876101e394f4936cdd1304a2e37b2509d52ed5c7"
+language = "typescript"
+licence = "MIT"
+size_mb = 0.9
+why = "Security headers middleware: what a rule should never flag"
+
+[[repo]]
+name = "commander"
+url = "https://github.com/tj/commander.js"
+commit = "ba6d13ddb4243e5913367734f8c159089ffe7834"
+language = "javascript"
+licence = "MIT"
+size_mb = 1.6
+why = "A CLI library: spawns subcommands from arguments"
+
+[[repo]]
+name = "yargs"
+url = "https://github.com/yargs/yargs"
+commit = "0267d4302565bc63d9777789b46185674d8056d1"
+language = "javascript"
+licence = "MIT"
+size_mb = 1.9
+why = "A CLI library: argument parsing, completion scripts, files"
+
+[[repo]]
+name = "node-fetch"
+url = "https://github.com/node-fetch/node-fetch"
+commit = "8b3320d2a7c07bce4afc6b2bf6c3bbddda85b01f"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.5
+why = "fetch for Node: URLs, redirects, bodies"
+
+[[repo]]
+name = "jsonwebtoken"
+url = "https://github.com/auth0/node-jsonwebtoken"
+commit = "b924272f29192e12926b5414546f7c5bfcc9579d"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.5
+why = "JWT signing and verification: keys and algorithms in tests"
+
+[[repo]]
+name = "json-server"
+url = "https://github.com/typicode/json-server"
+commit = "89a34a44b7a6a5311dc84f3b8a1b8b45c0905aea"
+language = "typescript"
+licence = "MIT"
+size_mb = 0.2
+why = "A REST server over a JSON file: routes and writes from requests"
+
+[[repo]]
+name = "body-parser"
+url = "https://github.com/expressjs/body-parser"
+commit = "822a0fd4625b85653f070033e46b2d5d18e642a1"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.3
+why = "Express's body parsing: JSON, URL-encoded and raw payloads"
+
+[[repo]]
+name = "express-session"
+url = "https://github.com/expressjs/session"
+commit = "96ebea4b6cd805584fba04523773b1b918a836d7"
+language = "javascript"
+licence = "MIT"
+size_mb = 0.3
+why = "Express's sessions: cookies, secrets and stores"
+
+[[repo]]
+name = "undici"
+url = "https://github.com/nodejs/undici"
+commit = "eedbe2da11079ea1ca7d97b05cc76524ec37a21a"
+language = "javascript"
+licence = "MIT"
+size_mb = 10.4
+why = "Node's own HTTP client: connections, proxies, fetch"
