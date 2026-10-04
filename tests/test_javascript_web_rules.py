@@ -89,3 +89,32 @@ def test_each_rule_reports_its_vulnerable_twin_and_not_its_safe_one(mountable_tm
         paths = sorted(f.path for f in run.findings if f.rule == rule)
         assert paths == [f"vulnerable_{index}.js"], (rule, paths)
         assert all(f.cwe for f in run.findings if f.rule == rule), rule
+
+
+@pytest.mark.e2e
+def test_a_regular_expression_s_exec_is_not_a_shell(mountable_tmp):
+    """Found by R29.2's wider corpus: hapi and undici parse a request header with
+    `/re/.exec(...)`, `RegExp.prototype.exec`, and the command-injection rule's
+    `$CP.exec` read it as child_process's. A regex is never a shell."""
+    from valvur import api
+    from valvur.adapters import OpengrepAdapter
+    from valvur.engine_host import ContainerRuntime
+
+    ws = mountable_tmp / "ws"
+    ws.mkdir()
+    (ws / "range.js").write_text('''\
+const pattern = /bytes=(\\d+)-/;
+module.exports = (app) => app.get('/file', (req, res) => {
+  const start = Number(/bytes=(\\d+)-/.exec(req.headers.range)[1]);
+  const again = pattern.exec(req.headers.range);
+  res.json({ start, again });
+});
+''')
+    (ws / "shell.js").write_text(TWINS["valvur.javascript.command-injection"][0])
+
+    run = api.scan(ws, runner=ContainerRuntime(), adapters=[OpengrepAdapter()],
+                   profile="offline")
+
+    found = sorted(f.path for f in run.findings
+                   if f.rule == "valvur.javascript.command-injection")
+    assert found == ["shell.js"]

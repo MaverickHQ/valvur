@@ -53,8 +53,14 @@ rules:
           - pattern-either:
               - pattern: exec($CMD, ...)
               - pattern: execSync($CMD, ...)
-              - pattern: $CP.exec($CMD, ...)
               - pattern: $CP.execSync($CMD, ...)
+              # `.exec` is also RegExp's (R29.2: hapi and undici parse request headers
+              # with `/re/.exec`), so a member call counts only on child_process.
+              - patterns:
+                  - pattern: $CP.exec($CMD, ...)
+                  - metavariable-regex:
+                      metavariable: $CP
+                      regex: (?i)^(child_?process|cp|require\(\s*['"](node:)?child_process['"]\s*\))$
           - focus-metavariable: $CMD
 
   - id: valvur.javascript.path-traversal
