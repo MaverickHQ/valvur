@@ -5,6 +5,8 @@
 > **Status: `1.3.1`** — published and installable, released on 2026-10-03; rehearsed on its commit before its signed tag.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MaverickHQ/valvur/badge)](https://scorecard.dev/viewer/?uri=github.com/MaverickHQ/valvur)
+
 **Start in Claude Code** with two commands, then ask it to scan the project:
 `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`.
 **Or from a terminal,** with Docker or Podman running: `uvx valvur scan`.

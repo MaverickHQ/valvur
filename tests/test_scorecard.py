@@ -67,3 +67,13 @@ def test_it_publishes_from_main_alone():
     triggers = WORKFLOW.read_text().split("\njobs:", 1)[0]
     assert re.search(r"push:\n\s+branches: \[main\]", triggers)
     assert re.search(r"^\s+schedule:", triggers, re.M)
+
+
+def test_the_readme_shows_the_badge_the_published_result_feeds():
+    """The badge reads the result `main` publishes; until R22 lands it shows none, and
+    the first run on `main` gives it a score (§8)."""
+    first = "\n".join((REPO / "README.md").read_text().splitlines()[:24])
+
+    assert ("[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/"
+            "MaverickHQ/valvur/badge)](https://scorecard.dev/viewer/?uri=github.com/"
+            "MaverickHQ/valvur)") in first
