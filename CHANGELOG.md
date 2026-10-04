@@ -8,6 +8,24 @@ break things, and has.
 
 ## [Unreleased]
 
+### A lighter release (Phase R26)
+
+Internal: a release asks less of its owner and of CI. Three owner actions, not four:
+land the release commit, tag it, approve at the brake. The README's status line names
+the version alone, and a PyPI badge says what is published, so no closing pull request
+flips it and `published.yml` is gone. `prepare_release.py` names the release machinery
+that changed since the last tag, and a rehearsal is asked for only then. The tag's
+`verify` reads the required checks' verdict on the tagged commit instead of rerunning
+`verify.sh` and the e2e suite: 7.4 minutes against 14 on `1.4.0`, and it reruns them
+when the verdict cannot be read.
+
+### Fixed
+
+- A Snapshot over 512 MiB could not be unpacked on Docker's classic storage: its volume
+  took the image's `/workspace`, owned by the image's user and mode 755, and the scan,
+  running as you with every capability dropped, could not write to it. `/workspace` is
+  1777 now, as the in-memory landing always was. Found by R26's rehearsal.
+
 ### The runner move (Phase R19)
 
 Internal: CI and the release run on GitHub's Ubuntu 26.04 runners, `ubuntu-26.04` and

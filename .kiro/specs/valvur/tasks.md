@@ -1381,13 +1381,29 @@ recorded; or D45's fallback, applied and recorded.
   moved the runners, so `1.5.0` is rehearsed. The test finds the list by reading
   `release.yml`, the bake file, the Dockerfile and `pyproject.toml`, and `RELEASING.md`'s
   section, *Rehearse when the machinery changed*, names every file on it.
-- [ ] **R26.3** **The tag's run trusts CI's verdict** (D62b). Behaviours:
+- [x] **R26.3** **The tag's run trusts CI's verdict** (D62b). Behaviours:
   1. `verify` passes when every required check passed on the tagged commit, and fails
      naming each that did not;
   2. it still checks the tag's signature, `main` and the version, and still runs the Score;
   3. when the checks cannot be read, it reruns `verify.sh`, and says so;
   4. the release constraint suite keeps its 54 tests;
   5. a rehearsal on the branch measures `verify`'s minutes against R26.1's.
+  **STATUS 2026-10-04:** ✅ all five.
+  1. `scripts/ci_verdict.py` (standard library alone) reads the eight required checks on
+     the commit through the REST API. The newest completed run of each decides, a run in
+     progress is waited for up to 30 minutes, and a failure fails `verify`, each check
+     named. Against `1.4.0`'s commit it reads *all 8 required checks passed*.
+  2. The tag's signature and `main`, the version, the licence check, the self-scan and
+     the Score run as before, unconditionally.
+  3. A check skipped, missing or unreadable makes the verdict *unreadable*, and the two
+     steps that rerun `verify.sh` and the whole suite run then, and only then.
+  4. The constraint suite holds 55, and its test now asserts the floor of 54.
+  5. Two rehearsals on the branch:
+     - Run 37210754192 at `ee9eb66`: `verify` 7.4 min against R26.1's 13.9 and 14.2, the
+       verdict read as passed, both reruns skipped, the Score 73.9.
+     - Run 37215618801 at `4d09a88`: `verify` 7.4 min again.
+     - What else they found is in `docs/acceptance/r26.md`: a real bug in the Snapshot's
+       volume, fixed, and the freshness gate's weekend.
 - [x] **R26.4** **No closing pull request** (D62c). Behaviours:
   1. the README's status line names no release state, and a PyPI version badge says what
      is published;
@@ -1519,6 +1535,8 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
+| the freshness gate over a weekend (R26) | now | decide: the Score's freshness gate fails when KEV is past 2 days by its catalog's release date, and CISA does not release at weekends, so every Score run from Friday afternoon to CISA's next release fails it, a release's `verify` among them (rehearsal run 37215618801, `kev 2.04 days`). Proposed: judge KEV fresh when the copy in use is CISA's newest, or allow 4 days for KEV; D24's refresh threshold can stay |
+| R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
 | release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |

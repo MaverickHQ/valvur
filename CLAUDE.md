@@ -17,7 +17,7 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 
 **Status (2026-10-04).** **`1.4.0` is published**, with R23 to R25, R21 and R22: the Score
 **73.9** on Linux, the cloud VM and the Mac (64.9 at `1.2.0`), and releases carry their provenance.
-[The review](docs/history/REVIEW-2026-10-03.md) scoped 2.0. R19 moved CI to 26.04. **Next:** R26 to R29.
+[The review](docs/history/REVIEW-2026-10-03.md) scoped 2.0. R19 moved CI to 26.04; R26 lightened the release. **Next:** R27 to R29.
 
 ## 2. What it is NOT
 
