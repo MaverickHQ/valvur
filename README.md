@@ -578,6 +578,25 @@ auditable and mirrorable. No proprietary database, and nothing to lock you in.
 **Air-gapped?** The database, the Name Index and its malicious list, KEV, EPSS and
 OSV's databases all live outside the image, and each has a mirror setting. See [`docs/AIR-GAPPED.md`](docs/AIR-GAPPED.md).
 
+## Privacy
+
+valvur collects nothing. It has no account, no API key and no telemetry, and no
+part of it reports on you or your code. Your source is scanned on your machine, in a
+container with no network interface, and the results stay in `.security-scan/` in
+your project, which ignores itself in git. What the host does fetch is public data,
+each fetch recorded under `network` in `run.json`. You do not have to take this
+on trust: `python3 scripts/verify-offline.py` checks it, and on Linux
+`unshare -rn valvur scan` proves it, as [the first claim](#1-it-cannot-exfiltrate-your-code-and-you-can-verify-it)
+explains.
+
+## Support
+
+Questions, bugs and missed findings go to the issue tracker,
+https://github.com/MaverickHQ/valvur/issues, with the tarball `valvur doctor --bundle`
+writes. A suspected vulnerability in valvur goes privately, by
+[SECURITY.md](SECURITY.md). There is no paid tier and no support contract: one person
+maintains valvur today, as [MAINTAINERS.md](MAINTAINERS.md) says.
+
 ## Contributing, and reporting problems
 
 A finding you disagree with, and especially one valvur *missed*, is a bug worth
