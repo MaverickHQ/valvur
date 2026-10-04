@@ -1432,9 +1432,40 @@ unchanged.
 
 ### Phase R27: Scorecard, as far as one maintainer reaches
 
-- [ ] **R27.1** **Measure first** (D63). Record the published Scorecard check by check, with
+- [x] **R27.1** **Measure first** (D63). Record the published Scorecard check by check, with
   the details behind Vulnerabilities (each advisory and its file) and Pinned-Dependencies
   (each line). Behaviour: the STATUS gives the table.
+  **STATUS 2026-10-04:** ✅ the table. The published result is **6.4**, from the push to
+  `main` at `4aa99fa` (run 37205448979, Scorecard v5.5.0, 2026-10-04T13:23Z), read from
+  its log; the API host is not one the build may reach. The pull-request measurement on
+  the same commit (run 37204769418) reads 7.3 over the 11 checks a branch can score.
+
+  | check | published | why under 10 |
+  |---|---|---|
+  | Binary-Artifacts, CI-Tests, Dangerous-Workflow, Dependency-Update-Tool, License, Packaging, SAST, Security-Policy, Signed-Releases, Token-Permissions | 10 each | |
+  | Pinned-Dependencies | 9 | `Dockerfile:54`, `FROM opengrep-${TARGETARCH}`, read as an image not pinned by hash; 7 of 8 images and all 90 actions pinned |
+  | Vulnerabilities | 0 | 44 advisories, below |
+  | Fuzzing | 0 | no fuzzer |
+  | Branch-Protection | 3 | `main` requires no approver and no code-owner review |
+  | Contributors | 3 | one organisation |
+  | Code-Review | 0 | 0 of 7 changesets approved: one maintainer |
+  | Maintained | 0 | the repository is under 90 days old |
+  | CII-Best-Practices | 0 | the form is the owner's (§8) |
+
+  The 44 advisories, each by its file, from OSV-Scanner run offline from the image over
+  the checkout, as Scorecard runs it; every ID Scorecard listed is matched:
+
+  | file | package | advisories |
+  |---|---|---|
+  | `tests/fixtures/broken-repo/requirements.txt` | pillow 10.0.0 | 18 |
+  | `tests/fixtures/broken-repo/requirements.txt` and `requirements-ai.txt` | urllib3 1.24.1 | 13 (the same 13 in both) |
+  | `tests/fixtures/broken-repo/requirements.txt` | pyyaml 5.1 | 3 |
+  | `tests/fixtures/broken-repo/package-lock.json` | loader-utils 1.4.0, json5 1.0.1, minimist 1.2.5 | 3, 1, 1 |
+  | `tests/fixtures/pnpm-dev-repo/pnpm-lock.yaml` | lodash 4.17.15 | 4 |
+  | `requirements-checkov.txt` | ecdsa 0.19.2 | 1, PYSEC-2026-1325 (CVE-2024-23342), the accepted one |
+
+  So 43 of 44 are planted fixtures. OSV-Scanner reads five manifests under `tests/`: those
+  four, and `broken-repo/requirements-dev.txt`, which holds no package.
 - [ ] **R27.2** **No manifest under `tests/` reads as one** (D63a). Behaviours:
   1. OSV-Scanner over `tests/` finds no manifest (`e2e`);
   2. one helper copies a fixture and restores its real names, and every test that copied a
