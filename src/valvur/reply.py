@@ -409,13 +409,15 @@ def next_moves(workspace: Path) -> list[str]:
     if not active:
         return []
     top = min(active, key=lambda f: f.get("rank") or 10**9)
-    where = f"{top['path']}:{top['line']}" if top.get("line") else top["path"]
+    # Every field read as the gate reads it: the folder is the project's, and a
+    # finding that lost a key is named by what it kept (R27.4, found by fuzzing).
+    where = f"{top.get('path')}:{top['line']}" if top.get("line") else top.get("path")
     moves = ["Report from `report`, the summary: it is the whole result, ranked, with what "
              "did not run.",
              "Name each finding by its rule and its location, as the summary does: the user "
              "needs both to ask about one or to accept it.",
              f"Evidence only when asked: `findings` with a fingerprint; #{top.get('rank', '?')} "
-             f"is {top['fingerprint']}, {where} {top['title']}"]
+             f"is {top.get('fingerprint')}, {where} {top.get('title', '')}"]
     action = first_action(workspace / RESULTS_DIR / "REMEDIATION.md")
     if action:
         moves.append(f"The first proposed fix is REMEDIATION.md's {action}")

@@ -108,15 +108,19 @@ def test_a_requirements_path_with_a_nul_names_no_packages(tmp_path):
     assert installs.packages("pip install -r requirements.tx\x00t", tmp_path) == []
 
 
-def test_a_finding_without_its_fingerprint_is_not_named_by_one(tmp_path):
-    """Found by ClusterFuzzLite on PR #196: a finding with no `fingerprint` key."""
+@pytest.mark.parametrize("missing", ["fingerprint", "title", "line", "rank"])
+def test_a_finding_missing_a_field_is_not_named_by_it(tmp_path, missing):
+    """Found by ClusterFuzzLite on PR #196, one key at a time: `fingerprint`, then
+    `title`. The reply reads every field of a finding the way the gate does."""
     from valvur import reply
 
     results = tmp_path / RESULTS_DIR
     results.mkdir()
     (results / "run.json").write_text(json.dumps({"complete": True, "status": "findings"}))
-    (results / "findings.json").write_text(json.dumps({"schema": 2, "findings": [
-        {"rule": "R", "path": "a.py", "line": 1, "severity": "high", "title": "t",
-         "suppressed": False}]}))
+    finding = {"rule": "R", "path": "a.py", "line": 1, "severity": "high", "title": "t",
+               "fingerprint": "f", "rank": 1, "suppressed": False}
+    del finding[missing]
+    (results / "findings.json").write_text(json.dumps({"schema": 2, "findings": [finding]}))
 
     assert isinstance(reply.text(reply.fields(tmp_path)), str)
+    reply.next_moves(tmp_path)

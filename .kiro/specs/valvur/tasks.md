@@ -1550,6 +1550,10 @@ unchanged.
      now instruments only valvur and the parsers that shape its input, as they are
      imported, and one input starts in 0.5 to 1 s. Both crashes are fixed and are seeds,
      and 120 s each, about 1,050,000 executions, found nothing more.
+
+     The next run reproduced its find and failed the job, as it should. The find was a
+     finding with no `title` key: `reply.next_moves` now reads every field of a finding
+     with `.get`, as the gate does, and a test drops each field in turn.
   4. atheris is the `fuzz` extra alone, apart from `dev`, so `verify.sh` never builds it,
      and nothing under `src/` imports it.
 - [x] **R27.5** **Scorecard measured again** (D63d). Behaviours:
