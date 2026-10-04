@@ -10,6 +10,17 @@ break things, and has.
 
 ## [1.4.0] — 2026-10-04
 
+What a scan finds, and how quietly. valvur's own code rules now report injection, path
+traversal, SSRF, insecure cookies, open redirects and XXE as flows from request data, in
+Python and JavaScript. Findings in tests, fixtures, docs and examples rank lower or stay
+out of the way. A rescan says what became of each earlier finding. The Score rises from
+64.9 to **73.9**, the same on Linux, the cloud VM and the Mac: Python's code rules from
+11.1 to 40.9, JavaScript's from 15.0 to 55.0.
+
+One verdict changes, as a fix: a project whose only results are the sink inventory now
+reads `clean`, with *Sinks to review* still counted. Every contract else stands:
+protocol 2, `fp_version` 1, and the reply's schema 2, which gains fields and loses none.
+
 ### Releases carry their build provenance
 
 - **Every release now carries its SLSA build provenance as assets:**
