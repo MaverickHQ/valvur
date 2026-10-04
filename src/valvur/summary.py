@@ -285,7 +285,8 @@ def _data_line(ages: dict) -> str:
         age = entry.get("age_days")
         if age is None:
             return f"{label} absent"
-        return f"{label} {max(age, 0):.1f} days ({entry.get('basis') or 'fetched'})"
+        newest = "; CISA's newest" if entry.get("newest") else ""      # D76
+        return f"{label} {max(age, 0):.1f} days ({entry.get('basis') or 'fetched'}{newest})"
 
     parts = [said(label, ages[key]) for key, label in _DATASETS if key in ages]
     parts += [said(f"OSV {name}", entry) for name, entry in (ages.get("osv") or {}).items()]

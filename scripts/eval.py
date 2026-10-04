@@ -253,6 +253,9 @@ def data_ages(run_json: dict) -> dict:
     osv = [e.get("age_days") for e in (data.get("osv") or {}).values()
            if isinstance(e, dict) and e.get("age_days") is not None]
     ages["osv_age_days"] = max(osv) if osv else None
+    # D76: KEV past two days is still current while a check within two days found
+    # it CISA's newest; its age stays the catalog's own.
+    ages["kev_checked_days"] = (data.get("kev") or {}).get("checked_days")
     return ages
 
 
@@ -294,6 +297,12 @@ def speed_of(report: dict, baseline: dict) -> dict | None:
     return {"median": median, "baseline": recorded, "lane": lane}
 
 
+def _newest(name: str, data: dict, limit: float) -> bool:
+    """KEV, checked within the limit and found CISA's newest (D76)."""
+    checked = data.get(f"{name}_checked_days")
+    return name == "kev" and checked is not None and checked <= limit
+
+
 def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
                 tasks_text: str, speed: dict | None = None) -> dict[str, dict]:
     """Pass or fail, each with its reason and whether its phase has closed."""
@@ -305,7 +314,7 @@ def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
     stale = [f"{name} {data[f'{name}_age_days']} days (over {limit:g})"
              for name, limit in FRESH_DAYS.items()
              if data.get(f"{name}_age_days") is not None
-             and data[f"{name}_age_days"] > limit]
+             and data[f"{name}_age_days"] > limit and not _newest(name, data, limit)]
     outcomes = {
         "offline": (not leaked, "left the machine: " + "; ".join(leaked)),
         "honesty": (not false_clean and not loud_twins,

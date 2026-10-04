@@ -8,6 +8,19 @@ break things, and has.
 
 ## [Unreleased]
 
+### A repository that keeps itself current (Phase R28)
+
+- **KEV is current while it is CISA's newest.** CISA releases the catalog on working
+  days, so from Sunday afternoon Friday's catalog was past two days old although nothing
+  newer existed. Every scan refetched it, and the Score's freshness gate failed every
+  weekend. A refresh now asks conditionally (`If-Modified-Since`). A check within two days
+  that finds no newer catalog keeps KEV current, and `SUMMARY.md`, `run.json` and
+  `doctor` say *CISA's newest* beside the catalog's own date. A failed check changes
+  nothing, and `fetch = "never"` asks nothing.
+- Internal: a scheduled workflow's issue closes itself when a later run passes, and the
+  monthly refresh opens a release pull request, in a commit GitHub signs, instead of an
+  issue. `docs/MAINTENANCE.md` holds a weekly maintenance routine's prompt and procedure.
+
 ### Fixed: a project's own ignores hid findings silently (Phase R38)
 
 A comment or an ignore file in the scanned project could make a finding disappear from

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import cache, datasets, epss, fileset, locking, name_index, oci, osv_offline, settings
@@ -124,7 +125,8 @@ def ensure_image(runner, say: Say) -> bool:
 def refresh_kev(say: Say) -> bool:
     """CISA KEV into the host cache. The image ships a snapshot as an offline floor;
     exploitation data changes daily and image releases do not (ADR-0012). True when
-    a fresh catalog was written; a skip is said, and the snapshot stays."""
+    the check succeeded: a newer catalog was written, or none newer exists, which is
+    recorded as `checked` (D76). A skip is said, and changes nothing."""
     import urllib.error
     import urllib.request
 
@@ -136,9 +138,24 @@ def refresh_kev(say: Say) -> bool:
         say(f"KEV refresh skipped ({KEV_URL_ENV} is not an http(s) URL); "
             "the bundled snapshot remains in use.")
         return False
+    path = cache.root() / "kev.json"
+    held = _held_kev(path)
+    # Conditional (D76): CISA releases on working days, so most weekend checks find
+    # Friday's catalog, and a 304 says so without sending it again.
+    request = urllib.request.Request(url)  # noqa: S310 — the scheme is checked above
+    if held.get("lastModified"):
+        request.add_header("If-Modified-Since", held["lastModified"])
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310 — checked above
+        with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 — checked above
             raw = json.load(response)
+            modified = response.headers.get("Last-Modified", "")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 304 and held:
+            _write_kev(path, {**held, "checked": _now()})
+            say(_newest(held))
+            return True
+        say(f"KEV refresh skipped ({exc}); the bundled snapshot remains in use.")
+        return False
     except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError) as exc:
         say(f"KEV refresh skipped ({exc}); the bundled snapshot remains in use.")
         return False
@@ -148,19 +165,52 @@ def refresh_kev(say: Say) -> bool:
                      "d": v.get("dateAdded", "")}
         for v in raw.get("vulnerabilities", [])
     }
-    root = cache.root()
-    root.mkdir(parents=True, exist_ok=True)
-    (root / "kev.json").write_text(json.dumps({
+    path.parent.mkdir(parents=True, exist_ok=True)
+    written = {
         "source": url,
         "catalogVersion": raw.get("catalogVersion", ""),
         # The catalog's own date, which is its age (D23, F6.12): the file's time is
         # when it was fetched, not what it knows.
         "dateReleased": raw.get("dateReleased", ""),
+        # When a check last found this catalog CISA's newest (D76), and what to ask
+        # the next check against.
+        "checked": _now(),
+        "lastModified": modified,
         "count": len(entries),
         "entries": entries,
-    }, separators=(",", ":")), encoding="utf-8")
-    say(f"KEV refreshed: {len(entries)} entries (catalog {raw.get('catalogVersion', '?')}).")
+    }
+    _write_kev(path, written)
+    if held.get("dateReleased") and held["dateReleased"] == written["dateReleased"]:
+        say(_newest(written))           # a host that ignores the condition, compared
+    else:
+        say(f"KEV refreshed: {len(entries)} entries "
+            f"(catalog {raw.get('catalogVersion', '?')}).")
     return True
+
+
+def _held_kev(path: Path) -> dict:
+    """The cached catalog's record, or {} when there is none or it cannot be read."""
+    try:
+        held = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return held if isinstance(held, dict) else {}
+
+
+def _write_kev(path: Path, data: dict) -> None:
+    """Whole or not at all: a scan reading the catalog never sees half of one."""
+    partial = path.with_suffix(".json.partial")
+    partial.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+    partial.replace(path)
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def _newest(held: dict) -> str:
+    return (f"KEV is CISA's newest: catalog {str(held.get('dateReleased', ''))[:10] or '?'}, "
+            "checked now; nothing newer to fetch.")
 
 
 def refresh_epss(say: Say) -> bool:

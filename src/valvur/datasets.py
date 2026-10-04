@@ -38,6 +38,10 @@ def _kev_age(_: str | None) -> float | None:
     return enrichment.LocalProvider().kev_age_days
 
 
+def _kev_checked() -> float | None:
+    return enrichment.LocalProvider().kev_checked_days
+
+
 def _epss_age(_: str | None) -> float | None:
     return epss.age()[0]
 
@@ -67,13 +71,23 @@ class Dataset:
     reader: Callable[[str | None], float | None]
     #: Past this, its age is said beside the findings it ranked; None for none.
     warn_after_days: float | None = None
+    #: Days since a check last found it the newest its publisher has (D76); None for
+    #: a dataset nobody checks that way, or one never checked.
+    checked: Callable[[], float | None] | None = None
 
     def age(self, ecosystem: str | None = None) -> float | None:
         return self.reader(ecosystem)
 
+    def newest(self) -> bool:
+        """A check within the refresh threshold found nothing newer to fetch (D76):
+        current, whatever its own age, which stays its data's (ADR-0027)."""
+        days = self.checked() if self.checked is not None else None
+        return days is not None and days <= self.refresh_after_days
+
     def due(self, age: float | None) -> bool:
-        """Absent, or old enough that a scan refreshes it."""
-        return age is None or age > self.refresh_after_days
+        """Absent, or old enough that a scan refreshes it, and not known to be the
+        newest there is."""
+        return age is None or (age > self.refresh_after_days and not self.newest())
 
     def stale(self, age: float | None) -> bool:
         """Present and too old for a nil result to be evidence."""
@@ -99,10 +113,13 @@ NAME_INDEX = Dataset("name_index", "package-name index", 2, 30, "name_index_url"
 #: Known-malicious names beside the index (D26), published daily.
 MALICIOUS = Dataset("malicious", "malicious list", 2, None, "name_index_url",
                     "its cosign signature, as the index's", _malicious_age)
-#: CISA KEV, released most days. It ranks and finds nothing, so its age makes no
-#: verdict; past thirty days the summary says how old the ranking's evidence is.
+#: CISA KEV, released on working days. It ranks and finds nothing, so its age makes
+#: no verdict; past thirty days the summary says how old the ranking's evidence is.
+#: Current while a check within two days found no newer catalog (D76), so Friday's
+#: catalog is not refetched all weekend, nor called stale.
 KEV = Dataset("kev", "KEV catalog", 2, None, "kev_url",
-              "HTTPS to cisa.gov, or the operator's mirror", _kev_age, warn_after_days=30)
+              "HTTPS to cisa.gov, or the operator's mirror", _kev_age, warn_after_days=30,
+              checked=_kev_checked)
 #: FIRST's EPSS scores, one file a day (D25).
 EPSS = Dataset("epss", "EPSS scores", 2, None, "epss_url",
                "HTTPS to FIRST, or the operator's mirror", _epss_age)

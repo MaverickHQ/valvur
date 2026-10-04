@@ -62,7 +62,8 @@ def test_a_track_is_scanned_scored_and_recorded(tmp_path):
     assert result["image"] == {"name": "valvur:dev", "id": "sha256:abc"}
     assert result["data"] == {"database_age_days": 1.5, "name_index_age_days": 2.4,
                               "malicious_age_days": 0.5, "kev_age_days": 33.0,
-                              "epss_age_days": 0.4, "osv_age_days": None}
+                              "epss_age_days": 0.4, "osv_age_days": None,
+                              "kev_checked_days": None}
     assert result["duration_s"] >= 0
 
 

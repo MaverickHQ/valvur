@@ -1838,7 +1838,7 @@ movement recorded and explained; the acceptance set green on both lanes.
      R28.
   4. *Pull request:* none opened, since this was a dry run. §8 holds creating the
      routine and its cap.
-- [ ] **R28.6** **KEV is current while it is CISA's newest** (D76). Behaviours:
+- [x] **R28.6** **KEV is current while it is CISA's newest** (D76). Behaviours:
   1. a check within two days that finds no newer catalog makes KEV current, through a
      conditional request;
   2. every surface shows the catalog's own date, and says when it is CISA's newest;
@@ -1847,6 +1847,20 @@ movement recorded and explained; the acceptance set green on both lanes.
   4. with `fetch = "never"`, nothing changes;
   5. the freshness gate passes on a weekend, tested against a local server whose catalog is
      three days old and unchanged.
+
+  STATUS (2026-10-04): `refresh_kev` sends `If-Modified-Since` with the `Last-Modified`
+  it last received, and `kev.json` records `checked`. A 304, or a 200 whose
+  `dateReleased` is unchanged, rewrites `checked` alone and says *KEV is CISA's newest*.
+  A failure writes nothing. `datasets.KEV.newest()` is true while `checked` is under two
+  days old. `due` then holds off, so a scan and `update` refetch nothing. `run.json`'s
+  `data.kev` gains `checked_days` and `newest`, while `age_days` and `basis` stay the
+  catalog's own. The `Data:` line and `doctor` say *CISA's newest*. The Score's
+  freshness gate passes KEV past two days when `kev_checked_days` is within them.
+  `fetch = "never"` asks nothing, so nothing changes. `tests/test_kev_current.py` covers
+  all five, against a loopback host whose catalog is three days old. **Measured on
+  cisa.gov:** it sends `Last-Modified` and answers `If-Modified-Since` with 304 and no
+  body, so D76's fallback (five days) is not needed. It also released a catalog on
+  Sunday 2026-10-04, at 18:52 UTC.
 
 **Exit:** each mechanism exercised once: a Dependabot pull request merged by itself or the
 fallback, a scheduled job's issue closed by its next green run, the refresh's pull request
@@ -2076,7 +2090,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
-| the freshness gate over a weekend (R26) | decided 2026-10-04 | D76: KEV is current while it is CISA's newest; built by R28.6 |
 | R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
 | how valvur treats a project's `osv-scanner.toml` (R27.2) | decided 2026-10-04 | D77: no project ignore hides a finding silently; built by R38 |
 | release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |

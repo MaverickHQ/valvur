@@ -9,6 +9,7 @@ import functools
 import os
 import shutil
 import subprocess
+import types
 from pathlib import Path
 
 import pytest
@@ -367,6 +368,10 @@ def test_kev_is_fetched_from_the_mirror_when_one_is_named(monkeypatch, tmp_path,
     ]}).encode()
 
     class Response(io.BytesIO):
+        #: A mirror that sends no `Last-Modified`: a later check compares the
+        #: catalog's own date instead (D76).
+        headers = types.MappingProxyType({})
+
         def __enter__(self):
             return self
 

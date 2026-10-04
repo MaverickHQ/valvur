@@ -421,8 +421,12 @@ def _check_kev() -> Check:
     when = f"catalog {kev.kev_catalog}" if kev.kev_catalog else "no release date, aged by fetch"
     means = (_cache.KEV_PRESENT_MEANS if kev.kev_source == "host cache"
              else _cache.KEV_ABSENT_MEANS)
+    checked = kev.kev_checked_days
+    # D76: the catalog's own date stays its age, and a recent check says why it is not stale.
+    newest = ", CISA's newest" if checked is not None and \
+        checked <= datasets.KEV.refresh_after_days else ""
     return Check("kev", "info",
-                 f"{kev.kev_source}, {when}, {kev.kev_age_days:.1f} days old — {means}")
+                 f"{kev.kev_source}, {when}{newest}, {kev.kev_age_days:.1f} days old — {means}")
 
 
 def _check_cache() -> Check:

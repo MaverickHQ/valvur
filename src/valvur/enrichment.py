@@ -52,7 +52,7 @@ class LocalProvider:
 
     def __init__(self) -> None:
         (self._kev, self._kev_age, self._kev_source, self._kev_catalog,
-         self._kev_basis) = _load_kev()
+         self._kev_basis, self._kev_checked) = _load_kev()
         self._epss_age, self._epss_basis = _epss.age()
         self._epss_scored = _epss.scored()
 
@@ -75,6 +75,12 @@ class LocalProvider:
         """`released` when the age is the catalog's own, `fetched` when it is the
         file's (D23): a copy with no release date is labelled as such."""
         return self._kev_basis
+
+    @property
+    def kev_checked_days(self) -> float | None:
+        """Days since a check last found the catalog in use CISA's newest (D76); None
+        when it never has, as for the bundled snapshot, which no check updates."""
+        return self._kev_checked
 
     @property
     def epss_age_days(self) -> float | None:
@@ -123,9 +129,10 @@ class LocalProvider:
         return enriched
 
 
-def _load_kev() -> tuple[dict, float | None, str, str, str]:
+def _load_kev() -> tuple[dict, float | None, str, str, str, float | None]:
     """The newer of the host-cached copy and the bundled snapshot, by the catalog's
-    own release date: (entries, age in days, source, release day, basis).
+    own release date: (entries, age in days, source, release day, basis, days since
+    a check found it CISA's newest).
 
     The bundle is a floor so `offline` works on a clean machine; the cache is how
     the data stays current without republishing the image (the ADR-0012 argument,
@@ -136,7 +143,8 @@ def _load_kev() -> tuple[dict, float | None, str, str, str]:
     """
     cached = cache.root() / "kev.json"
     candidates = [(cached, "host cache"), (_BUNDLED, "bundled snapshot")]
-    best: tuple[dict, float | None, str, str, str] = ({}, None, "unavailable", "", "")
+    best: tuple[dict, float | None, str, str, str, float | None] = (
+        {}, None, "unavailable", "", "", None)
     for path, label in candidates:
         if not path.is_file():
             continue
@@ -150,5 +158,7 @@ def _load_kev() -> tuple[dict, float | None, str, str, str]:
         if age is None:
             age = (time.time() - path.stat().st_mtime) / 86400
         if best[1] is None or age < best[1]:
-            best = (data.get("entries", {}), age, label, catalog, basis)
+            checked = data.get("checked") if path == cached else None
+            best = (data.get("entries", {}), age, label, catalog, basis,
+                    cache.stamp_age_days(checked) if checked else None)
     return best

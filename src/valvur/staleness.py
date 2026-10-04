@@ -50,8 +50,19 @@ def data_ages(provider=None, osv=()) -> dict:
         "database": entry(_datasets.DATABASE.age(), "built"),
         "name_index": entry(_datasets.NAME_INDEX.age(), "built"),
         "malicious": entry(_datasets.MALICIOUS.age(), "built"),
-        "kev": entry(provider.kev_age_days, provider.kev_age_basis or "fetched"),
+        "kev": _kev_entry(provider, entry(provider.kev_age_days,
+                                          provider.kev_age_basis or "fetched")),
         "epss": entry(provider.epss_age_days, provider.epss_age_basis or "fetched"),
         "osv": {name: entry(_datasets.OSV.age(name), osv_offline.age(name)[1])
                 for name in osv},
     }
+
+
+def _kev_entry(provider, aged: dict) -> dict:
+    """KEV's entry, and whether a check within two days found it CISA's newest (D76):
+    its age stays the catalog's own, and this says why that age is not stale."""
+    checked = provider.kev_checked_days
+    if aged["age_days"] is None or checked is None:
+        return aged
+    return {**aged, "checked_days": round(checked, 2),
+            "newest": checked <= _datasets.KEV.refresh_after_days}
