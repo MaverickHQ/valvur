@@ -147,3 +147,11 @@ jobs:
           failed: "The scheduled `refresh` run failed"
           body: |-
             Nothing was rehearsed and nothing changed. Recovery: read the run's log, fix the cause, then dispatch this workflow again.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the monthly Scanner refresh failed
+          passed: "true"

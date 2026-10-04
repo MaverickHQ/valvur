@@ -59,7 +59,9 @@ jobs:
   tracked:
     name: a failed run, tracked
     needs: [pr, nightly]
-    if: ${{ failure() && github.event_name == 'schedule' }}
+    # Every scheduled night that was not cancelled: a failure files the issue, a pass
+    # closes it (R28.3, D64b), each step reading the jobs it needs.
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -70,6 +72,7 @@ jobs:
         with:
           persist-credentials: false
       - name: A failure is a tracked thing, not an email
+        # In a job that needs others, `failure()` is true when any of them failed.
         if: failure()
         uses: ./.github/actions/file-issue
         with:
@@ -79,3 +82,11 @@ jobs:
             The nightly ClusterFuzzLite run of the fuzzers in `fuzz/` failed: a crash in a parser of untrusted text, or the build. Nothing users have changes until a release ships the parser.
 
             Recovery: read the run's log for the crashing input, add it as a regression test in `tests/test_fuzz_crashes.py`, fix the parser, and dispatch this workflow again.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: "!contains(needs.*.result, 'failure')"
+        uses: ./.github/actions/file-issue
+        with:
+          title: the nightly fuzzing found a crash or failed
+          passed: "true"

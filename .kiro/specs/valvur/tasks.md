@@ -1782,9 +1782,19 @@ movement recorded and explained; the acceptance set green on both lanes.
   only `uv.lock`, `requirements-*.txt`, the workflows' and actions' YAML and the two
   Dockerfiles, and requires every commit to carry Dependabot's `update-type`, none of them
   `semver-major`. The workflow then runs `gh pr merge --auto --squash`.
-- [ ] **R28.3** **Issues that close themselves** (D64b). Behaviours:
+- [x] **R28.3** **Issues that close themselves** (D64b). Behaviours:
   1. the issue-on-failure action closes its open issue when the next run passes;
   2. a test holds both halves.
+
+  STATUS (2026-10-04): `file-issue` takes `passed: "true"`. It then closes the open issue
+  whose title is exactly its own, with a comment naming the run that passed, and does
+  nothing when there is none. Each of the nine filing steps in eight workflows has a
+  closing step beside it, under the mirror of its condition. `fuzz.yml`'s and
+  `scorecard.yml`'s `tracked` jobs ran only on a failure, so a pass never reached them:
+  they now run on every uncancelled scheduled run; the filing step keeps `failure()`,
+  which there is any needed job's, and the closing step reads `needs.*.result`.
+  `tests/test_issues_close_themselves.py` holds the pairs. A close is exercised by the
+  first passing scheduled run after one fails, once this lands.
 - [ ] **R28.4** **The refresh opens a release pull request** (D64c). Behaviours:
   1. when the pins moved and the Score held, `refresh.yml` runs `prepare_release.py` at the
      next patch version on a branch and opens a pull request;

@@ -81,7 +81,9 @@ jobs:
   tracked:
     name: a failed run, tracked
     needs: [analysis, report]
-    if: ${{ failure() && github.event_name == 'schedule' }}
+    # Every scheduled night that was not cancelled: a failure files the issue, a pass
+    # closes it (R28.3, D64b), each step reading the jobs it needs.
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -92,6 +94,7 @@ jobs:
         with:
           persist-credentials: false
       - name: A failure is a tracked thing, not an email
+        # In a job that needs others, `failure()` is true when any of them failed.
         if: failure()
         uses: ./.github/actions/file-issue
         with:
@@ -101,3 +104,11 @@ jobs:
             The repository's Scorecard was not measured this week, and the README's badge keeps last week's result. Nothing users have changes.
 
             Recovery: read the run's log, fix the cause, then wait for the next push to `main` or the next week's run.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: "!contains(needs.*.result, 'failure')"
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly Scorecard failed
+          passed: "true"

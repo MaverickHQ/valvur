@@ -2,18 +2,23 @@ name: A failure is a tracked thing, not an email
 description: >-
   One open issue per title: the first failure opens it and each later one comments
   on it, because a job broken for a week is one problem, not seven (27.2.7, D55c).
-  GitHub mails a scheduled failure to one person and does nothing else. The calling
-  job needs `issues: write`.
+  With `passed`, the run passed, and the open issue of that title is closed with a
+  comment naming the run, so a cause that has passed is not left for the owner
+  (R28.3, D64b). GitHub mails a scheduled failure to one person and does nothing
+  else. The calling job needs `issues: write`.
 inputs:
   title:
     description: The issue's title, which is also how the open one is found
     required: true
   failed:
-    description: What failed, as the first sentence; the run's URL follows it
-    required: true
+    description: What failed, as the first sentence; the run's URL follows it. Needed unless `passed`
+    default: ""
   body:
-    description: What is lost, and how to recover, as the paragraphs after it
-    required: true
+    description: What is lost, and how to recover, as the paragraphs after it. Needed unless `passed`
+    default: ""
+  passed:
+    description: "'true' when the run passed: close the open issue of this title, if any"
+    default: "false"
   token:
     description: A token that may open issues
     default: ${{ github.token }}
@@ -26,9 +31,24 @@ runs:
         TITLE: ${{ inputs.title }}
         FAILED: ${{ inputs.failed }}
         BODY: ${{ inputs.body }}
+        PASSED: ${{ inputs.passed }}
         RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
         set -eu
+        if [ "$PASSED" = "true" ]; then
+          # Only the issue of this exact title: the search is fuzzy, the close must not be.
+          open=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
+                   --jq 'map(select(.title == $ENV.TITLE)) | .[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue close "$open" --comment "The next run passed: $RUN"
+            echo "closed #$open"
+          fi
+          exit 0
+        fi
+        if [ -z "$FAILED" ] || [ -z "$BODY" ]; then
+          echo "file-issue: a failure needs 'failed' and 'body'" >&2
+          exit 1
+        fi
         body=$(printf '%s: %s\n\n%s\n' "$FAILED" "$RUN" "$BODY")
         existing=$(gh issue list --state open --search "$TITLE in:title" \
                      --json number --jq '.[0].number // empty')

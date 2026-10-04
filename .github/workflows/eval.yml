@@ -89,3 +89,11 @@ jobs:
             A track fell more than 2 points under its baseline, a gate failed, or a finding on the corpus has no label. Nothing users have changes; what is lost is the evidence that detection is still on target.
 
             Recovery: read the eval-report artifact's scorecard, fix the cause or label the new finding, then dispatch this workflow again.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly Score fell or failed
+          passed: "true"

@@ -123,3 +123,11 @@ jobs:
 
             Recovery: read the run summary for the repository and the condition that failed, then dispatch this workflow again after the fix.
 
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success()
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly corpus run failed
+          passed: "true"
+

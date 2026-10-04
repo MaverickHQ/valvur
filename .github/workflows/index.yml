@@ -212,6 +212,14 @@ jobs:
 
             Recovery: re-run this workflow. Nothing is published until the round trip verifies the build, so a failed run left every tag where it was.
 
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success()
+        uses: ./.github/actions/file-issue
+        with:
+          title: the daily name index stopped building
+          passed: "true"
+
   malicious:
     # The known-malicious list (D26, F3.14, ADR-0027), beside the index in the same
     # package: a sorted list per ecosystem of the packages ossf/malicious-packages
@@ -326,3 +334,11 @@ jobs:
           failed: "The scheduled `index` run's malicious list failed"
           body: |-
             Users keep the last published list, and OSV's database still reports malicious packages. Recovery: re-run this workflow; nothing is tagged until the round trip verifies the build.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success()
+        uses: ./.github/actions/file-issue
+        with:
+          title: the daily malicious list stopped building
+          passed: "true"

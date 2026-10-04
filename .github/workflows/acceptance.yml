@@ -89,3 +89,11 @@ jobs:
             Nothing users have changes: the acceptance set scans generated repositories and publishes nothing. What is lost is the Linux half of every phase's exit.
 
             Recovery: read the report artifact for the repository or probe that failed, then dispatch this workflow again after the fix.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the nightly acceptance run failed
+          passed: "true"
