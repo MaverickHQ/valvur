@@ -33,14 +33,14 @@ TYPE_S, RUN_S, LINE_S = 0.05, 0.8, 0.15
 
 def capture(workspace: Path) -> list[tuple[str, str]]:
     """Each command as typed, and what the CLI printed for it, with the workspace's
-    real path replaced by `SHOWN`."""
+    real path replaced by `SHOWN`. Its stdout alone: progress goes to stderr and
+    depends on this machine's cache, such as a first fetch of a database."""
     steps = []
     for args in COMMANDS:
         done = subprocess.run(  # noqa: S603 — this interpreter, the CLI
             [sys.executable, "-c", "from valvur.cli import main; raise SystemExit(main())",
              *args], cwd=workspace, capture_output=True, text=True, check=False)
-        steps.append(("valvur " + " ".join(args), neutral(done.stdout + done.stderr,
-                                                          workspace)))
+        steps.append(("valvur " + " ".join(args), neutral(done.stdout, workspace)))
     return steps
 
 
@@ -104,8 +104,9 @@ def main(argv: list[str] | None = None) -> int:
 
     with tempfile.TemporaryDirectory() as scratch:
         [source] = generate.build(Path(scratch) / "set", "8").values()
-        workspace = Path(scratch) / "acceptance-8"
-        shutil.copytree(source, workspace)
+        # Renamed, not copied: git's background maintenance may still hold a lock
+        # file in the new repository, which a copy can find and then miss.
+        workspace = source.rename(Path(scratch) / "acceptance-8")
         shutil.rmtree(workspace / ".security-scan", ignore_errors=True)
         svg = render(capture(workspace))
     args.out.write_text(svg, encoding="utf-8")

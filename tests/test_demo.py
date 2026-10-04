@@ -58,6 +58,22 @@ def test_a_capture_renders_every_line_in_order_and_neutralises_the_path(tmp_path
     assert str(tmp_path) not in svg
 
 
+def test_a_capture_holds_what_the_cli_printed_and_not_its_progress(tmp_path, monkeypatch):
+    """Progress goes to stderr and depends on this machine's cache: the first run on
+    a machine says it fetched the OSV database, and CI's arm64 lane said so where the
+    committed file did not. The recording is what the CLI printed, stdout alone."""
+    import subprocess
+
+    demo = _demo()
+    said = subprocess.CompletedProcess([], 0, stdout="findings: 2 active\n",
+                                       stderr="  fetching the OSV database for npm\n")
+    monkeypatch.setattr(demo.subprocess, "run", lambda *a, **k: said)
+
+    steps = demo.capture(tmp_path)
+
+    assert [output for _, output in steps] == ["findings: 2 active\n"] * len(demo.COMMANDS)
+
+
 def test_the_committed_demo_is_small_and_shows_the_verdict_and_the_package():
     svg = SVG.read_text(encoding="utf-8")
     text = "\n".join(_text(svg))
