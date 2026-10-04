@@ -223,8 +223,20 @@ def from_package_json(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
             if isinstance(spec, str) and spec.startswith(_NOT_REGISTRY):
                 continue
             # npm names are lowercase by rule, and case-insensitive at the registry.
-            found.add(("npm", name.lower(), rel))
+            found.add(("npm", _npm_installs(name, spec).lower(), rel))
     return found
+
+
+def _npm_installs(name: str, spec: object) -> str:
+    """The registry package a declaration installs: an alias (`"x": "npm:real@1"`)
+    installs the package after `npm:`, and its own key is no registry name (R29.2)."""
+    if not (isinstance(spec, str) and spec.startswith("npm:")):
+        return name
+    target = spec[len("npm:"):]
+    # A scoped name has its own `@` first; the version is after the last one.
+    at = target.rfind("@")
+    real = target[:at] if at > 0 else target
+    return real or name
 
 
 # ------------------------------------------------------------ JVM (22.A.4)

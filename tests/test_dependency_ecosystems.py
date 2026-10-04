@@ -475,3 +475,21 @@ def test_one_failed_lookup_does_not_lose_the_others(
 
     assert [f["title"].split("'")[1] for f in found] == ["fine-a", "fine-b"]
     assert all(f["rule"] == "valvur.dependency.newly-registered" for f in found)
+
+
+@pytest.mark.parametrize(("alias", "spec", "asked"), [
+    ("legacy-readable-stream", "npm:readable-stream@^1.0.34", "readable-stream"),
+    ("@hapi/joi-legacy-test", "npm:@hapi/joi@^15.0.0", "@hapi/joi"),
+    ("engine.io-client-v3", "npm:engine.io-client@^3.5.2", "engine.io-client"),
+    ("bare", "npm:left-pad", "left-pad"),
+])
+def test_an_npm_alias_is_asked_about_by_the_package_it_installs(tmp_path, registry, alias,
+                                                                 spec, asked):
+    """Found by R29.2's wider corpus: hapi and socket.io install real packages under
+    another name (`"x": "npm:real@1"`), and the alias, never on the registry, was
+    reported as hallucinated. The registry name is the one after `npm:`."""
+    DependencyRealityCheck().run(_repo(tmp_path, {
+        "package.json": json.dumps({"devDependencies": {alias: spec}})
+    }))
+
+    assert _names(registry, "npm") == [asked]
