@@ -1500,13 +1500,36 @@ unchanged.
   1. no `FROM` names a variable;
   2. one checksum-verified download per architecture, as now;
   3. the reproducibility job passes, and the image's size moves by under 1%.
-- [ ] **R27.4** **Fuzzing** (D63c). Behaviours:
+- [x] **R27.4** **Fuzzing** (D63c). Behaviours:
   1. `.clusterfuzzlite/` builds fuzzers for `valvur.installs`, the lockfile parsers, the
      project configuration and the readers of `findings.json`;
   2. they run briefly on each pull request and longer nightly, with pinned actions and the
      minimum permissions, and zizmor finds nothing;
   3. every crash found is fixed, with a regression test;
   4. atheris is a dev dependency alone.
+  **STATUS 2026-10-04:** ✅ all four.
+  1. `fuzz/` holds four atheris fuzzers: the install commands the hook reads, every lockfile
+     reader, the project file's readers, and the readers of `findings.json` (the gate and
+     the `scan` reply). Each runs its seeds in the unit suite without atheris.
+     `.clusterfuzzlite/` builds them with `compile_python_fuzzer`, each with its seeds as a
+     corpus. They sit outside `tests/` because the image's `.dockerignore` keeps `tests/`
+     out of the build context ClusterFuzzLite builds in.
+  2. `fuzz.yml` runs them for 300 s on each pull request (`code-change`) and for an hour
+     nightly (`batch`), and a scheduled failure files the tracked issue. Actions are pinned
+     by commit, the jobs hold `contents: read`, and zizmor finds nothing (42 notes below its
+     bar; `published.yml`'s went with it).
+  3. Under atheris, 60 s each found crashes in two targets, and reading beside them found
+     their siblings: 17 inputs in all.
+     - Three lockfile readers iterated a value of the wrong shape.
+     - The project file's readers raised on text that is not UTF-8, on a `[scan]` or an
+       `exclude` of the wrong type, and on a `suppress` that is not an array of tables.
+     - The gate and the reply subscripted whatever `findings.json` held.
+
+     Each is fixed and has a regression test in `test_fuzz_crashes.py`, and its input is a
+     seed. The shape check is one function, `results.findings_of`. Afterwards, 120 s each,
+     about 970,000 executions in all, found nothing.
+  4. atheris is the `fuzz` extra alone, apart from `dev`, so `verify.sh` never builds it,
+     and nothing under `src/` imports it.
 - [ ] **R27.5** **Scorecard measured again** (D63d). Behaviours:
   1. the branch's score, measured with publishing off, is recorded check by check;
   2. the README's note beside the badge names what only a second maintainer lifts.

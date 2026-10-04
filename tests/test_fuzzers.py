@@ -92,3 +92,20 @@ def test_the_workflow_holds_the_minimum_permissions():
     assert re.search(r"^permissions:\n  contents: read\n", text, re.M)
     grants = set(re.findall(r"^\s+(\w[\w-]*): write", text, re.M))
     assert grants == {"issues"}, f"a fuzz run writes nothing but a failure's issue: {grants}"
+
+
+def test_atheris_is_a_development_dependency_alone():
+    """The shim stays standard-library (F10.6). atheris is the `fuzz` extra, apart
+    from `dev`, so `verify.sh`'s install on a Mac or Python 3.13 never builds it."""
+    import re
+    import tomllib
+
+    project = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]
+
+    assert project["dependencies"] == []
+    extras = project["optional-dependencies"]
+    assert [d for d in extras["fuzz"] if d.startswith("atheris")], extras
+    assert not [d for name, deps in extras.items() if name != "fuzz"
+                for d in deps if d.startswith("atheris")]
+    for path in (REPO / "src").rglob("*.py"):
+        assert not re.search(r"^\s*(import|from) atheris", path.read_text(), re.M), path
