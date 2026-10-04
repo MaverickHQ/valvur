@@ -1644,10 +1644,30 @@ measurement, or each one's measured reason; CI green; the Score unchanged.
 
   So five of the seven hid their finding, and the other two stayed unread only because of
   the engine's working directory.
-- [ ] **R38.2** **Every Scanner runs with its own ignores off** (D77a). Behaviours:
+- [x] **R38.2** **Every Scanner runs with its own ignores off** (D77a). Behaviours:
   1. each adapter's arguments carry the switch, and the invocation snapshots hold them;
   2. every fixture's planted finding is reported (`e2e`);
   3. where a Scanner cannot turn its ignores off, D77's fallback applies, named in the STATUS.
+  **STATUS 2026-10-04:** ✅ all three.
+  1. Opengrep runs with `--disable-nosem`. Gitleaks runs with `--ignore-gitleaks-allow` and
+     `--gitleaks-ignore-path /dev/null`, and with `GITLEAKS_CONFIG_TOML`: the project's
+     `.gitleaks.toml` with every allowlist taken out, its own rules kept, or Gitleaks's
+     defaults when it has none. That variable outranks the file in the scanned directory,
+     and the history pass uses it too, where it had passed `--config` and re-applied the
+     path allowlist itself. Trivy runs with `--ignorefile /dev/null`, and OSV-Scanner with
+     `--config /dev/null` on both Profiles. The invocation snapshots hold each, and
+     `docs/PROTOCOL.md` documents `/dev/null`.
+     - **Found on the way:** the reuse key held the Scanner, its version, the Profile, the
+       dependency files and the data, but not the arguments. So OSV-Scanner's stored result
+       from before the switch, made with the ignore honoured, was reused after it. The key
+       now holds the arguments.
+  2. `test_project_ignores_e2e.py` scans R38.1's project with the image and finds all
+     seven: the five findings by path and rule, and CVE-2019-11324 from Trivy and
+     CVE-2019-11236 from OSV-Scanner.
+  3. Checkov has no switch, since inline skips are matched before a check runs, so D77's
+     fallback applies. It runs without `--quiet`, and each `skipped_checks` entry becomes
+     the finding the check would make, with the same identity, titled *not evaluated: the
+     project's checkov:skip comment skipped it*.
 - [ ] **R38.3** **What each ignore hides** (D77b). Behaviours:
   1. valvur reads each ignore D77 names, and every finding one matches carries `ignored_by`;
   2. SARIF carries it as a suppression of kind `inSource` or `external`, and stays valid 2.1.0;
