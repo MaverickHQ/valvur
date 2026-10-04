@@ -2,7 +2,7 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `1.4.0`** — release in progress: this tree is rehearsed and waits at the release brake; `pip install valvur` serves `1.3.1` until the run's `promote` completes.
+> **Status: `1.4.0`** — published and installable, released on 2026-10-04; rehearsed on its commit before its signed tag.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MaverickHQ/valvur/badge)](https://scorecard.dev/viewer/?uri=github.com/MaverickHQ/valvur)
