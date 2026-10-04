@@ -1330,10 +1330,44 @@ recorded; or D45's fallback, applied and recorded.
 
 ### Phase R26: a lighter release
 
-- [ ] **R26.1** **Measure first** (D62). Record, for `1.4.0`'s rehearsal (run 37189078227)
+- [x] **R26.1** **Measure first** (D62). Record, for `1.4.0`'s rehearsal (run 37189078227)
   and release (run 37191050681), each job's minutes; which suites ran where (locally, in
   the pull request's CI, in the rehearsal, in the release); and the owner's actions.
   Behaviour: the STATUS gives the table.
+  **STATUS 2026-10-04:** ✅ the table, read from the Actions API for both runs and for
+  the check runs on `4d18abd`, the commit both ran on.
+
+  | job | rehearsal 37189078227 | release 37191050681 |
+  |---|---|---|
+  | `verify`, all | 13.9 min | 14.2 min |
+  | — `verify.sh` (lint, types, traceability, unit) | 1.5 | 1.5 |
+  | — the image, built again | 1.1 | 1.1 |
+  | — the whole suite, e2e included | 7.3 | 7.5 |
+  | — the self-scan gate | under 0.3 | 0.4 |
+  | — the Score | 3.0 | 2.9 |
+  | `build`, amd64 and arm64, side by side | 1.6 | 1.6 |
+  | `stage` | 1.6 | 1.3 |
+  | `artifact`, amd64 and arm64, side by side | 10.9 | 9.9 |
+  | the wait at the brake | none | 43.9 |
+  | `promote` | 1.1 | 0.6 |
+  | the run, start to end | 31.4 | 72.3 (28.4 of work) |
+
+  Which suite ran where, for `1.4.0`:
+
+  | suite | locally | the PR's CI (#191) | rehearsal | release |
+  |---|---|---|---|---|
+  | lint, types, unit (`verify.sh`) | yes (step 5) | `lint, types, tests`, 3.11, 3.13 | `verify` | `verify` |
+  | e2e against the tree's image | yes (step 5) | `end-to-end` on both architectures | `verify` | `verify` |
+  | the self-scan gate | yes | `self-scan release gate (N2.5)` | `verify` | `verify` |
+  | the acceptance set | the Mac lane (#190) | `eight repositories and four probes` | no | no |
+  | the Score | the Mac lane (#190) | no | `verify` | `verify` |
+  | constraints and e2e against the artifact | no | no | `artifact` | `artifact` |
+
+  So `verify` spent 9.9 to 10.1 of its minutes on the image and two suites that every
+  required check had just passed on the same commit; the Score, 3.0, is the one part no
+  required check measures. The owner's actions, four: land the release PR (#191, by
+  fast-forward), push the signed tag `v1.4.0`, approve `promote` at the brake, and land
+  the closing PR (#192) that flipped the README to *published*.
 - [ ] **R26.2** **Rehearse when the machinery changed** (D62a). Behaviours:
   1. `prepare_release.py` names each machinery file changed since the last tag, or says
      none did;
