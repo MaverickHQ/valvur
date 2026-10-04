@@ -73,28 +73,27 @@ def test_every_copy_of_a_fixture_goes_through_the_helper():
         assert not copies.search(path.read_text()), f"{path.name} copies a fixture itself"
 
 
-def _suppression(rule: str) -> dict:
-    import tomllib
-
-    config = tomllib.loads((REPO / ".security-scan.toml").read_text())
-    [entry] = [s for s in config["suppress"] if s["rule"] == rule]
-    return entry
-
-
-def test_checkovs_accepted_advisory_is_recorded_where_osv_scanner_reads_ignores():
-    """The one real advisory of the 44: accepted in `.security-scan.toml` since the
-    lock moved, and now in the file OSV-Scanner, and so Scorecard, reads, with the
-    same reason and the same review date. Nothing else is ignored there."""
+def test_checkovs_accepted_advisory_is_recorded_once_where_osv_scanner_reads_ignores():
+    """The one real advisory of the 44, accepted since Checkov's lock moved, and now
+    recorded in the file OSV-Scanner, and so Scorecard, reads. valvur honours a
+    project's own tool configuration, as it does `.gitleaks.toml`, so its scan of
+    itself reads the same ignore, and a second record in `.security-scan.toml` matched
+    nothing (measured: `valvur.suppression.stale`). One record, then, with its reason
+    and its review date: OSV-Scanner stops ignoring it on that date, and it comes back
+    in Scorecard and in valvur's own scan alike. Nothing else is ignored there."""
+    import datetime
     import tomllib
 
     ignored = tomllib.loads((REPO / "osv-scanner.toml").read_text())["IgnoredVulns"]
-    accepted = _suppression("CVE-2024-23342")
+    suppressed = tomllib.loads((REPO / ".security-scan.toml").read_text())["suppress"]
 
     assert [entry["id"] for entry in ignored] == ["PYSEC-2026-1325"]
     [entry] = ignored
-    assert entry["reason"].startswith(accepted["reason"][:60])
     assert "CVE-2024-23342" in entry["reason"] and "requirements-checkov.txt" in entry["reason"]
-    assert entry["ignoreUntil"].date() == accepted["expires"]
+    assert "no fix" in entry["reason"] and "Revisit if" in entry["reason"]
+    review = entry["ignoreUntil"].date()
+    assert datetime.date.today() < review <= datetime.date.today() + datetime.timedelta(days=366)
+    assert not [s for s in suppressed if s["rule"] == "CVE-2024-23342"], "recorded twice"
 
 
 @pytest.mark.e2e

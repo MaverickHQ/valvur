@@ -35,16 +35,6 @@ path = "Dockerfile"
 expires = 2027-08-31
 reason = "No HEALTHCHECK: this image runs one scanner command and exits. A healthcheck describes a long-running service, and Docker never runs one for a container that has already finished. Adding it would be cargo cult. Revisit if valvur ever ships a daemon or server mode."
 
-# Checkov 3.3.17 (2026-09-14) — and 3.3.19 (2026-09-26) still — pulls in python-ecdsa, which carries an advisory with
-# no fix and none coming. The lock's own self-scan found it the day the lock moved,
-# which is what the lock is for; the decision is recorded here rather than by
-# dropping the package from the lock, because a transitive import that fails at an
-# unexpected moment is a failed Scanner, and that is worse than a known, reasoned
-# acceptance that comes back up for review.
-
-[[suppress]]
-fingerprint = "294fda748b07bf2886edd3273e2c9956"
-rule = "CVE-2024-23342"
-path = "requirements-checkov.txt"
-expires = 2027-09-14
-reason = "python-ecdsa's Minerva timing side-channel (CVE-2024-23342) has no fix and will not get one — its maintainers state side-channel resistance is out of scope. It reaches this image only as a transitive dependency of Checkov, which never signs or verifies anything in a valvur scan: Checkov runs read-only over the workspace with no network on offline and no platform integration on full. A timing attack needs an attacker measuring signing operations; nothing here performs any. Revisit if Checkov moves off python-ecdsa, or if a scan ever exercises it."
+# Checkov's python-ecdsa advisory (CVE-2024-23342), accepted here from 2026-09-14,
+# is recorded in `osv-scanner.toml` since R27.2: OSV-Scanner reports it, valvur's
+# scan reads that file as Scorecard does, and a second record here matched nothing.

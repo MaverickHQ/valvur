@@ -1,12 +1,21 @@
-# OSV-Scanner's ignores, which Scorecard's Vulnerabilities check reads too (R27.2, D63a).
+# OSV-Scanner's ignores, which Scorecard's Vulnerabilities check and valvur's own
+# OSV-Scanner both read (R27.2, D63a).
 #
-# One entry, and only ever an accepted one: the advisory valvur's own self-scan accepts
-# in `.security-scan.toml`, with the same reason and the same review date, so neither
-# file can keep an acceptance the other has let lapse (a test holds them equal). The
-# manifests planted for valvur's tests are not ignored here: they are stored under
-# names no scanner reads as manifests (`*.fixture`, `scripts/fixtures.py`).
+# Only ever an accepted advisory, with its reason and the date it comes back up for
+# review: `ignoreUntil` ends the ignore, and the advisory returns to Scorecard and to
+# valvur's scan of itself alike. The manifests planted for valvur's tests are not
+# ignored here: they are stored under names no scanner reads as manifests
+# (`*.fixture`, copied back by `scripts/fixtures.py`).
+#
+# Checkov 3.3.17 (2026-09-14) — and 3.3.19 (2026-09-26) still — pulls in python-ecdsa,
+# which carries an advisory with no fix and none coming. The lock's own self-scan
+# found it the day the lock moved, which is what the lock is for; the decision is
+# recorded here rather than by dropping the package from the lock, because a
+# transitive import that fails at an unexpected moment is a failed Scanner, and that
+# is worse than a known, reasoned acceptance that comes back up for review. It was a
+# suppression in `.security-scan.toml` until R27.2, with the same reason and date.
 
 [[IgnoredVulns]]
 id = "PYSEC-2026-1325"
 ignoreUntil = 2027-09-14T00:00:00Z
-reason = "python-ecdsa's Minerva timing side-channel (CVE-2024-23342) has no fix and will not get one — its maintainers state side-channel resistance is out of scope. It reaches this image only as a transitive dependency of Checkov, which never signs or verifies anything in a valvur scan: Checkov runs read-only over the workspace with no network on offline and no platform integration on full. A timing attack needs an attacker measuring signing operations; nothing here performs any. Revisit if Checkov moves off python-ecdsa, or if a scan ever exercises it. (CVE-2024-23342, python-ecdsa in requirements-checkov.txt; accepted in .security-scan.toml.)"
+reason = "python-ecdsa's Minerva timing side-channel (CVE-2024-23342) has no fix and will not get one — its maintainers state side-channel resistance is out of scope. It reaches this image only as a transitive dependency of Checkov, which never signs or verifies anything in a valvur scan: Checkov runs read-only over the workspace with no network on offline and no platform integration on full. A timing attack needs an attacker measuring signing operations; nothing here performs any. Revisit if Checkov moves off python-ecdsa, or if a scan ever exercises it. (CVE-2024-23342, python-ecdsa in requirements-checkov.txt.)"
