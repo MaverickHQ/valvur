@@ -99,3 +99,29 @@ def test_the_first_scan_has_no_table(workspace):
     _scan(workspace, _Planted([("r.one", "a.py")]))
 
     assert "## Since the last scan" not in _summary(workspace)
+
+
+def test_a_finding_whose_scanner_did_not_run_is_not_re_checked_and_the_next_run_says(
+        workspace):
+    """F5.6 as 29.0.5 has it: gone is fixed only where its Scanner looked. Cut by the
+    budget, the Scanner did not; the finding keeps its row, and the next run that
+    looks names it fixed."""
+    other = _Planted([], name="other")
+    _scan(workspace, _Planted([("r.kept", "src/a.py")]), other)
+
+    cut = _scan(workspace, _Planted([], seconds=5.0), other, budget_s=1.5)
+    assert cut.earlier == [("not re-checked", "r.kept", "src/a.py")]
+    assert "| not re-checked | `r.kept` | `src/a.py` |" in _since(_summary(workspace))
+
+    looked = _scan(workspace, _Planted([]), other)
+    assert looked.earlier == [("fixed", "r.kept", "src/a.py")]
+
+
+def test_the_table_shows_twenty_rows_by_rank_and_counts_the_rest(workspace):
+    _scan(workspace, _Planted([(f"r.n{i:02}", "src/a.py") for i in range(25)]))
+
+    _scan(workspace, _Planted([]))
+
+    since = _since(_summary(workspace))
+    assert since.count("| fixed |") == 20
+    assert "| _…and 5 more_ | | |" in since
