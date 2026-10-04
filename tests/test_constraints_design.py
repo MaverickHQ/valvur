@@ -209,8 +209,10 @@ def test_only_the_needed_opengrep_binary_is_fetched():
     image, for a 50MB tool."""
     dockerfile = Path("Dockerfile").read_text()
 
-    assert "FROM opengrep-${TARGETARCH}" in dockerfile, (
-        "the per-architecture stage selection is gone; both binaries will ship again"
+    # One stage choosing by TARGETARCH since R27.3 (D63b), not a stage per
+    # architecture behind `FROM opengrep-${TARGETARCH}`; the claim is unchanged.
+    assert 'case "$TARGETARCH" in' in dockerfile, (
+        "the per-architecture selection is gone; both binaries will ship again"
     )
     assert "rm -f /tmp/opengrep_*" not in dockerfile
 

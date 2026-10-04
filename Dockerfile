@@ -13,16 +13,18 @@
 # child manifest would silently break the multi-arch build from Phase 13 by resolving
 # to one architecture whatever --platform asked for.
 
-# Declared before the first FROM so it can select the Opengrep stage below.
-ARG TARGETARCH
-
 # Opengrep publishes signed static musllinux binaries but no image. LGPL-2.1, and the
 # consortium fork of Semgrep — see ADR-0004 for why not Semgrep itself.
 #
 # Fetched per architecture (task 15.4). Both binaries used to be ADDed and the unused
 # one deleted, but layers are additive so `rm` reclaims nothing: measured at ~98MB of
-# binaries plus a 50MB copy, carried by every image, for a 50MB tool. Selecting the
-# stage by TARGETARCH means only the one needed is ever fetched.
+# binaries plus a 50MB copy, carried by every image, for a 50MB tool. The stage below
+# downloads the one the platform being built needs, and nothing else.
+#
+# One stage, not one per architecture selected by `FROM opengrep-${TARGETARCH}` (R27.3,
+# D63b): Scorecard reads a FROM that names a variable as an image not pinned by hash,
+# and `COPY --from` cannot take the variable instead (BuildKit refuses the expansion,
+# measured). So no FROM here names a variable.
 #
 # The digests are verified (task 15.2). These were previously fetched over HTTPS and
 # trusted — in the build that signs our releases, where a compromised binary would
@@ -38,20 +40,24 @@ ARG OPENGREP_SHA256_AMD64=1b474bf207905a3cffe4e915fe36895835bc89de2620cb2ffd88ca
 ARG OPENGREP_SHA256_ARM64=6cccb7466a98608e308204e17b259f4ca3a9028c6eb71e6b07ea21b89026c484
 ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.29.0
 
-FROM python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322 AS opengrep-amd64
+FROM python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322 AS opengrep
+ARG TARGETARCH
 ARG OPENGREP_SHA256_AMD64
-ARG OPENGREP_URL
-ADD --chmod=755 ${OPENGREP_URL}/opengrep_musllinux_x86 /opengrep
-RUN echo "${OPENGREP_SHA256_AMD64}  /opengrep" | sha256sum -c -
-
-FROM python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322 AS opengrep-arm64
 ARG OPENGREP_SHA256_ARM64
 ARG OPENGREP_URL
-ADD --chmod=755 ${OPENGREP_URL}/opengrep_musllinux_aarch64 /opengrep
-RUN echo "${OPENGREP_SHA256_ARM64}  /opengrep" | sha256sum -c -
-
-# Resolved by the platform being built; only this stage's download ever runs.
-FROM opengrep-${TARGETARCH} AS opengrep
+# Python's urllib, not BusyBox's wget: it reads SSL_CERT_FILE, which a build behind a
+# re-terminating proxy names (scripts/cloud_image.py). An unknown platform, or no
+# TARGETARCH at all (a builder without BuildKit), fails here, by name.
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) asset=opengrep_musllinux_x86; sha="$OPENGREP_SHA256_AMD64" ;; \
+      arm64) asset=opengrep_musllinux_aarch64; sha="$OPENGREP_SHA256_ARM64" ;; \
+      *) echo "no Opengrep binary for platform '${TARGETARCH}'" >&2; exit 1 ;; \
+    esac; \
+    python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], "/opengrep")' \
+      "$OPENGREP_URL/$asset"; \
+    echo "$sha  /opengrep" | sha256sum -c -; \
+    chmod 755 /opengrep
 
 FROM zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f AS gitleaks
 FROM aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 AS trivy
