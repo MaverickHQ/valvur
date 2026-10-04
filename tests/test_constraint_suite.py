@@ -16,6 +16,9 @@ SUBJECTS = ("exfiltration", "canary", "isolation", "budgets", "supply_chain", "d
             "interruption")
 #: What the one file held on the day it was split: not one fewer.
 BEFORE_THE_SPLIT = 48
+#: The floor since R3 added the two-container constraints (CLAUDE.md §11). R26 lifted
+#: `verify`'s rerun of the suites and kept every one of them (D62).
+SINCE_R3 = 54
 
 
 def test_the_split_kept_every_test_and_the_one_file_is_gone():
@@ -27,4 +30,5 @@ def test_the_split_kept_every_test_and_the_one_file_is_gone():
     # Not one fewer; a new constraint is welcome (R3.8 added the two-container ones).
     assert found >= BEFORE_THE_SPLIT, \
         f"{found} tests across the split; the file held {BEFORE_THE_SPLIT}"
+    assert found >= SINCE_R3, f"{found} constraint tests; the floor is {SINCE_R3}"
     assert not (TESTS / "test_constraints.py").exists(), "the god module is back"

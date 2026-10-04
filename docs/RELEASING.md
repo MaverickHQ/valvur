@@ -72,14 +72,14 @@ What a rehearsal does differently, and nothing else:
 | PyPI | `pypi.org` | `test.pypi.org` |
 | GitHub release | on the tag | a **draft** pre-release on `rehearsal-N`, deleted by the last step |
 
-Everything else — `verify.sh`, the image build, the whole test suite against it,
-the licence check, the self-scan gate, the multi-architecture push, the platform
-assertion — runs exactly as it will for the tag. The scratch image and the TestPyPI
+Everything else — CI's verdict on the commit, the image build, the licence check,
+the self-scan gate, the Score, the multi-architecture push, the platform assertion —
+runs exactly as it will for the tag. The scratch image and the TestPyPI
 upload are left in place on purpose: they are what you inspect afterwards.
 
 **The artifact is tested before it is promoted** (12b.2, N2.5, 26.1.1). `verify`
-runs the suite and the gate against `valvur:dev` before anything is pushed, which
-proves the tree the tag points at. `artifact` runs after `stage`: it installs the
+reads CI's verdict on the commit and runs the gate against `valvur:dev` before
+anything is pushed, which proves the tree the tag points at. `artifact` runs after `stage`: it installs the
 wheel from `dist/` into a clean environment with `src/` deliberately off the path
 (and proves it — `valvur._build` exists only in a built wheel), pulls the image by
 the digest `stage` signed, verifies the signature, checks the pair's version label
@@ -184,11 +184,16 @@ Keep the window short: bump, verify, tag and push in one sitting.
 ## What the workflow does
 
 **`verify` — refuses to release a tree that does not agree with itself.** The tag
-must match `pyproject.toml`; lint, types and the *whole* test suite including
-end-to-end must pass; valvur must add no GPL component (F10.4); valvur must scan
-itself clean, with no unsuppressed finding, no expired suppression and no scanner
-that failed to complete (N2.5); and the Score must hold its baseline (N4.3,
-ADR-0026). Every track runs, since all eight fit in a few minutes. A track more than
+must match `pyproject.toml`, carry a known signature and sit on `main`; every check
+`main`'s protection requires must have passed on the tagged commit, which
+`scripts/ci_verdict.py` reads back from the API rather than rerunning (D62b, R26.3:
+on `1.4.0` the rerun was 10 of `verify`'s 14 minutes), naming each that did not. A
+check it cannot judge (skipped, never run on that commit, or the API silent) makes
+the verdict *unreadable*, and `verify` then reruns `verify.sh` and the whole suite,
+end-to-end included, and says so. Then: valvur must add no GPL component (F10.4);
+valvur must scan itself clean on the day's data, with no unsuppressed finding, no
+expired suppression and no scanner that failed to complete (N2.5); and the Score
+must hold its baseline (N4.3, ADR-0026), which no required check measures. Every track runs, since all eight fit in a few minutes. A track more than
 2 points under `tests/eval/baseline.json`, a failed gate whose phase has closed, or
 a corpus finding with no label stops the release. The weekly `eval.yml` runs the
 same command, so a fall is usually known before release day.
