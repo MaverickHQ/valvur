@@ -505,8 +505,8 @@ def test_the_cli_prints_the_report_and_exits_non_zero_only_on_a_failure(
 
 
 def test_the_mcp_tool_is_the_same_report(healthy):
+    from valvur.mcp.handlers import doctor as doctor_tool
     from valvur.mcp.tools import registry
-    from valvur.operations import doctor as doctor_tool
 
     [tool] = [t for t in registry() if t.name == "doctor"]
     assert tool.handler is doctor_tool
@@ -523,7 +523,7 @@ def test_a_failed_scan_points_the_agent_at_doctor(tmp_path, monkeypatch):
     import time
 
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 

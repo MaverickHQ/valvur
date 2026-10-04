@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from valvur.operations import scan_status
+from valvur.mcp.handlers import scan_status
 
 
 def _results(tmp_path: Path, *, scanners=None, findings=None, remediation=None,

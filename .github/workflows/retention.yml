@@ -31,6 +31,11 @@ jobs:
       packages: write
       issues: write         # open the one issue a failure gets (27.2.7)
     steps:
+      # Only for the issue step's action, which lives in the repository (D55c).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: valvur-rehearsal — about the last five rehearsals
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
@@ -57,22 +62,11 @@ jobs:
         # scheduled failure to the file's last committer and does nothing else.
         # One open issue per workflow; a second failure comments on the first.
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TITLE: the weekly package retention run failed
-        run: |
-          set -eu
-          body=$(printf '%s\n\n%s\n\n%s\n' \
-            "The scheduled \`retention\` run failed: $RUN" \
-            "Nothing users have changes: old rehearsal images and old daily indexes stay pullable a week longer. What is lost is the pruning itself, and a package that grows without bound is the condition this workflow exists to end." \
-            "Recovery: read the run log for the package and the step that failed — usually a token without \`packages: write\` on that package — then dispatch this workflow again after the fix.")
-          existing=$(gh issue list --state open --search "$TITLE in:title" \
-                       --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-            echo "commented on #$existing"
-          else
-            gh issue create --title "$TITLE" --body "$body"
-            echo "opened an issue"
-          fi
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly package retention run failed
+          failed: "The scheduled `retention` run failed"
+          body: |-
+            Nothing users have changes: old rehearsal images and old daily indexes stay pullable a week longer. What is lost is the pruning itself, and a package that grows without bound is the condition this workflow exists to end.
+
+            Recovery: read the run log for the package and the step that failed — usually a token without `packages: write` on that package — then dispatch this workflow again after the fix.

@@ -136,42 +136,6 @@ def _image_paths() -> list[str]:
     return [row[0] for row in _protocol_table("path") if row[1].startswith("the image")]
 
 
-def test_protocol_md_lists_every_path_the_adapters_and_the_runner_assume(tmp_path, monkeypatch):
-    """The document cannot be narrower than the code: every absolute path any
-    Invocation names, and every mount the runner makes, is a row."""
-    from valvur import adapters, cache
-
-    monkeypatch.setattr(cache, "db_present", lambda: True)
-    documented = set(_protocol_rows("path"))
-    assumed: set[str] = set()
-    for adapter in adapters.DEFAULT_ADAPTERS:
-        for arg in adapter.command(tmp_path).argv:
-            for token in re.split(r"[=,]", arg):
-                if token.startswith("/"):
-                    assumed.add(token)
-    assumed |= {"/workspace", "/results", "/cache/trivy", "/cache/names", "/tmp"}  # noqa: S108
-    assumed.add(compat.IMAGE_INPUTS_FILE)
-
-    def covered(path: str) -> bool:
-        return any(path == d or path.startswith(d.rstrip("/") + "/") for d in documented)
-
-    missing = sorted(p for p in assumed if not covered(p))
-    assert missing == [], f"PROTOCOL.md does not list: {missing}"
-
-
-def test_protocol_md_lists_every_binary_and_both_labels():
-    from valvur import adapters
-
-    binaries = set(_protocol_rows("binary"))
-    invoked = {a.command(Path("/nonexistent")).argv[0] for a in adapters.DEFAULT_ADAPTERS
-               if getattr(a, "kind", "") == "scanner" and a.name != "trivy"}
-    invoked.add("trivy")
-    assert invoked <= binaries, f"binaries invoked but undocumented: {sorted(invoked - binaries)}"
-
-    labels = set(_protocol_rows("label"))
-    assert {compat.LABEL, compat.PROTOCOL_LABEL} <= labels
-
-
 def test_protocol_md_names_the_checks_entry_point_and_its_shapes():
     text = PROTOCOL_MD.read_text()
     for needed in ("python -m valvur.engine", "plan.json", "manifest.json", '"received"',

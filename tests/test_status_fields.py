@@ -16,10 +16,10 @@ import time
 
 import pytest
 
-from valvur import api
+from valvur import api, events
 from valvur.levers import LEVERS
 from valvur.mcp import jobs
-from valvur.operations import scan_status_reply
+from valvur.mcp.handlers import scan_status_reply
 from valvur.runner import NoContainerRuntime
 
 
@@ -41,10 +41,10 @@ def test_running_carries_the_instruction_the_text_gives(tmp_path):
     release = threading.Event()
 
     def work(workspace, profile, progress):
-        progress("fleet: 2 Scanners, 2 at a time")
-        progress("gitleaks: started")
-        progress("gitleaks: ok (0.1s)")
-        progress("trivy: started")
+        progress(events.fleet(2, 2))
+        progress(events.scanner_started("gitleaks"))
+        progress(events.scanner_ended("gitleaks", ok=True, seconds=0.1))
+        progress(events.scanner_started("trivy"))
         release.wait(5)
         return ""
 
@@ -89,8 +89,10 @@ def test_a_budget_cut_is_fields_beside_the_error(tmp_path):
     from valvur import levers
     from valvur.provenance import ScannerRun
 
-    scanners = [ScannerRun("checkov", ok=False, reason="cut by the 30s budget", duration_s=30.2),
-                ScannerRun("trivy", ok=False, reason="not started: the 30s budget was spent")]
+    scanners = [ScannerRun("checkov", ok=False, reason="cut by the 30s budget", duration_s=30.2,
+                           budget="cut"),
+                ScannerRun("trivy", ok=False, reason="not started: the 30s budget was spent",
+                           budget="not-started")]
     fields_in = levers.budget_fields(scanners, 30.0, files=327, largest=[("docs", 108)])
 
     def cut(workspace, profile, progress):
@@ -157,8 +159,8 @@ def test_every_sentence_after_the_state_is_in_the_structured_reply(tmp_path):
     release = threading.Event()
 
     def running(workspace, profile, progress):
-        progress("fleet: 1 Scanners, 1 at a time")
-        progress("gitleaks: started")
+        progress(events.fleet(1, 1))
+        progress(events.scanner_started("gitleaks"))
         release.wait(5)
         return ""
 

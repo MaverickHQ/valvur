@@ -183,3 +183,66 @@ def _handler(registry: FakeRegistry, *, cdn: bool):
             self.end_headers()
 
     return Handler
+
+
+# ------------------------------------------------------- a package registry
+
+_SITECUSTOMIZE = '''"""Loaded by every Python process started with this directory first on its path:
+the package registries, answered from here and recorded, never reached."""
+import io
+import json
+import os
+import urllib.error
+import urllib.request
+
+_LOG = os.environ["VALVUR_TEST_REGISTRY_LOG"]
+_ANSWERS = json.loads(os.environ["VALVUR_TEST_REGISTRY_ANSWERS"])
+
+
+class _Answer(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _urlopen(request, *args, **kwargs):
+    url = getattr(request, "full_url", request)
+    with open(_LOG, "a", encoding="utf-8") as log:
+        log.write(url + "\\n")
+    if url not in _ANSWERS:
+        raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+    return _Answer(json.dumps(_ANSWERS[url]).encode())
+
+
+urllib.request.urlopen = _urlopen
+'''
+
+
+class FakePackageRegistry:
+    """The public package registries, for a Check that runs as its own process: a
+    `sitecustomize` on `PYTHONPATH` answers each URL from `answers` (404 for the
+    rest) and records it, so a test can say what was asked. The Check's process
+    opens no socket."""
+
+    def __init__(self, directory: Path, answers: dict[str, object]):
+        self.directory = directory
+        self.answers = answers
+        self.log = directory / "asked.log"
+
+    def install(self, monkeypatch) -> FakePackageRegistry:
+        import os
+
+        self.directory.mkdir(parents=True, exist_ok=True)
+        (self.directory / "sitecustomize.py").write_text(_SITECUSTOMIZE, encoding="utf-8")
+        self.log.write_text("", encoding="utf-8")
+        path = os.environ.get("PYTHONPATH", "")
+        monkeypatch.setenv("PYTHONPATH", f"{self.directory}{os.pathsep}{path}".rstrip(os.pathsep))
+        monkeypatch.setenv("VALVUR_TEST_REGISTRY_LOG", str(self.log))
+        monkeypatch.setenv("VALVUR_TEST_REGISTRY_ANSWERS", json.dumps(self.answers))
+        return self
+
+    @property
+    def asked(self) -> list[str]:
+        return [line for line in self.log.read_text(encoding="utf-8").splitlines() if line]

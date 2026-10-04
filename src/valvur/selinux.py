@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .settings import ENVIRONMENT as _ENVIRONMENT
+
 #: Opt-in, and an environment variable rather than a CLI flag: MCP is the primary
 #: interface (ADR-0015) and has no command line, so a flag would fix this for the
 #: second-choice path only.
-RELABEL_ENV = "VALVUR_SELINUX_RELABEL"
+RELABEL_ENV = _ENVIRONMENT["selinux_relabel"]
 #: Named so a test can point it somewhere real. Patching `Path.read_text` wholesale
 #: could not tell "enforcing" from "SELinux is absent" — both end up False — so the
 #: test proved only one of the two directions it claimed to.

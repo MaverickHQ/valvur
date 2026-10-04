@@ -17,11 +17,12 @@ from pathlib import Path
 import pytest
 from fake_registry import FakeRegistry
 
-from valvur import api, oci
+from valvur import api, events, fetching, oci
+from valvur.engine_host import RuntimeDefaults
 from valvur.runner import ContainerRunner, ImagePullFailed, ScannerOutput
 
 
-class _Runner:
+class _Runner(RuntimeDefaults):
     """A runner whose image may or may not be local, recording what was asked."""
 
     image = "ghcr.io/maverickhq/valvur:9.9.9"
@@ -55,7 +56,7 @@ def test_a_present_image_is_not_pulled_and_no_line_is_said():
     runner = _Runner(present=True)
     said: list[str] = []
 
-    api._ensure_image(runner, said.append)
+    fetching.ensure_image(runner, lambda event: said.append(str(event)))
 
     assert runner.calls == ["inspect"]
     assert said == []
@@ -65,7 +66,7 @@ def test_an_absent_image_is_pulled_and_the_line_names_it_and_its_size():
     runner = _Runner(present=False)
     said: list[str] = []
 
-    api._ensure_image(runner, said.append)
+    fetching.ensure_image(runner, lambda event: said.append(str(event)))
 
     assert runner.calls == ["inspect", "size", "pull"]
     assert said[0].startswith("pulling ghcr.io/maverickhq/valvur:9.9.9 (243MB)")
@@ -77,7 +78,7 @@ def test_a_size_the_registry_cannot_state_is_left_out_rather_than_invented():
     runner = _Runner(present=False, size=None)
     said: list[str] = []
 
-    api._ensure_image(runner, said.append)
+    fetching.ensure_image(runner, lambda event: said.append(str(event)))
 
     assert said[0].startswith("pulling ghcr.io/maverickhq/valvur:9.9.9 —")
     assert "MB" not in said[0]
@@ -87,7 +88,7 @@ def test_a_failed_pull_is_a_named_failure_with_the_runtime_words_and_the_fix():
     runner = _Runner(present=False, pull_exit=1)
 
     with pytest.raises(ImagePullFailed) as caught:
-        api._ensure_image(runner, None)
+        fetching.ensure_image(runner, None)
 
     text = str(caught.value)
     assert "requested access to the resource is denied" in text
@@ -95,12 +96,12 @@ def test_a_failed_pull_is_a_named_failure_with_the_runtime_words_and_the_fix():
 
 
 def test_a_runner_without_the_ability_is_left_alone():
-    """The fake runners in the suite have no `image_present`; a scan through them
-    must not need one."""
-    class Bare:
+    """A runtime with nothing to pull, as the suite's process runtimes are, is
+    asked nothing more: its `image_present` is the declared default (D53)."""
+    class Bare(RuntimeDefaults):
         pass
 
-    api._ensure_image(Bare(), None)
+    fetching.ensure_image(Bare(), None)
 
 
 def test_the_pull_happens_before_the_compatibility_check(tmp_path, monkeypatch):
@@ -138,15 +139,15 @@ def test_scan_status_says_the_image_is_being_pulled_while_it_is(tmp_path, monkey
     """Claim 4 of 10.2 on the surface an agent reads: not "starting" for a minute,
     but the image, its size, and that this is the first run only."""
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
 
     def work(workspace, profile, progress):
-        progress("pulling ghcr.io/maverickhq/valvur:0.2.0 (243MB) — the first run only; "
-                 "the runtime keeps it")
+        progress(events.fetch_started("image", name="ghcr.io/maverickhq/valvur:0.2.0",
+                                      size_mb=243, age_days=None))
         time.sleep(0.6)
-        progress("image pulled (30s)")
+        progress(events.fetch_ended("image", seconds=30.0))
         progress("trivy: ok")
         time.sleep(0.6)
         return "done"
@@ -216,6 +217,8 @@ def test_update_pulls_the_image_first_and_streams_it(monkeypatch, capsys):
             on_line("Status: Downloaded newer image")
             return ScannerOutput("pull", "", "", "", 0)
 
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             order.append("db")
             return ScannerOutput("trivy-db", "", "", "", 0)
@@ -237,6 +240,8 @@ def test_update_does_not_pull_an_image_it_already_has(monkeypatch, capsys):
     from valvur import cli, updating
 
     class Runner(_Runner):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             return ScannerOutput("trivy-db", "", "", "", 0)
 
@@ -253,6 +258,8 @@ def test_a_failed_pull_fails_the_update_before_the_database(monkeypatch, capsys)
     from valvur import cli
 
     class Runner(_Runner):
+        fetches = True                 # it fetches before a scan (24.1)
+
         def update_db(self):
             raise AssertionError("the database update ran without an image")
 

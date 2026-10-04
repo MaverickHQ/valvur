@@ -12,6 +12,7 @@ from typing import ClassVar
 import pytest
 
 from valvur.adapters.base import ScannerAdapter
+from valvur.engine_host import RuntimeDefaults
 from valvur.runner import ScannerOutput
 
 #: The real `urlopen` and opener, for the two falsifiability tests that poison the
@@ -322,7 +323,7 @@ GITLEAKS_ONE_SECRET = json.dumps([
 ])
 
 
-class LegacyDispatch:
+class LegacyDispatch(RuntimeDefaults):
     """The fakes' `run_<tool>(workspace)` methods, reached through the Scan
     Container's protocol (ADR-0022, R3.9): `run(plan, tar, scratch, ...)` unpacks
     the Snapshot, answers each Invocation from the fake's per-tool method, and

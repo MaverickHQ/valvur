@@ -15,11 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-03).** **`1.3.1` is published**, with R18's hook that asks before a flagged
-install (D44). `1.2.0` shipped R9 to R16; the Score went from 59.3 to **64.9** on both lanes,
-and R17 lowered D22's three missed targets to what it measured (D42). [The review of
-2026-10-03](docs/history/REVIEW-2026-10-03.md) kept the outer architecture, found the host side
-unlayered, and scoped 2.0 (D57). **Next:** R23, R24, R20, R25, R21, R22; R19 (2026-11-19).
+**Status (2026-10-03).** **`1.3.1` is published** (D44); `1.2.0` took the Score to **64.9**, R25 to
+**73.9**. [The review](docs/history/REVIEW-2026-10-03.md) scoped 2.0 (D57); R23 and R24 layered the
+host side, R20 cut the noise, R25 wrote rules. **Next:** R21, R22; R19 (2026-11-19).
 
 ## 2. What it is NOT
 
@@ -151,6 +149,8 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 
 - **Spec-driven.** `.kiro/specs/valvur/` holds requirements, design and tasks; `tasks.md` is
   authoritative. Requirement IDs are **never renumbered**; change one by amendment.
+- **Layers** (D50): `core` < `infra` < `app` < `surfaces`, no cycle, held by `scripts/layers.toml`
+  and `scripts/check_layers.py` in `verify.sh`. A deferred import says why: `# deferred:`.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), used exactly. **Measure before writing:** a
   task starts from evidence and closes with the after-measurement in a STATUS note.
 - **Test-driven, in vertical slices** (the `tdd` skill; `tasks.md` §3): each task lists its

@@ -34,9 +34,12 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      - id: version
+        uses: ./.github/actions/version
       - name: Build the image from this tree
+        env:
+          VER: ${{ steps.version.outputs.version }}
         run: |
-          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
             VALVUR_VERSION="$VER" docker buildx bake dev \
               --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
@@ -111,23 +114,12 @@ jobs:
         # the first rather than filing another, because a job that has been broken
         # for a week is one problem, not seven.
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TITLE: the weekly corpus run failed
-        run: |
-          set -eu
-          body=$(printf '%s\n\n%s\n\n%s\n' \
-            "The scheduled \`corpus\` run failed: $RUN" \
-            "Nothing users have changes: the corpus scans thirteen public repositories and publishes nothing. What is lost is the check itself, which is the only thing that sees a false positive from a rule or Check change before a user does." \
-            "Recovery: read the run summary for the repository and the condition that failed, then dispatch this workflow again after the fix.")
-          existing=$(gh issue list --state open --search "$TITLE in:title" \
-                       --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-            echo "commented on #$existing"
-          else
-            gh issue create --title "$TITLE" --body "$body"
-            echo "opened an issue"
-          fi
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly corpus run failed
+          failed: "The scheduled `corpus` run failed"
+          body: |-
+            Nothing users have changes: the corpus scans thirteen public repositories and publishes nothing. What is lost is the check itself, which is the only thing that sees a false positive from a rule or Check change before a user does.
+
+            Recovery: read the run summary for the repository and the condition that failed, then dispatch this workflow again after the fix.
 

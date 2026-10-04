@@ -198,11 +198,6 @@ def fence(entry: Client) -> str:
     return {"toml": "toml", "yaml": "yaml"}.get(entry.shape, "json")
 
 
-README_START = ("<!-- clients:start — rendered from valvur.mcp.clients; a test holds this "
-                "block to it -->")
-README_END = "<!-- clients:end -->"
-
-
 def _sentence(text: str) -> str:
     """The first letter raised and nothing else: a note names keys such as
     `kiroAgent.configureMCP`, whose case is the setting."""
@@ -210,12 +205,12 @@ def _sentence(text: str) -> str:
 
 
 def readme_section() -> str:
-    """The README's client-by-client block, rendered from the table."""
-    lines = [README_START, ""]
+    """The README's client-by-client block, rendered from the table: written there by
+    `scripts/generate_docs.py` (R24.2)."""
+    lines: list[str] = []
     for entry in CLIENTS:
         files = " or ".join(f"`{f}`" for f in entry.files)
         lines += [f"**{entry.name}** — {files}. {_sentence(entry.after)}. "
                   f"*{_sentence(entry.verified)}.*", "",
                   f"```{fence(entry)}", snippet(entry).rstrip("\n"), "```", ""]
-    lines.append(README_END)
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines[:-1]) + "\n"

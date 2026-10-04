@@ -40,9 +40,19 @@ def _gh(*args: str) -> str:
     return done.stdout
 
 
+def _settings(answer: str) -> dict:
+    """The repository's security settings, or a skip when the token cannot read them.
+    They need an admin-scoped token; one without it, a Claude Code cloud session's,
+    gets the repository without them (measured 2026-10-03)."""
+    settings = json.loads(answer) if answer.strip() else None
+    if not settings:
+        pytest.skip("this token cannot read the security settings: they need admin")
+    return settings
+
+
 @pytest.mark.e2e
 def test_the_repositorys_own_guards_are_on():
-    settings = json.loads(_gh("api", f"repos/{REPOSITORY}", "--jq", ".security_and_analysis"))
+    settings = _settings(_gh("api", f"repos/{REPOSITORY}", "--jq", ".security_and_analysis"))
     off = [name for name in REQUIRED if (settings.get(name) or {}).get("status") != "enabled"]
 
     assert not off, f"disabled on {REPOSITORY}: {off} — a security tool with its own guards off"

@@ -17,7 +17,7 @@ import time
 import pytest
 from test_budget import _Adapter, _Runner, _scan
 
-from valvur import api, exclusions
+from valvur import api, events, exclusions
 
 
 def _tree(root, spec: dict[str, int]) -> None:
@@ -82,14 +82,14 @@ def test_the_budget_refusal_names_the_count(workspace):
 
 def test_scan_status_gives_the_workspace_its_own_line(tmp_path, monkeypatch):
     from valvur.mcp import jobs
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     hold = jobs.threading.Event()
 
     def work(workspace, profile, progress):
-        progress("workspace: 5 files to scan; largest: src 5")
-        progress("fleet: 1 Scanners, 1 at a time")
+        progress(events.workspace(5, [("src", 5)]))
+        progress(events.fleet(1, 1))
         hold.wait(5)
 
     job = jobs.start(tmp_path, "offline", work)

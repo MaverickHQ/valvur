@@ -53,18 +53,6 @@ def test_claude_code_and_kiro_are_the_measured_ones_and_say_so():
             assert "not run here" in entry.verified, entry.key
 
 
-def test_the_readme_carries_the_rendered_section_verbatim():
-    readme = (REPO / "README.md").read_text(encoding="utf-8")
-    start, end = readme.find(clients.README_START), readme.find(clients.README_END)
-    assert start > 0 < end, "the README has no clients block"
-    block = readme[start:end + len(clients.README_END)] + "\n"
-    assert block == clients.readme_section(), (
-        "the README's clients block differs from the table; regenerate it with "
-        "`uv run python -c 'from valvur.mcp import clients; print(clients.readme_section())'`")
-    for entry in clients.CLIENTS:
-        assert clients.snippet(entry).rstrip("\n") in readme, entry.key
-
-
 def _reply(request: dict) -> dict:
     stdin = io.StringIO(json.dumps(request) + "\n")
     stdout = io.StringIO()

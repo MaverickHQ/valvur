@@ -128,8 +128,7 @@ def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_be
     import time
     from pathlib import Path
 
-    from valvur import operations
-    from valvur.mcp import jobs
+    from valvur.mcp import handlers, jobs
     from valvur.mcp.jobs import State
     from valvur.runner import detect_runtime
 
@@ -146,7 +145,8 @@ def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_be
     monkeypatch.setenv("VALVUR_JOBS", "2")
     jobs.reset()
     before = live()
-    operations.start_scan({"workspace": str(workspace)})
+    # Started as the MCP `scan` tool starts it, without waiting for its result.
+    jobs.start(workspace.resolve(), "offline", handlers._work(None, fresh=False))
 
     def scanning() -> set[str]:
         """Scan Containers carry their generation; the image probes carry `none`."""
@@ -166,7 +166,7 @@ def test_a_real_cancel_at_width_two_launches_nothing_after_and_leaves_nothing_be
     assert scanning() - before, f"the Scan Container never started: {sorted(seen)}"
     time.sleep(1.0)                               # two tools running, the rest queued
 
-    operations.cancel_scan({"workspace": str(workspace)})
+    handlers.cancel_scan({"workspace": str(workspace)})
     known = set(seen) | (live() - before)
     job = jobs.current(workspace.resolve())
     launched_after: set[str] = set()

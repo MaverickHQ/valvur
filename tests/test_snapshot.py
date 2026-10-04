@@ -44,8 +44,9 @@ def test_a_snapshot_that_arrives_short_refuses_the_scan(tmp_path, monkeypatch):
 
     from valvur import api
     from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import RuntimeDefaults
 
-    class ShortRuntime:
+    class ShortRuntime(RuntimeDefaults):
         engine = True
 
         def run(self, plan, tar, scratch, on_event=None, budget_s=None, jobs=None):

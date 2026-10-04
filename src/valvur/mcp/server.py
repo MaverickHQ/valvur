@@ -13,13 +13,13 @@ import os
 import signal
 import sys
 import time
-from collections.abc import Callable
 from typing import Any
 
 from . import jobs, protocol
+from . import tools as _tools
+from .clients import SERVER as SERVER_NAME
 from .protocol import PROTOCOL_VERSION, SUPPORTED_VERSIONS, RpcError
-
-SERVER_NAME = "valvur"
+from .tool import Tool
 
 #: How long the exit waits for each cancelled job to settle (task 27.1.1). Long
 #: enough for a `docker kill` of a full fleet and the scan's own unwinding —
@@ -49,6 +49,7 @@ def shutdown(out=None) -> None:
     kill, or a database fetch. Nothing here raises: a server that cannot clean up
     must still exit.
     """
+    # deferred: startup; the server answers its handshake before a tool loads.
     from .. import owner, runner
 
     stream = out or sys.stderr
@@ -99,59 +100,6 @@ def _watch_parent(parent: int) -> None:
     threading.Thread(target=watch, name="valvur-parent-watch", daemon=True).start()
 
 
-class Tool:
-    """One exposed tool, and what it does to the machine it runs on.
-
-    No tool touches the **source tree** — that is F9.2 and ADR-0009, structural
-    and unchanged. `readOnlyHint` is a narrower claim in MCP's own words, "does
-    not modify its environment", and until 27.1.2 all six tools declared it true:
-    `scan` writes the Results Folder, pulls an image and starts containers, and
-    `scan_cancel` kills them. A client may use these annotations to decide what
-    to run without asking, so a hint that is wrong is worse than none — a prompt
-    before a scan is the correct behaviour, not a regression.
-    """
-
-    def __init__(self, name: str, description: str, schema: dict,
-                 handler: Callable[[dict], str | tuple[str, dict]], *,
-                 read_only: bool = True, destructive: bool = False,
-                 open_world: bool | None = None, output_schema: dict | None = None):
-        self.name = name
-        self.description = description
-        # Closed, whatever the caller wrote (R6.4): an argument no tool takes is
-        # refused at the call, never silently ignored.
-        self.schema = {**schema, "additionalProperties": False}
-        #: Answers the text every client renders — and, for a tool that declares
-        #: `output_schema`, the same answer as a dict beside it, which the reply
-        #: carries as `structuredContent` (MCP 2025-06-18; 28.2.2). One call
-        #: produces both, so the two forms cannot disagree.
-        self.handler = handler
-        self.output_schema = output_schema
-        #: The default is the safe one: a tool says nothing and is advertised as
-        #: read-only, so a tool that ACTS has to declare it.
-        self.read_only = read_only
-        #: Nothing valvur exposes is destructive, and a test over the registry
-        #: says so: a scan only adds, and a cancel writes nothing at all (F1.11).
-        #: The field exists so the claim is stated rather than assumed.
-        self.destructive = destructive
-        #: Stated where it is known: `check_package` answers from this machine's
-        #: cache and reaches no one (D28), which MCP's default, open-world, denies.
-        self.open_world = open_world
-
-    def describe(self) -> dict:
-        described = {
-            "name": self.name,
-            "description": self.description,
-            "inputSchema": self.schema,
-            "annotations": {"readOnlyHint": self.read_only,
-                            "destructiveHint": self.destructive,
-                            **({} if self.open_world is None
-                               else {"openWorldHint": self.open_world})},
-        }
-        if self.output_schema is not None:
-            described["outputSchema"] = self.output_schema
-        return described
-
-
 def _error_text(exc: Exception) -> str:
     """A refusal is its sentence (R1.2); anything else keeps its class name,
     because an unexpected failure is worth its type in a report."""
@@ -163,6 +111,7 @@ def _check_arguments(schema: dict, arguments: Any) -> None:
     an unknown one, a missing one, or one of the wrong type is refused in one
     sentence with its kind. A number sent as a string is still a number (R1.5);
     what a value means is the tool's to check."""
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..refusal import Refusal
 
     if not isinstance(arguments, dict):
@@ -203,21 +152,18 @@ def _typed(value: Any, expected: str | None) -> bool:
 
 
 def version() -> str:
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..compat import shim_version
 
     return shim_version()
 
 
 def _default_instructions() -> str:
-    # Lazy: `tools` imports `Tool` from here at module level. Both sit in the one
-    # soft component the cycle ratchet names for the MCP package.
-    from .tools import instructions
-
-    return instructions()
+    return _tools.instructions()
 
 
 def build(tools: list[Tool], *, instructions: str | None = None,
-          ) -> dict[str, Callable[[dict], Any]]:
+          ) -> protocol.Handlers:
     """The handlers for one server. `instructions` is what `initialize` hands the
     client; None means the machine block's rules, "" means none."""
     by_name = {tool.name: tool for tool in tools}
@@ -259,7 +205,12 @@ def build(tools: list[Tool], *, instructions: str | None = None,
             call.served = tuple(by_name)
         try:
             arguments = params.get("arguments") or {}
-            _check_arguments(tool.schema, arguments)
+            try:
+                _check_arguments(tool.schema, arguments)
+            except Exception:
+                if tool.settle is not None:
+                    tool.settle()       # announced, and its handler will never run
+                raise
             answer = tool.handler(arguments)
         except RpcError:
             raise
@@ -284,13 +235,19 @@ def build(tools: list[Tool], *, instructions: str | None = None,
             reply["structuredContent"] = structured
         return reply
 
-    return {
+    def announce(params: dict) -> None:
+        name = params.get("name")
+        tool = by_name.get(name) if isinstance(name, str) else None
+        if tool is not None and tool.announce is not None:
+            tool.announce()
+
+    return protocol.Handlers({
         "initialize": initialize,
         "notifications/initialized": lambda _: None,
         "ping": lambda _: {},
         "tools/list": list_tools,
         "tools/call": call_tool,
-    }
+    }, announce=announce)
 
 
 #: What `valvur-mcp --help` prints. Not argparse: this entry point takes no options
@@ -326,8 +283,13 @@ this command. `valvur --help` documents the CLI."""
 def main(argv: list[str] | None = None) -> int:
     # stderr, never stdout: stdout is the JSON-RPC channel, and a line of prose
     # there corrupts the stream for every client.
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..runner import unsupported_platform_warning
+
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..version import __version__
+
+    # deferred: startup; the server answers its handshake before a tool loads.
     from .tools import registry
 
     # Silence on stdout is correct for stdio and terrible for a first-run diagnosis:

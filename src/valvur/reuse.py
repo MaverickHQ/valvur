@@ -21,6 +21,10 @@ import re
 from fnmatch import translate
 from pathlib import Path
 
+from . import cache, locking, osv_offline
+from .adapters.osv import VERSION as OSV
+from .adapters.trivy import VERSION as TRIVY
+
 #: The Scanners whose answer depends on dependency files and data alone.
 TOOLS = frozenset({"trivy", "osv-scanner"})
 
@@ -94,8 +98,6 @@ def data(tool: str, files: list[str]) -> str:
     """What the Scanner answered from, as a stamp that changes when the data does:
     the vulnerability database's build time for Trivy (and its Java database's, when
     there is one); each OSV export's date and size for the ecosystems present."""
-    from . import cache, osv_offline
-
     if tool == "trivy":
         stamps = []
         for name in ("db", "java-db"):
@@ -110,8 +112,6 @@ def data(tool: str, files: list[str]) -> str:
 
 def _osv_stamp(names: list[str]) -> str:
     """Each named OSV export's date and size, as the offline database now holds it."""
-    from . import osv_offline
-
     stamps = []
     for name in names:
         path = osv_offline.path(name)
@@ -126,8 +126,6 @@ def _osv_stamp(names: list[str]) -> str:
 
 def directory() -> Path:
     """Where reused results live: the host cache, under its lock (R14.4)."""
-    from . import cache
-
     return cache.root() / cache.REUSE
 
 
@@ -176,9 +174,6 @@ UNUSED_DAYS = 30
 
 
 def _versions() -> dict[str, str]:
-    from .adapters.osv import VERSION as OSV
-    from .adapters.trivy import VERSION as TRIVY
-
     return {"trivy": TRIVY, "osv-scanner": OSV}
 
 
@@ -213,8 +208,6 @@ def superseded() -> list[Path]:
 def prune() -> list[str]:
     """Remove what `superseded` names, under the exclusive cache lock, as
     `valvur update --prune` does the rest of the cache. Returns what went."""
-    from . import cache, locking
-
     removed = []
     with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
         for path in superseded():

@@ -279,6 +279,8 @@ def test_a_mirrored_database_registry_is_passed_to_trivy(monkeypatch):
     from valvur.adapters.trivy import db_flags as _db_repository_flags
 
     monkeypatch.setenv("VALVUR_DB_REPOSITORY", "registry.internal/mirror/trivy-db")
+    # A cloud session's environment sets VALVUR_DB_INSECURE for the whole VM (D61c).
+    monkeypatch.delenv("VALVUR_DB_INSECURE", raising=False)
 
     assert _db_repository_flags() == [
         "--db-repository", "registry.internal/mirror/trivy-db",

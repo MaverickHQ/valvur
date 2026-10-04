@@ -309,26 +309,16 @@ def test_no_module_level_import_cycles():
 
 
 def test_soft_cycles_are_the_ones_chosen_on_purpose():
-    """Lazy and annotation-only cycles are a design choice here — `api` and
-    `results` need each other's names, `mcp.server` and `mcp.tools` register each
-    other — and each group is named so a module joining one is a decision, not an
-    accident. Named as components, not cycles: one group of modules that can all
-    reach each other, whichever sub-cycle a walk happens to find first.
-
-    `provenance` joined the first group with 28.1.1: `run.json`'s renderer moved
-    there from `results`, and it names `api.ScanRun` for typing exactly as
-    `staleness` and `summary` do, while `api` imports the record's type. An
-    annotation-only edge, chosen."""
+    """Lazy and annotation-only cycles were a design choice here once: `api` and
+    `results` needed each other's names, `mcp.server` and `mcp.tools` registered
+    each other. R23.9 removed them all, so any group of modules that can reach each
+    other, through a deferred import or an annotation, is one nobody chose. Named
+    as components, not cycles, so the answer is the same whichever sub-cycle a walk
+    finds first."""
     _, soft = _import_graphs()
-    accepted = {
-        # `engine_host` joined in R3.1: it borrows the runtime's flags from `runner`
-        # while both engines exist. R3.9 deletes runner's fleet, and this entry
-        # must then be redrawn — the check below fails when a component changes.
-        frozenset({"valvur", "valvur.api", "valvur.compat", "valvur.engine_host",
-                   "valvur.pipeline", "valvur.provenance", "valvur.results",
-                   "valvur.runner", "valvur.staleness", "valvur.summary"}),
-        frozenset({"valvur.mcp.server", "valvur.mcp.tools"}),
-    }
+    # None since R23.9: the record moved to `scanrun`, the registries out of their
+    # packages' `__init__`, and `mcp.tool` out of the server.
+    accepted: set[frozenset[str]] = set()
 
     found = _components(soft)
     new = {tuple(sorted(c)) for c in found - accepted}

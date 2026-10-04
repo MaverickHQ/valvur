@@ -22,6 +22,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .. import events
+from ..events import Event
+
 #: How long `scan_status` waits for a running job before answering.
 #:
 #: Fifteen seconds from task 10.2.5, when clients were said to time out at 30 to
@@ -73,7 +76,6 @@ class Job:
     started: float
     state: State = State.RUNNING
     finished: float | None = None
-    summary: str = ""
     error: str = ""
     #: Whether `doctor` could name the cause of a failure (29.0.3, R1.5): only a
     #: precondition failure says yes — runtime, image, database, index, SELinux,
@@ -85,7 +87,8 @@ class Job:
     #: The failure as fields, when the exception carried any (29.2.4): the budget
     #: cut's seconds, what it cut, what never started, and the levers.
     failure: dict | None = None
-    progress: list[str] = field(default_factory=list)
+    #: What the scan has said, as typed events (D53); rendered at the surface.
+    progress: list[Event] = field(default_factory=list)
     #: When each progress message arrived (monotonic), beside it (29.0.4): what
     #: lets a status line say how long a Scanner has been running.
     progress_at: list[float] = field(default_factory=list)
@@ -126,10 +129,10 @@ class Job:
     def elapsed(self) -> float:
         return (self.finished or time.monotonic()) - self.started
 
-    def note(self, message: str) -> None:
-        """Record a progress message and when it arrived — the callback the scan
-        is given (29.0.4)."""
-        self.progress.append(message)
+    def note(self, message: Event | str) -> None:
+        """Record a progress event and when it arrived — the callback the scan is
+        given (29.0.4). Words with no kind are a note."""
+        self.progress.append(message if isinstance(message, Event) else events.note(message))
         self.progress_at.append(time.monotonic())
 
     def wait(self, seconds: float | None = None) -> bool:
@@ -141,6 +144,14 @@ class Job:
 
 _jobs: dict[str, Job] = {}
 _lock = threading.Lock()
+#: Signalled when a job starts or an expected scan is settled, under `_lock`.
+_changed = threading.Condition(_lock)
+#: `scan` calls the server has read and whose jobs have not started yet (R23.4):
+#: a `scan_cancel` that arrives in between is held for the scan about to start.
+_expected = 0
+#: How long a cancel waits for a scan the server has read and not yet started:
+#: its call resolves the workspace first, which may ask the client for its roots.
+EXPECTED_WAIT_S = 15.0
 
 
 def _doctor_may_help(exc: BaseException) -> bool:
@@ -178,10 +189,11 @@ def start(workspace: Path, profile: str, run: Any) -> Job:
             return existing
         job = Job(workspace=workspace, profile=profile, started=time.monotonic())
         _jobs[key] = job
+        _changed.notify_all()
 
     def work() -> None:
         try:
-            job.summary = run(workspace, profile, job.note)
+            run(workspace, profile, job.note)
             with _lock:
                 job.transition(State.DONE)
         except Exception as exc:
@@ -214,9 +226,20 @@ def cancel(workspace: Path) -> tuple[Job | None, int]:
 
     The mark and the read of the canceller happen under the lock the setter
     takes, so a canceller attached a moment later finds the mark (see
-    `Job.canceller`). The kill itself runs outside the lock — it is I/O."""
-    with _lock:
+    `Job.canceller`). The kill itself runs outside the lock — it is I/O.
+
+    While a scan the server has read has not started its job, a cancel waits for
+    it, up to `EXPECTED_WAIT_S` (R23.4): sent just after `scan`, it used to find
+    nothing, and the scan then ran (R6's backlog row)."""
+    with _changed:
+        deadline = time.monotonic() + EXPECTED_WAIT_S
         job = _jobs.get(str(workspace))
+        while (job is None or job.state is not State.RUNNING) and _expected > 0:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            _changed.wait(remaining)
+            job = _jobs.get(str(workspace))
         if job is None or job.state is not State.RUNNING:
             return None, 0
         job.transition(State.CANCELLING)
@@ -233,7 +256,25 @@ def active() -> list[Path]:
         return [Path(key) for key, job in reversed(_jobs.items()) if job.state in ACTIVE]
 
 
+def expect() -> None:
+    """A `scan` call has been read, and its job will follow: said by the server's
+    reader, in the order the calls arrived, before the call's own thread runs."""
+    global _expected
+    with _lock:
+        _expected += 1
+
+
+def arrived() -> None:
+    """The expected scan's job started, or its call was refused before it could."""
+    global _expected
+    with _lock:
+        _expected = max(0, _expected - 1)
+        _changed.notify_all()
+
+
 def reset() -> None:
     """Test seam. Never called in normal operation."""
+    global _expected
     with _lock:
         _jobs.clear()
+        _expected = 0

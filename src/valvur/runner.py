@@ -9,10 +9,12 @@ import uuid as _uuid
 from contextlib import suppress as _suppress
 from pathlib import Path
 
-from . import egress
+from . import cache, compat, egress, locking, osv_offline, owner
 from . import settings as _settings
+from .adapters.trivy import database_fetch
 from .invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput, nothing_to_scan
 from .selinux import RELABEL_ENV, selinux_enforcing
+from .settings import ENVIRONMENT as _ENVIRONMENT
 from .version import __version__, default_image
 
 __all__ = ["NOTHING_TO_SCAN", "RELABEL_ENV", "Invocation", "ScannerOutput", "selinux_enforcing"]
@@ -29,24 +31,12 @@ db_repository = egress.db_repository
 # who is not us.
 IMAGE = _settings.get("image") or default_image()
 #: `VALVUR_DEBUG=1`: every container command echoed to stderr as it runs (28.3.6).
-DEBUG_ENV = "VALVUR_DEBUG"
+DEBUG_ENV = _ENVIRONMENT["debug"]
 
 
 _VERSION = __version__
 
 _RUNTIMES = ("docker", "podman", "nerdctl")
-
-class ContainerStartFailed(RuntimeError):
-    """The runtime could not start the container at all.
-
-    Distinct from an unreadable Workspace, and the distinction matters: the probe
-    used to discard stderr, so a failed image pull was reported as "the container
-    cannot read the workspace" and sent the reader to check mount permissions. The
-    runtime already said exactly what was wrong; we were throwing it away.
-    """
-
-    #: A precondition `doctor` checks (R1.5).
-    doctor_may_help = True
 
 
 class NoContainerRuntime(RuntimeError):
@@ -81,9 +71,7 @@ def detect_runtime() -> str:
     import os
     import shutil
 
-    from . import settings
-
-    override = settings.get("runtime")
+    override = _settings.get("runtime")
     if override:
         return override
 
@@ -249,6 +237,45 @@ def scan_resource_flags(runtime: str) -> list[str]:
             for flag in flags]
 
 
+def launch_flags(runtime: str, *, generation: str | None, name: str, scratch: str | Path,
+                 network: bool, interactive: bool = False, landing: tuple[str, ...] = (),
+                 osv: bool = False, resources: list[str] | None = None) -> list[str]:
+    """`<runtime> run …` up to the image, for every container valvur starts (D52e):
+    the Scan Container and the database fetch alike, so what they share is written
+    once. F10.2, with the Dockerfile's USER 10001: non-root, a read-only root
+    filesystem, every capability dropped. The source is never mounted (ADR-0022);
+    every mount is valvur's own, labelled on an enforcing SELinux host (F1.6), where
+    an unlabelled mount is denied. Whether there is an interface at all is egress's
+    decision, which the kernel enforces (N2.1)."""
+    db, names = cache.trivy_db(), cache.name_index()
+    for directory in (db, names):
+        directory.mkdir(parents=True, exist_ok=True)
+    z = ":z" if selinux_enforcing() else ""
+    flags = [
+        runtime, "run", *(["-i"] if interactive else []), "--rm", *owner.labels(generation),
+        "--name", name,
+        *_user_flags(runtime),
+        "--read-only", "--cap-drop=ALL",
+        # The memory, PID and privilege ceiling (28.0.3).
+        *(resources if resources is not None else _resource_flags(runtime)),
+        # Scratch space the read-only root still needs: in memory, gone with the
+        # container, nosuid, and noexec for every tool (D54a): Opengrep's core is
+        # unpacked in the image, so nothing needs to run from here.
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=512m",  # noqa: S108
+        *landing,
+        "-v", f"{scratch}:/results{z}",
+        "-v", f"{db}:/cache/trivy{z}",                  # ADR-0012: the DB outside the image
+        # ADR-0018: the package-name index, read-only, since the Check only asks it.
+        "-v", f"{names}:/cache/names:ro{z and ',z'}",
+    ]
+    if osv:
+        offline = osv_offline.directory()
+        offline.mkdir(parents=True, exist_ok=True)
+        # OSV's offline database (R4.6), read-only like the index.
+        flags += ["-v", f"{offline}:{osv_offline.MOUNT}:ro{z and ',z'}"]
+    return flags + egress.Egress(network=network).container_flags()
+
+
 def _container_name() -> str:
     return f"valvur-{_uuid.uuid4().hex[:16]}"
 
@@ -300,6 +327,7 @@ def _text(raw) -> str:
 def database_size_mb() -> int | None:
     """What fetching the vulnerability database will cost, from the registry Trivy
     will pull it from, or None if it cannot say (24.1)."""
+    # deferred: startup; the registry client and the TLS stack load only for a pull.
     from . import oci
 
     size = oci.image_size(egress.db_repository() or egress.DEFAULT_DB_REPOSITORY,
@@ -321,16 +349,12 @@ class ContainerRunner:
         self.generation: str | None = None
 
     def verify_compatible(self) -> None:
-        from . import compat
-
         compat.check(self.runtime, self.image)
 
     def build_provenance(self) -> tuple[str | None, str | None]:
         """(the tree this shim was built beside, the tree the image was built
         from) — either None when unrecorded (23.4.4). Compared by the scan and
         reported, never refused."""
-        from . import compat
-
         return compat.shim_inputs(), compat.image_inputs(self.runtime, self.image)
 
     # ------------------------------------------------------- the image itself
@@ -347,6 +371,7 @@ class ContainerRunner:
 
     def pull_size_mb(self) -> int | None:
         """What the pull will cost, from the registry, or None if it cannot say."""
+        # deferred: startup; the registry client and the TLS stack load only for a pull.
         from . import oci
 
         size = oci.image_size(self.image)
@@ -406,54 +431,8 @@ class ContainerRunner:
                 _wait_gone(self.runtime, name)
             raise _ScannerTimedOut(exc.timeout, _text(exc.stderr)) from exc
 
-    def _base_flags(
-        self, scratch: str, *, network: bool = False, allow_exec: bool = False
-    ) -> list[str]:
-        from . import cache
-
-        db = cache.trivy_db()
-        db.mkdir(parents=True, exist_ok=True)
-        names = cache.name_index()
-        names.mkdir(parents=True, exist_ok=True)
-        enforcing = selinux_enforcing()
-        own_label = ":z" if enforcing else ""
-        from . import owner
-
-        flags = [
-            self.runtime, "run", "--rm", *owner.labels(self.generation),
-            "--name", _container_name(),
-            *_user_flags(self.runtime),
-            # F10.2, with the Dockerfile's USER 10001: non-root, read-only root
-            # filesystem, every capability dropped.
-            "--read-only",
-            # A read-only root filesystem still needs scratch space. This tmpfs is in
-            # memory, non-persistent and nosuid. `exec` is granted only to Scanners
-            # that genuinely need it (Opengrep unpacks and runs opengrep-core), never
-            # to the whole fleet — least privilege per Scanner.
-            "--tmpfs",
-            f"/tmp:rw,{'exec' if allow_exec else 'noexec'},nosuid,size=512m",  # noqa: S108
-            "--cap-drop=ALL",
-            # The memory, PID and privilege ceiling (28.0.3), from one tuple above.
-            *_resource_flags(self.runtime),
-            # SELinux mount labelling (F1.6, task 20.2): measured on an enforcing
-            # host, an unlabelled mount is denied. Every mount here is valvur's own;
-            # the source is never mounted (ADR-0022).
-            "-v", f"{scratch}:/results{own_label}",
-            "-v", f"{db}:/cache/trivy{own_label}",  # ADR-0012 - DB outside the image
-            # ADR-0018 - the package-name index, beside the database and for the
-            # same reason. Read-only: the Check only ever asks it questions.
-            "-v", f"{names}:/cache/names:ro{own_label and ',z'}",
-        ]
-        # Whether this container has an interface at all is the one decision this
-        # module does not make: egress answers it, and the kernel enforces what
-        # egress says (N2.1, 26.2.2).
-        flags += egress.Egress(network=network).container_flags()
-        return flags
-
     def update_db(self) -> ScannerOutput:
         """Fetch the vulnerability DB out of band, so scans never need network."""
-        from . import cache, locking
-
         # Exclusive, and it waits: readers finish, then new ones queue behind us
         # (task 16.3). trivy.db is a 1.35GB BoltDB and Trivy takes no lock of its
         # own — measured, there is no lock file anywhere in the cache directory.
@@ -463,8 +442,6 @@ class ContainerRunner:
     def _update_db_locked(self) -> ScannerOutput:
         # The one place the runner asks an adapter for a command: the database is
         # Trivy's, fetched by Trivy, and the adapter knows how (26.2.1).
-        from .adapters.trivy import database_fetch
-
         return self.run(database_fetch())
 
     def run(self, invocation: Invocation) -> ScannerOutput:
@@ -482,8 +459,9 @@ class ContainerRunner:
             for name, text in invocation.files:
                 (Path(scratch) / name).write_text(text, encoding="utf-8")
             cmd = [
-                *self._base_flags(scratch, network=invocation.network,
-                                  allow_exec=invocation.allow_exec),
+                *launch_flags(self.runtime, generation=self.generation,
+                              name=_container_name(), scratch=scratch,
+                              network=invocation.network),
                 *[flag for key, value in invocation.env for flag in ("--env", f"{key}={value}")],
                 self.image, *invocation.argv,
             ]

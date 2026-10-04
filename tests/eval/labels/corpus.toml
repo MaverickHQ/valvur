@@ -5,6 +5,11 @@
 # otherwise, and why. The executor's judgement, 2026-09-29, read against the code at
 # each finding; committed for the owner to read and overrule. A finding with no
 # label here fails the track. Coverage notes are valvur's own limits, not judged.
+#
+# R20 (D47, D56), 2026-10-03: the sink inventory is no longer judged, being reported
+# for review and never active, and the vendored `random` rule is not reported where
+# docs live; their ten labels went with them. The secrets in tests and docs rank
+# `low` now and are still judged, as false alarms.
 
 [[label]]
 repo = "fastify"
@@ -40,35 +45,11 @@ reason = "The tutorial's example SECRET_KEY, printed so readers can see one; the
 
 [[label]]
 repo = "flask"
-fingerprint = "cd7a1deb045dc0d1f911f37add6bad79"
-rule = "valvur.python.dangerous-eval"
-path = "src/flask/cli.py"
-verdict = "fp"
-reason = "Runs the user's own PYTHONSTARTUP file in `flask shell`, as the Python REPL does; the feature."
-
-[[label]]
-repo = "flask"
-fingerprint = "ad1d6f72a99fc5599246df77d341cc77"
-rule = "valvur.python.dangerous-exec"
-path = "src/flask/config.py"
-verdict = "fp"
-reason = "`Config.from_pyfile` executes the application's own config file; the feature."
-
-[[label]]
-repo = "flask"
 fingerprint = "19642c36684205446a04c57d17654030"
 rule = "valvur.python.weak-hash"
 path = "src/flask/sessions.py"
 verdict = "fp"
 reason = "SHA-1 as the digest of itsdangerous's HMAC session signature; HMAC-SHA1 is not broken."
-
-[[label]]
-repo = "llm"
-fingerprint = "098962bdce1b0e017f376465dd431187"
-rule = "valvur.python.dangerous-exec"
-path = "llm/cli.py"
-verdict = "fp"
-reason = "`llm --functions` executes Python the user passed on its own command line; the feature."
 
 [[label]]
 repo = "llm"
@@ -157,65 +138,6 @@ rule = "generic-api-key"
 path = "README.md"
 verdict = "fp"
 reason = "A snipped example session secret in the README (`99ae8af...snip...ec0f262ac`)."
-
-[[label]]
-repo = "smolagents"
-fingerprint = "48ebe65efde9c52a1acc9adab525ac0d"
-rule = "valvur.python.dangerous-exec"
-path = "src/smolagents/tools.py"
-verdict = "fp"
-reason = "Loads a tool's code by design, behind smolagents' trust_remote_code; the maintainers would not change it."
-
-[[label]]
-repo = "smolagents"
-fingerprint = "57f167b7f8a799ce7d2097050bdc2e29"
-rule = "valvur.python.dangerous-exec"
-path = "tests/test_remote_executors.py"
-verdict = "fp"
-reason = "A test executing code the test itself generated."
-
-[[label]]
-repo = "smolagents"
-fingerprint = "c29f8c84ff9d86abd7850f66b69ea241"
-rule = "valvur.python.dangerous-exec"
-path = "tests/test_remote_executors.py"
-verdict = "fp"
-reason = "A test executing code the test itself generated."
-
-[[label]]
-repo = "smolagents"
-fingerprint = "fca00a86d64483776a6ab6897367fa75"
-rule = "valvur.python.dangerous-exec"
-path = "tests/test_serialization.py"
-verdict = "fp"
-reason = "A test executing code the test itself generated."
-
-[[label]]
-repo = "smolagents"
-fingerprint = "75ba325ac4592751432bd3a622db1dcd"
-rule = "valvur.python.dangerous-exec"
-path = "tests/test_serialization.py"
-verdict = "fp"
-reason = "A test executing code the test itself generated."
-
-# R13.3: the vendored `python_random_rule-random` (GitLab's, from Bandit B311),
-# judged against the code at each finding, 2026-09-30.
-
-[[label]]
-repo = "llm"
-fingerprint = "2d63e5babfc2101b9d8c8b52dcd5bb5b"
-rule = "python_random_rule-random"
-path = "docs/plugins/llm-markov/llm_markov.py"
-verdict = "fp"
-reason = "A toy Markov-chain text generator in a documentation example picks a start word; nothing depends on the choice being unpredictable."
-
-[[label]]
-repo = "llm"
-fingerprint = "ef6fea45d724181db753967834c5487d"
-rule = "python_random_rule-random"
-path = "docs/plugins/llm-markov/llm_markov.py"
-verdict = "fp"
-reason = "The same example picks each next word of generated text; no secret, token or security decision."
 
 [[label]]
 repo = "smolagents"

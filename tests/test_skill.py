@@ -104,26 +104,6 @@ def test_every_tool_it_tells_an_agent_to_call_exists():
     assert called and called <= _tools(), called - _tools()
 
 
-def test_the_tools_reference_is_the_servers_own_description_of_each():
-    """`references/tools.md`, rendered from the registry: each tool's description and
-    each field it takes, so the skill cannot describe a field the server lacks."""
-    import os
-
-    path = skill.DIRECTORY / "references" / "tools.md"
-    from valvur.mcp.tools import reference
-
-    rendered = reference()
-    if os.environ.get("UPDATE_SKILL"):
-        path.write_text(rendered, encoding="utf-8")
-
-    assert path.read_text(encoding="utf-8") == rendered, (
-        "references/tools.md is not the registry's; regenerate it with "
-        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py "
-        "tests/test_power.py`, in that order")
-    for name in _tools():
-        assert f"## `{name}`" in rendered
-
-
 def test_every_reference_it_links_exists_and_each_is_linked():
     """D39's references: the tools, triage by kind, CI, and air-gapped use. A skill
     loads a reference only when its body links it."""
@@ -137,25 +117,6 @@ def test_every_reference_it_links_exists_and_each_is_linked():
 
 
 # ------------------------------------------ 4: the rules, from the one source
-
-def test_its_rules_block_is_the_handshakes_instructions():
-    """What the server hands an agent at `initialize`, word for word: a client that
-    loads the skill and one that only connects are told the same rules."""
-    import os
-
-    from valvur.mcp.tools import instructions
-
-    text = skill.SKILL.read_text(encoding="utf-8")
-    if os.environ.get("UPDATE_SKILL"):
-        skill.SKILL.write_text(skill.with_rules(text), encoding="utf-8")
-        text = skill.SKILL.read_text(encoding="utf-8")
-    start, end = text.index(skill.RULES_START), text.index(skill.RULES_END)
-
-    assert text[start + len(skill.RULES_START):end].strip("\n") == instructions().strip("\n"), (
-        "the skill's rules are not the handshake's; regenerate with "
-        "`UPDATE_SKILL=1 uv run pytest tests/test_skill.py tests/test_plugin.py "
-        "tests/test_power.py`, in that order")
-
 
 def test_the_handshake_and_summarys_agent_block_render_the_same_rules():
     """One source, `valvur.agent_rules`: each rule in full at the handshake and in

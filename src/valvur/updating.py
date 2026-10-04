@@ -14,7 +14,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import cache, datasets, epss, fileset, locking, name_index, oci, osv_offline, settings
 from .enrichment import KEV_URL, KEV_URL_ENV
+from .name_index import malicious
 
 Say = Callable[[str], None]
 
@@ -27,41 +29,36 @@ class Updated:
 
 
 def database_due() -> bool:
-    """Whether an update is worth doing, decided without touching the network.
-
-    Trivy stamps `NextUpdate` in its own metadata, so being past due is knowable for
-    free, and `UpdatedAt` says when the data was built: both, because a mirror can
-    serve old data with a forward-dated `NextUpdate` (2026-09-05)."""
-    from . import cache
-
-    if not cache.db_present():
-        return True
-    overdue = cache.db_overdue_days()
-    if overdue is None or overdue > 0:
-        return True
-    age = cache.db_age_days()
-    return age is None or age > cache.DB_STALE_AFTER_DAYS
+    """Whether the database is absent or past the age a scan refreshes it at (D24),
+    decided without touching the network: Trivy stamps `UpdatedAt` in its own
+    metadata, the data's build time, which a mirror cannot forward-date."""
+    return datasets.DATABASE.due(datasets.DATABASE.age())
 
 
 def index_due() -> bool:
-    """Absent, unreadable, past the threshold that makes a scan `inconclusive`, or
-    missing an ecosystem this version indexes (ADR-0018)."""
-    from . import cache, name_index
-
-    age = cache.name_index_age_days()
-    if age is None or age > cache.NAME_INDEX_STALE_AFTER_DAYS:
+    """Absent, past the age a scan refreshes it at, or missing an ecosystem this
+    version indexes (ADR-0018)."""
+    if datasets.NAME_INDEX.due(datasets.NAME_INDEX.age()):
         return True
     directory = cache.name_index()
     return any(not (directory / filename).is_file() for filename in name_index.FILES.values())
 
 
-def refresh_index(say: Say, *, build: bool = False) -> bool:
+def due() -> list[str]:
+    """What a scan would fetch or refresh now, by dataset (D52a): what `update
+    --if-stale` refreshes. OSV's databases depend on a project's lockfiles, and are
+    refreshed for the project `update` is given."""
+    wanted = [d.key for d in datasets.ALL if d.key != "osv" and d.due(d.age())]
+    if "name_index" not in wanted and index_due():
+        wanted.append("name_index")
+    return wanted
+
+
+def refresh_index(say: Say, *, build: bool = False, malicious: bool = True) -> bool:
     """The package-name index into the host cache (ADR-0018): the published one, one
     signed pull, or the registries when it is unreachable or `build` says so. Under
     the cache's exclusive lock. False on failure, having said why; what was on disk
     is still there and still valid."""
-    from . import cache, locking, name_index, oci
-
     if build:
         say("Building the package-name index from the registries (PyPI, npm, RubyGems, "
             "Packagist and crates.io; about 550MB the first time, a few MB after)...")
@@ -72,7 +69,8 @@ def refresh_index(say: Say, *, build: bool = False) -> bool:
         with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
             name_index.build.refresh(cache.name_index(), published=not build,
                                      progress=lambda msg: say(f"  {msg}"))
-            refresh_malicious(say, build=build, fallback=True)
+            if malicious:
+                refresh_malicious(say, build=build, fallback=True)
     except oci.SignatureInvalid as exc:
         # Not softened into the fallback and not swallowed: a refused signature on a
         # supply-chain artifact is the one failure that must stop the command.
@@ -97,9 +95,6 @@ def refresh_malicious(say: Say, *, build: bool = False, fallback: bool = False) 
     nothing. `fallback` builds it from its source when it is not published, as
     `valvur update` does until `index.yml` publishes it from `main`; a scan never
     does. The caller holds the cache lock. A refused signature is not caught."""
-    from . import cache, name_index
-    from .name_index import malicious
-
     try:
         malicious.refresh(cache.name_index(), build=build, fallback=fallback,
                           progress=lambda msg: say(f"  {msg}"))
@@ -113,8 +108,7 @@ def refresh_malicious(say: Say, *, build: bool = False, fallback: bool = False) 
 
 def ensure_image(runner, say: Say) -> bool:
     """Pull the image if the runtime does not have it, saying what and how much."""
-    present = getattr(runner, "image_present", None)
-    if present is None or present():
+    if runner.image_present():
         return True
     size = runner.pull_size_mb()
     say(f"Pulling the image {runner.image}{f' (about {size}MB)' if size else ''} — "
@@ -137,8 +131,6 @@ def refresh_kev(say: Say) -> bool:
     # One JSON file, so an air-gapped mirror is any static server holding a copy
     # (22.B.3). Plain HTTP is accepted because the URL is set by an operator,
     # never derived from anything in a Workspace.
-    from . import cache, settings
-
     url = settings.get("kev_url") or KEV_URL
     if not url.startswith(("https://", "http://")):
         say(f"KEV refresh skipped ({KEV_URL_ENV} is not an http(s) URL); "
@@ -177,8 +169,6 @@ def refresh_epss(say: Say) -> bool:
     fresh copy was written; a skip is said, and the copy in use, if any, stays."""
     import urllib.error
 
-    from . import epss, settings
-
     url = settings.get("epss_url") or epss.URL
     if not url.startswith(("https://", "http://")):
         say(f"EPSS refresh skipped ({epss.URL_ENV} is not an http(s) URL); "
@@ -202,9 +192,9 @@ def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
     which ecosystems it needs."""
     if workspace is None:
         return
-    from . import fileset, osv_offline
 
-    records, failed = osv_offline.ensure(fileset.build(workspace).files, say)
+    records, failed = osv_offline.ensure(fileset.build(workspace).files,
+                                         lambda event: say(str(event)), due=datasets.OSV.due)
     updated.fetched += [record["what"] for record in records]
     if failed:
         updated.ok = False
@@ -213,54 +203,50 @@ def refresh_osv(say: Say, workspace: Path | None, updated: Updated) -> None:
 def run(say: Say, runner, *, build_index: bool = False, if_stale: bool = False,
         workspace: Path | None = None) -> Updated:
     """Every step, in order: what `valvur update` and the `update` tool both run;
-    with `workspace`, OSV's databases for its lockfiles as well (R8.2)."""
-    from . import cache
-
-    if if_stale:
-        database, index = database_due(), index_due()
-        if not database and not index:
-            age = cache.db_age_days()
-            say(f"Database is {age:.1f} days old and current enough.")
-            updated = Updated(ok=True)
-            refresh_osv(say, workspace, updated)
-            if not updated.fetched and updated.ok:
-                say("Nothing to do.")
-            return updated
-        if not database:
-            # The database is fine and only the index is due: do that one thing.
-            # A 116MB download to refresh a 4MB list is not what --if-stale means.
-            ok = refresh_index(say, build=build_index)
-            updated = Updated(ok=ok, fetched=["package-name index"] if ok else [])
-            refresh_osv(say, workspace, updated)
-            return updated
-
+    with `if_stale`, only the datasets a scan would refresh now (D52a); with
+    `workspace`, OSV's databases for its lockfiles as well (R8.2)."""
+    wanted = set(due()) if if_stale else {d.key for d in datasets.ALL}
     updated = Updated(ok=True)
-    # The image first (23.2.4): the database update runs Trivy inside it.
-    had_image = getattr(runner, "image_present", lambda: True)()
-    if not ensure_image(runner, say):
-        return Updated(ok=False)
-    if not had_image:
-        updated.fetched.append("image")
-    # 116 MB compressed, measured 2026-09-05 against the published artifact.
-    say("Fetching the vulnerability database (about 116MB)...")
-    result = runner.update_db()
-    if result.exit_code != 0:
-        say(f"Update failed: {result.stderr.strip()[-300:]}")
-        updated.ok = False
+    if if_stale and not wanted:
+        age = datasets.DATABASE.age()
+        say(f"Database is {age or 0:.1f} days old and current enough.")
+        refresh_osv(say, workspace, updated)
+        if not updated.fetched and updated.ok:
+            say("Nothing to do.")
         return updated
-    updated.fetched.append("vulnerability database")
-    if refresh_kev(say):
+    if "database" in wanted:
+        # The image first (23.2.4): the database update runs Trivy inside it.
+        had_image = runner.image_present()
+        if not ensure_image(runner, say):
+            return Updated(ok=False)
+        if not had_image:
+            updated.fetched.append("image")
+        # 116 MB compressed, measured 2026-09-05 against the published artifact.
+        say("Fetching the vulnerability database (about 116MB)...")
+        result = runner.update_db()
+        if result.exit_code != 0:
+            say(f"Update failed: {result.stderr.strip()[-300:]}")
+            updated.ok = False
+            return updated
+        updated.fetched.append("vulnerability database")
+    if "kev" in wanted and refresh_kev(say):
         updated.fetched.append("KEV catalog")
     # Like KEV, it only ranks: a failure is said and costs the update nothing.
-    if refresh_epss(say):
+    if "epss" in wanted and refresh_epss(say):
         updated.fetched.append("EPSS scores")
     # The index is part of what "updated" means (ADR-0018): a scan without it fails
     # its dependency check loudly, so its failure fails the update, unlike KEV,
     # which has a bundled snapshot to fall back on.
-    if refresh_index(say, build=build_index):
-        updated.fetched.append("package-name index")
-    else:
-        updated.ok = False
+    if "name_index" in wanted:
+        if refresh_index(say, build=build_index, malicious="malicious" in wanted):
+            updated.fetched.append("package-name index")
+        else:
+            updated.ok = False
+    elif "malicious" in wanted:
+        with locking.held(locking.cache_lock(cache.root()), exclusive=True, wait=True):
+            if refresh_malicious(say, build=build_index, fallback=True):
+                updated.fetched.append("malicious list")
     refresh_osv(say, workspace, updated)
-    say(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
+    if "database" in wanted:
+        say(f"Database ready at {cache.trivy_db()}. Scans now run offline.")
     return updated

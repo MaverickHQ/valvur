@@ -1,0 +1,132 @@
+# valvur's own JavaScript rules (R25.4, D60), licensed with the project.
+#
+# Measured on track 2 at R20's head, nothing found SQL injection, command injection,
+# path traversal or server-side request forgery, and GitLab's audited set offered
+# nothing for three of them and, for path traversal, a rule that reports one true
+# case against 51 false (R25.1). So these are taint rules of our own: what an Express
+# or Fastify handler reads from its request is the source, and the sanitizers are the
+# guards the code writes for itself, checked to appear only where the flow is refused.
+
+rules:
+  - id: valvur.javascript.sql-injection
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-89: SQL Injection"]
+    message: >-
+      Request data is concatenated into SQL: the client can change what the query
+      does. Pass the value as a bound parameter, `query('... WHERE id = $1', [id])`.
+    pattern-sources: &request-sources
+      - pattern-either:
+          - pattern: $REQ.query
+          - pattern: $REQ.body
+          - pattern: $REQ.params
+          - pattern: $REQ.cookies
+          - pattern: $REQ.headers
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.query($Q, ...)
+              - pattern: $DB.execute($Q, ...)
+              - pattern: $DB.raw($Q, ...)
+          - focus-metavariable: $Q
+          # Built into the text, which a bound parameter never is.
+          - pattern-either:
+              - pattern: '"..." + $X'
+              - pattern: '$X + "..."'
+              - pattern: '`...${$X}...`'
+
+  - id: valvur.javascript.command-injection
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78: OS Command Injection"]
+    message: >-
+      Request data reaches a shell command: exec runs its string through a shell, so
+      the client can append commands of its own. Use execFile or spawn with an
+      argument list and no shell.
+    pattern-sources: *request-sources
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: exec($CMD, ...)
+              - pattern: execSync($CMD, ...)
+              - pattern: $CP.exec($CMD, ...)
+              - pattern: $CP.execSync($CMD, ...)
+          - focus-metavariable: $CMD
+
+  - id: valvur.javascript.path-traversal
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-22: Path Traversal"]
+    message: >-
+      Request data reaches a file path: a client can climb out of the intended
+      directory with "../". Reduce the name with path.basename, pass a `root` to
+      sendFile, or refuse a resolved path outside its base directory.
+    pattern-sources: *request-sources
+    pattern-sanitizers:
+      - pattern: path.basename(...)
+      # A resolved path checked to lie under its base before it is used.
+      - by-side-effect: true
+        patterns:
+          - pattern: $X.startsWith(...)
+          - focus-metavariable: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $RES.sendFile($P, ...)
+              - pattern: $RES.download($P, ...)
+              - pattern: fs.$F($P, ...)
+              - pattern: fs.promises.$F($P, ...)
+          # Express confines a path given with a `root` to that directory.
+          - pattern-not: '$RES.sendFile($P, {..., root: $D, ...}, ...)'
+          - pattern-not: '$RES.download($P, {..., root: $D, ...}, ...)'
+          - focus-metavariable: $P
+
+  - id: valvur.javascript.ssrf
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-918: Server-Side Request Forgery"]
+    message: >-
+      Request data decides where the server sends a request: a client can make it
+      reach internal services or cloud metadata. Parse the URL and allow only hosts
+      on a fixed list, or look the destination up by name.
+    pattern-sources: *request-sources
+    pattern-sanitizers:
+      # A parsed URL whose host is checked against a list.
+      - by-side-effect: true
+        patterns:
+          - pattern-either:
+              - pattern: $SET.has($U.hostname)
+              - pattern: $SET.includes($U.hostname)
+              - pattern: $U.hostname === $H
+          - focus-metavariable: $U
+      # A destination looked up by name in the program's own table.
+      - pattern-either:
+          - pattern: 'Object.hasOwn($O, $K) ? $O[$K] : $D'
+          - pattern: '$O.hasOwnProperty($K) ? $O[$K] : $D'
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fetch($U, ...)
+              - pattern: axios($U, ...)
+              - pattern: axios.$M($U, ...)
+              - pattern: http.get($U, ...)
+              - pattern: https.get($U, ...)
+              - pattern: http.request($U, ...)
+              - pattern: https.request($U, ...)
+          # The same check behind another, `bad || !allowed`, before a return:
+          # Opengrep's taint does not carry a sanitizer out of a short circuit.
+          - pattern-not-inside: |
+              if (<... $SET.has($U.hostname) ...>) return ...;
+              ...
+          - pattern-not-inside: |
+              if (<... $SET.includes($U.hostname) ...>) return ...;
+              ...
+          - focus-metavariable: $U

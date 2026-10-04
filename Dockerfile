@@ -76,6 +76,12 @@ COPY --from=trivy    /usr/local/bin/trivy     /usr/local/bin/trivy
 COPY --from=osv      /osv-scanner             /usr/local/bin/osv-scanner
 COPY --from=syft     /syft                    /usr/local/bin/syft
 COPY --from=opengrep /opengrep                /usr/local/bin/opengrep
+# Opengrep is one file that unpacks its core under XDG_CACHE_HOME and runs it from
+# there: 239 MB, on every scan, which needed an executable /tmp for every tool in
+# the Scan Container. Unpacked once here instead, read-only at run time, and the
+# adapter points XDG_CACHE_HOME at it, so /tmp is noexec for all (D54a).
+RUN XDG_CACHE_HOME=/opt/opengrep /usr/local/bin/opengrep --version \
+ && chmod -R a+rX /opt/opengrep
 
 # Checkov is Python, and the only Scanner that is. It goes into its own virtual
 # environment, hash-locked (task 23.4.1): `requirements-checkov.txt` pins every one

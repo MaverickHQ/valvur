@@ -13,7 +13,8 @@ from . import coverage as _coverage
 from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
-from .api import FETCH_ENDED, FETCH_STARTED, scan
+from . import service
+from .events import Event, Kind
 from .version import __version__
 
 
@@ -31,7 +32,7 @@ def _positive_seconds(raw: str) -> float:
     return value
 
 
-def _stop_on_interrupt(runner) -> None:
+def _stop_on_interrupt(cancellation: service.Cancellation) -> None:
     """Make Ctrl-C mean stop (F1.11, task 16.2).
 
     Without this the shim exits and the Scanner containers run to completion, because
@@ -46,12 +47,13 @@ def _stop_on_interrupt(runner) -> None:
     """
     import signal
 
+    # deferred: startup; each command loads only what it runs.
     from . import owner
 
     def handle(_signum, _frame):
         runtime = None
         with contextlib.suppress(Exception):
-            runtime = runner.runtime
+            runtime = cancellation.runner.runtime
         # By label, synchronously (R3.6): this handler runs on the thread that
         # reads the engine, so nothing may wait on that thread here.
         stopped = owner.kill_mine(runtime) if isinstance(runtime, str) else 0
@@ -73,24 +75,28 @@ def _stop_on_interrupt(runner) -> None:
 
 
 def _database_needs_refresh() -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.database_due()
 
 
 def _name_index_needs_refresh() -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.index_due()
 
 
 def _refresh_name_index(*, build: bool = False) -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.refresh_index(print, build=build)
 
 
 def _print_cache(*, clear: bool, prune: bool = False) -> int:
+    # deferred: startup; each command loads only what it runs.
     from . import cache
 
     root = cache.root()
@@ -130,6 +136,7 @@ def _print_cache(*, clear: bool, prune: bool = False) -> int:
 def _prune_cache(cache) -> None:
     """`--prune` (28.3.7): what would go is listed before anything goes, and
     without the flag nothing ever does."""
+    # deferred: startup; each command loads only what it runs.
     from . import runner
 
     try:
@@ -137,6 +144,7 @@ def _prune_cache(cache) -> None:
     except Exception as exc:   # broad: no runtime is a reason, not a failure
         images = None
         print(f"  no container runtime found ({exc}); images not pruned")
+    # deferred: startup; each command loads only what it runs.
     from . import reuse
 
     superseded = cache.superseded_images(images) if images is not None else []
@@ -159,6 +167,7 @@ def _prune_cache(cache) -> None:
 
 
 def _ensure_image_for_update(runner) -> bool:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     return updating.ensure_image(runner, print)
@@ -168,10 +177,11 @@ def _warn_if_name_index_stale(run) -> None:
     """The index's counterpart to the warning above (ADR-0018). Its failure
     direction is the opposite — an old index overstates rather than misses — so it
     gets its own sentence rather than a copy of the database's."""
-    from . import cache
+    # deferred: startup; each command loads only what it runs.
+    from . import datasets
 
     age = run.name_index_age_days
-    if age is None or age <= cache.NAME_INDEX_STALE_AFTER_DAYS:
+    if not datasets.NAME_INDEX.stale(age):
         return
     print(f"  ! the package-name index is {age:.0f} days old. Run `valvur update`.",
           file=sys.stderr)
@@ -185,10 +195,11 @@ def _warn_if_database_stale(run) -> None:
     Until 2026-09-05 the age of the database that decides whether findings exist was
     computed and reported nowhere at all.
     """
-    from . import cache
+    # deferred: startup; each command loads only what it runs.
+    from . import datasets
 
     age = run.db_age_days
-    if age is None or age <= cache.DB_STALE_AFTER_DAYS:
+    if not datasets.DATABASE.stale(age):
         return
 
     unsuppressed = [f for f in run.findings if not f.suppressed]
@@ -244,6 +255,7 @@ def _print_suppression(args) -> int:
     print(f"expires = {expires}")
     print(f'reason = "{reason}"')
     print()
+    # deferred: startup; each command loads only what it runs.
     from .text import cut
 
     print(f"# {cut(match['title'], 100)}")
@@ -251,6 +263,7 @@ def _print_suppression(args) -> int:
 
 
 def _refresh_kev() -> None:
+    # deferred: startup; each command loads only what it runs.
     from . import updating
 
     updating.refresh_kev(print)
@@ -262,6 +275,7 @@ def _workspace(value: str) -> str:
     directory, as it always has; nothing is created for a path that is wrong."""
     import argparse
 
+    # deferred: startup; each command loads only what it runs.
     from .operations import Refusal, resolve_workspace
 
     try:
@@ -348,9 +362,10 @@ def build_parser() -> argparse.ArgumentParser:
     update_cmd.add_argument(
         "--if-stale",
         action="store_true",
-        help="Do nothing unless the database or the index is actually out of date. "
-        "Cheap enough to put in a pre-commit hook, a cron entry or CI — the "
-        "freshness check needs no network at all.",
+        help="Refresh only what a scan would refresh now: the database, the index, "
+        "the malicious list, KEV or EPSS, each when absent or past its age. Cheap "
+        "enough to put in a pre-commit hook, a cron entry or CI — the freshness "
+        "check needs no network at all.",
     )
     update_cmd.add_argument(
         "--prune", action="store_true",
@@ -386,6 +401,9 @@ def build_parser() -> argparse.ArgumentParser:
     findings_cmd.add_argument("--status", choices=["new", "persisting", "regressed"])
     findings_cmd.add_argument("--limit", type=int)
     findings_cmd.add_argument("--include-suppressed", action="store_true")
+    findings_cmd.add_argument(
+        "--inventory", action="store_true",
+        help="Also list the sinks named for review, which are not findings by themselves")
 
     explain_cmd = sub.add_parser("explain", help="Now `findings --fingerprint`")
     explain_cmd.add_argument("fingerprint")
@@ -407,6 +425,7 @@ def build_parser() -> argparse.ArgumentParser:
         "are reachable (one bounded TCP connect per host). Off by default: without it "
         "doctor opens no socket.",
     )
+    # deferred: startup; each command loads only what it runs.
     from .mcp.clients import CLIENTS as _CLIENTS
 
     doctor_cmd.add_argument(
@@ -477,6 +496,7 @@ def build_parser() -> argparse.ArgumentParser:
         "valvur into each client's file in the project, beside what is there, and the "
         "skill for Claude Code and Kiro. Never overwrites.",
     )
+    # deferred: startup; each command loads only what it runs.
     from .mcp.clients import CLIENTS as _CLIENTS
 
     init_cmd.add_argument(
@@ -512,7 +532,10 @@ def _cmd_check(args: argparse.Namespace, runner=None) -> int:
     both (F9.3), and whether any package should stop an install."""
     import json
 
+    # deferred: startup; each command loads only what it runs.
     from . import operations, packages
+
+    # deferred: startup; each command loads only what it runs.
     from .refusal import Refusal
 
     asked = [dict(zip(("ecosystem", "name", "version"),
@@ -531,6 +554,7 @@ def _cmd_check(args: argparse.Namespace, runner=None) -> int:
 def _cmd_init(args: argparse.Namespace, runner=None) -> int:
     """`init` (D10): prints; with `--write`, writes what it prints, never over what is
     there (the owner's decision, 2026-09-28)."""
+    # deferred: startup; each command loads only what it runs.
     from . import initialize
 
     workspace = Path(args.path).resolve()
@@ -546,6 +570,7 @@ def _cmd_init(args: argparse.Namespace, runner=None) -> int:
 
 def _cmd_read(args: argparse.Namespace, runner=None) -> int:
     """`findings`, `explain`, `status`: the same operations the MCP tools call (F9.3)."""
+    # deferred: startup; each command loads only what it runs.
     from . import operations
 
     if args.command == "explain":
@@ -566,6 +591,8 @@ def _cmd_read(args: argparse.Namespace, runner=None) -> int:
             payload[key] = getattr(args, field)
     if getattr(args, "include_suppressed", False):
         payload["include_suppressed"] = True
+    if getattr(args, "inventory", False):
+        payload["inventory"] = True
     try:
         print(handler(payload))
     except (FileNotFoundError, ValueError) as exc:
@@ -600,11 +627,13 @@ def _cmd_cache(args: argparse.Namespace, runner=None) -> int:
 
 def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
     """`doctor`: every precondition a scan needs, and `--bundle`."""
+    # deferred: startup; each command loads only what it runs.
     from . import doctor as _doctor
 
     if getattr(args, "client", None):
         # The snippet a person pastes (29.2.2), from the one table the README
         # renders from, so the two cannot disagree.
+        # deferred: startup; each command loads only what it runs.
         from .mcp import clients as _clients
 
         entry = _clients.client(args.client)
@@ -625,6 +654,7 @@ def _cmd_doctor(args: argparse.Namespace, runner=None) -> int:
 def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     """`update`: the image, the database, the KEV copy and the index, as the MCP
     tool runs them (`updating.run`); or, with --prune or --clear, tidy the cache."""
+    # deferred: startup; each command loads only what it runs.
     from . import engine_host, updating
 
     if getattr(args, "prune", False) or getattr(args, "clear", False):
@@ -638,17 +668,21 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     return 0 if updated.ok else 1
 
 
+def _one_line(text: str) -> str:
+    """A multi-line message as one line, each line but the last ended as a sentence;
+    the last is often a command to copy, and keeps no stop."""
+    parts = [line.strip() for line in text.splitlines() if line.strip()]
+    return " ".join([*(part if part.endswith((".", ":", ";", "!", "?")) else part + "."
+                       for part in parts[:-1]), *parts[-1:]])
+
+
 def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
-    """`scan`: the Scan Run, from the terminal."""
-    if runner is None:
-        from . import engine_host
+    """`scan`: the Scan Run, from the terminal, through the one scan service (D51)."""
+    cancellation = service.Cancellation()
+    _stop_on_interrupt(cancellation)
 
-        # The Scan Container (ADR-0022): the only engine since R3.9.
-        runner = engine_host.for_scan()
-
-    _stop_on_interrupt(runner)
-
-    from .runner import unsupported_platform_warning
+    # deferred: startup; each command loads only what it runs.
+    from .runner import ImagePullFailed, NoContainerRuntime, unsupported_platform_warning
 
     if warning := unsupported_platform_warning():
         print(warning, file=sys.stderr)
@@ -656,23 +690,29 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
     workspace = Path(args.path).resolve()
     profile = _profiles.OFFLINE if getattr(args, "offline", False) else args.profile
 
-    def progress(message: str) -> None:
+    def progress(event: Event) -> None:
         # The CLI prints its own per-Scanner lines already; what is worth a line here
         # is a first run fetching — the image (23.2.4), the database and the index
         # (24.1) — which otherwise looks like a hang.
-        if message.startswith(FETCH_STARTED + FETCH_ENDED):
-            print(f"  {message}", file=sys.stderr)
+        if event.kind in (Kind.FETCH_STARTED, Kind.FETCH_ENDED):
+            print(f"  {event}", file=sys.stderr)
 
     try:
         out = Path(args.out).resolve() if getattr(args, "out", None) else None
-        run = scan(workspace, runner=runner, profile=profile, on_progress=progress,
-                   jobs=args.jobs, budget_s=args.budget, sbom=getattr(args, "sbom", False),
-                   **({"fresh": True} if getattr(args, "fresh", False) else {}),
-                   out=out)
+        run = service.run_scan(
+            workspace, runner=runner, cancellation=cancellation, profile=profile,
+            on_progress=progress, jobs=args.jobs, budget_s=args.budget,
+            sbom=getattr(args, "sbom", False), fresh=bool(getattr(args, "fresh", False)),
+            out=out)
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.
         print(f"  ! {busy}", file=sys.stderr)
+        return 1
+    except (ImagePullFailed, NoContainerRuntime) as missing:
+        # A precondition, said in one line as `update` says it, and non-zero: the
+        # cloud pre-flight met a traceback here for an image that could not be pulled.
+        print(f"  ! {_one_line(str(missing))}", file=sys.stderr)
         return 1
 
     for failure in run.failures:

@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from valvur import reply
+from valvur import events, reply
 from valvur.mcp import jobs
-from valvur.operations import scan_status_reply
+from valvur.mcp.handlers import scan_status_reply
 from valvur.runner import NoContainerRuntime
 
 FAKE_TOOLS = Path(__file__).parent / "fixtures" / "fake-tools"
@@ -44,8 +44,8 @@ def _every_state(tmp_path, monkeypatch) -> dict[str, tuple[str, dict]]:
     release = threading.Event()
 
     def running(workspace, profile, progress):
-        progress("fleet: 1 Scanners, 1 at a time")
-        progress("gitleaks: started")
+        progress(events.fleet(1, 1))
+        progress(events.scanner_started("gitleaks"))
         release.wait(5)
         return ""
 

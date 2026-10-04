@@ -18,9 +18,11 @@ import json
 import re
 from pathlib import Path
 
+from .. import exclusions
 from ..agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES, KIRO_DIRS
 from ..defang import describe_invisible, is_invisible, neutralise
 from .base import Check
+from .borrowed import COMPILED, EXFILTRATION_EXEMPT
 
 # F3.6: the agent instruction and configuration files this Check reads.
 #: MCP settings files read for `autoApprove` (F3.9) and mutable refs (F3.8), by the
@@ -100,8 +102,6 @@ class AiArtifactCheck(Check):
 
 
 def _artifact_files(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Path]:
-    from .. import exclusions
-
     found = []
     # A pruned walk (29.0.1): `rglob("*")` visited every file of a 107,544-file
     # tree to find the dozen this Check reads.
@@ -182,8 +182,6 @@ def _borrowed(text: str, rel: str) -> list[dict]:
     it produced, since the detection is theirs. Whole text, not by line: an HTML
     comment hiding an instruction spans lines. One per pattern per file; the same
     rule on the same line is one Finding, as `_directives` makes it."""
-    from .borrowed import COMPILED, EXFILTRATION_EXEMPT
-
     exempt = any(p.search(text) for p in EXFILTRATION_EXEMPT)
     lines = text.splitlines()
     findings = []

@@ -33,6 +33,8 @@ class _Runner:
     def db_size_mb(self):
         return 118
 
+    fetches = True                 # it fetches before a scan (24.1)
+
     def update_db(self) -> ScannerOutput:
         db = self.root / "trivy" / "db"
         db.mkdir(parents=True, exist_ok=True)

@@ -1,3 +1,5 @@
+<!-- generated: mcp-tools -->
+
 # valvur's MCP tools
 
 Rendered from the server's own list of tools; a test holds this file to it.
@@ -28,6 +30,7 @@ It changes nothing.
 - `status` (string, one of `new`, `persisting`, `regressed`)
 - `limit` (integer): Default 20, max 100; a larger one is clamped, and said so.
 - `include_suppressed` (boolean)
+- `inventory` (boolean): Also list the sinks named for review (code execution, queries built from a value), which are not findings by themselves.
 
 ## `scan_status`
 
@@ -73,3 +76,5 @@ It changes nothing.
   - `ecosystem` (string, required): npm, pip, cargo, gem or composer; go and maven answer unknown
   - `name` (string, required)
   - `version` (string): The version to be installed, when known: some are malicious only at one version.
+
+<!-- /generated -->

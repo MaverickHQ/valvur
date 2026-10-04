@@ -8,6 +8,82 @@ break things, and has.
 
 ## [Unreleased]
 
+### What the code rules find (Phase R25)
+
+Twelve rules of valvur's own, each shipped only on D29's measured bar and each with a
+vulnerable and a safe twin as a test. The Score's static-analysis tracks rise: track 1,
+the OWASP Benchmark for Python, from 11.1 to 40.9, and track 2, the JavaScript twins,
+from 15.0 to 55.0. Real-code precision holds at 5.9, and the Score is 73.9.
+
+- **Command and code injection are reported as flows.** `valvur.python.command-injection`
+  and `valvur.python.code-injection` follow request data into `subprocess`,
+  `os.system`, `os.popen`, `eval` and `exec`, and `shlex.quote` or a literal check
+  sanitises. `subprocess-shell-true` joins the sink inventory: on its own a shell sink
+  no longer makes a verdict `findings`.
+- **Python: path traversal, insecure cookies, open redirects and XXE.** Taint rules
+  from request data to file paths and redirects, a cookie set with `secure=False`, and
+  an XML parser told to resolve external entities.
+- **JavaScript: SQL injection, command injection, path traversal and SSRF,** as taint
+  from what an Express or Fastify handler reads off its request. A bound parameter,
+  an argument list, `path.basename`, a `root`, or a host checked against a list guard.
+- Every rule's CWE reaches `findings.json` and SARIF, under a test.
+
+### The noise real projects draw (Phase R20)
+
+On thirteen maintained projects, every finding valvur's own rules and Gitleaks raised
+was a false alarm. Three changes, each measured on all eight tracks first. Tracks 1 to
+7 hold, and real-code precision rises from 3.7 to 5.9.
+
+- **Fixed: a code-execution or query sink alone no longer makes a verdict
+  `findings`.** `dangerous-eval`, `dangerous-exec` and `string-built-sql` name a sink
+  for review, and the LLM-output rules report the flow into one. They stay in
+  `findings.json` and SARIF, marked `inventory`. `SUMMARY.md` counts them under
+  *Sinks to review*, and `findings` lists them with `inventory: true` (`--inventory`).
+  A project whose only results are sinks now reads `clean`; the verdict counted them
+  until now, which this fix corrects under 1.x.
+- **Every finding says what kind of path it is on.** `context` in `findings.json` and
+  SARIF is `source`, `test`, `fixture`, `docs`, `example`, `vendored` or `generated`,
+  decided by whole path segments. It is additive, and no fingerprint changes.
+- **Secrets in tests, fixtures, docs and examples rank `low`,** still reported and
+  still active. `weak-hash` and the weak `random` rule are not reported there, and
+  `run.json`'s `removed_by_class` counts what was left out, by class and rule.
+
+### The machinery made lighter (Phase R24)
+
+Internal: the docs, the tests and CI. Nothing a scan does changes.
+
+- **The docs' facts are generated.** `scripts/generate_docs.py` writes the MCP tools
+  reference, the skill's rules, the README's client snippets and command list,
+  `PROTOCOL.md`'s paths, binaries and labels, and `AIR-GAPPED.md`'s settings from the
+  code. A test names any block that differs, in place of a test per fact.
+- **No test writes the repository.** `scripts/sync_skill.py` copies the skill to the
+  Claude Code plugin and the Kiro power.
+- **CI builds the image once per architecture** for the e2e jobs, the self-scan and
+  the reproducibility comparison: three builds per pull request, five before. One
+  action reads the version and one files the issue a failure gets.
+- **The traceability check reads no archive.** `docs/history` is a record.
+
+### The host side in layers (Phase R23)
+
+Internal, with a few fixes it found. The Score and every contract are unchanged.
+
+- **Four layers, checked.** `core`, `infra`, `app` and `surfaces`, each importing only
+  from those below it. `scripts/layers.toml` assigns every module and
+  `scripts/check_layers.py` holds the direction and the absence of cycles in
+  `verify.sh`. No module moved, so every import path stays. `mypy --strict` passes on
+  `core`.
+- **Importing a part of valvur no longer loads the scan.** The package's names load
+  when first asked for: the plugin's hook loads 9 of valvur's modules instead of 52.
+- **One scan service.** The CLI and the MCP `scan` tool both scan through
+  `service.run_scan`, and `api.py` is 185 lines instead of 1,245.
+- **One table of datasets** decides when each is refreshed and when its age makes a
+  nil result inconclusive. `valvur update --if-stale` now refreshes exactly what a scan
+  would, KEV and EPSS included.
+- **Fixed:** a `scan_cancel` sent before the scan's job exists stops that scan; a scan
+  whose image cannot be pulled says why in one line and exits 1; `VALVUR_CACHE` wins
+  over `XDG_CACHE_HOME`; `/tmp` is `noexec` for every tool, and Opengrep runs from the
+  tree the image unpacked at build, so a scan no longer unpacks 239 MB.
+
 ## [1.3.1] — 2026-10-03
 
 A fix to 1.3.0's install hook, so that it never goes silently off. Nothing else changes:

@@ -36,11 +36,11 @@ def test_the_states_are_an_enum_that_serialises_as_the_old_words():
 def test_a_new_job_is_running_and_settles_through_the_table(tmp_path, monkeypatch):
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     let_go = threading.Event()
-    job = jobs.start(tmp_path, "offline", lambda w, p, progress: let_go.wait(5) and "fine")
+    job = jobs.start(tmp_path, "offline", lambda w, p, progress: let_go.wait(5))
     assert job.state is State.RUNNING
     let_go.set()
     job.wait(2)
-    assert job.state is State.DONE and job.summary == "fine"
+    assert job.state is State.DONE
 
 
 @pytest.mark.parametrize("frm, to", [
@@ -114,7 +114,7 @@ def test_summary_md_names_the_generation_in_its_machine_block(workspace, runner_
 
 
 def test_the_done_line_names_the_generation(tmp_path, monkeypatch, runner_finding_nothing):
-    from valvur import operations
+    from valvur.mcp import handlers
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 0.1)
     workspace = tmp_path / "ws"
@@ -124,7 +124,7 @@ def test_the_done_line_names_the_generation(tmp_path, monkeypatch, runner_findin
     jobs.start(workspace, "offline", lambda w, p, progress: "done")
     jobs.current(workspace).wait(2)
 
-    status = operations.scan_status({"workspace": str(workspace)})
+    status = handlers.scan_status({"workspace": str(workspace)})
 
     first = status.splitlines()[0]
     assert first.startswith("DONE in ") and run.generation in first, first

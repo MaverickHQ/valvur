@@ -21,6 +21,7 @@ rules:
     languages: [python]
     severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-95: Eval Injection"]
     message: >-
       A code-execution sink: eval() on a non-literal expression. Not a vulnerability
@@ -35,6 +36,7 @@ rules:
     languages: [python]
     severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-95: Eval Injection"]
     message: >-
       A code-execution sink: exec() on a non-literal expression. Not a vulnerability
@@ -47,17 +49,85 @@ rules:
 
   - id: valvur.python.subprocess-shell-true
     languages: [python]
-    severity: ERROR
+    severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-78: OS Command Injection"]
     message: >-
-      subprocess with shell=True interpolates through a shell. Use the argument-list
-      form so arguments cannot be reinterpreted as commands.
+      A shell sink: subprocess with shell=True interpolates through a shell. Not a
+      vulnerability by itself, since the command may be the program's own, but if
+      request data or model output can reach it, it is command injection.
+      valvur.python.command-injection and valvur.llm.output-to-shell report that
+      flow; the argument-list form removes the sink.
     patterns:
       - pattern: subprocess.$F(..., shell=True, ...)
       # A constant command has nothing to inject into. The corpus's one hit was
       # `Popen("git describe --tags --always", shell=True)` in a docs build.
       - pattern-not: subprocess.$F("...", ..., shell=True, ...)
+
+  # The flows into the sinks above (R25.2, D60): measured on the OWASP Benchmark, the
+  # sink rules flagged every safe case of their categories, and taint tells them
+  # apart. Request data is the source; a value appended to a list carries it, as a
+  # command built up for `sh -c` does.
+  - id: valvur.python.command-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78: OS Command Injection"]
+    message: >-
+      Request data reaches a command: a shell string, or an argument list run through
+      a shell, built from what the client sent. Pass arguments as a list without a
+      shell, or quote each one with shlex.quote.
+    pattern-sources: &request-sources
+      - pattern-either:
+          - pattern: flask.request.$ATTR
+          - pattern: request.$ATTR
+    pattern-propagators: &list-propagators
+      - pattern: $L.append($X)
+        from: $X
+        to: $L
+      - pattern: $L.extend($X)
+        from: $X
+        to: $L
+      - pattern: $L.insert($I, $X)
+        from: $X
+        to: $L
+    pattern-sanitizers:
+      - pattern: shlex.quote(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: subprocess.$F($CMD, ...)
+              - pattern: os.system($CMD)
+              - pattern: os.popen($CMD, ...)
+          - focus-metavariable: $CMD
+
+  - id: valvur.python.code-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-95: Eval Injection"]
+    message: >-
+      Request data reaches eval() or exec(): the client's input runs as Python. Parse
+      the value instead, with ast.literal_eval for a literal or json.loads for data.
+    pattern-sources: *request-sources
+    pattern-propagators: *list-propagators
+    pattern-sanitizers:
+      # A value checked to be one quoted string literal before it runs.
+      - by-side-effect: true
+        patterns:
+          - pattern-either:
+              - pattern: $X.startswith("'")
+              - pattern: $X.startswith('"')
+          - focus-metavariable: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: eval($CODE, ...)
+              - pattern: exec($CODE, ...)
+          - focus-metavariable: $CODE
 
   - id: valvur.python.insecure-yaml-load
     languages: [python]
@@ -73,6 +143,7 @@ rules:
     languages: [python]
     severity: INFO
     metadata:
+      inventory: true
       cwe: ["CWE-89: SQL Injection"]
     message: >-
       A query sink built by string formatting. Not a vulnerability by itself — the
@@ -102,3 +173,92 @@ rules:
       # corpus's seven hits carried it and were reported anyway.
       - pattern-not: hashlib.md5(..., usedforsecurity=False, ...)
       - pattern-not: hashlib.sha1(..., usedforsecurity=False, ...)
+
+  # The web categories of track 1 (R25.3, D60), each a flow from request data or a
+  # setting no safe program needs. The sanitizers are the guards the code itself
+  # writes, checked to appear only where the flow is refused.
+  - id: valvur.python.path-traversal
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-22: Path Traversal"]
+    message: >-
+      Request data reaches a file path: a client can climb out of the intended
+      directory with "../" and read or write any file the process can. Reduce the
+      name with os.path.basename or werkzeug's secure_filename, or refuse a path
+      that resolves outside its base directory.
+    pattern-sources: *request-sources
+    pattern-propagators: *list-propagators
+    pattern-sanitizers:
+      # A path refused when it climbs out of its directory.
+      - by-side-effect: true
+        patterns:
+          - pattern: '"../" in $X'
+          - focus-metavariable: $X
+      - pattern-either:
+          - pattern: os.path.basename(...)
+          - pattern: werkzeug.utils.secure_filename(...)
+          - pattern: secure_filename(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: open($P, ...)
+              - pattern: codecs.open($P, ...)
+              - pattern: io.open($P, ...)
+              - pattern: os.open($P, ...)
+              - pattern: pathlib.Path($P, ...)
+              - pattern: send_file($P, ...)
+              - pattern: flask.send_file($P, ...)
+          - focus-metavariable: $P
+
+  - id: valvur.python.insecure-cookie
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-614: Sensitive Cookie Without 'Secure' Attribute"]
+    message: >-
+      A cookie set with secure=False is sent over plain HTTP too, where anyone on the
+      path can read it. Set secure=True, and httponly=True for a session cookie.
+    pattern: $R.set_cookie(..., secure=False, ...)
+
+  - id: valvur.python.open-redirect
+    mode: taint
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-601: Open Redirect"]
+    message: >-
+      Request data decides where a redirect goes: a link on this site can send its
+      visitor anywhere, which phishing uses. Parse the URL and allow only a relative
+      path or a host on a fixed list.
+    pattern-sources: *request-sources
+    pattern-propagators: *list-propagators
+    pattern-sanitizers:
+      # A URL whose host is checked once parsed.
+      - by-side-effect: true
+        patterns:
+          - pattern-either:
+              - pattern: urllib.parse.urlparse($X)
+              - pattern: urlparse($X)
+          - focus-metavariable: $X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: redirect($U, ...)
+              - pattern: flask.redirect($U, ...)
+          - focus-metavariable: $U
+
+  - id: valvur.python.xml-external-entities
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-611: XML External Entity Reference"]
+    message: >-
+      An XML parser told to resolve external entities: a document can make it read
+      local files or fetch URLs (XXE). Leave external entities off, which is the
+      default, or parse untrusted XML with defusedxml.
+    pattern-either:
+      - pattern: $P.setFeature(xml.sax.handler.feature_external_ges, True)
+      - pattern: $P.setFeature(feature_external_ges, True)
+      - pattern: lxml.etree.XMLParser(..., resolve_entities=True, ...)

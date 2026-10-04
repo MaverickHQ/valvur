@@ -24,6 +24,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import fileset
+
 MAX_COMMITS = 5000
 MAX_BYTES = 200 * 2**20
 #: The line that opens each commit in `git log`'s output: a NUL, then the hash.
@@ -70,9 +72,7 @@ def write(root: Path, dest: Path, *, max_commits: int = MAX_COMMITS,
           max_bytes: int = MAX_BYTES) -> History | None:
     """Write `root`'s history under the directory `dest`; None when `root` is not a
     repository, or when there is no `git` to read it with."""
-    from .fileset import git
-
-    command = git()
+    command = fileset.git()
     if command is None:
         return None
     inside = subprocess.run([command, "-C", str(root), "rev-parse",  # noqa: S603

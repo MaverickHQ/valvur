@@ -21,6 +21,7 @@ from typing import Protocol
 from . import cache
 from . import epss as _epss
 from .findings import Finding
+from .settings import ENVIRONMENT as _ENVIRONMENT
 
 #: CISA's catalog of vulnerabilities exploited in reality (F6.2). The image ships a
 #: snapshot as the offline floor; `valvur update` refreshes it into the host cache,
@@ -35,9 +36,8 @@ from .findings import Finding
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 #: An air-gapped mirror of the catalog above: one JSON file, so any static server
 #: holding a copy of it will do (22.B.3, `docs/AIR-GAPPED.md`).
-KEV_URL_ENV = "VALVUR_KEV_URL"
+KEV_URL_ENV = _ENVIRONMENT["kev_url"]
 
-STALE_AFTER_DAYS = 30
 #: F6.2: the KEV snapshot shipped in the image, ransomware-campaign flag included
 #: (`r` in each entry), refreshed into the host cache by `valvur update`.
 _BUNDLED = Path(__file__).resolve().parent / "data" / "kev.json"
@@ -90,10 +90,6 @@ class LocalProvider:
     def epss_age_basis(self) -> str:
         """`scored` from the file's own date, `fetched` from its time (D23)."""
         return self._epss_basis
-
-    @property
-    def is_stale(self) -> bool:
-        return self._kev_age is not None and self._kev_age > STALE_AFTER_DAYS
 
     def enrich(self, findings: list[Finding]) -> list[Finding]:
         # F6.1: every Finding carrying a CVE gets its Exploit Signals, KEV and EPSS,

@@ -1,7 +1,8 @@
 """The tools valvur exposes over MCP.
 
-Thin wrappers over `valvur.operations`, which the CLI calls too — so the two surfaces
-cannot drift (F9.3).
+Each tool's handler is in `handlers`, and passes what the call knows to the one
+operation the CLI calls too (`valvur.operations`, or `service.run_scan` for a scan),
+so the two surfaces cannot drift (F9.3, D51).
 
 Every tool is read-only with respect to the **Workspace**. There is no `scan_and_fix`,
 no `apply`, no `write` and no `remediate`, and a test asserts their absence, because
@@ -20,9 +21,10 @@ from __future__ import annotations
 from typing import Any
 
 from .. import profiles
-from ..operations import (
-    DEFAULT_LIMIT,
-    MAX_LIMIT,
+from ..operations import DEFAULT_LIMIT, MAX_LIMIT
+from . import jobs
+from .handlers import (
+    announce_scan,
     cancel_scan,
     check_package_reply,
     doctor,
@@ -31,7 +33,7 @@ from ..operations import (
     scan_status_reply,
     update_reply,
 )
-from .server import Tool
+from .tool import Tool
 
 # Names that must never appear here. Asserted by test, not by convention.
 FORBIDDEN = ("scan_and_fix", "apply", "write", "remediate", "fix", "patch", "edit")
@@ -149,6 +151,7 @@ def instructions() -> str:
     with a short form of them, and leads with the verdict. Since R15.1 the skill's
     rules block is this text too, all three from `agent_rules`.
     """
+    # deferred: startup; the server answers its handshake before a tool loads.
     from ..agent_rules import plain
 
     return plain()
@@ -176,7 +179,8 @@ def registry() -> list[Tool]:
                            "OSV-Scanner's last result is reused when no dependency "
                            "file and none of their data has changed since; a fresh "
                            "result replaces it."},
-             }}, scan_reply, read_only=False, output_schema=_REPLY_SHAPE),
+             }}, scan_reply, read_only=False, output_schema=_REPLY_SHAPE,
+             announce=announce_scan, settle=jobs.arrived),
         Tool("findings", "The last scan's findings, worst first and bounded: filter "
                          "by `group`, `rule`, `path` or `status`, or give a "
                          "`fingerprint` for that finding in full, with its evidence, "
@@ -196,6 +200,11 @@ def registry() -> list[Tool]:
                            "description": f"Default {DEFAULT_LIMIT}, max {MAX_LIMIT}; "
                                           "a larger one is clamped, and said so."},
                  "include_suppressed": {"type": "boolean"},
+                 "inventory": {"type": "boolean",
+                               "description": "Also list the sinks named for review "
+                                              "(code execution, queries built from a "
+                                              "value), which are not findings by "
+                                              "themselves."},
              }}, findings_reply, output_schema=_LIST_FINDINGS_SHAPE),
         Tool("scan_status", "What the last scan actually did: which scanners ran, "
                             "which failed, and whether the result is complete.",

@@ -15,9 +15,10 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from .findings import Severity
-
-SUPPRESSION_FILE = ".security-scan.toml"   # F8.1: read from the Workspace root
+# F8.1: read from the Workspace root; the project file, named once.
+from .exclusions import PROJECT_FILE as SUPPRESSION_FILE
+from .findings import Finding, Severity
+from .fingerprint import derive
 
 # Context is mandatory, not decorative. A pull request containing only a hash tells a
 # reviewer nothing about what is being accepted, which throws away the whole reason
@@ -61,14 +62,21 @@ class Policy:
         return {s.fingerprint: s for s in self.suppressions}
 
 
-def load(workspace: Path) -> Policy:
-    path = workspace / SUPPRESSION_FILE
-    if not path.is_file():
-        return Policy([], [])
-    try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (tomllib.TOMLDecodeError, OSError) as exc:
-        return Policy([], [Problem(f"{SUPPRESSION_FILE} could not be read: {exc}", {})])
+def load(workspace: Path, project: tuple[dict, str | None] | None = None) -> Policy:
+    """The suppressions in the project file; from `project`, the file as a scan
+    context already parsed it (D52d), when given."""
+    if project is None:
+        path = workspace / SUPPRESSION_FILE
+        if not path.is_file():
+            return Policy([], [])
+        try:
+            raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, OSError) as exc:
+            return Policy([], [Problem(f"{SUPPRESSION_FILE} could not be read: {exc}", {})])
+    else:
+        raw, problem = project
+        if problem is not None:
+            return Policy([], [Problem(problem, {})])
 
     suppressions: list[Suppression] = []
     problems: list[Problem] = []
@@ -136,9 +144,6 @@ def policy_findings(policy: Policy, findings, *, today: date | None = None):
     An unexpiring or stale suppression is exactly how a real finding gets buried for
     years. Reporting it in the same place as everything else is what stops that.
     """
-    from .findings import Finding
-    from .fingerprint import derive
-
     out = []
 
     for problem in policy.problems:

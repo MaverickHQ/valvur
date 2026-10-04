@@ -60,10 +60,13 @@ jobs:
         if: steps.pins.outputs.changed == 'true'
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         if: steps.pins.outputs.changed == 'true'
+      - id: version
+        uses: ./.github/actions/version
       - name: Build the image from main
         if: steps.pins.outputs.changed == 'true'
+        env:
+          VER: ${{ steps.version.outputs.version }}
         run: |
-          VER=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
             VALVUR_VERSION="$VER" docker buildx bake dev
       - name: Install
@@ -138,21 +141,9 @@ jobs:
         # One open issue per workflow, as the other scheduled workflows do (27.2.7):
         # a second failure comments on the first rather than filing another.
         if: failure() && github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TITLE: the monthly Scanner refresh failed
-        run: |
-          set -eu
-          body=$(printf '%s\n\n%s\n' \
-            "The scheduled \`refresh\` run failed: $RUN" \
-            "Nothing was rehearsed and nothing changed. Recovery: read the run's log, fix the cause, then dispatch this workflow again.")
-          existing=$(gh issue list --state open --search "$TITLE in:title" \
-                       --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-            echo "commented on #$existing"
-          else
-            gh issue create --title "$TITLE" --body "$body"
-            echo "opened an issue"
-          fi
+        uses: ./.github/actions/file-issue
+        with:
+          title: the monthly Scanner refresh failed
+          failed: "The scheduled `refresh` run failed"
+          body: |-
+            Nothing was rehearsed and nothing changed. Recovery: read the run's log, fix the cause, then dispatch this workflow again.

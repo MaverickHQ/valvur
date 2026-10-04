@@ -9,22 +9,28 @@ surface says: `run.json`'s `data`, `SUMMARY.md`'s `Data:` line, the MCP reply.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Protocol
 
-from . import cache as _cache
-
-if TYPE_CHECKING:
-    from .api import ScanRun
-
-
-def db_is_stale(run: ScanRun) -> bool:
-    age = run.db_age_days
-    return age is not None and age > _cache.DB_STALE_AFTER_DAYS
+from . import datasets as _datasets
+from . import osv_offline
+from .enrichment import LocalProvider
 
 
-def index_is_stale(run: ScanRun) -> bool:
-    age = run.name_index_age_days
-    return age is not None and age > _cache.NAME_INDEX_STALE_AFTER_DAYS
+class Aged(Protocol):
+    """What the predicates read of a ScanRun: named by its fields rather than its
+    type, since `ScanRun.doubts` asks them, and an import of the record here would
+    close a cycle (R23.9)."""
+
+    db_age_days: float | None
+    name_index_age_days: float | None
+
+
+def db_is_stale(run: Aged) -> bool:
+    return _datasets.DATABASE.stale(run.db_age_days)
+
+
+def index_is_stale(run: Aged) -> bool:
+    return _datasets.NAME_INDEX.stale(run.name_index_age_days)
 
 
 def data_ages(provider=None, osv=()) -> dict:
@@ -34,23 +40,18 @@ def data_ages(provider=None, osv=()) -> dict:
     say, and `absent` with no age when there is no copy. `osv` names the ecosystems
     whose offline database the scan read; `provider` the enrichment that ranked it,
     else KEV and EPSS are read afresh."""
-    from . import osv_offline
-    from .name_index import malicious
-
     def entry(age: float | None, basis: str) -> dict:
         return ({"age_days": None, "basis": "absent"} if age is None
                 else {"age_days": round(age, 2), "basis": basis})
 
     if provider is None:
-        from .enrichment import LocalProvider
-
         provider = LocalProvider()
-    index = _cache.name_index_age_days() if _cache.name_index_present() else None
     return {
-        "database": entry(_cache.db_age_days(), "built"),
-        "name_index": entry(index, "built"),
-        "malicious": entry(malicious.age_days(_cache.name_index()), "built"),
+        "database": entry(_datasets.DATABASE.age(), "built"),
+        "name_index": entry(_datasets.NAME_INDEX.age(), "built"),
+        "malicious": entry(_datasets.MALICIOUS.age(), "built"),
         "kev": entry(provider.kev_age_days, provider.kev_age_basis or "fetched"),
         "epss": entry(provider.epss_age_days, provider.epss_age_basis or "fetched"),
-        "osv": {name: entry(*osv_offline.age(name)) for name in osv},
+        "osv": {name: entry(_datasets.OSV.age(name), osv_offline.age(name)[1])
+                for name in osv},
     }

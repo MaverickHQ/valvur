@@ -7,11 +7,21 @@ version control's metadata. R3.2 grows this into the whole of ADR-0021.
 
 from __future__ import annotations
 
+import fnmatch
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .exclusions import RESULTS_DIR  # a leaf: importing results would close a cycle
+from . import pathclass
+from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
+from .exclusions import (  # a leaf: results would close a cycle
+    RESULTS_DIR,
+    ScanSettings,
+    is_configured_out,
+    load_scan_settings,
+)
+from .refusal import Refusal
 
 
 def git() -> str | None:
@@ -171,8 +181,6 @@ def _kept_when_ignored(rel: str) -> bool:
     project keeps out of git is still what its agent obeys)."""
     from pathlib import PurePosixPath
 
-    from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
-
     path = PurePosixPath(rel)
     parents = set(path.parts[:-1])
     return (path.name.startswith(".env") or path.name in ARTIFACT_NAMES
@@ -230,8 +238,6 @@ def _ignored(workspace: Path) -> tuple[list[str], list[tuple[str, str]]]:
 
 def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
     """The project's `[scan] exclude`, applied once, root-relative (ADR-0021)."""
-    from .exclusions import is_configured_out
-
     if not prefixes:
         return result
     result.files = [f for f in result.files if not is_configured_out(f, prefixes)]
@@ -239,12 +245,13 @@ def _excluded(result: FileSet, prefixes: tuple[str, ...]) -> FileSet:
     return result
 
 
-def build(workspace: Path) -> FileSet:
-    from .exclusions import load_configured, load_scan_settings
-
-    prefixes = load_configured(workspace)
+def build(workspace: Path, settings: ScanSettings | None = None) -> FileSet:
+    """The File Set; `settings` is the project's `[scan]` table when the caller has
+    already read it, as a scan context has (D52d)."""
+    settings = settings if settings is not None else load_scan_settings(workspace)
+    prefixes = settings.exclude
     # `scope = "tree"` walks instead, for a user who wants it (ADR-0021, decision 7).
-    view = None if load_scan_settings(workspace).scope == "tree" else git_view(workspace)
+    view = None if settings.scope == "tree" else git_view(workspace)
     if view is not None:
         tracked, left_out = view
         kept, skipped = _ignored(workspace)
@@ -261,8 +268,6 @@ def build(workspace: Path) -> FileSet:
     if (workspace / ".git").exists() and git() is None:
         result.note = NO_GIT
     if len(result.files) > CEILING:
-        from .refusal import Refusal
-
         raise Refusal(f"Refused before any Scanner started: {workspace} is not a git "
                       f"repository and holds {_ceiling_sentence(result.files)}, or scan "
                       "a repository, whose ignored files are left out.")
@@ -281,3 +286,53 @@ def largest(files: list[str], n: int = 3) -> tuple[tuple[str, int], ...]:
         top = rel.split("/", 1)[0] if "/" in rel else "."
         counts[top] = counts.get(top, 0) + 1
     return tuple(sorted(counts.items(), key=lambda dn: (-dn[1], dn[0]))[:n])
+
+
+#: How much of a file's head is read for a "generated, do not edit" line (D56).
+_HEAD_BYTES = 1024
+_GENERATED_HEADER = re.compile(rb"generated.{0,80}do not edit|do not edit.{0,80}generated",
+                               re.I | re.S)
+
+
+def _linguist_generated(workspace: Path) -> list[str]:
+    """The patterns `.gitattributes` marks `linguist-generated`, unless set false."""
+    try:
+        text = (workspace / ".gitattributes").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    patterns = []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) > 1 and not parts[0].startswith("#") and any(
+                a in ("linguist-generated", "linguist-generated=true") for a in parts[1:]):
+            patterns.append(parts[0])
+    return patterns
+
+
+def _matches(pattern: str, path: str) -> bool:
+    """A `.gitattributes` pattern against a repo-relative path: a pattern with no
+    slash matches the name at any depth, `**` crosses directories."""
+    if "/" not in pattern.rstrip("/"):
+        return fnmatch.fnmatchcase(path.rsplit("/", 1)[-1], pattern)
+    return fnmatch.fnmatchcase(path, pattern.lstrip("/").replace("**", "*"))
+
+
+def _says_generated(workspace: Path, path: str) -> bool:
+    try:
+        with (workspace / path).open("rb") as handle:
+            return bool(_GENERATED_HEADER.search(handle.read(_HEAD_BYTES)))
+    except OSError:
+        return False
+
+
+def classes(workspace: Path, paths: list[str]) -> dict[str, str]:
+    """Each path's class (D56): its segments' (`pathclass.of`), or `generated` when
+    `.gitattributes` marks it or its first lines say so. Only these paths are read,
+    the ones findings land on, never the whole tree."""
+    patterns = _linguist_generated(workspace)
+    found = {}
+    for path in dict.fromkeys(paths):
+        generated = any(_matches(p, path) for p in patterns) or _says_generated(workspace,
+                                                                                 path)
+        found[path] = pathclass.GENERATED if generated else pathclass.of(path)
+    return found

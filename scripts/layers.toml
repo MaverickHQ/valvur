@@ -1,0 +1,154 @@
+# The host side in layers (D50). `scripts/check_layers.py` holds every module under
+# `src/valvur` to one layer, and every import, deferred ones included, to a layer at or
+# below its own. Modules are not moved: a module's layer is its line here.
+
+# Lowest first: each layer imports only from itself and the layers before it.
+order = ["core", "infra", "app", "surfaces"]
+
+# Written by the build, never in the source tree (`compat` reads the tree's hash there).
+generated = ["valvur._build"]
+
+# The upward imports the check found on its first run (R23.2), by module. The list may
+# only shrink: an entry that no longer happens fails until it is removed, and R23's
+# exit empties it.
+baseline = []
+
+[layers]
+# The Finding, identity, the verdict, ranking; the words and shapes everything else
+# shares. No I/O beyond reading the package's own data.
+core = [
+    "valvur._build",
+    "valvur.agent_rules",
+    "valvur.agent_surfaces",
+    "valvur.classtable",
+    "valvur.defang",
+    "valvur.events",
+    "valvur.findings",
+    "valvur.fingerprint",
+    "valvur.grouping",
+    "valvur.invocation",
+    "valvur.lazy",
+    "valvur.licence_policy",
+    "valvur.pathclass",
+    "valvur.profiles",
+    "valvur.project_schema",
+    "valvur.ranking",
+    "valvur.redact",
+    "valvur.refusal",
+    "valvur.scanner_run",
+    "valvur.text",
+    "valvur.verdict",
+    "valvur.version",
+    "valvur.versions",
+]
+
+# What touches the machine: the container runtimes, the datasets and the host cache,
+# the registries, git, the OCI client, the File Set, the project's files, and the
+# image's side (the engine, the adapters, the Checks), which the host also reads.
+infra = [
+    "valvur.adapters",
+    "valvur.adapters.base",
+    "valvur.adapters.check",
+    "valvur.adapters.checkov",
+    "valvur.adapters.gitleaks",
+    "valvur.adapters.opengrep",
+    "valvur.adapters.osv",
+    "valvur.adapters.registry",
+    "valvur.adapters.syft",
+    "valvur.adapters.trivy",
+    "valvur.adapters.zizmor",
+    "valvur.applicability",
+    "valvur.cache",
+    "valvur.checks",
+    "valvur.checks.__main__",
+    "valvur.checks.ai_artifact",
+    "valvur.checks.base",
+    "valvur.checks.borrowed",
+    "valvur.checks.dependency_reality",
+    "valvur.checks.licence_file",
+    "valvur.checks.registry",
+    "valvur.compat",
+    "valvur.coverage",
+    "valvur.datasets",
+    "valvur.ecosystems",
+    "valvur.ecosystems.locked",
+    "valvur.ecosystems.parsers",
+    "valvur.ecosystems.registries",
+    "valvur.ecosystems.registry",
+    "valvur.ecosystems.vocabulary",
+    "valvur.egress",
+    "valvur.engine",
+    "valvur.engine.__main__",
+    "valvur.engine_host",
+    "valvur.enrichment",
+    "valvur.epss",
+    "valvur.exclusions",
+    "valvur.fileset",
+    "valvur.gitcontext",
+    "valvur.history",
+    "valvur.hygiene",
+    "valvur.locking",
+    "valvur.name_index",
+    "valvur.name_index.__main__",
+    "valvur.name_index.build",
+    "valvur.name_index.malicious",
+    "valvur.name_index.published",
+    "valvur.name_index.reader",
+    "valvur.oci",
+    "valvur.osv_offline",
+    "valvur.owner",
+    "valvur.requirements",
+    "valvur.reuse",
+    "valvur.runner",
+    "valvur.scancontext",
+    "valvur.selinux",
+    "valvur.settings",
+    "valvur.state",
+    "valvur.suppressions",
+    "valvur.tree_hash",
+]
+
+# What valvur does, whoever asks: the scan, its record and the Results Folder, the
+# read models every surface renders, the jobs, and the other operations.
+app = [
+    "valvur.api",
+    "valvur.artifacts",
+    "valvur.assembly",
+    "valvur.doctor",
+    "valvur.fetching",
+    "valvur.fleet",
+    "valvur.gate",
+    "valvur.initialize",
+    "valvur.installs",
+    "valvur.levers",
+    "valvur.mcp.clients",
+    "valvur.mcp.jobs",
+    "valvur.operations",
+    "valvur.packages",
+    "valvur.pipeline",
+    "valvur.provenance",
+    "valvur.rawoutput",
+    "valvur.remediation",
+    "valvur.reply",
+    "valvur.results",
+    "valvur.scanrun",
+    "valvur.service",
+    "valvur.skill",
+    "valvur.staleness",
+    "valvur.summary",
+    "valvur.updating",
+]
+
+# How it is asked: the CLI, the MCP server over stdio, the hook, and the package's
+# public names.
+surfaces = [
+    "valvur",
+    "valvur.cli",
+    "valvur.hook",
+    "valvur.mcp",
+    "valvur.mcp.handlers",
+    "valvur.mcp.protocol",
+    "valvur.mcp.server",
+    "valvur.mcp.tool",
+    "valvur.mcp.tools",
+]

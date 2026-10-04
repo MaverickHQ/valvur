@@ -119,7 +119,8 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     mails a scheduled failure to the workflow file's last committer and does
     nothing else, so the record of it is one person's inbox. Each now opens an
     issue — reusing the open one rather than filing a second — under
-    `issues: write`, with the run link, so the failure is a tracked thing."""
+    `issues: write`, with the run link, so the failure is a tracked thing. Since
+    R24.4 one composite action files it for every workflow."""
     import re
 
     scheduled = []
@@ -154,16 +155,20 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
         assert len(failure_steps) == len(jobs), \
             f"{name} has {len(failure_steps)} `if: failure()` steps for {len(jobs)} jobs"
         for step in failure_steps:
-            assert "gh issue" in step, f"{name}'s failure step does not use `gh issue`"
-            assert "github.run_id" in step and "$RUN" in step, \
-                f"{name}'s issue does not carry a link to the run that failed"
-            # One issue, not one per run: a job broken for a week is one problem.
-            assert "gh issue comment" in step and "gh issue list" in step, \
-                f"{name} files a new issue for every failure"
+            # One action files every failure's issue (D55c), held below.
+            assert "uses: ./.github/actions/file-issue" in step, \
+                f"{name}'s failure step does not file its issue through the action"
+        assert "actions/checkout@" in text, f"{name} cannot find the action: no checkout"
         # The permission is per job, not repository-wide: `contents: read` at the
         # top of the file is what a pull request from a fork gets.
         assert re.search(r"^permissions:\n  contents: read\n", text, re.M), \
             f"{name} grants more than read at the top level"
+    action = Path(".github/actions/file-issue/action.yml").read_text()
+    assert "github.run_id" in action and "$RUN" in action, \
+        "the issue does not carry a link to the run that failed"
+    # One issue, not one per run: a job broken for a week is one problem.
+    assert "gh issue list" in action and "gh issue comment" in action \
+        and "gh issue create" in action, "a new issue is filed for every failure"
 
 
 def test_the_opengrep_binaries_are_checksum_pinned():

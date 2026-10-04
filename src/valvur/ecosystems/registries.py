@@ -276,6 +276,7 @@ def gem(manifest: Path) -> Registries:
     """The gems a Gemfile takes from a `source '...' do` block that is not RubyGems
     (R12.4). The parser already leaves them undeclared; `check_package` needs to
     know where they come from, or it would call a private gem nonexistent."""
+    # deferred: startup; the plugin's hook loads this module on every install.
     from . import parsers as _parsers
 
     bound: dict[str, str] = {}

@@ -257,6 +257,10 @@
         "include_suppressed": {
           "type": "boolean"
         },
+        "inventory": {
+          "description": "Also list the sinks named for review (code execution, queries built from a value), which are not findings by themselves.",
+          "type": "boolean"
+        },
         "limit": {
           "description": "Default 20, max 100; a larger one is clamped, and said so.",
           "type": "integer"

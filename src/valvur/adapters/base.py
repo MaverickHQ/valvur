@@ -9,13 +9,17 @@ merges, diffs and writes.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from ..coverage import Coverage
+
+# Where every Scanner sees the Workspace: the engine's, named once.
+from ..engine import WORKSPACE as CONTAINER_WORKSPACE
 from ..findings import Finding
 from ..invocation import Invocation, ScannerOutput
 
-CONTAINER_WORKSPACE = "/workspace"
+if TYPE_CHECKING:
+    from ..scancontext import ScanContext
 
 
 def container_relative(path: str) -> str:
@@ -44,6 +48,12 @@ def _undeclared(name: str) -> Invocation:
 @runtime_checkable
 class ScannerAdapter(Protocol):
     name: str
+    #: The tool's version, pinned beside its image (the record's, F2.7).
+    version: str = ""
+    #: The file an adapter produces instead of, or beside, Findings: Syft's SBOM.
+    artifact: str | None = None
+    #: The network the Profile granted it (D52c); False until `for_profile` says.
+    network: bool = False
 
     def command(self, workspace: Path) -> Invocation:
         """How to invoke this Scanner: its argv, report file, timeout and grants
@@ -57,8 +67,11 @@ class ScannerAdapter(Protocol):
         """Normalise this Scanner's output into Findings."""
         ...
 
-    def applies_to(self, workspace: Path) -> tuple[bool, str]:
+    def applies_to(self, workspace: Path,
+                   context: ScanContext | None = None) -> tuple[bool, str]:
         """Whether this Scanner has anything to look at, and the evidence either way.
+        `context` is the scan's (D52d): the File Set and the project's settings, read
+        once; without one, the adapter reads them itself.
 
         Part of the protocol rather than a `getattr` the orchestrator hopes for
         (task 17.3). Introduced for Checkov in 12a.3, it decides whether a Scanner
@@ -85,7 +98,8 @@ class ScannerAdapter(Protocol):
         """
         return self
 
-    def coverage(self, workspace: Path, exclude: tuple[str, ...] = ()) -> Coverage:
+    def coverage(self, workspace: Path, exclude: tuple[str, ...] = (),
+                 context: ScanContext | None = None) -> Coverage:
         """What this Scanner reads, what it deliberately does not, and where that
         bites in *this* Workspace (task 19.E.1).
 

@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from valvur import events
+
 SEQUENCE = Path(__file__).parent / "fixtures" / "mcp" / "kiro-sequence.json"
 
 
@@ -41,24 +43,23 @@ def _judge(seen: list[dict], spec: dict) -> None:
 def test_kiros_sequence_in_process(tmp_path, monkeypatch):
     from conftest import McpSession
 
-    from valvur import operations
-    from valvur.mcp import jobs
+    from valvur.mcp import handlers, jobs
 
     monkeypatch.setattr(jobs, "STATUS_WAIT_SECONDS", 5.0)
     release = threading.Event()
 
-    def held(budget_s):
+    def held(budget_s, *, fresh=False):
         def run(workspace, profile, progress):
             # As a real runtime does: `scan_cancel` reaches the fleet through the
             # job's canceller, which is what ends the wait.
             jobs.current(workspace).canceller = lambda: release.set() or 1
-            progress("fleet: 1 Scanners, 1 at a time")
+            progress(events.fleet(1, 1))
             release.wait(10)
             raise RuntimeError("stopped")          # what a killed fleet raises
         return run
 
-    monkeypatch.setattr(operations, "_scan_with_budget", held)
-    monkeypatch.setattr(operations, "_client_roots", lambda: [tmp_path.resolve()])
+    monkeypatch.setattr(handlers, "_work", held)
+    monkeypatch.setattr(handlers, "_roots", lambda: [tmp_path.resolve()])
     messages, spec = _messages(tmp_path)
     session = McpSession()
     try:

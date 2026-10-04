@@ -92,6 +92,8 @@ Each is a key in the machine's settings file, `~/.config/valvur/config.toml` (un
 CI job or a one-off command, the variable winning when both are set. `valvur doctor`
 says which value came from where.
 
+<!-- generated: settings -->
+
 | key | variable | what it does |
 |---|---|---|
 | `db_repository` | `VALVUR_DB_REPOSITORY` | The OCI repository Trivy fetches its database from. |
@@ -105,6 +107,8 @@ says which value came from where.
 | `image` | `VALVUR_IMAGE` | The image, from any registry: a mirror of `ghcr.io/maverickhq/valvur`. |
 | `fetch` | `VALVUR_FETCH` | `never` stops every fetch a scan would make on its own (ADR-0025); `valvur update` and the `update` tool still fetch from the mirrors when asked. |
 | `container_network` | `VALVUR_CONTAINER_NETWORK`, retired to the file | The container network the **update** container joins, when the mirror registry lives on a named one. Never applied to a scan container: `--network=none` is not negotiable. The variable still works through 1.x, and says so once. |
+
+<!-- /generated -->
 
 ## In your own AWS account: ECR
 

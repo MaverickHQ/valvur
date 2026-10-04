@@ -16,9 +16,10 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any, Protocol
 
-from .mcp import jobs
-from .mcp.jobs import State
+from . import events, verdict
+from .events import Event, Kind
 from .results import RESULTS_DIR
 
 SCHEMA = 2
@@ -45,33 +46,62 @@ DOCTOR_NEXT = ("Run `doctor` (the tool; `valvur doctor` on a shell) before scann
 NO_RESULT = "No result to report."
 
 
-def running_next() -> str:
-    return (f"Call `scan_status` again; it waits up to {jobs.STATUS_WAIT_SECONDS:g} s and "
+#: How long a status call waits for a running scan, when the surface does not say:
+#: the MCP jobs' `STATUS_WAIT_SECONDS`, which the server passes in.
+WAITED_S = 330.0
+
+
+def running_next(waited_s: float = WAITED_S) -> str:
+    return (f"Call `scan_status` again; it waits up to {waited_s:g} s and "
             "returns the moment the scan finishes; do not report a result yet.")
+
+
+class JobView(Protocol):
+    """What the reply reads of a surface's scan job (D51): passed in, so this module
+    imports nothing from the surface that holds one."""
+
+    profile: str
+    started: float
+    error: str
+    doctor_may_help: bool
+    next_moves: tuple[str, ...]
+    failure: dict | None
+    progress: list[Event]
+    progress_at: list[float]
+
+    @property
+    def state(self) -> Any: ...
+
+    @property
+    def elapsed(self) -> float: ...
 
 
 # ------------------------------------------------------------------ the fields
 
-def fields(workspace: Path, job: jobs.Job | None = None) -> dict:
+def fields(workspace: Path, job: JobView | None = None, *,
+           waited_s: float | None = None) -> dict:
     """Schema 2 for the scan of `workspace`: the job's state if there is one that
-    has not finished well, otherwise what the Results Folder holds."""
+    has not finished well, otherwise what the Results Folder holds. `waited_s` is
+    how long the surface waits for a running scan before answering."""
+    waited = WAITED_S if waited_s is None else waited_s
     base: dict = {"schema": SCHEMA, "workspace": str(workspace), "profile": None,
                   "elapsed_s": None, "generation": None, "verdict": None, "reason": "",
                   "complete": None, "next": [], "error": None}
     if job is not None:
         base.update(profile=job.profile, elapsed_s=round(job.elapsed, 1))
-    if job is not None and job.state is State.RUNNING:
-        return {**base, "state": "running", "progress": _progress(job),
-                "next": [running_next()]}
-    if job is not None and job.state is State.CANCELLING:
+    state = str(job.state) if job is not None else None
+    if job is not None and state == "running":
+        return {**base, "state": "running", "progress": _progress(job, waited),
+                "next": [running_next(waited)]}
+    if job is not None and state == "cancelling":
         return {**base, "state": "cancelling", "next": [CANCELLING_NEXT],
                 "error": {"kind": "cancelled", "message": (
                     f"the {job.profile} scan, {job.elapsed:.0f}s in; its containers are "
                     "being stopped")}}
-    if job is not None and job.state is State.CANCELLED:
+    if job is not None and state == "cancelled":
         return {**base, "state": "cancelled", "next": [CANCELLED_NEXT],
                 "error": {"kind": "cancelled", "message": job.error}}
-    if job is not None and job.state is State.FAILED:
+    if job is not None and state == "failed":
         advice = list(job.next_moves)
         if job.doctor_may_help and not advice:
             # Only when a precondition could be the cause (29.0.3): the budget's
@@ -95,44 +125,39 @@ def fields(workspace: Path, job: jobs.Job | None = None) -> dict:
             "state": "done"}
 
 
-def _progress(job: jobs.Job) -> dict:
+def _progress(job: JobView, waited_s: float) -> dict:
     """A running scan, as fields: what is being fetched, what is running and for
-    how long, what finished, and what the workspace line said (29.0.4)."""
-    from . import levers as _levers
-    from .api import FETCH_STARTED
-
+    how long, what finished, and what the workspace line said (29.0.4). Each event
+    is placed by its kind (D53), and only its words are carried."""
     now: str | None = None
     completed: list[str] = []
     started: dict[str, float] = {}
     finished: list[str] = []
+    done: set[str] = set()
     fleet: int | None = None
     workspace_lines: list[str] = []
     stamps = list(job.progress_at) + [job.elapsed + job.started] * len(job.progress)
-    for message, at in zip(job.progress, stamps, strict=False):
-        if message.startswith(FETCH_STARTED):
-            now = message
+    for event, at in zip(job.progress, stamps, strict=False):
+        if event.kind is Kind.FETCH_STARTED:
+            now = str(event)
             continue
         now = None
-        if message.startswith("fleet: "):
-            fleet = int(message.split()[1])
-            continue
-        if message.startswith(_levers.WORKSPACE_PREFIX):
-            workspace_lines.append("Workspace: " + message[len(_levers.WORKSPACE_PREFIX):])
-            continue
-        tool, sep, rest = message.partition(": ")
-        if sep and rest == "started":
-            started[tool] = at
-            continue
-        if sep and tool in started:
-            finished.append(message)
-            continue
-        completed.append(message)
-    done = {m.partition(": ")[0] for m in finished}
+        if event.kind is Kind.FLEET:
+            fleet = int(event.fields["count"])
+        elif event.kind is Kind.WORKSPACE:
+            workspace_lines.append("Workspace: " + events.workspace_body(event))
+        elif event.kind is Kind.SCANNER_STARTED:
+            started[str(event.fields["name"])] = at
+        elif event.kind is Kind.SCANNER_ENDED and event.fields["name"] in started:
+            finished.append(str(event))
+            done.add(str(event.fields["name"]))
+        else:
+            completed.append(str(event))
     running = {tool: round(time.monotonic() - at, 1) for tool, at in started.items()
                if tool not in done}
     return {"now": now, "running": running, "finished": finished, "fleet": fleet,
             "completed": completed, "workspace": workspace_lines,
-            "waited_s": jobs.STATUS_WAIT_SECONDS, "messages": list(job.progress)}
+            "waited_s": waited_s, "messages": [str(event) for event in job.progress]}
 
 
 def _done(workspace: Path, data: dict) -> dict:
@@ -337,14 +362,12 @@ def next_moves(workspace: Path) -> list[str]:
     `report` took each pointer as a turn to spend, and three of eight reports ran
     past six. The top Finding's fingerprint stays, as data. Nothing when nothing is
     active; nothing invented for results an older valvur wrote."""
-    from .coverage import NOTE_RULES
-
     try:
         findings = json.loads((workspace / RESULTS_DIR / "findings.json").read_text(
             encoding="utf-8"))["findings"]
     except (OSError, ValueError, KeyError):
         return []
-    active = [f for f in findings if not f.get("suppressed") and f.get("rule") not in NOTE_RULES]
+    active = [f for f in findings if verdict.active(f)]
     if not active:
         return []
     top = min(active, key=lambda f: f.get("rank") or 10**9)

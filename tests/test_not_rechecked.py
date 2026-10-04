@@ -43,7 +43,7 @@ class _Finder:
         self.finds = finds
         self.seconds = seconds
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def for_profile(self, *, network):
@@ -103,7 +103,7 @@ def test_a_finding_whose_scanner_was_cut_is_not_reported_fixed(workspace):
     """Run 1 finds it; run 2's budget cuts the Scanner that would re-check it. The
     Finding is neither fixed nor persisting: it is *not re-checked*, on every
     surface, and the state still holds it for run 3."""
-    from valvur.operations import scan_status
+    from valvur.mcp.handlers import scan_status
 
     first = _scan(workspace, [_Finder(), _Other()])
     assert [f.status for f in first.findings] == ["new"]
@@ -195,7 +195,7 @@ def test_a_state_without_sources_is_fixed_when_every_scanner_ran(workspace):
 
 
 def test_the_structured_status_reply_carries_the_count(workspace):
-    from valvur.operations import scan_status_reply
+    from valvur.mcp.handlers import scan_status_reply
 
     _scan(workspace, [_Finder(), _Other()])
     _scan(workspace, [_Finder(seconds=5.0), _Other()], budget_s=1.5)

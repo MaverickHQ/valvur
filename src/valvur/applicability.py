@@ -21,6 +21,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import fileset
+from .refusal import Refusal
+
 # Names and suffixes that are infrastructure code beyond argument. Matching one of
 # these is enough on its own — no content check, no ambiguity.
 _IAC_SUFFIXES = frozenset({
@@ -59,7 +62,7 @@ _SNIFF_BYTES = 4096
 _SNIFF_LIMIT = 400
 
 
-def iac_present(workspace: Path) -> tuple[bool, str]:
+def iac_present(workspace: Path, files: list[str] | None = None) -> tuple[bool, str]:
     """Whether Checkov has infrastructure to analyse, and the evidence for it.
 
     Returns (True, "<the file that decided it>") or (False, ""). The evidence is
@@ -67,7 +70,7 @@ def iac_present(workspace: Path) -> tuple[bool, str]:
     be able to check.
     """
     sniffed = 0
-    for path in _candidates(workspace):
+    for path in _candidates(workspace, files):
         if _relative(path, workspace).startswith(_WORKFLOWS):
             # zizmor's, whatever words they contain (R4.3): fastify's lists
             # `@fastify/swagger`, which the content sniff took for OpenAPI.
@@ -89,15 +92,13 @@ def iac_present(workspace: Path) -> tuple[bool, str]:
     return False, ""
 
 
-def _candidates(workspace: Path):
+def _candidates(workspace: Path, given: list[str] | None = None):
     """The File Set (ADR-0021, R3.9): what the Scan Container will hold, so a
     Terraform file in an ignored `node_modules` never decides that Checkov runs.
-    A folder the File Set refuses is walked whole: bias to running."""
-    from .fileset import files
-    from .refusal import Refusal
-
+    `given` is the scan's, when it has one. A folder the File Set refuses is walked
+    whole: bias to running."""
     try:
-        chosen = files(workspace)
+        chosen = given if given is not None else fileset.build(workspace).files
     except Refusal:
         yield from (p for p in workspace.rglob("*") if p.is_file())
         return

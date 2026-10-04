@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from valvur.adapters.base import ScannerAdapter
 from valvur.engine_host import LocalRuntime
 from valvur.invocation import Invocation
 
@@ -46,16 +47,16 @@ def test_the_status_lines_keep_the_words_scan_status_reads(ws):
 
     said: list[str] = []
     api.scan(ws, runner=LocalRuntime(FAKE_TOOLS), adapters=[GitleaksAdapter()],
-             on_progress=said.append)
+             on_progress=lambda event: said.append(str(event)))
     assert "fleet: 1 Scanners, 1 at a time" in said
     assert "gitleaks: started" in said
     assert any(line.startswith("gitleaks: ok (") and line.endswith("s)") for line in said)
 
 
 def test_the_cli_and_the_mcp_server_scan_through_the_scan_container(ws, monkeypatch):
-    from valvur import api, cli, engine_host, operations
+    from valvur import api, cli, engine_host
     from valvur.adapters import GitleaksAdapter
-    from valvur.mcp import jobs
+    from valvur.mcp import handlers, jobs
 
     built: list[LocalRuntime] = []
 
@@ -69,7 +70,7 @@ def test_the_cli_and_the_mcp_server_scan_through_the_scan_container(ws, monkeypa
     assert len(built) == 1
     jobs.reset()
     try:
-        operations.start_scan({"workspace": str(ws)})
+        jobs.start(ws.resolve(), "offline", handlers._work(None, fresh=False))
         job = jobs.current(ws.resolve())
         assert job is not None and job.wait(30)
         assert job.state is jobs.State.DONE, job.error
@@ -116,7 +117,7 @@ def test_jobs_bounds_how_many_tools_the_engine_runs_at_once(tmp_path):
     assert timings[None] < 2.5 <= timings[1], timings
 
 
-class _Quiet:
+class _Quiet(ScannerAdapter):
     """A Scanner whose tool writes no report and says why on stderr."""
 
     kind = "scanner"
@@ -125,7 +126,7 @@ class _Quiet:
     def __init__(self, name: str, code: int, message: str, empty_when=()):
         self.name, self.code, self.message, self.empty_when = name, code, message, empty_when
 
-    def applies_to(self, workspace):
+    def applies_to(self, workspace, context=None):
         return True, ""
 
     def command(self, workspace):
@@ -162,12 +163,13 @@ def test_on_an_enforcing_host_the_scan_containers_own_mounts_are_labelled(tmp_pa
     """F1.6 for the Scan Container: every mount valvur owns carries `:z`, or an
     enforcing host denies the plan, the reports and the cache. There is no source
     mount to label (ADR-0022)."""
-    from valvur import cache, engine_host
+    from valvur import cache, engine_host, runner
     from valvur.engine_host import ContainerRuntime
 
     monkeypatch.setattr(cache, "root", lambda: tmp_path / "cache")
     for enforcing in (True, False):
         monkeypatch.setattr(engine_host, "selinux_enforcing", lambda e=enforcing: e)
+        monkeypatch.setattr(runner, "selinux_enforcing", lambda e=enforcing: e)
         argv = ContainerRuntime(image="x/y:1", runtime="/usr/bin/podman").command(tmp_path)
         mounts = [argv[i + 1] for i, flag in enumerate(argv) if flag == "-v"]
         assert mounts and all(m.endswith((":z", ",z")) is enforcing for m in mounts), mounts
