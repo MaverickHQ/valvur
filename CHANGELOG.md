@@ -8,6 +8,30 @@ break things, and has.
 
 ## [Unreleased]
 
+### Fixed: a project's own ignores hid findings silently (Phase R38)
+
+A comment or an ignore file in the scanned project could make a finding disappear from
+valvur's report, and nothing in the report said so: Opengrep's `nosemgrep`, Gitleaks's
+`gitleaks:allow`, `.gitleaksignore` and `.gitleaks.toml` allowlists, Checkov's
+`checkov:skip`, `.trivyignore` and `osv-scanner.toml`. Each Scanner obeyed them, and five
+of the seven hid their finding when measured. A one-line comment is the cheapest way for an
+agent to make a finding go away, which is what valvur exists to refuse.
+
+- **The verdict can change.** Each Scanner now runs with the project's ignores off, so a
+  project that silenced findings this way may move from `clean` to `findings`. That is the
+  fix, not a regression: the findings were there all along.
+- Every finding a project's ignore would hide names it, as `ignored_by` in `findings.json`
+  and as a SARIF suppression of kind `inSource` or `external`.
+- An ignore that gives a reason and an expiry, as `osv-scanner.toml`'s `reason` and
+  `ignoreUntil` do, is an accepted risk like a suppression in `.security-scan.toml`: its
+  finding is suppressed until the expiry, then reported again, and `valvur gate` fails on
+  the lapsed ignore. One without both leaves its finding active, and `SUMMARY.md` lists it
+  under *Ignored by the project, not accepted*.
+- Checkov has no switch for `checkov:skip`, so a check the project skipped is reported as
+  a finding whose title says it was not evaluated.
+- A stored Scanner result is reused only when it was made with the same arguments; before,
+  a result made with the project's ignores honoured could be reused after the change.
+
 ### Scorecard, as far as one maintainer reaches (Phase R27)
 
 Internal, and four fixes users see:
