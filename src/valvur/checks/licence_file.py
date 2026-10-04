@@ -50,9 +50,7 @@ class LicenceFileCheck(Check):
     name = "licence-file"
 
     def run(self, workspace: Path, exclude: tuple[str, ...] = ()) -> list[dict]:
-        licence_path = next(
-            (workspace / c for c in CANDIDATES if (workspace / c).is_file()), None
-        )
+        licence_path = _licence_file(workspace)
         if licence_path is None:
             return [{
                 "rule": "valvur.licence.missing",
@@ -66,6 +64,9 @@ class LicenceFileCheck(Check):
 
         text = licence_path.read_text(encoding="utf-8", errors="replace")
         identified = next((spdx for spdx, rx in SIGNATURES if rx.search(text)), None)
+        if identified == "BSD-3-Clause" and not _ENDORSE.search(text):
+            # The third clause is the one about endorsement; without it, two (R29.2).
+            identified = "BSD-2-Clause"
         if identified is None:
             identified = _from_title(text)
         rel = licence_path.name
@@ -113,12 +114,28 @@ TITLES = (
 
 
 def _alternatives(expression: str) -> set[str]:
-    """The licences an SPDX `OR` expression, or Cargo's older `A/B`, lets a user
-    choose, upper-cased. A file naming any one of them agrees with the declaration
-    (R10.7): ripgrep's `COPYING` states its dual licence and was read as MIT, which
-    the Check reported as contradicting `Unlicense OR MIT`."""
-    parts = re.split(r"\s+OR\s+|/", expression.strip().strip("()"), flags=re.I)
+    """The licences an SPDX expression names, upper-cased. A file naming any one of
+    them agrees with the declaration. An `OR`, or Cargo's older `A/B`, lets a user
+    choose (R10.7): ripgrep's `COPYING` states its dual licence and was read as MIT,
+    which the Check reported as contradicting `Unlicense OR MIT`. An `AND` covers parts
+    of the project under each (R29.2): aiohttp's LICENSE.txt is the Apache-2.0 of
+    `Apache-2.0 AND MIT`, the MIT being the code it vendors."""
+    parts = re.split(r"\s+(?:OR|AND)\s+|/", expression.strip().strip("()"), flags=re.I)
     return {part.strip().strip("()").upper() for part in parts if part.strip()}
+
+
+#: BSD's third clause, the one 2-clause BSD lacks: no endorsement by name.
+_ENDORSE = re.compile(r"endorse\s+or\s+promote", re.I)
+
+
+def _licence_file(workspace: Path) -> Path | None:
+    """The first candidate present, its name matched whatever its case: got's licence
+    is `license` (R29.2), and a case-sensitive look reported it missing."""
+    try:
+        present = {p.name.lower(): p for p in workspace.iterdir() if p.is_file()}
+    except OSError:
+        return None
+    return next((present[c.lower()] for c in CANDIDATES if c.lower() in present), None)
 
 
 def _from_title(text: str) -> str | None:
