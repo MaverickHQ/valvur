@@ -8,6 +8,26 @@ break things, and has.
 
 ## [Unreleased]
 
+### What the code rules find (Phase R25)
+
+Twelve rules of valvur's own, each shipped only on D29's measured bar and each with a
+vulnerable and a safe twin as a test. The Score's static-analysis tracks rise: track 1,
+the OWASP Benchmark for Python, from 11.1 to 40.9, and track 2, the JavaScript twins,
+from 15.0 to 55.0. Real-code precision holds at 5.9, and the Score is 73.9.
+
+- **Command and code injection are reported as flows.** `valvur.python.command-injection`
+  and `valvur.python.code-injection` follow request data into `subprocess`,
+  `os.system`, `os.popen`, `eval` and `exec`, and `shlex.quote` or a literal check
+  sanitises. `subprocess-shell-true` joins the sink inventory: on its own a shell sink
+  no longer makes a verdict `findings`.
+- **Python: path traversal, insecure cookies, open redirects and XXE.** Taint rules
+  from request data to file paths and redirects, a cookie set with `secure=False`, and
+  an XML parser told to resolve external entities.
+- **JavaScript: SQL injection, command injection, path traversal and SSRF,** as taint
+  from what an Express or Fastify handler reads off its request. A bound parameter,
+  an argument list, `path.basename`, a `root`, or a host checked against a list guard.
+- Every rule's CWE reaches `findings.json` and SARIF, under a test.
+
 ### The noise real projects draw (Phase R20)
 
 On thirteen maintained projects, every finding valvur's own rules and Gitleaks raised
