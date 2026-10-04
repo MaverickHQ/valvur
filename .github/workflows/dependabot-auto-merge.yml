@@ -1,0 +1,52 @@
+# Dependabot's updates land themselves (R28.2, D64a). In the thirty days to 1.4.0 the
+# owner landed every one of Dependabot's pull requests by hand (R28.1).
+#
+# For a pull request Dependabot opened, and nothing else: a patch or minor update that
+# changes only dependency files gets GitHub's auto-merge, by squash, and GitHub merges it
+# once every required check passes. `main` takes signed commits and linear history, and
+# GitHub signs the commit it squashes (measured, R28.1). Which updates qualify is decided
+# by `scripts/dependabot_auto_merge.py`, run from the base branch: the pull request's own
+# code is never checked out or run. A major version, a commit someone else added, or any
+# file outside the list leaves the pull request for the owner, as before.
+#
+# A merge made through this workflow's token starts no workflow of its own, so `main`'s
+# push-triggered runs (CI, Scorecard) skip an auto-merged update; the pull request's
+# required checks have passed on the same tree, and the weekly schedules still run.
+name: dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+# One run per pull request: a newer push replaces an older run's decision.
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    name: a Dependabot update merges itself once every check passes
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write        # the squash merge GitHub makes
+      pull-requests: write   # turning auto-merge on
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Only dependency files, and never a major version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr view "$PR_URL" --json files,commits > "$RUNNER_TEMP/view.json"
+          if python3 scripts/dependabot_auto_merge.py < "$RUNNER_TEMP/view.json"; then
+            gh pr merge --auto --squash "$PR_URL"
+          else
+            echo "left for the owner"
+          fi

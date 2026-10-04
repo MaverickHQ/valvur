@@ -13,6 +13,7 @@ and GitHub signs the commit it squashes.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -110,3 +111,48 @@ def test_the_command_line_reads_the_view_on_stdin_and_answers_by_exit_code(capsy
     assert script.main(stdin=io.StringIO(major)) == 1
     assert script.main(stdin=io.StringIO("not json")) == 2
     assert "major" in capsys.readouterr().out
+
+
+def _workflow() -> str:
+    assert WORKFLOW.is_file(), "no dependabot-auto-merge workflow"
+    return WORKFLOW.read_text()
+
+
+def test_it_runs_on_pull_request_and_never_on_pull_request_target():
+    """`pull_request_target` would run with a write token in the base repository's
+    context for any pull request, the classic way such workflows are abused."""
+    text = _workflow()
+
+    assert re.search(r"^on:\n  pull_request:\n", text, re.M)
+    assert "pull_request_target" not in text and "workflow_run" not in text
+
+
+def test_only_dependabots_pull_requests_and_no_more_privilege_than_the_merge_needs():
+    text = _workflow()
+
+    assert re.search(r"^permissions: \{\}$", text, re.M), "no write at the top level"
+    job = re.search(r"^    permissions:\n((?:      \S.*\n)+)", text, re.M)
+    assert job, "the job declares its permissions"
+    granted = {line.split(":")[0].strip() for line in job.group(1).splitlines()}
+    assert granted == {"contents", "pull-requests"}
+    # The pull request's author, which a commit message or a re-run cannot change:
+    # `github.actor` names whoever triggered the run.
+    assert "if: github.event.pull_request.user.login == 'dependabot[bot]'" in text
+    assert "github.actor" not in text
+
+
+def test_it_runs_the_base_branchs_script_without_credentials_and_asks_for_a_squash():
+    text = _workflow()
+
+    assert "ref: ${{ github.event.pull_request.base.sha }}" in text
+    assert "persist-credentials: false" in text
+    assert "python3 scripts/dependabot_auto_merge.py" in text
+    assert re.search(r'gh pr merge --auto --squash "\$PR_URL"', text)
+
+
+def test_no_expression_is_expanded_inside_a_shell_command():
+    """Values reach `run:` through `env:` only, so nothing from the pull request is ever
+    spliced into a script."""
+    text = _workflow()
+    for block in re.findall(r"run: \|\n((?:          .*\n)+)", text):
+        assert "${{" not in block, block
