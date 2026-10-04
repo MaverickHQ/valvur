@@ -144,10 +144,13 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # `scorecard.yml` (weekly) joined in R22.1: a red run there means the badge keeps
     # an old score. Its scorecard job may hold only the actions the OpenSSF API
     # approves for a published result, so a job that needs it files the issue.
+    # `mutation.yml` (weekly) joined in R29.5: a red run there means the week's tests
+    # noticed less of their own change than the baseline records (D65d).
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
                                                "acceptance.yml",
                                                "eval.yml", "refresh.yml",
-                                               "scorecard.yml", "fuzz.yml"}, \
+                                               "scorecard.yml", "fuzz.yml",
+                                               "mutation.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:

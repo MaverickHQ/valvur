@@ -1,0 +1,60 @@
+name: mutation
+
+# The mutation score ratchets (R29.5, D65d). Every hunk the week's changes to `main`
+# made under src/valvur is reverted in turn and the unit suite run; the share a test
+# noticed is the score. tests/eval/mutation-baseline.json records the best so far,
+# and a week under it fails: the tests then notice less of their own change than
+# they did. The baseline is raised by a pull request, never lowered.
+on:
+  schedule:
+    - cron: "41 5 * * 3"     # Wednesdays, 05:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weekly:
+    name: the week's hunks, each reverted
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      issues: write         # the one issue a fall gets, closed by the next pass
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+      - name: Revert each of the week's hunks, against the baseline
+        run: |
+          set -eu
+          base=$(git rev-list -1 --before="7 days ago" HEAD)
+          if [ -z "$base" ]; then
+            echo "no commit a week old; nothing to measure"
+            exit 0
+          fi
+          uv run --no-sync python scripts/mutation_check.py --base "$base" --limit 80 \
+            --baseline tests/eval/mutation-baseline.json
+
+      - name: A failure is a tracked thing, not an email
+        if: failure() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly mutation score fell
+          failed: "The scheduled `mutation` run failed"
+          body: |-
+            The share of the week's hunks under src/valvur that a unit test notices fell under tests/eval/mutation-baseline.json, or the run broke. Nothing users have changes; what is lost is evidence that the tests cover what changed.
+
+            Recovery: the run's log lists each hunk that survived; add the test that notices it, then dispatch this workflow again.
+
+      - name: A run that passes closes it
+        # The same issue, closed once its cause has passed (R28.3, D64b).
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the weekly mutation score fell
+          passed: "true"

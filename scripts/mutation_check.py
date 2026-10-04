@@ -11,6 +11,12 @@ unit suite, and report the hunks no test noticed. Those are the changes the
 change's own tests do not cover.
 
     scripts/mutation_check.py --base origin/main
+    scripts/mutation_check.py --base <a week ago> --baseline tests/eval/mutation-baseline.json
+
+Since R29.5 (D65d) it has a score, the share of code hunks a test noticed, and with
+`--baseline` a score under the recorded one fails the run: the baseline may only rise,
+and `--update-baseline` raises it, never lowers it. `mutation.yml` runs it weekly over
+the week's changes to `main`.
 
 A hunk that changes only comments or docstrings is skipped: reverting it changes
 nothing a test could see. Exit status is 0 whatever the verdicts — the job that
@@ -22,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import os
 import subprocess
 import sys
@@ -133,11 +140,33 @@ def run(repo: Path, *, base: str, pytest_args: list[str] | None = None,
     return report
 
 
+def score(report: list[tuple[Hunk, str]]) -> float | None:
+    """The share of code hunks a test noticed, out of 100; None with none to measure."""
+    caught = sum(1 for _, v in report if v == "caught")
+    measured = caught + sum(1 for _, v in report if v == "survived")
+    return round(100 * caught / measured, 1) if measured else None
+
+
+def falls(measured: float | None, baseline: dict) -> bool:
+    """Under the recorded score: the week's tests notice less of their own change."""
+    return measured is not None and measured < float(baseline.get("score", 0))
+
+
+def ratchet(baseline: dict, measured: float | None) -> dict:
+    """The baseline, raised to `measured` when that is higher; never lowered."""
+    recorded = float(baseline.get("score", 0))
+    return {"score": max(recorded, measured) if measured is not None else recorded}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--base", default="origin/main", help="the ref the change is against")
     parser.add_argument("--limit", type=int, default=40, help="at most this many hunks")
     parser.add_argument("--strict", action="store_true", help="exit 1 when a hunk survives")
+    parser.add_argument("--baseline", type=Path, metavar="FILE",
+                        help="exit 1 when the score falls under the one recorded here")
+    parser.add_argument("--update-baseline", action="store_true",
+                        help="with --baseline, raise it to a higher score; never lower it")
     args = parser.parse_args(argv)
 
     repo = Path(__file__).resolve().parent.parent
@@ -167,6 +196,17 @@ def main(argv: list[str] | None = None) -> int:
             out.write(f"## Mutation check\n\n{caught} caught, {len(survivors)} survived\n\n")
             for hunk, verdict in report:
                 out.write(f"- `{hunk.path}` `{hunk.header.split(' @@')[0]}` — {verdict}\n")
+    measured = score(report)
+    if args.baseline is not None:
+        recorded = json.loads(args.baseline.read_text(encoding="utf-8"))
+        print(f"mutation score: {measured} against the baseline's {recorded.get('score')}")
+        if falls(measured, recorded):
+            print("mutation check: the score fell under its baseline (D65d); the week's "
+                  "tests notice less of their own change")
+            return 1
+        if args.update_baseline:
+            args.baseline.write_text(json.dumps(ratchet(recorded, measured)) + "\n",
+                                     encoding="utf-8")
     return 1 if survivors and args.strict else 0
 
 

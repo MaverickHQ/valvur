@@ -1930,9 +1930,19 @@ weekend run; CI green.
   1. CodeQL's licence terms read and recorded before it runs;
   2. its findings on the corpus at lines valvur does not report are listed in
      `docs/acceptance/r29.md` as candidate rules, and nothing of it ships.
-- [ ] **R29.5** **The mutation score ratchets** (D65d). Behaviours:
+- [x] **R29.5** **The mutation score ratchets** (D65d). Behaviours:
   1. a weekly workflow runs `mutation_check.py`;
   2. its score is a baseline that may only rise, and a fall fails the run.
+
+  STATUS (2026-10-04): `mutation.yml` runs on Wednesdays, and on dispatch, over the
+  week's changes to `main`: from `git rev-list -1 --before="7 days ago"`, at most 80
+  hunks. `mutation_check.py` gains a score (caught over caught plus survived, out of
+  100), `--baseline`, under which a fall exits 1, and `--update-baseline`, which only
+  raises. `tests/eval/mutation-baseline.json` starts at R29.1's **83.8**. A fall files the
+  one issue, and the next pass closes it, as R28.3's do. The constraint suite's
+  scheduled-workflow list and the routine's list name it. zizmor finds nothing.
+  `tests/test_mutation_ratchet.py` holds the score, the fall, the ratchet and the
+  workflow.
 - [ ] **R29.6** **The Score on the wider corpus** (D65a). Behaviours:
   1. track 8 is measured on both lanes, and its baseline is re-based with both numbers
      recorded;
