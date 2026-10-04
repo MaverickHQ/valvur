@@ -84,3 +84,19 @@ def test_checkov_reports_what_it_skipped(tmp_path):
     from valvur.adapters import CheckovAdapter
 
     assert "--quiet" not in CheckovAdapter().command(tmp_path).argv
+
+
+def test_a_result_made_with_other_arguments_is_never_reused():
+    """Found by R38's own measurement: the reuse key held the Scanner, its version,
+    the Profile, the dependency files and the data, but not the arguments. So
+    OSV-Scanner's result from before `--config /dev/null`, made with the project's
+    ignore honoured, was reused after it, and the ignored advisory stayed hidden."""
+    from valvur import reuse
+
+    base = {"tool": "osv-scanner", "version": "2.6.0", "profile": "offline",
+            "inputs": {"requirements.txt": "0" * 64}, "data": "PyPI 2026-10-04"}
+    before = ("osv-scanner", "scan", "source", "/workspace")
+    after = ("osv-scanner", "scan", "source", "--config", "/dev/null", "/workspace")
+
+    assert reuse.key(**base, argv=before) != reuse.key(**base, argv=after)
+    assert reuse.key(**base, argv=after) == reuse.key(**base, argv=after)

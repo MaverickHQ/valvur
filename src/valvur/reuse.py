@@ -7,10 +7,12 @@ depends on, and a scan with the same key reuses it rather than starting them. A
 Scanner that reads source is never reused: a source file's change is exactly what a
 rescan is for, and it is not in the key.
 
-The key: the Scanner, its version, the Profile, the path and sha256 of every
-dependency file in the File Set, and the data it answered from (the database's build
-time, or each OSV export's date). OSV-Scanner on `full` answers from api.osv.dev,
-which has no stamp to key on, so it is reused on `offline` only.
+The key: the Scanner, its version, its arguments, the Profile, the path and sha256
+of every dependency file in the File Set, and the data it answered from (the
+database's build time, or each OSV export's date). The arguments since R38: a result
+made with the project's own ignores honoured was reused after they were turned off.
+OSV-Scanner on `full` answers from api.osv.dev, which has no stamp to key on, so it is
+reused on `offline` only.
 """
 
 from __future__ import annotations
@@ -84,10 +86,12 @@ def inputs(workspace: Path, files: list[str]) -> dict[str, str]:
     return found
 
 
-def key(*, tool: str, version: str, profile: str, inputs: dict[str, str], data: str) -> str:
+def key(*, tool: str, version: str, argv: tuple[str, ...], profile: str,
+        inputs: dict[str, str], data: str) -> str:
     """The reuse key: equal only when nothing the answer depends on differs."""
-    material = json.dumps({"tool": tool, "version": version, "profile": profile,
-                           "inputs": inputs, "data": data}, sort_keys=True)
+    material = json.dumps({"tool": tool, "version": version, "argv": list(argv),
+                           "profile": profile, "inputs": inputs, "data": data},
+                          sort_keys=True)
     return hashlib.sha256(material.encode()).hexdigest()
 
 

@@ -356,8 +356,8 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
         if inputs is None:
             inputs = _reuse.inputs(workspace, chosen.files)
         stamp = _reuse.data(name, chosen.files)
-        key = _reuse.key(tool=name, version=invocation.version, profile=profile,
-                         inputs=inputs, data=stamp)
+        key = _reuse.key(tool=name, version=invocation.version, argv=invocation.argv,
+                         profile=profile, inputs=inputs, data=stamp)
         stored = None if fresh else _reuse.load(name, key)
         if stored is None:
             keys[index] = (key, stamp)

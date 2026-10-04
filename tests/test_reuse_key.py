@@ -29,8 +29,8 @@ def _project(root: Path, **files: str) -> dict[str, str]:
 
 
 def _key(inputs: dict[str, str], **overrides: str) -> str:
-    base = {"tool": "trivy", "version": "0.74.0", "profile": "offline",
-            "data": "2026-09-30T06:12:00Z"}
+    base = {"tool": "trivy", "version": "0.74.0", "argv": ("trivy", "fs", "/workspace"),
+            "profile": "offline", "data": "2026-09-30T06:12:00Z"}
     return reuse.key(**{**base, **overrides}, inputs=inputs)
 
 
