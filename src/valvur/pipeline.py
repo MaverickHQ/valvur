@@ -252,6 +252,8 @@ def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     policy = _suppressions.load(
         ctx.workspace, (ctx.scan.project, ctx.scan.problem) if ctx.scan is not None else None)
     findings = _suppressions.apply(findings, policy)
+    # A project's own ignore with a reason and an expiry is an accepted risk too (D77c).
+    findings = _project_ignores.accept(findings)
     return findings + _suppressions.policy_findings(policy, findings)
 
 

@@ -1698,12 +1698,28 @@ measurement, or each one's measured reason; CI green; the Score unchanged.
      its comment, never the line holding the secret.
 
   The e2e test finds all seven named.
-- [ ] **R38.4** **A suppression only with a reason and an expiry** (D77c). Behaviours:
+- [x] **R38.4** **A suppression only with a reason and an expiry** (D77c). Behaviours:
   1. an `osv-scanner.toml` entry with `reason` and `ignoreUntil` suppresses, and a lapsed one
      fails the gate;
   2. an ignore without an expiry leaves its finding active, marked;
   3. `SUMMARY.md` lists both kinds;
   4. valvur's own accepted Checkov advisory stays suppressed.
+
+  STATUS (2026-10-04): `project_ignores.accept` runs in the `suppress` stage after
+  `.security-scan.toml`'s own, with the same inclusive UTC expiry; a lapsed ignore's
+  finding comes back with a `valvur.suppression.expired` finding on the ignore's file, so
+  the gate fails at every threshold. Of the ignores D77 names only `osv-scanner.toml` can
+  state both; `.trivyignore`'s `exp:` has no reason and `checkov:skip`'s reason no expiry.
+  `SUMMARY.md` gains *Ignored by the project, not accepted*, and its *Suppressed* caption
+  names both sources. Measured on valvur's own scan (cloud VM, `valvur:dev`): CVE-2024-23342
+  on `requirements-checkov.txt` suppressed by `osv-scanner.toml`, its reason and
+  2027-09-14 in the justification. The same scan found what R38.3 had missed: the ten
+  `aws-access-token` findings of the key valvur's tests plant, hidden until now by a
+  `.gitleaks.toml` allowlist on `regexes`, which R38.3 left unnamed (fixed, 8a7a251: the
+  line is matched, never the secret quoted). A Gitleaks allowlist cannot carry an expiry,
+  so each is accepted in `.security-scan.toml` with a reason and 2027-09-14; the key is in
+  the 200 commits history reads, so moving it out of the tree would not clear it. After:
+  `clean`, 12 suppressed, 0 active.
 - [ ] **R38.5** **The Score and the corpus** (D77d). Behaviours:
   1. every track on both lanes; a track that moves because the corpus's projects carry
      ignores is recorded with the findings that moved, and any other move past the ratchet

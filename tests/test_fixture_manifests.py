@@ -75,12 +75,12 @@ def test_every_copy_of_a_fixture_goes_through_the_helper():
 
 def test_checkovs_accepted_advisory_is_recorded_once_where_osv_scanner_reads_ignores():
     """The one real advisory of the 44, accepted since Checkov's lock moved, and now
-    recorded in the file OSV-Scanner, and so Scorecard, reads. valvur honours a
-    project's own tool configuration, as it does `.gitleaks.toml`, so its scan of
-    itself reads the same ignore, and a second record in `.security-scan.toml` matched
-    nothing (measured: `valvur.suppression.stale`). One record, then, with its reason
-    and its review date: OSV-Scanner stops ignoring it on that date, and it comes back
-    in Scorecard and in valvur's own scan alike. Nothing else is ignored there."""
+    recorded in the file OSV-Scanner, and so Scorecard, reads. valvur runs OSV-Scanner
+    without it and reads the ignore itself (R38, D77), and since it gives a reason and
+    a review date, accepts it as a suppression; a second record in
+    `.security-scan.toml` would be a second decision. One record, then: on its review
+    date it comes back in Scorecard and in valvur's own scan alike, and fails the gate
+    there. Nothing else is ignored there."""
     import datetime
     import tomllib
 

@@ -38,3 +38,82 @@ reason = "No HEALTHCHECK: this image runs one scanner command and exits. A healt
 # Checkov's python-ecdsa advisory (CVE-2024-23342), accepted here from 2026-09-14,
 # is recorded in `osv-scanner.toml` since R27.2: OSV-Scanner reports it, valvur's
 # scan reads that file as Scorecard does, and a second record here matched nothing.
+
+# The AWS access key ID valvur's tests plant (R38, D77). `.gitleaks.toml` allowlists it
+# for Gitleaks run on its own, as the pre-commit hook and CI's secret scan do. valvur no
+# longer lets a project's ignore hide a finding: it runs Gitleaks without the
+# allowlist, names it on each finding, and accepts only what carries a reason and an
+# expiry, which a Gitleaks allowlist cannot. So each file that plants it is accepted
+# here, and comes up for review with the Checkov advisory. A new file that plants it is
+# a new finding, as it should be: the key is in git history, so moving it out of the
+# tree would not take it out of the scan.
+
+[[suppress]]
+fingerprint = "9ac4c49f92bf1423267d35fd1ecb22a6"
+rule = "aws-access-token"
+path = "tests/conftest.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "69666a499f60de85e6b629c194fb113c"
+rule = "aws-access-token"
+path = "tests/test_contract.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "076ca8619567b51080a31f3ed4f3e461"
+rule = "aws-access-token"
+path = "tests/test_e2e.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "23eb16902ef6a86cdeabfeca1b7e5588"
+rule = "aws-access-token"
+path = "tests/test_enrichment.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "743f8df82114bbb65a552c2a3fc3dc92"
+rule = "aws-access-token"
+path = "tests/test_history.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "b24ec69a7224ecd6620acaf19c5477f8"
+rule = "aws-access-token"
+path = "tests/test_identity.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "6f1cdf541a82247539e2d856ba800bb4"
+rule = "aws-access-token"
+path = "tests/test_path_classes.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "90520131145c20efa2e6168c7207b161"
+rule = "aws-access-token"
+path = "tests/test_runtimes.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "60a5824a4b5edf05af332b1dd410353d"
+rule = "aws-access-token"
+path = "tests/test_scan.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."
+
+[[suppress]]
+fingerprint = "ebd4d2df3a68cbb9e817c592d236406a"
+rule = "aws-access-token"
+path = "tests/test_switch_over.py"
+expires = 2027-09-14
+reason = "A planted, never-valid AWS access key ID: the test data valvur's own secret detection is tested against, allowlisted by its regex in .gitleaks.toml. It grants nothing and was never issued. Revisit if the tests assemble it at runtime and the commits holding it leave the history window."

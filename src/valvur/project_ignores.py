@@ -6,7 +6,8 @@ and names on each Finding the one that matches it: an Opengrep `nosem` comment, 
 `gitleaks:allow` comment, a `.gitleaksignore` entry, a `.gitleaks.toml` allowlist, a
 `checkov:skip` comment, a `.trivyignore` entry or an `osv-scanner.toml` ignore. Each
 applies only to its own Scanner's findings, as the Scanner itself would apply it.
-Whether one counts as a suppression is the next stage's to decide (D77c).
+Whether one counts as a suppression is `accept`'s to decide (D77c): only one that
+states a reason and an expiry, as a suppression in `.security-scan.toml` must.
 
 A `.gitleaks.toml` allowlist's `regexes` and `stopwords` match the secret, which no
 Finding carries: they are matched against the line the secret was found on, read from
@@ -21,10 +22,11 @@ from __future__ import annotations
 import re
 import tomllib
 from dataclasses import dataclass, replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
-from .findings import Finding, IgnoredBy
+from .findings import Finding, IgnoredBy, Severity
+from .fingerprint import derive
 
 #: Opengrep 1.29.0's inline ignores, measured from its help: `nosem`, `nosemgrep`,
 #: `noopengrep`, on the finding's line or the line above.
@@ -40,6 +42,45 @@ def mark(workspace: Path, findings: list[Finding]) -> list[Finding]:
     """Each Finding, with `ignored_by` set where one of the project's ignores names it."""
     ignores = _Ignores(workspace)
     return [replace(f, ignored_by=by) if (by := ignores.match(f)) else f for f in findings]
+
+
+def accept(findings: list[Finding], *, today: date | None = None) -> list[Finding]:
+    """Each Finding an ignore with a reason and an unlapsed expiry names, suppressed by
+    it; one whose expiry has passed reported again, with a Finding that fails the gate
+    as a lapsed suppression does (D77c). An ignore that lacks either leaves its Finding
+    active, named by `ignored_by`. A Finding `.security-scan.toml` already suppresses
+    keeps that suppression, which says more.
+
+    Expiry is inclusive and UTC, as a suppression's is, so two machines agree."""
+    today = today or datetime.now(UTC).date()
+    out: list[Finding] = []
+    lapsed: list[Finding] = []
+    for finding in findings:
+        by = finding.ignored_by
+        expires = _day(by.expires) if by is not None else None
+        if finding.suppressed or by is None or not by.reason or expires is None:
+            out.append(finding)
+        elif expires >= today:
+            out.append(replace(finding, suppressed=(
+                f"{by.ignore} at {by.where}: {by.reason} (expires {by.expires})")))
+        else:
+            out.append(finding)
+            lapsed.append(_lapsed(finding, by))
+    return out + lapsed
+
+
+def _lapsed(finding: Finding, by: IgnoredBy) -> Finding:
+    return Finding(
+        rule="valvur.suppression.expired",
+        path=re.sub(r":\d+$", "", by.where),
+        line=0,
+        title=(f"The project's {by.ignore} for {finding.rule} expired on {by.expires} "
+               "— the finding is reported again"),
+        evidence=f"reason given: {by.reason}",
+        fingerprint=derive("ignore", "expired", by.ignore, finding.fingerprint),
+        severity=Severity.MEDIUM,
+        sources=("valvur",),
+    )
 
 
 class _Ignores:
@@ -255,6 +296,14 @@ def _patterns(value) -> list[re.Pattern]:
 
 def _list(value) -> list:
     return value if isinstance(value, list) else []
+
+
+def _day(text: str) -> date | None:
+    """An expiry as a day; None when there is none, or it is no date (`exp:2026-13-45`)."""
+    try:
+        return date.fromisoformat(text) if text else None
+    except ValueError:
+        return None
 
 
 def _iso(value) -> str:

@@ -81,8 +81,8 @@ def _verdict(run: ScanRun) -> str:
         )
     if suppressed:
         return (
-            f"**Nothing live was found.** {len(suppressed)} accepted risk(s) from "
-            "`.security-scan.toml` are listed below, with their expiry dates."
+            f"**Nothing live was found.** {len(suppressed)} accepted risk(s) are listed "
+            "below, with their reasons and expiry dates."
         )
     return "**Nothing was found, by a scan that was able to look.** No action needed."
 
@@ -111,6 +111,7 @@ def render(run: ScanRun) -> str:
     lines += _top(active)
     lines += _hygiene(run)
     lines += _accepted_and_fixed(run, suppressed)
+    lines += _ignored(findings)
     slowest = _slowest(run.scanners)
     if slowest is not None:
         # The one timing line worth the bounded budget: the fleet runs concurrently,
@@ -545,7 +546,9 @@ def _accepted_and_fixed(run: ScanRun, suppressed) -> list[str]:
         lines += [
             f"## Suppressed ({len(suppressed)})",
             "",
-            "_Accepted risks from `.security-scan.toml`. Still reported, never hidden._",
+            "_Accepted risks from `.security-scan.toml`, and the project's own ignores "
+            "(`osv-scanner.toml`, `.trivyignore`, `nosemgrep` and the rest) that give a "
+            "reason and an expiry. Still reported, never hidden._",
             "",
         ]
         lines += [f"- `{f.path}` — {f.rule} · {f.suppressed}" for f in suppressed[:10]]
@@ -560,6 +563,29 @@ def _accepted_and_fixed(run: ScanRun, suppressed) -> list[str]:
         if len(run.fixed) > 10:
             lines.append(f"- _…and {len(run.fixed) - 10} more_")
         lines.append("")
+    return lines
+
+
+def _ignored(findings) -> list[str]:
+    """Active Findings one of the project's own ignores names without a reason and an
+    expiry (D77c): the Scanners ran with the ignore off, so they are listed with the
+    rest, and here with the ignore that asked for them hidden."""
+    marked = [f for f in findings if f.ignored_by is not None]
+    if not marked:
+        return []
+    lines = [
+        f"## Ignored by the project, not accepted ({len(marked)})",
+        "",
+        "_Each is active: the project's own ignore names it, but gives no reason or no "
+        "expiry, which an accepted risk needs, or its expiry has passed. Give it both, "
+        "or fix the finding._",
+        "",
+    ]
+    lines += [f"- `{f.path}` — {f.rule} · {f.ignored_by.ignore} at `{f.ignored_by.where}`"
+              for f in marked[:10]]
+    if len(marked) > 10:
+        lines.append(f"- _…and {len(marked) - 10} more_")
+    lines.append("")
     return lines
 
 
