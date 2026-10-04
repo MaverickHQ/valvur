@@ -10,6 +10,7 @@ protection requires keep their names, since protection is the owner's to change.
 
 from __future__ import annotations
 
+import importlib.util
 import re
 from pathlib import Path
 
@@ -28,17 +29,18 @@ def _jobs(text: str) -> dict[str, str]:
 
 CI = _jobs((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
 
-#: Read from `main`'s branch protection on 2026-10-03 (R24.1).
-REQUIRED = {
-    "no scan output in tree",
-    "lint, types, tests",
-    "end-to-end (real container)",
-    "self-scan release gate (N2.5)",
-    "the published image, on amd64",
-    "the published image, on arm64",
-    "the tests on Python 3.11",
-    "the tests on Python 3.13",
-}
+
+def _required() -> set[str]:
+    """The checks `main`'s protection requires, read from it on 2026-10-03 (R24.1) and
+    kept where the release reads them back (R26.3)."""
+    spec = importlib.util.spec_from_file_location("ci_verdict",
+                                                  REPO / "scripts" / "ci_verdict.py")
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return set(module.REQUIRED)
+
+
+REQUIRED = _required()
 
 
 def _legs(job: str) -> list[dict[str, str]]:
