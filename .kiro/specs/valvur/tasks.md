@@ -1051,7 +1051,7 @@ acceptance set green on both lanes; `CHANGELOG.md` names the verdict change as a
   1 went from 24.3 s to 26.3 s. Track 1 from 22.3 to **40.9**, no other category
   moved, and the Score 68.9. The path-traversal misses are mostly the slices and
   `configparser` reads R25.2 named.
-- [ ] **R25.4** **JavaScript: SQL injection, command injection, path traversal, SSRF**
+- [x] **R25.4** **JavaScript: SQL injection, command injection, path traversal, SSRF**
   (D60). Behaviours:
   1. each type's rules have vulnerable and safe twins as tests;
   2. each rule ships only on D29's bar, or is recorded as withdrawn;
