@@ -204,7 +204,13 @@ def test_a_mirror_in_the_customers_registry_serves_a_scan_that_sends_nothing(mou
 
     run = json.loads((out / ".security-scan" / "run.json").read_text())
     assert run["network"]["what_left_the_machine"] == "nothing"
-    assert run["network"]["fetched"] == []
+    # Every fetch from the customer's own servers. Not `fetched == []`: ADR-0027 ages
+    # KEV by its catalog's release date and refreshes it past two days, so a scan run
+    # while CISA's newest catalog is over two days old fetches it again, from their
+    # file server (measured 2026-10-04, a Sunday, 48.3 h after the release).
+    theirs = (f"http://{files}:8000/", f"{registry}:5000/")
+    assert [f for f in run["network"]["fetched"]
+            if not str(f.get("source", "")).startswith(theirs)] == [], run["network"]["fetched"]
     assert run["complete"] is True, run.get("status_reason")
     assert run["status"] == "clean", run.get("status_reason")
     listed = docker("ps", "-a", "--filter", f"name={tag}", "--format", "{{.Names}}").stdout
