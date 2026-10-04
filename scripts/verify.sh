@@ -33,7 +33,7 @@ fi
 
 # The same set the release workflow lints. `scripts` is here because it was the half
 # that went unchecked.
-LINT_PATHS=(src tests scripts)
+LINT_PATHS=(src tests scripts fuzz)
 
 FAILED=()
 RAN=0

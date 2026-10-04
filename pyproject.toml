@@ -58,6 +58,9 @@ exclude = [
   "/.claude-plugin",
   "/plugins",
   "/powers",
+  # The fuzzers and ClusterFuzzLite's build of them (R27.4): run in CI, never shipped.
+  "/fuzz",
+  "/.clusterfuzzlite",
 ]
 
 [tool.pytest.ini_options]
