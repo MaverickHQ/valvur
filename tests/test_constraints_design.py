@@ -139,13 +139,15 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # its baseline or a corpus finding has no label (ADR-0026).
     # `refresh.yml` (monthly) joined in R16.3: a red run there means moved Scanner
     # pins went unmeasured, and a release would ship them unrehearsed.
+    # `fuzz.yml` (nightly) joined in R27.4: a red run there means a parser of
+    # untrusted text crashed on an input the fuzzer made.
     # `scorecard.yml` (weekly) joined in R22.1: a red run there means the badge keeps
     # an old score. Its scorecard job may hold only the actions the OpenSSF API
     # approves for a published result, so a job that needs it files the issue.
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
                                                "acceptance.yml",
                                                "eval.yml", "refresh.yml",
-                                               "scorecard.yml"}, \
+                                               "scorecard.yml", "fuzz.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:

@@ -1,0 +1,81 @@
+name: fuzz
+
+# ClusterFuzzLite (R27.4, D63c): atheris fuzzers for each parser of untrusted text,
+# from `fuzz/`, built by `.clusterfuzzlite/`. Briefly on each pull request, against
+# the change; longer every night, over everything. A crash is a bug, fixed with a
+# regression test in `tests/test_fuzz_crashes.py`. No corpus is stored between runs:
+# that needs a storage repository and a token that can push to it, and the seeds in
+# each fuzzer start every run instead.
+on:
+  pull_request:
+  schedule:
+    - cron: "29 3 * * *"     # nightly, 03:29 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr:
+    name: the parsers, fuzzed briefly
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: python
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          mode: code-change
+          fuzz-seconds: 300
+
+  nightly:
+    name: the parsers, fuzzed for an hour
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    timeout-minutes: 90
+    steps:
+      - uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: python
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          mode: batch
+          fuzz-seconds: 3600
+
+  tracked:
+    name: a failed run, tracked
+    needs: [pr, nightly]
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      issues: write         # open the one issue a failure gets (27.2.7)
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: A failure is a tracked thing, not an email
+        if: failure()
+        uses: ./.github/actions/file-issue
+        with:
+          title: the nightly fuzzing found a crash or failed
+          failed: "The scheduled `fuzz` run failed"
+          body: |-
+            The nightly ClusterFuzzLite run of the fuzzers in `fuzz/` failed: a crash in a parser of untrusted text, or the build. Nothing users have changes until a release ships the parser.
+
+            Recovery: read the run's log for the crashing input, add it as a regression test in `tests/test_fuzz_crashes.py`, fix the parser, and dispatch this workflow again.

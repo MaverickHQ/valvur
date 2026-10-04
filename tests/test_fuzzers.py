@@ -54,3 +54,41 @@ def test_every_fuzzer_runs_its_seeds_without_atheris(path):
     assert module.SEEDS, f"{path.name} has no seeds"
     for seed in module.SEEDS:
         module.test_one_input(seed)
+
+
+def _workflow() -> str:
+    return (REPO / ".github" / "workflows" / "fuzz.yml").read_text()
+
+
+def _seconds(job: str) -> int:
+    import re
+
+    return int(re.search(r"fuzz-seconds: (\d+)", job)[1])
+
+
+def test_the_fuzzers_run_briefly_on_each_pull_request_and_longer_nightly():
+    import re
+
+    text = _workflow()
+    head, jobs = text.split("\njobs:\n", 1)
+    pr = jobs.split("\n  nightly:\n", 1)[0]
+    nightly = jobs.split("\n  nightly:\n", 1)[1].split("\n  tracked:\n", 1)[0]
+
+    assert "pull_request:" in head and "pull_request_target" not in text
+    assert re.search(r"^\s+- cron: ", head, re.M)
+    assert "if: github.event_name == 'pull_request'" in pr and "mode: code-change" in pr
+    assert "if: github.event_name != 'pull_request'" in nightly and "mode: batch" in nightly
+    assert _seconds(pr) <= 600 < 1800 <= _seconds(nightly)
+    for job in (pr, nightly):
+        assert "uses: google/clusterfuzzlite/actions/build_fuzzers@" in job
+        assert "uses: google/clusterfuzzlite/actions/run_fuzzers@" in job
+
+
+def test_the_workflow_holds_the_minimum_permissions():
+    import re
+
+    text = _workflow()
+
+    assert re.search(r"^permissions:\n  contents: read\n", text, re.M)
+    grants = set(re.findall(r"^\s+(\w[\w-]*): write", text, re.M))
+    assert grants == {"issues"}, f"a fuzz run writes nothing but a failure's issue: {grants}"
