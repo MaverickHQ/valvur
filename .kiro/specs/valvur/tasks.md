@@ -41,6 +41,12 @@ after R29. R30 to R32 are the shortest path to a submission; R33 to R36 build wh
 higher levels measure while the request is reviewed; R37 waits for OWASP's acceptance. Large or
 uncertain work is in a new §9, the backlog.
 
+**Amended a fourth time 2026-10-04**, at the owner's word, on the two questions R26's and R27's
+exits raised: Phase R38 (D77), so that a project's own ignore files and comments never hide a
+finding silently, runs before R28, since it changes what a scan reports; and R28.6 (D76) makes
+KEV current while it is CISA's newest catalog, so the freshness gate no longer fails every
+weekend.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -77,7 +83,7 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue · 9 the bac
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
   at $5 across R17 to R19 (D46). R21.3's smoke run is capped at $2 (D58); R20, R22 to R25
-  R26 to R29 and R30 to R37 run no agent. Past a cap they are skipped and noted in §8.
+  R26 to R29 and R30 to R38 run no agent. Past a cap they are skipped and noted in §8.
 - **In a cloud session** (D61), the build runs on the session's VM, and D61 says what
   changes there: the lanes, the gate, the caches, resuming, and what is left for a local run.
 - **R19 is no longer dated** (D45 as amended 2026-10-04). It runs now, and its pull request
@@ -225,7 +231,8 @@ D56 amends D47. D58 and D59 were accepted the same day, after the owner's first 
 a new project, and D60, which amends D42, when the owner asked for the rule-writing back. D61 the
 same day, when the owner chose to run the build in a cloud session. D62 to D66 were
 accepted on 2026-10-04, when the owner asked for 1.5.0's phases after `1.4.0` shipped. D67
-to D75 were accepted the same day, when the owner asked for the path to OWASP.
+to D75 were accepted the same day, when the owner asked for the path to OWASP. D76 and D77
+the same day, on the questions R26's and R27's exits raised.
 The owner may revisit any
 decision with `/grill-with-docs`; a change becomes a new task, and the executor does not
 wait for it.
@@ -287,6 +294,8 @@ wait for it.
 | D73 | **A contributor on-ramp** (R35): Discussions with categories, at least ten issues labelled `good first issue`, each naming the test to write first, and the guides "your first rule" and "your first Check", end to end through the Score. A dev container runs the unit suite and the gate. A triage promise in `GOVERNANCE.md` (a first response within three working days) is measured monthly by a scheduled job, and a monthly community update is drawn from the CHANGELOG. GSoC and an OWASP Slack channel follow acceptance (§8, §9). | none needed |
 | D74 | **Evidence of use, without telemetry** (R36). valvur never measures its users (`CLAUDE.md` §3), so evidence is only what is public or what users publish: `ADOPTERS.md`, with how to add yourself; a monthly snapshot of public figures (PyPI downloads, GitHub dependents of `valvur-action`, GHCR pulls where shown); and the Score written up as a citable evaluation (method, tracks, lanes, history, limits, how to reproduce) in `docs/EVALUATION-REPORT.md`, with `CITATION.cff`. The OWASP Solutions Landscape entry goes in `docs/LISTING.md`, factual and without comparisons, since the landscape rejects competitive positioning. Talks, outreach to adopters and submitting the entry are the owner's (§8). | none needed |
 | D75 | **The move to OWASP, on acceptance** (R37). The repository moves where OWASP says: its organisation, or a dedicated one with every leader an admin. The signing identities, the index's signer, PyPI's trusted publisher, the GHCR namespace, the plugin's marketplace and the power's path, `valvur-action` and every document follow, in one release that the release before it already accepts (D70). The branding becomes "OWASP valvur", and the `www-project-valvur` pages and `project.owasp.yaml` go live within OWASP's 30 days. The old locations carry a pointer. | if OWASP grants an exception to keep the repository where it is, only the branding, the pages and the leaders change |
+| D76 | **KEV is current while it is CISA's newest** (the owner, 2026-10-04; amends D24 for KEV, not ADR-0027's rule that a dataset's age is its data's). CISA releases the catalog on working days. So from Sunday afternoon, a catalog released on Friday is past D24's two days although nothing newer exists. Measured by R26's exit: the Score's freshness gate then failed every weekend, a release's `verify` with it, and a scan refetched the same catalog every time. Now a scan, `update` and the gate treat KEV as current when a check made within the last two days found no newer catalog. The fetch asks conditionally (`If-Modified-Since`, else it compares `dateReleased`), and the cache records when it last checked. Every surface still shows the catalog's own date, and says when that is CISA's newest. A failed check changes nothing: past two days without a successful check, KEV is stale, as now. With `fetch = "never"`, nothing changes. The same rule is open to EPSS and the index only if they are measured to show the same pattern. | if CISA's host answers no conditional request and its catalog carries no date to compare, KEV's threshold alone becomes 5 days, covering a holiday weekend, recorded |
+| D77 | **A project's own ignores never hide a finding silently** (the owner, 2026-10-04; `CLAUDE.md` §4 and §7). Each Scanner obeys ignores written into the project it scans: Opengrep's `nosemgrep` comments, Gitleaks's `gitleaks:allow` comments, `.gitleaksignore` and `.gitleaks.toml` allowlists, Checkov's `checkov:skip` comments, `.trivyignore`, and `osv-scanner.toml`. valvur turns none of them off: read on 2026-10-04 from the adapters' arguments, and R27 found `osv-scanner.toml` hiding an advisory from valvur's own report. A one-line comment is the cheapest way for an agent to make a finding disappear, which is what §4 guards against. **(a)** Each Scanner runs with its own ignores off: Opengrep with `--disable-nosem`, Gitleaks without the project's allow-comments and ignore files, Trivy with an empty `--ignorefile`, OSV-Scanner with a `--config` valvur writes. The exact switch for each pinned version is measured first. **(b)** valvur reads the project's ignores itself, and every finding one of them would hide carries `ignored_by`, naming the file or the comment's line, in `findings.json` and as a SARIF suppression of kind `inSource` or `external`. **(c)** A project's ignore counts as a suppression only when it carries a reason and an expiry date, as `.security-scan.toml`'s entries must: `osv-scanner.toml`'s `reason` and `ignoreUntil`, say. A lapsed one fails the gate like valvur's own. Otherwise the finding stays active, marked as ignored by the project without an expiry, and `SUMMARY.md` lists both kinds. **(d)** It changes what a scan reports, as a fix 1.x allows: a project that silenced findings by comment may move from `clean` to `findings`, and the CHANGELOG says so. valvur's own accepted Checkov advisory carries a reason and a date, so it stays suppressed. | where a pinned Scanner cannot turn its ignores off, valvur reads its output's record of what it skipped (Checkov's `skipped_checks`, say); where neither exists, a coverage note names the ignore as unread, so the verdict is never narrowed silently |
 
 ## 6. Order
 
@@ -341,6 +350,9 @@ R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─�
   requests run on its CI.
 - **R27 before R29**: renaming the fixture manifests touches the tests R29 widens.
 - **R28** needs two owner settings (§8), so it follows the work that needs none.
+- **R38 before R28**: it changes what a scan reports, so its Score runs come before the
+  repository work, and `1.5.0` carries it. It comes before R28 in §7, so `build_status.py`
+  finds it first.
 - **R29 last**: the largest, and its corpus sets track 8 for `1.5.0`.
 
 ```
@@ -1609,6 +1621,35 @@ unchanged.
 **Exit:** Vulnerabilities, Pinned-Dependencies and Fuzzing at 10 on the branch's
 measurement, or each one's measured reason; CI green; the Score unchanged.
 
+### Phase R38: what a project's own ignores hide
+
+- [ ] **R38.1** **Measure first** (D77). For each ignore D77 names, a fixture whose ignore hides
+  a planted finding: record which of them valvur reports today, and for each pinned Scanner the
+  switch that turns its ignores off, read from its own help. Behaviour: the STATUS gives the
+  table.
+- [ ] **R38.2** **Every Scanner runs with its own ignores off** (D77a). Behaviours:
+  1. each adapter's arguments carry the switch, and the invocation snapshots hold them;
+  2. every fixture's planted finding is reported (`e2e`);
+  3. where a Scanner cannot turn its ignores off, D77's fallback applies, named in the STATUS.
+- [ ] **R38.3** **What each ignore hides** (D77b). Behaviours:
+  1. valvur reads each ignore D77 names, and every finding one matches carries `ignored_by`;
+  2. SARIF carries it as a suppression of kind `inSource` or `external`, and stays valid 2.1.0;
+  3. the comment's text is evidence from the repository, neutralised like any other.
+- [ ] **R38.4** **A suppression only with a reason and an expiry** (D77c). Behaviours:
+  1. an `osv-scanner.toml` entry with `reason` and `ignoreUntil` suppresses, and a lapsed one
+     fails the gate;
+  2. an ignore without an expiry leaves its finding active, marked;
+  3. `SUMMARY.md` lists both kinds;
+  4. valvur's own accepted Checkov advisory stays suppressed.
+- [ ] **R38.5** **The Score and the corpus** (D77d). Behaviours:
+  1. every track on both lanes; a track that moves because the corpus's projects carry
+     ignores is recorded with the findings that moved, and any other move past the ratchet
+     blocks;
+  2. `CHANGELOG.md` names the verdict change as a fix.
+
+**Exit:** every ignore D77 names is visible in the report; the Score on both lanes, with any
+movement recorded and explained; the acceptance set green on both lanes.
+
 ### Phase R28: a repository that keeps itself current
 
 - [ ] **R28.1** **Measure first** (D64). Record the owner's actions in the 30 days to
@@ -1634,10 +1675,20 @@ measurement, or each one's measured reason; CI green; the Score unchanged.
      reads it;
   2. a dry run by a cloud session, on a branch, is recorded;
   3. §8 holds creating the routine and its monthly cap.
+- [ ] **R28.6** **KEV is current while it is CISA's newest** (D76). Behaviours:
+  1. a check within two days that finds no newer catalog makes KEV current, through a
+     conditional request;
+  2. every surface shows the catalog's own date, and says when it is CISA's newest;
+  3. a failed check changes nothing, and past two days without a successful check, KEV is
+     stale, as now;
+  4. with `fetch = "never"`, nothing changes;
+  5. the freshness gate passes on a weekend, tested against a local server whose catalog is
+     three days old and unchanged.
 
 **Exit:** each mechanism exercised once: a Dependabot pull request merged by itself or the
 fallback, a scheduled job's issue closed by its next green run, the refresh's pull request
-opened on a branch, and the routine's dry run recorded; CI green.
+opened on a branch, and the routine's dry run recorded; the Score's freshness gate green on a
+weekend run; CI green.
 
 ### Phase R29: precision that is measured
 
@@ -1859,9 +1910,9 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
-| the freshness gate over a weekend (R26) | now | decide: the Score's freshness gate fails when KEV is past 2 days by its catalog's release date, and CISA does not release at weekends, so every Score run from Friday afternoon to CISA's next release fails it, a release's `verify` among them (rehearsal run 37215618801, `kev 2.04 days`). Proposed: judge KEV fresh when the copy in use is CISA's newest, or allow 4 days for KEV; D24's refresh threshold can stay |
+| the freshness gate over a weekend (R26) | decided 2026-10-04 | D76: KEV is current while it is CISA's newest; built by R28.6 |
 | R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
-| how valvur treats a project's `osv-scanner.toml` (R27.2) | now | decide: valvur's OSV-Scanner honours a scanned project's ignores silently, as Gitleaks honours `.gitleaks.toml`, so an ignored advisory leaves valvur's report without a suppression, an expiry or a count. Keep that and document it; or run OSV-Scanner with an empty config so only `.security-scan.toml` suppresses; or read the file and report each ignore as a suppression. Measured when R27.2's ignore made valvur's own suppression stale |
+| how valvur treats a project's `osv-scanner.toml` (R27.2) | decided 2026-10-04 | D77: no project ignore hides a finding silently; built by R38 |
 | release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |
 | decide whether to donate valvur to OWASP (D67) | now | read OWASP's leader agreement: contributions pass to the Foundation, the project cannot be withdrawn, and the name stays with OWASP. This is the gate for the request |
 | find a second leader (D67) | now | someone outside your employer, willing to lead and to join OWASP; `GOVERNANCE.md` (R30.3) describes the role |
