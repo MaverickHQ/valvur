@@ -60,6 +60,17 @@ def test_the_readme_states_the_version_it_ships():
     assert stated.group(1) == _declared()
 
 
+def test_the_skill_s_pinned_scan_is_this_release():
+    """R21.3 (D58c). When a tool is refused, the skill gives the human a command to
+    run themselves, pinned so the scan is the release the skill was written for;
+    `prepare_release.py` moves it with every other surface."""
+    from valvur.skill import SKILL
+
+    pinned = re.findall(r"! uvx valvur==([^\s`]+) scan", SKILL.read_text())
+
+    assert pinned == [_declared()]
+
+
 def test_the_readme_does_not_call_a_version_published_before_its_tag_exists():
     """29.3.1. The prep commit bumps the line before the tag and the release brake
     can be held for days; at the first gate the README said `0.4.0 — published`

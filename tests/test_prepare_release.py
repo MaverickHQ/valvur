@@ -88,6 +88,7 @@ def test_one_commit_sets_every_version_surface(tree):
     for skill in ("src/valvur/data/skills/valvur", "plugins/valvur/skills/valvur",
                   "powers/valvur/skills/valvur"):
         assert f'version: "{NEXT}"' in (tree / skill / "SKILL.md").read_text(), skill
+        assert f"! uvx valvur=={NEXT} scan" in (tree / skill / "SKILL.md").read_text(), skill
     assert (tree / "plugins/valvur/skills/valvur/SKILL.md").read_bytes() == \
         (tree / "src/valvur/data/skills/valvur/SKILL.md").read_bytes()
     for manifest in ("plugins/valvur/.claude-plugin/plugin.json", "powers/valvur/plugin.json"):

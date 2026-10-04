@@ -1132,7 +1132,7 @@ track past the ratchet; the acceptance set green on both lanes.
   install line, privacy and support; `tests/test_listing.py` holds each drawn field to
   its manifest (a keyword changed in the listing alone fails it) and §8's row to the
   file. The link check passes.
-- [ ] **R21.3** **The first run in a new project** (D58). Behaviours:
+- [x] **R21.3** **The first run in a new project** (D58). Behaviours:
   1. the README's first screen gives the plugin's two commands first, and
      `uvx valvur scan` second;
   2. the README and the skill's references give the allow rules, and a test holds each to
@@ -1141,6 +1141,24 @@ track past the ratchet; the acceptance set green on both lanes.
      `test_version.py` holds and `prepare_release.py` moves;
   4. the smoke run under *don't ask* records what happens to the hook's `ask`, or D58's
      fallback applies.
+  **STATUS 2026-10-04:** ✅ 1 to 3; 4 deferred, as D61h says.
+  1. The README's lines 8 to 10 give `/plugin marketplace add MaverickHQ/valvur` and
+     `/plugin install valvur@valvur`, then `uvx valvur scan`; `tests/test_first_screen.py`
+     holds the order within the first 24 lines, and the names to the marketplace's.
+  2. The README, beside the plugin, and the skill's new `references/permissions.md` give
+     the allow rules for the plugin's names (`mcp__plugin_valvur_valvur__…`, as
+     `plugin_smoke.py` measured them) and a hand-configured server's: `check_package`,
+     `findings`, `scan_status`, `doctor`, `scan` and `scan_cancel`. The test holds both
+     to exactly that set and each to a tool the server lists, and `update` to the
+     server's list and not theirs; planting an `update` rule fails it. Both say where a
+     rule may go and that valvur writes none.
+  3. The skill's *When a tool is refused* says to change nothing else, give the allow
+     rules, and offer `! uvx valvur==1.3.1 scan`. `test_version.py` holds the pin to
+     `pyproject.toml`'s version, and `prepare_release.py` moves it, under
+     `test_prepare_release.py`.
+  4. **Deferred** (D61h): the smoke run under *don't ask* needs `claude -p` with the
+     owner's login, which the cloud session does not have. §8 holds it; D58's $2 is
+     unspent.
 - [ ] **R21.4** **The loop closed** (D59). Behaviours:
   1. on a rescan, `SUMMARY.md` and the `scan` reply open with every earlier finding, by
      rule ID and path, as `fixed`, `open` or `not re-checked`, then the new ones;

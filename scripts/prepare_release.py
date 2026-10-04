@@ -6,8 +6,8 @@
 The first sets every version surface in one commit, `chore: release <version>`:
 `pyproject.toml` and the lock; the README's status line, worded *release in
 progress* until the run has promoted; `SECURITY.md`'s supported series; the
-CHANGELOG's heading, under an empty *Unreleased*; the skill's version in the
-package, copied byte for byte to the Claude Code plugin and the Kiro power; the
+CHANGELOG's heading, under an empty *Unreleased*; the skill's version and the scan it
+pins in the package, copied byte for byte to the Claude Code plugin and the Kiro power; the
 plugin's and the power's manifests and pinned servers; the plugin's hook; and the
 image the pipeline examples name. `--published` makes the
 commit that flips the README once `promote` has completed. `--dry-run` prints what
@@ -93,6 +93,9 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
     }
     skill = _sub(r'^  version: "[^"]+"$', f'  version: "{version}"',
                  (root / SKILL / "SKILL.md").read_text(), "SKILL.md", re.M)
+    # The scan the skill offers when a tool is refused (R21.3, D58c).
+    skill = _sub(rf"! uvx valvur=={re.escape(previous)} scan", f"! uvx valvur=={version} scan",
+                 skill, "SKILL.md")
     for directory in (SKILL, *COPIES):
         plan[directory / "SKILL.md"] = skill
     for manifest in MANIFESTS:

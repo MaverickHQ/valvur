@@ -50,12 +50,26 @@ vulnerability fixed.
    [`references/ci.md`](references/ci.md). On a machine that must not fetch, see
    [`references/air-gapped.md`](references/air-gapped.md).
 
+## When a tool is refused
+
+If the client refuses a valvur tool, as a permission mode that allows only listed
+tools does, do not look for another way in and change nothing else. Tell the human
+the tool was refused, give them the allow rules in
+[`references/permissions.md`](references/permissions.md) to add where they choose,
+and offer the scan they can run themselves, at the prompt:
+
+```
+! uvx valvur==1.3.1 scan
+```
+
+Then read `.security-scan/SUMMARY.md` and carry on from step 3.
+
 ## Tools
 
 Each tool's fields, as the server describes them, are in
 [`references/tools.md`](references/tools.md).
-The allow rules for a client that refuses unlisted tools are in
-[`references/permissions.md`](references/permissions.md).
+The allow rules for a client that refuses unlisted tools are in the same
+`references/permissions.md`.
 
 | tool | call it |
 |---|---|
