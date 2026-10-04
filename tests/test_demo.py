@@ -79,6 +79,12 @@ def test_the_committed_demo_holds_no_path_of_this_machine_and_no_secret():
         assert not re.search(secret, svg), secret
 
 
+def test_the_readme_shows_it_on_its_first_screen():
+    first = (REPO / "README.md").read_text().splitlines()[:FIRST_SCREEN]
+
+    assert any("docs/demo.svg" in line for line in first)
+
+
 @pytest.mark.e2e
 def test_running_the_script_again_prints_the_same_lines(tmp_path):
     demo = _demo()

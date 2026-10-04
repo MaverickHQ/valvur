@@ -5,6 +5,8 @@
 > **Status: `1.3.1`** — published and installable, released on 2026-10-03; rehearsed on its commit before its signed tag.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
+![valvur scans a project whose lockfile pins a package published as malicious, and lists the findings](docs/demo.svg)
+
 ---
 
 ## Why this exists
