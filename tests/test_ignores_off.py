@@ -100,3 +100,34 @@ def test_a_result_made_with_other_arguments_is_never_reused():
 
     assert reuse.key(**base, argv=before) != reuse.key(**base, argv=after)
     assert reuse.key(**base, argv=after) == reuse.key(**base, argv=after)
+
+
+def test_a_check_the_project_skipped_is_a_finding_that_says_checkov_did_not_run_it():
+    """D77's fallback for Checkov, whose inline skip has no switch: its report's
+    `skipped_checks` (here as 3.3.19 wrote it for the R38.1 fixture) becomes the
+    finding the check would make, with the identity it would have, and a title that
+    says it was skipped rather than that it failed."""
+    import json
+
+    from valvur.adapters import CheckovAdapter
+    from valvur.invocation import ScannerOutput
+
+    skipped = {"check_id": "CKV_AWS_18",
+               "check_name": "Ensure the S3 bucket has access logging enabled",
+               "file_path": "/infra/skipped.tf", "file_line_range": [1, 4],
+               "resource": "aws_s3_bucket.skipped", "severity": None,
+               "check_result": {"result": "SKIPPED",
+                                "suppress_comment": "access logs are elsewhere"}}
+    report = {"check_type": "terraform",
+              "results": {"failed_checks": [], "passed_checks": [{"check_id": "CKV_X"}],
+                          "skipped_checks": [skipped]}}
+
+    [finding] = CheckovAdapter().parse(ScannerOutput("checkov", "3.3.19", json.dumps(report),
+                                                     "", 0))
+
+    assert (finding.rule, finding.path, finding.line) == ("CKV_AWS_18", "infra/skipped.tf", 1)
+    assert "not evaluated" in finding.title and "checkov:skip" in finding.title
+    from valvur import fingerprint
+
+    assert finding.fingerprint == fingerprint.for_iac("CKV_AWS_18", "infra/skipped.tf",
+                                                      "aws_s3_bucket.skipped")

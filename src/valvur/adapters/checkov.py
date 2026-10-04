@@ -65,21 +65,31 @@ class CheckovAdapter(ScannerAdapter):
         findings: list[Finding] = []
 
         for block in blocks:
-            for check in block.get("results", {}).get("failed_checks") or []:
-                path = container_relative(str(check.get("file_path", "")))
-                # Terraform hands us a stable resource address — far better identity
-                # than any line hash (ADR-0003).
-                resource = str(check.get("resource", ""))
-                findings.append(
-                    Finding(
-                        rule=check.get("check_id", ""),
-                        path=path,
-                        line=(check.get("file_line_range") or [0])[0],
-                        title=check.get("check_name", ""),
-                        evidence=resource,
-                        fingerprint=_fp.for_iac(check.get("check_id", ""), path, resource),
-                        sources=(output.tool,),
-                        severity=Severity.parse(check.get("severity") or "medium"),
-                    )
-                )
+            results = block.get("results", {})
+            for check in results.get("failed_checks") or []:
+                findings.append(_finding(check, output.tool, check.get("check_name", "")))
+            # A `checkov:skip` comment has no switch (R38.2, D77's fallback): Checkov
+            # matches it before the check runs, so a skip is reported as what the
+            # check would find, and its title says it was never evaluated.
+            for check in results.get("skipped_checks") or []:
+                findings.append(_finding(check, output.tool, (
+                    f"{check.get('check_name', '')} (not evaluated: the project's "
+                    "checkov:skip comment skipped it)")))
         return findings
+
+
+def _finding(check: dict, tool: str, title: str) -> Finding:
+    path = container_relative(str(check.get("file_path", "")))
+    # Terraform hands us a stable resource address — far better identity than any
+    # line hash (ADR-0003).
+    resource = str(check.get("resource", ""))
+    return Finding(
+        rule=check.get("check_id", ""),
+        path=path,
+        line=(check.get("file_line_range") or [0])[0],
+        title=title,
+        evidence=resource,
+        fingerprint=_fp.for_iac(check.get("check_id", ""), path, resource),
+        sources=(tool,),
+        severity=Severity.parse(check.get("severity") or "medium"),
+    )
