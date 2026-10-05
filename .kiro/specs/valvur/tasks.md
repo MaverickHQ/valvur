@@ -1782,6 +1782,32 @@ movement recorded and explained; the acceptance set green on both lanes.
   only `uv.lock`, `requirements-*.txt`, the workflows' and actions' YAML and the two
   Dockerfiles, and requires every commit to carry Dependabot's `update-type`, none of them
   `semver-major`. The workflow then runs `gh pr merge --auto --squash`.
+
+  **STATUS 2026-10-04, built in the owner's session:** behaviours 1 to 3 ✅; behaviour 4
+  waits for the live proof (§8).
+  - **Measured first.** The repository allows squash, and `main` requires signed commits and
+    linear history with no required review; auto-merge is off until the owner allows it.
+    Dependabot's own pull requests showed two changes to the design. #200 changes
+    `requirements-checkov.in` beside its lock, so `requirements-*.in` is allowed. And a merge
+    made with the workflow's token cannot change workflow files, so Actions updates are not
+    allowed and wait for the owner (§9).
+  - **`scripts/dependabot_auto_merge.py`**, standard library only, run from the base branch:
+    every file must be `uv.lock`, `requirements-*.in`, `requirements-*.txt` or one of the two
+    Dockerfiles, and every commit must carry an `update-type` that is not `semver-major`.
+    Exit 0, 1 (left for the owner, naming why) or 2. #199 and #200 both read eligible.
+  - **`.github/workflows/dependabot-auto-merge.yml`:** `pull_request` only, gated on the pull
+    request's author; `permissions: {}`, with the job's `contents` and `pull-requests`
+    write; the base commit checked out without credentials; no expression inside `run:`;
+    one run per pull request; `gh pr merge --auto --squash`. zizmor finds nothing, at the
+    auditor persona too.
+  - **Turned off when it stops qualifying.** Found while choosing the live proof: #199 and
+    #200 are red, as a Checkov bump is until its adapter's pin moves with it (#122). Auto-merge
+    turned on while a pull request qualified would survive the owner's fix pushed onto
+    Dependabot's branch, and merge that code unreviewed. A run that finds it no longer
+    qualifies runs `gh pr merge --disable-auto`.
+  - **Tests:** `tests/test_dependabot_auto_merge.py`, twenty-one.
+  - **The live proof waits** for the first Dependabot pull request that is green on its own,
+    since neither #199 nor #200 is.
 - [x] **R28.3** **Issues that close themselves** (D64b). Behaviours:
   1. the issue-on-failure action closes its open issue when the next run passes;
   2. a test holds both halves.
@@ -2085,7 +2111,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | land R26 to R29 | each phase's PR green | one fast-forward of `main` to the newest stacked branch |
 | allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
-| R28.2's auto-merge workflow (D64a) | now | the executor's auto mode refused to write a workflow that merges without review (2026-10-04). Write it from R28.2's STATUS, or let a session write it in manual approve mode; until then Dependabot's pull requests stay yours to land |
+| R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it ticks R28.2 |
 | close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
@@ -2139,3 +2165,4 @@ becomes a phase when the owner asks, with a decision first.
 | a GenAI initiative of valvur's own | needs "a minimally viable # of contributors" | contributors, from R35 |
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
+| Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |

@@ -10,6 +10,11 @@ break things, and has.
 
 ### A repository that keeps itself current (Phase R28)
 
+- **Dependabot's patch and minor updates of dependency files merge themselves**, by squash,
+  once every required check passes (R28.2). The decision is made by
+  `scripts/dependabot_auto_merge.py`, from the base branch. A major version, a commit someone
+  else added, a workflow file, or any other file leaves the pull request for the owner.
+
 - **KEV is current while it is CISA's newest.** CISA releases the catalog on working
   days, so from Sunday afternoon Friday's catalog was past two days old although nothing
   newer existed. Every scan refetched it, and the Score's freshness gate failed every

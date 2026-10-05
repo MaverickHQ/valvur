@@ -51,7 +51,8 @@ for the owner with what it needs.
    listed. Any other issue is read for a fix that is small, local and testable. If it
    has one, the fix goes on the branch; if not, the issue is listed for the owner.
 3. **The stalled Dependabot pull requests.** Open over seven days, or red. Dependabot's
-   pull requests stay the owner's to land until R28.2's workflow exists (§8). A red one
+   patch or minor updates of dependency files merge themselves once their checks pass
+   (R28.2's Dependabot workflow); the rest stay the owner's to land. A red one
    is usually a version pinned twice, as when a Scanner's pin moves without its adapter.
    That is fixed on the branch as the owner fixed Checkov 3.3.19 in #122: the adapter's
    version, the fixtures, the image. The Dependabot pull request is left for the owner

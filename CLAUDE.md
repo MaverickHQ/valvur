@@ -17,7 +17,7 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 
 **Status (2026-10-04).** **`1.4.0` is published**: the Score **73.9** on every lane (64.9 at
 `1.2.0`). R26 lightened the release; R27 took Scorecard to 9.2; R38 names a project's own
-ignores (D77); R28 keeps KEV current over a weekend (D76). **Next:** R29, then R30 to R37, [the path to OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md).
+ignores (D77); R28 keeps KEV current over a weekend (D76). **Next:** R28.2's live proof (§8), R29, `1.5.0`, then R30 to R37, [the path to OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md).
 
 ## 2. What it is NOT
 
