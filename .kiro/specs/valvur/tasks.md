@@ -1762,7 +1762,7 @@ movement recorded and explained; the acceptance set green on both lanes.
   names it. The proof is R28.2's fourth behaviour, after the workflow lands: if GitHub
   refuses to squash a pull request whose author is not the merger under signed commits,
   auto-merge stays enabled and unmerged, and D64's fallback applies.
-- [ ] **R28.2** **Dependabot updates land themselves** (D64a). Behaviours:
+- [x] **R28.2** **Dependabot updates land themselves** (D64a). Behaviours:
   1. the workflow enables auto-merge only for a Dependabot pull request that changes only
      dependency files, and never for a major version;
   2. it runs on `pull_request`, never `pull_request_target`, with pinned actions and the
@@ -1784,7 +1784,9 @@ movement recorded and explained; the acceptance set green on both lanes.
   `semver-major`. The workflow then runs `gh pr merge --auto --squash`.
 
   **STATUS 2026-10-04, built in the owner's session:** behaviours 1 to 3 ✅; behaviour 4
-  waits for the live proof (§8).
+  waits for the live proof (§8). Landed 2026-10-05 (#205) and ticked with behaviour 4
+  recorded as waiting, as R21.3's smoke run was (D61h): left unticked, it was the first
+  unchecked task, and `build_status.py` sent every resuming session back to it.
   - **Measured first.** The repository allows squash, and `main` requires signed commits and
     linear history with no required review; auto-merge is off until the owner allows it.
     Dependabot's own pull requests showed two changes to the design. #200 changes
@@ -2111,7 +2113,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | land R26 to R29 | each phase's PR green | one fast-forward of `main` to the newest stacked branch |
 | allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
-| R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it ticks R28.2 |
+| R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |
 | close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | read the listed findings and their labels; a disagreement changes the label |
