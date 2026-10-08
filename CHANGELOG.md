@@ -8,6 +8,35 @@ break things, and has.
 
 ## [Unreleased]
 
+### Precision that is measured (Phase R29)
+
+The corpus behind the Score's real-code track grew from 13 projects to 48, and every
+finding on it was read and labelled. It found five of valvur's own false reports, now fixed:
+
+- **A project that tracks a symbolic link is scanned.** The Scan Container counted regular
+  files alone, so a project with a link in its File Set was refused as a partial
+  Snapshot, and the scan said *incomplete* (aiohttp tracks 18).
+- **An npm alias is checked by the package it installs.** `"x": "npm:real@1"` was reported
+  as a dependency that does not exist; the name after `npm:` is now the one asked about.
+- **Licences are read as written:** a `license` file in lower case, a file holding one part
+  of an `AND` expression, and two-clause BSD, which was read as three.
+- **A regular expression's `exec` is not a shell command.** JavaScript's command-injection
+  rule matched `/re/.exec(...)` at high; a member `.exec` now counts only on
+  `child_process`.
+
+Also:
+
+- **Every rule's precision is published** in [`docs/RULES.md`](docs/RULES.md): each
+  static-analysis rule's true and false positives on the OWASP Benchmark, the JavaScript
+  twins and the 48 projects, generated from the Score's own scans. None of the measured
+  rules is under the bar it shipped by. The four LLM-output rules have no case to be
+  measured on, and the page says so.
+- **The Score is 73.4**, from 73.9: the real-code track measures a different set now, so
+  its baseline is re-based from 5.9 to 2.3 on both lanes, with both numbers recorded.
+- Internal: CodeQL's default queries over the corpus, compared with valvur's findings, list
+  candidate rules in `docs/acceptance/r29.md` and ship nothing. A weekly mutation run
+  reverts each hunk of the week's changes, and its score may only rise.
+
 ### A repository that keeps itself current (Phase R28)
 
 - **Dependabot's patch and minor updates of dependency files merge themselves**, by squash,

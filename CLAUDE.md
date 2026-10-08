@@ -15,9 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-04).** **`1.4.0` is published**: the Score **73.9** on every lane (64.9 at
-`1.2.0`). R26 lightened the release; R27 took Scorecard to 9.2; R38 names a project's own
-ignores (D77); R28 keeps KEV current over a weekend (D76). **Next:** R28.2's live proof (§8), R29, `1.5.0`, then R30 to R37, [the path to OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md).
+**Status (2026-10-08).** **`1.4.0` is published.** R26 to R28 lightened the release, raised
+Scorecard and keep the repository current; R29 measures each rule on 48 projects
+([`docs/RULES.md`](docs/RULES.md)): the Score is **73.4**. **Next:** land R29 (§8), `1.5.0`, R30 to R37 ([OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md)).
 
 ## 2. What it is NOT
 

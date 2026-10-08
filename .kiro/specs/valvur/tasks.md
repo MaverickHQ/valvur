@@ -2236,9 +2236,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R19 | its PR green, and `1.4.0` released | one fast-forward of `main` to `build/r19-the-runner-move`, after `1.4.0`'s promote, so the release is built on 24.04 |
-| land R26 to R29 | each phase's PR green | one fast-forward of `main` to the newest stacked branch |
-| allow auto-merge (D64a) | R28.1 | Settings → General → *Allow auto-merge*, with the merge method R28.1 names |
+| land R29 (#204) | its PR green | one fast-forward: `git push origin build/r29-precision-that-is-measured:main`. R19 and R26 to R28 landed by 2026-10-05, and auto-merge was allowed that day |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
 | R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |
 | close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
@@ -2247,6 +2245,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
 | R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
 | how valvur treats a project's `osv-scanner.toml` (R27.2) | decided 2026-10-04 | D77: no project ignore hides a finding silently; built by R38 |
+| the Mac's speed gate, again | a restart of the build Mac, which had been up 16 days with 13 GB of swap | ask a session to run `scripts/acceptance.py --rescan` and `scripts/eval.py --speed` on the Mac. R29's exit recorded 6.2 s against 5.6 s under D35; `1.5.0` should not ship on a speed nobody judged |
 | release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |
 | decide whether to donate valvur to OWASP (D67) | now | read OWASP's leader agreement: contributions pass to the Foundation, the project cannot be withdrawn, and the name stays with OWASP. This is the gate for the request |
 | find a second leader (D67) | now | someone outside your employer, willing to lead and to join OWASP; `GOVERNANCE.md` (R30.3) describes the role |
