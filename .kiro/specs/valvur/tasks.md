@@ -1992,10 +1992,30 @@ weekend run; CI green.
   - **Tracks 1 to 7:** no rule changed, and tracks 1 and 2 measured 40.9 and 55.0, each
     its baseline. Track 8 measured 2.3 on the 48 projects (3 true, 168 false), as R29.2
     found; R29.6 re-bases it.
-- [ ] **R29.4** **What valvur misses** (D65c). Behaviours:
+- [x] **R29.4** **What valvur misses** (D65c). Behaviours:
   1. CodeQL's licence terms read and recorded before it runs;
   2. its findings on the corpus at lines valvur does not report are listed in
      `docs/acceptance/r29.md` as candidate rules, and nothing of it ships.
+
+  **STATUS 2026-10-08:** ✅. Behaviour 1 was the cloud session's: the GitHub CodeQL Terms
+  allow analysing an Open Source Codebase on GitHub.com in CI, recorded in
+  `codeql_corpus.py`'s `TERMS`, and the CC0 project is left out.
+  - **Its first run analysed the wrong tree.** Run 37309665546, green on all 41 jobs,
+    had extracted valvur's own checkout every time: with valvur in the workspace,
+    `build-mode: none` read the workspace and ignored `source-root`. The analysing job
+    now checks out nothing of valvur, the project is the workspace, and each project's
+    SARIF is kept as the artifact `codeql-<project>`, which `candidates` reads instead
+    of lines scraped from a log. zizmor finds nothing, at the auditor persona too.
+  - **Run 37842906925**, CodeQL 2.27.1: **183 results in 19 of the 41 projects, every one
+    at a line valvur does not report**, and none of valvur's findings on a line of
+    CodeQL's. Listed by query in `docs/acceptance/r29.md`, with where they fall: 70 are
+    one regex query in jinja's lexer, and 105 of the other 113 are in tests, docs or
+    examples.
+  - **Four candidates** are patterns Opengrep can match: certificate validation turned off
+    (40), a cookie sent without `secure` in JavaScript (13), a short key (6) and an old
+    SSL or TLS version (4). Each would ship by D29's bar once a track holds its cases.
+    The CSRF, rate-limiting and sanitization queries need a whole program's flow, and are
+    not.
 - [x] **R29.5** **The mutation score ratchets** (D65d). Behaviours:
   1. a weekly workflow runs `mutation_check.py`;
   2. its score is a baseline that may only rise, and a fall fails the run.
