@@ -96,3 +96,27 @@ def test_each_shipped_rule_is_measured_over_tracks_one_and_two_and_the_corpus(tm
     # Every shipped rule has a row, matched or not, the vendored ones too.
     assert rules["valvur.llm.output-to-shell"]["tp"] == 0
     assert any(row["vendored"] for row in rules.values())
+
+
+def test_the_measurement_is_recorded_only_when_all_three_places_were_scanned(tmp_path):
+    harness = _harness()
+    rules = _measure(tmp_path, {})
+    result = {"image": {"name": "valvur:dev", "id": "sha256:abc"}, "rules": rules,
+              "tracks": {"real-code-precision": {"repositories": 48}}}
+    out = tmp_path / "rules-measured.json"
+
+    harness.rules_measured(result, out, today="2026-10-08")
+
+    written = json.loads(out.read_text())
+    assert (written["measured"], written["image"], written["corpus_projects"]) == \
+        ("2026-10-08", "sha256:abc", 48)
+    assert written["rules"] == rules
+
+    partial = {**result, "rules": {name: {**row, "places": {"sast-python": {}}}
+                                   for name, row in rules.items()}}
+    try:
+        harness.rules_measured(partial, tmp_path / "partial.json", today="2026-10-08")
+    except ValueError as error:
+        assert "sast-js" in str(error)
+    else:
+        raise AssertionError("a measurement without every place was recorded")

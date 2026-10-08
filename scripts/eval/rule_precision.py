@@ -126,3 +126,20 @@ def measure(places: dict[str, dict[str, Tally]], rules: dict[str, dict],
                       "tp": tp, "fp": fp, "new": new,
                       "precision": round(tp / (tp + fp), 3) if tp + fp else 0.0}
     return rows
+
+
+def meets_bar(row: dict) -> bool:
+    """D29's bar, over the three places together."""
+    if row["tp"] < 1 or row["precision"] < 0.5:
+        return False
+    return row["new"] >= 1 if row["vendored"] else True
+
+
+def state(row: dict) -> str:
+    """Where the rule stands: in the inventory and why, active, or under the bar."""
+    if row["inventory"]:
+        return f"inventory: {row['demoted']}" if row["demoted"] else \
+            "inventory: a sink to review (D47a)"
+    if row["tp"] + row["fp"] == 0:
+        return "active, unmeasured"
+    return "active" if meets_bar(row) else "**under the bar**"

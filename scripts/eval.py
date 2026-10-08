@@ -424,6 +424,23 @@ def write(result: dict, out: Path) -> dict[str, Path]:
     return paths
 
 
+def rules_measured(result: dict, path: Path, *, today: str | None = None) -> None:
+    """R29.3: each shipped rule's counts, written for `scripts/rules_doc.py`. Only a run
+    that scanned track 1, track 2 and the corpus measures a rule."""
+    import datetime
+
+    missing = sorted({place for row in result.get("rules", {}).values()
+                      for place in rule_precision.PLACES if place not in row["places"]})
+    if not result.get("rules") or missing:
+        raise ValueError(f"not measured on {', '.join(missing) or 'any place'}; run "
+                         "--tracks sast-python,sast-js,real-code-precision")
+    path.write_text(json.dumps({
+        "measured": today or datetime.datetime.now(datetime.UTC).date().isoformat(),
+        "image": result["image"]["id"],
+        "corpus_projects": result["tracks"]["real-code-precision"]["repositories"],
+        "rules": result["rules"]}, indent=1) + "\n", encoding="utf-8")
+
+
 def per_rule(rules: Path, work: Path, *, image: str = "valvur:dev",
              benchmark: Path | None = None, corpus: list[dict] | None = None,
              checkouts: Path | None = None, labels: Path = LABELS, run=None,
@@ -495,6 +512,9 @@ def main(argv: list[str] | None = None) -> int:
                         "--rescan, against the baseline's median warm scan (R14.5)")
     parser.add_argument("--fresh", action="store_true",
                         help="run every Scanner, reusing no stored result (R14.3)")
+    parser.add_argument("--rules-measured", type=Path, metavar="PATH",
+                        help="write each shipped rule's counts there, for "
+                        "scripts/rules_doc.py (R29.3)")
     parser.add_argument("--per-rule", type=Path, metavar="RULES",
                         help="measure each rule in RULES over tracks 1 and 2 and the "
                         "corpus instead (R13.2, D29)")
@@ -517,6 +537,8 @@ def main(argv: list[str] | None = None) -> int:
                  speed=speed, scan=scan)
     write(result, args.out.resolve())
     print(scorecard(result))
+    if args.rules_measured:
+        rules_measured(result, args.rules_measured)
     status = 0
     if args.compare:
         failures = compare(result, json.loads(args.compare.read_text()))
