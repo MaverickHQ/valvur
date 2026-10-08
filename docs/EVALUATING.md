@@ -401,7 +401,7 @@ uv run python scripts/eval.py --compare tests/eval/baseline.json # fail on a fal
 | package-reality | nonexistent, near-miss and malicious names against real and privately registered ones |
 | agent-configuration | planted directives, hidden Unicode, blanket approval, hooks, leaking settings, against benign files and real ones from awesome-cursorrules |
 | infrastructure | Terraform, Kubernetes, Dockerfile and GitHub Actions faults against their fixes |
-| real-code-precision | the thirteen corpus projects: each finding of valvur's own rules and Gitleaks labelled by hand, scored as smoothed precision |
+| real-code-precision | 48 corpus projects, 22 Python and 19 JavaScript or TypeScript (13 until R29): each finding of valvur's own rules and Gitleaks labelled by hand, scored as smoothed precision |
 
 **The Score** is the unweighted mean of the eight. Beside it are five **gates**:
 - *offline*: nothing left the machine;
@@ -533,6 +533,33 @@ with a vulnerable and a safe twin as a test. All twelve shipped.
 - **The misses** are mostly Opengrep's taint losing the flow through a slice, a `match`
   or a `configparser` read, which the Benchmark uses often.
 - **The Score is 73.9.**
+
+**Real code after R29, 2026-10-08.** Thirteen projects and 16 judged findings could not tell
+one rule from another, so R29 widened the corpus to 48 projects, each pinned with its
+licence and size, and labelled every active finding (172 labels, 3 of them true). It also
+found five of valvur's own defects, fixed instead of labelled: a symbolic link refused, npm
+aliases, three licence readings, and RegExp's `exec` read as a shell.
+
+| | corpus | judged | true | track 8 |
+|---|---|---|---|---|
+| before (R25) | 13 projects | 16 | 0 | 5.9 |
+| after (R29) | 48 projects | 171 | 3 | 2.3 |
+
+- **Track 8 is re-based, not fallen.** It measures a different set now, so its baseline is
+  re-recorded at 2.3 on both lanes, with both numbers in `tests/eval/baseline.json`
+  (`rebased`). The Score is **73.4**.
+- **Each rule's precision** over tracks 1 and 2 and the corpus is in
+  [`RULES.md`](RULES.md), generated from the Score's own scans. None of the 16 measured
+  active rules is under D29's bar. The false alarms on real code are mostly the vendored
+  `random` rule (23) and `weak-hash` (21), each kept by its strength on the Benchmark,
+  and R25's request-data rules (23). The four LLM-output rules have no case on any track
+  or in the corpus, so their precision is not measured.
+- **A second engine:** CodeQL's default queries over the 41 projects it may analyse found
+  183 results in 19, every one at a line valvur does not report. They are listed by query
+  in [`acceptance/r29.md`](acceptance/r29.md), with four candidate rules; nothing of
+  CodeQL ships.
+- **Tests that notice:** a weekly mutation run reverts each hunk of the week's changes,
+  and its score, 83.8 when first measured, may only rise.
 
 **The targets.** `1.2.0`'s targets (D22) were met on five tracks. For SAST-Python,
 SAST-JS and real-code precision, the owner lowered them on 2026-10-02 to what 1.2.0

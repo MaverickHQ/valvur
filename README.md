@@ -39,7 +39,7 @@ verification commands, the three Statuses, and a plain list of what valvur does 
 claim. Read that one sceptically. How much of what valvur claims it actually finds is
 measured as **the Score**: eight tracks scored by the OWASP Benchmark's formula, from
 static analysis to agent configuration, with a ratchet in `tests/eval/` that no change
-may fall under. It is **73.9** out of 100 on both lanes, from 59.3 when first measured;
+may fall under. It is **73.4** out of 100 on both lanes, from 59.3 when first measured;
 `EVALUATING.md` gives each track, and one command reproduces it.
 
 ### 1. It cannot exfiltrate your code, and you can verify it
@@ -96,11 +96,14 @@ must never fetch, `fetch = "never"` turns every fetch off, and
     `shell=True`, unsafe `yaml.load`, string-built SQL), and **taint rules** from a
     model call to those sinks and to `innerHTML`. They have sources for the Anthropic,
     OpenAI, Gemini, LangChain, litellm and ollama SDKs. The taint rules fire on every
-    planted flow in the fixture and have not fired on real code in the corpus.
+    planted flow in the fixture and have not fired on real code in the 48-project
+    corpus.
   - Since R25, **taint rules from request data**: for Python, command and code
     injection, path traversal and open redirects, with insecure cookies and XXE by
-    pattern; for JavaScript, SQL and command injection, path traversal and SSRF. None
-    has fired on real code in the corpus.
+    pattern; for JavaScript, SQL and command injection, path traversal and SSRF. On
+    the 48-project corpus they fire 23 times, and each was judged a false alarm.
+  - Every rule's true and false positives, on the Benchmark, the twins and the corpus,
+    are in [`docs/RULES.md`](docs/RULES.md), and none is under the bar it shipped by.
   - GitLab's four were each shipped because they met a measured bar (D29), out of 106
     whose licences allowed it: Python's weak `random`, string-built SQL and unsafe
     `yaml.load`, and JavaScript's `eval` of an expression.

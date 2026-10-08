@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason. The Mac lane is beside it.",
+  "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason, or re-based when a track's cases change, with both numbers (`rebased`). The Mac lane is beside it.",
   "recorded": "2026-10-03, R25.5 on the image built from its branch; R20, R13 (eval run 36655021422), R11, R10 and R9.6 before",
   "tracks": {
     "sast-python": 40.9,
@@ -10,9 +10,9 @@
     "package-reality": 100.0,
     "agent-configuration": 94.3,
     "infrastructure": 95.0,
-    "real-code-precision": 5.9
+    "real-code-precision": 2.3
   },
-  "score": 73.9,
+  "score": 73.4,
   "recorded_on": {
     "image": {
       "name": "valvur:dev",
@@ -37,9 +37,9 @@
       "package-reality": 100.0,
       "agent-configuration": 94.3,
       "infrastructure": 95.0,
-      "real-code-precision": 5.9
+      "real-code-precision": 2.3
     },
-    "score": 73.9,
+    "score": 73.4,
     "image": {
       "name": "valvur:dev",
       "id": "sha256:1439a4942efd1e5934cb9e7be3fd4965606c8c22fef102abb020982575a1c8df"
@@ -118,6 +118,28 @@
           15.0,
           55.0
         ]
+      }
+    }
+  ],
+  "rebased": [
+    {
+      "at": "R29.6",
+      "why": "D65a: the corpus widened from 13 projects to 48, every active finding labelled (R29.2), so track 8 measures a different set. 3 true and 168 false on the 48, against 0 and 16 on the 13. Linux: eval run 37309665534 at R29.2's head; the Mac: R29.3's measurement on 2026-10-08, valvur:dev sha256:9bd5ec2b8b27.",
+      "corpus": [
+        13,
+        48
+      ],
+      "tracks": {
+        "real-code-precision": {
+          "linux": [
+            5.9,
+            2.3
+          ],
+          "mac": [
+            5.9,
+            2.3
+          ]
+        }
       }
     }
   ]

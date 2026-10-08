@@ -2029,10 +2029,24 @@ weekend run; CI green.
   scheduled-workflow list and the routine's list name it. zizmor finds nothing.
   `tests/test_mutation_ratchet.py` holds the score, the fall, the ratchet and the
   workflow.
-- [ ] **R29.6** **The Score on the wider corpus** (D65a). Behaviours:
+- [x] **R29.6** **The Score on the wider corpus** (D65a). Behaviours:
   1. track 8 is measured on both lanes, and its baseline is re-based with both numbers
      recorded;
   2. the README and `EVALUATING.md` cite the new corpus and track.
+
+  **STATUS 2026-10-08:** ✅
+  - **Track 8 on the 48:** **2.3 on both lanes**, 3 true and 168 false. Linux: eval run
+    37309665534 at R29.2's head; the Mac: R29.3's measurement, `valvur:dev`
+    `sha256:9bd5ec2b8b27`. Nothing since changed what valvur reports.
+  - **Re-based, not fallen:** `tests/eval/baseline.json` holds track 8 at 2.3 on both
+    lanes, and a `rebased` entry with the reason, the corpus (13 to 48) and both numbers
+    per lane, 5.9 to 2.3. Each lane's Score is the mean of its tracks: **73.4**, from 73.9.
+    `test_eval_rebased.py` holds both.
+  - **The README** cites 73.4 and links `docs/RULES.md`, and no longer says R25's
+    request-data rules never fire on real code: on the 48 they fire 23 times, each judged
+    a false alarm. **`EVALUATING.md`** describes the 48 projects in track 8's row, and a
+    section *Real code after R29* gives the corpus, the re-basing, the rules, CodeQL's
+    comparison and the mutation score.
 
 **Exit:** the Score on both lanes, track 8 re-based and tracks 1 to 7 within the ratchet;
 at least 40 labelled projects; `docs/RULES.md` and the mutation baseline recorded; the
