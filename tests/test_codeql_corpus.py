@@ -45,26 +45,29 @@ def test_the_real_corpus_gives_at_least_thirty_projects():
     assert len(codeql.matrix(codeql.corpus())) >= 30
 
 
-def test_a_result_is_one_line_with_its_project_rule_path_and_line():
-    sarif = {"runs": [{"results": [
-        {"ruleId": "py/path-injection", "locations": [{"physicalLocation": {
-            "artifactLocation": {"uri": "app/views.py"}, "region": {"startLine": 12}}}]},
-        {"ruleId": "py/unused-import", "locations": []},
-    ]}]}
-
-    assert codeql.lines("flask", sarif) == ["CODEQL flask py/path-injection app/views.py:12"]
+def _sarif(*results: tuple[str, str, int]) -> dict:
+    return {"runs": [{"results": [
+        {"ruleId": rule, "locations": [{"physicalLocation": {
+            "artifactLocation": {"uri": path}, "region": {"startLine": line}}}]}
+        for rule, path, line in results] + [{"ruleId": "py/no-location", "locations": []}]}]}
 
 
-def test_candidates_are_codeql_lines_valvur_does_not_report():
-    log = ("2026-10-05T00:00:00Z CODEQL flask py/path-injection app/views.py:12\n"
-           "2026-10-05T00:00:00Z CODEQL flask py/sql-injection app/db.py:40\n"
-           "noise\n")
+def test_each_projects_results_are_read_from_its_sarif_artifact(tmp_path):
+    """`gh run download` leaves one directory per artifact, `codeql-<project>`."""
+    (tmp_path / "codeql-flask").mkdir()
+    (tmp_path / "codeql-flask" / "python.sarif").write_text(json.dumps(
+        _sarif(("py/path-injection", "app/views.py", 12))))
+
+    assert codeql.results(tmp_path) == [
+        {"repo": "flask", "rule": "py/path-injection", "path": "app/views.py", "line": 12}]
+
+
+def test_candidates_are_codeql_results_valvur_does_not_report():
+    found = [{"repo": "flask", "rule": "py/path-injection", "path": "app/views.py", "line": 12},
+             {"repo": "flask", "rule": "py/sql-injection", "path": "app/db.py", "line": 40}]
     valvur = {"flask": [{"path": "app/db.py", "line": 40, "rule": "valvur.python.sqli"}]}
 
-    found = codeql.candidates(log, valvur)
-
-    assert found == [{"repo": "flask", "rule": "py/path-injection", "path": "app/views.py",
-                      "line": 12}]
+    assert codeql.candidates(found, valvur) == found[:1]
 
 
 # ---------------------------------------------------------------- the workflow
@@ -79,8 +82,8 @@ def test_it_runs_on_the_pull_request_that_changes_it_or_the_corpus_and_on_dispat
 def test_nothing_leaves_for_code_scanning_and_nothing_is_written():
     assert "upload: never" in WORKFLOW
     assert "security-events" not in WORKFLOW and "contents: write" not in WORKFLOW
-    top = WORKFLOW.split("\npermissions:", 1)[1].split("\njobs:", 1)[0]
-    assert top.strip() == "contents: read"
+    top = re.search(r"^permissions:\n((?:  .*\n)+)", WORKFLOW, re.M)
+    assert top and top.group(1).strip() == "contents: read"
 
 
 def test_every_action_is_pinned_and_the_project_never_reaches_a_template():
@@ -95,8 +98,26 @@ def test_it_cites_the_terms_that_allow_it():
     assert "Open Source Codebase" in WORKFLOW
 
 
+def test_codeql_reads_the_project_and_never_valvurs_own_tree():
+    """Measured on #204's run 37309665546: with valvur checked out in the workspace,
+    CodeQL's `build-mode: none` extracted the workspace, valvur's own `src/` and
+    `tests/`, and ignored `source-root`, on every project. The job that analyses checks
+    out nothing of valvur: the project at its pin is the workspace."""
+    analyse = WORKFLOW.split("\n  analyse:", 1)[1]
+
+    assert "actions/checkout" not in analyse
+    assert "source-root:" not in analyse and "checkout_path:" not in analyse
+    assert 'cd "$GITHUB_WORKSPACE"' in analyse
+
+
+def test_each_projects_sarif_is_kept_as_an_artifact_for_the_comparison():
+    analyse = WORKFLOW.split("\n  analyse:", 1)[1]
+
+    assert "actions/upload-artifact@" in analyse
+    assert "name: codeql-${{ matrix.project.name }}" in analyse
+
+
 def test_the_corpus_projects_are_codeql_s_only_input_and_nothing_of_it_ships():
     assert "scripts/codeql_corpus.py matrix" in WORKFLOW
-    assert "scripts/codeql_corpus.py lines" in WORKFLOW
     assert not any("codeql" in p.name.lower() for p in (REPO / "rules").rglob("*"))
     assert json.loads(json.dumps(codeql.TERMS))["source"].endswith("codeql-cli-binaries")
