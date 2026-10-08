@@ -25,6 +25,7 @@ sys.path.insert(0, str(REPO / "scripts" / "eval"))
 import cwe  # type: ignore[import-not-found]  # noqa: E402
 import owasp  # type: ignore[import-not-found]  # noqa: E402
 import precision  # type: ignore[import-not-found]  # noqa: E402
+import rule_precision  # type: ignore[import-not-found]  # noqa: E402
 import score  # type: ignore[import-not-found]  # noqa: E402
 import twins  # type: ignore[import-not-found]  # noqa: E402
 
@@ -108,8 +109,9 @@ def _cursorrules() -> Path:
 
 
 def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
-               checkouts: Path | None, labels: Path) -> dict:
-    """Track 8: scan each corpus project at its pin and judge the owned findings."""
+               checkouts: Path | None, labels: Path) -> tuple[dict, dict[str, list[dict]]]:
+    """Track 8: scan each corpus project at its pin and judge the owned findings. Also
+    each project's findings, which R29.3 reads rule by rule."""
     if corpus is None or checkouts is None:
         harness = _corpus_harness()
         corpus, checkouts = harness.repos(), harness.CHECKOUTS
@@ -123,11 +125,12 @@ def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
         complete = complete and bool(run_json.get("complete"))
         reused.update(_reused(run_json))
     judged = precision.judge(findings_by_repo, precision.load(labels) if labels.is_file() else {})
-    return {"score": judged.score, "tp": judged.tp, "fp": judged.fp,
+    return ({"score": judged.score, "tp": judged.tp, "fp": judged.fp,
             "unlabelled": judged.unlabelled, "others": judged.others,
             "repositories": len(corpus), "complete": complete, "status": None,
             "what_left_the_machine": "nothing", "safe_flagged_high": [], "invalid": {},
-            "vulnerable": judged.tp, "safe": judged.fp, "reused": sorted(reused)}
+            "vulnerable": judged.tp, "safe": judged.fp, "reused": sorted(reused)},
+            findings_by_repo)
 
 
 def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_scan,
@@ -144,11 +147,15 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
     result: dict = {"schema": 1, "image": {"name": image, "id": image_id(image)},
                     "seed": seed, "tracks": {}, "data": {}}
     cwe_of = cwe.lookup(REPO / "rules")
+    rules = rule_precision.shipped(REPO / "rules")
+    by_place: dict[str, dict] = {}
     for track in tracks:
         if track == "real-code-precision":
             began = time.monotonic()
-            result["tracks"][track] = _real_code(scan, corpus, checkouts, labels)
+            result["tracks"][track], by_repo = _real_code(scan, corpus, checkouts, labels)
             result["tracks"][track]["seconds"] = round(time.monotonic() - began, 1)
+            by_place["corpus"] = rule_precision.from_corpus(
+                by_repo, precision.load(labels) if labels.is_file() else {}, rules)
             continue
         if track == "sast-python":
             root = benchmark or owasp.checkout(work.parent / "BenchmarkPython")
@@ -170,6 +177,8 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             invalid = twins.invalid_cases(cases, index_dir or cache.name_index())
             cases = [case for case in cases if case.id not in invalid]
         scored = score.score_track(cases, findings, cwe_of)
+        if track in rule_precision.PLACES:
+            by_place[track] = rule_precision.from_track(cases, findings, cwe_of, rules)
         result["tracks"][track] = {
             "score": scored.score,
             "categories": {name: {"tp": r.tp, "fn": r.fn, "fp": r.fp, "tn": r.tn,
@@ -202,6 +211,9 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
                                   speed=speed)
     if speed is not None:
         result["speed"] = speed
+    if by_place:
+        # R29.3: each shipped rule, over the places this run scanned.
+        result["rules"] = rule_precision.measure(by_place, rules, cwe.rule_cwes(REPO / "rules"))
     scores = [t["score"] for t in result["tracks"].values()]
     result["score"] = round(sum(scores) / len(scores), 1) if scores else 0.0
     result["duration_s"] = round(time.monotonic() - started, 1)
