@@ -1,0 +1,907 @@
+{
+ "measured": "2026-10-08",
+ "image": "sha256:9bd5ec2b8b27d144c17f7c3d529e28778fdaf26f20510018786675ff434f3fd6",
+ "corpus_projects": 48,
+ "rules": {
+  "javascript_eval_rule-eval-with-expression": {
+   "file": "rules/vendor/gitlab/javascript/eval/rule-eval-with-expression.yaml",
+   "vendored": true,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    95
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 1,
+     "fp": 0,
+     "outside": 0,
+     "new": 1,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 2,
+     "fp": 1,
+     "outside": 0,
+     "new": 2,
+     "unjudged": 0
+    }
+   },
+   "tp": 3,
+   "fp": 1,
+   "new": 3,
+   "precision": 0.75
+  },
+  "python_deserialization_rule-yaml-load": {
+   "file": "rules/vendor/gitlab/python/deserialization/rule-yaml-load.yaml",
+   "vendored": true,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    502
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 5,
+     "fp": 5,
+     "outside": 0,
+     "new": 5,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 5,
+   "fp": 5,
+   "new": 5,
+   "precision": 0.5
+  },
+  "python_random_rule-random": {
+   "file": "rules/vendor/gitlab/python/random/rule-random.yaml",
+   "vendored": true,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    338
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 35,
+     "fp": 0,
+     "outside": 0,
+     "new": 35,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 23,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 35,
+   "fp": 23,
+   "new": 35,
+   "precision": 0.603
+  },
+  "python_sql_rule-hardcoded-sql-expression": {
+   "file": "rules/vendor/gitlab/python/sql/rule-hardcoded-sql-expression.yaml",
+   "vendored": true,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    89
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 5,
+     "fp": 0,
+     "outside": 0,
+     "new": 5,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 5,
+   "fp": 0,
+   "new": 5,
+   "precision": 1.0
+  },
+  "valvur.javascript.command-injection": {
+   "file": "rules/javascript-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    78
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 2,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 2,
+   "fp": 0,
+   "new": 0,
+   "precision": 1.0
+  },
+  "valvur.javascript.path-traversal": {
+   "file": "rules/javascript-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    22
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 2,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 2,
+   "fp": 0,
+   "new": 0,
+   "precision": 1.0
+  },
+  "valvur.javascript.sql-injection": {
+   "file": "rules/javascript-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    89
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 2,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 2,
+   "fp": 0,
+   "new": 0,
+   "precision": 1.0
+  },
+  "valvur.javascript.ssrf": {
+   "file": "rules/javascript-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    918
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 2,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 2,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 2,
+   "fp": 2,
+   "new": 0,
+   "precision": 0.5
+  },
+  "valvur.js.output-to-innerhtml": {
+   "file": "rules/llm-output-sinks.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    79
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
+  },
+  "valvur.llm.output-to-code-execution": {
+   "file": "rules/llm-output-sinks.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    94
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
+  },
+  "valvur.llm.output-to-shell": {
+   "file": "rules/llm-output-sinks.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    78
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
+  },
+  "valvur.llm.output-to-sql": {
+   "file": "rules/llm-output-sinks.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    89
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
+  },
+  "valvur.pinning.mutable-git-ref": {
+   "file": "rules/pinning-hygiene.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    829
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 1,
+     "fp": 1,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 1,
+   "fp": 1,
+   "new": 0,
+   "precision": 0.5
+  },
+  "valvur.python.code-injection": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    95
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 9,
+     "fp": 1,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 9,
+   "fp": 1,
+   "new": 0,
+   "precision": 0.9
+  },
+  "valvur.python.command-injection": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    78
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 9,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 9,
+   "fp": 0,
+   "new": 0,
+   "precision": 1.0
+  },
+  "valvur.python.dangerous-eval": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": true,
+   "demoted": "",
+   "cwe": [
+    95
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 10,
+     "fp": 16,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 12
+    }
+   },
+   "tp": 10,
+   "fp": 16,
+   "new": 0,
+   "precision": 0.385
+  },
+  "valvur.python.dangerous-exec": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": true,
+   "demoted": "",
+   "cwe": [
+    95
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 10,
+     "fp": 17,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 28
+    }
+   },
+   "tp": 10,
+   "fp": 17,
+   "new": 0,
+   "precision": 0.37
+  },
+  "valvur.python.insecure-cookie": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    614
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 24,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 8,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 24,
+   "fp": 8,
+   "new": 0,
+   "precision": 0.75
+  },
+  "valvur.python.insecure-yaml-load": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    502
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
+  },
+  "valvur.python.open-redirect": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    601
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 9,
+     "fp": 2,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 7,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 9,
+   "fp": 9,
+   "new": 0,
+   "precision": 0.5
+  },
+  "valvur.python.path-traversal": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    22
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 27,
+     "fp": 7,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 6,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 27,
+   "fp": 13,
+   "new": 0,
+   "precision": 0.675
+  },
+  "valvur.python.string-built-sql": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": true,
+   "demoted": "",
+   "cwe": [
+    89
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
+  },
+  "valvur.python.subprocess-shell-true": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": true,
+   "demoted": "",
+   "cwe": [
+    78
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 7,
+     "fp": 7,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 3
+    }
+   },
+   "tp": 7,
+   "fp": 7,
+   "new": 0,
+   "precision": 0.5
+  },
+  "valvur.python.weak-hash": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    328
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 37,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 21,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 37,
+   "fp": 21,
+   "new": 0,
+   "precision": 0.638
+  },
+  "valvur.python.xml-external-entities": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    611
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 8,
+     "fp": 7,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 8,
+   "fp": 7,
+   "new": 0,
+   "precision": 0.533
+  }
+ }
+}

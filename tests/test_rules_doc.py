@@ -9,6 +9,7 @@ can never cite a measurement the repository does not hold.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -64,3 +65,37 @@ def test_each_rule_has_its_counts_its_precision_and_its_state():
     assert _line(page, "vendored.e").endswith("| **under the bar** |")
     assert "48 real projects" in page and "sha256:abc" in page
 
+
+
+def test_the_page_is_current_with_the_measurement():
+    """Regenerate with `uv run python scripts/rules_doc.py` after `scripts/eval.py
+    --tracks sast-python,sast-js,real-code-precision --rules-measured
+    tests/eval/rules-measured.json`."""
+    assert MEASURED.is_file(), "no measurement; run scripts/eval.py --rules-measured"
+    assert PAGE.read_text(encoding="utf-8") == _doc().render(json.loads(MEASURED.read_text()))
+
+
+def test_the_measurement_is_of_every_rule_as_it_ships():
+    """A rule added, or moved to the inventory, after the measurement is not on the page
+    as it ships: measure again."""
+    import rule_precision  # type: ignore[import-not-found]  # rules_doc put it on the path
+
+    _doc()
+    measured = json.loads(MEASURED.read_text())["rules"]
+    shipped = rule_precision.shipped(REPO / "rules")
+
+    assert sorted(measured) == sorted(shipped)
+    assert {rule: (row["inventory"], row["demoted"]) for rule, row in measured.items()} == \
+        {rule: (meta["inventory"], meta["demoted"]) for rule, meta in shipped.items()}
+
+
+def test_no_active_rule_is_under_the_bar():
+    """D65b: a rule under D29's bar is moved to the inventory with its reason, as
+    `demoted: "..."` beside `inventory: true` in its metadata, never dropped silently."""
+    import rule_precision  # type: ignore[import-not-found]
+
+    _doc()
+    measured = json.loads(MEASURED.read_text())["rules"]
+
+    assert [rule for rule, row in measured.items()
+            if rule_precision.state(row) == "**under the bar**"] == []

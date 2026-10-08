@@ -1954,10 +1954,44 @@ weekend run; CI green.
     which is recorded in `docs/acceptance/r29.md` and not changed here.
   - **The audit:** `scripts/audit_sample.py` draws 18 of the 172 with a fixed seed, and
     §8 names it.
-- [ ] **R29.3** **Each rule's precision, published** (D65b). Behaviours:
+- [x] **R29.3** **Each rule's precision, published** (D65b). Behaviours:
   1. `docs/RULES.md` is generated, and a test holds it current;
   2. a rule under the bar is demoted to the inventory, with the reason recorded;
   3. tracks 1 to 7 stay within the ratchet.
+
+  **STATUS 2026-10-08:** ✅, built in a local session after the cloud's stopped.
+  - **The cloud's draft was not kept.** Its last commit, `wip(r29.3)`, was a generator
+    for a measurement that did not exist. It was undone and the slice redone test-first
+    (§2 step 3).
+  - **Measured from the Score's own scans**, not a raw Opengrep run:
+    `scripts/eval/rule_precision.py` reads each shipped rule's findings in the Results
+    Folders the Score already writes for tracks 1 and 2 and the corpus, so path classes
+    and the inventory count as a user meets them. On a track, a finding on a vulnerable
+    case its CWE answers is a true positive, on a safe one a false positive; on the
+    corpus, its label decides. `scripts/eval.py --rules-measured` writes
+    `tests/eval/rules-measured.json` only from a run of all three places, and
+    `scripts/rules_doc.py` renders `docs/RULES.md` from it. `test_rules_doc.py` holds the
+    page current, the measurement to the rules as they ship, and no active rule under
+    the bar.
+  - **The measurement** (2026-10-08, `valvur:dev` `sha256:9bd5ec2b8b27`, 1 h 44 min on
+    this Mac): 25 rules, 21 of valvur's own and 4 vendored. **None of the 16 measured
+    active rules is under D29's bar**, so nothing was demoted. Four sit on it at 0.5:
+    `python_deserialization_rule-yaml-load` (5 / 5 on track 1),
+    `valvur.javascript.ssrf` (2 / 0 on track 2, 0 / 2 on the corpus),
+    `valvur.pinning.mutable-git-ref` (1 / 1 on the corpus) and
+    `valvur.python.open-redirect` (9 / 2, 0 / 7). The noisiest on real code stay over it on
+    the Benchmark's strength: `python_random_rule-random` 35 / 0 then 0 / 23 (0.603),
+    `weak-hash` 37 / 0 then 0 / 21 (0.638).
+  - **Five are unmeasured:** the four LLM-output rules (`valvur.llm.output-to-*`,
+    `valvur.js.output-to-innerhtml`) and `insecure-yaml-load` have no case of their
+    weakness in any of the three. Read as D65b's bar not applying, since nothing measured
+    them under it: they stay active, the page says *unmeasured* rather than precise, and
+    each fires on its planted cases (`test_rules.py`, the Opengrep golden). Demoting them
+    would take valvur's LLM05 findings out of every verdict on no evidence. The Score has
+    no track of model output reaching a sink, so the gap is in §9.
+  - **Tracks 1 to 7:** no rule changed, and tracks 1 and 2 measured 40.9 and 55.0, each
+    its baseline. Track 8 measured 2.3 on the 48 projects (3 true, 168 false), as R29.2
+    found; R29.6 re-bases it.
 - [ ] **R29.4** **What valvur misses** (D65c). Behaviours:
   1. CodeQL's licence terms read and recorded before it runs;
   2. its findings on the corpus at lines valvur does not report are listed in
@@ -2227,3 +2261,4 @@ becomes a phase when the owner asks, with a decision first.
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
 | Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |
+| a Score track for model output reaching a sink | R29.3 found the four LLM-output rules unmeasured: no case in tracks 1 and 2 or the corpus, so their precision is unknown, and D29's bar cannot judge them | a licence-compatible set of real or generated cases, vulnerable and safe twins, of model output reaching code, a shell, a query and the DOM |
