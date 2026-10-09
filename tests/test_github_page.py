@@ -44,3 +44,25 @@ def test_the_topics_are_twenty_at_most_in_github_s_syntax():
     assert 0 < len(topics) <= 20 and len(set(topics)) == len(topics)
     for topic in topics:
         assert re.fullmatch(r"[a-z0-9][a-z0-9-]{0,49}", topic), topic
+
+
+def _png_size(path: Path) -> tuple[int, int]:
+    """Width and height from a PNG's IHDR chunk."""
+    import struct
+
+    head = path.read_bytes()[:24]
+    assert head[:8] == b"\x89PNG\r\n\x1a\n", f"{path.name} is not a PNG"
+    return struct.unpack(">II", head[16:24])
+
+
+def test_the_social_preview_is_rendered_from_its_svg_at_github_s_size():
+    """GitHub shows a social preview at 1280 by 640 and refuses one over 1 MB. The PNG
+    is rendered from the SVG in the tree by `scripts/social_preview.py`, so the card can
+    be changed by a commit and rendered again."""
+    docs = LISTING.parent
+    svg = (docs / "social-preview.svg").read_text(encoding="utf-8")
+    png = docs / "social-preview.png"
+
+    assert 'width="1280" height="640"' in svg
+    assert _png_size(png) == (1280, 640)
+    assert png.stat().st_size <= 1_000_000
