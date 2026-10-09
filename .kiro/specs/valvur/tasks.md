@@ -2072,12 +2072,32 @@ acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
     What the better-kept share: a logo, five or six badges, one or two sentences of what it
     is, what it finds as a list, a short install, and a site or guides for the rest.
     valvur's README carries what their sites carry.
-- [ ] **R39.2** **The README** (D78b). Behaviours:
+- [x] **R39.2** **The README** (D78b). Behaviours:
   1. a test holds its shape: the sections in order, under 250 lines, and every relative link
      resolving;
   2. it is rewritten, and what it held moves to guides under `docs/`, nothing dropped;
   3. `test_readme_as_built.py`'s claims stay held, amended only where a claim moved with its
      section.
+
+  **STATUS 2026-10-09:** ✅
+  - **The README: 223 lines in 12 sections, from 655 in 13.** A logo for light and dark
+    pages; five badges (PyPI, Python, CI, Scorecard, licence); the status line; the
+    plugin's two commands and `uvx valvur scan`; the demo, all on the first screen. Then:
+    why valvur, what it finds (a table of nine areas and what finds each), how it works
+    with the Results Folder, the Score's eight tracks with their numbers, how to use it
+    from an agent, the command line and CI, the Scanners credited, the limits, platforms,
+    privacy, a documentation table, community and support, and the licence.
+  - **Nothing was dropped.** The detail moved, its wording unchanged and only its links
+    rewritten, into four guides: `docs/HOW-IT-WORKS.md` (the three claims in full),
+    `docs/AGENTS.md` (eleven clients, the seven tools, the allow rules, the budget),
+    `docs/CLI.md` (the commands, the first scan's costs, the Results Folder, the settings)
+    and `docs/CI.md`. `generate_docs.py` writes the client blocks and the command list
+    where they now live. `docs/README.md` indexes every document.
+  - **The tests:** `test_readme_shape.py` holds the sections, the 250 lines and every
+    relative link, anchors included (`user_docs.broken_links`). Thirteen claim tests now
+    read the document their claim moved to, through `tests/user_docs.py`. The number
+    test reads the README and the guides together, so a moved number is still held to
+    `docs/acceptance/`. `prepare_release.py`'s status line says the PyPI badge is *above*.
 - [ ] **R39.3** **The documents beside it** (D78c). Behaviours:
   1. `docs/README.md` indexes every document, and a test finds none missing;
   2. `SUPPORT.md`, `ROADMAP.md` and `CITATION.cff` exist, and `CITATION.cff` carries the

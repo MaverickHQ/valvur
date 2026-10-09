@@ -290,6 +290,9 @@ BLOCKS: dict[str, Callable[[], str]] = {
 }
 FILES: tuple[Path, ...] = (
     REPO / "README.md",
+    # R39.2: the client blocks and the command list moved with their sections.
+    REPO / "docs" / "AGENTS.md",
+    REPO / "docs" / "CLI.md",
     REPO / "docs" / "PROTOCOL.md",
     REPO / "docs" / "AIR-GAPPED.md",
     SKILL / "SKILL.md",

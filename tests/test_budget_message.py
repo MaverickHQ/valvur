@@ -109,8 +109,9 @@ def test_the_levers_are_one_sentence_in_one_place():
 
     for lever in LEVERS:
         assert lever in levers.LEVERS, lever
-    from pathlib import Path
 
-    readme = Path(__file__).resolve().parent.parent.joinpath("README.md").read_text()
+    from user_docs import user_docs
+
+    docs = user_docs()  # R39.2: the levers moved with the agents' section into its guide
     for lever in LEVERS:
-        assert lever in readme, f"the README does not name {lever}"
+        assert lever in docs, f"the documentation does not name {lever}"

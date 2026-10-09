@@ -39,7 +39,7 @@ def _manifest(path: str) -> dict:
 def test_the_readme_says_what_it_collects_and_where_to_get_help():
     readme = (REPO / "README.md").read_text()
     privacy = readme.split("\n## Privacy\n", 1)[1].split("\n## ", 1)[0]
-    support = readme.split("\n## Support\n", 1)[1].split("\n## ", 1)[0]
+    support = readme.split("\n## Community and support\n", 1)[1].split("\n## ", 1)[0]
 
     assert "collects nothing" in privacy
     assert "scripts/verify-offline.py" in privacy, "the claim without its proof"

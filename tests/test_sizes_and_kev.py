@@ -22,9 +22,11 @@ REPO = Path(__file__).resolve().parent.parent
 def test_the_fetch_sizes_live_in_one_table_and_the_readme_holds_to_them():
     # docs/acceptance/r7.md; EPSS measured 2026-09-29 (R11.4)
     assert cache.FETCH_MB == {"database": 123, "index": 36, "epss": 3}
-    readme = (REPO / "README.md").read_text()
+    from user_docs import guide
+
+    readme = guide("CLI.md")  # R39.2: the first scan's costs moved into the CLI's guide
     for name, mb in cache.FETCH_MB.items():
-        assert f"{mb} MB to fetch" in readme, f"the README does not say what the {name} costs"
+        assert f"{mb} MB to fetch" in readme, f"the guide does not say what the {name} costs"
     assert "on disk" in readme
 
 

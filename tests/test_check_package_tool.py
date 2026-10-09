@@ -80,9 +80,12 @@ def test_the_handshake_summary_and_init_tell_an_agent_to_call_it_first(tmp_path)
 
 
 def test_the_readme_the_server_help_and_doctor_say_seven_tools():
-    readme = (REPO / "README.md").read_text()
+    from user_docs import guide
 
-    assert "seven tools:" in readme and "| `check_package` |" in readme
+    readme = (REPO / "README.md").read_text()
+    agents = guide("AGENTS.md")  # R39.2: the tools' table moved into the agents' guide
+
+    assert "the seven" in readme and "seven tools:" in agents and "| `check_package` |" in agents
     assert "check_package" in USAGE
     assert len(tools.registry()) == 7
 

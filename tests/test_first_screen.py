@@ -45,7 +45,7 @@ def test_the_readme_and_the_skill_give_allow_rules_for_tools_the_server_lists():
     from valvur.skill import DIRECTORY
 
     listed = {tool.name for tool in registry()}
-    readme = _rules((REPO / "README.md").read_text())
+    readme = _rules((REPO / "docs" / "AGENTS.md").read_text())  # moved there by R39.2
     skill = set().union(*(_rules(p.read_text())
                           for p in sorted((DIRECTORY / "references").glob("*.md"))))
 

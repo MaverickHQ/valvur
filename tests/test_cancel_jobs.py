@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import threading
 import time
-from pathlib import Path
 
 import pytest
 from conftest import LegacyDispatch
@@ -501,7 +500,9 @@ def test_the_cli_takes_jobs_and_refuses_zero(monkeypatch, tmp_path, capsys):
 
 
 def test_the_platform_docs_say_why_jobs_exists():
-    text = Path("README.md").read_text()
+    from user_docs import user_docs
+
+    text = user_docs()  # R39.2: the README and the guides its detail moved into
 
     # The setting, since R6.7 a key in the machine's config file (D11).
     assert "--jobs" in text and "`jobs` in" in text

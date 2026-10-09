@@ -92,7 +92,7 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
         Path("README.md"): _status_line(
             (root / "README.md").read_text(),
             f"> **Status: `{version}`**, the version this tree declares; the PyPI badge "
-            "below shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) "
+            "above shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) "
             "what each version changed."),
         Path("SECURITY.md"): _sub(r"^\| `[^`]+` \|", "| `" + ".".join(version.split(".")[:2])
                                   + ".x` |", (root / "SECURITY.md").read_text(),

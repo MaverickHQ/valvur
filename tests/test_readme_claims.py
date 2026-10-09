@@ -18,7 +18,7 @@ README = (REPO / "README.md").read_text()
 
 
 def test_the_quick_start_names_the_container_runtime_it_needs():
-    quick_start = README.split("## For developers", 1)[1].split("```", 1)[0]
+    quick_start = README.split("### From the command line", 1)[1].split("```", 1)[0]
 
     assert "Docker" in quick_start and "Podman" in quick_start
 
@@ -38,7 +38,8 @@ def test_the_platform_table_claims_only_the_architectures_ci_tests_end_to_end():
 
 
 def test_the_agent_paragraph_states_r7_s_final_record():
-    paragraph = README.split("Measured on the acceptance set with Claude Code", 1)[1]
+    agents = (REPO / "docs" / "AGENTS.md").read_text()  # moved there by R39.2
+    paragraph = agents.split("Measured on the acceptance set with Claude Code", 1)[1]
     paragraph = " ".join(paragraph.split("\n\n", 1)[0].split())
 
     assert "every expected finding" in paragraph

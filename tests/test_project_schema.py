@@ -22,7 +22,9 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def _readme_examples() -> list[str]:
-    blocks = re.findall(r"```toml\n(.*?)```", (REPO / "README.md").read_text(), re.S)
+    from user_docs import user_docs
+
+    blocks = re.findall(r"```toml\n(.*?)```", user_docs(), re.S)
     return [b for b in blocks if "[scan]" in b or "[[suppress]]" in b]
 
 

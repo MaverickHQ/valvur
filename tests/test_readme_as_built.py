@@ -68,7 +68,7 @@ def test_the_tool_table_is_the_images_scanners_and_checks():
 
     from valvur.adapters import DEFAULT_ADAPTERS, CheckAdapter
 
-    rows = _rows(_section("What does the scanning"))
+    rows = _rows(_section("Built on open-source scanners"))
     tools = {re.sub(r"^\[([^\]]+)\].*", r"\1", r[0]).lower(): r for r in rows
              if r[0].startswith("[")}
     checks = {r[0].strip("`") for r in rows if r[0].startswith("`")}
@@ -105,7 +105,11 @@ def _with_units(text: str) -> list[tuple[str, str]]:
 
 
 def _cited() -> list[tuple[str, str]]:
-    return _with_units(README.read_text(encoding="utf-8"))
+    """The README and the guides its detail moved into (R39.2): a number is held
+    wherever a reader meets it."""
+    from user_docs import user_docs
+
+    return _with_units(user_docs())
 
 
 def _recorded() -> set[tuple[str, str]]:
@@ -164,7 +168,7 @@ def test_the_static_analysis_claim_is_tracks_1_and_2_as_the_baseline_records_the
     import re
 
     baseline = json.loads((REPO / "tests" / "eval" / "baseline.json").read_text())["tracks"]
-    readme = (REPO / "README.md").read_text()
+    readme = (REPO / "docs" / "HOW-IT-WORKS.md").read_text()  # moved there by R39.2
     paragraph = re.search(r"^- \*\*Static analysis[^\n]*\n(?:  [^\n]*\n)*", readme, re.M)
     evaluating = (REPO / "docs" / "EVALUATING.md").read_text()
 
@@ -181,8 +185,8 @@ def test_the_readme_names_every_tool():
     row the README's own words for what the tool does."""
     from valvur.mcp.tools import registry
 
-    tools = re.findall(r"^\| `(\w+)` \|", _section("For AI coding agents: the primary way in"),
-                       re.M)
+    agents = (REPO / "docs" / "AGENTS.md").read_text()  # moved there by R39.2
+    tools = re.findall(r"^\| `(\w+)` \|", agents, re.M)
 
     assert sorted(tools) == sorted(t.name for t in registry())
 
@@ -190,9 +194,11 @@ def test_the_readme_names_every_tool():
 def test_the_skill_is_installed_from_where_it_ships():
     import json
 
+    from user_docs import user_docs
+
     from valvur import skill
 
-    text = README.read_text()
+    text = user_docs()  # R39.2: the README's quick start, and the agents' guide for the rest
     marketplace = json.loads((REPO / ".claude-plugin" / "marketplace.json").read_text())
     [plugin] = marketplace["plugins"]
 
