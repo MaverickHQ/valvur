@@ -4,7 +4,7 @@ description: Scan a project for security problems with valvur, locally and offli
 license: Apache-2.0
 compatibility: Needs valvur's MCP server (uvx --from valvur valvur-mcp) and Docker or Podman on this machine. Written for Claude Code and Kiro; any client of the Agent Skills standard can load it.
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   homepage: https://github.com/MaverickHQ/valvur
 ---
 
@@ -63,7 +63,7 @@ the tool was refused, give them the allow rules in
 and offer the scan they can run themselves, at the prompt:
 
 ```
-! uvx valvur==1.4.0 scan
+! uvx valvur==1.5.0 scan
 ```
 
 Then read `.security-scan/SUMMARY.md` and carry on from step 3.

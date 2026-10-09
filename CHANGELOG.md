@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-10-09
+
 ### Precision that is measured (Phase R29)
 
 The corpus behind the Score's real-code track grew from 13 projects to 48, and every

@@ -15,7 +15,7 @@ esac
 # not yet resolving a fresh release, no network for a first fetch) would let the install
 # through unasked. The check is never silently off (D44): it asks, naming why.
 err=$(mktemp 2>/dev/null) || err=/dev/null
-if out=$(printf '%s' "$event" | ${VALVUR_HOOK:-uvx --from valvur==1.4.0 valvur-hook} 2>"$err"); then
+if out=$(printf '%s' "$event" | ${VALVUR_HOOK:-uvx --from valvur==1.5.0 valvur-hook} 2>"$err"); then
   printf '%s' "$out"
 else
   why=$(head -c 300 "$err" 2>/dev/null | tr '\n\r\t"\\' "     ")

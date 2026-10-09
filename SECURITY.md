@@ -83,7 +83,7 @@ The latest minor series is supported; this table is the record.
 
 | Version | Supported |
 |---|---|
-| `1.4.x` | ✅ latest only |
+| `1.5.x` | ✅ latest only |
 
 Earlier releases are not supported: upgrade to the latest. From `1.0.0` a minor or
 patch release keeps every contract the CHANGELOG's `1.0.0` entry names; a change that

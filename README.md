@@ -2,7 +2,7 @@
 
 **A fully offline security scanner for AI-generated code. Your source never leaves your machine — and you can prove it.**
 
-> **Status: `1.4.0`**, the version this tree declares; the PyPI badge below shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) what each version changed.
+> **Status: `1.5.0`**, the version this tree declares; the PyPI badge below shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) what each version changed.
 > `pip install valvur` · `ghcr.io/maverickhq/valvur`
 
 [![PyPI](https://img.shields.io/pypi/v/valvur)](https://pypi.org/project/valvur/)
