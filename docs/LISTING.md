@@ -1,9 +1,21 @@
 # Listing valvur
 
 The text each directory asks for, for the owner to paste when submitting (`tasks.md`
-§8). Every field is drawn from the manifests it names, and
+§8), and the repository's own GitHub page. Every field is drawn from the manifests it names, and
 `tests/test_listing.py` holds the two equal, so a change to a manifest that this page
 does not follow fails there. Nothing here is submitted by the build.
+
+## The GitHub page
+
+The repository's About box, applied with the owner's yes on 2026-10-09 (R39.4), and read
+back by `gh api repos/MaverickHQ/valvur`. `tests/test_github_page.py` holds GitHub's
+limits. The website is the PyPI page until there is a documentation site.
+
+- **Description:** Offline security scanner for AI-generated code: secrets, vulnerable and hallucinated dependencies, poisoned agent configuration, infrastructure and code flaws, from seven open-source scanners in one sealed container. An MCP server for Claude Code, Kiro and other agents, and a CLI. Your source never leaves your machine.
+- **Website:** https://pypi.org/project/valvur/
+- **Topics:** `security`, `security-scanner`, `sast`, `static-analysis`, `secrets-detection`, `vulnerability-scanner`, `supply-chain-security`, `sbom`, `devsecops`, `offline`, `mcp`, `mcp-server`, `claude-code`, `kiro`, `ai-security`, `llm-security`, `ai-generated-code`, `slopsquatting`, `agentic-ai`, `python`
+- **Discussions:** on, with GitHub's default categories.
+- **Social preview:** `docs/social-preview.png`, uploaded by the owner (GitHub's API cannot set it).
 
 ## Anthropic's plugin directory: the Claude Code plugin
 
