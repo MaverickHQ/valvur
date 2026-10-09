@@ -10,6 +10,11 @@ break things, and has.
 
 ## [1.5.1] — 2026-10-09
 
+The front door, published. The README is rewritten for a newcomer, with its detail in
+four guides, and PyPI now shows it whole, its links and images pointing at this release.
+PyPI's page gains classifiers, keywords and project links. Nothing a scan does changes:
+the same Scanners, rules and data as `1.5.0`, and every contract stands.
+
 ### The README on PyPI (Phase R40)
 
 - **PyPI shows the README whole.** Its relative links and images resolved nowhere there:
