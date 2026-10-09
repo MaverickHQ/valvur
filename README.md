@@ -15,7 +15,7 @@ Your source never leaves your machine, and you can prove it.
 
 > **Status: `1.5.0`**, the version this tree declares; the PyPI badge above shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) what each version changed.
 
-**In Claude Code:** `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`, and ask it to scan the project.
+**In Claude Code:** `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`, and ask it to scan the project.<br>
 **From a terminal,** with Docker or Podman running: `uvx valvur scan`.
 
 ![valvur scans a project whose lockfile pins a package published as malicious, and lists the findings](docs/demo.svg)
@@ -39,7 +39,7 @@ Your source never leaves your machine, and you can prove it.
 
 ## What it finds
 
-| | what valvur reports | found by |
+| area | what valvur reports | found by |
 |---|---|---|
 | **Hallucinated packages** | dependencies that do not exist, or sit one edit from a popular name, checked offline against every name on PyPI, npm, RubyGems, Packagist and crates.io | valvur's `dependency-reality` Check |
 | **Malicious packages** | dependencies published as malicious, from OpenSSF's malicious-packages | OSV-Scanner, and the same Check |
@@ -169,11 +169,11 @@ auditable and mirrorable. No proprietary database, and nothing to lock you in.
 
 ## Platforms
 
-| | |
+| platform | support |
 |---|---|
 | Linux, Docker **and** Podman | **Supported**. Every commit runs the e2e suite against Docker and Podman on `amd64`, and against Docker on `arm64`, and a scan with the published image on both; the acceptance set runs nightly on GitHub's Linux runner |
 | macOS, Docker Desktop or Podman | **Supported**, and tested by hand on an Apple-silicon Mac through Docker Desktop at every phase's exit: the acceptance set and the e2e suite against the image built from that commit ([`docs/acceptance/`](docs/acceptance/)). Not on every commit: a container runtime needs nested virtualisation, which GitHub's macOS runners do not offer |
-| `linux/amd64` and `linux/arm64` | Both, **from 0.2.0**. `0.1.0rc1` was published `arm64` only, a defect and not a policy |
+| `linux/amd64` and `linux/arm64` | Both: one image index, signed, with an SBOM for each |
 | Windows via **WSL2** | Supported: inside WSL valvur is running on Linux |
 | Native Windows | **Not claimed.** Untested, and valvur says so at startup |
 | SELinux-enforcing hosts (RHEL, Fedora) | Supported. Your source is copied into the scan and never mounted, so its SELinux label does not matter; valvur labels its own cache mounts |
