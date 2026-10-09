@@ -10,6 +10,19 @@ break things, and has.
 
 ## [1.5.0] — 2026-10-09
 
+What a scan hides, and how well its rules are measured. A project's own ignore comments
+and files no longer hide a finding silently: each Scanner runs with them off, and every
+finding one of them would hide says so. A project that silenced findings that way may
+read `findings` where it read `clean`, which is the fix. The corpus behind the real-code
+track grew from 13 projects to 48, and found five of valvur's own false reports, now
+fixed. Every static-analysis rule's precision is published in
+[`docs/RULES.md`](docs/RULES.md). KEV stays current over a weekend. The Score is
+**73.4** on both lanes: the real-code track is re-based from 5.9 to 2.3 on the wider
+corpus, and every other track is unchanged.
+
+Every contract stands: protocol 2, `fp_version` 1, `findings.json`'s schema 1, which
+gains `ignored_by` and `aliases`, and the reply's schema 2.
+
 ### Precision that is measured (Phase R29)
 
 The corpus behind the Score's real-code track grew from 13 projects to 48, and every
