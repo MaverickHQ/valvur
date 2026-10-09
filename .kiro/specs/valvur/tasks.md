@@ -2160,12 +2160,28 @@ detection changes, so the Score is not run.
   load, though both are SVG, so the proxy serves SVG; `raw.githubusercontent.com` answers
   `docs/demo.svg` and `docs/logo-light.svg` with `image/svg+xml`. R39's README, not yet
   published, adds a `<picture>` and seven more relative links.
-- [ ] **R40.2** **PyPI's copy, written by the build** (D79). Behaviours:
+- [x] **R40.2** **PyPI's copy, written by the build** (D79). Behaviours:
   1. the built wheel's description has no relative link or image;
   2. every link and image into the repository names a file that exists, at the release's
      tag, or `main` for a version that is not a release;
   3. the `<picture>` becomes its light `<img>`, and `readme-renderer`, PyPI's own, keeps
      the logo, the badges and the demo.
+
+  **STATUS 2026-10-09:** ✅
+  - **`hatch_build.py`'s `PyPIReadme`**, a metadata hook beside the tree-hash hook, writes
+    the description from `README.md`: relative links to `blob/v<version>/` (`tree/` for a
+    folder), images to `raw.githubusercontent.com` at the tag, and the `<picture>` to its
+    light `<img>`. Code blocks are left as written. `pyproject.toml` makes `readme`
+    dynamic; the README in the tree is unchanged.
+  - **`test_pypi_readme.py`** builds a wheel and reads its `METADATA`: no relative link or
+    image, every link into the repository at `v<declared version>` and naming a file that
+    exists, the `<picture>` gone and the light logo kept, and GitHub's README still
+    relative.
+  - **What PyPI keeps**, measured with `readme-renderer[md]`, the library PyPI renders
+    with, over the built description: all 7 images (the logo, five badges and the demo),
+    55 links with none relative, and the centred `<div>`, `<sub>`, `<br>` and the logo's
+    width. Not a test, since `readme-renderer` is not a dependency here; the rehearsal's
+    `twine check` renders it again.
 
 **Exit:** the description checked through a built wheel and through `twine check` in the
 rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is not run.

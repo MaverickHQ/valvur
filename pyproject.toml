@@ -2,7 +2,8 @@
 name = "valvur"
 version = "1.5.0"
 description = "Offline security scanning for AI-generated code: seven open-source scanners and AI-specific checks in one command."
-readme = "README.md"
+# The README PyPI shows is written by hatch_build.py from README.md (R40, D79).
+dynamic = ["readme"]
 # 3.11+: tomllib is stdlib from 3.11, and the shim is stdlib-only by design
 # (F10.6), so depending on tomli would cost us that property.
 requires-python = ">=3.11"
@@ -58,6 +59,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/valvur"]
+
+[tool.hatch.metadata.hooks.custom]
+# hatch_build.py: the README PyPI shows, its links absolute at the release (R40, D79).
+path = "hatch_build.py"
 
 [tool.hatch.build.hooks.custom]
 # hatch_build.py: writes valvur/_build.py — the tree hash this wheel was built
