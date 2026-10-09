@@ -2120,12 +2120,23 @@ acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
   - **The PyPI page:** `pyproject.toml` gains keywords, thirteen classifiers and five
     project links, which PyPI shows from the next release. PyPI renders the README itself,
     and its relative links and images do not resolve there, as they did not before R39.
-- [ ] **R39.4** **The GitHub page** (D78d). Behaviours:
+- [x] **R39.4** **The GitHub page** (D78d). Behaviours:
   1. `docs/LISTING.md` holds the description, website and topics, and a test holds their
      limits (350 characters, twenty topics, GitHub's topic syntax);
   2. the social preview is generated into `docs/social-preview.png` from its SVG;
   3. on the owner's yes, the description, website, topics and Discussions are applied, and
      `gh api` reads them back equal to `docs/LISTING.md`.
+
+  **STATUS 2026-10-09:** ✅
+  - **The owner said yes in chat** to the description, the website, the twenty topics and
+    Discussions. Applied from `docs/LISTING.md`'s own text through the API, then read back:
+    each field equal, Discussions on with GitHub's six default categories.
+  - **The page now shows** a 320-character description naming what valvur finds and that it
+    is offline; the PyPI page as its website; topics from `security` and `sast` to `mcp`,
+    `claude-code`, `kiro` and `slopsquatting`.
+  - **The social preview:** `docs/social-preview.svg`, the logo's shield and name with what
+    valvur finds, rendered by `scripts/social_preview.py` to a 1280 by 640 PNG of 249 KB.
+    GitHub's API cannot set it, so the upload is the owner's (§8).
 
 **Exit:** the README and its documents current and linked; the page showing its
 description, website and topics; the community profile at 100%; CI green. Nothing in
