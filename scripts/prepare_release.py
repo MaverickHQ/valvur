@@ -41,6 +41,7 @@ SERVERS = (Path("plugins/valvur/.mcp.json"), Path("powers/valvur/mcp.json"))
 #: The plugin's hook, which runs the release's own valvur-hook (R18.4).
 HOOK = Path("plugins/valvur/hooks/pre-tool-use.sh")
 #: The pipeline examples, which name the image this release publishes (R8.2).
+CITATION = Path("CITATION.cff")
 EXAMPLES = (Path("docs/examples/github-actions.yml"), Path("docs/examples/gitlab-ci.yml"))
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 #: What `release.yml` builds from besides the product itself: the workflow, the
@@ -116,6 +117,12 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
     if (root / HOOK).is_file():
         plan[HOOK] = _sub(rf"valvur=={re.escape(previous)} valvur-hook",
                           f"valvur=={version} valvur-hook", (root / HOOK).read_text(), str(HOOK))
+    if (root / CITATION).is_file():
+        # R39.3: a citation names the release it ships in.
+        citation = _sub(r'^version: "[^"]+"$', f'version: "{version}"',
+                        (root / CITATION).read_text(), str(CITATION), re.M)
+        plan[CITATION] = _sub(r"^date-released: \S+$", f"date-released: {date}", citation,
+                              str(CITATION), re.M)
     for example in EXAMPLES:
         plan[example] = _sub(rf"ghcr\.io/maverickhq/valvur:{re.escape(previous)}\b",
                              f"ghcr.io/maverickhq/valvur:{version}",

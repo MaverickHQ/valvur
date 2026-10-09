@@ -8,3 +8,6 @@ contact_links:
   - name: A finding you disagree with
     url: https://github.com/MaverickHQ/valvur/issues/new?template=false-result.yml
     about: A false positive, or something valvur missed. Both are bugs worth reporting.
+  - name: A question or an idea
+    url: https://github.com/MaverickHQ/valvur/discussions
+    about: Ask in Discussions. Issues are for bugs, wrong findings and missed ones.

@@ -13,7 +13,7 @@ and why. Where only the owner can confirm an answer, the line says so.
 
 - **homepage_url**: Met. https://github.com/MaverickHQ/valvur, the repository and its README. [README](../README.md)
 - **description_good**: Met. The README's first line says what valvur does: a fully offline security scanner for AI-generated code. [README](../README.md)
-- **interact**: Met. The README says how to install it, report a problem and contribute. [README, Support](../README.md#support)
+- **interact**: Met. The README says how to install it, report a problem and contribute. [README, Community and support](../README.md#community-and-support)
 - **contribution**: Met. Contributions are pull requests, preceded by an issue for anything large. [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **contribution_requirements**: Met. Tests first, `scripts/verify.sh` green (lint, types, traceability, tests, build), Conventional Commits. [CONTRIBUTING.md](../CONTRIBUTING.md), [the pull request template](../.github/PULL_REQUEST_TEMPLATE.md)
 - **floss_license**: Met. Apache-2.0. [LICENSE](../LICENSE)
@@ -40,7 +40,7 @@ and why. Where only the owner can confirm an answer, the line says so.
 
 ## Reporting
 
-- **report_process**: Met. GitHub issues, with the tarball `valvur doctor --bundle` writes. [README, Support](../README.md#support)
+- **report_process**: Met. GitHub issues, with the tarball `valvur doctor --bundle` writes. [README, Community and support](../README.md#community-and-support)
 - **report_tracker**: Met. GitHub issues. [the issue tracker](https://github.com/MaverickHQ/valvur/issues)
 - **report_responses**: Met, for the owner to confirm against the tracker's last 12 months. [the issue tracker](https://github.com/MaverickHQ/valvur/issues)
 - **enhancement_responses**: Met, for the owner to confirm against the tracker's last 12 months. [the issue tracker](https://github.com/MaverickHQ/valvur/issues)

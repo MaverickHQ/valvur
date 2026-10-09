@@ -79,6 +79,8 @@ SDIST_TOP_LEVEL = {
     # The documents a package should carry with it.
     "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md", "CLAUDE.md", "CONTEXT.md", "MAINTAINERS.md",
+    # R39.3: where GitHub and citation tools look.
+    "SUPPORT.md", "ROADMAP.md", "CITATION.cff",
     ".gitignore", ".gitattributes", ".security-scan.toml",
     # OSV-Scanner's ignores, beside the lock they name (R27.2).
     "osv-scanner.toml",

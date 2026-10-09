@@ -8,7 +8,33 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{name = "MaverickHQ"}]
+keywords = ["security", "scanner", "sast", "secrets", "sbom", "supply-chain", "mcp",
+            "ai-generated-code", "offline", "slopsquatting"]
+# What PyPI shows beside the README (R39.3). No licence classifier: the SPDX `license`
+# above is the PEP 639 form, which replaces it.
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = []          # host shim is stdlib-only by design (F10.6)
+
+[project.urls]
+Homepage = "https://github.com/MaverickHQ/valvur"
+Documentation = "https://github.com/MaverickHQ/valvur/blob/main/docs/README.md"
+Changelog = "https://github.com/MaverickHQ/valvur/blob/main/CHANGELOG.md"
+Issues = "https://github.com/MaverickHQ/valvur/issues"
+Security = "https://github.com/MaverickHQ/valvur/blob/main/SECURITY.md"
 
 [project.scripts]
 valvur = "valvur.cli:main"

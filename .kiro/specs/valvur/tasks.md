@@ -2098,11 +2098,28 @@ acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
     read the document their claim moved to, through `tests/user_docs.py`. The number
     test reads the README and the guides together, so a moved number is still held to
     `docs/acceptance/`. `prepare_release.py`'s status line says the PyPI badge is *above*.
-- [ ] **R39.3** **The documents beside it** (D78c). Behaviours:
+- [x] **R39.3** **The documents beside it** (D78c). Behaviours:
   1. `docs/README.md` indexes every document, and a test finds none missing;
   2. `SUPPORT.md`, `ROADMAP.md` and `CITATION.cff` exist, and `CITATION.cff` carries the
      released version, which `prepare_release.py` moves;
   3. every relative link in the documents resolves, held by a test.
+
+  **STATUS 2026-10-09:** ✅
+  - **`docs/README.md`** indexes every document under `docs/` and its four folders, by
+    reader: using valvur, evaluating it, inside it, and running the project.
+  - **`SUPPORT.md`** gives each kind of question its channel (Discussions, issues with the
+    doctor's bundle, a private report), what the bundle holds, and no response time beyond
+    `SECURITY.md`'s. **`ROADMAP.md`** is the reader's view of §9: now, shipped, considered
+    with what each needs, and not planned. **`CITATION.cff`** names 1.5.0, and
+    `prepare_release.py` moves its version and date. The issue chooser sends questions to
+    Discussions. All three ship in the sdist.
+  - **The links:** across 102 live documents, three were broken, all anchors into the
+    README's old sections (`SECURITY.md`, `docs/BEST-PRACTICES.md`); fixed.
+    `test_documents.py` now holds every relative link and anchor in every live document;
+    `docs/history/` is closed records and is left as written.
+  - **The PyPI page:** `pyproject.toml` gains keywords, thirteen classifiers and five
+    project links, which PyPI shows from the next release. PyPI renders the README itself,
+    and its relative links and images do not resolve there, as they did not before R39.
 - [ ] **R39.4** **The GitHub page** (D78d). Behaviours:
   1. `docs/LISTING.md` holds the description, website and topics, and a test holds their
      limits (350 characters, twenty topics, GitHub's topic syntax);
@@ -2168,4 +2185,5 @@ becomes a phase when the owner asks, with a decision first.
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
 | Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |
+| four rules R29.4's CodeQL comparison found valvur missing: certificate validation turned off, a JavaScript cookie without `secure`, a short key, an old TLS version | each ships only by D29's bar, which needs its cases on a track | the cases on track 1 or 2, vulnerable and fixed |
 | a Score track for model output reaching a sink | R29.3 found the four LLM-output rules unmeasured: no case in tracks 1 and 2 or the corpus, so their precision is unknown, and D29's bar cannot judge them | a licence-compatible set of real or generated cases, vulnerable and safe twins, of model output reaching code, a shell, a query and the DOM |

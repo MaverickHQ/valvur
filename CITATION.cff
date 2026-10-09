@@ -1,0 +1,26 @@
+# How to cite valvur. GitHub shows it as "Cite this repository"; prepare_release.py
+# moves the version and the date with each release (R39.3).
+cff-version: 1.2.0
+message: "If you use valvur in research or an evaluation, please cite it as below."
+title: "valvur: offline security scanning for AI-generated code"
+type: software
+authors:
+  - name: "MaverickHQ"
+version: "1.5.0"
+date-released: 2026-10-09
+license: Apache-2.0
+repository-code: "https://github.com/MaverickHQ/valvur"
+url: "https://pypi.org/project/valvur/"
+abstract: >-
+  valvur is a local-first, fully offline security scanner for AI-generated code. It runs
+  seven open-source scanners in one container with no network interface, adds checks for
+  hallucinated and malicious dependencies and for poisoned agent configuration, ranks
+  findings by real-world exploitation, and writes an agent-readable report into the
+  project. Its detection is measured by a Score of eight tracks, re-run on every phase.
+keywords:
+  - security
+  - static analysis
+  - software supply chain
+  - AI-generated code
+  - Model Context Protocol
+  - offline

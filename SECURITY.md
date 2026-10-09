@@ -97,7 +97,7 @@ breaks one is a major release.
 
 Nothing leaves your machine on the default profile, and you can check that yourself
 rather than take our word for it — see
-[verifying non-exfiltration](README.md#1-it-cannot-exfiltrate-your-code--and-you-can-verify-it)
+[verifying non-exfiltration](docs/HOW-IT-WORKS.md#1-it-cannot-exfiltrate-your-code-and-you-can-verify-it)
 and [`scripts/verify-offline.py`](scripts/verify-offline.py). The `full` profile
 sends dependency **package names** — never source — to public advisory and registry
 APIs, and `run.json` records exactly what left in every run.
