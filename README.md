@@ -6,7 +6,7 @@
 </picture>
 
 **Offline security scanning for AI-generated code.**<br>
-Your source never leaves your machine, and you can prove it.
+Seven open-source scanners and AI-specific checks, in one command and one ranked report.
 
 [![PyPI](https://img.shields.io/pypi/v/valvur)](https://pypi.org/project/valvur/) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://pypi.org/project/valvur/) [![CI](https://github.com/MaverickHQ/valvur/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MaverickHQ/valvur/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MaverickHQ/valvur/badge)](https://scorecard.dev/viewer/?uri=github.com/MaverickHQ/valvur) [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
 <br><sub>Scorecard's Code-Review, Branch-Protection and Contributors checks need a second maintainer; valvur has one ([MAINTAINERS.md](MAINTAINERS.md)).</sub>
