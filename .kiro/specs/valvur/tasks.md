@@ -2195,7 +2195,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R39 | its PR green | one fast-forward: `git push origin build/r39-a-professional-front-door:main` |
+| land R40 and `1.5.1` | the release's PR green and its rehearsal validated | one fast-forward of `main` to `release/1.5.1`, stacked on R40; then the signed tag and the brake, as `docs/RELEASING.md` says |
 | upload the social preview (D78d) | R39.4 | Settings → General → Social preview: upload `docs/social-preview.png`. GitHub's API cannot set it |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
 | R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |

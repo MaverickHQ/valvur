@@ -8,6 +8,12 @@ break things, and has.
 
 ## [Unreleased]
 
+### The README on PyPI (Phase R40)
+
+- **PyPI shows the README whole.** Its relative links and images resolved nowhere there:
+  on `1.5.0`'s page the demo did not load and 22 of 52 links led nowhere. The build now
+  hands PyPI a copy whose links point at the repository at the release's tag.
+
 ### A professional front door (Phase R39)
 
 - **The README is a front door**: 223 lines, from 655. What valvur is, how to start, what it
