@@ -2046,9 +2046,32 @@ acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
 
 ### Phase R39: a professional front door
 
-- [ ] **R39.1** **Measure first** (D78a). Behaviour: the STATUS gives the README's length and
+- [x] **R39.1** **Measure first** (D78a). Behaviour: the STATUS gives the README's length and
   shape by section, the repository page's settings and community profile, and a table of what
   the front doors of five comparable tools hold.
+
+  **STATUS 2026-10-09:** ✅
+  - **The README:** 655 lines and 5,049 words in 13 sections. *For AI coding agents* is 279
+    lines, of which the generated client blocks are 180; *For developers* 133; *The three
+    claims* 113. Two blocks are generated (`mcp-clients`, `cli-commands`). 35 test files
+    read it, among them `test_readme_as_built.py`'s numbers, sections and tool table, and
+    the first screen (`test_demo.py`, `test_first_screen.py`).
+  - **The page:** a description; no website, no topics, Discussions off, no custom social
+    preview (GitHub's generated card), no Pages. The community profile is at 100%, with
+    issue forms (bug, false result, feature) and a pull request template.
+  - **Five comparable front doors**, read 2026-10-09:
+
+    | tool | stars | README lines | opens with | topics | website | Discussions |
+    |---|---|---|---|---|---|---|
+    | Trivy | 38,309 | 147 | logo, 6 badges, two lines, what it scans and finds, quick start | 15 | trivy.dev | on |
+    | Gitleaks | 29,810 | 630 | logo, badges, install per platform, usage | 20 | gitleaks.io | on |
+    | OSV-Scanner | 11,152 | 187 | logo, 5 badges, one line, features, data and privacy | 4 | a Pages site | on |
+    | Checkov | 9,061 | 504 | logo, badges, contents, screenshots | 13 | checkov.io | off |
+    | Opengrep | 3,160 | 313 | why, improvements, install | 0 | none | off |
+
+    What the better-kept share: a logo, five or six badges, one or two sentences of what it
+    is, what it finds as a list, a short install, and a site or guides for the rest.
+    valvur's README carries what their sites carry.
 - [ ] **R39.2** **The README** (D78b). Behaviours:
   1. a test holds its shape: the sections in order, under 250 lines, and every relative link
      resolving;
