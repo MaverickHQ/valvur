@@ -8,6 +8,18 @@ break things, and has.
 
 ## [Unreleased]
 
+### A professional front door (Phase R39)
+
+- **The README is a front door**: 223 lines, from 655. What valvur is, how to start, what it
+  finds and what finds it, how it works, the Score track by track, and how to use it from
+  an agent, the command line and CI. Nothing was dropped: the detail moved, unchanged, into
+  four guides: [how it works](docs/HOW-IT-WORKS.md), [AI coding agents](docs/AGENTS.md),
+  [the command line](docs/CLI.md) and [CI](docs/CI.md), indexed in
+  [`docs/README.md`](docs/README.md).
+- **`SUPPORT.md`, `ROADMAP.md` and `CITATION.cff`**, and Discussions for questions and ideas.
+- **The GitHub page** has a description, a website, topics and a social preview image.
+- **PyPI's page** gains classifiers, keywords and project links.
+
 ## [1.5.0] — 2026-10-09
 
 What a scan hides, and how well its rules are measured. A project's own ignore comments

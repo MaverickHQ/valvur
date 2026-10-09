@@ -2151,6 +2151,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
+| land R39 | its PR green | one fast-forward: `git push origin build/r39-a-professional-front-door:main` |
 | upload the social preview (D78d) | R39.4 | Settings → General → Social preview: upload `docs/social-preview.png`. GitHub's API cannot set it |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
 | R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |
@@ -2196,5 +2197,6 @@ becomes a phase when the owner asks, with a decision first.
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
 | Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |
+| the README rendered correctly on PyPI | PyPI renders the README itself, where its relative links and images do not resolve (R39's record) | a rewrite to absolute GitHub links at build time in `hatch_build.py`, which changes the release machinery and so needs a rehearsal |
 | four rules R29.4's CodeQL comparison found valvur missing: certificate validation turned off, a JavaScript cookie without `secure`, a short key, an old TLS version | each ships only by D29's bar, which needs its cases on a track | the cases on track 1 or 2, vulnerable and fixed |
 | a Score track for model output reaching a sink | R29.3 found the four LLM-output rules unmeasured: no case in tracks 1 and 2 or the corpus, so their precision is unknown, and D29's bar cannot judge them | a licence-compatible set of real or generated cases, vulnerable and safe twins, of model output reaching code, a shell, a query and the DOM |
