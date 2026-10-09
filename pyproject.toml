@@ -1,6 +1,6 @@
 [project]
 name = "valvur"
-version = "1.5.0"
+version = "1.5.1"
 description = "Offline security scanning for AI-generated code: seven open-source scanners and AI-specific checks in one command."
 # The README PyPI shows is written by hatch_build.py from README.md (R40, D79).
 dynamic = ["readme"]

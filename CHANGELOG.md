@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-10-09
+
 ### The README on PyPI (Phase R40)
 
 - **PyPI shows the README whole.** Its relative links and images resolved nowhere there:

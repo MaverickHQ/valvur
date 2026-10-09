@@ -13,7 +13,7 @@ Seven open-source scanners and AI-specific checks, in one command and one ranked
 
 </div>
 
-> **Status: `1.5.0`**, the version this tree declares; the PyPI badge above shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) what each version changed.
+> **Status: `1.5.1`**, the version this tree declares; the PyPI badge above shows what `pip install valvur` serves, and [the CHANGELOG](CHANGELOG.md) what each version changed.
 
 **In Claude Code:** `/plugin marketplace add MaverickHQ/valvur`, then `/plugin install valvur@valvur`, and ask it to scan the project.<br>
 **From a terminal,** with Docker or Podman running: `uvx valvur scan`.
