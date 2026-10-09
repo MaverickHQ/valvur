@@ -47,6 +47,12 @@ finding silently, runs before R28, since it changes what a scan reports; and R28
 KEV current while it is CISA's newest catalog, so the freshness gate no longer fails every
 weekend.
 
+**Amended 2026-10-09, after `1.5.0` was released**, at the owner's word. Its rehearsal
+(run 37906865541) also stood for R26's end-to-end rehearsal, so both rows left §8. The path to
+OWASP, Phases R30 to R37 and decisions D67 to D75, is parked in §9, its text unchanged in
+[the parked file](../../../docs/history/tasks-parked-r30-r37-owasp.md). A professional front door comes first: Phase R39 (D78), the README, the documents
+beside it and the GitHub page.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -83,13 +89,13 @@ ends · 5 decisions · 6 order · 7 the phases · 8 the owner queue · 9 the bac
   it, pushes the branch, and ends its turn.
 - **Cost cap.** Agent runs with `claude -p` are capped at $10 across R9 to R16 (D36), and
   at $5 across R17 to R19 (D46). R21.3's smoke run is capped at $2 (D58); R20, R22 to R25
-  R26 to R29 and R30 to R38 run no agent. Past a cap they are skipped and noted in §8.
+  R26 to R29, R38 and R39 run no agent. Past a cap they are skipped and noted in §8.
 - **In a cloud session** (D61), the build runs on the session's VM, and D61 says what
   changes there: the lanes, the gate, the caches, resuming, and what is left for a local run.
 - **R19 is no longer dated** (D45 as amended 2026-10-04). It runs now, and its pull request
   waits to land until `1.4.0` is released (§8).
-- **R37 waits for OWASP's acceptance** (D75). Until then the executor stops after R36 and
-  leaves R37's row in §8.
+- **The path to OWASP is parked** (2026-10-09): R30 to R37 are in §9, not §7, so the
+  executor stops after R39.
 - **Machine hygiene.** Builds, scans, e2e and the Score use `~/.cache/valvur-build` as
   `VALVUR_CACHE` and `VALVUR_IMAGE=valvur:dev`. Never touch `~/.cache/valvur`, pulled
   `ghcr.io/maverickhq/valvur:*` images, or containers the build did not start. The Score's
@@ -285,17 +291,10 @@ wait for it.
 | D64 | **A repository that keeps itself current** (the owner, 2026-10-04). In the 30 days to `1.4.0` the owner landed every pull request, 15 of them Dependabot's, tagged and approved each release, and answered the scanner refresh's issue and the scheduled jobs' issues; #181 stayed open after its cause had passed. **(a) Dependabot updates land themselves.** A workflow enables GitHub's auto-merge on a Dependabot pull request that changes only dependency files (locks, requirements, pinned actions, base-image digests) and is not a major version, by whichever merge method keeps `main`'s signed commits and linear history, measured first; GitHub merges it once every required check passes. It runs on `pull_request`, never `pull_request_target`, and never checks out the pull request's code with a token. **(b) Scheduled jobs close their own issues**: the issue-on-failure action closes its open issue when the next run of the same workflow passes. **(c) The monthly refresh opens a release pull request** instead of an issue: when the Scanner pins moved and the Score held, `prepare_release.py` at the next patch version, on a branch, for the owner to land and tag. **(d) A weekly maintenance routine.** `docs/MAINTENANCE.md` holds the prompt and procedure a scheduled Claude Code cloud routine follows: read the week's failed scheduled runs, open issues and stalled Dependabot pull requests, and fix what it can on a branch, with a pull request. It never pushes to `main`, tags or approves. Creating the routine and its monthly cap are the owner's (§8). **(e) The signed tag and the brake stay the owner's**, by design. | if auto-merge cannot keep signed commits and linear history together, Dependabot's pull requests keep the owner's landing, and the routine prepares them; recorded |
 | D65 | **Precision that is measured** (the owner, 2026-10-04; track 8 and the rules). Real-code precision is the Score's weakest track, 5.9 from 13 projects and 16 judged findings, too few to tell one rule from another. **(a) A wider corpus:** at least 40 real projects, Python and JavaScript/TypeScript in the proportion valvur's rules cover, each pinned by commit with its licence and size recorded, fetched into the build cache, never vendored. Every active finding of a valvur-owned rule or of Gitleaks is labelled `tp` or `fp` with a reason in `tests/eval/labels/corpus.toml`, as D21 says. A random tenth of the labels is listed for the owner to audit (§8); a disagreement changes the label and is recorded. Since the track's corpus changes, its baseline is re-recorded at what the wider corpus measures, recorded as a re-basing with both numbers, not as a fall. **(b) Each rule's precision, published:** `docs/RULES.md`, generated, gives every shipped rule its true and false positives on tracks 1, 2 and the corpus. A rule under D29's bar on the wider corpus is demoted to the inventory by the build, never dropped silently, and the change is recorded. **(c) What valvur misses:** a second engine's findings on the corpus, CodeQL's default queries in a CI workflow, are listed as candidate rules. Nothing of it ships, and its licence terms are read before it runs. **(d) The mutation score ratchets:** `mutation_check.py` runs weekly, and its score is a baseline that may only rise. Aims, not gates: tracks 1 to 7 stay within the ratchet. | if fewer than 40 projects meet the licence and size rules, as many as do, recorded; if CodeQL's terms do not cover the corpus, (c) is dropped and recorded |
 | D66 | **After `1.5.0`, scoped and not planned** (the review of 2026-10-03, and the owner's comparison with `aws-samples/sample-mcp-security-scanner` on 2026-10-04). Each needs a Score track or an ADR before its phase: languages beyond Python and JavaScript, each behind its own track (OWASP's Java Benchmark for Java); scans limited to given paths, for an agent's edit loop; container images scanned offline from a tar the host saves; findings' CWEs mapped to the OWASP Top 10 and ASVS from published mappings alone; SLSA build level 3 through the reusable generator; Amazon Q Developer's configuration in `valvur init`; and 2.0's parts (D57). Their phases are written when the owner asks. | none needed |
-| D67 | **The route into OWASP, and what is the owner's** (the owner, 2026-10-04; [the analysis](../../../docs/history/OWASP-ADOPTION-2026-10-04.md)). valvur applies as a standalone OWASP Foundation project through the New Project Request, entering at Incubator, as the Agentic Skills Top 10 and the MCP Top 10 did. It works with the GenAI Security Project's initiatives rather than through them, since nothing documented there hosts an outside tool. **Before the request** (§8), the owner decides to donate valvur and finds a second leader. Donation means the leader agreement hands all contributions to the Foundation, the project may not be withdrawn, and the name stays with OWASP, as "OWASP valvur". OWASP's policy requires 2 to 5 leaders, and its good practices ask that they not all work for one employer. Both leaders join OWASP. The build prepares everything else. A GenAI initiative of valvur's own needs "a minimally viable # of contributors", so it waits in §9. | without a second leader, R33 to R36 still run, since they raise adoption anywhere, and the request waits in §8 |
-| D68 | **An OWASP-ready repository** (R30). **(a) DCO**, which OWASP's policy requires: every commit from R30 on carries a `Signed-off-by` the DCO check accepts, and `GOVERNANCE.md` records how the history before it is covered (one author, Apache-2.0). How a commit an agent authors meets the DCO is measured first, then chosen by the owner (§8). The options are: the maintainer as author with the agent as co-author; a remediation sign-off by the maintainer; or an exemption OWASP grants. **(b) `GOVERNANCE.md`**, shaped like the Agent Control Standard's: roles, decisions (lazy consensus, with the ADRs and this list as the record), how a contributor becomes a maintainer, releases (the signed tag and the brake belong to a leader), security reports, and **how valvur is built**: by an agent the owner directs, under a spec, a ratchet and a human landing, said plainly. **(c) `ROADMAP.md`**, a reader's view of this list's phases and §9, generated by R24's generator so it never drifts. **(d) `CODEOWNERS`** naming the leaders, and `CITATION.cff`. Repository topics and Discussions are the owner's settings (§8). **(e) Neutral wording:** no commercial positioning, and no claim that valvur "covers", "complies with" or "enables compliance with" OWASP material, which OWASP's branding policy forbids. A test holds both. | if no DCO option is acceptable for agent-authored commits, the owner authors locally what the agent prepares, and the cloud builds on branches the owner re-authors before landing; recorded |
-| D69 | **OWASP's lists in every finding** (R31). Every rule, Check and finding class carries the IDs it maps to, taken from OWASP's published mappings and the GenAI crosswalk where they exist, and reasoned in a table where they do not. The lists: the LLM Top 10 **2026** (`LLM04:2026`), the Top 10 for Agentic Applications (`ASI04`), the Agentic Skills Top 10 (`AST02`), and CWE. A class with no honest mapping says `none`. The 2025 IDs are not used: the 2026 edition renumbered them. The mapping is one data file. It appears as `owasp` in `findings.json`, as SARIF `properties.tags` and taxa, and as a grouping in `SUMMARY.md`, all additive under schema 2. `docs/OWASP-MAPPING.md` is generated from it. Wording: "mapped to", never "covers" or "compliant". | where the 2026 mappings and the crosswalk disagree, the 2026 publication wins, recorded |
-| D70 | **The application** (R32). **`docs/OWASP-PROPOSAL.md`**, in the shape of the Agentic Skills Top 10's proposal: overview, deliverables, scope, timeline, leadership, risks, and the relationship to existing OWASP projects. That section names DSGAI and Dependency-Check, says what each does that valvur does not and the reverse, and offers collaboration: DSGAI's controls run offline in valvur, valvur's agent-configuration cases for the insecure-agent samples, the hook against the Agent Control Standard. Then the New Project Request's answers, with every good practice checked against evidence; the `www-project-valvur` pages drafted in OWASP's template, so the 30-day rule is met on day one; a 1 to 2 page pitch for the Agentic Security and Data Security initiatives' leads; and a 10-minute demo for the GenAI biweekly sync. **The move made cheap before it is needed:** the shim's accepted signing identities, for the index and the image, become one table it reads, so a later release adds OWASP's without a code change and no installed version breaks. Submitting is the owner's. | if OWASP asks for changes, they become R32 tasks; if the request is declined, R33 to R36 continue |
-| D71 | **Working with OWASP's flagships** (R33). **(a) DefectDojo:** the SARIF shape its parser imports best is measured first. That means one run per Scanner or one `valvur` driver, `properties.tags` with OWASP IDs and CWE, `partialFingerprints` from valvur's fingerprints, and the documented setting for deduplicating by unique ID. A Generic Findings export is added, as an optional artifact, only if SARIF cannot carry valvur's identity. **(b) Dependency-Track:** `sbom.cdx.json` is validated against the CycloneDX schema in CI, and a documented example uploads it with the user's own key and token polling. **valvur itself never uploads:** the upload is the user's step in their pipeline (`CLAUDE.md` §3). **(c)** Each import is measured once against the real tool in a dispatched workflow and recorded, and the formats are held by unit tests against the documented schemas. | if an import loses identity or severity, the gap is documented with the setting that recovers it, never papered over |
-| D72 | **Documentation people adopt from** (R34). **A documentation site** (MkDocs Material, a docs-only dependency, on GitHub Pages), built from the existing Markdown and R24's generated references: a five-minute quickstart, a guide per agent client, CI and the gate, air-gapped use, the OWASP mapping, the rules with their measured precision (R29), the FAQ and troubleshooting. The README shortens to what valvur is, the install and the links. **A practice repository**, deliberately insecure in the ways AI-written code is, comes with a 30-minute workshop guide for chapters and courses, as Juice Shop is for web security. It is generated by a script from the acceptance generator, with its planted credentials assembled at generation and never committed as literals; its published copy lives in its own repository (§8). | if GitHub Pages cannot serve the project, the site is built into each release's assets |
-| D73 | **A contributor on-ramp** (R35): Discussions with categories, at least ten issues labelled `good first issue`, each naming the test to write first, and the guides "your first rule" and "your first Check", end to end through the Score. A dev container runs the unit suite and the gate. A triage promise in `GOVERNANCE.md` (a first response within three working days) is measured monthly by a scheduled job, and a monthly community update is drawn from the CHANGELOG. GSoC and an OWASP Slack channel follow acceptance (§8, §9). | none needed |
-| D74 | **Evidence of use, without telemetry** (R36). valvur never measures its users (`CLAUDE.md` §3), so evidence is only what is public or what users publish: `ADOPTERS.md`, with how to add yourself; a monthly snapshot of public figures (PyPI downloads, GitHub dependents of `valvur-action`, GHCR pulls where shown); and the Score written up as a citable evaluation (method, tracks, lanes, history, limits, how to reproduce) in `docs/EVALUATION-REPORT.md`, with `CITATION.cff`. The OWASP Solutions Landscape entry goes in `docs/LISTING.md`, factual and without comparisons, since the landscape rejects competitive positioning. Talks, outreach to adopters and submitting the entry are the owner's (§8). | none needed |
-| D75 | **The move to OWASP, on acceptance** (R37). The repository moves where OWASP says: its organisation, or a dedicated one with every leader an admin. The signing identities, the index's signer, PyPI's trusted publisher, the GHCR namespace, the plugin's marketplace and the power's path, `valvur-action` and every document follow, in one release that the release before it already accepts (D70). The branding becomes "OWASP valvur", and the `www-project-valvur` pages and `project.owasp.yaml` go live within OWASP's 30 days. The old locations carry a pointer. | if OWASP grants an exception to keep the repository where it is, only the branding, the pages and the leaders change |
+| D67 to D75 | **The path to OWASP, parked** (the owner, 2026-10-09). The decisions for R30 to R37 are in [the parked file](../../../docs/history/tasks-parked-r30-r37-owasp.md), unchanged, to return to §5 with their phases. | none needed |
 | D76 | **KEV is current while it is CISA's newest** (the owner, 2026-10-04; amends D24 for KEV, not ADR-0027's rule that a dataset's age is its data's). CISA releases the catalog on working days. So from Sunday afternoon, a catalog released on Friday is past D24's two days although nothing newer exists. Measured by R26's exit: the Score's freshness gate then failed every weekend, a release's `verify` with it, and a scan refetched the same catalog every time. Now a scan, `update` and the gate treat KEV as current when a check made within the last two days found no newer catalog. The fetch asks conditionally (`If-Modified-Since`, else it compares `dateReleased`), and the cache records when it last checked. Every surface still shows the catalog's own date, and says when that is CISA's newest. A failed check changes nothing: past two days without a successful check, KEV is stale, as now. With `fetch = "never"`, nothing changes. The same rule is open to EPSS and the index only if they are measured to show the same pattern. | if CISA's host answers no conditional request and its catalog carries no date to compare, KEV's threshold alone becomes 5 days, covering a holiday weekend, recorded |
 | D77 | **A project's own ignores never hide a finding silently** (the owner, 2026-10-04; `CLAUDE.md` §4 and §7). Each Scanner obeys ignores written into the project it scans: Opengrep's `nosemgrep` comments, Gitleaks's `gitleaks:allow` comments, `.gitleaksignore` and `.gitleaks.toml` allowlists, Checkov's `checkov:skip` comments, `.trivyignore`, and `osv-scanner.toml`. valvur turns none of them off: read on 2026-10-04 from the adapters' arguments, and R27 found `osv-scanner.toml` hiding an advisory from valvur's own report. A one-line comment is the cheapest way for an agent to make a finding disappear, which is what §4 guards against. **(a)** Each Scanner runs with its own ignores off: Opengrep with `--disable-nosem`, Gitleaks without the project's allow-comments and ignore files, Trivy with an empty `--ignorefile`, OSV-Scanner with a `--config` valvur writes. The exact switch for each pinned version is measured first. **(b)** valvur reads the project's ignores itself, and every finding one of them would hide carries `ignored_by`, naming the file or the comment's line, in `findings.json` and as a SARIF suppression of kind `inSource` or `external`. **(c)** A project's ignore counts as a suppression only when it carries a reason and an expiry date, as `.security-scan.toml`'s entries must: `osv-scanner.toml`'s `reason` and `ignoreUntil`, say. A lapsed one fails the gate like valvur's own. Otherwise the finding stays active, marked as ignored by the project without an expiry, and `SUMMARY.md` lists both kinds. **(d)** It changes what a scan reports, as a fix 1.x allows: a project that silenced findings by comment may move from `clean` to `findings`, and the CHANGELOG says so. valvur's own accepted Checkov advisory carries a reason and a date, so it stays suppressed. | where a pinned Scanner cannot turn its ignores off, valvur reads its output's record of what it skipped (Checkov's `skipped_checks`, say); where neither exists, a coverage note names the ignore as unread, so the verdict is never narrowed silently |
+| D78 | **A professional front door** (the owner, 2026-10-09, after `1.5.0`; parks D67 to D75). An evaluator meets valvur through its README and its GitHub page before any scan, and both should read as a mature project's. **(a) Measured first:** the README as a newcomer reads it (655 lines in 16 sections, the agents' section alone about 280), the repository page (a description, but no website, no topics, Discussions off and no social preview; the community profile at 100%), and the front doors of comparable tools (Trivy, Gitleaks, OSV-Scanner, Checkov, Opengrep). **(b) The README** says what valvur is in one sentence, then gives: a short row of badges that each mean something; a quickstart per surface (the Claude Code plugin, Kiro, the CLI, CI) that works as written; a picture of the output; what it finds, crediting the open-source Scanner that finds it; why it is different (offline and provable, and the human decides); the Score with its measured numbers; and an index of the documents. It stays under 250 lines. The detail it holds now moves into guides under `docs/`, and nothing is dropped. Every number is measured (R7.1), and every claim `test_readme_as_built.py` holds stays held. **(c) The documents beside it:** `docs/README.md` as the index; guides for agents, the CLI and CI, drawn from the README's sections; `SUPPORT.md`; `ROADMAP.md`, a reader's view of §7 and §9; and `CITATION.cff`, whose version `prepare_release.py` moves. Every relative link in the README and `docs/` resolves, held by a test. One voice throughout: plain, measured, no marketing. **(d) The GitHub page:** the About description, the website (the PyPI page until there is a documentation site), up to twenty topics, a social preview image (1280 by 640, generated from an SVG in the tree), and Discussions with categories. The text and topics are recorded in `docs/LISTING.md`. Changing the page publishes, so the executor applies the description, website, topics and Discussions only on the owner's yes in chat. GitHub's API cannot set the social preview, so the owner uploads it (§8). | if the owner declines a setting, it stays in §8 with its text ready |
 
 ## 6. Order
 
@@ -356,19 +355,12 @@ R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─�
 - **R29 last**: the largest, and its corpus sets track 8 for `1.5.0`.
 
 ```
-R29 ─► R30 OWASP-ready ─► R31 OWASP's lists ─► R32 the application (submitted)
-                                                        │
-R37 the move ◄─ ─ (acceptance) ─ ─ R36 evidence ◄── R35 on-ramp ◄── R34 docs ◄── R33 flagships
+1.5.0 ─► R39 a professional front door ─ ─ ─► the path to OWASP (parked, §9)
 ```
 
-- **R30 to R32 first**: the shortest path to a submission. OWASP admits at Incubator, which
-  asks only that a project state its intent; the owner's two blocking items (D67) run beside
-  them.
-- **R33 to R36 while the request is reviewed**: they build what Lab and Production measure
-  (usage docs, a support queue, contributor onboarding, evidence of use) and what adopted
-  projects share: a place in the tools people already run, a documentation site, a teaching
-  role. They raise adoption even if the request is declined.
-- **R37 waits** for OWASP's acceptance, and D70 has made it cheap.
+- **R39 next** (D78): the owner put the first impression ahead of OWASP on 2026-10-09. It
+  changes no detection, so no Score runs gate it; the README's claims are still measured.
+- **The path to OWASP** waits in §9 with its phases written, and returns when the owner asks.
 
 ---
 
@@ -2052,180 +2044,32 @@ weekend run; CI green.
 at least 40 labelled projects; `docs/RULES.md` and the mutation baseline recorded; the
 acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
 
-### Phase R30: an OWASP-ready repository
+### Phase R39: a professional front door
 
-- [ ] **R30.1** **Measure first** (D67, D68). Re-check every OWASP rule and good practice in
-  the analysis's §4 against the tree, each with its evidence. Measure on a scratch branch how
-  the DCO check treats a commit an agent authored, for each of D68's options. Behaviour: the
-  STATUS gives both tables, and §8 holds the owner's DCO choice.
-- [ ] **R30.2** **The DCO from here on** (D68a). Behaviours:
-  1. a check in CI fails a pull request with a commit that has no valid sign-off;
-  2. `CONTRIBUTING.md` says how to sign off, the owner's choice for agent-authored commits
-     included;
-  3. `GOVERNANCE.md` records how the history before R30 is covered.
-- [ ] **R30.3** **`GOVERNANCE.md` and `CODEOWNERS`** (D68b, d). Behaviours:
-  1. roles, decisions, becoming a maintainer, releases, security reports, and how valvur is
-     built, each a section a test holds;
-  2. `CODEOWNERS` names the leaders, the owner alone until the second joins;
-  3. `CITATION.cff` validates, and the link check passes.
-- [ ] **R30.4** **`ROADMAP.md`, generated** (D68c). Behaviours:
-  1. written by `scripts/generate_docs.py` from this list's phases and §9;
-  2. the generated-blocks test holds it current.
-- [ ] **R30.5** **Neutral wording** (D68e). Behaviours:
-  1. a test fails on commercial positioning and on "compliant", "complies" or "covers" beside
-     "OWASP" in the README, `docs/` (outside `history/`) and the skill;
-  2. the text that fails today is rewritten.
+- [ ] **R39.1** **Measure first** (D78a). Behaviour: the STATUS gives the README's length and
+  shape by section, the repository page's settings and community profile, and a table of what
+  the front doors of five comparable tools hold.
+- [ ] **R39.2** **The README** (D78b). Behaviours:
+  1. a test holds its shape: the sections in order, under 250 lines, and every relative link
+     resolving;
+  2. it is rewritten, and what it held moves to guides under `docs/`, nothing dropped;
+  3. `test_readme_as_built.py`'s claims stay held, amended only where a claim moved with its
+     section.
+- [ ] **R39.3** **The documents beside it** (D78c). Behaviours:
+  1. `docs/README.md` indexes every document, and a test finds none missing;
+  2. `SUPPORT.md`, `ROADMAP.md` and `CITATION.cff` exist, and `CITATION.cff` carries the
+     released version, which `prepare_release.py` moves;
+  3. every relative link in the documents resolves, held by a test.
+- [ ] **R39.4** **The GitHub page** (D78d). Behaviours:
+  1. `docs/LISTING.md` holds the description, website and topics, and a test holds their
+     limits (350 characters, twenty topics, GitHub's topic syntax);
+  2. the social preview is generated into `docs/social-preview.png` from its SVG;
+  3. on the owner's yes, the description, website, topics and Discussions are applied, and
+     `gh api` reads them back equal to `docs/LISTING.md`.
 
-**Exit:** every OWASP rule and good practice the build can meet is met, each with its
-evidence; the rest are rows in §8; CI green.
-
-### Phase R31: OWASP's lists in every finding
-
-- [ ] **R31.1** **Measure first** (D69). List every rule, Check and finding class with its
-  candidate IDs from the LLM Top 10 2026's published mappings, the Agentic and Agentic Skills
-  lists, and the crosswalk, each list pinned by version and date. Behaviour: the STATUS gives
-  the table and every disagreement between sources.
-- [ ] **R31.2** **The mapping as data** (D69). Behaviours:
-  1. one data file maps every shipped rule and finding class, or says `none`;
-  2. every ID is valid against the pinned lists, and no 2025 ID appears;
-  3. a rule added without a mapping fails the test.
-- [ ] **R31.3** **In every output** (D69). Behaviours:
-  1. `findings.json` carries `owasp` on each finding, additively;
-  2. SARIF carries the IDs as `properties.tags` and taxa, and stays valid 2.1.0;
-  3. `SUMMARY.md` groups active findings by OWASP ID;
-  4. the reply's schema 2 gains the field and loses none.
-- [ ] **R31.4** **`docs/OWASP-MAPPING.md`, generated** (D69). Behaviours:
-  1. the generator writes it from the data file;
-  2. it says "mapped to" throughout, and R30.5's test reads it.
-- [ ] **R31.5** **The Score unchanged** (D69). Behaviour: every track at its baseline on both
-  lanes, since the reply changed and detection did not.
-
-**Exit:** every rule and class mapped or marked `none`; the Score unchanged on both lanes; CI
-green.
-
-### Phase R32: the application
-
-- [ ] **R32.1** **The proposal** (D70). Behaviours:
-  1. `docs/OWASP-PROPOSAL.md` has the Agentic Skills Top 10 proposal's sections, and a test
-     holds them;
-  2. its relationship section names DSGAI and Dependency-Check, with what each does that
-     valvur does not and the reverse;
-  3. the link check passes.
-- [ ] **R32.2** **The request's answers** (D70). Behaviour: `docs/OWASP-REQUEST.md` answers the
-  Handbook's list (name, leaders, short and long description, roadmap, licence) and checks
-  every good practice against its evidence.
-- [ ] **R32.3** **The project pages, drafted** (D70). Behaviours:
-  1. `owasp/www-project-valvur/` holds `index.md`, `info.md`, `leaders.md` and the tabs, in
-     OWASP's template;
-  2. a test holds the front matter: an Incubator tool project, the licence, the leaders.
-- [ ] **R32.4** **The initiatives' pitch and the demo** (D70). Behaviours:
-  1. `docs/OWASP-GENAI-PITCH.md` fits on two pages and offers each collaboration D70 names;
-  2. `docs/OWASP-DEMO.md` scripts ten minutes on a generated practice repository.
-- [ ] **R32.5** **Signing identities as a table** (D70). Behaviours:
-  1. the shim reads the identities it accepts for the index and the image from one table;
-  2. a test holds today's entries, and that an added entry verifies;
-  3. the next release carries it, as a fix 1.x allows.
-
-**Exit:** the application package complete and checked against the Handbook's list; §8 holds
-the submission.
-
-### Phase R33: working with OWASP's flagships
-
-- [ ] **R33.1** **Measure first** (D71). In a dispatched workflow, import today's SARIF into
-  DefectDojo's latest release and today's SBOM into Dependency-Track's. Behaviour: the STATUS
-  records what each keeps: tests, severity, tags, CWE and deduplication.
-- [ ] **R33.2** **SARIF shaped for DefectDojo** (D71a). Behaviours:
-  1. the driver naming, tags and `partialFingerprints` R33.1 chose;
-  2. still valid SARIF 2.1.0, and still accepted by GitHub's code scanning;
-  3. the Generic Findings export only if R33.1 found SARIF cannot carry valvur's identity.
-- [ ] **R33.3** **CycloneDX validated** (D71b). Behaviour: a test validates `sbom.cdx.json`
-  against the CycloneDX schema of the version valvur writes.
-- [ ] **R33.4** **Guides and examples** (D71b). Behaviours:
-  1. a guide and an example for each import;
-  2. valvur itself opens no new connection: the egress tests and `verify-offline.py` are
-     unchanged.
-- [ ] **R33.5** **Measured again** (D71c). Behaviour: the dispatched workflow imports both
-  again, and the README cites only what it measured.
-
-**Exit:** both imports recorded with what they keep; egress unchanged; CI green.
-
-### Phase R34: documentation people adopt from
-
-- [ ] **R34.1** **Measure first** (D72). Map every existing document to the site's sections,
-  and record the README's length and its first screen. Behaviour: the STATUS gives the map.
-- [ ] **R34.2** **The site** (D72). Behaviours:
-  1. built in CI, with every link checked;
-  2. published from `main` to GitHub Pages, once the owner enables it (§8).
-- [ ] **R34.3** **The quickstart and the client guides** (D72). Behaviours:
-  1. a fresh-clone job in CI follows the quickstart's commands and they pass;
-  2. each client's guide is generated from `valvur.mcp.clients`.
-- [ ] **R34.4** **The practice repository and the workshop** (D72). Behaviours:
-  1. `scripts/practice.py` generates it, deterministically, with credentials assembled at
-     generation;
-  2. a scan of it finds what the workshop guide says it will;
-  3. §8 holds creating its own repository.
-- [ ] **R34.5** **A shorter README** (D72). Behaviours:
-  1. its first screen holds what valvur is, the install and the demo, and the rest links to
-     the site;
-  2. the README's as-built test holds the claims that remain.
-
-**Exit:** the site built and link-checked in CI; the quickstart passed by the fresh-clone job;
-the workshop's scan matches its guide.
-
-### Phase R35: a contributor on-ramp
-
-- [ ] **R35.1** **Measure first** (D73). Time a fresh runner from clone to a green unit suite,
-  and record the issues and response times as they are. Behaviour: the STATUS gives each.
-- [ ] **R35.2** **"Your first rule" and "your first Check"** (D73). Behaviour: each guide is
-  followed once, end to end, on a branch, and every command in it is verified.
-- [ ] **R35.3** **Good first issues** (D73). Behaviours:
-  1. at least ten, labelled, each naming the test to write first;
-  2. the issue templates point to the guides.
-- [ ] **R35.4** **A dev container** (D73). Behaviour: CI builds it and runs the unit suite and
-  the gate inside it.
-- [ ] **R35.5** **The triage promise, measured** (D73). Behaviours:
-  1. a monthly job reports the first-response time against `GOVERNANCE.md`'s promise;
-  2. a monthly community update is drawn from the CHANGELOG.
-
-**Exit:** clone-to-green time recorded; both guides verified; ten good first issues open; CI
-green.
-
-### Phase R36: evidence of use, without telemetry
-
-- [ ] **R36.1** **Measure first** (D74). Record today's public figures: monthly PyPI downloads,
-  `valvur-action`'s dependents, stars. Behaviour: the STATUS gives each, with its source.
-- [ ] **R36.2** **`ADOPTERS.md`** (D74). Behaviour: it says how to add yourself, and a test
-  holds its format.
-- [ ] **R36.3** **The evaluation report** (D74). Behaviours:
-  1. `docs/EVALUATION-REPORT.md` gives the Score's method, tracks, lanes, history, limits and
-     how to reproduce it;
-  2. `CITATION.cff` points to it.
-- [ ] **R36.4** **The monthly figures** (D74). Behaviour: a scheduled job appends the public
-  figures to `docs/USAGE.md`, from public APIs alone.
-- [ ] **R36.5** **The landscape entry** (D74). Behaviours:
-  1. `docs/LISTING.md` gains the OWASP Solutions Landscape entry;
-  2. R30.5's test holds it free of comparisons.
-
-**Exit:** each published; §8 holds the talks, the outreach and submitting the entry.
-
-### Phase R37: the move to OWASP (on acceptance)
-
-- [ ] **R37.1** **Where it moves** (D75). Record OWASP's answer (its organisation, a dedicated
-  one, or an exception) and every location that changes. Behaviour: the STATUS lists each.
-- [ ] **R37.2** **The release before the move** (D75). Behaviour: R32.5's table gains the new
-  identities, released, and an installed shim of that release verifies an index signed from the
-  new home.
-- [ ] **R37.3** **The move** (D75). Behaviours:
-  1. the workflows, the signer pins, the GHCR namespace, the plugin's and the power's paths,
-     `valvur-action` and every document name the new home;
-  2. the branding says "OWASP valvur";
-  3. the transfer and PyPI's trusted publisher are the owner's (§8).
-- [ ] **R37.4** **The pages, live** (D75). Behaviour: `www-project-valvur` and
-  `project.owasp.yaml` are published within OWASP's 30 days.
-- [ ] **R37.5** **Verified from the new home** (D75). Behaviour: a release from the new home
-  installs and verifies end to end, as `1.4.0`'s did.
-
-**Exit:** valvur released from its OWASP home and verified end to end; its pages live.
+**Exit:** the README and its documents current and linked; the page showing its
+description, website and topics; the community profile at 100%; CI green. Nothing in
+detection changes, so the Score is not run.
 
 ---
 
@@ -2236,29 +2080,15 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 
 | item | ready after | what the owner does |
 |---|---|---|
-| land R29 (#204) | its PR green | one fast-forward: `git push origin build/r29-precision-that-is-measured:main`. R19 and R26 to R28 landed by 2026-10-05, and auto-merge was allowed that day |
+| upload the social preview (D78d) | R39.4 | Settings → General → Social preview: upload `docs/social-preview.png`. GitHub's API cannot set it |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
 | R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |
 | close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | `python3 scripts/audit_sample.py` lists the 18 of 172 labels, drawn with a fixed seed; read each finding and its label in `tests/eval/labels/corpus.toml`. A disagreement changes the label, with the change in its reason |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
-| R26's end-to-end rehearsal | CISA's next KEV catalog | nothing, unless the session has ended: dispatch `release.yml` on `build/r26-a-lighter-release`, cancel it at the brake, and add its run to `docs/acceptance/r26.md` |
 | how valvur treats a project's `osv-scanner.toml` (R27.2) | decided 2026-10-04 | D77: no project ignore hides a finding silently; built by R38 |
 | the Mac's speed gate, again, optional | a restart of the build Mac | ask a session to run `scripts/acceptance.py --rescan` and `scripts/eval.py --speed` on the Mac. R29's exit recorded 6.2 s against 5.6 s with 13 GB of swap, under D35. The owner chose on 2026-10-09 not to hold `1.5.0` for it: Linux's end-to-end timing tests passed on #204, and the next phase exit on a healthy Mac judges it again |
-| release `1.5.0` | R29 landed | ask a session to prepare it, by `RELEASING.md` as R26 left it |
-| decide whether to donate valvur to OWASP (D67) | now | read OWASP's leader agreement: contributions pass to the Foundation, the project cannot be withdrawn, and the name stays with OWASP. This is the gate for the request |
-| find a second leader (D67) | now | someone outside your employer, willing to lead and to join OWASP; `GOVERNANCE.md` (R30.3) describes the role |
-| join OWASP, both leaders (D67) | before the request | membership, $50 a year each |
-| choose how agent-authored commits meet the DCO (D68a) | R30.1 | one of the options R30.1 measured |
-| set repository topics and enable Discussions (D68d, D73) | R30 landed | Settings: topics such as `owasp`, `security`, `mcp`, `ai-security`, `sast`, `supply-chain`; Discussions on |
-| join OWASP Slack, present at the GenAI biweekly sync, send the initiatives' pitch (D70) | R32 landed | owasp.org/slack/invite; `docs/OWASP-DEMO.md` and `docs/OWASP-GENAI-PITCH.md` |
-| submit the New Project Request (D67, D70) | R32 landed, a second leader, the donation decided | OWASP's form, with `docs/OWASP-REQUEST.md`'s answers |
-| enable GitHub Pages (D72) | R34.2 | Settings → Pages, from the workflow |
-| create the practice repository (D72) | R34.4 | an empty public repository the generated copy is pushed to |
-| submit the Solutions Landscape entry (D74) | R36 landed | genai.owasp.org/solution-submission/, with `docs/LISTING.md`'s entry |
-| talks and outreach (D74) | R34 landed | an OWASP chapter meeting, the next Global AppSec call for papers, and adopters for `ADOPTERS.md` |
-| the move: accept the transfer, move PyPI's trusted publisher (D75) | OWASP accepts | as R37 lists |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
 | the gate with a person (12b.3, 10.1) | now | find someone outside the repository; they follow the README on a project of their own, by `docs/history/usability-gate.md` |
@@ -2281,16 +2111,17 @@ becomes a phase when the owner asks, with a decision first.
 
 | item | why it is not a phase yet | what would make it one |
 |---|---|---|
+| **the path to OWASP**: Phases R30 to R37, decisions D67 to D75, and their §8 rows (the decision to donate, a second leader, membership, the DCO, the request) | parked by the owner on 2026-10-09: a professional front door first (R39) | the owner's word; the text is ready in [the parked file](../../../docs/history/tasks-parked-r30-r37-owasp.md) |
 | DSGAI's 21 controls, run offline as a valvur Check | needs the Data Security Initiative lead's agreement, and a way to carry its patterns under both licences | the lead's yes, from R32's pitch |
 | the hook speaking the Agent Control Standard | the standard is young and still changing | a stable ACS release |
 | an AIBOM beside the SBOM | the AIBOM initiative's format and scope for source repositories are unclear | the initiative's guidance for repositories |
 | more languages (Java, Go) | each needs a Score track first (D66) | a licence-compatible benchmark per language |
 | container images scanned offline | a tar the host saves, into the Snapshot; size and time unmeasured | a measurement on a real image |
 | scans limited to given paths | 2.0's reuse by declared inputs makes it cheap (D57) | 2.0's reuse |
-| the docs translated | needs the site (R34) and volunteers | a volunteer per language |
+| the docs translated | needs a documentation site (parked R34) and volunteers | a volunteer per language |
 | an IDE extension | large; the MCP server already reaches the agents in IDEs | demand recorded in Discussions |
 | native Windows | untested; WSL2 is supported | demand, and a Windows container path |
-| a GenAI initiative of valvur's own | needs "a minimally viable # of contributors" | contributors, from R35 |
+| a GenAI initiative of valvur's own | needs "a minimally viable # of contributors" | contributors, from the on-ramp (parked R35) |
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
 | Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |

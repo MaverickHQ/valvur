@@ -1,5 +1,8 @@
 # valvur as an OWASP project: the requirements, the gap, and the plan (2026-10-04)
 
+> **Parked 2026-10-09** at the owner's word, for a professional front door first (R39).
+> The phases and decisions are in [the parked file](tasks-parked-r30-r37-owasp.md), unchanged.
+
 Written at the owner's request after `1.4.0`, when the owner asked how to maximise the
 chance of valvur being adopted under OWASP, trading speed to submission against the
 features that raise the odds. The phases are R30 to R37 in

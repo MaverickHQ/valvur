@@ -15,9 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-08).** **`1.4.0` is published.** R26 to R28 lightened the release, raised
-Scorecard and keep the repository current; R29 measures each rule on 48 projects
-([`docs/RULES.md`](docs/RULES.md)): the Score is **73.4**. **Next:** land R29 (§8), `1.5.0`, R30 to R37 ([OWASP](docs/history/OWASP-ADOPTION-2026-10-04.md)).
+**Status (2026-10-09).** **`1.5.0` is published**: the Score **73.4** on both lanes, each rule's
+precision in [`docs/RULES.md`](docs/RULES.md). **Next:** R39, a professional front door: the
+README, its documents and the GitHub page. The path to OWASP (R30 to R37) is parked in `tasks.md` §9.
 
 ## 2. What it is NOT
 
