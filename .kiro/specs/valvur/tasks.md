@@ -53,6 +53,9 @@ OWASP, Phases R30 to R37 and decisions D67 to D75, is parked in §9, its text un
 [the parked file](../../../docs/history/tasks-parked-r30-r37-owasp.md). A professional front door comes first: Phase R39 (D78), the README, the documents
 beside it and the GitHub page.
 
+**Amended again 2026-10-09, after R39 landed**, at the owner's word: the README rendered
+correctly on PyPI, Phase R40 (D79), then `1.5.1` to publish it with R39's metadata.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -295,6 +298,7 @@ wait for it.
 | D76 | **KEV is current while it is CISA's newest** (the owner, 2026-10-04; amends D24 for KEV, not ADR-0027's rule that a dataset's age is its data's). CISA releases the catalog on working days. So from Sunday afternoon, a catalog released on Friday is past D24's two days although nothing newer exists. Measured by R26's exit: the Score's freshness gate then failed every weekend, a release's `verify` with it, and a scan refetched the same catalog every time. Now a scan, `update` and the gate treat KEV as current when a check made within the last two days found no newer catalog. The fetch asks conditionally (`If-Modified-Since`, else it compares `dateReleased`), and the cache records when it last checked. Every surface still shows the catalog's own date, and says when that is CISA's newest. A failed check changes nothing: past two days without a successful check, KEV is stale, as now. With `fetch = "never"`, nothing changes. The same rule is open to EPSS and the index only if they are measured to show the same pattern. | if CISA's host answers no conditional request and its catalog carries no date to compare, KEV's threshold alone becomes 5 days, covering a holiday weekend, recorded |
 | D77 | **A project's own ignores never hide a finding silently** (the owner, 2026-10-04; `CLAUDE.md` §4 and §7). Each Scanner obeys ignores written into the project it scans: Opengrep's `nosemgrep` comments, Gitleaks's `gitleaks:allow` comments, `.gitleaksignore` and `.gitleaks.toml` allowlists, Checkov's `checkov:skip` comments, `.trivyignore`, and `osv-scanner.toml`. valvur turns none of them off: read on 2026-10-04 from the adapters' arguments, and R27 found `osv-scanner.toml` hiding an advisory from valvur's own report. A one-line comment is the cheapest way for an agent to make a finding disappear, which is what §4 guards against. **(a)** Each Scanner runs with its own ignores off: Opengrep with `--disable-nosem`, Gitleaks without the project's allow-comments and ignore files, Trivy with an empty `--ignorefile`, OSV-Scanner with a `--config` valvur writes. The exact switch for each pinned version is measured first. **(b)** valvur reads the project's ignores itself, and every finding one of them would hide carries `ignored_by`, naming the file or the comment's line, in `findings.json` and as a SARIF suppression of kind `inSource` or `external`. **(c)** A project's ignore counts as a suppression only when it carries a reason and an expiry date, as `.security-scan.toml`'s entries must: `osv-scanner.toml`'s `reason` and `ignoreUntil`, say. A lapsed one fails the gate like valvur's own. Otherwise the finding stays active, marked as ignored by the project without an expiry, and `SUMMARY.md` lists both kinds. **(d)** It changes what a scan reports, as a fix 1.x allows: a project that silenced findings by comment may move from `clean` to `findings`, and the CHANGELOG says so. valvur's own accepted Checkov advisory carries a reason and a date, so it stays suppressed. | where a pinned Scanner cannot turn its ignores off, valvur reads its output's record of what it skipped (Checkov's `skipped_checks`, say); where neither exists, a coverage note names the ignore as unread, so the verdict is never narrowed silently |
 | D78 | **A professional front door** (the owner, 2026-10-09, after `1.5.0`; parks D67 to D75). An evaluator meets valvur through its README and its GitHub page before any scan, and both should read as a mature project's. **(a) Measured first:** the README as a newcomer reads it (655 lines in 16 sections, the agents' section alone about 280), the repository page (a description, but no website, no topics, Discussions off and no social preview; the community profile at 100%), and the front doors of comparable tools (Trivy, Gitleaks, OSV-Scanner, Checkov, Opengrep). **(b) The README** says what valvur is in one sentence, then gives: a short row of badges that each mean something; a quickstart per surface (the Claude Code plugin, Kiro, the CLI, CI) that works as written; a picture of the output; what it finds, crediting the open-source Scanner that finds it; why it is different (offline and provable, and the human decides); the Score with its measured numbers; and an index of the documents. It stays under 250 lines. The detail it holds now moves into guides under `docs/`, and nothing is dropped. Every number is measured (R7.1), and every claim `test_readme_as_built.py` holds stays held. **(c) The documents beside it:** `docs/README.md` as the index; guides for agents, the CLI and CI, drawn from the README's sections; `SUPPORT.md`; `ROADMAP.md`, a reader's view of §7 and §9; and `CITATION.cff`, whose version `prepare_release.py` moves. Every relative link in the README and `docs/` resolves, held by a test. One voice throughout: plain, measured, no marketing. **(d) The GitHub page:** the About description, the website (the PyPI page until there is a documentation site), up to twenty topics, a social preview image (1280 by 640, generated from an SVG in the tree), and Discussions with categories. The text and topics are recorded in `docs/LISTING.md`. Changing the page publishes, so the executor applies the description, website, topics and Discussions only on the owner's yes in chat. GitHub's API cannot set the social preview, so the owner uploads it (§8). | if the owner declines a setting, it stays in §8 with its text ready |
+| D79 | **The README on PyPI** (the owner, 2026-10-09, after R39; from §9). PyPI renders the README as the project's description, and resolves nothing relative: on `1.5.0`'s page 22 of 52 links and the demo image are broken (measured in a browser, since PyPI answers scripts with a challenge). The build writes PyPI's copy: a metadata hook in `hatch_build.py` reads `README.md` and rewrites every relative link to the repository at the release's tag (`blob/v<version>/`, `tree/` for a folder), every image to `raw.githubusercontent.com` at that tag, and a `<picture>` to its light `<img>`, since PyPI's page is light and keeps no `<picture>`. A version that is not a release links `main`. The README in the tree keeps its relative links, which GitHub and the link test need. Tested through the built wheel's metadata, since hatchling is the build's and not the test environment's. It changes the release machinery, so `1.5.1` is rehearsed. | if PyPI strips something the rewrite relies on, the README's HTML is reduced to what its renderer keeps, measured with `readme-renderer` |
 
 ## 6. Order
 
@@ -355,11 +359,12 @@ R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─�
 - **R29 last**: the largest, and its corpus sets track 8 for `1.5.0`.
 
 ```
-1.5.0 ─► R39 a professional front door ─ ─ ─► the path to OWASP (parked, §9)
+1.5.0 ─► R39 a professional front door ─► R40 the README on PyPI ─► 1.5.1 ─ ─ ─► the path to OWASP (parked, §9)
 ```
 
 - **R39 next** (D78): the owner put the first impression ahead of OWASP on 2026-10-09. It
   changes no detection, so no Score runs gate it; the README's claims are still measured.
+- **R40 after R39**: it renders R39's README on PyPI, and `1.5.1` publishes both.
 - **The path to OWASP** waits in §9 with its phases written, and returns when the owner asks.
 
 ---
@@ -2142,6 +2147,29 @@ acceptance set green on both lanes. `1.5.0` is the owner's to call (§8).
 description, website and topics; the community profile at 100%; CI green. Nothing in
 detection changes, so the Score is not run.
 
+### Phase R40: the README on PyPI
+
+- [x] **R40.1** **Measure first** (D79). Behaviour: the STATUS gives what `1.5.0`'s PyPI page
+  shows of the README: its images and links, and how many of each are broken.
+
+  **STATUS 2026-10-09:** ✅ Read in the browser pane, since PyPI answers `curl` with a
+  client challenge. `1.5.0`'s page holds 4 images and 52 links. **The demo does not load:**
+  PyPI proxies every image through `pypi-camo`, which was handed the bare path
+  `docs/demo.svg`. **22 links are relative** and lead nowhere on PyPI: `CHANGELOG.md`,
+  `MAINTAINERS.md`, `docs/EVALUATING.md`, `docs/acceptance/` and the rest. The two badges
+  load, though both are SVG, so the proxy serves SVG; `raw.githubusercontent.com` answers
+  `docs/demo.svg` and `docs/logo-light.svg` with `image/svg+xml`. R39's README, not yet
+  published, adds a `<picture>` and seven more relative links.
+- [ ] **R40.2** **PyPI's copy, written by the build** (D79). Behaviours:
+  1. the built wheel's description has no relative link or image;
+  2. every link and image into the repository names a file that exists, at the release's
+     tag, or `main` for a version that is not a release;
+  3. the `<picture>` becomes its light `<img>`, and `readme-renderer`, PyPI's own, keeps
+     the logo, the badges and the demo.
+
+**Exit:** the description checked through a built wheel and through `twine check` in the
+rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is not run.
+
 ---
 
 ## 8. The owner queue
@@ -2197,6 +2225,5 @@ becomes a phase when the owner asks, with a decision first.
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
 | Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |
-| the README rendered correctly on PyPI | PyPI renders the README itself, where its relative links and images do not resolve (R39's record) | a rewrite to absolute GitHub links at build time in `hatch_build.py`, which changes the release machinery and so needs a rehearsal |
 | four rules R29.4's CodeQL comparison found valvur missing: certificate validation turned off, a JavaScript cookie without `secure`, a short key, an old TLS version | each ships only by D29's bar, which needs its cases on a track | the cases on track 1 or 2, vulnerable and fixed |
 | a Score track for model output reaching a sink | R29.3 found the four LLM-output rules unmeasured: no case in tracks 1 and 2 or the corpus, so their precision is unknown, and D29's bar cannot judge them | a licence-compatible set of real or generated cases, vulnerable and safe twins, of model output reaching code, a shell, a query and the DOM |
