@@ -1,7 +1,7 @@
 [project]
 name = "valvur"
 version = "1.5.0"
-description = "Fully offline security scanner for AI-generated code. Your source never leaves your machine."
+description = "Offline security scanning for AI-generated code: seven open-source scanners and AI-specific checks in one command."
 readme = "README.md"
 # 3.11+: tomllib is stdlib from 3.11, and the shim is stdlib-only by design
 # (F10.6), so depending on tomli would cost us that property.

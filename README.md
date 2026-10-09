@@ -22,6 +22,10 @@ Seven open-source scanners and AI-specific checks, in one command and one ranked
 
 ## Why valvur
 
+- **Seven scanners, one report.** Gitleaks, Trivy, OSV-Scanner, Opengrep, Checkov, zizmor
+  and Syft, pinned, installed and run for you in one container, beside valvur's own checks
+  for AI-written code. A vulnerability two of them report is one finding, not two, and
+  everything is ranked together.
 - **Nothing leaves your machine, provably.** No account, no API key, no telemetry. The
   Scanners run in one container with no network interface, and your source is copied in,
   never mounted. Every fetch of public data is recorded in `run.json`, beside what left
