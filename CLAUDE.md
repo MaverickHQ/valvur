@@ -15,9 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-09).** **`1.5.0` is published**: the Score **73.4** on both lanes, each rule's
+**Status (2026-10-09).** **`1.5.1` is published**: the Score **73.4** on both lanes, each rule's
 precision in [`docs/RULES.md`](docs/RULES.md). R39 rebuilt the
-README as a front door with four guides (`docs/README.md`). R40 renders it on PyPI. **Next:** release `1.5.1` (§8).
+README as a front door with four guides (`docs/README.md`). R40 renders it on PyPI. **Next:** the owner's pick from `tasks.md` §9.
 
 ## 2. What it is NOT
 
