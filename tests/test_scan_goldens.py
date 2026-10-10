@@ -5,9 +5,11 @@ The CLI's text and the MCP `scan` reply, for three workspaces through
 behind one service and renders both surfaces from one read model; these goldens
 were recorded before it began, and the same scans must say the same things after.
 
-Times, generation ids, dates and the temporary paths are normalised; everything
-else is byte for byte. The scans run as every unit test does, on a machine that
-has run `valvur update` (the conftest's index, database, KEV and EPSS).
+Times, generation ids, dates and the temporary paths are normalised, and so is which
+Scanner was slowest, which the clock decides as it decides the time (the rule that
+names it is held in `test_slowest_scanner.py`); everything else is byte for byte.
+The scans run as every unit test does, on a machine that has run `valvur update` (the
+conftest's index, database, KEV and EPSS).
 
 Regenerate deliberately, never to make a red test green:
 
@@ -50,6 +52,7 @@ _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 _SECONDS = re.compile(r"\b\d+(?:\.\d+)?s\b")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:[T ][0-9:.]+(?:Z|[+-]\d{2}:?\d{2})?)?")
 _DAYS = re.compile(r"\b\d+(?:\.\d+)? days?\b")
+_SLOWEST = re.compile(r"\bslowest: [\w.-]+ ")
 #: Fields whose values are times or ages, normalised wherever they appear.
 _TIMED = {"elapsed_s", "duration_s", "seconds", "age_days", "overdue_days", "waited_s",
           "kev_age_days", "epss_age_days", "db_age_days"}
@@ -61,10 +64,13 @@ def normalise(text: str, root: Path) -> str:
     text = _UUID.sub("<GENERATION>", text)
     text = _DATE.sub("<DATE>", text)
     text = _DAYS.sub("<N> days", text)
+    text = _SLOWEST.sub("slowest: <SCANNER> ", text)
     return _SECONDS.sub("<T>s", text)
 
 
 def _scrub(value, key: str = ""):
+    if key == "slowest" and isinstance(value, dict):
+        value = {**value, "tool": "<SCANNER>"}
     if isinstance(value, dict):
         return {k: _scrub(v, k) for k, v in value.items()}
     if isinstance(value, list):
