@@ -210,8 +210,7 @@ def _done(workspace: Path, data: dict) -> dict:
         "coverage": list(coverage),
         "hygiene": data.get("hygiene"),
         "scanners": scanners,
-        "slowest": ({"tool": max(timed)[1], "seconds": round(max(timed)[0], 1)}
-                    if timed else None),
+        "slowest": _slowest(timed),
         "next": next_moves(workspace),
         "caveats": staleness_note(workspace, data, found_nothing=not counts.get("active")),
         "network": dict(data.get("network") or {}),
@@ -229,6 +228,16 @@ def _done(workspace: Path, data: dict) -> dict:
 
 #: Rows of each list the reply carries; the totals count the rest (D59).
 SINCE_SHOWN = 20
+
+
+def _slowest(timed: list[tuple[float, str]]) -> dict | None:
+    """The Scanner that took longest, a tie going to the one that ran first, as
+    `SUMMARY.md` names it: one scan gives one answer on every surface. The engine
+    rounds each time to a tenth of a second, so quick Scanners often tie."""
+    if not timed:
+        return None
+    seconds, tool = max(timed, key=lambda entry: entry[0])
+    return {"tool": tool, "seconds": round(seconds, 1)}
 
 
 def _resolution(block: object) -> dict | None:

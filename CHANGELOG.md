@@ -8,6 +8,12 @@ break things, and has.
 
 ## [Unreleased]
 
+### Fixed
+
+- **One scan names one slowest Scanner.** When two Scanners took the same time, to the tenth
+  of a second the engine records, the scan reply and `SUMMARY.md` could name different ones.
+  Both now name the first that ran.
+
 ### Changed
 
 - **Checkov 3.3.22** in the image, from 3.3.19, with its adapter's version and its parsing
