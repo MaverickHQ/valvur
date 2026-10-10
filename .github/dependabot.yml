@@ -21,7 +21,6 @@ updates:
       default-days: 7
     commit-message:
       prefix: "chore"
-    labels: ["dependencies", "supply-chain"]
     groups:
       # One pull request rather than four. These are all first-party or
       # well-known actions; reviewing them together is honest, and a flood of
@@ -41,7 +40,6 @@ updates:
       default-days: 7
     commit-message:
       prefix: "chore"
-    labels: ["dependencies"]
     groups:
       dev-dependencies:
         # Runtime dependencies are deliberately zero (ADR-0015), so in practice
@@ -61,7 +59,6 @@ updates:
       default-days: 7
     commit-message:
       prefix: "chore"
-    labels: ["dependencies", "supply-chain"]
     groups:
       checkov:
         patterns: ["*"]
@@ -74,7 +71,6 @@ updates:
       default-days: 7
     commit-message:
       prefix: "chore"
-    labels: ["dependencies", "supply-chain"]
     ignore:
       # The image installs valvur into Python 3.12's own site-packages and compiles
       # it there, so a new Python is a deliberate change, not a bump: #154 (3.12 to
@@ -92,4 +88,3 @@ updates:
       default-days: 7
     commit-message:
       prefix: "chore"
-    labels: ["dependencies"]
