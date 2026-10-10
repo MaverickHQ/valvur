@@ -434,7 +434,7 @@ class FakeRunner(LegacyDispatch):
 
     def run_trivy(self, workspace: Path):
         """Quiet by default. Tests exercising a Scanner use GoldenRunner instead."""
-        return self._quiet("trivy", "0.74.0", '{"Results": []}')
+        return self._quiet("trivy", "0.75.0", '{"Results": []}')
 
     def run_osv(self, workspace: Path):
         return self._quiet("osv-scanner", "2.6.0", '{"results": []}')
@@ -443,7 +443,7 @@ class FakeRunner(LegacyDispatch):
         return self._quiet("checkov", "3.3.22", '{"results": {"failed_checks": []}}')
 
     def run_syft(self, workspace: Path):
-        return self._quiet("syft", "1.52.0", "")
+        return self._quiet("syft", "1.54.0", "")
 
     def run_opengrep(self, workspace: Path):
         return self._quiet("opengrep", "1.29.0", '{"results": []}')
@@ -522,8 +522,8 @@ class CrashingAdapter(ScannerAdapter):
 # without recapturing, this mismatch fails loudly rather than silently re-baselining
 # parsing behaviour (task 3.4.1).
 PINNED_VERSIONS = {
-    "trivy": "0.74.0", "gitleaks": "8.30.1", "osv-scanner": "2.6.0",
-    "checkov": "3.3.22", "syft": "1.52.0", "opengrep": "1.29.0", "zizmor": "1.30.1",
+    "trivy": "0.75.0", "gitleaks": "8.30.1", "osv-scanner": "2.6.0",
+    "checkov": "3.3.22", "syft": "1.54.0", "opengrep": "1.29.0", "zizmor": "1.30.1",
 }
 
 

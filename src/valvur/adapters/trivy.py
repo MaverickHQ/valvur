@@ -23,7 +23,7 @@ from .base import ScannerAdapter, container_relative
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
 
-VERSION = "0.74.0"
+VERSION = "0.75.0"
 
 DB_REFUSAL = (
     "Trivy vulnerability database not present. Fetch it once with:\n"

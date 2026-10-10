@@ -50,7 +50,10 @@ def test_trivy_reproduces_the_runners_argv(tmp_path, monkeypatch):
 
     _assert_matches(invocation, "trivy")
     assert invocation.report == "trivy.json"
-    assert invocation.version == "0.74.0"
+    # The version its golden fixture is named for, so a bump moves both or neither.
+    from conftest import PINNED_VERSIONS
+
+    assert invocation.version == PINNED_VERSIONS["trivy"]
 
 
 def test_trivy_refuses_before_launching_without_its_database(tmp_path, monkeypatch):

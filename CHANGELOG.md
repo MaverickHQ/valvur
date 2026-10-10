@@ -13,6 +13,9 @@ break things, and has.
 - **Checkov 3.3.22** in the image, from 3.3.19, with its adapter's version and its parsing
   fixture; `bc-detect-secrets` moves with it, to 1.5.52. On the fixture it reports the same
   13 failed checks, with the same ids, files and resources.
+- **Trivy 0.75.0** and **Syft 1.54.0** in the image, from 0.74.0 and 1.52.0, each with its
+  adapter's version and its parsing fixture. On one database Trivy 0.75.0 reports what
+  0.74.0 did, field for field; Syft 1.54.0 finds the same three components.
 
 ## [1.5.1] — 2026-10-09
 

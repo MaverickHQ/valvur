@@ -16,7 +16,6 @@ security verdict of `clean` stays `clean` over it.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -287,12 +286,14 @@ def test_a_root_group_whose_first_finding_has_no_fix_still_names_the_others():
 def test_the_golden_fixture_proposes_one_target_for_json5():
     """End to end through the real adapter and the grouper: the sentence the task
     quotes, from the fixture that produced it."""
+    from conftest import PINNED_VERSIONS, golden
+
     from valvur.adapters.trivy import TrivyAdapter
     from valvur.remediation import render
     from valvur.runner import ScannerOutput
 
-    raw = Path(__file__).parent.joinpath("fixtures/golden/trivy-0.74.0.json").read_text()
-    findings = TrivyAdapter().parse(ScannerOutput("trivy", "0.74.0", raw, "", 0))
+    findings = TrivyAdapter().parse(ScannerOutput("trivy", PINNED_VERSIONS["trivy"],
+                                                  golden("trivy"), "", 0))
     json5 = [f for f in findings if f.dependency and f.dependency.package == "json5"]
     assert json5, "the fixture lost its json5 finding"
 
