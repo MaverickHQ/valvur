@@ -56,6 +56,16 @@ beside it and the GitHub page.
 **Amended again 2026-10-09, after R39 landed**, at the owner's word: the README rendered
 correctly on PyPI, Phase R40 (D79), then `1.5.1` to publish it with R39's metadata.
 
+**Recorded 2026-10-10, after `1.5.2` was released.** No phase: the week's maintenance, at the
+owner's word. Checkov 3.3.22 (#216), Trivy 0.75.0 and Syft 1.54.0 (#218) moved with their
+adapters and recaptured fixtures, each reporting on its fixture what its predecessor did, as
+`docs/MAINTENANCE.md` describes; the ClusterFuzzLite base and `setup-oras` updates landed
+together (#220); Dependabot's labels went (#219). R28.2 was proved live: #217 merged itself
+(its STATUS). The scan goldens' flake was a real disagreement between the reply and
+`SUMMARY.md` over the slowest Scanner, fixed in #221. `1.5.2` shipped all of it; its
+rehearsal (run 38076611864) and the Score on Linux (73.4, every track at its baseline) ran
+before the tag.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -2211,7 +2221,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | `python3 scripts/audit_sample.py` lists the 18 of 172 labels, drawn with a fixed seed; read each finding and its label in `tests/eval/labels/corpus.toml`. A disagreement changes the label, with the change in its reason |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
-| how valvur treats a project's `osv-scanner.toml` (R27.2) | decided 2026-10-04 | D77: no project ignore hides a finding silently; built by R38 |
 | the Mac's speed gate, again, optional | a restart of the build Mac | ask a session to run `scripts/acceptance.py --rescan` and `scripts/eval.py --speed` on the Mac. R29's exit recorded 6.2 s against 5.6 s with 13 GB of swap, under D35. The owner chose on 2026-10-09 not to hold `1.5.0` for it: Linux's end-to-end timing tests passed on #204, and the next phase exit on a healthy Mac judges it again |
 | list the plugin and the power, optional | R21 landed | submit the plugin to Anthropic's plugin directory and the power to Kiro's catalog, with the text in `docs/LISTING.md` |
 | the OpenSSF Best Practices form | R22 landed | sign in at bestpractices.dev, create the project, and paste the answers from `docs/BEST-PRACTICES.md` |
@@ -2222,7 +2231,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | AWS measured runs: ECR mirror and CodeBuild (F1.10) | now | run once in an AWS account and record the numbers; the steps are in `AIR-GAPPED.md` and `docs/examples/` |
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
-| `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. Decide whether it should fake the runtime, as the other readers' cases do |
+| `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. On 2026-10-10, with this Mac at a load of 14 to 18 and 19 GB of swap, it failed in two of four runs, beside `test_kiro_probe`'s real-server cases, and passed in CI each time. Decide whether it should fake the runtime, as the other readers' cases do |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
