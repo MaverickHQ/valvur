@@ -1,65 +1,5 @@
 [
   {
-    "check_type": "github_actions",
-    "results": {
-      "failed_checks": [
-        {
-          "check_id": "CKV2_GHA_1",
-          "bc_check_id": null,
-          "check_name": "Ensure top-level permissions are not set to write-all",
-          "check_result": {
-            "result": "FAILED",
-            "evaluated_keys": [
-              "permissions"
-            ]
-          },
-          "code_block": null,
-          "file_path": "/.github/workflows/ci.yml",
-          "file_abs_path": "/workspace/.github/workflows/ci.yml",
-          "repo_file_path": "/.github/workflows/ci.yml",
-          "file_line_range": [
-            0,
-            1
-          ],
-          "resource": "on(ci)",
-          "evaluations": null,
-          "check_class": "checkov.common.graph.checks_infra.base_check",
-          "fixed_definition": null,
-          "entity_tags": null,
-          "caller_file_path": null,
-          "caller_file_line_range": null,
-          "resource_address": null,
-          "severity": null,
-          "bc_category": null,
-          "benchmarks": null,
-          "description": null,
-          "short_description": null,
-          "vulnerability_details": null,
-          "connected_node": null,
-          "guideline": null,
-          "details": [],
-          "check_len": null,
-          "definition_context_file_path": null,
-          "triggers": [
-            []
-          ],
-          "job": [
-            ""
-          ],
-          "workflow_name": "ci"
-        }
-      ]
-    },
-    "summary": {
-      "passed": 18,
-      "failed": 1,
-      "skipped": 0,
-      "parsing_errors": 0,
-      "resource_count": 0,
-      "checkov_version": "3.3.19"
-    }
-  },
-  {
     "check_type": "terraform",
     "results": {
       "failed_checks": [
@@ -225,58 +165,6 @@
           "definition_context_file_path": "/workspace/main.tf"
         },
         {
-          "check_id": "CKV_AWS_144",
-          "bc_check_id": null,
-          "check_name": "Ensure that S3 bucket has cross-region replication enabled",
-          "check_result": {
-            "result": "FAILED",
-            "entity": {
-              "aws_s3_bucket": {
-                "logs": {
-                  "__end_line__": 4,
-                  "__start_line__": 2,
-                  "bucket": [
-                    "valvur-fixture-logs"
-                  ],
-                  "__address__": "aws_s3_bucket.logs"
-                }
-              }
-            },
-            "evaluated_keys": [
-              "resource_type",
-              "replication_configuration/rules/*/status",
-              "rule/*/status"
-            ]
-          },
-          "code_block": null,
-          "file_path": "/main.tf",
-          "file_abs_path": "/workspace/main.tf",
-          "repo_file_path": "/main.tf",
-          "file_line_range": [
-            2,
-            4
-          ],
-          "resource": "aws_s3_bucket.logs",
-          "evaluations": null,
-          "check_class": "checkov.common.graph.checks_infra.base_check",
-          "fixed_definition": null,
-          "entity_tags": null,
-          "caller_file_path": null,
-          "caller_file_line_range": null,
-          "resource_address": null,
-          "severity": null,
-          "bc_category": null,
-          "benchmarks": {},
-          "description": null,
-          "short_description": null,
-          "vulnerability_details": null,
-          "connected_node": null,
-          "guideline": null,
-          "details": [],
-          "check_len": null,
-          "definition_context_file_path": "/workspace/main.tf"
-        },
-        {
           "check_id": "CKV2_AWS_5",
           "bc_check_id": null,
           "check_name": "Ensure that Security Groups are attached to another resource",
@@ -346,9 +234,9 @@
           "definition_context_file_path": "/workspace/main.tf"
         },
         {
-          "check_id": "CKV_AWS_21",
+          "check_id": "CKV_AWS_144",
           "bc_check_id": null,
-          "check_name": "Ensure all data stored in the S3 bucket have versioning enabled",
+          "check_name": "Ensure that S3 bucket has cross-region replication enabled",
           "check_result": {
             "result": "FAILED",
             "entity": {
@@ -364,9 +252,9 @@
               }
             },
             "evaluated_keys": [
-              "resource_type",
-              "versioning_configuration/status",
-              "versioning/enabled"
+              "replication_configuration/rules/*/status",
+              "rule/*/status",
+              "resource_type"
             ]
           },
           "code_block": null,
@@ -417,8 +305,8 @@
             },
             "evaluated_keys": [
               "resource_type",
-              "block_public_policy",
-              "block_public_acls"
+              "block_public_acls",
+              "block_public_policy"
             ]
           },
           "code_block": null,
@@ -551,9 +439,9 @@
           "definition_context_file_path": "/workspace/main.tf"
         },
         {
-          "check_id": "CKV_AWS_145",
+          "check_id": "CKV_AWS_21",
           "bc_check_id": null,
-          "check_name": "Ensure that S3 buckets are encrypted with KMS by default",
+          "check_name": "Ensure all data stored in the S3 bucket have versioning enabled",
           "check_result": {
             "result": "FAILED",
             "entity": {
@@ -569,9 +457,9 @@
               }
             },
             "evaluated_keys": [
-              "resource_type",
-              "rule/apply_server_side_encryption_by_default/sse_algorithm",
-              "server_side_encryption_configuration/rule/apply_server_side_encryption_by_default/sse_algorithm"
+              "versioning/enabled",
+              "versioning_configuration/status",
+              "resource_type"
             ]
           },
           "code_block": null,
@@ -652,6 +540,58 @@
           "details": [],
           "check_len": null,
           "definition_context_file_path": "/workspace/main.tf"
+        },
+        {
+          "check_id": "CKV_AWS_145",
+          "bc_check_id": null,
+          "check_name": "Ensure that S3 buckets are encrypted with KMS by default",
+          "check_result": {
+            "result": "FAILED",
+            "entity": {
+              "aws_s3_bucket": {
+                "logs": {
+                  "__end_line__": 4,
+                  "__start_line__": 2,
+                  "bucket": [
+                    "valvur-fixture-logs"
+                  ],
+                  "__address__": "aws_s3_bucket.logs"
+                }
+              }
+            },
+            "evaluated_keys": [
+              "resource_type",
+              "server_side_encryption_configuration/rule/apply_server_side_encryption_by_default/sse_algorithm",
+              "rule/apply_server_side_encryption_by_default/sse_algorithm"
+            ]
+          },
+          "code_block": null,
+          "file_path": "/main.tf",
+          "file_abs_path": "/workspace/main.tf",
+          "repo_file_path": "/main.tf",
+          "file_line_range": [
+            2,
+            4
+          ],
+          "resource": "aws_s3_bucket.logs",
+          "evaluations": null,
+          "check_class": "checkov.common.graph.checks_infra.base_check",
+          "fixed_definition": null,
+          "entity_tags": null,
+          "caller_file_path": null,
+          "caller_file_line_range": null,
+          "resource_address": null,
+          "severity": null,
+          "bc_category": null,
+          "benchmarks": {},
+          "description": null,
+          "short_description": null,
+          "vulnerability_details": null,
+          "connected_node": null,
+          "guideline": null,
+          "details": [],
+          "check_len": null,
+          "definition_context_file_path": "/workspace/main.tf"
         }
       ]
     },
@@ -661,7 +601,67 @@
       "skipped": 0,
       "parsing_errors": 0,
       "resource_count": 2,
-      "checkov_version": "3.3.19"
+      "checkov_version": "3.3.22"
+    }
+  },
+  {
+    "check_type": "github_actions",
+    "results": {
+      "failed_checks": [
+        {
+          "check_id": "CKV2_GHA_1",
+          "bc_check_id": null,
+          "check_name": "Ensure top-level permissions are not set to write-all",
+          "check_result": {
+            "result": "FAILED",
+            "evaluated_keys": [
+              "permissions"
+            ]
+          },
+          "code_block": null,
+          "file_path": "/.github/workflows/ci.yml",
+          "file_abs_path": "/workspace/.github/workflows/ci.yml",
+          "repo_file_path": "/.github/workflows/ci.yml",
+          "file_line_range": [
+            0,
+            1
+          ],
+          "resource": "on(ci)",
+          "evaluations": null,
+          "check_class": "checkov.common.graph.checks_infra.base_check",
+          "fixed_definition": null,
+          "entity_tags": null,
+          "caller_file_path": null,
+          "caller_file_line_range": null,
+          "resource_address": null,
+          "severity": null,
+          "bc_category": null,
+          "benchmarks": null,
+          "description": null,
+          "short_description": null,
+          "vulnerability_details": null,
+          "connected_node": null,
+          "guideline": null,
+          "details": [],
+          "check_len": null,
+          "definition_context_file_path": null,
+          "triggers": [
+            []
+          ],
+          "job": [
+            ""
+          ],
+          "workflow_name": "ci"
+        }
+      ]
+    },
+    "summary": {
+      "passed": 18,
+      "failed": 1,
+      "skipped": 0,
+      "parsing_errors": 0,
+      "resource_count": 0,
+      "checkov_version": "3.3.22"
     }
   }
 ]

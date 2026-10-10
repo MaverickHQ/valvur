@@ -96,7 +96,7 @@ together.
 | `osv-scanner` | `ghcr.io/google/osv-scanner` | 2.6.0 |
 | `syft` | `anchore/syft` | 1.52.0 |
 | `opengrep` | `opengrep/opengrep` | 1.29.0 |
-| `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.19 |
+| `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.22 |
 | `zizmor` | `/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash (R4.2) | 1.30.1 |
 | `python` | the base image's Python 3.12 | with the Checks |
 | `valvur` | `/usr/local/bin/valvur`, which runs `python3 -m valvur.cli`: the image as a pipeline step (R8.1) | the image's own version |

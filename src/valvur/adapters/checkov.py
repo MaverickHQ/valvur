@@ -15,7 +15,7 @@ from .base import ScannerAdapter, container_relative
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
 
-VERSION = "3.3.19"
+VERSION = "3.3.22"
 
 
 class CheckovAdapter(ScannerAdapter):

@@ -8,6 +8,12 @@ break things, and has.
 
 ## [Unreleased]
 
+### Changed
+
+- **Checkov 3.3.22** in the image, from 3.3.19, with its adapter's version and its parsing
+  fixture; `bc-detect-secrets` moves with it, to 1.5.52. On the fixture it reports the same
+  13 failed checks, with the same ids, files and resources.
+
 ## [1.5.1] — 2026-10-09
 
 The front door, published. The README is rewritten for a newcomer, with its detail in

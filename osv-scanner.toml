@@ -7,7 +7,7 @@
 # ignored here: they are stored under names no scanner reads as manifests
 # (`*.fixture`, copied back by `scripts/fixtures.py`).
 #
-# Checkov 3.3.17 (2026-09-14) — and 3.3.19 (2026-09-26) still — pulls in python-ecdsa,
+# Checkov 3.3.17 (2026-09-14) — and 3.3.19 and 3.3.22 (2026-10-10) still — pulls in python-ecdsa,
 # which carries an advisory with no fix and none coming. The lock's own self-scan
 # found it the day the lock moved, which is what the lock is for; the decision is
 # recorded here rather than by dropping the package from the lock, because a
