@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.5.2] — 2026-10-10
+
 ### Fixed
 
 - **One scan names one slowest Scanner.** When two Scanners took the same time, to the tenth

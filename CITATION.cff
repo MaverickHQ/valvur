@@ -6,8 +6,8 @@ title: "valvur: offline security scanning for AI-generated code"
 type: software
 authors:
   - name: "MaverickHQ"
-version: "1.5.1"
-date-released: 2026-10-09
+version: "1.5.2"
+date-released: 2026-10-10
 license: Apache-2.0
 repository-code: "https://github.com/MaverickHQ/valvur"
 url: "https://pypi.org/project/valvur/"
