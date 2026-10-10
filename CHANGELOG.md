@@ -10,6 +10,12 @@ break things, and has.
 
 ## [1.5.2] — 2026-10-10
 
+Current Scanners, and one answer per scan. Checkov, Trivy and Syft move to their latest
+releases, each with what has to move with it. On their fixtures each reports exactly what
+its predecessor did. One scan's reply and its `SUMMARY.md` now always name the same
+slowest Scanner. Every contract stands: protocol 2, `fp_version` 1, `findings.json`'s
+schema 1 and the reply's schema 2.
+
 ### Fixed
 
 - **One scan names one slowest Scanner.** When two Scanners took the same time, to the tenth
