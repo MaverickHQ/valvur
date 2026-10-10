@@ -1784,6 +1784,16 @@ movement recorded and explained; the acceptance set green on both lanes.
   waits for the live proof (§8). Landed 2026-10-05 (#205) and ticked with behaviour 4
   recorded as waiting, as R21.3's smoke run was (D61h): left unticked, it was the first
   unchecked task, and `build_status.py` sent every resuming session back to it.
+  - **The live proof, 2026-10-10:** behaviour 4 ✅. When Checkov 3.3.22 landed by hand
+    (#216), Dependabot rebuilt its dev-dependencies group as #217, two updates to
+    `uv.lock` alone. The workflow found it eligible and turned auto-merge on. Its checks
+    passed, and GitHub merged it at 10:43, eleven minutes after it opened, by squash: one
+    parent, committed and signed by GitHub, the signature verified. No one landed it.
+  - **What it left for the owner, the same week, as designed:** Trivy 0.75.0 and Syft
+    1.54.0, which it found eligible but which were red, since a Scanner's pin moves with
+    its adapter. Also Syft's and the ClusterFuzzLite base image's Dockerfile updates, whose
+    commits carry no `update-type` (a `v`-prefixed tag, a digest), and an Actions update,
+    which touches a workflow file.
   - **Measured first.** The repository allows squash, and `main` requires signed commits and
     linear history with no required review; auto-merge is off until the owner allows it.
     Dependabot's own pull requests showed two changes to the design. #200 changes
@@ -2197,7 +2207,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 |---|---|---|
 | upload the social preview (D78d) | R39.4 | Settings → General → Social preview: upload `docs/social-preview.png`. GitHub's API cannot set it |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
-| R28.2's live proof (D64a) | R28.2's workflow landed, and auto-merge allowed | nothing to do but watch: the first Dependabot pull request that is green on its own should merge itself, signed and linear. #199 and #200 are red, since Checkov's pin must move with its adapter (#122), so they stay yours. Tell a session the result, and it records it in R28.2's STATUS |
 | close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | `python3 scripts/audit_sample.py` lists the 18 of 172 labels, drawn with a fixed seed; read each finding and its label in `tests/eval/labels/corpus.toml`. A disagreement changes the label, with the change in its reason |
