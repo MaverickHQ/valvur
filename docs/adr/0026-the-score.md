@@ -14,7 +14,8 @@ that halved what a Scanner found would pass every check the repository had.
 
 ## Decision
 
-1. **One command, `scripts/eval.py`,** runs the image under test over eight **tracks**
+1. **One command, `scripts/eval.py`,** runs the image under test over nine **tracks**
+   (eight until R41)
    and scores each from 0 to 100 by the OWASP Benchmark's formula: per category, the
    true-positive rate minus the false-positive rate, averaged (N4.1). A **case** is a
    path with a category and a label, vulnerable or safe; it is flagged when an active
@@ -44,7 +45,17 @@ that halved what a Scanner found would pass every check the repository had.
       alarm and for forty, and 0/0 for none, so the ratchet could not see noise grow.
       With one imaginary true positive, a silent corpus scores 100 and each false
       alarm costs.
-3. **The Score** is the unweighted mean of the eight, so no weight can be tuned.
+   9. *Added 2026-10-11 by R41 (D80):* model output reaching a sink, the cases of the four
+      LLM-output rules, which until then no track held. Generated twins cover each sink
+      (code execution, a shell, a query, the DOM) from each SDK the rules name, and the
+      flows through a helper they are known to miss. Real cases are the vulnerable code
+      of published advisories in LLM frameworks, pinned in `tests/eval/sources.toml`, and
+      their fix where a clean one exists. The track is scored per sink like tracks 1 and
+      2, and reports the two kinds apart, since valvur writes its own twins. It comes
+      ninth so that tracks 1 to 8 keep their numbers.
+3. **The Score** is the unweighted mean of the nine, so no weight can be tuned. Adding a
+   track re-bases the Score, recorded with both numbers in `tests/eval/baseline.json`
+   (`rebased`), never as a rise.
 4. **Gates**, pass or fail: freshness, honesty (no `clean` while incomplete, no safe
    twin at high or critical), offline (`what_left_the_machine: nothing`), ranking (a
    known-exploited CVE above a development-only critical), and speed (the median warm

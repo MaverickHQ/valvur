@@ -276,8 +276,10 @@ Read this before the feature list, not after.
   never fired on real code (23.5.3): on the two corpus projects that execute model
   output, smolagents and pandas-ai, the flow crosses a class boundary, Opengrep's
   taint tracking is intra-procedural and does not see it, and the INFO sink
-  inventory names both `exec` sites. They are ranked `low`; the AI-specific claim
-  rests on the Checks above.
+  inventory names both `exec` sites. Since R41 they are measured on the Score's
+  track 9: 30 of 34 generated flows and no false alarm, and none of the five
+  published advisories it holds, each a flow across a function. They are ranked
+  `low`; the AI-specific claim rests on the Checks above.
 - **KEV rarely lists an application dependency, so EPSS does most of the ranking.**
   Measured 2026-08-30: across PyYAML, urllib3, Django, Jinja2 and Pillow, 269 CVEs and
   one of them in KEV; the catalogue is mostly vendor appliances and enterprise
@@ -381,7 +383,7 @@ did. Running it against real repositories did.
 ## 9. Measure it yourself: the Score
 
 Everything above is about how valvur behaves. The Score is about what it finds: one
-command, eight tracks, each scored the way the [OWASP Benchmark](https://github.com/OWASP-Benchmark/BenchmarkPython)
+command, nine tracks, each scored the way the [OWASP Benchmark](https://github.com/OWASP-Benchmark/BenchmarkPython)
 scores a tool. For each category, it takes the share of vulnerable cases flagged,
 minus the share of safe cases flagged, and averages over the categories. A tool that
 flags everything scores 0, as one that flags nothing does. ADR-0026 is the design.
@@ -402,8 +404,9 @@ uv run python scripts/eval.py --compare tests/eval/baseline.json # fail on a fal
 | agent-configuration | planted directives, hidden Unicode, blanket approval, hooks, leaking settings, against benign files and real ones from awesome-cursorrules |
 | infrastructure | Terraform, Kubernetes, Dockerfile and GitHub Actions faults against their fixes |
 | real-code-precision | 48 corpus projects, 22 Python and 19 JavaScript or TypeScript (13 until R29): each finding of valvur's own rules and Gitleaks labelled by hand, scored as smoothed precision |
+| llm-output | model output reaching code execution, a shell, a query or the DOM: 34 generated vulnerable cases and their fixes, from every SDK source the four rules name, and five published advisories in LLM frameworks at their vulnerable commits; scored per sink, the two kinds also reported apart |
 
-**The Score** is the unweighted mean of the eight. Beside it are five **gates**:
+**The Score** is the unweighted mean of the nine (eight until R41). Beside it are five **gates**:
 - *offline*: nothing left the machine;
 - *honesty*: no false `clean`, and no safe twin at high;
 - *freshness*: the data is within its refresh age: the index, the malicious list, KEV
@@ -560,6 +563,29 @@ aliases, three licence readings, and RegExp's `exec` read as a shell.
   CodeQL ships.
 - **Tests that notice:** a weekly mutation run reverts each hunk of the week's changes,
   and its score, 83.8 when first measured, may only rise.
+
+**Model output after R41, 2026-10-11.** The four rules for model output reaching a sink
+had no case on any track. R41 added track 9: generated twins for every sink and SDK
+source the rules name, one flow per sink through a helper, and five published advisories
+in LangChain, LlamaIndex and Vanna, pinned at their vulnerable commits, and the one
+with a clean fix at that fix too.
+
+| sink | generated, caught | advisories, caught | fixes flagged |
+|---|---|---|---|
+| code execution | 8 of 9 | 0 of 4 | 0 of 10 |
+| a shell | 8 of 9 | none held | 0 of 9 |
+| a query | 8 of 9 | 0 of 1 | 0 of 9 |
+| the DOM | 6 of 7 | none held | 0 of 7 |
+
+- **Track 9 is 79.0**: 88.1 on the generated cases and 0.0 on the real ones. Every miss
+  crosses a function, the four helper flows and all five advisories. Opengrep's taint
+  is intra-procedural; the INFO sink inventory names the sink in three of the five.
+- **One rule fixed.** `valvur.llm.output-to-sql` flagged every fix that binds the model's
+  text as a parameter, the form its own message recommends. Its sink is now the query
+  argument alone, and the query sink rose from 0.0 to 80.0.
+- **Each of the four is at precision 1.0** on the track, in [`RULES.md`](RULES.md).
+- **The Score is re-based, not risen.** Tracks 1 to 8 did not move; the mean of nine is
+  74.1 against 73.4 for eight, both numbers in `tests/eval/baseline.json` (`rebased`).
 
 **The targets.** `1.2.0`'s targets (D22) were met on five tracks. For SAST-Python,
 SAST-JS and real-code precision, the owner lowered them on 2026-10-02 to what 1.2.0

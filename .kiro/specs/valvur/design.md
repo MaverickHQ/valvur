@@ -805,7 +805,7 @@ Test-first. Contracts before implementation.
 | **Timing** | Every test that asserts a wall-clock bound, marked `timing` (D35, R10.6) | Run in CI's e2e job and at phase exits, never in the unit suite; a guard finds an unmarked one |
 | **Constraint** | `offline` **Profile** with networking disabled, failing on any socket attempt | **N2.1 — the moat as a regression test** |
 | **Self-scan** | valvur's `full` **Profile** against valvur | Release gate (N2.5) |
-| **The Score** | Detection and precision over eight tracks, and five gates: offline, honesty, freshness, ranking, speed (§9a) | Every phase exit on both lanes, weekly, and in the release's `verify` (N4.3) |
+| **The Score** | Detection and precision over nine tracks (the ninth, model output reaching a sink, by R41), and five gates: offline, honesty, freshness, ranking, speed (§9a) | Every phase exit on both lanes, weekly, and in the release's `verify` (N4.3) |
 | **Agent runs** | Claude Code with no shell: R12.5's *add package X* scenarios, R15.2's plugin smoke run | Capped at $10 for the build (D36); never part of the Score |
 
 The constraint test is the most important in the suite: it converts the central
@@ -826,7 +826,7 @@ D38's fallback was not needed.
 ## 9a. The Score (N4.1 to N4.4, ADR-0026, R9)
 
 Detection measured, and held by a ratchet. One command, `scripts/eval.py`, runs the
-image `VALVUR_IMAGE` names over eight **tracks**, each a tree of cases scanned through
+image `VALVUR_IMAGE` names over nine **tracks**, each a tree of cases scanned through
 `valvur scan` as a user runs it, and scores each 0 to 100.
 
 - **The formula** (`scripts/eval/score.py`), the OWASP Benchmark's: per category,
@@ -841,8 +841,11 @@ image `VALVUR_IMAGE` names over eight **tracks**, each a tree of cases scanned t
   13-repository corpus, where every active Finding of a valvur-owned or vendored rule
   or of Gitleaks is labelled in `tests/eval/labels/corpus.toml`, an unlabelled one
   failing the track. Track 8 is smoothed precision, 100 × (tp + 1) / (tp + fp + 1),
-  since its judged findings held no true positive (R9.5).
-- **The Score** is the unweighted mean of the eight.
+  since its judged findings held no true positive (R9.5); 9, model output reaching a
+  sink (R41): generated twins from the seed, and published advisories pinned in
+  `tests/eval/sources.toml` and fetched into the build cache, scored per sink with
+  the two kinds also reported apart.
+- **The Score** is the unweighted mean of the nine.
 - **Gates**, pass or fail, each judged from the phase that built what it checks:
   offline from R9 (`what_left_the_machine` is `nothing`); honesty from R10 (no `clean`
   while incomplete, no safe twin at high or critical); freshness from R11 (every

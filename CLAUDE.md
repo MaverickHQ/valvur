@@ -13,11 +13,11 @@ Claude Code or Kiro (ADR-0015); second, the CLI. One OCI image on Docker or Podm
 launched by a small host shim. **The goal every change is judged against:** from an agent
 session, one request scans the project and writes a report into it that is fast, complete or
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
-`scripts/eval.py`, eight tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
+`scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-10).** **`1.5.2` is published**: Checkov 3.3.22, Trivy 0.75.0, Syft 1.54.0; the
-Score **73.4** on both lanes, each rule's precision in [`docs/RULES.md`](docs/RULES.md); a README
-with four guides, whole on PyPI. **Next:** R41, a Score track for the LLM-output rules (D80).
+**Status (2026-10-11).** **`1.5.2` is published.** **R41 is built** (D80), awaiting landing: track
+9 measures the four LLM-output rules, each at precision 1.0, catching no flow across a function;
+the Score **74.1** over nine, re-based from 73.4. **Next:** the owner's call on a release (§8).
 
 ## 2. What it is NOT
 
@@ -93,7 +93,7 @@ R9.2 from `tasks.md` §5, which holds every other decision the build needs, with
 | 0023 | The Scanner set, by rule; amended with R4.1's measurements |
 | 0024 | `scan` returns the result, with progress, instead of start-and-poll |
 | 0025 | A scan refreshes stale data as it fetches absent data; `fetch = "never"` for air-gapped use |
-| 0026 | The Score: eight tracks, TPR minus FPR, a ratchet no track may fall 2 points under |
+| 0026 | The Score: nine tracks (the ninth by R41), TPR minus FPR, a ratchet no track may fall 2 points under |
 | 0027 | Every dataset's age is its data's; index, KEV and EPSS refreshed past 2 days; EPSS from FIRST's daily file; `MAL-` names published daily |
 | 0028 | `check_package`, offline, before an install; private registries and dependency confusion |
 | 0029 | Static-analysis rules from licence-audited sources, each shipped only on measured precision |

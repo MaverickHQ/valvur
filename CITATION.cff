@@ -16,7 +16,7 @@ abstract: >-
   seven open-source scanners in one container with no network interface, adds checks for
   hallucinated and malicious dependencies and for poisoned agent configuration, ranks
   findings by real-world exploitation, and writes an agent-readable report into the
-  project. Its detection is measured by a Score of eight tracks, re-run on every phase.
+  project. Its detection is measured by a Score of nine tracks, re-run on every phase.
 keywords:
   - security
   - static analysis

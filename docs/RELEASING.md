@@ -200,7 +200,7 @@ the verdict *unreadable*, and `verify` then reruns `verify.sh` and the whole sui
 end-to-end included, and says so. Then: valvur must add no GPL component (F10.4);
 valvur must scan itself clean on the day's data, with no unsuppressed finding, no
 expired suppression and no scanner that failed to complete (N2.5); and the Score
-must hold its baseline (N4.3, ADR-0026), which no required check measures. Every track runs, since all eight fit in a few minutes. A track more than
+must hold its baseline (N4.3, ADR-0026), which no required check measures. Every track runs, since all nine fit in a few minutes. A track more than
 2 points under `tests/eval/baseline.json`, a failed gate whose phase has closed, or
 a corpus finding with no label stops the release. The weekly `eval.yml` runs the
 same command, so a fall is usually known before release day.
