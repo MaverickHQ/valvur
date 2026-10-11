@@ -71,8 +71,16 @@ def test_every_tool_names_its_cli_counterpart():
     assert {tool.name for tool in registry()} == set(PARITY)
 
 
-@pytest.mark.parametrize("tool", [t for t, command in PARITY.items()
-                                  if command and t not in ("scan", "update", "check_package")])
+#: Excluded by the owner on 2026-10-11 rather than faked. `doctor` probes the real Docker,
+#: and when its probes outlast the 10 s the server waits for a call in flight at the end of
+#: input (`JOIN_SECONDS`), no reply is written: it failed so on the Mac under load and once
+#: in CI (#225). What `doctor` says is held by `test_doctor.py`.
+DOCTOR = "probes the real Docker past the server's 10 s join; excluded (the owner, 2026-10-11)"
+
+
+@pytest.mark.parametrize("tool", [
+    pytest.param(t, marks=pytest.mark.skip(reason=DOCTOR)) if t == "doctor" else t
+    for t, command in PARITY.items() if command and t not in ("scan", "update", "check_package")])
 def test_each_reader_and_its_command_give_the_same_answer(scanned, capsys, tool):
     findings = json.loads((scanned / ".security-scan" / "findings.json").read_text())
     fingerprint = findings["findings"][0]["fingerprint"]
