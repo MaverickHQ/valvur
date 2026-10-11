@@ -9,8 +9,10 @@ file that does not parse.
 
 from __future__ import annotations
 
+from typing import Any
 
-def loads(text: str) -> dict:
+
+def loads(text: str) -> dict[str, Any]:
     """`tomllib.loads`, with nesting past the interpreter's limit a `TOMLDecodeError`,
     which every caller already answers."""
     import tomllib  # stdlib, loaded when a file is first read, as each reader did
