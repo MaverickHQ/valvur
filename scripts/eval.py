@@ -31,8 +31,10 @@ import twins  # type: ignore[import-not-found]  # noqa: E402
 
 #: Every track, in the order the Score reports them: the OWASP Benchmark first,
 #: then the generated ones, then precision on the corpus (ADR-0026).
+#: Track 9, model output reaching a sink (R41, D80), comes last, so tracks 1 to 8 keep
+#: their numbers.
 TRACKS = ["sast-python", *(t for t in twins.BUILDERS if t != "llm-output"),
-          "real-code-precision"]
+          "real-code-precision", "llm-output"]
 CORPUS = REPO / "tests" / "corpus"
 LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
 
@@ -109,6 +111,33 @@ def _cursorrules() -> Path:
     return harness.CHECKOUTS / "awesome-cursorrules"
 
 
+def _llm_real() -> tuple[Path, dict[str, dict]]:
+    """Track 9's real cases, fetched at their pins into the build cache (`llm_real.py`)."""
+    import os
+
+    import llm_real  # type: ignore[import-not-found]
+
+    home = Path(os.environ.get("HOME", "~")) / ".cache" / "valvur-build"
+    return llm_real.fetch(home / "llm-output-real"), llm_real.entries()
+
+
+def _kinds(cases: list, findings: list[dict], cwe_of) -> dict:
+    """Track 9's generated twins and its real advisories, scored apart (D80a): valvur
+    writes the first itself, and the second keeps it honest."""
+    found = {}
+    for kind, prefix in (("generated", "llm-gen-"), ("real", "llm-real-")):
+        mine = [c for c in cases if c.id.startswith(prefix)]
+        if not mine:
+            continue
+        flagged = {c.id for c in mine if score.flagged(c, findings, cwe_of)}
+        found[kind] = {"score": score.score_track(mine, findings, cwe_of).score,
+                       "vulnerable": sum(c.vulnerable for c in mine),
+                       "caught": sum(c.vulnerable and c.id in flagged for c in mine),
+                       "safe": sum(not c.vulnerable for c in mine),
+                       "flagged_safe": sum(not c.vulnerable and c.id in flagged for c in mine)}
+    return found
+
+
 def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
                checkouts: Path | None, labels: Path) -> tuple[dict, dict[str, list[dict]]]:
     """Track 8: scan each corpus project at its pin and judge the owned findings. Also
@@ -140,7 +169,8 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         index_dir: Path | None = None, benchmark: Path | None = None,
         verify: Callable[[Path], None] = owasp.verify, corpus: list[dict] | None = None,
         checkouts: Path | None = None, labels: Path = LABELS,
-        cursorrules: Callable[[], Path] = _cursorrules, speed: dict | None = None) -> dict:
+        cursorrules: Callable[[], Path] = _cursorrules, speed: dict | None = None,
+        llm_real: Callable[[], tuple[Path, dict[str, dict]]] = _llm_real) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt. The
     benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
@@ -166,7 +196,11 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             root = work / track
             if root.exists():
                 shutil.rmtree(root)
-            extra = {"corpus": cursorrules()} if track == "agent-configuration" else {}
+            extra: dict = {}
+            if track == "agent-configuration":
+                extra = {"corpus": cursorrules()}
+            elif track == "llm-output":
+                extra = dict(zip(("real", "chosen"), llm_real(), strict=True))
             cases = twins.build(track, root, seed=seed, **extra)
         began = time.monotonic()
         scan(root)
@@ -203,6 +237,8 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
                 cases, root, cwe_of)
         if track == "dependencies":
             ranking_first = _ranked_first(findings)
+        if track == "llm-output":
+            result["tracks"][track].update(_kinds(cases, findings, cwe_of))
         # The oldest each dataset was in any track's scan: only some tracks read
         # some data (OSV's databases, for one), and the last track need not.
         result["data"] = _oldest(result["data"], data_ages(run_json))

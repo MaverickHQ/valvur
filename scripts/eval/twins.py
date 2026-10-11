@@ -1006,7 +1006,8 @@ def _js_case(family: str, use: str, helper: bool, model: str) -> str:
             f"{use.replace('{t}', text)}\n}}\n")
 
 
-def llm_output(root: Path, seed: int, real: Path | None = None) -> list[Case]:
+def llm_output(root: Path, seed: int, real: Path | None = None,
+               chosen: dict[str, dict] | None = None) -> list[Case]:
     """Track 9 (R41, D80): model output reaching each sink, from each SDK source the
     rules name, beside its fix; the cross-function flows; and, with `real`, the
     pinned advisories' code (`llm_real.py`)."""
@@ -1028,7 +1029,7 @@ def llm_output(root: Path, seed: int, real: Path | None = None) -> list[Case]:
                 cases.append(Case(f"llm-gen-{category}-{name}{'' if label else '-fixed'}",
                                   "llm-output", category, path, label, rules=(rule,)))
     _write(root, files)
-    return cases + (llm_real_cases(root, real) if real else [])
+    return cases + (llm_real_cases(root, real, chosen) if real else [])
 
 
 def llm_real_cases(root: Path, real: Path, chosen: dict[str, dict] | None = None

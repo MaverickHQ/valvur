@@ -146,3 +146,56 @@ def test_the_real_cases_join_the_track_and_name_their_kind(tmp_path):
         ("llm-real-demo-fixed", False, "code-execution", "real/demo/fixed")]
     assert (tmp_path / "t" / "real" / "demo" / "vulnerable" / "chain.py").is_file()
     assert not list((tmp_path / "t").rglob(".valvur*"))
+
+
+# ------------------------------------------------------------- the ninth track
+
+def _eval():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("valvur_eval", REPO / "scripts" / "eval.py")
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["valvur_eval"] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
+
+
+def test_the_track_comes_ninth_so_tracks_one_to_eight_keep_their_numbers():
+    tracks = _eval().TRACKS
+
+    assert tracks[7:] == ["real-code-precision", "llm-output"]
+
+
+def test_it_is_scored_per_sink_and_reports_generated_and_real_cases_apart(tmp_path):
+    """A scan that catches every direct flow and nothing else: the helper flows and
+    the real advisories are missed, and the two kinds say so separately."""
+    import json
+
+    url, vulnerable, fixed = _origin(tmp_path)
+    entries = {"demo": {"url": url, "licence": "MIT", "advisory": "CVE-2026-0001",
+                        "category": "code-execution", "commit": vulnerable, "fixed": fixed,
+                        "files": ["chain.py"]}}
+    real = llm_real.fetch(tmp_path / "real", entries)
+    harness = _eval()
+
+    def scan(root: Path) -> None:
+        cases = json.loads((root.parent / "llm-output.cases.json").read_text())
+        findings = [{"path": c["path"] if c["path"].endswith((".py", ".js"))
+                     else c["path"] + "/chain.py", "rule": c["rules"][0], "sources": ["opengrep"],
+                     "suppressed": None, "status": "new"}
+                    for c in cases if c["vulnerable"] and c["id"].startswith("llm-gen-")
+                    and "-helper" not in c["id"]]
+        folder = root / ".security-scan"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "findings.json").write_text(json.dumps({"findings": findings}))
+        (folder / "run.json").write_text(json.dumps({"status": "findings", "complete": True}))
+
+    result = harness.run(["llm-output"], tmp_path / "work", scan=scan, image="valvur:dev",
+                         image_id=lambda image: "sha256:abc",
+                         llm_real=lambda: (real, entries))
+    track = result["tracks"]["llm-output"]
+
+    assert set(track["categories"]) == {"code-execution", "shell", "query", "dom"}
+    assert track["generated"]["vulnerable"] == 34 and track["generated"]["caught"] == 30
+    assert (track["real"]["vulnerable"], track["real"]["caught"]) == (1, 0)
+    assert track["generated"]["score"] > track["score"] > track["real"]["score"]
