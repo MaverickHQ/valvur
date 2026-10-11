@@ -8,6 +8,27 @@ break things, and has.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The rule for model output reaching a query reports a query the model wrote, not a value
+  bound to it.** `valvur.llm.output-to-sql` matched any argument of `execute`, so
+  `cur.execute("... WHERE title = ?", (text,))`, the parameterised form its own message
+  recommends, was reported. Its sink is now the query argument alone.
+- **A TOML file nested past Python's limit is a file that does not parse, not a crash.** A
+  `.security-scan.toml`, lockfile, manifest, `.gitleaks.toml` or `osv-scanner.toml` of arrays
+  nested about a thousand deep made Python's TOML reader raise past every handler, and one
+  committed file could end a scan. Found by ClusterFuzzLite.
+
+### Added
+
+- **A ninth Score track, `llm-output`**: model output reaching code execution, a shell, a
+  query or the DOM. It holds a vulnerable case and its fix for every SDK source the four
+  rules name, and five published advisories in LangChain, LlamaIndex and Vanna at their
+  vulnerable commits, scored per sink and reported apart. [`docs/RULES.md`](docs/RULES.md)
+  now measures the four rules, each at precision 1.0. They catch 30 of the 34 generated
+  flows and none of the five advisories, whose flows each cross a function. The Score is the
+  mean of nine, 74.1, re-based from 73.4 over eight.
+
 ## [1.5.2] — 2026-10-10
 
 Current Scanners, and one answer per scan. Checkov, Trivy and Syft move to their latest

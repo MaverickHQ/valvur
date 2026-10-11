@@ -2277,13 +2277,25 @@ rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is no
   - **An early read**, the image's Opengrep over the generated cases: every direct flow
     caught and no fix flagged, except the query fixes. The SQL rule flags all eight
     parameterised queries, so its sink matches more than the query string (R41.4).
-- [ ] **R41.3** **The ninth track** (D80b). Behaviours:
+- [x] **R41.3** **The ninth track** (D80b). Behaviours:
   1. `scripts/eval.py` scores `llm-output` per sink, and reports the generated and the real
      cases apart;
   2. the Score is the mean of nine, and `tests/eval/baseline.json` records the track and
      the Score's re-basing with both numbers;
   3. ADR-0026, `EVALUATING.md`, the README and `CLAUDE.md` say nine tracks, and the README's
      sentence on the taint rules cites the track.
+
+  **STATUS 2026-10-11:** ✅ The same on both lanes: Linux, eval run 38141156906 at R41.4's
+  head, `sha256:4e4a29a0b574`; the Mac, `sha256:9ac213cea176`.
+  - **Track 9 is 79.0**, per sink: code execution 0.615, a shell 0.889, a query 0.8, the
+    DOM 0.857, and no fix flagged in any. Apart: 88.1 on the generated cases, 30 of 34
+    caught; 0.0 on the real ones, none of 5.
+  - **The Score is the mean of nine, 74.1**, re-based from 73.4 over eight, with both
+    numbers on both lanes in `tests/eval/baseline.json` (`rebased`), held by
+    `test_eval_rebased.py`. Tracks 1 to 8 did not move.
+  - **Nine tracks** in ADR-0026, `EVALUATING.md` (with *Model output after R41*), the
+    design, the README, `HOW-IT-WORKS.md`, `RELEASING.md`, `CITATION.cff` and `CLAUDE.md`.
+    The README's and `HOW-IT-WORKS.md`'s sentences on the taint rules cite track 9.
 - [x] **R41.4** **The four rules, measured** (D80c). Behaviours:
   1. `rule_precision` measures the track, and `docs/RULES.md` gives the four rules their
      counts;
@@ -2340,6 +2352,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | `doctor`'s parity test, flaky once | R18.2 | `test_cli_parity`'s `doctor` case compares two calls that both probe the real Docker; it failed once in a full run on 2026-10-02 and passed alone and in the next. On 2026-10-10, with this Mac at a load of 14 to 18 and 19 GB of swap, it failed in two of four runs, beside `test_kiro_probe`'s real-server cases, and passed in CI each time. Decide whether it should fake the runtime, as the other readers' cases do |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
+| call a release for R41 | R41 landed | R41.4 changed a rule: `valvur.llm.output-to-sql` no longer reports a bound parameter. A TOML file nested past Python's limit no longer ends a scan (found by ClusterFuzzLite on #224). Ask a session to prepare `1.5.3` by `docs/RELEASING.md`, or leave both for the next |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
 ---

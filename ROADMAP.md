@@ -8,10 +8,10 @@ view of it, as of 2026-10-11. To argue for something, open a thread in
 
 ## Now
 
-- **Model output reaching a sink, measured.** valvur's four rules for model output that
-  reaches code, a shell, a query or the DOM get a Score track of their own, with real
-  vulnerable and fixed code where its licence allows, so their precision is measured
-  rather than claimed.
+- **Model output reaching a sink, measured**, built and awaiting its release. valvur's four
+  rules for model output that reaches code, a shell, a query or the DOM have a Score track
+  of their own. They catch 30 of its 34 generated flows with no false alarm, and none of
+  the five published advisories it holds, whose flows each cross a function.
 
 ## Next
 
