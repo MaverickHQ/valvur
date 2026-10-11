@@ -3,19 +3,27 @@
 What valvur is doing now, what it is considering, and what it will not do. The plan it is
 built from, with every decision and measurement, is
 [`.kiro/specs/valvur/tasks.md`](.kiro/specs/valvur/tasks.md); this page is the reader's
-view of it, as of 2026-10-09. To argue for something, open a thread in
+view of it, as of 2026-10-11. To argue for something, open a thread in
 [Discussions → Ideas](https://github.com/MaverickHQ/valvur/discussions/categories/ideas).
 
 ## Now
 
-- **A professional front door**: this README, the guides beside it, and the GitHub page.
+- **Model output reaching a sink, measured.** valvur's four rules for model output that
+  reaches code, a shell, a query or the DOM get a Score track of their own, with real
+  vulnerable and fixed code where its licence allows, so their precision is measured
+  rather than claimed.
+
+## Next
+
+- **Two of the rules a second engine found valvur missing:** certificate validation turned
+  off, and a JavaScript cookie sent without `secure`.
 
 ## Shipped recently
 
-`1.5.0` (2026-10-09): a project's own ignore comments and files no longer hide findings
-silently; five false reports fixed; every rule's precision published in
-[`docs/RULES.md`](docs/RULES.md); KEV current over a weekend. Everything else is in the
-[CHANGELOG](CHANGELOG.md).
+`1.5.2` (2026-10-10): Checkov 3.3.22, Trivy 0.75.0 and Syft 1.54.0, and one slowest Scanner
+per scan. `1.5.1`: the README rewritten, and whole on PyPI. `1.5.0`: a project's own ignore
+comments and files no longer hide findings silently, and every rule's precision is published
+in [`docs/RULES.md`](docs/RULES.md). Everything else is in the [CHANGELOG](CHANGELOG.md).
 
 ## Being considered
 
@@ -23,8 +31,7 @@ Each needs something first, and none has a date.
 
 | idea | what it needs first |
 |---|---|
-| Four rules a second engine found that valvur misses: certificate validation turned off, a JavaScript cookie without `secure`, a short key, an old TLS version | cases on a Score track, then D29's measured bar ([the comparison](docs/acceptance/r29.md#what-valvur-misses-r294)) |
-| A Score track for model output reaching code, a shell, a query or the DOM | real or generated cases, vulnerable and fixed, under a licence that allows them |
+| Two more rules a second engine found that valvur misses: a short key and an old TLS version | evidence that they matter, then cases on a Score track and D29's measured bar ([the comparison](docs/acceptance/r29.md#what-valvur-misses-r294)) |
 | Java and Go code rules | a benchmark for each language under a compatible licence |
 | Container images scanned offline | a measurement on a real image: size and time |
 | Scans limited to given paths | the reuse by declared inputs planned for 2.0 |

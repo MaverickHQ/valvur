@@ -17,7 +17,7 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 
 **Status (2026-10-10).** **`1.5.2` is published**: Checkov 3.3.22, Trivy 0.75.0, Syft 1.54.0; the
 Score **73.4** on both lanes, each rule's precision in [`docs/RULES.md`](docs/RULES.md); a README
-with four guides, whole on PyPI. **Next:** the owner's pick from `tasks.md` §9.
+with four guides, whole on PyPI. **Next:** R41, a Score track for the LLM-output rules (D80).
 
 ## 2. What it is NOT
 

@@ -66,6 +66,12 @@ together (#220); Dependabot's labels went (#219). R28.2 was proved live: #217 me
 rehearsal (run 38076611864) and the Score on Linux (73.4, every track at its baseline) ran
 before the tag.
 
+**Amended 2026-10-11**, at the owner's word, after weighing effort against value: Phase R41
+(D80) gives the four LLM-output rules a Score track, since they are valvur's core claim for
+AI-generated code and `docs/RULES.md` marks them *unmeasured*. Of the four candidate rules
+R29.4 found, certificate validation turned off and the JavaScript cookie without `secure`
+are the next detection work after R41; the short key and the old TLS version stay in §9.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -309,6 +315,7 @@ wait for it.
 | D77 | **A project's own ignores never hide a finding silently** (the owner, 2026-10-04; `CLAUDE.md` §4 and §7). Each Scanner obeys ignores written into the project it scans: Opengrep's `nosemgrep` comments, Gitleaks's `gitleaks:allow` comments, `.gitleaksignore` and `.gitleaks.toml` allowlists, Checkov's `checkov:skip` comments, `.trivyignore`, and `osv-scanner.toml`. valvur turns none of them off: read on 2026-10-04 from the adapters' arguments, and R27 found `osv-scanner.toml` hiding an advisory from valvur's own report. A one-line comment is the cheapest way for an agent to make a finding disappear, which is what §4 guards against. **(a)** Each Scanner runs with its own ignores off: Opengrep with `--disable-nosem`, Gitleaks without the project's allow-comments and ignore files, Trivy with an empty `--ignorefile`, OSV-Scanner with a `--config` valvur writes. The exact switch for each pinned version is measured first. **(b)** valvur reads the project's ignores itself, and every finding one of them would hide carries `ignored_by`, naming the file or the comment's line, in `findings.json` and as a SARIF suppression of kind `inSource` or `external`. **(c)** A project's ignore counts as a suppression only when it carries a reason and an expiry date, as `.security-scan.toml`'s entries must: `osv-scanner.toml`'s `reason` and `ignoreUntil`, say. A lapsed one fails the gate like valvur's own. Otherwise the finding stays active, marked as ignored by the project without an expiry, and `SUMMARY.md` lists both kinds. **(d)** It changes what a scan reports, as a fix 1.x allows: a project that silenced findings by comment may move from `clean` to `findings`, and the CHANGELOG says so. valvur's own accepted Checkov advisory carries a reason and a date, so it stays suppressed. | where a pinned Scanner cannot turn its ignores off, valvur reads its output's record of what it skipped (Checkov's `skipped_checks`, say); where neither exists, a coverage note names the ignore as unread, so the verdict is never narrowed silently |
 | D78 | **A professional front door** (the owner, 2026-10-09, after `1.5.0`; parks D67 to D75). An evaluator meets valvur through its README and its GitHub page before any scan, and both should read as a mature project's. **(a) Measured first:** the README as a newcomer reads it (655 lines in 16 sections, the agents' section alone about 280), the repository page (a description, but no website, no topics, Discussions off and no social preview; the community profile at 100%), and the front doors of comparable tools (Trivy, Gitleaks, OSV-Scanner, Checkov, Opengrep). **(b) The README** says what valvur is in one sentence, then gives: a short row of badges that each mean something; a quickstart per surface (the Claude Code plugin, Kiro, the CLI, CI) that works as written; a picture of the output; what it finds, crediting the open-source Scanner that finds it; why it is different (offline and provable, and the human decides); the Score with its measured numbers; and an index of the documents. It stays under 250 lines. The detail it holds now moves into guides under `docs/`, and nothing is dropped. Every number is measured (R7.1), and every claim `test_readme_as_built.py` holds stays held. **(c) The documents beside it:** `docs/README.md` as the index; guides for agents, the CLI and CI, drawn from the README's sections; `SUPPORT.md`; `ROADMAP.md`, a reader's view of §7 and §9; and `CITATION.cff`, whose version `prepare_release.py` moves. Every relative link in the README and `docs/` resolves, held by a test. One voice throughout: plain, measured, no marketing. **(d) The GitHub page:** the About description, the website (the PyPI page until there is a documentation site), up to twenty topics, a social preview image (1280 by 640, generated from an SVG in the tree), and Discussions with categories. The text and topics are recorded in `docs/LISTING.md`. Changing the page publishes, so the executor applies the description, website, topics and Discussions only on the owner's yes in chat. GitHub's API cannot set the social preview, so the owner uploads it (§8). | if the owner declines a setting, it stays in §8 with its text ready |
 | D79 | **The README on PyPI** (the owner, 2026-10-09, after R39; from §9). PyPI renders the README as the project's description, and resolves nothing relative: on `1.5.0`'s page 22 of 52 links and the demo image are broken (measured in a browser, since PyPI answers scripts with a challenge). The build writes PyPI's copy: a metadata hook in `hatch_build.py` reads `README.md` and rewrites every relative link to the repository at the release's tag (`blob/v<version>/`, `tree/` for a folder), every image to `raw.githubusercontent.com` at that tag, and a `<picture>` to its light `<img>`, since PyPI's page is light and keeps no `<picture>`. A version that is not a release links `main`. The README in the tree keeps its relative links, which GitHub and the link test need. Tested through the built wheel's metadata, since hatchling is the build's and not the test environment's. It changes the release machinery, so `1.5.1` is rehearsed. | if PyPI strips something the rewrite relies on, the README's HTML is reduced to what its renderer keeps, measured with `readme-renderer` |
+| D80 | **Model output reaching a sink, measured** (the owner, 2026-10-11, from §9; amends ADR-0026's eight tracks to nine). The four LLM-output rules (`valvur.llm.output-to-code-execution`, `-to-shell` and `-to-sql`, and `valvur.js.output-to-innerhtml`) are valvur's core claim for AI-generated code. `docs/RULES.md` marks them *unmeasured*: no track holds a case of their weakness. **(a) The cases.** A ninth track, `llm-output`, comes after `real-code-precision`, so tracks 1 to 8 keep their numbers. Each case is vulnerable, beside its fixed twin. *Generated twins*, from a fixed seed as tracks 2 to 7 are, cover each sink the rules name (code execution, a shell, a query, the DOM) and each SDK source (Anthropic, OpenAI, Gemini, LangChain, litellm, ollama). They include the flows the rules are known to miss, through a helper function, so the intra-procedural limit `test_rules.py` states is measured as well. *Real cases* are the vulnerable and fixed commits of published advisories in LLM frameworks whose licence allows it, pinned and fetched into the build cache as the corpus is. LangChain's math and SQL chains, Vanna, PandasAI and LlamaIndex's pandas query engine are candidates, each confirmed by R41.1. Real cases weigh against valvur writing its own exam, so the track reports the two kinds apart as well as together. **(b) The score** is the OWASP Benchmark's formula per sink, as tracks 1 and 2 are. The Score becomes the mean of nine. Its baseline is re-based with both numbers, as track 8's was (R29.6), never recorded as a rise. ADR-0026 is amended, and every document that says *eight tracks* says nine. **(c) The rules, measured.** `rule_precision` reads the new track, so `docs/RULES.md` gives the four rules their counts. A rule under D29's bar is improved in the phase when the track shows a source or sink it lacks; otherwise it is demoted to the inventory with its reason (D65b). **(d) Effort**, estimated on 2026-10-11: about a day and a half elapsed, most of it measurement on this Mac; the owner's part is the landing. | if fewer than three real cases are licence-compatible and reproducible, the track holds generated twins alone, and says so in its row and in `EVALUATING.md` |
 
 ## 6. Order
 
@@ -369,12 +376,16 @@ R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─�
 - **R29 last**: the largest, and its corpus sets track 8 for `1.5.0`.
 
 ```
-1.5.0 ─► R39 a professional front door ─► R40 the README on PyPI ─► 1.5.1 ─ ─ ─► the path to OWASP (parked, §9)
+1.5.0 ─► R39 a professional front door ─► R40 the README on PyPI ─► 1.5.1 ─► 1.5.2
+                                                                              │
+           the path to OWASP (parked, §9) ◄─ ─ ─ R41 model output reaching a sink, measured
 ```
 
 - **R39 next** (D78): the owner put the first impression ahead of OWASP on 2026-10-09. It
   changes no detection, so no Score runs gate it; the README's claims are still measured.
 - **R40 after R39**: it renders R39's README on PyPI, and `1.5.1` publishes both.
+- **R41 after `1.5.2`** (D80): the four LLM-output rules are the product's core claim and the
+  only shipped rules nothing measures. The detection work R29.4 suggested follows it.
 - **The path to OWASP** waits in §9 with its phases written, and returns when the owner asks.
 
 ---
@@ -2206,6 +2217,35 @@ detection changes, so the Score is not run.
 **Exit:** the description checked through a built wheel and through `twine check` in the
 rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is not run.
 
+### Phase R41: model output reaching a sink, measured
+
+- [ ] **R41.1** **Measure first** (D80). Behaviour: the STATUS gives the four rules' sources
+  and sinks as shipped, and what `test_rules.py` and its fixture cover. For each candidate
+  real case it gives the project, its licence, the vulnerable and fixed commits, the sink,
+  and what the rules report on each today.
+- [ ] **R41.2** **The cases** (D80a). Behaviours:
+  1. `twins.build("llm-output")` writes a vulnerable case and its fixed twin for each sink
+     and source, from the seed, the cross-function flows among them;
+  2. the real cases are pinned in a manifest with their licence and commits, fetched into
+     the build cache, and a test holds every entry's fields.
+- [ ] **R41.3** **The ninth track** (D80b). Behaviours:
+  1. `scripts/eval.py` scores `llm-output` per sink, and reports the generated and the real
+     cases apart;
+  2. the Score is the mean of nine, and `tests/eval/baseline.json` records the track and
+     the Score's re-basing with both numbers;
+  3. ADR-0026, `EVALUATING.md`, the README and `CLAUDE.md` say nine tracks, and the README's
+     sentence on the taint rules cites the track.
+- [ ] **R41.4** **The four rules, measured** (D80c). Behaviours:
+  1. `rule_precision` measures the track, and `docs/RULES.md` gives the four rules their
+     counts;
+  2. a rule under the bar is improved where the track shows a missing source or sink, or
+     demoted with its reason;
+  3. tracks 1 to 8 stay within the ratchet.
+
+**Exit:** the Score on both lanes with nine tracks, the re-basing recorded; the four rules
+measured in `RULES.md`; the acceptance set green on both lanes; CI green. If R41.4 changed a
+rule, a release is the owner's to call (§8).
+
 ---
 
 ## 8. The owner queue
@@ -2258,5 +2298,4 @@ becomes a phase when the owner asks, with a decision first.
 | GSoC | OWASP applies as one organisation each year, and it needs mentors | acceptance, and a second mentor |
 | 2.0, SLSA level 3, Amazon Q Developer, CWE to ASVS | as D57 and D66 say | as they say |
 | Actions updates landing themselves | a merge made with the workflow's token cannot change workflow files, so R28.2 leaves them out | a GitHub App token with the `workflows` permission, which the owner creates |
-| four rules R29.4's CodeQL comparison found valvur missing: certificate validation turned off, a JavaScript cookie without `secure`, a short key, an old TLS version | each ships only by D29's bar, which needs its cases on a track | the cases on track 1 or 2, vulnerable and fixed |
-| a Score track for model output reaching a sink | R29.3 found the four LLM-output rules unmeasured: no case in tracks 1 and 2 or the corpus, so their precision is unknown, and D29's bar cannot judge them | a licence-compatible set of real or generated cases, vulnerable and safe twins, of model output reaching code, a shell, a query and the DOM |
+| four rules R29.4's CodeQL comparison found valvur missing: certificate validation turned off, a JavaScript cookie without `secure`, a short key, an old TLS version | each ships only by D29's bar, which needs its cases on a track. The owner chose on 2026-10-11 to do R41 first, then the first two; the short key and the old TLS version wait for evidence that they matter | R41 landed, then the cases on track 2, vulnerable and fixed |
