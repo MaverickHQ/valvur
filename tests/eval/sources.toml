@@ -15,3 +15,49 @@ licence = "GPL-3.0"
 url = "https://gitlab.com/gitlab-org/security-products/sast-rules"
 commit = "53bf5cf6df3c51b6c02110f5a638b5e6213666cd"
 licence = "MIT"
+
+# R41 (D80): track 9's real cases, the vulnerable code of published advisories in LLM
+# frameworks, each read from GitHub's advisory database. `commit` is the vulnerable
+# release's; `fixed` is given only where the fix removes the flow. `files` hold the flow,
+# which in each crosses a function, class or module (R41.1). PandasAI's CVE-2024-12366
+# is left out: its repository's licence reads NOASSERTION.
+[llm-output-real.langchain-math]
+url = "https://github.com/langchain-ai/langchain"
+licence = "MIT"
+advisory = "CVE-2023-29374"
+category = "code-execution"
+commit = "b634489b2e8951b880c2ec467cdcf00f11830705"   # 0.0.141: PythonREPL runs the model's code
+fixed = "98c70bc1905cf2e5771eed59cc8d065beab47077"    # 0.0.142: numexpr evaluates it
+files = ["langchain/chains/llm_math/base.py", "langchain/python.py"]
+
+[llm-output-real.langchain-pal]
+url = "https://github.com/langchain-ai/langchain"
+licence = "MIT"
+advisory = "CVE-2023-36258"
+category = "code-execution"
+commit = "944321c6ab9134ffe1483f5b4897254328d3d384"   # 0.0.245; 0.0.247 moved, not fixed, it
+files = ["libs/langchain/langchain/chains/pal/base.py", "libs/langchain/langchain/utilities/python.py"]
+
+[llm-output-real.langchain-sql]
+url = "https://github.com/langchain-ai/langchain"
+licence = "MIT"
+advisory = "CVE-2023-36189"
+category = "query"
+commit = "944321c6ab9134ffe1483f5b4897254328d3d384"   # 0.0.245; 0.0.247 moved, not fixed, it
+files = ["libs/langchain/langchain/chains/sql_database/base.py", "libs/langchain/langchain/utilities/sql_database.py"]
+
+[llm-output-real.llama-index-pandas]
+url = "https://github.com/run-llama/llama_index"
+licence = "MIT"
+advisory = "CVE-2023-39662"
+category = "code-execution"
+commit = "672eb386e8428944695cd399a96f9c7faf78c610"   # 0.8.20; 0.9.14's safe_eval was bypassed
+files = ["llama_index/query_engine/pandas_query_engine.py"]
+
+[llm-output-real.vanna-plotly]
+url = "https://github.com/vanna-ai/vanna"
+licence = "MIT"
+advisory = "CVE-2024-5565"
+category = "code-execution"
+commit = "a72b842d420cf1fa061e5f97d45ea08051651ebb"   # 0.5.5; no fix published
+files = ["src/vanna/base/base.py", "src/vanna/openai/openai_chat.py"]

@@ -68,3 +68,81 @@ def test_one_seed_writes_one_tree(tmp_path):
         if case.id.startswith("llm-gen-"):
             assert (tmp_path / "a" / case.path).read_bytes() == \
                 (tmp_path / "b" / case.path).read_bytes()
+
+
+# ------------------------------------------------------------- the real cases
+
+import llm_real  # noqa: E402  # type: ignore[import-not-found]
+
+
+def test_the_real_cases_are_pinned_with_their_licence_advisory_and_files():
+    """`tests/eval/sources.toml`, as the Benchmark is: each case's vulnerable commit,
+    its fixed one where a clean fix exists, the advisory, and the files that hold the
+    flow. Three at least, or D80's fallback holds."""
+    import re
+
+    entries = llm_real.entries()
+
+    assert len(entries) >= 3
+    for name, entry in entries.items():
+        assert entry["url"].startswith("https://github.com/"), name
+        assert entry["licence"] in llm_real.LICENCES, name
+        assert re.fullmatch(r"CVE-\d{4}-\d{4,}", entry["advisory"]), name
+        assert entry["category"] in RULES, name
+        assert entry["files"] and all(not f.startswith("/") for f in entry["files"]), name
+        for kind in ("commit", "fixed"):
+            if kind in entry:
+                assert re.fullmatch(r"[0-9a-f]{40}", entry[kind]), (name, kind)
+
+
+def _origin(tmp_path) -> tuple[str, str, str]:
+    """A local repository standing in for GitHub: two commits of one file."""
+    import subprocess
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+
+    def git(*args: str) -> str:
+        return subprocess.run(["git", *args], cwd=origin, check=True, capture_output=True,
+                              text=True).stdout.strip()
+
+    git("init", "-q")
+    git("config", "uploadpack.allowFilter", "true")
+    git("config", "uploadpack.allowAnySHA1InWant", "true")
+    (origin / "chain.py").write_text("def run(llm):\n    return eval(llm.predict('x'))\n")
+    git("add", "."), git("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
+                         "commit", "-qm", "vulnerable")
+    vulnerable = git("rev-parse", "HEAD")
+    (origin / "chain.py").write_text("def run(llm):\n    return int(llm.predict('x'))\n")
+    git("add", "."), git("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
+                         "commit", "-qm", "fixed")
+    return origin.as_uri(), vulnerable, git("rev-parse", "HEAD")
+
+
+def test_a_real_case_is_fetched_at_its_commits_into_the_build_cache(tmp_path):
+    url, vulnerable, fixed = _origin(tmp_path)
+    entries = {"demo": {"url": url, "licence": "MIT", "advisory": "CVE-2026-0001",
+                        "category": "code-execution", "commit": vulnerable, "fixed": fixed,
+                        "files": ["chain.py"]}}
+
+    cache = llm_real.fetch(tmp_path / "cache", entries)
+
+    assert "eval(" in (cache / "demo" / "vulnerable" / "chain.py").read_text()
+    assert "int(" in (cache / "demo" / "fixed" / "chain.py").read_text()
+    assert llm_real.fetch(tmp_path / "cache", entries) == cache   # at its pin: no refetch
+
+
+def test_the_real_cases_join_the_track_and_name_their_kind(tmp_path):
+    url, vulnerable, fixed = _origin(tmp_path)
+    entries = {"demo": {"url": url, "licence": "MIT", "advisory": "CVE-2026-0001",
+                        "category": "code-execution", "commit": vulnerable, "fixed": fixed,
+                        "files": ["chain.py"]}}
+    cache = llm_real.fetch(tmp_path / "cache", entries)
+
+    cases = twins.llm_real_cases(tmp_path / "t", cache, entries)
+
+    assert [(c.id, c.vulnerable, c.category, c.path) for c in cases] == [
+        ("llm-real-demo", True, "code-execution", "real/demo/vulnerable"),
+        ("llm-real-demo-fixed", False, "code-execution", "real/demo/fixed")]
+    assert (tmp_path / "t" / "real" / "demo" / "vulnerable" / "chain.py").is_file()
+    assert not list((tmp_path / "t").rglob(".valvur*"))

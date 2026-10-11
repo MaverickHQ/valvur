@@ -2253,11 +2253,30 @@ rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is no
     sink inventory names the sink in three. No case shows a missing source or sink, so
     R41.4's improvement clause cannot apply to them. Five real cases, one with a clean fixed
     twin, meet D80's three. The track reports them apart from the generated twins (D80a).
-- [ ] **R41.2** **The cases** (D80a). Behaviours:
+- [x] **R41.2** **The cases** (D80a). Behaviours:
   1. `twins.build("llm-output")` writes a vulnerable case and its fixed twin for each sink
      and source, from the seed, the cross-function flows among them;
   2. the real cases are pinned in a manifest with their licence and commits, fetched into
      the build cache, and a test holds every entry's fields.
+
+  **STATUS 2026-10-11:** ✅
+  - **Generated:** 34 vulnerable cases and 34 fixes. Code execution, a shell and a query
+    each come from the eight Python SDK families; the DOM from the six JavaScript ones.
+    Each family takes the sink its position names, so every sink a rule lists is written
+    somewhere: `eval`, `exec`, unsafe `yaml.load` and `pickle.loads`; `subprocess` with
+    `shell=True`, `os.system` and `os.popen`; `execute` and `executescript`;
+    `innerHTML`, `insertAdjacentHTML` and `document.write`. One helper flow per sink, the
+    shape the rules are known to miss, is among them. The fixes use `ast.literal_eval`,
+    `json.loads`, `yaml.safe_load`, an argument list without a shell, a bound parameter,
+    `textContent` and a text node. All parse.
+  - **Real:** the five advisories of R41.1, pinned in `tests/eval/sources.toml` under
+    `llm-output-real` with licence, advisory, category, files, vulnerable commit and, for
+    LangChain's math chain alone, the fixed one. `scripts/eval/llm_real.py` fetches each
+    commit shallow and blob-filtered and reads only the listed files: six trees, 876 KB,
+    10 s.
+  - **An early read**, the image's Opengrep over the generated cases: every direct flow
+    caught and no fix flagged, except the query fixes. The SQL rule flags all eight
+    parameterised queries, so its sink matches more than the query string (R41.4).
 - [ ] **R41.3** **The ninth track** (D80b). Behaviours:
   1. `scripts/eval.py` scores `llm-output` per sink, and reports the generated and the real
      cases apart;

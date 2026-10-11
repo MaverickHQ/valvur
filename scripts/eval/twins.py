@@ -1031,13 +1031,14 @@ def llm_output(root: Path, seed: int, real: Path | None = None) -> list[Case]:
     return cases + (llm_real_cases(root, real) if real else [])
 
 
-def llm_real_cases(root: Path, real: Path) -> list[Case]:
+def llm_real_cases(root: Path, real: Path, chosen: dict[str, dict] | None = None
+                   ) -> list[Case]:
     """The pinned advisories' files, fetched by `llm_real.fetch` into `real`, copied into
     the track as `real/<name>/<vulnerable|fixed>/`."""
     import llm_real  # type: ignore[import-not-found]
 
     cases = []
-    for name, entry in llm_real.entries().items():
+    for name, entry in (llm_real.entries() if chosen is None else chosen).items():
         for label, kind in ((True, "vulnerable"), (False, "fixed")):
             source = real / name / kind
             if not source.is_dir():
