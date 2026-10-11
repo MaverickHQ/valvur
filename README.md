@@ -81,9 +81,9 @@ an uninspected ecosystem or a Scanner that did not finish cannot support it, and
 
 ## Measured, not claimed
 
-How much of what valvur claims it finds is measured as **the Score**: eight tracks scored
+How much of what valvur claims it finds is measured as **the Score**: nine tracks scored
 by the OWASP Benchmark's formula, with a ratchet that no change may fall more than two
-points under. It is **73.4** out of 100, the same on Linux and on macOS.
+points under. It is **74.1** out of 100, the same on Linux and on macOS.
 
 | track | what it holds | score |
 |---|---|---|
@@ -95,9 +95,12 @@ points under. It is **73.4** out of 100, the same on Linux and on macOS.
 | agent-configuration | planted directives and hidden Unicode, against real files | 94.3 |
 | infrastructure | Terraform, Kubernetes, Dockerfile and Actions faults | 95.0 |
 | real-code-precision | 48 maintained projects, every finding labelled by hand | 2.3 |
+| llm-output | model output reaching code, a shell, a query or the DOM: generated twins and five published advisories | 79.0 |
 
 Track 8 is precision on maintained code, where almost nothing is a vulnerability: 3 of its
-171 findings are real. Each rule's precision is in [`docs/RULES.md`](docs/RULES.md), and
+171 findings are real. Track 9 measures the rules for model output reaching a sink: they
+catch 30 of 34 generated flows with no false alarm, and none of five published advisories
+in LangChain, LlamaIndex and Vanna, whose flows each cross a function. Each rule's precision is in [`docs/RULES.md`](docs/RULES.md), and
 the method, the gates and what valvur does **not** claim are in
 [`docs/EVALUATING.md`](docs/EVALUATING.md). Read that one sceptically.
 

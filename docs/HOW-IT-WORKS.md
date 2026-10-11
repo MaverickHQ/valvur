@@ -8,9 +8,9 @@ what valvur reads in AI-generated code, and how it ranks what it finds.
 [`docs/EVALUATING.md`](EVALUATING.md) is the audit: the
 verification commands, the three Statuses, and a plain list of what valvur does **not**
 claim. Read that one sceptically. How much of what valvur claims it actually finds is
-measured as **the Score**: eight tracks scored by the OWASP Benchmark's formula, from
+measured as **the Score**: nine tracks scored by the OWASP Benchmark's formula, from
 static analysis to agent configuration, with a ratchet in `tests/eval/` that no change
-may fall under. It is **73.4** out of 100 on both lanes, from 59.3 when first measured;
+may fall under. It is **74.1** out of 100 on both lanes, from 59.3 when first measured;
 `EVALUATING.md` gives each track, and one command reproduces it.
 
 ## 1. It cannot exfiltrate your code, and you can verify it
@@ -66,9 +66,11 @@ must never fetch, `fetch = "never"` turns every fetch off, and
   - valvur's own are pinning rules, a **sink inventory** at INFO (`eval`, `exec`,
     `shell=True`, unsafe `yaml.load`, string-built SQL), and **taint rules** from a
     model call to those sinks and to `innerHTML`. They have sources for the Anthropic,
-    OpenAI, Gemini, LangChain, litellm and ollama SDKs. The taint rules fire on every
-    planted flow in the fixture and have not fired on real code in the 48-project
-    corpus.
+    OpenAI, Gemini, LangChain, litellm and ollama SDKs. On the Score's track 9 they
+    catch 30 of 34 generated flows with no false alarm, and none of five published
+    advisories in LLM frameworks: each of those flows crosses a function, and
+    Opengrep's taint does not follow it. They have not fired on real code in the
+    48-project corpus.
   - Since R25, **taint rules from request data**: for Python, command and code
     injection, path traversal and open redirects, with insecure cookies and XXE by
     pattern; for JavaScript, SQL and command injection, path traversal and SSRF. On

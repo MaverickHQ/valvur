@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason, or re-based when a track's cases change, with both numbers (`rebased`). The Mac lane is beside it.",
+  "note": "The Score's baseline (ADR-0026). Recorded by R9.6 from the Linux lane, eval run 36620261451 on R9's branch; only ever raised, at a phase commit, with the reason, or re-based when a track's cases change or a track is added, with both numbers (`rebased`). The Mac lane is beside it.",
   "recorded": "2026-10-03, R25.5 on the image built from its branch; R20, R13 (eval run 36655021422), R11, R10 and R9.6 before",
   "tracks": {
     "sast-python": 40.9,
@@ -10,9 +10,10 @@
     "package-reality": 100.0,
     "agent-configuration": 94.3,
     "infrastructure": 95.0,
-    "real-code-precision": 2.3
+    "real-code-precision": 2.3,
+    "llm-output": 79.0
   },
-  "score": 73.4,
+  "score": 74.1,
   "recorded_on": {
     "image": {
       "name": "valvur:dev",
@@ -37,9 +38,10 @@
       "package-reality": 100.0,
       "agent-configuration": 94.3,
       "infrastructure": 95.0,
-      "real-code-precision": 2.3
+      "real-code-precision": 2.3,
+      "llm-output": 79.0
     },
-    "score": 73.4,
+    "score": 74.1,
     "image": {
       "name": "valvur:dev",
       "id": "sha256:1439a4942efd1e5934cb9e7be3fd4965606c8c22fef102abb020982575a1c8df"
@@ -140,6 +142,32 @@
             2.3
           ]
         }
+      }
+    },
+    {
+      "at": "R41.3",
+      "why": "D80b: track 9, llm-output, added: the four LLM-output rules' cases, which no track held. Tracks 1 to 8 did not move; the Score is the mean of nine, not eight. Linux: eval run 38141156906 at R41.4's head (62f0e2a), valvur:dev sha256:4e4a29a0b574; the Mac: R41's exit on 2026-10-11, valvur:dev sha256:9ac213cea176. Both: 88.1 on the generated cases, 0.0 on the five real advisories.",
+      "tracks": {
+        "llm-output": {
+          "linux": [
+            null,
+            79.0
+          ],
+          "mac": [
+            null,
+            79.0
+          ]
+        }
+      },
+      "score": {
+        "linux": [
+          73.4,
+          74.1
+        ],
+        "mac": [
+          73.4,
+          74.1
+        ]
       }
     }
   ]
