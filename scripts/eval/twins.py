@@ -883,6 +883,176 @@ def infrastructure(root: Path, seed: int) -> list[Case]:
 # ------------------------------------------------------------ the registry
 
 #: Track name to builder; tracks 1 and 8 are external sources, built elsewhere.
+
+# ------------------------------------------------------------ 9. model output reaching a sink
+
+#: The four rules, by the sink each reports (R41, D80).
+LLM_RULES = {"code-execution": "valvur.llm.output-to-code-execution",
+             "shell": "valvur.llm.output-to-shell",
+             "query": "valvur.llm.output-to-sql",
+             "dom": "valvur.js.output-to-innerhtml"}
+
+#: Each Python SDK family the rules name: its setup, the call, and where the text is.
+LLM_PY: dict[str, tuple[str, str, str]] = {
+    "anthropic": ("import anthropic\n\nclient = anthropic.Anthropic()\n",
+                  "reply = client.messages.create(model=MODEL, max_tokens=512, "
+                  "messages=[{'role': 'user', 'content': prompt}])",
+                  "reply.content[0].text"),
+    "openai-chat": ("from openai import OpenAI\n\nclient = OpenAI()\n",
+                    "reply = client.chat.completions.create(model=MODEL, "
+                    "messages=[{'role': 'user', 'content': prompt}])",
+                    "reply.choices[0].message.content"),
+    "openai-responses": ("from openai import OpenAI\n\nclient = OpenAI()\n",
+                         "reply = client.responses.create(model=MODEL, input=prompt)",
+                         "reply.output_text"),
+    "openai-legacy": ("import openai\n",
+                      "reply = openai.ChatCompletion.create(model=MODEL, "
+                      "messages=[{'role': 'user', 'content': prompt}])",
+                      "reply['choices'][0]['message']['content']"),
+    "gemini": ("import google.generativeai as genai\n\nmodel = genai.GenerativeModel(MODEL)\n",
+               "reply = model.generate_content(prompt)",
+               "reply.text"),
+    "langchain": ("from langchain_openai import ChatOpenAI\n\nllm = ChatOpenAI(model=MODEL)\n",
+                  "reply = llm.invoke(prompt)",
+                  "reply.content"),
+    "litellm": ("import litellm\n",
+                "reply = litellm.completion(model=MODEL, "
+                "messages=[{'role': 'user', 'content': prompt}])",
+                "reply.choices[0].message.content"),
+    "ollama": ("import ollama\n",
+               "reply = ollama.chat(model=MODEL, messages=[{'role': 'user', 'content': prompt}])",
+               "reply['message']['content']"),
+}
+
+#: Each JavaScript SDK family the DOM rule names, as `LLM_PY`.
+LLM_JS: dict[str, tuple[str, str, str]] = {
+    "anthropic": ('import Anthropic from "@anthropic-ai/sdk";\n\nconst client = new Anthropic();\n',
+                  "const reply = await client.messages.create({ model: MODEL, max_tokens: 512, "
+                  'messages: [{ role: "user", content: prompt }] });',
+                  "reply.content[0].text"),
+    "openai-chat": ('import OpenAI from "openai";\n\nconst client = new OpenAI();\n',
+                    "const reply = await client.chat.completions.create({ model: MODEL, "
+                    'messages: [{ role: "user", content: prompt }] });',
+                    "reply.choices[0].message.content"),
+    "openai-responses": ('import OpenAI from "openai";\n\nconst client = new OpenAI();\n',
+                         "const reply = await client.responses.create({ model: MODEL, "
+                         "input: prompt });",
+                         "reply.output_text"),
+    "gemini": ('import { GoogleGenerativeAI } from "@google/generative-ai";\n\n'
+               "const model = new GoogleGenerativeAI(KEY).getGenerativeModel({ model: MODEL });\n",
+               "const reply = await model.generateContent(prompt);",
+               "reply.response.text()"),
+    "langchain": ('import { ChatOpenAI } from "@langchain/openai";\n\n'
+                  "const llm = new ChatOpenAI({ model: MODEL });\n",
+                  "const reply = await llm.invoke(prompt);",
+                  "reply.content"),
+    "ollama": ('import ollama from "ollama";\n',
+               "const reply = await ollama.chat({ model: MODEL, "
+               'messages: [{ role: "user", content: prompt }] });',
+               "reply.message.content"),
+}
+
+#: Per sink: the vulnerable use of the model's text `{t}`, and its fix. A family takes the
+#: variant its position names, so every sink a rule lists is written somewhere.
+LLM_SINKS: dict[str, tuple[tuple[str, str], ...]] = {
+    "code-execution": (("return eval({t})", "return ast.literal_eval({t})"),
+                       ("exec({t})", "return json.loads({t})"),
+                       ("return yaml.load({t}, Loader=yaml.Loader)", "return yaml.safe_load({t})"),
+                       ("return pickle.loads({t}.encode())", "return json.loads({t})")),
+    "shell": (("subprocess.run({t}, shell=True)", "subprocess.run(['echo', {t}])"),
+              ("os.system({t})", "subprocess.run(['echo', {t}])"),
+              ("return os.popen({t}).read()",
+               "return subprocess.run(['echo', {t}], capture_output=True).stdout")),
+    # The fix binds the model's text as a parameter: a query the model wrote is the
+    # flaw, a value it chose is not.
+    "query": (("return cur.execute({t}).fetchall()",
+               "return cur.execute('SELECT id FROM notes WHERE title = ?', ({t},)).fetchall()"),
+              ("cur.executescript({t})",
+               "return cur.execute('SELECT id FROM notes WHERE title = ?', ({t},)).fetchall()")),
+    "dom": (("out.innerHTML = {t};", "out.textContent = {t};"),
+            ("out.insertAdjacentHTML('beforeend', {t});",
+             "out.append(document.createTextNode({t}));"),
+            ("document.write({t});", "out.textContent = {t};")),
+}
+
+_PY_HEAD = ("import ast\nimport json\nimport os\nimport pickle\nimport sqlite3\n"
+            "import subprocess\n\nimport yaml\n")
+_MODELS = ("model-a", "model-b", "model-c", "model-d")
+
+
+def _py_case(family: str, use: str, helper: bool, model: str) -> str:
+    setup, call, text = LLM_PY[family]
+    body = ["    cur = sqlite3.connect('notes.db').cursor()"] if "cur." in use else []
+    if helper:
+        # The flow the rules are known to miss: the text crosses a function boundary.
+        head = f"def ask(prompt):\n    {call}\n    return {text}\n\n\n"
+        body.append("    " + use.replace("{t}", "ask(prompt)"))
+    else:
+        head = ""
+        body += ["    " + call, "    " + use.replace("{t}", text)]
+    return (f"{_PY_HEAD}{setup}\nMODEL = {model!r}\n\n\n{head}def run(prompt):\n"
+            + "\n".join(body) + "\n")
+
+
+def _js_case(family: str, use: str, helper: bool, model: str) -> str:
+    setup, call, text = LLM_JS[family]
+    head = (f'{setup}\nconst MODEL = "{model}";\nconst KEY = process.env.GEMINI_API_KEY;\n'
+            'const out = document.getElementById("answer");\n\n')
+    if helper:
+        sink = use.replace("{t}", "await ask(prompt)")
+        return (head + f"async function ask(prompt) {{\n  {call}\n  return {text};\n}}\n\n"
+                f"export async function run(prompt) {{\n  {sink}\n}}\n")
+    return (head + f"export async function run(prompt) {{\n  {call}\n  "
+            f"{use.replace('{t}', text)}\n}}\n")
+
+
+def llm_output(root: Path, seed: int, real: Path | None = None) -> list[Case]:
+    """Track 9 (R41, D80): model output reaching each sink, from each SDK source the
+    rules name, beside its fix; the cross-function flows; and, with `real`, the
+    pinned advisories' code (`llm_real.py`)."""
+    rng = random.Random(seed)  # noqa: S311 — seeded so one seed writes one tree
+    cases, files = [], {}
+    for category, rule in LLM_RULES.items():
+        js = category == "dom"
+        families, write, ext = (LLM_JS, _js_case, "js") if js else (LLM_PY, _py_case, "py")
+        variants = LLM_SINKS[category]
+        entries = [(family, variants[n % len(variants)], False)
+                   for n, family in enumerate(families)]
+        entries.append(("anthropic", variants[0], True))
+        for family, (vulnerable, fixed), helper in entries:
+            name = "helper" if helper else family
+            for label, use in ((True, vulnerable), (False, fixed)):
+                stem = f"{name}{'' if label else '_fixed'}"
+                path = f"{'js' if js else 'python'}/{category}/{stem}.{ext}"
+                files[path] = write(family, use, helper, rng.choice(_MODELS))
+                cases.append(Case(f"llm-gen-{category}-{name}{'' if label else '-fixed'}",
+                                  "llm-output", category, path, label, rules=(rule,)))
+    _write(root, files)
+    return cases + (llm_real_cases(root, real) if real else [])
+
+
+def llm_real_cases(root: Path, real: Path) -> list[Case]:
+    """The pinned advisories' files, fetched by `llm_real.fetch` into `real`, copied into
+    the track as `real/<name>/<vulnerable|fixed>/`."""
+    import llm_real  # type: ignore[import-not-found]
+
+    cases = []
+    for name, entry in llm_real.entries().items():
+        for label, kind in ((True, "vulnerable"), (False, "fixed")):
+            source = real / name / kind
+            if not source.is_dir():
+                continue
+            target = root / "real" / name / kind
+            for path in sorted(p for p in source.rglob("*") if p.is_file()):
+                dest = target / path.relative_to(source)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(path.read_bytes())
+            cases.append(Case(f"llm-real-{name}{'' if label else '-fixed'}", "llm-output",
+                              entry["category"], f"real/{name}/{kind}", label,
+                              rules=(LLM_RULES[entry["category"]],)))
+    return cases
+
+
 BUILDERS: dict[str, Callable[..., list[Case]]] = {
     "sast-js": sast_js,
     "secrets": secrets,
@@ -890,7 +1060,9 @@ BUILDERS: dict[str, Callable[..., list[Case]]] = {
     "package-reality": package_reality,
     "agent-configuration": agent_configuration,
     "infrastructure": infrastructure,
+    "llm-output": llm_output,
 }
+
 
 
 def build(track: str, root: Path, seed: int = 20260929, **kwargs) -> list[Case]:

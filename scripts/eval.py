@@ -31,7 +31,8 @@ import twins  # type: ignore[import-not-found]  # noqa: E402
 
 #: Every track, in the order the Score reports them: the OWASP Benchmark first,
 #: then the generated ones, then precision on the corpus (ADR-0026).
-TRACKS = ["sast-python", *twins.BUILDERS, "real-code-precision"]
+TRACKS = ["sast-python", *(t for t in twins.BUILDERS if t != "llm-output"),
+          "real-code-precision"]
 CORPUS = REPO / "tests" / "corpus"
 LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
 
