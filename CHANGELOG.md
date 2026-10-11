@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.5.3] — 2026-10-11
+
 ### Fixed
 
 - **The rule for model output reaching a query reports a query the model wrote, not a value
