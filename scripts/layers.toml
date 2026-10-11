@@ -37,6 +37,7 @@ core = [
     "valvur.refusal",
     "valvur.scanner_run",
     "valvur.text",
+    "valvur.toml_input",
     "valvur.verdict",
     "valvur.version",
     "valvur.versions",

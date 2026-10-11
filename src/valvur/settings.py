@@ -20,6 +20,8 @@ import os
 import sys
 from pathlib import Path
 
+from . import toml_input
+
 NEVER = "never"
 
 #: Each setting, and the variable that overrides it.
@@ -69,7 +71,7 @@ def _file() -> tuple[dict, str]:
     if _read is not None and _read[0] == where and _read[1] == mtime:
         return _read[2], _read[3]
     try:
-        values, problem = tomllib.loads(where.read_text(encoding="utf-8")), ""
+        values, problem = toml_input.loads(where.read_text(encoding="utf-8")), ""
     except (OSError, tomllib.TOMLDecodeError) as exc:
         values, problem = {}, f"{where} cannot be read ({exc}); its settings are not applied"
     _read = (where, mtime, values, problem)

@@ -21,7 +21,7 @@ from collections.abc import Callable, Iterator
 from fnmatch import fnmatch
 from pathlib import Path
 
-from .. import exclusions
+from .. import exclusions, toml_input
 
 Pins = Iterator[tuple[str, str]]
 
@@ -129,7 +129,7 @@ def requirements(path: Path) -> Pins:
 def toml_packages(path: Path) -> Pins:
     """`[[package]]` tables: poetry.lock, uv.lock and Cargo.lock."""
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8", errors="replace"))
+        data = toml_input.loads(path.read_text(encoding="utf-8", errors="replace"))
     except tomllib.TOMLDecodeError:
         return
     for package in _array(data.get("package")):

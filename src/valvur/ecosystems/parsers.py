@@ -25,7 +25,7 @@ import json
 import re
 from pathlib import Path
 
-from .. import exclusions
+from .. import exclusions, toml_input
 
 REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:[=<>!~\[;].*)?$")
 
@@ -54,7 +54,7 @@ def defines_pyproject(path: Path) -> set[str]:
     import tomllib
 
     try:
-        data = tomllib.loads(text(path))
+        data = toml_input.loads(text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return set()
     names = ((data.get("project") or {}).get("name"),
@@ -146,7 +146,7 @@ def from_pyproject(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
 
     rel = str(path.relative_to(workspace))
     try:
-        data = tomllib.loads(text(path))
+        data = toml_input.loads(text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return set()
 
@@ -191,7 +191,7 @@ def from_pipfile(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
 
     rel = str(path.relative_to(workspace))
     try:
-        data = tomllib.loads(text(path))
+        data = toml_input.loads(text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return set()
     found: set[tuple[str, str, str]] = set()
@@ -334,7 +334,7 @@ def from_version_catalog(path: Path, workspace: Path) -> set[tuple[str, str, str
 
     rel = str(path.relative_to(workspace))
     try:
-        data = tomllib.loads(text(path))
+        data = toml_input.loads(text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return set()
     found: set[tuple[str, str, str]] = set()
@@ -558,7 +558,7 @@ def from_cargo(path: Path, workspace: Path) -> set[tuple[str, str, str]]:
 
     rel = str(path.relative_to(workspace))
     try:
-        data = tomllib.loads(text(path))
+        data = toml_input.loads(text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return set()
 
@@ -593,7 +593,7 @@ def _cargo_package_name(path: Path) -> str | None:
     import tomllib
 
     try:
-        data = tomllib.loads(text(path))
+        data = toml_input.loads(text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return None
     name = (data.get("package") or {}).get("name")

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .. import fingerprint as _fp
 from .. import redact as _redact
+from .. import toml_input
 from ..exclusions import PROJECT_GITLEAKS_CONFIG, is_configured_out
 from ..findings import Finding, Severity
 from ..invocation import Invocation, ScannerOutput
@@ -139,7 +140,7 @@ def project_path_allowlist(workspace: Path) -> list:
     import tomllib
 
     try:
-        raw = tomllib.loads((workspace / PROJECT_GITLEAKS_CONFIG).read_text(encoding="utf-8"))
+        raw = toml_input.loads((workspace / PROJECT_GITLEAKS_CONFIG).read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return []
     tables = [raw.get("allowlist") or {}, *(raw.get("allowlists") or [])]
@@ -165,7 +166,7 @@ def config_without_allowlists(workspace: Path | None) -> str:
         return _toml({"extend": {"useDefault": True}})
     text = path.read_text(encoding="utf-8", errors="replace")
     try:
-        raw = tomllib.loads(text)
+        raw = toml_input.loads(text)
     except tomllib.TOMLDecodeError:
         return text
     for table in (raw, *(r for r in raw.get("rules") or [] if isinstance(r, dict))):

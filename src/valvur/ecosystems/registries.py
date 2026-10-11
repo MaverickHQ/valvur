@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .. import toml_input
+
 #: The public registries, by host. A configured URL on any other host is private.
 PUBLIC_HOSTS = {
     "npm": frozenset({"registry.npmjs.org", "registry.yarnpkg.com", "registry.npmjs.com"}),
@@ -146,7 +148,7 @@ def _toml(path: Path) -> dict:
     import tomllib
 
     try:
-        data = tomllib.loads(_text(path))
+        data = toml_input.loads(_text(path))
     except (tomllib.TOMLDecodeError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}

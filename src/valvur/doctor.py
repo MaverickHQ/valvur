@@ -34,6 +34,7 @@ from . import (
     project_schema,
     selinux,
     skill,
+    toml_input,
 )
 from . import runner as _runner
 from . import settings as _settings
@@ -450,7 +451,7 @@ def _check_project_file(workspace: Path) -> Check:
     if not path.is_file():
         return Check("project file", "info", "none; `valvur init` prints a starter")
     try:
-        said = project_schema.problem(tomllib.loads(path.read_text(encoding="utf-8")))
+        said = project_schema.problem(toml_input.loads(path.read_text(encoding="utf-8")))
     except (OSError, tomllib.TOMLDecodeError) as exc:
         said = f"it cannot be read as TOML ({exc})."
     if said:
@@ -682,7 +683,7 @@ def _configured_in(shown: str, path: Path, shape: str, *,
         import tomllib
 
         try:
-            data = tomllib.loads(path.read_text(encoding="utf-8"))
+            data = toml_input.loads(path.read_text(encoding="utf-8"))
         except OSError:
             return []
         except tomllib.TOMLDecodeError:

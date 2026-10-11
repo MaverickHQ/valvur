@@ -84,6 +84,7 @@ def test_the_fuzzers_seeds_carry_every_crash_found(tmp_path):
     assert b"\xdc" in seeds["fuzz_project_config"]
     assert b"7" in seeds["fuzz_findings"]
     assert b"\x00" + b'{"packages": [1]}' in seeds["fuzz_lockfiles"]
+    assert b"a = " + b"[" * 1000 + b"]" * 1000 in seeds["fuzz_project_config"]
 
 
 @pytest.mark.parametrize("text", ["7", "[]", '{"findings": [1]}', '{"findings": [], "groups": 3}'])
@@ -124,3 +125,39 @@ def test_a_finding_missing_a_field_is_not_named_by_it(tmp_path, missing):
 
     assert isinstance(reply.text(reply.fields(tmp_path)), str)
     reply.next_moves(tmp_path)
+
+
+#: Arrays nested past the interpreter's limit: `tomllib` recurses once or twice a level,
+#: so about a thousand, two kilobytes, raise `RecursionError` on Python 3.11 to 3.13.
+DEEP = "a = " + "[" * sys.getrecursionlimit() + "]" * sys.getrecursionlimit()
+
+
+def test_a_project_file_nested_past_python_s_limit_is_a_problem_not_an_exception(tmp_path):
+    """Found by ClusterFuzzLite on PR #224: every reader caught `TOMLDecodeError`, and
+    a committed `.security-scan.toml` of nested brackets ended the scan instead."""
+    (tmp_path / ".security-scan.toml").write_text(DEEP)
+
+    settings = exclusions.load_scan_settings(tmp_path)
+    policy = suppressions.load(tmp_path)
+
+    assert settings.exclude == ()
+    assert policy.problems, "the file's problem goes unreported"
+
+
+@pytest.mark.parametrize("name", ["uv.lock", "poetry.lock"])
+def test_a_lockfile_nested_past_python_s_limit_holds_no_pins(tmp_path, name):
+    (tmp_path / name).write_text(DEEP)
+
+    assert not locked.locked(tmp_path)
+
+
+def test_toml_is_parsed_in_one_place_so_each_reader_has_the_same_answer():
+    """The scanned repository's TOML is read in fifteen places; each catches what
+    `toml_input.loads` raises, and none calls `tomllib` itself."""
+    import re
+
+    src = Path(__file__).resolve().parent.parent / "src" / "valvur"
+    direct = [str(p.relative_to(src)) for p in src.rglob("*.py")
+              if p.name != "toml_input.py" and re.search(r"\btomllib\.loads?\(", p.read_text())]
+
+    assert direct == []

@@ -20,11 +20,11 @@ Workspace, so only an allowlist's paths and commits name it.
 from __future__ import annotations
 
 import re
-import tomllib
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+from . import toml_input
 from .findings import Finding, IgnoredBy, Severity
 from .fingerprint import derive
 
@@ -230,7 +230,7 @@ class _Ignores:
             if not path.is_file():
                 return None
             try:
-                raw = tomllib.loads(path.read_text(encoding="utf-8"))
+                raw = toml_input.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 raw = {}
             vulns = raw.get("IgnoredVulns")
@@ -265,7 +265,7 @@ def _gitleaks_allowlists(path: Path) -> list[_Allowlist]:
     spellings Gitleaks reads (`[allowlist]`, `[[allowlists]]`). A pattern Python cannot
     compile (RE2 is not `re`) is passed over."""
     try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        raw = toml_input.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     found = []

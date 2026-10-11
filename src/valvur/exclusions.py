@@ -16,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import toml_input
+
 # Our own Results Folder. Scanning it makes each run feed on the last one's output:
 # findings.json quotes evidence from the repository, so a scan of it produces
 # findings ABOUT findings, and the noise compounds every run. Caught by dogfooding —
@@ -54,13 +56,12 @@ def read_project(workspace: Path) -> tuple[dict, str | None]:
     """The project file, parsed: its tables, and why it could not be read, if it
     could not. Empty and None when there is none. A scan reads it once, into its
     scan context (D52d); `[scan]` and the suppressions are both drawn from it."""
-    import tomllib
 
     path = workspace / PROJECT_FILE
     if not path.is_file():
         return {}, None
     try:
-        return tomllib.loads(path.read_text(encoding="utf-8")), None
+        return toml_input.loads(path.read_text(encoding="utf-8")), None
     except (ValueError, OSError) as exc:
         # ValueError: TOML that does not parse, and text that is not UTF-8 (R27.4).
         return {}, f"{PROJECT_FILE} could not be read: {exc}"

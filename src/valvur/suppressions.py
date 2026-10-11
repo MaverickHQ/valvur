@@ -10,10 +10,11 @@ is not writing and nobody will hand-copy a 32-character hash.
 
 from __future__ import annotations
 
-import tomllib
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+
+from . import toml_input
 
 # F8.1: read from the Workspace root; the project file, named once.
 from .exclusions import PROJECT_FILE as SUPPRESSION_FILE
@@ -70,7 +71,7 @@ def load(workspace: Path, project: tuple[dict, str | None] | None = None) -> Pol
         if not path.is_file():
             return Policy([], [])
         try:
-            raw = tomllib.loads(path.read_text(encoding="utf-8"))
+            raw = toml_input.loads(path.read_text(encoding="utf-8"))
         except (ValueError, OSError) as exc:  # not TOML, or not UTF-8 (R27.4)
             return Policy([], [Problem(f"{SUPPRESSION_FILE} could not be read: {exc}", {})])
     else:
