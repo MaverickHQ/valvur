@@ -10,6 +10,12 @@ break things, and has.
 
 ## [1.5.3] — 2026-10-11
 
+Model output reaching a sink, measured. valvur's four rules for model output reaching code, a
+shell, a query or the DOM now have a Score track of their own. The rule for queries no longer
+reports the parameterised form it recommends. A TOML file nested past Python's limit no longer
+ends a scan. Every contract stands: protocol 2, `fp_version` 1, `findings.json`'s schema 1 and
+the reply's schema 2.
+
 ### Fixed
 
 - **The rule for model output reaching a query reports a query the model wrote, not a value
