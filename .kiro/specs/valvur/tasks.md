@@ -2219,10 +2219,40 @@ rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is no
 
 ### Phase R41: model output reaching a sink, measured
 
-- [ ] **R41.1** **Measure first** (D80). Behaviour: the STATUS gives the four rules' sources
+- [x] **R41.1** **Measure first** (D80). Behaviour: the STATUS gives the four rules' sources
   and sinks as shipped, and what `test_rules.py` and its fixture cover. For each candidate
   real case it gives the project, its licence, the vulnerable and fixed commits, the sink,
   and what the rules report on each today.
+
+  **STATUS 2026-10-11:** ✅
+  - **The rules as shipped.** The three Python rules share one anchored list of 13 sources:
+    Anthropic, OpenAI chat completions and Responses, OpenAI before 1.0, Gemini, LangChain's
+    `invoke`, `ainvoke` and `predict`, litellm and ollama. Their sinks are
+    `eval`/`exec`/`compile`/unsafe `yaml.load`/`pickle.loads` (code execution);
+    `os.system`/`os.popen`/`subprocess` with `shell=True` (a shell); and a cursor's
+    `execute`, `executemany` or `executescript`, or `text()` (a query). The JavaScript rule
+    has 7 sources and 4 sinks: `innerHTML`, `outerHTML`, `insertAdjacentHTML` and
+    `document.write`.
+  - **What their tests cover:** `test_rules.py`, over `broken-repo`'s `llm_app.py` and
+    `chat.js` through the Opengrep golden, plants one flow per Python SDK family (8) and six
+    into `innerHTML`, and asserts that a flow through a helper is not reported.
+  - **The real cases**, from GitHub's advisory database, each fetched at its commit and run
+    through the image's Opengrep with the LLM rules and the sink inventory:
+
+    | case | advisory | licence | vulnerable | fixed | sink | LLM rules | inventory |
+    |---|---|---|---|---|---|---|---|
+    | LangChain `LLMMathChain` | CVE-2023-29374 | MIT | `b634489` (0.0.141) | `98c70bc` (0.0.142, `numexpr`) | code, via `PythonREPL` in another module | none | none |
+    | LangChain `PALChain` | CVE-2023-36258 | MIT | `944321c` (0.0.245) | none: 0.0.247 moved it to `langchain_experimental` | code, via `PythonREPL` | none | `dangerous-exec` |
+    | LangChain `SQLDatabaseChain` | CVE-2023-36189 | MIT | `944321c` (0.0.245) | none: moved, as above | a query, via `SQLDatabase.run` | none | none |
+    | LlamaIndex `PandasQueryEngine` | CVE-2023-39662 | MIT | `672eb38` (0.8.20) | none clean: 0.9.14's `safe_eval` was bypassed (CVE-2024-3098) | code, in `default_output_processor` | none | `dangerous-eval`, `dangerous-exec` |
+    | Vanna `get_plotly_figure` | CVE-2024-5565 | MIT, archived | `a72b842` (0.5.5) | none published | code, the generated plot passed in by its caller | none | `dangerous-exec` |
+
+    PandasAI's CVE-2024-12366 is left out: its repository's licence reads `NOASSERTION`.
+  - **What it says:** the LLM rules report **none of the five**. Each flow crosses a
+    function, a class or a module, the intra-procedural limit the rules' header states; the
+    sink inventory names the sink in three. No case shows a missing source or sink, so
+    R41.4's improvement clause cannot apply to them. Five real cases, one with a clean fixed
+    twin, meet D80's three. The track reports them apart from the generated twins (D80a).
 - [ ] **R41.2** **The cases** (D80a). Behaviours:
   1. `twins.build("llm-output")` writes a vulnerable case and its fixed twin for each sink
      and source, from the seed, the cross-function flows among them;
