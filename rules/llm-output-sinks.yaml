@@ -89,12 +89,17 @@ rules:
       whether a human or a model wrote the value — a model must never choose the
       query text; use parameterised queries with the model's answer as a value.
     pattern-sources: *python-model-sources
+    # The query alone (R41.4): the parameters after it are where this message tells the
+    # model's answer to go, and track 9 found the rule flagging every such fix.
     pattern-sinks:
-      - pattern: $CUR.execute(...)
-      - pattern: $CUR.executemany(...)
-      - pattern: $CUR.executescript(...)
-      - pattern: sqlalchemy.text(...)
-      - pattern: text(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $CUR.execute($QUERY, ...)
+              - pattern: $CUR.executemany($QUERY, ...)
+              - pattern: $CUR.executescript($QUERY, ...)
+              - pattern: sqlalchemy.text($QUERY, ...)
+              - pattern: text($QUERY, ...)
+          - focus-metavariable: $QUERY
 
   - id: valvur.js.output-to-innerhtml
     mode: taint
