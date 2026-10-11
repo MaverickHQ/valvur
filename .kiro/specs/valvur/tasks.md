@@ -2284,12 +2284,30 @@ rehearsal of `1.5.1`; CI green. Nothing in detection changes, so the Score is no
      the Score's re-basing with both numbers;
   3. ADR-0026, `EVALUATING.md`, the README and `CLAUDE.md` say nine tracks, and the README's
      sentence on the taint rules cites the track.
-- [ ] **R41.4** **The four rules, measured** (D80c). Behaviours:
+- [x] **R41.4** **The four rules, measured** (D80c). Behaviours:
   1. `rule_precision` measures the track, and `docs/RULES.md` gives the four rules their
      counts;
   2. a rule under the bar is improved where the track shows a missing source or sink, or
      demoted with its reason;
   3. tracks 1 to 8 stay within the ratchet.
+
+  **STATUS 2026-10-11:** ✅ Measured on this Mac, `valvur:dev` `sha256:9ac213cea176`.
+  - **The four rules have counts.** `rule_precision` reads track 9 as the Score does: a
+    case there names the rule that should report it, not a CWE. `docs/RULES.md` has a
+    track 9 column. On it the rules are 8, 8, 8 and 6 true and 0 false, so each is at
+    precision 1.0, and none is *unmeasured*.
+  - **One rule improved, though over the bar.** The SQL rule sat at precision 0.5: 8 true,
+    and 8 false on fixes that bind the model's text as a parameter, the form its own
+    message recommends. Its sink was any argument of `execute`. It is now the query
+    argument alone (`focus-metavariable`), held by `test_llm_sql_sink.py` through the
+    image, and the query sink's score rose from 0.0 to 80.0. D80c's clause names a
+    *missing* source or sink; an over-broad one is the same kind of fault, and fixing it
+    was cheaper and truer than leaving the bar to decide.
+  - **What the counts do not show:** misses. The rules catch none of the five real
+    advisories and none of the four helper flows. That is the track's score: 88.1
+    generated, 0.0 real, 79.0 together.
+  - **Tracks 1 to 8** measured at their baselines: 40.9, 55.0, 100.0, 100.0, 100.0, 94.3,
+    95.0, 2.3.
 
 **Exit:** the Score on both lanes with nine tracks, the re-basing recorded; the four rules
 measured in `RULES.md`; the acceptance set green on both lanes; CI green. If R41.4 changed a

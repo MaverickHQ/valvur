@@ -19,15 +19,19 @@ client = OpenAI()
 
 def run(prompt):
     cur = sqlite3.connect("notes.db").cursor()
-    reply = client.chat.completions.create(model="m", messages=[{"role": "user", "content": prompt}])
+    reply = client.chat.completions.create(
+        model="m", messages=[{"role": "user", "content": prompt}])
     text = reply.choices[0].message.content
 """
 CASES = {
     "query.py": (True, "    return cur.execute(text).fetchall()\n"),
     "script.py": (True, "    cur.executescript(text)\n"),
-    "formatted.py": (True, '    return cur.execute(f"SELECT * FROM notes WHERE {text}").fetchall()\n'),
-    "bound.py": (False, '    return cur.execute("SELECT id FROM notes WHERE title = ?", (text,)).fetchall()\n'),
-    "bound_many.py": (False, '    cur.executemany("INSERT INTO notes (title) VALUES (?)", [(text,)])\n'),
+    "formatted.py": (True, '    query = f"SELECT * FROM notes WHERE {text}"\n'
+                           "    return cur.execute(query).fetchall()\n"),
+    "bound.py": (False, '    query = "SELECT id FROM notes WHERE title = ?"\n'
+                        "    return cur.execute(query, (text,)).fetchall()\n"),
+    "bound_many.py": (False, '    insert = "INSERT INTO notes (title) VALUES (?)"\n'
+                             "    cur.executemany(insert, [(text,)])\n"),
 }
 
 

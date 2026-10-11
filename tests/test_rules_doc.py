@@ -31,7 +31,8 @@ def _row(tp=0, fp=0, new=0, *, vendored=False, inventory=False, demoted="",
          unjudged=0) -> dict:
     places = {"sast-python": {"tp": tp, "fp": 0, "outside": 0, "new": new, "unjudged": 0},
               "sast-js": {"tp": 0, "fp": 0, "outside": 0, "new": 0, "unjudged": 0},
-              "corpus": {"tp": 0, "fp": fp, "outside": 0, "new": 0, "unjudged": unjudged}}
+              "corpus": {"tp": 0, "fp": fp, "outside": 0, "new": 0, "unjudged": unjudged},
+              "llm-output": {"tp": 0, "fp": 0, "outside": 0, "new": 0, "unjudged": 0}}
     return {"file": "rules/x.yaml", "vendored": vendored, "inventory": inventory,
             "demoted": demoted, "cwe": [22], "places": places, "tp": tp, "fp": fp,
             "new": new, "precision": round(tp / (tp + fp), 3) if tp + fp else 0.0}
@@ -55,10 +56,11 @@ def test_each_rule_has_its_counts_its_precision_and_its_state():
         valvur_d=_row(inventory=True, unjudged=5),
         vendored_e=_row(tp=2, new=0, vendored=True)))
 
-    assert _line(page, "valvur.a").endswith("| 9 / 0 | 0 / 0 | 0 / 3 | 0.75 | active |")
+    assert _line(page, "valvur.a").endswith("| 9 / 0 | 0 / 0 | 0 / 3 | 0 / 0 | 0.75 | active |")
     # Nothing in the three places to measure it on: said so, never shown as perfect.
-    assert _line(page, "valvur.b").endswith("| 0 / 0 | 0 / 0 | 0 / 0 | - | active, unmeasured |")
-    assert "| 0 / 2, 4 unjudged | 0.333 | inventory: R29.3: precision 0.333" in \
+    assert _line(page, "valvur.b").endswith(
+        "| 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | - | active, unmeasured |")
+    assert "| 0 / 2, 4 unjudged | 0 / 0 | 0.333 | inventory: R29.3: precision 0.333" in \
         _line(page, "valvur.c")
     assert _line(page, "valvur.d").endswith("| inventory: a sink to review (D47a) |")
     # A vendored rule whose every true positive repeats one of valvur's own lines.
@@ -99,3 +101,15 @@ def test_no_active_rule_is_under_the_bar():
 
     assert [rule for rule, row in measured.items()
             if rule_precision.state(row) == "**under the bar**"] == []
+
+
+def test_track_9_is_a_column_of_its_own():
+    """R41.4 (D80c): the LLM-output rules' counts come from track 9."""
+    row = _row()
+    row["places"]["llm-output"] = {"tp": 30, "fp": 0, "outside": 0, "new": 0, "unjudged": 0}
+    row.update(tp=30, precision=1.0)
+
+    page = _doc().render(_measured(valvur_llm=row))
+
+    assert "| track 1 | track 2 | corpus | track 9 |" in page
+    assert _line(page, "valvur.llm").endswith("| 0 / 0 | 0 / 0 | 0 / 0 | 30 / 0 | 1.0 | active |")

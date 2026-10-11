@@ -470,7 +470,7 @@ def rules_measured(result: dict, path: Path, *, today: str | None = None) -> Non
                       for place in rule_precision.PLACES if place not in row["places"]})
     if not result.get("rules") or missing:
         raise ValueError(f"not measured on {', '.join(missing) or 'any place'}; run "
-                         "--tracks sast-python,sast-js,real-code-precision")
+                         "--tracks sast-python,sast-js,real-code-precision,llm-output")
     path.write_text(json.dumps({
         "measured": today or datetime.datetime.now(datetime.UTC).date().isoformat(),
         "image": result["image"]["id"],

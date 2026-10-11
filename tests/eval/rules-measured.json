@@ -1,6 +1,6 @@
 {
- "measured": "2026-10-08",
- "image": "sha256:9bd5ec2b8b27d144c17f7c3d529e28778fdaf26f20510018786675ff434f3fd6",
+ "measured": "2026-10-11",
+ "image": "sha256:9ac213cea17698cd057c380d736f4f7f8c99f79ec153b105bfe630fa9777dc61",
  "corpus_projects": 48,
  "rules": {
   "javascript_eval_rule-eval-with-expression": {
@@ -31,6 +31,13 @@
      "fp": 1,
      "outside": 0,
      "new": 2,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
      "unjudged": 0
     }
    },
@@ -66,6 +73,13 @@
      "tp": 0,
      "fp": 0,
      "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 2,
      "new": 0,
      "unjudged": 0
     }
@@ -104,6 +118,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 35,
@@ -135,6 +156,13 @@
      "unjudged": 0
     },
     "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
      "tp": 0,
      "fp": 0,
      "outside": 0,
@@ -176,6 +204,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 2,
@@ -207,6 +242,13 @@
      "unjudged": 0
     },
     "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
      "tp": 0,
      "fp": 0,
      "outside": 0,
@@ -248,6 +290,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 2,
@@ -281,6 +330,13 @@
     "corpus": {
      "tp": 0,
      "fp": 2,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
      "outside": 0,
      "new": 0,
      "unjudged": 0
@@ -320,12 +376,19 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 6,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
-   "tp": 0,
+   "tp": 6,
    "fp": 0,
    "new": 0,
-   "precision": 0.0
+   "precision": 1.0
   },
   "valvur.llm.output-to-code-execution": {
    "file": "rules/llm-output-sinks.yaml",
@@ -356,12 +419,19 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 8,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
-   "tp": 0,
+   "tp": 8,
    "fp": 0,
    "new": 0,
-   "precision": 0.0
+   "precision": 1.0
   },
   "valvur.llm.output-to-shell": {
    "file": "rules/llm-output-sinks.yaml",
@@ -392,12 +462,19 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 8,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
-   "tp": 0,
+   "tp": 8,
    "fp": 0,
    "new": 0,
-   "precision": 0.0
+   "precision": 1.0
   },
   "valvur.llm.output-to-sql": {
    "file": "rules/llm-output-sinks.yaml",
@@ -428,12 +505,19 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 8,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
-   "tp": 0,
+   "tp": 8,
    "fp": 0,
    "new": 0,
-   "precision": 0.0
+   "precision": 1.0
   },
   "valvur.pinning.mutable-git-ref": {
    "file": "rules/pinning-hygiene.yaml",
@@ -461,6 +545,13 @@
     "corpus": {
      "tp": 1,
      "fp": 1,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
      "outside": 0,
      "new": 0,
      "unjudged": 0
@@ -495,6 +586,13 @@
      "unjudged": 0
     },
     "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
      "tp": 0,
      "fp": 0,
      "outside": 0,
@@ -536,6 +634,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 9,
@@ -572,6 +677,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 12
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 4,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 10,
@@ -608,6 +720,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 28
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 5,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 10,
@@ -644,6 +763,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 24,
@@ -675,6 +801,13 @@
      "unjudged": 0
     },
     "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
      "tp": 0,
      "fp": 0,
      "outside": 0,
@@ -716,6 +849,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 9,
@@ -749,6 +889,13 @@
     "corpus": {
      "tp": 0,
      "fp": 6,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
      "outside": 0,
      "new": 0,
      "unjudged": 0
@@ -788,6 +935,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 3,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 0,
@@ -824,6 +978,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 3
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 4,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 7,
@@ -860,6 +1021,13 @@
      "outside": 0,
      "new": 0,
      "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
     }
    },
    "tp": 37,
@@ -891,6 +1059,13 @@
      "unjudged": 0
     },
     "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
      "tp": 0,
      "fp": 0,
      "outside": 0,

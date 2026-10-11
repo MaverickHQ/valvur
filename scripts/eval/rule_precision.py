@@ -24,8 +24,9 @@ from pathlib import Path
 import cwe  # type: ignore[import-not-found]
 import score  # type: ignore[import-not-found]
 
-#: The places a rule is measured, in the order `docs/RULES.md` gives them.
-PLACES = ("sast-python", "sast-js", "corpus")
+#: The places a rule is measured, in the order `docs/RULES.md` gives them; track 9 holds
+#: the LLM-output rules' cases (R41, D80).
+PLACES = ("sast-python", "sast-js", "corpus", "llm-output")
 #: A rule's metadata line that keeps it out of the verdict (D47a).
 _INVENTORY = re.compile(r"^\s+inventory:\s*true\b", re.M)
 #: Why R29.3 demoted it, when it did: one quoted line in its metadata.
@@ -80,7 +81,9 @@ def from_track(cases: list, findings: list[dict], cwe_of, rules: dict[str, dict]
             continue
         tally = tallies.setdefault(finding["rule"], Tally())
         case = next((c for c in cases if score._lands_on(c, finding)), None)
-        if case is None or not cwe_of(finding) & set(case.cwes):
+        # Of the case's weakness as the Score decides it: its CWE on tracks 1 and 2,
+        # its rule on track 9, whose cases name the rule that should report them.
+        if case is None or not score._of_its_kind(case, finding, cwe_of):
             tally.outside += 1
         elif case.vulnerable:
             tally.tp += 1

@@ -61,10 +61,11 @@ def _measure(tmp_path: Path, by_track: dict[str, list[dict]], labels: str = "") 
         _results(root, by_track.get(name, []))
 
     result = harness.run(
-        ["sast-python", "sast-js", "real-code-precision"], tmp_path / "work", scan=scan,
-        image="valvur:dev", image_id=lambda image: "sha256:abc",
+        ["sast-python", "sast-js", "real-code-precision", "llm-output"], tmp_path / "work",
+        scan=scan, image="valvur:dev", image_id=lambda image: "sha256:abc",
         benchmark=_benchmark(tmp_path), verify=lambda checkout: None,
-        corpus=[{"name": "flask"}], checkouts=checkouts, labels=label_file)
+        corpus=[{"name": "flask"}], checkouts=checkouts, labels=label_file,
+        llm_real=lambda: (tmp_path / "none", {}))
     return result["rules"]
 
 
@@ -120,3 +121,24 @@ def test_the_measurement_is_recorded_only_when_all_three_places_were_scanned(tmp
         assert "sast-js" in str(error)
     else:
         raise AssertionError("a measurement without every place was recorded")
+
+
+def test_the_llm_rules_are_measured_on_track_9(tmp_path):
+    """R41.4 (D80c): track 9's cases name their rule rather than a CWE, and a rule's
+    count is read from the track as the Score reads it."""
+    harness = _harness()
+
+    def scan(root: Path) -> None:
+        cases = json.loads((root.parent / "llm-output.cases.json").read_text())
+        hits = [c for c in cases if c["id"] in ("llm-gen-code-execution-anthropic",
+                                                "llm-gen-query-anthropic-fixed")]
+        _results(root, [_finding(c["rules"][0], c["path"]) for c in hits])
+
+    result = harness.run(["llm-output"], tmp_path / "work", scan=scan, image="valvur:dev",
+                         image_id=lambda image: "sha256:abc",
+                         llm_real=lambda: (tmp_path / "none", {}))
+
+    code = result["rules"]["valvur.llm.output-to-code-execution"]["places"]["llm-output"]
+    sql = result["rules"]["valvur.llm.output-to-sql"]["places"]["llm-output"]
+    assert (code["tp"], code["fp"]) == (1, 0)
+    assert (sql["tp"], sql["fp"]) == (0, 1)

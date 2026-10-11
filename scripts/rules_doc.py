@@ -25,6 +25,10 @@ MEASURED = REPO / "tests" / "eval" / "rules-measured.json"
 PAGE = REPO / "docs" / "RULES.md"
 
 
+#: A place a measurement predates: track 9 before R41.
+_NONE = {"tp": 0, "fp": 0, "unjudged": 0}
+
+
 def _cell(counts: dict) -> str:
     cell = f"{counts['tp']} / {counts['fp']}"
     return f"{cell}, {counts['unjudged']} unjudged" if counts.get("unjudged") else cell
@@ -39,10 +43,12 @@ def render(measured: dict) -> str:
         "",
         "Every static-analysis rule valvur runs through Opengrep, measured on what valvur",
         "reports over the Score's track 1 (the OWASP Benchmark for Python), track 2 (the",
-        f"JavaScript twins) and the corpus of {measured['corpus_projects']} real projects, "
-        "whose every",
-        "active finding is labelled by hand (`tests/eval/labels/corpus.toml`). A cell is",
-        "true / false positives; a finding on a case of another weakness is not counted.",
+        f"JavaScript twins), the corpus of {measured['corpus_projects']} real projects, whose "
+        "every",
+        "active finding is labelled by hand (`tests/eval/labels/corpus.toml`), and track 9:",
+        "model output reaching a sink, in generated twins and in published advisories' code.",
+        "A cell is true / false positives; a finding on a case of another weakness is not",
+        "counted.",
         "",
         "**The bar** is D29's: at least one true positive and a precision of at least 0.5",
         "over the three, and for a rule vendored from GitLab's `sast-rules`, one true",
@@ -55,8 +61,8 @@ def render(measured: dict) -> str:
         "nothing here says how precise it is. Each fires on the cases planted for it in",
         "valvur's own tests and fixtures, and stays active.",
         "",
-        "| rule | source | CWE | track 1 | track 2 | corpus | precision | state |",
-        "|---|---|---|---|---|---|---|---|",
+        "| rule | source | CWE | track 1 | track 2 | corpus | track 9 | precision | state |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for rule, row in sorted(measured["rules"].items()):
         places = row["places"]
@@ -66,6 +72,7 @@ def render(measured: dict) -> str:
         lines.append(
             f"| `{rule}` | {source} | {cwe} | {_cell(places['sast-python'])} | "
             f"{_cell(places['sast-js'])} | {_cell(places['corpus'])} | "
+            f"{_cell(places.get('llm-output', _NONE))} | "
             f"{row['precision'] if measured_at_all else '-'} | {rule_precision.state(row)} |")
     lines += ["", f"Measured {measured['measured']} on `valvur:dev` (`{measured['image']}`).",
               ""]
