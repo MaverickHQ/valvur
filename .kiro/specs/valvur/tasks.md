@@ -72,6 +72,17 @@ AI-generated code and `docs/RULES.md` marks them *unmeasured*. Of the four candi
 R29.4 found, certificate validation turned off and the JavaScript cookie without `secure`
 are the next detection work after R41; the short key and the old TLS version stay in §9.
 
+**Recorded 2026-10-11, after `1.5.3` was released.** R41 landed with its task-list entry
+(#224, #225): track 9 measures the four LLM-output rules, and the Score is 74.1 over nine on
+both lanes, re-based from 73.4. `1.5.3` shipped the SQL rule's fix (R41.4) and the TOML
+crash ClusterFuzzLite found on #224, a `.security-scan.toml` nested past Python's limit
+(`669ed84`). Before it the owner excluded `doctor`'s parity case rather than fake the
+runtime, after its first failure in CI, and closed its §8 row. The machinery was unchanged,
+so there was no rehearsal; the self-scan of the release tree was clean. The tag was pushed
+before the landing finished, so the release run's first attempt stopped at *sits on main*,
+before anything was built, and its rerun published (run 38166624854): PyPI, both
+architectures at `sha256:29a74a76`, signed and attested.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -378,14 +389,15 @@ R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─�
 ```
 1.5.0 ─► R39 a professional front door ─► R40 the README on PyPI ─► 1.5.1 ─► 1.5.2
                                                                               │
-           the path to OWASP (parked, §9) ◄─ ─ ─ R41 model output reaching a sink, measured
+           the path to OWASP (parked, §9) ◄─ ─ ─ R41 model output reaching a sink, measured ─► 1.5.3
 ```
 
 - **R39 next** (D78): the owner put the first impression ahead of OWASP on 2026-10-09. It
   changes no detection, so no Score runs gate it; the README's claims are still measured.
 - **R40 after R39**: it renders R39's README on PyPI, and `1.5.1` publishes both.
 - **R41 after `1.5.2`** (D80): the four LLM-output rules are the product's core claim and the
-  only shipped rules nothing measures. The detection work R29.4 suggested follows it.
+  only shipped rules nothing measures. `1.5.3` released it on 2026-10-11. The detection work
+  R29.4 suggested follows it.
 - **The path to OWASP** waits in §9 with its phases written, and returns when the owner asks.
 
 ---
@@ -2351,7 +2363,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | free disk on the build Mac | now | 30 GB free on 2026-09-29; R9.1 prunes Docker's build cache itself below 20 GB |
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
-| call a release for R41 | R41 landed | R41.4 changed a rule: `valvur.llm.output-to-sql` no longer reports a bound parameter. A TOML file nested past Python's limit no longer ends a scan (found by ClusterFuzzLite on #224). Ask a session to prepare `1.5.3` by `docs/RELEASING.md`, or leave both for the next |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
 ---
