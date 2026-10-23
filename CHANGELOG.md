@@ -17,6 +17,11 @@ break things, and has.
   (GHSA-6q48-6c7w-9gw2). The same aiohttp release fixes a low one, GHSA-494j-54xm-rwp3. yarl
   moves to 1.25.1, the floor every fixed aiohttp requires. The nightly acceptance run's
   self-scan found them; nothing else in the lock moved.
+- **GitPython 3.2.1** in the image's Checkov environment, past CVE-2026-114145
+  (GHSA-83vg-56qc-22m7, high), published on 2026-10-22: GitPython 3.2.0 and earlier check a
+  submodule's `.git` path only after cloning into it. Checkov 3.3.22 accepts any GitPython
+  below 4. The pull request's own self-scan release gate found it; nothing else in the lock
+  moved.
 
 ## [1.5.3] — 2026-10-11
 
