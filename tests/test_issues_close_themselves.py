@@ -17,7 +17,10 @@ WORKFLOWS = sorted((REPO / ".github" / "workflows").glob("*.yml"))
 
 
 def _steps(text: str) -> list[str]:
-    return re.split(r"\n\s+- (?=name:|uses:|if:|id:)", text)
+    # A step ends where the next job begins: a job's own `if:` is not its last step's
+    # (R43.4 put the first job-level `if:` after a step that files an issue).
+    steps = re.split(r"\n\s+- (?=name:|uses:|if:|id:)", text)
+    return [re.split(r"\n  [a-z][\w-]*:\n", step, maxsplit=1)[0] for step in steps]
 
 
 def _issue_steps(text: str) -> list[dict[str, str]]:

@@ -580,6 +580,20 @@ jobs:
           VALVUR_IMAGE: ${{ env.IMAGE }}@${{ env.DIGEST }}
         run: '"$VENV/bin/valvur" update'
 
+      - name: The staged image, scanned as it ships (R43.4, N2.7)
+        # Its own Trivy over its own root filesystem, with no network and the database
+        # just fetched: a vulnerability with a fixed version that the owner has not
+        # accepted in `.github/image-accepted.yaml` stops the release here, before
+        # `promote`, with only the candidate tag pushed (ADR-0020).
+        env:
+          STAGED: ${{ env.IMAGE }}@${{ env.DIGEST }}
+        run: |
+          docker run --rm --network none -v "$HOME/.cache/valvur/trivy:/db:ro" \
+            --entrypoint trivy "$STAGED" rootfs --cache-dir /db --cache-backend memory \
+            --skip-db-update --skip-java-db-update --offline-scan --format json \
+            --scanners vuln --quiet / > "$RUNNER_TEMP/image-scan.json"
+          python3 scripts/image_gate.py "$RUNNER_TEMP/image-scan.json"
+
       - name: The constraint suite and the whole e2e suite, against the artifact
         # Phase 11's constraints (tests/test_constraints_*.py, test_not_cuttable.py)
         # in full, and every test marked e2e — through the wheel's code and the

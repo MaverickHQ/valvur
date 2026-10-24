@@ -404,6 +404,71 @@ jobs:
           test "$first" = "$second"
           echo "reproducible: one tree, two builds, one image $first" >> "$GITHUB_STEP_SUMMARY"
 
+  # The image that ships, judged (R43.4, D81t, N2.7): its own Trivy over its own root
+  # filesystem, with no network and this run's database, on both architectures. The
+  # base tag stopped moving on 2026-04-19 and every gate read only the tree, so 1.5.3
+  # shipped without six months of OS fixes. A vulnerability with a fixed version
+  # blocks unless the owner accepted it in `.github/image-accepted.yaml`, with an
+  # expiry. Not a required check until the owner makes it one.
+  imagegate:
+    name: the image, scanned as it ships (${{ matrix.arch }})
+    needs: image
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-26.04
+          - arch: arm64
+            runner: ubuntu-26.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: The image this commit built
+        if: needs.image.result != 'success'
+        run: |
+          echo "::error::the image job did not build this commit's image"
+          exit 1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-${{ matrix.arch }}
+      - name: Load it
+        run: gunzip -c image.tar.gz | docker load
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+      - name: Restore the package-name index between runs
+        # `valvur update` fetches the index with the database; restored, it is seconds.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/valvur/names
+          key: valvur-name-index-${{ github.job }}-${{ matrix.runner }}-${{ github.run_id }}
+          restore-keys: valvur-name-index-
+      - name: This run's vulnerability database
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: uv run valvur update
+      - name: The image's own Trivy over its root filesystem, with no network
+        run: |
+          docker run --rm --network none -v "$HOME/.cache/valvur/trivy:/db:ro" \
+            --entrypoint trivy valvur:dev rootfs --cache-dir /db --cache-backend memory \
+            --skip-db-update --skip-java-db-update --offline-scan --format json \
+            --scanners vuln --quiet / > image-scan.json
+      - name: Judged against the owner's acceptances
+        run: python3 scripts/image_gate.py image-scan.json --out image-gate.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          # The heal's second input (R44.6), beside the tree's findings.
+          name: image-gate-${{ matrix.arch }}
+          path: |
+            image-scan.json
+            image-gate.json
+          retention-days: 30
+
   selfscan:
     name: self-scan release gate (N2.5)
     needs: image

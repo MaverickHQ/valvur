@@ -98,6 +98,61 @@ jobs:
           title: the nightly acceptance run failed
           passed: "true"
 
+  image:
+    # The latest published image, judged nightly (R43.4, D81t, N2.7): the advisories
+    # of today against the image users pull, which no lockfile in the tree describes.
+    name: the published image, scanned as it ships
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      issues: write         # the one issue a fixable vulnerability gets
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+      - name: The latest published image, and today's database
+        env:
+          VALVUR_IMAGE: ghcr.io/maverickhq/valvur:latest
+        run: |
+          docker pull "$VALVUR_IMAGE"
+          uv run valvur update
+      - name: Its own Trivy over its root filesystem, with no network
+        run: |
+          docker run --rm --network none -v "$HOME/.cache/valvur/trivy:/db:ro" \
+            --entrypoint trivy ghcr.io/maverickhq/valvur:latest rootfs --cache-dir /db \
+            --cache-backend memory --skip-db-update --skip-java-db-update --offline-scan \
+            --format json --scanners vuln --quiet / > image-scan.json
+      - name: Judged against the owner's acceptances
+        run: python3 scripts/image_gate.py image-scan.json --out image-gate.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: image-gate-published
+          path: |
+            image-scan.json
+            image-gate.json
+          retention-days: 30
+      - name: A fixable vulnerability in the published image is filed
+        if: failure() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the published image has a fixable vulnerability
+          failed: "The nightly scan of `ghcr.io/maverickhq/valvur:latest` blocked"
+          body: |-
+            Users pull an image with a vulnerability that has a fixed version, and the owner has not accepted it. The run's `image-gate-published` artifact lists each one, with its package and the version that fixes it.
+
+            Recovery: a base image or Scanner update, then a patch release; or, for a risk you accept, an entry with an expiry in `.github/image-accepted.yaml`.
+      - name: A run that passes closes it
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: the published image has a fixable vulnerability
+          passed: "true"
+
   watchdog:
     # The nightly watches the watchdog (R42.5, D81s, N3.8): `watchdog.yml`'s own last
     # scheduled run is judged by the same rule it judges every other by, so neither
