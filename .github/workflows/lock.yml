@@ -1,0 +1,42 @@
+# The Checkov lock is what its recipe writes (R42.4, N3.7). On a pull request that
+# changes the recipe or its files, the recipe runs again with no upgrades, and the lock
+# must come back byte for byte. It is what refused #231, #232, #236 and #237 in spirit:
+# asteval past its override, or the `win32` markers dropped, is rewritten here and so
+# fails. A new distribution uploaded to an old version fails it too, which is worth a
+# look of its own.
+#
+# The recipe resolves with `--no-build`, so no package's code runs; the job holds no
+# secret and reads the repository alone.
+name: lock
+
+on:
+  pull_request:
+    paths:
+      - "requirements-checkov.*"
+      - "scripts/lock-checkov.sh"
+
+permissions: {}
+
+# One run per pull request: a newer push replaces an older run.
+concurrency:
+  group: lock-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  recipe:
+    name: the Checkov lock is what its recipe writes
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The version is `pyproject.toml`'s `[tool.uv] required-version`.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+      - name: The recipe, run again, leaves the lock unchanged
+        run: |
+          scripts/lock-checkov.sh
+          git diff --exit-code requirements-checkov.txt

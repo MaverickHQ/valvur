@@ -142,3 +142,33 @@ def test_every_setup_uv_step_installs_the_named_version():
     for path, before, step in steps:
         assert "actions/checkout@" in before, path
         assert "version" not in step and "working-directory" not in step, (path, step)
+
+
+LOCK_WORKFLOW = REPO / ".github" / "workflows" / "lock.yml"
+
+
+def test_a_pull_request_that_changes_the_recipe_runs_it_again_and_diffs_the_lock():
+    import re
+
+    text = LOCK_WORKFLOW.read_text()
+
+    assert re.search(r"^on:\n  pull_request:\n    paths:\n", text, re.M)
+    assert '"requirements-checkov.*"' in text and '"scripts/lock-checkov.sh"' in text
+    assert "pull_request_target" not in text and "workflow_run" not in text
+    run = re.search(r"run: \|\n((?:          .*\n)+)", text)
+    assert run and run.group(1).split() == [
+        "scripts/lock-checkov.sh", "git", "diff", "--exit-code", "requirements-checkov.txt"]
+
+
+def test_the_lock_check_holds_no_secret_and_reads_the_repository_alone():
+    import re
+
+    text = LOCK_WORKFLOW.read_text()
+
+    assert re.search(r"^permissions: \{\}$", text, re.M)
+    job = re.search(r"^    permissions:\n((?:      \S.*\n)+)", text, re.M)
+    assert job and job.group(1).split() == ["contents:", "read"]
+    assert "secrets." not in text
+    assert "persist-credentials: false" in text
+    for uses in re.findall(r"uses: (\S+)", text):
+        assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", uses), uses
