@@ -23,7 +23,7 @@ does not change
 > Build the spec in .kiro/specs/self-healing-supply-chain/ in /Users/maverick/security-scanner.
 > Read CLAUDE.md, then that spec's tasks.md §0, and work unattended as
 > .kiro/specs/valvur/tasks.md §1 to §4 say, starting at R42.1 on a branch cut from
-> spec/self-healing-supply-chain.
+> origin/spec/self-healing-supply-chain.
 
 **The main list's §1 to §4 apply unchanged:** one executor, test-driven slices, phase commits,
 phases stacked, never a push to `main` or of a tag, the stop conditions, and the build caches.
@@ -32,12 +32,18 @@ Six things differ:
 1. **Until R42.1 is ticked,** `build_status.py` reads only the main list and would report the
    build finished. Resume with the start prompt above. After R42.1, the main list's resume
    prompt finds this spec by itself.
-2. **Branches.** `spec/self-healing-supply-chain` is a local branch that holds this spec. It
-   stacks on `docs/1.5.3-published` (#227). Cut R42's branch,
-   `build/r42-the-incident-closed`, from it, so the spec lands with R42's pull request. Later
-   phases stack as the main list's §4 says.
-3. **R42.2 does not stack.** The lock fix closes a live incident, so it is a pull request of its
-   own from `fix/checkov-lock-aiohttp-certifi` onto `main`.
+2. **Branches.** `origin/spec/self-healing-supply-chain` holds this spec. It sits on
+   `2d000ce`, the first commit of `chore/before-1.5.4`: #227's commit, carried by cherry-pick,
+   because #227 no longer fast-forwarded and auto mode refuses a force-push.
+   `release/1.5.4` carries that commit to `main`, so once 1.5.4 lands, the spec's base is in
+   `main` and R42's pull request fast-forwards. Cut R42's branch,
+   `build/r42-the-incident-closed`, from `origin/spec/self-healing-supply-chain`, so the spec
+   lands with R42's pull request. Later phases stack as the main list's §4 says. The local
+   branch of that name on `3d502c4` on the owner's Mac is the first draft; it was never
+   pushed.
+3. **R42.2 did not stack.** The lock fix closed a live incident, so it was a pull request of
+   its own: #235, from `fix/checkov-lock-aiohttp-certifi-signed`, landed on `main` as
+   `1cc920a` and `af7f82c` on 2026-10-24.
 4. **Tasks marked 👤 run in the owner's session.** In R28.2 the executor's auto mode refused to
    write an auto-merge workflow, as a merge without review, and the owner built it. The 👤
    tasks write workflows that grant merge, tag or promote power. For each one, the executor:
@@ -52,7 +58,8 @@ Six things differ:
 6. **No agent runs.** No `claude -p` here, so there is no cost cap to keep.
 
 **Signed commits.** The executor signs its commits with the owner's SSH key on this Mac
-(`commit.gpgsign`). `698b21e` was made unsigned in a scratch clone, so R42.2 signs it again.
+(`commit.gpgsign`), or in a cloud session as D61 (g) says. `698b21e` was made unsigned in a
+scratch clone; R42.2 carried it as a signed cherry-pick.
 
 ---
 
@@ -96,9 +103,9 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   _Requirements: 14.1, 14.2, 14.3_
 
 - [ ] **R42.2** **The lock fix lands** (#234). Behaviours:
-  1. `fix/checkov-lock-aiohttp-certifi` (`698b21e`) is signed again
-     (`git commit --amend -S --no-edit`), rebased onto `origin/main` if `main` moved, pushed,
-     and opened as its own pull request. The body has these sections:
+  1. `fix/checkov-lock-aiohttp-certifi` (`698b21e`) is signed again on `origin/main`, by a
+     cherry-pick onto a new branch (auto mode refuses `git commit --amend`), pushed, and
+     opened as its own pull request. The body has these sections:
      - the advisory table in requirements.md;
      - the change;
      - why Dependabot did not fix it;
@@ -123,18 +130,42 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   - **The suites:** 2,343 passed and 8 skipped, after the image guard was re-run against
     `valvur:dev`. `-m e2e` against `valvur:dev`: 70 passed, 6 skipped.
 
+  **STATUS 2026-10-23/24:** ✅ behaviours 1 and 2. Behaviour 3 waits for 1.5.4.
+  - **Signed by cherry-pick, not amended.** Auto mode refused `git commit --amend` as
+    destructive. `698b21e` was cherry-picked onto `origin/main` on a new branch,
+    `fix/checkov-lock-aiohttp-certifi-signed`, which signs a new commit and rewrites nothing.
+    It opened as #235.
+  - **GitPython, found by the pull request's own gate.** #235's self-scan release gate
+    (N2.5) found CVE-2026-114145 (GHSA-83vg-56qc-22m7, high), published 2026-10-22 at 16:41
+    UTC, against GitPython 3.1.62. A second commit, `af7f82c`, moved it to 3.2.1, which
+    Checkov 3.3.22 accepts (any GitPython below 4); nothing else in the lock moved. On
+    2026-10-23, after `valvur update` and a forced database refresh, the `offline` profile
+    still did not know the advisory. Only `--profile full` (OSV.dev) found it, which is what
+    CI's gate runs (design.md §4).
+  - **Landed** on 2026-10-24 at 06:36:40 UTC, by fast-forward, as `1cc920a` and `af7f82c`.
+    `ci` passed on `main` (run 40070884696), and Dependabot's alerts #5 to #12 closed when
+    GitHub re-read the lock.
+  - **Behaviour 3:** 1.5.4 is prepared on `release/1.5.4`. The `SELF_PIN` move ships in
+    `docs/1.5.4-published`, after 1.5.4 is published.
+
   _Requirements: none here. It closes the incident the requirements answer._
 
 - [ ] **R42.3** **Dependabot stays out of the Checkov lock** (D81p). Behaviours:
   1. `.github/dependabot.yml`'s `pip` and `uv` entries carry `exclude-paths` naming
      `requirements-checkov.in`, `.overrides` and `.txt`. A new test holds it, and the comment
-     says why: #231 came from `uv` and #232 from `pip`.
+     says why: #231 and #236 came from `uv`, #232 and #237 from `pip`.
   2. `scripts/dependabot_auto_merge.py` leaves for the owner any pull request that changes
      `requirements-checkov.*`, naming why. Its existing twenty-one tests still pass.
   3. **The live check:** Dependabot's next weekly run opens no pull request that touches those
      files, recorded with its date. If it does, D81p's fallback applies: the files move to
-     `locks/checkov/` as a new task R42.5, with the Dockerfile, `prepare_release.py`'s
-     `MACHINERY`, the tests and the documents moving with them.
+     `locks/checkov/` as a new task, the next free ID in R42, with the Dockerfile,
+     `prepare_release.py`'s `MACHINERY`, the tests and the documents moving with them.
+
+  **The baseline, 2026-10-24:** without `exclude-paths`, Dependabot rebuilt the lock's pull
+  requests within minutes of `main` moving. #235 landed at 06:36 UTC; at 06:39 Dependabot
+  closed #231 and #232 itself and opened #236 (`uv`) and #237 (`pip`), the same re-lock
+  (asteval 1.0.6, the `win32` markers dropped) with auto-merge on. Only their red checks
+  held them. Both were closed with `@dependabot close` the same day.
 
   _Requirements: 4.1, 4.2_
 
@@ -185,7 +216,9 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   4. `SELF_PIN` is gone, and a test refuses a forty-hex literal on `6-self`'s path.
   5. **Measured on this Mac:** `scripts/acceptance.py --generate --only 6`, its tag and its
      blocking count. Until 1.5.4 is published, the latest tag is v1.5.3, whose lock has the
-     four advisories. They are past the window by then, so they block. Record that as it is.
+     advisories 1.5.4 fixes: the four in requirements.md's table, GitPython's, and the five
+     medium and low ones in aiohttp. They are past the window by then, so the high and
+     critical ones block. Record that as it is.
 
   _Requirements: 1.1, 1.2, 1.3, 1.4_
 
@@ -415,8 +448,8 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | item | ready after | what the owner does |
 |---|---|---|
 | approve this spec | now | start the build with §0's prompt. R42.1 records the date and D81's acceptance. Change any D81 row first with `/grill-with-docs` if you disagree |
-| land the lock fix, then release 1.5.4 | R42.2 | land its pull request by fast-forward. Release as `docs/RELEASING.md` says, with a rehearsal, since the lock is machinery. Dependabot's alerts #5 to #7 close with it. #234 closes after the `SELF_PIN` move or R43.2 |
-| close #231 and #232 | R42.3 landed | only if Dependabot has not rebuilt or closed them. Both re-lock without the recipe (asteval 1.0.6) |
+| land the lock fix, then release 1.5.4 | R42.2 | the fix landed as #235 on 2026-10-24, and Dependabot's alerts #5 to #12 closed with it. Release as `docs/RELEASING.md` says, with a rehearsal, since the lock is machinery. #234 closes after the `SELF_PIN` move or R43.2 |
+| close #231 and #232 | done | Dependabot closed them itself on 2026-10-24 and opened #236 and #237, the same re-lock with auto-merge on; those were closed with `@dependabot close` the same day (R42.3's baseline). Another may come with Dependabot's next weekly run, until R42.3 lands |
 | make the lock check required, optional | R42.4 landed | add `lock.yml`'s check to `main`'s required checks. The heal's policy runs the same comparison regardless |
 | create the GitHub App `valvur-heal` | before R44.8 | Settings → Developer settings → GitHub Apps → New. No webhook. Repository permissions: Contents read and write, Pull requests read and write, Metadata read, nothing else. Install it on `MaverickHQ/valvur` only. Then create the environment `heal`, deployable from `main` alone, with the secrets `HEAL_APP_ID` and `HEAL_APP_KEY` |
 | the heal's tag-signing key | before R45.3's behaviour 5 | `ssh-keygen -t ed25519 -C valvur-heal -f valvur-heal -N ''`. Put the private key in `heal` as `HEAL_TAG_KEY`, give the session the `.pub` line, and delete both local files |

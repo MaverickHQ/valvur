@@ -174,9 +174,20 @@ Triggers: `schedule: "41 */6 * * *"` and `workflow_dispatch`. The dispatch takes
 | `escalate` | always, last | `issues: write` | none | none |
 
 **`observe`** builds `valvur:dev` from `main`, as `acceptance.yml` does, with its Actions
-cache. It runs `valvur update`, then `valvur scan --profile full` on two trees: the checkout,
-and the latest tag's tree archived into `$RUNNER_TEMP`. It uploads both `findings.json` files
-and writes the mode as its output. The mode comes from data, never from the event:
+cache. It runs `valvur update`, then `valvur scan --profile full --fresh` on two trees: the
+checkout, and the latest tag's tree archived into `$RUNNER_TEMP`. It uploads both
+`findings.json` files and writes the mode as its output.
+
+- **Always `--profile full`, measured.** On 2026-10-23, after `valvur update` and a forced
+  database refresh, the `offline` profile still did not know GitPython's advisory of the day
+  before; only `--profile full`, which asks OSV.dev, found it (R42.2's STATUS). A heal never
+  plans from the `offline` profile.
+- **Always `--fresh`** (decided 2026-10-24). ADR-0030 reuses Trivy's and OSV-Scanner's last
+  results when their inputs and data look unchanged, and `observe` exists to see what was
+  published since the last run. One full scan of two trees every six hours is the cost; a
+  heal that misses an advisory because a result was reused is the cost it removes.
+
+The mode comes from data, never from the event:
 
 1. **`heal`**, when `main` has an active dependency vulnerability Finding at
    `requirements-checkov.txt`;
