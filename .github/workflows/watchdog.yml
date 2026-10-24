@@ -1,0 +1,51 @@
+# Every scheduled workflow, judged daily (R42.5, D81s, N3.8). `refresh.yml` failed on
+# 2026-10-12 and 2026-10-19 and filed no issue: its checkout ran only on a month's first
+# Monday, so its `file-issue` step could not be found. `scripts/watchdog.py` reads each
+# workflow with a `schedule:` and its last scheduled runs on `main`, and keeps one issue
+# per workflow, `watchdog: <file>`: opened on a failed or overdue run, commented on
+# after, closed by a pass. The nightly (`acceptance.yml`) reads this workflow's own last
+# run by the same rule, so neither stops unseen.
+#
+# 06:47 UTC, after the nightly's usual start; scheduled runs have started up to nine
+# hours late (measured 2026-10-24), which the script's margin allows for.
+name: watchdog
+
+on:
+  schedule:
+    - cron: "47 6 * * *"     # daily, 06:47 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would be filed, and file nothing
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: every scheduled workflow ran and passed
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: read    # the scheduled runs
+      issues: write    # one issue per workflow
+    steps:
+      # Always: the script comes from the checkout. Its own failure is filed by the
+      # nightly, which reads this workflow's last run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Judge every scheduled workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then set -- --dry-run; fi
+          python3 scripts/watchdog.py --repo "$REPO" "$@"
+
