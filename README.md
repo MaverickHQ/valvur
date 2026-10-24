@@ -230,3 +230,5 @@ Bundled Scanners keep their own licences, listed above and in [NOTICE](NOTICE). 
 adds no GPL or AGPL component; the Alpine base carries GPL userland as every Linux
 container does, and the published SBOM discloses all of it
 ([ADR-0005](docs/adr/0005-no-gpl-tools-in-the-image.md)).
+
+<!-- mcp-name: io.github.MaverickHQ/valvur -->

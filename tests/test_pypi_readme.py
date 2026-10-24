@@ -75,3 +75,13 @@ def test_github_s_readme_keeps_its_relative_links():
     readme = (REPO / "README.md").read_text(encoding="utf-8")
 
     assert "](docs/HOW-IT-WORKS.md)" in readme and "<picture>" in readme
+
+
+#: The server's name in the official MCP Registry, as `mcp-publisher init` proposes it from
+#: the repository's remote. The registry proves the PyPI package is this server's by
+#: finding `mcp-name: <name>` in PyPI's copy of the README, a comment included.
+MCP_NAME = "io.github.MaverickHQ/valvur"
+
+
+def test_pypi_s_copy_names_the_server_for_the_mcp_registry(description):
+    assert re.search(rf"<!-- mcp-name: {re.escape(MCP_NAME)} -->", description)
