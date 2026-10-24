@@ -121,14 +121,16 @@ RUN XDG_CACHE_HOME=/opt/opengrep /usr/local/bin/opengrep --version \
 # `--no-compile`: pip writes timestamp-mode `.pyc` as it installs, and compileall
 # without `-f` reads their header, finds them "current" and leaves them — which is
 # how the first two fixes changed nothing (measured: flags 0, mtime = wall clock).
+# `--no-logfile`: Alpine 3.24's apk-tools 3 appends each call, with the time it ran, to
+# the base's `/var/log/apk.log`, the one file two builds of one tree then differed in.
 COPY requirements-checkov.txt /opt/checkov-requirements.txt
-RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev \
+RUN apk add --no-logfile --no-cache --virtual .build gcc musl-dev libffi-dev \
  && python3 -m venv --without-pip /opt/checkov \
  && pip --python /opt/checkov/bin/python install --no-cache-dir --no-deps --no-compile \
         --require-hashes -r /opt/checkov-requirements.txt \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
- && apk del .build \
+ && apk del --no-logfile .build \
  && PYTHONHASHSEED=0 /opt/checkov/bin/python -m compileall -q -f --invalidation-mode unchecked-hash /opt/checkov/lib
 
 # zizmor (R4.2, ADR-0023) audits GitHub Actions workflows. One package, a static
