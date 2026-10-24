@@ -979,6 +979,11 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    automated update SHALL write the recipe's files, and a pull request that changes them
    SHALL be accepted only when the recipe, run again, writes the same lock byte for byte.
    *Added 2026-10-24 (R42.3, R42.4), from the self-healing supply chain's Requirement 4.*
+8. N3.8 — WHEN a scheduled workflow's last scheduled run on `main` failed, or none started
+   within its longest cron gap plus a margin, THEN valvur's automation SHALL keep one issue
+   naming it, commented on by later findings and closed by a pass; and another scheduled
+   workflow SHALL watch the watchdog by the same rule. *Added 2026-10-24 (R42.5), from the
+   self-healing supply chain's Requirement 15.*
 
 ### N4 — Evaluation
 *Added 2026-09-29 (R9.2, ADR-0026), met by R9.3 to R9.6, 2026-09-29.* *Amended
