@@ -119,6 +119,24 @@ where the code runs; it is not a claim that any of it is unreachable.
   deprecation warning. The roadmap is current, and the air-gapped guide's mirror example
   names no release, so it cannot go stale.
 
+### The incident closed, one writer for the Checkov lock (Phase R42)
+
+- **Dependabot stays out of the Checkov lock.** Its `uv` and `pip` updaters wrote
+  `requirements-checkov.txt` their own way (#231, #232, #236, #237: asteval past its override,
+  the `win32` markers dropped). Both now exclude the recipe's three files, and the auto-merge
+  leaves any pull request that changes them for the owner.
+- **The lock is what its recipe writes.** `scripts/lock-checkov.sh` resolves with `--no-build`,
+  so no package's code runs to resolve it, and passes extra arguments through, so a re-lock
+  uses the recipe itself. A new check, `lock.yml`, runs the recipe again on any pull request
+  that changes it and fails on a lock that differs by a byte.
+- **One uv version, 0.13.5,** in `pyproject.toml`'s `[tool.uv] required-version`, where uv and
+  every `setup-uv` step read it. CI had installed whatever was latest.
+- **A watchdog over the scheduled workflows.** `refresh.yml` failed on 2026-10-12 and 2026-10-19
+  and filed no issue. `watchdog.yml` judges every scheduled workflow daily, keeping one issue
+  each, `watchdog: <file>`, for a failed run or one overdue past its cron gap plus 18 hours, and
+  the nightly watches the watchdog.
+- **The build reads every spec's task list**, `.kiro/specs/*/tasks.md`, the main list first.
+
 ## [1.5.3] — 2026-10-11
 
 Model output reaching a sink, measured. valvur's four rules for model output reaching code, a

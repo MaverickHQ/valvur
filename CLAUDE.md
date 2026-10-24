@@ -17,7 +17,8 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 
 **Status (2026-10-25).** **`1.5.4` is published**: the image's Checkov environment past ten
 advisories, and its base on Alpine 3.24; the Score **74.1** over nine on both lanes, every track
-at its baseline. **Next:** R42 and R43 of the self-healing supply chain, approved 2026-10-24 (#242).
+at its baseline. **R42 is built** (#242), the first phase of [the self-healing supply chain](.kiro/specs/self-healing-supply-chain/).
+**Next:** R43 (#244), then the owner's call on R44 and R45 (its §3).
 
 ## 2. What it is NOT
 
