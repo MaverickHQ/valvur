@@ -1,6 +1,6 @@
 # The self-healing supply chain: requirements
 
-**Status:** proposed 2026-10-21, for the owner's approval · **Phases:** R42 to R46, in
+**Status:** proposed 2026-10-21, for the owner's approval · **Phases:** R42 to R47, in
 [tasks.md](tasks.md) · **Decisions:** D81, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses
@@ -106,7 +106,10 @@ theirs:
   Accepting a risk is the owner's.
 - **`uv.lock`, the Docker digests, the zizmor lock and the Actions stay where they are.**
   The first three stay with Dependabot and R28.2's auto-merge, and the Actions with the
-  owner. The heal escalates any of them only when they stall (Requirement 11).
+  owner. The heal escalates any of them only when they stall (Requirement 11). Two
+  amendments of 2026-10-24 reach further, each for a case Dependabot cannot see: a base
+  image whose tag has stopped moving (Requirement 17), and a Scanner upgrade that Dependabot
+  makes in the Dockerfile alone (Requirement 18).
 - **Zero incidents is not promised.** The mechanical case heals itself, and every other case
   reaches the owner once, as a decision.
 
@@ -427,6 +430,110 @@ tasks, so that it runs as every other phase does.
    here resolves.
 3. The main `tasks.md` SHALL name this spec in its header and in its §5 and §6.
 
+### Requirement 15: No scheduled workflow fails in silence
+
+*Added 2026-10-24.* `refresh.yml` failed on 2026-10-12 and 2026-10-19 and filed no issue:
+its checkout ran only on a month's first Monday, so neither its `version` step nor the
+`file-issue` step that should have reported the failure could find its local action. Fixed
+in 1.5.4; this requirement keeps the next one from going unseen.
+
+**User Story:** As the owner, I want a scheduled workflow that fails, or stops running, to
+reach me as one issue, so that a silent failure is caught by something other than me.
+
+#### Acceptance Criteria
+
+1. A daily workflow SHALL read every workflow under `.github/workflows/` that has a
+   `schedule:` trigger, and each one's last scheduled run on `main`.
+2. WHEN that run failed and no open issue names the workflow THEN it SHALL open one issue
+   naming the workflow, the run and its date.
+3. WHEN no scheduled run has started within the workflow's cron period plus a margin THEN it
+   SHALL open one issue saying so. The margin comes from GitHub's measured start delays
+   (D81s).
+4. A second finding for the same workflow SHALL comment on the open issue, never open
+   another. The issue SHALL close itself once the workflow's next scheduled run passes.
+5. Its checkout SHALL always run, and its job SHALL hold `actions: read` and `issues: write`
+   alone.
+6. Another scheduled workflow SHALL check the watchdog's own last run by the same rule, so
+   that each watches the other.
+
+### Requirement 16: The image that ships is scanned, not only the tree
+
+*Added 2026-10-24.* Every gate read the repository's lockfiles; none read the built image.
+The base tag `python:3.12-alpine3.22` stopped moving on 2026-04-19, and the image shipped
+without six months of OpenSSL, musl, xz and zlib fixes, unseen. Its four Go Scanners were
+built before Go's fix for CVE-2026-111943, unseen too.
+
+**User Story:** As the owner, I want CI and the release to scan the image they build, so that
+an old base or an old toolchain in it fails a check instead of shipping.
+
+#### Acceptance Criteria
+
+1. WHEN CI has built the image THEN a job SHALL scan the image's root filesystem with the
+   image's own Trivy, with no network, from the run's database: its OS packages, its Python
+   environments, and its Go binaries' modules and standard library.
+2. It SHALL block on a vulnerability that has a fixed version and is not accepted. One
+   with no fixed version SHALL be reported.
+3. A vulnerability SHALL be accepted only by an entry, with an expiry, in a file the owner
+   writes. Nothing automated SHALL write it.
+4. The same check SHALL run in `release.yml` before `promote`, and in the nightly against
+   the latest published image.
+5. Its result SHALL be `observe`'s second input (Requirement 5), so that a heal can start
+   from the image.
+6. Run against the published 1.5.3 image, the check SHALL report OpenSSL's, musl's, xz's and
+   zlib's fixed CVEs, and CVE-2026-111943 in the Go binaries. A check that misses one is
+   wrong.
+7. This is the project checking its own image. No document SHALL claim image scanning for
+   users; the ROADMAP's *being considered* row stays as it is.
+
+### Requirement 17: A base image whose tag has died is replaced
+
+*Added 2026-10-24.* Dependabot follows a tag's digest, and cannot see that the tag itself
+has stopped receiving updates while a newer suffix carries them.
+
+**User Story:** As the owner, I want the image's base moved to the maintained tag when its
+own tag stops moving, so that the image keeps its OS fixes without my noticing a dead tag.
+
+#### Acceptance Criteria
+
+1. A weekly job SHALL read the last update of each `FROM` image's tag from its registry.
+2. WHEN a tag has not moved for more than 30 days, AND a newer Alpine suffix of the same
+   image and Python minor has moved within 30 days, THEN the heal SHALL open one pull request
+   that moves every place the base is named to it, pinned by its index digest with the tag
+   beside it.
+3. The index SHALL cover `linux/amd64` and `linux/arm64`, or no pull request is opened and
+   the reason is filed (Requirement 11).
+4. The pull request SHALL carry the image check's result (Requirement 16) for the old image
+   and the new.
+5. WHEN its checks pass THEN it SHALL take the security-patch path (Requirement 9). WHEN
+   they fail THEN it SHALL open one issue (Requirement 11).
+6. It SHALL never change the Python minor, which stays the owner's, nor touch a tag that
+   still moves, which stays Dependabot's.
+
+### Requirement 18: A Scanner upgrade prepares itself
+
+*Added 2026-10-24.* Dependabot moves a Scanner's stage in the Dockerfile, but the Scanner's
+version is pinned in other places too. So its pull requests stay red: osv-scanner's #229
+and syft's #230 since 2026-10-17, and trivy's #238 since 2026-10-24.
+
+**User Story:** As the owner, I want a Scanner's new release to arrive complete and
+measured, so that it lands without me when it changes nothing valvur detects, and reaches me
+with its measured effect when it does.
+
+#### Acceptance Criteria
+
+1. WHEN Dependabot moves a Scanner's stage THEN a workflow SHALL update every other place
+   that Scanner's version is pinned, in the same pull request.
+2. It SHALL recapture the Scanner's golden fixtures as `docs/MAINTENANCE.md` describes, and
+   SHALL fail if a recapture is not deterministic.
+3. It SHALL run `scripts/eval.py --compare tests/eval/baseline.json` and write each track's
+   delta into the pull request.
+4. It SHALL read the new binary's Go toolchain from its build information and write it into
+   the pull request.
+5. WHEN every track is unchanged and every required check passes THEN the pull request SHALL
+   land by itself.
+6. WHEN any track moves THEN it SHALL wait for the owner, with the deltas in its body: a
+   change to what valvur detects stays the owner's.
+
 ---
 
 ## Where each criterion is defined in the main spec
@@ -449,3 +556,7 @@ cites it.
 | 12.1 to 12.6 | | R44.6, R45.4 |
 | 13.1 to 13.3 | | R46.1 |
 | 14.1 to 14.3 | | R42.1 |
+| 15.1 to 15.6 | | R42.5 |
+| 16.1 to 16.7 | | R43.4 |
+| 17.1 to 17.6 | | R44.9 |
+| 18.1 to 18.6 | | R47.1 to R47.5 |

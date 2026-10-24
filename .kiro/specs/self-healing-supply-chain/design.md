@@ -74,6 +74,12 @@ nightly 6-self scans the new tag ─► green.  Past T + 48 h, an unhealed advis
 | `docs/adr/0032-security-patches-promote-after-a-delay.md` (new) | D81h and D81i | R45.1 |
 | `scripts/heal_report.py` (new) | time to heal, from GitHub's API | R46.1 |
 | `docs/RELEASING.md`, `docs/MAINTENANCE.md`, `SECURITY.md`, `CLAUDE.md` | the security patch path, its veto, and the window | R46.2 |
+| `scripts/watchdog.py`, `.github/workflows/watchdog.yml` (new) | every scheduled workflow's last run, judged daily (amendment 1) | R42.5 |
+| `.github/workflows/acceptance.yml` | the nightly checks the watchdog's own last run | R42.5 |
+| `scripts/image_gate.py` (new), `.github/image-accepted.yaml` (new, the owner's) | the image's own Trivy over its root filesystem, judged (amendment 2) | R43.4 |
+| `.github/workflows/ci.yml`, `release.yml`, `acceptance.yml` | the image check after the build, before `promote`, and against the published image | R43.4 |
+| `scripts/base_heal.py` (new) | a dead base tag found and moved (amendment 3) | R44.9 |
+| `scripts/scanner_upgrade.py` (new), `.github/workflows/scanner-upgrade.yml` (new) | a Scanner's upgrade completed, measured and judged (amendment 4) | R47.2 to R47.4 |
 
 ---
 
@@ -369,6 +375,74 @@ comment, and the run that finds the cause gone closes it (`passed: "true"`). Tit
 
 ---
 
+### 9. The watchdog (amendment 1, Requirement 15)
+
+`scripts/watchdog.py` reads each workflow's `on.schedule` crons with the repository's
+line-based reader (`tests/test_ci_builds_once.py`'s shape: no YAML parser among the
+dependencies), and each one's last runs from `GET /repos/{repo}/actions/workflows/{file}/runs
+?event=schedule&branch=main`. A workflow is **failed** when its last scheduled run concluded
+`failure`, `timed_out` or `startup_failure`, and **overdue** when no scheduled run started
+within its longest gap between two cron times plus the margin (D81s). Each finding goes
+through `file-issue`, titled `watchdog: <workflow file>`, so a second finding comments and a
+pass closes it. `watchdog.yml` runs daily at 06:47 UTC, after the nightly's usual start, with
+a checkout that always runs. The nightly's job reads the watchdog's last run by the same
+rule, so neither can stop unseen.
+
+### 10. The image, scanned as it ships (amendment 2, Requirement 16)
+
+The image already holds Trivy. The check runs it on the image's own root filesystem:
+
+```
+docker run --rm --network none -v <run's database>:/db:ro --entrypoint trivy valvur:dev \
+  rootfs --cache-dir /db --skip-db-update --offline-scan --format json --scanners vuln /
+```
+
+`scripts/image_gate.py` reads that JSON. A vulnerability with a fixed version blocks unless
+`.github/image-accepted.yaml` lists its ID and package with an `expires` date still ahead; one
+with no fixed version is listed and does not block. The file is the owner's: nothing
+automated writes it, as with every Suppression (Requirement 16.3). It lives under `.github/`,
+out of the sdist's top level, which `tests/test_build_hash.py` pins.
+
+- **In `ci.yml`,** a job after "the image, built once", on both architectures, loads the
+  run's image and runs the check, with the database from the run's cache. It is not a
+  required check until the owner makes it one (§3 of tasks.md).
+- **In `release.yml`,** before `promote`, on the staged image.
+- **In the nightly,** against the latest published image.
+- **For the heal,** its JSON is `observe`'s second input, so `heal` mode can also start
+  from an image Finding. Only the lock is healed by R44; an image Finding is escalated, or
+  healed by R44.9 when its cause is the base.
+
+### 11. The base-image heal (amendment 3, Requirement 17)
+
+`scripts/base_heal.py plan` reads the Dockerfile's `FROM` lines and, for each, the tag's
+`last_updated` from `https://hub.docker.com/v2/repositories/library/<image>/tags/<tag>`. A
+tag is **dead** when it has not moved for 30 days. Its replacement is the tag of the same
+image and Python minor with the newest Alpine suffix that moved within 30 days, such as
+`3.12-alpine3.24` for `3.12-alpine3.22`. `apply` rewrites every place 1.5.4's move rewrote:
+the Dockerfile's two stages, the base `check_image_licences.py` diffs against in `ci.yml` and
+`release.yml`, the script itself and its test, each pinned by the index digest from `docker
+buildx imagetools inspect`, the tag beside it. The pull request carries the image check's
+verdict on both images. It runs weekly in `heal.yml`, in `plan`'s grant, and `propose` opens
+the pull request. Docker Hub's API, `hub.docker.com`, is named by neither
+`src/valvur/egress.py` nor ADR-0027, and the product has no reason to name it. So the build's
+own fetch of it, R44.9's measurement, waits for the owner's word (tasks.md §3), under the main
+list's stop condition 5; the tests fake it.
+
+### 12. Scanner upgrades that prepare themselves (amendment 4, Requirement 18)
+
+`scanner-upgrade.yml` runs on a Dependabot pull request that moves a Scanner's stage in the
+`Dockerfile`, and on nothing else. Its jobs:
+1. **`prepare`,** with `contents: read`: `scripts/scanner_upgrade.py` reads which Scanner
+   moved and to which version, updates every other pin R47.1 lists, recaptures that
+   Scanner's fixtures twice and compares them, runs the Score, and reads the new binary's Go
+   toolchain.
+2. **`propose`,** in the `heal` environment, pushes the result to the pull request's branch
+   as the App, with `Heal-Pin`-style trailers giving each track's delta.
+
+The policy (`heal_policy.py scanner`) lets it merge only when every track is unchanged;
+anything else is left for the owner, with the deltas in the body. Package code from the
+Scanner runs only in `prepare`, which holds no secret, as D81k requires.
+
 ## Data models
 
 ### `plan.json`
@@ -443,6 +517,10 @@ the date in the main `tasks.md` §5.
 | D81p | **Dependabot is excluded from the Checkov recipe's files** by `exclude-paths` on its `pip` and `uv` entries, because both wrote the lock (#231 and #232). | if Dependabot ignores `exclude-paths` for either updater, the three files move to `locks/checkov/`, a directory no Dependabot entry names |
 | D81q | **Checkov's new versions arrive by the recipe, for the owner.** On the first heal run of a Monday, a newer Checkov past the cooldown is re-locked by the recipe as one pull request, which the policy leaves for the owner because Checkov moved. It replaces what Dependabot did. | none |
 | D81r | **Time to heal is the health measure**, with a target under 48 hours, from `heal_report.py`. | none |
+| D81s | **A watchdog over the scheduled workflows** (amendment 1, 2026-10-24): daily, with a checkout that always runs. A workflow is overdue past its longest cron gap plus a margin of twice the longest start delay R42.5 measures, and never less than 12 hours. The nightly watches the watchdog. | if the Actions API cannot filter runs by `event`, it reads every run and filters itself |
+| D81t | **The image is scanned with its own Trivy** over its root filesystem, with no network and the run's database (amendment 2, 2026-10-24). Accepted risks are in `.github/image-accepted.yaml`, each with an expiry, written by the owner alone. It is not a required check until the owner makes it one. | if R43.4's positive control misses any of its five, the check runs `trivy image` on the saved tarball instead; if that misses too, Syft's SBOM of the image through OSV-Scanner |
+| D81u | **A base tag unmoved for 30 days is dead** (amendment 3, 2026-10-24), and is replaced by the same image and Python minor with the newest Alpine suffix that moved within 30 days, pinned by digest. The Python minor is never changed. | if Docker Hub's API stops giving `last_updated`, the age is read from the image configuration's `created` |
+| D81v | **A Scanner upgrade lands by itself only when every Score track is unchanged** (amendment 4, 2026-10-24). Anything else waits for the owner with the deltas. | if a Scanner's fixtures do not recapture deterministically, its pull requests always wait for the owner, with the fixture named |
 
 ---
 
