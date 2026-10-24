@@ -182,3 +182,22 @@ def test_every_scheduled_workflow_in_the_repository_is_read_with_its_crons():
     assert schedules["refresh.yml"] == ["23 5 * * 1"]
     assert "ci.yml" not in schedules and len(schedules) >= 9
 
+
+@pytest.mark.parametrize(("now", "run"), [
+    ("2026-10-12T15:00:00Z", 38254221059), ("2026-10-19T12:00:00Z", 39240320485)])
+def test_the_incident_replayed_refresh_s_silent_failures_are_filed(tmp_path, now, run):
+    """`refresh.yml`'s scheduled runs as the Actions API answered on 2026-10-24: each
+    failure, seen the day it happened, opens the issue nobody filed."""
+    recorded = json.loads((FIXTURES / "refresh-runs-2026-10-24.json").read_text())
+    directory = tmp_path / "workflows"
+    directory.mkdir()
+    (directory / "refresh.yml").write_text(
+        (REPO / ".github" / "workflows" / "refresh.yml").read_text())
+    with FakeGitHub() as github:
+        github.runs["refresh.yml"] = [r for r in recorded["workflow_runs"]
+                                      if r["created_at"] <= now]
+
+        assert _watch(github, directory, now) == 0
+
+    assert [i["title"] for i in github.issues] == ["watchdog: refresh.yml"]
+    assert f"actions/runs/{run}" in github.issues[0]["body"]

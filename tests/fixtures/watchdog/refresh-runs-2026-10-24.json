@@ -1,0 +1,41 @@
+{
+ "total_count": 3,
+ "workflow_runs": [
+  {
+   "id": 39240320485,
+   "name": "refresh",
+   "path": ".github/workflows/refresh.yml",
+   "event": "schedule",
+   "head_branch": "main",
+   "status": "completed",
+   "conclusion": "failure",
+   "created_at": "2026-10-19T10:50:28Z",
+   "run_started_at": "2026-10-19T10:50:28Z",
+   "html_url": "https://github.com/MaverickHQ/valvur/actions/runs/39240320485"
+  },
+  {
+   "id": 38254221059,
+   "name": "refresh",
+   "path": ".github/workflows/refresh.yml",
+   "event": "schedule",
+   "head_branch": "main",
+   "status": "completed",
+   "conclusion": "failure",
+   "created_at": "2026-10-12T13:13:43Z",
+   "run_started_at": "2026-10-12T13:13:43Z",
+   "html_url": "https://github.com/MaverickHQ/valvur/actions/runs/38254221059"
+  },
+  {
+   "id": 37308794132,
+   "name": "refresh",
+   "path": ".github/workflows/refresh.yml",
+   "event": "schedule",
+   "head_branch": "main",
+   "status": "completed",
+   "conclusion": "success",
+   "created_at": "2026-10-05T12:19:59Z",
+   "run_started_at": "2026-10-05T12:19:59Z",
+   "html_url": "https://github.com/MaverickHQ/valvur/actions/runs/37308794132"
+  }
+ ]
+}
