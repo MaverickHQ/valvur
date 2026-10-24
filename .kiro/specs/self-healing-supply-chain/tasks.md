@@ -531,6 +531,31 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   - `test_issues_close_themselves.py`'s step parser let a job-level `if:` leak into the step
     before it; a step now ends where the next job begins. Requirement 16 is N2.7.
 
+  **The build's summary, 2026-10-24** (the first half, R42 and R43, in one cloud session under
+  D61). Nine tasks ticked; R42.2's behaviour 3, R42.3's live check and R43.4's pull-request
+  run are recorded as waiting.
+  - **What changed:**
+    - the build reads every spec's list (N3.6);
+    - the Checkov lock has one writer, its recipe, checked by `lock.yml`, with uv pinned to
+      0.13.5 (N3.7);
+    - a watchdog keeps one issue per failed or overdue scheduled workflow (N3.8);
+    - dependency Findings carry `advisory_published` (F5.11);
+    - `6-self` is the latest release (N4.5), with a 48-hour healing window (N4.6);
+    - the image is scanned as it ships (N2.7).
+  - **Measured at each exit** (`docs/acceptance/r42.md`, `r43.md`): the Score 74.1, every track at
+    its baseline; the acceptance set 7 of 8, `6-self` red on the advisories 1.5.4 fixes.
+  - **Pull requests:** R42 is #242 and R43 its stacked successor. Both land after 1.5.4. The
+    base move they need for a green image gate is #241, carried into `release/1.5.4`.
+  - **Left for the owner,** in §3:
+    - the scope of R44 and R45, which is ready now;
+    - the image's accepted findings, or Scanner releases built with a newer Go, before the next
+      release from a `main` that holds R43;
+    - making `lock.yml` and the image check required, both optional;
+    - dispatching `eval.yml` on the R42 and R43 branches for the Linux Score lane;
+    - the Mac lane (D61a): one run of the acceptance set and the Score over the landed stack,
+      and `uv self update 0.13.5`.
+  - **The executor stops here,** as §0's item 7 says. R44 onward waits for the owner.
+
 ### Phase R44: the Checkov lock heals itself
 
 - [ ] **R44.1** **Measure first** (D81e, D81k). Behaviour: the STATUS records each of these:
@@ -811,7 +836,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | item | ready after | what the owner does |
 |---|---|---|
 | approve this spec | done, in halves, 2026-10-24 | R42 and R43 approved, with amendments 1 and 2 (§0, item 7). R42.1 records the date, the half and D81's acceptance for it |
-| decide R44 and R45's scope | R43's phase commit | weigh R44 and R45's standing merge, tag and release power against fewer packages in Checkov's tree, or none (§0, item 7; ADR-0019's reopening). Change any D81 row first, with `/grilling` if you like. Then start the second half with §0's prompt |
+| decide R44 and R45's scope | **ready**: R43's phase commit, 2026-10-24 | weigh R44 and R45's standing merge, tag and release power against fewer packages in Checkov's tree, or none (§0, item 7; ADR-0019's reopening). Change any D81 row first, with `/grilling` if you like. Then start the second half with §0's prompt |
 | land the lock fix, then release 1.5.4 | R42.2 | the fix landed as #235 on 2026-10-24, and Dependabot's alerts #5 to #12 closed with it. Release as `docs/RELEASING.md` says, with a rehearsal, since the lock is machinery. #234 closes after the `SELF_PIN` move or R43.2 |
 | close #231 and #232 | done | Dependabot closed them itself on 2026-10-24 and opened #236 and #237, the same re-lock with auto-merge on; those were closed with `@dependabot close` the same day (R42.3's baseline). Another may come with Dependabot's next weekly run, until R42.3 lands |
 | make the lock check required, optional | R42.4 landed | add `lock.yml`'s check to `main`'s required checks. The heal's policy runs the same comparison regardless |

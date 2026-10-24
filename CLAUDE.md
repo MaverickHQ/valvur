@@ -16,8 +16,8 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
 **Status (2026-10-25).** **`1.5.4` is published**: the Checkov environment past ten advisories,
-the base on Alpine 3.24; the Score **74.1** over nine, every track at its baseline. **R42 is built**
-(#242), of [the self-healing supply chain](.kiro/specs/self-healing-supply-chain/). **Next:** R43 (#244), then R44 and R45's scope.
+the base on Alpine 3.24; the Score **74.1** over nine, every track at its baseline. **R42 and R43 are
+built** (#242, #244), the first half of [the self-healing supply chain](.kiro/specs/self-healing-supply-chain/). **Next:** the owner's call on R44 and R45's scope (its §3).
 
 ## 2. What it is NOT
 

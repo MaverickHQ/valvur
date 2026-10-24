@@ -43,6 +43,25 @@ break things, and has.
   by its `applyTo` glob, unprompted. The rest of `.github/` is the project's CI and is still
   not read as prose. A git-ignored file in these folders is still scanned, as ADR-0021 has it.
 
+### The nightly judges valvur, not the calendar (Phase R43)
+
+- **A dependency vulnerability's advisory carries its publication date**, `advisory_published`
+  in `findings.json`, `YYYY-MM-DDTHH:MM:SSZ` from Trivy's `PublishedDate` and OSV-Scanner's
+  `published`, the earlier when both report it, `""` when neither gives one that reads. An
+  addition to schema 1; it does not feed the Fingerprint.
+- **The nightly's `6-self` is the latest release**, `git describe --tags --abbrev=0 --match
+  'v[0-9]*'`, named in the report with its commit. `SELF_PIN`, moved by hand twice in three
+  weeks, is gone.
+- **A healing window.** In `6-self`, a dependency advisory published less than 48 hours before
+  the scan is reported as `healing`, in a column of its own, and does not fail the nightly.
+  Missing dates, malicious packages and every other kind of Finding are judged as before.
+- **The image that ships is scanned.** Its own Trivy over its root filesystem, with no network,
+  judged by `scripts/image_gate.py`: in CI on both architectures (not a required check), in
+  the release before `promote`, and nightly against the published image. A vulnerability with
+  a fixed version blocks unless the owner accepts it, with an expiry, in
+  `.github/image-accepted.yaml`. This checks valvur's own image; valvur does not offer image
+  scanning to its users.
+
 ### The incident closed, one writer for the Checkov lock (Phase R42)
 
 - **Dependabot stays out of the Checkov lock.** Its `uv` and `pip` updaters wrote
