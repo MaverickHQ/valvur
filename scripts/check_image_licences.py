@@ -9,7 +9,7 @@ Uses syft, which we already ship. A hand-rolled pass over Python package metadat
 reported "96 packages, all clean" while syft found 2,227 components and 12 GPL ones:
 the Python layer was never where the risk was.
 
-    python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.22
+    python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.24
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ def offending(components: list[dict]) -> list[tuple[str, str]]:
 
 def main(argv: list[str]) -> int:
     image = argv[0] if argv else "valvur:dev"
-    base = argv[1] if len(argv) > 1 else "python:3.12-alpine3.22"
+    base = argv[1] if len(argv) > 1 else "python:3.12-alpine3.24"
 
     added = added_components(image, base)
     problems = offending(added)

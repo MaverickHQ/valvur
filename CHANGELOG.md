@@ -25,6 +25,14 @@ break things, and has.
   submodule's `.git` path only after cloning into it. Checkov 3.3.22 accepts any GitPython
   below 4. The pull request's own self-scan release gate found it; nothing else in the lock
   moved.
+- **The image's base moved to Alpine 3.24**, `python:3.12-alpine3.24` pinned by digest, from
+  `python:3.12-alpine3.22`, a tag Docker Hub stopped updating on 2026-04-19 and so one
+  Dependabot never proposed moving. The old base lacked the fixes Alpine's security database
+  lists for OpenSSL's 25 CVEs fixed in 3.5.7 and 3.5.8, for musl's CVE-2026-107891, xz's
+  CVE-2026-34743 and zlib's CVE-2026-85091. Measured in the built image: Alpine 3.24.3, OpenSSL
+  3.5.9 (from 3.5.6), musl 1.2.6 (from 1.2.5-r12), xz 5.8.4 (from 5.8.1), zlib 1.3.2-r1 (from
+  1.3.2-r0), Python 3.12.13 to 3.12.15, and the CA bundle 20261020 (from 20260413), which
+  removes three of the four emSign roots, keeping emSign Root CA - G1. Python stays at 3.12.
 
 ### Changed
 

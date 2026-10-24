@@ -40,7 +40,7 @@ ARG OPENGREP_SHA256_AMD64=1b474bf207905a3cffe4e915fe36895835bc89de2620cb2ffd88ca
 ARG OPENGREP_SHA256_ARM64=6cccb7466a98608e308204e17b259f4ca3a9028c6eb71e6b07ea21b89026c484
 ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.29.0
 
-FROM python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322 AS opengrep
+FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d AS opengrep
 ARG TARGETARCH
 ARG OPENGREP_SHA256_AMD64
 ARG OPENGREP_SHA256_ARM64
@@ -64,7 +64,7 @@ FROM aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1
 FROM ghcr.io/google/osv-scanner:v2.6.0@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa AS osv
 FROM anchore/syft:v1.54.0@sha256:0356562f495d432056237fbea5cbc2d4839c9c75cd500784a66de2e7cc95ca7c AS syft
 
-FROM python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322
+FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d
 ARG VALVUR_VERSION=0.0.0-dev
 LABEL org.opencontainers.image.source="https://github.com/MaverickHQ/valvur"
 LABEL org.opencontainers.image.description="Fully offline security scanner for AI-generated code"

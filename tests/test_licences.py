@@ -76,7 +76,7 @@ def test_our_real_image_adds_no_gpl_component():
 
     from valvur.runner import IMAGE
 
-    added = added_components(IMAGE, "python:3.12-alpine3.22")
+    added = added_components(IMAGE, "python:3.12-alpine3.24")
 
     assert added, "the diff found nothing added — the comparison is broken"
     assert offending(added) == []
