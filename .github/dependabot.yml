@@ -34,6 +34,13 @@ updates:
     # bump the declared ranges and leave the lock — the thing actually installed —
     # untouched, so nothing would reach CI.
     directory: /
+    # The Checkov recipe's files have one writer, `scripts/lock-checkov.sh` (R42.3,
+    # D81p). Both updaters re-locked them their own way: #231 and #236 from `uv`, #232
+    # and #237 from `pip`, asteval past its override and the `win32` markers dropped.
+    exclude-paths:
+      - "requirements-checkov.in"
+      - "requirements-checkov.overrides"
+      - "requirements-checkov.txt"
     schedule:
       interval: weekly
     cooldown:
@@ -49,10 +56,16 @@ updates:
         applies-to: version-updates
 
   - package-ecosystem: pip
-    # The Checkov lock (23.4.1): `requirements-checkov.txt`, every transitive
-    # package pinned by version and hash. Dependabot rewrites the hashes with the
-    # version; CI rebuilds the image from the lock and the e2e suite runs Checkov.
+    # zizmor's lock, `requirements-zizmor.txt`. The Checkov lock (23.4.1) was here
+    # too, until R42.3 gave it to its recipe alone.
     directory: /
+    # The Checkov recipe's files have one writer, `scripts/lock-checkov.sh` (R42.3,
+    # D81p). Both updaters re-locked them their own way: #231 and #236 from `uv`, #232
+    # and #237 from `pip`, asteval past its override and the `win32` markers dropped.
+    exclude-paths:
+      - "requirements-checkov.in"
+      - "requirements-checkov.overrides"
+      - "requirements-checkov.txt"
     schedule:
       interval: weekly
     cooldown:
@@ -60,7 +73,7 @@ updates:
     commit-message:
       prefix: "chore"
     groups:
-      checkov:
+      zizmor:
         patterns: ["*"]
 
   - package-ecosystem: docker
