@@ -494,8 +494,9 @@ what `heal_report.py` reads.
 
 ## Decisions: D81
 
-Proposed 2026-10-21. They are accepted when the owner approves this spec, and R42.1 records
-the date in the main `tasks.md` §5.
+Proposed 2026-10-21; D81s to D81v added 2026-10-24. They are accepted with the half of the
+spec they serve (tasks.md §0, item 7): those R42 and R43 use on 2026-10-24, the rest when the
+owner starts the second half. R42.1 records the dates in the main `tasks.md` §5.
 
 | # | decision | fallback when a measurement disagrees |
 |---|---|---|
