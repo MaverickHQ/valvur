@@ -144,6 +144,22 @@ def test_a_project_file_nested_past_python_s_limit_is_a_problem_not_an_exception
     assert policy.problems, "the file's problem goes unreported"
 
 
+def test_nesting_past_the_limit_is_a_readable_parse_error_on_every_python():
+    """Python 3.14 deprecates `TOMLDecodeError`'s free-form arguments for `(msg, doc,
+    pos)`, a form that before 3.14 makes the message a tuple; `doctor` shows it."""
+    import tomllib
+    import warnings
+
+    from valvur import toml_input
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        with pytest.raises(tomllib.TOMLDecodeError) as raised:
+            toml_input.loads(DEEP)
+
+    assert str(raised.value).startswith("nested too deeply to read")
+
+
 @pytest.mark.parametrize("name", ["uv.lock", "poetry.lock"])
 def test_a_lockfile_nested_past_python_s_limit_holds_no_pins(tmp_path, name):
     (tmp_path / name).write_text(DEEP)

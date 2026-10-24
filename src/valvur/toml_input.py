@@ -9,7 +9,10 @@ file that does not parse.
 
 from __future__ import annotations
 
+import sys
 from typing import Any
+
+TOO_DEEP = "nested too deeply to read"
 
 
 def loads(text: str) -> dict[str, Any]:
@@ -20,4 +23,8 @@ def loads(text: str) -> dict[str, Any]:
     try:
         return tomllib.loads(text)
     except RecursionError:
-        raise tomllib.TOMLDecodeError("nested too deeply to read") from None
+        # 3.14 deprecates free-form arguments for `(msg, doc, pos)`, a form that before
+        # 3.14 makes the message a tuple. Nesting has no one position: the end is named.
+        if sys.version_info >= (3, 14):
+            raise tomllib.TOMLDecodeError(TOO_DEEP, text, len(text)) from None
+        raise tomllib.TOMLDecodeError(TOO_DEEP) from None
