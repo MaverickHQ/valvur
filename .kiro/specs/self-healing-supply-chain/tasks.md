@@ -347,7 +347,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R43: the nightly judges valvur, not the calendar
 
-- [ ] **R43.1** **An advisory's publication date on its Finding** (D81o). Behaviours:
+- [x] **R43.1** **An advisory's publication date on its Finding** (D81o). Behaviours:
   1. Trivy's adapter carries `PublishedDate` as `Dependency.advisory_published`, normalised to
      `YYYY-MM-DDTHH:MM:SSZ`, from a fixture that has the field. Recapture one if none does,
      as `docs/MAINTENANCE.md` describes.
@@ -365,7 +365,27 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] **R43.2** **`6-self` is the latest release** (D81c). Behaviours:
+  **STATUS 2026-10-24:** ✅ 1 to 8, in a cloud session (D61).
+  - **No recapture needed:** both golden fixtures carry the dates, `trivy-0.75.0.json`'s
+    `PublishedDate` (with milliseconds, `2022-12-24T04:15:08.787Z`) and
+    `osv-scanner-2.6.0.json`'s `published`.
+  - `Dependency.advisory_published`, normalised by `findings.advisory_date` to
+    `YYYY-MM-DDTHH:MM:SSZ` in UTC, `""` for an absent or unreadable date; the merge keeps the
+    earlier of two (`_earlier_advisory`), so an advisory's age is never understated.
+  - **Fingerprints, before and after:** the 40 Fingerprints of the broken fixture's Trivy and
+    OSV-Scanner scan, measured before the field existed, are the same 40 with the dates and with
+    every date stripped from both fixtures.
+  - **The schema, measured:** the contract tests (`test_contract.py`, `test_findings_json_*`)
+    pass unchanged and none treats an added field as a bump; `artifacts.py` already records
+    `generation`, `groups` and `cwe` as additions to schema 1. So `findings.json` stays schema
+    1, and the field is documented on `Dependency`, where the rest of the schema is, and as F5.11.
+  - **e2e** against `valvur:dev` built from this branch by `scripts/cloud_image.py`
+    (`tests/test_advisory_published_e2e.py`): a scan of the acceptance set's `2-lockfiles`
+    gives every dependency vulnerability a date. 1 passed.
+  - **The Score,** `--tracks dependencies,package-reality --compare`: dependencies 100.0 and
+    package-reality 100.0, each Δ 0 against the baseline; D81o's fallback is not needed.
+
+- [x] **R43.2** **`6-self` is the latest release** (D81c). Behaviours:
   1. Generation archives `git describe --tags --abbrev=0 --match 'v[0-9]*'`. It is tested on a
      temporary repository with two tags and a commit after the second.
   2. With no tag reachable, generation raises and names the cause.
@@ -378,6 +398,22 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      critical ones block. Record that as it is.
 
   _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+  **STATUS 2026-10-24:** ✅ 1 to 5.
+  - `self_at_release(root, repo=REPO)` replaces `self_at_pin`: `git describe --tags --abbrev=0
+    --match 'v[0-9]*'`, then `git archive <tag>`, and `expected.toml`'s `[run]` gains `tag` and
+    `commit`. With no tag it raises, naming the cause and the fix (a checkout needs
+    `fetch-depth: 0`, which `acceptance.yml` has). Tested on a temporary repository with two
+    release tags, a commit after the second and a non-release tag on it.
+  - The report says `6-self scanned <tag> (<commit>)` under the table, and `report.json` gives
+    `release: {tag, commit}`. `SELF_PIN` is gone, and a test refuses a forty-hex literal in
+    `self_at_release`. Requirement 1 is N4.5.
+  - **Measured on this VM**, `scripts/acceptance.py --generate --only 6`: `6-self scanned v1.5.3
+    (1434c44)`, FAIL with 5 blocking, the high and critical ones in v1.5.3's lock that 1.5.4
+    fixes: CVE-2026-111064, CVE-2026-111066 and GHSA-2g87-pp6c-29x5 (aiohttp),
+    GHSA-6q48-6c7w-9gw2 (certifi, critical) and CVE-2026-114145 (GitPython). The six others
+    are medium, low or unknown: CVE-2026-111065, -111748, -111750, -111749, -111063 and
+    PYSEC-2026-4320. Recorded as it is: they are past the window, so R43.3 does not hide them.
 
 - [ ] **R43.3** **The healing window** (D81b). Behaviours, on Results Folders written by the
   test:
