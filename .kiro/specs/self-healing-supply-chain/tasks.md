@@ -449,7 +449,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     were published from 2026-10-19 17:07 to 2026-10-22 16:41 UTC (`advisory_published` in
     R43.2's scan), and the youngest, GitPython's, was about 51 hours old at the scan.
 
-- [ ] **R43.4** **The image, scanned as it ships** (D81t, amendment 2). Behaviours:
+- [x] **R43.4** **The image, scanned as it ships** (D81t, amendment 2). Behaviours:
   1. **Measure first, the positive control:** design.md §10's command against the published
      `ghcr.io/maverickhq/valvur:1.5.3` reports OpenSSL's fixes in 3.5.7 and 3.5.8, musl's
      CVE-2026-107891, xz's CVE-2026-34743, zlib's CVE-2026-85091, and CVE-2026-111943 in the
@@ -480,6 +480,56 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   green on the phase's pull request.
 
   _Requirements: 16.1 to 16.7_
+
+  **STATUS 2026-10-24:** ✅ 1 to 7; 8, the pull request's run, recorded at R43's exit.
+  - **The positive control, measured** on this VM against the published
+    `ghcr.io/maverickhq/valvur:1.5.3`, with design.md §10's command plus `--cache-backend memory`
+    (the database is mounted read-only, and Trivy otherwise writes its cache there) and
+    `--skip-java-db-update`. 208 vulnerabilities, 203 with a fixed version. Every one of the
+    five is there, so D81t's fallback is not needed:
+    - OpenSSL: 25 CVEs, on `libssl3` and `libcrypto3` 3.5.6-r0, fixed in 3.5.7-r0 and 3.5.8-r0;
+    - musl's CVE-2026-107891 (1.2.5-r12, fixed in 1.2.5-r13, `musl` and `musl-utils`);
+    - xz's CVE-2026-34743 (`xz-libs` 5.8.1-r0, fixed in 5.8.3-r0);
+    - zlib's CVE-2026-85091 (1.3.2-r0, fixed in 1.3.2-r1);
+    - CVE-2026-111943 in the standard library of all four Go Scanners: gitleaks (Go 1.24.13),
+      osv-scanner (1.27.0), syft (1.26.8) and trivy (1.27.1), fixed in 1.26.10 and 1.27.3.
+
+    Its time: 3.1 s on amd64. arm64 is not measurable in this VM; CI's arm64 leg on R43's pull
+    request gives it.
+  - **The image on Alpine 3.24** (#241's base, built here): 0.9 s, and no OS package blocks.
+    131 still block, so the check will be red until the owner decides:
+    - 125 are in the Go Scanners' binaries: their standard library and `golang.org/x/*`
+      modules (52 high in all, gitleaks the most, at 69). That is R47's ground, or a Scanner
+      release built with a newer Go.
+    - 6 are in the base image's own `pip` 25.0.1 (CVE-2025-8869, CVE-2026-13346, -3219, -6357,
+      -8643, -1703; medium and low).
+    - 5 have no fix: ecdsa's CVE-2024-23342 and GO-2026-5932 in four binaries.
+  - **`scripts/image_gate.py`**, standard library only, on Trivy's recorded answer
+    (`tests/fixtures/image-gate/trivy-rootfs-1.5.3.json`, trimmed to the fields it reads):
+    - a fixed version blocks, exit 1;
+    - an entry in `.github/image-accepted.yaml` with an expiry ahead accepts;
+    - one without an expiry, or past it, is refused by name and accepts nothing;
+    - no fixed version is reported and passes;
+    - an unreadable scan or accepted file exits 2;
+    - `--out` writes `{blocking, accepted, unfixed, refused}`.
+
+    The accepted file is a list under `accepted:` read line by line. It does not exist yet:
+    §3's row is the owner's. A test holds that no script, source file or workflow writes it.
+  - **Where it runs:**
+    - `ci.yml`'s `imagegate`, "the image, scanned as it ships (amd64/arm64)", after "the
+      image, built once". It loads that run's image, takes `valvur update`'s database and
+      uploads `image-gate-<arch>`. It is not in `ci_verdict.REQUIRED`, and the image builds
+      stay at three (`test_ci_builds_once.py`).
+    - `release.yml`'s `artifact` job, both architectures, on the staged image by digest, before
+      `promote`, which needs `artifact`. **A release after R43 lands stops there** until the
+      Go Scanners move or the owner accepts their findings.
+    - `acceptance.yml`'s `image` job, nightly against `ghcr.io/maverickhq/valvur:latest`, which
+      files and closes its own issue.
+  - **No document offers image scanning:** a test reads the README and `docs/*.md` for it, and
+    holds the ROADMAP's *being considered* row. zizmor's only new findings are two low
+    `self-repository` notes on `acceptance.yml`'s new `file-issue` steps.
+  - `test_issues_close_themselves.py`'s step parser let a job-level `if:` leak into the step
+    before it; a step now ends where the next job begins. Requirement 16 is N2.7.
 
 ### Phase R44: the Checkov lock heals itself
 
