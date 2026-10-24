@@ -323,14 +323,17 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     2026-10-19 12:00, each open the issue nobody filed, naming runs 38254221059 and 39240320485.
   - **`watchdog.yml`:** daily at 06:47 UTC, `workflow_dispatch` with `dry_run`, `permissions: {}`
     and the job's `actions: read` and `issues: write`, its checkout first with no `if`, pinned
-    actions, nothing spliced into `run:`. zizmor at the auditor persona finds nothing. Its own
-    failure is not filed from inside it: that needed `./.github/actions/file-issue`, which zizmor's
-    auditor persona flags (`self-repository`, as it does in every workflow that uses it); the
-    nightly files it instead. The 1.5.4 test of every local action's checkout is not on this
-    branch yet; this workflow uses no local action.
+    actions, nothing spliced into `run:`. Its own failure files `watchdog: watchdog.yml` through
+    `file-issue`, which the constraint suite asks of every scheduled workflow
+    (`test_a_scheduled_workflows_failure_becomes_an_issue`, restated: its set gains
+    `watchdog.yml`, and `permissions: {}` counts as no more than read). zizmor's one finding,
+    at either persona, is a low `self-repository` on that step, which it reports on every
+    workflow that calls a local action (`acceptance.yml` had three before this task). `docs/MAINTENANCE.md`'s
+    routine names the workflow, as its test asks. The 1.5.4 test of every local action's
+    checkout is not on this branch yet; this checkout is the first step, with no `if`.
   - **The nightly watches the watchdog:** `acceptance.yml` gains a job, `--only watchdog.yml`,
-    with the same two grants, and `--dry-run` on a pull request. zizmor's count on the file is
-    unchanged (four low, all there before).
+    with the same two grants, `--dry-run` on a pull request, and its own failure filed. zizmor's
+    low findings on the file rise by one, that same `self-repository`.
   - **Proof, a dry run against the live API** (`GH_TOKEN` of the session, 2026-10-24 ~20:00 UTC):
     `would open: watchdog: acceptance.yml` (red since 2026-10-20, #234), `would open: watchdog:
     refresh.yml` (its failure of 2026-10-19), `would open: watchdog: watchdog.yml` (never run),

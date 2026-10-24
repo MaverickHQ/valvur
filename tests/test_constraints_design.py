@@ -146,11 +146,13 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # approves for a published result, so a job that needs it files the issue.
     # `mutation.yml` (weekly) joined in R29.5: a red run there means the week's tests
     # noticed less of their own change than the baseline records (D65d).
+    # `watchdog.yml` (daily) joined in R42.5: a red run there means no scheduled run
+    # was judged that day, so another's silent failure would stay silent (N3.8).
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
                                                "acceptance.yml",
                                                "eval.yml", "refresh.yml",
                                                "scorecard.yml", "fuzz.yml",
-                                               "mutation.yml"}, \
+                                               "mutation.yml", "watchdog.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:
@@ -181,7 +183,8 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
         assert "actions/checkout@" in text, f"{name} cannot find the action: no checkout"
         # The permission is per job, not repository-wide: `contents: read` at the
         # top of the file is what a pull request from a fork gets.
-        assert re.search(r"^permissions:\n  contents: read\n", text, re.M), \
+        # `permissions: {}`, granting nothing, is less than read (R42.5).
+        assert re.search(r"^permissions:(\n  contents: read| \{\})\n", text, re.M), \
             f"{name} grants more than read at the top level"
     action = Path(".github/actions/file-issue/action.yml").read_text()
     assert "github.run_id" in action and "$RUN" in action, \

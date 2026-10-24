@@ -34,8 +34,7 @@ jobs:
       actions: read    # the scheduled runs
       issues: write    # one issue per workflow
     steps:
-      # Always: the script comes from the checkout. Its own failure is filed by the
-      # nightly, which reads this workflow's last run.
+      # Always: the script and `file-issue` both come from the checkout.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -49,3 +48,16 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then set -- --dry-run; fi
           python3 scripts/watchdog.py --repo "$REPO" "$@"
 
+
+      - name: A watchdog that cannot run is filed too
+        # One open issue per workflow, as every scheduled workflow files its own
+        # (27.2.7); the nightly also reads this workflow's last run.
+        if: failure() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: "watchdog: watchdog.yml"
+          failed: "The scheduled `watchdog` run failed"
+          body: |-
+            Nothing users have changes. What is lost is the daily check that every scheduled workflow ran and passed, so a silent failure elsewhere would go unseen until this is fixed.
+
+            Recovery: read the run's log, fix the cause, and dispatch this workflow again.

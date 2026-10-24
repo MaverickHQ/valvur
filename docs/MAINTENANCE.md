@@ -52,8 +52,10 @@ carries.
    files one issue on a failure and closes it when a later run passes (R28.3):
    `acceptance.yml` (daily), `fuzz.yml` (nightly), `index.yml` (daily, two jobs),
    `corpus.yml`, `eval.yml`, `retention.yml` and `refresh.yml` (Mondays; the refresh
-   acts on the first), `scorecard.yml` (Tuesdays) and `mutation.yml` (Wednesdays; a fall
-   is fixed by the test that notices a surviving hunk, never by lowering the baseline).
+   acts on the first), `scorecard.yml` (Tuesdays), `mutation.yml` (Wednesdays; a fall
+   is fixed by the test that notices a surviving hunk, never by lowering the baseline)
+   and `watchdog.yml` (daily), which files `watchdog: <file>` for any of them that failed
+   or stopped running (R42.5).
    For each failed run, read its log,
    and tell a cause in this repository from one outside it: a host down, a runner lost.
    The first is fixed on the branch. The second is listed, since the next run will say
