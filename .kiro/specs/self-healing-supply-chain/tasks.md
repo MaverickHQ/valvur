@@ -4,10 +4,18 @@
 2026-10-21 (#234).** The owner asked how the build could check and update itself when this
 happens, without them in the loop and without another incident like it. This spec is the
 answer: [requirements.md](requirements.md) says what, and [design.md](design.md) says how,
-including the decisions D81a to D81r with their fallbacks. It is proposed. The owner approves
+including the decisions D81a to D81v with their fallbacks. It is proposed. The owner approves
 it by starting the build with §0's prompt, and R42.1 records the date.
 
-**IDs.** Phases R42 to R46 continue [the main list](../valvur/tasks.md). Tasks are
+**Amended 2026-10-24,** while 1.5.4 was prepared. The owner's goal is updates that are "fully
+automated and headless", without babysitting. Four things found that day would still need
+the owner, or fail in silence. Each is a requirement, a D81 row and its tasks:
+- a watchdog over the scheduled workflows (Requirement 15, D81s, R42.5);
+- a gate on the image that ships, not only the tree (Requirement 16, D81t, R43.4);
+- a heal for a base image whose tag has stopped moving (Requirement 17, D81u, R44.9);
+- Scanner upgrades that prepare themselves (Requirement 18, D81v, Phase R47).
+
+**IDs.** Phases R42 to R47 continue [the main list](../valvur/tasks.md). Tasks are
 `R<phase>.<n>`, in the main list's format, so `scripts/build_status.py` can read them once
 R42.1 has taught it to. Each task names the criteria it builds, as `_Requirements:_`.
 
@@ -69,6 +77,8 @@ scratch clone; R42.2 carried it as a signed cherry-pick.
 R42 the incident closed, one writer for the lock ─► R43 the nightly judges valvur
                                                           │
 R46 time to heal, the documents ◄── R45 security patches release ◄── R44 the lock heals itself
+   │
+   └─► R47 Scanner upgrades prepare themselves
 ```
 
 - **R42 first:** it closes #234's cause and stops the two Dependabot updaters writing a lock
@@ -77,7 +87,10 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   (R43.3) is what makes a heal in progress green rather than an incident.
 - **R44 before R45:** a release needs a healed `main`.
 - **R45 needs three owner settings** (§3), so the work that needs none comes first.
-- **R46 last:** it measures and documents what exists.
+- **R46 after R45:** it measures and documents what exists.
+- **R47 last:** a Scanner upgrade lands as the App, under R44's policy, so it needs R44 and
+  R45 built. The watchdog (R42.5) and the image check (R43.4) grant no power to merge, tag or
+  release, so they sit in the first two phases.
 
 ---
 
@@ -93,9 +106,9 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   3. `acceptance.ticked` reads every spec's list, so an `until` naming a task here resolves.
   4. The main `tasks.md` gains:
      - an amendment paragraph in its header: approved on the date of the start prompt, at the
-       owner's word, with Phases R42 to R46 here;
+       owner's word, with Phases R42 to R47 here;
      - D81's row in §5, pointing to design.md;
-     - R42 to R46 in §6;
+     - R42 to R47 in §6;
      - a §8 row pointing to §3 here.
 
      `CLAUDE.md` §9's *Spec-driven* line names `.kiro/specs/*/`.
@@ -188,6 +201,31 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 4.3, 4.4, 4.5, 4.6_
 
+- [ ] **R42.5** **A watchdog over the scheduled workflows** (D81s, amendment 1). Behaviours:
+  1. **Measure first:** every workflow with a `schedule:`, its crons and its longest gap
+     between two cron times. For each, the start delay of its last 30 scheduled runs, from
+     `run_started_at` against the cron time, read from the Actions API. (The nightly has
+     been starting about 5 hours after its 03:37 UTC cron.) The STATUS records the table and
+     the margin D81s gives.
+  2. `scripts/watchdog.py`, against the Actions API and issues faked in the tests:
+     - a last scheduled run that failed, with no open issue, gives one issue to open;
+     - one that failed with its issue open gives a comment, never a second issue;
+     - no scheduled run within the gap plus the margin gives an `overdue` issue;
+     - a pass closes the open issue, naming the run;
+     - a workflow without `schedule:` is never read.
+  3. **The incident replayed:** `refresh.yml`'s runs of 2026-10-12 and 2026-10-19, from
+     their recorded API answers, are failures that filed no issue. Kept as a regression test.
+  4. `.github/workflows/watchdog.yml`: daily at 06:47 UTC, with a checkout that always runs,
+     `permissions: {}` and the job's `actions: read` and `issues: write`, pinned actions and
+     no expression inside `run:`. zizmor finds nothing, and a test holds its shape.
+     `tests/test_ci_builds_once.py`'s test that every local action has a checkout that always
+     runs (1.5.4) holds it too.
+  5. `acceptance.yml` checks the watchdog's own last run by the same rule.
+  6. **Proof:** a dispatch on the build branch with `dry_run=true` lists what it would file,
+     and files nothing.
+
+  _Requirements: 15.1 to 15.6_
+
 ### Phase R43: the nightly judges valvur, not the calendar
 
 - [ ] **R43.1** **An advisory's publication date on its Finding** (D81o). Behaviours:
@@ -235,9 +273,39 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   7. The report has a `healing` column, and `report.json` has the field.
   8. `6-self`'s `expected.toml` sets 48.
 
-  **Exit:** the acceptance set on both lanes, with the column.
-
   _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+
+- [ ] **R43.4** **The image, scanned as it ships** (D81t, amendment 2). Behaviours:
+  1. **Measure first, the positive control:** design.md §10's command against the published
+     `ghcr.io/maverickhq/valvur:1.5.3` reports OpenSSL's fixes in 3.5.7 and 3.5.8, musl's
+     CVE-2026-107891, xz's CVE-2026-34743, zlib's CVE-2026-85091, and CVE-2026-111943 in the
+     Go binaries' standard library. If it misses one, D81t's fallback applies. The STATUS
+     records each, and how long the check takes on each architecture. (On 2026-10-24 these
+     were measured by hand, with an Alpine secdb comparison and a Go build-information
+     reader, kept with the handover.)
+  2. `scripts/image_gate.py`, on recorded Trivy output:
+     - a vulnerability with a fixed version blocks;
+     - one listed in `.github/image-accepted.yaml` with an expiry ahead does not;
+     - an entry without an expiry, or past it, is refused, naming it;
+     - one with no fixed version is reported and does not block;
+     - input it cannot read exits 2.
+  3. A test holds that nothing in the tree writes `.github/image-accepted.yaml`.
+  4. A `ci.yml` job after "the image, built once", on both architectures, loads the run's
+     image and runs the check with no network and the run's database. It is not a required
+     check; §3 holds that choice for the owner.
+     `tests/test_ci_builds_once.py`'s count of image builds is unchanged.
+  5. `release.yml` runs it on the staged image before `promote`. The nightly runs it against
+     the latest published image.
+  6. Its JSON is uploaded as an artifact, which `observe` reads as its second input (R44.6).
+  7. No document claims image scanning for users. A test reads the README and `docs/` for
+     it, and the ROADMAP's *being considered* row stays.
+  8. **Proof:** the job is green on R43's pull request, with the Alpine 3.24 base and every
+     unfixed finding listed. Behaviour 1 is its red.
+
+  **Exit:** the acceptance set on both lanes, with the `healing` column, and the image check
+  green on the phase's pull request.
+
+  _Requirements: 16.1 to 16.7_
 
 ### Phase R44: the Checkov lock heals itself
 
@@ -353,6 +421,31 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 13.3_
 
+- [ ] **R44.9** **A base image whose tag has died is replaced** (D81u, amendment 3).
+  Behaviours:
+  1. **Measure first,** once the owner has allowed `hub.docker.com` (§3): each `FROM` base's
+     `last_updated` today, and, from the `python` image's tag list, how often Docker's
+     official images have retired an Alpine suffix, and how long the retired tag was still
+     listed. The STATUS records both.
+  2. `scripts/base_heal.py plan`, against the registry faked in the tests:
+     - a tag unmoved for 30 days, with a newer Alpine suffix of the same Python minor that
+       moved within 30 days, gives one move;
+     - a tag that still moves gives none;
+     - a newer Python minor is never proposed;
+     - an index without `linux/amd64` and `linux/arm64` gives an escalation, never a move.
+  3. `apply` rewrites every place the base is named, as 1.5.4's move did: the Dockerfile's
+     two stages, `ci.yml`'s and `release.yml`'s licence diff, `check_image_licences.py` and
+     `tests/test_licences.py`. Each is pinned by the index digest, with the tag beside it.
+     Afterwards `git grep` finds the old tag only in history.
+  4. **2026-10-24 replayed:** `python:3.12-alpine3.22`, last moved 2026-04-19, gives
+     `python:3.12-alpine3.24`. Kept as a regression test.
+  5. The pull request carries R43.4's verdict on the old image and the new.
+  6. `heal.yml` runs it weekly, in `plan`'s grant, and `propose` opens the pull request. A
+     pass takes R45's path, and a failure files one issue. With R44.6: 👤 if auto mode
+     refuses.
+
+  _Requirements: 17.1 to 17.6_
+
 ### Phase R45: security patches release themselves
 
 - [ ] **R45.1** **ADR-0032** (D81h, D81i). Behaviours:
@@ -439,6 +532,52 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   The link check reads every new document.
 
+### Phase R47: Scanner upgrades that prepare themselves
+
+- [ ] **R47.1** **Measure first** (D81v, amendment 4). Behaviour: the STATUS records each of
+  these:
+  1. every place each Scanner's version is pinned today: the Dockerfile's stage,
+     `scripts/scanner_pins.py`'s sources, the adapters, the golden fixtures, the documents.
+     Say why #229 and #230 have been red since 2026-10-17, and #238 since 2026-10-24;
+  2. for each Scanner, whether recapturing its fixtures twice, as `docs/MAINTENANCE.md`
+     describes, gives the same bytes;
+  3. for each Scanner's newest release, its Go toolchain, read from the binary's build
+     information. A `go.mod` line is a minimum, not the toolchain.
+
+- [ ] **R47.2** **Every pin moves with the Dockerfile's.** Behaviours:
+  1. `scripts/scanner_upgrade.py`, given a Scanner and its old and new versions, updates
+     every other pin R47.1 lists. It is tested on a copy of the tree with #238's change, and
+     the tests that kept #238 red pass.
+  2. A Scanner it does not know, or a change to more than one Scanner, is left for the owner,
+     naming why.
+
+  _Requirements: 18.1_
+
+- [ ] **R47.3** **The fixtures, recaptured, and the Score.** Behaviours:
+  1. It recaptures the Scanner's fixtures twice and refuses a recapture that differs.
+  2. It runs `scripts/eval.py --compare tests/eval/baseline.json` and writes each track's
+     delta into the pull request's body.
+  3. It writes the new binary's Go toolchain into the body.
+
+  _Requirements: 18.2, 18.3, 18.4_
+
+- [ ] **R47.4** 👤 **It lands only when nothing moved** (D81v). Behaviours:
+  1. `scanner-upgrade.yml`, as design.md §12 lays it out: on a Dependabot pull request that
+     moves a Scanner's stage, and nothing else.
+  2. `heal_policy.py scanner`: every track unchanged and every required check green gives 0;
+     any track moved gives 1, and the pull request waits for the owner with the deltas.
+  3. Shape tests: the triggers, `permissions: {}` and each job's grant, the environment,
+     pinned actions, and package code only in `prepare`, which holds no secret. zizmor finds
+     nothing.
+
+  _Requirements: 18.5, 18.6_
+
+- [ ] **R47.5** **The proof.** Behaviour: the next Scanner pull request Dependabot opens is
+  completed by the workflow, and lands or reaches the owner with its deltas, recorded with
+  its run IDs. Ticked as waiting until it happens.
+
+  _Requirements: 18.1 to 18.6_
+
 ---
 
 ## 3. The owner queue for this spec
@@ -460,6 +599,10 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | the owner-session tasks | when reached, if auto mode refused | R44.6, R45.3 and R45.4, in a session in manual approve mode, from each task's STATUS |
 | the first live heal | R44 landed and the App created | nothing: the schedule runs it. Or dispatch `heal` on `main` with `dry_run=true` first |
 | approve `SECURITY.md`'s sentence | R46.2 | read it in R46's pull request |
+| accept the image's unfixed findings | R43.4's behaviour 1 | write each into `.github/image-accepted.yaml`, with an expiry, as `.security-scan.toml`'s Suppressions are written. ecdsa's CVE-2024-23342, accepted for the tree since 2026-09-14, is the first. Nothing automated writes the file |
+| make the image check required, optional | R43.4 landed | add its two checks to `main`'s required checks |
+| allow `hub.docker.com` for the build | before R44.9 | the base heal reads Docker Hub's tag API, which neither `egress.py` nor ADR-0027 names (the main list's stop condition 5). Say yes, or choose another source |
+| R47's workflow | when reached, if auto mode refused | R47.4, in a session in manual approve mode, from its STATUS |
 
 ---
 
@@ -468,8 +611,8 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 - **`CLAUDE.md` §3, §4 and §10 hold.** No product feature writes to a Workspace or remediates
   one. The heal changes valvur's own repository, under a policy, as R28.2's auto-merge does.
   The product gains one field (R43.1).
-- **No Suppression, override or scan configuration is ever written by automation.** A test
-  holds that (R44.5).
+- **No Suppression, override, scan configuration or image acceptance is ever written by
+  automation.** Tests hold that (R44.5, R43.4).
 - **Every release gate stays:** CI's verdict, the self-scan gate on the tree and the artifact
   (N2.5), the Score (N4.3), and the signature and attestations. Only who presses the brake
   changes, and only for one class of release (ADR-0032).
