@@ -10,13 +10,16 @@ break things, and has.
 
 ### Security
 
-- **aiohttp 3.14.5 and certifi 2026.10.19** in the image's Checkov environment, past four
-  advisories published on 2026-10-19 and 2026-10-20: three against aiohttp 3.14.3
-  (CVE-2026-111064, CVE-2026-111066, GHSA-2g87-pp6c-29x5) and one against certifi 2026.7.22,
-  which bundles emSign root CAs whose intermediate keys were compromised
-  (GHSA-6q48-6c7w-9gw2). The same aiohttp release fixes a low one, GHSA-494j-54xm-rwp3. yarl
-  moves to 1.25.1, the floor every fixed aiohttp requires. The nightly acceptance run's
-  self-scan found them; nothing else in the lock moved.
+- **aiohttp 3.14.5 and certifi 2026.10.19** in the image's Checkov environment, past nine
+  advisories published on 2026-10-19 and 2026-10-20. Eight are against aiohttp 3.14.3 and
+  earlier, all fixed in 3.14.4: three high (CVE-2026-111064, CVE-2026-111066,
+  GHSA-2g87-pp6c-29x5), three medium (CVE-2026-111065, CVE-2026-111748, CVE-2026-111750)
+  and two low (CVE-2026-111063, CVE-2026-111749). One, critical, is against certifi
+  2026.7.22, which bundles emSign root CAs whose intermediate keys were compromised
+  (GHSA-6q48-6c7w-9gw2). yarl moves to 1.25.1, the floor every fixed aiohttp requires. The
+  nightly acceptance run's self-scan found four of them; GitHub raised the other five as
+  alerts on 2026-10-20 and 2026-10-22, and the same upgrade fixes them. Nothing else in
+  the lock moved.
 - **GitPython 3.2.1** in the image's Checkov environment, past CVE-2026-114145
   (GHSA-83vg-56qc-22m7, high), published on 2026-10-22: GitPython 3.2.0 and earlier check a
   submodule's `.git` path only after cloning into it. Checkov 3.3.22 accepts any GitPython
