@@ -415,7 +415,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     are medium, low or unknown: CVE-2026-111065, -111748, -111750, -111749, -111063 and
     PYSEC-2026-4320. Recorded as it is: they are past the window, so R43.3 does not hide them.
 
-- [ ] **R43.3** **The healing window** (D81b). Behaviours, on Results Folders written by the
+- [x] **R43.3** **The healing window** (D81b). Behaviours, on Results Folders written by the
   test:
   1. In a repository with `healing_window_hours = 48`, a dependency vulnerability Finding whose
      advisory was published an hour before the Scan Run is `healing`, not blocking.
@@ -429,6 +429,25 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   8. `6-self`'s `expected.toml` sets 48.
 
   _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+
+  **STATUS 2026-10-24:** ✅ 1 to 8, in `tests/test_acceptance_healing.py`, on Results Folders the
+  test writes.
+  - **Against when the scan started, not `run.json`.** design.md §1 measures the age against
+    the Scan Run's start in `run.json`, which records no time (read from a real one: `kev_catalog`
+    and `epss_scored` are dates of data, not of the run). Adding one would change a product
+    artifact for the harness's sake, so `run_repo` reads the clock before it scans and passes
+    it to `judge` as `scanned_at`, the clock by default.
+  - Healing: a Finding with a `dependency` whose `advisory_published` reads, is under the window
+    and not in the future, and whose rule and aliases name no `MAL-` entry and which is not
+    `valvur.dependency.malicious`. An hour old is healing, 49 hours blocks, no date, `soon` or a
+    date after the scan block, a secret and a static-analysis Finding block, and a repository
+    without the key is judged as before.
+  - The report's table gains a `healing` column, and `report.json` a `healing` list of
+    "rule at path (severity), <n> h old". `6-self`'s `expected.toml` sets 48, and no other
+    repository sets a window. Requirement 2 is N4.6.
+  - On 2026-10-24, `6-self` at v1.5.3 would have nothing healing: its five blocking advisories
+    were published from 2026-10-19 17:07 to 2026-10-22 16:41 UTC (`advisory_published` in
+    R43.2's scan), and the youngest, GitPython's, was about 51 hours old at the scan.
 
 - [ ] **R43.4** **The image, scanned as it ships** (D81t, amendment 2). Behaviours:
   1. **Measure first, the positive control:** design.md §10's command against the published
