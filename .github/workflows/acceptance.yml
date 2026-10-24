@@ -97,3 +97,25 @@ jobs:
         with:
           title: the nightly acceptance run failed
           passed: "true"
+
+  watchdog:
+    # The nightly watches the watchdog (R42.5, D81s, N3.8): `watchdog.yml`'s own last
+    # scheduled run is judged by the same rule it judges every other by, so neither
+    # stops unseen. On a pull request it lists, and files nothing.
+    name: the watchdog ran and passed
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: read    # the watchdog's scheduled runs
+      issues: write    # its one issue, `watchdog: watchdog.yml`
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Judge the watchdog's last scheduled run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then set -- --dry-run; fi
+          python3 scripts/watchdog.py --repo "$REPO" --only watchdog.yml "$@"

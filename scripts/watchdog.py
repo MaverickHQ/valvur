@@ -141,16 +141,30 @@ class GitHub:
             return json.load(answer)
 
 
-def watch(github: GitHub, directory: Path, now: datetime, *, dry_run: bool) -> list[str]:
+def _runs(github: GitHub, name: str) -> list[dict]:
+    """The workflow's scheduled runs on `main`, newest first. A workflow the API does
+    not know yet, answered 404, has never run."""
+    try:
+        answer = github.call("GET", f"/actions/workflows/{name}/runs"
+                                    "?event=schedule&branch=main&per_page=30")
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return []
+        raise
+    return answer["workflow_runs"]
+
+
+def watch(github: GitHub, directory: Path, now: datetime, *, dry_run: bool,
+          only: str | None = None) -> list[str]:
     """What the watch did, or would do, one line each."""
     issues = github.call("GET", "/issues?state=open&per_page=100")
     open_by_title = {i["title"]: i["number"] for i in issues
                      if "pull_request" not in i}
     done = []
     for name, crons in schedules(directory).items():
-        answer = github.call("GET", f"/actions/workflows/{name}/runs"
-                                    "?event=schedule&branch=main&per_page=30")
-        verdict = judge(crons, answer["workflow_runs"], now)
+        if only is not None and name != only:
+            continue
+        verdict = judge(crons, _runs(github, name), now)
         title, number = TITLE.format(name), open_by_title.get(TITLE.format(name))
         if verdict is None:
             continue
@@ -185,12 +199,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workflows", type=Path, default=REPO / ".github" / "workflows")
     parser.add_argument("--now", help="ISO 8601; the clock by default")
     parser.add_argument("--dry-run", action="store_true", help="list, and file nothing")
+    parser.add_argument("--only", help="judge this workflow file alone, as the nightly "
+                                       "judges watchdog.yml")
     args = parser.parse_args(argv)
     now = _when(args.now) if args.now else datetime.now(UTC)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     try:
         done = watch(GitHub(args.api, args.repo, token), args.workflows, now,
-                     dry_run=args.dry_run)
+                     dry_run=args.dry_run, only=args.only)
     except (urllib.error.URLError, ValueError, KeyError, TypeError) as error:
         print(f"watchdog: cannot read the Actions API or the issues: {error}")
         return 2

@@ -201,3 +201,25 @@ def test_the_incident_replayed_refresh_s_silent_failures_are_filed(tmp_path, now
 
     assert [i["title"] for i in github.issues] == ["watchdog: refresh.yml"]
     assert f"actions/runs/{run}" in github.issues[0]["body"]
+
+
+def test_only_one_workflow_is_judged_when_named_so_the_nightly_can_watch_the_watchdog(
+        workflows):
+    (workflows / "watchdog.yml").write_text(NIGHTLY.replace("37 3", "47 6"))
+    with FakeGitHub() as github:
+        github.runs["nightly.yml"] = [_run(2, "2026-10-24T08:22:37Z", "failure")]
+        github.runs["watchdog.yml"] = [_run(7, "2026-10-24T08:00:00Z", "startup_failure")]
+
+        assert _watch(github, workflows, "2026-10-24T09:00:00Z", "--only", "watchdog.yml") == 0
+
+    assert [i["title"] for i in github.issues] == ["watchdog: watchdog.yml"]
+    assert not any("nightly.yml" in r for r in github.reads)
+
+
+def test_a_workflow_the_api_does_not_know_yet_has_no_runs(workflows):
+    """A workflow file the Actions API answers 404 for has never run: overdue, not an
+    unreadable API."""
+    with FakeGitHub() as github:
+        assert _watch(github, workflows, "2026-10-24T09:00:00Z") == 0
+
+    assert "overdue" in github.issues[0]["body"]

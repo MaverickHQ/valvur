@@ -69,6 +69,8 @@ def _handler(github: FakeGitHub):
             github.reads.append(self.path)
             if url.path.startswith(f"{prefix}/actions/workflows/") and url.path.endswith("/runs"):
                 name = url.path.split("/")[-2]
+                if name not in github.runs:
+                    return self._send(404, {"message": "Not Found"})
                 runs = [r for r in github.runs.get(name, [])
                         if r.get("event") == query.get("event", [r.get("event")])[0]
                         and r.get("head_branch") == query.get("branch", [r.get("head_branch")])[0]]

@@ -52,3 +52,15 @@ def test_actions_are_pinned_and_no_expression_is_inside_a_shell_command():
     for block in re.findall(r"run: \|\n((?:          .*\n)+)", text):
         assert "${{" not in block, block
     assert "python3 scripts/watchdog.py" in text
+
+
+def test_the_nightly_judges_the_watchdog_s_own_last_run():
+    text = (REPO / ".github" / "workflows" / "acceptance.yml").read_text()
+    job = text.split("\n  watchdog:\n", 1)[1]
+
+    assert "python3 scripts/watchdog.py" in job and "--only watchdog.yml" in job
+    granted = re.search(r"^    permissions:\n((?:      \S.*\n)+)", job, re.M)
+    assert granted and {line.split("#")[0].strip() for line in granted.group(1).splitlines()} \
+        == {"actions: read", "issues: write"}
+    for block in re.findall(r"run: \|\n((?:          .*\n)+)", job):
+        assert "${{" not in block, block
