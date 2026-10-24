@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 TASKS = ".kiro/specs/valvur/tasks.md"
+#: Every spec's list is read, the main list first, then the others by name (R42.1).
+SPECS = ".kiro/specs"
 #: A build commit carries a phase scope: `feat(r3.4): …`, `chore(r3): …`.
 _BUILD_SUBJECT = re.compile(r"^[a-z]+\(r\d+(\.\d+)?\)!?: ")
 #: Longer than a usage window plus the hourly schedule (tasks.md §2).
@@ -29,14 +31,16 @@ class Position:
     task: str
 
 
-def position(tasks_text: str) -> Position | None:
-    """The first unchecked task and the phase it belongs to; None when all are done."""
-    phase, title = -1, ""
-    for line in tasks_text.splitlines():
-        if heading := _PHASE.match(line):
-            phase, title = int(heading.group(1)), heading.group(2)
-        elif (task := _TASK.match(line)) and task.group(1) == " ":
-            return Position(phase, title, task.group(2))
+def position(*lists: str) -> Position | None:
+    """The first unchecked task and the phase it belongs to, read through the lists in
+    order; None when all are done."""
+    for tasks_text in lists:
+        phase, title = -1, ""
+        for line in tasks_text.splitlines():
+            if heading := _PHASE.match(line):
+                phase, title = int(heading.group(1)), heading.group(2)
+            elif (task := _TASK.match(line)) and task.group(1) == " ":
+                return Position(phase, title, task.group(2))
     return None
 
 
@@ -68,6 +72,18 @@ def _git(repo: Path, *args: str) -> str:
     # A fixed `git` argument list, no shell; the arguments are this script's own.
     return subprocess.run(["git", *args], cwd=repo, capture_output=True,  # noqa: S603
                           text=True, check=False).stdout
+
+
+def task_lists(repo: Path, ref: str) -> list[str]:
+    """Every spec's task list on `ref`, the main list first, then the others by name. A
+    spec the ref does not hold is not read: it has not reached that ref yet."""
+    names = _git(repo, "ls-tree", "--name-only", f"{ref}:{SPECS}").split()
+    others = sorted(n for n in names if f"{SPECS}/{n}/tasks.md" != TASKS)
+    lists = [_git(repo, "show", f"{ref}:{TASKS}")]
+    for name in others:
+        if text := _git(repo, "show", f"{ref}:{SPECS}/{name}/tasks.md"):
+            lists.append(text)
+    return lists
 
 
 def _origin_branch(repo: Path, phase: int) -> str | None:
@@ -118,7 +134,7 @@ def status(repo: Path, now: float | None = None) -> dict:
     alive = {"alive": any(a < WINDOW_HOURS for a in ages),
              "newest_build_commit_hours": None if commit_age is None else round(commit_age, 2),
              "newest_change_hours": None if change_age is None else round(change_age, 2)}
-    on_main = position(_git(repo, "show", f"origin/main:{TASKS}"))
+    on_main = position(*task_lists(repo, "origin/main"))
     if on_main is None:
         return {"phase": None, "next_task": None, "branch": None, "branch_exists": False,
                 "action": "finish the build", **alive}
@@ -127,7 +143,7 @@ def status(repo: Path, now: float | None = None) -> dict:
         existing = _origin_branch(repo, current.phase)
         if existing is None:
             break
-        ahead = position(_git(repo, "show", f"origin/{existing}:{TASKS}"))
+        ahead = position(*task_lists(repo, f"origin/{existing}"))
         if ahead is not None and ahead.phase == current.phase:
             current = ahead
             break
