@@ -4,8 +4,7 @@
 2026-10-21 (#234).** The owner asked how the build could check and update itself when this
 happens, without them in the loop and without another incident like it. This spec is the
 answer: [requirements.md](requirements.md) says what, and [design.md](design.md) says how,
-including the decisions D81a to D81v with their fallbacks. It is proposed. The owner approves
-it by starting the build with §0's prompt, and R42.1 records the date.
+including the decisions D81a to D81v with their fallbacks.
 
 **Amended 2026-10-24,** while 1.5.4 was prepared. The owner's goal is updates that are "fully
 automated and headless", without babysitting. Four things found that day would still need
@@ -14,6 +13,9 @@ the owner, or fail in silence. Each is a requirement, a D81 row and its tasks:
 - a gate on the image that ships, not only the tree (Requirement 16, D81t, R43.4);
 - a heal for a base image whose tag has stopped moving (Requirement 17, D81u, R44.9);
 - Scanner upgrades that prepare themselves (Requirement 18, D81v, Phase R47).
+
+**Approved in halves** (the owner, 2026-10-24): R42 and R43 now, R44 onward after a decision
+of the owner's, as §0's item 7 says. R42.1 records the date and the half.
 
 **IDs.** Phases R42 to R47 continue [the main list](../valvur/tasks.md). Tasks are
 `R<phase>.<n>`, in the main list's format, so `scripts/build_status.py` can read them once
@@ -35,7 +37,7 @@ does not change
 
 **The main list's §1 to §4 apply unchanged:** one executor, test-driven slices, phase commits,
 phases stacked, never a push to `main` or of a tag, the stop conditions, and the build caches.
-Six things differ:
+Seven things differ:
 
 1. **Until R42.1 is ticked,** `build_status.py` reads only the main list and would report the
    build finished. Resume with the start prompt above. After R42.1, the main list's resume
@@ -64,6 +66,19 @@ Six things differ:
    tag key are §3's. Every test fakes the network, so nothing waits for them except the live
    proofs (R44.8, R45.5).
 6. **No agent runs.** No `claude -p` here, so there is no cost cap to keep.
+7. **Approved in halves** (the owner, 2026-10-24).
+   - **Now:** R42 and R43, with the watchdog (R42.5) and the image gate (R43.4). Neither
+     grants any power to merge, tag or release.
+   - **Later:** R44 onward, with the base-image heal (R44.9) and Phase R47. R44 and R45 give
+     an App standing power to merge, tag and release on a security tool's repository. Every
+     security re-lock of October 2026 (10-02, 10-08, 10-21, 10-23) came from Checkov's tree
+     of 97 packages, and valvur itself has no runtime dependency. So the owner first weighs
+     R44 and R45 against fewer packages: Checkov's tree shrunk, or Checkov replaced, which
+     ADR-0019's reopening would decide. Any D81 row that changes is changed before R44
+     starts.
+   - **The executor stops after R43's phase commit,** as the main list's §1 stops after R39.
+     It says in §3's decision row that the row is ready. The second half starts with the
+     prompt above once the owner has decided.
 
 **Signed commits.** The executor signs its commits with the owner's SSH key on this Mac
 (`commit.gpgsign`), or in a cloud session as D61 (g) says. `698b21e` was made unsigned in a
@@ -105,8 +120,8 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   2. `shape_errors` checks each list.
   3. `acceptance.ticked` reads every spec's list, so an `until` naming a task here resolves.
   4. The main `tasks.md` gains:
-     - an amendment paragraph in its header: approved on the date of the start prompt, at the
-       owner's word, with Phases R42 to R47 here;
+     - an amendment paragraph in its header: approved in halves on 2026-10-24, at the owner's
+       word, R42 and R43 first (§0, item 7), with Phases R42 to R47 here;
      - D81's row in §5, pointing to design.md;
      - R42 to R47 in §6;
      - a §8 row pointing to §3 here.
@@ -586,7 +601,8 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 
 | item | ready after | what the owner does |
 |---|---|---|
-| approve this spec | now | start the build with §0's prompt. R42.1 records the date and D81's acceptance. Change any D81 row first with `/grill-with-docs` if you disagree |
+| approve this spec | done, in halves, 2026-10-24 | R42 and R43 approved, with amendments 1 and 2 (§0, item 7). R42.1 records the date, the half and D81's acceptance for it |
+| decide R44 and R45's scope | R43's phase commit | weigh R44 and R45's standing merge, tag and release power against fewer packages in Checkov's tree, or none (§0, item 7; ADR-0019's reopening). Change any D81 row first, with `/grilling` if you like. Then start the second half with §0's prompt |
 | land the lock fix, then release 1.5.4 | R42.2 | the fix landed as #235 on 2026-10-24, and Dependabot's alerts #5 to #12 closed with it. Release as `docs/RELEASING.md` says, with a rehearsal, since the lock is machinery. #234 closes after the `SELF_PIN` move or R43.2 |
 | close #231 and #232 | done | Dependabot closed them itself on 2026-10-24 and opened #236 and #237, the same re-lock with auto-merge on; those were closed with `@dependabot close` the same day (R42.3's baseline). Another may come with Dependabot's next weekly run, until R42.3 lands |
 | make the lock check required, optional | R42.4 landed | add `lock.yml`'s check to `main`'s required checks. The heal's policy runs the same comparison regardless |
