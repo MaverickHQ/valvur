@@ -12,7 +12,7 @@ review measured the bus factor and it is one.
 | Repository | user-owned (`MaverickHQ/valvur`), not an organisation; one collaborator, admin |
 | Can sign a release tag | the one SSH key in [`.github/allowed_signers`](.github/allowed_signers); `release.yml` refuses a `v*` tag any other key signed (28.0.2) |
 | Can approve the `release` environment | the maintainer, as its one required reviewer (set 2026-09-26, after the last rehearsal); self-review is allowed, so the brake between validation and promotion (ADR-0020) is the maintainer's own click, after the evidence — until step 2 below puts a second name beside theirs |
-| Commits | 288 of 291 by the maintainer, 3 by Dependabot (measured 2026-09-26) |
+| Commits | 818 of 980 by the maintainer, 155 by the Claude Code cloud sessions the maintainer ran, 7 by Dependabot (measured 2026-10-24, `git shortlog -sne main`) |
 
 A test holds the first row to the signers file: every principal that may sign a
 release is named here, so a key added to `allowed_signers` without a person added
