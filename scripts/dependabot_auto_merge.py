@@ -12,6 +12,10 @@ The files were read from Dependabot's pull requests on 2026-10-04. #200 changed
 touched `src/` and `tests/`, which only the owner lands. Workflow files are left out
 too: a merge made with the workflow's own token cannot change them, so an Actions update
 would sit with auto-merge enabled and never merge.
+
+The Checkov recipe's files are left for the owner too (R42.3, D81p): the recipe,
+`scripts/lock-checkov.sh`, is their one writer, and Dependabot's re-locks of them (#231,
+#232, #236, #237) were not what it writes.
 """
 
 from __future__ import annotations
@@ -25,6 +29,9 @@ from typing import TextIO
 #: The dependency files Dependabot's updates may change, and nothing else.
 ALLOWED = ("uv.lock", "requirements-*.in", "requirements-*.txt", "Dockerfile",
            ".clusterfuzzlite/Dockerfile")
+#: Written by `scripts/lock-checkov.sh` alone, never by an update (R42.3).
+RECIPE = ("requirements-checkov.in", "requirements-checkov.overrides",
+          "requirements-checkov.txt")
 _UPDATE_TYPE = re.compile(r"^\s*update-type:\s*(\S+)\s*$", re.M)
 MAJOR = "version-update:semver-major"
 
@@ -41,6 +48,10 @@ def decide(view: dict) -> tuple[bool, str]:
     commits = view.get("commits") or []
     if not files or not commits:
         return False, "nothing to judge: no files or no commits"
+    recipe = [path for path in files if path in RECIPE]
+    if recipe:
+        return False, ("changes the Checkov lock, which its recipe alone writes "
+                       f"(scripts/lock-checkov.sh): {', '.join(recipe)}")
     others = [path for path in files if not _allowed(path)]
     if others:
         return False, f"changes files that are not dependency files: {', '.join(others)}"

@@ -975,6 +975,10 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
 6. N3.6 — The unattended build SHALL read every spec's task list under `.kiro/specs/`, the
    main list first, so that a resuming session finds the next open task in whichever list
    holds it. *Added 2026-10-24 (R42.1), from the self-healing supply chain's Requirement 14.*
+7. N3.7 — The image's Checkov lock SHALL have one writer, `scripts/lock-checkov.sh`: no
+   automated update SHALL write the recipe's files, and a pull request that changes them
+   SHALL be accepted only when the recipe, run again, writes the same lock byte for byte.
+   *Added 2026-10-24 (R42.3, R42.4), from the self-healing supply chain's Requirement 4.*
 
 ### N4 — Evaluation
 *Added 2026-09-29 (R9.2, ADR-0026), met by R9.3 to R9.6, 2026-09-29.* *Amended

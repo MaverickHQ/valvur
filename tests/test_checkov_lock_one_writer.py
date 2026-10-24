@@ -8,7 +8,9 @@ files alone, and the auto-merge leaves any pull request that changes them for th
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -48,3 +50,26 @@ def _excluded(lines: list[str]) -> set[str]:
 def test_neither_dependabot_updater_writes_the_checkov_recipe_s_files(ecosystem):
     assert RECIPE_FILES <= _excluded(_entries()[ecosystem])
 
+
+def _script():
+    path = REPO / "scripts" / "dependabot_auto_merge.py"
+    spec = importlib.util.spec_from_file_location("dependabot_auto_merge", path)
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["dependabot_auto_merge"] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
+
+
+_PATCH = {"messageHeadline": "chore: bump aiohttp", "messageBody":
+          "---\nupdated-dependencies:\n- dependency-name: aiohttp\n"
+          "  update-type: version-update:semver-patch\n...\n"}
+
+
+@pytest.mark.parametrize("changed", sorted(RECIPE_FILES))
+def test_a_pull_request_that_changes_the_checkov_recipe_waits_for_the_owner(changed):
+    view = {"files": [{"path": "uv.lock"}, {"path": changed}], "commits": [_PATCH]}
+
+    eligible, why = _script().decide(view)
+
+    assert not eligible
+    assert changed in why and "recipe" in why

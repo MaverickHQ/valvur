@@ -44,9 +44,10 @@ def _view(files, *commits):
 
 
 def test_a_patch_update_to_dependency_files_alone_may_land_itself():
-    """#200's shape: the Checkov lock and its input, one patch update."""
+    """#200's shape, one patch update to a lock and its input. #200 changed the Checkov
+    lock, which R42.3 leaves to its recipe, so zizmor's lock stands in for it."""
     eligible, reason = _script().decide(_view(
-        ["requirements-checkov.in", "requirements-checkov.txt"],
+        ["requirements-zizmor.txt", "uv.lock"],
         _commit("version-update:semver-patch")))
 
     assert eligible, reason
