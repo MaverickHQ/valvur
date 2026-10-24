@@ -37,12 +37,14 @@ def ticked(tasks_text: str) -> set[str]:
 
 
 def task_list(repo: Path | None = None) -> str:
-    """The live task list and the archives of closed phases (R7.4): an expectation
-    that waited on a task closed and moved to `docs/history/` stays met."""
+    """The live task lists, every spec's (R42.1), and the archives of closed phases
+    (R7.4): an expectation that waited on a task closed and moved to `docs/history/`
+    stays met."""
     repo = Path(__file__).resolve().parent.parent if repo is None else repo
+    main = repo / ".kiro/specs/valvur/tasks.md"
+    others = sorted(p for p in (repo / ".kiro/specs").glob("*/tasks.md") if p != main)
     archives = sorted((repo / "docs" / "history").glob("tasks-phases-r*.md"))
-    return "\n".join(p.read_text() for p in
-                     [repo / ".kiro/specs/valvur/tasks.md", *archives])
+    return "\n".join(p.read_text() for p in [main, *others, *archives] if p.is_file())
 
 
 def _matches(rule: str, finding: dict) -> bool:

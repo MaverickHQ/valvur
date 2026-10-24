@@ -114,3 +114,15 @@ def test_every_live_list_reads_as_the_resume_script_expects():
         assert (path.relative_to(REPO).as_posix(), module.shape_errors(path.read_text())) \
             == (path.relative_to(REPO).as_posix(), [])
 
+
+def test_an_until_naming_a_task_in_another_spec_resolves(tmp_path):
+    spec = importlib.util.spec_from_file_location("acceptance", REPO / "scripts" / "acceptance.py")
+    acceptance = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules["acceptance"] = acceptance
+    spec.loader.exec_module(acceptance)  # type: ignore[union-attr]
+    for name, text in (("valvur", MAIN), ("self-healing", SPEC)):
+        path = tmp_path / ".kiro/specs" / name / "tasks.md"
+        path.parent.mkdir(parents=True)
+        path.write_text(text)
+
+    assert {"R41.1", "R42.1"} <= acceptance.ticked(acceptance.task_list(tmp_path))
