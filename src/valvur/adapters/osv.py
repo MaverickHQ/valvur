@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
-from ..findings import Dependency, Exploit, Finding, Severity
+from ..findings import Dependency, Exploit, Finding, Severity, advisory_date
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from ..osv_offline import MOUNT
 from ..versions import version_key as _version_key
@@ -103,6 +103,7 @@ class OsvAdapter(ScannerAdapter):
                                 package=name,
                                 version=version,
                                 fixed_version=_fixed_version(vuln, name, version),
+                                advisory_published=advisory_date(vuln.get("published")),
                             ),
                         )
                     )

@@ -15,7 +15,7 @@ from .. import coverage as _coverage
 from .. import ecosystems as _ecosystems
 from .. import fingerprint as _fp
 from ..coverage import Coverage
-from ..findings import Dependency, Exploit, Finding, Severity
+from ..findings import Dependency, Exploit, Finding, Severity, advisory_date
 from ..invocation import Invocation, ScannerOutput
 from ..versions import version_key
 from .base import ScannerAdapter, container_relative
@@ -172,6 +172,7 @@ class TrivyAdapter(ScannerAdapter):
                             path=_path_to_root(
                                 _pkg_id(package, installed), parents
                             ),
+                            advisory_published=advisory_date(vuln.get("PublishedDate")),
                         ),
                     )
                 )

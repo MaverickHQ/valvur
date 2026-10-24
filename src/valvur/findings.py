@@ -97,6 +97,28 @@ class Dependency:
     scope: str = "unknown"           # production | development | unknown
     direct: bool | None = None
     path: tuple[str, ...] = ()       # your-app -> webpack@4 -> lodash@4.17.11
+    #: When the advisory was published, `YYYY-MM-DDTHH:MM:SSZ`, or "" when no Scanner
+    #: gave a date that reads (R43.1, F5.11). Trivy's `PublishedDate`, OSV-Scanner's
+    #: `published`; the earlier when both report it. Enrichment, so it feeds neither
+    #: the Fingerprint nor the Status diff, and an addition to `findings.json`'s
+    #: schema 1. The nightly's healing window reads it.
+    advisory_published: str = ""
+
+
+def advisory_date(text: object) -> str:
+    """A Scanner's publication date as `YYYY-MM-DDTHH:MM:SSZ` in UTC, or "" when it
+    does not read as one. A date without a zone is taken as UTC, as both Scanners
+    write it."""
+    from datetime import UTC, datetime
+
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    try:
+        when = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    when = when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @dataclass(frozen=True)
@@ -205,12 +227,21 @@ def merge(findings: list[Finding],
             existing,
             sources=combined,
             severity=severity,
-            dependency=existing.dependency or finding.dependency,
+            dependency=_earlier_advisory(existing.dependency, finding.dependency),
             exploit=existing.exploit or finding.exploit,
             cwe=existing.cwe or finding.cwe,
             aliases=tuple(dict.fromkeys(existing.aliases + finding.aliases)),
         )
     return _fold_repeats(_fold_malicious(list(by_fp.values()), index_form))
+
+
+def _earlier_advisory(kept: Dependency | None, other: Dependency | None) -> Dependency | None:
+    """The first record, with the earlier of the two advisory dates (R43.1): the
+    advisory's age is never understated, so the healing window never widens."""
+    if kept is None or other is None:
+        return kept or other
+    dates = [d for d in (kept.advisory_published, other.advisory_published) if d]
+    return replace(kept, advisory_published=min(dates, default=""))
 
 
 #: The rule the dependency-reality Check reports a known-malicious package under

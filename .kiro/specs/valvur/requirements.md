@@ -453,6 +453,11 @@ tell me what I actually fixed, so that I can measure progress rather than noise.
     and SARIF. *Added 2026-09-29 (R9.2, ADR-0029), met by R13.4, 2026-09-30.* *Note:
     `cwe` is an optional field, written only when there is one, so the findings schema
     stays 1; SARIF carries it on the rule with the `external/cwe/cwe-n` tag.*
+11. F5.11 — A dependency vulnerability **Finding** SHALL carry its advisory's publication
+    date, `advisory_published`, as an ISO 8601 date-time in UTC: the earlier of the dates
+    its **Scanners** give, and empty when none gives one that reads. It SHALL NOT feed the
+    **Fingerprint**. *Added 2026-10-24 (R43.1, D81o), from the self-healing supply chain's
+    Requirement 3. Note: an addition to `findings.json`, so the findings schema stays 1.*
 
 ## F6 — Enrichment and prioritisation
 
