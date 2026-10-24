@@ -10,6 +10,46 @@ break things, and has.
 
 ## [1.5.4] — 2026-10-24
 
+A security release for the image. Its Checkov environment moves past ten advisories
+published from 2026-10-19 to 2026-10-22, in aiohttp, certifi and GitPython. Its base moves
+from a tag Docker Hub stopped updating in April to Alpine 3.24, past six months of
+OpenSSL, musl, xz and zlib fixes. What valvur detects is unchanged: the Score is 74.1,
+every track at its baseline. Python 3.14 is supported. Every contract stands: protocol 2,
+`fp_version` 1, `findings.json`'s schema 1 and the reply's schema 2.
+
+**Where 1.5.3's vulnerable code ran,** for anyone closing a ticket against it. This says
+where the code runs; it is not a claim that any of it is unreachable.
+
+- **`pip install valvur` never installed the Python packages.** The package has no runtime
+  dependencies (`pyproject.toml`). Only the image carries aiohttp, certifi and GitPython,
+  in Checkov's own environment.
+- **Checkov runs only in the Scan Container that has no network interface,** on both
+  Profiles. On `full`, only what needs the network runs in a networked container
+  (`src/valvur/fleet.py:172`), and Checkov is not among it
+  (`src/valvur/adapters/checkov.py:50`, "No network, ever"). It runs with
+  `--skip-download` (`:51`), so it fetches no external modules.
+- **The base's OS packages and Python 3.12.13 were in every Scan Container,** on both
+  Profiles. There the Scanners parse the scanned repository, which valvur's threat model
+  treats as hostile; the `offline` container has no network. Which Scanner reaches which
+  library was not traced. They are fixed because none should ship, not because one was
+  shown to be reachable.
+- **Outside valvur, none of these boundaries hold.** Someone who runs the image
+  themselves, with a network, should treat every advisory below as applying to them.
+
+**What 1.5.4 does not fix.**
+
+- **The four Go Scanners were built before Go's fix for CVE-2026-111943,** the compromised
+  CA intermediates: Trivy 0.75.0 with go1.27.1, OSV-Scanner 2.6.0 with go1.27.0, Syft
+  1.54.0 with go1.26.8 and Gitleaks 8.30.1 with go1.24.13. Go 1.27.3 and 1.26.10 fixed it
+  on 2026-10-20, and no upstream release built with either could be confirmed on
+  2026-10-24. Inside the image, TLS happens in two places: Trivy's download of its
+  database, and OSV-Scanner's queries on `full`. An `offline` scan itself makes none.
+- **The CA bundle's change is a partial mitigation.** The image's new bundle drops three
+  of the four emSign roots; emSign Root CA - G1 stays. The full fix waits for Scanner
+  releases built with the fixed Go.
+- **Gitleaks is built with Go 1.24, which is end of life.** It runs with no network. Its
+  newest release, 8.30.1 of 2026-03-21, is built the same way.
+
 ### Security
 
 - **aiohttp 3.14.5 and certifi 2026.10.19** in the image's Checkov environment, past nine
