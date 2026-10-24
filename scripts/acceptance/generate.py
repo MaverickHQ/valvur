@@ -33,12 +33,6 @@ import fixtures  # noqa: E402 — the helper beside the scripts, standard librar
 
 TERRAFORM_URL = "https://github.com/terraform-aws-modules/terraform-aws-vpc"
 TERRAFORM_PIN = "cf0e3ca46fd51f47bf095957f2a6ac6127c89045"   # tests/corpus/corpus.toml
-#: This repository at a commit that passes its own gate (N2.5): `1.5.4`'s, whose release
-#: run passed the self-scan gate on 2026-10-25. It was `eb3a199` (R4), where the workflows
-#: first passed zizmor, until urllib3 advisories published on 2026-09-30 reached that
-#: tree's Checkov lock: a pinned tree ages as its dependencies do, and moves to a release.
-#: Then `1.2.0`'s `d0417c4`, until aiohttp's, certifi's and GitPython's reached it (#234).
-SELF_PIN = "5c8a7a4638b6ce6a8ff54e695947ebca766768c0"
 #: A known-malicious npm package (OSV `MAL-2023-1`), named in a manifest, never installed.
 MALICIOUS = ("@hyperion-util/cookies", "77.77.79", "MAL-2023-1")
 #: The gate's shape: its archive held 103,251 files.
@@ -229,15 +223,31 @@ rule = "CKV_AWS_338"
 """)
 
 
-def self_at_pin(root: Path) -> None:
-    """6. This repository at a pinned commit: it passes its own gate (N2.5)."""
-    archive = subprocess.run(["git", "-C", str(REPO), "archive", SELF_PIN],  # noqa: S603
+def self_at_release(root: Path, *, repo: Path = REPO) -> None:
+    """6. This repository at its latest release: what users run (R43.2, D81c). It was
+    a commit pinned by hand, `SELF_PIN`, moved twice in three weeks and the second time
+    too late (#234). The tag is found as `refresh.yml` finds it, and written into
+    `expected.toml` with its commit, so the report names what was scanned."""
+    found = subprocess.run(["git", "-C", str(repo), "describe", "--tags",  # noqa: S603
+                            "--abbrev=0", "--match", "v[0-9]*"],
+                           capture_output=True, text=True, check=False)
+    if found.returncode != 0:
+        raise RuntimeError(
+            f"6-self scans the latest release, and no tag matching v[0-9]* is reachable "
+            f"from HEAD in {repo}: fetch the tags (a checkout needs fetch-depth: 0). "
+            f"git said: {found.stderr.strip()}")
+    tag = found.stdout.strip()
+    commit = subprocess.run(["git", "-C", str(repo), "rev-list", "-n", "1", tag],  # noqa: S603
+                            capture_output=True, text=True, check=True).stdout.strip()
+    archive = subprocess.run(["git", "-C", str(repo), "archive", tag],  # noqa: S603
                              check=True, capture_output=True).stdout
     root.mkdir(parents=True, exist_ok=True)
     subprocess.run(["tar", "-x", "-C", str(root)], input=archive, check=True)  # noqa: S603
-    _expected(root, """
+    _expected(root, f"""
 [run]
 complete = true
+tag = "{tag}"
+commit = "{commit}"
 """)
 
 
@@ -297,7 +307,7 @@ path = "package-lock.json"
 BUILDERS: dict[str, Callable[[Path], None]] = {
     "1-gate-shaped": gate_shaped, "2-lockfiles": lockfiles,
     "3-history-secret": history_secret, "4-nested-names": nested_names,
-    "5-infrastructure": infrastructure, "6-self": self_at_pin,
+    "5-infrastructure": infrastructure, "6-self": self_at_release,
     "7-local-exposure": local_exposure, "8-malicious-dependency": malicious_dependency,
 }
 

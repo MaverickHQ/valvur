@@ -1009,6 +1009,11 @@ the Score 59.3 at R9 and 64.9 at R13 to R15, on both lanes (`docs/acceptance/`).
    release.
 4. N4.4 — The score SHALL be replicable: external sources pinned by commit, generated
    cases seeded, the image named by digest, and every dataset's age recorded.
+5. N4.5 — The acceptance set's `6-self` SHALL be this repository at the newest `v[0-9]*`
+   tag reachable from HEAD, and its report SHALL name the tag and its commit. IF no such
+   tag is reachable THEN generation SHALL fail and say why; no commit SHALL be hard-coded
+   for it. *Added 2026-10-24 (R43.2, D81c), from the self-healing supply chain's
+   Requirement 1.*
 
 ---
 

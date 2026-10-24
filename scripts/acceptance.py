@@ -134,6 +134,9 @@ class RepoResult:
     #: A second scan's seconds, nothing having changed: the warm scan the speed gate
     #: measures (R14.5, D21). None when not asked for.
     rescan_seconds: float | None = None
+    #: The release a repository is, `(tag, commit)`, from its `expected.toml`: `6-self`
+    #: is the latest (R43.2). None for the others.
+    released: tuple[str, str] | None = None
 
     @property
     def ok(self) -> bool:
@@ -184,7 +187,10 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
         began = _time.monotonic()
         scan(root)
         again = round(_time.monotonic() - began, 1)
-    return RepoResult(root.name, verdict, seconds, containers(), time, scanners, again)
+    run = expected.get("run", {})
+    released = (run["tag"], run["commit"]) if run.get("tag") and run.get("commit") else None
+    return RepoResult(root.name, verdict, seconds, containers(), time, scanners, again,
+                      released)
 
 
 def _scanner_times(run_json: Path) -> dict[str, float]:
@@ -212,6 +218,9 @@ def render_markdown(results: list[RepoResult], platform: dict) -> str:
                      f"{r.time[0]} | {r.containers_after} | {len(r.verdict.missing)} | "
                      f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |"
                      + (f" {r.rescan_seconds} |" if rescanned else ""))
+    for r in results:
+        if r.released:
+            lines += ["", f"{r.name} scanned {r.released[0]} ({r.released[1][:7]})."]
     if rescanned:
         lines += ["", f"Median warm rescan: {_median_rescan(results)} s (the speed gate's "
                       "measure, R14.5)."]
@@ -241,7 +250,9 @@ def to_json(results: list[RepoResult], platform: dict) -> dict:
          "pending": r.verdict.pending, "blocking": r.verdict.blocking,
          "forbidden": r.verdict.forbidden, "incomplete": r.verdict.incomplete,
          "unexpected": r.verdict.unexpected, "scanners": r.scanners,
-         "rescan_seconds": r.rescan_seconds} for r in results]}
+         "rescan_seconds": r.rescan_seconds,
+         **({"release": {"tag": r.released[0], "commit": r.released[1]}}
+            if r.released else {})} for r in results]}
 
 
 def discover(set_dir: Path, only: str | None = None) -> dict[str, Path]:
