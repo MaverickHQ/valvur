@@ -494,8 +494,8 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     - CVE-2026-111943 in the standard library of all four Go Scanners: gitleaks (Go 1.24.13),
       osv-scanner (1.27.0), syft (1.26.8) and trivy (1.27.1), fixed in 1.26.10 and 1.27.3.
 
-    Its time: 3.1 s on amd64. arm64 is not measurable in this VM; CI's arm64 leg on R43's pull
-    request gives it.
+    Its time here: 3.1 s on amd64, the first run. On #244's CI, the scan step took 0.89 s on amd64
+    and 0.64 s on arm64.
   - **The image on Alpine 3.24** (#241's base, built here): 0.9 s, and no OS package blocks.
     131 still block, so the check will be red until the owner decides:
     - 125 are in the Go Scanners' binaries: their standard library and `golang.org/x/*`
@@ -528,6 +528,11 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   - **No document offers image scanning:** a test reads the README and `docs/*.md` for it, and
     holds the ROADMAP's *being considered* row. zizmor's only new findings are two low
     `self-repository` notes on `acceptance.yml`'s new `file-issue` steps.
+  - **Behaviour 8, on #244's CI (head `9d25a7f`):** both legs ran and were red, as expected,
+    with the same verdict: 192 blocking, 0 accepted, 5 with no fix. On this branch's Alpine 3.22
+    base, 61 are OS packages, 125 are in the Go binaries and 6 are `pip`. The Alpine 3.24 base
+    (#241) removes the 61. The green the task names waits for the Go Scanners' releases, or for
+    the owner's entries in `.github/image-accepted.yaml` (§3).
   - `test_issues_close_themselves.py`'s step parser let a job-level `if:` leak into the step
     before it; a step now ends where the next job begins. Requirement 16 is N2.7.
 
