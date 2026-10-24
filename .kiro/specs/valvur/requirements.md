@@ -972,6 +972,9 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    automation SHALL score it against the baseline and tell the owner, once a month,
    and SHALL NOT tag, push or publish. *Added 2026-09-30 (R16.4): cited by D34 and R16.3
    since R9.2, and never written here; met by R16.3, 2026-09-30.*
+6. N3.6 — The unattended build SHALL read every spec's task list under `.kiro/specs/`, the
+   main list first, so that a resuming session finds the next open task in whichever list
+   holds it. *Added 2026-10-24 (R42.1), from the self-healing supply chain's Requirement 14.*
 
 ### N4 — Evaluation
 *Added 2026-09-29 (R9.2, ADR-0026), met by R9.3 to R9.6, 2026-09-29.* *Amended

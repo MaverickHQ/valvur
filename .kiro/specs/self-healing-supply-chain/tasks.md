@@ -113,7 +113,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R42: the incident closed, and one writer for the Checkov lock
 
-- [ ] **R42.1** **This spec on the build's rails** (D81). Behaviours:
+- [x] **R42.1** **This spec on the build's rails** (D81). Behaviours:
   1. `build_status.position` reads the main list, then each other `.kiro/specs/*/tasks.md` in
      name order, and returns this spec's first unchecked task when the main list has none.
      A spec missing on a ref reads as an empty list, not an error.
@@ -129,6 +129,16 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      `CLAUDE.md` §9's *Spec-driven* line names `.kiro/specs/*/`.
 
   _Requirements: 14.1, 14.2, 14.3_
+
+  **STATUS 2026-10-24:** ✅ 1 to 4, in a cloud session (D61).
+  - `build_status.position` takes the lists in order, and `task_lists(repo, ref)` reads the main
+    list, then every other `.kiro/specs/*/tasks.md` on the ref by name; a spec the ref does not
+    hold is not read, so `origin/main` reads as today until R42 lands.
+  - The live lists both pass `shape_errors`; `acceptance.task_list` reads every spec's list
+    before the archives, so `ticked` resolves an `until` naming R42 to R47.
+  - The main list gained the amendment paragraph (approved in halves on 2026-10-24, R42 and R43
+    first), D81's row, R42 to R47 in §6 and §8's row pointing to §3 here. `CLAUDE.md` §9 names
+    `.kiro/specs/*/`, at 199 lines. Requirement 14 is defined as N3.6.
 
 - [ ] **R42.2** **The lock fix lands** (#234). Behaviours:
   1. `fix/checkov-lock-aiohttp-certifi` (`698b21e`) is signed again on `origin/main`, by a

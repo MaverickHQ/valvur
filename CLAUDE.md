@@ -147,8 +147,8 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
 
 ## 9. How we work
 
-- **Spec-driven.** `.kiro/specs/valvur/` holds requirements, design and tasks; `tasks.md` is
-  authoritative. Requirement IDs are **never renumbered**; change one by amendment.
+- **Spec-driven.** `.kiro/specs/*/` hold requirements, design and tasks, `valvur/` first; each
+  `tasks.md` is authoritative. Requirement IDs are **never renumbered**; change one by amendment.
 - **Layers** (D50): `core` < `infra` < `app` < `surfaces`, no cycle, held by `scripts/layers.toml`
   and `scripts/check_layers.py` in `verify.sh`. A deferred import says why: `# deferred:`.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), used exactly. **Measure before writing:** a
