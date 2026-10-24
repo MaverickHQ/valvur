@@ -224,7 +224,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 4.1, 4.2_
 
-- [ ] **R42.4** **The lock is what its recipe writes**. Behaviours:
+- [x] **R42.4** **The lock is what its recipe writes**. Behaviours:
   1. **Measure first:**
      - Does `scripts/lock-checkov.sh` with `--no-build` reproduce today's lock byte for byte?
        This needs pypi.org, which `src/valvur/egress.py` names.
@@ -242,6 +242,27 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      copy of the tree whose lock pins asteval 1.0.6, and on one whose markers were stripped.
 
   _Requirements: 4.3, 4.4, 4.5, 4.6_
+
+  **STATUS 2026-10-24:** ✅ 1 to 5, the pull request's half of 5 recorded at R42's exit.
+  - **Measured, `--no-build`:** the recipe with `--no-build` rewrites today's lock byte for
+    byte, under uv 0.11.32 (this VM's) and under uv 0.13.5. With no lock to prefer, 0.13.5
+    moves beartype, certifi, charset-normalizer and more, so the existing lock as uv's
+    preference is what keeps a re-lock to the packages named.
+  - **Measured, CI's uv:** `astral-sh/setup-uv` v10.2.0 looks for a version in `uv.toml`, then
+    `pyproject.toml`, and finding none installs the latest: 0.13.5, in `ci`'s run 40070884696
+    on `main` that morning. `pyproject.toml` now names `[tool.uv] required-version = "==0.13.5"`,
+    which uv itself enforces on the Mac and in a session, and which every one of the 17
+    `setup-uv` steps reads from its checkout; a test holds that none names a version of its own.
+    The Mac needs uv 0.13.5 (`uv self update 0.13.5`) from this commit on.
+  - **The recipe** prints `uv --version`, adds `--no-build`, and passes `"$@"` after its own
+    arguments. `tests/test_checkov_lock_recipe.py` builds wheels in `tmp_path` and resolves
+    through `--no-index --find-links`: a constraint reaches uv, the existing lock is kept until
+    `--upgrade-package` names a package, and an sdist-only package is refused by name.
+  - **`.github/workflows/lock.yml`:** `pull_request` on the recipe's paths, `permissions: {}`,
+    the job's `contents: read`, pinned actions, one run per pull request; zizmor at the auditor
+    persona finds nothing (it first asked for the concurrency group).
+  - **Proof, locally:** the check's command exits 1 on a copy whose lock pins asteval 1.0.6,
+    and on one whose `win32` markers were stripped; on the unchanged lock it exits 0.
 
 - [ ] **R42.5** **A watchdog over the scheduled workflows** (D81s, amendment 1). Behaviours:
   1. **Measure first:** every workflow with a `schedule:`, its crons and its longest gap
