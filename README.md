@@ -100,9 +100,10 @@ points under. It is **74.1** out of 100, the same on Linux and on macOS.
 Track 8 is precision on maintained code, where almost nothing is a vulnerability: 3 of its
 171 findings are real. Track 9 measures the rules for model output reaching a sink: they
 catch 30 of 34 generated flows with no false alarm, and none of five published advisories
-in LangChain, LlamaIndex and Vanna, whose flows each cross a function. Each rule's precision is in [`docs/RULES.md`](docs/RULES.md), and
-the method, the gates and what valvur does **not** claim are in
-[`docs/EVALUATING.md`](docs/EVALUATING.md). Read that one sceptically.
+in LangChain, LlamaIndex and Vanna, whose flows each cross a function. Each rule's
+precision is in [`docs/RULES.md`](docs/RULES.md), and the method, the gates and what
+valvur does **not** claim are in [`docs/EVALUATING.md`](docs/EVALUATING.md). Read that one
+sceptically.
 
 ## Use it
 
@@ -185,8 +186,9 @@ auditable and mirrorable. No proprietary database, and nothing to lock you in.
 | Native Windows | **Not claimed.** Untested, and valvur says so at startup |
 | SELinux-enforcing hosts (RHEL, Fedora) | Supported. Your source is copied into the scan and never mounted, so its SELinux label does not matter; valvur labels its own cache mounts |
 
-**Air-gapped?** The database, the Name Index and its malicious list, KEV, EPSS and
-OSV's databases all live outside the image, and each has a mirror setting. See [`docs/AIR-GAPPED.md`](docs/AIR-GAPPED.md).
+**Air-gapped?** The database, the Name Index and its malicious list, KEV, EPSS and OSV's
+databases all live outside the image, and each has a mirror setting. See
+[`docs/AIR-GAPPED.md`](docs/AIR-GAPPED.md).
 
 ## Privacy
 
