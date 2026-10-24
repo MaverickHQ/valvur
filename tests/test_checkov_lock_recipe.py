@@ -100,3 +100,45 @@ def test_a_package_that_needs_a_build_to_resolve_is_refused_and_named(tmp_path):
 
     assert run.returncode != 0
     assert "gamma" in run.stderr and "building from source is disabled" in run.stderr
+
+
+def _required_uv() -> str:
+    import tomllib
+
+    return tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["uv"]["required-version"]
+
+
+def test_one_uv_version_is_named_where_uv_and_setup_uv_both_read_it():
+    """`astral-sh/setup-uv` reads `[tool.uv] required-version` from `pyproject.toml`
+    and, finding none, installed the latest (0.13.5 in CI on 2026-10-24, while this
+    VM had 0.11.32). uv itself refuses to run under any other version."""
+    import re
+
+    assert re.fullmatch(r"==\d+\.\d+\.\d+", _required_uv())
+
+
+def _steps_of_setup_uv() -> list[tuple[str, str, str]]:
+    """(file, the job's text before the step, the step's text) for every setup-uv."""
+    import re
+
+    found = []
+    for path in sorted((REPO / ".github").rglob("*.yml")):
+        text = path.read_text()
+        jobs = re.split(r"^  [\w-]+:\n", text, flags=re.M) if "\njobs:\n" in text else [text]
+        for job in jobs:
+            for match in re.finditer(r"^( +)- (?:name: .*\n\1  )?uses: astral-sh/setup-uv@.*\n"
+                                     r"((?:\1  .*\n)*)", job, re.M):
+                found.append((path.relative_to(REPO).as_posix(), job[:match.start()],
+                              match.group(2)))
+    return found
+
+
+def test_every_setup_uv_step_installs_the_named_version():
+    """It reads `pyproject.toml` from the checkout, so each one follows a checkout and
+    names no version of its own."""
+    steps = _steps_of_setup_uv()
+
+    assert len(steps) >= 10
+    for path, before, step in steps:
+        assert "actions/checkout@" in before, path
+        assert "version" not in step and "working-directory" not in step, (path, step)
