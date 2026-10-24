@@ -191,7 +191,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: none here. It closes the incident the requirements answer._
 
-- [ ] **R42.3** **Dependabot stays out of the Checkov lock** (D81p). Behaviours:
+- [x] **R42.3** **Dependabot stays out of the Checkov lock** (D81p). Behaviours:
   1. `.github/dependabot.yml`'s `pip` and `uv` entries carry `exclude-paths` naming
      `requirements-checkov.in`, `.overrides` and `.txt`. A new test holds it, and the comment
      says why: #231 and #236 came from `uv`, #232 and #237 from `pip`.
@@ -207,6 +207,20 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   closed #231 and #232 itself and opened #236 (`uv`) and #237 (`pip`), the same re-lock
   (asteval 1.0.6, the `win32` markers dropped) with auto-merge on. Only their red checks
   held them. Both were closed with `@dependabot close` the same day.
+
+  **STATUS 2026-10-24:** ✅ 1 and 2; 3 waits for R42 to land, since Dependabot reads its
+  configuration from `main` alone.
+  - `.github/dependabot.yml`'s `uv` and `pip` entries name the three files under
+    `exclude-paths`, with the four pull requests in the comment. The `pip` entry is left with
+    zizmor's lock, and its group is renamed from `checkov` to `zizmor`.
+    `tests/test_checkov_lock_one_writer.py` holds both entries, line by line.
+  - `scripts/dependabot_auto_merge.py` refuses a pull request that changes any of the three,
+    naming the file and the recipe. Of its twenty-one tests, twenty pass unchanged. The first
+    took #200's shape, the Checkov lock and its input, as its example of a pull request that
+    may land itself, which is exactly what this task reverses, so it now uses zizmor's lock and
+    `uv.lock`, and its docstring says why.
+  - **Behaviour 3, waiting:** the first weekly Dependabot run after R42 lands, recorded here with
+    its date. Requirement 4 is defined as N3.7.
 
   _Requirements: 4.1, 4.2_
 
