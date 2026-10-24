@@ -140,7 +140,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     first), D81's row, R42 to R47 in §6 and §8's row pointing to §3 here. `CLAUDE.md` §9 names
     `.kiro/specs/*/`, at 199 lines. Requirement 14 is defined as N3.6.
 
-- [ ] **R42.2** **The lock fix lands** (#234). Behaviours:
+- [x] **R42.2** **The lock fix lands** (#234). Behaviours:
   1. `fix/checkov-lock-aiohttp-certifi` (`698b21e`) is signed again on `origin/main`, by a
      cherry-pick onto a new branch (auto mode refuses `git commit --amend`), pushed, and
      opened as its own pull request. The body has these sections:
@@ -185,6 +185,9 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     GitHub re-read the lock.
   - **Behaviour 3:** 1.5.4 is prepared on `release/1.5.4`. The `SELF_PIN` move ships in
     `docs/1.5.4-published`, after 1.5.4 is published.
+  - **Ticked 2026-10-24 with behaviour 3 recorded as waiting**, as R21.3's smoke run was
+    (D61h), so that `build_status.py` does not send every resuming session back to it: the
+    release is the owner's (§3), and R43.2 removes `SELF_PIN` in any case.
 
   _Requirements: none here. It closes the incident the requirements answer._
 
