@@ -114,15 +114,28 @@ def test_the_report_has_a_healing_column_and_report_json_the_field(tmp_path):
     assert acceptance.to_json([result], {})["repositories"][0]["healing"] == verdict.healing
 
 
-def test_6_self_sets_a_48_hour_window(tmp_path, monkeypatch):
+def test_6_self_sets_a_48_hour_window(tmp_path):
+    """On a repository of its own with one release tag: CI's checkout is shallow and
+    has no tags."""
+    import subprocess
+
     spec = importlib.util.spec_from_file_location(
         "acceptance_generate", REPO / "scripts" / "acceptance" / "generate.py")
     generate = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     sys.modules["acceptance_generate"] = generate
     spec.loader.exec_module(generate)  # type: ignore[union-attr]
+    released = tmp_path / "released"
+    released.mkdir()
+    (released / "VERSION").write_text("1.0.0\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"],
+                 ["commit", "-q", "-m", "chore: release 1.0.0"],
+                 ["tag", "-a", "v1.0.0", "-m", "1.0.0"]):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                        "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", *args],
+                       cwd=released, check=True, capture_output=True)
     root = tmp_path / "6-self"
 
-    generate.self_at_release(root)
+    generate.self_at_release(root, repo=released)
 
     run = tomllib.loads((root / "expected.toml").read_text())["run"]
     assert run["healing_window_hours"] == 48
