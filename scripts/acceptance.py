@@ -29,6 +29,9 @@ class Verdict:
     #: Finding paths under a `must_not` prefix.
     forbidden: list[str] = field(default_factory=list)
     incomplete: bool = False
+    #: Dependency advisories younger than the repository's healing window, as
+    #: "rule at path (severity), <n> h old": reported, never blocking (R43.3, D81b).
+    healing: list[str] = field(default_factory=list)
 
 
 def ticked(tasks_text: str) -> set[str]:
@@ -52,9 +55,37 @@ def _matches(rule: str, finding: dict) -> bool:
     return found == rule or found.endswith(rule)
 
 
-def judge(results: Path, expected: dict, tasks_text: str) -> Verdict:
-    """What a scan wrote into `results`, against what the repository expects."""
+def _healing_hours(finding: dict, window: object, scanned_at) -> float | None:
+    """The advisory's age in hours when the Finding is healing: a dependency
+    vulnerability, not a malicious package, with a readable publication date younger
+    than the window (R43.3, D81b). None otherwise: missing data never widens it."""
+    from datetime import UTC, datetime
+
+    dependency = finding.get("dependency") or {}
+    published = dependency.get("advisory_published") if isinstance(dependency, dict) else None
+    names = [str(finding.get("rule", "")), *(str(a) for a in finding.get("aliases") or [])]
+    if (not isinstance(window, int | float) or isinstance(window, bool) or not published
+            or any(n.startswith("MAL-") for n in names)
+            or names[0] == "valvur.dependency.malicious"):
+        return None
+    try:
+        when = datetime.fromisoformat(str(published).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    when = when if when.tzinfo else when.replace(tzinfo=UTC)
+    hours = (scanned_at - when).total_seconds() / 3600
+    return hours if 0 <= hours < window else None
+
+
+def judge(results: Path, expected: dict, tasks_text: str, *,
+          scanned_at=None) -> Verdict:
+    """What a scan wrote into `results`, against what the repository expects. A healing
+    window's age is measured against `scanned_at`, when the harness started the scan:
+    `run.json` records no time (R43.3)."""
     import json
+    from datetime import UTC, datetime
+
+    scanned_at = datetime.now(UTC) if scanned_at is None else scanned_at
 
     findings = json.loads((results / "findings.json").read_text())["findings"]
     verdict = Verdict()
@@ -86,13 +117,18 @@ def judge(results: Path, expected: dict, tasks_text: str) -> Verdict:
     verdict.incomplete = bool(expected.get("run", {}).get("complete")) and not run.get(
         "complete")
     allowed = expected.get("run", {}).get("unexpected") == "allowed"
+    window = expected.get("run", {}).get("healing_window_hours")
     for finding in findings:
         if finding.get("suppressed") or named(finding):
             continue
         line = f"{finding.get('rule')} at {finding.get('path')} ({finding.get('severity')})"
         verdict.unexpected.append(line)
         if not allowed and str(finding.get("severity")) in BLOCKING:
-            verdict.blocking.append(line)
+            age = _healing_hours(finding, window, scanned_at)
+            if age is None:
+                verdict.blocking.append(line)
+            else:
+                verdict.healing.append(f"{line}, {int(age)} h old")
     verdict.ok = not (verdict.missing or verdict.blocking or verdict.forbidden
                       or verdict.incomplete)
     return verdict
@@ -171,11 +207,14 @@ def run_repo(root: Path, *, scan=_cli_scan, containers=_containers_alive,
 
     if tasks_text is None:
         tasks_text = task_list()
+    from datetime import UTC, datetime
+
+    scanned_at = datetime.now(UTC)
     started = time.monotonic()
     scan(root)
     seconds = time.monotonic() - started
     expected = tomllib.loads((root / "expected.toml").read_text())
-    verdict = judge(root / ".security-scan", expected, tasks_text)
+    verdict = judge(root / ".security-scan", expected, tasks_text, scanned_at=scanned_at)
     seconds = round(seconds, 1)
     time = judge_time(seconds, expected, tasks_text,
                       platform if platform is not None else platform_info())
@@ -211,12 +250,13 @@ def render_markdown(results: list[RepoResult], platform: dict) -> str:
     lines = [f"Platform: {platform.get('platform', 'unknown')}; host swap in use "
              f"{platform.get('swap_gb', '?')} GB.", "",
              "| repository | verdict | seconds | time target | containers left | missing "
-             "| pending | blocking |" + (" rescan |" if rescanned else ""),
-             "|---|---|---|---|---|---|---|---|" + ("---|" if rescanned else "")]
+             "| pending | blocking | healing |" + (" rescan |" if rescanned else ""),
+             "|---|---|---|---|---|---|---|---|---|" + ("---|" if rescanned else "")]
     for r in results:
         lines.append(f"| {r.name} | {'pass' if r.ok else 'FAIL'} | {r.seconds} | "
                      f"{r.time[0]} | {r.containers_after} | {len(r.verdict.missing)} | "
-                     f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} |"
+                     f"{len(r.verdict.pending)} | {len(r.verdict.blocking)} | "
+                     f"{len(r.verdict.healing)} |"
                      + (f" {r.rescan_seconds} |" if rescanned else ""))
     for r in results:
         if r.released:
@@ -248,6 +288,7 @@ def to_json(results: list[RepoResult], platform: dict) -> dict:
         {"name": r.name, "ok": r.ok, "seconds": r.seconds, "time": list(r.time),
          "containers_after": r.containers_after, "missing": r.verdict.missing,
          "pending": r.verdict.pending, "blocking": r.verdict.blocking,
+         "healing": r.verdict.healing,
          "forbidden": r.verdict.forbidden, "incomplete": r.verdict.incomplete,
          "unexpected": r.verdict.unexpected, "scanners": r.scanners,
          "rescan_seconds": r.rescan_seconds,

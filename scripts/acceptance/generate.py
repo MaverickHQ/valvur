@@ -246,6 +246,8 @@ def self_at_release(root: Path, *, repo: Path = REPO) -> None:
     _expected(root, f"""
 [run]
 complete = true
+# A dependency advisory younger than this is healing, not blocking (R43.3, D81b).
+healing_window_hours = 48
 tag = "{tag}"
 commit = "{commit}"
 """)

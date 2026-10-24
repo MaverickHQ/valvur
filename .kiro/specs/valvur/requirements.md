@@ -1014,6 +1014,12 @@ the Score 59.3 at R9 and 64.9 at R13 to R15, on both lanes (`docs/acceptance/`).
    tag is reachable THEN generation SHALL fail and say why; no commit SHALL be hard-coded
    for it. *Added 2026-10-24 (R43.2, D81c), from the self-healing supply chain's
    Requirement 1.*
+6. N4.6 — WHEN a repository of the acceptance set sets `healing_window_hours`, an unexpected
+   dependency vulnerability **Finding** whose advisory was published less than that window
+   before the scan SHALL be reported as `healing`, with its age, and SHALL NOT block. A
+   **Finding** with no readable date, a malicious package, or any other class SHALL be
+   judged as before. Only `6-self` sets a window, 48 hours. *Added 2026-10-24 (R43.3,
+   D81b), from the self-healing supply chain's Requirement 2.*
 
 ---
 
