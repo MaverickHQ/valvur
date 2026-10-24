@@ -61,3 +61,10 @@ jobs:
             Nothing users have changes. What is lost is the daily check that every scheduled workflow ran and passed, so a silent failure elsewhere would go unseen until this is fixed.
 
             Recovery: read the run's log, fix the cause, and dispatch this workflow again.
+
+      - name: A run that passes closes it
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: "watchdog: watchdog.yml"
+          passed: "true"
