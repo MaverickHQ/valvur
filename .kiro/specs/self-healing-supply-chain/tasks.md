@@ -544,7 +544,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     - the image is scanned as it ships (N2.7).
   - **Measured at each exit** (`docs/acceptance/r42.md`, `r43.md`): the Score 74.1, every track at
     its baseline; the acceptance set 7 of 8, `6-self` red on the advisories 1.5.4 fixes.
-  - **Pull requests:** R42 is #242 and R43 its stacked successor. Both land after 1.5.4. The
+  - **Pull requests:** R42 is #242 and R43 is #244, stacked on it. Both land after 1.5.4. The
     base move they need for a green image gate is #241, carried into `release/1.5.4`.
   - **Left for the owner,** in §3:
     - the scope of R44 and R45, which is ready now;
