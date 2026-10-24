@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.5.4] — 2026-10-24
+
 ### Security
 
 - **aiohttp 3.14.5 and certifi 2026.10.19** in the image's Checkov environment, past nine
