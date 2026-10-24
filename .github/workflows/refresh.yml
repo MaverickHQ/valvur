@@ -42,8 +42,10 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Every Monday, not only the first: the local actions below are read from the
+      # checkout, the issue a failure files among them (2026-10-12 and 10-19 failed
+      # without one).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.when.outputs.run == 'true'
         with:
           persist-credentials: false
           fetch-depth: 0     # the release tags: the latest one's pins are read from it
@@ -66,6 +68,7 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         if: steps.pins.outputs.changed == 'true'
       - id: version
+        if: steps.pins.outputs.changed == 'true'
         uses: ./.github/actions/version
       - name: Build the image from main
         if: steps.pins.outputs.changed == 'true'

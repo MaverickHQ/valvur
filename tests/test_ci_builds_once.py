@@ -127,3 +127,19 @@ def test_each_python_the_package_claims_is_one_ci_tests():
     tested |= set(re.findall(r"uv venv --python (3\.\d+)", CI["test"]))
 
     assert claimed <= tested, sorted(claimed - tested)
+
+
+def test_a_local_action_is_found_because_its_checkout_always_runs():
+    """A local action is read from the checkout. `refresh.yml` checked out only on a
+    month's first Monday, so on every other Monday its `version` step failed, and so did
+    the `file-issue` step that should have said so (2026-10-12, 2026-10-19)."""
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        for name, job in _jobs(path.read_text(encoding="utf-8")).items():
+            steps = job.split("\n      - ")[1:]
+            local = [i for i, s in enumerate(steps) if re.search(r"^\s*uses: \./", s, re.M)]
+            if not local:
+                continue
+            checkouts = [s for s in steps[:local[0]] if "uses: actions/checkout@" in s]
+            assert checkouts, f"{path.name}, {name}: a local action before any checkout"
+            assert not re.search(r"^\s*if:", checkouts[0], re.M), \
+                f"{path.name}, {name}: the checkout its local actions need is conditional"
