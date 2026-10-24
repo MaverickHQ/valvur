@@ -26,6 +26,14 @@ break things, and has.
   below 4. The pull request's own self-scan release gate found it; nothing else in the lock
   moved.
 
+### Changed
+
+- **Python 3.14, claimed and tested.** The package's classifiers name it, and CI runs the
+  unit suite on 3.11, 3.13 and 3.14, beside 3.12, which everything else runs on. On 3.14 a
+  TOML file nested past the interpreter's limit is reported as before, without a
+  deprecation warning. The roadmap is current, and the air-gapped guide's mirror example
+  names no release, so it cannot go stale.
+
 ## [1.5.3] — 2026-10-11
 
 Model output reaching a sink, measured. valvur's four rules for model output reaching code, a

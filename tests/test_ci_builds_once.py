@@ -113,3 +113,17 @@ def test_the_required_checks_keep_their_names():
     for job in CI.values():
         names |= _names(job)
     assert REQUIRED <= names, sorted(REQUIRED - names)
+
+
+def test_each_python_the_package_claims_is_one_ci_tests():
+    """A classifier is a claim on PyPI's page: `>=3.11` was once claimed and 3.12 alone
+    tested (28.3.4, B1)."""
+    import tomllib
+
+    project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    claimed = {c.rsplit(" :: ", 1)[1] for c in project["project"]["classifiers"]
+               if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", c)}
+    tested = {leg["python"] for leg in _legs(CI["floor"])}
+    tested |= set(re.findall(r"uv venv --python (3\.\d+)", CI["test"]))
+
+    assert claimed <= tested, sorted(claimed - tested)

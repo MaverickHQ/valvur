@@ -31,15 +31,16 @@ jobs:
 
   # The versions `requires-python` names, beyond the one everything else runs on
   # (28.3.4, B1): `>=3.11` was claimed and 3.12 alone tested. The unit suite on
-  # the floor and on the newest, about forty seconds each; lint, types and the
-  # package build stay on the job above, once.
+  # the floor, on 3.13 and on the newest, about forty seconds each; lint, types and
+  # the package build stay on the job above, once. 3.11's and 3.13's legs are
+  # required checks, so a new version is added beside them, never in their place.
   floor:
     name: the tests on Python ${{ matrix.python }}
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.11", "3.13"]
+        python: ["3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
