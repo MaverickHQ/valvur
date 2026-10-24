@@ -963,6 +963,12 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    measured — and `trivy.db` is a 1.35GB file rewritten under live readers. Task 14.2
    put `--if-stale` into pre-commit hooks, which made the overlap likely rather than
    theoretical.*
+7. N2.7 — valvur's own CI and release SHALL scan the image they build, with its own Trivy
+   over its root filesystem, with no network: a vulnerability with a fixed version SHALL
+   block unless the owner accepted it, with an expiry, in a file no automation writes. One
+   with no fixed version SHALL be reported. This is the project checking its own image,
+   not a feature offered to users. *Added 2026-10-24 (R43.4, D81t), from the self-healing
+   supply chain's Requirement 16.*
 ### N3 — Operability
 1. N3.1 — Every **Scan Run** SHALL produce **Provenance** sufficient to distinguish a
    **Clean Scan** from a failed one.
