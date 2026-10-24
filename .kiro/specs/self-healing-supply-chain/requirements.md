@@ -36,6 +36,20 @@ Findings, all in `requirements-checkov.txt` of the tree `SELF_PIN` names, 1.2.0'
 | GHSA-2g87-pp6c-29x5 | aiohttp 3.14.3 | high | 3.14.4 |
 | GHSA-6q48-6c7w-9gw2 | certifi 2026.7.22 | critical | 2026.10.19 |
 
+**Found after this table was written** (added 2026-10-24):
+
+| Advisory | Package | Severity | Fixed in | How it was found |
+|---|---|---|---|---|
+| CVE-2026-114145 (GHSA-83vg-56qc-22m7) | gitpython 3.1.62 | high | 3.2.1 | published 2026-10-22; the lock fix's own pull request, #235, by its self-scan gate (N2.5) on 2026-10-23 |
+| CVE-2026-111065 (GHSA-6cjc-53gc-5rqm) | aiohttp 3.14.3 | medium | 3.14.4 | published 2026-10-20; raised as a Dependabot alert on 2026-10-22 |
+| CVE-2026-111748 (GHSA-f9xw-jh8m-3mwq) | aiohttp 3.14.3 | medium | 3.14.4 | the same |
+| CVE-2026-111750 (GHSA-pqxq-w44r-73xw) | aiohttp 3.14.3 | medium | 3.14.4 | the same |
+| CVE-2026-111749 (GHSA-gx76-c99x-2c96) | aiohttp 3.14.3 | low | 3.14.4 | the same |
+
+The aiohttp four are medium and low, so they would not have blocked `6-self`; the same
+upgrade to 3.14.5 fixes them. GitPython's would have, once published. 1.5.4 ships all ten
+fixes, with GHSA-494j-54xm-rwp3 (CVE-2026-111063, low), which the same aiohttp release fixes.
+
 - **`main` and the published 1.5.3 image have the same versions.** The fixes were on PyPI
   before the first red night: aiohttp 3.14.5 since 2026-10-11, certifi 2026.10.19 since
   2026-10-20.
