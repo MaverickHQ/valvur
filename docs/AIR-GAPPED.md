@@ -120,15 +120,16 @@ owner's to record (`tasks.md` §8). What is measured is the same mirror in a loc
 
 ```bash
 REGISTRY=<account>.dkr.ecr.<region>.amazonaws.com
+VERSION=<version>   # the release to mirror: the number `valvur --version` prints
 aws ecr create-repository --repository-name valvur
 aws ecr create-repository --repository-name trivy-db
 aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
 aws ecr get-login-password | oras login --username AWS --password-stdin "$REGISTRY"
 
 # The image, and the vulnerability database.
-docker pull ghcr.io/maverickhq/valvur:1.1.0
-docker tag ghcr.io/maverickhq/valvur:1.1.0 "$REGISTRY/valvur:1.1.0"
-docker push "$REGISTRY/valvur:1.1.0"
+docker pull "ghcr.io/maverickhq/valvur:$VERSION"
+docker tag "ghcr.io/maverickhq/valvur:$VERSION" "$REGISTRY/valvur:$VERSION"
+docker push "$REGISTRY/valvur:$VERSION"
 oras cp mirror.gcr.io/aquasec/trivy-db:2 "$REGISTRY/trivy-db:2"
 ```
 
