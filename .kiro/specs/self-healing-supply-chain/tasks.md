@@ -788,7 +788,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R47: Scanner upgrades that prepare themselves
 
-- [ ] **R47.1** **Measure first** (D81v, amendment 4). Behaviour: the STATUS records each of
+- [x] **R47.1** **Measure first** (D81v, amendment 4). Behaviour: the STATUS records each of
   these:
   1. every place each Scanner's version is pinned today: the Dockerfile's stage,
      `scripts/scanner_pins.py`'s sources, the adapters, the golden fixtures, the documents.
@@ -797,6 +797,57 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      describes, gives the same bytes;
   3. for each Scanner's newest release, its Go toolchain, read from the binary's build
      information. A `go.mod` line is a minimum, not the toolchain.
+
+  **STATUS 2026-10-25:** ✅ 1 to 3, in a cloud session (D61). **Pulled forward** into 1.6.0
+  with R47.2 and R47.3, at the owner's word of 2026-10-25 (§3); R47.4 and R47.5 stay with R44
+  to R46.
+  1. **The pins.** Each Scanner's version is written in four kinds of place:
+     - *its stage*, which Dependabot moves: the Dockerfile's `FROM` for Gitleaks, Trivy,
+       OSV-Scanner and Syft; for Opengrep, `ARG OPENGREP_URL` with its two sha256 `ARG`s;
+       `requirements-zizmor.txt`; `requirements-checkov.in` and the lock
+       `scripts/lock-checkov.sh` writes from it. `scripts/scanner_pins.py` reads exactly these;
+     - *its adapter*: `VERSION` in `src/valvur/adapters/<tool>.py`, which `run.json` records;
+     - *its golden*: `tests/fixtures/golden/<tool>-<version>.json`, and the version in
+       `PINNED_VERSIONS` in `tests/conftest.py`, which names it. Gitleaks has no golden:
+       conftest builds its output;
+     - *the documents*: `docs/PROTOCOL.md`'s Scanner table, and for Opengrep the default
+       `VERSION` in `scripts/verify-opengrep.sh`.
+
+     Not pins: test literals that build a `ScannerOutput` with a version, conftest's quiet
+     fakes, comments that cite the version a behaviour was measured on, and records
+     (`ROADMAP.md`, the CHANGELOG, `docs/history/`, `docs/acceptance/`).
+     **Why #229, #230 and #238 are red:** each moves the stage alone (OSV-Scanner 2.7.0 and
+     Syft 1.54.1 since 2026-10-17, Trivy 0.76.0 since 2026-10-24). Applying #238's one line to
+     this tree fails exactly two tests, both in `test_scanner_pins.py`: the adapter still
+     declares 0.75.0, and `PINNED_VERSIONS` and the golden's name still say 0.75.0. Nothing
+     else fails (2,328 passed).
+  2. **Twice, the same bytes?** `docs/MAINTENANCE.md` described no recapture, so the recipe
+     is the one the goldens' commits used (`e521840`, `ef3c335`): the adapter's own command,
+     as the `offline` Profile builds it, in one Scan Container fed a Snapshot of a fixture
+     copy, its report kept as written. Opengrep, Checkov and OSV-Scanner on `broken-repo`;
+     Trivy on its `package-lock.json` and `requirements.txt`; Syft on its `requirements.txt`;
+     zizmor on `workflows-repo`. OSV-Scanner needs its offline databases first, and the
+     networked adapter writes an empty report in a container with none. Two captures each,
+     on today's image and data:
+     - **byte for byte:** Opengrep (41,526 bytes), zizmor (7,999) and OSV-Scanner (1,411,614);
+     - **only the run's identity differs:** Trivy's `ReportID` and `CreatedAt`, and Syft's
+       `serialNumber` and `metadata.timestamp`;
+     - **only the order differs:** Checkov's `failed_checks` (the same 13 checks), as
+       `ef3c335` saw.
+
+     So "the same" is judged after those fields are blanked and Checkov's checks sorted, and
+     only those: anything else that differs refuses the recapture (R47.3).
+  3. **Go toolchains,** by `go version` on each binary, copied from its image:
+
+     | Scanner | pinned | its Go | newest | its Go |
+     |---|---|---|---|---|
+     | Gitleaks | 8.30.1 | go1.24.13 | 8.30.1 (2026-03-12) | go1.24.13 |
+     | Trivy | 0.75.0 | go1.27.1 | 0.76.1 | go1.27.3 |
+     | OSV-Scanner | 2.6.0 | go1.27.0 | 2.7.0 | go1.27.0 |
+     | Syft | 1.54.0 | go1.26.8 | 1.55.0 | go1.26.8 |
+
+     Opengrep is OCaml, zizmor Rust and Checkov Python: no Go. Gitleaks' go1.24 left Go's
+     support when go1.26 was released, and its last release is 227 days old.
 
 - [ ] **R47.2** **Every pin moves with the Dockerfile's.** Behaviours:
   1. `scripts/scanner_upgrade.py`, given a Scanner and its old and new versions, updates
@@ -841,7 +892,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | item | ready after | what the owner does |
 |---|---|---|
 | approve this spec | done, in halves, 2026-10-24 | R42 and R43 approved, with amendments 1 and 2 (§0, item 7). R42.1 records the date, the half and D81's acceptance for it |
-| decide R44 and R45's scope | **ready**: R43's phase commit, 2026-10-24 | weigh R44 and R45's standing merge, tag and release power against fewer packages in Checkov's tree, or none (§0, item 7; ADR-0019's reopening). Change any D81 row first, with `/grilling` if you like. Then start the second half with §0's prompt |
+| decide R44 and R45's scope | **decided 2026-10-25** | the owner, 2026-10-25: the second half, R44 to R47, is approved as specced, and Checkov stays through 1.x, since replacing it would change the rule IDs of IaC Findings and so break Suppressions, which the 1.0 promise keeps matching through 1.x. R47.1 to R47.3 are pulled forward into 1.6.0; they grant no power to merge, tag or release. R47.4 and R47.5 stay with R44 to R46. Gitleaks is built from its source with a current Go. R43 (#244) lands before 1.6.0 is released. Start the rest of the second half with §0's prompt |
 | land the lock fix, then release 1.5.4 | R42.2 | the fix landed as #235 on 2026-10-24, and Dependabot's alerts #5 to #12 closed with it. Release as `docs/RELEASING.md` says, with a rehearsal, since the lock is machinery. #234 closes after the `SELF_PIN` move or R43.2 |
 | close #231 and #232 | done | Dependabot closed them itself on 2026-10-24 and opened #236 and #237, the same re-lock with auto-merge on; those were closed with `@dependabot close` the same day (R42.3's baseline). Another may come with Dependabot's next weekly run, until R42.3 lands |
 | make the lock check required, optional | R42.4 landed | add `lock.yml`'s check to `main`'s required checks. The heal's policy runs the same comparison regardless |
@@ -856,7 +907,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | approve `SECURITY.md`'s sentence | R46.2 | read it in R46's pull request |
 | accept the image's unfixed findings | R43.4's behaviour 1 | write each into `.github/image-accepted.yaml`, with an expiry, as `.security-scan.toml`'s Suppressions are written. ecdsa's CVE-2024-23342, accepted for the tree since 2026-09-14, is the first. Nothing automated writes the file |
 | make the image check required, optional | R43.4 landed | add its two checks to `main`'s required checks |
-| allow `hub.docker.com` for the build | before R44.9 | the base heal reads Docker Hub's tag API, which neither `egress.py` nor ADR-0027 names (the main list's stop condition 5). Say yes, or choose another source |
+| allow `hub.docker.com` for the build | **allowed 2026-10-25** | the owner, 2026-10-25: the build may read `hub.docker.com`. The product still names neither it nor any other new host |
 | R47's workflow | when reached, if auto mode refused | R47.4, in a session in manual approve mode, from its STATUS |
 
 ---
