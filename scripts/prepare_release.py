@@ -7,9 +7,10 @@ It sets every version surface in one commit, `chore: release <version>`:
 alone (R26.4); `SECURITY.md`'s supported series; the
 CHANGELOG's heading, under an empty *Unreleased*; the skill's version and the scan it
 pins in the package, copied byte for byte to the Claude Code plugin and the Kiro power; the
-plugin's and the power's manifests and pinned servers; the plugin's hook; and the
-image the pipeline examples name. `--dry-run` prints what it would change and
-changes nothing. Either way it first names each file the release run builds from that
+plugin's and the power's manifests and pinned servers; the plugin's hook; the
+image the pipeline examples name; and the MCP Registry's entry. `--dry-run` prints
+what it would change and changes nothing. Either way it first names each file the
+release run builds from that
 changed since the last tag, or says none did: a rehearsal is asked for then and only
 then (D62a, R26.2). Nothing follows the release run: PyPI's badge says what is
 published, so there is no closing commit (D62c).
@@ -43,6 +44,8 @@ HOOK = Path("plugins/valvur/hooks/pre-tool-use.sh")
 #: The pipeline examples, which name the image this release publishes (R8.2).
 CITATION = Path("CITATION.cff")
 EXAMPLES = (Path("docs/examples/github-actions.yml"), Path("docs/examples/gitlab-ci.yml"))
+#: The official MCP Registry's entry, published after the release (docs/RELEASING.md).
+REGISTRY = Path("docs/mcp-registry/server.json")
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 #: What `release.yml` builds from besides the product itself: the workflow, the
 #: actions it runs from this repository, the bake file and the Dockerfile, the locks
@@ -127,6 +130,12 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
         plan[example] = _sub(rf"ghcr\.io/maverickhq/valvur:{re.escape(previous)}\b",
                              f"ghcr.io/maverickhq/valvur:{version}",
                              (root / example).read_text(), str(example))
+    if (root / REGISTRY).is_file():
+        entry = json.loads((root / REGISTRY).read_text())
+        entry["version"] = version
+        for package in entry["packages"]:
+            package["version"] = version
+        plan[REGISTRY] = json.dumps(entry, indent=2) + "\n"
     return plan
 
 

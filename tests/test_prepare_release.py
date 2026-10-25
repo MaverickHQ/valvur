@@ -23,7 +23,7 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "prepare_release.py"
 COPIED = ("pyproject.toml", "uv.lock", "README.md", "SECURITY.md", "CHANGELOG.md",
-          "src/valvur/data/skills", "plugins", "powers", "docs/examples")
+          "src/valvur/data/skills", "plugins", "powers", "docs/examples", "docs/mcp-registry")
 
 
 def _script():
@@ -99,6 +99,8 @@ def test_one_commit_sets_every_version_surface(tree):
     assert f"uvx --from valvur=={NEXT} valvur-hook" in hook
     for example in ("docs/examples/github-actions.yml", "docs/examples/gitlab-ci.yml"):
         assert f"ghcr.io/maverickhq/valvur:{NEXT}" in (tree / example).read_text(), example
+    registry = json.loads((tree / "docs/mcp-registry/server.json").read_text())
+    assert [registry["version"], *(p["version"] for p in registry["packages"])] == [NEXT, NEXT]
 
 
 def test_a_dry_run_changes_nothing_and_says_what_it_would(tree, capsys):

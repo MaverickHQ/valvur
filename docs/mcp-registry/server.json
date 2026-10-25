@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.MaverickHQ/valvur",
+  "title": "valvur",
+  "description": "Offline security scanning for AI-generated code: seven open-source scanners in one MCP server.",
+  "websiteUrl": "https://pypi.org/project/valvur/",
+  "repository": {
+    "url": "https://github.com/MaverickHQ/valvur",
+    "source": "github",
+    "id": "1351278185"
+  },
+  "version": "1.5.4",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "valvur",
+      "version": "1.5.4",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}
