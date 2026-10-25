@@ -34,7 +34,17 @@ pass. Never suppress, skip or disable a test, a finding or a check to make a run
 a finding that disappeared is not a vulnerability that was fixed. A change that would
 cross CLAUDE.md section 10, or that you cannot test, is left in the pull request's list
 for the owner with what it needs.
+
+In this cloud session, `.kiro/specs/valvur/tasks.md` decision D61 says how to reach GitHub
+(`gh` over REST, not GraphQL) and how to build and run the image. An item that an open pull
+request already addresses, such as a Scanner update a `build/` branch carries, is listed as
+covered by that pull request, never fixed a second time.
 ```
+
+The routine was created on 2026-10-25 as `valvur weekly maintenance (D64d)`, Thursdays at
+06:00 UTC, with this prompt. Its last paragraph came from running two cloud slots at once
+for 1.6.0: without it, the routine would redo a Scanner update that a build branch already
+carries.
 
 ## The procedure
 
