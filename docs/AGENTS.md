@@ -125,6 +125,8 @@ args = ["--from", "valvur", "valvur-mcp"]
 }
 ```
 
+Or in one click: [add valvur to Cursor](https://cursor.com/install-mcp?name=valvur&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLWZyb20iLCJ2YWx2dXIiLCJ2YWx2dXItbWNwIl19). The page opens Cursor's documented install link, which GitHub does not render as a link. *Not run here.*
+
 **VS Code (Copilot agent mode)** — `.vscode/mcp.json`. The key is `servers`, not `mcpServers`; start it from the file's inline *Start* action or trust the workspace. *Documented shape, 2026-09-26; not run here.*
 
 ```json

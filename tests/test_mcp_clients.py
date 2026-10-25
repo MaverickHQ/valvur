@@ -94,3 +94,29 @@ def test_an_unknown_version_is_answered_with_the_servers_own():
 def test_the_table_names_one_command_and_it_is_the_published_shim():
     assert (clients.COMMAND, *clients.ARGS) == ("uvx", "--from", "valvur", "valvur-mcp")
     assert re.search(r"uvx --from valvur valvur-mcp", (REPO / "README.md").read_text())
+
+
+def test_cursors_one_click_link_installs_the_block_cursor_reads():
+    """Cursor documents `cursor://anysphere.cursor-deeplink/mcp/install?name=&config=`,
+    the config the server's own entry base64-encoded (cursor.com/docs, read 2026-10-25).
+    GitHub drops a `cursor://` link from a rendered page (its markdown API, measured
+    the same day), so the guide links Cursor's own web redirect, which opens that one."""
+    import base64
+    from urllib.parse import parse_qs, urlsplit
+
+    link = clients.install_link(clients.client("cursor"))
+    url = urlsplit(link)
+    query = parse_qs(url.query)
+
+    assert (url.scheme, url.netloc, url.path) == ("https", "cursor.com", "/install-mcp")
+    assert query["name"] == [clients.SERVER]
+    config = json.loads(base64.b64decode(query["config"][0]))
+    assert config == json.loads(clients.snippet(clients.client("cursor")))["mcpServers"][
+        clients.SERVER]
+    assert f"({link})" in clients.readme_section()
+
+
+def test_only_cursor_has_a_one_click_link():
+    """VS Code's install link was not in its documentation on 2026-10-25; a link no
+    client documents is not offered."""
+    assert [c.key for c in clients.CLIENTS if clients.install_link(c)] == ["cursor"]

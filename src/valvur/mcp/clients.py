@@ -194,6 +194,26 @@ def snippet(entry: Client, *, version: str | None = None) -> str:
     raise ValueError(f"unknown shape {entry.shape!r}")
 
 
+#: Cursor's one-click install, the web page that opens its documented
+#: `cursor://anysphere.cursor-deeplink/mcp/install` link: GitHub renders no link of a
+#: `cursor://` scheme (measured 2026-10-25), so a guide read there links the page.
+CURSOR_INSTALL = "https://cursor.com/install-mcp"
+
+
+def install_link(entry: Client) -> str | None:
+    """A link that installs the server in `entry`'s client in one click, where that
+    client documents one: Cursor alone, on 2026-10-25."""
+    if entry.key != "cursor":
+        return None
+    import base64
+    from urllib.parse import urlencode
+
+    config = json.dumps(json.loads(snippet(entry))["mcpServers"][SERVER],
+                        separators=(",", ":"))
+    return f"{CURSOR_INSTALL}?" + urlencode(
+        {"name": SERVER, "config": base64.b64encode(config.encode()).decode()})
+
+
 def fence(entry: Client) -> str:
     return {"toml": "toml", "yaml": "yaml"}.get(entry.shape, "json")
 
@@ -213,4 +233,8 @@ def readme_section() -> str:
         lines += [f"**{entry.name}** — {files}. {_sentence(entry.after)}. "
                   f"*{_sentence(entry.verified)}.*", "",
                   f"```{fence(entry)}", snippet(entry).rstrip("\n"), "```", ""]
+        if link := install_link(entry):
+            lines += [f"Or in one click: [add valvur to {entry.name}]({link}). The page "
+                      f"opens {entry.name}'s documented install link, which GitHub does not "
+                      "render as a link. *Not run here.*", ""]
     return "\n".join(lines[:-1]) + "\n"

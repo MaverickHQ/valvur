@@ -28,6 +28,10 @@ break things, and has.
   `.kiro/skills/valvur/`, never over what is there, and `valvur doctor` reports that copy's
   version too. Codex reads a repository's skills from `.agents/skills/` alone, and VS Code's
   agent mode reads it as well: their documentation, read 2026-10-25.
+- **Cursor in one click.** The agents' guide links `cursor.com/install-mcp`, which opens
+  Cursor's documented install link with valvur's block. GitHub doesn't render a `cursor://`
+  link, which was measured through its markdown API. The link is generated from the clients'
+  table, and a test decodes it back to the block Cursor reads.
 
 ## [1.5.4] — 2026-10-24
 
