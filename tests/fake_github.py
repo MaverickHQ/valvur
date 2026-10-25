@@ -3,7 +3,9 @@
 Real HTTP, as `fake_registry.py` serves an OCI registry: the scheduled runs of each
 workflow, and the repository's issues, which the client reads, opens, comments on and
 closes. Every write is recorded, so a test can say what was filed, and that a dry run
-filed nothing.
+filed nothing. It also serves each Scanner's releases upstream, at the same API's
+`/repos/<owner>/<name>/releases`, and go.dev's list of supported Go releases at `/go`,
+for the watchdog's Scanner checks.
 """
 
 from __future__ import annotations
@@ -23,6 +25,11 @@ class FakeGitHub:
         self.writes: list[tuple[str, str, dict]] = []
         self.reads: list[str] = []
         self.authorizations: list[str | None] = []
+        #: upstream repository → releases, newest first, as the Releases API lists them.
+        self.releases: dict[str, list[dict]] = {}
+        #: go.dev's `/dl/?mode=json`: the supported releases.
+        self.go: list[dict] = [{"version": "go1.27.3", "stable": True},
+                               {"version": "go1.26.10", "stable": True}]
 
     def __enter__(self) -> FakeGitHub:
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(self))
@@ -75,6 +82,13 @@ def _handler(github: FakeGitHub):
                         if r.get("event") == query.get("event", [r.get("event")])[0]
                         and r.get("head_branch") == query.get("branch", [r.get("head_branch")])[0]]
                 return self._send(200, {"total_count": len(runs), "workflow_runs": runs})
+            if url.path.endswith("/releases") and url.path.count("/") == 4:
+                upstream = url.path.removeprefix("/repos/").removesuffix("/releases")
+                if upstream not in github.releases:
+                    return self._send(404, {"message": "Not Found"})
+                return self._send(200, github.releases[upstream])
+            if url.path == "/go":
+                return self._send(200, github.go)
             if url.path == f"{prefix}/issues":
                 state = query.get("state", ["open"])[0]
                 return self._send(200, [i for i in github.issues

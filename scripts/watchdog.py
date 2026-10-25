@@ -17,6 +17,10 @@ own: the first finding opens it, a later one comments on it, and a pass closes i
 naming the run. A workflow with no `schedule:` is never read. The token is `GH_TOKEN`
 or `GITHUB_TOKEN`. Exit 0 when the watch ran, whatever it found; 2 when the API could
 not be read. Standard library only, and no YAML parser: the crons are read line by line.
+
+With `--scanners`, it also watches what Dependabot cannot (D81d): an Opengrep release
+newer than the image's pin and past the 7-day cooldown keeps one issue,
+`watchdog: Opengrep <version>`, closed once the pin moves to it.
 """
 
 from __future__ import annotations
@@ -34,11 +38,17 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+import scanner_pins  # noqa: E402 - beside this script, standard library alone
+
 #: Twice the longest start delay measured over the last runs of every scheduled
 #: workflow, 9.0 hours (`corpus.yml`, 2026-10-24), and never under 12 (D81s).
 MARGIN_HOURS = 18
 FAILED = ("failure", "timed_out", "startup_failure")
 TITLE = "watchdog: {}"
+#: Dependabot's cooldown (D81d): a release is taken once it is this old.
+COOLDOWN_DAYS = 7
+OPENGREP = "watchdog: Opengrep "
 
 _CRON = re.compile(r"""^\s+- cron:\s*["']([^"']+)["']""")
 
@@ -126,13 +136,19 @@ def judge(crons: list[str], runs: list[dict], now: datetime) -> tuple[str, str] 
 
 class GitHub:
     def __init__(self, api: str, repo: str, token: str | None):
-        self.base, self.token = f"{api.rstrip('/')}/repos/{repo}", token
+        self.api, self.token = api.rstrip("/"), token
+        self.base = f"{self.api}/repos/{repo}"
         # An opener rather than `urlopen`: the same request for every method.
         self._opener = urllib.request.build_opener()
 
     def call(self, method: str, path: str, body: dict | None = None) -> Any:
+        """The repository's own API: `path` under `/repos/<repo>`."""
+        return self.call_api(method, self.base.removeprefix(self.api) + path, body)
+
+    def call_api(self, method: str, path: str, body: dict | None = None) -> Any:
+        """Anywhere under the API, as an upstream repository's releases are."""
         request = urllib.request.Request(  # noqa: S310 - the API's own https URL
-            self.base + path, method=method,
+            self.api + path, method=method,
             data=None if body is None else json.dumps(body).encode(),
             headers={"Accept": "application/vnd.github+json",
                      "Content-Type": "application/json",
@@ -192,6 +208,56 @@ def watch(github: GitHub, directory: Path, now: datetime, *, dry_run: bool,
     return done
 
 
+def _version(tag: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", tag)[:3])
+
+
+def releases(github: GitHub, upstream: str) -> list[dict]:
+    """The upstream repository's published releases, newest first."""
+    answer = github.call_api("GET", f"/repos/{upstream}/releases?per_page=30")
+    return [r for r in answer if not r.get("draft") and not r.get("prerelease")]
+
+
+def taken(found: list[dict], pin: str, now: datetime) -> dict | None:
+    """The newest release past the cooldown, when it is newer than the pin."""
+    ready = [r for r in found
+             if now - _when(r["published_at"]) >= timedelta(days=COOLDOWN_DAYS)]
+    newest = max(ready, key=lambda r: _version(r["tag_name"]), default=None)
+    return newest if newest and _version(newest["tag_name"]) > _version(pin) else None
+
+
+def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool) -> list[str]:
+    """Opengrep's releases against its pin, one issue kept for the one to take."""
+    issues = github.call("GET", "/issues?state=open&per_page=100")
+    open_ = {i["title"]: i["number"] for i in issues if "pull_request" not in i}
+    pin = scanner_pins.pins(scanner_pins.in_tree(root))["opengrep"]
+    release = taken(releases(github, "opengrep/opengrep"), pin, now)
+    done = []
+    wanted = None if release is None else OPENGREP + release["tag_name"].lstrip("v")
+    for title, number in open_.items():
+        if title.startswith(OPENGREP) and title != wanted:
+            done.append(f"would close: {title}" if dry_run else f"closed: {title}")
+            if not dry_run:
+                github.call("POST", f"/issues/{number}/comments",
+                            {"body": f"The image pins Opengrep {pin} now."
+                                     if release is None else
+                                     f"Superseded by `{wanted.removeprefix('watchdog: ')}`."})
+                github.call("PATCH", f"/issues/{number}", {"state": "closed"})
+    if release is not None and wanted is not None and wanted not in open_:
+        done.append(f"would open: {wanted}" if dry_run else f"opened: {wanted}")
+        if not dry_run:
+            github.call("POST", "/issues", {"title": wanted, "body": (
+                f"Opengrep {release['tag_name'].lstrip('v')} ({release['html_url']}), "
+                f"published {release['published_at'][:10]}, is past the {COOLDOWN_DAYS}-day "
+                f"cooldown, and the image pins {pin}. Dependabot does not follow Opengrep: "
+                "the image takes it from a release URL. Move `OPENGREP_URL` and its two "
+                "sha256 `ARG`s together, check the signatures with "
+                "`scripts/verify-opengrep.sh`, then run `scripts/scanner_upgrade.py "
+                f"opengrep {pin} {release['tag_name'].lstrip('v')} --recapture` "
+                "(`docs/MAINTENANCE.md`). This issue closes once the pin moves.")})
+    return done
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True)
@@ -201,12 +267,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="list, and file nothing")
     parser.add_argument("--only", help="judge this workflow file alone, as the nightly "
                                        "judges watchdog.yml")
+    parser.add_argument("--scanners", action="store_true",
+                        help="also watch the Scanners Dependabot cannot follow")
+    parser.add_argument("--root", type=Path, default=REPO,
+                        help="the tree whose pins are read (default: this one)")
     args = parser.parse_args(argv)
     now = _when(args.now) if args.now else datetime.now(UTC)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     try:
-        done = watch(GitHub(args.api, args.repo, token), args.workflows, now,
-                     dry_run=args.dry_run, only=args.only)
+        github = GitHub(args.api, args.repo, token)
+        done = watch(github, args.workflows, now, dry_run=args.dry_run, only=args.only)
+        if args.scanners and args.only is None:
+            done += watch_scanners(github, args.root, now, dry_run=args.dry_run)
     except (urllib.error.URLError, ValueError, KeyError, TypeError) as error:
         print(f"watchdog: cannot read the Actions API or the issues: {error}")
         return 2

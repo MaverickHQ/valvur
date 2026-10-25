@@ -1001,6 +1001,12 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    new binary's Go toolchain; a Scanner it does not know, or a change to more than one, SHALL
    be left for the owner. *Added 2026-10-25 (R47.2, R47.3), from the self-healing supply
    chain's Requirement 18.*
+10. N3.10 — valvur's automation SHALL watch the Scanners no dependency updater follows: WHEN
+   an Opengrep release newer than the image's pin is past the 7-day cooldown THEN it SHALL
+   keep one issue naming it, closed once the pin moves; and WHEN a Scanner has published no
+   release in 180 days, or its binary was built with a Go that Go no longer supports, THEN
+   it SHALL keep one issue for that Scanner, closed when neither holds. *Added 2026-10-25
+   (R42.5, extended for 1.6.0, D81s, D81d).*
 
 ### N4 — Evaluation
 *Added 2026-09-29 (R9.2, ADR-0026), met by R9.3 to R9.6, 2026-09-29.* *Amended
