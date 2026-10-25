@@ -33,9 +33,16 @@ def test_trivy_s_published_date_is_carried_normalised(workspace):
     dated = [f for f in run.findings if f.dependency]
 
     assert dated
-    for finding in dated:
-        assert _STAMP.fullmatch(finding.dependency.advisory_published), finding.rule
     raw = json.loads(golden("trivy"))
+    # An advisory published hours before the capture can carry no date yet: Trivy
+    # 0.76.0's golden holds two, both Pillow's from GHSA. Those are "" (F5.11).
+    undated = {(v["VulnerabilityID"], v["PkgName"]) for r in raw["Results"]
+               for v in r.get("Vulnerabilities") or [] if not v.get("PublishedDate")}
+    for finding in dated:
+        if (finding.rule, finding.dependency.package) in undated:
+            assert finding.dependency.advisory_published == "", finding.rule
+        else:
+            assert _STAMP.fullmatch(finding.dependency.advisory_published), finding.rule
     first = next(v for r in raw["Results"] for v in r.get("Vulnerabilities") or []
                  if v.get("PublishedDate"))
     finding = next(f for f in dated if f.rule == first["VulnerabilityID"]
@@ -87,7 +94,9 @@ def test_an_absent_or_unreadable_date_is_empty(workspace):
 
 def test_every_fingerprint_is_the_same_with_or_without_the_dates(workspace, tmp_path):
     """ADR-0003: identity is `(ecosystem, package, version, vuln_id)`, and the date is
-    not part of it. Measured before the field existed: these 40 Fingerprints."""
+    not part of it. Measured before the field existed: 40 Fingerprints on Trivy
+    0.75.0's golden and OSV-Scanner 2.6.0's; 75 with Trivy 0.76.0's, recaptured on
+    2026-10-25's database."""
     import shutil
 
     other = tmp_path / "other"
@@ -100,7 +109,7 @@ def test_every_fingerprint_is_the_same_with_or_without_the_dates(workspace, tmp_
     undated = {f.fingerprint for f in _scan(other, trivy=undated_trivy,
                                             osv=undated_osv).findings}
 
-    assert len(dated) == 40 and dated == undated
+    assert len(dated) == 75 and dated == undated
 
 
 def test_findings_json_carries_the_field_and_stays_schema_1(workspace):
@@ -109,4 +118,6 @@ def test_findings_json_carries_the_field_and_stays_schema_1(workspace):
     dependencies = [f["dependency"] for f in document["findings"] if f.get("dependency")]
 
     assert document["schema"] == 1
-    assert dependencies and all(_STAMP.fullmatch(d["advisory_published"]) for d in dependencies)
+    assert dependencies and any(d["advisory_published"] for d in dependencies)
+    assert all(_STAMP.fullmatch(d["advisory_published"]) or d["advisory_published"] == ""
+               for d in dependencies)
