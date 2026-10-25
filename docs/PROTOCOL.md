@@ -93,7 +93,7 @@ together.
 |---|---|---|
 | `gitleaks` | `zricethezav/gitleaks` | 8.30.1 |
 | `trivy` | `aquasec/trivy` | 0.76.0 |
-| `osv-scanner` | `ghcr.io/google/osv-scanner` | 2.6.0 |
+| `osv-scanner` | `ghcr.io/google/osv-scanner` | 2.7.0 |
 | `syft` | `anchore/syft` | 1.54.0 |
 | `opengrep` | `opengrep/opengrep` | 1.29.0 |
 | `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.22 |

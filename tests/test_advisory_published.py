@@ -60,6 +60,10 @@ def test_osv_scanner_s_published_date_is_carried(workspace):
 
 def test_where_both_scanners_report_a_finding_the_earlier_date_is_kept(workspace):
     osv = json.loads(golden("osv-scanner"))
+    # Trivy's npm findings left to Trivy alone, so both kinds exist whatever the day's
+    # database: OSV-Scanner 2.7.0, on 2026-10-25's data, reports everything Trivy does.
+    osv["results"] = [r for r in osv["results"]
+                      if not r["source"]["path"].endswith("package-lock.json")]
     for result in osv["results"]:
         for package in result.get("packages") or []:
             for vuln in package.get("vulnerabilities") or []:

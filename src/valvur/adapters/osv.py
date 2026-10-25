@@ -17,7 +17,7 @@ from ..osv_offline import MOUNT
 from ..versions import version_key as _version_key
 from .base import ScannerAdapter, container_relative
 
-VERSION = "2.6.0"
+VERSION = "2.7.0"
 
 
 #: The project's own `osv-scanner.toml` ignores nothing (R38.2, D77a): an empty

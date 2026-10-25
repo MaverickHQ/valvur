@@ -522,7 +522,7 @@ class CrashingAdapter(ScannerAdapter):
 # without recapturing, this mismatch fails loudly rather than silently re-baselining
 # parsing behaviour (task 3.4.1).
 PINNED_VERSIONS = {
-    "trivy": "0.76.0", "gitleaks": "8.30.1", "osv-scanner": "2.6.0",
+    "trivy": "0.76.0", "gitleaks": "8.30.1", "osv-scanner": "2.7.0",
     "checkov": "3.3.22", "syft": "1.54.0", "opengrep": "1.29.0", "zizmor": "1.30.1",
 }
 

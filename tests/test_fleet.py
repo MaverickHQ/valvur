@@ -81,23 +81,37 @@ def test_rule_identity_survives_the_rules_directory_moving(workspace):
 # ------------------------------------------------ OSV-Scanner 2.6.0 (2026-09-20)
 
 def test_a_file_osv_scanner_reads_twice_is_reported_once():
-    """OSV-Scanner 2.6.0 (from 2.2.4, by Dependabot) reports `requirements.txt` in
+    """OSV-Scanner 2.6.0 (from 2.2.4, by Dependabot) reported `requirements.txt` in
     two result blocks: the lockfile extractor's, and a second of `type: unknown`
     whose versions are PEP 440-normalised — `pyyaml 5.1` and `pyyaml 5.1.0`, six
-    advisories each, two identities. The golden holds both; the adapter keeps the
-    lockfile block and drops the other for the same path."""
+    advisories each, two identities. The adapter keeps the lockfile block and drops
+    the other for the same path. 2.7.0 reads the file once, so that shape is built
+    here from its golden: the lockfile block, and a copy of it as 2.6.0 wrote it."""
+    import copy
+    import json
+
     from valvur.runner import ScannerOutput
 
-    output = ScannerOutput("osv-scanner", "2.6.0", golden("osv-scanner"), "", 0)
+    report = json.loads(golden("osv-scanner"))
+    [lockfile] = [r for r in report["results"]
+                  if r["source"] == {"path": "/workspace/requirements.txt", "type": "lockfile"}]
+    unknown = copy.deepcopy(lockfile)
+    unknown["source"]["type"] = "unknown"
+    for package in unknown["packages"]:
+        if package["package"]["version"].count(".") == 1:
+            package["package"]["version"] += ".0"          # 5.1 → 5.1.0, as 2.6.0 had it
+    report["results"].append(unknown)
+    output = ScannerOutput("osv-scanner", "2.7.0", json.dumps(report), "", 0)
+
     findings = OsvAdapter().parse(output)
+    once = OsvAdapter().parse(ScannerOutput("osv-scanner", "2.7.0", golden("osv-scanner"),
+                                            "", 0))
 
     pyyaml = {(f.dependency.package, f.dependency.version) for f in findings
               if f.dependency.package == "pyyaml"}
     assert pyyaml == {("pyyaml", "5.1")}, pyyaml
-    # 35 advisory entries in one block (18 identities once aliases merge, as
-    # before); the second block would have made it 70.
     pillow = [f for f in findings if f.dependency.package == "pillow"]
-    assert len(pillow) == 35, len(pillow)
+    assert pillow and len(pillow) == len([f for f in once if f.dependency.package == "pillow"])
 
 
 def test_a_path_that_only_the_unknown_extractor_read_is_still_reported():
