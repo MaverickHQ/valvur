@@ -865,13 +865,18 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   stages `scanner_pins.py` reads against the versions the adapters declare. A stage that does
   not pin the new version is left for the owner too. Exit 3 means left for the owner.
 
-- [ ] **R47.3** **The fixtures, recaptured, and the Score.** Behaviours:
+- [x] **R47.3** **The fixtures, recaptured, and the Score.** Behaviours:
   1. It recaptures the Scanner's fixtures twice and refuses a recapture that differs.
   2. It runs `scripts/eval.py --compare tests/eval/baseline.json` and writes each track's
      delta into the pull request's body.
   3. It writes the new binary's Go toolchain into the body.
 
   _Requirements: 18.2, 18.3, 18.4_
+
+  **STATUS 2026-10-25:** ✅ 1 to 3, in `tests/test_scanner_recapture.py`, with the container
+  runtime faked and `scripts/eval.py` stood in for by the `score.json` it writes. Against the
+  image: zizmor's recapture is its committed golden byte for byte, and `go_toolchain` reads
+  each binary R47.1 measured as `go version` does. `docs/MAINTENANCE.md` describes the recapture.
 
 - [ ] **R47.4** 👤 **It lands only when nothing moved** (D81v). Behaviours:
   1. `scanner-upgrade.yml`, as design.md §12 lays it out: on a Dependabot pull request that

@@ -12,7 +12,8 @@ is written. Prints `{"scanner", "from", "to", "changed", "recapture"}`.
 With `--recapture` (R47.3), the new binary's golden is captured twice from the image and
 written only when the two agree (`recapture`), as `docs/MAINTENANCE.md` describes. With
 `--score DIR`, the Score runs against `tests/eval/baseline.json`, and `--body FILE` writes
-each track's delta into the pull request's body. Exit 3
+each track's delta into the pull request's body; `--go` adds the new binary's Go
+toolchain, read from its build information in the image. Exit 3
 means the upgrade is left for the owner, with why on stderr.
 """
 
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -203,11 +205,65 @@ def score(root: Path, out: Path, *, run=subprocess.run) -> Deltas:
             for name, was in baseline.items() if name in tracks}
 
 
+#: Where the image installs each Scanner that is one binary.
+BINARIES = {"gitleaks": "/usr/local/bin/gitleaks", "trivy": "/usr/local/bin/trivy",
+            "osv-scanner": "/usr/local/bin/osv-scanner", "syft": "/usr/local/bin/syft",
+            "opengrep": "/usr/local/bin/opengrep"}
+_BUILDINFO = b"\xff Go buildinf:"
+
+
+def _uvarint(data: bytes, at: int) -> tuple[int, int]:
+    value = shift = 0
+    while True:
+        byte = data[at]
+        value |= (byte & 0x7F) << shift
+        at, shift = at + 1, shift + 7
+        if not byte & 0x80:
+            return value, at
+
+
+def go_toolchain(binary: Path) -> str | None:
+    """The Go that built `binary`, from its build information (`go version`'s answer), or
+    None when it is no Go binary. A `go.mod` line would be a minimum, not the toolchain.
+    Reads the layout of Go 1.18 and later: the version inline after a 32-byte header."""
+    data = binary.read_bytes()
+    at = data.find(_BUILDINFO)
+    while at != -1 and at % 16:
+        at = data.find(_BUILDINFO, at + 1)
+    if at == -1 or not data[at + 15] & 2:
+        return None
+    length, start = _uvarint(data, at + 32)
+    version = data[start:start + length].decode("ascii", "replace")
+    return version if version.startswith("go") else None
+
+
+def image_toolchain(tool: str, image: str) -> str | None:
+    """The Go toolchain of the binary `image` installs for `tool`."""
+    import tempfile
+
+    if tool not in BINARIES:
+        return None
+    runtime = os.environ.get("VALVUR_RUNTIME", "docker")
+    made = subprocess.run([runtime, "create", image], capture_output=True, text=True,  # noqa: S603
+                          check=True).stdout.strip()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / tool
+            subprocess.run([runtime, "cp", f"{made}:{BINARIES[tool]}", str(out)],  # noqa: S603
+                           capture_output=True, check=True)
+            return go_toolchain(out)
+    finally:
+        subprocess.run([runtime, "rm", made], capture_output=True, check=False)  # noqa: S603
+
+
 def body(report: dict, *, deltas: Deltas | None = None) -> str:
     """The pull request's body: what moved, and what it measured."""
     tool = report["scanner"]
     lines = [f"**{NAMES.get(tool, tool)} {report['from']} → {report['to']}**, its other pins "
              "moved by `scripts/scanner_upgrade.py` (R47.2)."]
+    if "go" in report:
+        lines += ["", f"The new binary was built with {report['go']}, read from its build "
+                      "information." if report["go"] else "The new binary is not a Go binary."]
     if deltas is not None:
         lines += ["", "| track | baseline | now | delta |", "|---|---|---|---|"]
         lines += [f"| {name} | {was} | {now} | {delta:+.1f} |"
@@ -234,6 +290,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="recapture the golden twice from the image (VALVUR_IMAGE)")
     parser.add_argument("--score", type=Path, metavar="DIR",
                         help="run the Score against the baseline, its report under DIR")
+    parser.add_argument("--go", action="store_true",
+                        help="read the new binary's Go toolchain from the image")
     parser.add_argument("--body", type=Path, metavar="FILE",
                         help="write the pull request's body here")
     args = parser.parse_args(argv)
@@ -253,6 +311,8 @@ def main(argv: list[str] | None = None) -> int:
     deltas = score(args.root, args.score) if args.score else None
     if deltas is not None:
         report["deltas"] = deltas
+    if args.go:
+        report["go"] = image_toolchain(args.scanner, os.environ.get("VALVUR_IMAGE", "valvur:dev"))
     if args.body:
         args.body.write_text(body(report, deltas=deltas), encoding="utf-8")
     print(json.dumps(report, indent=2))

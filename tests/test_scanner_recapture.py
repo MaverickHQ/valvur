@@ -138,3 +138,36 @@ def test_the_score_is_run_against_the_baseline_and_each_track_s_delta_is_in_the_
     assert "| infrastructure | 95.0 | 92.5 | -2.5 |" in body
     # More than 2 points under its baseline stops the move, and the body says which.
     assert "more than 2 points under its baseline: infrastructure" in body
+
+
+def _uvarint(n: int) -> bytes:
+    out = bytearray()
+    while True:
+        byte, n = n & 0x7F, n >> 7
+        out.append(byte | (0x80 if n else 0))
+        if not n:
+            return bytes(out)
+
+
+def _go_binary(path: Path, toolchain: str) -> Path:
+    """An executable's bytes with Go's build information as Go 1.18 and later write it:
+    the 16-byte-aligned magic, pointer size, flags (2: strings inline), then the toolchain
+    and the module information, each a uvarint length and its bytes."""
+    header = b"\xff Go buildinf:" + bytes([8, 2])
+    header += b"\x00" * (32 - len(header))
+    mod = b"path\tgithub.com/aquasecurity/trivy\n"
+    info = header + _uvarint(len(toolchain)) + toolchain.encode() + _uvarint(len(mod)) + mod
+    path.write_bytes(b"\x7fELF" + b"\x00" * 60 + info + b"\x00" * 64)
+    return path
+
+
+def test_the_new_binary_s_go_toolchain_is_read_from_its_build_information(tmp_path):
+    upgrade = _script()
+
+    assert upgrade.go_toolchain(_go_binary(tmp_path / "trivy", "go1.27.3")) == "go1.27.3"
+    (tmp_path / "opengrep").write_bytes(b"\x7fELF" + b"\x00" * 200)   # OCaml: no Go in it
+    assert upgrade.go_toolchain(tmp_path / "opengrep") is None
+
+    report = {"scanner": "trivy", "from": "0.75.0", "to": "0.76.0", "go": "go1.27.3"}
+    assert "built with go1.27.3" in upgrade.body(report)
+    assert "not a Go binary" in upgrade.body({**report, "go": None})
