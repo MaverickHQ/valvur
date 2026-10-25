@@ -995,6 +995,12 @@ Traceable to [docs/history/POSITIONING.md](../../../docs/history/POSITIONING.md)
    naming it, commented on by later findings and closed by a pass; and another scheduled
    workflow SHALL watch the watchdog by the same rule. *Added 2026-10-24 (R42.5), from the
    self-healing supply chain's Requirement 15.*
+9. N3.9 — WHEN a Scanner's stage moves THEN valvur's automation SHALL move every other place
+   that Scanner's version is pinned in the same change, SHALL recapture its golden fixtures
+   twice and refuse a recapture that differs, and SHALL give each Score track's delta and the
+   new binary's Go toolchain; a Scanner it does not know, or a change to more than one, SHALL
+   be left for the owner. *Added 2026-10-25 (R47.2, R47.3), from the self-healing supply
+   chain's Requirement 18.*
 
 ### N4 — Evaluation
 *Added 2026-09-29 (R9.2, ADR-0026), met by R9.3 to R9.6, 2026-09-29.* *Amended
