@@ -30,9 +30,12 @@ gate in CI. Three ways to have it:
   under `claude -p` or *don't ask*, it refuses the install instead (measured).
 - **Kiro**, as a power: *Add Custom Power*, *Import power from GitHub*, and
   `https://github.com/MaverickHQ/valvur/tree/main/powers/valvur`.
-- **Any project**: `valvur init --write` writes it to `.claude/skills/valvur/` and
-  `.kiro/skills/valvur/`, never over what is there, and `valvur doctor` says whether a
-  project's copy is this version's.
+- **Any project**: `valvur init --write` writes it to `.claude/skills/valvur/`,
+  `.kiro/skills/valvur/` and, for Codex, `.agents/skills/valvur/`, never over what is
+  there, and `valvur doctor` says whether a project's copy is this version's. VS Code's
+  agent mode reads both `.claude/skills/` and `.agents/skills/`, so either copy reaches
+  it. *Codex's and VS Code's folders are their documented ones, read 2026-10-25; not run
+  here.*
 
 **When the agent may not call valvur's tools.** A permission mode that refuses every
 tool not on an allow list, such as Claude Code's *don't ask*, refuses `scan` too. Allow

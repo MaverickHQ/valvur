@@ -593,7 +593,7 @@ def _check_mcp(workspace: Path) -> Check:
 
 
 def _check_skill(workspace: Path) -> Check:
-    """Whether this project carries the skill where Claude Code or Kiro reads it,
+    """Whether this project carries the skill where a client reads it (`skill.LOCATIONS`),
     and whether it is this valvur's (R15.4, D40): an older copy tells an agent about
     tools and rules this server no longer has, or lacks those it has."""
     present, stale = [], []
@@ -611,7 +611,7 @@ def _check_skill(workspace: Path) -> Check:
     if not present:
         return Check("skill", "info",
                      "no project skill (Claude Code: .claude/skills/valvur/; Kiro: "
-                     ".kiro/skills/valvur/)",
+                     ".kiro/skills/valvur/; Codex and VS Code: .agents/skills/valvur/)",
                      "`valvur init --write` adds it; in Claude Code the plugin brings it "
                      "to every project: `/plugin install valvur@valvur`")
     if stale:

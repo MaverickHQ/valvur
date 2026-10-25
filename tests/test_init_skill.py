@@ -1,7 +1,8 @@
 """R15.4: `valvur init --write` adds the skill (D40, ADR-0031).
 
-Claude Code reads a project's skills from `.claude/skills/<name>/`, and Kiro from
-`.kiro/skills/<name>/` (kiro.dev/docs/skills/, read 2026-09-30). `--write` writes the
+Claude Code reads a project's skills from `.claude/skills/<name>/`, Kiro from
+`.kiro/skills/<name>/` (kiro.dev/docs/skills/, read 2026-09-30), and Codex from
+`.agents/skills/<name>/` (read 2026-10-25). `--write` writes the
 package's skill there for each client it writes, within the exception `CLAUDE.md`
 §10 gives `init --write`, and as it writes everything else: never over a file that is
 there. `init` alone says where the skill goes, and `doctor` says whether a project
@@ -31,6 +32,18 @@ def test_write_adds_the_skill_for_claude_code_and_for_kiro(project, capsys):  # 
     for where in (".claude/skills/valvur", ".kiro/skills/valvur"):
         assert _copy(project / where) == skill.files(), where
         assert f"wrote the skill to {where}/" in out
+
+
+def test_write_adds_the_skill_where_codex_reads_it(project, capsys):  # noqa: F811
+    """Codex reads a repository's skills from `.agents/skills/` alone
+    (learn.chatgpt.com/docs/build-skills, read 2026-10-25), and VS Code reads it too.
+    Codex's server lives in `~/.codex/config.toml`, outside the project, so only the
+    skill is written there."""
+    cli.main(["init", str(project), "--write", "--client", "codex"])
+    out = capsys.readouterr().out
+
+    assert _copy(project / ".agents/skills/valvur") == skill.files()
+    assert "wrote the skill to .agents/skills/valvur/" in out
 
 
 def test_by_default_it_follows_the_clients_found_here(project, capsys):  # noqa: F811
@@ -94,17 +107,28 @@ def test_doctor_says_whether_the_projects_skill_is_here_and_is_this_valvurs(heal
     assert "remove .claude/skills/valvur/ and run `valvur init --write`" in mixed.fix
 
 
+def test_doctor_without_a_skill_names_every_place_one_is_read(healthy):  # noqa: F811
+    from test_doctor import _by_name
+
+    from valvur import doctor
+
+    absent = _by_name(doctor.run(healthy))["skill"]
+
+    for where in skill.LOCATIONS.values():
+        assert f"{where}/" in absent.detail, where
+
+
 def test_the_skill_written_draws_no_finding_from_valvurs_own_checks(project):  # noqa: F811
     """The agent-configuration Check reads `.claude/` and `.kiro/`, where the skill
     now lives: valvur must not report its own instructions as a planted directive,
     hidden Unicode or a bypass in the project it was written into."""
     from valvur.checks.ai_artifact import AiArtifactCheck, _artifact_files
 
-    assert cli.main(["init", str(project), "--write",
-                     "--client", "claude-code", "--client", "kiro"]) == 0
+    cli.main(["init", str(project), "--write",
+              "--client", "claude-code", "--client", "kiro", "--client", "codex"])
 
     read = {p.relative_to(project).as_posix() for p in _artifact_files(project)}
-    assert {".claude/skills/valvur/SKILL.md", ".kiro/skills/valvur/SKILL.md"} <= read
+    assert {f"{where}/SKILL.md" for where in skill.LOCATIONS.values()} <= read
     findings = AiArtifactCheck().run(project)
 
     assert not [f for f in findings if "/skills/valvur/" in f.get("path", "")], findings

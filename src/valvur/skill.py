@@ -34,10 +34,13 @@ def files() -> dict[str, bytes]:
             for path in sorted(DIRECTORY.rglob("*")) if path.is_file()}
 
 
-#: Where each client reads a project's skills: Claude Code's `.claude/skills/`, and
-#: Kiro's `.kiro/skills/` (kiro.dev/docs/skills/, read 2026-09-30). `init --write`
-#: writes the skill there, and `doctor` looks there (R15.4, D40).
-LOCATIONS = {"claude-code": ".claude/skills/valvur", "kiro": ".kiro/skills/valvur"}
+#: Where each client reads a project's skills: Claude Code's `.claude/skills/`,
+#: Kiro's `.kiro/skills/` (kiro.dev/docs/skills/, read 2026-09-30), and Codex's
+#: `.agents/skills/`, which VS Code reads too (learn.chatgpt.com/docs/build-skills and
+#: code.visualstudio.com's Agent Skills, read 2026-10-25). `init --write` writes the
+#: skill there, and `doctor` looks there (R15.4, D40).
+LOCATIONS = {"claude-code": ".claude/skills/valvur", "kiro": ".kiro/skills/valvur",
+             "codex": ".agents/skills/valvur"}
 
 
 def write_into(workspace: Path, client: str) -> str:

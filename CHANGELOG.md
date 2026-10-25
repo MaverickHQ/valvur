@@ -17,6 +17,11 @@ break things, and has.
   runs, takes no arguments, and refuses any, as `valvur-mcp` does. `valvur-mcp` stays
   what every configuration valvur writes names. The registry's entry is
   `docs/mcp-registry/server.json`, which each release moves to its version.
+- **The skill where Codex reads it.** `valvur init --write` writes the skill to
+  `.agents/skills/valvur/` for Codex, as it writes `.claude/skills/valvur/` and
+  `.kiro/skills/valvur/`, never over what is there, and `valvur doctor` reports that copy's
+  version too. Codex reads a repository's skills from `.agents/skills/` alone, and VS Code's
+  agent mode reads it as well: their documentation, read 2026-10-25.
 
 ## [1.5.4] — 2026-10-24
 
