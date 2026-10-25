@@ -1,0 +1,8 @@
+usage: valvur mcp [-h]
+
+The MCP server over stdio, the one `valvur-mcp` starts. The official MCP Registry runs a package's
+CLI, `uvx valvur==<version> mcp`; the configuration `valvur init` writes names `valvur-mcp`. It
+takes no arguments: profiles and workspaces are the tools' arguments.
+
+options:
+  -h, --help  show this help message and exit

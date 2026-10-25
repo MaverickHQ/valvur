@@ -20,6 +20,8 @@ positional arguments:
                         writes them, never over what is there
     check               Before installing: does each package exist, is it one edit from a popular
                         one, was it published as malicious? Offline; never asks a registry
+    mcp                 The MCP server over stdio, as `valvur-mcp`: what an MCP client starts, not
+                        run by hand
 
 options:
   -h, --help            show this help message and exit

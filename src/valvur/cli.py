@@ -299,6 +299,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     # Seven commands (D12, R6.5), `init` the eighth and `check` the ninth (D28);
     # `explain` and `cache` still parse, for one release, and say what replaced them.
+    # `mcp` is for an MCP client, not a person, so the usage line keeps the nine.
     sub = parser.add_subparsers(
         dest="command", required=True,
         metavar="{scan,update,findings,status,doctor,gate,suppress,init,check}")
@@ -524,6 +525,16 @@ def build_parser() -> argparse.ArgumentParser:
     check_cmd.add_argument("--json", action="store_true",
                            help="The answers as JSON, as the check_package tool gives them")
 
+    sub.add_parser(
+        "mcp",
+        help="The MCP server over stdio, as `valvur-mcp`: what an MCP client starts, "
+        "not run by hand",
+        description="The MCP server over stdio, the one `valvur-mcp` starts. The official "
+        "MCP Registry runs a package's CLI, `uvx valvur==<version> mcp`; the configuration "
+        "`valvur init` writes names `valvur-mcp`. It takes no arguments: profiles and "
+        "workspaces are the tools' arguments.",
+    )
+
     return parser
 
 
@@ -566,6 +577,14 @@ def _cmd_init(args: argparse.Namespace, runner=None) -> int:
     for line in lines:
         print(f"  {line}")
     return 0 if ok else 1
+
+
+def _cmd_mcp(args: argparse.Namespace, runner=None) -> int:
+    """`mcp`: the server `valvur-mcp` runs, under the name the MCP Registry can start."""
+    # deferred: startup; each command loads only what it runs.
+    from .mcp import server
+
+    return server.main([])
 
 
 def _cmd_read(args: argparse.Namespace, runner=None) -> int:
@@ -772,6 +791,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, object], int]] = {
     "scan": _cmd_scan,
     "init": _cmd_init,
     "check": _cmd_check,
+    "mcp": _cmd_mcp,
 }
 
 

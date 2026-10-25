@@ -12,6 +12,7 @@ valvur.cli -> valvur.initialize: startup; each command loads only what it runs.
 valvur.cli -> valvur.mcp.clients: startup; each command loads only what it runs.
 valvur.cli -> valvur.mcp.clients: startup; each command loads only what it runs.
 valvur.cli -> valvur.mcp.clients: startup; each command loads only what it runs.
+valvur.cli -> valvur.mcp.server: startup; each command loads only what it runs.
 valvur.cli -> valvur.operations, valvur.packages: startup; each command loads only what it runs.
 valvur.cli -> valvur.operations: startup; each command loads only what it runs.
 valvur.cli -> valvur.operations: startup; each command loads only what it runs.
