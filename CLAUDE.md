@@ -15,9 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-11).** **`1.5.3` is published**: R41's track 9 measures the four LLM-output
-rules, each at precision 1.0, catching no flow across a function; the Score **74.1** over nine
-on both lanes, re-based from 73.4. **Next:** the owner's pick from `tasks.md` §9.
+**Status (2026-10-25).** **`1.5.4` is published**: the image's Checkov environment past ten
+advisories, and its base on Alpine 3.24; the Score **74.1** over nine on both lanes, every track
+at its baseline. **Next:** R42 and R43 of the self-healing supply chain, approved 2026-10-24 (#242).
 
 ## 2. What it is NOT
 

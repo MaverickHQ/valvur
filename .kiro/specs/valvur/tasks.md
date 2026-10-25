@@ -83,6 +83,22 @@ before the landing finished, so the release run's first attempt stopped at *sits
 before anything was built, and its rerun published (run 38166624854): PyPI, both
 architectures at `sha256:29a74a76`, signed and attested.
 
+**Recorded 2026-10-25, after `1.5.4` was released.** No phase: a security release for the
+image, prepared with the owner on 2026-10-24 in two sessions, this Mac's and a cloud one. The
+nightly's self-scan had failed on 2026-10-20 and 2026-10-21 on advisories in the image's
+Checkov lock (#234); the lock fix landed as #235, past ten in aiohttp, certifi and GitPython.
+The base moved from `python:3.12-alpine3.22`, a tag Docker Hub stopped updating in April, to
+`python:3.12-alpine3.24` by digest, and `apk` keeps no log, so two builds are still one image
+(#241). #240 carried #227's record, the documents, Python 3.14 in CI, and `refresh.yml`'s
+checkout, whose absence had failed it silently on 2026-10-12 and 2026-10-19. The machinery
+changed, so `1.5.4` was rehearsed (run 40129700841, cancelled at the brake). On CI's arm64
+image the Mac found nothing Alpine has fixed missing, the self-scan clean, end-to-end 70
+passed, and the Score 74.1 with every track at its baseline, as on Linux; the acceptance set
+passed 7 of 8, `6-self` held by #234 until `SELF_PIN` moved to `1.5.4`'s commit after it.
+The tag followed the landing, and the release run published (run 40171790029): PyPI, both
+architectures at `sha256:eaa85bec`, signed and attested. Its CHANGELOG entry keeps the date it
+was prepared, 2026-10-24. #181 closed on 2026-10-24, and its §8 row goes.
+
 **IDs.** Tasks here are `R<phase>.<n>`, continuing from R8. R0 to R6 are closed and in
 [their archive](../../../docs/history/tasks-phases-r0-r6.md), R7 and R8 in
 [theirs](../../../docs/history/tasks-phases-r7-r8.md), with the decisions D1 to D20 that
@@ -2348,7 +2364,6 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 |---|---|---|
 | upload the social preview (D78d) | R39.4 | Settings → General → Social preview: upload `docs/social-preview.png`. GitHub's API cannot set it |
 | the refresh's first release pull request (D64c) | R28 landed | nothing on the first Monday of a month whose pins moved; or dispatch `refresh` on `main`. Close and reopen its pull request to run the required checks, then land and tag as `docs/RELEASING.md` says |
-| close #181 (R28.5's dry run) | now | its workflow, `published.yml`, left in R26.4, so no run will close it |
 | create the weekly maintenance routine (D64d) | R28 landed | a scheduled Claude Code cloud routine from `docs/MAINTENANCE.md`, with the monthly cap you choose |
 | audit a tenth of the corpus's labels (D65a) | R29.2 | `python3 scripts/audit_sample.py` lists the 18 of 172 labels, drawn with a fixed seed; read each finding and its label in `tests/eval/labels/corpus.toml`. A disagreement changes the label, with the change in its reason |
 | Scorecard's checks one maintainer cannot lift (D63d) | R27 landed | Code-Review, Branch-Protection's required reviews, Contributors, and the Best Practices badge's silver and gold, all of which need a second maintainer |
