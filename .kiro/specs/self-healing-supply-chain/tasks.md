@@ -880,6 +880,30 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   image: zizmor's recapture is its committed golden byte for byte, and `go_toolchain` reads
   each binary R47.1 measured as `go version` does. `docs/MAINTENANCE.md` describes the recapture.
 
+  **The session's summary, 2026-10-25** (slot C of 1.6.0, a cloud session, D61):
+  - **#242 and #244** rebased twice, onto #246 (`6ca941d`), then, at slot M's request, onto
+    #247 (`4fb6c07`). Both rebases resolved the CHANGELOG's `[Unreleased]` by keeping both
+    sides. "Ready to land:" was posted on `5944641` and `a1e9c63`, with all eight required
+    checks green; #244's image gate is red by design at 131 blocking.
+  - **`build/1.6.0-the-image-current` (#248)**: R47.1 to R47.3, then six Scanners moved by
+    `scripts/scanner_upgrade.py`, each to its newest release past the cooldown, each with
+    every Score track unchanged: Trivy 0.76.0, OSV-Scanner 2.7.0, Syft 1.54.1, Opengrep
+    1.31.0 (signed from `release-v1.31.0`, which `verify-opengrep.sh` now requires),
+    zizmor 1.31.1 and Checkov 3.3.29. Gitleaks 8.30.1 is built from its Go module with
+    go1.27.3. pip is gone from the image. The watchdog watches Opengrep's releases and each
+    Scanner's liveness. Checkov's recapture found two orders R47.1 had not, its passed
+    checks' and each check's `evaluated_keys`, and the judgement now sorts them.
+  - **Measured here:** the Score 74.1, every track at its baseline. The acceptance set: 8 of
+    8 pass. `verify.sh` passes. e2e: 74 passed, and 6 failed of D61 (i)'s cloud-only kind
+    (a `full` scan's registries, and the database fetch inside a container). The image
+    gate on amd64: 131 to 59 blocking, 5 with no fix, 0 accepted. The 59 are listed in
+    #248's body for the owner's decision.
+  - **Left for the owner:** the 59 entries for `.github/image-accepted.yaml` (or their
+    upstream releases: Trivy 0.76.1 is past the cooldown on 2026-10-28, Syft 1.55.0 on
+    10-26, Opengrep 1.32.0 and Checkov 3.3.30 on 10-29 and 10-27); Opengrep's new signer
+    identity; the arm64 gate, read from #248's CI; and the tags, the landings and the
+    release, as always.
+
 - [ ] **R47.4** 👤 **It lands only when nothing moved** (D81v). Behaviours:
   1. `scanner-upgrade.yml`, as design.md §12 lays it out: on a Dependabot pull request that
      moves a Scanner's stage, and nothing else.
