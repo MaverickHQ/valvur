@@ -96,3 +96,17 @@ def test_on_its_fixtures_it_finds_what_the_published_binary_found(fixture, mount
                    for f in json.loads(report.read_text() or "[]"))
 
     assert found == UPSTREAM[fixture]
+
+
+def test_dependabot_s_docker_ecosystem_tracks_the_go_base():
+    """Dependabot moves every `FROM name:tag@sha256:…` in the root Dockerfile, a new digest
+    of a tag as well as a new tag, after the week's cooldown, unless an `ignore` names it.
+    So the Go that builds Gitleaks is followed like every other base, and none ignores it."""
+    config = (REPO / ".github" / "dependabot.yml").read_text()
+    blocks = re.split(r"\n  - package-ecosystem: ", config)
+    [docker] = [b for b in blocks if b.startswith("docker\n    directory: /\n")]
+
+    assert "default-days: 7" in docker
+    assert not re.search(r'dependency-name: "?golang', docker)
+    assert re.match(r"FROM golang:\d+\.\d+\.\d+-alpine\d+\.\d+@sha256:[0-9a-f]{64} AS gitleaks$",
+                    _stage().splitlines()[0])
