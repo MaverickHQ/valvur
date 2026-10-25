@@ -75,6 +75,28 @@ carries.
    every item read, with its outcome. Its checks are the repository's required checks.
    The routine stops when it is open, or when nothing needed fixing.
 
+## A Scanner's upgrade, completed
+
+When a Scanner's stage moves (its `FROM` in the Dockerfile, Opengrep's release `ARG`s, or its
+hash-locked requirements), its other pins move with it, and its golden is recaptured from the
+new binary (R47.2, R47.3):
+
+1. Build the image from the moved stage (`docker buildx bake`, or `scripts/cloud_image.py` in
+   a cloud session).
+2. `uv run python scripts/scanner_upgrade.py <scanner> <old> <new> --recapture`. It moves the
+   adapter's `VERSION`, the golden's pin in `tests/conftest.py`, `docs/PROTOCOL.md`'s row and,
+   for Opengrep, `scripts/verify-opengrep.sh`. Then it captures the Scanner's report twice,
+   with the adapter's `offline` command in one Scan Container fed a Snapshot of its fixture:
+   `broken-repo` for Opengrep, Checkov and OSV-Scanner (after OSV's offline databases); its
+   `package-lock.json` and `requirements.txt` for Trivy; its `requirements.txt` for Syft;
+   `workflows-repo` for zizmor. Gitleaks has no golden.
+3. The two captures must agree, apart from what R47.1 measured differs on every run: Trivy's
+   `ReportID` and `CreatedAt`, Syft's `serialNumber` and `metadata.timestamp`, and the order
+   of Checkov's failed checks. Then the first is the new golden. Otherwise nothing is
+   written, the exit is 3, and the upgrade is the owner's.
+4. Review the golden's diff, and run the Score (`scripts/eval.py --compare
+   tests/eval/baseline.json`).
+
 ## What it costs
 
 One session a week, bounded by the cap the owner sets when creating the routine (§8).

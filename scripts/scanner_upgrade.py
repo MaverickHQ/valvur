@@ -6,10 +6,12 @@ Dependabot moves a Scanner's stage (its `FROM`, Opengrep's release `ARG`s, or it
 hash-locked requirements) and nothing else, so its pull requests stay red until the rest
 move too (#229, #230, #238). This moves the rest, as R47.1 lists them: the adapter's
 `VERSION`, the golden's pin in `tests/conftest.py`, `docs/PROTOCOL.md`'s table, and
-Opengrep's signature check. It names the golden the new binary must be recaptured into,
-and never writes one. Each pin must read the old version exactly once, or nothing is
-written. Prints `{"scanner", "from", "to", "changed", "recapture"}`. Standard library
-alone.
+Opengrep's signature check. Each pin must read the old version exactly once, or nothing
+is written. Prints `{"scanner", "from", "to", "changed", "recapture"}`.
+
+With `--recapture` (R47.3), the new binary's golden is captured twice from the image and
+written only when the two agree (`recapture`), as `docs/MAINTENANCE.md` describes. Exit 3
+means the upgrade is left for the owner, with why on stderr.
 """
 
 from __future__ import annotations
@@ -91,6 +93,94 @@ def update(root: Path, tool: str, old: str, new: str) -> list[str]:
     return sorted(written)
 
 
+#: How each golden is captured (R47.1): the fixture, and the files of it kept, or all.
+RECIPES: dict[str, tuple[str, tuple[str, ...] | None]] = {
+    "trivy": ("broken-repo", ("package-lock.json", "requirements.txt")),
+    "osv-scanner": ("broken-repo", None),
+    "syft": ("broken-repo", ("requirements.txt",)),
+    "opengrep": ("broken-repo", None),
+    "checkov": ("broken-repo", None),
+    "zizmor": ("workflows-repo", None),
+}
+#: What differs between two runs of one binary on one tree and one day's data, measured by
+#: R47.1, and nothing more: each run's identity, and the order Checkov reports in.
+VOLATILE = {"trivy": (("ReportID",), ("CreatedAt",)),
+            "syft": (("serialNumber",), ("metadata", "timestamp"))}
+
+
+def _blank(data: object, path: tuple[str, ...]) -> None:
+    *parents, last = path
+    for key in parents:
+        data = data.get(key) if isinstance(data, dict) else None
+    if isinstance(data, dict) and last in data:
+        data[last] = None
+
+
+def comparable(tool: str, report: bytes) -> object:
+    """The report as two runs must agree on it."""
+    data = json.loads(report or b"null")
+    for path in VOLATILE.get(tool, ()):
+        _blank(data, path)
+    if tool == "checkov":
+        for block in data if isinstance(data, list) else [data]:
+            checks = (block.get("results") or {}).get("failed_checks")
+            if isinstance(checks, list):
+                checks.sort(key=lambda c: json.dumps(c, sort_keys=True))
+    return data
+
+
+def capture(tool: str, runtime: object) -> bytes:
+    """The Scanner's report on its recipe's fixture, from one Scan Container."""
+    import shutil
+    import tempfile
+
+    # deferred: the image's machinery, needed only by a recapture, not by the pin moves.
+    import fixtures
+
+    from valvur import datasets, fileset, osv_offline
+    from valvur.adapters import DEFAULT_ADAPTERS
+    from valvur.engine_host import snapshot
+
+    fixture, kept = RECIPES[tool]
+    adapter = next(a for a in DEFAULT_ADAPTERS if a.name == tool)
+    if hasattr(adapter, "for_profile"):
+        adapter = adapter.for_profile(network=False)     # the `offline` Profile's command
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = fixtures.copy(fixture, Path(tmp) / "workspace")
+        for path in sorted(workspace.rglob("*"), reverse=True):
+            if kept is not None and path.is_file() and \
+                    path.relative_to(workspace).as_posix() not in kept:
+                path.unlink()
+        files = fileset.build(workspace).files
+        if tool == "osv-scanner":
+            osv_offline.ensure(files, lambda event: None, due=datasets.OSV.due)
+        scratch = Path(tmp) / "scratch"
+        scratch.mkdir()
+        invocation = adapter.command(workspace)
+        runtime.run([invocation], snapshot(workspace, files), scratch)  # type: ignore[attr-defined]
+        report = scratch / (invocation.report or f"{invocation.tool}.stdout")
+        out = report.read_bytes() if report.is_file() else b""
+        shutil.rmtree(scratch, ignore_errors=True)
+        return out
+
+
+def recapture(root: Path, tool: str, version: str, *, runtime: object) -> str:
+    """Capture twice; write the first as the new golden when both agree, and remove the
+    old. A pair that differs is refused, and nothing is written."""
+    if tool not in RECIPES:
+        raise LeftForOwner(f"{tool} has no golden to recapture")
+    first, second = capture(tool, runtime), capture(tool, runtime)
+    if comparable(tool, first) != comparable(tool, second):
+        raise LeftForOwner(f"{tool}'s recapture is not deterministic: two captures on "
+                           f"{RECIPES[tool][0]} differ beyond its run's identity")
+    folder = root / "tests" / "fixtures" / "golden"
+    for old in folder.glob(f"{tool}-*.json"):
+        old.unlink()
+    [name] = golden(tool, version)
+    (root / name).write_bytes(first)
+    return name
+
+
 def golden(tool: str, version: str) -> list[str]:
     return [] if tool in NO_GOLDEN else [f"tests/fixtures/golden/{tool}-{version}.json"]
 
@@ -101,9 +191,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("old", help="the version every other pin reads today")
     parser.add_argument("new", help="the version the stage now pins")
     parser.add_argument("--root", type=Path, default=REPO, help="the tree (default: this one)")
+    parser.add_argument("--recapture", action="store_true",
+                        help="recapture the golden twice from the image (VALVUR_IMAGE)")
     args = parser.parse_args(argv)
     try:
         changed = update(args.root, args.scanner, args.old, args.new)
+        if args.recapture and args.scanner in RECIPES:
+            # deferred: a recapture needs the image; moving the pins does not.
+            from valvur.engine_host import ContainerRuntime
+
+            changed.append(recapture(args.root, args.scanner, args.new,
+                                     runtime=ContainerRuntime()))
     except LeftForOwner as why:
         print(f"left for the owner: {why}", file=sys.stderr)
         return 3
