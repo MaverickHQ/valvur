@@ -10,7 +10,9 @@ Opengrep's signature check. Each pin must read the old version exactly once, or 
 is written. Prints `{"scanner", "from", "to", "changed", "recapture"}`.
 
 With `--recapture` (R47.3), the new binary's golden is captured twice from the image and
-written only when the two agree (`recapture`), as `docs/MAINTENANCE.md` describes. Exit 3
+written only when the two agree (`recapture`), as `docs/MAINTENANCE.md` describes. With
+`--score DIR`, the Score runs against `tests/eval/baseline.json`, and `--body FILE` writes
+each track's delta into the pull request's body. Exit 3
 means the upgrade is left for the owner, with why on stderr.
 """
 
@@ -19,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -181,6 +184,42 @@ def recapture(root: Path, tool: str, version: str, *, runtime: object) -> str:
     return name
 
 
+#: Each Scanner by the name its project gives it.
+NAMES = {"gitleaks": "Gitleaks", "trivy": "Trivy", "osv-scanner": "OSV-Scanner",
+         "syft": "Syft", "opengrep": "Opengrep", "checkov": "Checkov", "zizmor": "zizmor"}
+#: Points a track may fall under its baseline (ADR-0026), as `scripts/eval.py` judges it.
+TOLERANCE = 2.0
+Deltas = dict[str, tuple[float, float, float]]
+
+
+def score(root: Path, out: Path, *, run=subprocess.run) -> Deltas:
+    """The Score against the baseline, each track as (baseline, now, delta)."""
+    baseline_path = root / "tests" / "eval" / "baseline.json"
+    run([sys.executable, str(root / "scripts" / "eval.py"),
+         "--compare", str(baseline_path), "--out", str(out)], check=False)
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))["tracks"]
+    tracks = json.loads((out / "score.json").read_text(encoding="utf-8"))["tracks"]
+    return {name: (was, tracks[name]["score"], round(tracks[name]["score"] - was, 1))
+            for name, was in baseline.items() if name in tracks}
+
+
+def body(report: dict, *, deltas: Deltas | None = None) -> str:
+    """The pull request's body: what moved, and what it measured."""
+    tool = report["scanner"]
+    lines = [f"**{NAMES.get(tool, tool)} {report['from']} → {report['to']}**, its other pins "
+             "moved by `scripts/scanner_upgrade.py` (R47.2)."]
+    if deltas is not None:
+        lines += ["", "| track | baseline | now | delta |", "|---|---|---|---|"]
+        lines += [f"| {name} | {was} | {now} | {delta:+.1f} |"
+                  for name, (was, now, delta) in deltas.items()]
+        under = [name for name, (was, now, _) in deltas.items() if now < was - TOLERANCE]
+        lines += ["", f"**Stopped:** more than {TOLERANCE:g} points under its baseline: "
+                      f"{', '.join(under)}." if under else
+                  ("Every track unchanged." if all(d == 0 for *_, d in deltas.values())
+                   else "Tracks moved, none more than 2 points under its baseline.")]
+    return "\n".join(lines) + "\n"
+
+
 def golden(tool: str, version: str) -> list[str]:
     return [] if tool in NO_GOLDEN else [f"tests/fixtures/golden/{tool}-{version}.json"]
 
@@ -193,6 +232,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=REPO, help="the tree (default: this one)")
     parser.add_argument("--recapture", action="store_true",
                         help="recapture the golden twice from the image (VALVUR_IMAGE)")
+    parser.add_argument("--score", type=Path, metavar="DIR",
+                        help="run the Score against the baseline, its report under DIR")
+    parser.add_argument("--body", type=Path, metavar="FILE",
+                        help="write the pull request's body here")
     args = parser.parse_args(argv)
     try:
         changed = update(args.root, args.scanner, args.old, args.new)
@@ -205,9 +248,14 @@ def main(argv: list[str] | None = None) -> int:
     except LeftForOwner as why:
         print(f"left for the owner: {why}", file=sys.stderr)
         return 3
-    print(json.dumps({"scanner": args.scanner, "from": args.old, "to": args.new,
-                      "changed": changed, "recapture": golden(args.scanner, args.new)},
-                     indent=2))
+    report = {"scanner": args.scanner, "from": args.old, "to": args.new,
+              "changed": changed, "recapture": golden(args.scanner, args.new)}
+    deltas = score(args.root, args.score) if args.score else None
+    if deltas is not None:
+        report["deltas"] = deltas
+    if args.body:
+        args.body.write_text(body(report, deltas=deltas), encoding="utf-8")
+    print(json.dumps(report, indent=2))
     return 0
 
 

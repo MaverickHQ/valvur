@@ -101,3 +101,40 @@ def test_checkov_s_order_alone_is_not_a_difference_and_zizmor_s_stdout_is_its_re
         "tests/fixtures/golden/zizmor-1.31.1.json"
     assert zizmor.plans[0][0].report is None
     assert not (root / "tests/fixtures/golden/zizmor-1.30.1.json").exists()
+
+
+def _eval_writing(tracks: dict[str, float], calls: list):
+    """`scripts/eval.py`, which scans every track in the image, stood in for by what it
+    writes: `score.json` under `--out`."""
+    def run(argv, **_):
+        calls.append(argv)
+        out = Path(argv[argv.index("--out") + 1])
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "score.json").write_text(json.dumps(
+            {"score": round(sum(tracks.values()) / len(tracks), 1),
+             "tracks": {name: {"score": value} for name, value in tracks.items()}}))
+        return type("Done", (), {"returncode": 0})()
+    return run
+
+
+def test_the_score_is_run_against_the_baseline_and_each_track_s_delta_is_in_the_body(tmp_path):
+    upgrade = _script()
+    baseline = json.loads((REPO / "tests" / "eval" / "baseline.json").read_text())["tracks"]
+    now = {**baseline, "sast-js": baseline["sast-js"] + 1.5,
+           "infrastructure": baseline["infrastructure"] - 2.5}
+    calls: list = []
+
+    deltas = upgrade.score(REPO, tmp_path / "eval", run=_eval_writing(now, calls))
+
+    [argv] = calls
+    assert argv[argv.index("--compare") + 1].endswith("tests/eval/baseline.json")
+    assert set(deltas) == set(baseline)
+    assert deltas["sast-js"] == (baseline["sast-js"], baseline["sast-js"] + 1.5, 1.5)
+    assert deltas["secrets"][2] == 0.0
+
+    body = upgrade.body({"scanner": "trivy", "from": "0.75.0", "to": "0.76.0"}, deltas=deltas)
+    assert "Trivy 0.75.0 → 0.76.0" in body
+    assert "| sast-js | 55.0 | 56.5 | +1.5 |" in body
+    assert "| infrastructure | 95.0 | 92.5 | -2.5 |" in body
+    # More than 2 points under its baseline stops the move, and the body says which.
+    assert "more than 2 points under its baseline: infrastructure" in body
