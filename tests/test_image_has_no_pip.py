@@ -70,3 +70,30 @@ def test_its_sbom_lists_no_pip():
 
     assert components, "the SBOM listed nothing"
     assert [c for c in components if c.get("name", "").lower() == "pip"] == []
+
+
+#: pip 25.0.1's advisories in the image gate, run 40222670372 (2026-10-25), on both
+#: architectures; 1.5.4's notes omitted them.
+PIP_ADVISORIES = {"CVE-2025-8869", "CVE-2026-1703", "CVE-2026-3219", "CVE-2026-6357",
+                  "CVE-2026-8643", "CVE-2026-13346"}
+
+
+@pytest.mark.e2e
+def test_the_image_gate_finds_none_of_pip_s_six_advisories():
+    import json
+
+    from valvur import cache
+
+    database = cache.root() / "trivy"
+    scan = subprocess.run(
+        ["docker", "run", "--rm", "--network", "none", "-v", f"{database}:/db:ro",
+         "--entrypoint", "trivy", _image(), "rootfs", "--cache-dir", "/db", "--cache-backend",
+         "memory", "--skip-db-update", "--skip-java-db-update", "--offline-scan", "--format",
+         "json", "--scanners", "vuln", "--quiet", "/"],
+        capture_output=True, text=True, check=True).stdout
+    found = {(v["VulnerabilityID"], v["PkgName"]) for r in json.loads(scan).get("Results") or []
+             for v in r.get("Vulnerabilities") or []}
+
+    assert found, "the scan found nothing at all, so it read nothing"
+    assert {i for i, package in found if package == "pip"} == set()
+    assert not PIP_ADVISORIES & {i for i, _ in found}
