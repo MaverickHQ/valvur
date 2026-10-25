@@ -110,6 +110,8 @@ RECIPES: dict[str, tuple[str, tuple[str, ...] | None]] = {
 #: What differs between two runs of one binary on one tree and one day's data, measured by
 #: R47.1, and nothing more: each run's identity, and the order Checkov reports in, of its
 #: failed checks and of each check's evaluated keys.
+#: Checkov's lists of checks, each in the order its run happened to visit them.
+CHECKOV_LISTS = ("failed_checks", "passed_checks", "skipped_checks")
 VOLATILE = {"trivy": (("ReportID",), ("CreatedAt",)),
             "syft": (("serialNumber",), ("metadata", "timestamp"))}
 
@@ -129,8 +131,10 @@ def comparable(tool: str, report: bytes) -> object:
         _blank(data, path)
     if tool == "checkov":
         for block in data if isinstance(data, list) else [data]:
-            checks = (block.get("results") or {}).get("failed_checks")
-            if isinstance(checks, list):
+            results = block.get("results") or {}
+            for checks in (results.get(kind) for kind in CHECKOV_LISTS):
+                if not isinstance(checks, list):
+                    continue
                 for check in checks:
                     # A set in Checkov, so in the hash seed's order (3.3.29, measured).
                     keys = (check.get("check_result") or {}).get("evaluated_keys")

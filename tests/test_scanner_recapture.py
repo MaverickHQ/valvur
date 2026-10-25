@@ -190,3 +190,22 @@ def test_checkov_s_evaluated_keys_are_a_set_and_their_order_is_not_a_difference(
     different = Runtime(json.dumps(check("acl")), json.dumps(check("acl", "grant")))
     with pytest.raises(upgrade.LeftForOwner):
         upgrade.recapture(root, "checkov", "3.3.29", runtime=different)
+
+
+def test_checkov_s_passed_checks_are_judged_as_its_failed_ones(tmp_path):
+    """Checkov 3.3.29 reports `passed_checks` too, each with its evaluated keys, in the
+    same seed's order; and a report of one check type is one object, not a list."""
+    root = _root(tmp_path)
+    upgrade = _script()
+
+    def report(*keys):
+        return {"check_type": "terraform", "results": {
+            "failed_checks": [],
+            "passed_checks": [{"check_id": "CKV_AWS_57",
+                               "check_result": {"result": "PASSED", "evaluated_keys": list(keys)}},
+                              {"check_id": "CKV_AWS_19", "check_result": {"result": "PASSED"}}]}}
+    one, two = report("acl", "resource_type"), report("resource_type", "acl")
+    two["results"]["passed_checks"].reverse()
+    runtime = Runtime(json.dumps(one), json.dumps(two))
+
+    assert upgrade.recapture(root, "checkov", "3.3.29", runtime=runtime)

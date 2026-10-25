@@ -92,8 +92,8 @@ new binary (R47.2, R47.3):
    `workflows-repo` for zizmor. Gitleaks has no golden.
 3. The two captures must agree, apart from what R47.1 measured differs on every run: Trivy's
    `ReportID` and `CreatedAt`, Syft's `serialNumber` and `metadata.timestamp`, and the order
-   of Checkov's failed checks and of each one's `evaluated_keys`. Then the first is the new
-   golden. Otherwise nothing is written, the exit is 3, and the upgrade is the owner's.
+   of Checkov's failed, passed and skipped checks and of each one's `evaluated_keys`. Then
+   the first is the new golden. Otherwise nothing is written, the exit is 3, and the upgrade is the owner's.
 4. Review the golden's diff, and run the Score (`scripts/eval.py --compare
    tests/eval/baseline.json`).
 
