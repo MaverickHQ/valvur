@@ -80,3 +80,17 @@ def test_an_opengrep_release_past_the_cooldown_files_one_issue_naming_it(tree):
     assert "1.29.0" in opengrep[0]["body"] and "1.31.0" in opengrep[0]["body"]
     assert "v1.31.0" in opengrep[0]["body"]                     # its release, linked
     assert not any("1.32.0" in i["title"] for i in github.issues)
+
+
+def test_a_later_run_closes_it_once_the_pin_moves(tree):
+    with FakeGitHub() as github:
+        github.releases["opengrep/opengrep"] = [_release("v1.31.0", "2026-10-15T11:35:42Z")]
+        assert _watch(github, tree) == 0
+        [issue] = github.issues
+
+        _pin_opengrep(tree, "1.31.0")
+        assert _watch(github, tree) == 0
+
+    assert issue["state"] == "closed"
+    assert issue["comments"] == ["The image pins Opengrep 1.31.0 now."]
+    assert len(github.issues) == 1
