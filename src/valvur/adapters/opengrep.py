@@ -15,7 +15,7 @@ from ..findings import Finding, Severity
 from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from .base import ScannerAdapter, container_relative
 
-VERSION = "1.29.0"
+VERSION = "1.31.0"
 
 
 #: A `.semgrepignore` that ignores nothing, so Opengrep's own default list is off.

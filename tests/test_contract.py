@@ -41,15 +41,25 @@ def assert_artifacts_agree(results_dir):
     # in SARIF, suppressible — but it is a statement about valvur's reach, not about
     # the scanned code, so it is counted on its own line. The invariant is still that
     # the parts account for every Finding: nothing may vanish from all three.
-    active = [f for f in findings
-              if not f.get("suppressed") and f["rule"] != COVERAGE_RULE]
+    #
+    # Four since the sink inventory (R25): a sink is a Finding too, `inventory: true`,
+    # counted under *Sinks to review* and never active (`findings.py`). Opengrep
+    # 1.31.0's golden is the first captured with the inventory rules' metadata.
+    active = [f for f in findings if not f.get("suppressed")
+              and f["rule"] != COVERAGE_RULE and not f.get("inventory")]
     suppressed = [f for f in findings if f.get("suppressed")]
     notes = [f for f in findings
              if not f.get("suppressed") and f["rule"] == COVERAGE_RULE]
+    sinks = [f for f in findings if not f.get("suppressed") and f.get("inventory")
+             and f["rule"] != COVERAGE_RULE]
 
-    assert len(active) + len(suppressed) + len(notes) == len(findings), (
+    assert len(active) + len(suppressed) + len(notes) + len(sinks) == len(findings), (
         "the split does not account for every finding in findings.json"
     )
+    if sinks:
+        assert f"**Sinks to review:** {len(sinks)}" in summary, (
+            "SUMMARY.md does not count the sinks in findings.json"
+        )
     assert f"**Active findings:** {len(active)}" in summary, (
         "SUMMARY.md does not count the active findings in findings.json"
     )
@@ -211,9 +221,10 @@ def test_truncation_states_what_was_omitted(workspace):
     # The "All N are in findings.json" pointer counts the ACTIVE findings, which is
     # what the truncated list above it contains. Counting every Finding would send the
     # reader looking for entries that were never in that list — a coverage note is in
-    # findings.json but is reported in its own block, not among the most urgent.
-    active = [f for f in findings
-              if not f.get("suppressed") and f["rule"] != COVERAGE_RULE]
+    # findings.json but is reported in its own block, not among the most urgent, and so
+    # is a sink, counted under *Sinks to review*.
+    active = [f for f in findings if not f.get("suppressed")
+              and f["rule"] != COVERAGE_RULE and not f.get("inventory")]
 
     assert "further finding(s) omitted here" in summary
     assert f"All {len(active)} are" in summary

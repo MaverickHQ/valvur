@@ -11,9 +11,12 @@
 #   sh scripts/verify-opengrep.sh
 set -eu
 
-VERSION="${OPENGREP_VERSION:-v1.29.0}"
+VERSION="${OPENGREP_VERSION:-v1.31.0}"
 BASE="https://github.com/opengrep/opengrep/releases/download/${VERSION}"
-IDENTITY="https://github.com/opengrep/opengrep/.github/workflows/rolling-release.yml@refs/heads/main"
+# Since 1.30.2 Opengrep's release workflow runs on a branch named for the release, not
+# on `main` (read from each release's certificate, 2026-10-25): the one identity this
+# version's binaries can carry.
+IDENTITY="https://github.com/opengrep/opengrep/.github/workflows/rolling-release.yml@refs/heads/release-${VERSION}"
 ISSUER="https://token.actions.githubusercontent.com"
 
 work="$(mktemp -d)"

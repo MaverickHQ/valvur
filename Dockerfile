@@ -29,16 +29,17 @@
 # The digests are verified (task 15.2). These were previously fetched over HTTPS and
 # trusted — in the build that signs our releases, where a compromised binary would
 # not merely run but be signed with our identity and logged as authentic. Opengrep
-# signs each release keylessly with sigstore, from its own workflow:
-#   identity  https://github.com/opengrep/opengrep/.github/workflows/rolling-release.yml@refs/heads/main
+# signs each release keylessly with sigstore, from its own workflow, on a branch named
+# for the release since 1.30.2 (on `main` before):
+#   identity  https://github.com/opengrep/opengrep/.github/workflows/rolling-release.yml@refs/heads/release-v1.31.0
 #   issuer    https://token.actions.githubusercontent.com
-# Both signatures verified out of band 2026-09-05, and these are the digests of those
-# verified artifacts. `scripts/verify-opengrep.sh` re-checks the signatures in CI;
+# Both signatures checked against their Fulcio certificates 2026-10-25, and these are the
+# digests of those artifacts. `scripts/verify-opengrep.sh` re-checks the signatures in CI;
 # the check below is the deterministic half — no network, and it fails the build
 # rather than baking in whatever was served.
-ARG OPENGREP_SHA256_AMD64=1b474bf207905a3cffe4e915fe36895835bc89de2620cb2ffd88ca512d9ea31b
-ARG OPENGREP_SHA256_ARM64=6cccb7466a98608e308204e17b259f4ca3a9028c6eb71e6b07ea21b89026c484
-ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.29.0
+ARG OPENGREP_SHA256_AMD64=02c9fba481611aa0664bc79ccf7ce59e9e334b76af8921c80b2f738d17fabf9b
+ARG OPENGREP_SHA256_ARM64=b7cbedab0b6c9953ea27ce3baa006ad8b6fa1c50ee7433638b63f7fc731519d9
+ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.31.0
 
 FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d AS opengrep
 ARG TARGETARCH
