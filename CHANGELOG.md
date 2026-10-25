@@ -43,6 +43,31 @@ break things, and has.
   by its `applyTo` glob, unprompted. The rest of `.github/` is the project's CI and is still
   not read as prose. A git-ignored file in these folders is still scanned, as ADR-0021 has it.
 
+### Security
+
+- **Six Scanners moved to their newest release past the 7-day cooldown**, each measured: the
+  Score unchanged on every track, and each golden recaptured twice from the new binary.
+  - Trivy 0.75.0 to **0.76.0**, built with go1.27.2 (from go1.27.1);
+  - OSV-Scanner 2.6.0 to **2.7.0**, go1.27.0;
+  - Syft 1.54.0 to **1.54.1**, go1.26.8;
+  - Opengrep 1.29.0 to **1.31.0**, signed from its release's own branch,
+    `rolling-release.yml@refs/heads/release-v1.31.0`, which `scripts/verify-opengrep.sh`
+    now requires in place of `main`;
+  - zizmor 1.30.1 to **1.31.1**;
+  - Checkov 3.3.22 to **3.3.29**, through `scripts/lock-checkov.sh`; nothing else in the
+    lock moved.
+- **Gitleaks 8.30.1 is built from its source with go1.27.3.** Its published binary was built
+  with go1.24.13, which Go no longer supports, and Gitleaks has released nothing since
+  2026-03-12. The image builds the same release from its Go module, v8.30.1, pinned by the
+  hash Go's checksum database records, statically and path-free, with its version set as
+  upstream sets it. It finds on its fixtures what the published binary found. The image
+  gate's findings in it fall from 68 to 25, none of them left in Go's standard library; the
+  rest are in the module's own pinned dependencies.
+- **pip is removed from the image.** The base's pip installs the Checkov and zizmor
+  environments and nothing uses it after them. It shipped with six advisories, now fixed by
+  its absence: CVE-2025-8869, CVE-2026-1703, CVE-2026-3219, CVE-2026-6357, CVE-2026-8643
+  and CVE-2026-13346. 1.5.4's notes omitted them.
+
 ### The nightly judges valvur, not the calendar (Phase R43)
 
 - **A dependency vulnerability's advisory carries its publication date**, `advisory_published`
