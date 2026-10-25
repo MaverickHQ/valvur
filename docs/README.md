@@ -40,6 +40,6 @@
 | [Maintenance](MAINTENANCE.md) | the weekly routine that keeps the repository current |
 | [OpenSSF Best Practices](BEST-PRACTICES.md) | the answers to the badge's criteria |
 | [Listings](LISTING.md) | the GitHub page, and the text the plugin and power directories ask for |
-| [The MCP Registry's entry](mcp-registry/) | `server.json`, which each release moves and the owner publishes |
+| [The MCP Registry's entry](mcp-registry/) | `server.json`, which each release moves and publishes |
 | [History](history/) | closed plans, reviews and the parked path to OWASP |
 | [Changelog](../CHANGELOG.md) | what each version changed |

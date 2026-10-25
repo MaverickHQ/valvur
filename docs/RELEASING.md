@@ -163,18 +163,17 @@ git push origin v0.2.0
 
 ### After a release: the MCP Registry
 
-The official MCP Registry lists valvur as `io.github.MaverickHQ/valvur`. It is a listing,
-not part of the release, so it isn't one of the steps above: the release has ended at the
-approval. Once PyPI serves the version, the owner publishes the entry that step 1 moved to
-it. The registry starts it as `uvx valvur==0.2.0 mcp`, and proves the package is ours by
-the README's `mcp-name` line on PyPI. Not for a release without `valvur mcp`, which 1.5.4
-and earlier lack. The login is GitHub's device flow as the owner; `brew install
-mcp-publisher` once.
+The official MCP Registry lists valvur as `io.github.MaverickHQ/valvur`. The release
+publishes it, so it isn't one of the steps above. After `promote`, the `registry` job:
+- checks that `docs/mcp-registry/server.json`, which step 1 moved, names the version;
+- waits for PyPI to serve the version;
+- logs in to the registry by GitHub's OIDC, with no secret;
+- publishes the entry.
 
-```bash
-mcp-publisher login github
-mcp-publisher publish docs/mcp-registry/server.json
-```
+The registry starts the server as `uvx valvur==0.2.0 mcp`, and proves the package is ours
+by the README's `mcp-name` line on PyPI. A rehearsal skips the job. If it is red, the
+release still stands: re-run the job once whatever it names is fixed. Its `mcp-publisher`
+is pinned by tag and digest, and moves by hand.
 
 ### The window between bumping and publishing
 

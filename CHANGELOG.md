@@ -17,6 +17,12 @@ break things, and has.
   runs, takes no arguments, and refuses any, as `valvur-mcp` does. `valvur-mcp` stays
   what every configuration valvur writes names. The registry's entry is
   `docs/mcp-registry/server.json`, which each release moves to its version.
+- **The release publishes the MCP Registry's entry.** A `registry` job after `promote` logs
+  in to the registry by GitHub's OIDC, with no secret, once PyPI serves the version, and
+  publishes `docs/mcp-registry/server.json`. Its `mcp-publisher` is pinned by tag and
+  digest, and its signature is checked against the registry's release workflow. A rehearsal
+  skips it, and a failure there leaves the release whole. The owner's actions per release
+  stay three.
 - **The skill where Codex reads it.** `valvur init --write` writes the skill to
   `.agents/skills/valvur/` for Codex, as it writes `.claude/skills/valvur/` and
   `.kiro/skills/valvur/`, never over what is there, and `valvur doctor` reports that copy's

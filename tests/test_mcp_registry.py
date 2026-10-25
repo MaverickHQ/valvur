@@ -2,9 +2,9 @@
 
 The registry proves the PyPI package is ours by finding the server's name in PyPI's copy
 of the README (`test_pypi_readme.py` holds that line), and a client starts what the
-entry's package names. Published by the owner after a release, with
-`mcp-publisher publish docs/mcp-registry/server.json` (`docs/RELEASING.md`); outside the
-source distribution, since `docs/` is (`test_build_hash.py`).
+entry's package names. Published by the release's `registry` job, after `promote`
+(`test_release_registry.py`); outside the source distribution, since `docs/` is
+(`test_build_hash.py`).
 """
 
 from __future__ import annotations
