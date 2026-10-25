@@ -20,6 +20,8 @@ import re
 import sys
 from pathlib import Path
 
+import scanner_pins
+
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -50,11 +52,33 @@ class LeftForOwner(Exception):
     """The upgrade is not one this script completes, with why."""
 
 
-def update(root: Path, tool: str, old: str, new: str) -> list[str]:
-    """Move every pin from `old` to `new`; the files changed. All or none."""
+def declared(root: Path) -> dict[str, str]:
+    """Each Scanner's version, as its adapter declares it."""
+    found = {}
+    for tool, module in ADAPTERS.items():
+        text = (root / "src" / "valvur" / "adapters" / f"{module}.py").read_text(encoding="utf-8")
+        match = re.search(r'^VERSION = "([^"]+)"$', text, re.M)
+        if match:
+            found[tool] = match.group(1)
+    return found
+
+
+def check(root: Path, tool: str, new: str) -> None:
+    """Refuse anything but one known Scanner whose stage, alone, moved to `new`."""
     if tool not in ADAPTERS:
         raise LeftForOwner(f"{tool!r} is not a Scanner this script knows: "
                            f"one of {', '.join(sorted(ADAPTERS))}")
+    stages = scanner_pins.pins(scanner_pins.in_tree(root))
+    moved = sorted(t for t, v in stages.items() if declared(root).get(t) != v)
+    if len(moved) > 1:
+        raise LeftForOwner(f"the change moves more than one Scanner: {', '.join(moved)}")
+    if stages.get(tool) != new:
+        raise LeftForOwner(f"{tool}'s stage pins {stages.get(tool)}, not {new}")
+
+
+def update(root: Path, tool: str, old: str, new: str) -> list[str]:
+    """Move every pin from `old` to `new`; the files changed. All or none."""
+    check(root, tool, new)
     written: dict[str, str] = {}
     for name, pattern, replacement in _pins(tool, old, new):
         text = written.get(name) or (root / name).read_text(encoding="utf-8")

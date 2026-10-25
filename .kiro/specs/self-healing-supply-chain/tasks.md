@@ -849,7 +849,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      Opengrep is OCaml, zizmor Rust and Checkov Python: no Go. Gitleaks' go1.24 left Go's
      support when go1.26 was released, and its last release is 227 days old.
 
-- [ ] **R47.2** **Every pin moves with the Dockerfile's.** Behaviours:
+- [x] **R47.2** **Every pin moves with the Dockerfile's.** Behaviours:
   1. `scripts/scanner_upgrade.py`, given a Scanner and its old and new versions, updates
      every other pin R47.1 lists. It is tested on a copy of the tree with #238's change, and
      the tests that kept #238 red pass.
@@ -857,6 +857,13 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      naming why.
 
   _Requirements: 18.1_
+
+  **STATUS 2026-10-25:** ✅ 1 and 2, in `tests/test_scanner_upgrade.py`, on a copy of the
+  committed tree. With #238's line applied, the script moves three pins (the adapter, conftest
+  and the protocol table) and names `trivy-0.76.0.json` for R47.3; the two tests that kept
+  #238 red then pass in the copy. "More than one Scanner" is read from the tree itself: the
+  stages `scanner_pins.py` reads against the versions the adapters declare. A stage that does
+  not pin the new version is left for the owner too. Exit 3 means left for the owner.
 
 - [ ] **R47.3** **The fixtures, recaptured, and the Score.** Behaviours:
   1. It recaptures the Scanner's fixtures twice and refuses a recapture that differs.

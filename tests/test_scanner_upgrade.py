@@ -99,3 +99,38 @@ def test_opengrep_s_signature_check_moves_with_its_release(tmp_path):
     assert "scripts/verify-opengrep.sh" in json.loads(done.stdout)["changed"]
     assert 'VERSION="${OPENGREP_VERSION:-v9.9.9}"' in \
         (root / "scripts" / "verify-opengrep.sh").read_text()
+
+
+def test_a_scanner_it_does_not_know_is_left_for_the_owner(tmp_path):
+    root = _tree(tmp_path)
+
+    done = _upgrade(root, "grype", "0.1.0", "0.2.0")
+
+    assert done.returncode == 3
+    assert "left for the owner" in done.stderr and "grype" in done.stderr
+    assert done.stdout == ""
+
+
+def test_a_change_to_more_than_one_scanner_is_left_for_the_owner_untouched(tmp_path):
+    root = _with_238(_tree(tmp_path))
+    pins = _pins_now(root)
+    dockerfile = root / "Dockerfile"
+    dockerfile.write_text(dockerfile.read_text().replace(
+        f"/download/v{pins['opengrep']}\n", "/download/v9.9.9\n"))
+    before = (root / "src" / "valvur" / "adapters" / "trivy.py").read_text()
+
+    done = _upgrade(root, "trivy", "0.75.0", "0.76.0")
+
+    assert done.returncode == 3
+    assert "more than one Scanner" in done.stderr
+    assert "opengrep" in done.stderr and "trivy" in done.stderr
+    assert (root / "src" / "valvur" / "adapters" / "trivy.py").read_text() == before
+
+
+def test_a_stage_that_does_not_pin_the_new_version_is_left_for_the_owner(tmp_path):
+    root = _tree(tmp_path)                    # Trivy's stage still pins the old version
+
+    done = _upgrade(root, "trivy", "0.75.0", "0.76.0")
+
+    assert done.returncode == 3
+    assert "stage pins" in done.stderr
