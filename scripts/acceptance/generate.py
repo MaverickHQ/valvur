@@ -33,11 +33,12 @@ import fixtures  # noqa: E402 — the helper beside the scripts, standard librar
 
 TERRAFORM_URL = "https://github.com/terraform-aws-modules/terraform-aws-vpc"
 TERRAFORM_PIN = "cf0e3ca46fd51f47bf095957f2a6ac6127c89045"   # tests/corpus/corpus.toml
-#: This repository at a commit that passes its own gate (N2.5): `1.2.0`'s, whose release
-#: run passed the self-scan gate on 2026-10-02. It was `eb3a199` (R4), where the workflows
+#: This repository at a commit that passes its own gate (N2.5): `1.5.4`'s, whose release
+#: run passed the self-scan gate on 2026-10-25. It was `eb3a199` (R4), where the workflows
 #: first passed zizmor, until urllib3 advisories published on 2026-09-30 reached that
 #: tree's Checkov lock: a pinned tree ages as its dependencies do, and moves to a release.
-SELF_PIN = "d0417c4c9b90b2b174c09f1e9ee31aab28a6ee36"
+#: Then `1.2.0`'s `d0417c4`, until aiohttp's, certifi's and GitPython's reached it (#234).
+SELF_PIN = "5c8a7a4638b6ce6a8ff54e695947ebca766768c0"
 #: A known-malicious npm package (OSV `MAL-2023-1`), named in a manifest, never installed.
 MALICIOUS = ("@hyperion-util/cookies", "77.77.79", "MAL-2023-1")
 #: The gate's shape: its archive held 103,251 files.
