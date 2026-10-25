@@ -60,7 +60,28 @@ RUN set -eu; \
     echo "$sha  /opengrep" | sha256sum -c -; \
     chmod 755 /opengrep
 
-FROM zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f AS gitleaks
+# Gitleaks, built from its source with a current Go (the owner, 2026-10-25). Its last
+# release, 8.30.1 (2026-03-12), ships a binary built with go1.24.13, which Go stopped
+# supporting when go1.26 was released: R43.4's image gate counted 69 findings in it. This
+# builds the same release from its Go module, v8.30.1, as Go's checksum database records
+# it (`GITLEAKS_SUM`); its dependencies are held by the module's own go.sum. The module is
+# commit 8d1f98c. The tag has since moved to 83d9cd6, the commit the published binary's
+# build information names, which changes `.goreleaser.yml` alone, so the Go source is the
+# same. Static, path-free, with the version set as upstream sets it, so two builds of one
+# tree are one binary. MIT. Dependabot's docker ecosystem moves the Go base; a Gitleaks
+# release moves the two pins below together.
+FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS gitleaks
+ARG GITLEAKS_VERSION=8.30.1
+ARG GITLEAKS_SUM=h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=
+RUN set -eu; \
+    module="github.com/zricethezav/gitleaks/v8@v${GITLEAKS_VERSION}"; \
+    go mod download -json "$module" > /module.json; \
+    grep -qF "\"Sum\": \"${GITLEAKS_SUM}\"" /module.json; \
+    cd "$(go env GOMODCACHE)/${module}"; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go build -trimpath -buildvcs=false \
+      -ldflags="-X=github.com/zricethezav/gitleaks/v8/version.Version=v${GITLEAKS_VERSION}" \
+      -o /gitleaks .; \
+    /gitleaks version
 FROM aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 AS trivy
 FROM ghcr.io/google/osv-scanner:v2.7.0@sha256:4f3b7e2c64b9d38a5febc5a7e4a3dfef1d1362f726dea7a2ef4762b46469fcd0 AS osv
 FROM anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa AS syft
@@ -78,7 +99,7 @@ LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 # same number. A change that breaks anything on that page bumps it here and there.
 LABEL org.valvur.protocol="2"
 
-COPY --from=gitleaks /usr/bin/gitleaks        /usr/local/bin/gitleaks
+COPY --from=gitleaks /gitleaks               /usr/local/bin/gitleaks
 COPY --from=trivy    /usr/local/bin/trivy     /usr/local/bin/trivy
 COPY --from=osv      /osv-scanner             /usr/local/bin/osv-scanner
 COPY --from=syft     /syft                    /usr/local/bin/syft

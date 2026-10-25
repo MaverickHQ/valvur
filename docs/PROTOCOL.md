@@ -91,7 +91,7 @@ together.
 
 | binary | from | pinned at |
 |---|---|---|
-| `gitleaks` | `zricethezav/gitleaks` | 8.30.1 |
+| `gitleaks` | `gitleaks/gitleaks`, built from its release's source | 8.30.1 |
 | `trivy` | `aquasec/trivy` | 0.76.0 |
 | `osv-scanner` | `ghcr.io/google/osv-scanner` | 2.7.0 |
 | `syft` | `anchore/syft` | 1.54.1 |

@@ -22,7 +22,7 @@ from pathlib import Path
 Reader = Callable[[str], str]
 
 #: The Scanners pinned as images in the Dockerfile, by the stage that copies each.
-IMAGES = (("zricethezav/gitleaks", "gitleaks"), ("aquasec/trivy", "trivy"),
+IMAGES = (("aquasec/trivy", "trivy"),
           ("ghcr.io/google/osv-scanner", "osv-scanner"), ("anchore/syft", "syft"))
 #: The Scanners installed from a hash-locked requirements file.
 LOCKS = (("checkov", "requirements-checkov.txt"), ("zizmor", "requirements-zizmor.txt"))
@@ -54,6 +54,12 @@ def pins(read: Reader) -> dict[str, str]:
         found[stage] = _need(re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:",
                                        dockerfile, re.M),
                              f"the Dockerfile no longer pins {image} by version and digest")
+    # Gitleaks is built from its release's source since 2026-10-25, its version an `ARG`;
+    # a release before then pinned its image, and `--since` reads those from their tags.
+    found["gitleaks"] = _need(re.search(r"^ARG GITLEAKS_VERSION=([\d.]+)$", dockerfile, re.M)
+                              or re.search(r"^FROM zricethezav/gitleaks:v?([\d.]+)@sha256:",
+                                           dockerfile, re.M),
+                              "the Dockerfile no longer names Gitleaks' release")
     found["opengrep"] = _need(re.search(r"^ARG OPENGREP_URL=\S+/download/v([\d.]+)$",
                                         dockerfile, re.M),
                               "the Dockerfile no longer names Opengrep's release")

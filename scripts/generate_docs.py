@@ -120,7 +120,7 @@ PATHS: dict[str, tuple[str, str]] = {
 #: Each binary on PATH and where it comes from; the version is its adapter's, or the
 #: text here for the two no adapter pins.
 BINARIES: dict[str, tuple[str, str | None]] = {
-    'gitleaks': ('`zricethezav/gitleaks`', None),
+    'gitleaks': ('`gitleaks/gitleaks`, built from its release\'s source', None),
     'trivy': ('`aquasec/trivy`', None),
     'osv-scanner': ('`ghcr.io/google/osv-scanner`', None),
     'syft': ('`anchore/syft`', None),
