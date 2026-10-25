@@ -23,7 +23,7 @@ from .base import ScannerAdapter, container_relative
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
 
-VERSION = "1.30.1"
+VERSION = "1.31.1"
 
 _SEVERITY = {"high": "high", "medium": "medium", "low": "low", "informational": "info"}
 
