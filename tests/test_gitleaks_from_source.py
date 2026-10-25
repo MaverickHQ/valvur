@@ -65,3 +65,34 @@ def test_it_reports_8_30_1_and_its_build_names_the_go_that_built_it():
     go = re.match(r"FROM golang:(\d+\.\d+)\.(\d+)", _stage())
     assert go
     assert scanner_upgrade.image_toolchain("gitleaks", IMAGE) == f"go{go[1]}.{go[2]}"
+
+
+#: What the upstream 8.30.1 binary (`zricethezav/gitleaks:v8.30.1`) found on each fixture,
+#: through the adapter's own command, recorded on 2026-10-25 before the stage moved.
+UPSTREAM = {"broken-repo": [("aws-access-token", "/workspace/config.py", 9),
+                            ("generic-api-key", "/workspace/config.py", 10)],
+            "clean-repo": [], "monorepo": [], "workflows-repo": [], "dependency-reality": []}
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("fixture", sorted(UPSTREAM))
+def test_on_its_fixtures_it_finds_what_the_published_binary_found(fixture, mountable_tmp):
+    import json
+
+    from fixture_copy import copy_fixture
+
+    from valvur import fileset
+    from valvur.adapters import GitleaksAdapter
+    from valvur.engine_host import ContainerRuntime, snapshot
+
+    workspace = copy_fixture(REPO / "tests" / "fixtures" / fixture, mountable_tmp / "ws")
+    scratch = mountable_tmp / "scratch"
+    scratch.mkdir()
+    invocation = GitleaksAdapter().command(workspace)
+    ContainerRuntime().run([invocation], snapshot(workspace, fileset.build(workspace).files),
+                           scratch)
+    report = scratch / (invocation.report or "gitleaks.stdout")
+    found = sorted((f["RuleID"], f["File"], f["StartLine"])
+                   for f in json.loads(report.read_text() or "[]"))
+
+    assert found == UPSTREAM[fixture]
