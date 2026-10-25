@@ -8,6 +8,16 @@ break things, and has.
 
 ## [Unreleased]
 
+### Added
+
+- **`valvur mcp`, the MCP server under the CLI's name,** so the official MCP Registry
+  can list valvur. The registry names a PyPI package and no entry point, and a client
+  runs the package's CLI: `uvx valvur==<version> mcp`. Without this command a listing
+  would have started the CLI, which speaks no MCP. It runs the server `valvur-mcp`
+  runs, takes no arguments, and refuses any, as `valvur-mcp` does. `valvur-mcp` stays
+  what every configuration valvur writes names. The registry's entry is
+  `docs/mcp-registry/server.json`, which each release moves to its version.
+
 ## [1.5.4] — 2026-10-24
 
 A security release for the image. Its Checkov environment moves past ten advisories

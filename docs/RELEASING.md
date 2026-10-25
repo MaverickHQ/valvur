@@ -114,10 +114,10 @@ names the version alone while PyPI's badge says what is published.
 ```bash
 # 1. Prepare the release in one commit, on a branch of its own (D33, R16.2): the
 #    version and the lock, the README's status line, SECURITY.md's series, the
-#    CHANGELOG's heading, and the skill, the Claude Code plugin and the Kiro power,
-#    their servers pinned to the new version. Its first line says whether the
-#    machinery changed since the last tag, which decides step 6. `--dry-run` first
-#    shows the diff and changes nothing.
+#    CHANGELOG's heading, the skill, the Claude Code plugin and the Kiro power,
+#    their servers pinned to the new version, and the MCP Registry's entry (below).
+#    Its first line says whether the machinery changed since the last tag, which
+#    decides step 6. `--dry-run` first shows the diff and changes nothing.
 git checkout -b release/0.2.0
 uv run python scripts/prepare_release.py 0.2.0 --dry-run
 uv run python scripts/prepare_release.py 0.2.0   # commits "chore: release 0.2.0"
@@ -158,6 +158,22 @@ git push origin v0.2.0
 # 9. (owner) Approve promote at the brake once artifact has validated the pair
 #    (Settings → Environments → release). The release ends here: PyPI's badge and
 #    the GitHub release say it is published, and nothing in the tree changes after it.
+
+```
+
+### After a release: the MCP Registry
+
+The official MCP Registry lists valvur as `io.github.MaverickHQ/valvur`. It is a listing,
+not part of the release, so it isn't one of the steps above: the release has ended at the
+approval. Once PyPI serves the version, the owner publishes the entry that step 1 moved to
+it. The registry starts it as `uvx valvur==0.2.0 mcp`, and proves the package is ours by
+the README's `mcp-name` line on PyPI. Not for a release without `valvur mcp`, which 1.5.4
+and earlier lack. The login is GitHub's device flow as the owner; `brew install
+mcp-publisher` once.
+
+```bash
+mcp-publisher login github
+mcp-publisher publish docs/mcp-registry/server.json
 ```
 
 ### The window between bumping and publishing

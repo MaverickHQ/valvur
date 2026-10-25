@@ -6,7 +6,8 @@ The primary way in: valvur is an MCP server and a skill, so the agent that write
 code can scan it, check a package before adding it, and propose fixes for you to apply.
 
 Add valvur to your agent's MCP configuration: one server,
-`uvx --from valvur valvur-mcp`, no install step. Each client reads it from its own
+`uvx --from valvur valvur-mcp`, no install step. `uvx valvur mcp` starts the same
+server, in the form the official MCP Registry uses. Each client reads it from its own
 file, in its own shape; `valvur init` prints every block below and a starter
 `.security-scan.toml`, and `valvur init --write` writes them into the project, beside
 what is there and never over it. The two marked *measured* were run here; the
