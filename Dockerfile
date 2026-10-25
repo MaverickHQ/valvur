@@ -165,6 +165,13 @@ RUN python3 -m venv --without-pip /opt/zizmor \
  && test -x /opt/zizmor/bin/zizmor \
  && ln -s /opt/zizmor/bin/zizmor /usr/local/bin/zizmor
 
+# pip out of the final image (the owner, 2026-10-25). The base's pip installed the two
+# environments above and is used by nothing after them: valvur is copied in, and no Scanner
+# calls pip. Yet it shipped, with six advisories (CVE-2025-8869, CVE-2026-1703, -3219,
+# -6357, -8643, -13346). `tests/test_image_has_no_pip.py` holds that none comes back.
+RUN rm -rf /usr/local/lib/python3.12/site-packages/pip /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+ && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.12
+
 # Checkov ships an update checker that asks PyPI for the latest version at every
 # start and caches the answer under `$HOME`. A scanner that phones home would break
 # the central claim in ADR-0010, so it is switched off — by the variable this
