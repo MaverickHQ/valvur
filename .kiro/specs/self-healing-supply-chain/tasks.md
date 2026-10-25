@@ -833,7 +833,8 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      - **only the run's identity differs:** Trivy's `ReportID` and `CreatedAt`, and Syft's
        `serialNumber` and `metadata.timestamp`;
      - **only the order differs:** Checkov's `failed_checks` (the same 13 checks), as
-       `ef3c335` saw.
+       `ef3c335` saw, and, found when 3.3.29 was recaptured, each check's `evaluated_keys`,
+       which Checkov builds from a set, so in the order of the process's hash seed.
 
      So "the same" is judged after those fields are blanked and Checkov's checks sorted, and
      only those: anything else that differs refuses the recapture (R47.3).

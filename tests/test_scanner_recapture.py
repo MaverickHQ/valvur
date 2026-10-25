@@ -171,3 +171,22 @@ def test_the_new_binary_s_go_toolchain_is_read_from_its_build_information(tmp_pa
     report = {"scanner": "trivy", "from": "0.75.0", "to": "0.76.0", "go": "go1.27.3"}
     assert "built with go1.27.3" in upgrade.body(report)
     assert "not a Go binary" in upgrade.body({**report, "go": None})
+
+
+def test_checkov_s_evaluated_keys_are_a_set_and_their_order_is_not_a_difference(tmp_path):
+    """Measured on Checkov 3.3.29, 2026-10-25: each check's `evaluated_keys` comes from a
+    Python set, so its order follows the process's hash seed and differs run to run."""
+    root = _root(tmp_path)
+    upgrade = _script()
+
+    def check(*keys):
+        return [{"check_type": "terraform", "results": {"failed_checks": [
+            {"check_id": "CKV_AWS_57", "check_result": {"result": "FAILED",
+                                                        "evaluated_keys": list(keys)}}]}}]
+    runtime = Runtime(json.dumps(check("acl", "access_control_policy")),
+                      json.dumps(check("access_control_policy", "acl")))
+    assert upgrade.recapture(root, "checkov", "3.3.29", runtime=runtime)
+
+    different = Runtime(json.dumps(check("acl")), json.dumps(check("acl", "grant")))
+    with pytest.raises(upgrade.LeftForOwner):
+        upgrade.recapture(root, "checkov", "3.3.29", runtime=different)

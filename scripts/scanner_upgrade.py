@@ -108,7 +108,8 @@ RECIPES: dict[str, tuple[str, tuple[str, ...] | None]] = {
     "zizmor": ("workflows-repo", None),
 }
 #: What differs between two runs of one binary on one tree and one day's data, measured by
-#: R47.1, and nothing more: each run's identity, and the order Checkov reports in.
+#: R47.1, and nothing more: each run's identity, and the order Checkov reports in, of its
+#: failed checks and of each check's evaluated keys.
 VOLATILE = {"trivy": (("ReportID",), ("CreatedAt",)),
             "syft": (("serialNumber",), ("metadata", "timestamp"))}
 
@@ -130,6 +131,11 @@ def comparable(tool: str, report: bytes) -> object:
         for block in data if isinstance(data, list) else [data]:
             checks = (block.get("results") or {}).get("failed_checks")
             if isinstance(checks, list):
+                for check in checks:
+                    # A set in Checkov, so in the hash seed's order (3.3.29, measured).
+                    keys = (check.get("check_result") or {}).get("evaluated_keys")
+                    if isinstance(keys, list):
+                        keys.sort(key=str)
                 checks.sort(key=lambda c: json.dumps(c, sort_keys=True))
     return data
 
