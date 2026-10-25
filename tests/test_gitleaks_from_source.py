@@ -110,3 +110,29 @@ def test_dependabot_s_docker_ecosystem_tracks_the_go_base():
     assert not re.search(r'dependency-name: "?golang', docker)
     assert re.match(r"FROM golang:\d+\.\d+\.\d+-alpine\d+\.\d+@sha256:[0-9a-f]{64} AS gitleaks$",
                     _stage().splitlines()[0])
+
+
+@pytest.mark.e2e
+def test_the_image_gate_finds_no_standard_library_advisory_in_it(tmp_path):
+    """R43.4's gate counted 68 blocking findings in the published binary on 2026-10-25
+    (69 the day before), 43 of them in go1.24.13's standard library. Built with a current
+    Go, none of those is left: what remains is in the module's own pinned dependencies,
+    which only a Gitleaks release moves."""
+    import json
+
+    from valvur.engine_host import IMAGE
+
+    database = Path(__import__("valvur.cache", fromlist=["root"]).root()) / "trivy"
+    scan = subprocess.run(
+        ["docker", "run", "--rm", "--network", "none", "-v", f"{database}:/db:ro",
+         "--entrypoint", "trivy", IMAGE, "rootfs", "--cache-dir", "/db", "--cache-backend",
+         "memory", "--skip-db-update", "--skip-java-db-update", "--offline-scan", "--format",
+         "json", "--scanners", "vuln", "--quiet", "/usr/local/bin/gitleaks"],
+        capture_output=True, text=True, check=True).stdout
+    found = [v for r in json.loads(scan).get("Results") or []
+             for v in r.get("Vulnerabilities") or []]
+
+    assert found, "the scan read no module from the binary"
+    stdlib = [v["VulnerabilityID"] for v in found
+              if v["PkgName"] == "stdlib" and v.get("FixedVersion")]
+    assert stdlib == []
