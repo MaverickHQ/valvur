@@ -53,3 +53,20 @@ def test_the_image_has_no_pip():
                           capture_output=True, text=True, check=True).stdout.strip()
 
     assert said == "True [None, None, None] []"
+
+
+@pytest.mark.e2e
+def test_its_sbom_lists_no_pip():
+    """What `scripts/check_image_licences.py` reads, Syft over the image: valvur's own
+    component inventory of what it ships. pip 25.0.1 was in it, from the base."""
+    import importlib.util
+
+    path = REPO / "scripts" / "check_image_licences.py"
+    spec = importlib.util.spec_from_file_location("check_image_licences", path)
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+
+    components = module.sbom(_image()).get("components", [])
+
+    assert components, "the SBOM listed nothing"
+    assert [c for c in components if c.get("name", "").lower() == "pip"] == []
