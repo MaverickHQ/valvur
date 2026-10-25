@@ -13,21 +13,20 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tarfile
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "scanner_upgrade.py"
 
-#: #238's change, as Dependabot made it: Trivy's stage, version and digest, and nothing else.
-TRIVY_OLD = ("FROM aquasec/trivy:0.75.0@sha256:"
-             "af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa AS trivy")
-TRIVY_NEW = ("FROM aquasec/trivy:0.76.0@sha256:"
-             "2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 AS trivy")
+#: #238's change, as Dependabot makes one: Trivy's stage, version and digest, and nothing
+#: else. Applied to whatever Trivy the tree pins, so the case outlives the pin it was
+#: measured on (0.75.0 to 0.76.0).
+TRIVY_STAGE = re.compile(r"^FROM aquasec/trivy:([\d.]+)@sha256:[0-9a-f]{64} AS trivy$", re.M)
+DIGEST = "2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222"
 
 
 def _tree(tmp_path: Path) -> Path:
@@ -54,36 +53,45 @@ def _upgrade(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
                           capture_output=True, text=True, check=False)
 
 
-def _with_238(root: Path) -> Path:
+def _bump(version: str) -> str:
+    major, minor, _ = version.split(".")
+    return f"{major}.{int(minor) + 1}.0"
+
+
+def _with_238(root: Path) -> tuple[Path, str, str]:
+    """The tree with Trivy's stage alone moved one minor on; its old and new versions."""
     dockerfile = root / "Dockerfile"
     text = dockerfile.read_text()
-    if TRIVY_OLD not in text:
-        pytest.skip("Trivy's stage has moved on since #238; the case is #238's tree")
-    dockerfile.write_text(text.replace(TRIVY_OLD, TRIVY_NEW))
-    return root
+    match = TRIVY_STAGE.search(text)
+    assert match, "no Trivy stage pinned by version and digest"
+    old = match.group(1)
+    new = _bump(old)
+    dockerfile.write_text(TRIVY_STAGE.sub(
+        f"FROM aquasec/trivy:{new}@sha256:{DIGEST} AS trivy", text))
+    return root, old, new
 
 
 def test_238s_change_is_completed_and_the_tests_that_kept_it_red_pass(tmp_path):
-    root = _with_238(_tree(tmp_path))
+    root, old, new = _with_238(_tree(tmp_path))
 
-    done = _upgrade(root, "trivy", "0.75.0", "0.76.0")
+    done = _upgrade(root, "trivy", old, new)
 
     assert done.returncode == 0, done.stderr
     report = json.loads(done.stdout)
-    assert report["scanner"] == "trivy" and report["to"] == "0.76.0"
+    assert report["scanner"] == "trivy" and report["to"] == new
     assert sorted(report["changed"]) == ["docs/PROTOCOL.md", "src/valvur/adapters/trivy.py",
                                         "tests/conftest.py"]
     # The golden is the new binary's output, which R47.3's recapture writes: named, not faked.
-    assert report["recapture"] == ["tests/fixtures/golden/trivy-0.76.0.json"]
-    old = root / "tests" / "fixtures" / "golden" / "trivy-0.75.0.json"
-    old.rename(old.with_name("trivy-0.76.0.json"))       # the recapture, stood in for here
+    assert report["recapture"] == [f"tests/fixtures/golden/trivy-{new}.json"]
+    golden = root / "tests" / "fixtures" / "golden" / f"trivy-{old}.json"
+    golden.rename(golden.with_name(f"trivy-{new}.json"))  # the recapture, stood in for here
 
     env = {**os.environ, "PYTHONPATH": str(root / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
     pinned = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
                              "tests/test_scanner_pins.py"],
                             cwd=root, env=env, capture_output=True, text=True, check=False)
     assert pinned.returncode == 0, pinned.stdout[-2000:]
-    assert _pins_now(root)["trivy"] == "0.76.0"
+    assert _pins_now(root)["trivy"] == new
 
 
 def test_opengrep_s_signature_check_moves_with_its_release(tmp_path):
@@ -112,14 +120,14 @@ def test_a_scanner_it_does_not_know_is_left_for_the_owner(tmp_path):
 
 
 def test_a_change_to_more_than_one_scanner_is_left_for_the_owner_untouched(tmp_path):
-    root = _with_238(_tree(tmp_path))
+    root, old, new = _with_238(_tree(tmp_path))
     pins = _pins_now(root)
     dockerfile = root / "Dockerfile"
     dockerfile.write_text(dockerfile.read_text().replace(
         f"/download/v{pins['opengrep']}\n", "/download/v9.9.9\n"))
     before = (root / "src" / "valvur" / "adapters" / "trivy.py").read_text()
 
-    done = _upgrade(root, "trivy", "0.75.0", "0.76.0")
+    done = _upgrade(root, "trivy", old, new)
 
     assert done.returncode == 3
     assert "more than one Scanner" in done.stderr
@@ -129,8 +137,9 @@ def test_a_change_to_more_than_one_scanner_is_left_for_the_owner_untouched(tmp_p
 
 def test_a_stage_that_does_not_pin_the_new_version_is_left_for_the_owner(tmp_path):
     root = _tree(tmp_path)                    # Trivy's stage still pins the old version
+    old = _pins_now(root)["trivy"]
 
-    done = _upgrade(root, "trivy", "0.75.0", "0.76.0")
+    done = _upgrade(root, "trivy", old, _bump(old))
 
     assert done.returncode == 3
     assert "stage pins" in done.stderr
