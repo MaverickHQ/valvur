@@ -3,7 +3,9 @@
 # Monday, so its `file-issue` step could not be found. `scripts/watchdog.py` reads each
 # workflow with a `schedule:` and its last scheduled runs on `main`, and keeps one issue
 # per workflow, `watchdog: <file>`: opened on a failed or overdue run, commented on
-# after, closed by a pass. The nightly (`acceptance.yml`) reads this workflow's own last
+# after, closed by a pass. It also watches the Scanners no dependency updater follows
+# (N3.10): an Opengrep release past the cooldown, and a Scanner with no release in 180
+# days or a binary on a Go that Go no longer supports. The nightly (`acceptance.yml`) reads this workflow's own last
 # run by the same rule, so neither stops unseen.
 #
 # 06:47 UTC, after the nightly's usual start; scheduled runs have started up to nine
@@ -39,6 +41,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # What Dependabot cannot see (N3.10): the Go each binary in the image users pull was
+      # built with. The image is public; the pull needs no token.
+      - name: Read each Scanner's Go from the published image
+        run: |
+          docker pull --quiet ghcr.io/maverickhq/valvur:latest
+          python3 scripts/scanner_upgrade.py --toolchains-of ghcr.io/maverickhq/valvur:latest > toolchains.json
+          cat toolchains.json
+
       - name: Judge every scheduled workflow
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,7 +56,7 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then set -- --dry-run; fi
-          python3 scripts/watchdog.py --repo "$REPO" "$@"
+          python3 scripts/watchdog.py --repo "$REPO" --scanners --toolchains toolchains.json "$@"
 
 
       - name: A watchdog that cannot run is filed too

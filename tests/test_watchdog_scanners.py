@@ -142,3 +142,16 @@ def test_a_scanner_with_no_release_in_180_days_or_an_unsupported_go_keeps_one_is
                       f"{github.url}/go") == 0
 
     assert issue["state"] == "closed"
+
+
+def test_the_daily_watch_reads_the_published_image_s_go_and_watches_the_scanners():
+    text = (REPO / ".github" / "workflows" / "watchdog.yml").read_text()
+    steps = text.split("\n    steps:\n", 1)[1]
+
+    read = steps.index("Read each Scanner's Go from the published image")
+    judge = steps.index("Judge every scheduled workflow")
+    assert read < judge
+    assert "ghcr.io/maverickhq/valvur:latest" in steps[read:judge]
+    assert "scripts/scanner_upgrade.py" in steps[read:judge]
+    assert re.search(r"python3 scripts/watchdog.py --repo \"\$REPO\" --scanners "
+                     r"--toolchains toolchains\.json", steps)

@@ -282,9 +282,12 @@ def golden(tool: str, version: str) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("scanner")
-    parser.add_argument("old", help="the version every other pin reads today")
-    parser.add_argument("new", help="the version the stage now pins")
+    parser.add_argument("scanner", nargs="?")
+    parser.add_argument("old", nargs="?", help="the version every other pin reads today")
+    parser.add_argument("new", nargs="?", help="the version the stage now pins")
+    parser.add_argument("--toolchains-of", metavar="IMAGE",
+                        help="print each binary Scanner's Go in IMAGE, as JSON, and stop "
+                             "(the watchdog's input)")
     parser.add_argument("--root", type=Path, default=REPO, help="the tree (default: this one)")
     parser.add_argument("--recapture", action="store_true",
                         help="recapture the golden twice from the image (VALVUR_IMAGE)")
@@ -295,6 +298,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--body", type=Path, metavar="FILE",
                         help="write the pull request's body here")
     args = parser.parse_args(argv)
+    if args.toolchains_of:
+        print(json.dumps({tool: image_toolchain(tool, args.toolchains_of) for tool in BINARIES},
+                         indent=2))
+        return 0
+    if not (args.scanner and args.old and args.new):
+        parser.error("a Scanner and its old and new versions are needed")
     try:
         changed = update(args.root, args.scanner, args.old, args.new)
         if args.recapture and args.scanner in RECIPES:
