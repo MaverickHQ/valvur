@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 
 from .. import exclusions
-from ..agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES, KIRO_DIRS
+from ..agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES, GITHUB_DIRS, KIRO_DIRS, under
 from ..defang import describe_invisible, is_invisible, neutralise
 from .base import Check
 from .borrowed import COMPILED, EXFILTRATION_EXEMPT
@@ -90,7 +90,7 @@ class AiArtifactCheck(Check):
             parts = path.relative_to(workspace).parts
             if path.name == ".mcp.json" or _tail(parts, 3) in MCP_FILES:
                 findings += _mcp_config(text, rel)
-            if _under(parts, ".kiro", "hooks"):
+            if under(parts, ".kiro", "hooks"):
                 findings += _kiro_hooks(text, rel)
             if ".claude" in parts[:-1] and path.name in ("settings.json", "settings.local.json"):
                 findings += _claude_hooks(text, rel)
@@ -108,20 +108,14 @@ def _artifact_files(workspace: Path, exclude: tuple[str, ...] = ()) -> list[Path
     for path in exclusions.walk_files(workspace, exclude):
         parts = path.relative_to(workspace).parts
         if (path.name in ARTIFACT_NAMES or set(parts[:-1]) & ARTIFACT_DIRS
-                or any(_under(parts, ".kiro", d) for d in KIRO_DIRS)):
+                or any(under(parts, ".kiro", d) for d in KIRO_DIRS)
+                or any(under(parts, ".github", d) for d in GITHUB_DIRS)):
             found.append(path)
     return found
 
 
 def _tail(parts: tuple[str, ...], n: int) -> str:
     return "/".join(parts[-n:])
-
-
-def _under(parts: tuple[str, ...], *chain: str) -> bool:
-    """Whether the path has `chain` as consecutive directory components — so
-    `apps/web/.kiro/hooks/x.json` is a Kiro hook and `.kiro/specs/x.md` is not."""
-    dirs = parts[:-1]
-    return any(dirs[i:i + len(chain)] == chain for i in range(len(dirs) - len(chain) + 1))
 
 
 def _hidden_unicode(text: str, rel: str) -> list[dict]:

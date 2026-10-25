@@ -17,6 +17,9 @@ ARTIFACT_NAMES = {
 ARTIFACT_DIRS = {
     ".claude", ".cursor", ".codex", ".gemini",
     ".clinerules", ".roo", ".continue", ".windsurf",
+    # 1.6.0: the folder agents share. Codex reads skills from `.agents/skills/` alone,
+    # VS Code beside `.claude/skills/` (their documentation, read 2026-10-25).
+    ".agents",
 }
 # Kiro (23.5.1): three of its folders are what the agent acts on unprompted —
 # steering files, hooks, MCP settings. `specs/` is the project's own documents, read
@@ -24,3 +27,14 @@ ARTIFACT_DIRS = {
 # "ignore previous instructions" in the sentence specifying this rule, so reading
 # `specs/` would fail our own gate with our own words.
 KIRO_DIRS = {"steering", "hooks", "settings"}
+# GitHub Copilot (1.6.0, its documentation read 2026-10-25): under `.github/`, the
+# instructions files VS Code attaches by their `applyTo` glob, and its skills. The
+# rest of `.github/` is the project's CI, which zizmor reads, not prose an agent obeys.
+GITHUB_DIRS = {"instructions", "skills"}
+
+
+def under(parts: tuple[str, ...], *chain: str) -> bool:
+    """Whether the path has `chain` as consecutive directory components — so
+    `apps/web/.kiro/hooks/x.json` is a Kiro hook and `.kiro/specs/x.md` is not."""
+    dirs = parts[:-1]
+    return any(dirs[i:i + len(chain)] == chain for i in range(len(dirs) - len(chain) + 1))

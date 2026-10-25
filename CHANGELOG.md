@@ -33,6 +33,16 @@ break things, and has.
   link, which was measured through its markdown API. The link is generated from the clients'
   table, and a test decodes it back to the block Cursor reads.
 
+### Fixed
+
+- **A directive planted where Codex, VS Code or Copilot read is found.** The
+  agent-configuration Check read `SKILL.md` by name, but not the files beside it, and it
+  didn't read Copilot's instructions files at all. It now reads every file under `.agents/`,
+  the folder agents share (Codex reads skills only from `.agents/skills/`), and Copilot's
+  `.github/instructions/` and `.github/skills/`. VS Code attaches an `.instructions.md` file
+  by its `applyTo` glob, unprompted. The rest of `.github/` is the project's CI and is still
+  not read as prose. A git-ignored file in these folders is still scanned, as ADR-0021 has it.
+
 ## [1.5.4] — 2026-10-24
 
 A security release for the image. Its Checkov environment moves past ten advisories

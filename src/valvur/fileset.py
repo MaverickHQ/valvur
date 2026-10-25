@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import pathclass
-from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES
+from .agent_surfaces import ARTIFACT_DIRS, ARTIFACT_NAMES, GITHUB_DIRS, under
 from .exclusions import (  # a leaf: results would close a cycle
     RESULTS_DIR,
     ScanSettings,
@@ -184,7 +184,8 @@ def _kept_when_ignored(rel: str) -> bool:
     path = PurePosixPath(rel)
     parents = set(path.parts[:-1])
     return (path.name.startswith(".env") or path.name in ARTIFACT_NAMES
-            or bool(parents & ARTIFACT_DIRS) or ".kiro" in parents)
+            or bool(parents & ARTIFACT_DIRS) or ".kiro" in parents
+            or any(under(path.parts, ".github", d) for d in GITHUB_DIRS))
 
 
 #: How far an ignored directory is searched for the files a scan reads anyway:
