@@ -15,10 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-25).** **`1.5.4` is published**: the image's Checkov environment past ten
-advisories, and its base on Alpine 3.24; the Score **74.1** over nine on both lanes, every track
-at its baseline. **R42 is built** (#242), the first phase of [the self-healing supply chain](.kiro/specs/self-healing-supply-chain/).
-**Next:** R43 (#244), then the owner's call on R44 and R45 (its §3).
+**Status (2026-10-25).** **`1.5.4` is published**: the Checkov environment past ten advisories,
+the base on Alpine 3.24; the Score **74.1** over nine, every track at its baseline. **R42 is built**
+(#242), of [the self-healing supply chain](.kiro/specs/self-healing-supply-chain/). **Next:** R43 (#244), then R44 and R45's scope.
 
 ## 2. What it is NOT
 
