@@ -185,6 +185,10 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     GitHub re-read the lock.
   - **Behaviour 3:** 1.5.4 is prepared on `release/1.5.4`. The `SELF_PIN` move ships in
     `docs/1.5.4-published`, after 1.5.4 is published.
+  - **Behaviour 3, 2026-10-25:** after 1.5.4 was published at `5c8a7a4`, `SELF_PIN` moved to
+    that commit in `main`'s `c298b6d` (#245, `docs/1.5.4-published`), and `acceptance` on `main`
+    passed 8 of 8 (run 40183393214); #234 closed. R42's pull request had carried the same move
+    while #245 was unpushed; on the rebase it gave way to `main`'s. R43.2 then removes the pin.
   - **Ticked 2026-10-24 with behaviour 3 recorded as waiting**, as R21.3's smoke run was
     (D61h), so that `build_status.py` does not send every resuming session back to it: the
     release is the owner's (§3), and R43.2 removes `SELF_PIN` in any case.
