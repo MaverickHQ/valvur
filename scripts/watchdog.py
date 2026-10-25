@@ -20,7 +20,10 @@ not be read. Standard library only, and no YAML parser: the crons are read line 
 
 With `--scanners`, it also watches what Dependabot cannot (D81d): an Opengrep release
 newer than the image's pin and past the 7-day cooldown keeps one issue,
-`watchdog: Opengrep <version>`, closed once the pin moves to it.
+`watchdog: Opengrep <version>`, closed once the pin moves to it. With `--toolchains`, each
+Scanner with no release in `LIVENESS_DAYS`, or whose binary in the image was built with a
+Go that Go no longer supports (go.dev's list), keeps one issue, `watchdog: <Scanner>
+liveness`, commented on when its reasons change and closed when none holds.
 """
 
 from __future__ import annotations
@@ -49,6 +52,18 @@ TITLE = "watchdog: {}"
 #: Dependabot's cooldown (D81d): a release is taken once it is this old.
 COOLDOWN_DAYS = 7
 OPENGREP = "watchdog: Opengrep "
+#: A Scanner with no release in this long may have stopped (D81s).
+LIVENESS_DAYS = 180
+LIVENESS = "watchdog: {} liveness"
+#: Each Scanner by its project's name, and where it publishes its releases.
+UPSTREAM = {"gitleaks": ("Gitleaks", "gitleaks/gitleaks"),
+            "trivy": ("Trivy", "aquasecurity/trivy"),
+            "osv-scanner": ("OSV-Scanner", "google/osv-scanner"),
+            "syft": ("Syft", "anchore/syft"),
+            "opengrep": ("Opengrep", "opengrep/opengrep"),
+            "zizmor": ("zizmor", "zizmorcore/zizmor"),
+            "checkov": ("Checkov", "bridgecrewio/checkov")}
+GO_RELEASES = "https://go.dev/dl/?mode=json"
 
 _CRON = re.compile(r"""^\s+- cron:\s*["']([^"']+)["']""")
 
@@ -226,8 +241,74 @@ def taken(found: list[dict], pin: str, now: datetime) -> dict | None:
     return newest if newest and _version(newest["tag_name"]) > _version(pin) else None
 
 
-def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool) -> list[str]:
-    """Opengrep's releases against its pin, one issue kept for the one to take."""
+def supported_go(github: GitHub, url: str) -> list[str]:
+    """The Go minors Go supports, `go1.27` and the like, from go.dev's list."""
+    with github._opener.open(url, timeout=30) as answer:
+        listed = json.load(answer)
+    return sorted({".".join(r["version"].split(".")[:2]) for r in listed if r.get("stable")},
+                  key=_version)
+
+
+def stopped(found: list[dict], go: str | None, supported: list[str] | None,
+            now: datetime) -> list[str]:
+    """Why a Scanner may have stopped: its last release's age, its binary's Go."""
+    reasons = []
+    newest = max((_when(r["published_at"]) for r in found), default=None)
+    if newest is None or now - newest > timedelta(days=LIVENESS_DAYS):
+        age = f"{(now - newest).days} days" if newest else "ever"
+        reasons.append(f"no release in {age}, past the {LIVENESS_DAYS} days allowed")
+    if go and supported and ".".join(go.split(".")[:2]) not in supported:
+        reasons.append(f"its binary in the image was built with {go}, and Go supports only "
+                       f"{' and '.join(supported)}")
+    return reasons
+
+
+def watch_liveness(github: GitHub, open_: dict[str, int], now: datetime, *, dry_run: bool,
+                   toolchains: dict[str, str | None], supported: list[str] | None) -> list[str]:
+    """One issue per Scanner that may have stopped, kept while a reason holds."""
+    done = []
+    for tool, (name, upstream) in UPSTREAM.items():
+        title = LIVENESS.format(name)
+        reasons = stopped(releases(github, upstream), toolchains.get(tool), supported, now)
+        number = open_.get(title)
+        if not reasons:
+            if number is not None:
+                done.append(f"would close: {title}" if dry_run else f"closed: {title}")
+                if not dry_run:
+                    github.call("POST", f"/issues/{number}/comments",
+                                {"body": "Neither holds now: it has released, and its Go is "
+                                         "supported."})
+                    github.call("PATCH", f"/issues/{number}", {"state": "closed"})
+            continue
+        text = (f"{name} ({upstream}) may have stopped: " + "; ".join(reasons) + ". "
+                "A Scanner that no longer releases, or that ships on an unsupported Go, "
+                "carries advisories nothing will fix. Rebuild it from source with a current "
+                "Go, or weigh replacing it.")
+        if number is None:
+            done.append(f"would open: {title}" if dry_run else f"opened: {title}")
+            if not dry_run:
+                github.call("POST", "/issues", {"title": title, "body": text})
+            continue
+        last = _last_said(github, number)
+        if last != text:
+            done.append(f"would comment: {title}" if dry_run else f"commented: {title}")
+            if not dry_run:
+                github.call("POST", f"/issues/{number}/comments", {"body": text})
+    return done
+
+
+def _last_said(github: GitHub, number: int) -> str:
+    comments = github.call("GET", f"/issues/{number}/comments?per_page=100")
+    if comments:
+        return str(comments[-1].get("body", ""))
+    return str(github.call("GET", f"/issues/{number}").get("body", ""))
+
+
+def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool,
+                   toolchains: dict[str, str | None] | None = None,
+                   go_releases: str | None = None) -> list[str]:
+    """Opengrep's releases against its pin, one issue kept for the one to take; then
+    each Scanner's liveness."""
     issues = github.call("GET", "/issues?state=open&per_page=100")
     open_ = {i["title"]: i["number"] for i in issues if "pull_request" not in i}
     pin = scanner_pins.pins(scanner_pins.in_tree(root))["opengrep"]
@@ -239,9 +320,8 @@ def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool) 
             done.append(f"would close: {title}" if dry_run else f"closed: {title}")
             if not dry_run:
                 github.call("POST", f"/issues/{number}/comments",
-                            {"body": f"The image pins Opengrep {pin} now."
-                                     if release is None else
-                                     f"Superseded by `{wanted.removeprefix('watchdog: ')}`."})
+                            {"body": f"Superseded by `{wanted.removeprefix('watchdog: ')}`."
+                                     if wanted else f"The image pins Opengrep {pin} now."})
                 github.call("PATCH", f"/issues/{number}", {"state": "closed"})
     if release is not None and wanted is not None and wanted not in open_:
         done.append(f"would open: {wanted}" if dry_run else f"opened: {wanted}")
@@ -255,7 +335,11 @@ def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool) 
                 "`scripts/verify-opengrep.sh`, then run `scripts/scanner_upgrade.py "
                 f"opengrep {pin} {release['tag_name'].lstrip('v')} --recapture` "
                 "(`docs/MAINTENANCE.md`). This issue closes once the pin moves.")})
-    return done
+    if toolchains is None:
+        return done
+    supported = supported_go(github, go_releases) if go_releases else None
+    return done + watch_liveness(github, open_, now, dry_run=dry_run,
+                                 toolchains=toolchains, supported=supported)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -271,6 +355,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="also watch the Scanners Dependabot cannot follow")
     parser.add_argument("--root", type=Path, default=REPO,
                         help="the tree whose pins are read (default: this one)")
+    parser.add_argument("--toolchains", type=Path, metavar="FILE",
+                        help="JSON: each Scanner's binary's Go, as the image ships it")
+    parser.add_argument("--go-releases", default=GO_RELEASES,
+                        help="go.dev's list of supported releases")
     args = parser.parse_args(argv)
     now = _when(args.now) if args.now else datetime.now(UTC)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
@@ -278,7 +366,11 @@ def main(argv: list[str] | None = None) -> int:
         github = GitHub(args.api, args.repo, token)
         done = watch(github, args.workflows, now, dry_run=args.dry_run, only=args.only)
         if args.scanners and args.only is None:
-            done += watch_scanners(github, args.root, now, dry_run=args.dry_run)
+            toolchains = (json.loads(args.toolchains.read_text())
+                          if args.toolchains else None)
+            done += watch_scanners(github, args.root, now, dry_run=args.dry_run,
+                                   toolchains=toolchains,
+                                   go_releases=args.go_releases if toolchains else None)
     except (urllib.error.URLError, ValueError, KeyError, TypeError) as error:
         print(f"watchdog: cannot read the Actions API or the issues: {error}")
         return 2

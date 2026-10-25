@@ -94,3 +94,51 @@ def test_a_later_run_closes_it_once_the_pin_moves(tree):
     assert issue["state"] == "closed"
     assert issue["comments"] == ["The image pins Opengrep 1.31.0 now."]
     assert len(github.issues) == 1
+
+
+#: Each Scanner's newest release upstream, as of 2026-10-25 (R47.1).
+LATEST = {"gitleaks/gitleaks": ("v8.30.1", "2026-03-12T15:40:37Z"),
+          "aquasecurity/trivy": ("v0.76.1", "2026-10-21T10:20:32Z"),
+          "google/osv-scanner": ("v2.7.0", "2026-10-12T00:52:31Z"),
+          "anchore/syft": ("v1.55.0", "2026-10-19T18:54:42Z"),
+          "opengrep/opengrep": ("v1.29.0", "2026-08-20T10:00:00Z"),
+          "zizmorcore/zizmor": ("v1.31.1", "2026-10-15T22:59:33Z"),
+          "bridgecrewio/checkov": ("3.3.30", "2026-10-20T13:00:16Z")}
+#: The Go each binary in the image was built with, before Gitleaks was built from source.
+TOOLCHAINS = {"gitleaks": "go1.24.13", "trivy": "go1.27.1", "osv-scanner": "go1.27.0",
+              "syft": "go1.26.8", "opengrep": None}
+
+
+def _live(github: FakeGitHub, tree: Path, toolchains: dict) -> list[str]:
+    for upstream, (tag, published) in LATEST.items():
+        github.releases[upstream] = [_release(tag, published)]
+    path = tree / "toolchains.json"
+    path.write_text(__import__("json").dumps(toolchains))
+    assert _watch(github, tree, "--toolchains", str(path), "--go-releases",
+                  f"{github.url}/go") == 0
+    return [i["title"] for i in github.issues if i["state"] == "open"]
+
+
+def test_a_scanner_with_no_release_in_180_days_or_an_unsupported_go_keeps_one_issue(tree):
+    with FakeGitHub() as github:
+        assert _live(github, tree, TOOLCHAINS) == ["watchdog: Gitleaks liveness"]
+        assert _live(github, tree, TOOLCHAINS) == ["watchdog: Gitleaks liveness"]
+
+        [issue] = github.issues
+        assert "no release in 226 days" in issue["body"]
+        assert "go1.24.13" in issue["body"] and "go1.26 and go1.27" in issue["body"]
+
+        # Built from source with a current Go: the release's age alone still holds it open.
+        rebuilt = {**TOOLCHAINS, "gitleaks": "go1.27.3"}
+        assert _live(github, tree, rebuilt) == ["watchdog: Gitleaks liveness"]
+        assert "go1.24.13" not in issue["comments"][-1]
+
+        github.releases["gitleaks/gitleaks"] = [_release("v8.31.0", "2026-10-01T00:00:00Z")]
+        LATEST_NOW = dict(LATEST, **{"gitleaks/gitleaks": ("v8.31.0", "2026-10-01T00:00:00Z")})
+        for upstream, (tag, published) in LATEST_NOW.items():
+            github.releases[upstream] = [_release(tag, published)]
+        path = tree / "toolchains.json"
+        assert _watch(github, tree, "--toolchains", str(path), "--go-releases",
+                      f"{github.url}/go") == 0
+
+    assert issue["state"] == "closed"

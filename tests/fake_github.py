@@ -89,6 +89,12 @@ def _handler(github: FakeGitHub):
                 return self._send(200, github.releases[upstream])
             if url.path == "/go":
                 return self._send(200, github.go)
+            if url.path.startswith(f"{prefix}/issues/"):
+                parts = url.path.removeprefix(f"{prefix}/issues/").split("/")
+                issue = github.issues[int(parts[0]) - 1]
+                if parts[1:] == ["comments"]:
+                    return self._send(200, [{"body": c} for c in issue["comments"]])
+                return self._send(200, issue)
             if url.path == f"{prefix}/issues":
                 state = query.get("state", ["open"])[0]
                 return self._send(200, [i for i in github.issues
