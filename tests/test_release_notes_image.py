@@ -74,3 +74,12 @@ def test_rows_are_ordered_by_severity_then_id(tmp_path, capsys):
     rows = _rows(capsys.readouterr().out)
     assert [(row[0], row[3]) for row in rows] == [
         ("CVE-2", "CRITICAL"), ("CVE-1", "HIGH"), ("CVE-0", "LOW"), ("CVE-3", "LOW")]
+
+
+def test_nothing_to_list_says_so_with_no_table(tmp_path, capsys):
+    paths = [_verdict(tmp_path, arch) for arch in ("amd64", "arm64")]
+
+    assert _script().main([str(p) for p in paths]) == 0
+
+    assert capsys.readouterr().out == (
+        f"{HEADING}\n\nNothing: every vulnerability Trivy found in the image has a fix in it.\n")

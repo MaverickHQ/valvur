@@ -21,6 +21,7 @@ HEADING = "## What this image does not fix"
 INTRO = ("Found by the image's own Trivy over its root filesystem, in the release run (R43.4). A\n"
          "vulnerability with a fix in reach blocks the release, unless the owner accepted it in\n"
          "`.github/image-accepted.yaml` with an expiry.")
+NOTHING = "Nothing: every vulnerability Trivy found in the image has a fix in it."
 SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
 
 
@@ -39,6 +40,8 @@ def render(verdicts: list[tuple[str, dict]]) -> str:
             row = rows.setdefault(key, {**vuln, "arches": [], "status": status})
             if arch not in row["arches"]:
                 row["arches"].append(arch)
+    if not rows:
+        return f"{HEADING}\n\n{NOTHING}\n"
     lines = [HEADING, "", INTRO, "",
              "| advisory | package | installed | severity | architectures | status |",
              "|---|---|---|---|---|---|"]
