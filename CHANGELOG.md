@@ -32,6 +32,10 @@ break things, and has.
   Cursor's documented install link with valvur's block. GitHub doesn't render a `cursor://`
   link, which was measured through its markdown API. The link is generated from the clients'
   table, and a test decodes it back to the block Cursor reads.
+- **The release notes say what the image does not fix.** The release run keeps each
+  architecture's image gate verdict, and the GitHub release lists every vulnerability in the
+  image with no fix yet, and every one the owner accepted with its expiry. 1.5.4's list was
+  written by hand and missed the base image's pip.
 
 ### Fixed
 

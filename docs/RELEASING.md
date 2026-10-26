@@ -264,6 +264,13 @@ provenance (26.1.3). `promote` waits for both. Measured on the first rehearsal
 with the arm64 leg: 6m06s against amd64's 7m02s, and a peak of 391–410 MiB
 against 511–528 MiB.
 
+**`notes` — what this image does not fix.** Each `artifact` leg keeps its image gate's
+verdict as `image-gate-<arch>`. `notes` renders both with `scripts/release_notes_image.py`:
+every vulnerability in the image with no fix yet, and every one the owner accepted in
+`.github/image-accepted.yaml`, with its expiry. `promote` copies the section into the
+GitHub release's notes. It runs before the brake, so a rehearsal proves it. 1.5.4's list was
+written by hand, and it missed the base image's pip.
+
 **`promote` — the three things that cannot be taken back, after the evidence.**
 
 - Re-tags the signed digest as `:$VERSION` and `:latest` — a manifest re-push, so
