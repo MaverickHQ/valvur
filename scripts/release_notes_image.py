@@ -5,7 +5,8 @@
 
 Each argument is a verdict `scripts/image_gate.py --out` wrote, in a directory whose name
 ends in its architecture (`image-gate-amd64`). The section lists, once per finding across
-the architectures, every vulnerability in the image with no fix yet. The release run's
+the architectures, every vulnerability in the image with no fix yet, and every one the
+owner accepted in `.github/image-accepted.yaml`, with its expiry. The release run's
 `notes` job renders it before the brake, and `promote` copies it into the notes. 1.5.4's
 list was written by hand, and it missed the base image's pip. Standard library only.
 """
@@ -30,9 +31,11 @@ def _arch(path: Path) -> str:
 def render(verdicts: list[tuple[str, dict]]) -> str:
     rows: dict[tuple[str, str, str], dict] = {}
     for arch, verdict in verdicts:
-        for vuln in verdict["unfixed"]:
+        listed = [(vuln, "no fix yet") for vuln in verdict["unfixed"]] + \
+                 [(vuln, f"accepted until {vuln['expires']}") for vuln in verdict["accepted"]]
+        for vuln, status in listed:
             key = (vuln["id"], vuln["package"], vuln["installed"])
-            row = rows.setdefault(key, {**vuln, "arches": [], "status": "no fix yet"})
+            row = rows.setdefault(key, {**vuln, "arches": [], "status": status})
             if arch not in row["arches"]:
                 row["arches"].append(arch)
     lines = [HEADING, "", INTRO, "",

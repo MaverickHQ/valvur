@@ -52,3 +52,13 @@ def test_one_row_per_finding_across_architectures(tmp_path, capsys):
     assert len(rows) == 1
     assert rows[0][4] == "amd64, arm64"
     assert rows[0][5] == "no fix yet"
+
+
+def test_an_accepted_finding_shows_its_expiry(tmp_path, capsys):
+    pip = {"id": "GHSA-xxxx", "package": "pip", "installed": "25.0.1", "fixed": "26.2",
+           "severity": "MEDIUM", "target": "usr/local", "expires": "2026-11-24"}
+
+    assert _script().main([str(_verdict(tmp_path, "amd64", accepted=[pip]))]) == 0
+
+    rows = [row for row in _rows(capsys.readouterr().out) if row[0] == "GHSA-xxxx"]
+    assert [row[5] for row in rows] == ["accepted until 2026-11-24"]
