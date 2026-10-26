@@ -83,3 +83,21 @@ def test_nothing_to_list_says_so_with_no_table(tmp_path, capsys):
 
     assert capsys.readouterr().out == (
         f"{HEADING}\n\nNothing: every vulnerability Trivy found in the image has a fix in it.\n")
+
+
+def test_a_missing_verdict_is_refused_by_name(tmp_path, capsys):
+    missing = tmp_path / "image-gate-amd64" / "image-gate.json"
+
+    assert _script().main([str(missing)]) == 2
+
+    assert str(missing) in capsys.readouterr().err
+
+
+def test_a_file_that_is_not_a_verdict_is_refused_by_name(tmp_path, capsys):
+    other = tmp_path / "image-gate-arm64" / "image-gate.json"
+    other.parent.mkdir()
+    other.write_text(json.dumps({"blocking": []}))
+
+    assert _script().main([str(other)]) == 2
+
+    assert str(other) in capsys.readouterr().err

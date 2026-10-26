@@ -8,7 +8,8 @@ ends in its architecture (`image-gate-amd64`). The section lists, once per findi
 the architectures, every vulnerability in the image with no fix yet, and every one the
 owner accepted in `.github/image-accepted.yaml`, with its expiry. The release run's
 `notes` job renders it before the brake, and `promote` copies it into the notes. 1.5.4's
-list was written by hand, and it missed the base image's pip. Standard library only.
+list was written by hand, and it missed the base image's pip. Exit 0 when it printed, 2
+naming the file when a verdict is missing or is not one. Standard library only.
 """
 
 from __future__ import annotations
@@ -54,9 +55,25 @@ def render(verdicts: list[tuple[str, dict]]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _read(path: Path) -> dict:
+    """A verdict: an object whose `unfixed` and `accepted` are lists."""
+    verdict = json.loads(path.read_text())
+    if not isinstance(verdict, dict) or not all(
+            isinstance(verdict.get(key), list) for key in ("unfixed", "accepted")):
+        raise ValueError("not a verdict: no list-valued `unfixed` and `accepted`")
+    return verdict
+
+
 def main(argv: list[str] | None = None) -> int:
     paths = [Path(arg) for arg in (sys.argv[1:] if argv is None else argv)]
-    print(render([(_arch(path), json.loads(path.read_text())) for path in paths]), end="")
+    verdicts = []
+    for path in paths:
+        try:
+            verdicts.append((_arch(path), _read(path)))
+        except (OSError, ValueError) as error:
+            print(f"release notes: cannot read {path}: {error}", file=sys.stderr)
+            return 2
+    print(render(verdicts), end="")
     return 0
 
 
