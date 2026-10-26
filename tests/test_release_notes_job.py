@@ -51,3 +51,51 @@ def test_artifact_uploads_the_verdict_and_the_scan_even_when_the_gate_blocks():
     assert "          name: image-gate-${{ matrix.arch }}\n" in upload
     assert "${{ runner.temp }}/image-scan.json" in upload
     assert "${{ runner.temp }}/image-gate.json" in upload
+
+
+def test_notes_follows_both_legs_and_holds_only_read():
+    notes = _job("notes")
+
+    assert re.search(r"^    needs: \[verify, artifact\]\n", notes, re.M)
+    grant = re.search(r"^    permissions:\n((?:      .*\n)+)", notes, re.M)
+    assert grant, "no job-level permissions"
+    assert [line.split("#")[0].strip() for line in grant[1].splitlines()] == ["contents: read"]
+    assert "environment:" not in notes, "the brake is promote's"
+    uses = re.findall(r"uses: (\S+)", notes)
+    assert uses and all(re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", use) for use in uses), uses
+
+
+def test_notes_renders_both_verdicts_and_keeps_the_section():
+    notes = _job("notes")
+
+    assert "python3 scripts/release_notes_image.py" in notes
+    assert "gates/image-gate-amd64/image-gate.json" in notes
+    assert "gates/image-gate-arm64/image-gate.json" in notes
+    assert "          name: notes-image\n" in notes
+    assert "          path: notes-image.md\n" in notes
+
+
+def test_no_run_in_notes_interpolates_an_expression():
+    runs = re.findall(r"run: \|\n((?:\s{10,}.*\n|\n)+)", _job("notes")) + \
+        re.findall(r"run: (\S.*)\n", _job("notes"))
+
+    assert runs and not any("${{" in run for run in runs)
+
+
+def test_promote_waits_for_notes_and_downloads_it_first():
+    promote = _job("promote")
+    needs = re.search(r"^    needs: \[(.*)\]\n", promote, re.M)
+
+    assert needs and "notes" in [name.strip() for name in needs[1].split(",")]
+    steps = _steps(promote)
+    assert "actions/checkout@" in steps[0]
+    assert "download-artifact@" in steps[1] and "          name: notes-image\n" in steps[1]
+
+
+def test_the_github_release_carries_the_section_before_the_changelog_link():
+    create = next(step for step in _steps(_job("promote"))
+                  if "name: Create the GitHub release\n" in step)
+
+    section = create.index("cat notes-image.md")
+    assert section < create.index('echo "See [CHANGELOG.md]')
+    assert create.index("Image digest:") < section
