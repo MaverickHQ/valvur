@@ -592,7 +592,15 @@ jobs:
             --entrypoint trivy "$STAGED" rootfs --cache-dir /db --cache-backend memory \
             --skip-db-update --skip-java-db-update --offline-scan --format json \
             --scanners vuln --quiet / > "$RUNNER_TEMP/image-scan.json"
-          python3 scripts/image_gate.py "$RUNNER_TEMP/image-scan.json"
+          python3 scripts/image_gate.py "$RUNNER_TEMP/image-scan.json" --out "$RUNNER_TEMP/image-gate.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: image-gate-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/image-scan.json
+            ${{ runner.temp }}/image-gate.json
+          retention-days: 90
 
       - name: The constraint suite and the whole e2e suite, against the artifact
         # Phase 11's constraints (tests/test_constraints_*.py, test_not_cuttable.py)
