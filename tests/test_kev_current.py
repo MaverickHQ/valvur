@@ -24,8 +24,6 @@ import pytest
 from valvur import cache, datasets, enrichment, staleness, summary, updating
 from valvur.api import ScanRun
 
-THREE_DAYS_AGO = datetime.now(UTC) - timedelta(days=3)
-
 
 def _catalog(released: datetime) -> dict:
     return {"catalogVersion": released.strftime("%Y.%m.%d"),
@@ -74,7 +72,14 @@ class _Cisa:
 
 
 @pytest.fixture
-def cisa(tmp_path, monkeypatch):
+def three_days_ago() -> datetime:
+    """The catalog's release, taken per test: a module-level clock aged with the suite, and
+    a run past 14 minutes failed the 0.01-day assertions below."""
+    return datetime.now(UTC) - timedelta(days=3)
+
+
+@pytest.fixture
+def cisa(tmp_path, monkeypatch, three_days_ago):
     """The stand-in host on loopback, which the unit suite allows openers and, here,
     `urlopen` to reach (conftest's rule): nothing else is reachable."""
     import urllib.error
@@ -92,7 +97,7 @@ def cisa(tmp_path, monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", loopback_only)
     monkeypatch.setenv("VALVUR_CACHE", str(tmp_path / "cache"))
     monkeypatch.setattr(enrichment, "_BUNDLED", tmp_path / "no-bundle.json")
-    server = _Cisa(THREE_DAYS_AGO)
+    server = _Cisa(three_days_ago)
     monkeypatch.setenv("VALVUR_KEV_URL", server.url)
     yield server
     server.close()
@@ -108,7 +113,7 @@ def _age_the_check(days: float) -> None:
     (cache.root() / "kev.json").write_text(json.dumps(data))
 
 
-def test_a_check_that_finds_no_newer_catalog_makes_kev_current(cisa):
+def test_a_check_that_finds_no_newer_catalog_makes_kev_current(cisa, three_days_ago):
     assert updating.refresh_kev(lambda _: None)
     _age_the_check(2.5)                   # the last check was before the weekend
     assert datasets.KEV.due(datasets.KEV.age()), "three days old, checked 2.5 days ago"
@@ -117,7 +122,7 @@ def test_a_check_that_finds_no_newer_catalog_makes_kev_current(cisa):
     assert updating.refresh_kev(said.append)
 
     assert cisa.requests[-1].get("If-Modified-Since") == format_datetime(
-        THREE_DAYS_AGO.replace(microsecond=0), usegmt=True), "asked conditionally"
+        three_days_ago.replace(microsecond=0), usegmt=True), "asked conditionally"
     assert "CISA's newest" in said[-1]
     age = datasets.KEV.age()
     assert age == pytest.approx(3, abs=0.01), "its age is still the catalog's own"
@@ -179,7 +184,7 @@ def test_with_fetch_never_nothing_is_asked_and_nothing_changes(cisa, monkeypatch
     assert not datasets.KEV.newest() and datasets.KEV.due(datasets.KEV.age())
 
 
-def test_every_surface_shows_the_catalog_s_date_and_says_it_is_cisa_s_newest(cisa):
+def test_every_surface_shows_the_catalog_s_date_and_says_it_is_cisa_s_newest(cisa, three_days_ago):
     from valvur import doctor
 
     updating.refresh_kev(lambda _: None)
@@ -192,7 +197,7 @@ def test_every_surface_shows_the_catalog_s_date_and_says_it_is_cisa_s_newest(cis
     assert "KEV 3.0 days (released; CISA's newest)" in line
 
     check = doctor._check_kev()
-    assert THREE_DAYS_AGO.strftime("%Y-%m-%d") in check.detail
+    assert three_days_ago.strftime("%Y-%m-%d") in check.detail
     assert "CISA's newest" in check.detail
 
     text = summary.render(ScanRun(data_ages={"kev": kev}))
