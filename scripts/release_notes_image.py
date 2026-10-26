@@ -21,6 +21,7 @@ HEADING = "## What this image does not fix"
 INTRO = ("Found by the image's own Trivy over its root filesystem, in the release run (R43.4). A\n"
          "vulnerability with a fix in reach blocks the release, unless the owner accepted it in\n"
          "`.github/image-accepted.yaml` with an expiry.")
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
 
 
 def _arch(path: Path) -> str:
@@ -41,7 +42,10 @@ def render(verdicts: list[tuple[str, dict]]) -> str:
     lines = [HEADING, "", INTRO, "",
              "| advisory | package | installed | severity | architectures | status |",
              "|---|---|---|---|---|---|"]
-    for row in rows.values():
+    order = sorted(rows.values(), key=lambda row: (
+        SEVERITIES.index(row["severity"]) if row["severity"] in SEVERITIES else len(SEVERITIES),
+        row["id"]))
+    for row in order:
         lines.append(f"| {row['id']} | {row['package']} | {row['installed']} | "
                      f"{row['severity']} | {', '.join(sorted(row['arches']))} | {row['status']} |")
     return "\n".join(lines) + "\n"

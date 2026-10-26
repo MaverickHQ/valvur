@@ -62,3 +62,15 @@ def test_an_accepted_finding_shows_its_expiry(tmp_path, capsys):
 
     rows = [row for row in _rows(capsys.readouterr().out) if row[0] == "GHSA-xxxx"]
     assert [row[5] for row in rows] == ["accepted until 2026-11-24"]
+
+
+def test_rows_are_ordered_by_severity_then_id(tmp_path, capsys):
+    found = [{**ECDSA, "id": id_, "severity": severity}
+             for id_, severity in [("CVE-3", "LOW"), ("CVE-2", "CRITICAL"), ("CVE-1", "HIGH"),
+                                   ("CVE-0", "LOW")]]
+
+    assert _script().main([str(_verdict(tmp_path, "arm64", unfixed=found))]) == 0
+
+    rows = _rows(capsys.readouterr().out)
+    assert [(row[0], row[3]) for row in rows] == [
+        ("CVE-2", "CRITICAL"), ("CVE-1", "HIGH"), ("CVE-0", "LOW"), ("CVE-3", "LOW")]
