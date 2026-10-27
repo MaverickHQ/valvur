@@ -10,6 +10,19 @@ break things, and has.
 
 ## [1.6.0] — 2026-10-27
 
+A minor release, because `valvur mcp` is a new command: the MCP server under the CLI's name,
+which the official MCP Registry's listing starts. More of valvur reaches agents where they
+read: the skill for Codex in `.agents/skills/`, Cursor's one-click link, and the
+agent-configuration Check reading `.agents/`, `.github/instructions/` and `.github/skills/`.
+The first half of the self-healing supply chain is in it: one writer for the Checkov lock, uv
+pinned, and a watchdog over the scheduled workflows (R42); a nightly that judges the latest
+release with a 48-hour healing window, findings that carry `advisory_published`, and the image
+gated as it ships (R43). The image is current: six Scanners moved to their newest release past
+the 7-day cooldown, Gitleaks is built from its source with go1.27.3, and pip is removed. The
+GitHub release lists what the image does not fix, from the release run's own image gate: among
+it, 44 advisories with a fixed version in the Go Scanners' pinned dependencies, which the owner
+accepted until 2026-11-25.
+
 ### Added
 
 - **`valvur mcp`, the MCP server under the CLI's name,** so the official MCP Registry
