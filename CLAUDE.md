@@ -15,9 +15,10 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-25).** **`1.5.4` is published**: the Checkov environment past ten advisories,
-the base on Alpine 3.24; the Score **74.1** over nine, every track at its baseline. **R42 and R43 are
-built** (#242, #244), the first half of [the self-healing supply chain](.kiro/specs/self-healing-supply-chain/). **Next:** the owner's call on R44 and R45's scope (its §3).
+**Status (2026-10-27).** **`1.6.0` is published**: `valvur mcp` in the MCP Registry, the skill
+for Codex, R42 and R43 with the image gated as it ships, the image made current; the Score
+**74.1** over nine. **Next:** R44 to R47, [Phase D](.kiro/specs/self-healing-supply-chain/) of
+the self-healing supply chain (approved 2026-10-25), once the owner's three settings exist.
 
 ## 2. What it is NOT
 

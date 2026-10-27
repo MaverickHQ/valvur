@@ -99,6 +99,20 @@ The tag followed the landing, and the release run published (run 40171790029): P
 architectures at `sha256:eaa85bec`, signed and attested. Its CHANGELOG entry keeps the date it
 was prepared, 2026-10-24. #181 closed on 2026-10-24, and its §8 row goes.
 
+**Recorded 2026-10-27, after `1.6.0` was released.** A minor release, for `valvur mcp`, built
+in two slots of one plan. #242 and #244 landed first: R42 (one writer for the Checkov lock, uv
+pinned at 0.13.5, the watchdog) and R43 (the nightly judging the latest release with a 48-hour
+healing window, `advisory_published`, and the image gated as it ships). #248 made the image
+current: six Scanners at their newest release past the cooldown, Gitleaks built from source
+with go1.27.3, and pip removed. #253 carried the release notes' section on what the image does
+not fix, rendered by a `notes` job before the brake, the KEV tests' clock, and the owner's
+acceptance of 44 advisories in the Go Scanners' pinned dependencies until 2026-11-25. The
+machinery changed, so `1.6.0` was rehearsed (run 40470702305, cancelled at the brake). On the
+Mac, end-to-end 108 passed, the acceptance set 8 of 8, the Score 74.1 with every track at its
+baseline, the self-scan clean, and the arm64 image gate 0 blocking. One fast-forward landed
+the stack, the tag followed, and the release run published (run 40495009002): PyPI, both
+architectures at `sha256:80e292e2`, signed and attested, and the MCP Registry's entry.
+
 **Amended 2026-10-24**, at the owner's word, with Phases R42 to R47 in
 [the self-healing supply chain's own list](../self-healing-supply-chain/tasks.md), written after
 the nightly failed on 2026-10-20 and 2026-10-21 (#234). The owner approved it in halves the same
