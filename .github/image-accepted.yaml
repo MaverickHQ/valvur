@@ -1,0 +1,179 @@
+# Drafted by the 1.6.0 run on 2026-10-26, for the owner. Nothing here is accepted until the
+# owner commits it as .github/image-accepted.yaml. Write each reason; change any expiry.
+accepted:
+  - id: CVE-2025-47913
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.43.0; HIGH; amd64, arm64"
+  - id: CVE-2026-39828
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-39829
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-39830
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-39831
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-39832
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-39835
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-42508
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-46595
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-46597
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; HIGH; amd64, arm64"
+  - id: CVE-2026-56851
+    package: golang.org/x/text
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.22.0 in usr/local/bin/gitleaks; fixed in 0.41.0; HIGH; amd64, arm64"
+  - id: CVE-2026-56852
+    package: golang.org/x/text
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.22.0 in usr/local/bin/gitleaks; fixed in 0.39.0; HIGH; amd64, arm64"
+  - id: CVE-2026-56854
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.55.0; HIGH; amd64, arm64"
+  - id: CVE-2026-63209
+    package: github.com/klauspost/compress
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.17.11 in usr/local/bin/gitleaks; fixed in 1.18.7; HIGH; amd64, arm64"
+  - id: CVE-2025-11579
+    package: github.com/nwaples/rardecode/v2
+    expires: 2026-11-25
+    reason: "OWNER: write why. v2.1.0 in usr/local/bin/gitleaks; fixed in 2.2.0; MEDIUM; amd64, arm64"
+  - id: CVE-2025-47914
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.45.0; MEDIUM; amd64, arm64"
+  - id: CVE-2025-58058
+    package: github.com/ulikunitz/xz
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.5.12 in usr/local/bin/gitleaks; fixed in 0.5.15; MEDIUM; amd64, arm64"
+  - id: CVE-2025-58181
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.45.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-39827
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-39833
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-39834
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-46598
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.52.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-56855
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.56.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-78662
+    package: golang.org/x/crypto
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.35.0 in usr/local/bin/gitleaks; fixed in 0.56.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-39824
+    package: golang.org/x/sys
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.30.0 in usr/local/bin/gitleaks; fixed in 0.44.0; UNKNOWN; amd64, arm64"
+  - id: CVE-2026-111943
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0, v1.27.2 in usr/local/bin/osv-scanner, usr/local/bin/syft, usr/local/bin/trivy; fixed in 1.26.10, 1.27.3; HIGH; amd64, arm64"
+  - id: CVE-2026-78667
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; HIGH; amd64, arm64"
+  - id: CVE-2026-78669
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; HIGH; amd64, arm64"
+  - id: CVE-2026-97031
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; HIGH; amd64, arm64"
+  - id: CVE-2026-56866
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-78659
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-78660
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-78663
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-94439
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-94440
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-94448
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-97030
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-97032
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; MEDIUM; amd64, arm64"
+  - id: CVE-2026-56857
+    package: stdlib
+    expires: 2026-11-25
+    reason: "OWNER: write why. v1.26.8, v1.27.0 in usr/local/bin/osv-scanner, usr/local/bin/syft; fixed in 1.26.9, 1.27.2; LOW; amd64, arm64"
+  - id: CVE-2026-78669
+    package: golang.org/x/net
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.59.0 in usr/local/bin/syft; fixed in 0.60.0; HIGH; amd64, arm64"
+  - id: CVE-2026-78659
+    package: golang.org/x/net
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.59.0 in usr/local/bin/syft; fixed in 0.60.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-78660
+    package: golang.org/x/net
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.59.0 in usr/local/bin/syft; fixed in 0.60.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-78663
+    package: golang.org/x/net
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.59.0 in usr/local/bin/syft; fixed in 0.60.0; MEDIUM; amd64, arm64"
+  - id: CVE-2026-97032
+    package: golang.org/x/net
+    expires: 2026-11-25
+    reason: "OWNER: write why. v0.59.0 in usr/local/bin/syft; fixed in 0.60.0; MEDIUM; amd64, arm64"
