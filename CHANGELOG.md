@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-10-27
+
 ### Added
 
 - **`valvur mcp`, the MCP server under the CLI's name,** so the official MCP Registry

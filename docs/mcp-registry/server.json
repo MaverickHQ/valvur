@@ -9,12 +9,12 @@
     "source": "github",
     "id": "1351278185"
   },
-  "version": "1.5.4",
+  "version": "1.6.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "valvur",
-      "version": "1.5.4",
+      "version": "1.6.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
