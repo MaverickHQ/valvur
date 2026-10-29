@@ -332,3 +332,14 @@ def test_everyone_who_may_sign_a_release_is_named_as_a_maintainer():
     for principal in principals:
         assert principal in maintainers, f"{principal} may sign a release and is not a maintainer"
     assert "unreachable" in maintainers.lower(), "MAINTAINERS.md does not say what to do then"
+
+
+def test_ci_gives_the_signers_test_the_history_its_walk_reads():
+    """Depth 2 reached only the merge's two parents. With a Dependabot commit at
+    `main`'s tip and a cloud session's on the PR, neither verifies, and the walk
+    above never reached the maintainer's newest (#259, run 40832216518)."""
+    ci = (REPO / ".github" / "workflows" / "ci.yml").read_text()
+    job = ci[ci.index("    name: lint, types, tests\n"):]
+    checkout = job[:job.index("      - uses: astral-sh/setup-uv@")]
+
+    assert "          fetch-depth: 0\n" in checkout, checkout
