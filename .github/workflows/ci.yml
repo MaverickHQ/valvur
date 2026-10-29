@@ -58,9 +58,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The merge ref's own parents, so the signer test can verify the PR's
-          # commit rather than GitHub's merge of it (28.1.1).
-          fetch-depth: 2
+          # The whole history, so the signer test walks past GitHub's merge, Dependabot's
+          # commits and a cloud session's to the maintainer's newest (28.1.1, D61). Depth
+          # 2 reached only the merge's parents, and failed #259 when both were neither.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv venv --python 3.12
 
