@@ -21,7 +21,8 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 RELEASE = REPO / ".github" / "workflows" / "release.yml"
 SCRIPT = REPO / "scripts" / "release_provenance.py"
-ATTEST = "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
+# The action, not its SHA, as in `test_release_notes_job.py`: the workflow holds the pin.
+ATTEST = re.compile(r"uses: actions/attest-build-provenance@[0-9a-f]{40}\b")
 
 
 def _job(name: str) -> str:
@@ -35,7 +36,7 @@ def _job(name: str) -> str:
 def test_stage_attests_the_python_distributions_with_the_pinned_action():
     stage = _job("stage")
 
-    assert stage.count(ATTEST) == 2, "the image's attestation and the distributions'"
+    assert len(ATTEST.findall(stage)) == 2, "the image's attestation and the distributions'"
     assert "id: attest-image" in stage and "id: attest-dist" in stage
     assert re.search(r"subject-path: \|\n\s+dist/\*\.whl\n\s+dist/\*\.tar\.gz\n", stage), \
         "the wheel and the sdist alone: `dist/*` named uv's dist/.gitignore in 1.4.0's"
