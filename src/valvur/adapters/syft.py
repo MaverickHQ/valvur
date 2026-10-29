@@ -17,7 +17,7 @@ from .base import ScannerAdapter
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
 
-VERSION = "1.54.1"
+VERSION = "1.55.0"
 
 #: Why a scan ran no Syft (the owner's decision, 2026-09-28; D9): said wherever a
 #: skipped Scanner is named, with the two ways to ask.
