@@ -58,6 +58,9 @@ def chain(tmp_path):
     run("config", "user.email", "t@example.invalid")
     run("config", "user.name", "t")
     run("config", "gpg.format", "ssh")
+    # Signed by `ssh-keygen` with the key named, never a signing program from the
+    # user's config: a session's signs with its own key, whatever the key named.
+    run("config", "gpg.ssh.program", keygen)
     commits = {}
     for name, key in (("maintainer", keys["maintainer"]), ("session", keys["session"]),
                       ("unsigned", None)):
