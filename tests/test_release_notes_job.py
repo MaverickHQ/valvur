@@ -15,7 +15,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 RELEASE = REPO / ".github" / "workflows" / "release.yml"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+# The action, not its SHA: the pin has one home, the workflow, which Dependabot moves and
+# `test_every_action_in_every_workflow_is_pinned_to_a_sha` holds to a SHA. A second copy
+# here kept #255 red.
+UPLOAD = re.compile(r"      - uses: actions/upload-artifact@[0-9a-f]{40} ")
 GATE_STEP = "The staged image, scanned as it ships (R43.4, N2.7)"
 
 
@@ -46,7 +49,7 @@ def test_artifact_uploads_the_verdict_and_the_scan_even_when_the_gate_blocks():
     index = next(i for i, step in enumerate(steps) if f"name: {GATE_STEP}\n" in step)
     upload = steps[index + 1]
 
-    assert upload.startswith(f"      - uses: {UPLOAD} ")
+    assert UPLOAD.match(upload), upload
     assert "        if: always()\n" in upload
     assert "          name: image-gate-${{ matrix.arch }}\n" in upload
     assert "${{ runner.temp }}/image-scan.json" in upload
