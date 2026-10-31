@@ -112,7 +112,26 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}" \
       -o /trivy ./cmd/trivy; \
     /trivy --version
-FROM ghcr.io/google/osv-scanner:v2.7.0@sha256:4f3b7e2c64b9d38a5febc5a7e4a3dfef1d1362f726dea7a2ef4762b46469fcd0 AS osv
+FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS osv
+ARG OSV_SCANNER_VERSION=2.7.0
+ARG OSV_SCANNER_SUM=h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=
+ARG OSV_SCANNER_RAISE="golang.org/x/net@v0.62.0"
+RUN set -eu; \
+    module="github.com/google/osv-scanner/v2@v${OSV_SCANNER_VERSION}"; \
+    go mod download -json "$module" > /module.json; \
+    grep -qF "\"Sum\": \"${OSV_SCANNER_SUM}\"" /module.json; \
+    cp -R "$(go env GOMODCACHE)/$module" /src; chmod -R u+w /src; cd /src; \
+    for raise in ${OSV_SCANNER_RAISE}; do \
+      test "$(go list -m -f '{{.Version}}' "${raise%@*}")" != "${raise#*@}" \
+        || { echo "OSV-Scanner ${OSV_SCANNER_VERSION} already requires $raise: drop it from OSV_SCANNER_RAISE" >&2; exit 1; }; \
+    done; \
+    go get ${OSV_SCANNER_RAISE} > /raise.log 2>&1 || { cat /raise.log >&2; exit 1; }; \
+    cat /raise.log; \
+    if grep -q downgraded /raise.log; then echo "OSV_SCANNER_RAISE lowers a module" >&2; exit 1; fi; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go build -trimpath -buildvcs=false \
+      -ldflags="-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion=${OSV_SCANNER_VERSION}" \
+      -o /osv-scanner ./cmd/osv-scanner; \
+    /osv-scanner --version
 FROM anchore/syft:v1.55.0@sha256:4cc92b64ca74ffca4c94d4c8fcc01f217731375300be14d0b6eeb2e82eaa110a AS syft
 
 FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d
