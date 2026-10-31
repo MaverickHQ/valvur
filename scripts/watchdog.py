@@ -18,9 +18,10 @@ naming the run. A workflow with no `schedule:` is never read. The token is `GH_T
 or `GITHUB_TOKEN`. Exit 0 when the watch ran, whatever it found; 2 when the API could
 not be read. Standard library only, and no YAML parser: the crons are read line by line.
 
-With `--scanners`, it also watches what Dependabot cannot (D81d): an Opengrep release
-newer than the image's pin and past the 7-day cooldown keeps one issue,
-`watchdog: Opengrep <version>`, closed once the pin moves to it. With `--toolchains`, each
+With `--scanners`, it also watches what Dependabot cannot (D81d): a release of Opengrep, or
+of a Scanner the image builds from its release's source (D81w), newer than the image's pin
+and past the 7-day cooldown keeps one issue, `watchdog: <Scanner> <version>`, closed once
+the pin moves to it. With `--toolchains`, each
 Scanner with no release in `LIVENESS_DAYS`, or whose binary in the image was built with a
 Go that Go no longer supports (go.dev's list), keeps one issue, `watchdog: <Scanner>
 liveness`, commented on when its reasons change and closed when none holds.
@@ -51,7 +52,6 @@ FAILED = ("failure", "timed_out", "startup_failure")
 TITLE = "watchdog: {}"
 #: Dependabot's cooldown (D81d): a release is taken once it is this old.
 COOLDOWN_DAYS = 7
-OPENGREP = "watchdog: Opengrep "
 #: A Scanner with no release in this long may have stopped (D81s).
 LIVENESS_DAYS = 180
 LIVENESS = "watchdog: {} liveness"
@@ -255,8 +255,10 @@ def stopped(found: list[dict], go: str | None, supported: list[str] | None,
     reasons = []
     newest = max((_when(r["published_at"]) for r in found), default=None)
     if newest is None or now - newest > timedelta(days=LIVENESS_DAYS):
-        age = f"{(now - newest).days} days" if newest else "ever"
-        reasons.append(f"no release in {age}, past the {LIVENESS_DAYS} days allowed")
+        # A date, not a count of days: the reason is compared with what was said last, and a
+        # count made it news every day (#258).
+        since = f"since {newest:%Y-%m-%d}" if newest else "ever"
+        reasons.append(f"no release {since}, past the {LIVENESS_DAYS} days allowed")
     if go and supported and ".".join(go.split(".")[:2]) not in supported:
         reasons.append(f"its binary in the image was built with {go}, and Go supports only "
                        f"{' and '.join(supported)}")
@@ -304,6 +306,54 @@ def _last_said(github: GitHub, number: int) -> str:
     return str(github.call("GET", f"/issues/{number}").get("body", ""))
 
 
+#: The Scanners whose releases no Dependabot ecosystem reads: Opengrep, whose release the
+#: image fetches by URL, and those it builds from their release's Go module.
+FOLLOWED = ("opengrep", *(tool for tool, *_ in scanner_pins.SOURCES))
+
+
+def _how_to_take(tool: str, pin: str, version: str) -> str:
+    """What moves for a release, and the command that completes the upgrade."""
+    upgrade = (f"then run `scripts/scanner_upgrade.py {tool} {pin} {version} --recapture` "
+               "(`docs/MAINTENANCE.md`). This issue closes once the pin moves.")
+    if tool == "opengrep":
+        return ("Dependabot does not follow Opengrep: the image takes it from a release URL. "
+                "Move `OPENGREP_URL` and its two sha256 `ARG`s together, check the signatures "
+                "with `scripts/verify-opengrep.sh`, " + upgrade)
+    _, arg, _, module = next(s for s in scanner_pins.SOURCES if s[0] == tool)
+    return (f"Dependabot does not follow it: the image builds it from its release's Go module "
+            f"(D81w). Move `{arg}_VERSION` and `{arg}_SUM` together, the sum from "
+            f"https://sum.golang.org/lookup/{module}@v{version}, drop each module in "
+            f"`{arg}_RAISE` the build names as already required, " + upgrade)
+
+
+def _watch_releases(github: GitHub, open_: dict[str, int], tool: str, pin: str,
+                    now: datetime, *, dry_run: bool) -> list[str]:
+    """One issue kept for the release of `tool` to take, closed once the pin moves."""
+    name, upstream = UPSTREAM[tool]
+    prefix = TITLE.format(f"{name} ")
+    release = taken(releases(github, upstream), pin, now)
+    wanted = None if release is None else prefix + release["tag_name"].lstrip("v")
+    pinned = "pins" if tool == "opengrep" else "builds"
+    done = []
+    for title, number in open_.items():
+        if title.startswith(prefix) and title not in (wanted, LIVENESS.format(name)):
+            done.append(f"would close: {title}" if dry_run else f"closed: {title}")
+            if not dry_run:
+                github.call("POST", f"/issues/{number}/comments",
+                            {"body": f"Superseded by `{wanted.removeprefix('watchdog: ')}`."
+                                     if wanted else f"The image {pinned} {name} {pin} now."})
+                github.call("PATCH", f"/issues/{number}", {"state": "closed"})
+    if release is not None and wanted is not None and wanted not in open_:
+        version = release["tag_name"].lstrip("v")
+        done.append(f"would open: {wanted}" if dry_run else f"opened: {wanted}")
+        if not dry_run:
+            github.call("POST", "/issues", {"title": wanted, "body": (
+                f"{name} {version} ({release['html_url']}), published "
+                f"{release['published_at'][:10]}, is past the {COOLDOWN_DAYS}-day cooldown, "
+                f"and the image {pinned} {pin}. " + _how_to_take(tool, pin, version))})
+    return done
+
+
 def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool,
                    toolchains: dict[str, str | None] | None = None,
                    go_releases: str | None = None) -> list[str]:
@@ -311,30 +361,10 @@ def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool,
     each Scanner's liveness."""
     issues = github.call("GET", "/issues?state=open&per_page=100")
     open_ = {i["title"]: i["number"] for i in issues if "pull_request" not in i}
-    pin = scanner_pins.pins(scanner_pins.in_tree(root))["opengrep"]
-    release = taken(releases(github, "opengrep/opengrep"), pin, now)
-    done = []
-    wanted = None if release is None else OPENGREP + release["tag_name"].lstrip("v")
-    for title, number in open_.items():
-        if title.startswith(OPENGREP) and title != wanted:
-            done.append(f"would close: {title}" if dry_run else f"closed: {title}")
-            if not dry_run:
-                github.call("POST", f"/issues/{number}/comments",
-                            {"body": f"Superseded by `{wanted.removeprefix('watchdog: ')}`."
-                                     if wanted else f"The image pins Opengrep {pin} now."})
-                github.call("PATCH", f"/issues/{number}", {"state": "closed"})
-    if release is not None and wanted is not None and wanted not in open_:
-        done.append(f"would open: {wanted}" if dry_run else f"opened: {wanted}")
-        if not dry_run:
-            github.call("POST", "/issues", {"title": wanted, "body": (
-                f"Opengrep {release['tag_name'].lstrip('v')} ({release['html_url']}), "
-                f"published {release['published_at'][:10]}, is past the {COOLDOWN_DAYS}-day "
-                f"cooldown, and the image pins {pin}. Dependabot does not follow Opengrep: "
-                "the image takes it from a release URL. Move `OPENGREP_URL` and its two "
-                "sha256 `ARG`s together, check the signatures with "
-                "`scripts/verify-opengrep.sh`, then run `scripts/scanner_upgrade.py "
-                f"opengrep {pin} {release['tag_name'].lstrip('v')} --recapture` "
-                "(`docs/MAINTENANCE.md`). This issue closes once the pin moves.")})
+    pins = scanner_pins.pins(scanner_pins.in_tree(root))
+    done: list[str] = []
+    for tool in FOLLOWED:
+        done += _watch_releases(github, open_, tool, pins[tool], now, dry_run=dry_run)
     if toolchains is None:
         return done
     supported = supported_go(github, go_releases) if go_releases else None

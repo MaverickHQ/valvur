@@ -56,7 +56,14 @@ def _pin_opengrep(root: Path, version: str) -> None:
                                  rf"\g<1>{version}", dockerfile.read_text()))
 
 
+#: The Scanners the image builds from their release's source, whose releases the watch reads
+#: too (D81w); a test about another Scanner gives them none.
+SOURCE_BUILT = ("gitleaks/gitleaks", "aquasecurity/trivy", "google/osv-scanner")
+
+
 def _watch(github: FakeGitHub, root: Path, *extra: str) -> int:
+    for upstream in ("opengrep/opengrep", *SOURCE_BUILT):
+        github.releases.setdefault(upstream, [])
     return _script().main(["--repo", github.repo, "--api", github.url, "--now", NOW,
                            "--workflows", str(root / "workflows"), "--scanners",
                            "--root", str(root), *extra])
@@ -125,7 +132,7 @@ def test_a_scanner_with_no_release_in_180_days_or_an_unsupported_go_keeps_one_is
         assert _live(github, tree, TOOLCHAINS) == ["watchdog: Gitleaks liveness"]
 
         [issue] = github.issues
-        assert "no release in 226 days" in issue["body"]
+        assert "no release since 2026-03-12" in issue["body"]
         assert "go1.24.13" in issue["body"] and "go1.26 and go1.27" in issue["body"]
 
         # Built from source with a current Go: the release's age alone still holds it open.
@@ -155,3 +162,54 @@ def test_the_daily_watch_reads_the_published_image_s_go_and_watches_the_scanners
     assert "scripts/scanner_upgrade.py" in steps[read:judge]
     assert re.search(r"python3 scripts/watchdog.py --repo \"\$REPO\" --scanners "
                      r"--toolchains toolchains\.json", steps)
+
+
+def _pin_source(root: Path, arg: str, version: str) -> None:
+    dockerfile = root / "Dockerfile"
+    dockerfile.write_text(re.sub(rf"(?m)^ARG {arg}_VERSION=[\d.]+$", f"ARG {arg}_VERSION={version}",
+                                 dockerfile.read_text()))
+
+
+def test_a_release_of_a_scanner_built_from_source_files_one_issue_naming_how_to_take_it(tree):
+    """D81w: Dependabot no longer sees Trivy's, OSV-Scanner's or Gitleaks' releases, since
+    the image builds each from its release's Go module, so the watchdog files the one past
+    the cooldown, as it does Opengrep's, and closes it once the stage moves to it."""
+    _pin_source(tree, "TRIVY", "0.76.0")
+    with FakeGitHub() as github:
+        github.releases["aquasecurity/trivy"] = [
+            _release("v0.78.0", "2026-10-23T10:00:00Z"),      # two days old: cooling down
+            _release("v0.77.0", "2026-10-14T10:00:00Z"),
+            _release("v0.76.0", "2026-10-01T10:00:00Z"),
+        ]
+        assert _watch(github, tree) == 0
+        assert _watch(github, tree) == 0                       # the next day: no second issue
+        [issue] = [i for i in github.issues if i["title"].startswith("watchdog: Trivy ")]
+        assert issue["title"] == "watchdog: Trivy 0.77.0" and issue["state"] == "open"
+        for said in ("0.76.0", "`TRIVY_VERSION`", "`TRIVY_SUM`", "`TRIVY_RAISE`",
+                     "https://sum.golang.org/lookup/github.com/aquasecurity/trivy@v0.77.0",
+                     "scripts/scanner_upgrade.py trivy 0.76.0 0.77.0 --recapture"):
+            assert said in issue["body"], said
+
+        _pin_source(tree, "TRIVY", "0.77.0")
+        assert _watch(github, tree) == 0
+
+    assert issue["state"] == "closed"
+    assert issue["comments"] == ["The image builds Trivy 0.77.0 now."]
+
+
+def test_the_liveness_issue_is_not_commented_on_again_while_its_reasons_hold(tree):
+    """#258 was commented on every day, its body counting the days: 220, then 223. A
+    reason that has not changed is not news."""
+    with FakeGitHub() as github:
+        assert _live(github, tree, TOOLCHAINS) == ["watchdog: Gitleaks liveness"]
+        [issue] = github.issues
+        later = "2026-10-28T07:00:00Z"
+        for upstream, (tag, published) in LATEST.items():
+            github.releases[upstream] = [_release(tag, published)]
+        path = tree / "toolchains.json"
+        assert _script().main(["--repo", github.repo, "--api", github.url, "--now", later,
+                               "--workflows", str(tree / "workflows"), "--scanners",
+                               "--root", str(tree), "--toolchains", str(path),
+                               "--go-releases", f"{github.url}/go"]) == 0
+
+    assert issue["comments"] == []
