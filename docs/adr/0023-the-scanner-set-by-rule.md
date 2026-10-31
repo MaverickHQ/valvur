@@ -1,7 +1,8 @@
 # ADR-0023 — The Scanner set, decided by rule
 
 **Status:** accepted 2026-09-27 by the owner as rules, written by task R0.5; amended by
-R4.1 with the measurements. Reopens ADR-0019 on its own stated condition.
+R4.1 with the measurements, and on 2026-10-31 by D81w: the Go Scanners are built from their
+release's source. Reopens ADR-0019 on its own stated condition.
 
 ## Context
 
@@ -69,3 +70,20 @@ owner's (`tasks.md` §8).*
 licence policy. Syft runs when a scan asks, `valvur scan --sbom` or `sbom = true`
 under `[scan]`, and the dependency licence check (F4.4 to F4.6) with it; a scan that
 did not ask names Syft not run, with how to ask.*
+
+## Amendment, 2026-10-31: the Go Scanners are built from their release's source (D81w)
+
+The set is unchanged. How four of its members reach the image changes. Gitleaks has been
+built from its release's Go module with a current Go since 2026-10-25, because its last
+release shipped on a Go that Go no longer supported. Trivy, OSV-Scanner and Syft now are
+too, and any of the four may have a module raised, at an exact version, to the fixed
+version of an advisory the image gate names. On 2026-10-31 the published image carried 8
+such advisories that upstream had fixed on its main branches but not released (Trivy's
+next release was due by 2026-11-30), plus 44 accepted ones. Built this way, the four had
+none with a fix.
+
+The Scanners' source is the release's, unmodified, so what valvur detects is what the
+release detects. The goldens and the Score check that. What changes is the module graph
+each binary links, and the build states each change in `<SCANNER>_RAISE`. A Scanner's
+upgrade moves its `<SCANNER>_VERSION` and `<SCANNER>_SUM` together, and drops every raise
+the new release already meets: the build refuses it otherwise.
