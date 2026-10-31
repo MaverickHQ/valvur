@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-10-31
+
 ## [1.6.0] — 2026-10-27
 
 A minor release, because `valvur mcp` is a new command: the MCP server under the CLI's name,
