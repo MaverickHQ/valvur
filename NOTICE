@@ -36,7 +36,8 @@ Trivy
 OSV-Scanner
     https://github.com/google/osv-scanner
     Apache License 2.0
-    Copyright 2022 Google LLC
+    Copyright 2022 Google LLC; built from the release's source, with the modules
+    `OSV_SCANNER_RAISE` names raised.
 
 Syft
     https://github.com/anchore/syft

@@ -28,17 +28,24 @@ sys.path.insert(0, str(REPO / "scripts"))
 GO_SCANNERS = {
     "trivy": ("TRIVY", "github.com/aquasecurity/trivy", "./cmd/trivy",
               "-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}"),
+    "osv-scanner": ("OSV_SCANNER", "github.com/google/osv-scanner/v2", "./cmd/osv-scanner",
+                    "-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion="
+                    "${OSV_SCANNER_VERSION}"),
 }
 #: `sum.golang.org/lookup/<module>@v<version>`, read 2026-10-31.
 SUMS = {
     ("github.com/aquasecurity/trivy", "0.76.0"): "h1:sngciHO0J0koTSzoBKyT0es/MEMqnd+/Nu08iTuTHBs=",
+    ("github.com/google/osv-scanner/v2", "2.7.0"):
+        "h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=",
 }
 #: The binary each stage writes, and where the image installs it.
-INSTALLED = {"trivy": ("/trivy", "/usr/local/bin/trivy")}
+INSTALLED = {"trivy": ("/trivy", "/usr/local/bin/trivy"),
+             "osv-scanner": ("/osv-scanner", "/usr/local/bin/osv-scanner")}
 #: How each binary says its version, and what it says for the version pinned.
-SAYS = {"trivy": (["--version"], "Version: {}")}
+SAYS = {"trivy": (["--version"], "Version: {}"),
+        "osv-scanner": (["--version"], "osv-scanner version: {}")}
 #: The upstream image each stage replaced.
-UPSTREAM_IMAGES = {"trivy": "aquasec/trivy:"}
+UPSTREAM_IMAGES = {"trivy": "aquasec/trivy:", "osv-scanner": "ghcr.io/google/osv-scanner:"}
 
 
 def _dockerfile() -> str:
