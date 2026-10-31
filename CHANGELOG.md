@@ -10,6 +10,84 @@ break things, and has.
 
 ## [1.6.1] — 2026-10-31
 
+A security release for the image. Its four Go Scanners are built from their releases' own
+source, each with the modules it links raised to the fixed version of an advisory the image
+gate names (D81w). That clears the eight advisories that have held the nightly scan of the
+published 1.6.0 image red since 2026-10-28, and each of the 44 the owner accepted for 1.6.0:
+none matches the image any more. Trivy moves to 0.76.1 and Syft to 1.55.0. What valvur
+detects is unchanged. Built from source, Trivy 0.76.0, OSV-Scanner 2.7.0 and Syft 1.55.0
+each gave a report byte-identical to its upstream release binary's, on the same input and
+data. Gitleaks finds what its published binary finds on each of its five fixtures. The Score
+is 74.1, every track at its baseline. Every contract stands: protocol 2, `fp_version` 1,
+`findings.json`'s schema 1 and the reply's schema 2.
+
+**Where 1.6.0's vulnerable code ran,** for anyone closing a ticket against it. This says
+where the code runs; it is not a claim that any of it is unreachable.
+
+- **`pip install valvur` never installed it.** The package has no runtime dependencies
+  (`pyproject.toml`). The modules are linked into the Scanners' binaries, which only the
+  image carries.
+- **The four Scanners run in the Scan Containers,** where they parse the scanned
+  repository, which valvur's threat model treats as hostile. Trivy, Syft and Gitleaks run
+  in the one with no network interface, on both Profiles. OSV-Scanner runs there on
+  `offline`, and on `full` in the networked one, where it queries OSV. Which Scanner reaches
+  which advisory's code was not traced. They are fixed because none should ship, not
+  because one was shown to be reachable.
+- **Outside valvur, none of these boundaries hold.** Someone who runs the image
+  themselves, with a network, should treat every advisory below as applying to them.
+
+**What 1.6.1 does not fix.** Five advisories have no fixed version: GO-2026-5932 in
+`golang.org/x/crypto` 0.58.0, linked into each of the four Scanners, and CVE-2024-23342 in
+the Python package `ecdsa` 0.19.2. The release's notes list them, from the release run's own
+image gate.
+
+### Security
+
+- **`golang.org/x/net` 0.62.0 in Trivy, OSV-Scanner and Syft,** past CVE-2026-78661 and
+  CVE-2026-97045, published on 2026-10-27, both in its HTML parser. 1.6.0 linked 0.60.0
+  in Trivy, 0.61.0 in OSV-Scanner and 0.59.0 in Syft. These six findings held the nightly
+  scan of the published image red from 2026-10-28 (#252).
+- **`go-jose/v4` 4.1.6 in Trivy and Syft,** past CVE-2026-116587 (high), published on
+  2026-10-26: a denial of service through crafted RSA parameters in a JWK. 1.6.0 linked
+  4.1.5 in both.
+- **Every Go Scanner is built with go1.27.3,** the one Go every stage shares. 1.6.0 shipped
+  OSV-Scanner built with go1.27.0, Syft with go1.26.8 and Trivy with go1.27.2. The
+  standard library's 14 advisories with a fixed version, 29 findings across the three,
+  which the owner accepted for 1.6.0, are gone. So is the last of the caveat 1.5.4
+  recorded: those three still predated Go's fix for CVE-2026-111943, the compromised CA
+  intermediates.
+- **Gitleaks' modules are raised past the 25 advisories accepted for 1.6.0:**
+  `klauspost/compress` 1.20.1, `nwaples/rardecode/v2` 2.4.1, `ulikunitz/xz` 0.5.17,
+  `golang.org/x/crypto` 0.58.0, `golang.org/x/sys` 0.49.0 and `golang.org/x/text` 0.43.0.
+  `mholt/archives` moves to 0.1.5, the first that compiles with that rardecode. Syft's five
+  accepted `x/net` findings go with its raise above.
+
+### Changed
+
+- **Trivy, OSV-Scanner and Syft are built from their release's Go module,** as Gitleaks
+  has been since 1.6.0, instead of copied from upstream's images (D81w, ADR-0023's
+  amendment). The build:
+  - verifies the module against Go's checksum database (`<SCANNER>_SUM`);
+  - builds it with upstream's release flags, tags and version string;
+  - raises a linked module only to an exact version in `<SCANNER>_RAISE`.
+
+  It refuses a raise the release already requires, so an upgrade has to drop it, and one
+  that would lower a module. The Scanners' own source is not changed.
+- **Trivy 0.76.1 and Syft 1.55.0,** the newest releases past the 7-day cooldown. Trivy's
+  golden is recaptured: the same 73 findings as 0.76.0's, by target, advisory, package,
+  versions and severity.
+- **The release's SBOM is written by the Syft the image carries,** run from the candidate
+  image by digest, in place of Syft's own image pinned in the Dockerfile, which is gone.
+  `scripts/check_image_licences.py` does the same.
+- **The watchdog follows the Go Scanners' releases.** Dependabot no longer sees them, so it
+  files `watchdog: <Scanner> <version>` for each release past the cooldown, as it does for
+  Opengrep, with the arguments to change and the command that recaptures the golden. A
+  Scanner's liveness issue names its last release's date, so it is no longer commented on
+  every day (#258).
+- **`NOTICE` attributes the Go standard library,** which every Go Scanner contains, and
+  records each Scanner's raised modules. `docs/MAINTENANCE.md` says how to upgrade a Go
+  Scanner.
+
 ## [1.6.0] — 2026-10-27
 
 A minor release, because `valvur mcp` is a new command: the MCP server under the CLI's name,
