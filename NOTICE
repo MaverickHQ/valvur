@@ -25,7 +25,8 @@ Opengrep
 Gitleaks
     https://github.com/gitleaks/gitleaks
     MIT License
-    Copyright (c) 2019 Zachary Rice
+    Copyright (c) 2019 Zachary Rice; built from the release's source, with the
+    modules `GITLEAKS_RAISE` names raised.
 
 Trivy
     https://github.com/aquasecurity/trivy

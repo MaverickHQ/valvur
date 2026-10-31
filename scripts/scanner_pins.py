@@ -23,9 +23,10 @@ Reader = Callable[[str], str]
 
 #: The Scanners pinned as images in the Dockerfile, by the stage that copies each.
 IMAGES = (("anchore/syft", "syft"),)
-#: The Scanners built from their release's source (D81w): each one's version `ARG`, and
-#: the image a release before then pinned instead, which `--since` reads from its tag.
-SOURCES = (("trivy", "TRIVY", "aquasec/trivy"),
+#: The Scanners built from their release's source (Gitleaks since 2026-10-25, the rest by
+#: D81w): each one's version `ARG`, and the image a release before then pinned instead,
+#: which `--since` reads from its tag.
+SOURCES = (("gitleaks", "GITLEAKS", "zricethezav/gitleaks"), ("trivy", "TRIVY", "aquasec/trivy"),
            ("osv-scanner", "OSV_SCANNER", "ghcr.io/google/osv-scanner"))
 #: The Scanners installed from a hash-locked requirements file.
 LOCKS = (("checkov", "requirements-checkov.txt"), ("zizmor", "requirements-zizmor.txt"))
@@ -62,12 +63,6 @@ def pins(read: Reader) -> dict[str, str]:
                              or re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:",
                                           dockerfile, re.M),
                              f"the Dockerfile no longer names {stage}'s release")
-    # Gitleaks is built from its release's source since 2026-10-25, its version an `ARG`;
-    # a release before then pinned its image, and `--since` reads those from their tags.
-    found["gitleaks"] = _need(re.search(r"^ARG GITLEAKS_VERSION=([\d.]+)$", dockerfile, re.M)
-                              or re.search(r"^FROM zricethezav/gitleaks:v?([\d.]+)@sha256:",
-                                           dockerfile, re.M),
-                              "the Dockerfile no longer names Gitleaks' release")
     found["opengrep"] = _need(re.search(r"^ARG OPENGREP_URL=\S+/download/v([\d.]+)$",
                                         dockerfile, re.M),
                               "the Dockerfile no longer names Opengrep's release")
