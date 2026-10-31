@@ -123,7 +123,7 @@ BINARIES: dict[str, tuple[str, str | None]] = {
     'gitleaks': ('`gitleaks/gitleaks`, built from its release\'s source', None),
     'trivy': ('`aquasecurity/trivy`, built from its release\'s source', None),
     'osv-scanner': ('`google/osv-scanner`, built from its release\'s source', None),
-    'syft': ('`anchore/syft`', None),
+    'syft': ('`anchore/syft`, built from its release\'s source', None),
     'opengrep': ('`opengrep/opengrep`', None),
     'checkov': ('`/opt/checkov`, from `requirements-checkov.txt`', None),
     'zizmor': ('`/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash '

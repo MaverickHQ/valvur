@@ -94,7 +94,7 @@ together.
 | `gitleaks` | `gitleaks/gitleaks`, built from its release's source | 8.30.1 |
 | `trivy` | `aquasecurity/trivy`, built from its release's source | 0.76.1 |
 | `osv-scanner` | `google/osv-scanner`, built from its release's source | 2.7.0 |
-| `syft` | `anchore/syft` | 1.55.0 |
+| `syft` | `anchore/syft`, built from its release's source | 1.55.0 |
 | `opengrep` | `opengrep/opengrep` | 1.31.0 |
 | `checkov` | `/opt/checkov`, from `requirements-checkov.txt` | 3.3.29 |
 | `zizmor` | `/opt/zizmor`, from `requirements-zizmor.txt`, the musl wheel by hash (R4.2) | 1.31.1 |
