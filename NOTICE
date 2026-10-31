@@ -43,7 +43,8 @@ OSV-Scanner
 Syft
     https://github.com/anchore/syft
     Apache License 2.0
-    Copyright 2020 Anchore, Inc.
+    Copyright 2020 Anchore, Inc.; built from the release's source, with the
+    modules `SYFT_RAISE` names raised.
 
 The Go standard library
     https://go.dev

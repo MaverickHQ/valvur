@@ -58,7 +58,7 @@ def _pin_opengrep(root: Path, version: str) -> None:
 
 #: The Scanners the image builds from their release's source, whose releases the watch reads
 #: too (D81w); a test about another Scanner gives them none.
-SOURCE_BUILT = ("gitleaks/gitleaks", "aquasecurity/trivy", "google/osv-scanner")
+SOURCE_BUILT = ("gitleaks/gitleaks", "aquasecurity/trivy", "google/osv-scanner", "anchore/syft")
 
 
 def _watch(github: FakeGitHub, root: Path, *extra: str) -> int:

@@ -5,7 +5,8 @@ The check is a **diff against the base image**. Every Linux container carries GP
 its userland — busybox, apk-tools, musl-utils — and no image can avoid that. What we
 can control, and what ADR-0005 actually cares about, is what *we* install.
 
-Uses syft, which we already ship. A hand-rolled pass over Python package metadata
+Uses syft, the one the image ships (D81w): run from the image under test, so the check
+pins no second syft. A hand-rolled pass over Python package metadata
 reported "96 packages, all clean" while syft found 2,227 components and 12 GPL ones:
 the Python layer was never where the risk was.
 
@@ -19,7 +20,6 @@ import re
 import subprocess
 import sys
 
-SYFT = "anchore/syft:v1.51.1"
 COPYLEFT = re.compile(r"\b(AGPL|GPL|SSPL|OSL|EUPL)\b", re.IGNORECASE)
 
 # LGPL is permitted: we ship Opengrep (LGPL-2.1) as an unmodified binary invoked as a
@@ -27,8 +27,9 @@ COPYLEFT = re.compile(r"\b(AGPL|GPL|SSPL|OSL|EUPL)\b", re.IGNORECASE)
 LGPL = re.compile(r"\bLGPL\b", re.IGNORECASE)
 
 
-def sbom(image: str) -> dict:
-    """Generate an SBOM for an image with syft.
+def sbom(image: str, *, syft: str | None = None) -> dict:
+    """Generate an SBOM for an image with the syft the image `syft` carries (by default
+    `image` itself). As root, since it reads the image through the daemon's socket.
 
     Invokes the runtime by name deliberately (see the S607 ignore in pyproject):
     hard-coding an absolute path would break every machine whose Docker lives
@@ -38,7 +39,8 @@ def sbom(image: str) -> dict:
         [
             "docker", "run", "--rm",
             "-v", "/var/run/docker.sock:/var/run/docker.sock",
-            SYFT, image, "-o", "cyclonedx-json",
+            "--user", "0", "--entrypoint", "syft",
+            syft or image, image, "-o", "cyclonedx-json",
         ],
         capture_output=True,
         text=True,
@@ -59,7 +61,8 @@ def licences(component: dict) -> set[str]:
 
 def added_components(image: str, base: str) -> list[dict]:
     ours = sbom(image).get("components", [])
-    base_keys = {(c.get("name"), c.get("version")) for c in sbom(base).get("components", [])}
+    base_keys = {(c.get("name"), c.get("version"))
+                 for c in sbom(base, syft=image).get("components", [])}
     return [c for c in ours if (c.get("name"), c.get("version")) not in base_keys]
 
 

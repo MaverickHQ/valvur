@@ -2,8 +2,8 @@
 
     uv run python scripts/scanner_pins.py --since v1.1.0 [--github-output FILE]
 
-The image pins each Scanner in the Dockerfile, by version and digest or by the release it
-builds from source (D81w), or in a hash-locked requirements file. This is the one parser
+The image pins each Scanner in the Dockerfile, by the release it builds from source (D81w)
+or Opengrep's release URL, or in a hash-locked requirements file. This is the one parser
 of those pins: `test_scanner_pins.py` holds each adapter's version to it, and
 `refresh.yml` asks it what moved on `main` since the latest release, reading the
 release's files from its tag. Prints `{"since", "moved"}`; with `--github-output`,
@@ -21,15 +21,14 @@ from pathlib import Path
 
 Reader = Callable[[str], str]
 
-#: The Scanners pinned as images in the Dockerfile, by the stage that copies each.
-IMAGES = (("anchore/syft", "syft"),)
 #: The Scanners built from their release's source (Gitleaks since 2026-10-25, the rest by
 #: D81w): each one's `ARG` prefix, the image a release before then pinned instead, which
 #: `--since` reads from its tag, and its Go module.
 SOURCES = (("gitleaks", "GITLEAKS", "zricethezav/gitleaks", "github.com/zricethezav/gitleaks/v8"),
            ("trivy", "TRIVY", "aquasec/trivy", "github.com/aquasecurity/trivy"),
            ("osv-scanner", "OSV_SCANNER", "ghcr.io/google/osv-scanner",
-            "github.com/google/osv-scanner/v2"))
+            "github.com/google/osv-scanner/v2"),
+           ("syft", "SYFT", "anchore/syft", "github.com/anchore/syft"))
 #: The Scanners installed from a hash-locked requirements file.
 LOCKS = (("checkov", "requirements-checkov.txt"), ("zizmor", "requirements-zizmor.txt"))
 
@@ -56,10 +55,6 @@ def pins(read: Reader) -> dict[str, str]:
     """Each Scanner's version, as the image pins it."""
     dockerfile = read("Dockerfile")
     found: dict[str, str] = {}
-    for image, stage in IMAGES:
-        found[stage] = _need(re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:",
-                                       dockerfile, re.M),
-                             f"the Dockerfile no longer pins {image} by version and digest")
     for stage, arg, image, _ in SOURCES:
         found[stage] = _need(re.search(rf"^ARG {arg}_VERSION=([\d.]+)$", dockerfile, re.M)
                              or re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:",

@@ -351,11 +351,12 @@ jobs:
         # too. One SBOM per child of the index, each naming its platform: the image
         # ships for two architectures and until 27.0.2 only amd64 was described.
         #
-        # The syft that reads the image is the syft the image was built with — the
-        # Dockerfile's digest pin, read from the Dockerfile here rather than copied,
-        # so there is one pin and nothing to drift. Until 27.0.2 this ran syft by
-        # its version TAG — the one floating pointer left in a pipeline where every
-        # action is a SHA and every base image a digest.
+        # The syft that reads the image is the syft the image carries, run from the
+        # candidate itself: since D81w the Dockerfile builds Syft from its release's
+        # source and pins no syft image, so there is one pin and nothing to drift.
+        # Until 27.0.2 this ran syft by its version TAG — the one floating pointer
+        # left in a pipeline where every action is a SHA and every base image a
+        # digest — and until D81w the Dockerfile's digest pin of Syft's image.
         env:
           VERSION: ${{ needs.verify.outputs.publish_version }}
           DIGEST: ${{ steps.push.outputs.digest }}
@@ -364,14 +365,12 @@ jobs:
           SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          SYFT=$(sed -n 's/^FROM \(anchore\/syft:[^@ ]*@sha256:[0-9a-f]\{64\}\) AS syft$/\1/p' Dockerfile)
-          test -n "$SYFT" || { echo "::error::the Dockerfile has no digest-pinned syft stage"; exit 1; }
-          echo "syft: $SYFT"
+          docker run --rm --entrypoint syft "$IMAGE@$DIGEST" version
           for platform in linux/amd64 linux/arm64; do
             for format in cyclonedx-json:cdx spdx-json:spdx; do
-              docker run --rm \
+              docker run --rm --entrypoint syft \
                 -e SYFT_REGISTRY_AUTH_AUTHORITY -e SYFT_REGISTRY_AUTH_USERNAME -e SYFT_REGISTRY_AUTH_PASSWORD \
-                "$SYFT" "registry:$IMAGE@$DIGEST" --platform "$platform" \
+                "$IMAGE@$DIGEST" "registry:$IMAGE@$DIGEST" --platform "$platform" \
                 -o "${format%%:*}" > "valvur-$VERSION.${platform/\//-}.${format##*:}.json"
             done
           done

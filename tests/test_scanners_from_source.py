@@ -30,6 +30,8 @@ GO_SCANNERS = {
               "-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}"),
     "gitleaks": ("GITLEAKS", "github.com/zricethezav/gitleaks/v8", ".",
                  "-X=github.com/zricethezav/gitleaks/v8/version.Version=v${GITLEAKS_VERSION}"),
+    "syft": ("SYFT", "github.com/anchore/syft", "./cmd/syft",
+             "-s -w -X=main.version=${SYFT_VERSION}"),
     "osv-scanner": ("OSV_SCANNER", "github.com/google/osv-scanner/v2", "./cmd/osv-scanner",
                     "-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion="
                     "${OSV_SCANNER_VERSION}"),
@@ -39,20 +41,23 @@ SUMS = {
     ("github.com/aquasecurity/trivy", "0.76.1"): "h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=",
     ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
         "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
+    ("github.com/anchore/syft", "1.55.0"): "h1:IeBZJrF/g75ba3k0ITQ8v4NCVGiGsWU3Wa1P/eSAFa0=",
     ("github.com/google/osv-scanner/v2", "2.7.0"):
         "h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=",
 }
 #: The binary each stage writes, and where the image installs it.
 INSTALLED = {"trivy": ("/trivy", "/usr/local/bin/trivy"),
              "osv-scanner": ("/osv-scanner", "/usr/local/bin/osv-scanner"),
-             "gitleaks": ("/gitleaks", "/usr/local/bin/gitleaks")}
+             "gitleaks": ("/gitleaks", "/usr/local/bin/gitleaks"),
+             "syft": ("/syft", "/usr/local/bin/syft")}
 #: How each binary says its version, and what it says for the version pinned.
 SAYS = {"trivy": (["--version"], "Version: {}"),
         "osv-scanner": (["--version"], "osv-scanner version: {}"),
-        "gitleaks": (["version"], "v{}")}
+        "gitleaks": (["version"], "v{}"),
+        "syft": (["version"], "Version:       {}")}
 #: The upstream image each stage replaced.
 UPSTREAM_IMAGES = {"trivy": "aquasec/trivy:", "osv-scanner": "ghcr.io/google/osv-scanner:",
-                   "gitleaks": "zricethezav/gitleaks:"}
+                   "gitleaks": "zricethezav/gitleaks:", "syft": "anchore/syft:"}
 
 
 def _dockerfile() -> str:
@@ -101,6 +106,9 @@ def test_each_is_built_as_its_release_build_sets_its_flags_and_version(tool):
            "-buildvcs=false" in stage
     assert f'-ldflags="{ldflags}"' in stage
     assert re.search(rf"-o {re.escape(built)} {re.escape(package)};", stage)
+    if tool == "syft":
+        assert "-trimpath -buildvcs=false -tags=containers_image_openpgp," \
+               "exclude_graphdriver_btrfs \\" in stage
 
 
 @pytest.mark.parametrize("tool", sorted(GO_SCANNERS))
