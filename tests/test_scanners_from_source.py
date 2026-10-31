@@ -36,7 +36,7 @@ GO_SCANNERS = {
 }
 #: `sum.golang.org/lookup/<module>@v<version>`, read 2026-10-31.
 SUMS = {
-    ("github.com/aquasecurity/trivy", "0.76.0"): "h1:sngciHO0J0koTSzoBKyT0es/MEMqnd+/Nu08iTuTHBs=",
+    ("github.com/aquasecurity/trivy", "0.76.1"): "h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=",
     ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
         "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
     ("github.com/google/osv-scanner/v2", "2.7.0"):
