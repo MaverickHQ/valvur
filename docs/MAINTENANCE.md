@@ -77,9 +77,20 @@ carries.
 
 ## A Scanner's upgrade, completed
 
-When a Scanner's stage moves (its `FROM` in the Dockerfile, Opengrep's release `ARG`s, or its
-hash-locked requirements), its other pins move with it, and its golden is recaptured from the
-new binary (R47.2, R47.3):
+When a Scanner's stage moves (its `FROM` in the Dockerfile, Opengrep's release `ARG`s, a Go
+Scanner's `_VERSION` and `_SUM`, or its hash-locked requirements), its other pins move with it,
+and its golden is recaptured from the new binary (R47.2, R47.3).
+
+A Go Scanner is built from its release's source (D81w), so Dependabot does not see its
+releases; the watchdog files `watchdog: <Scanner> <version>` for one past the cooldown. Its
+upgrade moves `<SCANNER>_VERSION` and `<SCANNER>_SUM` together, the second read from
+`https://sum.golang.org/lookup/<module>@v<version>` (the `h1:` line for the module, not its
+`go.mod`). Each module in `<SCANNER>_RAISE` the new release already requires is dropped from
+it: the build names each one and stops. A raise is added only for an advisory the image gate
+blocks on, whose fixed version no release of that Scanner past the cooldown links yet, at
+exactly that fixed version, and the pull request lists it with the advisory.
+
+The steps, for every Scanner:
 
 1. Build the image from the moved stage (`docker buildx bake`, or `scripts/cloud_image.py` in
    a cloud session).

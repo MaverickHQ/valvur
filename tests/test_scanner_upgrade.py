@@ -22,11 +22,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "scanner_upgrade.py"
 
-#: #238's change, as Dependabot makes one: Trivy's stage, version and digest, and nothing
-#: else. Applied to whatever Trivy the tree pins, so the case outlives the pin it was
-#: measured on (0.75.0 to 0.76.0).
-TRIVY_STAGE = re.compile(r"^FROM aquasec/trivy:([\d.]+)@sha256:[0-9a-f]{64} AS trivy$", re.M)
-DIGEST = "2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222"
+#: #238's change, as a Trivy release now makes it: the stage's version and checksum, and
+#: nothing else, since Trivy is built from its release's source (D81w). Applied to whatever
+#: Trivy the tree pins, so the case outlives the pin it was measured on (0.75.0 to 0.76.0).
+TRIVY_STAGE = re.compile(r"^ARG TRIVY_VERSION=([\d.]+)\nARG TRIVY_SUM=\S+$", re.M)
+SUM = "h1:sngciHO0J0koTSzoBKyT0es/MEMqnd+/Nu08iTuTHBs="
 
 
 def _tree(tmp_path: Path) -> Path:
@@ -63,11 +63,10 @@ def _with_238(root: Path) -> tuple[Path, str, str]:
     dockerfile = root / "Dockerfile"
     text = dockerfile.read_text()
     match = TRIVY_STAGE.search(text)
-    assert match, "no Trivy stage pinned by version and digest"
+    assert match, "no Trivy stage pinned by version and checksum"
     old = match.group(1)
     new = _bump(old)
-    dockerfile.write_text(TRIVY_STAGE.sub(
-        f"FROM aquasec/trivy:{new}@sha256:{DIGEST} AS trivy", text))
+    dockerfile.write_text(TRIVY_STAGE.sub(f"ARG TRIVY_VERSION={new}\nARG TRIVY_SUM={SUM}", text))
     return root, old, new
 
 

@@ -121,7 +121,7 @@ PATHS: dict[str, tuple[str, str]] = {
 #: text here for the two no adapter pins.
 BINARIES: dict[str, tuple[str, str | None]] = {
     'gitleaks': ('`gitleaks/gitleaks`, built from its release\'s source', None),
-    'trivy': ('`aquasec/trivy`', None),
+    'trivy': ('`aquasecurity/trivy`, built from its release\'s source', None),
     'osv-scanner': ('`ghcr.io/google/osv-scanner`', None),
     'syft': ('`anchore/syft`', None),
     'opengrep': ('`opengrep/opengrep`', None),

@@ -2,12 +2,13 @@
 
     uv run python scripts/scanner_upgrade.py trivy 0.75.0 0.76.0 [--root DIR]
 
-Dependabot moves a Scanner's stage (its `FROM`, Opengrep's release `ARG`s, or its
-hash-locked requirements) and nothing else, so its pull requests stay red until the rest
-move too (#229, #230, #238). This moves the rest, as R47.1 lists them: the adapter's
-`VERSION`, the golden's pin in `tests/conftest.py`, `docs/PROTOCOL.md`'s table, and
-Opengrep's signature check. Each pin must read the old version exactly once, or nothing
-is written. Prints `{"scanner", "from", "to", "changed", "recapture"}`.
+A Scanner's stage moves (its `FROM`, Opengrep's release `ARG`s, a Go Scanner's `_VERSION`
+and `_SUM` since D81w, or its hash-locked requirements) and nothing else, so Dependabot's
+pull requests stayed red until the rest moved too (#229, #230, #238). This moves the
+rest, as R47.1 lists them: the adapter's `VERSION`, the golden's pin in
+`tests/conftest.py`, `docs/PROTOCOL.md`'s table, and Opengrep's signature check. Each
+pin must read the old version exactly once, or nothing is written. Prints
+`{"scanner", "from", "to", "changed", "recapture"}`.
 
 With `--recapture` (R47.3), the new binary's golden is captured twice from the image and
 written only when the two agree (`recapture`), as `docs/MAINTENANCE.md` describes. With
@@ -247,12 +248,35 @@ def go_toolchain(binary: Path) -> str | None:
     return version if version.startswith("go") else None
 
 
-def image_toolchain(tool: str, image: str) -> str | None:
-    """The Go toolchain of the binary `image` installs for `tool`."""
+#: The markers Go puts around a binary's module information (`runtime/debug`'s).
+_MODINFO = (bytes.fromhex("3077af0c9274080241e1c107e6d618e6"),
+            bytes.fromhex("f932433186182072008242104116d8f2"))
+
+
+def go_modules(binary: Path) -> dict[str, str]:
+    """Each module `binary` links, at its version, as `go version -m` lists its `dep`s: a
+    `=>` replacement's version in place of the module it replaces. Empty for no Go binary."""
+    data = binary.read_bytes()
+    start = data.find(_MODINFO[0])
+    end = data.find(_MODINFO[1], start)
+    if start == -1 or end == -1:
+        return {}
+    found: dict[str, str] = {}
+    last = None
+    for line in data[start + 16:end].decode("utf-8", "replace").splitlines():
+        fields = line.split("\t")
+        if fields[0] == "dep" and len(fields) >= 3:
+            last = fields[1]
+            found[last] = fields[2]
+        elif fields[0] == "=>" and last is not None and len(fields) >= 3:
+            found[last] = fields[2]
+    return found
+
+
+def _from_image(tool: str, image: str, read):
+    """`read` applied to the binary `image` installs for `tool`."""
     import tempfile
 
-    if tool not in BINARIES:
-        return None
     runtime = os.environ.get("VALVUR_RUNTIME", "docker")
     made = subprocess.run([runtime, "create", image], capture_output=True, text=True,  # noqa: S603
                           check=True).stdout.strip()
@@ -261,9 +285,23 @@ def image_toolchain(tool: str, image: str) -> str | None:
             out = Path(tmp) / tool
             subprocess.run([runtime, "cp", f"{made}:{BINARIES[tool]}", str(out)],  # noqa: S603
                            capture_output=True, check=True)
-            return go_toolchain(out)
+            return read(out)
     finally:
         subprocess.run([runtime, "rm", made], capture_output=True, check=False)  # noqa: S603
+
+
+def image_toolchain(tool: str, image: str) -> str | None:
+    """The Go toolchain of the binary `image` installs for `tool`."""
+    if tool not in BINARIES:
+        return None
+    return _from_image(tool, image, go_toolchain)
+
+
+def image_modules(tool: str, image: str) -> dict[str, str]:
+    """The modules the binary `image` installs for `tool` links (D81w's raises among them)."""
+    if tool not in BINARIES:
+        return {}
+    return _from_image(tool, image, go_modules)
 
 
 def body(report: dict, *, deltas: Deltas | None = None) -> str:

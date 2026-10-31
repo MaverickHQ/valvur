@@ -5,7 +5,10 @@ Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 This distribution — the source, the wheel and the container image
 `ghcr.io/maverickhq/valvur` — redistributes the following works, unmodified,
-each under its own licence. The image's SBOM (`sbom.cdx.json`, published with
+each under its own licence. The Go Scanners are built from their release's
+unmodified source; where the Dockerfile's `<SCANNER>_RAISE` names a module, the
+binary links that module at the version named, raised from the release's own to
+the fixed version of an advisory (D81w). The image's SBOM (`sbom.cdx.json`, published with
 every release) lists every component the image contains; this file is the
 attribution the licences of the tools valvur orchestrates ask for (task 28.3.5).
 
@@ -27,7 +30,8 @@ Gitleaks
 Trivy
     https://github.com/aquasecurity/trivy
     Apache License 2.0
-    Copyright 2019-2020 Aqua Security Software Ltd.
+    Copyright 2019-2020 Aqua Security Software Ltd.; built from the release's
+    source, with the modules `TRIVY_RAISE` names raised.
 
 OSV-Scanner
     https://github.com/google/osv-scanner
@@ -38,6 +42,12 @@ Syft
     https://github.com/anchore/syft
     Apache License 2.0
     Copyright 2020 Anchore, Inc.
+
+The Go standard library
+    https://go.dev
+    BSD 3-Clause License
+    Copyright 2009 The Go Authors; compiled into each Go Scanner above by the Go
+    the Dockerfile's Go stages name.
 
 Checkov
     https://github.com/bridgecrewio/checkov
