@@ -24,10 +24,12 @@ Reader = Callable[[str], str]
 #: The Scanners pinned as images in the Dockerfile, by the stage that copies each.
 IMAGES = (("anchore/syft", "syft"),)
 #: The Scanners built from their release's source (Gitleaks since 2026-10-25, the rest by
-#: D81w): each one's version `ARG`, and the image a release before then pinned instead,
-#: which `--since` reads from its tag.
-SOURCES = (("gitleaks", "GITLEAKS", "zricethezav/gitleaks"), ("trivy", "TRIVY", "aquasec/trivy"),
-           ("osv-scanner", "OSV_SCANNER", "ghcr.io/google/osv-scanner"))
+#: D81w): each one's `ARG` prefix, the image a release before then pinned instead, which
+#: `--since` reads from its tag, and its Go module.
+SOURCES = (("gitleaks", "GITLEAKS", "zricethezav/gitleaks", "github.com/zricethezav/gitleaks/v8"),
+           ("trivy", "TRIVY", "aquasec/trivy", "github.com/aquasecurity/trivy"),
+           ("osv-scanner", "OSV_SCANNER", "ghcr.io/google/osv-scanner",
+            "github.com/google/osv-scanner/v2"))
 #: The Scanners installed from a hash-locked requirements file.
 LOCKS = (("checkov", "requirements-checkov.txt"), ("zizmor", "requirements-zizmor.txt"))
 
@@ -58,7 +60,7 @@ def pins(read: Reader) -> dict[str, str]:
         found[stage] = _need(re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:",
                                        dockerfile, re.M),
                              f"the Dockerfile no longer pins {image} by version and digest")
-    for stage, arg, image in SOURCES:
+    for stage, arg, image, _ in SOURCES:
         found[stage] = _need(re.search(rf"^ARG {arg}_VERSION=([\d.]+)$", dockerfile, re.M)
                              or re.search(rf"^FROM {re.escape(image)}:v?([\d.]+)@sha256:",
                                           dockerfile, re.M),
