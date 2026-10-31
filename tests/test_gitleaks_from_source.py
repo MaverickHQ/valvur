@@ -116,8 +116,8 @@ def test_dependabot_s_docker_ecosystem_tracks_the_go_base():
 def test_the_image_gate_finds_no_standard_library_advisory_in_it(tmp_path):
     """R43.4's gate counted 68 blocking findings in the published binary on 2026-10-25
     (69 the day before), 43 of them in go1.24.13's standard library. Built with a current
-    Go, none of those is left: what remains is in the module's own pinned dependencies,
-    which only a Gitleaks release moves."""
+    Go, none of those is left. What remained was in the module's own pinned dependencies,
+    which `GITLEAKS_RAISE` raises since D81w (`test_scanners_from_source.py`)."""
     import json
 
     from valvur.engine_host import IMAGE

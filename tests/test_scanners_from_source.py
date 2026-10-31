@@ -28,6 +28,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 GO_SCANNERS = {
     "trivy": ("TRIVY", "github.com/aquasecurity/trivy", "./cmd/trivy",
               "-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}"),
+    "gitleaks": ("GITLEAKS", "github.com/zricethezav/gitleaks/v8", ".",
+                 "-X=github.com/zricethezav/gitleaks/v8/version.Version=v${GITLEAKS_VERSION}"),
     "osv-scanner": ("OSV_SCANNER", "github.com/google/osv-scanner/v2", "./cmd/osv-scanner",
                     "-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion="
                     "${OSV_SCANNER_VERSION}"),
@@ -35,17 +37,22 @@ GO_SCANNERS = {
 #: `sum.golang.org/lookup/<module>@v<version>`, read 2026-10-31.
 SUMS = {
     ("github.com/aquasecurity/trivy", "0.76.0"): "h1:sngciHO0J0koTSzoBKyT0es/MEMqnd+/Nu08iTuTHBs=",
+    ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
+        "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
     ("github.com/google/osv-scanner/v2", "2.7.0"):
         "h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=",
 }
 #: The binary each stage writes, and where the image installs it.
 INSTALLED = {"trivy": ("/trivy", "/usr/local/bin/trivy"),
-             "osv-scanner": ("/osv-scanner", "/usr/local/bin/osv-scanner")}
+             "osv-scanner": ("/osv-scanner", "/usr/local/bin/osv-scanner"),
+             "gitleaks": ("/gitleaks", "/usr/local/bin/gitleaks")}
 #: How each binary says its version, and what it says for the version pinned.
 SAYS = {"trivy": (["--version"], "Version: {}"),
-        "osv-scanner": (["--version"], "osv-scanner version: {}")}
+        "osv-scanner": (["--version"], "osv-scanner version: {}"),
+        "gitleaks": (["version"], "v{}")}
 #: The upstream image each stage replaced.
-UPSTREAM_IMAGES = {"trivy": "aquasec/trivy:", "osv-scanner": "ghcr.io/google/osv-scanner:"}
+UPSTREAM_IMAGES = {"trivy": "aquasec/trivy:", "osv-scanner": "ghcr.io/google/osv-scanner:",
+                   "gitleaks": "zricethezav/gitleaks:"}
 
 
 def _dockerfile() -> str:

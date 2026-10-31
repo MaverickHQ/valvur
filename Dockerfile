@@ -64,20 +64,30 @@ RUN set -eu; \
 # release, 8.30.1 (2026-03-12), ships a binary built with go1.24.13, which Go stopped
 # supporting when go1.26 was released: R43.4's image gate counted 69 findings in it. This
 # builds the same release from its Go module, v8.30.1, as Go's checksum database records
-# it (`GITLEAKS_SUM`); its dependencies are held by the module's own go.sum. The module is
-# commit 8d1f98c. The tag has since moved to 83d9cd6, the commit the published binary's
-# build information names, which changes `.goreleaser.yml` alone, so the Go source is the
-# same. Static, path-free, with the version set as upstream sets it, so two builds of one
-# tree are one binary. MIT. Dependabot's docker ecosystem moves the Go base; a Gitleaks
-# release moves the two pins below together.
+# it (`GITLEAKS_SUM`). The module is commit 8d1f98c. The tag has since moved to 83d9cd6,
+# the commit the published binary's build information names, which changes
+# `.goreleaser.yml` alone, so the Go source is the same. Static, path-free, with the
+# version set as upstream sets it, so two builds of one tree are one binary. MIT.
+# Dependabot's docker ecosystem moves the Go base. The project has merged only Dependabot's
+# action updates since July, so its own modules stay where 8.30.1 left them, and 25
+# advisories with a fix waited in them as acceptances: `GITLEAKS_RAISE` raises them (D81w),
+# `mholt/archives` with `rardecode`, whose new reader it needs to build.
 FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS gitleaks
 ARG GITLEAKS_VERSION=8.30.1
 ARG GITLEAKS_SUM=h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=
+ARG GITLEAKS_RAISE="github.com/klauspost/compress@v1.20.1 github.com/mholt/archives@v0.1.5 github.com/nwaples/rardecode/v2@v2.4.1 github.com/ulikunitz/xz@v0.5.17 golang.org/x/crypto@v0.58.0 golang.org/x/sys@v0.49.0 golang.org/x/text@v0.43.0"
 RUN set -eu; \
     module="github.com/zricethezav/gitleaks/v8@v${GITLEAKS_VERSION}"; \
     go mod download -json "$module" > /module.json; \
     grep -qF "\"Sum\": \"${GITLEAKS_SUM}\"" /module.json; \
-    cd "$(go env GOMODCACHE)/${module}"; \
+    cp -R "$(go env GOMODCACHE)/$module" /src; chmod -R u+w /src; cd /src; \
+    for raise in ${GITLEAKS_RAISE}; do \
+      test "$(go list -m -f '{{.Version}}' "${raise%@*}")" != "${raise#*@}" \
+        || { echo "Gitleaks ${GITLEAKS_VERSION} already requires $raise: drop it from GITLEAKS_RAISE" >&2; exit 1; }; \
+    done; \
+    go get ${GITLEAKS_RAISE} > /raise.log 2>&1 || { cat /raise.log >&2; exit 1; }; \
+    cat /raise.log; \
+    if grep -q downgraded /raise.log; then echo "GITLEAKS_RAISE lowers a module" >&2; exit 1; fi; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go build -trimpath -buildvcs=false \
       -ldflags="-X=github.com/zricethezav/gitleaks/v8/version.Version=v${GITLEAKS_VERSION}" \
       -o /gitleaks .; \
