@@ -915,6 +915,17 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 18.5, 18.6_
 
+  **Note 2026-11-01: re-plan R47.4 and R47.5 before building them (D81w).** R47.1's pins
+  predate D81w. Trivy, OSV-Scanner and Syft are no longer `FROM` lines Dependabot moves: like
+  Gitleaks, each is `ARG <SCANNER>_VERSION`, `_SUM` and `_RAISE`, read by
+  `scripts/scanner_pins.SOURCES`, and the watchdog files `watchdog: <Scanner> <version>` for
+  each release past the cooldown; Opengrep has always come that way. Of the Scanners,
+  Dependabot still moves zizmor's lock alone (Checkov's has one writer, R42.3). It also moves
+  the image's bases, and a bump of the one Go image the four stages share rebuilds every Go
+  Scanner, so it is a Scanner upgrade too. So the trigger is the watchdog's issue, or that
+  pull request; the preparation writes the three arguments and drops each raise the release
+  already requires (the build refuses one); and R47.5's proof is the next such issue.
+
 - [ ] **R47.5** **The proof.** Behaviour: the next Scanner pull request Dependabot opens is
   completed by the workflow, and lands or reaches the owner with its deltas, recorded with
   its run IDs. Ticked as waiting until it happens.

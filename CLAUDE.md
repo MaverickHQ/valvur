@@ -15,10 +15,10 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-10-27).** **`1.6.0` is published**: `valvur mcp` in the MCP Registry, the skill
-for Codex, R42 and R43 with the image gated as it ships, the image made current; the Score
-**74.1** over nine. **Next:** R44 to R47, [Phase D](.kiro/specs/self-healing-supply-chain/) of
-the self-healing supply chain (approved 2026-10-25), once the owner's three settings exist.
+**Status (2026-11-01).** **`1.6.1` is published**: the Go Scanners built from their release's
+source (D81w), and the image gated as it ships with nothing accepted; the Score **74.1** over
+nine. **Next:** R44 to R47, [Phase D](.kiro/specs/self-healing-supply-chain/) of the self-healing
+supply chain, once the owner's three settings exist; R47.4 is re-planned for D81w first.
 
 ## 2. What it is NOT
 

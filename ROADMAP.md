@@ -3,7 +3,7 @@
 What valvur is doing now, what it is considering, and what it will not do. The plan it is
 built from, with every decision and measurement, is
 [`.kiro/specs/valvur/tasks.md`](.kiro/specs/valvur/tasks.md); this page is the reader's
-view of it, as of 2026-10-27. To argue for something, open a thread in
+view of it, as of 2026-11-01. To argue for something, open a thread in
 [Discussions → Ideas](https://github.com/MaverickHQ/valvur/discussions/categories/ideas).
 
 ## Now
@@ -19,7 +19,10 @@ view of it, as of 2026-10-27. To argue for something, open a thread in
 
 ## Shipped recently
 
-`1.6.0` (2026-10-27): `valvur mcp`, so the official MCP Registry lists valvur; the skill
+`1.6.1` (2026-10-31): a security release for the image. The four Go Scanners are built from
+their release's source, with the modules the image's own gate named raised to their fixed
+versions, so the image ships with nothing accepted; each Scanner's report is identical to its
+upstream binary's. `1.6.0` (2026-10-27): `valvur mcp`, so the official MCP Registry lists valvur; the skill
 where Codex reads it; Cursor in one click; and the first half of valvur's own updates
 healing themselves: one writer for the image's Checkov lock, a watchdog over the scheduled
 workflows, a nightly that judges the latest release, and a gate on the image as it ships,
@@ -44,6 +47,7 @@ Each needs something first, and none has a date.
 |---|---|
 | Two more rules a second engine found that valvur misses: a short key and an old TLS version | evidence that they matter, then cases on a Score track and D29's measured bar ([the comparison](docs/acceptance/r29.md#what-valvur-misses-r294)) |
 | Java and Go code rules | a benchmark for each language under a compatible licence |
+| Other languages and tools added to a scan when it finds them, without the core growing each one | the maintainer's decision, then a design proved on one, Go, end to end |
 | Container images scanned offline | a measurement on a real image: size and time |
 | Scans limited to given paths | the reuse by declared inputs planned for 2.0 |
 | A documentation site, and translations | the site first, then a volunteer per language |

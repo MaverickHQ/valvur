@@ -113,6 +113,22 @@ baseline, the self-scan clean, and the arm64 image gate 0 blocking. One fast-for
 the stack, the tag followed, and the release run published (run 40495009002): PyPI, both
 architectures at `sha256:80e292e2`, signed and attested, and the MCP Registry's entry.
 
+**Recorded 2026-11-01, after `1.6.1` was released.** A security release for the image. From
+2026-10-28 the nightly blocked on 8 advisories in the published image (#252): `x/net` below
+0.62.0 in Trivy, OSV-Scanner and Syft, and `go-jose/v4` below 4.1.6 in Trivy and Syft, fixed on
+the Scanners' main branches and in none of their releases. The owner chose on 2026-10-31 to
+build the four Go Scanners from their release's source with those modules raised (D81w,
+ADR-0023's amendment), over accepting them. #266 carried the maintenance of 2026-10-29 (Syft
+1.55.0), rebased twice as `main` moved under it, by #256 and then Dependabot's #263; #267 the source builds,
+Trivy 0.76.1, the release SBOM from the image's own Syft, and the watchdog following the Go
+Scanners' releases; #268 the release. Each source-built Scanner's report was byte-identical to
+upstream's binary's, the Score 74.1 with every track at its baseline, end-to-end 112 passed,
+and the self-scan clean. The machinery changed, so it was rehearsed (run 41219952782, cancelled
+at the brake). One fast-forward landed the stack, the tag followed, and the release run
+published (run 41226242327): PyPI, both architectures at `sha256:192bde83`, signed and
+attested, the MCP Registry's entry, and the image gate at 0 blocking, 0 accepted and 5 with no
+fix. The nightly of 2026-11-01 passed on it and closed #252.
+
 **Amended 2026-10-24**, at the owner's word, with Phases R42 to R47 in
 [the self-healing supply chain's own list](../self-healing-supply-chain/tasks.md), written after
 the nightly failed on 2026-10-20 and 2026-10-21 (#234). The owner approved it in halves the same
@@ -2410,6 +2426,8 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | the self-healing supply chain's queue | R42.1 | its own [§3](../self-healing-supply-chain/tasks.md#3-the-owner-queue-for-this-spec): R44 and R45's scope after R43's phase commit, the GitHub App, the environments, the tag key and the image's accepted findings |
+| the image's 44 acceptances, optional | `1.6.1` published | delete them from `.github/image-accepted.yaml`, which is the owner's to write: since D81w none matches the image, and the release run's gate counted 0 accepted with them in place |
+| Gitleaks, dormant (#258) | now | keep it, or ask for its replacement to be measured: it has released nothing since 8.30.1 of 2026-03-21, and the image builds it from source with its modules raised (D81w) |
 | revisit a decision in §5 | any time | `/grill-with-docs` |
 
 ---
@@ -2426,6 +2444,7 @@ becomes a phase when the owner asks, with a decision first.
 | the hook speaking the Agent Control Standard | the standard is young and still changing | a stable ACS release |
 | an AIBOM beside the SBOM | the AIBOM initiative's format and scope for source repositories are unclear | the initiative's guidance for repositories |
 | more languages (Java, Go) | each needs a Score track first (D66) | a licence-compatible benchmark per language |
+| **a language or tool added to a scan when it is found, not built into the core** (the owner, 2026-11-01). A scan that finds code no Scanner covers well, Go say, names the gap and what would fill it, and the human opts in to an add-on: a separately published, pinned and signed rule pack or image, which declares one Scanner, its command, its output (SARIF or OSV JSON, read by one generic adapter) and whether it needs a network. It runs in a Scan Container fed the same Snapshot, inside the Profile's boundary, and its findings say the Score has not measured it. The core gains the contract, that adapter and the gap's note, and nothing per language. The first example is Go: GitLab's Go rules as a pack, then govulncheck, and a check of the Go version a `go.mod` declares against the standard library's advisories | each add-on is a fetch §10 must approve, a licence ADR-0005 must clear, and an answer no Score track has measured; a SARIF result needs a Finding identity (§8) and a ranking; govulncheck's call paths stand at §2's line on reachability, and on `offline` it lacks the toolchain and the module sources it needs | the owner's word and a decision first; then a design proved on one add-on, Go, end to end, with the core changed only by the contract and the generic adapter |
 | container images scanned offline | a tar the host saves, into the Snapshot; size and time unmeasured | a measurement on a real image |
 | scans limited to given paths | 2.0's reuse by declared inputs makes it cheap (D57) | 2.0's reuse |
 | the docs translated | needs a documentation site (parked R34) and volunteers | a volunteer per language |
