@@ -3,8 +3,8 @@
 A second scan of an unchanged repository asks neither Trivy nor OSV-Scanner: their
 answers are the last scan's, taken from the host cache under the reuse key, and every
 fingerprint is the same. `run.json` names each reused result and the run it came
-from, so a reader can tell reused from fresh. `--fresh` on the CLI and `fresh: true`
-on the `scan` tool run everything.
+from, so a reader can tell reused from fresh. Another image runs them again.
+`--fresh` on the CLI and `fresh: true` on the `scan` tool run everything.
 """
 
 from __future__ import annotations
@@ -88,6 +88,20 @@ def test_a_changed_source_file_does_not(repository_8):
     _scan(repository_8)
 
     assert _ran(repository_8) == []
+
+
+def test_another_image_runs_them_again(repository_8, monkeypatch):
+    """D81w: one Scanner version, two binaries. A result an older image stored, from
+    upstream's binary, is not the answer of the image that scans now."""
+    built_from = iter(["image-a", "image-b"])
+    monkeypatch.setattr(LocalRuntime, "build_provenance",
+                        lambda self: (None, next(built_from)))
+    _scan(repository_8)
+    _ran(repository_8)
+
+    _scan(repository_8)
+
+    assert sorted(_ran(repository_8)) == ["osv-scanner", "trivy"]
 
 
 def test_fresh_runs_everything(repository_8):

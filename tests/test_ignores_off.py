@@ -94,7 +94,8 @@ def test_a_result_made_with_other_arguments_is_never_reused():
     from valvur import reuse
 
     base = {"tool": "osv-scanner", "version": "2.6.0", "profile": "offline",
-            "inputs": {"requirements.txt": "0" * 64}, "data": "PyPI 2026-10-04"}
+            "inputs": {"requirements.txt": "0" * 64}, "data": "PyPI 2026-10-04",
+            "image": "a1b2"}
     before = ("osv-scanner", "scan", "source", "/workspace")
     after = ("osv-scanner", "scan", "source", "--config", "/dev/null", "/workspace")
 

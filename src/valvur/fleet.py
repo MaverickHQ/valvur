@@ -142,12 +142,13 @@ def stop_if_cancelled(runner: Runtime, where: str) -> None:
 def engine_fleet(adapters, runtime: Runtime, workspace, *, on_progress, budget_s=None,
                  record: dict | None = None, jobs: int | None = None,
                  context: ScanContext | None = None,
-                 reuse: tuple[str, str] | None = None, fresh: bool = False):
+                 reuse: tuple[str, str, str] | None = None, fresh: bool = False):
     """Every Scanner in one Scan Container, fed a Snapshot of the File Set
     (ADR-0022): the outcomes in declaration order, and what the budget cut.
     `record` receives what was read beside the File Set: `history` (R3.7).
-    `reuse`, (Profile, this run's generation), lets a dependency Scanner whose
-    inputs and data are unchanged answer from its last clean result (R14.3, D32);
+    `reuse`, (Profile, this run's generation, the image's inputs), lets a dependency
+    Scanner whose inputs and data are unchanged answer from the last clean result
+    this image made (R14.3, D32);
     with `fresh`, none answers so, and each clean result is stored as ever."""
     context = context if context is not None else _scancontext.build(workspace)
     outcomes, plan, planned = _plan(adapters, workspace, context)
@@ -271,7 +272,7 @@ class _Ran:
     workspace: Path
     context: ScanContext
     keys: dict[int, tuple[str, str]]
-    reuse: tuple[str, str] | None
+    reuse: tuple[str, str, str] | None
 
     def collect(self, plan: list[Invocation], planned: list[int]) -> list[str]:
         """Every planned Scanner's outcome, in place; what the budget cut."""
@@ -346,7 +347,7 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
     keyed: a fresh answer replaces the stored one. Nothing, with `reuse` None."""
     if reuse is None:
         return {}
-    profile, _ = reuse
+    profile, _, image = reuse
     keys: dict[int, tuple[str, str]] = {}
     inputs = None
     for invocation, index in list(zip(plan, planned, strict=True)):
@@ -357,7 +358,7 @@ def _reused(adapters, plan, planned, outcomes, workspace, chosen, reuse, on_prog
             inputs = _reuse.inputs(workspace, chosen.files)
         stamp = _reuse.data(name, chosen.files)
         key = _reuse.key(tool=name, version=invocation.version, argv=invocation.argv,
-                         profile=profile, inputs=inputs, data=stamp)
+                         profile=profile, inputs=inputs, data=stamp, image=image)
         stored = None if fresh else _reuse.load(name, key)
         if stored is None:
             keys[index] = (key, stamp)

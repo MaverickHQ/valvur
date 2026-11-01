@@ -8,9 +8,12 @@ Scanner that reads source is never reused: a source file's change is exactly wha
 rescan is for, and it is not in the key.
 
 The key: the Scanner, its version, its arguments, the Profile, the path and sha256
-of every dependency file in the File Set, and the data it answered from (the
-database's build time, or each OSV export's date). The arguments since R38: a result
-made with the project's own ignores honoured was reused after they were turned off.
+of every dependency file in the File Set, the data it answered from (the
+database's build time, or each OSV export's date), and the image that ran it. The
+arguments since R38: a result made with the project's own ignores honoured was
+reused after they were turned off. The image since D81w, as the digest of its inputs
+(`image_built_from`): a Scanner's version is built two ways, upstream's binary and one
+with its modules raised, so the version alone no longer names what answered.
 OSV-Scanner on `full` answers from api.osv.dev, which has no stamp to key on, so it is
 reused on `offline` only.
 """
@@ -87,11 +90,11 @@ def inputs(workspace: Path, files: list[str]) -> dict[str, str]:
 
 
 def key(*, tool: str, version: str, argv: tuple[str, ...], profile: str,
-        inputs: dict[str, str], data: str) -> str:
+        inputs: dict[str, str], data: str, image: str) -> str:
     """The reuse key: equal only when nothing the answer depends on differs."""
     material = json.dumps({"tool": tool, "version": version, "argv": list(argv),
-                           "profile": profile, "inputs": inputs, "data": data},
-                          sort_keys=True)
+                           "profile": profile, "inputs": inputs, "data": data,
+                           "image": image}, sort_keys=True)
     return hashlib.sha256(material.encode()).hexdigest()
 
 

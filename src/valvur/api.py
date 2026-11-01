@@ -159,7 +159,8 @@ def _scan_locked(workspace, *, runner, adapters, profile, on_progress,
     outcomes, cut = engine_fleet(adapters, runner, workspace, on_progress=on_progress,
                                  budget_s=budget_s, record=beside,
                                  jobs=jobs or _jobs_from_environment(), context=context,
-                                 reuse=(profile, generation or ""), fresh=fresh)
+                                 reuse=(profile, generation or "", image_built_from or ""),
+                                 fresh=fresh)
     return assemble(
         outcomes, cut, declaring=DEFAULT_ADAPTERS, adapters=adapters, runner=runner,
         workspace=workspace, profile=profile,

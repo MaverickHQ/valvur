@@ -3,8 +3,8 @@
 Trivy and OSV-Scanner read a project's dependency files and their own database, and
 nothing else of it. Their answer cannot change while those do not, so a scan can
 reuse the last one. The key is everything the answer depends on: the Scanner, its
-version, the Profile, the bytes of every dependency file they read, and the data
-they answered from. A source file is not in it.
+version, the image that ran it, the Profile, the bytes of every dependency file they
+read, and the data they answered from. A source file is not in it.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ def _project(root: Path, **files: str) -> dict[str, str]:
 
 def _key(inputs: dict[str, str], **overrides: str) -> str:
     base = {"tool": "trivy", "version": "0.74.0", "argv": ("trivy", "fs", "/workspace"),
-            "profile": "offline", "data": "2026-09-30T06:12:00Z"}
+            "profile": "offline", "data": "2026-09-30T06:12:00Z", "image": "a1b2"}
     return reuse.key(**{**base, **overrides}, inputs=inputs)
 
 
@@ -64,6 +64,14 @@ def test_the_scanners_version_changes_the_key(tmp_path):
     inputs = _project(tmp_path / "p")
 
     assert _key(inputs) != _key(inputs, version="0.75.0")
+
+
+def test_the_image_that_ran_the_scanner_changes_the_key(tmp_path):
+    """D81w builds one version two ways, upstream's binary and one with its modules
+    raised, so a version alone no longer names the binary; the image's inputs do."""
+    inputs = _project(tmp_path / "p")
+
+    assert _key(inputs) != _key(inputs, image="c3d4")
 
 
 def test_the_profile_changes_the_key(tmp_path):
