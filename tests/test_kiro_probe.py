@@ -118,6 +118,10 @@ def _replay(command: list[str], workspace: Path) -> None:
     reader.start()
     try:
         for message in messages:
+            if message.get("id") == 3:
+                # Fresh, so that no result an earlier test left to reuse (ADR-0030) ends
+                # the scan before Kiro cancels it: arm64 answered request 3 so (#266).
+                message["params"]["arguments"]["fresh"] = True
             if message.get("id") == 4:
                 time.sleep(3)                       # the scan is running when Kiro pings
             server.stdin.write(json.dumps(message) + "\n")
