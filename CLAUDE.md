@@ -81,7 +81,7 @@ new argument.
 | 0016 | Two Profiles split on the network boundary: `offline` (default) and `full`. |
 | 0017 | SELinux relabelling of the source is opt-in. Moot since R3.9: the source is never mounted. |
 | 0018 | An exact, offline index of package names, published daily and signed. |
-| 0019 | One image with Checkov in it. Reopened by task 34.1, on the ADR's own stated condition. |
+| 0019 | One image with Checkov in it. Reopened by R4.1 (ADR-0023) and upheld: Checkov stays, run only where there is infrastructure other than workflows. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
 
 **Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0031 on 2026-09-29, written by
