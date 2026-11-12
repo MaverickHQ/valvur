@@ -36,12 +36,12 @@ GO_SCANNERS = {
                     "-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion="
                     "${OSV_SCANNER_VERSION}"),
 }
-#: `sum.golang.org/lookup/<module>@v<version>`, read 2026-10-31.
+#: `sum.golang.org/lookup/<module>@v<version>`, read 2026-10-31 (Syft's 2026-11-12).
 SUMS = {
     ("github.com/aquasecurity/trivy", "0.76.1"): "h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=",
     ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
         "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
-    ("github.com/anchore/syft", "1.55.0"): "h1:IeBZJrF/g75ba3k0ITQ8v4NCVGiGsWU3Wa1P/eSAFa0=",
+    ("github.com/anchore/syft", "1.56.0"): "h1:hpIzQsvlNPCgrz7KJZ79HX59I44yE/AyqTbvO5Q92jM=",
     ("github.com/google/osv-scanner/v2", "2.7.0"):
         "h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=",
 }
@@ -111,6 +111,30 @@ def test_each_is_built_as_its_release_build_sets_its_flags_and_version(tool):
                "exclude_graphdriver_btrfs \\" in stage
 
 
+#: A raise names one exact version: a release's tag, or the pseudo-version an advisory
+#: gives as fixed when the fix is not yet tagged (GO-2026-5932, 2026-11-12), which pins one
+#: commit that Go's checksum database verifies. Never a query (`@latest`, a branch, a prefix).
+EXACT_RAISE = re.compile(r"[a-z0-9.\-]+(/[A-Za-z0-9.\-_]+)+"
+                         r"@v\d+\.\d+\.\d+(-0\.\d{14}-[0-9a-f]{12})?")
+
+
+@pytest.mark.parametrize("raise_", [
+    "golang.org/x/net@v0.62.0",
+    "golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2",
+])
+def test_a_raise_at_a_tag_or_an_advisory_s_pseudo_version_is_exact(raise_):
+    assert EXACT_RAISE.fullmatch(raise_)
+
+
+@pytest.mark.parametrize("raise_", [
+    "golang.org/x/crypto@latest", "golang.org/x/crypto@master", "golang.org/x/crypto@v0.58",
+    "golang.org/x/crypto@2f1f834330b2", "golang.org/x/crypto@v0.58.1-0.2026100918-2f1f8343",
+    "golang.org/x/crypto",
+])
+def test_a_raise_that_is_a_query_is_not_exact(raise_):
+    assert not EXACT_RAISE.fullmatch(raise_)
+
+
 @pytest.mark.parametrize("tool", sorted(GO_SCANNERS))
 def test_each_raise_is_an_exact_version_and_the_build_refuses_a_stale_or_lower_one(tool):
     prefix = GO_SCANNERS[tool][0]
@@ -118,7 +142,7 @@ def test_each_raise_is_an_exact_version_and_the_build_refuses_a_stale_or_lower_o
     raises = _arg(stage, f"{prefix}_RAISE").split()
 
     for raise_ in raises:
-        assert re.fullmatch(r"[a-z0-9.\-]+(/[A-Za-z0-9.\-_]+)+@v\d+\.\d+\.\d+", raise_), raise_
+        assert EXACT_RAISE.fullmatch(raise_), raise_
     assert len({r.split("@")[0] for r in raises}) == len(raises), "a module raised twice"
     # A raise the release already requires is stale: its upgrade drops it.
     assert f'for raise in ${{{prefix}_RAISE}}; do' in stage

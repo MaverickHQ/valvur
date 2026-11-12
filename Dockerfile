@@ -41,7 +41,7 @@ ARG OPENGREP_SHA256_AMD64=02c9fba481611aa0664bc79ccf7ce59e9e334b76af8921c80b2f73
 ARG OPENGREP_SHA256_ARM64=b7cbedab0b6c9953ea27ce3baa006ad8b6fa1c50ee7433638b63f7fc731519d9
 ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.31.0
 
-FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d AS opengrep
+FROM python:3.12-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7 AS opengrep
 ARG TARGETARCH
 ARG OPENGREP_SHA256_AMD64
 ARG OPENGREP_SHA256_ARM64
@@ -72,10 +72,10 @@ RUN set -eu; \
 # action updates since July, so its own modules stay where 8.30.1 left them, and 25
 # advisories with a fix waited in them as acceptances: `GITLEAKS_RAISE` raises them (D81w),
 # `mholt/archives` with `rardecode`, whose new reader it needs to build.
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS gitleaks
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gitleaks
 ARG GITLEAKS_VERSION=8.30.1
 ARG GITLEAKS_SUM=h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=
-ARG GITLEAKS_RAISE="github.com/klauspost/compress@v1.20.1 github.com/mholt/archives@v0.1.5 github.com/nwaples/rardecode/v2@v2.4.1 github.com/ulikunitz/xz@v0.5.17 golang.org/x/crypto@v0.58.0 golang.org/x/sys@v0.49.0 golang.org/x/text@v0.43.0"
+ARG GITLEAKS_RAISE="github.com/klauspost/compress@v1.20.1 github.com/mholt/archives@v0.1.5 github.com/nwaples/rardecode/v2@v2.4.1 github.com/ulikunitz/xz@v0.5.17 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/sys@v0.49.0 golang.org/x/text@v0.43.0"
 RUN set -eu; \
     module="github.com/zricethezav/gitleaks/v8@v${GITLEAKS_VERSION}"; \
     go mod download -json "$module" > /module.json; \
@@ -102,10 +102,10 @@ RUN set -eu; \
 # so an upgrade drops it, and one that would lower a module. A release moves `_VERSION` and
 # `_SUM` together (`docs/MAINTENANCE.md`); the watchdog reports a new one, since Dependabot
 # no longer can. Apache-2.0, each.
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS trivy
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS trivy
 ARG TRIVY_VERSION=0.76.1
 ARG TRIVY_SUM=h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=
-ARG TRIVY_RAISE="github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0"
+ARG TRIVY_RAISE="github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/net@v0.62.0"
 RUN set -eu; \
     module="github.com/aquasecurity/trivy@v${TRIVY_VERSION}"; \
     go mod download -json "$module" > /module.json; \
@@ -122,10 +122,10 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}" \
       -o /trivy ./cmd/trivy; \
     /trivy --version
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS osv
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS osv
 ARG OSV_SCANNER_VERSION=2.7.0
 ARG OSV_SCANNER_SUM=h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=
-ARG OSV_SCANNER_RAISE="golang.org/x/net@v0.62.0"
+ARG OSV_SCANNER_RAISE="golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/net@v0.62.0"
 RUN set -eu; \
     module="github.com/google/osv-scanner/v2@v${OSV_SCANNER_VERSION}"; \
     go mod download -json "$module" > /module.json; \
@@ -142,10 +142,10 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion=${OSV_SCANNER_VERSION}" \
       -o /osv-scanner ./cmd/osv-scanner; \
     /osv-scanner --version
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS syft
-ARG SYFT_VERSION=1.55.0
-ARG SYFT_SUM=h1:IeBZJrF/g75ba3k0ITQ8v4NCVGiGsWU3Wa1P/eSAFa0=
-ARG SYFT_RAISE="github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0"
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS syft
+ARG SYFT_VERSION=1.56.0
+ARG SYFT_SUM=h1:hpIzQsvlNPCgrz7KJZ79HX59I44yE/AyqTbvO5Q92jM=
+ARG SYFT_RAISE="golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/net@v0.62.0"
 RUN set -eu; \
     module="github.com/anchore/syft@v${SYFT_VERSION}"; \
     go mod download -json "$module" > /module.json; \
@@ -163,7 +163,7 @@ RUN set -eu; \
       -o /syft ./cmd/syft; \
     /syft version
 
-FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d
+FROM python:3.12-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7
 ARG VALVUR_VERSION=0.0.0-dev
 LABEL org.opencontainers.image.source="https://github.com/MaverickHQ/valvur"
 LABEL org.opencontainers.image.description="Fully offline security scanner for AI-generated code"

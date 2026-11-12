@@ -8,6 +8,27 @@ break things, and has.
 
 ## [Unreleased]
 
+### Security
+
+- **The image's Go Scanners on Go 1.27.4,** for CVE-2026-97054 in the standard library, and
+  with `golang.org/x/crypto` raised to GO-2026-5932's fixed version
+  (`v0.58.1-0.20261009181718-2f1f834330b2`), which no release of Gitleaks, Trivy,
+  OSV-Scanner or Syft past the cooldown requires yet. Both held the nightly scan of the
+  published 1.6.1 image red (#273).
+- **The Python base at its current digest:** Alpine 3.24.4, Python 3.12.16. It still ships
+  krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, whose fixes (1.22.3-r0, 1.4-r0) are in Alpine's
+  repository but in no base image yet, so the image gate still blocks on those 22.
+
+### Changed
+
+- **Syft 1.56.0,** from 1.55.0, built from its release's source. Its SBOM names a scanned
+  file by its path in the project (`/requirements.txt`), as its packages' locations already did.
+
+- **uv 0.13.7,** from 0.13.5, in `[tool.uv] required-version`: Dependabot's uv updater
+  refused the project's pin (`tool_version_not_supported`, run 42361522345), so no uv update
+  reached a pull request. Under 0.13.7 the Checkov recipe rewrites its lock byte for byte and
+  `uv lock --check` passes. The Mac needs `uv self update 0.13.7`.
+
 ## [1.6.1] — 2026-10-31
 
 A security release for the image. Its four Go Scanners are built from their releases' own
