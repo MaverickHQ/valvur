@@ -8,6 +8,13 @@ break things, and has.
 
 ## [Unreleased]
 
+### Changed
+
+- **uv 0.13.7,** from 0.13.5, in `[tool.uv] required-version`: Dependabot's uv updater
+  refused the project's pin (`tool_version_not_supported`, run 42361522345), so no uv update
+  reached a pull request. Under 0.13.7 the Checkov recipe rewrites its lock byte for byte and
+  `uv lock --check` passes. The Mac needs `uv self update 0.13.7`.
+
 ## [1.6.1] — 2026-10-31
 
 A security release for the image. Its four Go Scanners are built from their releases' own
