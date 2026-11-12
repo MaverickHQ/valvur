@@ -72,7 +72,7 @@ RUN set -eu; \
 # action updates since July, so its own modules stay where 8.30.1 left them, and 25
 # advisories with a fix waited in them as acceptances: `GITLEAKS_RAISE` raises them (D81w),
 # `mholt/archives` with `rardecode`, whose new reader it needs to build.
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS gitleaks
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gitleaks
 ARG GITLEAKS_VERSION=8.30.1
 ARG GITLEAKS_SUM=h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=
 ARG GITLEAKS_RAISE="github.com/klauspost/compress@v1.20.1 github.com/mholt/archives@v0.1.5 github.com/nwaples/rardecode/v2@v2.4.1 github.com/ulikunitz/xz@v0.5.17 golang.org/x/crypto@v0.58.0 golang.org/x/sys@v0.49.0 golang.org/x/text@v0.43.0"
@@ -102,7 +102,7 @@ RUN set -eu; \
 # so an upgrade drops it, and one that would lower a module. A release moves `_VERSION` and
 # `_SUM` together (`docs/MAINTENANCE.md`); the watchdog reports a new one, since Dependabot
 # no longer can. Apache-2.0, each.
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS trivy
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS trivy
 ARG TRIVY_VERSION=0.76.1
 ARG TRIVY_SUM=h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=
 ARG TRIVY_RAISE="github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0"
@@ -122,7 +122,7 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}" \
       -o /trivy ./cmd/trivy; \
     /trivy --version
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS osv
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS osv
 ARG OSV_SCANNER_VERSION=2.7.0
 ARG OSV_SCANNER_SUM=h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=
 ARG OSV_SCANNER_RAISE="golang.org/x/net@v0.62.0"
@@ -142,7 +142,7 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion=${OSV_SCANNER_VERSION}" \
       -o /osv-scanner ./cmd/osv-scanner; \
     /osv-scanner --version
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS syft
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS syft
 ARG SYFT_VERSION=1.55.0
 ARG SYFT_SUM=h1:IeBZJrF/g75ba3k0ITQ8v4NCVGiGsWU3Wa1P/eSAFa0=
 ARG SYFT_RAISE="github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0"
