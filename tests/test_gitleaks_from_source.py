@@ -127,12 +127,15 @@ def test_the_image_gate_finds_no_standard_library_advisory_in_it(tmp_path):
         ["docker", "run", "--rm", "--network", "none", "-v", f"{database}:/db:ro",
          "--entrypoint", "trivy", IMAGE, "rootfs", "--cache-dir", "/db", "--cache-backend",
          "memory", "--skip-db-update", "--skip-java-db-update", "--offline-scan", "--format",
-         "json", "--scanners", "vuln", "--quiet", "/usr/local/bin/gitleaks"],
+         "json", "--scanners", "vuln", "--list-all-pkgs", "--quiet", "/usr/local/bin/gitleaks"],
         capture_output=True, text=True, check=True).stdout
-    found = [v for r in json.loads(scan).get("Results") or []
-             for v in r.get("Vulnerabilities") or []]
+    results = json.loads(scan).get("Results") or []
+    found = [v for r in results for v in r.get("Vulnerabilities") or []]
 
-    assert found, "the scan read no module from the binary"
+    # The packages, not the advisories, show the scan read the binary: since GO-2026-5932's
+    # raise and Go 1.27.4 (2026-11-12), Gitleaks links nothing with an advisory at all.
+    assert any(p.get("Name") == "stdlib" for r in results for p in r.get("Packages") or []), \
+        "the scan read no module from the binary"
     stdlib = [v["VulnerabilityID"] for v in found
               if v["PkgName"] == "stdlib" and v.get("FixedVersion")]
     assert stdlib == []
