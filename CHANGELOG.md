@@ -18,11 +18,18 @@ break things, and has.
 - **The Python base at its current digest:** Alpine 3.24.4, Python 3.12.16. It still ships
   krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, whose fixes (1.22.3-r0, 1.4-r0) are in Alpine's
   repository but in no base image yet, so the image gate still blocks on those 22.
+- **OpenTelemetry raised to 1.47.0 in Trivy, OSV-Scanner and Syft,** for CVE-2026-128085,
+  which no release of theirs past the cooldown links yet.
+- **soupsieve 4.0.1 in Checkov's lock,** from 2.9.2, for CVE-2026-126190 to -126193. It held
+  the self-scan gate red on every pull request from 2026-11-14.
 
 ### Changed
 
-- **Syft 1.56.0,** from 1.55.0, built from its release's source. Its SBOM names a scanned
+- **Syft 1.57.1,** from 1.55.0, built from its release's source. Its SBOM names a scanned
   file by its path in the project (`/requirements.txt`), as its packages' locations already did.
+- **Trivy 0.76.2,** from 0.76.1, and **OSV-Scanner 2.7.1,** from 2.7.0, built from their
+  releases' source.
+- **zizmor 1.32.0,** from 1.31.1. Its report on the fixture is byte-identical to 1.31.1's.
 
 - **uv 0.13.7,** from 0.13.5, in `[tool.uv] required-version`: Dependabot's uv updater
   refused the project's pin (`tool_version_not_supported`, run 42361522345), so no uv update
