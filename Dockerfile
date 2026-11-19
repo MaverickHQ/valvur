@@ -143,9 +143,9 @@ RUN set -eu; \
       -o /osv-scanner ./cmd/osv-scanner; \
     /osv-scanner --version
 FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS syft
-ARG SYFT_VERSION=1.56.0
-ARG SYFT_SUM=h1:hpIzQsvlNPCgrz7KJZ79HX59I44yE/AyqTbvO5Q92jM=
-ARG SYFT_RAISE="golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/net@v0.62.0"
+ARG SYFT_VERSION=1.57.1
+ARG SYFT_SUM=h1:lrbWhc8hbZJSKekMdB3PKetO0upE+lv9ihUfv9CXgfU=
+ARG SYFT_RAISE="go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2"
 RUN set -eu; \
     module="github.com/anchore/syft@v${SYFT_VERSION}"; \
     go mod download -json "$module" > /module.json; \

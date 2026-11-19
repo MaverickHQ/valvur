@@ -41,7 +41,7 @@ SUMS = {
     ("github.com/aquasecurity/trivy", "0.76.2"): "h1:RYBcQklHCFOHg/sfYSfe8v4/W5H2rAZrP5THPWY5F+A=",
     ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
         "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
-    ("github.com/anchore/syft", "1.56.0"): "h1:hpIzQsvlNPCgrz7KJZ79HX59I44yE/AyqTbvO5Q92jM=",
+    ("github.com/anchore/syft", "1.57.1"): "h1:lrbWhc8hbZJSKekMdB3PKetO0upE+lv9ihUfv9CXgfU=",
     ("github.com/google/osv-scanner/v2", "2.7.1"):
         "h1:U7tpL4Gjajxb/laKd9Is1YswSZVu/mbLhReVlUpi57g=",
 }
