@@ -123,9 +123,9 @@ RUN set -eu; \
       -o /trivy ./cmd/trivy; \
     /trivy --version
 FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS osv
-ARG OSV_SCANNER_VERSION=2.7.0
-ARG OSV_SCANNER_SUM=h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=
-ARG OSV_SCANNER_RAISE="golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/net@v0.62.0"
+ARG OSV_SCANNER_VERSION=2.7.1
+ARG OSV_SCANNER_SUM=h1:U7tpL4Gjajxb/laKd9Is1YswSZVu/mbLhReVlUpi57g=
+ARG OSV_SCANNER_RAISE="go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2"
 RUN set -eu; \
     module="github.com/google/osv-scanner/v2@v${OSV_SCANNER_VERSION}"; \
     go mod download -json "$module" > /module.json; \

@@ -42,8 +42,8 @@ SUMS = {
     ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
         "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
     ("github.com/anchore/syft", "1.56.0"): "h1:hpIzQsvlNPCgrz7KJZ79HX59I44yE/AyqTbvO5Q92jM=",
-    ("github.com/google/osv-scanner/v2", "2.7.0"):
-        "h1:7aOrJ9vB7qbzxC3R+QCXs03SHQiRuM80RJdqZhUEl2g=",
+    ("github.com/google/osv-scanner/v2", "2.7.1"):
+        "h1:U7tpL4Gjajxb/laKd9Is1YswSZVu/mbLhReVlUpi57g=",
 }
 #: The binary each stage writes, and where the image installs it.
 INSTALLED = {"trivy": ("/trivy", "/usr/local/bin/trivy"),
