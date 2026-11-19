@@ -103,9 +103,9 @@ RUN set -eu; \
 # `_SUM` together (`docs/MAINTENANCE.md`); the watchdog reports a new one, since Dependabot
 # no longer can. Apache-2.0, each.
 FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS trivy
-ARG TRIVY_VERSION=0.76.1
-ARG TRIVY_SUM=h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=
-ARG TRIVY_RAISE="github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/net@v0.62.0"
+ARG TRIVY_VERSION=0.76.2
+ARG TRIVY_SUM=h1:RYBcQklHCFOHg/sfYSfe8v4/W5H2rAZrP5THPWY5F+A=
+ARG TRIVY_RAISE="go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2"
 RUN set -eu; \
     module="github.com/aquasecurity/trivy@v${TRIVY_VERSION}"; \
     go mod download -json "$module" > /module.json; \

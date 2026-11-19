@@ -100,7 +100,8 @@ def test_every_fingerprint_is_the_same_with_or_without_the_dates(workspace, tmp_
     """ADR-0003: identity is `(ecosystem, package, version, vuln_id)`, and the date is
     not part of it. Measured before the field existed: 40 Fingerprints on Trivy
     0.75.0's golden and OSV-Scanner 2.6.0's; 75 with Trivy 0.76.0's, recaptured on
-    2026-10-25's database."""
+    2026-10-25's database; 77 with 0.76.2's, on 2026-11-19's, which adds Pillow's
+    CVE-2026-128066 and -128067."""
     import shutil
 
     other = tmp_path / "other"
@@ -113,7 +114,7 @@ def test_every_fingerprint_is_the_same_with_or_without_the_dates(workspace, tmp_
     undated = {f.fingerprint for f in _scan(other, trivy=undated_trivy,
                                             osv=undated_osv).findings}
 
-    assert len(dated) == 75 and dated == undated
+    assert len(dated) == 77 and dated == undated
 
 
 def test_findings_json_carries_the_field_and_stays_schema_1(workspace):

@@ -38,7 +38,7 @@ GO_SCANNERS = {
 }
 #: `sum.golang.org/lookup/<module>@v<version>`, read 2026-10-31 (Syft's 2026-11-12).
 SUMS = {
-    ("github.com/aquasecurity/trivy", "0.76.1"): "h1:xzXcxZpfkZpTxAHzfuG3KS5BRP17KG70+c0uFFwZUU4=",
+    ("github.com/aquasecurity/trivy", "0.76.2"): "h1:RYBcQklHCFOHg/sfYSfe8v4/W5H2rAZrP5THPWY5F+A=",
     ("github.com/zricethezav/gitleaks/v8", "8.30.1"):
         "h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=",
     ("github.com/anchore/syft", "1.56.0"): "h1:hpIzQsvlNPCgrz7KJZ79HX59I44yE/AyqTbvO5Q92jM=",
