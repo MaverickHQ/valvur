@@ -6,7 +6,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "valvur==1.6.1",
+        "valvur==1.6.2",
         "valvur-mcp"
       ]
     }

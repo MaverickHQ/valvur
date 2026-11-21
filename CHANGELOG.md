@@ -8,6 +8,8 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.6.2] — 2026-11-21
+
 ### Security
 
 - **The image's Go Scanners on Go 1.27.4,** for CVE-2026-97054 in the standard library, and
