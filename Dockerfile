@@ -176,6 +176,27 @@ LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 # same number. A change that breaks anything on that page bumps it here and there.
 LABEL org.valvur.protocol="2"
 
+# Alpine packages raised past the base (the owner, 2026-11-21). A base image is rebuilt
+# days or weeks after Alpine's repository takes a fix: on 2026-11-19 the image gate blocked
+# on 22 advisories in krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, fixed in the repository since
+# before the tag last moved (2026-11-12) and in no digest of it. `ALPINE_RAISE` raises a
+# package of the base to an advisory's fixed version, each at an exact version, and nothing
+# else, as `<SCANNER>_RAISE` raises a Go module: the build refuses a raise the base already
+# carries, so a moved base drops it, and one for a package the base lacks. Alpine keeps one
+# version of a package, so a later one there stops this step too, and the raise moves with
+# it. Before any other package is installed. `tests/test_alpine_raise.py` runs this step.
+ARG ALPINE_RAISE="krb5-libs=1.22.3-r0 zlib=1.4-r0"
+RUN set -eu; \
+    for raise in ${ALPINE_RAISE}; do \
+      name="${raise%%=*}"; \
+      have="$(awk -v p="P:$name" '$0 == p { held = 1 } held && /^V:/ { print substr($0, 3); exit }' /lib/apk/db/installed)"; \
+      test -n "$have" \
+        || { echo "the base has no $name: drop $raise from ALPINE_RAISE" >&2; exit 1; }; \
+      test "$(apk version -t "$have" "${raise#*=}")" = "<" \
+        || { echo "the base already carries $name $have: drop $raise from ALPINE_RAISE" >&2; exit 1; }; \
+    done; \
+    apk add --no-logfile --no-cache ${ALPINE_RAISE}
+
 COPY --from=gitleaks /gitleaks               /usr/local/bin/gitleaks
 COPY --from=trivy    /trivy                   /usr/local/bin/trivy
 COPY --from=osv      /osv-scanner             /usr/local/bin/osv-scanner
