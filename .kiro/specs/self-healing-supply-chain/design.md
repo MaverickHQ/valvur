@@ -476,7 +476,10 @@ plan does not guess from a target's name.
   base's release, which the build already fetches; the registry's manifest for the Go and
   base tags; Go's module proxy for a module's versions. The product names none of them.
 - **Escalations** join the table in §8: `no-alpine-fix` (the repository does not hold a fixed
-  version), `go-major` (the fix is in a new major version of the module),
+  version), `go-major` (the fix is in a new major version of the module), `go-untagged` (the
+  fix has no tagged version, so a raise would name a pseudo-version, as 1.6.2's raise of
+  `golang.org/x/crypto` did by hand: a commit chosen by a person, which the heal does not
+  choose),
   `scanner-source` (the build fails with the raise, so the Scanner's own code would have to
   change), and `scanner-version` (only a new release of the Scanner carries the fix, which
   is Requirement 18's).
