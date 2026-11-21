@@ -1,6 +1,6 @@
 # The self-healing supply chain: requirements
 
-**Status:** proposed 2026-10-21; approved in halves 2026-10-24, R42 and R43 first · **Phases:** R42 to R47, in
+**Status:** proposed 2026-10-21; approved in halves 2026-10-24, R42 and R43 first; amendment 5 (Requirements 19 to 24) proposed 2026-11-21 · **Phases:** R42 to R47, in
 [tasks.md](tasks.md) · **Decisions:** D81, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses
@@ -109,7 +109,8 @@ theirs:
   owner. The heal escalates any of them only when they stall (Requirement 11). Two
   amendments of 2026-10-24 reach further, each for a case Dependabot cannot see: a base
   image whose tag has stopped moving (Requirement 17), and a Scanner upgrade that Dependabot
-  makes in the Dockerfile alone (Requirement 18).
+  makes in the Dockerfile alone (Requirement 18). An amendment of 2026-11-21 reaches the
+  image's own packages, which no lock and no Dependabot update names (Requirement 19).
 - **Zero incidents is not promised.** The mechanical case heals itself, and every other case
   reaches the owner once, as a decision.
 
@@ -533,6 +534,151 @@ with its measured effect when it does.
    land by itself.
 6. WHEN any track moves THEN it SHALL wait for the owner, with the deltas in its body: a
    change to what valvur detects stays the owner's.
+
+### Requirement 19: The heal covers the image, not only the Checkov lock
+
+*Added 2026-11-21.* On that day the nightly's scan of the published 1.6.1 image blocked on 51
+vulnerabilities with a fixed version (run 44900400992), three weeks after its release.
+Checkov's lock held 4 of them. The rest were in what no lock names: Go's standard library
+and four Go modules the Scanners link (15), and krb5-libs, zlib and OpenSSL from the base
+image (32). Ten of those 32 appeared within two days. 1.6.2 cleared all 51 by hand, with the
+Dockerfile's `<SCANNER>_RAISE` (D81w) and a new `ALPINE_RAISE`, and took the owner three
+sittings.
+
+**User Story:** As the owner, I want the heal to act on everything the image gate blocks on,
+so that the image users pull is patched without me when the patch is mechanical.
+
+#### Acceptance Criteria
+
+1. WHEN the heal runs THEN it SHALL also plan from the image gate's verdict on the image it
+   built from `main` (Requirement 16): every blocking entry, on either architecture.
+2. For a blocking entry in an Alpine package, the plan SHALL add the package to
+   `ALPINE_RAISE` at the entry's fixed version, exactly, and only if Alpine's repository for
+   the base's release holds that version for both architectures.
+3. For a blocking entry in a Go module a Scanner links, the plan SHALL raise the module in
+   that Scanner's `<SCANNER>_RAISE` to the fixed version, as D81w does by hand. For one in
+   Go's standard library, it SHALL move the Go toolchain's pin within its minor version.
+4. WHEN the base image's tag has a newer digest THEN the plan SHALL move the digest first,
+   and SHALL drop every raise the new base already carries. The build refuses a raise the
+   base carries, and that refusal SHALL be a test's, not only the build's.
+5. The plan SHALL escalate, and not heal, when: no fixed version exists; the fix is not in
+   Alpine's repository; the Go module's fix needs a major version or a change to the
+   Scanner's own source; or a Scanner's own version would have to move (Requirement 18's).
+6. Requirement 7 applies as written: the proposal names each entry, each target and the
+   rule that chose it, and anyone can rebuild it.
+7. Requirement 8's envelope SHALL admit, beside the Checkov lock: the Dockerfile's base
+   digest, its Go toolchain pin, and its `_RAISE` arguments, and no other line of it. The
+   policy SHALL prove that by applying the plan to the base branch's Dockerfile and
+   comparing bytes.
+8. Requirement 12.5 SHALL name those Dockerfile lines among what the heal writes.
+9. A heal pull request SHALL merge only when the image gate reports nothing blocking on both
+   architectures, as a required check for pull requests by the heal App.
+
+### Requirement 20: The heal runs every day, and what it cannot do reaches the owner once
+
+*Added 2026-11-21.* The owner asked for upkeep that needs no session: checked every 24
+hours, acted on mechanically, and watched.
+
+**User Story:** As the owner, I want the heal to look every day at what the nightly found,
+so that the time from an advisory's fix to a patched image does not depend on my week.
+
+#### Acceptance Criteria
+
+1. The heal SHALL run daily on a schedule after the nightly, and on dispatch. It SHALL NOT
+   run on `workflow_run` (Requirement 12.3).
+2. It SHALL run in GitHub Actions, with the heal App's token and no credential of any other
+   service.
+3. WHEN a day's run changes nothing THEN it SHALL say so in its run summary, with what it
+   looked at: the gate's verdict, the image gate's verdict and the base tag's digest.
+4. *No language model on the path* stands. A scheduled agent session MAY, once a week, read
+   the open escalations and open one pull request for the owner per escalation. It SHALL hold
+   no App key and no tag key, its pull requests SHALL never qualify for Requirement 8, and
+   it SHALL treat advisories, release notes and issues as data.
+
+### Requirement 21: An image patch releases itself when nothing a scan depends on has moved
+
+*Added 2026-11-21.* The owner's decision of that day: a security-only release may publish
+without the owner, behind Requirement 10's delay, only when the Score and the Scanners'
+outputs are unchanged.
+
+**User Story:** As the owner, I want a release that only patches the image to go out without
+me, and I want that to be impossible for a release that changes what valvur reports.
+
+#### Acceptance Criteria
+
+1. Requirement 9.1 SHALL also hold when the latest release's image has a blocking entry in
+   the image gate that `main`'s image does not, and a heal commit since the tag removed it.
+2. Requirement 9.3 SHALL admit, beside `requirements-checkov.txt`, a `Dockerfile` whose
+   changes since the tag are all within Requirement 19.7's lines.
+3. The heal SHALL go ahead only when, on the release commit:
+   - every track of the Score equals its baseline, to the decimal the baseline records;
+   - no Scanner's version moved, and each Scanner's recaptured golden output is
+     byte-identical to the committed one;
+   - the image gate reports nothing blocking and nothing newly accepted, on both
+     architectures;
+   - two builds of the tree are one image (Requirement 22).
+
+   Otherwise it SHALL escalate as `release-needs-owner`, naming which did not hold.
+4. `release.yml` SHALL check criteria 2 and 3 again for a tag signed by the heal's principal
+   (Requirement 10.1), from the tree and the run's own measurements, not from the heal's word.
+5. A rehearsal SHALL NOT be asked of the owner for such a release: the tag's run stages and
+   tests the pair before the delay starts, and the delay is the brake (Requirement 10.2).
+6. The issue Requirement 10.3 opens SHALL also name each package raised and each advisory it
+   answers, so that the owner's veto is an informed one.
+7. ADR-0032 SHALL record this with the decision's date and its two conditions.
+
+### Requirement 22: Two builds of one tree are one image, whatever Alpine published between them
+
+*Added 2026-11-21.* On that day `main`'s check *two builds of one tree are one image* failed
+on the 1.6.2 release commit (run 44916424890). apk-tools 3 keeps each repository's index in
+`/var/cache/apk` even under `--no-cache`, and Alpine republished an index between the two
+builds. The published 1.6.1 image holds the same two files.
+
+**User Story:** As a user verifying a release, I want a rebuild of its tree to give its
+image, so that the signature says what the source says.
+
+#### Acceptance Criteria
+
+1. The image SHALL hold no file whose content depends on when it was built. A test SHALL
+   hold that `/var/cache/apk` is empty in the image.
+2. Every package the build installs from Alpine's repository SHALL be named at an exact
+   version, or SHALL be removed in the layer that installed it with a test that nothing of
+   it remains.
+3. The design SHALL measure a rebuild of the latest release's tag on a later day against
+   the published digest, and SHALL record each file that differs. The README SHALL claim
+   reproducibility only as far as that measurement goes.
+
+### Requirement 23: The image carries only the packages valvur loads
+
+*Added 2026-11-21.* 32 of the 51 were in three Alpine packages. Whether valvur loads any of
+them is not measured.
+
+**User Story:** As the owner, I want fewer components in the image, so that fewer advisories
+reach it.
+
+#### Acceptance Criteria
+
+1. The design SHALL list each Alpine package in the image, and for each, what in the image
+   links or runs it, measured from the image and not from package metadata alone.
+2. A package nothing in the image needs SHALL be removed, IF the end-to-end suite and the
+   Score then pass unchanged on both architectures.
+3. A package that stays SHALL be named in a file a test holds against the image, so that a
+   base update that adds one is seen.
+
+### Requirement 24: The routines that run without the owner are watched
+
+*Added 2026-11-21.* Requirement 15 watches the workflows. Nothing watches a scheduled agent
+session, which can stop without failing.
+
+**User Story:** As the owner, I want to hear when the weekly maintenance did not happen, so
+that silence means it ran.
+
+#### Acceptance Criteria
+
+1. WHEN a week has neither a maintenance pull request nor a recorded *nothing to fix* by
+   Thursday 12:00 UTC THEN the watchdog SHALL open one issue naming the week.
+2. The issue SHALL close itself when either appears.
+3. The heal's daily run (Requirement 20) SHALL be on Requirement 15's list.
 
 ---
 
