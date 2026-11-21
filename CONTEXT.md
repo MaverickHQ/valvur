@@ -112,3 +112,34 @@ _Avoid_: fix, recommendation, action, task
 **Suppression**:
 A recorded decision to accept a Finding, keyed by Fingerprint, carrying a mandatory expiry date. Lives in the Workspace and is committed — unlike the Results Folder.
 _Avoid_: ignore, exception, waiver, mute, allowlist entry
+
+**Inventory**:
+Findings reported for review and never asserted: they are in `findings.json`, marked `inventory`, and count toward neither the verdict nor the gate. A rule's Findings are inventory when it lists sinks to review (D47a), or when it measures under the bar on maintained code, everywhere or in test material only (ADR-0033).
+_Avoid_: hint, informational finding, low-confidence finding, hidden finding
+
+**Coverage note**:
+A statement of what a Scan Run could not inspect, written by valvur about itself. Not a Finding about the code, and never active. Some coverage notes make a nil result `inconclusive`.
+_Avoid_: warning, gap finding, limitation finding
+
+### Measurement
+
+**Score**:
+The one number valvur's detection is judged by: the mean of its tracks, measured by `scripts/eval.py` and held by a committed baseline that no track may fall 2 points under (ADR-0026).
+_Avoid_: benchmark, accuracy, grade
+
+**Track**:
+One part of the Score: a set of cases with known answers for one kind of problem, scored as true-positive rate minus false-positive rate. The eighth is scored differently: precision over hand-labelled Findings on the Corpus.
+_Avoid_: suite, benchmark, category
+
+**Corpus**:
+The maintained open-source projects, pinned by commit, on which valvur's Findings are labelled true or false by hand. What it measures is whether a report on real code can be believed.
+_Avoid_: test set, dataset, real-world sample
+
+**Bar**:
+The measured precision a rule must reach. ADR-0029's decides whether a rule ships. ADR-0033's, taken on the Corpus alone, decides whether its Findings are active or Inventory.
+_Avoid_: threshold, quality gate, cutoff
+
+**Heal**:
+The repository's own upkeep, done without the owner: a mechanical change to valvur's pins that answers an advisory, proposed and merged under a policy that can rebuild it byte for byte. Never anything valvur does to a Workspace.
+_Avoid_: auto-fix, remediation, self-repair, patching
+
