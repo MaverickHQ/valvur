@@ -179,13 +179,14 @@ LABEL org.valvur.protocol="2"
 # Alpine packages raised past the base (the owner, 2026-11-21). A base image is rebuilt
 # days or weeks after Alpine's repository takes a fix: on 2026-11-19 the image gate blocked
 # on 22 advisories in krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, fixed in the repository since
-# before the tag last moved (2026-11-12) and in no digest of it. `ALPINE_RAISE` raises a
+# before the tag last moved (2026-11-12) and in no digest of it, and two days later on ten
+# more in OpenSSL 3.5.9-r0, fixed the day that scan ran. `ALPINE_RAISE` raises a
 # package of the base to an advisory's fixed version, each at an exact version, and nothing
 # else, as `<SCANNER>_RAISE` raises a Go module: the build refuses a raise the base already
 # carries, so a moved base drops it, and one for a package the base lacks. Alpine keeps one
 # version of a package, so a later one there stops this step too, and the raise moves with
 # it. Before any other package is installed. `tests/test_alpine_raise.py` runs this step.
-ARG ALPINE_RAISE="krb5-libs=1.22.3-r0 zlib=1.4-r0"
+ARG ALPINE_RAISE="krb5-libs=1.22.3-r0 libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 zlib=1.4-r0"
 RUN set -eu; \
     for raise in ${ALPINE_RAISE}; do \
       name="${raise%%=*}"; \

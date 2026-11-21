@@ -7,6 +7,10 @@ On 2026-11-19 the image gate blocked on 22 advisories, the same on both architec
 stage's `ALPINE_RAISE` raises a package of the base to an advisory's fixed version, each at
 an exact version, as `<SCANNER>_RAISE` raises a Go module (D81w). The build refuses a raise
 the base already carries, so a moved base drops it, and one for a package the base lacks.
+
+On 2026-11-21 the gate on that raise's own pull request (run 44893108886) blocked on ten
+more: five advisories in OpenSSL 3.5.9-r0, each in libcrypto3 and libssl3, fixed in 3.5.9-r1,
+which Alpine built on 2026-11-19. They are raised the same way.
 """
 
 from __future__ import annotations
@@ -31,6 +35,10 @@ KRB5 = {"CVE-2026-107364", "CVE-2026-107708", "CVE-2026-107778", "CVE-2026-10788
         "CVE-2026-119079", "CVE-2026-40355", "CVE-2026-40356", "CVE-2026-71199",
         "CVE-2026-71200"}
 ZLIB = {"CVE-2026-4738"}
+#: Its ten on the raise's own pull request, run 44893108886 (2026-11-21): each of the five in
+#: both of OpenSSL's packages.
+OPENSSL = {"CVE-2026-88822", "CVE-2026-88823", "CVE-2026-95691", "CVE-2026-95692",
+           "CVE-2026-107496"}
 
 
 def _final_stage() -> str:
@@ -150,7 +158,7 @@ def test_the_image_holds_each_raised_package_at_its_exact_version():
 
 
 @pytest.mark.e2e
-def test_the_image_gate_finds_none_of_the_22_in_krb5_libs_and_zlib():
+def test_the_image_gate_finds_none_of_the_32_in_krb5_libs_zlib_and_openssl():
     from valvur import cache
 
     database = cache.root() / "trivy"
@@ -166,3 +174,4 @@ def test_the_image_gate_finds_none_of_the_22_in_krb5_libs_and_zlib():
     assert len(KRB5) == 21
     assert not {(i, "krb5-libs") for i in KRB5} & found
     assert not {(i, "zlib") for i in ZLIB} & found
+    assert not {(i, package) for i in OPENSSL for package in ("libcrypto3", "libssl3")} & found
