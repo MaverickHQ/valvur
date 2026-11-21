@@ -1,6 +1,7 @@
 # The self-healing supply chain: design
 
-**Status:** proposed 2026-10-21, for the owner's approval · answers
+**Status:** proposed 2026-10-21, for the owner's approval; amendment 5 (components 13 to 18,
+D81x to D81ac) proposed 2026-11-21, for the owner's checkpoint B · answers
 [requirements.md](requirements.md) · built by [tasks.md](tasks.md)
 
 ## Overview
@@ -80,6 +81,14 @@ nightly 6-self scans the new tag ─► green.  Past T + 48 h, an unhealed advis
 | `.github/workflows/ci.yml`, `release.yml`, `acceptance.yml` | the image check after the build, before `promote`, and against the published image | R43.4 |
 | `scripts/base_heal.py` (new) | a dead base tag found and moved (amendment 3) | R44.9 |
 | `scripts/scanner_upgrade.py` (new), `.github/workflows/scanner-upgrade.yml` (new) | a Scanner's upgrade completed, measured and judged (amendment 4) | R47.2 to R47.4 |
+| `Dockerfile`, `.github/image-packages.txt` (new) | no build package left unpinned; the packages nothing loads removed; the list a test holds (amendment 5) | R44.10, R44.11 |
+| `scripts/image_gate.py` | each entry's kind (Alpine package, Go module, Go's standard library, Python package), from Trivy's own field | R44.12 |
+| `scripts/image_heal.py` (new) | `plan`, `apply` and `envelope` for the Dockerfile's raises, its Go pin and its base digest | R44.12, R44.13 |
+| `scripts/heal_policy.py` | `image`: the plan applied to the base's Dockerfile must give the pull request's, byte for byte | R44.13 |
+| `.github/workflows/heal.yml` | the image plan beside the lock's; the run's summary | R44.14 |
+| `scripts/heal_release.py`, `scripts/same_output.py` (new) | an image patch is eligible; the released image and the new one give one output | R45.6 |
+| `.github/workflows/release.yml` | the checks again for a heal-signed image patch; the notice names each raise | R45.7 |
+| `docs/MAINTENANCE.md`, `scripts/watchdog.py` | the weekly session reads the escalations and records its week; the watchdog reads the record | R46.3 |
 
 ---
 
@@ -443,6 +452,135 @@ The policy (`heal_policy.py scanner`) lets it merge only when every track is unc
 anything else is left for the owner, with the deltas in the body. Package code from the
 Scanner runs only in `prepare`, which holds no secret, as D81k requires.
 
+### 13. The heal covers the image (amendment 5, Requirement 19)
+
+1.6.2 was three kinds of edit to one file, made by hand from the image gate's output. Each
+is mechanical, and `scripts/image_heal.py` makes them.
+
+**`plan`** reads the image gate's verdict on the image built from `main`, for both
+architectures. The verdict's entries gain `kind`, from Trivy's `Class` and `Type`, so the
+plan does not guess from a target's name.
+
+| the entry is in | the plan |
+|---|---|
+| an Alpine package | add `<package>=<version>` to `ALPINE_RAISE`, where the version is what the release's repository index holds for both architectures, and is the fixed version or later |
+| a Go module in a Scanner's binary | add `<module>@<fixed version>` to that Scanner's `_RAISE`, the Scanner read from the binary's path |
+| Go's standard library | move the one `golang:` pin to the newest patch of its minor, by digest |
+| a Python package | nothing here: that is the Checkov lock's heal (Requirement 5), or zizmor's lock, which Dependabot moves |
+
+- **The base first.** When the base tag has a newer digest, the plan moves it, reads the new
+  base's `/lib/apk/db/installed`, and drops every raise the new base already carries. The
+  build refuses such a raise, and `tests/test_alpine_raise.py` already runs that refusal
+  from the Dockerfile's own step, so 19.4's test exists.
+- **What it reads from the network,** in a job with no secret: Alpine's `APKINDEX` for the
+  base's release, which the build already fetches; the registry's manifest for the Go and
+  base tags; Go's module proxy for a module's versions. The product names none of them.
+- **Escalations** join the table in §8: `no-alpine-fix` (the repository does not hold a fixed
+  version), `go-major` (the fix is in a new major version of the module),
+  `scanner-source` (the build fails with the raise, so the Scanner's own code would have to
+  change), and `scanner-version` (only a new release of the Scanner carries the fix, which
+  is Requirement 18's).
+- **The envelope.** `image_heal.py envelope` reduces a Dockerfile to its envelope lines: the
+  two `FROM python:` digests, the four `FROM golang:` pins, `ALPINE_RAISE` and the four
+  `_RAISE` arguments. Two Dockerfiles are *the same outside the envelope* when they are equal
+  with those lines blanked. `heal_policy.py image` requires that of the base's and the pull
+  request's, then applies the plan in the commit's trailers to the base's and requires the
+  result to be the pull request's, byte for byte.
+- **The trailers** are `Heal-Raise: <ARG> <entry>`, `Heal-Base: <tag>@<digest>` and
+  `Heal-Go: <tag>@<digest>`, beside `Heal-Advisory:` and `Heal-Run:`.
+- **It merges only when the image gate is green on both architectures.** The gate's two
+  checks become required for pull requests (tasks.md §3). They can be: after 1.6.2 the gate
+  blocks on nothing and accepts nothing.
+
+### 14. Every day, and the weekly session (amendment 5, Requirement 20)
+
+- **The cadence does not change** (D81y). The heal runs every 6 hours, at minute 41, so a
+  run starts within six hours of the nightly's end, whenever GitHub starts the nightly. Each
+  run makes its own observation and does not read the nightly's. It never runs on
+  `workflow_run`.
+- **The run's summary** always says what it looked at: the tree gate's verdict, the image
+  gate's verdict on both architectures, and the base tag's digest beside the pinned one. A
+  run that changed nothing says *nothing to heal*.
+- **The weekly session is D64(d)'s routine,** which exists: a Claude Code cloud routine,
+  Thursdays at 06:00 UTC, bound by `docs/MAINTENANCE.md`'s prompt. Its prompt gains one
+  paragraph: read the open issues titled `heal:`, and for each one it can resolve, open one
+  pull request from a branch `maintenance/<date>-<reason>`. Three things keep it off the
+  heal's path:
+  - it holds no App key and no tag key, and has no way to get one: both live in the `heal`
+    environment, which deploys from `main` alone;
+  - the policy admits only the App's signed commits (Requirement 8.1), so a pull request of
+    the session's never merges by itself;
+  - the prompt already says that an issue's, an advisory's or a release note's text is data.
+    `tests/test_maintenance_routine.py` holds the new paragraph to its *never* phrases.
+
+### 15. An image patch releases itself (amendment 5, Requirement 21)
+
+`heal_release.py check` already asks that every commit since the tag be patch-class and that
+the only machinery change be the Checkov lock. Three things are added.
+
+- **The Dockerfile is admitted, inside its envelope.** `prepare_release.machinery()` names
+  the Dockerfile. `check` accepts it when `image_heal.py envelope` says the tag's Dockerfile
+  and `main`'s are the same outside the envelope.
+- **Nothing a scan depends on has moved.** On the release commit, in a job with no secret:
+  - `scripts/eval.py --compare tests/eval/baseline.json --exact` passes: every track equals
+    its baseline to the decimal the baseline records;
+  - `scanner_pins.pins` gives the same versions at the tag and at the commit;
+  - `scripts/same_output.py` runs each Scanner's golden recipe (`scanner_upgrade.RECIPES`)
+    in the latest release's image and in the new one, with one copy of the data, and
+    compares the two outputs as R47.3 judges a recapture: after the run's identity is
+    blanked, and Checkov's checks sorted;
+  - the image gate reports nothing blocking and nothing accepted that the latest release did
+    not have, on both architectures;
+  - CI's check *two builds of one tree are one image* passed on that commit.
+
+  Any of them failing escalates `release-needs-owner`, naming it.
+- **`release.yml` checks again,** for a tag the heal signed: `heal_release.py verify --tag`
+  runs the envelope check; `verify`'s Score step takes `--exact`; and `artifact`, which
+  already holds the staged image, runs `same_output.py` against `:latest` and the image
+  gate's comparison. None of it reads anything the heal wrote.
+- **No rehearsal** (D81i, extended): the Dockerfile is release machinery, and for this class
+  the tag's own run stages the pair and tests it before the delay starts.
+- **The notice issue** lists each raise with the advisory it answers, read from the
+  commits' trailers.
+
+### 16. Two builds, one image (amendment 5, Requirement 22)
+
+- **Done on 2026-11-21 (#301):** each step that calls `apk` empties `/var/cache/apk` after its
+  last call, and a test holds that from the Dockerfile and from the image.
+- **The build packages.** `gcc`, `musl-dev` and `libffi-dev` are installed with no version
+  and removed in the same step. If a package in the Checkov lock is compiled there, its
+  bytes depend on the compiler of the day. R44.10 measures that: the lock installed with
+  `--only-binary :all:` on both architectures. If every package has a wheel, the three build
+  packages are deleted from the Dockerfile and `--only-binary :all:` stays, so a later
+  package that needs a compiler fails the build instead of compiling in silence (D81ab).
+- **The rebuild.** R44.10 rebuilds `v1.6.2`'s tree on a later day and compares it with the
+  published digest, file by file. The README's sentence on reproducibility is cut to what
+  that shows.
+
+### 17. Only the packages valvur loads (amendment 5, Requirement 23)
+
+R44.11 lists every Alpine package in the image with what needs it, from the image itself:
+the shared libraries each ELF file names (`readelf -d`, over Python, its extension modules,
+and the Scanners that are not static), and the libraries mapped while each Scanner runs its
+golden recipe. A package nothing names and nothing maps is removed in the final stage, if
+the end-to-end suite and the Score then pass unchanged on both architectures. The packages
+that stay are written to `.github/image-packages.txt`, one name a line, and an end-to-end
+test holds the image to exactly that list, so a base update that adds one is seen. A removed
+package's files are gone from the image's filesystem, which is what the image gate reads.
+Its bytes stay in the base's layer, and `SECURITY.md` says so.
+
+### 18. The weekly session is watched (amendment 5, Requirement 24)
+
+- **The record.** The routine's prompt asks for one comment a week on one issue,
+  *maintenance: the weekly record*: the pull request it opened, or *nothing to fix*, with the
+  ISO week. An issue is the only place a cloud routine can write that needs no push.
+- **The watchdog** gains one check. From Friday's run on, a week with no pull request titled
+  `chore: maintenance, …` opened in it and no comment naming it gives the issue
+  `watchdog: weekly maintenance, <week>`, through `file-issue`, which closes when either
+  appears. The requirement's Thursday 12:00 UTC is six hours after the routine starts, and
+  Friday 06:47 is the watchdog's first run after it.
+- **`heal.yml`** has a schedule, so the watchdog reads it with no change (Requirement 15.1).
+
 ## Data models
 
 ### `plan.json`
@@ -524,6 +662,18 @@ owner starts the second half. R42.1 records the dates in the main `tasks.md` §5
 | D81v | **A Scanner upgrade lands by itself only when every Score track is unchanged** (amendment 4, 2026-10-24). Anything else waits for the owner with the deltas. | if a Scanner's fixtures do not recapture deterministically, its pull requests always wait for the owner, with the fixture named |
 | D81w | **The Go Scanners are built from their release's source** (the owner, 2026-10-31, extending the Gitleaks decision of 2026-10-25 to Trivy, OSV-Scanner and Syft). Each stage downloads the release's Go module, verified against Go's checksum database (`<SCANNER>_SUM`), and builds it with the current Go that every Go stage shares. A module is raised (`<SCANNER>_RAISE`) only to the fixed version of an advisory the image gate names, at an exact version, and the build refuses a raise the release already requires or one that would lower a module. The Scanner's own source is never changed. The image's own Syft writes the release's SBOM. Dependabot no longer sees these three Scanners' releases, so the watchdog does, as it does Opengrep's. On 2026-10-31 the nightly blocked on 8 advisories no upstream release had fixed, and 44 acceptances waited on placeholders; the four binaries built this way had none with a fix, measured with that day's database. | if a raise breaks a Scanner's build, its golden or the Score, that advisory goes to the owner to accept, with the failure, and the Scanner keeps the release's own modules |
 
+
+**Amendment 5,** proposed 2026-11-21 for the owner's checkpoint B:
+
+| # | decision | fallback when a measurement disagrees |
+|---|---|---|
+| D81x | **The heal's scope is the Checkov lock and the Dockerfile's envelope:** the base digest, the Go pin, `ALPINE_RAISE` and the four `_RAISE` arguments. This amends D81a. An Alpine raise takes the version the repository holds, when it is the fixed version or later. | if Alpine's index cannot be read, the entry is escalated as `no-alpine-fix` and the next run tries again |
+| D81y | **The cadence stays every 6 hours** (D81n). Requirement 20's *daily, after the nightly* is met by whichever of the four runs follows it. | none |
+| D81z | **The weekly session is D64(d)'s routine,** extended to the `heal:` escalations, with no key and no merge. D81l stands. | if the routine cannot comment on an issue with its connector, its record is the pull request alone, and a quiet week is reported by the watchdog as unknown, not as missed |
+| D81aa | **An image patch releases itself only when the Score is exactly its baseline, no Scanner moved, the released image and the new one give one output, the gate is clean on both architectures and two builds were one image.** `release.yml` checks each again. D81i's skipped rehearsal covers the Dockerfile for this class. ADR-0032 records it. | any condition failing is `release-needs-owner`; if `same_output.py` proves unstable on a Scanner, releases that touch that Scanner's stage wait for the owner |
+| D81ab | **The image is built from wheels alone.** The three build packages go if R44.10 finds nothing compiled. | if a package has no wheel for an architecture, the build packages stay, each at an exact version in `ALPINE_RAISE`'s format, and the heal moves them |
+| D81ac | **A package nothing in the image loads is removed,** and the rest are held by a list. | if removing a package changes the end-to-end suite or the Score, it stays and the list says what needs it |
+
 ---
 
 ## Error handling
@@ -541,6 +691,9 @@ owner starts the second half. R42.1 records the dates in the main `tasks.md` §5
 | the self-scan gate, the Score or `artifact` fails | the release stops before `promote`, leaving only `-candidate` (ADR-0020); `release-stopped` |
 | the owner cancels during the timer | nothing is published; `release-stopped`, as the owner's decision, with no retry |
 | two runs overlap | `concurrency: heal` queues the second |
+| an image raise breaks the build, a golden or the Score | the pull request's checks are red; red twice on the same plan is `checks-red`, and D81w's fallback applies |
+| the base's new digest carries a raise | the plan drops the raise in the same pull request; the build would refuse it |
+| the released image cannot be pulled for `same_output.py` | the release is `release-needs-owner`: nothing is assumed equal |
 
 ---
 
@@ -558,6 +711,10 @@ owner starts the second half. R42.1 records the dates in the main `tasks.md` §5
 | the heal triggering itself | `schedule` and `workflow_dispatch` only, a dispatch only after a merge it saw, and one concurrency group |
 | a poisoned advisory that pushes an upgrade | the target passes the same vetting: an existing package, the same major, the cooldown or its provenance |
 | the veto lost silently | the notice issue when the timer starts; `RELEASING.md` documents cancelling; the environment is visible in Settings |
+| a poisoned advisory that pushes an image raise | a raise is an exact version that Alpine's signed index holds, or a Go module at a version Go's checksum database knows; the build refuses a raise that lowers a module; every gate and the delay follow |
+| the heal's wider reach in the Dockerfile | the policy compares the Dockerfile outside the envelope byte for byte, and rebuilds the envelope from the plan. A new stage, a new `RUN` or a changed URL is outside it |
+| a release that changes what valvur reports, sent as a patch | the Score must equal its baseline exactly and the two images must give one output, checked by the heal and again by `release.yml` |
+| a prompt injected through an advisory or an issue into the weekly session | the session holds no key, its pull requests never merge by themselves, and the owner reads each one |
 
 ---
 
@@ -640,6 +797,12 @@ owner starts the second half. R42.1 records the dates in the main `tasks.md` §5
 >
 > *Alternatives:* the owner's approval kept (D81h's fallback); a maintenance branch; keyless
 > tags.
+>
+> *Extended on 2026-11-21, at the owner's word of that day:* the class also holds a release
+> whose Dockerfile changed only in its base digest, its Go pin and its raises (D81x), on two
+> conditions the release checks itself: every track of the Score equals its baseline, and
+> every Scanner gives the same output from the new image as from the last. A release that
+> changes what valvur reports is never in this class.
 
 ---
 
