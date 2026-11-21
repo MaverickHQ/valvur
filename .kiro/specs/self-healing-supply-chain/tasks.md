@@ -748,7 +748,8 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   2. A blocking Alpine entry plans a raise at the version the index holds for both
      architectures, when it is the fixed version or later. Otherwise `no-alpine-fix`.
   3. A blocking Go module plans a raise in the `_RAISE` of the Scanner whose binary holds it.
-     A fix in a new major version is `go-major`.
+     A fix in a new major version is `go-major`, and one with no tagged version is
+     `go-untagged`: the heal never writes a pseudo-version.
   4. A blocking entry in Go's standard library plans the newest patch of the pinned minor,
      by digest, for the one pin the four stages share.
   5. A base tag with a newer digest is planned first, and every raise the new base carries
@@ -765,7 +766,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      different for a new stage, a new step, a changed URL or a changed checksum.
   3. `heal_policy.py image` accepts a pull request whose Dockerfile is the base's with the
      trailers' plan applied, byte for byte, and refuses any other.
-  4. `heal.py verify` and the escalation table name the four new reasons.
+  4. `heal.py verify` and the escalation table name the five new reasons.
   5. A test holds that the heal writes the Checkov lock, the CHANGELOG and the Dockerfile's
      envelope, and nothing else.
 
