@@ -176,6 +176,10 @@ LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 # same number. A change that breaks anything on that page bumps it here and there.
 LABEL org.valvur.protocol="2"
 
+# `rm -f /var/cache/apk/*`, here and in the step that builds Checkov: apk-tools 3 writes
+# each repository's index there even under `--no-cache`, and Alpine republishes an index
+# whenever any package moves, so two builds of one tree differed on 2026-11-21 (run
+# 44916424890) and every image since Alpine 3.24 carried 3 MB of it.
 # Alpine packages raised past the base (the owner, 2026-11-21). A base image is rebuilt
 # days or weeks after Alpine's repository takes a fix: on 2026-11-19 the image gate blocked
 # on 22 advisories in krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, fixed in the repository since
@@ -196,7 +200,8 @@ RUN set -eu; \
       test "$(apk version -t "$have" "${raise#*=}")" = "<" \
         || { echo "the base already carries $name $have: drop $raise from ALPINE_RAISE" >&2; exit 1; }; \
     done; \
-    apk add --no-logfile --no-cache ${ALPINE_RAISE}
+    apk add --no-logfile --no-cache ${ALPINE_RAISE}; \
+    rm -f /var/cache/apk/*
 
 COPY --from=gitleaks /gitleaks               /usr/local/bin/gitleaks
 COPY --from=trivy    /trivy                   /usr/local/bin/trivy
@@ -252,6 +257,7 @@ RUN apk add --no-logfile --no-cache --virtual .build gcc musl-dev libffi-dev \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
  && apk del --no-logfile .build \
+ && rm -f /var/cache/apk/* \
  && PYTHONHASHSEED=0 /opt/checkov/bin/python -m compileall -q -f --invalidation-mode unchecked-hash /opt/checkov/lib
 
 # zizmor (R4.2, ADR-0023) audits GitHub Actions workflows. One package, a static
