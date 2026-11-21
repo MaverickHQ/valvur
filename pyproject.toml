@@ -98,9 +98,11 @@ exclude = [
 ]
 
 # The one uv version (R42.4): uv refuses to run under any other, and `astral-sh/setup-uv`
-# installs this one, so the Mac, CI and the Checkov recipe resolve alike.
+# installs this one, so the Mac, CI and the Checkov recipe resolve alike. Dependabot's uv
+# updater runs one uv and refuses a project pinned to any other (2026-11-07: it supported
+# 0.13.7 alone), so the pin follows Dependabot's.
 [tool.uv]
-required-version = "==0.13.5"
+required-version = "==0.13.7"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

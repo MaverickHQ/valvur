@@ -8,6 +8,42 @@ break things, and has.
 
 ## [Unreleased]
 
+### Security
+
+- **The image's Go Scanners on Go 1.27.4,** for CVE-2026-97054 in the standard library, and
+  with `golang.org/x/crypto` raised to GO-2026-5932's fixed version
+  (`v0.58.1-0.20261009181718-2f1f834330b2`), which no release of Gitleaks, Trivy,
+  OSV-Scanner or Syft past the cooldown requires yet. Both held the nightly scan of the
+  published 1.6.1 image red (#273).
+- **The Python base at its current digest:** Alpine 3.24.4, Python 3.12.16. It still ships
+  krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, whose fixes are in Alpine's repository but in no
+  base image yet.
+- **krb5-libs 1.22.3-r0, zlib 1.4-r0 and OpenSSL 3.5.9-r1 in the image,** raised past the
+  base by the Dockerfile's `ALPINE_RAISE`, each at its exact fixed version. They were the
+  last 32 the image gate blocked on, the same on both architectures: in krb5-libs,
+  CVE-2026-40355, -40356, -71199, -71200, -107364, -107708, -107778, -107884, -111423,
+  -112314 to -112323, -118380 and -119079; in zlib, CVE-2026-4738; and in OpenSSL's
+  libcrypto3 and libssl3 each, CVE-2026-88822, -88823, -95691, -95692 and -107496, fixed in
+  Alpine's repository on 2026-11-19. The build refuses a raise the base already carries, so
+  the raise is dropped when a base image takes the fix.
+- **OpenTelemetry raised to 1.47.0 in Trivy, OSV-Scanner and Syft,** for CVE-2026-128085,
+  which no release of theirs past the cooldown links yet.
+- **soupsieve 4.0.1 in Checkov's lock,** from 2.9.2, for CVE-2026-126190 to -126193. It held
+  the self-scan gate red on every pull request from 2026-11-14.
+
+### Changed
+
+- **Syft 1.57.1,** from 1.55.0, built from its release's source. Its SBOM names a scanned
+  file by its path in the project (`/requirements.txt`), as its packages' locations already did.
+- **Trivy 0.76.2,** from 0.76.1, and **OSV-Scanner 2.7.1,** from 2.7.0, built from their
+  releases' source.
+- **zizmor 1.32.0,** from 1.31.1. Its report on the fixture is byte-identical to 1.31.1's.
+
+- **uv 0.13.7,** from 0.13.5, in `[tool.uv] required-version`: Dependabot's uv updater
+  refused the project's pin (`tool_version_not_supported`, run 42361522345), so no uv update
+  reached a pull request. Under 0.13.7 the Checkov recipe rewrites its lock byte for byte and
+  `uv lock --check` passes. The Mac needs `uv self update 0.13.7`.
+
 ## [1.6.1] — 2026-10-31
 
 A security release for the image. Its four Go Scanners are built from their releases' own

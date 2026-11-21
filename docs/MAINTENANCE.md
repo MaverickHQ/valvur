@@ -108,6 +108,18 @@ The steps, for every Scanner:
 4. Review the golden's diff, and run the Score (`scripts/eval.py --compare
    tests/eval/baseline.json`).
 
+## An Alpine package, raised
+
+A base image is rebuilt days or weeks after Alpine's repository takes a fix. When the image
+gate blocks on a package of the base whose fixed version the repository holds and no digest
+of the base's tag carries, the final stage's `ALPINE_RAISE` raises it: `<package>=<version>`,
+at exactly the advisory's fixed version, and the pull request lists it with its advisories.
+The build names a raise the base already carries, or one for a package the base lacks, and
+stops, so the pull request that moves the base's digest drops it. Alpine keeps one version
+of a package: when a later one replaces the raised version the build stops at `apk add`, and
+the raise moves to the version the repository holds. `tests/test_alpine_raise.py` runs the
+step.
+
 ## What it costs
 
 One session a week, bounded by the cap the owner sets when creating the routine (§8).
