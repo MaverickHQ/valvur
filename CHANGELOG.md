@@ -10,6 +10,17 @@ break things, and has.
 
 ## [1.6.2] — 2026-11-21
 
+A security release for the image. On 2026-11-21 the nightly scan of the published 1.6.1
+image blocked on 51 findings with a fixed version (run 44900400992), in Go's standard
+library, four Go modules the Scanners link, Checkov's soupsieve, and krb5-libs, zlib and
+OpenSSL from the base. This image's gate blocks on none of them and accepts nothing, the
+same on both architectures (run 44894768505). One finding has no fixed version to move to:
+CVE-2024-23342 in `ecdsa`, as in 1.6.1. krb5-libs, zlib and OpenSSL are raised past the
+base, a route the image had not needed before, because no `python:3.12-alpine3.24` image
+carries their fixes yet. Syft moves to 1.57.1, Trivy to 0.76.2, OSV-Scanner to 2.7.1 and zizmor to
+1.32.0. The Score is 74.1, every track at its baseline. Every contract stands: protocol 2,
+`fp_version` 1, `findings.json`'s schema 1 and the reply's schema 2.
+
 ### Security
 
 - **The image's Go Scanners on Go 1.27.4,** for CVE-2026-97054 in the standard library, and
@@ -30,6 +41,8 @@ break things, and has.
   the raise is dropped when a base image takes the fix.
 - **OpenTelemetry raised to 1.47.0 in Trivy, OSV-Scanner and Syft,** for CVE-2026-128085,
   which no release of theirs past the cooldown links yet.
+- **containerd 2.4.2 in Trivy and Syft,** from 2.4.1, for CVE-2026-95839. Trivy 0.76.2 and
+  Syft 1.57.1 require it themselves, so nothing raises it.
 - **soupsieve 4.0.1 in Checkov's lock,** from 2.9.2, for CVE-2026-126190 to -126193. It held
   the self-scan gate red on every pull request from 2026-11-14.
 
@@ -40,11 +53,18 @@ break things, and has.
 - **Trivy 0.76.2,** from 0.76.1, and **OSV-Scanner 2.7.1,** from 2.7.0, built from their
   releases' source.
 - **zizmor 1.32.0,** from 1.31.1. Its report on the fixture is byte-identical to 1.31.1's.
-
 - **uv 0.13.7,** from 0.13.5, in `[tool.uv] required-version`: Dependabot's uv updater
   refused the project's pin (`tool_version_not_supported`, run 42361522345), so no uv update
   reached a pull request. Under 0.13.7 the Checkov recipe rewrites its lock byte for byte and
   `uv lock --check` passes. The Mac needs `uv self update 0.13.7`.
+
+### Fixed
+
+- **A reused result names the image that made it** (ADR-0030, amended). Since 1.6.1 one
+  Scanner version is built two ways, upstream's binary and one with its modules raised, so
+  the version alone no longer says what answered: 1.6.1's image could reuse a result 1.6.0's
+  had stored. The key now holds the digest of the image's inputs. The cost is
+  one fresh run of Trivy and OSV-Scanner after each upgrade of valvur.
 
 ## [1.6.1] — 2026-10-31
 
