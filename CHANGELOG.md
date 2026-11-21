@@ -8,6 +8,15 @@ break things, and has.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Alpine's repository index is no longer kept in the image.** apk-tools 3 writes it to
+  `/var/cache/apk` even under `--no-cache`, so every image built on Alpine 3.24 carried
+  3 MB of it, dated the minute it was built. Alpine republishes an index whenever any package
+  moves, so two builds of one tree gave one image only while it published nothing between
+  them: on 2026-11-21 it published between the two builds of `main` and they differed (run
+  44916424890). Each step that calls apk now empties that cache in the same layer.
+
 ## [1.6.2] — 2026-11-21
 
 A security release for the image. On 2026-11-21 the nightly scan of the published 1.6.1

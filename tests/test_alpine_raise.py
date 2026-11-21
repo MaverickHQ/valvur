@@ -25,6 +25,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 INSTALLED = "/lib/apk/db/installed"
+CACHE = "/var/cache/apk"
 EXACT_RAISE = re.compile(r"[a-z0-9][a-z0-9+._-]*=\d[0-9a-z._]*-r\d+")
 
 #: The image gate's 22 on #294's branch, run 44475786283 (2026-11-19), on both architectures.
@@ -89,7 +90,10 @@ def test_the_raise_is_one_transaction_before_any_other_package_is_installed():
 def _build(tmp_path: Path, installed: dict[str, str], compares: str,
            raises: str = "krb5-libs=1.22.3-r0 zlib=1.4-r0") -> subprocess.CompletedProcess[str]:
     """The Dockerfile's own step, run against a stand-in for the base: its package
-    database, and an `apk` that answers `version -t` with `compares` and records the rest."""
+    database, its cache, and an `apk` that answers `version -t` with `compares`, and
+    records any other call and leaves an index in the cache, as apk-tools 3 does."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
     database = tmp_path / "installed"
     database.write_text("".join(f"C:Q1x\nP:{name}\nV:{version}\nA:aarch64\n\n"
                                 for name, version in installed.items()))
@@ -98,12 +102,14 @@ def _build(tmp_path: Path, installed: dict[str, str], compares: str,
     apk = bin_ / "apk"
     apk.write_text('#!/bin/sh\n'
                    'if [ "$1" = version ]; then echo "$COMPARES"; exit 0; fi\n'
-                   f'echo "$@" >> "{tmp_path}/apk.calls"\n')
+                   f'echo "$@" >> "{tmp_path}/apk.calls"\n'
+                   f'touch "{cache}/APKINDEX.5773bea6.tar.gz"\n')
     apk.chmod(0o755)
     step = _step()
     assert INSTALLED in step
     return subprocess.run(
-        ["sh", "-c", step.replace(INSTALLED, str(database))], capture_output=True, text=True,
+        ["sh", "-c", step.replace(INSTALLED, str(database)).replace(CACHE, str(cache))],
+        capture_output=True, text=True,
         env={"PATH": f"{bin_}:{os.environ['PATH']}", "ALPINE_RAISE": raises,
              "COMPARES": compares})
 
@@ -115,6 +121,7 @@ def test_a_package_the_base_holds_below_its_fixed_version_is_raised_to_it(tmp_pa
     assert built.returncode == 0, built.stderr
     assert (tmp_path / "apk.calls").read_text().splitlines() == [
         "add --no-logfile --no-cache krb5-libs=1.22.3-r0 zlib=1.4-r0"]
+    assert list((tmp_path / "cache").iterdir()) == [], "the index apk cached stays in the layer"
 
 
 @pytest.mark.parametrize("compares", ["=", ">"])
