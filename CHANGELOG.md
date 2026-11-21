@@ -8,6 +8,64 @@ break things, and has.
 
 ## [Unreleased]
 
+## [1.6.2] — 2026-11-21
+
+A security release for the image. On 2026-11-21 the nightly scan of the published 1.6.1
+image blocked on 51 findings with a fixed version (run 44900400992), in Go's standard
+library, four Go modules the Scanners link, Checkov's soupsieve, and krb5-libs, zlib and
+OpenSSL from the base. This image's gate blocks on none of them and accepts nothing, the
+same on both architectures (run 44894768505). One finding has no fixed version to move to:
+CVE-2024-23342 in `ecdsa`, as in 1.6.1. krb5-libs, zlib and OpenSSL are raised past the
+base, a route the image had not needed before, because no `python:3.12-alpine3.24` image
+carries their fixes yet. Syft moves to 1.57.1, Trivy to 0.76.2, OSV-Scanner to 2.7.1 and zizmor to
+1.32.0. The Score is 74.1, every track at its baseline. Every contract stands: protocol 2,
+`fp_version` 1, `findings.json`'s schema 1 and the reply's schema 2.
+
+### Security
+
+- **The image's Go Scanners on Go 1.27.4,** for CVE-2026-97054 in the standard library, and
+  with `golang.org/x/crypto` raised to GO-2026-5932's fixed version
+  (`v0.58.1-0.20261009181718-2f1f834330b2`), which no release of Gitleaks, Trivy,
+  OSV-Scanner or Syft past the cooldown requires yet. Both held the nightly scan of the
+  published 1.6.1 image red (#273).
+- **The Python base at its current digest:** Alpine 3.24.4, Python 3.12.16. It still ships
+  krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, whose fixes are in Alpine's repository but in no
+  base image yet.
+- **krb5-libs 1.22.3-r0, zlib 1.4-r0 and OpenSSL 3.5.9-r1 in the image,** raised past the
+  base by the Dockerfile's `ALPINE_RAISE`, each at its exact fixed version. They were the
+  last 32 the image gate blocked on, the same on both architectures: in krb5-libs,
+  CVE-2026-40355, -40356, -71199, -71200, -107364, -107708, -107778, -107884, -111423,
+  -112314 to -112323, -118380 and -119079; in zlib, CVE-2026-4738; and in OpenSSL's
+  libcrypto3 and libssl3 each, CVE-2026-88822, -88823, -95691, -95692 and -107496, fixed in
+  Alpine's repository on 2026-11-19. The build refuses a raise the base already carries, so
+  the raise is dropped when a base image takes the fix.
+- **OpenTelemetry raised to 1.47.0 in Trivy, OSV-Scanner and Syft,** for CVE-2026-128085,
+  which no release of theirs past the cooldown links yet.
+- **containerd 2.4.2 in Trivy and Syft,** from 2.4.1, for CVE-2026-95839. Trivy 0.76.2 and
+  Syft 1.57.1 require it themselves, so nothing raises it.
+- **soupsieve 4.0.1 in Checkov's lock,** from 2.9.2, for CVE-2026-126190 to -126193. It held
+  the self-scan gate red on every pull request from 2026-11-14.
+
+### Changed
+
+- **Syft 1.57.1,** from 1.55.0, built from its release's source. Its SBOM names a scanned
+  file by its path in the project (`/requirements.txt`), as its packages' locations already did.
+- **Trivy 0.76.2,** from 0.76.1, and **OSV-Scanner 2.7.1,** from 2.7.0, built from their
+  releases' source.
+- **zizmor 1.32.0,** from 1.31.1. Its report on the fixture is byte-identical to 1.31.1's.
+- **uv 0.13.7,** from 0.13.5, in `[tool.uv] required-version`: Dependabot's uv updater
+  refused the project's pin (`tool_version_not_supported`, run 42361522345), so no uv update
+  reached a pull request. Under 0.13.7 the Checkov recipe rewrites its lock byte for byte and
+  `uv lock --check` passes. The Mac needs `uv self update 0.13.7`.
+
+### Fixed
+
+- **A reused result names the image that made it** (ADR-0030, amended). Since 1.6.1 one
+  Scanner version is built two ways, upstream's binary and one with its modules raised, so
+  the version alone no longer says what answered: 1.6.1's image could reuse a result 1.6.0's
+  had stored. The key now holds the digest of the image's inputs. The cost is
+  one fresh run of Trivy and OSV-Scanner after each upgrade of valvur.
+
 ## [1.6.1] — 2026-10-31
 
 A security release for the image. Its four Go Scanners are built from their releases' own
