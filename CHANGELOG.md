@@ -16,8 +16,14 @@ break things, and has.
   OSV-Scanner or Syft past the cooldown requires yet. Both held the nightly scan of the
   published 1.6.1 image red (#273).
 - **The Python base at its current digest:** Alpine 3.24.4, Python 3.12.16. It still ships
-  krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, whose fixes (1.22.3-r0, 1.4-r0) are in Alpine's
-  repository but in no base image yet, so the image gate still blocks on those 22.
+  krb5-libs 1.22.2-r1 and zlib 1.3.2-r1, whose fixes are in Alpine's repository but in no
+  base image yet.
+- **krb5-libs 1.22.3-r0 and zlib 1.4-r0 in the image,** raised past the base by the
+  Dockerfile's `ALPINE_RAISE`, each at its exact fixed version. They were the last 22 the
+  image gate blocked on, the same on both architectures: in krb5-libs, CVE-2026-40355,
+  -40356, -71199, -71200, -107364, -107708, -107778, -107884, -111423, -112314 to -112323,
+  -118380 and -119079; in zlib, CVE-2026-4738. The build refuses a raise the base already
+  carries, so the raise is dropped when a base image takes the fix.
 - **OpenTelemetry raised to 1.47.0 in Trivy, OSV-Scanner and Syft,** for CVE-2026-128085,
   which no release of theirs past the cooldown links yet.
 - **soupsieve 4.0.1 in Checkov's lock,** from 2.9.2, for CVE-2026-126190 to -126193. It held
