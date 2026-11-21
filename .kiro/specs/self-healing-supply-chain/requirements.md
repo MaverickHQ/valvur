@@ -1,6 +1,6 @@
 # The self-healing supply chain: requirements
 
-**Status:** proposed 2026-10-21; approved in halves 2026-10-24, R42 and R43 first; amendment 5 (Requirements 19 to 24) proposed 2026-11-21 · **Phases:** R42 to R47, in
+**Status:** proposed 2026-10-21; approved in halves 2026-10-24, R42 and R43 first; amendment 5 (Requirements 19 to 24) approved 2026-11-21, with two corrections from its design marked *Corrected* · **Phases:** R42 to R47, in
 [tasks.md](tasks.md) · **Decisions:** D81, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses
@@ -553,8 +553,11 @@ so that the image users pull is patched without me when the patch is mechanical.
 1. WHEN the heal runs THEN it SHALL also plan from the image gate's verdict on the image it
    built from `main` (Requirement 16): every blocking entry, on either architecture.
 2. For a blocking entry in an Alpine package, the plan SHALL add the package to
-   `ALPINE_RAISE` at the entry's fixed version, exactly, and only if Alpine's repository for
-   the base's release holds that version for both architectures.
+   `ALPINE_RAISE` at one exact version: the version Alpine's repository for the base's release
+   holds for both architectures, when that is the entry's fixed version or later.
+   (*Corrected 2026-11-21, D81x:* this said the fixed version exactly. Alpine's repository
+   keeps only a package's newest version, so a fix that Alpine has since rebuilt could never
+   be taken.)
 3. For a blocking entry in a Go module a Scanner links, the plan SHALL raise the module in
    that Scanner's `<SCANNER>_RAISE` to the fixed version, as D81w does by hand. For one in
    Go's standard library, it SHALL move the Go toolchain's pin within its minor version.
@@ -612,8 +615,12 @@ me, and I want that to be impossible for a release that changes what valvur repo
    changes since the tag are all within Requirement 19.7's lines.
 3. The heal SHALL go ahead only when, on the release commit:
    - every track of the Score equals its baseline, to the decimal the baseline records;
-   - no Scanner's version moved, and each Scanner's recaptured golden output is
-     byte-identical to the committed one;
+   - no Scanner's version moved, and each Scanner gives the same output from the image being
+     released as from the latest release's image, on the golden fixtures and the same data,
+     judged as Requirement 18.2 judges a recapture. (*Corrected 2026-11-21, D81aa:* this
+     compared a recapture with the committed golden, byte for byte. Trivy's and OSV-Scanner's
+     output on a fixture changes whenever an advisory is published, and Trivy's and Syft's
+     carry the run's identity, so that comparison would fail on a day valvur did not change.)
    - the image gate reports nothing blocking and nothing newly accepted, on both
      architectures;
    - two builds of the tree are one image (Requirement 22).
@@ -707,3 +714,11 @@ cites it.
 | 17.1 to 17.6 | | R44.9 |
 | 18.1 to 18.4 | N3.9 | R47.1 to R47.3 |
 | 18.5, 18.6 | | R47.4, R47.5 |
+| 19.1 to 19.6 | | R44.12 |
+| 19.7, 19.8 | | R44.13 |
+| 19.9, 20.1 to 20.3 | | R44.14 |
+| 20.4, 24.1 to 24.3 | | R46.3 |
+| 21.1 to 21.3, 21.7 | | R45.6 |
+| 21.4 to 21.6 | | R45.7 |
+| 22.1 to 22.3 | | R44.10 |
+| 23.1 to 23.3 | | R44.11 |

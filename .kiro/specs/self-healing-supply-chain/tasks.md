@@ -4,7 +4,7 @@
 2026-10-21 (#234).** The owner asked how the build could check and update itself when this
 happens, without them in the loop and without another incident like it. This spec is the
 answer: [requirements.md](requirements.md) says what, and [design.md](design.md) says how,
-including the decisions D81a to D81v with their fallbacks.
+including the decisions D81a to D81ac with their fallbacks.
 
 **Amended 2026-10-24,** while 1.5.4 was prepared. The owner's goal is updates that are "fully
 automated and headless", without babysitting. Four things found that day would still need
@@ -16,6 +16,20 @@ the owner, or fail in silence. Each is a requirement, a D81 row and its tasks:
 
 **Approved in halves** (the owner, 2026-10-24): R42 and R43 now, R44 onward after a decision
 of the owner's, as §0's item 7 says. R42.1 records the date and the half.
+
+**Amended 2026-11-21 (amendment 5),** after 1.6.2. The nightly's scan of the published 1.6.1
+image blocked on 51 vulnerabilities, 47 of them in what the heal as specced never touches,
+and clearing them by hand took the owner three sittings. The owner approved Requirements 19
+to 24 that day and gave a standing authorisation for security-only releases. Each is a D81
+row and its tasks, proposed for checkpoints B and C:
+- the image built from pinned packages alone, and holding only what valvur loads
+  (Requirements 22 and 23, D81ab and D81ac, R44.10 and R44.11);
+- a heal for the Dockerfile's raises, its Go pin and its base digest (Requirement 19, D81x,
+  R44.12 to R44.14);
+- an image patch that releases itself when nothing a scan depends on has moved
+  (Requirement 21, D81aa, R45.6 and R45.7);
+- the weekly session on the escalations, and watched (Requirements 20 and 24, D81y and D81z,
+  R46.3).
 
 **IDs.** Phases R42 to R47 continue [the main list](../valvur/tasks.md). Tasks are
 `R<phase>.<n>`, in the main list's format, so `scripts/build_status.py` can read them once
@@ -103,6 +117,9 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 - **R44 before R45:** a release needs a healed `main`.
 - **R45 needs three owner settings** (§3), so the work that needs none comes first.
 - **R46 after R45:** it measures and documents what exists.
+- **Amendment 5's tasks sit in the phases they extend.** R44.10 and R44.11 need no owner
+  setting and no App, so they may be built first, beside R44.1. R44.12 to R44.14 follow
+  R44.6, whose workflow they extend; R45.6 and R45.7 follow R45.4; R46.3 follows R46.2.
 - **R47 last:** a Scanner upgrade lands as the App, under R44's policy, so it needs R44 and
   R45 built. The watchdog (R42.5) and the image check (R43.4) grant no power to merge, tag or
   release, so they sit in the first two phases.
@@ -700,6 +717,73 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 17.1 to 17.6_
 
+- [ ] **R44.10** **Two builds, one image, whatever the day** (D81ab, amendment 5). It needs
+  no owner setting and may be built before R44.1. Behaviours:
+  1. The STATUS records the Checkov and zizmor locks installed with `--only-binary :all:`
+     on both architectures: which packages, if any, have no wheel.
+  2. With none: the Dockerfile installs from wheels alone and names no build package, and a
+     test holds both. With some: each build package is named at an exact version, and a test
+     holds that.
+  3. The STATUS records a rebuild of `v1.6.2`'s tree against the published digest, with each
+     file that differs.
+  4. The README's sentence on reproducibility says what behaviour 3 measured, and no more.
+
+  _Requirements: 22.1, 22.2, 22.3_
+
+- [ ] **R44.11** **Only the packages valvur loads** (D81ac, amendment 5). It needs no owner
+  setting. Behaviours:
+  1. The STATUS lists each Alpine package in the image with what names or maps it, measured
+     from the image on both architectures.
+  2. A package nothing needs is removed, one at a time, each with the end-to-end suite and
+     the Score unchanged.
+  3. `.github/image-packages.txt` names the packages that stay, and an end-to-end test holds
+     the image to exactly that list.
+  4. `SECURITY.md` says a removed package's bytes remain in the base's layer.
+
+  _Requirements: 23.1, 23.2, 23.3_
+
+- [ ] **R44.12** **The image's plan** (D81x, amendment 5). Behaviours, with the registry,
+  Alpine's index and Go's proxy faked:
+  1. The image gate's verdict names each entry's kind, from Trivy's own field.
+  2. A blocking Alpine entry plans a raise at the version the index holds for both
+     architectures, when it is the fixed version or later. Otherwise `no-alpine-fix`.
+  3. A blocking Go module plans a raise in the `_RAISE` of the Scanner whose binary holds it.
+     A fix in a new major version is `go-major`.
+  4. A blocking entry in Go's standard library plans the newest patch of the pinned minor,
+     by digest, for the one pin the four stages share.
+  5. A base tag with a newer digest is planned first, and every raise the new base carries
+     is dropped from the plan.
+  6. An entry only a new Scanner release fixes is `scanner-version`, and plans nothing.
+  7. The plan names each entry, its target and the rule that chose it.
+
+  _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6_
+
+- [ ] **R44.13** **Apply, and the envelope** (D81x, amendment 5). Behaviours:
+  1. `image_heal.py apply` writes the plan into the Dockerfile and the commit's trailers,
+     and changes no line outside the envelope.
+  2. `envelope` calls two Dockerfiles the same when they differ only in envelope lines, and
+     different for a new stage, a new step, a changed URL or a changed checksum.
+  3. `heal_policy.py image` accepts a pull request whose Dockerfile is the base's with the
+     trailers' plan applied, byte for byte, and refuses any other.
+  4. `heal.py verify` and the escalation table name the four new reasons.
+  5. A test holds that the heal writes the Checkov lock, the CHANGELOG and the Dockerfile's
+     envelope, and nothing else.
+
+  _Requirements: 19.7, 19.8, 11.1_
+
+- [ ] **R44.14** 👤 **The image heal in the workflow** (D81x, D81y, amendment 5). Behaviours:
+  1. `heal.yml`'s `plan` job runs the image plan beside the lock's, in the same grant, and
+     `propose` opens one pull request per plan.
+  2. Every run's summary gives the tree gate's verdict, the image gate's on both
+     architectures, and the base tag's digest beside the pinned one. A run that changed
+     nothing says so.
+  3. Shape tests: the schedule and dispatch are the only triggers, and no job that runs
+     `docker build` holds a secret. zizmor finds nothing.
+  4. The proof: the next blocking entry in the image is healed by a pull request, or reaches
+     the owner as an escalation, recorded with its run. Ticked as waiting until it happens.
+
+  _Requirements: 19.9, 20.1, 20.2, 20.3_
+
 ### Phase R45: security patches release themselves
 
 - [ ] **R45.1** **ADR-0032** (D81h, D81i). Behaviours:
@@ -762,6 +846,33 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 13.3_
 
+- [ ] **R45.6** **An image patch is eligible only when nothing a scan depends on moved**
+  (D81aa, amendment 5). Behaviours, each on a temporary repository:
+  1. `heal_release.py check` accepts a Dockerfile that differs from the tag's only inside
+     the envelope, and refuses any other difference.
+  2. `scripts/eval.py --compare … --exact` fails when a track differs from its baseline in
+     either direction.
+  3. `same_output.py` passes two images whose Scanners give one output on the golden
+     recipes, after the run's identity is blanked, and fails when one Finding differs.
+  4. A Scanner whose version moved since the tag makes the release `release-needs-owner`.
+  5. An entry the image gate accepts that the latest release did not have does the same.
+  6. Each refusal names the condition that did not hold.
+  7. R45.1's ADR carries the extension of 2026-11-21, from design.md's text.
+
+  _Requirements: 21.1, 21.2, 21.3, 21.7_
+
+- [ ] **R45.7** 👤 **`release.yml` checks it again** (D81aa, amendment 5). Behaviours:
+  1. For a heal-signed tag, `verify` runs the envelope check and the exact Score, and
+     `artifact` runs `same_output.py` against the latest release's image.
+  2. A failure stops the release before `promote`, and the next heal run escalates
+     `release-stopped`.
+  3. The notice issue lists each raise and the advisory it answers.
+  4. No rehearsal is asked for this class, and `docs/RELEASING.md` says why.
+  5. R16.3's release constraint tests are restated for the new steps, and zizmor finds
+     nothing.
+
+  _Requirements: 21.4, 21.5, 21.6_
+
 ### Phase R46: how fast it heals, and the documents
 
 - [ ] **R46.1** **Time to heal** (D81r). Behaviours:
@@ -785,6 +896,19 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   5. The CHANGELOG's `[Unreleased]` is updated.
 
   The link check reads every new document.
+
+- [ ] **R46.3** **The weekly session, on the escalations and watched** (D81z, amendment 5).
+  Behaviours:
+  1. `docs/MAINTENANCE.md`'s prompt reads the open `heal:` issues, opens one pull request
+     for each it can resolve, and records its week on the issue *maintenance: the weekly
+     record*. `tests/test_maintenance_routine.py` holds the new text to its *never* phrases.
+  2. `watchdog.py`, from Friday's run on, files `watchdog: weekly maintenance, <week>` for a
+     week with neither a maintenance pull request nor a record, and closes it when either
+     appears.
+  3. A week still in progress files nothing.
+  4. `heal.yml` is on the watchdog's list, and a test holds that.
+
+  _Requirements: 20.4, 24.1, 24.2, 24.3_
 
 ### Phase R47: Scanner upgrades that prepare themselves
 
@@ -958,6 +1082,10 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | make the image check required, optional | R43.4 landed | add its two checks to `main`'s required checks |
 | allow `hub.docker.com` for the build | **allowed 2026-10-25** | the owner, 2026-10-25: the build may read `hub.docker.com`. The product still names neither it nor any other new host |
 | R47's workflow | when reached, if auto mode refused | R47.4, in a session in manual approve mode, from its STATUS |
+| checkpoint B: amendment 5's decisions | wave 1, item 1.3 | accept, change or reject D81x to D81ac, and the two corrected criteria (19.2 and 21.3) |
+| make the image gate required for pull requests | before R44.14's proof | add the image gate's two checks to `main`'s required checks, so a heal's image pull request cannot merge on a red gate (Requirement 19.9) |
+| the weekly record's issue | R46.3 | open *maintenance: the weekly record* once, and let the routine's connector comment on issues |
+| amendment 5's owner-session tasks | when reached, if auto mode refused | R44.14 and R45.7, in a session in manual approve mode, from each task's STATUS |
 
 ---
 

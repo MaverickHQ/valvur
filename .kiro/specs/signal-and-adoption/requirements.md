@@ -1,7 +1,9 @@
 # Signal and adoption: requirements
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint A · **Phases:** R48 to R52, in
-`tasks.md`, written after this file is approved · **Decisions:** D82, in `design.md`, the same
+**Status:** approved by the owner on 2026-11-21 (checkpoint A, all seven points of #302 as
+recommended); corrected the same day from the design's measurements, each correction marked
+*Corrected* or *Design finding* below, for the owner's checkpoint B · **Phases:** R48 to R52,
+in [tasks.md](tasks.md) · **Decisions:** D82, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses
 [CONTEXT.md](../../../CONTEXT.md)'s terms exactly. It covers what a user of valvur meets: how
@@ -33,10 +35,12 @@ Measured on 2026-11-21, on `main` at `f0e7150` (1.6.2):
   Gitleaks' rules give 98 of the 168 false Findings and none of the 3 true ones:
   `private-key` 35, `jwt` 29, `generic-api-key` 26. Of those 90, 86 are under a path named for tests,
   fixtures, examples or documentation, and the other 4 in a tutorial's source. On the Score's
-  secrets track, planted secrets in ten formats, the same rules score 100.
+  secrets track, planted secrets in ten formats, the same rules score 100. valvur already
+  lowers a secret under such a path to `low` (`src/valvur/classtable.py`); it stays active, so
+  the verdict and the track still count it.
 - **Static analysis gives the rest:** 69 false and 3 true. Two rules give 44 of the false
   ones, `python_random_rule-random` (0 true, 23 false) and `valvur.python.weak-hash`
-  (0 true, 21 false). Both are active: ADR-0029's bar is taken over the corpus and the
+  (0 true, 21 false). Both are active: ADR-0029's bar is taken over the corpus and three
   planted tracks together, and the planted cases carry them.
 - **Three Scanners are not judged on maintained code at all.** Checkov's, zizmor's and the
   dependency Scanners' Findings on the 48 are counted and not labelled
@@ -50,9 +54,10 @@ Measured on 2026-11-21, on `main` at `f0e7150` (1.6.2):
 - **A Finding carries a CWE only when Opengrep reported it,** and no OWASP category from any
   Scanner. Nothing documents an import into DefectDojo or Dependency-Track, and valvur
   reads and writes no VEX.
-- **Seven agent clients are documented and not run.** `docs/AGENTS.md` marks Claude Code and
-  Kiro as measured, and Codex, Cursor, VS Code, Windsurf, Cline, Continue and Zed as
-  *documented shape, not run here*.
+- **Nine agent clients are documented and not run.** `docs/AGENTS.md` marks Claude Code and
+  Kiro as measured, and Codex, Cursor, VS Code, Windsurf, Cline, Roo Code, Continue, Gemini CLI
+  and Zed as *documented shape, not run here*. (*Corrected 2026-11-21:* this said seven, and
+  left out Roo Code and Gemini CLI.)
 
 ### What this spec changes
 
@@ -157,8 +162,11 @@ trustworthy, so that later changes cannot quietly undo it.
 #### Acceptance Criteria
 
 1. WHEN Requirements 2 to 4 are built THEN at least half of the active Findings on the
-   corpus SHALL be true: a track score of 50 or more. The owner confirms or changes this
-   number at checkpoint A.
+   corpus SHALL be true: a track score of 50 or more. The owner confirmed this number at
+   checkpoint A. *Design finding, 2026-11-21 (D82h):* with 3 true Findings in the corpus,
+   50 needs at most 4 false ones left active, and 7 would remain from rules with one to three
+   Findings there, which no honest bar demotes. The design proposes 33 with a second measure, the
+   number of false active Findings, and the owner decides at checkpoint B which stands.
 2. The corpus SHALL keep its 48 projects, at the commits they are pinned to. Its labels
    SHALL NOT be changed to meet the target, and a test SHALL refuse a label whose verdict
    changed without a reason recorded beside it.
@@ -257,8 +265,10 @@ my VEX statement, so that I record the assessment once, in the format my consume
 2. A statement of `not_affected` or `fixed` for a vulnerability and product valvur reports
    SHALL be treated as a Suppression is: the Finding is reported as accepted, named in
    `SUMMARY.md` with the statement's justification, and not active.
-3. A statement SHALL need what a Suppression needs: an author and a date valvur can read,
-   and an expiry. The design SHALL say how an OpenVEX document carries the expiry.
+3. A statement SHALL need what a Suppression needs: a reason and an expiry. The report SHALL
+   show the document's author and timestamp with it. The design SHALL say how an OpenVEX
+   document carries the expiry. (*Corrected 2026-11-21:* this said a Suppression needs an
+   author. It needs a fingerprint, a rule, a path, a reason and an expiry.)
 4. A statement that matches no Finding SHALL be reported, as an unused Suppression is.
 5. valvur SHALL NOT write, generate or propose a VEX statement about the Workspace
    (`CLAUDE.md` §4).
@@ -318,8 +328,10 @@ stated and checkable, so that I can approve it without interviewing its maintain
 
 1. Each release SHALL carry an OpenVEX document for the image: every vulnerability the
    image gate reports with no fixed version, and every one the owner accepted, with its
-   status. It SHALL be generated from the gate's verdict, attached to the release, and
-   attested as the SBOMs are.
+   status. It SHALL be generated from the gate's verdict, attached to the release as the
+   SBOMs are, and attested against the image's digest. (*Corrected 2026-11-21:* this said
+   *attested as the SBOMs are*. The SBOMs are attached and not attested; D82q attests them
+   in the same step.)
 2. `SECURITY.md` SHALL state the SLSA build level the release reaches, with the evidence for
    each of that level's requirements, and no higher level.
 3. The OpenSSF Best Practices form SHALL be submitted from `docs/BEST-PRACTICES.md` and its
@@ -353,3 +365,29 @@ cites it.
 
 | criterion here | main spec ID | task |
 |---|---|---|
+| 1.1 | | R48.2 |
+| 1.2, 1.4, 5.2 | | R48.3 |
+| 1.3, 2.3 | | R48.4 |
+| 2.1, 2.2, 2.4, 3.4 | | R49.2, R49.3 |
+| 3.1 to 3.5 | | R49.4 |
+| 4.1, 4.2, 4.4 | | R49.1, R49.3, R49.5 |
+| 4.3 | | R49.6 |
+| 2.5, 5.1, 5.3, 5.4 | | R49.8 |
+| 6.1 to 6.4 | | R49.7 |
+| 7.1 to 7.6 | | R50.2, R50.3 |
+| 7.7 | | R50.4 |
+| 8.1, 8.2 | | R51.2 |
+| 8.3, 8.6, 8.7 | | R51.3 |
+| 8.4, 8.5 | | R51.4 |
+| 9.1 to 9.5 | | R51.5 to R51.8 |
+| 10.1 to 10.5 | | R50.5 |
+| 11.1 to 11.3 | | R50.6 |
+| 11.4 | | R50.7 |
+| 12.1 to 12.4 | | R51.9 |
+| 13.1 to 13.5 | | R52.6 |
+| 14.1 | | R52.2, R52.3 |
+| 14.2, 14.3, 14.5 | | R52.4 |
+| 14.4 | | R52.5 |
+| 15.1 | | R48.5 |
+| 15.2 | | R48.6 |
+| 15.3 | | R48.7 |
