@@ -38,6 +38,7 @@ for it agree on which version is higher. Exit 0 when the plan was written, whate
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -378,6 +379,95 @@ def apply(plan_: dict, tree: Path) -> dict[str, str]:
             CHANGELOG: changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)}
 
 
+#: design.md's closed list (D81m): each reason, and what the owner decides. The first seven
+#: are a plan's, and `dependabot-stalled` is read from the run's Findings: those eight are
+#: this command's to open and to close. The other four belong to the steps that find them.
+REASONS = {
+    "no-fix": "No fixed version exists. Wait, replace the package, or accept the risk with "
+              "a Suppression.",
+    "major": "The only fixes are in a new major version. Decide whether to take the major, "
+             "with whatever else it moves.",
+    "new-package": "The resolution adds or removes a package. Decide whether that is "
+                   "acceptable, after `valvur check`.",
+    "checkov": "The fix needs a Checkov release, or Checkov itself is affected. It moves "
+               "with its adapter, fixtures and goldens.",
+    "check-failed": "`valvur check` flags a version the fix would move to. Never take it: "
+                    "choose another version, or wait.",
+    "young-unattested": "The fix is younger than the cooldown, without the provenance of the "
+                        "version it replaces. Take it now, or let the cooldown pass.",
+    "resolution-failed": "The recipe cannot resolve the pins, or needs a build. Read the log "
+                         "and re-lock by hand.",
+    "dependabot-stalled": "A dependency vulnerability outside the Checkov lock has no fix on "
+                          "`main` after half the healing window. Land or fix Dependabot's "
+                          "pull request.",
+    "policy-refused": "The policy refused a heal pull request. Read the reason; the pull "
+                      "request stays open.",
+    "checks-red": "A heal or release pull request's required checks failed twice on the same "
+                  "plan. Fix forward, or close it.",
+    "release-needs-owner": "Commits since the tag are not patch-class, or other machinery "
+                           "changed. Cut the release as `docs/RELEASING.md` says.",
+    "release-stopped": "A tag the heal pushed has no published release. Re-run the release "
+                       "run, or cut the next patch.",
+}
+OURS = ("no-fix", "major", "new-package", "checkov", "check-failed", "young-unattested",
+        "resolution-failed", "dependabot-stalled")
+#: The Actions bot, as `gh issue list --json author` names an issue's author and a comment's.
+BOT, BOT_SAYS = "app/github-actions", "github-actions"
+_TITLE = re.compile(r"heal: ([a-z-]+): (.+)")
+_EVIDENCE = "<!-- heal-evidence: {} -->"
+
+
+def _wanted(plan_: dict) -> dict[str, dict]:
+    """Each escalation the plan holds, by its issue's title."""
+    wanted = {}
+    for escalation in plan_["escalations"]:
+        package, reason = _cell(escalation["package"]), escalation["reason"]
+        rules = sorted({f["rule"] for f in plan_["findings"]
+                        if f["fingerprint"] in escalation["findings"]})
+        wanted[f"heal: {reason}: {package}"] = {
+            "reason": reason, "package": package, "findings": sorted(escalation["findings"]),
+            "rules": rules}
+    return wanted
+
+
+def _said(issue: dict) -> str:
+    """Everything the heal itself has written on an issue: its body, and the bot's comments."""
+    return "\n".join([issue.get("body") or "",
+                      *(c.get("body") or "" for c in issue.get("comments") or []
+                        if (c.get("author") or {}).get("login") == BOT_SAYS)])
+
+
+def escalations(plan_: dict, issues: list[dict], *, run: str) -> list[dict]:
+    """What to do to the tracker, never done here: `open` an issue for a cause with none,
+    `comment` on one whose evidence is new, `close` one whose cause has gone. Only issues the
+    Actions bot opened count, so no one else's issue is ever commented on or closed."""
+    ours = {}
+    for issue in issues:
+        author = issue.get("author") or {}
+        if author.get("login") == BOT and author.get("is_bot"):
+            ours[issue["title"]] = issue
+    actions = []
+    for title, cause in sorted(_wanted(plan_).items()):
+        evidence = hashlib.sha256(json.dumps(cause, sort_keys=True).encode()).hexdigest()[:16]
+        mark = _EVIDENCE.format(evidence)
+        failed = (f"The heal could not move {cause['package']} "
+                  f"({cause['reason']}), in {_cell(run)}")
+        told = [REASONS[cause["reason"]], "",
+                "Advisories: " + (", ".join(_cell(r) for r in cause["rules"]) or "none named")
+                + ".", "", mark]
+        action = {"title": title, "failed": failed, "body": "\n".join(told)}
+        if title not in ours:
+            actions.append({"action": "open", **action})
+        elif mark not in _said(ours[title]):
+            actions.append({"action": "comment", "number": ours[title]["number"], **action})
+    for title, issue in sorted(ours.items()):
+        named = _TITLE.fullmatch(title)
+        if named and named.group(1) in OURS and title not in _wanted(plan_):
+            actions.append({"action": "close", "number": issue["number"], "title": title,
+                            "comment": f"The cause has gone, as of {_cell(run)}."})
+    return actions
+
+
 _REQUIREMENT = re.compile(r"([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9.!+_-]+)( ; [^\\]+)? \\")
 _HASH = re.compile(r"    --hash=sha256:[0-9a-f]{64}( \\)?")
 
@@ -437,6 +527,12 @@ def main(argv: list[str] | None = None) -> int:
     apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--out", type=Path, required=True)
     apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
+    escalate_cmd = commands.add_parser("escalations", help="print what to do to the tracker")
+    escalate_cmd.add_argument("--plan", type=Path, required=True)
+    escalate_cmd.add_argument("--observed", type=Path, required=True)
+    escalate_cmd.add_argument("--issues", type=Path, required=True)
+    escalate_cmd.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ")
+    escalate_cmd.add_argument("--run", default="", help="this run's URL")
     body_cmd = commands.add_parser("body", help="print the pull request's body")
     body_cmd.add_argument("--plan", type=Path, required=True)
     body_cmd.add_argument("--run", default="", help="this run's URL")
@@ -447,6 +543,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "escalations":
+            actions = escalations(json.loads(args.plan.read_text(encoding="utf-8")),
+                                  json.loads(args.issues.read_text(encoding="utf-8")),
+                                  run=args.run)
+            print(json.dumps({"actions": actions}, indent=2))
+            return 0
         if args.command == "body":
             sys.stdout.write(body(json.loads(args.plan.read_text(encoding="utf-8")), args.run))
             return 0
