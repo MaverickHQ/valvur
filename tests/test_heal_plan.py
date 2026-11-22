@@ -127,3 +127,15 @@ def test_a_finding_with_no_fixed_version_is_escalated_as_no_fix(tmp_path, monkey
     assert plan["pins"] == []
     assert plan["escalations"] == [{"package": "beta", "reason": "no-fix",
                                     "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_a_fix_only_in_the_next_major_is_escalated_as_major(tmp_path, monkeypatch):
+    projects = {"beta": {"1.0": OLD, "1.1": OLD, "2.0": {"uploaded": "2026-08-01T00:00:00Z"}}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "2.0")],
+                      "beta==1.0 \\\n    --hash=sha256:00\n", projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "major",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]

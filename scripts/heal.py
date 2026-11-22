@@ -76,6 +76,8 @@ def _choose(project: str, have: str, floor: str, now: datetime) -> dict | str:
     if settled:
         best = max(settled, key=lambda r: version_key(r.version))
         return {"to": best.version, "rule": "cooldown", "uploaded": best.uploaded}
+    if not offered:
+        return "major"
     lowest = min(offered, key=lambda r: version_key(r.version))
     replaced = next((r for r in releases if r.version == have), None)
     was = pypi_facts.publisher(project, replaced) if replaced else None
