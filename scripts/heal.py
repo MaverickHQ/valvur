@@ -8,8 +8,10 @@
 PyPI which versions exist and when each was uploaded (`scripts/pypi_facts.py`), and writes
 `plan.json`: a pin for each package it may move, and an escalation for each it may not.
 
-A version is chosen by rule, never by judgement (D81d): the newest final release at or above
-the fix, in the major version the lock holds, that is older than the cooldown.
+A version is chosen by rule, never by judgement (D81d, D81e): the newest final release at
+or above the fix, in the major version the lock holds, that is older than the cooldown. With
+none that old, the lowest such release, when it is a day old and every one of its files is
+attested by the Trusted Publisher that attested the version it replaces.
 
 Standard library, and `valvur`'s own version ordering, so a pin and the report that asked
 for it agree on which version is higher. Exit 0 when the plan was written, whatever it holds;
@@ -35,6 +37,8 @@ from valvur.versions import release_line, version_key
 SCHEMA = 1
 #: D81d: as `.github/dependabot.yml` has it.
 COOLDOWN = timedelta(days=7)
+#: D81e: the least age of a version taken before the cooldown, on its publisher's word.
+YOUNG = timedelta(hours=24)
 
 _PINNED = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s\\;]+)", re.M)
 
@@ -67,10 +71,19 @@ def _choose(project: str, have: str, floor: str, now: datetime) -> dict | None:
                if version_key(r.version) >= version_key(floor)
                and release_line(r.version) == release_line(have)]
     settled = [r for r in offered if now - _when(r.uploaded) >= COOLDOWN]
-    if not settled:
+    if settled:
+        best = max(settled, key=lambda r: version_key(r.version))
+        return {"to": best.version, "rule": "cooldown", "uploaded": best.uploaded}
+    if not offered:
         return None
-    best = max(settled, key=lambda r: version_key(r.version))
-    return {"to": best.version, "rule": "cooldown", "uploaded": best.uploaded}
+    lowest = min(offered, key=lambda r: version_key(r.version))
+    replaced = next((r for r in pypi_facts.releases(project) if r.version == have), None)
+    was = pypi_facts.publisher(project, replaced) if replaced else None
+    old_enough = now - _when(lowest.uploaded) >= YOUNG
+    if old_enough and was and pypi_facts.publisher(project, lowest) == was:
+        return {"to": lowest.version, "rule": "young-attested", "uploaded": lowest.uploaded,
+                "publisher": was}
+    return None
 
 
 def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
@@ -87,8 +100,7 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
     for package in sorted(floors):
         chosen = _choose(package, have[package], floors[package], _when(now))
         if chosen:
-            pins.append({"package": package, "from": have[package], "to": chosen["to"],
-                         "why": "fix", "rule": chosen["rule"], "uploaded": chosen["uploaded"]})
+            pins.append({"package": package, "from": have[package], "why": "fix", **chosen})
     return {
         "schema": SCHEMA, "made": now, "lock": lock,
         "findings": [{"rule": f["rule"], "fingerprint": f.get("fingerprint", ""),

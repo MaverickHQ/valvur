@@ -70,3 +70,23 @@ def releases(project: str) -> list[Release]:
                              uploaded=min(_stamp(f["upload_time_iso_8601"]) for f in kept),
                              files=tuple(sorted(f["filename"] for f in kept))))
     return found
+
+
+def publisher(project: str, release: Release) -> dict[str, str] | None:
+    """The one Trusted Publisher whose attestation every file of `release` carries, as its
+    `kind`, `repository` and `workflow`. None when a file has no attestation, or when the
+    files do not all name the same publisher."""
+    seen: set[tuple[str, str, str]] = set()
+    for filename in release.files:
+        answer = _get(f"{PYPI}/integrity/{project}/{release.version}/{filename}/provenance")
+        bundles = answer.get("attestation_bundles") if isinstance(answer, dict) else None
+        if not bundles:
+            return None
+        for bundle in bundles:
+            who = bundle.get("publisher") or {}
+            seen.add((str(who.get("kind", "")), str(who.get("repository", "")),
+                      str(who.get("workflow", ""))))
+    if len(seen) != 1:
+        return None
+    kind, repository, workflow = next(iter(seen))
+    return {"kind": kind, "repository": repository, "workflow": workflow}

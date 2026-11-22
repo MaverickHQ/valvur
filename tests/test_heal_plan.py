@@ -63,3 +63,25 @@ def test_a_fix_past_the_cooldown_is_pinned_at_the_newest_such_version_in_the_maj
                              "rule": "cooldown", "uploaded": "2026-10-11T00:00:00Z"}]
     assert plan["escalations"] == []
     assert [f["rule"] for f in plan["findings"]] == ["CVE-2026-0001"]
+
+
+OLD = {"uploaded": "2026-01-01T00:00:00Z"}
+PUBLISHER = {"kind": "GitHub", "repository": "example/beta", "workflow": "release.yml"}
+
+
+def test_a_young_fix_a_day_old_from_the_replaced_versions_publisher_is_pinned_as_young_attested(
+        tmp_path, monkeypatch):
+    projects = {"beta": {
+        "1.0": {**OLD, "publisher": PUBLISHER},
+        "1.1": {"uploaded": "2026-10-19T06:00:00Z", "publisher": PUBLISHER},
+        "1.2": {"uploaded": "2026-10-20T00:00:00Z", "publisher": PUBLISHER},
+    }}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      "beta==1.0 \\\n    --hash=sha256:00\n", projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == [{"package": "beta", "from": "1.0", "to": "1.1", "why": "fix",
+                             "rule": "young-attested", "uploaded": "2026-10-19T06:00:00Z",
+                             "publisher": PUBLISHER}]
+    assert plan["escalations"] == []
