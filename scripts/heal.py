@@ -48,6 +48,8 @@ COOLDOWN = timedelta(days=7)
 #: D81e: the least age of a version taken before the cooldown, on its publisher's word.
 YOUNG = timedelta(hours=24)
 LOCK = "requirements-checkov.txt"
+#: The one package the heal never moves: a new Checkov is the owner's to take (D81q).
+CHECKOV = "checkov"
 RECIPE = "scripts/lock-checkov.sh"
 #: What the recipe reads beside the lock it rewrites.
 RECIPE_READS = (RECIPE, "requirements-checkov.in", "requirements-checkov.overrides")
@@ -134,7 +136,11 @@ def _with_its_floors(fix: dict, tree: Path, lock_text: str, have: dict[str, str]
         if text is None:
             return "resolution-failed"
         after = locked(text)
-        moved = sorted(p for p in have if p in after and after[p] != have[p] and p not in asked)
+        if set(after) != set(have):
+            return "new-package"
+        moved = sorted(p for p in have if after[p] != have[p] and p not in asked)
+        if CHECKOV in moved:
+            return "checkov"
         if not moved:
             return pins
         package = moved[0]
@@ -167,7 +173,9 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str, tree: Pat
     escalations = []
     for package in sorted(reported):
         chosen: dict | str | list[dict] = "no-fix"
-        if package in floors:
+        if package == CHECKOV:
+            chosen = "checkov"
+        elif package in floors:
             fixing = [r for r in _in_major(package, have[package])
                       if version_key(r.version) >= version_key(floors[package])]
             chosen = _choose(package, have[package], fixing, _when(now)) if fixing else "major"

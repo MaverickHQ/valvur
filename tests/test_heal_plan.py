@@ -186,3 +186,43 @@ def test_a_version_the_resolution_forces_is_pinned_by_the_same_rule(tmp_path, mo
          "rule": "cooldown", "uploaded": "2026-09-15T00:00:00Z"},
     ]
     assert plan["escalations"] == []
+
+
+def test_a_package_the_resolution_adds_is_escalated_as_new_package(tmp_path, monkeypatch):
+    projects = {
+        "alpha": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z", "requires": ["gamma"]}},
+        "gamma": {"1.0": OLD},
+    }
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("alpha", "1.0", "1.1")],
+                      {"alpha": "1.0"}, projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "alpha", "reason": "new-package",
+                                    "findings": ["fp-CVE-2026-0001-alpha"]}]
+
+
+def test_a_fix_that_would_move_checkov_is_escalated_as_checkov(tmp_path, monkeypatch):
+    projects = {
+        "checkov": {"1.0": {**OLD, "requires": ["beta<1.1"]},
+                    "1.1": {**OLD, "requires": ["beta>=1.0"]}},
+        "beta": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}},
+    }
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"checkov": "1.0", "beta": "1.0"}, projects, top=("checkov",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert [(e["package"], e["reason"]) for e in plan["escalations"]] == [("beta", "checkov")]
+
+
+def test_a_finding_in_checkov_itself_is_escalated_as_checkov(tmp_path, monkeypatch):
+    projects = {"checkov": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}}}
+
+    _run, plan = _plan(tmp_path, monkeypatch, [_finding("checkov", "1.0", "1.1")],
+                       {"checkov": "1.0"}, projects)
+
+    assert plan["pins"] == []
+    assert [(e["package"], e["reason"]) for e in plan["escalations"]] == [("checkov", "checkov")]
