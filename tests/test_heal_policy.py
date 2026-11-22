@@ -86,3 +86,39 @@ def test_a_third_file_leaves_it_for_the_owner(tmp_path, monkeypatch):
 
     assert run.returncode == 1
     assert "scripts/heal_policy.py" in run.stdout
+
+
+@pytest.mark.parametrize("commit, names", [
+    ({"author": "someone-else"}, "someone-else"),
+    ({"author": "valvur-heal"}, "valvur-heal"),
+    ({"committer": "valvur-heal[bot]"}, "GitHub"),
+    ({"verified": False}, "signature"),
+])
+def test_a_commit_the_app_did_not_make_through_github_leaves_it_for_the_owner(
+        tmp_path, monkeypatch, commit, names):
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+
+    run = _judge(tree, head, _view(message, **commit))
+
+    assert run.returncode == 1
+    assert names in run.stdout
+
+
+def test_a_commit_with_no_heal_pin_leaves_it_for_the_owner(tmp_path, monkeypatch):
+    tree, head, _message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+
+    run = _judge(tree, head, _view("fix: beta 1.1 in the Checkov lock, by hand\n"))
+
+    assert run.returncode == 1
+    assert "Heal-Pin" in run.stdout
+
+
+def test_a_second_commit_is_held_to_the_same(tmp_path, monkeypatch):
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    view = _view(message)
+    view["commits"].append(_commit(message, author="a-collaborator"))
+
+    run = _judge(tree, head, view)
+
+    assert run.returncode == 1
+    assert "a-collaborator" in run.stdout

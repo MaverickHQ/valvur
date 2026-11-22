@@ -13,7 +13,9 @@ A heal is eligible only when it is exactly what the recipe makes. The checks run
 order and stop at the first that fails, naming it:
 
 1. every changed file is the lock or the CHANGELOG;
-2. the recipe, run on the base's lock with the commits' own `Heal-Pin` trailers, writes
+2. every commit is by the heal App, committed by GitHub with a verified signature, and
+   carries a `Heal-Pin` trailer;
+3. the recipe, run on the base's lock with the commits' own `Heal-Pin` trailers, writes
    the pull request's lock, byte for byte.
 
 Exit 0 when eligible, 1 when it is left for the owner, 2 when the input cannot be read.
@@ -35,6 +37,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import heal
 
 ENVELOPE = (heal.LOCK, heal.CHANGELOG)
+#: The heal App's account, and the committer of a commit made through GitHub's API.
+APP = "valvur-heal[bot]"
+GITHUB = "web-flow"
 _PIN = re.compile(r"^Heal-Pin: ([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9.!+_-]+)$", re.M)
 
 
@@ -51,6 +56,24 @@ def pins(commits: list[dict]) -> dict[str, str]:
     return found
 
 
+def _not_the_apps(commit: dict) -> str:
+    """Why this commit is not one the App made through GitHub's API, or ""."""
+    sha = str(commit.get("sha", ""))[:7]
+    author = (commit.get("author") or {}).get("login", "")
+    committer = (commit.get("committer") or {}).get("login", "")
+    inner = commit.get("commit") or {}
+    if author != APP:
+        return f"commit {sha} is by {author or 'no account'}, not {APP}"
+    if committer != GITHUB:
+        return (f"commit {sha} was not committed by GitHub ({GITHUB}), "
+                f"but by {committer or 'no account'}")
+    if (inner.get("verification") or {}).get("verified") is not True:
+        return f"commit {sha} has no verified signature"
+    if not _PIN.search(inner.get("message") or ""):
+        return f"commit {sha} carries no Heal-Pin trailer"
+    return ""
+
+
 def decide(view: dict, base: Path, head: Path) -> tuple[bool, str]:
     """(eligible, why) for a heal of the Checkov lock."""
     files = [f.get("path", "") for f in view.get("files") or []]
@@ -62,6 +85,10 @@ def decide(view: dict, base: Path, head: Path) -> tuple[bool, str]:
         return False, f"changes files a heal never changes: {', '.join(others)}"
     if heal.LOCK not in files:
         return False, f"does not change {heal.LOCK}"
+    for commit in commits:
+        refused = _not_the_apps(commit)
+        if refused:
+            return False, refused
     asked = pins(commits)
     base_lock = (base / heal.LOCK).read_text(encoding="utf-8")
     written = heal.relock(base, base_lock, asked)
