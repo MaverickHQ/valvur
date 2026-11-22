@@ -82,7 +82,7 @@ fixture 8, example 3, source 13. All 13 in `source` are documentation in practic
 
 | file | change | task |
 |---|---|---|
-| `scripts/eval/precision.py`, `scripts/eval/rule_precision.py`, `scripts/eval.py` | per-rule and per-Scanner counts for every Scanner; Checkov and zizmor judged in their own table | R48.2 |
+| `scripts/eval/precision.py`, `scripts/eval/rule_precision.py`, `scripts/eval.py` | per-rule and per-Scanner counts for every Scanner; Checkov and zizmor judged in their own table; the corpus scanned several projects at a time (`--jobs`) | R48.2, R48.3 |
 | `tests/eval/labels/corpus.toml`, `tests/eval/labels/hygiene.toml` (new) | labels keep a `changed` reason when a verdict moves; Checkov's and zizmor's labels | R48.2, R48.3 |
 | `tests/eval/rules-measured.json`, `scripts/rules_doc.py`, `docs/RULES.md` | every Scanner's rules, corpus counts apart from planted counts | R48.4 |
 | `scripts/mutation_check.py` | a hunk that changes only annotations is *no code change* | R48.5 |
@@ -594,7 +594,9 @@ main list's §1 to §4 stand. This says where each step runs, what it costs and 
   runs on an 8 GB Mac beside the session.
 - **The eighth track is 48 scans, one after another,** and the scans are nearly all of it:
   477 s of 495 s. Four at a time they take 302 s on the machine's 4 cores, and two at a time
-  311 s: each scan already runs its Scanners at once, so the cores are the limit.
+  311 s: each scan already runs its Scanners at once, so the cores are the limit. R48.2
+  gives `scripts/eval.py` a `--jobs` option for it (the owner, 2026-11-22). The dev machine
+  runs the Score with `--jobs 4`, and the Mac with the default of 1.
 - **A command sent to the machine may carry about 70 KB:** 60 KB was accepted and 90 KB
   refused. That is enough for one slice's diff.
 - **The pace of R9 to R47,** from the author dates of their 611 build commits: 83 hours of
