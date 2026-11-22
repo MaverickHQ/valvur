@@ -590,18 +590,44 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R44: the Checkov lock heals itself
 
-- [ ] **R44.1** **Measure first** (D81e, D81k). Behaviour: the STATUS records each of these:
+- [x] **R44.1** **Measure first** (D81e, D81k). Behaviour: the STATUS records each of these:
   1. **Provenance:** for each package in the lock, whether its locked version's distributions
      carry a PyPI provenance attestation, and from which publisher. The same for aiohttp
      3.14.5, certifi 2026.10.19 and yarl 1.25.1. They are read from pypi.org's integrity API.
   2. **The recipe:** R42.4's answer on `--no-build`, and the uv it ran.
   3. **Replaying the incident:** on a copy of `1434c44`'s lock, `--upgrade-package` with a
-     `--constraint` file of the three pins writes `698b21e`'s lock byte for byte.
+     `--constraint` file of the three pins writes `698b21e`'s lock byte for byte. (It does
+     not, by three annotation lines: the STATUS says what does.)
   4. **Rulesets:** the repository's rulesets for tags and branches, from `gh api
      repos/MaverickHQ/valvur/rulesets`, and whether `v*` tags are restricted. This answers
      §3's row.
 
-- [ ] **R44.2** **The plan** (D81d, D81e). Behaviours, against `tests/fake_registry.py`
+  **STATUS 2026-11-22:** ✅ 1 to 4, measured on the owner's Mac.
+  - **Provenance,** from pypi.org's integrity API for every file of each locked version: of
+    the lock's 97 packages, 39 have an attestation on every file, each from one GitHub
+    workflow of the project's own repository, and 58 have none. No package is attested in
+    part. aiohttp 3.14.5 (`aio-libs/aiohttp`, `ci-cd.yml`), certifi 2026.10.19
+    (`certifi/python-certifi`, `release.yml`) and yarl 1.25.1 (`aio-libs/yarl`, `ci-cd.yml`)
+    are attested, so on 2026-10-21 certifi would have been `young-attested`. Checkov itself
+    is attested (`bridgecrewio/checkov`, `build.yml`). Without one:
+    aiomultiprocess==0.9.1, annotated-types==0.8.0, asteval==1.0.10,
+    bc-detect-secrets==1.5.52, bc-jsonpath-ng==1.6.1, bc-python-hcl2==0.4.3,
+    beautifulsoup4==4.15.0, boolean-py==5.0, boto3==1.35.49, botocore==1.35.99,
+    cached-prop
+  - **The recipe:** R42.4 found that `--no-build` rewrites the lock byte for byte, under uv
+    0.11.32 and 0.13.5. The Mac and CI are on uv 0.13.7 today.
+  - **The incident replayed,** under uv 0.13.7 on a copy of `1434c44`'s lock: with the three
+    pins in a `--constraint` file the result has `698b21e`'s packages, versions and hashes,
+    and differs from it in three `# via -c pins.txt` lines. With each pin on the option,
+    `--upgrade-package aiohttp==3.14.5` and so on, it is `698b21e`'s lock byte for byte. So
+    the heal passes its pins that way, and design.md is corrected.
+  - **Rulesets:** one, *release tags* (24016563), active on `refs/tags/v*`: creation, update
+    and deletion restricted, signatures required, one bypass actor. `v*` tags are
+    restricted, so §3's row stands: the App becomes a bypass actor for tags alone. `main`
+    has classic protection: 8 required checks, signatures, linear history, enforced for
+    administrators.
+
+- [x] **R44.2** **The plan** (D81d, D81e). Behaviours, against `tests/fake_registry.py`
   extended with PyPI's JSON and integrity endpoints, and with small wheels:
   1. One Finding with a fix past the cooldown: the newest fixing version past the cooldown, in
      the same major.
@@ -623,7 +649,29 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 5.1 to 5.8, 6.1, 6.2, 6.3_
 
-- [ ] **R44.3** **The proposal**. Behaviours:
+  **STATUS 2026-11-22:** ✅ 1 to 11, in `scripts/heal.py plan` and `scripts/pypi_facts.py`,
+  17 tests in `tests/test_heal_plan.py`.
+  - **Each fix is re-locked alone** by the recipe, in a scratch copy of the tree, so a floor
+    is attributed to the fix that forced it and a fix that cannot land does not hold back
+    the others. A forced package is chosen among the versions that resolve.
+  - **Measured: uv reads no `UV_NO_INDEX`.** With it set, uv resolved `requests` from
+    pypi.org. The tests keep uv off the index with a configuration file named by
+    `UV_CONFIG_FILE`, which holds `no-index` and the directory of wheels.
+  - **Added: no Name Index is no plan.** Without an index `valvur check` answers `unknown`
+    and exits 0, which a heal would have taken for a pass. The plan reads each verdict,
+    and exits 2 naming the version that could not be checked.
+  - **Added: a Finding in Checkov itself** is escalated as `checkov`, as a fix that would
+    move it is. Pre-releases and yanked versions are never offered.
+  - **9 and 10 were green when written,** and each was seen red against a break made by
+    hand: the floor taken as the lowest fix, and Findings at `uv.lock` read as the lock's.
+  - **The incident replayed** with PyPI's real facts, read on 2026-11-22: aiohttp 3.14.5
+    (uploaded 2026-10-11) and yarl 1.25.1 (2026-09-15) by cooldown, certifi 2026.10.19
+    (2026-10-20T02:24Z, 28 hours old at 06:41 on the 21st) as `young-attested` by
+    `certifi/python-certifi`'s `release.yml`, which attested 2026.7.22 too. It is
+    `698b21e`'s three moves. OSV now names certifi 2026.10.18 as that advisory's fix; with
+    that floor the rule would have taken 2026.10.18, also young and attested.
+
+- [x] **R44.3** **The proposal**. Behaviours:
   1. `heal.py apply` runs the recipe with the plan's pins and refuses a result where an
      unplanned package moved.
   2. It adds one `### Security` item per package under `[Unreleased]`.
@@ -636,7 +684,27 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 7.1, 7.2, 7.3, 7.5, 7.6_
 
-- [ ] **R44.4** **The policy**. Behaviours, through `heal_policy.py lock`, with
+  **STATUS 2026-11-22:** ✅ 1 to 6, in `scripts/heal.py` (`apply`, `verify`, `body`) and
+  `scripts/signed_push.py`; 18 tests in `tests/test_heal_apply.py` and 12 in
+  `tests/test_heal_signed_push.py`.
+  - **`apply` writes apart,** into `--out`, never into the tree, and prints the commit's
+    message. A headline over 72 characters counts its fixes instead of naming them.
+  - **`verify` reads the artifact as data,** with no uv on the path. Beside the three
+    refusals the task names it refuses a file that is a link, a pin with no hash, a planned
+    move that was not made, and a CHANGELOG that is not the tree's with the plan's items.
+    Its reading of the lock is strict: a line is a pin, a hash or an indented comment, which
+    are the three shapes the real lock's 2,211 lines have, so an option or a URL in a lock
+    is refused by its line number.
+  - **Found: `signed_push.py` restated only the headline.** A heal commit would have
+    reached GitHub without its `Heal-Pin` trailers, which the policy reads. It now restates
+    the body too, and a release commit, which has none, is restated as before.
+  - **Added: the body's cells are neutralised.** A publisher's repository and workflow are
+    text the package's author chose. Anything in a cell that could be Markdown, or `#` with
+    a number after a closing keyword, is replaced.
+  - Behaviour 5 of Requirement 7 (an open heal pull request is rebuilt, never doubled) is
+    the workflow's, in R44.6.
+
+- [x] **R44.4** **The policy**. Behaviours, through `heal_policy.py lock`, with
   `gh pr view`'s JSON on stdin, the pull request's two files given as data, and resolution
   that is real and hermetic:
   1. A heal pull request exactly as the recipe makes it: 0.
@@ -652,7 +720,25 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 8.1, 8.2, 8.6_
 
-- [ ] **R44.5** **Escalations** (D81m). Behaviours:
+  **STATUS 2026-11-22:** ✅ 1 to 8, in `scripts/heal_policy.py lock`, 27 tests in
+  `tests/test_heal_policy.py`.
+  - **The input is not `gh pr view`'s alone.** Its `commits` name authors and no committer,
+    and say nothing of the signature. The policy reads `files` as `gh pr view --json files`
+    gives them and `commits` as GitHub's REST API lists a pull request's
+    (`repos/<repo>/pulls/<n>/commits`): `author.login`, `committer.login` and
+    `commit.verification.verified`. R44.6's `judge` job composes the two. The committer of
+    a commit made through `createCommitOnBranch` is `web-flow`, which the policy asks for.
+  - **The checks, in order:** the file list; every commit; the recipe's lock, byte for
+    byte; the envelope (package set, majors, Checkov, overrides); the CHANGELOG. A lock the
+    recipe did write is still refused outside the envelope: three cases build one with the
+    recipe itself.
+  - **An override is read by the package it names,** whatever it asks: a heal that moves a
+    package under an override is the owner's to read.
+  - **The recipe and all it reads come from the base.** A recipe, a `sitecustomize`, a uv
+    configuration, requirements and overrides planted beside the pull request's two files
+    change nothing and run nothing, and the test shows its trap does fire when run.
+
+- [x] **R44.5** **Escalations** (D81m). Behaviours:
   1. `heal.py escalations` turns the plan and the observed Findings into issues to open, to
      comment on and to close, one per `heal: <reason>: <subject>`.
   2. The reasons are design.md's closed list, and a test reads that table.
@@ -663,6 +749,24 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   6. A second run with the same cause comments, and never opens another issue.
 
   _Requirements: 11.1 to 11.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 6, in `scripts/heal.py escalations`, 8 tests in
+  `tests/test_heal_escalations.py`. It prints actions (`open`, `comment`, `close`) and
+  applies none: R44.6's `escalate` job does.
+  - **Changed from the task's wording: the same cause says nothing twice.** Behaviour 6
+    had a second run comment. Requirement 11.1 asks for a comment *with any new evidence*,
+    and a run every six hours would have written 28 identical comments in a week. Each
+    issue carries a mark of the evidence it was told, and a run comments only when the
+    evidence differs: another Finding, or another advisory.
+  - **Added: only the Actions bot's issues count.** Read from #274 on 2026-11-22:
+    `gh issue list --json author` names the bot `app/github-actions` with `is_bot`, and a
+    comment's author `github-actions`. An issue of the same title that anyone else opened
+    is neither commented on nor closed, and a mark in anyone else's comment is not read.
+  - **Eight of the twelve reasons are this command's** to open and close: the plan's seven
+    and `dependabot-stalled`. `policy-refused`, `checks-red`, `release-needs-owner` and
+    `release-stopped` are opened by the steps that find them, and are left alone here.
+  - **Requirement 11.6** (the heal's own failure is filed as any scheduled workflow's) is
+    the workflow's, in R44.6.
 
 - [ ] **R44.6** 👤 **The workflows** (D81j, D81k, D81n). Behaviours:
   1. `heal.yml`'s `observe`, `plan`, `propose` and `escalate` jobs, as design.md §4 lays them
@@ -683,12 +787,50 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 7.4, 8.3, 8.4, 8.5, 12.1 to 12.5_
 
-- [ ] **R44.7** **Checkov's new versions, for the owner** (D81q). Behaviours:
+  **STATUS 2026-11-22:** waiting for the owner's session, not attempted. The wave plan
+  batches the 👤 tasks into one sitting in manual approve mode at the wave's end, so the
+  executor passed over this one and went on with R44.7 and after. What the two workflows
+  call exists and is tested:
+  - `observe`: `heal.py mode --findings … --lock … --now …` prints `heal`, `checkov` or
+    `none`;
+  - `plan`: `heal.py plan` (or `plan --checkov`), then `heal.py apply --plan … --out …
+    --run …`, which prints the commit's message; both in a job with no secret;
+  - `propose`: `heal.py verify --plan … --dir …` on the artifact, as data; the commit made
+    with apply's message; `signed_push.py <repo> heal/<date>-<hash>`; `heal.py body` for
+    the pull request;
+  - `escalate`: `heal.py escalations --plan … --observed … --issues … --now … --run …`
+    prints actions for `.github/actions/file-issue`. `--issues` is `gh issue list --state
+    open --json number,title,body,author,comments`;
+  - `judge`: `heal_policy.py lock --base . --head <dir>`, with `files` from `gh pr view
+    --json files` and `commits` from `repos/<repo>/pulls/<n>/commits` on stdin.
+
+  Still to write with the workflows: finding an open heal pull request to rebuild
+  (Requirement 7.5), and the shape tests of behaviour 3. R44.9's behaviours 5 and 6 come
+  to the same sitting: the weekly run of `base_heal.py plan` and `apply`, and the pull
+  request that carries the image gate's verdict on the old image and the new.
+
+- [x] **R44.7** **Checkov's new versions, for the owner** (D81q). Behaviours:
   1. On a Monday's first run, a newer Checkov past the cooldown gives mode `checkov`.
   2. The plan edits `requirements-checkov.in` and re-locks with `--upgrade-package checkov`.
   3. The pull request is opened, and the policy leaves it for the owner because Checkov moved.
      No escalation issue is opened: the pull request is the notice.
   4. An open Checkov pull request is rebuilt, never duplicated.
+
+  **STATUS 2026-11-22:** ✅ 1 to 4 as far as a script goes, in `scripts/heal.py` (`mode`,
+  `plan --checkov`, and `apply`, `verify`, `body` for such a plan); 11 tests in
+  `tests/test_heal_checkov.py`.
+  - **Changed: any run of a Monday, not the first.** GitHub starts a scheduled run hours
+    after its cron (the nightly, 8 hours late on five days of November), so *the first run
+    of a Monday* cannot be told by the clock. `mode` says `checkov` on every Monday run
+    while a newer Checkov is past the cooldown, and the same plan makes the same bytes,
+    which a test holds, so a later run that day changes nothing.
+  - **The plan lists every package that moves with Checkov,** and `apply` refuses a re-lock
+    that moves anything else. The artifact is three files: the requirement with its pin
+    moved, the lock, and the CHANGELOG with one item under `### Changed`.
+  - **The policy leaves it for the owner** by its first check: `requirements-checkov.in` is
+    not a file a heal changes. No issue is opened for it.
+  - **Behaviour 4's other half is the workflow's:** finding the open pull request and
+    rebuilding its branch is `propose`, in R44.6.
 
 - [ ] **R44.8** **The live proof**. Behaviours:
   1. Once the App exists (§3) and R44 has landed: the first real heal, end to end. The App
@@ -702,7 +844,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 13.3_
 
-- [ ] **R44.9** **A base image whose tag has died is replaced** (D81u, amendment 3).
+- [x] **R44.9** **A base image whose tag has died is replaced** (D81u, amendment 3).
   Behaviours:
   1. **Measure first,** once the owner has allowed `hub.docker.com` (§3): each `FROM` base's
      `last_updated` today, and, from the `python` image's tag list, how often Docker's
@@ -727,7 +869,33 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 17.1 to 17.6_
 
-- [ ] **R44.10** **Two builds, one image, whatever the day** (D81ab, amendment 5). It needs
+  **STATUS 2026-11-22:** ✅ 1 to 4, in `scripts/base_heal.py` (`plan`, `apply`), 10 tests in
+  `tests/test_base_heal.py`. Ticked with 5 and 6 recorded as waiting: both are the
+  workflow's, and go with R44.6 to the owner's sitting.
+  - **Measured from Docker Hub on 2026-11-22.** `python:3.12-alpine3.24` last moved on
+    2026-11-12 and `golang:1.27.4-alpine3.24` on 2026-11-16; both tags hold a newer digest
+    than the Dockerfile pins, which is Dependabot's to take (#296 is the first). Of
+    `python:3.12-alpine3.N`, eight are listed: 3.17 last moved 2023-12-01, 3.18 2024-04-10,
+    3.19 2024-12-05, 3.20 2025-05-10, 3.21 2025-10-13, 3.22 2026-04-19, and 3.23 and 3.24
+    both on 2026-11-12. So two suffixes move at once, one is retired every 131 to 239 days,
+    and a retired tag is still listed almost three years on. 3.11 and 3.13 show the same.
+    Being listed says nothing of a tag, and its date does.
+  - **`plan`** treats every `FROM <image>:<version>-alpine<release>@<digest>` alike, the Go
+    stages' too, and never changes the version. A replacement whose index lacks
+    `linux/amd64` or `linux/arm64` is refused, exit 1, with no plan written. No reason of
+    the closed list fits it, so the run fails and is filed as any scheduled failure is
+    (Requirement 11.6), which is what Requirement 17.3 asks: no pull request, and the
+    reason filed.
+  - **`apply`** rewrites the five files 1.5.4's move rewrote, each tested on a copy of the
+    real one, and writes them under `--out`.
+  - **For the owner, at R44.6's sitting: Requirement 17.5 cannot hold as written.** A base
+    move changes two workflows and the base's tag, which is outside the Dockerfile's
+    envelope, so `heal_policy.py` never merges it and it is the owner's to land. Wave 3's
+    R48.6 makes the licence check read the base from the Dockerfile, which leaves the move
+    in one file. Whether a tag's move should then merge itself is a decision for that
+    sitting. Nothing here assumes it.
+
+- [x] **R44.10** **Two builds, one image, whatever the day** (D81ab, amendment 5). It needs
   no owner setting and may be built before R44.1.
   **Seam:** the Dockerfile as a file, read as `tests/test_dockerfile_pins.py` reads it; the
   built image, with `-m e2e`. Behaviours:
@@ -747,7 +915,33 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 22.1, 22.2, 22.3_
 
-- [ ] **R44.11** **Only the packages valvur loads** (D81ac, amendment 5). It needs no owner
+  **STATUS 2026-11-22:** ✅ 1 to 6, with one thing found that the list did not expect.
+  - **Wheels, measured** in the pinned base on the dev machine, at `9af6abb`: all 97 lines of
+    the Checkov lock and the one of zizmor's resolve to wheels whose hashes the locks hold,
+    natively on arm64 and for `musllinux` on x86_64 by pip's platform tags. So behaviour 3
+    applied and 4 did not: `gcc`, `musl-dev` and `libffi-dev` are gone, and the Checkov
+    install takes `--only-binary=:all:` (`0e307be`). The build now calls apk once.
+  - **The rebuild, measured** on the dev machine on 2026-11-22: `v1.6.2`'s tree (`f0e7150`),
+    built cold in 367 s, against `ghcr.io/maverickhq/valvur:1.6.2` for arm64 (image
+    `sha256:e378b785…`). Both hold 17,232 files, and the bytes of two differ:
+    - `/var/cache/apk/APKINDEX.3cace40b.tar.gz`, which #301 took out of the image;
+    - **`/etc/shadow`, not known before:** `adduser` writes the day it ran as the
+      account's last password change, 20779 against the published 20778. CI's check builds
+      its two images on one day, so it could not see it. Fixed in `83b4640`: the step that
+      makes the account blanks the day, with a test on the Dockerfile and one on the image.
+  - **Not measured: whether the layers are then equal.** The dev machine's own builder
+    (Docker 25.0.18, BuildKit 0.12.6) does not rewrite timestamps, so its layers carry the
+    build's clock and cannot be compared with a release's: 18,020 entries differed in
+    modification time alone. A rebuild through a `docker-container` builder failed after
+    77 s in the OSV-Scanner stage's module download, and was not tried again. The first
+    release after this one is the first that can be rebuilt to its digest.
+  - **The README** has no sentence on reproducibility, and neither have `SECURITY.md` nor
+    the documents under `docs/` that a user reads. `tests/test_readme_reproducibility.py`
+    holds the README to that until a release has been rebuilt to its digest.
+  - **On the dev machine after each change:** the image builds, and the end-to-end suite
+    passes (86, then 87 passed).
+
+- [x] **R44.11** **Only the packages valvur loads** (D81ac, amendment 5). It needs no owner
   setting. **Seam:** the built image's own package list, read in an end-to-end test
   (`-m e2e`), against `.github/image-packages.txt`. Behaviours:
   1. **Record.** Each Alpine package in the image with what links or runs it, measured from
@@ -768,7 +962,36 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 23.1, 23.2, 23.3_
 
-- [ ] **R44.12** **The image's plan** (D81x, amendment 5).
+  **STATUS 2026-11-22:** ✅ 1 to 5. The image holds 26 Alpine packages, from 38.
+  - **Measured** on the dev machine (arm64), from the image's own files: 249 ELF files, each
+    one's `DT_NEEDED` resolved to the package that owns the library. Named by an extension
+    of CPython or by Opengrep's bundled modules, and kept: gdbm, libbz2, libcrypto3,
+    libffi, libncursesw, libpanelw, libssl3, libuuid, readline, sqlite-libs, xz-libs, zlib,
+    and musl. Named by nothing and kept, as data or as the shell: alpine-baselayout and its
+    data, alpine-keys, alpine-release, busybox and busybox-binsh, ca-certificates and its
+    bundle, ncurses-terminfo-base, ssl_client, tzdata, and apk-tools with libapk, which apk
+    does not remove of itself.
+  - **Removed, the chain under one unused module** (`434a0b0`): krb5-libs, krb5-conf,
+    keyutils-libs, libcom_err, libverto, libtirpc, libtirpc-conf, libnsl and libintl. Only
+    CPython's `nis` extension named libtirpc and libnsl, and only libtirpc named Kerberos.
+    No Python file in the image imports `nis`: 5,605 read under Checkov and valvur, 1,097
+    in the standard library. The extension goes with them, and `krb5-libs` leaves
+    `ALPINE_RAISE`. The base's virtual package, `.python-rundeps`, is replaced by the names
+    of the libraries that stay.
+  - **Removed** (`0951b3d`): musl-utils, and scanelf with it. `ctypes.util.find_library`
+    answers in the image as it does in the base: nothing, on musl.
+  - **The list** is `.github/image-packages.txt`, and `tests/test_image_packages.py` holds
+    the image to it (`5afba39`). It failed against the old image before each removal.
+  - **After each removal,** on the dev machine: the image built and the end-to-end suite
+    passed (88 passed). One run failed once for want of space in `/tmp`, which the suite
+    fills by 4.6 GB a run: it is cleared before each run now.
+  - **After the last,** at `0951b3d`: the Score is 74.1 with every track at its baseline on
+    the dev machine (649 s) and on GitHub's Linux lane (eval run 45043469158), and the
+    acceptance set passes on the dev machine. amd64's package list is held by the
+    end-to-end job of R44's pull request.
+  - `SECURITY.md` says where a removed package's bytes remain (`7857cc7`).
+
+- [x] **R44.12** **The image's plan** (D81x, amendment 5).
   **Seam:** `scripts/image_heal.py`'s `main(["plan", …])`, over a verdict as `image_gate.py`
   writes it and a Dockerfile in `tmp_path`, with the registry, Alpine's index and Go's proxy
   faked in `tests/fake_registry.py`; the plan it writes. For the first behaviour,
@@ -799,7 +1022,26 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6_
 
-- [ ] **R44.13** **Apply, and the envelope** (D81x, amendment 5).
+  **STATUS 2026-11-22:** ✅ 1 to 13, in `scripts/image_heal.py plan` and
+  `scripts/image_gate.py`; 27 tests in `tests/test_image_heal_plan.py` and one in
+  `tests/test_image_gate_kind.py`.
+  - **The plan's parts:** `raises` (each with its `ARG`), `drops`, `base`, `go`,
+    `escalations` and `unplanned`. Every item names the advisories it answers and the rule
+    that chose it.
+  - **Alpine's versions are ordered in Python,** since the plan runs in no container: held
+    on eleven pairs that `apk version -t` calls `<`. A version it cannot read orders
+    against nothing, and its package is `no-alpine-fix`.
+  - **A Go module's fix** is the lowest fixed version in the major it is installed at, and
+    must be one Go's proxy lists. A standard-library fix only in another minor is
+    `go-major`, with the subject `go`.
+  - **The new base's packages are read from the base itself,** `/lib/apk/db/installed` in a
+    container with no network, through a runtime the tests stand in for. The index cannot
+    say what a base carries. It is asked only when an Alpine package blocks: a base that
+    moves with nothing blocking is Dependabot's, and R44.9's when the tag has died.
+  - **Docker Hub's tag list** gives the Go and base digests, as R44.9 reads it. The plan
+    asks three hosts and refuses any other, a next page's included.
+
+- [x] **R44.13** **Apply, and the envelope** (D81x, amendment 5).
   **Seam:** `image_heal.py`'s `main` for `apply`, `envelope` and `escalations`;
   `heal_policy.py`'s `main(["image", …])` on a repository made in `tmp_path`. Behaviours:
   1. `apply` writes one Alpine raise into the Dockerfile and its trailer into the commit's
@@ -822,6 +1064,34 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   **Added by the pass:** 7. `scanner-source` was in the design's table and in no task.
 
   _Requirements: 19.7, 19.8, 11.1_
+
+  **STATUS 2026-11-22:** ✅ 1 to 9, in `scripts/image_heal.py` (`apply`, `envelope`,
+  `failed`), `scripts/heal_policy.py image` and `scripts/heal.py escalations`; 25 tests in
+  `tests/test_image_heal_apply.py`, 18 in `tests/test_heal_policy_image.py`, 4 in
+  `tests/test_heal_writes.py`.
+  - **The envelope is eleven lines of the real Dockerfile:** two bases' digests, four Go
+    stages' patch and digest, five raise arguments. A base's tag, Go's minor and its image,
+    a comment and an argument that runs on are outside it.
+  - **Found by a test on the real Dockerfile:** its raise arguments are ordered by the
+    package each entry names (`otel` before `otel/sdk`), not by the whole entry. `apply`
+    sorted by the entry at first, which would have reordered three of the five. It sorts
+    by name.
+  - **The trailers are the plan,** so the policy re-applies them to the base's Dockerfile
+    and asks for the same bytes. Added to design.md's four: `Heal-Drop: <ARG> <entry>`, for
+    a raise that a new base carries.
+  - **The policy does not judge the choice of a version,** which needs the network. It
+    refuses a trailer that is not a heal's: a pseudo-version, a raise that lowers or
+    repeats, an argument that is not a raise, more than one word in an entry, Go lowered or
+    on another minor, another base, a drop of anything but an Alpine raise. Whether the
+    result still blocks is the image gate's to say, as a required check (§3's row).
+  - **`scanner-source`:** `image_heal.py failed --plan … --log …` reads the stage BuildKit
+    names as failed, takes that Scanner's raises out of the plan and escalates it. A build
+    that failed anywhere else is refused, exit 1, and explained by nothing.
+  - **The five reasons** are in design.md's table, which now lists 17, and in `heal.py
+    escalations`, which takes the image's plan with `--image-plan`. A Go module's subject
+    is `<module> in <scanner>`: a title's parentheses would have been neutralised.
+  - **Not decided here:** what the build does with an `ALPINE_RAISE` that a drop leaves
+    empty. The pull request's own build answers it, and a red check keeps it from merging.
 
 - [ ] **R44.14** 👤 **The image heal in the workflow** (D81x, D81y, amendment 5).
   **Seam:** `heal.yml` as a file, read as R44.6's shape tests read it; then a dispatched
@@ -1157,7 +1427,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | the heal's tag-signing key | before R45.3's behaviour 5 | `ssh-keygen -t ed25519 -C valvur-heal -f valvur-heal -N ''`. Put the private key in `heal` as `HEAL_TAG_KEY`, give the session the `.pub` line, and delete both local files |
 | the environment `release-security` | before R45.5 | Settings → Environments → New: wait timer 720 minutes, no required reviewers, deployments from tags `v*` and branches `release/*` |
 | PyPI's trusted publisher | before the first real security release | if valvur's publisher on pypi.org names the `release` environment, add a second publisher for `release-security` |
-| a tag ruleset, if there is one | R44.1 says | if `v*` tags are restricted, add the App as a bypass actor for tags alone |
+| the tag ruleset | R44.1 found it: *release tags*, active on `v*` | add the App as a bypass actor on that ruleset, for tags alone |
 | accept ADR-0032 | R45.1 | or choose D81h's fallback: the owner as required reviewer on `release-security` |
 | the owner-session tasks | when reached, if auto mode refused | R44.6, R45.3 and R45.4, in a session in manual approve mode, from each task's STATUS |
 | the first live heal | R44 landed and the App created | nothing: the schedule runs it. Or dispatch `heal` on `main` with `dry_run=true` first |

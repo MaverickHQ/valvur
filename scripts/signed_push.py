@@ -5,7 +5,8 @@
 `main` takes only signed commits, and a commit pushed from a workflow is unsigned. A
 commit made with GitHub's `createCommitOnBranch` is signed by GitHub, so this restates
 HEAD, the commit `prepare_release.py` just made, as one: a branch at HEAD's parent,
-then the same changes on it. It writes a `release/vX.Y.Z` branch and nothing else:
+then the same changes on it, under the same message, trailers included. It writes a
+`release/vX.Y.Z` branch, or a heal's `heal/<date>-<hash>` (R44.3), and nothing else:
 never `main`, never a tag. `GH_TOKEN` is the workflow's. Standard library and `gh`.
 """
 
@@ -18,7 +19,8 @@ import re
 import subprocess
 from pathlib import Path
 
-_BRANCH = re.compile(r"release/v\d+\.\d+\.\d+")
+#: A release branch, or a heal's: `heal/<UTC date>-<short tree hash>` (R44.3).
+_BRANCH = re.compile(r"release/v\d+\.\d+\.\d+|heal/\d{4}-\d{2}-\d{2}-[0-9a-f]{7,40}")
 
 MUTATION = """mutation($input: CreateCommitOnBranchInput!) {
   createCommitOnBranch(input: $input) { commit { oid url } }
@@ -33,7 +35,8 @@ def _git(root: Path, *args: str) -> str:
 def variables(root: Path, repository: str, branch: str) -> dict:
     """The mutation's input for HEAD, on `branch` at HEAD's parent."""
     if not _BRANCH.fullmatch(branch):
-        raise ValueError(f"only a release/vX.Y.Z branch is written, not {branch!r}")
+        raise ValueError(f"only a release/vX.Y.Z or heal/<date>-<hash> branch is written, "
+                         f"not {branch!r}")
     parent = _git(root, "rev-parse", "HEAD~1").strip()
     additions, deletions = [], []
     for line in _git(root, "diff", "--name-status", "--no-renames", "HEAD~1", "HEAD").splitlines():
@@ -44,10 +47,11 @@ def variables(root: Path, repository: str, branch: str) -> dict:
             contents = (root / path).read_bytes()
             additions.append({"path": path, "contents": base64.b64encode(contents).decode()})
     headline = _git(root, "log", "-1", "--format=%s").strip()
+    body = _git(root, "log", "-1", "--format=%b").strip()
     return {"input": {
         "branch": {"repositoryNameWithOwner": repository, "branchName": branch},
         "expectedHeadOid": parent,
-        "message": {"headline": headline},
+        "message": {"headline": headline, **({"body": body} if body else {})},
         "fileChanges": {"additions": additions, "deletions": deletions},
     }}
 

@@ -71,7 +71,9 @@ def accepted_entries(text: str) -> list[dict[str, str]]:
 
 
 def vulnerabilities(report: object) -> list[dict[str, str]]:
-    """Every vulnerability Trivy reported, with the target it was found in."""
+    """Every vulnerability Trivy reported, with the target it was found in and its `kind`:
+    the result's `Type`, as Trivy names it (`alpine`, `gobinary`, `python-pkg`), which the
+    image's heal plans from (R44.12)."""
     if not isinstance(report, dict) or not isinstance(report.get("Results") or [], list):
         raise Unreadable("not a Trivy JSON report")
     found = []
@@ -83,7 +85,8 @@ def vulnerabilities(report: object) -> list[dict[str, str]]:
                           "installed": str(vuln.get("InstalledVersion", "")),
                           "fixed": str(vuln.get("FixedVersion") or ""),
                           "severity": str(vuln.get("Severity", "UNKNOWN")),
-                          "target": str(result.get("Target", ""))})
+                          "target": str(result.get("Target", "")),
+                          "kind": str(result.get("Type") or "")})
     return found
 
 
