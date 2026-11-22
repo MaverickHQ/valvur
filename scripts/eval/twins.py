@@ -289,7 +289,11 @@ SECRETS: dict[str, tuple[Callable[[random.Random], str], str, str]] = {
 
 def secrets(root: Path, seed: int) -> list[Case]:
     """A git tree: each secret committed in a file that stays, and again in a file a
-    later commit deletes, so the history half is judged as well as the tree."""
+    later commit deletes, so the history half is judged as well as the tree.
+
+    And, since R49.4, each provider's format under a test path and under a documentation
+    path: a live-format key in a test is still a key (Requirement 3.2), and the tier
+    table lists only the rules that match a shape. A private key is not planted there."""
     rng = random.Random(seed)  # noqa: S311 — seeded so one seed writes one tree
     cases: list[Case] = []
     first: dict[str, str] = {}
@@ -303,6 +307,14 @@ def secrets(root: Path, seed: int) -> list[Case]:
                                  (f"examples/{category}.env.example", False),
                                  (f"app/{category.replace('-', '_')}_settings.py", False)):
             cases.append(Case(f"secrets-{path}", "secrets", category, path, vulnerable,
+                              sources=("gitleaks",)))
+    # Drawn after every case the track had, so one seed writes those as it always did.
+    for category, (real, _placeholder, _lookup) in SECRETS.items():
+        if category == "private-key":
+            continue
+        for path in (f"tests/{category}_test.env", f"docs/{category}.md"):
+            first[path] = real(rng)
+            cases.append(Case(f"secrets-{path}", "secrets", category, path, True,
                               sources=("gitleaks",)))
     first["README.md"] = "# eval: secrets\n"
     _write(root, first)

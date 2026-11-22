@@ -23,6 +23,10 @@ A rule under ADR-0033's bar on maintained code, with five or more judged Finding
 there and fewer than half of them true, is inventory too, whichever Scanner's it
 is: its Findings are listed for review and never active. Those rules are the rows
 of `src/valvur/data/tiers.toml`, and read *inventory: under the bar on maintained code* below.
+A rule that matches a shape, such as a private key's header, is listed only under a
+test, fixture, documentation or example path, and stays active everywhere else. A
+rule that matches a provider's own format has no row: a live-format key in a test
+is still a key.
 
 **Unmeasured** means no case of the rule's weakness in any of the four, so
 nothing here says how precise it is. Each fires on the cases planted for it in
@@ -81,11 +85,11 @@ on a safe one. A rule with fewer than 5 judged Findings on the corpus is
 | `CKV_DOCKER_7` | Checkov | 2 / 0, unmeasured there | 1 / 0 | |
 | `CKV_TF_1` | Checkov | 0 / 4, unmeasured there | 0 / 0 | |
 | `valvur.dependency.near-miss` | dependency-reality | 0 / 1, unmeasured there | 0 / 0 | |
-| `curl-auth-header` | Gitleaks | 0 / 6 | 0 / 0 | |
-| `generic-api-key` | Gitleaks | 0 / 26 | 2 / 0 | |
-| `jwt` | Gitleaks | 0 / 29 | 0 / 0 | |
+| `curl-auth-header` | Gitleaks | 0 / 6 | 0 / 0 | inventory under a test, fixture, documentation or example path: under the bar on maintained code |
+| `generic-api-key` | Gitleaks | 0 / 26 | 2 / 0 | inventory under a test, fixture, documentation or example path: under the bar on maintained code |
+| `jwt` | Gitleaks | 0 / 29 | 0 / 0 | inventory under a test, fixture, documentation or example path: under the bar on maintained code |
 | `pkcs12-file` | Gitleaks | 0 / 1, unmeasured there | 0 / 0 | |
-| `private-key` | Gitleaks | 0 / 35 | 2 / 0 | |
+| `private-key` | Gitleaks | 0 / 35 | 2 / 0 | inventory under a test, fixture, documentation or example path: under the bar on maintained code |
 | `slack-webhook-url` | Gitleaks | 0 / 1, unmeasured there | 0 / 0 | |
 | `archived-uses` | zizmor | 2 / 0, unmeasured there | 0 / 0 | |
 | `artipacked` | zizmor | 25 / 0 | 1 / 0 | sampled: 25 of 76 judged |

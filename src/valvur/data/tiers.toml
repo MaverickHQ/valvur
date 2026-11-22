@@ -23,6 +23,38 @@ corpus = { tp = 0, fp = 23 }
 reason = "On maintained code every use measured was jitter, a port, a temporary name or sample text."
 
 [[rule]]
+scanner = "gitleaks"
+id = "private-key"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 35 }
+reason = "A private key under a test, fixture, documentation or example path was a fixture in every case measured."
+
+[[rule]]
+scanner = "gitleaks"
+id = "jwt"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 29 }
+reason = "Three base64 segments under a test or documentation path were a sample token in every case measured."
+
+[[rule]]
+scanner = "gitleaks"
+id = "generic-api-key"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 26 }
+reason = "A keyword beside a high-entropy string under a test, documentation or example path was a placeholder or a test value in every case measured."
+
+[[rule]]
+scanner = "gitleaks"
+id = "curl-auth-header"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 6 }
+reason = "Every case measured was a sample command in one project's guide."
+
+[[rule]]
 scanner = "checkov"
 id = "CKV2_AWS_12"
 tier = "inventory"

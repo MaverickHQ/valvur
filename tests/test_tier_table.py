@@ -43,8 +43,10 @@ class _Canned:
         return self
 
     def command(self, workspace):
+        # An empty list is a report every Scanner's own readers accept: Gitleaks' raw
+        # output is read again for redaction, whatever `parse` below returns.
         return Invocation(tool=self.name, version="1", report=f"{self.name}.json", timeout=60,
-                          argv=("fake-report", "0", "[1]", f"/results/{self.name}.json"))
+                          argv=("fake-report", "0", "[]", f"/results/{self.name}.json"))
 
     def parse(self, output):
         return [Finding(rule=rule, path=path, line=1, title=f"{rule} found something",
@@ -175,3 +177,54 @@ def test_in_test_material_both_rules_are_listed_where_the_class_table_removed_th
         ("valvur.python.weak-hash", "test", True)]
     assert run.status == "clean"
     assert json.loads((workspace / RESULTS / "run.json").read_text())["removed_by_class"] == {}
+
+
+def test_a_private_key_under_a_test_path_is_listed_and_its_title_names_the_path(workspace):
+    """R49.4: a shape rule is inventory in test material alone (`where = "test material"`)."""
+    run, [record] = _scan(workspace, "gitleaks", ("private-key", "tests/keys/server.pem"))
+
+    assert record["inventory"] is True and run.status == "clean"
+    assert record["title"] == ("private-key found something, under a test path "
+                               "(`tests/keys/`): listed for review")
+
+
+def test_the_same_rule_outside_test_material_is_active(workspace):
+    run, [record] = _scan(workspace, "gitleaks", ("private-key", "config/server.pem"))
+
+    assert "inventory" not in record and run.status == "findings"
+    assert record["title"] == "private-key found something"
+
+
+@pytest.mark.parametrize("path, said", [
+    ("docs/tutorial/key.pem", "under a documentation path (`docs/tutorial/`)"),
+    ("examples/tls/key.pem", "under an example path (`examples/tls/`)"),
+    ("tests/fixtures/key.pem", "under a fixture path (`tests/fixtures/`)"),
+])
+def test_each_class_of_test_material_is_named_in_its_own_words(workspace, path, said):
+    _run, [record] = _scan(workspace, "gitleaks", ("private-key", path))
+
+    assert record["inventory"] is True
+    assert record["title"] == f"private-key found something, {said}: listed for review"
+
+
+@pytest.mark.parametrize("rule", ["jwt", "generic-api-key", "curl-auth-header"])
+def test_each_other_shape_rule_is_listed_in_test_material_and_active_outside(workspace, rule):
+    run, records = _scan(workspace, "gitleaks", (rule, "tests/test_auth.py"),
+                         (rule, "app/settings.py"))
+
+    by_path = {r["path"]: r for r in records}
+    assert by_path["tests/test_auth.py"]["inventory"] is True
+    assert "inventory" not in by_path["app/settings.py"] and run.status == "findings"
+
+
+@pytest.mark.parametrize("rule", ["aws-access-token", "github-pat", "stripe-access-token",
+                                  "slack-webhook-url"])
+def test_a_provider_format_secret_under_a_test_path_is_still_active(workspace, rule):
+    """Requirement 3.2: a rule that matches a provider's own format gets no row, however
+    it measures. A live-format key in a test is still a key."""
+    from valvur import tiers
+
+    run, [record] = _scan(workspace, "gitleaks", (rule, "tests/test_billing.py"))
+
+    assert "inventory" not in record and run.status == "findings"
+    assert rule not in {row.id for row in tiers.rows()}

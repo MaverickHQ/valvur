@@ -53,12 +53,13 @@ def test_a_track_is_scanned_scored_and_recorded(tmp_path):
                          image="valvur:dev", image_id=lambda image: "sha256:abc")
 
     secrets = result["tracks"]["secrets"]
-    # Every file-borne secret found, none from history, no placeholder flagged:
-    # TPR 0.5, FPR 0 in each of ten categories.
-    assert secrets["score"] == 50.0
-    assert (secrets["vulnerable"], secrets["safe"]) == (20, 20)
+    # Every secret under `config/` found, none from history or (since R49.4) from the test
+    # and documentation paths, no placeholder flagged: TPR 0.25 in nine categories and 0.5
+    # for the private key, FPR 0 in each.
+    assert secrets["score"] == 27.5
+    assert (secrets["vulnerable"], secrets["safe"]) == (38, 20)
     assert secrets["complete"] is True
-    assert result["score"] == 50.0
+    assert result["score"] == 27.5
     assert result["image"] == {"name": "valvur:dev", "id": "sha256:abc"}
     assert result["data"] == {"database_age_days": 1.5, "name_index_age_days": 2.4,
                               "malicious_age_days": 0.5, "kev_age_days": 33.0,
@@ -74,10 +75,10 @@ def test_the_result_and_its_scorecard_are_written(tmp_path):
 
     written = harness.write(result, tmp_path / "out")
 
-    assert json.loads(written["json"].read_text())["tracks"]["secrets"]["score"] == 50.0
+    assert json.loads(written["json"].read_text())["tracks"]["secrets"]["score"] == 27.5
     card = written["markdown"].read_text()
-    assert "| secrets | 50.0 |" in card
-    assert "**The Score: 50.0**" in card
+    assert "| secrets | 27.5 |" in card
+    assert "**The Score: 27.5**" in card
 
 
 def _result(**scores: float) -> dict:

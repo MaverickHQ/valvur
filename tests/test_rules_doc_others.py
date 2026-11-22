@@ -71,7 +71,7 @@ def _line(page: str, rule: str) -> str:
 
 
 def test_the_page_gives_the_two_measurements_in_separate_columns():
-    page = _doc().render(_others(_other("gitleaks", "private-key", (0, 35), (2, 0))))
+    page = _doc().render(_others(_other("gitleaks", "private-key", (0, 35), (2, 0))), tiered={})
 
     assert "| rule | Scanner | on maintained code | on planted cases | note |" in page
     assert _line(page, "private-key") == "| `private-key` | Gitleaks | 0 / 35 | 2 / 0 | |"
@@ -79,7 +79,7 @@ def test_the_page_gives_the_two_measurements_in_separate_columns():
 
 def test_a_rule_with_fewer_than_five_judged_findings_reads_unmeasured_there():
     page = _doc().render(_others(_other("gitleaks", "jwt", (1, 3)),
-                                 _other("gitleaks", "pkcs12-file", (2, 3))))
+                                 _other("gitleaks", "pkcs12-file", (2, 3))), tiered={})
 
     assert _line(page, "jwt") == "| `jwt` | Gitleaks | 1 / 3, unmeasured there | 0 / 0 | |"
     assert _line(page, "pkcs12-file") == "| `pkcs12-file` | Gitleaks | 2 / 3 | 0 / 0 | |"
@@ -89,14 +89,15 @@ def test_a_rule_with_fewer_than_five_judged_findings_reads_unmeasured_there():
 
 
 def test_a_sampled_rule_is_on_the_page_marked_sampled():
-    page = _doc().render(_others(_other("checkov", "CKV_DOCKER_2", (24, 1), findings=40)))
+    page = _doc().render(_others(_other("checkov", "CKV_DOCKER_2", (24, 1), findings=40)),
+                         tiered={})
 
     assert _line(page, "CKV_DOCKER_2") == (
         "| `CKV_DOCKER_2` | Checkov | 24 / 1 | 0 / 0 | sampled: 25 of 40 judged |")
 
 
 def test_the_page_says_four_places_are_summed_for_the_bar():
-    page = " ".join(_doc().render(_others()).split())
+    page = " ".join(_doc().render(_others(), tiered={}).split())
 
     assert ("**The bar** is ADR-0029's: at least one true positive and a precision of at least "
             "0.5, over four places summed: tracks 1, 2 and 9 and the corpus.") in page
@@ -104,20 +105,22 @@ def test_the_page_says_four_places_are_summed_for_the_bar():
 
 
 def test_a_measurement_written_before_the_second_table_still_renders():
-    assert "| rule | Scanner |" not in _doc().render(_measured(valvur_a=_row(tp=9, fp=3)))
+    assert "| rule | Scanner |" not in _doc().render(_measured(valvur_a=_row(tp=9, fp=3)),
+                                                     tiered={})
 
 
 def test_a_rule_with_a_tier_row_reads_inventory_under_the_bar_on_maintained_code():
     """R49.3: the page says where a tiered rule stands, in both tables, with its counts."""
     measured = _others(_other("gitleaks", "jwt", (0, 29)), _other("zizmor", "artipacked", (25, 0)))
-    tiered = {("opengrep", "valvur.a"), ("gitleaks", "jwt")}
+    tiered = {("opengrep", "valvur.a"): "everywhere", ("gitleaks", "jwt"): "test material"}
 
     page = _doc().render(measured, tiered=tiered)
 
     assert _line(page, "valvur.a").endswith(
         "| 0.75 | inventory: under the bar on maintained code |")
     assert _line(page, "jwt") == (
-        "| `jwt` | Gitleaks | 0 / 29 | 0 / 0 | inventory: under the bar on maintained code |")
+        "| `jwt` | Gitleaks | 0 / 29 | 0 / 0 | inventory under a test, fixture, documentation "
+        "or example path: under the bar on maintained code |")
     assert _line(page, "artipacked") == "| `artipacked` | zizmor | 25 / 0 | 0 / 0 | |"
     assert "A rule under ADR-0033's bar on maintained code" in " ".join(page.split())
 
@@ -126,4 +129,4 @@ def test_the_real_page_is_rendered_with_the_real_table():
     from valvur import tiers
 
     doc = _doc()
-    assert doc.tier_rows() == {(row.scanner, row.id) for row in tiers.rows()}
+    assert doc.tier_rows() == {(row.scanner, row.id): row.where for row in tiers.rows()}

@@ -191,3 +191,37 @@ def test_a_malicious_dependency_case_counts_the_finding_osv_folds_into(tmp_path)
               "status": "new"}
 
     assert score.flagged(case, [folded])
+
+
+def test_the_secrets_track_plants_a_live_format_secret_in_test_material(tmp_path):
+    """R49.4: for each provider's format, a live-format secret under a test path and under
+    a documentation path, both vulnerable: a real key in a test is still a key, and the
+    tier table must not list it. A private key is not planted there: valvur cannot tell a
+    fixture key from a real one in the same place, and says so."""
+    twins = _twins()
+
+    cases = twins.build("secrets", tmp_path / "secrets", seed=7)
+
+    planted = sorted(c.path for c in cases
+                     if c.path.startswith(("tests/", "docs/")) and c.vulnerable)
+    formats = sorted(set(twins.SECRETS) - {"private-key"})
+    assert len(formats) == 9
+    assert planted == sorted([f"docs/{name}.md" for name in formats]
+                             + [f"tests/{name}_test.env" for name in formats])
+    assert (sum(c.vulnerable for c in cases), sum(not c.vulnerable for c in cases)) == (38, 20)
+    for path in planted:
+        assert (tmp_path / "secrets" / path).read_text().strip()
+
+
+def test_the_cases_the_track_had_are_written_as_they_were(tmp_path):
+    """The new secrets are drawn after the old ones, so one seed still writes the same
+    `config/` and `history/` files: a baseline is comparable across the change."""
+    twins = _twins()
+    import random
+
+    twins.build("secrets", tmp_path / "secrets", seed=7)
+
+    rng = random.Random(7)  # noqa: S311
+    for category, (real, _placeholder, _lookup) in twins.SECRETS.items():
+        assert (tmp_path / "secrets" / "config" / f"{category}.env").read_text() == real(rng)
+        real(rng)   # the history file, deleted by the second commit
