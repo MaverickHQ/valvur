@@ -18,7 +18,8 @@ order and stop at the first that fails, naming it:
 3. the recipe, run on the base's lock with the commits' own `Heal-Pin` trailers, writes
    the pull request's lock, byte for byte;
 4. no package was added or removed, no major version moved, Checkov did not move, and no
-   package under an override moved.
+   package under an override moved;
+5. the CHANGELOG, when changed, only gains lines, and only under `[Unreleased]`.
 
 Exit 0 when eligible, 1 when it is left for the owner, 2 when the input cannot be read.
 The first line printed says which, and why. No file of the pull request is ever run: the
@@ -101,6 +102,25 @@ def _outside_the_envelope(before: dict[str, str], after: dict[str, str], overrid
     return ""
 
 
+def _more_than_added(before: str, after: str) -> str:
+    """Why a CHANGELOG does more than add lines under `[Unreleased]`, or ""."""
+    kept = iter(after.splitlines())
+    if not all(line in kept for line in before.splitlines()):
+        return "the CHANGELOG removes or changes a line"
+    heading = re.search(r"^## \[Unreleased\][^\n]*\n", before, re.M)
+    if not heading:
+        return "the base's CHANGELOG has no `## [Unreleased]` section"
+    following = re.search(r"^## ", before[heading.end():], re.M)
+    end = heading.end() + following.start() if following else len(before)
+    above, below = before[:heading.end()], before[end:]
+    if not after.startswith(above) or not after.endswith(below):
+        return "the CHANGELOG adds lines outside `[Unreleased]`"
+    between = after[len(above):len(after) - len(below)]
+    if re.search(r"^## ", between, re.M):
+        return "the CHANGELOG adds a section, so lines fall outside `[Unreleased]`"
+    return ""
+
+
 def decide(view: dict, base: Path, head: Path) -> tuple[bool, str]:
     """(eligible, why) for a heal of the Checkov lock."""
     files = [f.get("path", "") for f in view.get("files") or []]
@@ -128,6 +148,11 @@ def decide(view: dict, base: Path, head: Path) -> tuple[bool, str]:
                                     (base / OVERRIDES).read_text(encoding="utf-8"))
     if outside:
         return False, outside
+    if heal.CHANGELOG in files:
+        more = _more_than_added((base / heal.CHANGELOG).read_text(encoding="utf-8"),
+                                (head / heal.CHANGELOG).read_text(encoding="utf-8"))
+        if more:
+            return False, more
     return True, f"eligible: the recipe's lock with {len(asked)} pin(s), and nothing else"
 
 

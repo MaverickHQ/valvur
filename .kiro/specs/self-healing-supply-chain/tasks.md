@@ -704,7 +704,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   - Behaviour 5 of Requirement 7 (an open heal pull request is rebuilt, never doubled) is
     the workflow's, in R44.6.
 
-- [ ] **R44.4** **The policy**. Behaviours, through `heal_policy.py lock`, with
+- [x] **R44.4** **The policy**. Behaviours, through `heal_policy.py lock`, with
   `gh pr view`'s JSON on stdin, the pull request's two files given as data, and resolution
   that is real and hermetic:
   1. A heal pull request exactly as the recipe makes it: 0.
@@ -719,6 +719,24 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      never run.
 
   _Requirements: 8.1, 8.2, 8.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 8, in `scripts/heal_policy.py lock`, 27 tests in
+  `tests/test_heal_policy.py`.
+  - **The input is not `gh pr view`'s alone.** Its `commits` name authors and no committer,
+    and say nothing of the signature. The policy reads `files` as `gh pr view --json files`
+    gives them and `commits` as GitHub's REST API lists a pull request's
+    (`repos/<repo>/pulls/<n>/commits`): `author.login`, `committer.login` and
+    `commit.verification.verified`. R44.6's `judge` job composes the two. The committer of
+    a commit made through `createCommitOnBranch` is `web-flow`, which the policy asks for.
+  - **The checks, in order:** the file list; every commit; the recipe's lock, byte for
+    byte; the envelope (package set, majors, Checkov, overrides); the CHANGELOG. A lock the
+    recipe did write is still refused outside the envelope: three cases build one with the
+    recipe itself.
+  - **An override is read by the package it names,** whatever it asks: a heal that moves a
+    package under an override is the owner's to read.
+  - **The recipe and all it reads come from the base.** A recipe, a `sitecustomize`, a uv
+    configuration, requirements and overrides planted beside the pull request's two files
+    change nothing and run nothing, and the test shows its trap does fire when run.
 
 - [ ] **R44.5** **Escalations** (D81m). Behaviours:
   1. `heal.py escalations` turns the plan and the observed Findings into issues to open, to

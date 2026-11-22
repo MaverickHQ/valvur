@@ -192,3 +192,73 @@ def test_an_overridden_package_does_not_move(tmp_path, monkeypatch):
 
     assert run.returncode == 1
     assert "override" in run.stdout and "beta" in run.stdout
+
+
+@pytest.mark.parametrize("edit, names", [
+    pytest.param(lambda text: text.replace("The first.\n", ""), "removes", id="a-line-removed"),
+    pytest.param(lambda text: text + "\nA line under 1.0.0.\n", "outside", id="added-below"),
+    pytest.param(lambda text: text.replace("# Changelog\n", "# Changelog\n\nA new opening.\n"),
+                 "outside", id="added-above"),
+    pytest.param(lambda text: text.replace("## [Unreleased]\n", "## [Unreleased]\n\n## [9.9.9]\n"),
+                 "outside", id="a-new-version-heading"),
+])
+def test_a_changelog_that_does_more_than_add_under_unreleased_leaves_it_for_the_owner(
+        tmp_path, monkeypatch, edit, names):
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    changelog = head / "CHANGELOG.md"
+    changelog.write_text(edit(changelog.read_text()))
+
+    run = _judge(tree, head, _view(message))
+
+    assert run.returncode == 1
+    assert "CHANGELOG" in run.stdout and names in run.stdout
+
+
+def test_a_heal_that_leaves_the_changelog_alone_is_judged_on_its_lock(tmp_path, monkeypatch):
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    (head / "CHANGELOG.md").unlink()
+
+    run = _judge(tree, head, _view(message, LOCK))
+
+    assert run.returncode == 0, run.stdout
+
+
+@pytest.mark.parametrize("stdin", ["not json", "[]", "{}", '{"files": [], "commits": []}'])
+def test_input_it_cannot_read_is_exit_two(tmp_path, monkeypatch, stdin):
+    tree, head, _message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+
+    run = subprocess.run([sys.executable, str(POLICY), "lock", "--base", str(tree),
+                          "--head", str(head)], input=stdin, capture_output=True, text=True,
+                         check=False)
+
+    assert run.returncode == 2
+    assert run.stdout.startswith("cannot judge")
+
+
+def test_a_pull_request_whose_lock_is_missing_is_exit_two(tmp_path, monkeypatch):
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    (head / LOCK).unlink()
+
+    assert _judge(tree, head, _view(message)).returncode == 2
+
+
+def test_nothing_beside_the_two_files_is_read_or_run(tmp_path, monkeypatch):
+    """The pull request's directory is data. A recipe, a `sitecustomize`, a uv
+    configuration and requirements planted in it change nothing and run nothing."""
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    marker = tmp_path / "ran"
+    (head / "scripts").mkdir()
+    trap = head / "scripts" / "lock-checkov.sh"
+    trap.write_text(f"#!/bin/sh\ntouch {marker}\n")
+    (head / "sitecustomize.py").write_text(f"open({str(marker)!r}, 'w').close()\n")
+    (head / "heal.py").write_text(f"open({str(marker)!r}, 'w').close()\n")
+    (head / "uv.toml").write_text("[pip]\nno-index = false\n")
+    (head / "requirements-checkov.in").write_text("checkov\nsomething-else\n")
+    (head / "requirements-checkov.overrides").write_text("beta==2.0\n")
+
+    run = _judge(tree, head, _view(message))
+
+    assert run.returncode == 0, run.stdout
+    assert not marker.exists()
+    subprocess.run(["sh", str(trap)], check=True)
+    assert marker.exists(), "the trap works when it is run"
