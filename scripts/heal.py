@@ -426,7 +426,7 @@ def body(plan_: dict, run: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def changelog(text: str, plan_: dict) -> str:
+def changelog(text: str, plan_: dict, lines: list[str] | None = None) -> str:
     """`text` with the plan's items under `[Unreleased]`: in its `### Security` section, or
     `### Changed` for a new Checkov, which is made at the section's end when it has none.
     Lines are only ever added."""
@@ -437,7 +437,7 @@ def changelog(text: str, plan_: dict) -> str:
     following = re.search(r"^## ", text[heading.end():], re.M)
     end = heading.end() + following.start() if following else len(text)
     section = text[heading.end():end]
-    added = "\n".join(items(plan_)) + "\n"
+    added = "\n".join(items(plan_) if lines is None else lines) + "\n"
     security = re.search(rf"^{under}[^\n]*\n", section, re.M)
     if security:
         after = re.search(r"^### ", section[security.end():], re.M)

@@ -64,6 +64,13 @@ _GO = re.compile(r"^FROM golang:(\d+\.\d+)\.(\d+)-(\S+?)@(sha256:[0-9a-f]{64})",
 STDLIB = "stdlib"
 #: Each Scanner built from source: its `ARG` prefix, and its own module.
 SCANNERS = {name: (prefix, module) for name, prefix, _image, module in scanner_pins.SOURCES}
+#: Every argument of the Dockerfile that a raise may be written into, and what a reader
+#: calls the thing it raises a module in.
+NAMES = {"GITLEAKS_RAISE": "Gitleaks", "TRIVY_RAISE": "Trivy", "OSV_SCANNER_RAISE": "OSV-Scanner",
+         "SYFT_RAISE": "Syft"}
+ARGS = ("ALPINE_RAISE", *NAMES)
+#: The longest headline a heal commit takes before it counts its changes instead.
+HEADLINE = 72
 
 _BASE = re.compile(r"^FROM python:[^\s@]*alpine(\d+\.\d+)@sha256:[0-9a-f]{64}", re.M)
 _APK_VERSION = re.compile(
@@ -347,6 +354,122 @@ def plan(verdicts: list[dict], dockerfile: str, *, now: str, docker: str = "dock
             "unplanned": sorted(unplanned, key=lambda u: (u["id"], u["package"]))}
 
 
+class Refused(Exception):
+    """The plan does not fit the Dockerfile it was made for."""
+
+
+def _entries(dockerfile: str, arg: str) -> list[str]:
+    found = re.findall(rf'^ARG {re.escape(arg)}="([^"]*)"$', dockerfile, re.M)
+    if arg not in ARGS or len(found) != 1:
+        raise Refused(f"the Dockerfile has no one `ARG {arg}=\"…\"` to write")
+    return found[0].split()
+
+
+def _named(entry: str) -> str:
+    """The package an entry raises: before `=` for Alpine's, before `@` for a Go module's."""
+    return entry.split("=")[0] if "@" not in entry else entry.rsplit("@", 1)[0]
+
+
+def apply(plan_: dict, dockerfile: str) -> str:
+    """The Dockerfile with the plan written into its envelope, and no other line touched:
+    the base's digest and the Go pin in every stage that names them, each raise in its
+    argument in place of any entry for the same package, each drop taken out."""
+    text = dockerfile
+    for move in (plan_.get("base"), plan_.get("go")):
+        if move:
+            stage = re.compile(rf"^FROM {re.escape(move['from'])}(?= |$)", re.M)
+            if not stage.search(text):
+                raise Refused(f"the Dockerfile has no stage `FROM {move['from']}`")
+            text = stage.sub(f"FROM {move['to']}", text)
+    changes = [*((r["arg"], r["entry"], True) for r in plan_.get("raises") or []),
+               *((d["arg"], d["entry"], False) for d in plan_.get("drops") or [])]
+    for arg in sorted({arg for arg, _entry, _add in changes}):
+        held = _entries(text, arg)
+        for _arg, entry, add in [c for c in changes if c[0] == arg]:
+            if add:
+                held = [e for e in held if _named(e) != _named(entry)] + [entry]
+            elif entry in held:
+                held.remove(entry)
+            else:
+                raise Refused(f"`{arg}` does not hold {entry}, which the plan drops")
+        text = re.sub(rf'^ARG {re.escape(arg)}="[^"]*"$',
+                      lambda _m, arg=arg, held=held:
+                          f'ARG {arg}="{" ".join(sorted(held, key=_named))}"',
+                      text, flags=re.M)
+    return text
+
+
+def _listed(words: list[str]) -> str:
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
+def _go_version(move: dict) -> str:
+    return move["to"].split(":", 1)[1].split("-", 1)[0]
+
+
+def _changes(plan_: dict) -> list[tuple[str, str, list[str]]]:
+    """Each thing the plan changes: (what it is called, its subject in a trailer, the
+    advisories it answers). The base, then Go, then each raised package once."""
+    made = []
+    if plan_.get("base"):
+        made.append(("the base's new digest", "the base", plan_["base"]["answers"]))
+    if plan_.get("go"):
+        made.append((f"Go {_go_version(plan_['go'])}", "go", plan_["go"]["answers"]))
+    seen: dict[str, tuple[str, str, list[str]]] = {}
+    for raised in sorted(plan_.get("raises") or [], key=lambda r: (r["arg"], r["entry"])):
+        version = raised["entry"][len(raised["package"]) + 1:]
+        held = seen.setdefault(raised["entry"], (f"{raised['package']} {version}",
+                                                 raised["package"], []))
+        held[2].extend(a for a in raised["answers"] if a not in held[2])
+    return made + list(seen.values())
+
+
+def message(plan_: dict, run: str) -> str:
+    """The commit's message. Its trailers are the plan again, for the policy to apply."""
+    changes = _changes(plan_)
+    headline = f"fix: {_listed([name for name, _s, _a in changes])} in the image, by the heal"
+    if len(headline) > HEADLINE:
+        headline = f"fix: {len(changes)} changes to the image's pins, by the heal"
+    trailers = []
+    if plan_.get("base"):
+        trailers.append(f"Heal-Base: {plan_['base']['to']}")
+    if plan_.get("go"):
+        trailers.append(f"Heal-Go: {plan_['go']['to']}")
+    trailers += [f"Heal-Raise: {r['arg']} {r['entry']}" for r in
+                 sorted(plan_.get("raises") or [], key=lambda r: (r["arg"], r["entry"]))]
+    trailers += [f"Heal-Drop: {d['arg']} {d['entry']}" for d in
+                 sorted(plan_.get("drops") or [], key=lambda d: (d["arg"], d["entry"]))]
+    trailers += [f"Heal-Advisory: {answer} {subject}" for answer, subject in
+                 sorted({(a, subject) for _name, subject, answers in changes for a in answers})]
+    trailers.append(f"Heal-Run: {run}")
+    return headline + "\n\n" + "\n".join(trailers) + "\n"
+
+
+def items(plan_: dict) -> list[str]:
+    """One `### Security` item for each thing the plan changes."""
+    made = []
+    if plan_.get("go"):
+        made.append(f"- **The image's Go Scanners on Go {_go_version(plan_['go'])},** "
+                    f"past {_listed(sorted(plan_['go']['answers']))}.")
+    if plan_.get("base"):
+        answers = sorted(plan_["base"]["answers"])
+        made.append("- **The image's base at its tag's new digest,**"
+                    + (f" past {_listed(answers)}." if answers else " as Docker Hub holds it."))
+    raises = sorted(plan_.get("raises") or [], key=lambda r: (r["arg"] != "ALPINE_RAISE",
+                                                               r["entry"], r["arg"]))
+    by_entry: dict[str, list[dict]] = {}
+    for raised in raises:
+        by_entry.setdefault(raised["entry"], []).append(raised)
+    for entry, group in by_entry.items():
+        package = group[0]["package"]
+        version = entry[len(package) + 1:]
+        where = ("the image" if group[0]["arg"] == "ALPINE_RAISE" else
+                 _listed([NAMES[r["arg"]] for r in group]))
+        answers = sorted({a for r in group for a in r["answers"]})
+        made.append(f"- **{package} {version} in {where},** past {_listed(answers)}.")
+    return made
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -358,15 +481,47 @@ def main(argv: list[str] | None = None) -> int:
     plan_cmd.add_argument("--out", type=Path, required=True)
     plan_cmd.add_argument("--docker", default="docker",
                           help="the container runtime that reads a new base's packages")
+    apply_cmd = commands.add_parser("apply", help="write the files a plan changes, apart")
+    apply_cmd.add_argument("--plan", type=Path, required=True)
+    apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
+    apply_cmd.add_argument("--out", type=Path, required=True)
+    apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
     args = parser.parse_args(argv)
     try:
+        if args.command == "apply":
+            return _apply(args)
         verdicts = [json.loads(path.read_text(encoding="utf-8")) for path in args.verdict]
         made = plan(verdicts, args.dockerfile.read_text(encoding="utf-8"), now=args.now,
                     docker=args.docker)
+    except Refused as error:
+        print(f"image heal: refused: {error}", file=sys.stderr)
+        return 1
     except (OSError, ValueError, KeyError, Unreadable) as error:
         print(f"image heal: {error}", file=sys.stderr)
         return 2
     args.out.write_text(json.dumps(made, indent=2) + "\n", encoding="utf-8")
+    return 0
+
+
+def _apply(args: argparse.Namespace) -> int:
+    """`apply`: the Dockerfile and the CHANGELOG as the plan leaves them, in `--out`, and
+    the commit's message on stdout. Nothing at all for a plan that changes nothing."""
+    import heal  # deferred: `plan` needs none of the lock's heal
+
+    plan_ = json.loads(args.plan.read_text(encoding="utf-8"))
+    if not _changes(plan_) and not plan_.get("drops"):
+        return 0
+    tree = args.tree.resolve()
+    dockerfile = apply(plan_, (tree / "Dockerfile").read_text(encoding="utf-8"))
+    try:
+        changelog = heal.changelog((tree / heal.CHANGELOG).read_text(encoding="utf-8"), plan_,
+                                   items(plan_))
+    except heal.Refused as error:
+        raise Refused(str(error)) from error
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "Dockerfile").write_text(dockerfile, encoding="utf-8")
+    (args.out / heal.CHANGELOG).write_text(changelog, encoding="utf-8")
+    sys.stdout.write(message(plan_, args.run))
     return 0
 
 
