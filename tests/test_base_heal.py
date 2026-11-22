@@ -123,3 +123,79 @@ def test_an_index_without_both_architectures_is_refused_and_plans_no_move(
 
     assert run.returncode == 1
     assert "linux/amd64 and linux/arm64" in run.stderr and plan == {}
+
+
+NAMED = ("Dockerfile", ".github/workflows/ci.yml", ".github/workflows/release.yml",
+         "scripts/check_image_licences.py", "tests/test_licences.py")
+CHANGELOG = "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] — 2026-01-01\n\nThe first.\n"
+
+
+def _tree(tmp_path: Path) -> tuple[Path, str]:
+    """A copy of the five real files that name the base, and the base as they name it."""
+    tree = tmp_path / "tree"
+    for name in NAMED:
+        (tree / name).parent.mkdir(parents=True, exist_ok=True)
+        (tree / name).write_text((REPO / name).read_text())
+    (tree / "CHANGELOG.md").write_text(CHANGELOG)
+    pinned = next(line.split()[1] for line in (REPO / "Dockerfile").read_text().splitlines()
+                  if line.startswith("FROM python:"))
+    return tree, pinned
+
+
+def _apply(tmp_path: Path, tree: Path, moves: list[dict]
+           ) -> tuple[subprocess.CompletedProcess[str], Path]:
+    (tmp_path / "plan.json").write_text(json.dumps({"schema": 1, "made": NOW, "moves": moves}))
+    out = tmp_path / "out"
+    run = subprocess.run([sys.executable, str(BASE_HEAL), "apply", "--plan",
+                          str(tmp_path / "plan.json"), "--tree", str(tree), "--out", str(out),
+                          "--run", "https://example.invalid/9"],
+                         capture_output=True, text=True, check=False)
+    return run, out
+
+
+def test_apply_rewrites_every_place_the_base_is_named(tmp_path):
+    tree, pinned = _tree(tmp_path)
+    old_tag = pinned.split("@")[0]
+    new = "python:3.12-alpine3.99@sha256:" + "9" * 64
+    move = {"from": pinned, "to": new, "last_moved": "2026-04-19T11:07:20Z", "days": 187,
+            "rule": "unmoved for 30 days, and a newer Alpine suffix moved within 30"}
+
+    run, out = _apply(tmp_path, tree, [move])
+
+    assert run.returncode == 0, run.stderr
+    assert sorted(str(p.relative_to(out)) for p in out.rglob("*") if p.is_file()) == sorted(
+        [*NAMED, "CHANGELOG.md"])
+    for name in NAMED:
+        text = (out / name).read_text()
+        assert old_tag not in text, name
+        assert "python:3.12-alpine3.99" in text, name
+        before, after = (tree / name).read_text().splitlines(), text.splitlines()
+        assert len(before) == len(after), name
+        assert all(old_tag in b for b, a in zip(before, after, strict=True) if b != a), name
+    dockerfile = (out / "Dockerfile").read_text()
+    assert dockerfile.count(f"FROM {new}") == 2 and pinned not in dockerfile
+    assert (tree / "Dockerfile").read_text() == (REPO / "Dockerfile").read_text()
+    assert run.stdout.splitlines()[0] == (
+        "fix: the image's base moves to python:3.12-alpine3.99, from a tag that stopped moving")
+    assert f"Heal-Base-Tag: {old_tag} {new}" in run.stdout
+    changelog = (out / "CHANGELOG.md").read_text()
+    assert "- **The image's base on `python:3.12-alpine3.99`,**" in changelog
+
+
+def test_a_plan_with_no_move_writes_nothing(tmp_path):
+    tree, _pinned = _tree(tmp_path)
+
+    run, out = _apply(tmp_path, tree, [])
+
+    assert run.returncode == 0 and run.stdout == "" and not out.exists()
+
+
+def test_a_move_from_a_base_the_dockerfile_does_not_pin_is_refused(tmp_path):
+    tree, _pinned = _tree(tmp_path)
+    move = {"from": "python:3.12-alpine3.01@sha256:" + "0" * 64,
+            "to": "python:3.12-alpine3.99@sha256:" + "9" * 64, "last_moved": "", "days": 40,
+            "rule": ""}
+
+    run, out = _apply(tmp_path, tree, [move])
+
+    assert run.returncode == 1 and "python:3.12-alpine3.01" in run.stderr and not out.exists()

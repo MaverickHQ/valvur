@@ -805,7 +805,9 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     --json files` and `commits` from `repos/<repo>/pulls/<n>/commits` on stdin.
 
   Still to write with the workflows: finding an open heal pull request to rebuild
-  (Requirement 7.5), and the shape tests of behaviour 3.
+  (Requirement 7.5), and the shape tests of behaviour 3. R44.9's behaviours 5 and 6 come
+  to the same sitting: the weekly run of `base_heal.py plan` and `apply`, and the pull
+  request that carries the image gate's verdict on the old image and the new.
 
 - [x] **R44.7** **Checkov's new versions, for the owner** (D81q). Behaviours:
   1. On a Monday's first run, a newer Checkov past the cooldown gives mode `checkov`.
@@ -842,7 +844,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 13.3_
 
-- [ ] **R44.9** **A base image whose tag has died is replaced** (D81u, amendment 3).
+- [x] **R44.9** **A base image whose tag has died is replaced** (D81u, amendment 3).
   Behaviours:
   1. **Measure first,** once the owner has allowed `hub.docker.com` (§3): each `FROM` base's
      `last_updated` today, and, from the `python` image's tag list, how often Docker's
@@ -866,6 +868,32 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      refuses.
 
   _Requirements: 17.1 to 17.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 4, in `scripts/base_heal.py` (`plan`, `apply`), 10 tests in
+  `tests/test_base_heal.py`. Ticked with 5 and 6 recorded as waiting: both are the
+  workflow's, and go with R44.6 to the owner's sitting.
+  - **Measured from Docker Hub on 2026-11-22.** `python:3.12-alpine3.24` last moved on
+    2026-11-12 and `golang:1.27.4-alpine3.24` on 2026-11-16; both tags hold a newer digest
+    than the Dockerfile pins, which is Dependabot's to take (#296 is the first). Of
+    `python:3.12-alpine3.N`, eight are listed: 3.17 last moved 2023-12-01, 3.18 2024-04-10,
+    3.19 2024-12-05, 3.20 2025-05-10, 3.21 2025-10-13, 3.22 2026-04-19, and 3.23 and 3.24
+    both on 2026-11-12. So two suffixes move at once, one is retired every 131 to 239 days,
+    and a retired tag is still listed almost three years on. 3.11 and 3.13 show the same.
+    Being listed says nothing of a tag, and its date does.
+  - **`plan`** treats every `FROM <image>:<version>-alpine<release>@<digest>` alike, the Go
+    stages' too, and never changes the version. A replacement whose index lacks
+    `linux/amd64` or `linux/arm64` is refused, exit 1, with no plan written. No reason of
+    the closed list fits it, so the run fails and is filed as any scheduled failure is
+    (Requirement 11.6), which is what Requirement 17.3 asks: no pull request, and the
+    reason filed.
+  - **`apply`** rewrites the five files 1.5.4's move rewrote, each tested on a copy of the
+    real one, and writes them under `--out`.
+  - **For the owner, at R44.6's sitting: Requirement 17.5 cannot hold as written.** A base
+    move changes two workflows and the base's tag, which is outside the Dockerfile's
+    envelope, so `heal_policy.py` never merges it and it is the owner's to land. Wave 3's
+    R48.6 makes the licence check read the base from the Dockerfile, which leaves the move
+    in one file. Whether a tag's move should then merge itself is a decision for that
+    sitting. Nothing here assumes it.
 
 - [x] **R44.10** **Two builds, one image, whatever the day** (D81ab, amendment 5). It needs
   no owner setting and may be built before R44.1.
