@@ -493,7 +493,7 @@ amended that day to say what D82b, D82h and D82m decide.
 | D82q | **The release's VEX says only what valvur knows:** `under_investigation` for no fix, the owner's acceptance for the rest. It and the SBOMs are attested with cosign on the image's digest. | if the owner declines the `release.yml` edit, the document is attached and not attested, and `SECURITY.md` says so |
 | D82r | **The Health record is an issue a daily workflow rewrites,** not a committed page. | if the owner prefers a page, the same script's output is published with GitHub Pages, an owner setting |
 | D82s | **The measurements are fixed before the bar is set:** R48 precedes R49. | none |
-| D82t | **The executor runs on the owner's Mac, and containers on the dev machine,** which holds no credential (*How the build runs*; wave 1, item 1.7; proposed 2026-11-22 for checkpoint D). Each phase has a budget in hours and stops when it passes it. | when the machine cannot start, GitHub's lanes; when the Mac is not available, a cloud session under D61 |
+| D82t | **The executor runs on the owner's Mac, and containers on the dev machine,** which holds no credential (*How the build runs*; wave 1, item 1.7; accepted by the owner on 2026-11-22, checkpoint D). Each phase has a budget in hours and stops when it passes it. | when the machine cannot start, GitHub's lanes; when the Mac is not available, a cloud session under D61 |
 
 ---
 

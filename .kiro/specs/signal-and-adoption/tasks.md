@@ -32,9 +32,9 @@ Five things differ:
 1. **`build_status.py` reads the self-healing list before this one,** by name, and that list
    has open tasks that wait for the owner's settings. So this build is started with the
    prompt above and does not wait for them.
-2. **Not before checkpoint D.** The ADRs were accepted at checkpoint B and this list was
-   approved at checkpoint C, both on 2026-11-22. The owner approves the run plan (D82t) at
-   checkpoint D.
+2. **All four checkpoints are passed.** The requirements were approved on 2026-11-21 (A),
+   and the ADRs (B), this list (C) and the run plan, D82t (D), on 2026-11-22. The build
+   starts once this spec has landed on `main`.
 3. **Where each step runs** (D82t, design.md's *How the build runs*). Edits, the unit gate,
    signing and pushes are on the owner's Mac. The image, `-m e2e`, the acceptance set and
    the Score are on the dev machine, through `~/dev-machine/bin/dev run`, on the pushed
@@ -678,7 +678,6 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 
 | item | ready after | what the owner does |
 |---|---|---|
-| checkpoint D: the run plan | wave 1, item 1.7 | approve D82t and its cost, or change it |
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
