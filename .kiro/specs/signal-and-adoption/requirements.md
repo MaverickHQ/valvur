@@ -3,7 +3,8 @@
 **Status:** approved by the owner on 2026-11-21 (checkpoint A, all seven points of #302 as
 recommended); corrected the same day from the design's measurements, each correction marked
 *Corrected* below; criteria 1.2, 5.1 and 10.4 amended on 2026-11-22, when the owner accepted
-ADR-0033 to ADR-0037 as proposed (checkpoint B), each marked *Amended* · **Phases:** R48 to R52,
+ADR-0033 to ADR-0037 as proposed (checkpoint B), each marked *Amended*; the task list
+approved the same day (checkpoint C) · **Phases:** R48 to R52,
 in [tasks.md](tasks.md) · **Decisions:** D82, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses

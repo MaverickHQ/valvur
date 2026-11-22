@@ -32,7 +32,7 @@ row and its tasks. The owner accepted D81x to D81ac on 2026-11-22 (checkpoint B)
   R46.3).
 
 **The test-driven pass over amendment 5's eight tasks** was made on 2026-11-22, for
-checkpoint C. Each names its **Seam** and marks a **Guard**, a **Record** or a **Proof** as
+checkpoint C, which the owner approved that day. Each names its **Seam** and marks a **Guard**, a **Record** or a **Proof** as
 [the signal-and-adoption list's §2](../signal-and-adoption/tasks.md) defines them, and says
 what the pass added or changed. The tasks approved before amendment 5 are as they were.
 
@@ -56,7 +56,7 @@ does not change
 
 **The main list's §1 to §4 apply unchanged:** one executor, test-driven slices, phase commits,
 phases stacked, never a push to `main` or of a tag, the stop conditions, and the build caches.
-Seven things differ:
+Eight things differ:
 
 1. **Until R42.1 is ticked,** `build_status.py` reads only the main list and would report the
    build finished. Resume with the start prompt above. After R42.1, the main list's resume
@@ -98,6 +98,11 @@ Seven things differ:
    - **The executor stops after R43's phase commit,** as the main list's §1 stops after R39.
      It says in §3's decision row that the row is ready. The second half starts with the
      prompt above once the owner has decided.
+
+8. **Where each step runs,** from R44 on: the signal-and-adoption design's *How the build
+   runs* (D82t). The executor is on the owner's Mac. The image, `-m e2e`, the acceptance set
+   and the Score are on the dev machine, which holds no token and no key. Each phase has a
+   budget in hours there, and stops when it passes it.
 
 **Signed commits.** The executor signs its commits with the owner's SSH key on this Mac
 (`commit.gpgsign`), or in a cloud session as D61 (g) says. `698b21e` was made unsigned in a

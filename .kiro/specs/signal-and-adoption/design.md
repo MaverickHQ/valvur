@@ -493,6 +493,7 @@ amended that day to say what D82b, D82h and D82m decide.
 | D82q | **The release's VEX says only what valvur knows:** `under_investigation` for no fix, the owner's acceptance for the rest. It and the SBOMs are attested with cosign on the image's digest. | if the owner declines the `release.yml` edit, the document is attached and not attested, and `SECURITY.md` says so |
 | D82r | **The Health record is an issue a daily workflow rewrites,** not a committed page. | if the owner prefers a page, the same script's output is published with GitHub Pages, an owner setting |
 | D82s | **The measurements are fixed before the bar is set:** R48 precedes R49. | none |
+| D82t | **The executor runs on the owner's Mac, and containers on the dev machine,** which holds no credential (*How the build runs*; wave 1, item 1.7; proposed 2026-11-22 for checkpoint D). Each phase has a budget in hours and stops when it passes it. | when the machine cannot start, GitHub's lanes; when the Mac is not available, a cloud session under D61 |
 
 ---
 
@@ -569,11 +570,102 @@ amended that day to say what D82b, D82h and D82m decide.
 
 ---
 
+## How the build runs
+
+Wave 1's item 1.7, for both this spec and the self-healing spec's open phases (D82t). The
+main list's §1 to §4 stand. This says where each step runs, what it costs and how it resumes.
+
+**Measured on 2026-11-22,** on `main` at `60bc7fd`:
+
+| step | this Mac (M1, 8 GB) | the dev machine (m7g.xlarge, 16 GB, arm64) | GitHub Actions |
+|---|---|---|---|
+| the unit suite | 150 s | 137 s | 126 s, with lint and types |
+| the image, built cold | not built here since 1.6.1 | not measured: its cache was warm | 417 s arm64, 517 s amd64 |
+| the image, cache warm | | 1 s | |
+| the acceptance set | | 147 s with its repositories generated, 135 s after | |
+| the end-to-end suite | 12 min (2026-09-29) | 391 s | 602 s amd64, 510 s arm64 |
+| the Score, nine tracks | 663 s, 574 s of it the eighth track | 671 s, 579 s of it the eighth track | |
+
+- **The Mac's gate failed twice on 2026-11-21** when the unit suite ran beside an image
+  build, under swap. Alone it takes 150 s.
+- **The dev machine is not faster at the Score,** and is twice as fast at the end-to-end
+  suite. What it buys is that neither runs on an 8 GB Mac beside the session.
+- **A command sent to the machine may carry about 70 KB:** 60 KB was accepted and 90 KB
+  refused. That is enough for one slice's diff.
+- **The pace of R9 to R47,** from the author dates of their 611 build commits: 83 hours of
+  work, counting no gap over an hour. 8 minutes a commit on average, and 21 in the slowest
+  phase.
+- **Prices,** Ireland, read 2026-11-21: the machine $0.187 an hour while it runs, with its
+  address; its 60 GB of disk $5.28 a month whether it runs or not.
+
+**Where the executor could run.**
+
+| option | verdict |
+|---|---|
+| this Mac for everything, as R9 to R47 | rejected: the image is now built from four Scanners' source, and the gate fails under that load |
+| **the executor on this Mac, containers on the dev machine** | **chosen** |
+| the executor on the dev machine | rejected: it puts three secrets on a cloud machine (a token that can push, the signing key, the model's credential), and the gain is that the Mac may sleep |
+| a Claude Code cloud session (D61) | the fallback when the Mac is not available: it already signs and pushes, on x86_64 alone, with D61's workarounds |
+| CodeBuild, or the build lab's runner | not needed: GitHub Actions is free for this repository and is already the Linux lane; the runner stays deferred (the owner, 2026-11-21) |
+
+**The plan.**
+
+| step | where |
+|---|---|
+| edits, the unit gate (`check.sh`), signing, pushes | this Mac |
+| the image, `-m e2e`, the acceptance set, the Score | the dev machine, through `~/dev-machine/bin/dev run` |
+| Linux on amd64, the arm64 image, the mutation job, a release's rehearsal | GitHub Actions, on the phase's pull request |
+
+- **The machine holds no credential,** and nothing is pushed from it. It clones the public
+  repository, fetches the build branch by commit, and its answer is the command's output
+  and exit status. Its cache and its `valvur:dev` are the build's own.
+- **A slice whose failing test needs a container** (a rule run by Opengrep, the image's
+  package list) is seen red before its commit: the working tree's diff goes to the machine
+  inside the command, and is applied to the branch's head there. A diff over 70 KB is split
+  into smaller slices.
+- **The machine is stopped after a container step,** unless the next one follows in the
+  same task. Left alone it stops itself after 30 idle minutes.
+- **A phase's exit** is measured on the dev machine and on GitHub's Linux lane. The Mac lane
+  is run once before each release, as D61(a) had it: the acceptance set and the Score on
+  this Mac, with nothing else running.
+- **When the machine cannot start** (the nightly stop at 03:00 London cut a job, or the $40
+  ceiling refused the start): the command is run again once. If it is refused again, the
+  step goes to GitHub's lanes (the pull request's checks, and `eval.yml` on dispatch), the
+  phase goes on, and §3 gains a row.
+- **No agent run and no API key.** The model's usage is the session's own.
+- **A budget for each phase,** in hours of the executor's work. The lower figure is the
+  measured average pace, and the upper the slowest phase's. **A phase that passes its upper
+  figure stops and reports,** as the main list's §1 does on a stop: that is what protects
+  the week's usage limit from a loop.
+
+| phase | behaviours | hours of work | hours of the dev machine |
+|---|---|---|---|
+| R44, the lock and the image heal themselves | 91 | 12 to 32 | 4 |
+| R45, security patches release themselves | 42 | 6 to 15 | 1 |
+| R46 and what is left of R47 | 20 | 3 to 7 | 1 |
+| R48, the measurement | 34 | 5 to 12, and R48.3's labels at about a minute each | 2 |
+| R49, the bar | 46 | 6 to 16 | 8 |
+| R50, an existing codebase | 54 | 7 to 19 | 2 |
+| R51, the tools around it | 31 | 4 to 11 | 2 |
+| R52, the evidence | 31 | 4 to 11 | 1 |
+| all nine phases | 349 | 47 to 123 | 21 |
+
+The machine's hours are twice what the listed container steps take, for reruns. They come
+to about $4 at $0.187 an hour, beside the $5.28 a month its disk costs.
+
+- **Resuming** is the main list's §2, unchanged: the hourly in-session schedule, and the
+  desktop task `valvur-build-resume`. Each phase's first task arms them again. The resume
+  prompt needs no change, since `build_status.py` reads every spec. A resuming session runs
+  `dev status` before its first container step.
+- **The owner's part** is the landing sitting at each wave's end, and §3's rows.
+
+---
+
 ## What it costs
 
 - **R48's labels:** at most 25 per rule for Checkov and zizmor. R48.1 gives the count.
 - **The eighth track:** 574 s of the Score's 663 s on this Mac. R49 runs it once per task
-  that changes a rule, so the phase is planned for the dev machine (wave 1, item 1.7).
+  that changes a rule, on the dev machine (*How the build runs*, above).
 - **`--new-since`:** a second scan per pull request, less ADR-0030's reuse and the base
   result's own reuse while the base branch has not moved.
 - **`imports.yml`:** on dispatch only. Two tools, about ten minutes of runner time each.
