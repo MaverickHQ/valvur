@@ -19,6 +19,11 @@ moved to the **inventory**, where its findings are reported for review and never
 count toward the verdict, with the reason below. The sink rules are inventory by
 design (D47a); an inventory finding on the corpus has no label, and is *unjudged*.
 
+A rule under ADR-0033's bar on maintained code, with five or more judged Findings
+there and fewer than half of them true, is inventory too, whichever Scanner's it
+is: its Findings are listed for review and never active. Those rules are the rows
+of `src/valvur/data/tiers.toml`, and read *inventory: under the bar on maintained code* below.
+
 **Unmeasured** means no case of the rule's weakness in any of the four, so
 nothing here says how precise it is. Each fires on the cases planted for it in
 valvur's own tests and fixtures, and stays active. A corpus cell that reads
@@ -28,7 +33,7 @@ valvur's own tests and fixtures, and stays active. A corpus cell that reads
 |---|---|---|---|---|---|---|---|---|
 | `javascript_eval_rule-eval-with-expression` | GitLab sast-rules | CWE-95 | 0 / 0 | 1 / 0 | 2 / 1, unmeasured there | 0 / 0 | 0.75 | active |
 | `python_deserialization_rule-yaml-load` | GitLab sast-rules | CWE-502 | 5 / 5 | 0 / 0 | unmeasured there | 0 / 0 | 0.5 | active |
-| `python_random_rule-random` | GitLab sast-rules | CWE-338 | 35 / 0 | 0 / 0 | 0 / 23 | 0 / 0 | 0.603 | active |
+| `python_random_rule-random` | GitLab sast-rules | CWE-338 | 35 / 0 | 0 / 0 | 0 / 23 | 0 / 0 | 0.603 | inventory: under the bar on maintained code |
 | `python_sql_rule-hardcoded-sql-expression` | GitLab sast-rules | CWE-89 | 5 / 0 | 0 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.command-injection` | valvur | CWE-78 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.path-traversal` | valvur | CWE-22 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
@@ -49,7 +54,7 @@ valvur's own tests and fixtures, and stays active. A corpus cell that reads
 | `valvur.python.path-traversal` | valvur | CWE-22 | 27 / 7 | 0 / 0 | 0 / 6 | 0 / 0 | 0.675 | active |
 | `valvur.python.string-built-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | inventory: a sink to review (D47a) |
 | `valvur.python.subprocess-shell-true` | valvur | CWE-78 | 7 / 7 | 0 / 0 | unmeasured there, 3 unjudged | 0 / 0 | 0.5 | inventory: a sink to review (D47a) |
-| `valvur.python.weak-hash` | valvur | CWE-328 | 37 / 0 | 0 / 0 | 0 / 21 | 0 / 0 | 0.638 | active |
+| `valvur.python.weak-hash` | valvur | CWE-328 | 37 / 0 | 0 / 0 | 0 / 21 | 0 / 0 | 0.638 | inventory: under the bar on maintained code |
 | `valvur.python.xml-external-entities` | valvur | CWE-611 | 8 / 7 | 0 / 0 | unmeasured there | 0 / 0 | 0.533 | active |
 
 ## Every other rule that fired on the corpus
@@ -65,7 +70,7 @@ on a safe one. A rule with fewer than 5 judged Findings on the corpus is
 
 | rule | Scanner | on maintained code | on planted cases | note |
 |---|---|---|---|---|
-| `CKV2_AWS_12` | Checkov | 0 / 12 | 0 / 0 | |
+| `CKV2_AWS_12` | Checkov | 0 / 12 | 0 / 0 | inventory: under the bar on maintained code |
 | `CKV2_AWS_5` | Checkov | 0 / 4, unmeasured there | 0 / 0 | |
 | `CKV_AWS_148` | Checkov | 0 / 2, unmeasured there | 0 / 0 | |
 | `CKV_AWS_338` | Checkov | 7 / 1 | 0 / 0 | |
@@ -85,7 +90,7 @@ on a safe one. A rule with fewer than 5 judged Findings on the corpus is
 | `archived-uses` | zizmor | 2 / 0, unmeasured there | 0 / 0 | |
 | `artipacked` | zizmor | 25 / 0 | 1 / 0 | sampled: 25 of 76 judged |
 | `bot-conditions` | zizmor | 1 / 0, unmeasured there | 0 / 0 | |
-| `cache-poisoning` | zizmor | 8 / 11 | 0 / 0 | |
+| `cache-poisoning` | zizmor | 8 / 11 | 0 / 0 | inventory: under the bar on maintained code |
 | `dangerous-triggers` | zizmor | 5 / 7 | 1 / 0 | |
 | `dependabot-cooldown` | zizmor | 18 / 7 | 0 / 0 | sampled: 25 of 34 judged |
 | `excessive-permissions` | zizmor | 20 / 5 | 1 / 0 | sampled: 25 of 207 judged |

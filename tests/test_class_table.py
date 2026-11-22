@@ -3,9 +3,9 @@
 Of the corpus's 26 false alarms, 11 were secrets in tests and docs, ranked first in
 their repositories, and the vendored `random` rule and `weak-hash` fired in docs
 (R20.1). A secret there ranks `low` and stays active, because a real key in a test
-is still a key. `weak-hash` and `random` are not reported there, and `run.json`
-counts what the table removed, by class and rule, so nothing goes without a number.
-A class with no row changes nothing.
+is still a key. `weak-hash` and `random` were not reported there, and `run.json`
+counted what the table removed. Since R49.3 the tier table lists both everywhere, so
+this table removes nothing. A class with no row changes nothing.
 """
 
 from __future__ import annotations
@@ -40,11 +40,12 @@ def test_a_secret_where_tests_and_docs_live_ranks_low_and_stays_active(context):
 
 @pytest.mark.parametrize("rule", ["valvur.python.weak-hash", "python_random_rule-random"])
 @pytest.mark.parametrize("context", ["test", "fixture", "docs", "example"])
-def test_weak_hash_and_random_are_not_reported_there_and_are_counted(rule, context):
-    kept, removed = classtable.apply([_finding(rule, "x/a.py", context, severity="low")])
+def test_weak_hash_and_random_are_kept_there_for_the_tier_table_to_list(rule, context):
+    """Restated by R49.3: the table removed them here, with a count. They are inventory
+    everywhere now (`tests/test_tier_table.py`), so nothing is removed."""
+    finding = _finding(rule, "x/a.py", context, severity="low")
 
-    assert kept == []
-    assert removed == {context: {rule: 1}}
+    assert classtable.apply([finding]) == ([finding], {})
 
 
 @pytest.mark.parametrize("context", ["source", "vendored", "generated"])

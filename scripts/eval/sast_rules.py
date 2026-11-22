@@ -161,6 +161,11 @@ def vendor(checkout: Path, audited: dict, measured: dict, dest: Path) -> list[st
     allows: `refuse` over `dest` is empty by construction, and a test holds it so."""
     import shutil
 
+    from valvur import tiers  # deferred: only vendoring reads the tier table
+
+    # R49.3: a rule the tier table lists carries its corpus counts beside the planted ones.
+    listed = {row.id: {"true_positives": row.tp, "false_positives": row.fp}
+              for row in tiers.rows() if row.scanner == "opengrep"}
     by_id = {rule["id"]: rule for rule in audited["rules"]}
     if dest.exists():
         shutil.rmtree(dest)
@@ -179,7 +184,8 @@ def vendor(checkout: Path, audited: dict, measured: dict, dest: Path) -> list[st
                                                "origin_licence", "licence")},
                       "source": entry["path"], "file": target.relative_to(dest).as_posix(),
                       "true_positives": row["tp"], "false_positives": row["fp"],
-                      "precision": row["precision"]})
+                      "precision": row["precision"],
+                      **({"corpus": listed[rule_id]} if rule_id in listed else {})})
     (dest / "manifest.json").write_text(json.dumps({
         "source": audited["source"], "commit": audited["commit"], "licence": "MIT",
         "bar": "D29: one true positive and precision of at least 0.5 over tracks 1 and 2 "

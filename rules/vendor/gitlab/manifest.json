@@ -48,7 +48,11 @@
    "file": "python/random/rule-random.yaml",
    "true_positives": 35,
    "false_positives": 3,
-   "precision": 0.921
+   "precision": 0.921,
+   "corpus": {
+    "true_positives": 0,
+    "false_positives": 23
+   }
   },
   {
    "id": "python_sql_rule-hardcoded-sql-expression",

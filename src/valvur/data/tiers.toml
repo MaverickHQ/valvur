@@ -15,6 +15,14 @@ corpus = { tp = 0, fp = 21 }
 reason = "On maintained code every use measured was a cache key, an ETag, a protocol's own SHA-1 or an HMAC."
 
 [[rule]]
+scanner = "opengrep"
+id = "python_random_rule-random"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 0, fp = 23 }
+reason = "On maintained code every use measured was jitter, a port, a temporary name or sample text."
+
+[[rule]]
 scanner = "checkov"
 id = "CKV2_AWS_12"
 tier = "inventory"

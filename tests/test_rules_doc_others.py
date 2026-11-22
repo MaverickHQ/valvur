@@ -105,3 +105,25 @@ def test_the_page_says_four_places_are_summed_for_the_bar():
 
 def test_a_measurement_written_before_the_second_table_still_renders():
     assert "| rule | Scanner |" not in _doc().render(_measured(valvur_a=_row(tp=9, fp=3)))
+
+
+def test_a_rule_with_a_tier_row_reads_inventory_under_the_bar_on_maintained_code():
+    """R49.3: the page says where a tiered rule stands, in both tables, with its counts."""
+    measured = _others(_other("gitleaks", "jwt", (0, 29)), _other("zizmor", "artipacked", (25, 0)))
+    tiered = {("opengrep", "valvur.a"), ("gitleaks", "jwt")}
+
+    page = _doc().render(measured, tiered=tiered)
+
+    assert _line(page, "valvur.a").endswith(
+        "| 0.75 | inventory: under the bar on maintained code |")
+    assert _line(page, "jwt") == (
+        "| `jwt` | Gitleaks | 0 / 29 | 0 / 0 | inventory: under the bar on maintained code |")
+    assert _line(page, "artipacked") == "| `artipacked` | zizmor | 25 / 0 | 0 / 0 | |"
+    assert "A rule under ADR-0033's bar on maintained code" in " ".join(page.split())
+
+
+def test_the_real_page_is_rendered_with_the_real_table():
+    from valvur import tiers
+
+    doc = _doc()
+    assert doc.tier_rows() == {(row.scanner, row.id) for row in tiers.rows()}

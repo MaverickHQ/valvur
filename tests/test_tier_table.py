@@ -154,3 +154,24 @@ def test_a_row_names_its_scanner_so_another_scanners_rule_of_that_name_is_active
     run, [record] = _scan(workspace, "trivy", ("cache-poisoning", "app/x.py"))
 
     assert "inventory" not in record and run.status == "findings"
+
+
+def test_the_vendored_random_rule_is_inventory_in_a_source_path(workspace):
+    """R49.3: a vendored rule's file may not be edited, so its tier is a row."""
+    run, [record] = _scan(workspace, "opengrep", ("python_random_rule-random", "app/ids.py"))
+
+    assert record["inventory"] is True and run.status == "clean"
+
+
+def test_in_test_material_both_rules_are_listed_where_the_class_table_removed_them(workspace):
+    """One home for both rules: they were removed under tests and docs, with a count in
+    `run.json`, and active everywhere else. Now they are in `findings.json`, listed."""
+    run, records = _scan(workspace, "opengrep",
+                         ("valvur.python.weak-hash", "tests/test_cache.py"),
+                         ("python_random_rule-random", "docs/tutorial/sample.py"))
+
+    assert sorted((r["rule"], r["context"], r["inventory"]) for r in records) == [
+        ("python_random_rule-random", "docs", True),
+        ("valvur.python.weak-hash", "test", True)]
+    assert run.status == "clean"
+    assert json.loads((workspace / RESULTS / "run.json").read_text())["removed_by_class"] == {}
