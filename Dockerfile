@@ -331,7 +331,11 @@ ENV VALVUR_IN_IMAGE=1
 # capability dropped, so it must be writable by anyone, sticky as /tmp is. Under
 # WORKDIR alone it was 10001's and 755, and a large Snapshot could not be unpacked.
 RUN mkdir -p /workspace && chmod 1777 /workspace
-RUN adduser -D -u 10001 valvur
+# `adduser` writes the day it ran into `/etc/shadow`, as the account's last password
+# change: the one file, with Alpine's index, in which `v1.6.2` rebuilt a day later
+# differed from the image published (R44.10). Blanked, which means no password ageing.
+RUN adduser -D -u 10001 valvur \
+ && sed -i -E 's/^(valvur:[^:]*):[0-9]+:/\1::/' /etc/shadow
 USER 10001:10001
 WORKDIR /workspace
 # No ENTRYPOINT: the shim names a specific scanner binary per adapter, and a
