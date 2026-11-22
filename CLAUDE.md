@@ -15,9 +15,8 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-11-22).** **`1.6.2` is published**; the Score **74.1** over nine. **Building:**
-R44 to R46, [the heal](.kiro/specs/self-healing-supply-chain/): its scripts exist, its workflows
-wait for the owner's session. **Next:** [signal and adoption](.kiro/specs/signal-and-adoption/).
+**Status (2026-11-22).** **`1.6.2` is published**; the Score **74.1** over nine. **Building:** [the heal](.kiro/specs/self-healing-supply-chain/)
+(R44 to R46: its workflows wait for the owner) and [signal and adoption](.kiro/specs/signal-and-adoption/) (R48 on).
 
 ## 2. What it is NOT
 
@@ -82,12 +81,6 @@ new argument.
 | 0018 | An exact, offline index of package names, published daily and signed. |
 | 0019 | One image with Checkov in it. Reopened by R4.1 (ADR-0023) and upheld: Checkov stays, run only where there is infrastructure other than workflows. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
-
-**Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0031 on 2026-09-29. `tasks.md`
-§5 holds every other decision, with fallbacks. **0032 is proposed:** the owner's row to accept.
-
-| ADR | decision |
-|---|---|
 | 0021 | The File Set is the git view, plus ignored `.env*` and agent configuration; excludes are root-relative prefixes; history is scanned |
 | 0022 | One Scan Container per Profile boundary, fed a Snapshot; protocol 2 |
 | 0023 | The Scanner set, by rule; amended with R4.1's measurements |
@@ -100,6 +93,14 @@ new argument.
 | 0030 | Trivy's and OSV-Scanner's results reused when their inputs and data are unchanged |
 | 0031 | One skill in the open Agent Skills format, shipped as a Claude Code plugin, a Kiro power and by `init --write`; no separate agent |
 | 0032 | A security patch the heal tags promotes after a 12-hour delay the owner can cancel; never a release that changes what valvur reports |
+| 0033 | A rule under the bar on maintained code is inventory: 5 judged Findings on the corpus, half of them true; one tier table for every Scanner |
+| 0034 | `gate --new-since <ref>` scans the base ref itself, read with git's plumbing; no baseline file |
+| 0035 | A project's own VEX is honoured only through a `[[vex]]` entry with an expiry, and shown as a Suppression is |
+| 0036 | Ranking reads `[[context]]` declarations, within a tier and never across one; a dependency Finding lists every lockfile |
+| 0037 | CWE and OWASP identifiers are mapped in one file and worded *mapped to*, never *covers* or *complies* |
+
+**Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0031 on 2026-09-29; 0033 to 0037 on
+2026-11-22. **0032 is proposed.** `tasks.md` §5 holds every other decision, with fallbacks.
 
 ## 7. The Results Folder
 
@@ -196,5 +197,4 @@ to the algorithm bumps `fp_version` and invalidates every Suppression everywhere
   `CLAUDE_PROJECT_DIR`, answers `roots/list`, and health-checks a project server only once approved.
 - GitHub's macOS runners cannot run containers (measured 2026-09-22).
 - Listing 109,521 files: 1.6 s on a Mac's host, 16.6 s through Docker Desktop's mount.
-- The release constraint suite may not shrink below 48 tests (54 since R3); a new test that
-  is not a constraint goes in its own file. More lessons: section 1 of the archived `CLAUDE.md`.
+- The release constraint suite stays at 54 tests: a new test goes in its own file. More lessons: the archived `CLAUDE.md`, section 1.
