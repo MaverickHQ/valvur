@@ -45,6 +45,7 @@ valvur's own tests and fixtures, and stays active. A corpus cell that reads
 | `valvur.javascript.sql-injection` | valvur | CWE-89 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.ssrf` | valvur | CWE-918 | 0 / 0 | 2 / 0 | 0 / 2, unmeasured there | 0 / 0 | 0.5 | active |
 | `valvur.js.output-to-innerhtml` | valvur | CWE-79 | 0 / 0 | 0 / 0 | unmeasured there | 6 / 0 | 1.0 | active |
+| `valvur.llm.model-call` | valvur | CWE-94 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | a mark for the note on model output; reports nothing by itself |
 | `valvur.llm.output-to-code-execution` | valvur | CWE-94 | 0 / 0 | 0 / 0 | unmeasured there | 8 / 0 | 1.0 | active |
 | `valvur.llm.output-to-shell` | valvur | CWE-78 | 0 / 0 | 0 / 0 | unmeasured there | 8 / 0 | 1.0 | active |
 | `valvur.llm.output-to-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | unmeasured there | 8 / 0 | 1.0 | active |
@@ -106,4 +107,4 @@ on a safe one. A rule with fewer than 5 judged Findings on the corpus is
 | `unpinned-images` | zizmor | 7 / 0 | 0 / 0 | |
 | `unpinned-uses` | zizmor | 25 / 0 | 1 / 0 | sampled: 25 of 318 judged |
 
-Measured 2026-11-22 on `valvur:dev` (`sha256:eeb6ce895340ce12c2769c9287e3b50a153a70c2b3647604f3e34dd339fc14e5`).
+Measured 2026-11-22 on `valvur:dev` (`sha256:1d3e21d236603be1588000f9895dbe9dafbe77bb447ce9a0f42029d9dda885cc`).

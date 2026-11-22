@@ -1,6 +1,6 @@
 {
  "measured": "2026-11-22",
- "image": "sha256:eeb6ce895340ce12c2769c9287e3b50a153a70c2b3647604f3e34dd339fc14e5",
+ "image": "sha256:1d3e21d236603be1588000f9895dbe9dafbe77bb447ce9a0f42029d9dda885cc",
  "corpus_projects": 48,
  "rules": {
   "javascript_eval_rule-eval-with-expression": {
@@ -432,6 +432,49 @@
    "fp": 0,
    "new": 0,
    "precision": 1.0
+  },
+  "valvur.llm.model-call": {
+   "file": "rules/llm-output-sinks.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    94
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 0,
+   "fp": 0,
+   "new": 0,
+   "precision": 0.0
   },
   "valvur.llm.output-to-code-execution": {
    "file": "rules/llm-output-sinks.yaml",

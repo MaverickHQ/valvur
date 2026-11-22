@@ -29,6 +29,7 @@ core = [
     "valvur.invocation",
     "valvur.lazy",
     "valvur.licence_policy",
+    "valvur.model_output",
     "valvur.pathclass",
     "valvur.profiles",
     "valvur.project_schema",

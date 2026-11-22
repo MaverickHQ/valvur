@@ -69,8 +69,10 @@ must never fetch, `fetch = "never"` turns every fetch off, and
     OpenAI, Gemini, LangChain, litellm and ollama SDKs. On the Score's track 9 they
     catch 30 of 34 generated flows with no false alarm, and none of five published
     advisories in LLM frameworks: each of those flows crosses a function, and
-    Opengrep's taint does not follow it. They have not fired on real code in the
-    48-project corpus.
+    Opengrep's taint does not follow it. So when a project calls a model and valvur
+    lists a sink to review with no flow reported between them, `SUMMARY.md` says so
+    under *What valvur could not read*: a note about valvur's reach, which does not
+    change the verdict. They have not fired on real code in the 48-project corpus.
   - Since R25, **taint rules from request data**: for Python, command and code
     injection, path traversal and open redirects, with insecure cookies and XXE by
     pattern; for JavaScript, SQL and command injection, path traversal and SSRF. On

@@ -130,3 +130,21 @@ def test_the_real_page_is_rendered_with_the_real_table():
 
     doc = _doc()
     assert doc.tier_rows() == {(row.scanner, row.id): row.where for row in tiers.rows()}
+
+
+def test_the_model_call_mark_is_not_shown_as_a_rule_that_finds_things():
+    """R49.7: `valvur.llm.model-call` reports nothing by itself, so *active, unmeasured*
+    would mislead. The page says what it is for."""
+    measured = _measured()
+    measured["rules"]["valvur.llm.model-call"] = _row()
+
+    page = _doc().render(measured, tiered={})
+
+    assert _line(page, "valvur.llm.model-call").endswith(
+        "| - | a mark for the note on model output; reports nothing by itself |")
+
+
+def test_the_page_and_the_pipeline_name_the_same_mark():
+    from valvur import model_output
+
+    assert set(_doc().MARKS) == {model_output.CALL_RULE}

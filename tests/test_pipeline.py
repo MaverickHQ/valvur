@@ -17,7 +17,7 @@ from valvur.adapters import DEFAULT_ADAPTERS
 from valvur.findings import Finding
 
 ORDER = [
-    "coverage", "licence", "configured", "ignored", "unpinned", "merged",
+    "coverage", "licence", "configured", "ignored", "unpinned", "merged", "model_output",
     "context", "classes", "gitcontext", "enrich", "own_ignores", "suppress", "group", "rank",
     "diff",
 ]

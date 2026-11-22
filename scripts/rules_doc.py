@@ -47,6 +47,11 @@ _SCANNERS = {"gitleaks": "Gitleaks", "checkov": "Checkov", "zizmor": "zizmor",
              "opengrep": "Opengrep"}
 
 
+#: A rule that reports nothing by itself (R49.7): valvur reads its marks to write one
+#: coverage note. `valvur.model_output.CALL_RULE` names it; a test holds the two together.
+MARKS = {"valvur.llm.model-call":
+         "a mark for the note on model output; reports nothing by itself"}
+
 #: What the page says of a rule the tier table names (R49.3, R49.4, ADR-0033), by where
 #: its row applies.
 TIERED = "inventory: under the bar on maintained code"
@@ -143,7 +148,7 @@ def render(measured: dict, tiered: dict[tuple[str, str], str] | None = None) -> 
         source = "GitLab sast-rules" if row["vendored"] else "valvur"
         cwe = ", ".join(f"CWE-{n}" for n in row["cwe"]) or "-"
         measured_at_all = row["tp"] + row["fp"]
-        stands = TIERED_WHERE.get(listed.get(("opengrep", rule), ""), "") \
+        stands = MARKS.get(rule) or TIERED_WHERE.get(listed.get(("opengrep", rule), ""), "") \
             or rule_precision.state(row)
         lines.append(
             f"| `{rule}` | {source} | {cwe} | {_cell(places['sast-python'])} | "

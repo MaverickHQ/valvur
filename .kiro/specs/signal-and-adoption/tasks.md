@@ -735,7 +735,7 @@ that fired on the corpus; the three hygiene tests hold.
 
     Both static-analysis tracks are inside the ratchet again, so `--compare` passes.
 
-- [ ] **R49.7** **Model output crossing a function** (D82j).
+- [x] **R49.7** **Model output crossing a function** (D82j).
   **Seam:** for the measurement, none. For the note: `api.scan` over `LocalRuntime`;
   `SUMMARY.md` and the Status read back. Behaviours:
   1. **Record.** Opengrep's `--taint-intrafile`, at the image's version, on the five
@@ -751,6 +751,50 @@ that fired on the corpus; the three hygiene tests hold.
      sentence planted in a copy.
 
   _Requirements: 6.1, 6.2, 6.3, 6.4_
+
+  **STATUS 2026-11-22:** ✅ 1, then 3 to 5: the flag is **not adopted**, and the note is in.
+  - **The measurement,** Opengrep's `--taint-intrafile` at the image's version, through
+    valvur's own scan with the flag added to the adapter, on the dev machine at `db5cf3e`
+    with R49.6's slice:
+
+    | | without the flag | with it |
+    |---|---|---|
+    | the five advisories | 0 of 5 | **0 of 5** |
+    | the generated cases | 30 of 34, no safe one flagged | 34 of 34, no safe one flagged |
+    | the ninth track | 79.0 | 89.8 |
+    | the Python and JavaScript tracks | 39.0 and 54.2 | 39.0 and 54.2 |
+    | Findings on the corpus | 16 judged | 5 new and unjudged, 3 of the 16 gone |
+    | the acceptance set | 132 s | 133 s |
+
+  - **It catches none of the five, so Requirement 6.2's condition is not met** and nothing
+    in the rules changes. The five new Findings on the corpus are of four request-data
+    rules, not of the model-output rules: the flag is per run, and cannot be given to four
+    rules alone.
+  - **For the owner:** it does catch the four generated flows valvur misses, at no cost
+    in time. Adopting it would raise the ninth track by 10.8 points and needs the five new
+    Findings judged first. The design's condition was the five advisories, so it is left.
+  - **The note** (`src/valvur/model_output.py`, a stage after `merged`): one rule,
+    `valvur.llm.model-call`, marks where a model is called, with the sources the three
+    Python rules share, by reference. Its marks never reach `findings.json`. A Scan Run
+    with a mark, a sink to review and no model-output Finding gains one Finding of
+    `valvur.llm.output-not-followed`, shown under *What valvur could not read*. It is in
+    `NOTE_RULES` and not in `DOUBT_RULES`: the Status is what it was.
+  - **Narrower than design.md in three ways, each said here.** The note is per Scan Run
+    and not per function: a Finding carries a line and no function. The mark is Python's
+    alone, since the sinks valvur names for review are Python's. And the mark needs the
+    file to import a model SDK, so the count is *at least N files*.
+  - **Found on the corpus, and fixed before it was committed:** with the shared sources
+    alone the note told Flask and Litestar that they call a model. `$X.invoke(…)` is
+    Click's test runner too, and `$X.messages.create(…)` is Twilio's. The taint rules can
+    be loose there, since they also need a sink; a statement cannot. A made case with
+    both was seen noted, and then not. On the corpus the note is now in two projects,
+    `llm` and `smolagents`, which do call a model.
+  - **Measured with the note in,** on the dev machine at `756c8fe` with the slice,
+    `valvur:dev` `sha256:f4ec1791eb70`: the whole Score 76.8 with `--compare` passing, no
+    track moved, no mark in any `findings.json`, the acceptance set 8 of 8 in 129 s.
+  - **Slice 5:** no document claims a flow followed across functions or files, in the
+    README, `docs/` or the rule files, and a claim planted in a copy is seen.
+    `docs/HOW-IT-WORKS.md` says what the note is.
 
 - [ ] **R49.8** **The target, the baseline and the README** (D82g, D82h).
   **Seam:** the committed `tests/eval/baseline.json` and `rules-measured.json`, read as

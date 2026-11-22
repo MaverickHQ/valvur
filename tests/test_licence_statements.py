@@ -112,8 +112,13 @@ def test_the_three_are_notes_and_only_the_two_gaps_cast_doubt():
     # from, casting no doubt, since a name bound to a private registry cannot be
     # taken publicly (D27).
     assert coverage.PRIVATE_RULE not in coverage.DOUBT_RULES
+    # R49.7 decided the model-output note the same way: it says where valvur stops
+    # following, and a project that calls a model can still be clean (D82j).
+    from valvur import verdict
+
+    assert verdict.MODEL_OUTPUT_RULE not in coverage.DOUBT_RULES
     assert coverage.NOTE_RULES == (coverage.DOUBT_RULES | coverage.LICENCE_STATEMENT_RULES
-                                   | {coverage.PRIVATE_RULE})
+                                   | {coverage.PRIVATE_RULE, verdict.MODEL_OUTPUT_RULE})
 
 
 # ------------------------------------------------------------------ the surfaces
