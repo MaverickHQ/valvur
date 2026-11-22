@@ -228,3 +228,20 @@ def test_a_provider_format_secret_under_a_test_path_is_still_active(workspace, r
 
     assert "inventory" not in record and run.status == "findings"
     assert rule not in {row.id for row in tiers.rows()}
+
+
+def _said(name: str) -> str:
+    return " ".join((Path(__file__).resolve().parents[1] / name).read_text().split())
+
+
+def test_the_readme_and_the_rules_page_say_what_is_listed_for_review_and_why():
+    """R49.4, Requirement 3.4: valvur cannot tell a fixture key from a real one in the same
+    place, and says so. The sentences are the contract."""
+    readme, rules = _said("README.md"), _said("docs/RULES.md")
+
+    assert ("A private key, a JWT or a generic high-entropy string under a test, fixture, "
+            "example or documentation path is listed for review") in readme
+    assert "valvur cannot tell a fixture key from a real one in the same place" in readme
+    assert "A key in a provider's own format is active wherever it is" in readme
+    assert "do not make the verdict `findings` and do not fail the gate" in readme
+    assert "A rule that matches a provider's own format has no row" in rules

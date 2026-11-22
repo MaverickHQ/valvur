@@ -55,6 +55,14 @@ Seven open-source scanners and AI-specific checks, in one command and one ranked
 | **CI workflows** | unpinned actions, write permissions, template injection | zizmor |
 | **Licences and SBOM** | a missing or contradictory project licence; a CycloneDX SBOM when asked for | valvur's `licence-file` Check, Syft |
 
+**Listed for review, not active.** A rule that is wrong more often than right on maintained
+code is not silenced. Its Findings stay in `findings.json`, marked `inventory`, and
+`SUMMARY.md` counts them under *Listed for review*; they do not make the verdict `findings`
+and do not fail the gate. A private key, a JWT or a generic high-entropy string under a test,
+fixture, example or documentation path is listed for review too: valvur cannot tell a fixture
+key from a real one in the same place. A key in a provider's own format is active wherever it
+is. Which rules, and each one's measurement: [`docs/RULES.md`](docs/RULES.md).
+
 What it checks, rule by rule, and what it cannot see: [how valvur works](docs/HOW-IT-WORKS.md).
 
 ## How it works
