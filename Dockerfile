@@ -211,13 +211,16 @@ RUN set -eu; \
 # So the module goes, and with it the nine packages that hung from it. The base names its
 # libraries through one virtual package, `.python-rundeps`. The ones that stay are named
 # here instead, from what is already installed (`--no-network`), and the virtual is dropped.
+# `musl-utils` goes too, and `scanelf` with it: four programs (`getconf`, `getent`, `iconv`,
+# `ldconfig`) and the ELF scanner the base's build used. The end-to-end suite passes without
+# them, and `ctypes.util.find_library` answers as it did with them: nothing, on musl.
 # A package's bytes remain in the base's layer; its files are gone from the image, which
 # is what the image gate reads. `.github/image-packages.txt` names what the image holds,
 # and `tests/test_image_packages.py` holds the image to it.
 RUN rm -f /usr/local/lib/python3.12/lib-dynload/nis.cpython-312-*.so \
  && apk add --no-logfile --no-network gdbm libbz2 libcrypto3 libffi libncursesw libpanelw \
         libssl3 libuuid readline sqlite-libs xz-libs zlib \
- && apk del --no-logfile --no-network .python-rundeps \
+ && apk del --no-logfile --no-network .python-rundeps musl-utils \
  && rm -f /var/cache/apk/*
 
 COPY --from=gitleaks /gitleaks               /usr/local/bin/gitleaks

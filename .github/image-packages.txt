@@ -17,10 +17,8 @@ libpanelw
 libssl3
 libuuid
 musl
-musl-utils
 ncurses-terminfo-base
 readline
-scanelf
 sqlite-libs
 ssl_client
 tzdata
