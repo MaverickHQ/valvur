@@ -15,13 +15,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from conftest import write_name_index
-from fake_registry import FakePackageRegistry, pypi_answers
-from test_checkov_lock_recipe import _tree, _wheel
+from heal_support import HEAL, LOCK
+from heal_support import tree as heal_tree
 
-REPO = Path(__file__).resolve().parent.parent
-HEAL = REPO / "scripts" / "heal.py"
-LOCK = "requirements-checkov.txt"
 NOW = "2026-10-21T06:41:00Z"
 
 pytestmark = pytest.mark.skipif(shutil.which("uv") is None, reason="the recipe runs uv")
@@ -40,33 +36,8 @@ def _plan(tmp_path: Path, monkeypatch, findings: list[dict], have: dict[str, str
           projects: dict[str, dict[str, dict]], *, top: tuple[str, ...] = (),
           known: tuple[str, ...] | None = None
           ) -> tuple[subprocess.CompletedProcess[str], dict]:
-    """Run `heal.py plan` on a tree whose lock the recipe itself wrote, holding `have`.
-
-    Resolution is real and hermetic, as in `test_checkov_lock_recipe.py`: a wheel for every
-    version in `projects` (its `requires` as `Requires-Dist`), read by uv from a directory.
-    PyPI's facts about the same versions are the fake registry's. `valvur check` reads a
-    Name Index in a `VALVUR_CACHE` made here, in which the names `known` exist: every
-    project's, by default, and with `known=()` there is no index at all."""
-    cache = tmp_path / "cache"
-    if known != ():
-        write_name_index(cache / "valvur" / "names",
-                         pip=list(projects if known is None else known))
-    monkeypatch.setenv("VALVUR_CACHE", str(cache))
-    FakePackageRegistry(tmp_path / "registry", pypi_answers(projects)).install(monkeypatch)
-    tree, wheels = _tree(tmp_path, "\n".join(top or tuple(have)))
-    for name, versions in projects.items():
-        for version, facts in versions.items():
-            _wheel(wheels, name, version, tuple(facts.get("requires", ())))
-    # uv reads no index but the wheels: its `--no-index` has no environment variable, so
-    # a configuration file says it, for the recipe here and for the one the heal runs.
-    config = tmp_path / "uv.toml"
-    config.write_text(f'[pip]\nno-index = true\nfind-links = ["{wheels}"]\n')
-    monkeypatch.setenv("UV_CONFIG_FILE", str(config))
-    start = tmp_path / "start.txt"
-    start.write_text("".join(f"{name}=={version}\n" for name, version in have.items()))
-    made = subprocess.run(["sh", str(tree / "scripts" / "lock-checkov.sh"), "--no-annotate",
-                           "--constraint", str(start)], capture_output=True, text=True, check=False)
-    assert made.returncode == 0, made.stderr
+    """Run `heal.py plan` on `heal_support.tree`'s tree, whose lock holds `have`."""
+    tree = heal_tree(tmp_path, monkeypatch, have, projects, top=top, known=known)
     scan = tmp_path / "findings.json"
     scan.write_text(json.dumps({"schema": 1, "findings": findings}))
     out = tmp_path / "plan.json"

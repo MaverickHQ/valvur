@@ -18,9 +18,15 @@ A package the resolution moves with it is a floor the fix forces: it is chosen b
 rule, among the versions that resolve, and pinned too. Every version a fix would move to
 is then put to `valvur check`, and a fix with a flagged one is escalated.
 
+    python3 scripts/heal.py apply --plan plan.json --out heal-out
+
+`apply` runs the recipe with the plan's pins and writes the files a heal changes into a
+directory of its own, never into the tree. It refuses its own result when a package moved
+that the plan does not name: exit 1.
+
 Standard library, and `valvur`'s own version ordering, so a pin and the report that asked
 for it agree on which version is higher. Exit 0 when the plan was written, whatever it holds;
-2 when an input could not be read.
+1 when the heal refuses its own result; 2 when an input could not be read.
 """
 
 from __future__ import annotations
@@ -227,6 +233,35 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str, tree: Pat
     }
 
 
+class Refused(Exception):
+    """The heal's own result is not what its plan says."""
+
+
+def unplanned(before: dict[str, str], after: dict[str, str], pins: list[dict]) -> list[str]:
+    """What differs between two locks that the pins do not account for, one line each."""
+    planned = {pin["package"]: (pin["from"], pin["to"]) for pin in pins}
+    found = []
+    for package in sorted(set(before) | set(after)):
+        was, now = before.get(package), after.get(package)
+        if planned.get(package, (was, was)) != (was, now):
+            found.append(f"{package}: {was or 'absent'} to {now or 'absent'}")
+    return found
+
+
+def apply(plan_: dict, tree: Path) -> dict[str, str]:
+    """The files a heal changes, by name: the lock the recipe writes with the plan's pins.
+    Refused when anything moved that the plan does not name."""
+    lock_text = (tree / LOCK).read_text(encoding="utf-8")
+    pins = plan_["pins"]
+    text = relock(tree, lock_text, {pin["package"]: pin["to"] for pin in pins})
+    if text is None:
+        raise Refused("the recipe failed with the plan's pins")
+    stray = unplanned(locked(lock_text), locked(text), pins)
+    if stray:
+        raise Refused("the re-lock moved what the plan does not name: " + "; ".join(stray))
+    return {LOCK: text}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -235,12 +270,26 @@ def main(argv: list[str] | None = None) -> int:
     plan_cmd.add_argument("--lock", type=Path, required=True)
     plan_cmd.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ")
     plan_cmd.add_argument("--out", type=Path, required=True)
+    apply_cmd = commands.add_parser("apply", help="write the files a plan changes, apart")
+    apply_cmd.add_argument("--plan", type=Path, required=True)
+    apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
+    apply_cmd.add_argument("--out", type=Path, required=True)
+    apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "apply":
+            files = apply(json.loads(args.plan.read_text(encoding="utf-8")), args.tree.resolve())
+            args.out.mkdir(parents=True, exist_ok=True)
+            for name, text in files.items():
+                (args.out / name).write_text(text, encoding="utf-8")
+            return 0
         findings = json.loads(args.findings.read_text(encoding="utf-8"))["findings"]
         made = plan(findings, args.lock.read_text(encoding="utf-8"),
                     lock=args.lock.name, now=args.now, tree=args.lock.resolve().parent)
+    except Refused as error:
+        print(f"heal: refused: {error}", file=sys.stderr)
+        return 1
     except (OSError, ValueError, KeyError, pypi_facts.Unreadable) as error:
         print(f"heal: {error}", file=sys.stderr)
         return 2
