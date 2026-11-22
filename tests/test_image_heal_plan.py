@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from fake_registry import FakePackageRegistry, alpine_answers
+from fake_registry import GOPROXY, FakePackageRegistry, alpine_answers, raw
 
 REPO = Path(__file__).resolve().parent.parent
 IMAGE_HEAL = REPO / "scripts" / "image_heal.py"
@@ -118,3 +118,96 @@ def test_alpine_versions_order_as_apk_orders_them(lower, higher):
 
     assert image_heal.apk_key(lower) < image_heal.apk_key(higher)
     assert image_heal.apk_key("1.0~weird") is None
+
+
+def _go(vid: str, module: str, installed: str, fixed: str, scanner: str = "trivy") -> dict:
+    return _entry(vid, module, installed, fixed, kind="gobinary",
+                  target=f"usr/local/bin/{scanner}")
+
+
+def _tags(module: str, *versions: str) -> dict[str, object]:
+    return {f"{GOPROXY}/{module}/@v/list": raw("".join(f"{v}\n" for v in versions))}
+
+
+def test_a_go_module_is_raised_in_the_scanner_whose_binary_holds_it(tmp_path, monkeypatch):
+    blocking = [_go("CVE-2026-0010", "golang.org/x/net", "v0.60.0", "0.62.0"),
+                _go("CVE-2026-0010", "golang.org/x/net", "v0.61.0", "0.62.0", "osv-scanner")]
+
+    run, plan = _plan(tmp_path, monkeypatch, blocking,
+                      _tags("golang.org/x/net", "v0.60.0", "v0.61.0", "v0.62.0"))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["raises"] == [
+        {"arg": "OSV_SCANNER_RAISE", "entry": "golang.org/x/net@v0.62.0",
+         "package": "golang.org/x/net", "from": "v0.61.0", "answers": ["CVE-2026-0010"],
+         "rule": "go-fixed-version"},
+        {"arg": "TRIVY_RAISE", "entry": "golang.org/x/net@v0.62.0",
+         "package": "golang.org/x/net", "from": "v0.60.0", "answers": ["CVE-2026-0010"],
+         "rule": "go-fixed-version"}]
+
+
+def test_of_several_fixed_versions_the_lowest_in_the_installed_major_is_taken(
+        tmp_path, monkeypatch):
+    blocking = [_go("CVE-2026-0011", "github.com/example/mod", "v1.4.0", "2.0.1, 1.4.2"),
+                _go("CVE-2026-0012", "github.com/example/mod", "v1.4.0", "1.4.1")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, blocking,
+                       _tags("github.com/example/mod", "v1.4.0", "v1.4.1", "v1.4.2"))
+
+    assert [(r["entry"], r["answers"]) for r in plan["raises"]] == [
+        ("github.com/example/mod@v1.4.2", ["CVE-2026-0011", "CVE-2026-0012"])]
+
+
+def test_a_fix_only_in_a_new_major_is_go_major(tmp_path, monkeypatch):
+    blocking = [_go("CVE-2026-0013", "github.com/example/mod", "v1.4.0", "2.0.1")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, blocking, {})
+
+    assert plan["raises"] == []
+    assert plan["escalations"] == [{"subject": "github.com/example/mod (trivy)",
+                                    "reason": "go-major", "answers": ["CVE-2026-0013"]}]
+
+
+def test_a_fix_with_no_tagged_version_is_go_untagged_and_no_pseudo_version_is_written(
+        tmp_path, monkeypatch):
+    """As `golang.org/x/crypto` in 1.6.2: the fix was a commit, and a person chose it."""
+    blocking = [_go("GO-2026-5932", "golang.org/x/crypto", "v0.58.0",
+                    "0.58.1-0.20261009181718-2f1f834330b2")]
+
+    run, plan = _plan(tmp_path, monkeypatch, blocking,
+                      _tags("golang.org/x/crypto", "v0.57.0", "v0.58.0"))
+
+    assert plan["raises"] == []
+    assert plan["escalations"] == [{"subject": "golang.org/x/crypto (trivy)",
+                                    "reason": "go-untagged", "answers": ["GO-2026-5932"]}]
+    assert "2f1f834330b2" not in json.dumps(plan["raises"]) and run.returncode == 0
+
+
+def test_a_scanners_own_module_is_scanner_version_and_plans_nothing(tmp_path, monkeypatch):
+    blocking = [_go("CVE-2026-0014", "github.com/aquasecurity/trivy", "v0.76.2", "0.76.3")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, blocking, {})
+
+    assert plan["raises"] == []
+    assert plan["escalations"] == [{"subject": "trivy", "reason": "scanner-version",
+                                    "answers": ["CVE-2026-0014"]}]
+
+
+def test_an_entry_of_a_kind_the_plan_does_not_know_is_named_and_never_dropped(
+        tmp_path, monkeypatch):
+    blocking = [_entry("CVE-2026-0015", "left-pad", "1.0", "1.1", kind="node-pkg",
+                       target="opt/x/package.json"),
+                _go("CVE-2026-0016", "golang.org/x/net", "v0.60.0", "0.62.0", "opengrep"),
+                _entry("CVE-2026-0017", "soupsieve", "2.8", "2.9", kind="python-pkg",
+                       target="Python")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, blocking, {})
+
+    assert plan["raises"] == []
+    assert plan["unplanned"] == [
+        {"id": "CVE-2026-0015", "package": "left-pad", "kind": "node-pkg",
+         "target": "opt/x/package.json", "why": "a kind the image's heal does not plan"},
+        {"id": "CVE-2026-0016", "package": "golang.org/x/net", "kind": "gobinary",
+         "target": "usr/local/bin/opengrep", "why": "a binary no `_RAISE` builds"},
+        {"id": "CVE-2026-0017", "package": "soupsieve", "kind": "python-pkg",
+         "target": "Python", "why": "a Python package: the Checkov lock's heal, or Dependabot"}]

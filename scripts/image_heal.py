@@ -12,8 +12,14 @@ blocking entry:
 - **an Alpine package** is raised in `ALPINE_RAISE` to the version Alpine's index holds for
   both architectures, when that is the fixed version or later. Alpine keeps one version of
   a package, so there is no other to choose. Otherwise it is escalated as `no-alpine-fix`.
+- **a Go module** is raised in the `_RAISE` of the Scanner whose binary holds it, to the
+  lowest fixed version in the major it is installed at. A fix only in a new major is
+  `go-major`. One with no tagged version is `go-untagged`: the heal never writes a
+  pseudo-version. The Scanner's own module is `scanner-version`: its next release's.
+- **anything else** is listed as `unplanned`, with why, and never dropped.
 
-What it reads from the network, and nothing else: Alpine's `APKINDEX` for the base's release.
+What it reads from the network, and nothing else: Alpine's `APKINDEX` for the base's release,
+and Go's module proxy for a module's tagged versions.
 What comes back is data. Standard library alone. Exit 0 when the plan was written, whatever
 it holds; 2 when an input could not be read.
 """
@@ -30,11 +36,20 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import scanner_pins
+
 SCHEMA = 1
 ALPINE = "https://dl-cdn.alpinelinux.org/alpine"
 #: Alpine's name for each architecture the image is built for.
 ARCHITECTURES = ("x86_64", "aarch64")
 REPOSITORIES = ("main", "community")
+GOPROXY = "https://proxy.golang.org"
+#: Trivy's name for Go's standard library in a binary.
+STDLIB = "stdlib"
+#: Each Scanner built from source: its `ARG` prefix, and its own module.
+SCANNERS = {name: (prefix, module) for name, prefix, _image, module in scanner_pins.SOURCES}
 
 _BASE = re.compile(r"^FROM python:[^\s@]*alpine(\d+\.\d+)@sha256:[0-9a-f]{64}", re.M)
 _APK_VERSION = re.compile(
@@ -119,6 +134,72 @@ def _alpine(entries: list[dict], release: str) -> tuple[list[dict], list[dict]]:
     return raises, escalations
 
 
+def _go_key(version: str) -> tuple[int, ...] | None:
+    """A Go version's numbers, or None for a pseudo-version or anything else untagged."""
+    read = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", version)
+    return tuple(int(n) for n in read.groups()) if read else None
+
+
+def go_tags(module: str) -> set[str]:
+    """The versions Go's module proxy lists for `module`: its tagged releases."""
+    escaped = re.sub(r"[A-Z]", lambda capital: "!" + capital.group().lower(), module)
+    data = _get(f"{GOPROXY}/{escaped}/@v/list")
+    return set(data.decode("utf-8", "replace").split()) if data else set()
+
+
+def _modules(entries: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+    """(raises, escalations, unplanned) for the blocking Go modules, by Scanner and module.
+
+    A module is raised to the lowest fixed version in the major it is installed at, which
+    must be one the proxy lists: the heal never writes a pseudo-version, a commit that a
+    person would have had to choose."""
+    raises, escalations, unplanned = [], [], []
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for entry in entries:
+        scanner = Path(entry.get("target", "")).name
+        if scanner not in SCANNERS:
+            unplanned.append(_unplanned(entry, "a binary no `_RAISE` builds"))
+        else:
+            groups.setdefault((scanner, entry["package"]), []).append(entry)
+    for (scanner, module), about in sorted(groups.items()):
+        prefix, own = SCANNERS[scanner]
+        answers = sorted({e["id"] for e in about})
+        if module == own:
+            escalations.append({"subject": scanner, "reason": "scanner-version",
+                                "answers": answers})
+            continue
+        subject = f"{module} ({scanner})"
+        installed = re.match(r"v?(\d+)\.", about[0]["installed"])
+        floors, reason = [], ""
+        for entry in about:
+            fixes = [fix.strip() for fix in entry["fixed"].split(",") if fix.strip()]
+            in_major = [fix for fix in fixes
+                        if installed and re.match(rf"v?{installed.group(1)}\.", fix)]
+            keys = [_go_key(fix) for fix in in_major]
+            if not in_major:
+                reason = "go-major"
+            elif None in keys:
+                reason = reason or "go-untagged"
+            else:
+                floors.append(min(keys))  # type: ignore[type-var]
+        if not reason:
+            version = "v" + ".".join(str(n) for n in max(floors))
+            if version not in go_tags(module):
+                reason = "go-untagged"
+        if reason:
+            escalations.append({"subject": subject, "reason": reason, "answers": answers})
+            continue
+        raises.append({"arg": f"{prefix}_RAISE", "entry": f"{module}@{version}",
+                       "package": module, "from": about[0]["installed"], "answers": answers,
+                       "rule": "go-fixed-version"})
+    return raises, escalations, unplanned
+
+
+def _unplanned(entry: dict, why: str) -> dict:
+    return {"id": entry["id"], "package": entry["package"], "kind": entry.get("kind", ""),
+            "target": entry.get("target", ""), "why": why}
+
+
 def plan(verdicts: list[dict], dockerfile: str, *, now: str) -> dict:
     blocking: dict[tuple[str, str, str], dict] = {}
     for verdict in verdicts:
@@ -127,9 +208,19 @@ def plan(verdicts: list[dict], dockerfile: str, *, now: str) -> dict:
     base = _BASE.search(dockerfile)
     if not base:
         raise Unreadable("the Dockerfile names no `python:…-alpine<release>` base by digest")
-    alpine = [e for e in blocking.values() if e.get("kind") == "alpine"]
+    found = sorted(blocking.values(), key=lambda e: (e["id"], e["package"], e.get("target", "")))
+    alpine = [e for e in found if e.get("kind") == "alpine"]
     raises, escalations = _alpine(alpine, base.group(1)) if alpine else ([], [])
-    return {"schema": SCHEMA, "made": now, "raises": raises, "escalations": escalations}
+    modules = [e for e in found if e.get("kind") == "gobinary" and e["package"] != STDLIB]
+    more = _modules(modules)
+    unplanned = more[2] + [
+        _unplanned(e, "a Python package: the Checkov lock's heal, or Dependabot"
+                   if e.get("kind") == "python-pkg" else "a kind the image's heal does not plan")
+        for e in found if e.get("kind") not in ("alpine", "gobinary")]
+    return {"schema": SCHEMA, "made": now,
+            "raises": sorted(raises + more[0], key=lambda r: (r["arg"], r["entry"])),
+            "escalations": escalations + more[1],
+            "unplanned": sorted(unplanned, key=lambda u: (u["id"], u["package"]))}
 
 
 def main(argv: list[str] | None = None) -> int:
