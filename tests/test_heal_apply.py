@@ -70,3 +70,50 @@ def test_a_result_that_moves_a_package_the_plan_does_not_name_is_refused(
     assert run.returncode == 1
     assert "beta" in run.stderr and "1.1" in run.stderr
     assert not (out / LOCK).exists()
+
+
+def _advisory(rule: str, package: str, version: str, fixed: str) -> dict:
+    return {"rule": rule, "fingerprint": f"fp-{rule}", "package": package, "version": version,
+            "fixed_version": fixed, "severity": "high",
+            "advisory_published": "2026-10-19T16:47:35Z"}
+
+
+def test_the_changelog_gains_one_security_item_for_each_package_under_unreleased(
+        tmp_path, monkeypatch):
+    projects = {"alpha": {"1.0": OLD, "1.1": {**OLD, "requires": ["beta>=1.1"]}},
+                "beta": {"1.0": OLD, "1.1": OLD}}
+    pins = [_pin("alpha", "1.0", "1.1"), _pin("beta", "1.0", "1.1", "floor of alpha 1.1")]
+    findings = (_advisory("CVE-2026-0002", "alpha", "1.0", "1.1"),
+                _advisory("CVE-2026-0001", "alpha", "1.0", "1.1"))
+
+    run, _tree, out = _apply(tmp_path, monkeypatch, pins, {"alpha": "1.0", "beta": "1.0"},
+                             projects, findings=findings)
+
+    assert run.returncode == 0, run.stderr
+    changelog = (out / "CHANGELOG.md").read_text()
+    unreleased = changelog.split("## [Unreleased]")[1].split("## [1.0.0]")[0]
+    assert unreleased.count("### Security") == 1
+    items = [line for line in unreleased.splitlines() if line.startswith("- ")]
+    assert items == [
+        "- **alpha 1.1 in the Checkov lock,** from 1.0, past CVE-2026-0001 and CVE-2026-0002.",
+        "- **beta 1.1 in the Checkov lock,** from 1.0, which alpha 1.1 requires.",
+    ]
+    assert "## [Unreleased]\n\n### Security\n\n- **alpha 1.1" in changelog
+    assert changelog.endswith("requires.\n\n## [1.0.0] — 2026-01-01\n\nThe first.\n")
+
+
+def test_items_join_a_security_heading_unreleased_already_has(tmp_path, monkeypatch):
+    had = ("# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- A fix.\n\n### Security\n\n"
+           "- **An earlier item.**\n\n## [1.0.0] — 2026-01-01\n\nThe first.\n")
+    projects = {"beta": {"1.0": OLD, "1.1": OLD}}
+
+    _run, _tree, out = _apply(tmp_path, monkeypatch, [_pin("beta", "1.0", "1.1")],
+                              {"beta": "1.0"}, projects, changelog=had,
+                              findings=(_advisory("CVE-2026-0001", "beta", "1.0", "1.1"),))
+
+    changelog = (out / "CHANGELOG.md").read_text()
+    assert changelog.count("### Security") == 1
+    assert changelog.index("- **An earlier item.**") < changelog.index("- **beta 1.1")
+    assert changelog.index("- **beta 1.1") < changelog.index("## [1.0.0]")
+    kept = [line for line in had.splitlines() if line]
+    assert [line for line in changelog.splitlines() if line in kept] == kept, "nothing removed"

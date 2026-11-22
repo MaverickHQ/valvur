@@ -55,6 +55,7 @@ COOLDOWN = timedelta(days=7)
 #: D81e: the least age of a version taken before the cooldown, on its publisher's word.
 YOUNG = timedelta(hours=24)
 LOCK = "requirements-checkov.txt"
+CHANGELOG = "CHANGELOG.md"
 #: The one package the heal never moves: a new Checkov is the owner's to take (D81q).
 CHECKOV = "checkov"
 RECIPE = "scripts/lock-checkov.sh"
@@ -248,9 +249,52 @@ def unplanned(before: dict[str, str], after: dict[str, str], pins: list[dict]) -
     return found
 
 
+def _listed(words: list[str]) -> str:
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
+def items(plan_: dict) -> list[str]:
+    """One `### Security` item for each package the plan moves: the two versions, and the
+    advisories it answers or the fix that requires it."""
+    made = []
+    for pin in sorted(plan_["pins"], key=lambda pin: pin["package"]):
+        if pin["why"] == "fix":
+            rules = sorted({f["rule"] for f in plan_["findings"]
+                            if f["package"] == pin["package"]})
+            reason = f"past {_listed(rules)}" if rules else "for its fix"
+        else:
+            reason = f"which {pin['why'].removeprefix('floor of ')} requires"
+        made.append(f"- **{pin['package']} {pin['to']} in the Checkov lock,** "
+                    f"from {pin['from']}, {reason}.")
+    return made
+
+
+def changelog(text: str, plan_: dict) -> str:
+    """`text` with the plan's items under `[Unreleased]`, in its `### Security` section,
+    which is made at the section's end when it has none. Lines are only ever added."""
+    heading = re.search(r"^## \[Unreleased\][^\n]*\n", text, re.M)
+    if not heading:
+        raise Refused("the CHANGELOG has no `## [Unreleased]` section")
+    following = re.search(r"^## ", text[heading.end():], re.M)
+    end = heading.end() + following.start() if following else len(text)
+    section = text[heading.end():end]
+    added = "\n".join(items(plan_)) + "\n"
+    security = re.search(r"^### Security[^\n]*\n", section, re.M)
+    if security:
+        after = re.search(r"^### ", section[security.end():], re.M)
+        stop = security.end() + after.start() if after else len(section)
+        body = section[:stop].rstrip("\n") + "\n"
+        section = body + added + "\n" + section[stop:]
+    else:
+        body = section.strip("\n")
+        section = ("\n" + body + "\n" if body else "") + "\n### Security\n\n" + added + "\n"
+    return text[:heading.end()] + section + text[end:]
+
+
 def apply(plan_: dict, tree: Path) -> dict[str, str]:
-    """The files a heal changes, by name: the lock the recipe writes with the plan's pins.
-    Refused when anything moved that the plan does not name."""
+    """The files a heal changes, by name: the lock the recipe writes with the plan's pins,
+    and the CHANGELOG with an item for each. Refused when anything moved that the plan does
+    not name."""
     lock_text = (tree / LOCK).read_text(encoding="utf-8")
     pins = plan_["pins"]
     text = relock(tree, lock_text, {pin["package"]: pin["to"] for pin in pins})
@@ -259,7 +303,8 @@ def apply(plan_: dict, tree: Path) -> dict[str, str]:
     stray = unplanned(locked(lock_text), locked(text), pins)
     if stray:
         raise Refused("the re-lock moved what the plan does not name: " + "; ".join(stray))
-    return {LOCK: text}
+    return {LOCK: text,
+            CHANGELOG: changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)}
 
 
 def main(argv: list[str] | None = None) -> int:
