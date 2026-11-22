@@ -395,13 +395,21 @@ def judge_gates(tracks: dict, data: dict, *, ranking_first: bool | None,
 TOLERANCE = 2.0
 
 
-def compare(result: dict, baseline: dict) -> list[str]:
+def compare(result: dict, baseline: dict, *, exact: bool = False) -> list[str]:
     """What fails against the baseline: a track more than `TOLERANCE` points under
-    it, or a gate judged and failed. A track this run did not measure is not judged."""
+    it, or a gate judged and failed. A track this run did not measure is not judged.
+
+    `exact` is for a release that no one reads first (R45.6): every track must be
+    measured and equal its baseline, since a Score that moved in either direction means
+    valvur reports something else."""
     failures = []
     for name, recorded in (baseline.get("tracks") or {}).items():
         track = result["tracks"].get(name)
-        if track is not None and track["score"] < recorded - TOLERANCE:
+        if exact and track is None:
+            failures.append(f"{name}: not measured, and its baseline is {recorded}")
+        elif exact and track["score"] != recorded:
+            failures.append(f"{name}: {track['score']}, not its baseline of {recorded} exactly")
+        elif track is not None and track["score"] < recorded - TOLERANCE:
             failures.append(f"{name}: {track['score']}, more than {TOLERANCE:g} points "
                             f"under its baseline of {recorded}")
     for name, track in result["tracks"].items():
@@ -547,6 +555,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--speed", type=Path, metavar="ACCEPTANCE_REPORT",
                         help="judge the speed gate from an acceptance report run with "
                         "--rescan, against the baseline's median warm scan (R14.5)")
+    parser.add_argument("--exact", action="store_true",
+                        help="with --compare: fail unless every track is measured and "
+                        "equals its baseline (R45.6)")
     parser.add_argument("--fresh", action="store_true",
                         help="run every Scanner, reusing no stored result (R14.3)")
     parser.add_argument("--rules-measured", type=Path, metavar="PATH",
@@ -556,6 +567,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="measure each rule in RULES over tracks 1 and 2 and the "
                         "corpus instead (R13.2, D29)")
     args = parser.parse_args(argv)
+    if args.exact and not args.compare:
+        print("eval: --exact needs --compare BASELINE", file=sys.stderr)
+        return 2
     image = os.environ.get("VALVUR_IMAGE", "valvur:dev")
     if args.per_rule:
         report = per_rule(args.per_rule, args.work.resolve(), image=image)
@@ -578,7 +592,7 @@ def main(argv: list[str] | None = None) -> int:
         rules_measured(result, args.rules_measured)
     status = 0
     if args.compare:
-        failures = compare(result, json.loads(args.compare.read_text()))
+        failures = compare(result, json.loads(args.compare.read_text()), exact=args.exact)
         for failure in failures:
             print(f"FAIL {failure}")
         status = 1 if failures else 0

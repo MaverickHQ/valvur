@@ -4,7 +4,7 @@
 # platform (task 23.4.1). The image installs from it with --require-hashes.
 #
 #   scripts/lock-checkov.sh          # after editing requirements-checkov.in
-#   scripts/lock-checkov.sh --upgrade-package aiohttp --constraint pins.txt
+#   scripts/lock-checkov.sh --upgrade-package aiohttp==3.14.5
 #
 # It is the lock's one writer (R42.3, R42.4): `lock.yml` runs it again on every pull
 # request that changes the lock, and the lock must come back byte for byte. Extra

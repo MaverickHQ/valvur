@@ -15,10 +15,9 @@ session, one request scans the project and writes a report into it that is fast,
 honest about why not, and trustworthy. Locally. **On target is the Score** (R9, ADR-0026):
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
-**Status (2026-11-01).** **`1.6.1` is published**: the Go Scanners built from their release's
-source (D81w), and the image gated as it ships with nothing accepted; the Score **74.1** over
-nine. **Next:** R44 to R47, [Phase D](.kiro/specs/self-healing-supply-chain/) of the self-healing
-supply chain, once the owner's three settings exist; R47.4 is re-planned for D81w first.
+**Status (2026-11-22).** **`1.6.2` is published**; the Score **74.1** over nine. **Building:**
+R44 to R46, [the heal](.kiro/specs/self-healing-supply-chain/): its scripts exist, its workflows
+wait for the owner's session. **Next:** [signal and adoption](.kiro/specs/signal-and-adoption/).
 
 ## 2. What it is NOT
 
@@ -84,8 +83,8 @@ new argument.
 | 0019 | One image with Checkov in it. Reopened by R4.1 (ADR-0023) and upheld: Checkov stays, run only where there is infrastructure other than workflows. |
 | 0020 | Release is stage, validate, promote; the brake sits before the irreversible step. |
 
-**Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0031 on 2026-09-29, written by
-R9.2 from `tasks.md` §5, which holds every other decision the build needs, with fallbacks.
+**Agreed by the owner:** 0021 to 0025 on 2026-09-27; 0026 to 0031 on 2026-09-29. `tasks.md`
+§5 holds every other decision, with fallbacks. **0032 is proposed:** the owner's row to accept.
 
 | ADR | decision |
 |---|---|
@@ -100,6 +99,7 @@ R9.2 from `tasks.md` §5, which holds every other decision the build needs, with
 | 0029 | Static-analysis rules from licence-audited sources, each shipped only on measured precision |
 | 0030 | Trivy's and OSV-Scanner's results reused when their inputs and data are unchanged |
 | 0031 | One skill in the open Agent Skills format, shipped as a Claude Code plugin, a Kiro power and by `init --write`; no separate agent |
+| 0032 | A security patch the heal tags promotes after a 12-hour delay the owner can cancel; never a release that changes what valvur reports |
 
 ## 7. The Results Folder
 
