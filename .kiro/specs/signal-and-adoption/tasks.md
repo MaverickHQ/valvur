@@ -570,7 +570,7 @@ that fired on the corpus; the three hygiene tests hold.
     `generic-api-key` 26, `insecure-cookie` 8, `open-redirect` 7, `curl-auth-header` 6,
     `path-traversal` 6, `ssrf` 2, and one each of five rules.
 
-- [ ] **R49.4** **A secret in test material** (D82c, D82f).
+- [x] **R49.4** **A secret in test material** (D82c, D82f).
   **Seam:** the secrets track's generator in `scripts/eval/twins.py` and
   `eval.run(["secrets"], …)`; `api.scan` over `LocalRuntime` with canned Gitleaks output;
   `pathclass.of`. Behaviours:
@@ -590,7 +590,36 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] **R49.5** **The rules that can be narrowed** (D82e).
+  **STATUS 2026-11-22:** ✅ 1 to 7 (`b74b154`, `51720db`), in `tests/test_tier_table.py`,
+  `tests/test_eval_twins.py` and `tests/test_path_classes.py`.
+  - **The closing run,** on the dev machine at `51720db`, `valvur:dev`
+    `sha256:61934a8a9837`, with `--compare`, which passed:
+
+    | track | baseline | this run |
+    |---|---|---|
+    | secrets | 100.0, 40 cases | **100.0, 58 cases** |
+    | JavaScript | 55.0 | 55.0 |
+    | agent configuration | 94.3 | 94.3 |
+    | infrastructure | 95.0 | 95.0 |
+    | real code | 2.3, 3 true and 168 false | **12.1, 3 true and 29 false** |
+
+  - **Every planted secret in test material is caught and active:** the 18 new cases, nine
+    provider formats under `tests/` and under `docs/`, are each reported at `low` by the
+    provider's own rule, and none is inventory.
+  - **Of the 98 false secrets on the corpus, three stay active,** the three design.md
+    named: a `generic-api-key` in a `README`, the one `pkcs12-file`, and the one
+    `slack-webhook-url`, which is a provider's format. So criterion 3.5 does not arise.
+  - **Every secrets rule with a row is silent in test material and measured:** `by_rule`
+    holds `private-key` 0 true of 35, `jwt` 0 of 29, `generic-api-key` 0 of 26 and
+    `curl-auth-header` 0 of 6, as their rows say.
+  - **All four directory names are in,** `docs_src`, `guide`, `doc` and `guides`, in one
+    commit with one parametrized test and not four slices. `doc` and `guides` hold no
+    Finding on the corpus: they are in on D82f's decision and R49.1's finding that they
+    move no planted case, not on evidence of use.
+  - **The JavaScript track does not move:** `generic-api-key` demoted everywhere would
+    cost it 10 points (R49.1), and in test material alone it costs nothing.
+
+- [x] **R49.5** **The rules that can be narrowed** (D82e).
   **Seam:** the rule run by Opengrep in `valvur:dev`, through `api.scan` with the container
   runtime, as `tests/test_python_web_rules.py` drives it (`-m e2e`); `eval.py --per-rule`
   for the two measurements. One rule at a time, in this order, each with these slices:
@@ -606,6 +635,43 @@ that fired on the corpus; the three hygiene tests hold.
   `valvur.python.path-traversal`, `valvur.javascript.ssrf`.
 
   _Requirements: 4.1, 4.2_
+
+  **STATUS 2026-11-22:** ✅ (`0445cdc`), 4 container tests in
+  `tests/test_narrowed_rules.py`, seen red on three of the four before the narrowing and
+  green after, on the dev machine, with `tests/test_python_web_rules.py`'s planted twins.
+  Measured by the whole Score at `0445cdc`, `valvur:dev` `sha256:f3995ce2a6ff`.
+
+  | rule | on the corpus, before | after | its category on the Python or JavaScript track |
+  |---|---|---|---|
+  | `open-redirect` | 0 true, 7 false | 0 and 2 | `redirect` 9 of 13, unchanged |
+  | `path-traversal` | 0 and 6 | 0 and 1 | `pathtraver` 27 of 65, unchanged |
+  | `insecure-cookie` | 0 and 8 | 0 and 8, all listed | `securecookie` 24 of 24, unchanged |
+  | `ssrf` | 0 and 2 | **0 and 2** | CWE-918 2 of 2, unchanged |
+
+  - **`open-redirect`:** a URL the router builds, `url_for(…)`, is a sanitizer. Two false
+    Findings are left, an example's own path and a test's own URL.
+  - **`path-traversal`:** a path's `name`, `suffix`, `stem` or `is_absolute()` is no sink,
+    and pytest's `request.param` is no source, for every Python taint rule that shares the
+    sources. One is left, a crawler's `file://` handler.
+  - **`insecure-cookie` was not narrowed, and took slice 4:** a row, for test material.
+    Its eight false Findings are the vulnerable form itself. Demoted everywhere it would
+    have cost the Python track 7.2 points; in test material it costs none.
+  - **`ssrf`: the narrowing is real and did not reach the corpus.** A response's headers
+    are no longer request data, which the made example showed red and then green. **The
+    two Findings on the corpus are still reported:** both are HTTP client libraries whose
+    own outgoing request is named `request`, which is what the rule names. No pattern
+    tells a client library from a server by reading one file.
+  - **A reading of the task, for the owner.** Slice 3 asks each narrowed rule to be *over
+    D82d's bar*. `open-redirect`, `path-traversal` and `ssrf` are now *unmeasured there*,
+    with 2, 1 and 2 judged Findings, none true. That is read here as not under the bar:
+    Requirement 2.3 leaves an unmeasured rule as ADR-0029 has it, and D82h says a rule
+    judged on one label is not measured. The other reading restores the old patterns and
+    lists all three everywhere, which costs the Python track 4.3 and 2.5 points for five
+    Findings.
+  - **The whole Score at this point is 76.1, from 74.1.** The real-code track is 26.7 on 3
+    true and 11 false. `--compare` fails on the Python track alone, 34.6, until R49.8.
+  - **Eleven labels now match no Finding:** the ten narrowed away, and R48.1's one. They
+    are left in the file, as that one was.
 
 - [ ] **R49.6** **Two rules the tracks lacked** (D82i).
   **Seam:** the generators in `scripts/eval/twins.py`, as `tests/test_eval_twins.py` drives
