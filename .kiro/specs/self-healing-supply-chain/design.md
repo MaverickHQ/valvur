@@ -386,6 +386,11 @@ comment, and the run that finds the cause gone closes it (`passed: "true"`). Tit
 | `release-needs-owner` | commits since the tag are not patch-class, or other machinery changed | cut the release as `docs/RELEASING.md` says |
 | `release-stopped` | a tag the heal pushed has no published release (a gate failed, or the owner cancelled) | re-run the release run, or cut the next patch |
 | `dependabot-stalled` | a dependency vulnerability Finding outside the Checkov lock has no fix on `main` after half the window | land or fix Dependabot's pull request |
+| `no-alpine-fix` | Alpine's index does not hold a fixed version of a package in the image, for both architectures (amendment 5) | wait for Alpine, or remove the package if nothing loads it |
+| `go-major` | a Go module's fix is only in a new major version, or Go's own only in another minor (amendment 5) | take the Scanner release that moves it, or Go's next minor with its checks |
+| `go-untagged` | a Go module's fix has no tagged version (amendment 5) | choose the commit by hand, as 1.6.2 did for `golang.org/x/crypto`, or wait for the tag |
+| `scanner-source` | the build fails with a raise applied, so the Scanner's own code would have to change (amendment 5) | wait for the Scanner's release, or accept the entry with an expiry |
+| `scanner-version` | only a new release of the Scanner carries the fix (amendment 5) | the Scanner upgrade, which R47 prepares |
 
 ---
 

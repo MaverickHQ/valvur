@@ -69,6 +69,9 @@ SCANNERS = {name: (prefix, module) for name, prefix, _image, module in scanner_p
 NAMES = {"GITLEAKS_RAISE": "Gitleaks", "TRIVY_RAISE": "Trivy", "OSV_SCANNER_RAISE": "OSV-Scanner",
          "SYFT_RAISE": "Syft"}
 ARGS = ("ALPINE_RAISE", *NAMES)
+#: The Dockerfile's stage that builds each Scanner, and the argument its raises are in.
+STAGES = {"gitleaks": "GITLEAKS_RAISE", "trivy": "TRIVY_RAISE", "osv": "OSV_SCANNER_RAISE",
+          "syft": "SYFT_RAISE"}
 #: The longest headline a heal commit takes before it counts its changes instead.
 HEADLINE = 72
 
@@ -192,7 +195,7 @@ def _modules(entries: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
             escalations.append({"subject": scanner, "reason": "scanner-version",
                                 "answers": answers})
             continue
-        subject = f"{module} ({scanner})"
+        subject = f"{module} in {scanner}"
         installed = re.match(r"v?(\d+)\.", about[0]["installed"])
         floors, reason = [], ""
         for entry in about:
@@ -434,6 +437,24 @@ def differs_outside(before: str, after: str) -> str:
     return ""
 
 
+def failed(plan_: dict, log: str) -> dict:
+    """The plan without the raises of the Scanner whose stage the build failed in, and that
+    Scanner escalated as `scanner-source`: its own code would have to change to take them.
+    Refused when the build failed anywhere else, which no escalation explains."""
+    stage = re.search(r"^ > \[([a-z][a-z0-9-]*) +\d+/\d+\]", log, re.M)
+    arg = STAGES.get(stage.group(1)) if stage else None
+    mine = [r for r in plan_.get("raises") or [] if r["arg"] == arg]
+    if not mine:
+        where = f"stage {stage.group(1)}" if stage else "no stage the log names"
+        raise Refused(f"the build failed in {where}, not in a Scanner this plan raises")
+    scanner = next(name for name, (prefix, _m) in SCANNERS.items() if f"{prefix}_RAISE" == arg)
+    return {**plan_,
+            "raises": [r for r in plan_["raises"] if r["arg"] != arg],
+            "escalations": [*(plan_.get("escalations") or []),
+                            {"subject": scanner, "reason": "scanner-source",
+                             "answers": sorted({a for r in mine for a in r["answers"]})}]}
+
+
 def _listed(words: list[str]) -> str:
     return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
 
@@ -521,12 +542,22 @@ def main(argv: list[str] | None = None) -> int:
     apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--out", type=Path, required=True)
     apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
+    failed_cmd = commands.add_parser(
+        "failed", help="take a Scanner's raises out of a plan whose build failed in its stage")
+    failed_cmd.add_argument("--plan", type=Path, required=True)
+    failed_cmd.add_argument("--log", type=Path, required=True, help="the build's output")
+    failed_cmd.add_argument("--out", type=Path, required=True)
     envelope_cmd = commands.add_parser(
         "envelope", help="exit 0 when two Dockerfiles are the same outside the envelope")
     envelope_cmd.add_argument("before", type=Path)
     envelope_cmd.add_argument("after", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "failed":
+            after = failed(json.loads(args.plan.read_text(encoding="utf-8")),
+                           args.log.read_text(encoding="utf-8", errors="replace"))
+            args.out.write_text(json.dumps(after, indent=2) + "\n", encoding="utf-8")
+            return 0
         if args.command == "envelope":
             where = differs_outside(args.before.read_text(encoding="utf-8"),
                                     args.after.read_text(encoding="utf-8"))

@@ -63,7 +63,7 @@ def test_the_reasons_are_the_designs_closed_list():
     section = DESIGN.read_text().split("### 8. Escalations")[1].split("\n### ")[0]
     listed = re.findall(r"^\| `([a-z-]+)` \|", section, re.M)
 
-    assert len(listed) == 12
+    assert len(listed) == 17, "the twelve of D81m, and amendment 5's five"
     assert sorted(heal.REASONS) == sorted(listed)
 
 
@@ -154,3 +154,28 @@ def test_a_finding_outside_the_checkov_lock_is_dependabot_stalled_after_half_the
     assert [(a["action"], a["title"]) for a in actions] == [
         ("open", "heal: dependabot-stalled: old-enough")]
     assert "uv.lock" in actions[0]["body"] and "CVE-2026-0005" in actions[0]["body"]
+
+
+def test_an_image_plans_escalations_are_issues_too_and_close_the_same_way(tmp_path):
+    image = {"escalations": [
+        {"subject": "busybox", "reason": "no-alpine-fix", "answers": ["CVE-2026-0001"]},
+        {"subject": "golang.org/x/crypto in trivy", "reason": "go-untagged",
+         "answers": ["GO-2026-5932"]}]}
+    (tmp_path / "image.json").write_text(json.dumps(image))
+    (tmp_path / "plan.json").write_text(json.dumps(_plan()))
+    (tmp_path / "findings.json").write_text(json.dumps({"schema": 1, "findings": []}))
+    (tmp_path / "issues.json").write_text(json.dumps([
+        _issue(9, "heal: scanner-source: syft", "…"), _issue(10, "heal: go-major: go", "…")]))
+
+    run = subprocess.run(
+        [sys.executable, str(HEAL), "escalations", "--plan", str(tmp_path / "plan.json"),
+         "--image-plan", str(tmp_path / "image.json"), "--observed",
+         str(tmp_path / "findings.json"), "--issues", str(tmp_path / "issues.json"),
+         "--now", NOW, "--run", RUN], capture_output=True, text=True, check=False)
+
+    actions = json.loads(run.stdout)["actions"]
+    assert [(a["action"], a["title"]) for a in actions] == [
+        ("open", "heal: go-untagged: golang.org/x/crypto in trivy"),
+        ("open", "heal: no-alpine-fix: busybox"),
+        ("close", "heal: go-major: go"), ("close", "heal: scanner-source: syft")]
+    assert "GO-2026-5932" in actions[0]["body"] and "pseudo-version" in actions[0]["body"]

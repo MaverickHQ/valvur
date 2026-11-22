@@ -471,9 +471,10 @@ def apply(plan_: dict, tree: Path) -> dict[str, str]:
             CHANGELOG: changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)}
 
 
-#: design.md's closed list (D81m): each reason, and what the owner decides. The first seven
-#: are a plan's, and `dependabot-stalled` is read from the run's Findings: those eight are
-#: this command's to open and to close. The other four belong to the steps that find them.
+#: design.md's closed list (D81m): each reason, and what the owner decides. Seven are a lock
+#: plan's, five an image plan's (amendment 5), and `dependabot-stalled` is read from the
+#: run's Findings: those thirteen are this command's to open and to close (`OURS`). The
+#: other four belong to the steps that find them.
 REASONS = {
     "no-fix": "No fixed version exists. Wait, replace the package, or accept the risk with "
               "a Suppression.",
@@ -492,6 +493,19 @@ REASONS = {
     "dependabot-stalled": "A dependency vulnerability outside the Checkov lock has no fix on "
                           "`main` after half the healing window. Land or fix Dependabot's "
                           "pull request.",
+    "no-alpine-fix": "Alpine's index does not hold a fixed version of this package for both "
+                     "architectures. Wait for Alpine, or remove the package if nothing "
+                     "loads it.",
+    "go-major": "The fix is only in a new major version of the module, or in another minor "
+                "of Go. Take the Scanner release that moves it, or Go's next minor with its "
+                "checks.",
+    "go-untagged": "The fix has no tagged version, and the heal never writes a "
+                   "pseudo-version. Choose the commit by hand, or wait for the tag.",
+    "scanner-source": "The build fails with the raise applied, so the Scanner's own code "
+                      "would have to change. Wait for its release, or accept the entry with "
+                      "an expiry.",
+    "scanner-version": "Only a new release of the Scanner carries the fix. Its upgrade is "
+                       "prepared by the scheduled refresh.",
     "policy-refused": "The policy refused a heal pull request. Read the reason; the pull "
                       "request stays open.",
     "checks-red": "A heal or release pull request's required checks failed twice on the same "
@@ -502,18 +516,25 @@ REASONS = {
                        "run, or cut the next patch.",
 }
 OURS = ("no-fix", "major", "new-package", "checkov", "check-failed", "young-unattested",
-        "resolution-failed", "dependabot-stalled")
+        "resolution-failed", "dependabot-stalled", "no-alpine-fix", "go-major", "go-untagged",
+        "scanner-source", "scanner-version")
 #: The Actions bot, as `gh issue list --json author` names an issue's author and a comment's.
 BOT, BOT_SAYS = "app/github-actions", "github-actions"
 _TITLE = re.compile(r"heal: ([a-z-]+): (.+)")
 _EVIDENCE = "<!-- heal-evidence: {} -->"
 
 
-def _wanted(plan_: dict, observed: list[dict], now: datetime) -> dict[str, dict]:
-    """Each cause to tell the owner of, by its issue's title: the plan's escalations, and
-    each package with a dependency vulnerability outside the Checkov lock whose advisory is
-    older than half the healing window (Requirement 11.5)."""
+def _wanted(plan_: dict, observed: list[dict], now: datetime,
+            image: dict | None = None) -> dict[str, dict]:
+    """Each cause to tell the owner of, by its issue's title: the plan's escalations, the
+    image plan's, and each package with a dependency vulnerability outside the Checkov lock
+    whose advisory is older than half the healing window (Requirement 11.5)."""
     wanted = {}
+    for escalation in (image or {}).get("escalations") or []:
+        subject, reason = _cell(escalation["subject"]), escalation["reason"]
+        wanted[f"heal: {reason}: {subject}"] = {
+            "reason": reason, "package": subject, "findings": [],
+            "rules": sorted(escalation.get("answers") or []), "details": []}
     for escalation in plan_["escalations"]:
         package, reason = _cell(escalation["package"]), escalation["reason"]
         about = [f for f in plan_["findings"] if f["fingerprint"] in escalation["findings"]]
@@ -574,7 +595,7 @@ def _said(issue: dict) -> str:
 
 
 def escalations(plan_: dict, issues: list[dict], observed: list[dict], *, now: str,
-                run: str) -> list[dict]:
+                run: str, image: dict | None = None) -> list[dict]:
     """What to do to the tracker, never done here: `open` an issue for a cause with none,
     `comment` on one whose evidence is new, `close` one whose cause has gone. Only issues the
     Actions bot opened count, so no one else's issue is ever commented on or closed."""
@@ -584,7 +605,7 @@ def escalations(plan_: dict, issues: list[dict], observed: list[dict], *, now: s
         if author.get("login") == BOT and author.get("is_bot"):
             ours[issue["title"]] = issue
     actions = []
-    wanted = _wanted(plan_, observed, _when(now))
+    wanted = _wanted(plan_, observed, _when(now), image)
     for title, cause in sorted(wanted.items()):
         evidence = hashlib.sha256(json.dumps(cause, sort_keys=True).encode()).hexdigest()[:16]
         mark = _EVIDENCE.format(evidence)
@@ -678,6 +699,8 @@ def main(argv: list[str] | None = None) -> int:
     escalate_cmd = commands.add_parser("escalations", help="print what to do to the tracker")
     escalate_cmd.add_argument("--plan", type=Path, required=True)
     escalate_cmd.add_argument("--observed", type=Path, required=True)
+    escalate_cmd.add_argument("--image-plan", type=Path,
+                              help="the image's plan, for its escalations too")
     escalate_cmd.add_argument("--issues", type=Path, required=True)
     escalate_cmd.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ")
     escalate_cmd.add_argument("--run", default="", help="this run's URL")
@@ -701,7 +724,9 @@ def main(argv: list[str] | None = None) -> int:
                 json.loads(args.plan.read_text(encoding="utf-8")),
                 json.loads(args.issues.read_text(encoding="utf-8")),
                 json.loads(args.observed.read_text(encoding="utf-8"))["findings"],
-                now=args.now, run=args.run)
+                now=args.now, run=args.run,
+                image=(json.loads(args.image_plan.read_text(encoding="utf-8"))
+                       if args.image_plan else None))
             print(json.dumps({"actions": actions}, indent=2))
             return 0
         if args.command == "body":

@@ -1013,7 +1013,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   - **Docker Hub's tag list** gives the Go and base digests, as R44.9 reads it. The plan
     asks three hosts and refuses any other, a next page's included.
 
-- [ ] **R44.13** **Apply, and the envelope** (D81x, amendment 5).
+- [x] **R44.13** **Apply, and the envelope** (D81x, amendment 5).
   **Seam:** `image_heal.py`'s `main` for `apply`, `envelope` and `escalations`;
   `heal_policy.py`'s `main(["image", …])` on a repository made in `tmp_path`. Behaviours:
   1. `apply` writes one Alpine raise into the Dockerfile and its trailer into the commit's
@@ -1036,6 +1036,34 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   **Added by the pass:** 7. `scanner-source` was in the design's table and in no task.
 
   _Requirements: 19.7, 19.8, 11.1_
+
+  **STATUS 2026-11-22:** ✅ 1 to 9, in `scripts/image_heal.py` (`apply`, `envelope`,
+  `failed`), `scripts/heal_policy.py image` and `scripts/heal.py escalations`; 25 tests in
+  `tests/test_image_heal_apply.py`, 18 in `tests/test_heal_policy_image.py`, 4 in
+  `tests/test_heal_writes.py`.
+  - **The envelope is eleven lines of the real Dockerfile:** two bases' digests, four Go
+    stages' patch and digest, five raise arguments. A base's tag, Go's minor and its image,
+    a comment and an argument that runs on are outside it.
+  - **Found by a test on the real Dockerfile:** its raise arguments are ordered by the
+    package each entry names (`otel` before `otel/sdk`), not by the whole entry. `apply`
+    sorted by the entry at first, which would have reordered three of the five. It sorts
+    by name.
+  - **The trailers are the plan,** so the policy re-applies them to the base's Dockerfile
+    and asks for the same bytes. Added to design.md's four: `Heal-Drop: <ARG> <entry>`, for
+    a raise that a new base carries.
+  - **The policy does not judge the choice of a version,** which needs the network. It
+    refuses a trailer that is not a heal's: a pseudo-version, a raise that lowers or
+    repeats, an argument that is not a raise, more than one word in an entry, Go lowered or
+    on another minor, another base, a drop of anything but an Alpine raise. Whether the
+    result still blocks is the image gate's to say, as a required check (§3's row).
+  - **`scanner-source`:** `image_heal.py failed --plan … --log …` reads the stage BuildKit
+    names as failed, takes that Scanner's raises out of the plan and escalates it. A build
+    that failed anywhere else is refused, exit 1, and explained by nothing.
+  - **The five reasons** are in design.md's table, which now lists 17, and in `heal.py
+    escalations`, which takes the image's plan with `--image-plan`. A Go module's subject
+    is `<module> in <scanner>`: a title's parentheses would have been neutralised.
+  - **Not decided here:** what the build does with an `ALPINE_RAISE` that a drop leaves
+    empty. The pull request's own build answers it, and a red check keeps it from merging.
 
 - [ ] **R44.14** 👤 **The image heal in the workflow** (D81x, D81y, amendment 5).
   **Seam:** `heal.yml` as a file, read as R44.6's shape tests read it; then a dispatched

@@ -241,3 +241,63 @@ def test_any_change_outside_the_envelope_makes_them_different(tmp_path, edit):
 
     assert run.returncode == 1
     assert run.stdout.startswith("differs outside the envelope at line ")
+
+
+LOG = """\
+#31 [trivy 3/4] RUN set -eu;     module="github.com/aquasecurity/trivy@v0.76.2"
+#31 12.40 go: golang.org/x/net@v0.62.0 requires go >= 1.28
+#31 ERROR: process "/bin/sh -c set -eu; ..." did not complete successfully: exit code: 1
+------
+ > [trivy 3/4] RUN set -eu;     module="github.com/aquasecurity/trivy@v0.76.2":
+12.40 go: golang.org/x/net@v0.62.0 requires go >= 1.28
+------
+ERROR: failed to solve: process "/bin/sh -c set -eu; ..." did not complete successfully
+"""
+
+
+def _failed(tmp_path: Path, plan: dict, log: str) -> tuple[subprocess.CompletedProcess[str], dict]:
+    (tmp_path / "plan.json").write_text(json.dumps(plan))
+    (tmp_path / "build.log").write_text(log)
+    out = tmp_path / "after.json"
+    run = subprocess.run([sys.executable, str(IMAGE_HEAL), "failed", "--plan",
+                          str(tmp_path / "plan.json"), "--log", str(tmp_path / "build.log"),
+                          "--out", str(out)], capture_output=True, text=True, check=False)
+    return run, json.loads(out.read_text()) if out.is_file() else {}
+
+
+def test_a_build_that_fails_in_a_raised_scanners_stage_is_scanner_source(tmp_path):
+    plan = _plan(raises=[_raise("ALPINE_RAISE", "tzdata=2026b-r0", ["CVE-2026-0003"]),
+                         _raise("TRIVY_RAISE", "golang.org/x/net@v0.62.0", ["CVE-2026-0010"]),
+                         _raise("TRIVY_RAISE", "golang.org/x/text@v0.30.1", ["CVE-2026-0012"]),
+                         _raise("SYFT_RAISE", "golang.org/x/net@v0.62.0", ["CVE-2026-0010"])])
+
+    run, after = _failed(tmp_path, plan, LOG)
+
+    assert run.returncode == 0, run.stderr
+    assert [r["arg"] for r in after["raises"]] == ["ALPINE_RAISE", "SYFT_RAISE"]
+    assert after["escalations"] == [{"subject": "trivy", "reason": "scanner-source",
+                                     "answers": ["CVE-2026-0010", "CVE-2026-0012"]}]
+
+
+def test_when_only_that_scanner_was_raised_nothing_is_left_to_propose(tmp_path):
+    plan = _plan(raises=[_raise("TRIVY_RAISE", "golang.org/x/net@v0.62.0", ["CVE-2026-0010"])])
+
+    _run, after = _failed(tmp_path, plan, LOG)
+    applied, out = _apply(tmp_path, after)
+
+    assert after["raises"] == []
+    assert applied.returncode == 0 and applied.stdout == "" and not out.exists()
+
+
+@pytest.mark.parametrize("log", [
+    pytest.param(LOG.replace("[trivy 3/4]", "[stage-5 7/12]"), id="the-final-stage"),
+    pytest.param(LOG.replace("[trivy 3/4]", "[syft 3/4]"), id="a-scanner-with-no-raise"),
+    pytest.param("ERROR: failed to solve: failed to fetch anything\n", id="no-stage-named"),
+])
+def test_a_build_that_fails_elsewhere_is_not_explained_away(tmp_path, log):
+    plan = _plan(raises=[_raise("TRIVY_RAISE", "golang.org/x/net@v0.62.0", ["CVE-2026-0010"])])
+
+    run, after = _failed(tmp_path, plan, log)
+
+    assert run.returncode == 1
+    assert "not in a Scanner" in run.stderr and after == {}

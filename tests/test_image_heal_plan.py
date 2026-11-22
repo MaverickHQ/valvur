@@ -179,7 +179,7 @@ def test_a_fix_only_in_a_new_major_is_go_major(tmp_path, monkeypatch):
     _run, plan = _plan(tmp_path, monkeypatch, blocking, {})
 
     assert plan["raises"] == []
-    assert plan["escalations"] == [{"subject": "github.com/example/mod (trivy)",
+    assert plan["escalations"] == [{"subject": "github.com/example/mod in trivy",
                                     "reason": "go-major", "answers": ["CVE-2026-0013"]}]
 
 
@@ -193,7 +193,7 @@ def test_a_fix_with_no_tagged_version_is_go_untagged_and_no_pseudo_version_is_wr
                       _tags("golang.org/x/crypto", "v0.57.0", "v0.58.0"))
 
     assert plan["raises"] == []
-    assert plan["escalations"] == [{"subject": "golang.org/x/crypto (trivy)",
+    assert plan["escalations"] == [{"subject": "golang.org/x/crypto in trivy",
                                     "reason": "go-untagged", "answers": ["GO-2026-5932"]}]
     assert "2f1f834330b2" not in json.dumps(plan["raises"]) and run.returncode == 0
 
