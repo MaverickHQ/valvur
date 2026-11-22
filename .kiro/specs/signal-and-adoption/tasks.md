@@ -118,8 +118,17 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
   3. `by_scanner` holds each Scanner's Findings and how many were judged. A dependency
      Scanner's are counted, with none judged.
   4. A baseline written before these keys existed still compares, with nothing reported.
+  5. With `--jobs 4` the corpus's projects are scanned four at a time, and the report is the
+     one `--jobs 1` gives, key for key. The default is 1.
+  6. A project whose scan fails under `--jobs 4` leaves the track incomplete and is named,
+     as it is one at a time.
 
-  *Closes with:* the track on the real corpus, at 2.3 with 3 true and 168 false.
+  **Added 2026-11-22, after checkpoint C, at the owner's word:** 5 and 6. On the dev machine
+  the track's 48 scans take 302 s four at a time and 477 s one at a time (design.md, *How
+  the build runs*).
+
+  *Closes with:* the track on the real corpus, at 2.3 with 3 true and 168 false, at both
+  job counts, with each one's time in the STATUS.
 
   _Requirements: 1.1_
 
