@@ -787,12 +787,28 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 7.4, 8.3, 8.4, 8.5, 12.1 to 12.5_
 
-- [ ] **R44.7** **Checkov's new versions, for the owner** (D81q). Behaviours:
+- [x] **R44.7** **Checkov's new versions, for the owner** (D81q). Behaviours:
   1. On a Monday's first run, a newer Checkov past the cooldown gives mode `checkov`.
   2. The plan edits `requirements-checkov.in` and re-locks with `--upgrade-package checkov`.
   3. The pull request is opened, and the policy leaves it for the owner because Checkov moved.
      No escalation issue is opened: the pull request is the notice.
   4. An open Checkov pull request is rebuilt, never duplicated.
+
+  **STATUS 2026-11-22:** ✅ 1 to 4 as far as a script goes, in `scripts/heal.py` (`mode`,
+  `plan --checkov`, and `apply`, `verify`, `body` for such a plan); 11 tests in
+  `tests/test_heal_checkov.py`.
+  - **Changed: any run of a Monday, not the first.** GitHub starts a scheduled run hours
+    after its cron (the nightly, 8 hours late on five days of November), so *the first run
+    of a Monday* cannot be told by the clock. `mode` says `checkov` on every Monday run
+    while a newer Checkov is past the cooldown, and the same plan makes the same bytes,
+    which a test holds, so a later run that day changes nothing.
+  - **The plan lists every package that moves with Checkov,** and `apply` refuses a re-lock
+    that moves anything else. The artifact is three files: the requirement with its pin
+    moved, the lock, and the CHANGELOG with one item under `### Changed`.
+  - **The policy leaves it for the owner** by its first check: `requirements-checkov.in` is
+    not a file a heal changes. No issue is opened for it.
+  - **Behaviour 4's other half is the workflow's:** finding the open pull request and
+    rebuilding its branch is `propose`, in R44.6.
 
 - [ ] **R44.8** **The live proof**. Behaviours:
   1. Once the App exists (§3) and R44 has landed: the first real heal, end to end. The App

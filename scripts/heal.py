@@ -75,7 +75,9 @@ CHECKOV = "checkov"
 MONDAY = 0
 RECIPE = "scripts/lock-checkov.sh"
 #: What the recipe reads beside the lock it rewrites.
-RECIPE_READS = (RECIPE, "requirements-checkov.in", "requirements-checkov.overrides")
+REQUIREMENT = "requirements-checkov.in"
+RECIPE_READS = (RECIPE, REQUIREMENT, "requirements-checkov.overrides")
+_CHECKOV_PIN = re.compile(r"^checkov==\S+$", re.M)
 
 _PINNED = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s\\;]+)", re.M)
 
@@ -121,16 +123,20 @@ def mode(findings: list[dict], lock_text: str, *, lock: str, now: str) -> str:
     return "none"
 
 
-def relock(tree: Path, lock_text: str, pins: dict[str, str]) -> str | None:
+def relock(tree: Path, lock_text: str, pins: dict[str, str],
+           requirement: str | None = None) -> str | None:
     """The lock the recipe writes from `lock_text` with each pin on `--upgrade-package`,
     in a copy of the tree's recipe, so the tree is never written. None when the recipe
-    fails: the pins cannot be resolved together."""
+    fails: the pins cannot be resolved together. `requirement` stands in for the tree's
+    `requirements-checkov.in`, for a plan that moves Checkov."""
     with tempfile.TemporaryDirectory(prefix="valvur-heal-") as scratch:
         copy = Path(scratch)
         (copy / "scripts").mkdir()
         for name in RECIPE_READS:
             shutil.copy(tree / name, copy / name)
         (copy / LOCK).write_text(lock_text, encoding="utf-8")
+        if requirement is not None:
+            (copy / REQUIREMENT).write_text(requirement, encoding="utf-8")
         arguments = [word for name, version in sorted(pins.items())
                      for word in ("--upgrade-package", f"{name}=={version}")]
         run = subprocess.run(["sh", str(copy / RECIPE), *arguments],  # noqa: S603
@@ -257,7 +263,7 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str, tree: Pat
             if held is None or version_key(pin["to"]) > version_key(held["to"]):
                 pins[pin["package"]] = pin
     return {
-        "schema": SCHEMA, "made": now, "lock": lock,
+        "schema": SCHEMA, "mode": "heal", "made": now, "lock": lock,
         "findings": [{"rule": f["rule"], "fingerprint": f.get("fingerprint", ""),
                       "package": _name(f["dependency"]["package"]),
                       "version": f["dependency"].get("version", ""),
@@ -273,12 +279,50 @@ class Refused(Exception):
     """The heal's own result is not what its plan says."""
 
 
+def requirement_for(tree: Path, version: str) -> str:
+    """The tree's `requirements-checkov.in` with its one Checkov pin at `version`."""
+    text = (tree / REQUIREMENT).read_text(encoding="utf-8")
+    if len(_CHECKOV_PIN.findall(text)) != 1:
+        raise Refused(f"{REQUIREMENT} does not pin Checkov exactly once")
+    return _CHECKOV_PIN.sub(f"checkov=={version}", text)
+
+
+def plan_checkov(lock_text: str, *, lock: str, now: str, tree: Path) -> dict:
+    """The weekly plan (D81q): the newest final Checkov past the cooldown, re-locked by the
+    recipe from an edited requirement, with every package that moves with it. For the
+    owner: the policy never merges a pull request in which Checkov moved."""
+    made: dict = {"schema": SCHEMA, "mode": "checkov", "made": now, "lock": lock,
+                  "findings": [], "pins": [], "escalations": []}
+    have = locked(lock_text)
+    newer = newer_checkov(have[CHECKOV], _when(now))
+    if newer is None:
+        return made
+    text = relock(tree, lock_text, {CHECKOV: newer.version},
+                  requirement_for(tree, newer.version))
+    if text is None:
+        made["escalations"] = [{"package": CHECKOV, "reason": "resolution-failed",
+                                "findings": []}]
+        return made
+    after = locked(text)
+    pins = [{"package": CHECKOV, "from": have[CHECKOV], "to": newer.version,
+             "why": "a new version", "rule": "cooldown", "uploaded": newer.uploaded}]
+    pins += [{"package": package, "from": have.get(package, ""), "to": after.get(package, ""),
+              "why": f"moves with checkov {newer.version}", "rule": "resolution"}
+             for package in sorted(set(have) | set(after))
+             if package != CHECKOV and have.get(package) != after.get(package)]
+    if flagged([pin for pin in pins if pin["to"]], tree):
+        made["escalations"] = [{"package": CHECKOV, "reason": "check-failed", "findings": []}]
+        return made
+    made["pins"] = pins
+    return made
+
+
 def unplanned(before: dict[str, str], after: dict[str, str], pins: list[dict]) -> list[str]:
     """What differs between two locks that the pins do not account for, one line each."""
     planned = {pin["package"]: (pin["from"], pin["to"]) for pin in pins}
     found = []
     for package in sorted(set(before) | set(after)):
-        was, now = before.get(package), after.get(package)
+        was, now = before.get(package, ""), after.get(package, "")
         if planned.get(package, (was, was)) != (was, now):
             found.append(f"{package}: {was or 'absent'} to {now or 'absent'}")
     return found
@@ -291,6 +335,12 @@ def _listed(words: list[str]) -> str:
 def items(plan_: dict) -> list[str]:
     """One `### Security` item for each package the plan moves: the two versions, and the
     advisories it answers or the fix that requires it."""
+    if plan_.get("mode") == "checkov":
+        checkov = plan_["pins"][0]
+        others = [f"{pin['package']} {pin['to']}" if pin["to"] else f"{pin['package']} removed"
+                  for pin in plan_["pins"][1:]]
+        return [f"- **Checkov {checkov['to']} in the image,** from {checkov['from']}"
+                + (f", with {_listed(others)}." if others else ".")]
     made = []
     for pin in sorted(plan_["pins"], key=lambda pin: pin["package"]):
         if pin["why"] == "fix":
@@ -308,11 +358,14 @@ def message(plan_: dict, run: str) -> str:
     """The heal commit's message: a headline that names each fix while it fits in a line,
     then the trailers the policy and the report read (design.md, *Trailers*)."""
     pins = sorted(plan_["pins"], key=lambda pin: pin["package"])
-    fixes = [f"{pin['package']} {pin['to']}" for pin in pins if pin["why"] == "fix"]
-    headline = f"fix: {_listed(fixes)} in the Checkov lock, by the heal"
-    if len(headline) > HEADLINE:
-        headline = f"fix: {len(fixes)} packages in the Checkov lock, by the heal"
-    trailers = [f"Heal-Pin: {pin['package']}=={pin['to']}" for pin in pins]
+    if plan_.get("mode") == "checkov":
+        headline = f"chore: Checkov {plan_['pins'][0]['to']} in the lock, prepared by the heal"
+    else:
+        fixes = [f"{pin['package']} {pin['to']}" for pin in pins if pin["why"] == "fix"]
+        headline = f"fix: {_listed(fixes)} in the Checkov lock, by the heal"
+        if len(headline) > HEADLINE:
+            headline = f"fix: {len(fixes)} packages in the Checkov lock, by the heal"
+    trailers = [f"Heal-Pin: {pin['package']}=={pin['to']}" for pin in pins if pin["to"]]
     trailers += [f"Heal-Advisory: {f['rule']} {f['package']} published "
                  f"{f.get('advisory_published') or 'unknown'}"
                  for f in sorted(plan_["findings"], key=lambda f: (f["package"], f["rule"]))
@@ -329,6 +382,8 @@ def _cell(text: object) -> str:
 
 
 def _evidence(pin: dict, made: datetime) -> str:
+    if pin["rule"] == "resolution":
+        return "resolution: the recipe moved it with Checkov"
     age = made - _when(pin["uploaded"])
     day = pin["uploaded"][:10]
     if pin["rule"] == "cooldown":
@@ -346,8 +401,12 @@ def body(plan_: dict, run: str) -> str:
     pins = sorted(plan_["pins"], key=lambda pin: pin["package"])
     moved = {pin["package"] for pin in pins}
     lines = [
-        "A heal of the Checkov lock, made by rule from the plan below (`scripts/heal.py`). "
-        "No person and no model chose a version.",
+        ("A newer Checkov, re-locked by the recipe from the plan below (`scripts/heal.py`). "
+         "It is for the owner to read and land: the policy never merges a pull request in "
+         "which Checkov moved."
+         if plan_.get("mode") == "checkov" else
+         "A heal of the Checkov lock, made by rule from the plan below (`scripts/heal.py`). "
+         "No person and no model chose a version."),
         "", "## What moves", "",
         "| package | from | to | why | the rule, and its evidence |", "|---|---|---|---|---|",
         *(f"| {_cell(pin['package'])} | {_cell(pin['from'])} | {_cell(pin['to'])} | "
@@ -368,8 +427,10 @@ def body(plan_: dict, run: str) -> str:
 
 
 def changelog(text: str, plan_: dict) -> str:
-    """`text` with the plan's items under `[Unreleased]`, in its `### Security` section,
-    which is made at the section's end when it has none. Lines are only ever added."""
+    """`text` with the plan's items under `[Unreleased]`: in its `### Security` section, or
+    `### Changed` for a new Checkov, which is made at the section's end when it has none.
+    Lines are only ever added."""
+    under = "### Changed" if plan_.get("mode") == "checkov" else "### Security"
     heading = re.search(r"^## \[Unreleased\][^\n]*\n", text, re.M)
     if not heading:
         raise Refused("the CHANGELOG has no `## [Unreleased]` section")
@@ -377,7 +438,7 @@ def changelog(text: str, plan_: dict) -> str:
     end = heading.end() + following.start() if following else len(text)
     section = text[heading.end():end]
     added = "\n".join(items(plan_)) + "\n"
-    security = re.search(r"^### Security[^\n]*\n", section, re.M)
+    security = re.search(rf"^{under}[^\n]*\n", section, re.M)
     if security:
         after = re.search(r"^### ", section[security.end():], re.M)
         stop = security.end() + after.start() if after else len(section)
@@ -385,7 +446,7 @@ def changelog(text: str, plan_: dict) -> str:
         section = body + added + "\n" + section[stop:]
     else:
         body = section.strip("\n")
-        section = ("\n" + body + "\n" if body else "") + "\n### Security\n\n" + added + "\n"
+        section = ("\n" + body + "\n" if body else "") + f"\n{under}\n\n" + added + "\n"
     return text[:heading.end()] + section + text[end:]
 
 
@@ -395,13 +456,18 @@ def apply(plan_: dict, tree: Path) -> dict[str, str]:
     not name."""
     lock_text = (tree / LOCK).read_text(encoding="utf-8")
     pins = plan_["pins"]
-    text = relock(tree, lock_text, {pin["package"]: pin["to"] for pin in pins})
+    files = {}
+    if plan_.get("mode") == "checkov":
+        files[REQUIREMENT] = requirement_for(tree, pins[0]["to"])
+        text = relock(tree, lock_text, {CHECKOV: pins[0]["to"]}, files[REQUIREMENT])
+    else:
+        text = relock(tree, lock_text, {pin["package"]: pin["to"] for pin in pins})
     if text is None:
         raise Refused("the recipe failed with the plan's pins")
     stray = unplanned(locked(lock_text), locked(text), pins)
     if stray:
         raise Refused("the re-lock moved what the plan does not name: " + "; ".join(stray))
-    return {LOCK: text,
+    return {**files, LOCK: text,
             CHANGELOG: changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)}
 
 
@@ -567,10 +633,12 @@ def parse_lock(text: str) -> dict[str, str]:
 def verify(plan_: dict, tree: Path, directory: Path) -> None:
     """Refuse an artifact that is not what `apply` writes from this plan, read as data: no
     recipe runs here and no package's code. The policy runs the recipe again (R44.4)."""
+    checkov = plan_.get("mode") == "checkov"
+    belong = (LOCK, CHANGELOG, REQUIREMENT) if checkov else (LOCK, CHANGELOG)
     held = sorted(path.name for path in directory.iterdir())
-    if held != sorted((LOCK, CHANGELOG)):
+    if held != sorted(belong):
         raise Refused(f"the artifact holds {', '.join(held) or 'nothing'}: "
-                      f"only {LOCK} and {CHANGELOG} belong in it")
+                      f"only {' and '.join(belong)} belong in it")
     for name in held:
         if (directory / name).is_symlink() or not (directory / name).is_file():
             raise Refused(f"the artifact's {name} is not a plain file")
@@ -582,13 +650,19 @@ def verify(plan_: dict, tree: Path, directory: Path) -> None:
     wanted = changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)
     if (directory / CHANGELOG).read_text(encoding="utf-8") != wanted:
         raise Refused("the CHANGELOG is not the tree's with the plan's items added")
+    if checkov:
+        wanted = requirement_for(tree, plan_["pins"][0]["to"])
+        if (directory / REQUIREMENT).read_text(encoding="utf-8") != wanted:
+            raise Refused(f"{REQUIREMENT} is not the tree's with Checkov's pin moved")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
     plan_cmd = commands.add_parser("plan", help="write plan.json from a Scan Run's Findings")
-    plan_cmd.add_argument("--findings", type=Path, required=True)
+    plan_cmd.add_argument("--findings", type=Path)
+    plan_cmd.add_argument("--checkov", action="store_true",
+                          help="the weekly plan for a newer Checkov, in place of a heal's")
     plan_cmd.add_argument("--lock", type=Path, required=True)
     plan_cmd.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ")
     plan_cmd.add_argument("--out", type=Path, required=True)
@@ -645,9 +719,15 @@ def main(argv: list[str] | None = None) -> int:
                 (args.out / name).write_text(text, encoding="utf-8")
             sys.stdout.write(message(read, args.run))
             return 0
-        findings = json.loads(args.findings.read_text(encoding="utf-8"))["findings"]
-        made = plan(findings, args.lock.read_text(encoding="utf-8"),
-                    lock=args.lock.name, now=args.now, tree=args.lock.resolve().parent)
+        if args.checkov:
+            made = plan_checkov(args.lock.read_text(encoding="utf-8"), lock=args.lock.name,
+                                now=args.now, tree=args.lock.resolve().parent)
+        else:
+            if args.findings is None:
+                raise ValueError("plan needs --findings, or --checkov")
+            findings = json.loads(args.findings.read_text(encoding="utf-8"))["findings"]
+            made = plan(findings, args.lock.read_text(encoding="utf-8"),
+                        lock=args.lock.name, now=args.now, tree=args.lock.resolve().parent)
     except Refused as error:
         print(f"heal: refused: {error}", file=sys.stderr)
         return 1
