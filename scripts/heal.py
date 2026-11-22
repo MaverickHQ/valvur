@@ -61,6 +61,11 @@ SCHEMA = 1
 COOLDOWN = timedelta(days=7)
 #: D81e: the least age of a version taken before the cooldown, on its publisher's word.
 YOUNG = timedelta(hours=24)
+#: Half the nightly's healing window of 48 hours (D81b): how long Dependabot has to land a
+#: fix outside the Checkov lock before the owner hears of it.
+HALF_WINDOW = timedelta(hours=24)
+#: How far out the Suppression that a `no-fix` issue describes would expire.
+SUPPRESSION = timedelta(days=30)
 LOCK = "requirements-checkov.txt"
 CHANGELOG = "CHANGELOG.md"
 #: The longest headline a heal commit takes before it counts its fixes instead.
@@ -417,17 +422,61 @@ _TITLE = re.compile(r"heal: ([a-z-]+): (.+)")
 _EVIDENCE = "<!-- heal-evidence: {} -->"
 
 
-def _wanted(plan_: dict) -> dict[str, dict]:
-    """Each escalation the plan holds, by its issue's title."""
+def _wanted(plan_: dict, observed: list[dict], now: datetime) -> dict[str, dict]:
+    """Each cause to tell the owner of, by its issue's title: the plan's escalations, and
+    each package with a dependency vulnerability outside the Checkov lock whose advisory is
+    older than half the healing window (Requirement 11.5)."""
     wanted = {}
     for escalation in plan_["escalations"]:
         package, reason = _cell(escalation["package"]), escalation["reason"]
-        rules = sorted({f["rule"] for f in plan_["findings"]
-                        if f["fingerprint"] in escalation["findings"]})
+        about = [f for f in plan_["findings"] if f["fingerprint"] in escalation["findings"]]
         wanted[f"heal: {reason}: {package}"] = {
             "reason": reason, "package": package, "findings": sorted(escalation["findings"]),
-            "rules": rules}
+            "rules": sorted({f["rule"] for f in about}),
+            "details": [{"rule": f["rule"], "fingerprint": f["fingerprint"],
+                         "version": f.get("version", ""), "path": plan_["lock"]}
+                        for f in sorted(about, key=lambda f: f["rule"])]}
+    for finding in observed:
+        dependency = finding.get("dependency") or {}
+        published = dependency.get("advisory_published") or ""
+        if (not verdict.active(finding) or not dependency.get("package") or not published
+                or finding.get("path") == plan_["lock"]
+                or now - _when(published) < HALF_WINDOW):
+            continue
+        package = _cell(_name(dependency["package"]))
+        cause = wanted.setdefault(f"heal: dependabot-stalled: {package}", {
+            "reason": "dependabot-stalled", "package": package, "findings": [], "rules": [],
+            "details": []})
+        cause["findings"] = sorted({*cause["findings"], finding.get("fingerprint", "")})
+        cause["rules"] = sorted({*cause["rules"], finding["rule"]})
+        cause["details"].append({"rule": finding["rule"],
+                                 "fingerprint": finding.get("fingerprint", ""),
+                                 "version": dependency.get("version", ""),
+                                 "path": finding.get("path", "")})
     return wanted
+
+
+def _told(cause: dict, now: datetime) -> list[str]:
+    """What the issue says of one cause, beyond its reason."""
+    lines = ["Advisories: " + (", ".join(_cell(r) for r in cause["rules"]) or "none named")
+             + "."]
+    if cause["reason"] == "dependabot-stalled":
+        paths = sorted({_cell(d["path"]) for d in cause["details"]})
+        lines.append("Found at " + ", ".join(f"`{path}`" for path in paths) + ".")
+    if cause["reason"] == "no-fix":
+        expires = (now + SUPPRESSION).strftime("%Y-%m-%d")
+        lines += ["", "If the risk is accepted, the Suppression would be this, in "
+                      "`.security-scan.toml`. The heal does not write it, and nothing "
+                      "automated does: a Suppression is a decision."]
+        for detail in cause["details"]:
+            lines += ["", f"For {cause['package']} {_cell(detail['version'])}:", "",
+                      "```toml", "[[suppress]]",
+                      f'fingerprint = "{_cell(detail["fingerprint"])}"',
+                      f'rule = "{_cell(detail["rule"])}"',
+                      f'path = "{_cell(detail["path"])}"',
+                      f'expires = "{expires}"',
+                      'reason = "<why this risk is accepted>"', "```"]
+    return lines
 
 
 def _said(issue: dict) -> str:
@@ -437,7 +486,8 @@ def _said(issue: dict) -> str:
                         if (c.get("author") or {}).get("login") == BOT_SAYS)])
 
 
-def escalations(plan_: dict, issues: list[dict], *, run: str) -> list[dict]:
+def escalations(plan_: dict, issues: list[dict], observed: list[dict], *, now: str,
+                run: str) -> list[dict]:
     """What to do to the tracker, never done here: `open` an issue for a cause with none,
     `comment` on one whose evidence is new, `close` one whose cause has gone. Only issues the
     Actions bot opened count, so no one else's issue is ever commented on or closed."""
@@ -447,14 +497,13 @@ def escalations(plan_: dict, issues: list[dict], *, run: str) -> list[dict]:
         if author.get("login") == BOT and author.get("is_bot"):
             ours[issue["title"]] = issue
     actions = []
-    for title, cause in sorted(_wanted(plan_).items()):
+    wanted = _wanted(plan_, observed, _when(now))
+    for title, cause in sorted(wanted.items()):
         evidence = hashlib.sha256(json.dumps(cause, sort_keys=True).encode()).hexdigest()[:16]
         mark = _EVIDENCE.format(evidence)
         failed = (f"The heal could not move {cause['package']} "
                   f"({cause['reason']}), in {_cell(run)}")
-        told = [REASONS[cause["reason"]], "",
-                "Advisories: " + (", ".join(_cell(r) for r in cause["rules"]) or "none named")
-                + ".", "", mark]
+        told = [REASONS[cause["reason"]], "", *_told(cause, _when(now)), "", mark]
         action = {"title": title, "failed": failed, "body": "\n".join(told)}
         if title not in ours:
             actions.append({"action": "open", **action})
@@ -462,7 +511,7 @@ def escalations(plan_: dict, issues: list[dict], *, run: str) -> list[dict]:
             actions.append({"action": "comment", "number": ours[title]["number"], **action})
     for title, issue in sorted(ours.items()):
         named = _TITLE.fullmatch(title)
-        if named and named.group(1) in OURS and title not in _wanted(plan_):
+        if named and named.group(1) in OURS and title not in wanted:
             actions.append({"action": "close", "number": issue["number"], "title": title,
                             "comment": f"The cause has gone, as of {_cell(run)}."})
     return actions
@@ -544,9 +593,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "escalations":
-            actions = escalations(json.loads(args.plan.read_text(encoding="utf-8")),
-                                  json.loads(args.issues.read_text(encoding="utf-8")),
-                                  run=args.run)
+            actions = escalations(
+                json.loads(args.plan.read_text(encoding="utf-8")),
+                json.loads(args.issues.read_text(encoding="utf-8")),
+                json.loads(args.observed.read_text(encoding="utf-8"))["findings"],
+                now=args.now, run=args.run)
             print(json.dumps({"actions": actions}, indent=2))
             return 0
         if args.command == "body":

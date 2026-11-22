@@ -109,3 +109,48 @@ def test_issues_that_are_not_this_steps_to_close_are_left_alone(tmp_path):
     actions = _escalations(tmp_path, _plan(MAJOR), issues=others)
 
     assert [(a["action"], a["title"]) for a in actions] == [("open", "heal: major: beta")]
+
+
+def test_a_no_fix_issue_describes_the_suppression_and_nothing_writes_one(tmp_path):
+    finding = {"rule": "CVE-2026-0009", "fingerprint": "0123456789abcdef", "package": "orjson",
+               "version": "3.12.0", "fixed_version": "", "severity": "high",
+               "advisory_published": "2026-10-19T16:47:35Z"}
+    plan = _plan({"package": "orjson", "reason": "no-fix", "findings": ["0123456789abcdef"]},
+                 findings=(finding,))
+    policy = tmp_path / ".security-scan.toml"
+    policy.write_text("# the owner's\n")
+
+    body = _escalations(tmp_path, plan)[0]["body"]
+
+    for field in ('fingerprint = "0123456789abcdef"', 'rule = "CVE-2026-0009"',
+                  'path = "requirements-checkov.txt"', 'expires = "2026-11-20"',
+                  "orjson 3.12.0"):
+        assert field in body, field
+    assert "does not write it" in body
+    assert policy.read_text() == "# the owner's\n"
+    policy.unlink()
+    _escalations(tmp_path, plan)
+    assert not policy.exists()
+
+
+def _observed(package: str, published: str, *, path: str = "uv.lock", **more) -> dict:
+    return {"rule": "CVE-2026-0005", "path": path, "fingerprint": f"fp-{package}",
+            "severity": "high", "suppressed": None,
+            "dependency": {"ecosystem": "pypi", "package": package, "version": "1.0",
+                           "fixed_version": "1.1", "advisory_published": published}, **more}
+
+
+def test_a_finding_outside_the_checkov_lock_is_dependabot_stalled_after_half_the_window(tmp_path):
+    observed = (
+        _observed("old-enough", "2026-10-20T06:00:00Z"),
+        _observed("too-young", "2026-10-20T12:00:00Z"),
+        _observed("no-date", ""),
+        _observed("in-the-lock", "2026-10-01T00:00:00Z", path="requirements-checkov.txt"),
+        _observed("accepted", "2026-10-01T00:00:00Z", suppressed={"reason": "accepted"}),
+    )
+
+    actions = _escalations(tmp_path, _plan(), observed=observed)
+
+    assert [(a["action"], a["title"]) for a in actions] == [
+        ("open", "heal: dependabot-stalled: old-enough")]
+    assert "uv.lock" in actions[0]["body"] and "CVE-2026-0005" in actions[0]["body"]

@@ -738,7 +738,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     configuration, requirements and overrides planted beside the pull request's two files
     change nothing and run nothing, and the test shows its trap does fire when run.
 
-- [ ] **R44.5** **Escalations** (D81m). Behaviours:
+- [x] **R44.5** **Escalations** (D81m). Behaviours:
   1. `heal.py escalations` turns the plan and the observed Findings into issues to open, to
      comment on and to close, one per `heal: <reason>: <subject>`.
   2. The reasons are design.md's closed list, and a test reads that table.
@@ -749,6 +749,24 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   6. A second run with the same cause comments, and never opens another issue.
 
   _Requirements: 11.1 to 11.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 6, in `scripts/heal.py escalations`, 8 tests in
+  `tests/test_heal_escalations.py`. It prints actions (`open`, `comment`, `close`) and
+  applies none: R44.6's `escalate` job does.
+  - **Changed from the task's wording: the same cause says nothing twice.** Behaviour 6
+    had a second run comment. Requirement 11.1 asks for a comment *with any new evidence*,
+    and a run every six hours would have written 28 identical comments in a week. Each
+    issue carries a mark of the evidence it was told, and a run comments only when the
+    evidence differs: another Finding, or another advisory.
+  - **Added: only the Actions bot's issues count.** Read from #274 on 2026-11-22:
+    `gh issue list --json author` names the bot `app/github-actions` with `is_bot`, and a
+    comment's author `github-actions`. An issue of the same title that anyone else opened
+    is neither commented on nor closed, and a mark in anyone else's comment is not read.
+  - **Eight of the twelve reasons are this command's** to open and close: the plan's seven
+    and `dependabot-stalled`. `policy-refused`, `checks-red`, `release-needs-owner` and
+    `release-stopped` are opened by the steps that find them, and are left alone here.
+  - **Requirement 11.6** (the heal's own failure is filed as any scheduled workflow's) is
+    the workflow's, in R44.6.
 
 - [ ] **R44.6** 👤 **The workflows** (D81j, D81k, D81n). Behaviours:
   1. `heal.yml`'s `observe`, `plan`, `propose` and `escalate` jobs, as design.md §4 lays them
