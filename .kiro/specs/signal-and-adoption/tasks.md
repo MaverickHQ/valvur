@@ -4,7 +4,8 @@
 checkpoint A. [design.md](design.md) says how, with the decisions D82a to D82s and their
 fallbacks. The owner accepted ADR-0033 to ADR-0037 as proposed on 2026-11-22 (checkpoint B).
 The test-driven pass was made over this list the same day (§2 says how each task is
-written, and marks what the pass changed), and it is proposed for checkpoint C.
+written, and marks what the pass changed), and **the owner approved it that day
+(checkpoint C).**
 
 **IDs.** Phases R48 to R52 continue [the main list](../valvur/tasks.md) and
 [the self-healing list](../self-healing-supply-chain/tasks.md). Tasks are `R<phase>.<n>`, in
@@ -31,10 +32,15 @@ Five things differ:
 1. **`build_status.py` reads the self-healing list before this one,** by name, and that list
    has open tasks that wait for the owner's settings. So this build is started with the
    prompt above and does not wait for them.
-2. **Not before checkpoint C.** The ADRs (0033 to 0037) were accepted at checkpoint B. The
-   owner approves this list at checkpoint C, and R48.1 records the date.
-3. **The Score is run on the dev machine** where the plan of wave 1's item 1.7 says so. The
-   eighth track takes about ten minutes of the Score's eleven on the owner's Mac.
+2. **Not before checkpoint D.** The ADRs were accepted at checkpoint B and this list was
+   approved at checkpoint C, both on 2026-11-22. The owner approves the run plan (D82t) at
+   checkpoint D.
+3. **Where each step runs** (D82t, design.md's *How the build runs*). Edits, the unit gate,
+   signing and pushes are on the owner's Mac. The image, `-m e2e`, the acceptance set and
+   the Score are on the dev machine, through `~/dev-machine/bin/dev run`, on the pushed
+   branch or with the slice's diff sent in the command. **No token and no key ever goes on
+   the machine.** When it cannot start, the step goes to GitHub's lanes and §3 gains a row.
+   Each phase has a budget in hours there, and stops when it passes it.
 4. **Tasks marked 👤 need the owner:** an edit to `release.yml` (R52.3), three accounts
    (R51.9), a person (R52.6). For an edit to `release.yml` the executor shows the diff first
    and never routes around a refusal, as the self-healing list's §0 item 4 says.
@@ -100,7 +106,6 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      ADR-0037, its Next line names this spec, and the file stays under 200 lines.
      *Check:* `scripts/build_status.py` names R48.2 as this list's next task once this one
      is ticked; `scripts/check_traceability.py` holds; the link check passes.
-  3. **Record.** `requirements.md`'s status line gains checkpoint C's date.
 
 - [ ] **R48.2** **Counts for every judged rule, and for every Scanner** (D82a).
   **Seam:** `eval.run(["real-code-precision"], …, scan=, corpus=)` with a scan that writes
@@ -664,7 +669,7 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 
 | item | ready after | what the owner does |
 |---|---|---|
-| checkpoint C: this list | the test-driven pass | approve it, or change it |
+| checkpoint D: the run plan | wave 1, item 1.7 | approve D82t and its cost, or change it |
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
