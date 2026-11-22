@@ -117,3 +117,13 @@ def test_a_replaced_version_with_no_attestation_fails_the_rule(tmp_path, monkeyp
 
     assert plan["pins"] == []
     assert [e["reason"] for e in plan["escalations"]] == ["young-unattested"]
+
+
+def test_a_finding_with_no_fixed_version_is_escalated_as_no_fix(tmp_path, monkeypatch):
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "")],
+                      "beta==1.0 \\\n    --hash=sha256:00\n", {"beta": {"1.0": OLD}})
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "no-fix",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]

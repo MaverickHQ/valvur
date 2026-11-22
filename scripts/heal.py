@@ -99,8 +99,9 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
         if fixed:
             floors[package] = max(floors.get(package, "0"), fixed, key=version_key)
     pins, escalations = [], []
-    for package in sorted(floors):
-        chosen = _choose(package, have[package], floors[package], _when(now))
+    for package in sorted(reported):
+        chosen = (_choose(package, have[package], floors[package], _when(now))
+                  if package in floors else "no-fix")
         if isinstance(chosen, str):
             escalations.append({"package": package, "reason": chosen,
                                 "findings": sorted(reported[package])})
