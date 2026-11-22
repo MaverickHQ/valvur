@@ -122,3 +122,30 @@ def test_a_verdict_that_differs_from_the_baselines_needs_a_reason(tmp_path, chan
                    **changed)
 
     assert harness.precision.label_changes(path, {"flask c1": "tp", "flask gone": "fp"}) == expected
+
+
+def test_the_committed_labels_agree_with_the_committed_baseline():
+    """The guard itself: a label bent to meet a target shows here, with no git history."""
+    harness = _harness()
+    repo = Path(harness.__file__).resolve().parent.parent
+    recorded = json.loads((repo / "tests" / "eval" / "baseline.json").read_text()).get("labels")
+
+    assert recorded is not None, "the baseline records no labels yet"
+    for name in ("corpus", "hygiene"):
+        path = repo / "tests" / "eval" / "labels" / f"{name}.toml"
+        assert harness.precision.label_changes(path, recorded[name]) == [], name
+        assert recorded[name], f"the baseline records no {name} label"
+
+
+def test_the_guard_is_red_when_a_committed_label_is_bent(tmp_path):
+    """Seen red against a hand-made break: one committed verdict turned, with no reason."""
+    harness = _harness()
+    repo = Path(harness.__file__).resolve().parent.parent
+    recorded = json.loads((repo / "tests" / "eval" / "baseline.json").read_text())["labels"]
+    text = (repo / "tests" / "eval" / "labels" / "hygiene.toml").read_text()
+    bent = tmp_path / "hygiene.toml"
+    bent.write_text(text.replace('verdict = "fp"', 'verdict = "tp"', 1))
+
+    changes = harness.precision.label_changes(bent, recorded["hygiene"])
+
+    assert len(changes) == 1 and "tp, where the baseline records fp" in changes[0]

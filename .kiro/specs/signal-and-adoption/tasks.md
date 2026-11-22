@@ -171,7 +171,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
   - **A project is also named in `incomplete`** when its Scan Run was not complete, and not
     only when its scan failed, in one list at any job count.
 
-- [ ] **R48.3** **Checkov and zizmor, judged in their own table** (D82a, D82b).
+- [x] **R48.3** **Checkov and zizmor, judged in their own table** (D82a, D82b).
   **Seam:** as R48.2, with the labels read from a path the test gives; `eval.compare`;
   `eval.update_baseline`. Behaviours:
   1. A Checkov Finding with a label in the hygiene file is counted under `hygiene`, by rule.
@@ -194,7 +194,64 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 1.2, 1.4, 5.2_
 
-- [ ] **R48.4** **`docs/RULES.md` lists every rule that fired, with its two measurements**
+  **STATUS 2026-11-22:** ✅ 1 to 7, 10 tests in `tests/test_eval_hygiene.py`.
+  - **The run,** on the dev machine at `82738cf`, `valvur:dev` `sha256:913257ee79d7`, with
+    `--jobs 4 --compare`: the Score 74.1 and every track where its baseline is, no judged
+    Finding without a label in either table, in 327 s for the nine tracks.
+  - **The baseline records 413 verdicts,** 172 of the track's and 241 of these, written by
+    that run's `--update-baseline`. No track moved. `recorded_on` now names that image and
+    that day's data. The guard reads the two committed files, and a second test bends one
+    committed verdict in a copy and sees it named.
+  - **241 labels** in `tests/eval/labels/hygiene.toml`, each read against its file at the
+    project's pinned commit: **153 true and 88 false.**
+
+    | Scanner | rule | Findings | judged | true | false |
+    |---|---|---|---|---|---|
+    | Checkov | CKV2_AWS_12 | 12 | 12 | 0 | 12 |
+    | Checkov | CKV2_AWS_5 | 4 | 4 | 0 | 4 |
+    | Checkov | CKV_AWS_148 | 2 | 2 | 0 | 2 |
+    | Checkov | CKV_AWS_338 | 8 | 8 | 7 | 1 |
+    | Checkov | CKV_AWS_394 | 12 | 12 | 12 | 0 |
+    | Checkov | CKV_DOCKER_2 | 14 | 14 | 7 | 7 |
+    | Checkov | CKV_DOCKER_3 | 14 | 14 | 7 | 7 |
+    | Checkov | CKV_DOCKER_4 | 2 | 2 | 2 | 0 |
+    | Checkov | CKV_DOCKER_7 | 2 | 2 | 2 | 0 |
+    | Checkov | CKV_TF_1 | 4 | 4 | 0 | 4 |
+    | zizmor | archived-uses | 2 | 2 | 2 | 0 |
+    | zizmor | artipacked | 76 | 25, sampled | 25 | 0 |
+    | zizmor | bot-conditions | 1 | 1 | 1 | 0 |
+    | zizmor | cache-poisoning | 19 | 19 | 8 | 11 |
+    | zizmor | dangerous-triggers | 12 | 12 | 5 | 7 |
+    | zizmor | dependabot-cooldown | 34 | 25, sampled | 18 | 7 |
+    | zizmor | excessive-permissions | 207 | 25, sampled | 20 | 5 |
+    | zizmor | github-env | 1 | 1 | 0 | 1 |
+    | zizmor | secrets-inherit | 5 | 5 | 5 | 0 |
+    | zizmor | template-injection | 20 | 20 | 0 | 20 |
+    | zizmor | unpinned-images | 7 | 7 | 7 | 0 |
+    | zizmor | unpinned-uses | 318 | 25, sampled | 25 | 0 |
+
+  - **Checkov: 37 true, 37 false.** All 42 Terraform Findings are in one project, a
+    reusable VPC module. Twenty-three of them are wrong by reading: the module does
+    restrict the default security group by default, does attach the endpoints' group,
+    provisions no default VPC unless asked, keeps one log group for ever by default, and
+    its examples use registry modules, which cannot carry a commit hash. Checkov does not
+    follow a count or an expression.
+  - **zizmor: 116 true, 51 false.** The rules that state a fact about a line are true every
+    time: unpinned-uses, artipacked, unpinned-images, secrets-inherit, archived-uses.
+    **template-injection is false 20 times of 20:** every value expanded is set only by
+    someone with write access (a dispatch or called-workflow input, a pushed tag) or is
+    GitHub's own in a fixed form. cache-poisoning is false 11 times of 19: `setup-node`
+    with no cache configured, and caches in test jobs of a workflow that also publishes.
+  - **Three readings are applied the same way throughout,** and are written at the head of
+    the file for the owner to overrule: a Dockerfile's missing HEALTHCHECK or USER is true
+    for an image that serves; a dangerous trigger is true where the privileged run consumes
+    what a contributor controls or trusts a spoofable check; a template expansion is false
+    where only someone with write access sets the value.
+  - **The sample is of the lowest Fingerprints,** which is a draw across Findings and not
+    across projects: a project with many workflows has more of a rule's 25. It is the rule
+    D82b chose because a reader can repeat it, and the page says *sampled* beside each.
+
+- [x] **R48.4** **`docs/RULES.md` lists every rule that fired, with its two measurements**
   (D82a). **Seam:** `eval.rules_measured(report, path)` and `rules_doc.render(measured)`, as
   `tests/test_rules_doc.py` drives them; `rules_doc.main(["--check"])`. Behaviours:
   1. From a canned report, `rules-measured.json` holds a Gitleaks rule's corpus counts apart
@@ -208,6 +265,19 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      *Check:* the existing test that the page is current with the measurement.
 
   _Requirements: 1.3, 2.3_
+
+  **STATUS 2026-11-22:** ✅ 1 to 6 (`ab0574f` and the record), 7 tests in
+  `tests/test_rules_doc_others.py`.
+  - **The page's second table has 29 rows:** 10 of Checkov's, 12 of zizmor's, 6 of
+    Gitleaks' and one of valvur's Checks, regenerated from R48.3's run. Four are marked
+    *sampled*. Eleven read *unmeasured there*, with fewer than five judged Findings.
+  - **A planted count is a rule's own.** Gitleaks' `private-key` and `generic-api-key` are
+    2 true each on the planted cases; the secrets track's other planted secrets are caught
+    by nine provider rules, 2 each, that never fired on the corpus, so they have no row.
+  - **The first table changed in one way:** a corpus cell with fewer than five judged
+    Findings says so. No count in it moved.
+  - **Corrected on the page:** it said the bar is *over the three* places. It has been four
+    since track 9 (R41), and `rule_precision.PLACES` already summed four.
 
 - [x] **R48.5** **A mutant of an annotation alone is not counted.**
   **Seam:** `mutation_check.code_changed(before, after)`, as the comments-and-docstrings
