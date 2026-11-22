@@ -3,7 +3,9 @@
 **Status:** accepted 2026-09-20 (task 26.1.1), rehearsed twice before it was
 accepted and twice more since (26.1.2, 26.1.3); no real tag has run it yet — the
 next one will. Recorded so the order is not reopened without the reason it was
-changed.
+changed. **Amended by [ADR-0032](0032-security-patches-promote-after-a-delay.md)** for one
+class of release: a security patch the heal tags promotes after a 12-hour delay the owner
+can cancel, in place of the owner's approval.
 
 ## Context
 

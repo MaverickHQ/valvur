@@ -1113,7 +1113,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R45: security patches release themselves
 
-- [ ] **R45.1** **ADR-0032** (D81h, D81i). Behaviours:
+- [x] **R45.1** **ADR-0032** (D81h, D81i). Behaviours:
   1. `docs/adr/0032-security-patches-promote-after-a-delay.md`, from design.md's text. It cites
      the requirement IDs it touches (N2.5, N4.3 and section N5's), because the traceability
      check fails an ADR that cites none.
@@ -1122,6 +1122,13 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   3. §3 holds the owner's acceptance.
 
   _Requirements: 10.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 3, and R45.6's behaviour 12 with it: the ADR carries the
+  extension of 2026-11-21. It is written as *proposed*. The owner's standing authorisation
+  of 2026-11-21 and the acceptance of D81aa at checkpoint B cover what it decides, and §3's
+  row is where the owner marks it accepted or takes D81h's fallback. It cites N2.5 and
+  N4.3: the main spec has no section N5, which this task's text named. `CLAUDE.md` holds
+  its row, marked proposed, and is 200 lines.
 
 - [ ] **R45.2** **Release eligibility and the release policy** (D81g). Behaviours, each on a
   temporary repository:
@@ -1428,7 +1435,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | the environment `release-security` | before R45.5 | Settings → Environments → New: wait timer 720 minutes, no required reviewers, deployments from tags `v*` and branches `release/*` |
 | PyPI's trusted publisher | before the first real security release | if valvur's publisher on pypi.org names the `release` environment, add a second publisher for `release-security` |
 | the tag ruleset | R44.1 found it: *release tags*, active on `v*` | add the App as a bypass actor on that ruleset, for tags alone |
-| accept ADR-0032 | R45.1 | or choose D81h's fallback: the owner as required reviewer on `release-security` |
+| accept ADR-0032 | **ready: written 2026-11-22** (R45.1) | mark it accepted, or choose D81h's fallback: the owner as required reviewer on `release-security` |
 | the owner-session tasks | when reached, if auto mode refused | R44.6, R45.3 and R45.4, in a session in manual approve mode, from each task's STATUS |
 | the first live heal | R44 landed and the App created | nothing: the schedule runs it. Or dispatch `heal` on `main` with `dry_run=true` first |
 | approve `SECURITY.md`'s sentence | R46.2 | read it in R46's pull request |
