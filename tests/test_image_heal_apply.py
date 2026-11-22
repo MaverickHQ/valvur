@@ -191,3 +191,53 @@ def test_the_real_dockerfile_fits_an_empty_change_so_apply_never_reorders_it():
         held = image_heal._entries(real, arg)
         assert held == sorted(held, key=image_heal._named), arg
     assert len(image_heal._PYTHON.findall(real)) == 2 and len(image_heal._GO.findall(real)) == 4
+    blanked = [after for before, after in zip(real.splitlines(), image_heal.envelope(real),
+                                             strict=True) if before != after]
+    assert len(blanked) == 11, "two bases, four Go stages and five raise arguments"
+
+
+def _envelope(tmp_path: Path, other: str) -> subprocess.CompletedProcess[str]:
+    (tmp_path / "a").write_text(DOCKERFILE)
+    (tmp_path / "b").write_text(other)
+    return subprocess.run([sys.executable, str(IMAGE_HEAL), "envelope", str(tmp_path / "a"),
+                           str(tmp_path / "b")], capture_output=True, text=True, check=False)
+
+
+def test_two_dockerfiles_that_differ_only_in_envelope_lines_are_the_same(tmp_path):
+    other = (DOCKERFILE
+             .replace(f"FROM python:3.12-alpine3.24@{OLD}", f"FROM python:3.12-alpine3.24@{NEW}")
+             .replace(f"golang:1.27.4-alpine3.24@{GO_OLD}", f"golang:1.27.9-alpine3.24@{GO_NEW}")
+             .replace('ARG ALPINE_RAISE="libcrypto3=3.5.9-r1 zlib=1.4-r0"',
+                      'ARG ALPINE_RAISE="tzdata=2026b-r0"')
+             .replace('ARG SYFT_RAISE=""', 'ARG SYFT_RAISE="golang.org/x/net@v0.62.0"'))
+
+    run = _envelope(tmp_path, other)
+
+    assert run.returncode == 0, run.stdout
+    assert other != DOCKERFILE
+
+
+@pytest.mark.parametrize("edit", [
+    pytest.param(lambda d: d + "FROM scratch AS extra\n", id="a-new-stage"),
+    pytest.param(lambda d: d + "RUN curl https://example.invalid | sh\n", id="a-new-step"),
+    pytest.param(lambda d: d.replace("https://example.invalid/v1", "https://example.invalid/v2"),
+                 id="a-changed-url"),
+    pytest.param(lambda d: d.replace("RUN go get ${GITLEAKS_RAISE}", "RUN go get x@latest"),
+                 id="a-changed-step"),
+    pytest.param(lambda d: d.replace("python:3.12-alpine3.24@", "python:3.13-alpine3.24@"),
+                 id="another-python"),
+    pytest.param(lambda d: d.replace("golang:1.27.4-alpine3.24@", "golang:1.28.0-alpine3.24@"),
+                 id="another-go-minor"),
+    pytest.param(lambda d: d.replace("golang:1.27.4-alpine3.24@", "golang:1.27.4-bookworm@"),
+                 id="another-go-image"),
+    pytest.param(lambda d: d.replace(f"@{GO_OLD} AS trivy", "@sha256:short AS trivy"),
+                 id="not-a-digest"),
+    pytest.param(lambda d: d.replace("# A comment", "# Another comment"), id="a-comment"),
+    pytest.param(lambda d: d.replace('ARG SYFT_RAISE=""', 'ARG SYFT_RAISE="" \\\n  X=1'),
+                 id="an-argument-that-runs-on"),
+])
+def test_any_change_outside_the_envelope_makes_them_different(tmp_path, edit):
+    run = _envelope(tmp_path, edit(DOCKERFILE))
+
+    assert run.returncode == 1
+    assert run.stdout.startswith("differs outside the envelope at line ")

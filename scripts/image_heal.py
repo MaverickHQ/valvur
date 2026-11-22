@@ -399,6 +399,41 @@ def apply(plan_: dict, dockerfile: str) -> str:
     return text
 
 
+_ENVELOPE = (
+    (re.compile(r"^(FROM python:\S+?)@sha256:[0-9a-f]{64}(?= |$)"), r"\1@<digest>"),
+    (re.compile(r"^(FROM golang:\d+\.\d+)\.\d+(-\S+?)@sha256:[0-9a-f]{64}(?= |$)"),
+     r"\1.<patch>\2@<digest>"),
+    (re.compile(rf'^(ARG (?:{"|".join(ARGS)}))="[^"]*"$'), r'\1="<raises>"'),
+)
+
+
+def envelope(dockerfile: str) -> list[str]:
+    """The Dockerfile's lines with the envelope blanked: the digest of each `FROM python:`,
+    the patch and digest of each `FROM golang:`, and the value of each raise argument. Two
+    Dockerfiles are *the same outside the envelope* when these are equal. A base's tag, Go's
+    minor, a stage, a step, a URL, a checksum and a comment are all outside it."""
+    blanked = []
+    for line in dockerfile.splitlines():
+        for shape, to in _ENVELOPE:
+            line, changed = shape.subn(to, line)
+            if changed:
+                break
+        blanked.append(line)
+    return blanked
+
+
+def differs_outside(before: str, after: str) -> str:
+    """Where two Dockerfiles first differ outside the envelope, or ""."""
+    one, other = envelope(before), envelope(after)
+    for number, (left, right) in enumerate(zip(one, other, strict=False), start=1):
+        if left != right:
+            return f"differs outside the envelope at line {number}: {right[:120]}"
+    if len(one) != len(other):
+        return f"differs outside the envelope at line {min(len(one), len(other)) + 1}: " \
+               "one file is longer"
+    return ""
+
+
 def _listed(words: list[str]) -> str:
     return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
 
@@ -486,8 +521,17 @@ def main(argv: list[str] | None = None) -> int:
     apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--out", type=Path, required=True)
     apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
+    envelope_cmd = commands.add_parser(
+        "envelope", help="exit 0 when two Dockerfiles are the same outside the envelope")
+    envelope_cmd.add_argument("before", type=Path)
+    envelope_cmd.add_argument("after", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "envelope":
+            where = differs_outside(args.before.read_text(encoding="utf-8"),
+                                    args.after.read_text(encoding="utf-8"))
+            print(where or "the same outside the envelope")
+            return 1 if where else 0
         if args.command == "apply":
             return _apply(args)
         verdicts = [json.loads(path.read_text(encoding="utf-8")) for path in args.verdict]
