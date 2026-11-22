@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from conftest import write_name_index
 from fake_registry import FakePackageRegistry, pypi_answers
 from test_checkov_lock_recipe import _tree, _wheel
 
@@ -36,13 +37,21 @@ def _finding(package: str, version: str, fixed: str, *, rule: str = "CVE-2026-00
 
 
 def _plan(tmp_path: Path, monkeypatch, findings: list[dict], have: dict[str, str],
-          projects: dict[str, dict[str, dict]], *, top: tuple[str, ...] = ()
+          projects: dict[str, dict[str, dict]], *, top: tuple[str, ...] = (),
+          known: tuple[str, ...] | None = None
           ) -> tuple[subprocess.CompletedProcess[str], dict]:
     """Run `heal.py plan` on a tree whose lock the recipe itself wrote, holding `have`.
 
     Resolution is real and hermetic, as in `test_checkov_lock_recipe.py`: a wheel for every
     version in `projects` (its `requires` as `Requires-Dist`), read by uv from a directory.
-    PyPI's facts about the same versions are the fake registry's."""
+    PyPI's facts about the same versions are the fake registry's. `valvur check` reads a
+    Name Index in a `VALVUR_CACHE` made here, in which the names `known` exist: every
+    project's, by default, and with `known=()` there is no index at all."""
+    cache = tmp_path / "cache"
+    if known != ():
+        write_name_index(cache / "valvur" / "names",
+                         pip=list(projects if known is None else known))
+    monkeypatch.setenv("VALVUR_CACHE", str(cache))
     FakePackageRegistry(tmp_path / "registry", pypi_answers(projects)).install(monkeypatch)
     tree, wheels = _tree(tmp_path, "\n".join(top or tuple(have)))
     for name, versions in projects.items():
@@ -226,3 +235,32 @@ def test_a_finding_in_checkov_itself_is_escalated_as_checkov(tmp_path, monkeypat
 
     assert plan["pins"] == []
     assert [(e["package"], e["reason"]) for e in plan["escalations"]] == [("checkov", "checkov")]
+
+
+def test_a_moved_version_that_valvur_check_flags_is_escalated_as_check_failed(
+        tmp_path, monkeypatch):
+    """The real CLI, against a Name Index in which `beta` does not exist."""
+    projects = {"alpha": {"1.0": {**OLD, "requires": ["beta"]}},
+                "beta": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"alpha": "1.0", "beta": "1.0"}, projects, top=("alpha",),
+                      known=("alpha",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "check-failed",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_with_no_name_index_no_plan_is_written(tmp_path, monkeypatch):
+    """`valvur check` answers `unknown` without an index, and exits 0. A heal that took
+    that for a pass would pin a version nothing had checked."""
+    projects = {"beta": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"beta": "1.0"}, projects, known=())
+
+    assert run.returncode == 2
+    assert "valvur check" in run.stderr and "beta" in run.stderr
+    assert plan == {}

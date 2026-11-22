@@ -15,7 +15,8 @@ attested by the Trusted Publisher that attested the version it replaces.
 
 Each fix is then re-locked by the recipe itself, `scripts/lock-checkov.sh`, in a scratch copy.
 A package the resolution moves with it is a floor the fix forces: it is chosen by the same
-rule, among the versions that resolve, and pinned too.
+rule, among the versions that resolve, and pinned too. Every version a fix would move to
+is then put to `valvur check`, and a fix with a flagged one is escalated.
 
 Standard library, and `valvur`'s own version ordering, so a pin and the report that asked
 for it agree on which version is higher. Exit 0 when the plan was written, whatever it holds;
@@ -120,6 +121,29 @@ def _choose(project: str, have: str, offered: list[pypi_facts.Release], now: dat
     return "young-unattested"
 
 
+def flagged(pins: list[dict], tree: Path) -> bool:
+    """Whether `valvur check` flags any version the pins move to: a name that does not
+    exist, a near-miss of a popular one, or one published as malicious. The real CLI,
+    offline, as a developer would run it before an install. It must say `exists` of each
+    or flag it: without a Name Index it answers `unknown`, which is no check at all."""
+    run = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", "from valvur.cli import main; raise SystemExit(main())",
+         "check", "pip", *(f"{pin['package']}@{pin['to']}" for pin in pins),
+         "--project", str(tree), "--json"],
+        capture_output=True, text=True, check=False)
+    try:
+        answers = json.loads(run.stdout)["answers"] if run.returncode in (0, 1) else None
+    except (ValueError, KeyError):
+        answers = None
+    if answers is None:
+        raise pypi_facts.Unreadable(f"valvur check did not answer: {run.stderr.strip()}")
+    unchecked = sorted(a["name"] for a in answers if a["verdict"] == "unknown")
+    if unchecked:
+        raise pypi_facts.Unreadable(
+            f"valvur check could not check {', '.join(unchecked)}: run `valvur update`")
+    return any(a["verdict"] != "exists" for a in answers)
+
+
 def _in_major(project: str, have: str) -> list[pypi_facts.Release]:
     return [r for r in pypi_facts.releases(project)
             if release_line(r.version) == release_line(have)]
@@ -142,7 +166,7 @@ def _with_its_floors(fix: dict, tree: Path, lock_text: str, have: dict[str, str]
         if CHECKOV in moved:
             return "checkov"
         if not moved:
-            return pins
+            return "check-failed" if flagged(pins, tree) else pins
         package = moved[0]
         above = [r for r in _in_major(package, have[package])
                  if version_key(r.version) > version_key(have[package])]
