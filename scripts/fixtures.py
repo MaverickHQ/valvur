@@ -4,9 +4,11 @@
 
 A manifest planted under `tests/fixtures` for valvur's own tests to find is stored as
 `<name>.fixture`, a name no scanner reads as a manifest, so Scorecard and GitHub do not
-count its advisories as the repository's (R27.1: 43 of 44). Every test, the acceptance
-set and CI copy a fixture through `copy`, which gives each such file its real name
-back in the copy; nothing is ever renamed in the tree. Standard library alone.
+count its advisories as the repository's (R27.1: 43 of 44). So is a file or a directory an
+agent would load as its own instructions or configuration, such as `AGENTS.md` and
+`.claude/` (R48.7). Every test, the acceptance set and CI copy a fixture through `copy`,
+which gives each its real name back in the copy; nothing is ever renamed in the tree.
+Standard library alone.
 """
 
 from __future__ import annotations
@@ -22,13 +24,15 @@ SUFFIX = ".fixture"
 
 
 def restore(root: Path) -> list[Path]:
-    """Give each `<name>.fixture` under `root` its real name; the restored paths."""
+    """Give each `<name>.fixture` under `root`, file or directory, its real name; the
+    restored paths. The deepest first, so that a stored directory's own stored files are
+    renamed while their path still holds."""
     restored = []
-    for path in sorted(root.rglob(f"*{SUFFIX}")):
+    for path in sorted(root.rglob(f"*{SUFFIX}"), key=lambda p: (-len(p.parts), p)):
         real = path.with_name(path.name[: -len(SUFFIX)])
         path.rename(real)
         restored.append(real)
-    return restored
+    return sorted(restored)
 
 
 def copy(source: str | Path, target: Path, *, dirs_exist_ok: bool = False) -> Path:

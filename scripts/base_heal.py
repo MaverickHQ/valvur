@@ -51,9 +51,10 @@ HUB = "https://hub.docker.com/v2/repositories/library"
 DEAD = timedelta(days=30)
 ARCHITECTURES = ("amd64", "arm64")
 DOCKERFILE = "Dockerfile"
-#: Every file that names the base, as 1.5.4's move found them (`89ec9d8`).
-NAMED = (DOCKERFILE, ".github/workflows/ci.yml", ".github/workflows/release.yml",
-         "scripts/check_image_licences.py", "tests/test_licences.py")
+#: Every file that may name the base. 1.5.4's move found five (`89ec9d8`); since R48.6 the
+#: licence check, its test and CI read the base from the Dockerfile, and
+#: `tests/test_no_moving_target.py` refuses a new place that names the tag alone.
+NAMED = (DOCKERFILE, ".github/workflows/release.yml")
 
 _FROM = re.compile(
     r"^FROM ([a-z0-9]+):([^\s@]*?)-alpine(\d+)\.(\d+)@(sha256:[0-9a-f]{64})(?= |$)", re.M)
@@ -139,13 +140,14 @@ def rewrite(text: str, move: dict) -> str:
 
 
 def apply(plan_: dict, tree: Path) -> dict[str, str]:
-    """The files a base move changes, by path: every place 1.5.4's move rewrote."""
-    files = {name: (tree / name).read_text(encoding="utf-8") for name in NAMED}
+    """The files a base move changes, by path: each of `NAMED` that names the old base."""
+    before = {name: (tree / name).read_text(encoding="utf-8") for name in NAMED}
+    files = dict(before)
     for move in plan_["moves"]:
         if f"FROM {move['from']}" not in files[DOCKERFILE]:
             raise Refused(f"the Dockerfile has no stage `FROM {move['from']}`")
         files = {name: rewrite(text, move) for name, text in files.items()}
-    return files
+    return {name: text for name, text in files.items() if text != before[name]}
 
 
 def message(plan_: dict, run: str) -> str:

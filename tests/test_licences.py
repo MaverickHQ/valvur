@@ -72,11 +72,11 @@ def test_our_real_image_adds_no_gpl_component():
     points `VALVUR_IMAGE` at the signed release image, and this test went on
     asking the daemon for a local build that was not there. Until then the
     published image's licence composition had never been the thing checked."""
-    from check_image_licences import added_components
+    from check_image_licences import DOCKERFILE, added_components, base_of
 
     from valvur.runner import IMAGE
 
-    added = added_components(IMAGE, "python:3.12-alpine3.24")
+    added = added_components(IMAGE, base_of(DOCKERFILE.read_text()))
 
     assert added, "the diff found nothing added — the comparison is broken"
     assert offending(added) == []

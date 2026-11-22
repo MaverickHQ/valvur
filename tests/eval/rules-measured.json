@@ -1,6 +1,6 @@
 {
- "measured": "2026-10-11",
- "image": "sha256:9ac213cea17698cd057c380d736f4f7f8c99f79ec153b105bfe630fa9777dc61",
+ "measured": "2026-11-22",
+ "image": "sha256:913257ee79d7b3f61ab6da9e78eb697defc5dba4c5cb2d12ed24407e1417d220",
  "corpus_projects": 48,
  "rules": {
   "javascript_eval_rule-eval-with-expression": {
@@ -1078,5 +1078,442 @@
    "new": 0,
    "precision": 0.533
   }
- }
+ },
+ "others": [
+  {
+   "scanner": "checkov",
+   "rule": "CKV2_AWS_12",
+   "corpus": {
+    "findings": 12,
+    "judged": 12,
+    "tp": 0,
+    "fp": 12,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV2_AWS_5",
+   "corpus": {
+    "findings": 4,
+    "judged": 4,
+    "tp": 0,
+    "fp": 4,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_AWS_148",
+   "corpus": {
+    "findings": 2,
+    "judged": 2,
+    "tp": 0,
+    "fp": 2,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_AWS_338",
+   "corpus": {
+    "findings": 8,
+    "judged": 8,
+    "tp": 7,
+    "fp": 1,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_AWS_394",
+   "corpus": {
+    "findings": 12,
+    "judged": 12,
+    "tp": 12,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_DOCKER_2",
+   "corpus": {
+    "findings": 14,
+    "judged": 14,
+    "tp": 7,
+    "fp": 7,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_DOCKER_3",
+   "corpus": {
+    "findings": 14,
+    "judged": 14,
+    "tp": 7,
+    "fp": 7,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_DOCKER_4",
+   "corpus": {
+    "findings": 2,
+    "judged": 2,
+    "tp": 2,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_DOCKER_7",
+   "corpus": {
+    "findings": 2,
+    "judged": 2,
+    "tp": 2,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "checkov",
+   "rule": "CKV_TF_1",
+   "corpus": {
+    "findings": 4,
+    "judged": 4,
+    "tp": 0,
+    "fp": 4,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "dependency-reality",
+   "rule": "valvur.dependency.near-miss",
+   "corpus": {
+    "findings": 1,
+    "judged": 1,
+    "tp": 0,
+    "fp": 1,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "gitleaks",
+   "rule": "curl-auth-header",
+   "corpus": {
+    "findings": 6,
+    "judged": 6,
+    "tp": 0,
+    "fp": 6,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "gitleaks",
+   "rule": "generic-api-key",
+   "corpus": {
+    "findings": 26,
+    "judged": 26,
+    "tp": 0,
+    "fp": 26,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 2,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "gitleaks",
+   "rule": "jwt",
+   "corpus": {
+    "findings": 29,
+    "judged": 29,
+    "tp": 0,
+    "fp": 29,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "gitleaks",
+   "rule": "pkcs12-file",
+   "corpus": {
+    "findings": 1,
+    "judged": 1,
+    "tp": 0,
+    "fp": 1,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "gitleaks",
+   "rule": "private-key",
+   "corpus": {
+    "findings": 35,
+    "judged": 35,
+    "tp": 0,
+    "fp": 35,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 2,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "gitleaks",
+   "rule": "slack-webhook-url",
+   "corpus": {
+    "findings": 1,
+    "judged": 1,
+    "tp": 0,
+    "fp": 1,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "archived-uses",
+   "corpus": {
+    "findings": 2,
+    "judged": 2,
+    "tp": 2,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "artipacked",
+   "corpus": {
+    "findings": 76,
+    "judged": 25,
+    "tp": 25,
+    "fp": 0,
+    "sampled": true
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "bot-conditions",
+   "corpus": {
+    "findings": 1,
+    "judged": 1,
+    "tp": 1,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "cache-poisoning",
+   "corpus": {
+    "findings": 19,
+    "judged": 19,
+    "tp": 8,
+    "fp": 11,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "dangerous-triggers",
+   "corpus": {
+    "findings": 12,
+    "judged": 12,
+    "tp": 5,
+    "fp": 7,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "dependabot-cooldown",
+   "corpus": {
+    "findings": 34,
+    "judged": 25,
+    "tp": 18,
+    "fp": 7,
+    "sampled": true
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "excessive-permissions",
+   "corpus": {
+    "findings": 207,
+    "judged": 25,
+    "tp": 20,
+    "fp": 5,
+    "sampled": true
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "github-env",
+   "corpus": {
+    "findings": 1,
+    "judged": 1,
+    "tp": 0,
+    "fp": 1,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "secrets-inherit",
+   "corpus": {
+    "findings": 5,
+    "judged": 5,
+    "tp": 5,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "template-injection",
+   "corpus": {
+    "findings": 20,
+    "judged": 20,
+    "tp": 0,
+    "fp": 20,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "unpinned-images",
+   "corpus": {
+    "findings": 7,
+    "judged": 7,
+    "tp": 7,
+    "fp": 0,
+    "sampled": false
+   },
+   "planted": {
+    "tp": 0,
+    "fp": 0
+   }
+  },
+  {
+   "scanner": "zizmor",
+   "rule": "unpinned-uses",
+   "corpus": {
+    "findings": 318,
+    "judged": 25,
+    "tp": 25,
+    "fp": 0,
+    "sampled": true
+   },
+   "planted": {
+    "tp": 1,
+    "fp": 0
+   }
+  }
+ ]
 }

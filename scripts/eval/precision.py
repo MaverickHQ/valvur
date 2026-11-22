@@ -19,6 +19,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 VERDICTS = ("tp", "fp")
+#: The Scanners judged in a table of their own (R48.3, D82a), and how many of one rule's
+#: Findings on the corpus are judged: the ones with the lowest Fingerprints (D82b).
+HYGIENE = ("checkov", "zizmor")
+SAMPLE = 25
 
 
 def note(finding: dict) -> bool:
@@ -72,6 +76,15 @@ class Precision:
     others: dict[str, int] = field(default_factory=dict)
     #: Coverage notes, counted and not judged.
     notes: int = 0
+    #: (Scanner, rule) to its true and false counts, for each rule with a judged Finding
+    #: (R48.2, D82a). The bar on maintained code is set from these, rule by rule.
+    by_rule: dict[tuple[str, str], list[int]] = field(default_factory=dict)
+    #: Scanner to its active Findings on the corpus, and how many of them were judged.
+    by_scanner: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: Checkov's and zizmor's Findings, by rule: judged in their own table, never pooled
+    #: into `tp` and `fp`, with the judged ones that have no label.
+    hygiene: list[dict] = field(default_factory=list)
+    hygiene_unlabelled: list[str] = field(default_factory=list)
 
     @property
     def score(self) -> float:
@@ -82,8 +95,10 @@ class Precision:
 
 
 def judge(findings_by_repo: dict[str, list[dict]],
-          labels: dict[tuple[str, str], tuple[str, str]]) -> Precision:
+          labels: dict[tuple[str, str], tuple[str, str]],
+          hygiene: dict[tuple[str, str], tuple[str, str]] | None = None) -> Precision:
     result, others = Precision(), Counter[str]()
+    theirs: dict[tuple[str, str], list[tuple[str, str, dict]]] = {}
     for repo, findings in sorted(findings_by_repo.items()):
         for finding in findings:
             if not _active(finding):
@@ -91,16 +106,67 @@ def judge(findings_by_repo: dict[str, list[dict]],
             if note(finding):
                 result.notes += 1
                 continue
+            scanner = str((finding.get("sources") or ["?"])[0])
+            counted = result.by_scanner.setdefault(
+                scanner, {"findings": 0, "judged": 0, "tp": 0, "fp": 0})
+            counted["findings"] += 1
+            if scanner in HYGIENE:
+                theirs.setdefault((scanner, str(finding.get("rule"))), []).append(
+                    (str(finding.get("fingerprint")), repo, finding))
             if not owned(finding):
-                others.update((finding.get("sources") or ["?"])[:1])
+                others.update([scanner])
                 continue
             label = labels.get((repo, str(finding.get("fingerprint"))))
             if label is None:
                 result.unlabelled.append(f"{repo}: {finding.get('rule')} at "
                                          f"{finding.get('path')} ({finding.get('fingerprint')})")
-            elif label[0] == "tp":
+                continue
+            verdict = label[0]
+            counted["judged"] += 1
+            counted[verdict] += 1
+            result.by_rule.setdefault((scanner, str(finding.get("rule"))), [0, 0])[
+                VERDICTS.index(verdict)] += 1
+            if verdict == "tp":
                 result.tp += 1
             else:
                 result.fp += 1
+    for (scanner, rule), found in sorted(theirs.items()):
+        row = {"scanner": scanner, "rule": rule, "findings": len(found), "judged": 0, "tp": 0,
+               "fp": 0, "sampled": len(found) > SAMPLE}
+        for fingerprint, repo, finding in sorted(found, key=lambda f: f[:2])[:SAMPLE]:
+            label = (hygiene or {}).get((repo, fingerprint))
+            if label is None:
+                result.hygiene_unlabelled.append(
+                    f"{repo}: {rule} at {finding.get('path')} ({fingerprint})")
+                continue
+            row["judged"] += 1
+            row[label[0]] += 1
+            result.by_scanner[scanner]["judged"] += 1
+            result.by_scanner[scanner][label[0]] += 1
+        result.hygiene.append(row)
     result.others = dict(sorted(others.items()))
+    result.by_scanner = dict(sorted(result.by_scanner.items()))
     return result
+
+
+def label_changes(path: Path, recorded: dict[str, str]) -> list[str]:
+    """Each label whose verdict differs from the one the baseline records, with no
+    `changed = "<date>: <reason>"` beside it (R48.3, Requirement 5.2). A label the baseline
+    does not know is new, and one it knows that is gone was dropped: neither is a verdict
+    that changed. So a label cannot be bent to meet a target without saying why."""
+    found = []
+    for entry in tomllib.loads(path.read_text(encoding="utf-8")).get("label", []):
+        key = f"{entry.get('repo', '')} {entry.get('fingerprint', '')}"
+        was = recorded.get(key)
+        if was is not None and was != entry.get("verdict") and \
+                not str(entry.get("changed", "")).strip():
+            found.append(f"{key}: {entry.get('verdict')}, where the baseline records {was}, "
+                         "with no `changed` reason")
+    return found
+
+
+def verdicts(path: Path) -> dict[str, str]:
+    """Each label's verdict, as the baseline records it: `<repo> <fingerprint>` to `tp` or
+    `fp`."""
+    return {f"{repo} {fingerprint}": verdict
+            for (repo, fingerprint), (verdict, _reason) in sorted(load(path).items())}

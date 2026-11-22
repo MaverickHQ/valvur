@@ -12,6 +12,7 @@ measured again on the same cases.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import shutil
 import sys
@@ -37,6 +38,7 @@ TRACKS = ["sast-python", *(t for t in twins.BUILDERS if t != "llm-output"),
           "real-code-precision", "llm-output"]
 CORPUS = REPO / "tests" / "corpus"
 LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
+HYGIENE = REPO / "tests" / "eval" / "labels" / "hygiene.toml"
 
 
 
@@ -139,24 +141,48 @@ def _kinds(cases: list, findings: list[dict], cwe_of) -> dict:
 
 
 def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
-               checkouts: Path | None, labels: Path) -> tuple[dict, dict[str, list[dict]]]:
+               checkouts: Path | None, labels: Path, jobs: int = 1,
+               hygiene: Path = HYGIENE) -> tuple[dict, dict[str, list[dict]]]:
     """Track 8: scan each corpus project at its pin and judge the owned findings. Also
-    each project's findings, which R29.3 reads rule by rule."""
+    each project's findings, which R29.3 reads rule by rule.
+
+    `jobs` projects are scanned at a time (R48.2): the scans are independent, and they are
+    477 s of the track's 495 s one at a time, 302 s four at a time on four cores. The
+    report is read in the corpus's order afterwards, so it is the same at any `jobs`. A
+    project whose scan raised, left no Results Folder or was not complete is named in
+    `incomplete`, and the others are still judged."""
     if corpus is None or checkouts is None:
         harness = _corpus_harness()
         corpus, checkouts = harness.repos(), harness.CHECKOUTS
         harness.fetch(corpus)
-    findings_by_repo, complete, reused = {}, True, set()
-    for entry in corpus:
+
+    def one(entry: dict) -> tuple[list[dict], dict] | None:
         root = checkouts / entry["name"]
-        scan(root)
-        findings, run_json = _read(root)
+        try:
+            scan(root)
+            return _read(root)
+        except Exception:  # whatever stopped this project's scan, the others go on
+            return None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        scanned = list(pool.map(one, corpus))
+    findings_by_repo, incomplete, reused = {}, [], set()
+    for entry, got in zip(corpus, scanned, strict=True):
+        findings, run_json = got or ([], {})
         findings_by_repo[entry["name"]] = findings
-        complete = complete and bool(run_json.get("complete"))
+        if not run_json.get("complete"):
+            incomplete.append(entry["name"])
         reused.update(_reused(run_json))
-    judged = precision.judge(findings_by_repo, precision.load(labels) if labels.is_file() else {})
+    complete = not incomplete
+    judged = precision.judge(findings_by_repo,
+                             precision.load(labels) if labels.is_file() else {},
+                             precision.load(hygiene) if hygiene.is_file() else {})
     return ({"score": judged.score, "tp": judged.tp, "fp": judged.fp,
             "unlabelled": judged.unlabelled, "others": judged.others,
+            "hygiene": judged.hygiene, "hygiene_unlabelled": judged.hygiene_unlabelled,
+            "by_rule": [{"scanner": scanner, "rule": rule, "tp": tp, "fp": fp}
+                        for (scanner, rule), (tp, fp) in sorted(judged.by_rule.items())],
+            "by_scanner": judged.by_scanner, "incomplete": incomplete,
             "repositories": len(corpus), "complete": complete, "status": None,
             "what_left_the_machine": "nothing", "safe_flagged_high": [], "invalid": {},
             "vulnerable": judged.tp, "safe": judged.fp, "reused": sorted(reused)},
@@ -170,7 +196,8 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         verify: Callable[[Path], None] = owasp.verify, corpus: list[dict] | None = None,
         checkouts: Path | None = None, labels: Path = LABELS,
         cursorrules: Callable[[], Path] = _cursorrules, speed: dict | None = None,
-        llm_real: Callable[[], tuple[Path, dict[str, dict]]] = _llm_real) -> dict:
+        llm_real: Callable[[], tuple[Path, dict[str, dict]]] = _llm_real,
+        jobs: int = 1, hygiene: Path = HYGIENE) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt. The
     benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
@@ -180,10 +207,12 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
     cwe_of = cwe.lookup(REPO / "rules")
     rules = rule_precision.shipped(REPO / "rules")
     by_place: dict[str, dict] = {}
+    planted: dict[tuple[str, str], list[int]] = {}
     for track in tracks:
         if track == "real-code-precision":
             began = time.monotonic()
-            result["tracks"][track], by_repo = _real_code(scan, corpus, checkouts, labels)
+            result["tracks"][track], by_repo = _real_code(scan, corpus, checkouts, labels,
+                                                          jobs, hygiene)
             result["tracks"][track]["seconds"] = round(time.monotonic() - began, 1)
             by_place["corpus"] = rule_precision.from_corpus(
                 by_repo, precision.load(labels) if labels.is_file() else {}, rules)
@@ -214,6 +243,11 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         scored = score.score_track(cases, findings, cwe_of)
         if track in rule_precision.PLACES:
             by_place[track] = rule_precision.from_track(cases, findings, cwe_of, rules)
+        for key, tally in rule_precision.others_from_track(cases, findings, cwe_of,
+                                                           rules).items():
+            counts = planted.setdefault(key, [0, 0])
+            counts[0] += tally.tp
+            counts[1] += tally.fp
         result["tracks"][track] = {
             "score": scored.score,
             "categories": {name: {"tp": r.tp, "fn": r.fn, "fp": r.fp, "tn": r.tn,
@@ -248,6 +282,9 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
                                   speed=speed)
     if speed is not None:
         result["speed"] = speed
+    # R48.4: every other Scanner's rule on the planted cases, beside its corpus counts.
+    result["planted"] = [{"scanner": scanner, "rule": rule, "tp": tp, "fp": fp}
+                         for (scanner, rule), (tp, fp) in sorted(planted.items()) if tp or fp]
     if by_place:
         # R29.3: each shipped rule, over the places this run scanned.
         result["rules"] = rule_precision.measure(by_place, rules, cwe.rule_cwes(REPO / "rules"))
@@ -416,15 +453,20 @@ def compare(result: dict, baseline: dict, *, exact: bool = False) -> list[str]:
         if track.get("unlabelled"):
             failures.append(f"{name}: {len(track['unlabelled'])} finding(s) with no label: "
                             + "; ".join(track["unlabelled"]))
+        if track.get("hygiene_unlabelled"):
+            failures.append(f"{name}: {len(track['hygiene_unlabelled'])} Checkov or zizmor "
+                            "finding(s) with no label: " + "; ".join(track["hygiene_unlabelled"]))
     for name, gate in (result.get("gates") or {}).items():
         if gate.get("judged") and not gate.get("ok"):
             failures.append(f"gate {name}: {gate.get('reason', 'failed')}")
     return failures
 
 
-def update_baseline(result: dict, path: Path) -> list[str]:
+def update_baseline(result: dict, path: Path, *, labels: Path = LABELS,
+                    hygiene: Path = HYGIENE) -> list[str]:
     """Raise each track the run beat, keep the others (N4.2: only upward). Returns
-    a sentence per track kept."""
+    a sentence per track kept. Each label's verdict is recorded with it (R48.3), so a
+    verdict that changes later is seen against it, with no git history."""
     baseline = json.loads(path.read_text()) if path.is_file() else {"tracks": {}}
     tracks, kept = dict(baseline.get("tracks") or {}), []
     for name, track in result["tracks"].items():
@@ -438,6 +480,8 @@ def update_baseline(result: dict, path: Path) -> list[str]:
     baseline["score"] = round(sum(tracks.values()) / len(tracks), 1) if tracks else 0.0
     baseline["recorded_on"] = {"image": result.get("image"), "data": result.get("data"),
                                "seed": result.get("seed")}
+    baseline["labels"] = {name: precision.verdicts(file) if file.is_file() else {}
+                          for name, file in (("corpus", labels), ("hygiene", hygiene))}
     path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
     return kept
 
@@ -469,6 +513,24 @@ def write(result: dict, out: Path) -> dict[str, Path]:
     return paths
 
 
+def others_measured(result: dict) -> list[dict]:
+    """Each rule that fired on the corpus and is not one of Opengrep's shipped ones (R48.4):
+    its counts on maintained code apart from its counts on the planted tracks."""
+    track = result["tracks"]["real-code-precision"]
+    planted = {(row["scanner"], row["rule"]): {"tp": row["tp"], "fp": row["fp"]}
+               for row in result.get("planted", [])}
+    corpus = {(row["scanner"], row["rule"]): {
+        "findings": row["tp"] + row["fp"], "judged": row["tp"] + row["fp"], "tp": row["tp"],
+        "fp": row["fp"], "sampled": False}
+        for row in track.get("by_rule", []) if row["rule"] not in result["rules"]}
+    corpus.update({(row["scanner"], row["rule"]): {
+        key: row[key] for key in ("findings", "judged", "tp", "fp", "sampled")}
+        for row in track.get("hygiene", [])})
+    return [{"scanner": scanner, "rule": rule, "corpus": counts,
+             "planted": planted.get((scanner, rule), {"tp": 0, "fp": 0})}
+            for (scanner, rule), counts in sorted(corpus.items())]
+
+
 def rules_measured(result: dict, path: Path, *, today: str | None = None) -> None:
     """R29.3: each shipped rule's counts, written for `scripts/rules_doc.py`. Only a run
     that scanned track 1, track 2 and the corpus measures a rule."""
@@ -483,7 +545,8 @@ def rules_measured(result: dict, path: Path, *, today: str | None = None) -> Non
         "measured": today or datetime.datetime.now(datetime.UTC).date().isoformat(),
         "image": result["image"]["id"],
         "corpus_projects": result["tracks"]["real-code-precision"]["repositories"],
-        "rules": result["rules"]}, indent=1) + "\n", encoding="utf-8")
+        "rules": result["rules"], "others": others_measured(result)}, indent=1) + "\n",
+        encoding="utf-8")
 
 
 def per_rule(rules: Path, work: Path, *, image: str = "valvur:dev",
@@ -555,6 +618,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--speed", type=Path, metavar="ACCEPTANCE_REPORT",
                         help="judge the speed gate from an acceptance report run with "
                         "--rescan, against the baseline's median warm scan (R14.5)")
+    parser.add_argument("--jobs", type=int, default=1, metavar="N",
+                        help="scan N of the corpus's projects at a time (R48.2); the "
+                        "report is the same at any N")
     parser.add_argument("--exact", action="store_true",
                         help="with --compare: fail unless every track is measured and "
                         "equals its baseline (R45.6)")
@@ -585,7 +651,7 @@ def main(argv: list[str] | None = None) -> int:
         speed = speed_of(json.loads(args.speed.read_text()), json.loads(baseline.read_text()))
     scan = functools.partial(_cli_scan, fresh=True) if args.fresh else _cli_scan
     result = run([t for t in args.tracks.split(",") if t], args.work.resolve(), image=image,
-                 speed=speed, scan=scan)
+                 speed=speed, scan=scan, jobs=args.jobs)
     write(result, args.out.resolve())
     print(scorecard(result))
     if args.rules_measured:

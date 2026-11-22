@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Do two images give one output from every Scanner (R45.6, D81aa, Requirement 21.3).
 
-    python3 scripts/same_output.py --released ghcr.io/maverickhq/valvur:latest --new valvur:dev
+    python3 scripts/same_output.py --released ghcr.io/maverickhq/valvur:1.6.2 --new valvur:dev
 
 An image patch releases itself only when nothing a scan depends on has moved. This runs each
 Scanner's golden recipe (`scanner_upgrade.RECIPES`) in the latest release's image and in the

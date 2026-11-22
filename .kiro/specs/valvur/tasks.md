@@ -129,6 +129,11 @@ published (run 41226242327): PyPI, both architectures at `sha256:192bde83`, sign
 attested, the MCP Registry's entry, and the image gate at 0 blocking, 0 accepted and 5 with no
 fix. The nightly of 2026-11-01 passed on it and closed #252.
 
+**Amended 2026-11-22**, at the owner's word, with Phases R48 to R52 in
+[signal and adoption's own list](../signal-and-adoption/tasks.md): what a user can trust in a
+report, what gets valvur switched on in an existing pipeline, and the evidence an adopter asks
+for. The owner approved its requirements, ADRs, list and run plan at four checkpoints (D82).
+
 **Amended 2026-10-24**, at the owner's word, with Phases R42 to R47 in
 [the self-healing supply chain's own list](../self-healing-supply-chain/tasks.md), written after
 the nightly failed on 2026-10-20 and 2026-10-21 (#234). The owner approved it in halves the same
@@ -381,6 +386,7 @@ wait for it.
 | D79 | **The README on PyPI** (the owner, 2026-10-09, after R39; from §9). PyPI renders the README as the project's description, and resolves nothing relative: on `1.5.0`'s page 22 of 52 links and the demo image are broken (measured in a browser, since PyPI answers scripts with a challenge). The build writes PyPI's copy: a metadata hook in `hatch_build.py` reads `README.md` and rewrites every relative link to the repository at the release's tag (`blob/v<version>/`, `tree/` for a folder), every image to `raw.githubusercontent.com` at that tag, and a `<picture>` to its light `<img>`, since PyPI's page is light and keeps no `<picture>`. A version that is not a release links `main`. The README in the tree keeps its relative links, which GitHub and the link test need. Tested through the built wheel's metadata, since hatchling is the build's and not the test environment's. It changes the release machinery, so `1.5.1` is rehearsed. | if PyPI strips something the rewrite relies on, the README's HTML is reduced to what its renderer keeps, measured with `readme-renderer` |
 | D80 | **Model output reaching a sink, measured** (the owner, 2026-10-11, from §9; amends ADR-0026's eight tracks to nine). The four LLM-output rules (`valvur.llm.output-to-code-execution`, `-to-shell` and `-to-sql`, and `valvur.js.output-to-innerhtml`) are valvur's core claim for AI-generated code. `docs/RULES.md` marks them *unmeasured*: no track holds a case of their weakness. **(a) The cases.** A ninth track, `llm-output`, comes after `real-code-precision`, so tracks 1 to 8 keep their numbers. Each case is vulnerable, beside its fixed twin. *Generated twins*, from a fixed seed as tracks 2 to 7 are, cover each sink the rules name (code execution, a shell, a query, the DOM) and each SDK source (Anthropic, OpenAI, Gemini, LangChain, litellm, ollama). They include the flows the rules are known to miss, through a helper function, so the intra-procedural limit `test_rules.py` states is measured as well. *Real cases* are the vulnerable and fixed commits of published advisories in LLM frameworks whose licence allows it, pinned and fetched into the build cache as the corpus is. LangChain's math and SQL chains, Vanna, PandasAI and LlamaIndex's pandas query engine are candidates, each confirmed by R41.1. Real cases weigh against valvur writing its own exam, so the track reports the two kinds apart as well as together. **(b) The score** is the OWASP Benchmark's formula per sink, as tracks 1 and 2 are. The Score becomes the mean of nine. Its baseline is re-based with both numbers, as track 8's was (R29.6), never recorded as a rise. ADR-0026 is amended, and every document that says *eight tracks* says nine. **(c) The rules, measured.** `rule_precision` reads the new track, so `docs/RULES.md` gives the four rules their counts. A rule under D29's bar is improved in the phase when the track shows a source or sink it lacks; otherwise it is demoted to the inventory with its reason (D65b). **(d) Effort**, estimated on 2026-10-11: about a day and a half elapsed, most of it measurement on this Mac; the owner's part is the landing. | if fewer than three real cases are licence-compatible and reproducible, the track holds generated twins alone, and says so in its row and in `EVALUATING.md` |
 | D81 | **The self-healing supply chain** (the owner, 2026-10-24, approved in halves). Its decisions, D81a to D81v with their fallbacks, are in [its design](../self-healing-supply-chain/design.md#decisions-d81), and its phases, R42 to R47, in [its list](../self-healing-supply-chain/tasks.md). Accepted on 2026-10-24 for the first half, the rows R42 and R43 use (D81b, c, o, p, s and t, and D81l's no model on the path); the rest when the owner starts the second half, after deciding R44 and R45's scope. **ADR-0032 (R45.1, proposed 2026-11-22) amends D62a and D64(e) for one class of release:** a security patch the heal tags needs no rehearsal and no approval at the brake, and promotes after a 12-hour delay the owner can cancel. | the fallbacks are the design's, row by row |
+| D82 | **Signal and adoption** (the owner, 2026-11-21 and 2026-11-22, at checkpoints A to D). Its decisions, D82a to D82t with their fallbacks, are in [its design](../signal-and-adoption/design.md#decisions-d82), and its phases, R48 to R52, in [its list](../signal-and-adoption/tasks.md). ADR-0033 to ADR-0037 record the five the owner accepted as ADRs, and D82t says where the build runs: the executor on the owner's Mac, containers on the dev machine. | the fallbacks are the design's, row by row |
 
 ## 6. Order
 
@@ -462,6 +468,14 @@ R19 ─► R26 a lighter release ─► R27 Scorecard ─► R28 evergreen ─�
 
 - **R42 to R47 are in [their own list](../self-healing-supply-chain/tasks.md)** (D81), whose §1
   gives their order. R42 and R43 run now; the executor stops after R43's phase commit.
+
+```
+R48 the measurement ─► R49 the bar ─► 1.7.0 ─► R50 an existing codebase ─► R51 the tools around it ─► 1.8.0 ─► R52 the evidence
+```
+
+- **R48 to R52 are in [their own list](../signal-and-adoption/tasks.md)** (D82), whose §1 gives
+  their order. They need nothing of R44 to R47 that waits for the owner, and R48 was cut from
+  R46's branch on 2026-11-22, since the phases stack.
 
 ---
 
@@ -2426,6 +2440,7 @@ rows closed on 2026-09-29 are in [the archive](../../../docs/history/tasks-phase
 | one finding for one package in many lockfiles | R9.3 | a dependency finding's identity is package, version and advisory, without a path (ADR-0003), so the same vulnerable version pinned in two lockfiles of a monorepo is one finding at one path; the second lockfile is never named. Decide whether a finding should list every lockfile it was found in |
 | plan 2.0 (D57) | R24 landed | ask any session for 2.0's phases, written from D57 and the review of 2026-10-03; each part gets its ADR, and each ADR the owner's acceptance |
 | the self-healing supply chain's queue | R42.1 | its own [§3](../self-healing-supply-chain/tasks.md#3-the-owner-queue-for-this-spec): R44 and R45's scope after R43's phase commit, the GitHub App, the environments, the tag key and the image's accepted findings |
+| signal and adoption's queue | R48.1 | its own [§3](../signal-and-adoption/tasks.md#3-the-owner-queue-for-this-spec): three accounts for the agent clients, the action's pull request, the edit to `release.yml`, the Health issue to pin, the OpenSSF form, a person for the usability test, a second maintainer, and releases 1.7.0 and 1.8.0 |
 | the image's 44 acceptances, optional | `1.6.1` published | delete them from `.github/image-accepted.yaml`, which is the owner's to write: since D81w none matches the image, and the release run's gate counted 0 accepted with them in place |
 | Gitleaks, dormant (#258) | now | keep it, or ask for its replacement to be measured: it has released nothing since 8.30.1 of 2026-03-21, and the image builds it from source with its modules raised (D81w) |
 | revisit a decision in §5 | any time | `/grill-with-docs` |

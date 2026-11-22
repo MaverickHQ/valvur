@@ -125,13 +125,12 @@ def test_an_index_without_both_architectures_is_refused_and_plans_no_move(
     assert "linux/amd64 and linux/arm64" in run.stderr and plan == {}
 
 
-NAMED = ("Dockerfile", ".github/workflows/ci.yml", ".github/workflows/release.yml",
-         "scripts/check_image_licences.py", "tests/test_licences.py")
+NAMED = ("Dockerfile", ".github/workflows/release.yml")
 CHANGELOG = "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] — 2026-01-01\n\nThe first.\n"
 
 
 def _tree(tmp_path: Path) -> tuple[Path, str]:
-    """A copy of the five real files that name the base, and the base as they name it."""
+    """A copy of the real files that may name the base, and the base as they name it."""
     tree = tmp_path / "tree"
     for name in NAMED:
         (tree / name).parent.mkdir(parents=True, exist_ok=True)
@@ -163,9 +162,11 @@ def test_apply_rewrites_every_place_the_base_is_named(tmp_path):
     run, out = _apply(tmp_path, tree, [move])
 
     assert run.returncode == 0, run.stderr
+    naming = [name for name in NAMED if old_tag in (tree / name).read_text()]
+    assert "Dockerfile" in naming
     assert sorted(str(p.relative_to(out)) for p in out.rglob("*") if p.is_file()) == sorted(
-        [*NAMED, "CHANGELOG.md"])
-    for name in NAMED:
+        [*naming, "CHANGELOG.md"])
+    for name in naming:
         text = (out / name).read_text()
         assert old_tag not in text, name
         assert "python:3.12-alpine3.99" in text, name

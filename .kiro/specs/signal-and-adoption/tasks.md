@@ -93,7 +93,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
 ### Phase R48: the measurement, for every rule and every Scanner
 
-- [ ] **R48.1** **Measure first, and this spec on the build's rails** (D82a, D82b, D82s).
+- [x] **R48.1** **Measure first, and this spec on the build's rails** (D82a, D82b, D82s).
   No test seam. Behaviours:
   1. **Record.** From one run of the eighth track on `main`:
      - Checkov's and zizmor's Findings on the corpus by rule, and how many labels D82b's
@@ -107,7 +107,29 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      *Check:* `scripts/build_status.py` names R48.2 as this list's next task once this one
      is ticked; `scripts/check_traceability.py` holds; the link check passes.
 
-- [ ] **R48.2** **Counts for every judged rule, and for every Scanner** (D82a).
+  **STATUS 2026-11-22:** ✅ 1 and 2. The track was run on the dev machine at `f6882b2`, R46's
+  head, on `valvur:dev` `sha256:72606c26ab3b` and the day's data: 2.3, with 3 true and 168
+  false, in 499 s. On the owner's Mac it took 574 s on 2026-11-21.
+  - **Checkov:** 74 Findings in 10 rules, none over 25: CKV_DOCKER_2 14, CKV_DOCKER_3 14,
+    CKV_AWS_394 12, CKV2_AWS_12 12, CKV_AWS_338 8, CKV_TF_1 4, CKV2_AWS_5 4, CKV_DOCKER_4 2,
+    CKV_AWS_148 2, CKV_DOCKER_7 2. All 74 are labelled.
+  - **zizmor:** 702 Findings in 12 rules, four of them over 25: unpinned-uses 318,
+    excessive-permissions 207, artipacked 76, dependabot-cooldown 34, template-injection
+    20, cache-poisoning 19, dangerous-triggers 12, unpinned-images 7, secrets-inherit 5,
+    archived-uses 2, bot-conditions 1, github-env 1. D82b's rule asks for 167 labels.
+  - **So R48.3 writes 241 labels.** The two Scanners give 776 Findings together, over D82b's
+    fallback of 300, so the sample of 25 a rule stands.
+  - **The other Scanners there:** Trivy 1,240 and OSV-Scanner 1,254, counted and not
+    judged; Gitleaks 98 and Opengrep 115, judged by the track today.
+  - **One of the 172 labels matched no Finding:** `ripgrep`, `valvur.licence.mismatch` at
+    `Cargo.toml`. That is the 172 against the 171 judged. It is left as it is: R48.3's
+    guard is on a verdict that changes, not on a label with nothing to judge.
+  - **The rails:** the main list's §5, §6 and §8 hold D82's row, R48 to R52 and this list's
+    queue, and `CLAUDE.md` lists ADR-0033 to ADR-0037, at 200 lines (`21f42ed`).
+    `build_status.py` still names R44.6, the owner's, ahead of this list: R48 was cut from
+    R46's branch, since the phases stack, and not from `main` as §0 said.
+
+- [x] **R48.2** **Counts for every judged rule, and for every Scanner** (D82a).
   **Seam:** `eval.run(["real-code-precision"], …, scan=, corpus=)` with a scan that writes
   canned Findings, as `tests/test_eval_run.py` drives it; the report it returns, and
   `eval.compare`. Behaviours:
@@ -132,7 +154,24 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 1.1_
 
-- [ ] **R48.3** **Checkov and zizmor, judged in their own table** (D82a, D82b).
+  **STATUS 2026-11-22:** ✅ 1 to 6 (`7f9e994`), 6 tests in `tests/test_eval_by_rule.py`.
+  - **On the real corpus,** on the dev machine at `7f9e994`: 2.3, with 3 true and 168
+    false, at both job counts. **272 s with `--jobs 4`, 467 s with `--jobs 1`,** and the
+    two reports the same but for their seconds.
+  - **`by_rule` holds 15 rules.** Gitleaks: private-key 0 true and 35 false, jwt 0 and 29,
+    generic-api-key 0 and 26, curl-auth-header 0 and 6, pkcs12-file 0 and 1,
+    slack-webhook-url 0 and 1. Opengrep: `python_random_rule-random` 0 and 23,
+    `valvur.python.weak-hash` 0 and 21, insecure-cookie 0 and 8, open-redirect 0 and 7,
+    path-traversal 0 and 6, `valvur.javascript.ssrf` 0 and 2,
+    `javascript_eval_rule-eval-with-expression` 2 and 1, `valvur.pinning.mutable-git-ref`
+    1 and 1. And `valvur.dependency.near-miss` 0 and 1.
+  - **`by_scanner`:** Gitleaks 98, all judged; Opengrep 72, all judged; Trivy 1,216,
+    zizmor 702, Checkov 74 and OSV-Scanner 64, none judged until R48.3. A Finding is
+    counted under the first Scanner that reported it.
+  - **A project is also named in `incomplete`** when its Scan Run was not complete, and not
+    only when its scan failed, in one list at any job count.
+
+- [x] **R48.3** **Checkov and zizmor, judged in their own table** (D82a, D82b).
   **Seam:** as R48.2, with the labels read from a path the test gives; `eval.compare`;
   `eval.update_baseline`. Behaviours:
   1. A Checkov Finding with a label in the hygiene file is counted under `hygiene`, by rule.
@@ -155,7 +194,64 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 1.2, 1.4, 5.2_
 
-- [ ] **R48.4** **`docs/RULES.md` lists every rule that fired, with its two measurements**
+  **STATUS 2026-11-22:** ✅ 1 to 7, 10 tests in `tests/test_eval_hygiene.py`.
+  - **The run,** on the dev machine at `82738cf`, `valvur:dev` `sha256:913257ee79d7`, with
+    `--jobs 4 --compare`: the Score 74.1 and every track where its baseline is, no judged
+    Finding without a label in either table, in 327 s for the nine tracks.
+  - **The baseline records 413 verdicts,** 172 of the track's and 241 of these, written by
+    that run's `--update-baseline`. No track moved. `recorded_on` now names that image and
+    that day's data. The guard reads the two committed files, and a second test bends one
+    committed verdict in a copy and sees it named.
+  - **241 labels** in `tests/eval/labels/hygiene.toml`, each read against its file at the
+    project's pinned commit: **153 true and 88 false.**
+
+    | Scanner | rule | Findings | judged | true | false |
+    |---|---|---|---|---|---|
+    | Checkov | CKV2_AWS_12 | 12 | 12 | 0 | 12 |
+    | Checkov | CKV2_AWS_5 | 4 | 4 | 0 | 4 |
+    | Checkov | CKV_AWS_148 | 2 | 2 | 0 | 2 |
+    | Checkov | CKV_AWS_338 | 8 | 8 | 7 | 1 |
+    | Checkov | CKV_AWS_394 | 12 | 12 | 12 | 0 |
+    | Checkov | CKV_DOCKER_2 | 14 | 14 | 7 | 7 |
+    | Checkov | CKV_DOCKER_3 | 14 | 14 | 7 | 7 |
+    | Checkov | CKV_DOCKER_4 | 2 | 2 | 2 | 0 |
+    | Checkov | CKV_DOCKER_7 | 2 | 2 | 2 | 0 |
+    | Checkov | CKV_TF_1 | 4 | 4 | 0 | 4 |
+    | zizmor | archived-uses | 2 | 2 | 2 | 0 |
+    | zizmor | artipacked | 76 | 25, sampled | 25 | 0 |
+    | zizmor | bot-conditions | 1 | 1 | 1 | 0 |
+    | zizmor | cache-poisoning | 19 | 19 | 8 | 11 |
+    | zizmor | dangerous-triggers | 12 | 12 | 5 | 7 |
+    | zizmor | dependabot-cooldown | 34 | 25, sampled | 18 | 7 |
+    | zizmor | excessive-permissions | 207 | 25, sampled | 20 | 5 |
+    | zizmor | github-env | 1 | 1 | 0 | 1 |
+    | zizmor | secrets-inherit | 5 | 5 | 5 | 0 |
+    | zizmor | template-injection | 20 | 20 | 0 | 20 |
+    | zizmor | unpinned-images | 7 | 7 | 7 | 0 |
+    | zizmor | unpinned-uses | 318 | 25, sampled | 25 | 0 |
+
+  - **Checkov: 37 true, 37 false.** All 42 Terraform Findings are in one project, a
+    reusable VPC module. Twenty-three of them are wrong by reading: the module does
+    restrict the default security group by default, does attach the endpoints' group,
+    provisions no default VPC unless asked, keeps one log group for ever by default, and
+    its examples use registry modules, which cannot carry a commit hash. Checkov does not
+    follow a count or an expression.
+  - **zizmor: 116 true, 51 false.** The rules that state a fact about a line are true every
+    time: unpinned-uses, artipacked, unpinned-images, secrets-inherit, archived-uses.
+    **template-injection is false 20 times of 20:** every value expanded is set only by
+    someone with write access (a dispatch or called-workflow input, a pushed tag) or is
+    GitHub's own in a fixed form. cache-poisoning is false 11 times of 19: `setup-node`
+    with no cache configured, and caches in test jobs of a workflow that also publishes.
+  - **Three readings are applied the same way throughout,** and are written at the head of
+    the file for the owner to overrule: a Dockerfile's missing HEALTHCHECK or USER is true
+    for an image that serves; a dangerous trigger is true where the privileged run consumes
+    what a contributor controls or trusts a spoofable check; a template expansion is false
+    where only someone with write access sets the value.
+  - **The sample is of the lowest Fingerprints,** which is a draw across Findings and not
+    across projects: a project with many workflows has more of a rule's 25. It is the rule
+    D82b chose because a reader can repeat it, and the page says *sampled* beside each.
+
+- [x] **R48.4** **`docs/RULES.md` lists every rule that fired, with its two measurements**
   (D82a). **Seam:** `eval.rules_measured(report, path)` and `rules_doc.render(measured)`, as
   `tests/test_rules_doc.py` drives them; `rules_doc.main(["--check"])`. Behaviours:
   1. From a canned report, `rules-measured.json` holds a Gitleaks rule's corpus counts apart
@@ -170,7 +266,20 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 1.3, 2.3_
 
-- [ ] **R48.5** **A mutant of an annotation alone is not counted.**
+  **STATUS 2026-11-22:** ✅ 1 to 6 (`ab0574f` and the record), 7 tests in
+  `tests/test_rules_doc_others.py`.
+  - **The page's second table has 29 rows:** 10 of Checkov's, 12 of zizmor's, 6 of
+    Gitleaks' and one of valvur's Checks, regenerated from R48.3's run. Four are marked
+    *sampled*. Eleven read *unmeasured there*, with fewer than five judged Findings.
+  - **A planted count is a rule's own.** Gitleaks' `private-key` and `generic-api-key` are
+    2 true each on the planted cases; the secrets track's other planted secrets are caught
+    by nine provider rules, 2 each, that never fired on the corpus, so they have no row.
+  - **The first table changed in one way:** a corpus cell with fewer than five judged
+    Findings says so. No count in it moved.
+  - **Corrected on the page:** it said the bar is *over the three* places. It has been four
+    since track 9 (R41), and `rule_precision.PLACES` already summed four.
+
+- [x] **R48.5** **A mutant of an annotation alone is not counted.**
   **Seam:** `mutation_check.code_changed(before, after)`, as the comments-and-docstrings
   test drives it. Behaviours:
   1. **Guard.** A change to an annotation and to a value is a code change.
@@ -182,7 +291,16 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 15.1_
 
-- [ ] **R48.6** **No test compares against a moving target.**
+  **STATUS 2026-11-22:** ✅ 1 to 4, in `scripts/mutation_check.py`, 12 tests in
+  `tests/test_mutation_annotations.py`. 5 is the weekly job's: the baseline, 83.8, is one
+  week's score and may only rise, and the next Wednesday's run is the first to leave
+  annotation-only hunks out. Nothing is recorded by hand before it.
+  - **Added: an annotation a dataclass reads is still a code change.** `ClassVar`, `InitVar`
+    and `KW_ONLY` decide what the class is, so a hunk that changes one of those is counted.
+  - A removed return annotation and a bare declaration (`seen: dict`) are no code change
+    either, with the three cases the task names.
+
+- [x] **R48.6** **No test compares against a moving target.**
   **Seam:** a guard over the tree, in `tests/test_no_moving_target.py`, whose finder takes a
   root so that it can be driven on a tree made in `tmp_path`. Behaviours:
   1. In a made tree whose Dockerfile pins `name:tag@sha256:…`, a file that names `name:tag`
@@ -197,7 +315,30 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 15.2_
 
-- [ ] **R48.7** **The hostile fixtures are stored under names no agent loads.**
+  **STATUS 2026-11-22:** ✅ 1 to 4, 7 tests in `tests/test_no_moving_target.py`.
+  - **Red first on the repository:** it named `scripts/check_image_licences.py`,
+    `tests/test_licences.py`, `ci.yml` and `release.yml`. The script now reads the final
+    stage's base from the Dockerfile, digest included, and refuses a Dockerfile whose final
+    stage has none. The test and CI's step pass no base.
+  - **Proof,** on the dev machine at `a00fa01` with this slice, `valvur:dev`
+    `sha256:913257ee79d7`: 1,296 components added over the base named with its digest, no
+    GPL or AGPL one, in 10 s; `tests/test_licences.py`'s e2e test passes.
+  - **Added: an action.** Requirement 15.2 names one: a workflow that names by tag an
+    action another workflow pins by commit is reported. None does today.
+  - **`:latest` is refused for valvur's own image alone.** Other `:latest` strings under
+    `tests/` are the text of fakes and fixtures, and none is pulled.
+  - **The list holds five.** Four are `ghcr.io/maverickhq/valvur:latest`: the nightly and
+    the watchdog, which judge the image users pull today, and the two tests that assert
+    they do. **The fifth is the owner's:** `release.yml` line 157 still passes the base's
+    tag, and the diff is in §3. Until then the release's licence check diffs against the
+    tag as Docker Hub serves it, as it always has.
+  - **The base tag heal follows** (`scripts/base_heal.py`, R44.12): it rewrites the
+    Dockerfile and `release.yml`, no longer five files, and writes only a file that names
+    the old tag. Once the owner's edit is in, a base tag move changes the Dockerfile and
+    the CHANGELOG alone, which bears on the question R44.12 left for the owner: such a move
+    then touches no workflow.
+
+- [x] **R48.7** **The hostile fixtures are stored under names no agent loads.**
   **Seam:** `scripts/fixtures.py`'s `copy`, which the tests reach as `copy_fixture`, and the
   stored tree as `git ls-files` gives it. Behaviours:
   1. **Guard, existing.** `tests/test_scan_goldens.py` and the AI-artifact tests, which read
@@ -214,8 +355,34 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 15.3_
 
+  **STATUS 2026-11-22:** ✅ 1 to 5 (`2ddae45`), 5 tests in
+  `tests/test_hostile_fixture_names.py`.
+  - **Stored now:** `AGENTS.md.fixture`, `CLAUDE.md.fixture`, `.mcp.json.fixture` and
+    `.claude.fixture/settings.json`. No other fixture held a name an agent client loads;
+    the guard's list also names `GEMINI.md`, `.cursorrules`, `.windsurfrules`,
+    `copilot-instructions.md` and the `.cursor/`, `.kiro/`, `.codex/` and `.windsurf/`
+    directories.
+  - **`copy` renames the deepest first,** so a stored file inside a stored directory gets
+    its real name too. It raised before.
+  - **One reader went round the copier:** `tests/test_applicability.py` read the stored
+    tree for its Terraform. It reads a copy. Three files name the stored tree and read
+    nothing an agent would load, each listed with its reason.
+  - **Proof,** on the dev machine at `6b3e9cd` with the slice, `valvur:dev`
+    `sha256:913257ee79d7`: the container tests, 89 passed and 8 skipped in 439 s; the
+    acceptance set passed in 280 s with its generation; **no file under
+    `tests/fixtures/golden/` changed.**
+
 **Exit:** the Score unchanged on every track, on both lanes; `docs/RULES.md` lists every rule
 that fired on the corpus; the three hygiene tests hold.
+
+**STATUS 2026-11-22:** ✅ the exit is measured, in [`docs/acceptance/r48.md`](../../../docs/acceptance/r48.md).
+- **The Score is 74.1 on both lanes, and no track moved:** the dev machine at `82738cf`
+  (arm64, 327 s with `--jobs 4`) and the pull request's check at `5f2e952` (amd64, eval run
+  45063635361, 622 s). The Mac ran the unit gate; the Score's second lane is the dev
+  machine, as D82t says.
+- **`docs/RULES.md`** lists 25 of Opengrep's rules and 29 others, and is held current.
+- **The three hygiene tests hold,** and every check of #307 passed at `5f2e952`.
+- **Left for the owner:** one line of `release.yml` (§3), and the 241 verdicts to read.
 
 ### Phase R49: the bar on maintained code
 
@@ -681,6 +848,7 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
+| one line of `release.yml` | R48.6 | line 157 drops its second argument, `python:3.12-alpine3.24`, as `ci.yml`'s step did; then the entry leaves `tests/test_no_moving_target.py`'s list, which fails until it does |
 | pin the Health issue | R52.5 | pin it in the repository, once |
 | the OpenSSF form | R52.4 | paste `docs/BEST-PRACTICES.md` into bestpractices.dev; the badge is added once it passes |
 | a person who has not used valvur | before R52.6 | find one, and an hour |

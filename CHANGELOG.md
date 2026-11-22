@@ -24,6 +24,13 @@ break things, and has.
 
 ### Changed
 
+- **`docs/RULES.md` lists every rule that fired on real code, not valvur's own alone.**
+  Gitleaks', Checkov's and zizmor's rules each have a row with two measurements that are
+  never added together: on the 48 maintained projects of the corpus, labelled by hand, and
+  on the Score's planted cases. Checkov's and zizmor's 776 Findings there were judged for
+  the first time, 241 of them by D82b's sample: 153 true and 88 false. A rule with fewer
+  than five judged Findings on maintained code now reads *unmeasured there*. Nothing valvur
+  reports has changed: this is the measurement the next release's bar is set from.
 - **The image is built with no compiler.** The step that installs Checkov added `gcc`,
   `musl-dev` and `libffi-dev` at whatever version Alpine held that day. Every package of
   the Checkov and zizmor locks has a wheel for both architectures, so the three are gone,

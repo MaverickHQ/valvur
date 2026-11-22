@@ -11,43 +11,88 @@ model output reaching a sink, in generated twins and in published advisories' co
 A cell is true / false positives; a finding on a case of another weakness is not
 counted.
 
-**The bar** is D29's: at least one true positive and a precision of at least 0.5
-over the three, and for a rule vendored from GitLab's `sast-rules`, one true
+**The bar** is ADR-0029's: at least one true positive and a precision of at least
+0.5, over four places summed: tracks 1, 2 and 9 and the corpus. For a rule vendored
+from GitLab's `sast-rules`, also one true
 positive at a line valvur's own rules do not already report. A rule under it is
 moved to the **inventory**, where its findings are reported for review and never
 count toward the verdict, with the reason below. The sink rules are inventory by
 design (D47a); an inventory finding on the corpus has no label, and is *unjudged*.
 
-**Unmeasured** means no case of the rule's weakness in any of the three, so
+**Unmeasured** means no case of the rule's weakness in any of the four, so
 nothing here says how precise it is. Each fires on the cases planted for it in
-valvur's own tests and fixtures, and stays active.
+valvur's own tests and fixtures, and stays active. A corpus cell that reads
+*unmeasured there* has fewer than 5 judged Findings on maintained code (ADR-0033).
 
 | rule | source | CWE | track 1 | track 2 | corpus | track 9 | precision | state |
 |---|---|---|---|---|---|---|---|---|
-| `javascript_eval_rule-eval-with-expression` | GitLab sast-rules | CWE-95 | 0 / 0 | 1 / 0 | 2 / 1 | 0 / 0 | 0.75 | active |
-| `python_deserialization_rule-yaml-load` | GitLab sast-rules | CWE-502 | 5 / 5 | 0 / 0 | 0 / 0 | 0 / 0 | 0.5 | active |
+| `javascript_eval_rule-eval-with-expression` | GitLab sast-rules | CWE-95 | 0 / 0 | 1 / 0 | 2 / 1, unmeasured there | 0 / 0 | 0.75 | active |
+| `python_deserialization_rule-yaml-load` | GitLab sast-rules | CWE-502 | 5 / 5 | 0 / 0 | unmeasured there | 0 / 0 | 0.5 | active |
 | `python_random_rule-random` | GitLab sast-rules | CWE-338 | 35 / 0 | 0 / 0 | 0 / 23 | 0 / 0 | 0.603 | active |
-| `python_sql_rule-hardcoded-sql-expression` | GitLab sast-rules | CWE-89 | 5 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 1.0 | active |
-| `valvur.javascript.command-injection` | valvur | CWE-78 | 0 / 0 | 2 / 0 | 0 / 0 | 0 / 0 | 1.0 | active |
-| `valvur.javascript.path-traversal` | valvur | CWE-22 | 0 / 0 | 2 / 0 | 0 / 0 | 0 / 0 | 1.0 | active |
-| `valvur.javascript.sql-injection` | valvur | CWE-89 | 0 / 0 | 2 / 0 | 0 / 0 | 0 / 0 | 1.0 | active |
-| `valvur.javascript.ssrf` | valvur | CWE-918 | 0 / 0 | 2 / 0 | 0 / 2 | 0 / 0 | 0.5 | active |
-| `valvur.js.output-to-innerhtml` | valvur | CWE-79 | 0 / 0 | 0 / 0 | 0 / 0 | 6 / 0 | 1.0 | active |
-| `valvur.llm.output-to-code-execution` | valvur | CWE-94 | 0 / 0 | 0 / 0 | 0 / 0 | 8 / 0 | 1.0 | active |
-| `valvur.llm.output-to-shell` | valvur | CWE-78 | 0 / 0 | 0 / 0 | 0 / 0 | 8 / 0 | 1.0 | active |
-| `valvur.llm.output-to-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | 0 / 0 | 8 / 0 | 1.0 | active |
-| `valvur.pinning.mutable-git-ref` | valvur | CWE-829 | 0 / 0 | 0 / 0 | 1 / 1 | 0 / 0 | 0.5 | active |
-| `valvur.python.code-injection` | valvur | CWE-95 | 9 / 1 | 0 / 0 | 0 / 0 | 0 / 0 | 0.9 | active |
-| `valvur.python.command-injection` | valvur | CWE-78 | 9 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 1.0 | active |
-| `valvur.python.dangerous-eval` | valvur | CWE-95 | 10 / 16 | 0 / 0 | 0 / 0, 12 unjudged | 0 / 0 | 0.385 | inventory: a sink to review (D47a) |
-| `valvur.python.dangerous-exec` | valvur | CWE-95 | 10 / 17 | 0 / 0 | 0 / 0, 28 unjudged | 0 / 0 | 0.37 | inventory: a sink to review (D47a) |
+| `python_sql_rule-hardcoded-sql-expression` | GitLab sast-rules | CWE-89 | 5 / 0 | 0 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
+| `valvur.javascript.command-injection` | valvur | CWE-78 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
+| `valvur.javascript.path-traversal` | valvur | CWE-22 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
+| `valvur.javascript.sql-injection` | valvur | CWE-89 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
+| `valvur.javascript.ssrf` | valvur | CWE-918 | 0 / 0 | 2 / 0 | 0 / 2, unmeasured there | 0 / 0 | 0.5 | active |
+| `valvur.js.output-to-innerhtml` | valvur | CWE-79 | 0 / 0 | 0 / 0 | unmeasured there | 6 / 0 | 1.0 | active |
+| `valvur.llm.output-to-code-execution` | valvur | CWE-94 | 0 / 0 | 0 / 0 | unmeasured there | 8 / 0 | 1.0 | active |
+| `valvur.llm.output-to-shell` | valvur | CWE-78 | 0 / 0 | 0 / 0 | unmeasured there | 8 / 0 | 1.0 | active |
+| `valvur.llm.output-to-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | unmeasured there | 8 / 0 | 1.0 | active |
+| `valvur.pinning.mutable-git-ref` | valvur | CWE-829 | 0 / 0 | 0 / 0 | 1 / 1, unmeasured there | 0 / 0 | 0.5 | active |
+| `valvur.python.code-injection` | valvur | CWE-95 | 9 / 1 | 0 / 0 | unmeasured there | 0 / 0 | 0.9 | active |
+| `valvur.python.command-injection` | valvur | CWE-78 | 9 / 0 | 0 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
+| `valvur.python.dangerous-eval` | valvur | CWE-95 | 10 / 16 | 0 / 0 | unmeasured there, 12 unjudged | 0 / 0 | 0.385 | inventory: a sink to review (D47a) |
+| `valvur.python.dangerous-exec` | valvur | CWE-95 | 10 / 17 | 0 / 0 | unmeasured there, 28 unjudged | 0 / 0 | 0.37 | inventory: a sink to review (D47a) |
 | `valvur.python.insecure-cookie` | valvur | CWE-614 | 24 / 0 | 0 / 0 | 0 / 8 | 0 / 0 | 0.75 | active |
-| `valvur.python.insecure-yaml-load` | valvur | CWE-502 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | - | active, unmeasured |
+| `valvur.python.insecure-yaml-load` | valvur | CWE-502 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | active, unmeasured |
 | `valvur.python.open-redirect` | valvur | CWE-601 | 9 / 2 | 0 / 0 | 0 / 7 | 0 / 0 | 0.5 | active |
 | `valvur.python.path-traversal` | valvur | CWE-22 | 27 / 7 | 0 / 0 | 0 / 6 | 0 / 0 | 0.675 | active |
-| `valvur.python.string-built-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | - | inventory: a sink to review (D47a) |
-| `valvur.python.subprocess-shell-true` | valvur | CWE-78 | 7 / 7 | 0 / 0 | 0 / 0, 3 unjudged | 0 / 0 | 0.5 | inventory: a sink to review (D47a) |
+| `valvur.python.string-built-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | inventory: a sink to review (D47a) |
+| `valvur.python.subprocess-shell-true` | valvur | CWE-78 | 7 / 7 | 0 / 0 | unmeasured there, 3 unjudged | 0 / 0 | 0.5 | inventory: a sink to review (D47a) |
 | `valvur.python.weak-hash` | valvur | CWE-328 | 37 / 0 | 0 / 0 | 0 / 21 | 0 / 0 | 0.638 | active |
-| `valvur.python.xml-external-entities` | valvur | CWE-611 | 8 / 7 | 0 / 0 | 0 / 0 | 0 / 0 | 0.533 | active |
+| `valvur.python.xml-external-entities` | valvur | CWE-611 | 8 / 7 | 0 / 0 | unmeasured there | 0 / 0 | 0.533 | active |
 
-Measured 2026-10-11 on `valvur:dev` (`sha256:9ac213cea17698cd057c380d736f4f7f8c99f79ec153b105bfe630fa9777dc61`).
+## Every other rule that fired on the corpus
+
+Gitleaks', Checkov's and zizmor's rules and valvur's own Checks, each with two
+measurements that are never added together. *On maintained code* is the corpus:
+Gitleaks' and the Checks' Findings from `tests/eval/labels/corpus.toml`, Checkov's
+and zizmor's from `tests/eval/labels/hygiene.toml`, where a rule with more than 25
+Findings is judged on the 25 with the lowest Fingerprints and marked *sampled*.
+*On planted cases* is the Score's planted tracks: true on a vulnerable case, false
+on a safe one. A rule with fewer than 5 judged Findings on the corpus is
+*unmeasured there* (ADR-0033).
+
+| rule | Scanner | on maintained code | on planted cases | note |
+|---|---|---|---|---|
+| `CKV2_AWS_12` | Checkov | 0 / 12 | 0 / 0 | |
+| `CKV2_AWS_5` | Checkov | 0 / 4, unmeasured there | 0 / 0 | |
+| `CKV_AWS_148` | Checkov | 0 / 2, unmeasured there | 0 / 0 | |
+| `CKV_AWS_338` | Checkov | 7 / 1 | 0 / 0 | |
+| `CKV_AWS_394` | Checkov | 12 / 0 | 0 / 0 | |
+| `CKV_DOCKER_2` | Checkov | 7 / 7 | 0 / 0 | |
+| `CKV_DOCKER_3` | Checkov | 7 / 7 | 1 / 0 | |
+| `CKV_DOCKER_4` | Checkov | 2 / 0, unmeasured there | 1 / 0 | |
+| `CKV_DOCKER_7` | Checkov | 2 / 0, unmeasured there | 1 / 0 | |
+| `CKV_TF_1` | Checkov | 0 / 4, unmeasured there | 0 / 0 | |
+| `valvur.dependency.near-miss` | dependency-reality | 0 / 1, unmeasured there | 0 / 0 | |
+| `curl-auth-header` | Gitleaks | 0 / 6 | 0 / 0 | |
+| `generic-api-key` | Gitleaks | 0 / 26 | 2 / 0 | |
+| `jwt` | Gitleaks | 0 / 29 | 0 / 0 | |
+| `pkcs12-file` | Gitleaks | 0 / 1, unmeasured there | 0 / 0 | |
+| `private-key` | Gitleaks | 0 / 35 | 2 / 0 | |
+| `slack-webhook-url` | Gitleaks | 0 / 1, unmeasured there | 0 / 0 | |
+| `archived-uses` | zizmor | 2 / 0, unmeasured there | 0 / 0 | |
+| `artipacked` | zizmor | 25 / 0 | 1 / 0 | sampled: 25 of 76 judged |
+| `bot-conditions` | zizmor | 1 / 0, unmeasured there | 0 / 0 | |
+| `cache-poisoning` | zizmor | 8 / 11 | 0 / 0 | |
+| `dangerous-triggers` | zizmor | 5 / 7 | 1 / 0 | |
+| `dependabot-cooldown` | zizmor | 18 / 7 | 0 / 0 | sampled: 25 of 34 judged |
+| `excessive-permissions` | zizmor | 20 / 5 | 1 / 0 | sampled: 25 of 207 judged |
+| `github-env` | zizmor | 0 / 1, unmeasured there | 0 / 0 | |
+| `secrets-inherit` | zizmor | 5 / 0 | 0 / 0 | |
+| `template-injection` | zizmor | 0 / 20 | 1 / 0 | |
+| `unpinned-images` | zizmor | 7 / 0 | 0 / 0 | |
+| `unpinned-uses` | zizmor | 25 / 0 | 1 / 0 | sampled: 25 of 318 judged |
+
+Measured 2026-11-22 on `valvur:dev` (`sha256:913257ee79d7b3f61ab6da9e78eb697defc5dba4c5cb2d12ed24407e1417d220`).

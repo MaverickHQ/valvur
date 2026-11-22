@@ -10,7 +10,10 @@ pins no second syft. A hand-rolled pass over Python package metadata
 reported "96 packages, all clean" while syft found 2,227 components and 12 GPL ones:
 the Python layer was never where the risk was.
 
-    python scripts/check_image_licences.py valvur:dev python:3.12-alpine3.24
+    python scripts/check_image_licences.py valvur:dev
+
+The base is the Dockerfile's final stage, read with its digest (R48.6): the tag alone names
+whatever Docker Hub serves that day, which is not the base the image was built from.
 """
 
 from __future__ import annotations
@@ -19,6 +22,9 @@ import json
 import re
 import subprocess
 import sys
+from pathlib import Path
+
+DOCKERFILE = Path(__file__).resolve().parent.parent / "Dockerfile"
 
 COPYLEFT = re.compile(r"\b(AGPL|GPL|SSPL|OSL|EUPL)\b", re.IGNORECASE)
 
@@ -66,6 +72,14 @@ def added_components(image: str, base: str) -> list[dict]:
     return [c for c in ours if (c.get("name"), c.get("version")) not in base_keys]
 
 
+def base_of(dockerfile: str) -> str:
+    """The final stage's base as the Dockerfile pins it, `name:tag@sha256:…`."""
+    stages = re.findall(r"^FROM (\S+)", dockerfile, re.M)
+    if not stages or not re.search(r"@sha256:[0-9a-f]{64}$", stages[-1]):
+        raise ValueError("the Dockerfile's final stage is not pinned by digest")
+    return stages[-1]
+
+
 def offending(components: list[dict]) -> list[tuple[str, str]]:
     found = []
     for component in components:
@@ -77,7 +91,7 @@ def offending(components: list[dict]) -> list[tuple[str, str]]:
 
 def main(argv: list[str]) -> int:
     image = argv[0] if argv else "valvur:dev"
-    base = argv[1] if len(argv) > 1 else "python:3.12-alpine3.24"
+    base = argv[1] if len(argv) > 1 else base_of(DOCKERFILE.read_text(encoding="utf-8"))
 
     added = added_components(image, base)
     problems = offending(added)
