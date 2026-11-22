@@ -246,3 +246,31 @@ class FakePackageRegistry:
     @property
     def asked(self) -> list[str]:
         return [line for line in self.log.read_text(encoding="utf-8").splitlines() if line]
+
+
+# ------------------------------------------------------------------- PyPI's facts
+
+PYPI = "https://pypi.org"
+
+
+def pypi_answers(projects: dict[str, dict[str, dict]]) -> dict[str, object]:
+    """PyPI's JSON and integrity endpoints, as answers for `FakePackageRegistry` (R44.2).
+
+    `projects` maps a project to its versions, and a version to what the heal reads of it:
+    `uploaded` (`YYYY-MM-DDTHH:MM:SSZ`), `yanked`, `files` (one wheel by default) and
+    `publisher`, the Trusted Publisher on every file's attestation, or absent for none.
+    """
+    answers: dict[str, object] = {}
+    for name, versions in projects.items():
+        releases = {}
+        for version, facts in versions.items():
+            files = facts.get("files") or [f"{name}-{version}-py3-none-any.whl"]
+            releases[version] = [{"filename": filename,
+                                  "upload_time_iso_8601": facts["uploaded"],
+                                  "yanked": bool(facts.get("yanked"))} for filename in files]
+            for filename in files if facts.get("publisher") else []:
+                url = f"{PYPI}/integrity/{name}/{version}/{filename}/provenance"
+                answers[url] = {"version": 1, "attestation_bundles": [
+                    {"publisher": facts["publisher"], "attestations": []}]}
+        answers[f"{PYPI}/pypi/{name}/json"] = {"info": {"name": name}, "releases": releases}
+    return answers
