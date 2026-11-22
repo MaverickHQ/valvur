@@ -1262,7 +1262,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R46: how fast it heals, and the documents
 
-- [ ] **R46.1** **Time to heal** (D81r). Behaviours:
+- [x] **R46.1** **Time to heal** (D81r). Behaviours:
   1. `scripts/heal_report.py --month YYYY-MM` reads the trailers of merged heal pull requests,
      and the releases, from GitHub's API, faked in the tests. For each advisory it prints
      publication, pull request, merge and promotion, against the 48-hour target.
@@ -1271,6 +1271,24 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      1.5.4.
 
   _Requirements: 13.1, 13.2_
+
+  **STATUS 2026-11-22:** ✅ 1 and 3, in `scripts/heal_report.py`, 7 tests in
+  `tests/test_heal_report.py`. Ticked with 2 recorded as waiting: the run's summary is a
+  step of `heal.yml`, which R44.6 writes, and the report's Markdown is what it prints.
+  - **What it reads:** the heal App's merged pull requests whose branch is `heal/…`, each
+    one's merge commit for its `Heal-Advisory` trailers, and the releases. A heal is
+    promoted by the first release published after it merged. One not yet released counts
+    its hours up to now.
+  - **An image heal's advisory has no publication time** in its trailer: the image gate's
+    verdict carries none. Its hours are not computed, and the report says so, in place of
+    a number it could not stand behind.
+  - **The baseline, October 2026, by hand:** CVE-2026-111064 was published on
+    2026-10-19T16:47:35Z (OSV) and 1.5.4 on 2026-10-25T09:17:06Z (GitHub): 136.5 hours,
+    against a target of 48.
+  - **R46.3's proof, with it:** `watchdog.yml` dispatched on this branch with
+    `dry_run=true` (run 45054472236) read the repository's pull requests with its own
+    token and filed nothing for 2026-W47, whose mark is #294, *chore: maintenance,
+    2026-11-19*, the owner's, from this repository.
 
 - [ ] **R46.2** **The documents**. Behaviours:
   1. `docs/RELEASING.md` gains *A security patch, released by the heal*: what it checks, the

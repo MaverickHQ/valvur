@@ -24,6 +24,8 @@ class FakeGitHub:
         self.issues: list[dict] = []
         #: The repository's pull requests, as the Pulls API lists them (R46.3).
         self.pulls: list[dict] = []
+        #: commit → its message, as the Commits API gives one (R46.1).
+        self.commits: dict[str, str] = {}
         self.writes: list[tuple[str, str, dict]] = []
         self.reads: list[str] = []
         self.authorizations: list[str | None] = []
@@ -98,6 +100,11 @@ def _handler(github: FakeGitHub):
                     return self._send(200, [c if isinstance(c, dict) else {"body": c}
                                             for c in issue["comments"]])
                 return self._send(200, issue)
+            if url.path.startswith(f"{prefix}/commits/"):
+                sha = url.path.rsplit("/", 1)[1]
+                if sha not in github.commits:
+                    return self._send(404, {"message": "Not Found"})
+                return self._send(200, {"sha": sha, "commit": {"message": github.commits[sha]}})
             if url.path == f"{prefix}/pulls":
                 return self._send(200, github.pulls)
             if url.path == f"{prefix}/issues":
