@@ -56,6 +56,8 @@ COOLDOWN = timedelta(days=7)
 YOUNG = timedelta(hours=24)
 LOCK = "requirements-checkov.txt"
 CHANGELOG = "CHANGELOG.md"
+#: The longest headline a heal commit takes before it counts its fixes instead.
+HEADLINE = 72
 #: The one package the heal never moves: a new Checkov is the owner's to take (D81q).
 CHECKOV = "checkov"
 RECIPE = "scripts/lock-checkov.sh"
@@ -269,6 +271,23 @@ def items(plan_: dict) -> list[str]:
     return made
 
 
+def message(plan_: dict, run: str) -> str:
+    """The heal commit's message: a headline that names each fix while it fits in a line,
+    then the trailers the policy and the report read (design.md, *Trailers*)."""
+    pins = sorted(plan_["pins"], key=lambda pin: pin["package"])
+    fixes = [f"{pin['package']} {pin['to']}" for pin in pins if pin["why"] == "fix"]
+    headline = f"fix: {_listed(fixes)} in the Checkov lock, by the heal"
+    if len(headline) > HEADLINE:
+        headline = f"fix: {len(fixes)} packages in the Checkov lock, by the heal"
+    trailers = [f"Heal-Pin: {pin['package']}=={pin['to']}" for pin in pins]
+    trailers += [f"Heal-Advisory: {f['rule']} {f['package']} published "
+                 f"{f.get('advisory_published') or 'unknown'}"
+                 for f in sorted(plan_["findings"], key=lambda f: (f["package"], f["rule"]))
+                 if any(pin["package"] == f["package"] for pin in pins)]
+    trailers.append(f"Heal-Run: {run}")
+    return headline + "\n\n" + "\n".join(trailers) + "\n"
+
+
 def changelog(text: str, plan_: dict) -> str:
     """`text` with the plan's items under `[Unreleased]`, in its `### Security` section,
     which is made at the section's end when it has none. Lines are only ever added."""
@@ -324,10 +343,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "apply":
-            files = apply(json.loads(args.plan.read_text(encoding="utf-8")), args.tree.resolve())
+            read = json.loads(args.plan.read_text(encoding="utf-8"))
+            files = apply(read, args.tree.resolve())
             args.out.mkdir(parents=True, exist_ok=True)
             for name, text in files.items():
                 (args.out / name).write_text(text, encoding="utf-8")
+            sys.stdout.write(message(read, args.run))
             return 0
         findings = json.loads(args.findings.read_text(encoding="utf-8"))["findings"]
         made = plan(findings, args.lock.read_text(encoding="utf-8"),

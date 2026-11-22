@@ -117,3 +117,40 @@ def test_items_join_a_security_heading_unreleased_already_has(tmp_path, monkeypa
     assert changelog.index("- **beta 1.1") < changelog.index("## [1.0.0]")
     kept = [line for line in had.splitlines() if line]
     assert [line for line in changelog.splitlines() if line in kept] == kept, "nothing removed"
+
+
+def test_the_commit_message_names_the_fixes_and_carries_the_trailers(tmp_path, monkeypatch):
+    projects = {"alpha": {"1.0": OLD, "1.1": {**OLD, "requires": ["beta>=1.1"]}},
+                "beta": {"1.0": OLD, "1.1": OLD}}
+    pins = [_pin("alpha", "1.0", "1.1"), _pin("beta", "1.0", "1.1", "floor of alpha 1.1")]
+    findings = (_advisory("CVE-2026-0002", "alpha", "1.0", "1.1"),
+                _advisory("CVE-2026-0001", "alpha", "1.0", "1.1"))
+
+    run, _tree, _out = _apply(tmp_path, monkeypatch, pins, {"alpha": "1.0", "beta": "1.0"},
+                              projects, findings=findings)
+
+    assert run.stdout == (
+        "fix: alpha 1.1 in the Checkov lock, by the heal\n"
+        "\n"
+        "Heal-Pin: alpha==1.1\n"
+        "Heal-Pin: beta==1.1\n"
+        "Heal-Advisory: CVE-2026-0001 alpha published 2026-10-19T16:47:35Z\n"
+        "Heal-Advisory: CVE-2026-0002 alpha published 2026-10-19T16:47:35Z\n"
+        f"Heal-Run: {RUN}\n")
+
+
+@pytest.mark.parametrize("fixes, headline", [
+    (("alpha", "beta"), "fix: alpha 1.1 and beta 1.1 in the Checkov lock, by the heal"),
+    (("alpha", "beta", "gamma"),
+     "fix: alpha 1.1, beta 1.1 and gamma 1.1 in the Checkov lock, by the heal"),
+    (tuple(f"a-rather-long-package-name-{n}" for n in range(4)),
+     "fix: 4 packages in the Checkov lock, by the heal"),
+])
+def test_the_headline_names_each_fix_while_it_fits_in_a_line(fixes, headline):
+    sys.path.insert(0, str(HEAL.parent))
+    import heal
+
+    plan = {"pins": [_pin(name, "1.0", "1.1") for name in fixes], "findings": []}
+
+    assert heal.message(plan, RUN).splitlines()[0] == headline
+    assert len(headline) <= 72
