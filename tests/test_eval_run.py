@@ -183,9 +183,44 @@ def test_the_benchmark_track_is_scored_as_the_owasp_scorecard_scores(tmp_path):
                          verify=lambda checkout: None)
 
     track = result["tracks"]["sast-python"]
-    # pathtraver: TPR 0; sqli: TPR 1, FPR 0. The scorecard's mean: 50.
-    assert track["score"] == 50.0
-    assert (track["vulnerable"], track["safe"]) == (2, 1)
+    # pathtraver: TPR 0; sqli: TPR 1, FPR 0. The scorecard's mean of the Benchmark's two
+    # is 50. Since R49.6 a third category stands beside them, generated, with nothing
+    # found here: TPR 0. The mean of three: 33.3.
+    assert track["score"] == 33.3
+    assert (track["vulnerable"], track["safe"]) == (5, 4)
+    assert {name: (c["tp"], c["fn"]) for name, c in track["categories"].items()} == {
+        "pathtraver": (0, 1), "sqli": (1, 0), "tls-verification (generated)": (0, 3)}
+
+
+def test_the_python_tracks_generated_cases_are_a_category_of_their_own(tmp_path):
+    """R49.6, D82i: the Benchmark is not valvur's to add cases to, so the cases for a
+    weakness it lacks are generated twins, scanned beside it."""
+    harness = _harness()
+    benchmark = tmp_path / "BenchmarkPython"
+    benchmark.mkdir()
+    (benchmark / "expectedresults-0.1.csv").write_text(
+        "# test name, category, real vulnerability, cwe\nBenchmarkTest00100,sqli,true,89\n")
+    scanned = []
+
+    def scan(root: Path) -> None:
+        scanned.append(root.name)
+        found = [{"path": p.relative_to(root).as_posix(), "suppressed": None, "status": "new",
+                  "rule": "valvur.python.tls-verification-off", "sources": ["opengrep"],
+                  "cwe": ["CWE-295"]}
+                 for p in sorted(root.glob("app/t295_[12].py"))]
+        _results(root, found)
+
+    result = harness.run(["sast-python"], tmp_path / "work", scan=scan, image="valvur:dev",
+                         image_id=lambda image: "sha256:abc", benchmark=benchmark,
+                         verify=lambda checkout: None)
+
+    track = result["tracks"]["sast-python"]
+    assert scanned == ["BenchmarkPython", "sast-python-generated"]
+    generated = track["categories"]["tls-verification (generated)"]
+    assert (generated["tp"], generated["fn"], generated["fp"], generated["tn"]) == (2, 1, 0, 3)
+    # sqli: TPR 0. Generated: TPR 2/3, FPR 0. The mean: 33.3.
+    assert track["score"] == 33.3
+    assert not list(benchmark.glob("app/*")), "nothing is written into the Benchmark"
 
 
 def test_real_code_precision_is_scored_and_unlabelled_findings_fail_the_comparison(tmp_path):

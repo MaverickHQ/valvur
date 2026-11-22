@@ -673,7 +673,7 @@ that fired on the corpus; the three hygiene tests hold.
   - **Eleven labels now match no Finding:** the ten narrowed away, and R48.1's one. They
     are left in the file, as that one was.
 
-- [ ] **R49.6** **Two rules the tracks lacked** (D82i).
+- [x] **R49.6** **Two rules the tracks lacked** (D82i).
   **Seam:** the generators in `scripts/eval/twins.py`, as `tests/test_eval_twins.py` drives
   them; the rules as R49.5 runs them; `eval.run` for the tracks. Behaviours:
   1. The JavaScript track's generator gives vulnerable and safe cases for CWE-295.
@@ -686,6 +686,54 @@ that fired on the corpus; the three hygiene tests hold.
      ADR-0029's bar and D82d's, or it is not shipped and the STATUS says so.
 
   _Requirements: 4.3_
+
+  **STATUS 2026-11-22:** ✅ 1 to 7, with one rule of the three **not shipped**, as D82i's
+  fallback says. Tests: `tests/test_added_rules.py` (through Opengrep in the image, seen red
+  for each rule before it existed), `tests/test_eval_twins.py`, `tests/test_eval_run.py`.
+
+  | rule | its planted cases | on the corpus | |
+  |---|---|---|---|
+  | `valvur.javascript.insecure-cookie` | 2 of 2, no safe one | silent | **shipped** |
+  | `valvur.python.tls-verification-off` | 3 of 3, no safe one | 1 true, 1 false | **shipped,** narrowed first |
+  | `valvur.javascript.tls-verification-off` | 2 of 2, no safe one | **0 true of 307** | **not shipped** |
+
+  - **The JavaScript TLS rule is under ADR-0029's bar** by any count: 2 true on its cases
+    and 307 false on maintained code. 299 are in the tests of HTTP libraries, which talk to
+    servers with self-signed certificates (`got` 126, `undici` 126, `axios` 22, `ws` 11),
+    and 8 in two projects' benchmark scripts. It is out of the rule file, and a test holds
+    it out. **Its two cases stay on the JavaScript track, uncaught,** so the Score shows
+    the gap: Requirement 4.3 is open for JavaScript's CWE-295.
+  - **For the owner:** the rule is right in an application and wrong in a library's tests.
+    It could ship listed in test material if `benchmark/` and `benchmarks/` were test
+    material too; that widening is not in D82f, so it is not made here.
+  - **The Python TLS rule as first written was 1 true of 12.** Five of its six Findings
+    outside tests were `context.verify_mode = ssl.CERT_NONE` in a client library that is
+    honouring its own caller's option (`httpx`, `aiohttp`, `tornado`, `scrapy` twice). The
+    pattern is dropped: the rule names the calls an application writes, `verify=False` on
+    `requests` and `httpx`, and `ssl._create_unverified_context`. design.md also listed
+    `ssl.CERT_NONE`.
+  - **Its one true Finding is the phase's only new one on maintained code:** `httpie`
+    fetches its update notice with `requests.get(…, verify=False)`. Both Findings are
+    labelled in `corpus.toml`.
+  - **The Python track's generated cases** are written beside the Benchmark, never into
+    it, scanned in a second Scan Run and reported as `tls-verification (generated)`: three
+    vulnerable and three safe.
+  - **The acceptance set caught the rule on valvur itself.** `6-self` failed with one
+    blocking Finding: `src/valvur/oci.py` reads
+    `ssl._create_unverified_context() if insecure else None`, an operator's opt-in for an
+    internal mirror. That is the same case as the libraries': verification off only when
+    a caller asks. The rule now passes over a call chosen by a conditional expression,
+    with a made case seen reported and then not, and the set passes, 8 of 8.
+  - **Measured** on the dev machine at `db5cf3e` with this task's slice, `valvur:dev`
+    `sha256:eeb6ce895340`, the whole Score with `--compare`, which passed, at **76.8**:
+
+    | track | baseline | this run |
+    |---|---|---|
+    | Python | 40.9, 14 categories | 39.0, 15 categories: the new one at 3 of 3 |
+    | JavaScript | 55.0, 10 categories | 54.2, 12 categories: CWE-614 at 2 of 2, CWE-295 at 0 of 2 |
+    | real code | 2.3, 3 true and 168 false | 29.4, 4 true and 12 false |
+
+    Both static-analysis tracks are inside the ratchet again, so `--compare` passes.
 
 - [ ] **R49.7** **Model output crossing a function** (D82j).
   **Seam:** for the measurement, none. For the note: `api.scan` over `LocalRuntime`;

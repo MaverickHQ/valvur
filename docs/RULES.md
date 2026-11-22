@@ -37,9 +37,10 @@ valvur's own tests and fixtures, and stays active. A corpus cell that reads
 |---|---|---|---|---|---|---|---|---|
 | `javascript_eval_rule-eval-with-expression` | GitLab sast-rules | CWE-95 | 0 / 0 | 1 / 0 | 2 / 1, unmeasured there | 0 / 0 | 0.75 | active |
 | `python_deserialization_rule-yaml-load` | GitLab sast-rules | CWE-502 | 5 / 5 | 0 / 0 | unmeasured there | 0 / 0 | 0.5 | active |
-| `python_random_rule-random` | GitLab sast-rules | CWE-338 | 35 / 0 | 0 / 0 | 0 / 23 | 0 / 0 | 0.603 | inventory: under the bar on maintained code |
+| `python_random_rule-random` | GitLab sast-rules | CWE-338 | 35 / 0 | 0 / 0 | 0 / 23, 82 unjudged | 0 / 0 | 0.603 | inventory: under the bar on maintained code |
 | `python_sql_rule-hardcoded-sql-expression` | GitLab sast-rules | CWE-89 | 5 / 0 | 0 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.command-injection` | valvur | CWE-78 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
+| `valvur.javascript.insecure-cookie` | valvur | CWE-614 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.path-traversal` | valvur | CWE-22 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.sql-injection` | valvur | CWE-89 | 0 / 0 | 2 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.javascript.ssrf` | valvur | CWE-918 | 0 / 0 | 2 / 0 | 0 / 2, unmeasured there | 0 / 0 | 0.5 | active |
@@ -54,11 +55,12 @@ valvur's own tests and fixtures, and stays active. A corpus cell that reads
 | `valvur.python.dangerous-exec` | valvur | CWE-95 | 10 / 17 | 0 / 0 | unmeasured there, 28 unjudged | 0 / 0 | 0.37 | inventory: a sink to review (D47a) |
 | `valvur.python.insecure-cookie` | valvur | CWE-614 | 24 / 0 | 0 / 0 | 0 / 8 | 0 / 0 | 0.75 | inventory under a test, fixture, documentation or example path: under the bar on maintained code |
 | `valvur.python.insecure-yaml-load` | valvur | CWE-502 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | active, unmeasured |
-| `valvur.python.open-redirect` | valvur | CWE-601 | 9 / 2 | 0 / 0 | 0 / 7 | 0 / 0 | 0.5 | active |
-| `valvur.python.path-traversal` | valvur | CWE-22 | 27 / 7 | 0 / 0 | 0 / 6 | 0 / 0 | 0.675 | active |
+| `valvur.python.open-redirect` | valvur | CWE-601 | 9 / 2 | 0 / 0 | 0 / 2, unmeasured there | 0 / 0 | 0.692 | active |
+| `valvur.python.path-traversal` | valvur | CWE-22 | 27 / 7 | 0 / 0 | 0 / 1, unmeasured there | 0 / 0 | 0.771 | active |
 | `valvur.python.string-built-sql` | valvur | CWE-89 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | inventory: a sink to review (D47a) |
 | `valvur.python.subprocess-shell-true` | valvur | CWE-78 | 7 / 7 | 0 / 0 | unmeasured there, 3 unjudged | 0 / 0 | 0.5 | inventory: a sink to review (D47a) |
-| `valvur.python.weak-hash` | valvur | CWE-328 | 37 / 0 | 0 / 0 | 0 / 21 | 0 / 0 | 0.638 | inventory: under the bar on maintained code |
+| `valvur.python.tls-verification-off` | valvur | CWE-295 | 3 / 0 | 0 / 0 | 1 / 1, unmeasured there | 0 / 0 | 0.8 | active |
+| `valvur.python.weak-hash` | valvur | CWE-328 | 37 / 0 | 0 / 0 | 0 / 21, 26 unjudged | 0 / 0 | 0.638 | inventory: under the bar on maintained code |
 | `valvur.python.xml-external-entities` | valvur | CWE-611 | 8 / 7 | 0 / 0 | unmeasured there | 0 / 0 | 0.533 | active |
 
 ## Every other rule that fired on the corpus
@@ -104,4 +106,4 @@ on a safe one. A rule with fewer than 5 judged Findings on the corpus is
 | `unpinned-images` | zizmor | 7 / 0 | 0 / 0 | |
 | `unpinned-uses` | zizmor | 25 / 0 | 1 / 0 | sampled: 25 of 318 judged |
 
-Measured 2026-11-22 on `valvur:dev` (`sha256:913257ee79d7b3f61ab6da9e78eb697defc5dba4c5cb2d12ed24407e1417d220`).
+Measured 2026-11-22 on `valvur:dev` (`sha256:eeb6ce895340ce12c2769c9287e3b50a153a70c2b3647604f3e34dd339fc14e5`).

@@ -1,6 +1,6 @@
 {
  "measured": "2026-11-22",
- "image": "sha256:913257ee79d7b3f61ab6da9e78eb697defc5dba4c5cb2d12ed24407e1417d220",
+ "image": "sha256:eeb6ce895340ce12c2769c9287e3b50a153a70c2b3647604f3e34dd339fc14e5",
  "corpus_projects": 48,
  "rules": {
   "javascript_eval_rule-eval-with-expression": {
@@ -117,7 +117,7 @@
      "fp": 23,
      "outside": 0,
      "new": 0,
-     "unjudged": 0
+     "unjudged": 82
     },
     "llm-output": {
      "tp": 0,
@@ -182,6 +182,49 @@
    "demoted": "",
    "cwe": [
     78
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 2,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 2,
+   "fp": 0,
+   "new": 0,
+   "precision": 1.0
+  },
+  "valvur.javascript.insecure-cookie": {
+   "file": "rules/javascript-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    614
    ],
    "places": {
     "sast-python": {
@@ -845,7 +888,7 @@
     },
     "corpus": {
      "tp": 0,
-     "fp": 7,
+     "fp": 2,
      "outside": 0,
      "new": 0,
      "unjudged": 0
@@ -859,9 +902,9 @@
     }
    },
    "tp": 9,
-   "fp": 9,
+   "fp": 4,
    "new": 0,
-   "precision": 0.5
+   "precision": 0.692
   },
   "valvur.python.path-traversal": {
    "file": "rules/python-security.yaml",
@@ -888,7 +931,7 @@
     },
     "corpus": {
      "tp": 0,
-     "fp": 6,
+     "fp": 1,
      "outside": 0,
      "new": 0,
      "unjudged": 0
@@ -902,9 +945,9 @@
     }
    },
    "tp": 27,
-   "fp": 13,
+   "fp": 8,
    "new": 0,
-   "precision": 0.675
+   "precision": 0.771
   },
   "valvur.python.string-built-sql": {
    "file": "rules/python-security.yaml",
@@ -992,6 +1035,49 @@
    "new": 0,
    "precision": 0.5
   },
+  "valvur.python.tls-verification-off": {
+   "file": "rules/python-security.yaml",
+   "vendored": false,
+   "inventory": false,
+   "demoted": "",
+   "cwe": [
+    295
+   ],
+   "places": {
+    "sast-python": {
+     "tp": 3,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "sast-js": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "corpus": {
+     "tp": 1,
+     "fp": 1,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    },
+    "llm-output": {
+     "tp": 0,
+     "fp": 0,
+     "outside": 0,
+     "new": 0,
+     "unjudged": 0
+    }
+   },
+   "tp": 4,
+   "fp": 1,
+   "new": 0,
+   "precision": 0.8
+  },
   "valvur.python.weak-hash": {
    "file": "rules/python-security.yaml",
    "vendored": false,
@@ -1020,7 +1106,7 @@
      "fp": 21,
      "outside": 0,
      "new": 0,
-     "unjudged": 0
+     "unjudged": 26
     },
     "llm-output": {
      "tp": 0,

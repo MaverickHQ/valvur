@@ -221,6 +221,12 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             root = benchmark or owasp.checkout(work.parent / "BenchmarkPython")
             verify(root)
             cases = owasp.cases(root)
+            # R49.6: the cases for a weakness the Benchmark lacks, generated beside it.
+            generated_root = work / "sast-python-generated"
+            if generated_root.exists():
+                shutil.rmtree(generated_root)
+            generated_root.mkdir(parents=True)
+            cases = cases + twins.python_generated(generated_root)
         else:
             root = work / track
             if root.exists():
@@ -234,6 +240,12 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         began = time.monotonic()
         scan(root)
         findings, run_json = _read(root)
+        if track == "sast-python":
+            scan(generated_root)
+            more, more_run = _read(generated_root)
+            findings = findings + more
+            run_json = {**run_json, "complete": bool(run_json.get("complete"))
+                        and bool(more_run.get("complete"))}
         invalid: dict[str, str] = {}
         if track == "package-reality":
             from valvur import cache

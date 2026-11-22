@@ -280,3 +280,24 @@ rules:
       - pattern: $P.setFeature(xml.sax.handler.feature_external_ges, True)
       - pattern: $P.setFeature(feature_external_ges, True)
       - pattern: lxml.etree.XMLParser(..., resolve_entities=True, ...)
+
+  # R49.6 (D82i): a weakness the OWASP Benchmark has no case for. The call an
+  # application writes, and not `context.verify_mode = ssl.CERT_NONE`: on maintained
+  # code that line was a client library honouring its own caller's option, five times
+  # of five outside tests.
+  - id: valvur.python.tls-verification-off
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-295: Improper Certificate Validation"]
+    message: >-
+      Certificate verification is turned off, so the connection accepts any server's
+      certificate and anyone on the path can read and change what is sent. Leave
+      verification on, and pass the CA to trust as verify= or cafile=.
+    patterns:
+      - pattern-either:
+          - pattern: requests.$F(..., verify=False, ...)
+          - pattern: httpx.$F(..., verify=False, ...)
+          - pattern: ssl._create_unverified_context(...)
+      # Chosen by a conditional expression, it is an option a caller must ask for.
+      - pattern-not-inside: $THIS if $ASKED else $OTHERWISE

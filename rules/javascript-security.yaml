@@ -142,3 +142,18 @@ rules:
               if (<... $SET.includes($U.hostname) ...>) return ...;
               ...
           - focus-metavariable: $U
+
+  # R49.6 (D82i): a weakness AI-written JavaScript gets wrong and no rule here named.
+  # `valvur.javascript.tls-verification-off` was written with it and is not shipped: on
+  # maintained code it was 0 true of 307, in the tests and benchmarks of HTTP libraries.
+  - id: valvur.javascript.insecure-cookie
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-614: Sensitive Cookie Without 'Secure' Attribute"]
+    message: >-
+      A cookie set with secure: false is sent over plain HTTP too, where anyone on the
+      path can read it. Set secure: true, and httpOnly: true for a session cookie.
+    pattern-either:
+      - pattern: "$RES.cookie($NAME, $VALUE, {..., secure: false, ...})"
+      - pattern: "$SESSION({..., cookie: {..., secure: false, ...}, ...})"

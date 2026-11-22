@@ -225,3 +225,25 @@ def test_the_cases_the_track_had_are_written_as_they_were(tmp_path):
     for category, (real, _placeholder, _lookup) in twins.SECRETS.items():
         assert (tmp_path / "secrets" / "config" / f"{category}.env").read_text() == real(rng)
         real(rng)   # the history file, deleted by the second commit
+
+
+@pytest.mark.parametrize("cwe", [295, 614])
+def test_the_javascript_track_holds_cases_for_two_more_weaknesses(tmp_path, cwe):
+    """R49.6, D82i: certificate verification turned off, and a cookie set without
+    `secure`. Two vulnerable and two safe handlers each, doing the same job."""
+    twins = _twins()
+
+    cases = [c for c in twins.build("sast-js", tmp_path / "sast-js", seed=7)
+             if c.category == f"CWE-{cwe}"]
+
+    assert [(c.path, c.vulnerable, c.cwes) for c in cases] == [
+        (f"src/t{cwe}_1.js", True, (cwe,)), (f"src/t{cwe}_2.js", True, (cwe,)),
+        (f"src/t{cwe}_3.js", False, (cwe,)), (f"src/t{cwe}_4.js", False, (cwe,))]
+    texts = [(tmp_path / "sast-js" / c.path).read_text() for c in cases]
+    assert len(set(texts)) == 4
+
+
+def test_the_javascript_track_has_twelve_weaknesses(tmp_path):
+    cases = _twins().build("sast-js", tmp_path / "sast-js", seed=7)
+
+    assert (sum(c.vulnerable for c in cases), sum(not c.vulnerable for c in cases)) == (24, 24)
