@@ -314,3 +314,37 @@ def test_a_base_tag_that_has_not_moved_plans_no_move_and_runs_no_container(
     assert plan["base"] is None and plan["drops"] == []
     assert [r["entry"] for r in plan["raises"]] == ["busybox=1.37.0-r32"]
     assert not (tmp_path / "docker.log").exists()
+
+
+def test_the_same_inputs_give_the_same_bytes_and_only_three_hosts_are_asked(tmp_path, monkeypatch):
+    """One run with every kind in it. Each item names what it answers and the rule that
+    chose it, and the second run's plan is the first's, byte for byte."""
+    _docker(tmp_path, {"zlib": "1.4-r0", "tzdata": "2026a-r0"})
+    blocking = [_entry("CVE-2026-0003", "tzdata", "2026a-r0", "2026b-r0"),
+                _go("CVE-2026-0010", "golang.org/x/net", "v0.60.0", "0.62.0"),
+                _std("CVE-2026-97054", "v1.27.4", "1.27.5"),
+                _entry("CVE-2026-0017", "soupsieve", "2.8", "2.9", kind="python-pkg")]
+    answers = {**_base(NEWER), **_index(tzdata="2026b-r0"),
+               **_tags("golang.org/x/net", "v0.62.0"),
+               **_hub_tags("golang", "1.27.", {"1.27.5-alpine3.24": "sha256:" + "b" * 64})}
+
+    run, plan = _plan(tmp_path, monkeypatch, blocking, answers)
+    first = (tmp_path / "plan.json").read_bytes()
+    again, _ = _plan(tmp_path, monkeypatch, list(reversed(blocking)), answers)
+
+    assert run.returncode == 0 and again.returncode == 0, run.stderr + again.stderr
+    assert (tmp_path / "plan.json").read_bytes() == first
+    for item in [*plan["raises"], plan["base"], plan["go"]]:
+        assert item["rule"] and isinstance(item["answers"], list)
+    hosts = {url.split("/")[2] for url in (tmp_path / "registry" / "asked.log").read_text().split()}
+    assert hosts == {"dl-cdn.alpinelinux.org", "hub.docker.com", "proxy.golang.org"}
+
+
+def test_no_other_host_can_be_asked():
+    sys.path.insert(0, str(IMAGE_HEAL.parent))
+    import image_heal
+
+    with pytest.raises(image_heal.Unreadable, match="not a host"):
+        image_heal._get("https://example.invalid/alpine/v3.24/main/x86_64/APKINDEX.tar.gz")
+    with pytest.raises(image_heal.Unreadable, match="not a host"):
+        image_heal._get("https://hub.docker.com.example.invalid/v2/repositories/library/x")

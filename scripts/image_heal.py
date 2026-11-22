@@ -56,6 +56,7 @@ ARCHITECTURES = ("x86_64", "aarch64")
 REPOSITORIES = ("main", "community")
 GOPROXY = "https://proxy.golang.org"
 HUB = "https://hub.docker.com/v2/repositories/library"
+HOSTS = (ALPINE, GOPROXY, HUB)
 _PYTHON = re.compile(r"^FROM python:(\S+?)@(sha256:[0-9a-f]{64})", re.M)
 _RAISED = re.compile(r'^ARG ALPINE_RAISE="([^"]*)"', re.M)
 _GO = re.compile(r"^FROM golang:(\d+\.\d+)\.(\d+)-(\S+?)@(sha256:[0-9a-f]{64})", re.M)
@@ -90,7 +91,10 @@ def apk_key(version: str) -> tuple | None:
 
 
 def _get(url: str) -> bytes | None:
-    """The bytes at `url`; None for a 404."""
+    """The bytes at `url`; None for a 404. Only the three hosts named at the top are ever
+    asked: an answer that names another, such as a next page, is refused here."""
+    if not url.startswith(tuple(f"{host}/" for host in HOSTS)):
+        raise Unreadable(f"{url}: not a host the image's heal asks")
     try:
         with urllib.request.urlopen(url, timeout=60) as answer:  # noqa: S310 — https, named above
             return answer.read()

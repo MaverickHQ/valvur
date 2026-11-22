@@ -913,7 +913,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   - **On the dev machine after each change:** the image builds, and the end-to-end suite
     passes (86, then 87 passed).
 
-- [ ] **R44.11** **Only the packages valvur loads** (D81ac, amendment 5). It needs no owner
+- [x] **R44.11** **Only the packages valvur loads** (D81ac, amendment 5). It needs no owner
   setting. **Seam:** the built image's own package list, read in an end-to-end test
   (`-m e2e`), against `.github/image-packages.txt`. Behaviours:
   1. **Record.** Each Alpine package in the image with what links or runs it, measured from
@@ -934,7 +934,36 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 23.1, 23.2, 23.3_
 
-- [ ] **R44.12** **The image's plan** (D81x, amendment 5).
+  **STATUS 2026-11-22:** ✅ 1 to 5. The image holds 26 Alpine packages, from 38.
+  - **Measured** on the dev machine (arm64), from the image's own files: 249 ELF files, each
+    one's `DT_NEEDED` resolved to the package that owns the library. Named by an extension
+    of CPython or by Opengrep's bundled modules, and kept: gdbm, libbz2, libcrypto3,
+    libffi, libncursesw, libpanelw, libssl3, libuuid, readline, sqlite-libs, xz-libs, zlib,
+    and musl. Named by nothing and kept, as data or as the shell: alpine-baselayout and its
+    data, alpine-keys, alpine-release, busybox and busybox-binsh, ca-certificates and its
+    bundle, ncurses-terminfo-base, ssl_client, tzdata, and apk-tools with libapk, which apk
+    does not remove of itself.
+  - **Removed, the chain under one unused module** (`434a0b0`): krb5-libs, krb5-conf,
+    keyutils-libs, libcom_err, libverto, libtirpc, libtirpc-conf, libnsl and libintl. Only
+    CPython's `nis` extension named libtirpc and libnsl, and only libtirpc named Kerberos.
+    No Python file in the image imports `nis`: 5,605 read under Checkov and valvur, 1,097
+    in the standard library. The extension goes with them, and `krb5-libs` leaves
+    `ALPINE_RAISE`. The base's virtual package, `.python-rundeps`, is replaced by the names
+    of the libraries that stay.
+  - **Removed** (`0951b3d`): musl-utils, and scanelf with it. `ctypes.util.find_library`
+    answers in the image as it does in the base: nothing, on musl.
+  - **The list** is `.github/image-packages.txt`, and `tests/test_image_packages.py` holds
+    the image to it (`5afba39`). It failed against the old image before each removal.
+  - **After each removal,** on the dev machine: the image built and the end-to-end suite
+    passed (88 passed). One run failed once for want of space in `/tmp`, which the suite
+    fills by 4.6 GB a run: it is cleared before each run now.
+  - **After the last,** at `0951b3d`: the Score is 74.1 with every track at its baseline on
+    the dev machine (649 s) and on GitHub's Linux lane (eval run 45043469158), and the
+    acceptance set passes on the dev machine. amd64's package list is held by the
+    end-to-end job of R44's pull request.
+  - `SECURITY.md` says where a removed package's bytes remain (`7857cc7`).
+
+- [x] **R44.12** **The image's plan** (D81x, amendment 5).
   **Seam:** `scripts/image_heal.py`'s `main(["plan", …])`, over a verdict as `image_gate.py`
   writes it and a Dockerfile in `tmp_path`, with the registry, Alpine's index and Go's proxy
   faked in `tests/fake_registry.py`; the plan it writes. For the first behaviour,
@@ -964,6 +993,25 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   **Added by the pass:** 11 and 13.
 
   _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 13, in `scripts/image_heal.py plan` and
+  `scripts/image_gate.py`; 27 tests in `tests/test_image_heal_plan.py` and one in
+  `tests/test_image_gate_kind.py`.
+  - **The plan's parts:** `raises` (each with its `ARG`), `drops`, `base`, `go`,
+    `escalations` and `unplanned`. Every item names the advisories it answers and the rule
+    that chose it.
+  - **Alpine's versions are ordered in Python,** since the plan runs in no container: held
+    on eleven pairs that `apk version -t` calls `<`. A version it cannot read orders
+    against nothing, and its package is `no-alpine-fix`.
+  - **A Go module's fix** is the lowest fixed version in the major it is installed at, and
+    must be one Go's proxy lists. A standard-library fix only in another minor is
+    `go-major`, with the subject `go`.
+  - **The new base's packages are read from the base itself,** `/lib/apk/db/installed` in a
+    container with no network, through a runtime the tests stand in for. The index cannot
+    say what a base carries. It is asked only when an Alpine package blocks: a base that
+    moves with nothing blocking is Dependabot's, and R44.9's when the tag has died.
+  - **Docker Hub's tag list** gives the Go and base digests, as R44.9 reads it. The plan
+    asks three hosts and refuses any other, a next page's included.
 
 - [ ] **R44.13** **Apply, and the envelope** (D81x, amendment 5).
   **Seam:** `image_heal.py`'s `main` for `apply`, `envelope` and `escalations`;
