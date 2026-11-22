@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from fake_registry import GOPROXY, FakePackageRegistry, alpine_answers, raw
+from fake_registry import GOPROXY, HUB, FakePackageRegistry, alpine_answers, raw
 
 REPO = Path(__file__).resolve().parent.parent
 IMAGE_HEAL = REPO / "scripts" / "image_heal.py"
@@ -211,3 +211,50 @@ def test_an_entry_of_a_kind_the_plan_does_not_know_is_named_and_never_dropped(
          "target": "usr/local/bin/opengrep", "why": "a binary no `_RAISE` builds"},
         {"id": "CVE-2026-0017", "package": "soupsieve", "kind": "python-pkg",
          "target": "Python", "why": "a Python package: the Checkov lock's heal, or Dependabot"}]
+
+
+def _hub_tags(repository: str, prefix: str, tags: dict[str, str]) -> dict[str, object]:
+    """Docker Hub's list of an official image's tags that start with `prefix`."""
+    return {f"{HUB}/{repository}/tags?page_size=100&name={prefix}": {
+        "next": None, "results": [{"name": name, "digest": digest}
+                                  for name, digest in tags.items()]}}
+
+
+def _std(vid: str, installed: str, fixed: str, scanner: str = "trivy") -> dict:
+    return _go(vid, "stdlib", installed, fixed, scanner)
+
+
+def test_gos_standard_library_moves_the_one_pin_to_the_newest_patch_of_its_minor(
+        tmp_path, monkeypatch):
+    blocking = [_std("CVE-2026-97054", "v1.27.4", "1.26.11, 1.27.5"),
+                _std("CVE-2026-97054", "v1.27.4", "1.26.11, 1.27.5", "syft")]
+    hub = _hub_tags("golang", "1.27.", {
+        "1.27.4-alpine3.24": "sha256:" + "a" * 64, "1.27.5-alpine3.24": "sha256:" + "b" * 64,
+        "1.27.6-alpine3.24": "sha256:" + "c" * 64, "1.27.6-alpine3.25": "sha256:" + "d" * 64,
+        "1.27.7-bookworm": "sha256:" + "f" * 64, "1.27.6rc1-alpine3.24": "sha256:" + "9" * 64})
+
+    run, plan = _plan(tmp_path, monkeypatch, blocking, hub)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["go"] == {"from": "golang:1.27.4-alpine3.24@sha256:" + "a" * 64,
+                          "to": "golang:1.27.6-alpine3.24@sha256:" + "c" * 64,
+                          "answers": ["CVE-2026-97054"], "rule": "newest-patch-of-the-minor"}
+    assert plan["raises"] == [] and plan["escalations"] == []
+
+
+def test_a_standard_library_fix_only_in_another_minor_is_go_major(tmp_path, monkeypatch):
+    blocking = [_std("CVE-2026-0020", "v1.27.4", "1.28.1")]
+    hub = _hub_tags("golang", "1.27.", {"1.27.4-alpine3.24": "sha256:" + "a" * 64})
+
+    _run, plan = _plan(tmp_path, monkeypatch, blocking, hub)
+
+    assert plan["go"] is None
+    assert plan["escalations"] == [{"subject": "go", "reason": "go-major",
+                                    "answers": ["CVE-2026-0020"]}]
+
+
+def test_with_no_standard_library_entry_docker_hub_is_not_asked(tmp_path, monkeypatch):
+    _run, plan = _plan(tmp_path, monkeypatch, [], {})
+
+    assert plan["go"] is None
+    assert (tmp_path / "registry" / "asked.log").read_text() == ""

@@ -16,10 +16,13 @@ blocking entry:
   lowest fixed version in the major it is installed at. A fix only in a new major is
   `go-major`. One with no tagged version is `go-untagged`: the heal never writes a
   pseudo-version. The Scanner's own module is `scanner-version`: its next release's.
+- **Go's standard library** moves the one `golang:` pin the four stages share to the newest
+  patch of its minor, by digest. A fix only in another minor is `go-major`.
 - **anything else** is listed as `unplanned`, with why, and never dropped.
 
 What it reads from the network, and nothing else: Alpine's `APKINDEX` for the base's release,
-and Go's module proxy for a module's tagged versions.
+Go's module proxy for a module's tagged versions, and Docker Hub's list of an official
+image's tags.
 What comes back is data. Standard library alone. Exit 0 when the plan was written, whatever
 it holds; 2 when an input could not be read.
 """
@@ -46,6 +49,8 @@ ALPINE = "https://dl-cdn.alpinelinux.org/alpine"
 ARCHITECTURES = ("x86_64", "aarch64")
 REPOSITORIES = ("main", "community")
 GOPROXY = "https://proxy.golang.org"
+HUB = "https://hub.docker.com/v2/repositories/library"
+_GO = re.compile(r"^FROM golang:(\d+\.\d+)\.(\d+)-(\S+?)@(sha256:[0-9a-f]{64})", re.M)
 #: Trivy's name for Go's standard library in a binary.
 STDLIB = "stdlib"
 #: Each Scanner built from source: its `ARG` prefix, and its own module.
@@ -195,6 +200,55 @@ def _modules(entries: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
     return raises, escalations, unplanned
 
 
+def hub_tags(repository: str, prefix: str) -> dict[str, str]:
+    """Docker Hub's tags of an official image that start with `prefix`, each with the
+    digest of its index."""
+    url: str | None = f"{HUB}/{repository}/tags?page_size=100&name={prefix}"
+    found: dict[str, str] = {}
+    while url:
+        data = _get(url)
+        try:
+            page = json.loads(data) if data else {}
+            for tag in page.get("results") or []:
+                if re.fullmatch(r"sha256:[0-9a-f]{64}", str(tag.get("digest") or "")):
+                    found[str(tag["name"])] = tag["digest"]
+            url = page.get("next")
+        except (ValueError, AttributeError, KeyError, TypeError) as error:
+            raise Unreadable(f"Docker Hub's tags of {repository}: {error}") from error
+        if url and not url.startswith(HUB + "/"):
+            raise Unreadable(f"Docker Hub's next page is elsewhere: {url}")
+    return found
+
+
+def _stdlib(entries: list[dict], dockerfile: str) -> tuple[dict | None, list[dict]]:
+    """(the move of the one Go pin, escalations) for blocking entries in Go's standard
+    library: the newest patch of the pinned minor, with the pin's own Alpine suffix, when
+    it is at or past every fix in that minor."""
+    pins = set(_GO.findall(dockerfile))
+    if len(pins) != 1:
+        raise Unreadable("the Dockerfile's Go stages do not share one pin by digest")
+    minor, patch, suffix, digest = next(iter(pins))
+    answers = sorted({e["id"] for e in entries})
+    needed = []
+    for entry in entries:
+        fixes = [_go_key(fix.strip()) for fix in entry["fixed"].split(",")]
+        ours = [fix for fix in fixes if fix and f"{fix[0]}.{fix[1]}" == minor]
+        if not ours:
+            return None, [{"subject": "go", "reason": "go-major", "answers": answers}]
+        needed.append(min(ours)[2])
+    offered = {}
+    for name, held in hub_tags("golang", f"{minor}.").items():
+        read = re.fullmatch(rf"{re.escape(minor)}\.(\d+)-{re.escape(suffix)}", name)
+        if read:
+            offered[int(read.group(1))] = (name, held)
+    newest = max(offered, default=-1)
+    if newest < max(needed) or newest <= int(patch):
+        return None, [{"subject": "go", "reason": "go-major", "answers": answers}]
+    name, held = offered[newest]
+    return ({"from": f"golang:{minor}.{patch}-{suffix}@{digest}", "to": f"golang:{name}@{held}",
+             "answers": answers, "rule": "newest-patch-of-the-minor"}, [])
+
+
 def _unplanned(entry: dict, why: str) -> dict:
     return {"id": entry["id"], "package": entry["package"], "kind": entry.get("kind", ""),
             "target": entry.get("target", ""), "why": why}
@@ -213,13 +267,16 @@ def plan(verdicts: list[dict], dockerfile: str, *, now: str) -> dict:
     raises, escalations = _alpine(alpine, base.group(1)) if alpine else ([], [])
     modules = [e for e in found if e.get("kind") == "gobinary" and e["package"] != STDLIB]
     more = _modules(modules)
+    std = [e for e in found if e.get("kind") == "gobinary" and e["package"] == STDLIB]
+    go, go_escalations = _stdlib(std, dockerfile) if std else (None, [])
     unplanned = more[2] + [
         _unplanned(e, "a Python package: the Checkov lock's heal, or Dependabot"
                    if e.get("kind") == "python-pkg" else "a kind the image's heal does not plan")
         for e in found if e.get("kind") not in ("alpine", "gobinary")]
     return {"schema": SCHEMA, "made": now,
             "raises": sorted(raises + more[0], key=lambda r: (r["arg"], r["entry"])),
-            "escalations": escalations + more[1],
+            "go": go,
+            "escalations": escalations + more[1] + go_escalations,
             "unplanned": sorted(unplanned, key=lambda u: (u["id"], u["package"]))}
 
 
