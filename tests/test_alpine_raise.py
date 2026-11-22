@@ -3,7 +3,7 @@
 On 2026-11-19 the image gate blocked on 22 advisories, the same on both architectures
 (run 44475786283): 21 in krb5-libs 1.22.2-r1, fixed in 1.22.3-r0, and CVE-2026-4738 in zlib
 1.3.2-r1, fixed in 1.4-r0. Alpine 3.24's repository held both fixed versions, and no
-`python:3.12-alpine3.24` digest carried them: the tag last moved on 2026-11-12. So the final
+digest of the base's tag carried them: the tag last moved on 2026-11-12. So the final
 stage's `ALPINE_RAISE` raises a package of the base to an advisory's fixed version, each at
 an exact version, as `<SCANNER>_RAISE` raises a Go module (D81w). The build refuses a raise
 the base already carries, so a moved base drops it, and one for a package the base lacks.

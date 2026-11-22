@@ -129,7 +129,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
     `build_status.py` still names R44.6, the owner's, ahead of this list: R48 was cut from
     R46's branch, since the phases stack, and not from `main` as §0 said.
 
-- [ ] **R48.2** **Counts for every judged rule, and for every Scanner** (D82a).
+- [x] **R48.2** **Counts for every judged rule, and for every Scanner** (D82a).
   **Seam:** `eval.run(["real-code-precision"], …, scan=, corpus=)` with a scan that writes
   canned Findings, as `tests/test_eval_run.py` drives it; the report it returns, and
   `eval.compare`. Behaviours:
@@ -153,6 +153,23 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
   job counts, with each one's time in the STATUS.
 
   _Requirements: 1.1_
+
+  **STATUS 2026-11-22:** ✅ 1 to 6 (`7f9e994`), 6 tests in `tests/test_eval_by_rule.py`.
+  - **On the real corpus,** on the dev machine at `7f9e994`: 2.3, with 3 true and 168
+    false, at both job counts. **272 s with `--jobs 4`, 467 s with `--jobs 1`,** and the
+    two reports the same but for their seconds.
+  - **`by_rule` holds 15 rules.** Gitleaks: private-key 0 true and 35 false, jwt 0 and 29,
+    generic-api-key 0 and 26, curl-auth-header 0 and 6, pkcs12-file 0 and 1,
+    slack-webhook-url 0 and 1. Opengrep: `python_random_rule-random` 0 and 23,
+    `valvur.python.weak-hash` 0 and 21, insecure-cookie 0 and 8, open-redirect 0 and 7,
+    path-traversal 0 and 6, `valvur.javascript.ssrf` 0 and 2,
+    `javascript_eval_rule-eval-with-expression` 2 and 1, `valvur.pinning.mutable-git-ref`
+    1 and 1. And `valvur.dependency.near-miss` 0 and 1.
+  - **`by_scanner`:** Gitleaks 98, all judged; Opengrep 72, all judged; Trivy 1,216,
+    zizmor 702, Checkov 74 and OSV-Scanner 64, none judged until R48.3. A Finding is
+    counted under the first Scanner that reported it.
+  - **A project is also named in `incomplete`** when its Scan Run was not complete, and not
+    only when its scan failed, in one list at any job count.
 
 - [ ] **R48.3** **Checkov and zizmor, judged in their own table** (D82a, D82b).
   **Seam:** as R48.2, with the labels read from a path the test gives; `eval.compare`;
@@ -213,7 +230,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
   - A removed return annotation and a bare declaration (`seen: dict`) are no code change
     either, with the three cases the task names.
 
-- [ ] **R48.6** **No test compares against a moving target.**
+- [x] **R48.6** **No test compares against a moving target.**
   **Seam:** a guard over the tree, in `tests/test_no_moving_target.py`, whose finder takes a
   root so that it can be driven on a tree made in `tmp_path`. Behaviours:
   1. In a made tree whose Dockerfile pins `name:tag@sha256:…`, a file that names `name:tag`
@@ -227,6 +244,29 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      watchdog read it on purpose, each with its reason.
 
   _Requirements: 15.2_
+
+  **STATUS 2026-11-22:** ✅ 1 to 4, 7 tests in `tests/test_no_moving_target.py`.
+  - **Red first on the repository:** it named `scripts/check_image_licences.py`,
+    `tests/test_licences.py`, `ci.yml` and `release.yml`. The script now reads the final
+    stage's base from the Dockerfile, digest included, and refuses a Dockerfile whose final
+    stage has none. The test and CI's step pass no base.
+  - **Proof,** on the dev machine at `a00fa01` with this slice, `valvur:dev`
+    `sha256:913257ee79d7`: 1,296 components added over the base named with its digest, no
+    GPL or AGPL one, in 10 s; `tests/test_licences.py`'s e2e test passes.
+  - **Added: an action.** Requirement 15.2 names one: a workflow that names by tag an
+    action another workflow pins by commit is reported. None does today.
+  - **`:latest` is refused for valvur's own image alone.** Other `:latest` strings under
+    `tests/` are the text of fakes and fixtures, and none is pulled.
+  - **The list holds five.** Four are `ghcr.io/maverickhq/valvur:latest`: the nightly and
+    the watchdog, which judge the image users pull today, and the two tests that assert
+    they do. **The fifth is the owner's:** `release.yml` line 157 still passes the base's
+    tag, and the diff is in §3. Until then the release's licence check diffs against the
+    tag as Docker Hub serves it, as it always has.
+  - **The base tag heal follows** (`scripts/base_heal.py`, R44.12): it rewrites the
+    Dockerfile and `release.yml`, no longer five files, and writes only a file that names
+    the old tag. Once the owner's edit is in, a base tag move changes the Dockerfile and
+    the CHANGELOG alone, which bears on the question R44.12 left for the owner: such a move
+    then touches no workflow.
 
 - [ ] **R48.7** **The hostile fixtures are stored under names no agent loads.**
   **Seam:** `scripts/fixtures.py`'s `copy`, which the tests reach as `copy_fixture`, and the
@@ -712,6 +752,7 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
+| one line of `release.yml` | R48.6 | line 157 drops its second argument, `python:3.12-alpine3.24`, as `ci.yml`'s step did; then the entry leaves `tests/test_no_moving_target.py`'s list, which fails until it does |
 | pin the Health issue | R52.5 | pin it in the repository, once |
 | the OpenSSF form | R52.4 | paste `docs/BEST-PRACTICES.md` into bestpractices.dev; the badge is added once it passes |
 | a person who has not used valvur | before R52.6 | find one, and an hour |
