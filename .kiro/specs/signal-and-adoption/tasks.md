@@ -386,7 +386,7 @@ that fired on the corpus; the three hygiene tests hold.
 
 ### Phase R49: the bar on maintained code
 
-- [ ] **R49.1** **Measure first** (D82e, D82f, D82g). No test seam. **Record,** each in the
+- [x] **R49.1** **Measure first** (D82e, D82f, D82g). No test seam. **Record,** each in the
   STATUS, and design.md's first table completed from it:
   1. for `insecure-cookie`, `open-redirect`, `path-traversal` and `ssrf`, the pattern their
      false Findings share, read from the labelled files, and one cut-down example of each,
@@ -402,6 +402,79 @@ that fired on the corpus; the three hygiene tests hold.
   *Check:* design.md's table has no cell marked *to measure*.
 
   _Requirements: 4.1_
+
+  **STATUS 2026-11-22:** ✅ 1 to 4, measured on the dev machine at `f2aca7b` from R48.3's
+  run (`valvur:dev` `sha256:913257ee79d7`), by re-scoring each track's Results Folder with
+  a rule's Findings left out. Re-scored with nothing left out, every track is its run's.
+  **The Python track falls 6.3 points, 40.9 to 34.6, with `weak-hash` and `random` demoted:
+  inside D82g's 8, so the phase goes on.** design.md said about 34.7.
+
+  **1. What the false Findings share, and a cut-down example of each.**
+  - **`valvur.python.insecure-cookie`, 8:** the path, and nothing in the code. All eight
+    are in test files that set `secure=False` on purpose, as
+    `resp.set_cookie('foo', 'bar', secure=False)`. That is the vulnerable form itself, so
+    no narrower pattern separates them. R49.5's slice 4 applies: a row, for test material.
+  - **`valvur.python.open-redirect`, 7:** five redirect to a URL the router builds,
+    `redirect(url_for("display", uid=uid))` and Sanic's
+    `redirect(request.app.url_for("page", path=path))`. One redirects to a path an example
+    builds, `redirect(f"/{short_id}+")`, and one is a test's own URL.
+  - **`valvur.python.path-traversal`, 6:** three take a path's name, suffix or absoluteness
+    and open nothing: `Path(filename).is_absolute()`, `Path(request.url).suffix`,
+    `Path(request.url).name`. Two read pytest's `request.param`, which is no web request:
+    `Path(request.param[0])`. One is a crawler's `file://` handler, which reads the path it
+    was told to.
+  - **`valvur.javascript.ssrf`, 2:** both are HTTP client libraries sending the request
+    their caller asked for: `https.request(options, callback)` and
+    `fetch(new Request(locationURL, requestOptions))`. With 2 judged it is unmeasured on
+    the corpus, and under no bar.
+
+  **2. Each rule under D82d's bar, and what demoting it everywhere costs.** Thirteen rules
+  have 5 or more judged Findings and fewer than half true.
+
+  | Scanner | rule | true / false | tracks that move |
+  |---|---|---|---|
+  | Opengrep | `valvur.python.weak-hash` | 0 / 21 | Python 40.9 to 37.1 |
+  | Opengrep | `python_random_rule-random` | 0 / 23 | Python 40.9 to 38.3 |
+  | Opengrep | `valvur.python.insecure-cookie` | 0 / 8 | Python 40.9 to 33.7 |
+  | Opengrep | `valvur.python.open-redirect` | 0 / 7 | Python 40.9 to 36.6 |
+  | Opengrep | `valvur.python.path-traversal` | 0 / 6 | Python 40.9 to 38.4 |
+  | Gitleaks | `private-key` | 0 / 35 | secrets 100.0 to 90.0 |
+  | Gitleaks | `generic-api-key` | 0 / 26 | JavaScript 55.0 to 45.0 |
+  | Gitleaks | `jwt` | 0 / 29 | none |
+  | Gitleaks | `curl-auth-header` | 0 / 6 | none |
+  | Checkov | `CKV2_AWS_12` | 0 / 12 | none |
+  | zizmor | `cache-poisoning` | 8 / 11 | none |
+  | zizmor | `dangerous-triggers` | 5 / 7 | infrastructure 95.0 to 90.0 |
+  | zizmor | `template-injection` | 0 / 20 | infrastructure 95.0 to 90.0 |
+
+  - **All thirteen demoted everywhere:** Python 20.7, JavaScript 45.0, secrets 90.0,
+    infrastructure 85.0, and the Score 72.3 from 74.1, with the eighth track at 36.4 on 3
+    true and 7 false. That is the cost the tier table's `test material` and R49.5's
+    narrowing exist to avoid: no secrets rule is demoted everywhere, two of Opengrep's
+    five are narrowed first, and `insecure-cookie` is demoted in test material alone.
+  - **D82d's fallback, listed for the owner and left active:** Checkov's `CKV2_AWS_5` and
+    `CKV_TF_1`, each 0 true of 4.
+  - **New, and the owner's to decide (Requirement 2.5).** R48's labels put four rules of
+    Checkov's and zizmor's under the bar, which the design did not foresee. `CKV2_AWS_12`
+    and `cache-poisoning` move no track and take a row in R49.2's table. **Demoting
+    `dangerous-triggers` or `template-injection` takes 5 points from the infrastructure
+    track, past the ratchet, and they are not valvur's rules to narrow.** Until the owner
+    decides they stay active, and R49.8's check names them. The choices: re-base the
+    infrastructure track as D82g re-bases Python (95.0 to 85.0 for both); leave them
+    active as measured noise; or overrule the labels, which are the executor's
+    (`dangerous-triggers` is 5 true of 12 on one reading of *handled*).
+
+  **3. The directory names D82f proposes.** None moves a case on any track.
+  - `docs_src`: 7 judged Findings on the corpus, all false, classed `source` today.
+  - `guide`: 11, all false, classed `source` today, in one project.
+  - `doc` and `guides`: no Finding on the corpus. Safe by the measurement, and without
+    evidence of use.
+
+  **4. Gitleaks' six rules that fired on the corpus,** from `config/gitleaks.toml` at
+  v8.30.1, the version the image ships. Five match a shape: `private-key` (a PEM header and
+  footer), `jwt` (three base64 segments), `generic-api-key` (a keyword beside a string of
+  entropy 3.5 or more), `curl-auth-header` (a header in a `curl` command) and `pkcs12-file`
+  (a file name). One matches a provider's format: `slack-webhook-url`.
 
 - [ ] **R49.2** **The tier table, and its first row** (D82c, D82d, D82e).
   **Seam:** `api.scan` over `LocalRuntime` with canned Scanner output; `findings.json`, the
@@ -848,6 +921,7 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
+| two of zizmor's rules under the bar | R49.1 | decide `dangerous-triggers` and `template-injection`: re-base the infrastructure track (95.0 to 85.0), leave them active, or overrule the labels. R49.1's STATUS has the numbers |
 | one line of `release.yml` | R48.6 | line 157 drops its second argument, `python:3.12-alpine3.24`, as `ci.yml`'s step did; then the entry leaves `tests/test_no_moving_target.py`'s list, which fails until it does |
 | pin the Health issue | R52.5 | pin it in the repository, once |
 | the OpenSSF form | R52.4 | paste `docs/BEST-PRACTICES.md` into bestpractices.dev; the badge is added once it passes |
