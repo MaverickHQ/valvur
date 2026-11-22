@@ -24,6 +24,12 @@ is then put to `valvur check`, and a fix with a flagged one is escalated.
 directory of its own, never into the tree. It refuses its own result when a package moved
 that the plan does not name: exit 1.
 
+    python3 scripts/heal.py verify --plan plan.json --dir heal-out
+
+`verify` checks such a directory as data, in a job that holds a token: the two files and no
+other, a lock that is pins, hashes and comments, every move in the plan, and the CHANGELOG
+the plan gives. It runs no recipe and no package's code.
+
 Standard library, and `valvur`'s own version ordering, so a pin and the report that asked
 for it agree on which version is higher. Exit 0 when the plan was written, whatever it holds;
 1 when the heal refuses its own result; 2 when an input could not be read.
@@ -326,6 +332,52 @@ def apply(plan_: dict, tree: Path) -> dict[str, str]:
             CHANGELOG: changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)}
 
 
+_REQUIREMENT = re.compile(r"([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9.!+_-]+)( ; [^\\]+)? \\")
+_HASH = re.compile(r"    --hash=sha256:[0-9a-f]{64}( \\)?")
+
+
+def parse_lock(text: str) -> dict[str, str]:
+    """Each package a lock pins, read strictly: a line is a pin, one of its hashes, or an
+    indented comment, as the recipe writes them. Anything else is refused, with its line:
+    an option, a URL or an editable install has no place in a lock that is data."""
+    pinned: dict[str, str] = {}
+    hashes = 0
+    for number, line in enumerate(text.splitlines(), start=1):
+        requirement = _REQUIREMENT.fullmatch(line)
+        if requirement:
+            if pinned and not hashes:
+                raise Refused(f"the lock pins a package with no hash, above line {number}")
+            pinned[_name(requirement.group(1))] = requirement.group(2)
+            hashes = 0
+        elif _HASH.fullmatch(line) and pinned:
+            hashes += 1
+        elif not re.fullmatch(r"    #.*", line):
+            raise Refused(f"the lock's line {number} is not a pin, a hash or a comment")
+    if not pinned or not hashes:
+        raise Refused("the lock pins nothing, or its last package has no hash")
+    return pinned
+
+
+def verify(plan_: dict, tree: Path, directory: Path) -> None:
+    """Refuse an artifact that is not what `apply` writes from this plan, read as data: no
+    recipe runs here and no package's code. The policy runs the recipe again (R44.4)."""
+    held = sorted(path.name for path in directory.iterdir())
+    if held != sorted((LOCK, CHANGELOG)):
+        raise Refused(f"the artifact holds {', '.join(held) or 'nothing'}: "
+                      f"only {LOCK} and {CHANGELOG} belong in it")
+    for name in held:
+        if (directory / name).is_symlink() or not (directory / name).is_file():
+            raise Refused(f"the artifact's {name} is not a plain file")
+    before = parse_lock((tree / LOCK).read_text(encoding="utf-8"))
+    after = parse_lock((directory / LOCK).read_text(encoding="utf-8"))
+    stray = unplanned(before, after, plan_["pins"])
+    if stray:
+        raise Refused("the lock differs from the plan: " + "; ".join(stray))
+    wanted = changelog((tree / CHANGELOG).read_text(encoding="utf-8"), plan_)
+    if (directory / CHANGELOG).read_text(encoding="utf-8") != wanted:
+        raise Refused("the CHANGELOG is not the tree's with the plan's items added")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -339,9 +391,17 @@ def main(argv: list[str] | None = None) -> int:
     apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--out", type=Path, required=True)
     apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
+    verify_cmd = commands.add_parser("verify", help="check an artifact against its plan")
+    verify_cmd.add_argument("--plan", type=Path, required=True)
+    verify_cmd.add_argument("--tree", type=Path, default=Path.cwd())
+    verify_cmd.add_argument("--dir", type=Path, required=True)
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "verify":
+            verify(json.loads(args.plan.read_text(encoding="utf-8")), args.tree.resolve(),
+                   args.dir)
+            return 0
         if args.command == "apply":
             read = json.loads(args.plan.read_text(encoding="utf-8"))
             files = apply(read, args.tree.resolve())

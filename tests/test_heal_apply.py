@@ -154,3 +154,83 @@ def test_the_headline_names_each_fix_while_it_fits_in_a_line(fixes, headline):
 
     assert heal.message(plan, RUN).splitlines()[0] == headline
     assert len(headline) <= 72
+
+
+def _verify(tmp_path: Path, tree: Path, out: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, str(HEAL), "verify", "--plan",
+                           str(tmp_path / "plan.json"), "--tree", str(tree), "--dir", str(out)],
+                          capture_output=True, text=True, check=False)
+
+
+def _applied(tmp_path: Path, monkeypatch) -> tuple[Path, Path]:
+    projects = {"alpha": {"1.0": OLD}, "beta": {"1.0": OLD, "1.1": OLD}}
+    run, tree, out = _apply(tmp_path, monkeypatch, [_pin("beta", "1.0", "1.1")],
+                            {"alpha": "1.0", "beta": "1.0"}, projects,
+                            findings=(_advisory("CVE-2026-0001", "beta", "1.0", "1.1"),))
+    assert run.returncode == 0, run.stderr
+    return tree, out
+
+
+def test_verify_accepts_what_apply_wrote(tmp_path, monkeypatch):
+    tree, out = _applied(tmp_path, monkeypatch)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")  # no uv: the artifact is checked as data
+
+    run = _verify(tmp_path, tree, out)
+
+    assert run.returncode == 0, run.stderr
+
+
+def _third_file(out: Path) -> None:
+    (out / "setup.py").write_text("import os\n")
+
+
+def _unplanned_move(out: Path) -> None:
+    lock = out / LOCK
+    lock.write_text(lock.read_text().replace("alpha==1.0", "alpha==9.9"))
+
+
+def _an_option_in_the_lock(out: Path) -> None:
+    lock = out / LOCK
+    lock.write_text("--index-url https://example.invalid/simple\n" + lock.read_text())
+
+
+def _a_pin_with_no_hash(out: Path) -> None:
+    lock = out / LOCK
+    lock.write_text(lock.read_text() + "gamma==1.0 \\\n")
+
+
+def _the_planned_move_not_made(out: Path) -> None:
+    lock = out / LOCK
+    lock.write_text(lock.read_text().replace("beta==1.1", "beta==1.0"))
+
+
+def _a_changelog_line_elsewhere(out: Path) -> None:
+    changelog = out / "CHANGELOG.md"
+    changelog.write_text(changelog.read_text() + "\nAnd one more thing.\n")
+
+
+def _a_link_for_the_lock(out: Path) -> None:
+    lock = out / LOCK
+    kept = out.parent / "kept.txt"
+    kept.write_text(lock.read_text())
+    lock.unlink()
+    lock.symlink_to(kept)
+
+
+@pytest.mark.parametrize("spoil, names", [
+    (_third_file, "setup.py"),
+    (_unplanned_move, "alpha"),
+    (_an_option_in_the_lock, "line 1"),
+    (_a_pin_with_no_hash, "no hash"),
+    (_the_planned_move_not_made, "beta"),
+    (_a_changelog_line_elsewhere, "CHANGELOG"),
+    (_a_link_for_the_lock, "plain file"),
+])
+def test_verify_refuses_an_artifact_that_is_not_the_plans(tmp_path, monkeypatch, spoil, names):
+    tree, out = _applied(tmp_path, monkeypatch)
+    spoil(out)
+
+    run = _verify(tmp_path, tree, out)
+
+    assert run.returncode == 1, run.stderr
+    assert names in run.stderr
