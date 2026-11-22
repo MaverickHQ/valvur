@@ -294,6 +294,52 @@ def message(plan_: dict, run: str) -> str:
     return headline + "\n\n" + "\n".join(trailers) + "\n"
 
 
+def _cell(text: object) -> str:
+    """A value as one table cell. An advisory's ID, a version and a publisher's repository
+    are text someone else chose, so anything that could be Markdown, or a keyword that
+    closes an issue, is replaced."""
+    return re.sub(r"[^A-Za-z0-9._/@:+ =-]", "?", str(text)).strip() or "?"
+
+
+def _evidence(pin: dict, made: datetime) -> str:
+    age = made - _when(pin["uploaded"])
+    day = pin["uploaded"][:10]
+    if pin["rule"] == "cooldown":
+        return f"cooldown: uploaded {day}, {age.days} days before this plan"
+    who = pin.get("publisher") or {}
+    return (f"young-attested: uploaded {day}, {int(age.total_seconds() // 3600)} hours before "
+            f"this plan, attested by `{_cell(who.get('repository', ''))}` "
+            f"(`{_cell(who.get('workflow', ''))}`)")
+
+
+def body(plan_: dict, run: str) -> str:
+    """The pull request's body: the plan as tables (Requirement 7.6). Each advisory with
+    its severity, each version chosen with why and by which rule, and what was left."""
+    made = _when(plan_["made"])
+    pins = sorted(plan_["pins"], key=lambda pin: pin["package"])
+    moved = {pin["package"] for pin in pins}
+    lines = [
+        "A heal of the Checkov lock, made by rule from the plan below (`scripts/heal.py`). "
+        "No person and no model chose a version.",
+        "", "## What moves", "",
+        "| package | from | to | why | the rule, and its evidence |", "|---|---|---|---|---|",
+        *(f"| {_cell(pin['package'])} | {_cell(pin['from'])} | {_cell(pin['to'])} | "
+          f"{_cell(pin['why'])} | {_evidence(pin, made)} |" for pin in pins),
+        "", "## The advisories it answers", "",
+        "| advisory | package | severity | published |", "|---|---|---|---|",
+        *(f"| {_cell(f['rule'])} | {_cell(f['package'])} | {_cell(f.get('severity', ''))} | "
+          f"{_cell((f.get('advisory_published') or 'unknown')[:10])} |"
+          for f in sorted(plan_["findings"], key=lambda f: (f["package"], f["rule"]))
+          if f["package"] in moved),
+    ]
+    if plan_["escalations"]:
+        lines += ["", "## What it could not heal", "", "| package | reason |", "|---|---|",
+                  *(f"| {_cell(e['package'])} | {_cell(e['reason'])} |"
+                    for e in plan_["escalations"])]
+    lines += ["", f"Planned at {_cell(plan_['made'])}, in {run}."]
+    return "\n".join(lines) + "\n"
+
+
 def changelog(text: str, plan_: dict) -> str:
     """`text` with the plan's items under `[Unreleased]`, in its `### Security` section,
     which is made at the section's end when it has none. Lines are only ever added."""
@@ -391,6 +437,9 @@ def main(argv: list[str] | None = None) -> int:
     apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--out", type=Path, required=True)
     apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
+    body_cmd = commands.add_parser("body", help="print the pull request's body")
+    body_cmd.add_argument("--plan", type=Path, required=True)
+    body_cmd.add_argument("--run", default="", help="this run's URL")
     verify_cmd = commands.add_parser("verify", help="check an artifact against its plan")
     verify_cmd.add_argument("--plan", type=Path, required=True)
     verify_cmd.add_argument("--tree", type=Path, default=Path.cwd())
@@ -398,6 +447,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "body":
+            sys.stdout.write(body(json.loads(args.plan.read_text(encoding="utf-8")), args.run))
+            return 0
         if args.command == "verify":
             verify(json.loads(args.plan.read_text(encoding="utf-8")), args.tree.resolve(),
                    args.dir)

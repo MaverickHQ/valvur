@@ -234,3 +234,70 @@ def test_verify_refuses_an_artifact_that_is_not_the_plans(tmp_path, monkeypatch,
 
     assert run.returncode == 1, run.stderr
     assert names in run.stderr
+
+
+def test_the_pull_requests_body_carries_the_plan(tmp_path):
+    """Requirement 7.6: each advisory and its severity, each version chosen and why, and
+    the evidence for it. Asserted on its fields, row by row."""
+    publisher = {"kind": "GitHub", "repository": "certifi/python-certifi",
+                 "workflow": "release.yml"}
+    plan = tmp_path / "plan.json"
+    plan.write_text(json.dumps({
+        "schema": 1, "made": "2026-10-21T06:41:00Z", "lock": LOCK,
+        "findings": [
+            {**_advisory("CVE-2026-111064", "aiohttp", "3.14.3", "3.14.4")},
+            {**_advisory("GHSA-6q48-6c7w-9gw2", "certifi", "2026.7.22", "2026.10.19"),
+             "severity": "critical"},
+            {**_advisory("CVE-2026-0009", "orjson", "3.12.0", "")}],
+        "pins": [
+            {"package": "aiohttp", "from": "3.14.3", "to": "3.14.5", "why": "fix",
+             "rule": "cooldown", "uploaded": "2026-10-11T00:59:07Z"},
+            {"package": "certifi", "from": "2026.7.22", "to": "2026.10.19", "why": "fix",
+             "rule": "young-attested", "uploaded": "2026-10-20T02:24:15Z",
+             "publisher": publisher},
+            {"package": "yarl", "from": "1.24.5", "to": "1.25.1",
+             "why": "floor of aiohttp 3.14.5", "rule": "cooldown",
+             "uploaded": "2026-09-15T19:29:53Z"}],
+        "escalations": [{"package": "orjson", "reason": "no-fix", "findings": ["fp"]}]}))
+
+    run = subprocess.run([sys.executable, str(HEAL), "body", "--plan", str(plan), "--run", RUN],
+                         capture_output=True, text=True, check=False)
+
+    assert run.returncode == 0, run.stderr
+    rows = [[cell.strip() for cell in line.strip("|").split("|")]
+            for line in run.stdout.splitlines() if line.startswith("|")]
+    assert ["aiohttp", "3.14.3", "3.14.5", "fix", "cooldown: uploaded 2026-10-11, 10 days "
+            "before this plan"] in rows
+    assert ["certifi", "2026.7.22", "2026.10.19", "fix",
+            "young-attested: uploaded 2026-10-20, 28 hours before this plan, attested by "
+            "`certifi/python-certifi` (`release.yml`)"] in rows
+    assert ["yarl", "1.24.5", "1.25.1", "floor of aiohttp 3.14.5",
+            "cooldown: uploaded 2026-09-15, 35 days before this plan"] in rows
+    assert ["CVE-2026-111064", "aiohttp", "high", "2026-10-19"] in rows
+    assert ["GHSA-6q48-6c7w-9gw2", "certifi", "critical", "2026-10-19"] in rows
+    assert ["orjson", "no-fix"] in rows
+    assert RUN in run.stdout
+    for word in ("close #", "closes #", "fix #", "fixes #", "resolve #", "resolves #"):
+        assert word not in run.stdout.lower()
+
+
+def test_a_field_cannot_write_markdown_or_a_closing_keyword_into_the_body(tmp_path):
+    """A publisher's repository and workflow are text that the package's author chose."""
+    plan = tmp_path / "plan.json"
+    plan.write_text(json.dumps({
+        "schema": 1, "made": "2026-10-21T06:41:00Z", "lock": LOCK,
+        "findings": [_advisory("CVE-1 | fixes #7", "beta", "1.0", "1.1")],
+        "pins": [{"package": "beta", "from": "1.0", "to": "1.1", "why": "fix",
+                  "rule": "young-attested", "uploaded": "2026-10-20T02:24:15Z",
+                  "publisher": {"kind": "GitHub", "repository": "a/b` | closes #12 <!--",
+                                "workflow": "x.yml](https://example.invalid)"}}],
+        "escalations": []}))
+
+    run = subprocess.run([sys.executable, str(HEAL), "body", "--plan", str(plan), "--run", RUN],
+                         capture_output=True, text=True, check=False)
+
+    assert run.returncode == 0, run.stderr
+    assert "#12" not in run.stdout and "#7" not in run.stdout
+    assert "<!--" not in run.stdout and "](" not in run.stdout
+    rows = [line for line in run.stdout.splitlines() if line.startswith("| beta")]
+    assert len(rows) == 1 and rows[0].count("|") == 6, rows

@@ -671,7 +671,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     `698b21e`'s three moves. OSV now names certifi 2026.10.18 as that advisory's fix; with
     that floor the rule would have taken 2026.10.18, also young and attested.
 
-- [ ] **R44.3** **The proposal**. Behaviours:
+- [x] **R44.3** **The proposal**. Behaviours:
   1. `heal.py apply` runs the recipe with the plan's pins and refuses a result where an
      unplanned package moved.
   2. It adds one `### Security` item per package under `[Unreleased]`.
@@ -683,6 +683,26 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   6. The pull request's body carries the plan, asserted on its fields.
 
   _Requirements: 7.1, 7.2, 7.3, 7.5, 7.6_
+
+  **STATUS 2026-11-22:** ✅ 1 to 6, in `scripts/heal.py` (`apply`, `verify`, `body`) and
+  `scripts/signed_push.py`; 18 tests in `tests/test_heal_apply.py` and 12 in
+  `tests/test_heal_signed_push.py`.
+  - **`apply` writes apart,** into `--out`, never into the tree, and prints the commit's
+    message. A headline over 72 characters counts its fixes instead of naming them.
+  - **`verify` reads the artifact as data,** with no uv on the path. Beside the three
+    refusals the task names it refuses a file that is a link, a pin with no hash, a planned
+    move that was not made, and a CHANGELOG that is not the tree's with the plan's items.
+    Its reading of the lock is strict: a line is a pin, a hash or an indented comment, which
+    are the three shapes the real lock's 2,211 lines have, so an option or a URL in a lock
+    is refused by its line number.
+  - **Found: `signed_push.py` restated only the headline.** A heal commit would have
+    reached GitHub without its `Heal-Pin` trailers, which the policy reads. It now restates
+    the body too, and a release commit, which has none, is restated as before.
+  - **Added: the body's cells are neutralised.** A publisher's repository and workflow are
+    text the package's author chose. Anything in a cell that could be Markdown, or `#` with
+    a number after a closing keyword, is replaced.
+  - Behaviour 5 of Requirement 7 (an open heal pull request is rebuilt, never doubled) is
+    the workflow's, in R44.6.
 
 - [ ] **R44.4** **The policy**. Behaviours, through `heal_policy.py lock`, with
   `gh pr view`'s JSON on stdin, the pull request's two files given as data, and resolution
