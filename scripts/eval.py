@@ -207,6 +207,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
     cwe_of = cwe.lookup(REPO / "rules")
     rules = rule_precision.shipped(REPO / "rules")
     by_place: dict[str, dict] = {}
+    planted: dict[tuple[str, str], list[int]] = {}
     for track in tracks:
         if track == "real-code-precision":
             began = time.monotonic()
@@ -242,6 +243,11 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         scored = score.score_track(cases, findings, cwe_of)
         if track in rule_precision.PLACES:
             by_place[track] = rule_precision.from_track(cases, findings, cwe_of, rules)
+        for key, tally in rule_precision.others_from_track(cases, findings, cwe_of,
+                                                           rules).items():
+            counts = planted.setdefault(key, [0, 0])
+            counts[0] += tally.tp
+            counts[1] += tally.fp
         result["tracks"][track] = {
             "score": scored.score,
             "categories": {name: {"tp": r.tp, "fn": r.fn, "fp": r.fp, "tn": r.tn,
@@ -276,6 +282,9 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
                                   speed=speed)
     if speed is not None:
         result["speed"] = speed
+    # R48.4: every other Scanner's rule on the planted cases, beside its corpus counts.
+    result["planted"] = [{"scanner": scanner, "rule": rule, "tp": tp, "fp": fp}
+                         for (scanner, rule), (tp, fp) in sorted(planted.items()) if tp or fp]
     if by_place:
         # R29.3: each shipped rule, over the places this run scanned.
         result["rules"] = rule_precision.measure(by_place, rules, cwe.rule_cwes(REPO / "rules"))
@@ -504,6 +513,24 @@ def write(result: dict, out: Path) -> dict[str, Path]:
     return paths
 
 
+def others_measured(result: dict) -> list[dict]:
+    """Each rule that fired on the corpus and is not one of Opengrep's shipped ones (R48.4):
+    its counts on maintained code apart from its counts on the planted tracks."""
+    track = result["tracks"]["real-code-precision"]
+    planted = {(row["scanner"], row["rule"]): {"tp": row["tp"], "fp": row["fp"]}
+               for row in result.get("planted", [])}
+    corpus = {(row["scanner"], row["rule"]): {
+        "findings": row["tp"] + row["fp"], "judged": row["tp"] + row["fp"], "tp": row["tp"],
+        "fp": row["fp"], "sampled": False}
+        for row in track.get("by_rule", []) if row["rule"] not in result["rules"]}
+    corpus.update({(row["scanner"], row["rule"]): {
+        key: row[key] for key in ("findings", "judged", "tp", "fp", "sampled")}
+        for row in track.get("hygiene", [])})
+    return [{"scanner": scanner, "rule": rule, "corpus": counts,
+             "planted": planted.get((scanner, rule), {"tp": 0, "fp": 0})}
+            for (scanner, rule), counts in sorted(corpus.items())]
+
+
 def rules_measured(result: dict, path: Path, *, today: str | None = None) -> None:
     """R29.3: each shipped rule's counts, written for `scripts/rules_doc.py`. Only a run
     that scanned track 1, track 2 and the corpus measures a rule."""
@@ -518,7 +545,8 @@ def rules_measured(result: dict, path: Path, *, today: str | None = None) -> Non
         "measured": today or datetime.datetime.now(datetime.UTC).date().isoformat(),
         "image": result["image"]["id"],
         "corpus_projects": result["tracks"]["real-code-precision"]["repositories"],
-        "rules": result["rules"]}, indent=1) + "\n", encoding="utf-8")
+        "rules": result["rules"], "others": others_measured(result)}, indent=1) + "\n",
+        encoding="utf-8")
 
 
 def per_rule(rules: Path, work: Path, *, image: str = "valvur:dev",

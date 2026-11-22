@@ -27,6 +27,8 @@ import score  # type: ignore[import-not-found]
 #: The places a rule is measured, in the order `docs/RULES.md` gives them; track 9 holds
 #: the LLM-output rules' cases (R41, D80).
 PLACES = ("sast-python", "sast-js", "corpus", "llm-output")
+#: ADR-0033: with fewer judged Findings on the corpus, a rule is *unmeasured there*.
+MEASURED_FROM = 5
 #: A rule's metadata line that keeps it out of the verdict (D47a).
 _INVENTORY = re.compile(r"^\s+inventory:\s*true\b", re.M)
 #: Why R29.3 demoted it, when it did: one quoted line in its metadata.
@@ -88,6 +90,32 @@ def from_track(cases: list, findings: list[dict], cwe_of, rules: dict[str, dict]
         elif case.vulnerable:
             tally.tp += 1
             tally.new += _new(finding, rules, own)
+        else:
+            tally.fp += 1
+    return tallies
+
+
+#: The Scanners whose Findings are advisories against a pinned version: true by identity
+#: (`CLAUDE.md` §8), counted and never judged, here as on the corpus.
+DEPENDENCY = ("trivy", "osv-scanner")
+
+
+def others_from_track(cases: list, findings: list[dict], cwe_of, rules: dict[str, dict]
+                      ) -> dict[tuple[str, str], Tally]:
+    """(Scanner, rule) to its counts on one track of planted cases, for every rule that is
+    not one of Opengrep's shipped ones (R48.4): Gitleaks', Checkov's, zizmor's and valvur's
+    Checks'. True on a vulnerable case of its kind, false on a safe one."""
+    tallies: dict[tuple[str, str], Tally] = {}
+    for finding in findings:
+        scanner = str((finding.get("sources") or ["?"])[0])
+        if finding.get("rule") in rules or scanner in DEPENDENCY or not _counted(finding):
+            continue
+        tally = tallies.setdefault((scanner, str(finding.get("rule"))), Tally())
+        case = next((c for c in cases if score._lands_on(c, finding)), None)
+        if case is None or not score._of_its_kind(case, finding, cwe_of):
+            tally.outside += 1
+        elif case.vulnerable:
+            tally.tp += 1
         else:
             tally.fp += 1
     return tallies

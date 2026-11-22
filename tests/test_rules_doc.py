@@ -56,11 +56,13 @@ def test_each_rule_has_its_counts_its_precision_and_its_state():
         valvur_d=_row(inventory=True, unjudged=5),
         vendored_e=_row(tp=2, new=0, vendored=True)))
 
-    assert _line(page, "valvur.a").endswith("| 9 / 0 | 0 / 0 | 0 / 3 | 0 / 0 | 0.75 | active |")
+    assert _line(page, "valvur.a").endswith(
+        "| 9 / 0 | 0 / 0 | 0 / 3, unmeasured there | 0 / 0 | 0.75 | active |")
     # Nothing in the three places to measure it on: said so, never shown as perfect.
     assert _line(page, "valvur.b").endswith(
-        "| 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | - | active, unmeasured |")
-    assert "| 0 / 2, 4 unjudged | 0 / 0 | 0.333 | inventory: R29.3: precision 0.333" in \
+        "| 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | active, unmeasured |")
+    assert ("| 0 / 2, unmeasured there, 4 unjudged | 0 / 0 | 0.333 | inventory: R29.3: "
+            "precision 0.333") in \
         _line(page, "valvur.c")
     assert _line(page, "valvur.d").endswith("| inventory: a sink to review (D47a) |")
     # A vendored rule whose every true positive repeats one of valvur's own lines.
@@ -112,4 +114,5 @@ def test_track_9_is_a_column_of_its_own():
     page = _doc().render(_measured(valvur_llm=row))
 
     assert "| track 1 | track 2 | corpus | track 9 |" in page
-    assert _line(page, "valvur.llm").endswith("| 0 / 0 | 0 / 0 | 0 / 0 | 30 / 0 | 1.0 | active |")
+    assert _line(page, "valvur.llm").endswith(
+        "| 0 / 0 | 0 / 0 | unmeasured there | 30 / 0 | 1.0 | active |")
