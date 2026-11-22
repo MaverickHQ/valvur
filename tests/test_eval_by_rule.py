@@ -45,11 +45,14 @@ def _track(tmp_path: Path, *, jobs: int = 1, scan=None, found: dict | None = Non
     labels.write_text("".join(
         f'[[label]]\nrepo = "{repo}"\nfingerprint = "{fp}"\nrule = "r"\nverdict = "{verdict}"\n'
         f'reason = "read"\n' for (repo, fp), verdict in VERDICTS.items()))
+    hygiene = tmp_path / "hygiene.toml"
+    hygiene.write_text('[[label]]\nrepo = "flask"\nfingerprint = "f5"\nrule = "CKV_GHA_7"\n'
+                       'verdict = "tp"\nreason = "read"\n')
     result = harness.run(
         ["real-code-precision"], tmp_path / "work", image="valvur:dev",
         scan=scan or (lambda root: _results(root, found[root.name])),
         image_id=lambda image: "sha256:abc", corpus=[{"name": name} for name in found],
-        checkouts=checkouts, labels=labels, jobs=jobs)
+        checkouts=checkouts, labels=labels, hygiene=hygiene, jobs=jobs)
     return result["tracks"]["real-code-precision"]
 
 
@@ -71,7 +74,7 @@ def test_each_judged_rule_has_its_scanner_and_its_counts(tmp_path):
 
 def test_each_scanner_has_its_findings_and_how_many_were_judged(tmp_path):
     assert _track(tmp_path)["by_scanner"] == {
-        "checkov": {"findings": 1, "judged": 0, "tp": 0, "fp": 0},
+        "checkov": {"findings": 1, "judged": 1, "tp": 1, "fp": 0},
         "gitleaks": {"findings": 2, "judged": 2, "tp": 1, "fp": 1},
         "opengrep": {"findings": 3, "judged": 3, "tp": 1, "fp": 2},
         "osv-scanner": {"findings": 1, "judged": 0, "tp": 0, "fp": 0},

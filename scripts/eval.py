@@ -38,6 +38,7 @@ TRACKS = ["sast-python", *(t for t in twins.BUILDERS if t != "llm-output"),
           "real-code-precision", "llm-output"]
 CORPUS = REPO / "tests" / "corpus"
 LABELS = REPO / "tests" / "eval" / "labels" / "corpus.toml"
+HYGIENE = REPO / "tests" / "eval" / "labels" / "hygiene.toml"
 
 
 
@@ -140,8 +141,8 @@ def _kinds(cases: list, findings: list[dict], cwe_of) -> dict:
 
 
 def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
-               checkouts: Path | None, labels: Path, jobs: int = 1
-               ) -> tuple[dict, dict[str, list[dict]]]:
+               checkouts: Path | None, labels: Path, jobs: int = 1,
+               hygiene: Path = HYGIENE) -> tuple[dict, dict[str, list[dict]]]:
     """Track 8: scan each corpus project at its pin and judge the owned findings. Also
     each project's findings, which R29.3 reads rule by rule.
 
@@ -173,9 +174,12 @@ def _real_code(scan: Callable[[Path], None], corpus: list[dict] | None,
             incomplete.append(entry["name"])
         reused.update(_reused(run_json))
     complete = not incomplete
-    judged = precision.judge(findings_by_repo, precision.load(labels) if labels.is_file() else {})
+    judged = precision.judge(findings_by_repo,
+                             precision.load(labels) if labels.is_file() else {},
+                             precision.load(hygiene) if hygiene.is_file() else {})
     return ({"score": judged.score, "tp": judged.tp, "fp": judged.fp,
             "unlabelled": judged.unlabelled, "others": judged.others,
+            "hygiene": judged.hygiene, "hygiene_unlabelled": judged.hygiene_unlabelled,
             "by_rule": [{"scanner": scanner, "rule": rule, "tp": tp, "fp": fp}
                         for (scanner, rule), (tp, fp) in sorted(judged.by_rule.items())],
             "by_scanner": judged.by_scanner, "incomplete": incomplete,
@@ -193,7 +197,7 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         checkouts: Path | None = None, labels: Path = LABELS,
         cursorrules: Callable[[], Path] = _cursorrules, speed: dict | None = None,
         llm_real: Callable[[], tuple[Path, dict[str, dict]]] = _llm_real,
-        jobs: int = 1) -> dict:
+        jobs: int = 1, hygiene: Path = HYGIENE) -> dict:
     """Build, scan and score each track under `work`, which is rebuilt. The
     benchmark is scanned where it is checked out, `benchmark` or the build cache's."""
     started = time.monotonic()
@@ -206,7 +210,8 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
     for track in tracks:
         if track == "real-code-precision":
             began = time.monotonic()
-            result["tracks"][track], by_repo = _real_code(scan, corpus, checkouts, labels, jobs)
+            result["tracks"][track], by_repo = _real_code(scan, corpus, checkouts, labels,
+                                                          jobs, hygiene)
             result["tracks"][track]["seconds"] = round(time.monotonic() - began, 1)
             by_place["corpus"] = rule_precision.from_corpus(
                 by_repo, precision.load(labels) if labels.is_file() else {}, rules)
@@ -439,15 +444,20 @@ def compare(result: dict, baseline: dict, *, exact: bool = False) -> list[str]:
         if track.get("unlabelled"):
             failures.append(f"{name}: {len(track['unlabelled'])} finding(s) with no label: "
                             + "; ".join(track["unlabelled"]))
+        if track.get("hygiene_unlabelled"):
+            failures.append(f"{name}: {len(track['hygiene_unlabelled'])} Checkov or zizmor "
+                            "finding(s) with no label: " + "; ".join(track["hygiene_unlabelled"]))
     for name, gate in (result.get("gates") or {}).items():
         if gate.get("judged") and not gate.get("ok"):
             failures.append(f"gate {name}: {gate.get('reason', 'failed')}")
     return failures
 
 
-def update_baseline(result: dict, path: Path) -> list[str]:
+def update_baseline(result: dict, path: Path, *, labels: Path = LABELS,
+                    hygiene: Path = HYGIENE) -> list[str]:
     """Raise each track the run beat, keep the others (N4.2: only upward). Returns
-    a sentence per track kept."""
+    a sentence per track kept. Each label's verdict is recorded with it (R48.3), so a
+    verdict that changes later is seen against it, with no git history."""
     baseline = json.loads(path.read_text()) if path.is_file() else {"tracks": {}}
     tracks, kept = dict(baseline.get("tracks") or {}), []
     for name, track in result["tracks"].items():
@@ -461,6 +471,8 @@ def update_baseline(result: dict, path: Path) -> list[str]:
     baseline["score"] = round(sum(tracks.values()) / len(tracks), 1) if tracks else 0.0
     baseline["recorded_on"] = {"image": result.get("image"), "data": result.get("data"),
                                "seed": result.get("seed")}
+    baseline["labels"] = {name: precision.verdicts(file) if file.is_file() else {}
+                          for name, file in (("corpus", labels), ("hygiene", hygiene))}
     path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
     return kept
 
