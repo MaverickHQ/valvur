@@ -72,6 +72,7 @@ CHANGELOG = "CHANGELOG.md"
 HEADLINE = 72
 #: The one package the heal never moves: a new Checkov is the owner's to take (D81q).
 CHECKOV = "checkov"
+MONDAY = 0
 RECIPE = "scripts/lock-checkov.sh"
 #: What the recipe reads beside the lock it rewrites.
 RECIPE_READS = (RECIPE, "requirements-checkov.in", "requirements-checkov.overrides")
@@ -98,6 +99,26 @@ def _at_lock(findings: list[dict], lock: str) -> list[dict]:
     return [f for f in findings
             if verdict.active(f) and f.get("path") == lock
             and (f.get("dependency") or {}).get("package")]
+
+
+def newer_checkov(have: str, now: datetime) -> pypi_facts.Release | None:
+    """PyPI's newest final Checkov past the cooldown, when it is newer than the lock's."""
+    settled = [r for r in pypi_facts.releases(CHECKOV)
+               if now - _when(r.uploaded) >= COOLDOWN
+               and version_key(r.version) > version_key(have)]
+    return max(settled, key=lambda r: version_key(r.version)) if settled else None
+
+
+def mode(findings: list[dict], lock_text: str, *, lock: str, now: str) -> str:
+    """What this run is for, from data and never from the event (design.md §4): `heal` when
+    the lock has an active dependency Finding; else `checkov`, on a Monday, when a newer
+    Checkov is past the cooldown (D81q); else `none`. R45.4 adds `tag` and `release`."""
+    if _at_lock(findings, lock):
+        return "heal"
+    when = _when(now)
+    if when.weekday() == MONDAY and newer_checkov(locked(lock_text)[CHECKOV], when):
+        return "checkov"
+    return "none"
 
 
 def relock(tree: Path, lock_text: str, pins: dict[str, str]) -> str | None:
@@ -576,6 +597,10 @@ def main(argv: list[str] | None = None) -> int:
     apply_cmd.add_argument("--tree", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--out", type=Path, required=True)
     apply_cmd.add_argument("--run", default="", help="this run's URL, for the commit")
+    mode_cmd = commands.add_parser("mode", help="print what this run is for")
+    mode_cmd.add_argument("--findings", type=Path, required=True)
+    mode_cmd.add_argument("--lock", type=Path, required=True)
+    mode_cmd.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ")
     escalate_cmd = commands.add_parser("escalations", help="print what to do to the tracker")
     escalate_cmd.add_argument("--plan", type=Path, required=True)
     escalate_cmd.add_argument("--observed", type=Path, required=True)
@@ -592,6 +617,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if args.command == "mode":
+            print(mode(json.loads(args.findings.read_text(encoding="utf-8"))["findings"],
+                       args.lock.read_text(encoding="utf-8"), lock=args.lock.name,
+                       now=args.now))
+            return 0
         if args.command == "escalations":
             actions = escalations(
                 json.loads(args.plan.read_text(encoding="utf-8")),
