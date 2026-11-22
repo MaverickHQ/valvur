@@ -23,7 +23,8 @@ pytestmark = pytest.mark.skipif(shutil.which("uv") is None, reason="the recipe r
 POLICY = HEAL.parent / "heal_policy.py"
 OLD = {"uploaded": "2026-01-01T00:00:00Z"}
 CHANGELOG = "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] — 2026-01-01\n\nThe first.\n"
-PROJECTS = {"checkov": {"1.0": {**OLD, "requires": ["alpha", "beta"]}, "1.1": OLD},
+PROJECTS = {"checkov": {"1.0": {**OLD, "requires": ["alpha", "beta"]},
+                        "1.1": {**OLD, "requires": ["alpha", "beta"]}},
             "alpha": {"1.0": OLD, "1.1": {**OLD, "requires": ["gamma"]}},
             "beta": {"1.0": OLD, "1.1": OLD, "2.0": OLD},
             "gamma": {"1.0": OLD}}
@@ -122,3 +123,72 @@ def test_a_second_commit_is_held_to_the_same(tmp_path, monkeypatch):
 
     assert run.returncode == 1
     assert "a-collaborator" in run.stdout
+
+
+def _drop_a_hash(lock: str) -> str:
+    lines = lock.splitlines(keepends=True)
+    index = next(i for i, line in enumerate(lines) if "--hash=sha256:" in line)
+    return "".join(lines[:index] + lines[index + 1:])
+
+
+@pytest.mark.parametrize("edit", [
+    pytest.param(lambda lock: lock.replace("alpha==1.0", "alpha==1.0.1"), id="a-version-by-hand"),
+    pytest.param(_drop_a_hash, id="a-hash-dropped"),
+    pytest.param(lambda lock: lock + "    # a comment\n", id="a-line-added"),
+    pytest.param(lambda lock: lock.replace("beta==1.1", "beta==1.0"), id="the-pin-not-applied"),
+])
+def test_a_lock_one_byte_from_the_recipes_leaves_it_for_the_owner(tmp_path, monkeypatch, edit):
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    lock = head / LOCK
+    lock.write_text(edit(lock.read_text()))
+
+    run = _judge(tree, head, _view(message))
+
+    assert run.returncode == 1
+    assert "not what the recipe writes" in run.stdout
+
+
+def _by_the_recipe(tmp_path: Path, monkeypatch, pins: dict[str, str]) -> tuple[Path, Path, str]:
+    """A pull request whose lock the recipe did write, for pins a heal would never plan."""
+    sys.path.insert(0, str(HEAL.parent))
+    import heal
+
+    tree, head, _message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    written = heal.relock(tree, (tree / LOCK).read_text(), pins)
+    assert written is not None
+    (head / LOCK).write_text(written)
+    trailers = "".join(f"Heal-Pin: {name}=={version}\n" for name, version in pins.items())
+    return tree, head, "fix: a move the envelope does not hold\n\n" + trailers
+
+
+@pytest.mark.parametrize("pins, names", [
+    ({"alpha": "1.1"}, "gamma"),
+    ({"beta": "2.0"}, "major"),
+    ({"checkov": "1.1"}, "Checkov"),
+])
+def test_a_move_outside_the_envelope_leaves_it_for_the_owner(tmp_path, monkeypatch, pins, names):
+    tree, head, message = _by_the_recipe(tmp_path, monkeypatch, pins)
+
+    run = _judge(tree, head, _view(message))
+
+    assert run.returncode == 1
+    assert names in run.stdout
+
+
+def test_an_overridden_package_does_not_move(tmp_path, monkeypatch):
+    """An override is a decision the owner wrote down, with its reason. A heal that moves
+    the package it names is the owner's to read, even when the override allows the move
+    and the recipe wrote the lock."""
+    sys.path.insert(0, str(HEAL.parent))
+    import heal
+
+    tree, head, message = _heal(tmp_path, monkeypatch, {"beta": "1.1"})
+    (tree / "requirements-checkov.overrides").write_text("# why\nbeta>=1.0\n")
+    written = heal.relock(tree, (tree / LOCK).read_text(), {"beta": "1.1"})
+    assert written is not None
+    (head / LOCK).write_text(written)
+
+    run = _judge(tree, head, _view(message))
+
+    assert run.returncode == 1
+    assert "override" in run.stdout and "beta" in run.stdout
