@@ -1,0 +1,15 @@
+# The tier table (D82c, D82d, ADR-0033): the rules, of any Scanner, whose Findings are
+# inventory: reported for review, never active, never counted by the verdict or the gate.
+#
+# A rule has a row when it is measured on maintained code, with five or more judged
+# Findings on the corpus, and fewer than half of them are true. `corpus` is that
+# measurement, and a test holds each row to `tests/eval/rules-measured.json`. This is
+# package data: a project cannot change a tier.
+
+[[rule]]
+scanner = "opengrep"
+id = "valvur.python.weak-hash"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 0, fp = 21 }
+reason = "On maintained code every use measured was a cache key, an ETag, a protocol's own SHA-1 or an HMAC."

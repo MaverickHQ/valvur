@@ -35,6 +35,7 @@ from . import requirements as _requirements
 from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
+from . import tiers as _tiers
 from .ecosystems import index_form
 from .findings import Finding, merge
 
@@ -222,9 +223,10 @@ def context(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def classes(findings: list[Finding], ctx: Context) -> list[Finding]:
     """What a path's class changes (D56): a secret in a test ranks low, `weak-hash`
-    in docs is not reported, and what is removed is counted for `run.json`."""
+    in docs is not reported, and what is removed is counted for `run.json`. Then the
+    tier table (D82c): a rule under the bar on maintained code is inventory."""
     kept, ctx.removed_by_class = _classtable.apply(findings)
-    return kept
+    return _tiers.apply(kept)
 
 
 def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:
