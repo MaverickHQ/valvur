@@ -590,16 +590,42 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
 ### Phase R44: the Checkov lock heals itself
 
-- [ ] **R44.1** **Measure first** (D81e, D81k). Behaviour: the STATUS records each of these:
+- [x] **R44.1** **Measure first** (D81e, D81k). Behaviour: the STATUS records each of these:
   1. **Provenance:** for each package in the lock, whether its locked version's distributions
      carry a PyPI provenance attestation, and from which publisher. The same for aiohttp
      3.14.5, certifi 2026.10.19 and yarl 1.25.1. They are read from pypi.org's integrity API.
   2. **The recipe:** R42.4's answer on `--no-build`, and the uv it ran.
   3. **Replaying the incident:** on a copy of `1434c44`'s lock, `--upgrade-package` with a
-     `--constraint` file of the three pins writes `698b21e`'s lock byte for byte.
+     `--constraint` file of the three pins writes `698b21e`'s lock byte for byte. (It does
+     not, by three annotation lines: the STATUS says what does.)
   4. **Rulesets:** the repository's rulesets for tags and branches, from `gh api
      repos/MaverickHQ/valvur/rulesets`, and whether `v*` tags are restricted. This answers
      §3's row.
+
+  **STATUS 2026-11-22:** ✅ 1 to 4, measured on the owner's Mac.
+  - **Provenance,** from pypi.org's integrity API for every file of each locked version: of
+    the lock's 97 packages, 39 have an attestation on every file, each from one GitHub
+    workflow of the project's own repository, and 58 have none. No package is attested in
+    part. aiohttp 3.14.5 (`aio-libs/aiohttp`, `ci-cd.yml`), certifi 2026.10.19
+    (`certifi/python-certifi`, `release.yml`) and yarl 1.25.1 (`aio-libs/yarl`, `ci-cd.yml`)
+    are attested, so on 2026-10-21 certifi would have been `young-attested`. Checkov itself
+    is attested (`bridgecrewio/checkov`, `build.yml`). Without one:
+    aiomultiprocess==0.9.1, annotated-types==0.8.0, asteval==1.0.10,
+    bc-detect-secrets==1.5.52, bc-jsonpath-ng==1.6.1, bc-python-hcl2==0.4.3,
+    beautifulsoup4==4.15.0, boolean-py==5.0, boto3==1.35.49, botocore==1.35.99,
+    cached-prop
+  - **The recipe:** R42.4 found that `--no-build` rewrites the lock byte for byte, under uv
+    0.11.32 and 0.13.5. The Mac and CI are on uv 0.13.7 today.
+  - **The incident replayed,** under uv 0.13.7 on a copy of `1434c44`'s lock: with the three
+    pins in a `--constraint` file the result has `698b21e`'s packages, versions and hashes,
+    and differs from it in three `# via -c pins.txt` lines. With each pin on the option,
+    `--upgrade-package aiohttp==3.14.5` and so on, it is `698b21e`'s lock byte for byte. So
+    the heal passes its pins that way, and design.md is corrected.
+  - **Rulesets:** one, *release tags* (24016563), active on `refs/tags/v*`: creation, update
+    and deletion restricted, signatures required, one bypass actor. `v*` tags are
+    restricted, so §3's row stands: the App becomes a bypass actor for tags alone. `main`
+    has classic protection: 8 required checks, signatures, linear history, enforced for
+    administrators.
 
 - [ ] **R44.2** **The plan** (D81d, D81e). Behaviours, against `tests/fake_registry.py`
   extended with PyPI's JSON and integrity endpoints, and with small wheels:
@@ -1157,7 +1183,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | the heal's tag-signing key | before R45.3's behaviour 5 | `ssh-keygen -t ed25519 -C valvur-heal -f valvur-heal -N ''`. Put the private key in `heal` as `HEAL_TAG_KEY`, give the session the `.pub` line, and delete both local files |
 | the environment `release-security` | before R45.5 | Settings → Environments → New: wait timer 720 minutes, no required reviewers, deployments from tags `v*` and branches `release/*` |
 | PyPI's trusted publisher | before the first real security release | if valvur's publisher on pypi.org names the `release` environment, add a second publisher for `release-security` |
-| a tag ruleset, if there is one | R44.1 says | if `v*` tags are restricted, add the App as a bypass actor for tags alone |
+| the tag ruleset | R44.1 found it: *release tags*, active on `v*` | add the App as a bypass actor on that ruleset, for tags alone |
 | accept ADR-0032 | R45.1 | or choose D81h's fallback: the owner as required reviewer on `release-security` |
 | the owner-session tasks | when reached, if auto mode refused | R44.6, R45.3 and R45.4, in a session in manual approve mode, from each task's STATUS |
 | the first live heal | R44 landed and the App created | nothing: the schedule runs it. Or dispatch `heal` on `main` with `dry_run=true` first |
