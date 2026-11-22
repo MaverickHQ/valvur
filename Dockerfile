@@ -176,7 +176,7 @@ LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 # same number. A change that breaks anything on that page bumps it here and there.
 LABEL org.valvur.protocol="2"
 
-# `rm -f /var/cache/apk/*`, here and in the step that builds Checkov: apk-tools 3 writes
+# `rm -f /var/cache/apk/*`, in the one step that calls apk: apk-tools 3 writes
 # each repository's index there even under `--no-cache`, and Alpine republishes an index
 # whenever any package moves, so two builds of one tree differed on 2026-11-21 (run
 # 44916424890) and every image since Alpine 3.24 carried 3 MB of it.
@@ -190,7 +190,9 @@ LABEL org.valvur.protocol="2"
 # carries, so a moved base drops it, and one for a package the base lacks. Alpine keeps one
 # version of a package, so a later one there stops this step too, and the raise moves with
 # it. Before any other package is installed. `tests/test_alpine_raise.py` runs this step.
-ARG ALPINE_RAISE="krb5-libs=1.22.3-r0 libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 zlib=1.4-r0"
+# `--no-logfile`: Alpine 3.24's apk-tools 3 appends each call, with the time it ran, to
+# the base's `/var/log/apk.log`, the one file two builds of one tree then differed in.
+ARG ALPINE_RAISE="libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 zlib=1.4-r0"
 RUN set -eu; \
     for raise in ${ALPINE_RAISE}; do \
       name="${raise%%=*}"; \
@@ -202,6 +204,24 @@ RUN set -eu; \
     done; \
     apk add --no-logfile --no-cache ${ALPINE_RAISE}; \
     rm -f /var/cache/apk/*
+# Only the packages valvur loads (R44.11, D81ac). 22 of the 51 findings that 1.6.2 answered
+# were in krb5-libs, which the image held for one reason: CPython's `nis` module links
+# libtirpc and libnsl, and libtirpc links Kerberos. Nothing in the image imports `nis`
+# (measured: not Checkov, not valvur, not the standard library), and Python 3.13 removed it.
+# So the module goes, and with it the nine packages that hung from it. The base names its
+# libraries through one virtual package, `.python-rundeps`. The ones that stay are named
+# here instead, from what is already installed (`--no-network`), and the virtual is dropped.
+# `musl-utils` goes too, and `scanelf` with it: four programs (`getconf`, `getent`, `iconv`,
+# `ldconfig`) and the ELF scanner the base's build used. The end-to-end suite passes without
+# them, and `ctypes.util.find_library` answers as it did with them: nothing, on musl.
+# A package's bytes remain in the base's layer; its files are gone from the image, which
+# is what the image gate reads. `.github/image-packages.txt` names what the image holds,
+# and `tests/test_image_packages.py` holds the image to it.
+RUN rm -f /usr/local/lib/python3.12/lib-dynload/nis.cpython-312-*.so \
+ && apk add --no-logfile --no-network gdbm libbz2 libcrypto3 libffi libncursesw libpanelw \
+        libssl3 libuuid readline sqlite-libs xz-libs zlib \
+ && apk del --no-logfile --no-network .python-rundeps musl-utils \
+ && rm -f /var/cache/apk/*
 
 COPY --from=gitleaks /gitleaks               /usr/local/bin/gitleaks
 COPY --from=trivy    /trivy                   /usr/local/bin/trivy
@@ -226,9 +246,15 @@ RUN XDG_CACHE_HOME=/opt/opengrep /usr/local/bin/opengrep --version \
 # package, every hash — and because it carries one deliberate override
 # (`requirements-checkov.overrides`): Checkov pins an asteval with two sandbox-escape
 # advisories, and the lock ships the fixed release instead; pip's resolver would
-# refuse the pair, and the lock is the resolution. No compiler is kept. Before our
-# own files, so that editing a Check or a rule rebuilds only the layers below and
-# never this one.
+# refuse the pair, and the lock is the resolution. Before our own files, so that
+# editing a Check or a rule rebuilds only the layers below and never this one.
+#
+# From wheels alone, with no compiler (R44.10, D81ab). Until then this step added
+# `gcc`, `musl-dev` and `libffi-dev` at whatever version Alpine held that day, and a
+# package compiled here would have differed between two builds of one tree. Measured
+# 2026-11-22: every package in the lock has a musl wheel for both architectures, and
+# the lock holds its hash. `--only-binary=:all:` makes a later one without a wheel
+# fail the build, instead of compiling in silence.
 #
 # Bytecode is compiled here and kept (28.2.1). Until then the layer ended by
 # deleting every `__pycache__` under `/opt/checkov` and `/usr/local` — and the
@@ -247,17 +273,12 @@ RUN XDG_CACHE_HOME=/opt/opengrep /usr/local/bin/opengrep --version \
 # `--no-compile`: pip writes timestamp-mode `.pyc` as it installs, and compileall
 # without `-f` reads their header, finds them "current" and leaves them — which is
 # how the first two fixes changed nothing (measured: flags 0, mtime = wall clock).
-# `--no-logfile`: Alpine 3.24's apk-tools 3 appends each call, with the time it ran, to
-# the base's `/var/log/apk.log`, the one file two builds of one tree then differed in.
 COPY requirements-checkov.txt /opt/checkov-requirements.txt
-RUN apk add --no-logfile --no-cache --virtual .build gcc musl-dev libffi-dev \
- && python3 -m venv --without-pip /opt/checkov \
+RUN python3 -m venv --without-pip /opt/checkov \
  && pip --python /opt/checkov/bin/python install --no-cache-dir --no-deps --no-compile \
-        --require-hashes -r /opt/checkov-requirements.txt \
+        --only-binary=:all: --require-hashes -r /opt/checkov-requirements.txt \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
- && apk del --no-logfile .build \
- && rm -f /var/cache/apk/* \
  && PYTHONHASHSEED=0 /opt/checkov/bin/python -m compileall -q -f --invalidation-mode unchecked-hash /opt/checkov/lib
 
 # zizmor (R4.2, ADR-0023) audits GitHub Actions workflows. One package, a static
@@ -328,7 +349,11 @@ ENV VALVUR_IN_IMAGE=1
 # capability dropped, so it must be writable by anyone, sticky as /tmp is. Under
 # WORKDIR alone it was 10001's and 755, and a large Snapshot could not be unpacked.
 RUN mkdir -p /workspace && chmod 1777 /workspace
-RUN adduser -D -u 10001 valvur
+# `adduser` writes the day it ran into `/etc/shadow`, as the account's last password
+# change: the one file, with Alpine's index, in which `v1.6.2` rebuilt a day later
+# differed from the image published (R44.10). Blanked, which means no password ageing.
+RUN adduser -D -u 10001 valvur \
+ && sed -i -E 's/^(valvur:[^:]*):[0-9]+:/\1::/' /etc/shadow
 USER 10001:10001
 WORKDIR /workspace
 # No ENTRYPOINT: the shim names a specific scanner binary per adapter, and a

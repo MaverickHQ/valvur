@@ -19,6 +19,6 @@ def test_every_apk_call_in_the_dockerfile_keeps_no_log():
                            if not line.lstrip().startswith("#"))
     lines = [m.group(0) for m in re.finditer(r"\bapk (?:add|del)\b[^\n]*", dockerfile)]
 
-    assert len(lines) == 3, lines
+    assert len(lines) == 3, lines  # the raise, and R44.11's add and del
     for line in lines:
         assert "--no-logfile" in line, line

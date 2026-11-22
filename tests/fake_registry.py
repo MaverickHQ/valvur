@@ -189,6 +189,7 @@ def _handler(registry: FakeRegistry, *, cdn: bool):
 
 _SITECUSTOMIZE = '''"""Loaded by every Python process started with this directory first on its path:
 the package registries, answered from here and recorded, never reached."""
+import base64
 import io
 import json
 import os
@@ -213,7 +214,10 @@ def _urlopen(request, *args, **kwargs):
         log.write(url + "\\n")
     if url not in _ANSWERS:
         raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
-    return _Answer(json.dumps(_ANSWERS[url]).encode())
+    answer = _ANSWERS[url]
+    if isinstance(answer, dict) and set(answer) == {"__bytes__"}:
+        return _Answer(base64.b64decode(answer["__bytes__"]))
+    return _Answer(json.dumps(answer).encode())
 
 
 urllib.request.urlopen = _urlopen
@@ -246,3 +250,68 @@ class FakePackageRegistry:
     @property
     def asked(self) -> list[str]:
         return [line for line in self.log.read_text(encoding="utf-8").splitlines() if line]
+
+
+# ------------------------------------------------------------------- PyPI's facts
+
+PYPI = "https://pypi.org"
+
+
+def pypi_answers(projects: dict[str, dict[str, dict]]) -> dict[str, object]:
+    """PyPI's JSON and integrity endpoints, as answers for `FakePackageRegistry` (R44.2).
+
+    `projects` maps a project to its versions, and a version to what the heal reads of it:
+    `uploaded` (`YYYY-MM-DDTHH:MM:SSZ`), `yanked`, `files` (one wheel by default) and
+    `publisher`, the Trusted Publisher on every file's attestation, or absent for none.
+    """
+    answers: dict[str, object] = {}
+    for name, versions in projects.items():
+        releases = {}
+        for version, facts in versions.items():
+            files = facts.get("files") or [f"{name}-{version}-py3-none-any.whl"]
+            releases[version] = [{"filename": filename,
+                                  "upload_time_iso_8601": facts["uploaded"],
+                                  "yanked": bool(facts.get("yanked"))} for filename in files]
+            for filename in files if facts.get("publisher") else []:
+                url = f"{PYPI}/integrity/{name}/{version}/{filename}/provenance"
+                answers[url] = {"version": 1, "attestation_bundles": [
+                    {"publisher": facts["publisher"], "attestations": []}]}
+        answers[f"{PYPI}/pypi/{name}/json"] = {"info": {"name": name}, "releases": releases}
+    return answers
+
+
+# ------------------------------------------------------- what the image's heal reads
+
+ALPINE = "https://dl-cdn.alpinelinux.org/alpine"
+HUB = "https://hub.docker.com/v2/repositories/library"
+GOPROXY = "https://proxy.golang.org"
+
+
+def raw(data: bytes | str) -> dict[str, str]:
+    """An answer that is these bytes, not JSON, for `FakePackageRegistry`."""
+    import base64
+
+    held = data.encode() if isinstance(data, str) else data
+    return {"__bytes__": base64.b64encode(held).decode()}
+
+
+def apk_index(packages: dict[str, str]) -> dict[str, str]:
+    """An `APKINDEX.tar.gz` that holds each package at one version, as Alpine publishes it."""
+    import io
+    import tarfile
+
+    text = "".join(f"C:Q1x\nP:{name}\nV:{version}\nA:noarch\n\n"
+                   for name, version in packages.items()).encode()
+    held = io.BytesIO()
+    with tarfile.open(fileobj=held, mode="w:gz") as archive:
+        info = tarfile.TarInfo("APKINDEX")
+        info.size = len(text)
+        archive.addfile(info, io.BytesIO(text))
+    return raw(held.getvalue())
+
+
+def alpine_answers(release: str, indexes: dict[str, dict[str, str]],
+                   repository: str = "main") -> dict[str, object]:
+    """Alpine's index of one repository of `release`, for each architecture given."""
+    return {f"{ALPINE}/v{release}/{repository}/{arch}/APKINDEX.tar.gz": apk_index(packages)
+            for arch, packages in indexes.items()}

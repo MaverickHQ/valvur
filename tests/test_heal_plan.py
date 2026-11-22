@@ -1,0 +1,319 @@
+"""R44.2: the heal's plan for the Checkov lock (D81d, D81e).
+
+`scripts/heal.py plan` reads a Scan Run's Findings at the lock, asks PyPI which versions
+exist and when each was uploaded, and writes `plan.json`: a pin for each package it may
+move, and an escalation for each it may not. PyPI is `tests/fake_registry.py`'s, answered
+by URL in the script's own process, so nothing here opens a socket.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from heal_support import HEAL, LOCK
+from heal_support import tree as heal_tree
+
+NOW = "2026-10-21T06:41:00Z"
+
+pytestmark = pytest.mark.skipif(shutil.which("uv") is None, reason="the recipe runs uv")
+
+
+def _finding(package: str, version: str, fixed: str, *, rule: str = "CVE-2026-0001",
+             path: str = LOCK, **more) -> dict:
+    return {"rule": rule, "path": path, "fingerprint": f"fp-{rule}-{package}",
+            "severity": "high", "suppressed": None,
+            "dependency": {"ecosystem": "pypi", "package": package, "version": version,
+                           "fixed_version": fixed,
+                           "advisory_published": "2026-10-19T12:00:00Z"}, **more}
+
+
+def _plan(tmp_path: Path, monkeypatch, findings: list[dict], have: dict[str, str],
+          projects: dict[str, dict[str, dict]], *, top: tuple[str, ...] = (),
+          known: tuple[str, ...] | None = None
+          ) -> tuple[subprocess.CompletedProcess[str], dict]:
+    """Run `heal.py plan` on `heal_support.tree`'s tree, whose lock holds `have`."""
+    tree = heal_tree(tmp_path, monkeypatch, have, projects, top=top, known=known)
+    scan = tmp_path / "findings.json"
+    scan.write_text(json.dumps({"schema": 1, "findings": findings}))
+    out = tmp_path / "plan.json"
+    run = subprocess.run(
+        [sys.executable, str(HEAL), "plan", "--findings", str(scan),
+         "--lock", str(tree / LOCK), "--now", NOW, "--out", str(out)],
+        capture_output=True, text=True, check=False)
+    return run, json.loads(out.read_text()) if out.is_file() else {}
+
+
+def test_a_fix_past_the_cooldown_is_pinned_at_the_newest_such_version_in_the_major(
+        tmp_path, monkeypatch):
+    projects = {"beta": {
+        "1.0": {"uploaded": "2026-01-01T00:00:00Z"},
+        "1.1": {"uploaded": "2026-09-20T00:00:00Z"},
+        "1.2": {"uploaded": "2026-10-11T00:00:00Z"},
+        "1.3": {"uploaded": "2026-10-19T00:00:00Z"},
+        "2.0": {"uploaded": "2026-08-01T00:00:00Z"},
+    }}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"beta": "1.0"}, projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["schema"] == 1 and plan["made"] == NOW and plan["lock"] == LOCK
+    assert plan["pins"] == [{"package": "beta", "from": "1.0", "to": "1.2", "why": "fix",
+                             "rule": "cooldown", "uploaded": "2026-10-11T00:00:00Z"}]
+    assert plan["escalations"] == []
+    assert [f["rule"] for f in plan["findings"]] == ["CVE-2026-0001"]
+
+
+OLD = {"uploaded": "2026-01-01T00:00:00Z"}
+PUBLISHER = {"kind": "GitHub", "repository": "example/beta", "workflow": "release.yml"}
+
+
+def test_a_young_fix_a_day_old_from_the_replaced_versions_publisher_is_pinned_as_young_attested(
+        tmp_path, monkeypatch):
+    projects = {"beta": {
+        "1.0": {**OLD, "publisher": PUBLISHER},
+        "1.1": {"uploaded": "2026-10-19T06:00:00Z", "publisher": PUBLISHER},
+        "1.2": {"uploaded": "2026-10-20T00:00:00Z", "publisher": PUBLISHER},
+    }}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"beta": "1.0"}, projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == [{"package": "beta", "from": "1.0", "to": "1.1", "why": "fix",
+                             "rule": "young-attested", "uploaded": "2026-10-19T06:00:00Z",
+                             "publisher": PUBLISHER}]
+    assert plan["escalations"] == []
+
+
+OTHER = {"kind": "GitHub", "repository": "someone-else/beta", "workflow": "release.yml"}
+
+
+@pytest.mark.parametrize("young", [
+    pytest.param({"uploaded": "2026-10-20T12:00:00Z", "publisher": PUBLISHER}, id="under-a-day"),
+    pytest.param({"uploaded": "2026-10-19T06:00:00Z"}, id="unattested"),
+    pytest.param({"uploaded": "2026-10-19T06:00:00Z", "publisher": OTHER}, id="another-publisher"),
+])
+def test_a_young_fix_that_fails_the_rule_is_escalated_and_not_pinned(tmp_path, monkeypatch, young):
+    projects = {"beta": {"1.0": {**OLD, "publisher": PUBLISHER}, "1.1": young}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"beta": "1.0"}, projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "young-unattested",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_a_replaced_version_with_no_attestation_fails_the_rule(tmp_path, monkeypatch):
+    projects = {"beta": {"1.0": OLD,
+                         "1.1": {"uploaded": "2026-10-19T06:00:00Z", "publisher": PUBLISHER}}}
+
+    _run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                       {"beta": "1.0"}, projects)
+
+    assert plan["pins"] == []
+    assert [e["reason"] for e in plan["escalations"]] == ["young-unattested"]
+
+
+def test_a_finding_with_no_fixed_version_is_escalated_as_no_fix(tmp_path, monkeypatch):
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "")],
+                      {"beta": "1.0"}, {"beta": {"1.0": OLD}})
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "no-fix",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_a_fix_only_in_the_next_major_is_escalated_as_major(tmp_path, monkeypatch):
+    projects = {"beta": {"1.0": OLD, "1.1": OLD, "2.0": {"uploaded": "2026-08-01T00:00:00Z"}}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "2.0")],
+                      {"beta": "1.0"}, projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "major",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_a_version_the_resolution_forces_is_pinned_by_the_same_rule(tmp_path, monkeypatch):
+    """As yarl under aiohttp on 2026-10-21. uv would take the newest beta it may, 1.2,
+    which is two days old. The rule takes 1.1: the newest past the cooldown."""
+    projects = {
+        "alpha": {"1.0": {**OLD, "requires": ["beta>=1.0"]},
+                  "1.1": {"uploaded": "2026-10-01T00:00:00Z", "requires": ["beta>=1.1"]}},
+        "beta": {"1.0": OLD,
+                 "1.1": {"uploaded": "2026-09-15T00:00:00Z"},
+                 "1.2": {"uploaded": "2026-10-19T06:00:00Z"}},
+    }
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("alpha", "1.0", "1.1")],
+                      {"alpha": "1.0", "beta": "1.0"}, projects, top=("alpha",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == [
+        {"package": "alpha", "from": "1.0", "to": "1.1", "why": "fix", "rule": "cooldown",
+         "uploaded": "2026-10-01T00:00:00Z"},
+        {"package": "beta", "from": "1.0", "to": "1.1", "why": "floor of alpha 1.1",
+         "rule": "cooldown", "uploaded": "2026-09-15T00:00:00Z"},
+    ]
+    assert plan["escalations"] == []
+
+
+def test_a_package_the_resolution_adds_is_escalated_as_new_package(tmp_path, monkeypatch):
+    projects = {
+        "alpha": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z", "requires": ["gamma"]}},
+        "gamma": {"1.0": OLD},
+    }
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("alpha", "1.0", "1.1")],
+                      {"alpha": "1.0"}, projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "alpha", "reason": "new-package",
+                                    "findings": ["fp-CVE-2026-0001-alpha"]}]
+
+
+def test_a_fix_that_would_move_checkov_is_escalated_as_checkov(tmp_path, monkeypatch):
+    projects = {
+        "checkov": {"1.0": {**OLD, "requires": ["beta<1.1"]},
+                    "1.1": {**OLD, "requires": ["beta>=1.0"]}},
+        "beta": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}},
+    }
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"checkov": "1.0", "beta": "1.0"}, projects, top=("checkov",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert [(e["package"], e["reason"]) for e in plan["escalations"]] == [("beta", "checkov")]
+
+
+def test_a_finding_in_checkov_itself_is_escalated_as_checkov(tmp_path, monkeypatch):
+    projects = {"checkov": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}}}
+
+    _run, plan = _plan(tmp_path, monkeypatch, [_finding("checkov", "1.0", "1.1")],
+                       {"checkov": "1.0"}, projects)
+
+    assert plan["pins"] == []
+    assert [(e["package"], e["reason"]) for e in plan["escalations"]] == [("checkov", "checkov")]
+
+
+def test_a_moved_version_that_valvur_check_flags_is_escalated_as_check_failed(
+        tmp_path, monkeypatch):
+    """The real CLI, against a Name Index in which `beta` does not exist."""
+    projects = {"alpha": {"1.0": {**OLD, "requires": ["beta"]}},
+                "beta": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"alpha": "1.0", "beta": "1.0"}, projects, top=("alpha",),
+                      known=("alpha",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "check-failed",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_with_no_name_index_no_plan_is_written(tmp_path, monkeypatch):
+    """`valvur check` answers `unknown` without an index, and exits 0. A heal that took
+    that for a pass would pin a version nothing had checked."""
+    projects = {"beta": {"1.0": OLD, "1.1": {"uploaded": "2026-10-01T00:00:00Z"}}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      {"beta": "1.0"}, projects, known=())
+
+    assert run.returncode == 2
+    assert "valvur check" in run.stderr and "beta" in run.stderr
+    assert plan == {}
+
+
+def test_of_several_findings_on_one_package_the_highest_fix_is_the_floor(tmp_path, monkeypatch):
+    projects = {"beta": {"1.0": OLD, "1.1": OLD, "1.2": OLD,
+                         "1.3": {"uploaded": "2026-10-19T06:00:00Z"}}}
+    findings = [_finding("beta", "1.0", "1.1", rule="CVE-2026-0001"),
+                _finding("beta", "1.0", "1.3", rule="CVE-2026-0002"),
+                _finding("beta", "1.0", "1.2", rule="CVE-2026-0003")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, findings, {"beta": "1.0"}, projects)
+
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{
+        "package": "beta", "reason": "young-unattested",
+        "findings": ["fp-CVE-2026-0001-beta", "fp-CVE-2026-0002-beta", "fp-CVE-2026-0003-beta"]}]
+    assert len(plan["findings"]) == 3
+
+
+def test_no_finding_at_the_lock_is_an_empty_plan_and_nothing_else_is_asked_or_written(
+        tmp_path, monkeypatch):
+    elsewhere = _finding("beta", "1.0", "1.1", path="uv.lock")
+    suppressed = _finding("beta", "1.0", "1.1", suppressed={"reason": "accepted"})
+
+    run, plan = _plan(tmp_path, monkeypatch, [elsewhere, suppressed], {"beta": "1.0"},
+                      {"beta": {"1.0": OLD, "1.1": OLD}})
+
+    assert run.returncode == 0, run.stderr
+    assert plan["findings"] == [] and plan["pins"] == [] and plan["escalations"] == []
+    assert (tmp_path / "registry" / "asked.log").read_text() == "", "PyPI was asked"
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "cache", "findings.json", "plan.json", "registry", "start.txt", "tree", "uv.toml",
+        "wheels"]
+
+
+def test_the_incident_of_2026_10_21_replayed(tmp_path, monkeypatch):
+    """A regression test: what the owner did by hand that morning (`698b21e`), by rule.
+
+    PyPI's facts are the real ones, read on 2026-11-22: each version's upload time, what
+    aiohttp requires of yarl, and the publisher on every file's attestation. The Findings
+    are the four the nightly blocked on, with the fixed versions valvur gave that day.
+    (OSV has since named certifi 2026.10.18 as the fix of GHSA-6q48-6c7w-9gw2. The commit
+    of the day took 2026.10.19 as the only release with it, and so does this.)"""
+    aio = {"kind": "GitHub", "repository": "aio-libs/aiohttp", "workflow": "ci-cd.yml"}
+    yarl = {"kind": "GitHub", "repository": "aio-libs/yarl", "workflow": "ci-cd.yml"}
+    certifi = {"kind": "GitHub", "repository": "certifi/python-certifi",
+               "workflow": "release.yml"}
+    projects = {
+        "checkov": {"3.3.22": {**OLD, "requires": ["aiohttp", "certifi"]}},
+        "aiohttp": {
+            "3.14.3": {"uploaded": "2026-07-23T01:52:08Z", "publisher": aio,
+                       "requires": ["yarl<2.0,>=1.17.0"]},
+            "3.14.4": {"uploaded": "2026-10-05T17:37:45Z", "publisher": aio,
+                       "requires": ["yarl<2.0,>=1.25.1"]},
+            "3.14.5": {"uploaded": "2026-10-11T00:59:07Z", "publisher": aio,
+                       "requires": ["yarl<2.0,>=1.25.1"]}},
+        "yarl": {"1.24.5": {"uploaded": "2026-07-20T02:04:21Z", "publisher": yarl},
+                 "1.25.1": {"uploaded": "2026-09-15T19:29:53Z", "publisher": yarl}},
+        "certifi": {"2026.7.22": {"uploaded": "2026-07-22T03:35:11Z", "publisher": certifi},
+                    "2026.10.18": {"uploaded": "2026-10-18T16:21:06Z", "publisher": certifi},
+                    "2026.10.19": {"uploaded": "2026-10-20T02:24:15Z", "publisher": certifi}},
+    }
+    findings = [
+        _finding("aiohttp", "3.14.3", "3.14.4", rule="CVE-2026-111064"),
+        _finding("aiohttp", "3.14.3", "3.14.4", rule="CVE-2026-111066"),
+        _finding("aiohttp", "3.14.3", "3.14.4", rule="GHSA-2g87-pp6c-29x5"),
+        _finding("certifi", "2026.7.22", "2026.10.19", rule="GHSA-6q48-6c7w-9gw2"),
+    ]
+
+    run, plan = _plan(tmp_path, monkeypatch, findings,
+                      {"checkov": "3.3.22", "aiohttp": "3.14.3", "certifi": "2026.7.22",
+                       "yarl": "1.24.5"}, projects, top=("checkov",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == [
+        {"package": "aiohttp", "from": "3.14.3", "to": "3.14.5", "why": "fix",
+         "rule": "cooldown", "uploaded": "2026-10-11T00:59:07Z"},
+        {"package": "certifi", "from": "2026.7.22", "to": "2026.10.19", "why": "fix",
+         "rule": "young-attested", "uploaded": "2026-10-20T02:24:15Z", "publisher": certifi},
+        {"package": "yarl", "from": "1.24.5", "to": "1.25.1", "why": "floor of aiohttp 3.14.5",
+         "rule": "cooldown", "uploaded": "2026-09-15T19:29:53Z"},
+    ]
+    assert plan["escalations"] == []

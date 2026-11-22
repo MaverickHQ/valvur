@@ -84,8 +84,10 @@ def _server(path: Path, version: str) -> str:
     return json.dumps(config, indent=2) + "\n"
 
 
-def planned(root: Path, version: str, date: str) -> dict[Path, str]:
-    """Each file the release commit changes, by its path under `root`, to its text."""
+def planned(root: Path, version: str, date: str, opening: str = "") -> dict[Path, str]:
+    """Each file the release commit changes, by its path under `root`, to its text.
+    `opening` is the paragraph under the CHANGELOG's new heading, when the caller has one:
+    the heal's, from its one template (R45.2)."""
     previous = declared(root)
     plan = {
         Path("pyproject.toml"): _sub(r'^version = "[^"]+"', f'version = "{version}"',
@@ -102,7 +104,8 @@ def planned(root: Path, version: str, date: str) -> dict[Path, str]:
                                   + ".x` |", (root / "SECURITY.md").read_text(),
                                   "SECURITY.md", re.M),
         Path("CHANGELOG.md"): _sub(r"^## \[Unreleased\]\n\n",
-                                   f"## [Unreleased]\n\n## [{version}] — {date}\n\n",
+                                   f"## [Unreleased]\n\n## [{version}] — {date}\n\n"
+                                   + (f"{opening}\n\n" if opening else ""),
                                    (root / "CHANGELOG.md").read_text(), "CHANGELOG.md", re.M),
     }
     skill = _sub(r'^  version: "[^"]+"$', f'  version: "{version}"',
@@ -182,6 +185,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="print, change nothing")
     parser.add_argument("--date", default=datetime.date.today().isoformat())
     parser.add_argument("--root", type=Path, default=REPO)
+    parser.add_argument("--opening", default="",
+                        help="the paragraph under the CHANGELOG's new heading")
+    parser.add_argument("--trailer", action="append", default=[],
+                        help="a trailer for the release commit; once for each")
     args = parser.parse_args(argv)
     root = args.root.resolve()
     version = args.version
@@ -193,11 +200,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"prepare_release: {version} is not after this tree's {current}",
               file=sys.stderr)
         return 2
-    plan, message = planned(root, version, args.date), f"chore: release {version}"
+    plan = planned(root, version, args.date, args.opening)
+    subject = f"chore: release {version}"
+    message = subject + ("\n\n" + "\n".join(args.trailer) if args.trailer else "")
     print(machinery(root))
     if args.dry_run:
         _show(root, plan)
-        print(f"\n(dry run: {message}, {len(plan)} files; nothing changed)")
+        print(f"\n(dry run: {subject}, {len(plan)} files; nothing changed)")
         return 0
     dirty = subprocess.run(["git", "-C", str(root), "status", "--porcelain"],  # noqa: S603
                            capture_output=True, text=True, check=True).stdout
@@ -206,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
               "holds the release alone", file=sys.stderr)
         return 2
     _apply(root, plan, message)
-    print(f"{message}: {len(plan)} files. Next: `uv sync`, then docs/RELEASING.md; "
+    print(f"{subject}: {len(plan)} files. Next: `uv sync`, then docs/RELEASING.md; "
           "the tag and the brake are the owner's.")
     return 0
 

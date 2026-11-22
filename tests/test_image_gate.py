@@ -61,7 +61,8 @@ def test_a_vulnerability_with_a_fixed_version_blocks(tmp_path, capsys):
     assert code == 1
     assert verdict["blocking"] == [{"id": "CVE-2026-85091", "package": "zlib",
                                     "installed": "1.0", "fixed": "1.3.2-r1",
-                                    "severity": "HIGH", "target": "img (alpine 3.24.3)"}]
+                                    "severity": "HIGH", "target": "img (alpine 3.24.3)",
+                                    "kind": "alpine"}]
     assert "CVE-2026-85091 zlib 1.0, fixed in 1.3.2-r1" in capsys.readouterr().out
 
 
