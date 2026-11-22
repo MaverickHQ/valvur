@@ -60,11 +60,11 @@ def test_infrastructure_by_content_is_recognised(tmp_path, name, body):
     assert iac_present(_repo(tmp_path, {name: body}))[0]
 
 
-def test_the_evidence_names_the_file_that_decided_it():
+def test_the_evidence_names_the_file_that_decided_it(tmp_path):
     """"We skipped Checkov" is a claim the reader should be able to check."""
-    from pathlib import Path
+    from fixture_copy import copy_fixture
 
-    found, evidence = iac_present(Path("tests/fixtures/broken-repo"))
+    found, evidence = iac_present(copy_fixture("broken-repo", tmp_path / "ws"))
 
     # The first decisive file in the File Set's order (R3.9); workflows are zizmor's
     # since R4.3, so not a workflow.
