@@ -753,7 +753,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 17.1 to 17.6_
 
-- [ ] **R44.10** **Two builds, one image, whatever the day** (D81ab, amendment 5). It needs
+- [x] **R44.10** **Two builds, one image, whatever the day** (D81ab, amendment 5). It needs
   no owner setting and may be built before R44.1.
   **Seam:** the Dockerfile as a file, read as `tests/test_dockerfile_pins.py` reads it; the
   built image, with `-m e2e`. Behaviours:
@@ -772,6 +772,32 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
      A test holds it to the words the STATUS allows.
 
   _Requirements: 22.1, 22.2, 22.3_
+
+  **STATUS 2026-11-22:** ✅ 1 to 6, with one thing found that the list did not expect.
+  - **Wheels, measured** in the pinned base on the dev machine, at `9af6abb`: all 97 lines of
+    the Checkov lock and the one of zizmor's resolve to wheels whose hashes the locks hold,
+    natively on arm64 and for `musllinux` on x86_64 by pip's platform tags. So behaviour 3
+    applied and 4 did not: `gcc`, `musl-dev` and `libffi-dev` are gone, and the Checkov
+    install takes `--only-binary=:all:` (`0e307be`). The build now calls apk once.
+  - **The rebuild, measured** on the dev machine on 2026-11-22: `v1.6.2`'s tree (`f0e7150`),
+    built cold in 367 s, against `ghcr.io/maverickhq/valvur:1.6.2` for arm64 (image
+    `sha256:e378b785…`). Both hold 17,232 files, and the bytes of two differ:
+    - `/var/cache/apk/APKINDEX.3cace40b.tar.gz`, which #301 took out of the image;
+    - **`/etc/shadow`, not known before:** `adduser` writes the day it ran as the
+      account's last password change, 20779 against the published 20778. CI's check builds
+      its two images on one day, so it could not see it. Fixed in `83b4640`: the step that
+      makes the account blanks the day, with a test on the Dockerfile and one on the image.
+  - **Not measured: whether the layers are then equal.** The dev machine's own builder
+    (Docker 25.0.18, BuildKit 0.12.6) does not rewrite timestamps, so its layers carry the
+    build's clock and cannot be compared with a release's: 18,020 entries differed in
+    modification time alone. A rebuild through a `docker-container` builder failed after
+    77 s in the OSV-Scanner stage's module download, and was not tried again. The first
+    release after this one is the first that can be rebuilt to its digest.
+  - **The README** has no sentence on reproducibility, and neither have `SECURITY.md` nor
+    the documents under `docs/` that a user reads. `tests/test_readme_reproducibility.py`
+    holds the README to that until a release has been rebuilt to its digest.
+  - **On the dev machine after each change:** the image builds, and the end-to-end suite
+    passes (86, then 87 passed).
 
 - [ ] **R44.11** **Only the packages valvur loads** (D81ac, amendment 5). It needs no owner
   setting. **Seam:** the built image's own package list, read in an end-to-end test
