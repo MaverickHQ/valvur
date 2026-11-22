@@ -176,7 +176,7 @@ LABEL org.opencontainers.image.version="${VALVUR_VERSION}"
 # same number. A change that breaks anything on that page bumps it here and there.
 LABEL org.valvur.protocol="2"
 
-# `rm -f /var/cache/apk/*`, here and in the step that builds Checkov: apk-tools 3 writes
+# `rm -f /var/cache/apk/*`, in the one step that calls apk: apk-tools 3 writes
 # each repository's index there even under `--no-cache`, and Alpine republishes an index
 # whenever any package moves, so two builds of one tree differed on 2026-11-21 (run
 # 44916424890) and every image since Alpine 3.24 carried 3 MB of it.
@@ -190,6 +190,8 @@ LABEL org.valvur.protocol="2"
 # carries, so a moved base drops it, and one for a package the base lacks. Alpine keeps one
 # version of a package, so a later one there stops this step too, and the raise moves with
 # it. Before any other package is installed. `tests/test_alpine_raise.py` runs this step.
+# `--no-logfile`: Alpine 3.24's apk-tools 3 appends each call, with the time it ran, to
+# the base's `/var/log/apk.log`, the one file two builds of one tree then differed in.
 ARG ALPINE_RAISE="krb5-libs=1.22.3-r0 libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 zlib=1.4-r0"
 RUN set -eu; \
     for raise in ${ALPINE_RAISE}; do \
@@ -226,9 +228,15 @@ RUN XDG_CACHE_HOME=/opt/opengrep /usr/local/bin/opengrep --version \
 # package, every hash — and because it carries one deliberate override
 # (`requirements-checkov.overrides`): Checkov pins an asteval with two sandbox-escape
 # advisories, and the lock ships the fixed release instead; pip's resolver would
-# refuse the pair, and the lock is the resolution. No compiler is kept. Before our
-# own files, so that editing a Check or a rule rebuilds only the layers below and
-# never this one.
+# refuse the pair, and the lock is the resolution. Before our own files, so that
+# editing a Check or a rule rebuilds only the layers below and never this one.
+#
+# From wheels alone, with no compiler (R44.10, D81ab). Until then this step added
+# `gcc`, `musl-dev` and `libffi-dev` at whatever version Alpine held that day, and a
+# package compiled here would have differed between two builds of one tree. Measured
+# 2026-11-22: every package in the lock has a musl wheel for both architectures, and
+# the lock holds its hash. `--only-binary=:all:` makes a later one without a wheel
+# fail the build, instead of compiling in silence.
 #
 # Bytecode is compiled here and kept (28.2.1). Until then the layer ended by
 # deleting every `__pycache__` under `/opt/checkov` and `/usr/local` — and the
@@ -247,17 +255,12 @@ RUN XDG_CACHE_HOME=/opt/opengrep /usr/local/bin/opengrep --version \
 # `--no-compile`: pip writes timestamp-mode `.pyc` as it installs, and compileall
 # without `-f` reads their header, finds them "current" and leaves them — which is
 # how the first two fixes changed nothing (measured: flags 0, mtime = wall clock).
-# `--no-logfile`: Alpine 3.24's apk-tools 3 appends each call, with the time it ran, to
-# the base's `/var/log/apk.log`, the one file two builds of one tree then differed in.
 COPY requirements-checkov.txt /opt/checkov-requirements.txt
-RUN apk add --no-logfile --no-cache --virtual .build gcc musl-dev libffi-dev \
- && python3 -m venv --without-pip /opt/checkov \
+RUN python3 -m venv --without-pip /opt/checkov \
  && pip --python /opt/checkov/bin/python install --no-cache-dir --no-deps --no-compile \
-        --require-hashes -r /opt/checkov-requirements.txt \
+        --only-binary=:all: --require-hashes -r /opt/checkov-requirements.txt \
  && test -x /opt/checkov/bin/checkov \
  && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
- && apk del --no-logfile .build \
- && rm -f /var/cache/apk/* \
  && PYTHONHASHSEED=0 /opt/checkov/bin/python -m compileall -q -f --invalidation-mode unchecked-hash /opt/checkov/lib
 
 # zizmor (R4.2, ADR-0023) audits GitHub Actions workflows. One package, a static

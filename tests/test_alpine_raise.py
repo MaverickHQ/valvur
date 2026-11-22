@@ -83,7 +83,8 @@ def test_the_raise_is_one_transaction_before_any_other_package_is_installed():
 
     raised = code.index("apk add --no-logfile --no-cache ${ALPINE_RAISE}")
     assert code.count("${ALPINE_RAISE}") == 2, "the loop that checks, and the one transaction"
-    assert raised < code.index("apk add --no-logfile --no-cache --virtual .build")
+    assert code.count("apk add") == 1, "R44.10: the build adds nothing else from Alpine"
+    assert raised < code.index("pip --python /opt/checkov/bin/python install")
     assert raised < code.index("COPY --from=")
 
 

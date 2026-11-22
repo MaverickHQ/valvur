@@ -42,7 +42,7 @@ def _run_steps() -> list[str]:
 def test_every_step_that_calls_apk_empties_its_cache_after_the_last_call():
     steps = [step for step in _run_steps() if re.search(r"\bapk (?:add|del)\b", step)]
 
-    assert len(steps) == 2, steps
+    assert len(steps) == 1, steps  # the raise; Checkov's step calls apk no more (R44.10)
     for step in steps:
         last = max(m.start() for m in re.finditer(r"\bapk (?:add|del)\b", step))
         assert EMPTIED in step, step
