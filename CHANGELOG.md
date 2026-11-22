@@ -16,6 +16,29 @@ break things, and has.
   moves, so two builds of one tree gave one image only while it published nothing between
   them: on 2026-11-21 it published between the two builds of `main` and they differed (run
   44916424890). Each step that calls apk now empties that cache in the same layer.
+- **The image no longer records the day it was built.** `adduser` writes the day it ran
+  into `/etc/shadow`, as the account's last password change. Rebuilt a day after its
+  release, `v1.6.2`'s tree differed from the published image in two of 17,232 files: this
+  one and Alpine's index above. CI builds its two images on one day, so its check could not
+  see it. The step that makes the account now blanks the day.
+
+### Changed
+
+- **The image is built with no compiler.** The step that installs Checkov added `gcc`,
+  `musl-dev` and `libffi-dev` at whatever version Alpine held that day. Every package of
+  the Checkov and zizmor locks has a wheel for both architectures, so the three are gone,
+  and a later package with no wheel now fails the build instead of compiling in silence.
+
+### Security
+
+- **The image holds 26 Alpine packages, from 38, and no Kerberos.** On 2026-11-19 the image
+  gate blocked on 21 advisories in `krb5-libs` (run 44475786283), which the image held for
+  one reason: CPython's `nis` module links `libtirpc`, and `libtirpc` links Kerberos. Nothing in the image imports
+  `nis`. The module is gone, with `krb5-libs`, `krb5-conf`, `keyutils-libs`, `libcom_err`,
+  `libverto`, `libtirpc`, `libtirpc-conf`, `libnsl` and `libintl`, and with `musl-utils` and
+  `scanelf`, which nothing runs. `.github/image-packages.txt` names what stays, and a test
+  holds the image to it. The Score is unchanged at 74.1 (eval run 45043469158). A removed
+  package's bytes remain in the base image's layer: `SECURITY.md` says what that means.
 
 ## [1.6.2] — 2026-11-21
 
