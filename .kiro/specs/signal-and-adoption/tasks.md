@@ -268,7 +268,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
     the CHANGELOG alone, which bears on the question R44.12 left for the owner: such a move
     then touches no workflow.
 
-- [ ] **R48.7** **The hostile fixtures are stored under names no agent loads.**
+- [x] **R48.7** **The hostile fixtures are stored under names no agent loads.**
   **Seam:** `scripts/fixtures.py`'s `copy`, which the tests reach as `copy_fixture`, and the
   stored tree as `git ls-files` gives it. Behaviours:
   1. **Guard, existing.** `tests/test_scan_goldens.py` and the AI-artifact tests, which read
@@ -284,6 +284,23 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      task.
 
   _Requirements: 15.3_
+
+  **STATUS 2026-11-22:** ✅ 1 to 5 (`2ddae45`), 5 tests in
+  `tests/test_hostile_fixture_names.py`.
+  - **Stored now:** `AGENTS.md.fixture`, `CLAUDE.md.fixture`, `.mcp.json.fixture` and
+    `.claude.fixture/settings.json`. No other fixture held a name an agent client loads;
+    the guard's list also names `GEMINI.md`, `.cursorrules`, `.windsurfrules`,
+    `copilot-instructions.md` and the `.cursor/`, `.kiro/`, `.codex/` and `.windsurf/`
+    directories.
+  - **`copy` renames the deepest first,** so a stored file inside a stored directory gets
+    its real name too. It raised before.
+  - **One reader went round the copier:** `tests/test_applicability.py` read the stored
+    tree for its Terraform. It reads a copy. Three files name the stored tree and read
+    nothing an agent would load, each listed with its reason.
+  - **Proof,** on the dev machine at `6b3e9cd` with the slice, `valvur:dev`
+    `sha256:913257ee79d7`: the container tests, 89 passed and 8 skipped in 439 s; the
+    acceptance set passed in 280 s with its generation; **no file under
+    `tests/fixtures/golden/` changed.**
 
 **Exit:** the Score unchanged on every track, on both lanes; `docs/RULES.md` lists every rule
 that fired on the corpus; the three hygiene tests hold.
