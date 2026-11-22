@@ -20,6 +20,11 @@ blocking entry:
   patch of its minor, by digest. A fix only in another minor is `go-major`.
 - **anything else** is listed as `unplanned`, with why, and never dropped.
 
+The base comes first. When an Alpine package blocks and Docker Hub's tag has moved past the
+digest the Dockerfile pins, the plan moves the digest, reads the new base's own package
+database in a container with no network, and plans no raise for what the new base carries:
+neither a new one, nor one the Dockerfile already holds, which is then dropped.
+
 What it reads from the network, and nothing else: Alpine's `APKINDEX` for the base's release,
 Go's module proxy for a module's tagged versions, and Docker Hub's list of an official
 image's tags.
@@ -33,6 +38,7 @@ import argparse
 import io
 import json
 import re
+import subprocess
 import sys
 import tarfile
 import urllib.error
@@ -50,6 +56,8 @@ ARCHITECTURES = ("x86_64", "aarch64")
 REPOSITORIES = ("main", "community")
 GOPROXY = "https://proxy.golang.org"
 HUB = "https://hub.docker.com/v2/repositories/library"
+_PYTHON = re.compile(r"^FROM python:(\S+?)@(sha256:[0-9a-f]{64})", re.M)
+_RAISED = re.compile(r'^ARG ALPINE_RAISE="([^"]*)"', re.M)
 _GO = re.compile(r"^FROM golang:(\d+\.\d+)\.(\d+)-(\S+?)@(sha256:[0-9a-f]{64})", re.M)
 #: Trivy's name for Go's standard library in a binary.
 STDLIB = "stdlib"
@@ -249,12 +257,53 @@ def _stdlib(entries: list[dict], dockerfile: str) -> tuple[dict | None, list[dic
              "answers": answers, "rule": "newest-patch-of-the-minor"}, [])
 
 
+def installed_in(image: str, docker: str) -> dict[str, str]:
+    """Each Alpine package `image` holds, at its version, read from its own database in a
+    container with no network."""
+    try:
+        run = subprocess.run(  # noqa: S603
+            [docker, "run", "--rm", "--network", "none", "--entrypoint", "cat", image,
+             "/lib/apk/db/installed"], capture_output=True, text=True, check=False, timeout=900)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise Unreadable(f"{image}'s packages could not be read: {error}") from error
+    if run.returncode != 0:
+        raise Unreadable(f"{image}'s packages could not be read: {run.stderr.strip()[-200:]}")
+    held, name = {}, ""
+    for line in run.stdout.splitlines():
+        if line.startswith("P:"):
+            name = line[2:]
+        elif line.startswith("V:") and name:
+            held[name] = line[2:]
+    return held
+
+
+def _base_move(dockerfile: str, docker: str) -> tuple[dict | None, dict[str, str]]:
+    """(the move of the base's digest, the packages the new base holds) when Docker Hub's
+    tag has moved past the digest the Dockerfile pins. (None, {}) when it has not."""
+    pins = set(_PYTHON.findall(dockerfile))
+    if len(pins) != 1:
+        raise Unreadable("the Dockerfile's Python stages do not share one base by digest")
+    tag, digest = next(iter(pins))
+    now = hub_tags("python", tag).get(tag)
+    if not now or now == digest:
+        return None, {}
+    move = {"from": f"python:{tag}@{digest}", "to": f"python:{tag}@{now}", "answers": [],
+            "rule": "the-tags-digest-moved"}
+    return move, installed_in(f"python@{now}", docker)
+
+
+def _carried(held: dict[str, str], package: str, version: str) -> bool:
+    """Whether the new base holds `package` at `version` or later."""
+    have, wanted = apk_key(held.get(package, "")), apk_key(version)
+    return have is not None and wanted is not None and have >= wanted
+
+
 def _unplanned(entry: dict, why: str) -> dict:
     return {"id": entry["id"], "package": entry["package"], "kind": entry.get("kind", ""),
             "target": entry.get("target", ""), "why": why}
 
 
-def plan(verdicts: list[dict], dockerfile: str, *, now: str) -> dict:
+def plan(verdicts: list[dict], dockerfile: str, *, now: str, docker: str = "docker") -> dict:
     blocking: dict[tuple[str, str, str], dict] = {}
     for verdict in verdicts:
         for entry in verdict.get("blocking") or []:
@@ -264,6 +313,20 @@ def plan(verdicts: list[dict], dockerfile: str, *, now: str) -> dict:
         raise Unreadable("the Dockerfile names no `python:…-alpine<release>` base by digest")
     found = sorted(blocking.values(), key=lambda e: (e["id"], e["package"], e.get("target", "")))
     alpine = [e for e in found if e.get("kind") == "alpine"]
+    # The base first: a new digest of its tag may carry a fix, and a raise it carries is
+    # one the build would refuse. Asked only when an Alpine package blocks.
+    move, held = _base_move(dockerfile, docker) if alpine else (None, {})
+    drops = []
+    if move:
+        answered = [e for e in alpine if _carried(held, e["package"], e["fixed"])]
+        move["answers"] = sorted({e["id"] for e in answered})
+        alpine = [e for e in alpine if e not in answered]
+        raised = _RAISED.search(dockerfile)
+        for entry in (raised.group(1).split() if raised else []):
+            package, _, version = entry.partition("=")
+            if _carried(held, package, version):
+                drops.append({"arg": "ALPINE_RAISE", "entry": entry,
+                              "why": f"the new base carries {package} {held[package]}"})
     raises, escalations = _alpine(alpine, base.group(1)) if alpine else ([], [])
     modules = [e for e in found if e.get("kind") == "gobinary" and e["package"] != STDLIB]
     more = _modules(modules)
@@ -275,7 +338,7 @@ def plan(verdicts: list[dict], dockerfile: str, *, now: str) -> dict:
         for e in found if e.get("kind") not in ("alpine", "gobinary")]
     return {"schema": SCHEMA, "made": now,
             "raises": sorted(raises + more[0], key=lambda r: (r["arg"], r["entry"])),
-            "go": go,
+            "base": move, "drops": drops, "go": go,
             "escalations": escalations + more[1] + go_escalations,
             "unplanned": sorted(unplanned, key=lambda u: (u["id"], u["package"]))}
 
@@ -289,10 +352,13 @@ def main(argv: list[str] | None = None) -> int:
     plan_cmd.add_argument("--dockerfile", type=Path, default=Path("Dockerfile"))
     plan_cmd.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ")
     plan_cmd.add_argument("--out", type=Path, required=True)
+    plan_cmd.add_argument("--docker", default="docker",
+                          help="the container runtime that reads a new base's packages")
     args = parser.parse_args(argv)
     try:
         verdicts = [json.loads(path.read_text(encoding="utf-8")) for path in args.verdict]
-        made = plan(verdicts, args.dockerfile.read_text(encoding="utf-8"), now=args.now)
+        made = plan(verdicts, args.dockerfile.read_text(encoding="utf-8"), now=args.now,
+                    docker=args.docker)
     except (OSError, ValueError, KeyError, Unreadable) as error:
         print(f"image heal: {error}", file=sys.stderr)
         return 2

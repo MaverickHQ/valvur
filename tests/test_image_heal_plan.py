@@ -56,9 +56,24 @@ def _plan(tmp_path: Path, monkeypatch, blocking: list[dict], answers: dict[str, 
     run = subprocess.run(
         [sys.executable, str(IMAGE_HEAL), "plan", "--verdict", str(tmp_path / "verdict-amd64.json"),
          "--verdict", str(tmp_path / "verdict-arm64.json"), "--dockerfile",
-         str(tmp_path / "Dockerfile"), "--now", NOW, "--out", str(out)],
+         str(tmp_path / "Dockerfile"), "--now", NOW, "--out", str(out),
+         "--docker", str(_docker(tmp_path))],
         capture_output=True, text=True, check=False)
     return run, json.loads(out.read_text()) if out.is_file() else {}
+
+
+def _docker(tmp_path: Path, installed: dict[str, str] | None = None) -> Path:
+    """A stand-in for the container runtime: it records what it was asked, and answers
+    `cat /lib/apk/db/installed` with a database that holds `installed`."""
+    fake = tmp_path / "docker"
+    if installed is not None or not fake.exists():
+        database = "".join(f"P:{name}\nV:{version}\n\n" for name, version in
+                           (installed or {}).items())
+        (tmp_path / "installed.db").write_text(database)
+        fake.write_text(f'#!/bin/sh\necho "$@" >> "{tmp_path}/docker.log"\n'
+                        f'cat "{tmp_path}/installed.db"\n')
+        fake.chmod(0o755)
+    return fake
 
 
 def _index(**packages: str) -> dict[str, object]:
@@ -258,3 +273,44 @@ def test_with_no_standard_library_entry_docker_hub_is_not_asked(tmp_path, monkey
 
     assert plan["go"] is None
     assert (tmp_path / "registry" / "asked.log").read_text() == ""
+
+
+NEWER = "sha256:" + "7" * 64
+
+
+def _base(digest: str) -> dict[str, object]:
+    return _hub_tags("python", "3.12-alpine3.24", {"3.12-alpine3.24": digest,
+                                                   "3.12-alpine3.24-extra": "sha256:" + "0" * 64})
+
+
+def test_a_base_tag_with_a_newer_digest_is_planned_and_what_it_carries_is_dropped(
+        tmp_path, monkeypatch):
+    """The Dockerfile raises zlib to 1.4-r0. The new base carries it, and busybox's fix,
+    so neither is raised. tzdata's fix is in neither, and the index holds it."""
+    _docker(tmp_path, {"zlib": "1.4-r0", "busybox": "1.37.0-r32", "tzdata": "2026a-r0"})
+    blocking = [_entry("CVE-2026-0001", "busybox", "1.37.0-r31", "1.37.0-r32"),
+                _entry("CVE-2026-0003", "tzdata", "2026a-r0", "2026b-r0")]
+
+    run, plan = _plan(tmp_path, monkeypatch, blocking,
+                      {**_base(NEWER), **_index(busybox="1.37.0-r32", tzdata="2026b-r0")})
+
+    assert run.returncode == 0, run.stderr
+    assert plan["base"] == {"from": PYTHON, "to": f"python:3.12-alpine3.24@{NEWER}",
+                            "answers": ["CVE-2026-0001"], "rule": "the-tags-digest-moved"}
+    assert plan["drops"] == [{"arg": "ALPINE_RAISE", "entry": "zlib=1.4-r0",
+                              "why": "the new base carries zlib 1.4-r0"}]
+    assert [r["entry"] for r in plan["raises"]] == ["tzdata=2026b-r0"]
+    asked = (tmp_path / "docker.log").read_text()
+    assert f"python@{NEWER}" in asked and "--network none" in asked
+
+
+def test_a_base_tag_that_has_not_moved_plans_no_move_and_runs_no_container(
+        tmp_path, monkeypatch):
+    blocking = [_entry("CVE-2026-0001", "busybox", "1.37.0-r31", "1.37.0-r32")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, blocking,
+                       {**_base("sha256:" + "e" * 64), **_index(busybox="1.37.0-r32")})
+
+    assert plan["base"] is None and plan["drops"] == []
+    assert [r["entry"] for r in plan["raises"]] == ["busybox=1.37.0-r32"]
+    assert not (tmp_path / "docker.log").exists()
