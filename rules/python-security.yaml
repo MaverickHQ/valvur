@@ -80,9 +80,15 @@ rules:
       a shell, built from what the client sent. Pass arguments as a list without a
       shell, or quote each one with shlex.quote.
     pattern-sources: &request-sources
-      - pattern-either:
-          - pattern: flask.request.$ATTR
-          - pattern: request.$ATTR
+      - patterns:
+          - pattern-either:
+              - pattern: flask.request.$ATTR
+              - pattern: request.$ATTR
+          # pytest hands a fixture its own `request`, and `request.param` is the test's
+          # parameter: no client sent it (R49.5).
+          - metavariable-regex:
+              metavariable: $ATTR
+              regex: ^(?!param$)
     pattern-propagators: &list-propagators
       - pattern: $L.append($X)
         from: $X
@@ -210,6 +216,12 @@ rules:
               - pattern: pathlib.Path($P, ...)
               - pattern: send_file($P, ...)
               - pattern: flask.send_file($P, ...)
+          # A path's name, suffix or absoluteness is read from the string, and nothing
+          # is opened (R49.5): three of six Findings on maintained code.
+          - pattern-not-inside: pathlib.Path(...).name
+          - pattern-not-inside: pathlib.Path(...).suffix
+          - pattern-not-inside: pathlib.Path(...).stem
+          - pattern-not-inside: pathlib.Path(...).is_absolute()
           - focus-metavariable: $P
 
   - id: valvur.python.insecure-cookie
@@ -242,6 +254,12 @@ rules:
               - pattern: urllib.parse.urlparse($X)
               - pattern: urlparse($X)
           - focus-metavariable: $X
+      # A URL the application's own router builds, whatever goes into it (R49.5): on
+      # maintained code five of seven Findings were a redirect to `url_for(...)`.
+      - pattern-either:
+          - pattern: url_for(...)
+          - pattern: flask.url_for(...)
+          - pattern: $APP.url_for(...)
     pattern-sinks:
       - patterns:
           - pattern-either:

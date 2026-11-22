@@ -245,3 +245,17 @@ def test_the_readme_and_the_rules_page_say_what_is_listed_for_review_and_why():
     assert "A key in a provider's own format is active wherever it is" in readme
     assert "do not make the verdict `findings` and do not fail the gate" in readme
     assert "A rule that matches a provider's own format has no row" in rules
+
+
+def test_an_insecure_cookie_is_listed_in_a_test_and_active_in_the_application(workspace):
+    """R49.5: the rule's eight false Findings on maintained code are the vulnerable form
+    itself, set on purpose in tests, so no narrower pattern separates them."""
+    run, records = _scan(workspace, "opengrep",
+                         ("valvur.python.insecure-cookie", "tests/test_cookies.py"),
+                         ("valvur.python.insecure-cookie", "app/session.py"))
+
+    by_path = {r["path"]: r for r in records}
+    assert by_path["tests/test_cookies.py"]["inventory"] is True
+    assert by_path["tests/test_cookies.py"]["title"].endswith(
+        "under a test path (`tests/`): listed for review")
+    assert "inventory" not in by_path["app/session.py"] and run.status == "findings"

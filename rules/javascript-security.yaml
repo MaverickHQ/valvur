@@ -18,12 +18,18 @@ rules:
       Request data is concatenated into SQL: the client can change what the query
       does. Pass the value as a bound parameter, `query('... WHERE id = $1', [id])`.
     pattern-sources: &request-sources
-      - pattern-either:
-          - pattern: $REQ.query
-          - pattern: $REQ.body
-          - pattern: $REQ.params
-          - pattern: $REQ.cookies
-          - pattern: $REQ.headers
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+          # A response's headers and body are what a server answered, not what a client
+          # sent (R49.5): an HTTP client following a redirect is not forged.
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(?!(res|resp|response)$)
     pattern-sinks:
       - patterns:
           - pattern-either:

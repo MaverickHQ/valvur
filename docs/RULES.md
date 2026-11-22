@@ -52,7 +52,7 @@ valvur's own tests and fixtures, and stays active. A corpus cell that reads
 | `valvur.python.command-injection` | valvur | CWE-78 | 9 / 0 | 0 / 0 | unmeasured there | 0 / 0 | 1.0 | active |
 | `valvur.python.dangerous-eval` | valvur | CWE-95 | 10 / 16 | 0 / 0 | unmeasured there, 12 unjudged | 0 / 0 | 0.385 | inventory: a sink to review (D47a) |
 | `valvur.python.dangerous-exec` | valvur | CWE-95 | 10 / 17 | 0 / 0 | unmeasured there, 28 unjudged | 0 / 0 | 0.37 | inventory: a sink to review (D47a) |
-| `valvur.python.insecure-cookie` | valvur | CWE-614 | 24 / 0 | 0 / 0 | 0 / 8 | 0 / 0 | 0.75 | active |
+| `valvur.python.insecure-cookie` | valvur | CWE-614 | 24 / 0 | 0 / 0 | 0 / 8 | 0 / 0 | 0.75 | inventory under a test, fixture, documentation or example path: under the bar on maintained code |
 | `valvur.python.insecure-yaml-load` | valvur | CWE-502 | 0 / 0 | 0 / 0 | unmeasured there | 0 / 0 | - | active, unmeasured |
 | `valvur.python.open-redirect` | valvur | CWE-601 | 9 / 2 | 0 / 0 | 0 / 7 | 0 / 0 | 0.5 | active |
 | `valvur.python.path-traversal` | valvur | CWE-22 | 27 / 7 | 0 / 0 | 0 / 6 | 0 / 0 | 0.675 | active |

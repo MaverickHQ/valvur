@@ -23,6 +23,14 @@ corpus = { tp = 0, fp = 23 }
 reason = "On maintained code every use measured was jitter, a port, a temporary name or sample text."
 
 [[rule]]
+scanner = "opengrep"
+id = "valvur.python.insecure-cookie"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 8 }
+reason = "Every Finding measured was a test that sets secure=False on purpose, to check how a framework writes the attribute."
+
+[[rule]]
 scanner = "gitleaks"
 id = "private-key"
 tier = "inventory"
