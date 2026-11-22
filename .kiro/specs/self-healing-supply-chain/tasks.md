@@ -1130,7 +1130,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   N4.3: the main spec has no section N5, which this task's text named. `CLAUDE.md` holds
   its row, marked proposed, and is 200 lines.
 
-- [ ] **R45.2** **Release eligibility and the release policy** (D81g). Behaviours, each on a
+- [x] **R45.2** **Release eligibility and the release policy** (D81g). Behaviours, each on a
   temporary repository:
   1. `heal_release.py check` accepts heal commits, Dependabot's squashed commits and
      patch-class commits since the tag. It refuses `feat`, `!`, and any other machinery
@@ -1144,6 +1144,24 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   5. `verify --tag` is `check` plus the patch-plus-one rule.
 
   _Requirements: 9.1, 9.2, 9.3, 9.4, 9.7_
+
+  **STATUS 2026-11-22:** ✅ 1 to 5, in `scripts/heal_release.py` (`check`, `opening`,
+  `verify`), `scripts/heal_policy.py release` and `scripts/prepare_release.py`; 23 tests in
+  `tests/test_heal_release.py`, 9 in `tests/test_heal_policy_release.py`, 4 in
+  `tests/test_prepare_release_opening.py`.
+  - **One rule covers the three kinds of commit.** A heal commit is a `fix` and a Dependabot
+    update squashed by its workflow is a `chore`, so `check` asks one thing of every
+    commit: a patch-class type, no `!`, no `BREAKING CHANGE`. It also asks for at least one
+    heal commit: a release with none is not the heal's.
+  - **The opening is written from the commits' trailers,** not from plan files, which do
+    not outlive the run that made them. The version a package moved from is read from the
+    lock at the tag.
+  - **`prepare_release.py` took `--date` already.** It gains `--opening` and `--trailer`,
+    so the release commit can be reproduced whole. The policy calls its `planned()` on the
+    base's checkout and compares file by file with the pull request's, as data.
+  - **Measured on this repository:** `check --since v1.6.2` on R44's branch says
+    `release-needs-owner`, for `feat(r44.2)`. So the release that carries R44's scripts and
+    its three image changes is the owner's to cut, as it should be.
 
 - [ ] **R45.3** 👤 **The signer chooses the brake** (D81h). Behaviours:
   1. `verify`'s tag step writes the principal as `signer`. It is tested on a temporary

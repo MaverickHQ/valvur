@@ -30,6 +30,14 @@ cannot ask the network what a fix is, so it holds each trailer to a heal's shape
 to a tagged version, and every change to raising. Whether the result is free of what blocked
 is the image gate's to say, as a required check.
 
+    python3 scripts/heal_policy.py release --base . --head "$RUNNER_TEMP/head" < view.json
+
+A release the heal prepared (R45.2) is judged by reproducing it. The policy runs
+`prepare_release.py`'s plan on the base's checkout, with the opening `heal_release.py` writes
+from the base's own history and the date the commit's `Release-Date` trailer names. The pull
+request must change exactly those files to exactly that text, its version must be the latest
+tag's patch plus one, and `heal_release.py check` must hold for the history since that tag.
+
 Exit 0 when eligible, 1 when it is left for the owner, 2 when the input cannot be read.
 The first line printed says which, and why. No file of the pull request is ever run: the
 recipe and everything it reads come from the base.
@@ -47,7 +55,9 @@ from typing import TextIO
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import heal
+import heal_release
 import image_heal
+import prepare_release
 
 ENVELOPE = (heal.LOCK, heal.CHANGELOG)
 #: The heal App's account, and the committer of a commit made through GitHub's API.
@@ -55,6 +65,8 @@ APP = "valvur-heal[bot]"
 GITHUB = "web-flow"
 OVERRIDES = "requirements-checkov.overrides"
 DOCKERFILE = "Dockerfile"
+_RELEASE_SUBJECT = re.compile(r"chore: release (\d+\.\d+\.\d+)\n")
+_RELEASE_DATE = re.compile(r"^Release-Date: (\d{4}-\d{2}-\d{2})$", re.M)
 _IMAGE = re.compile(r"^Heal-(Base|Go|Raise|Drop): (.+)$", re.M)
 #: An Alpine raise, `name=version`, and a Go raise at a tagged version: never a
 #: pseudo-version, which is a commit a person chose.
@@ -270,6 +282,57 @@ def decide_image(view: dict, base: Path, head: Path) -> tuple[bool, str]:
     return True, f"eligible: the Dockerfile's envelope with {count} stated change(s), no more"
 
 
+def decide_release(view: dict, base: Path, head: Path) -> tuple[bool, str]:
+    """(eligible, why) for a release the heal prepared: reproduced on the base, or not."""
+    files = sorted(f.get("path", "") for f in view.get("files") or [])
+    commits = view.get("commits") or []
+    if not files or not commits:
+        raise Unreadable("no files or no commits to judge")
+    versions, dates = set(), set()
+    for commit in commits:
+        refused = _not_the_apps(commit, _RELEASE_DATE)
+        if refused:
+            return False, refused.replace("no trailer of an image heal", "no Release-Date trailer")
+        message = (commit.get("commit") or {}).get("message") or ""
+        subject = _RELEASE_SUBJECT.match(message)
+        if not subject:
+            return False, "a commit's subject is not `chore: release X.Y.Z`"
+        versions.add(subject.group(1))
+        dates.update(_RELEASE_DATE.findall(message))
+    if len(versions) != 1 or len(dates) != 1:
+        return False, "the commits name more than one version or Release-Date"
+    version, date = versions.pop(), dates.pop()
+    try:
+        tag = heal_release._git(base, "describe", "--tags", "--abbrev=0", "--match", "v*",
+                                "HEAD").strip()
+    except heal_release.Unreadable as error:
+        raise Unreadable(f"the base has no release tag to count from: {error}") from error
+    was = heal_release._VERSION.fullmatch(tag)
+    if not was:
+        raise Unreadable(f"the base's latest tag, {tag}, is not vX.Y.Z")
+    wanted = f"{was.group(1)}.{was.group(2)}.{int(was.group(3)) + 1}"
+    if version != wanted:
+        return False, f"{version} is not {tag}'s patch plus one, {wanted}"
+    try:
+        eligible, why = heal_release.check(base, tag)
+        if not eligible:
+            return False, why
+        plan = prepare_release.planned(base, version, date, heal_release.opening(base, tag))
+    except (heal_release.Unreadable, ValueError) as error:
+        raise Unreadable(str(error)) from error
+    expected = {str(path): text for path, text in plan.items()
+                if (base / path).read_text(encoding="utf-8") != text}
+    extra, missing = sorted(set(files) - set(expected)), sorted(set(expected) - set(files))
+    if extra or missing:
+        return False, ("the pull request's files are not the release's: "
+                       + ", ".join([f"{path} is not prepare_release.py's" for path in extra]
+                                   + [f"{path} is not changed" for path in missing]))
+    for path in files:
+        if (head / path).read_text(encoding="utf-8") != expected[path]:
+            return False, f"{path} is not what prepare_release.py writes on the base"
+    return True, f"eligible: {version} reproduced on the base: {len(files)} files, and {why}"
+
+
 def main(argv: list[str] | None = None, *, stdin: TextIO | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -277,6 +340,11 @@ def main(argv: list[str] | None = None, *, stdin: TextIO | None = None) -> int:
     lock.add_argument("--base", type=Path, default=Path.cwd(), help="the base branch's tree")
     lock.add_argument("--head", type=Path, required=True,
                       help="the pull request's two files, as data")
+    release = commands.add_parser("release", help="judge a release the heal prepared")
+    release.add_argument("--base", type=Path, default=Path.cwd(),
+                         help="the base branch's checkout, with its tags")
+    release.add_argument("--head", type=Path, required=True,
+                         help="the pull request's changed files at their paths, as data")
     image = commands.add_parser("image", help="judge a heal of the image's Dockerfile")
     image.add_argument("--base", type=Path, default=Path.cwd(), help="the base branch's tree")
     image.add_argument("--head", type=Path, required=True,
@@ -286,7 +354,7 @@ def main(argv: list[str] | None = None, *, stdin: TextIO | None = None) -> int:
         view = json.load(stdin or sys.stdin)
         if not isinstance(view, dict):
             raise Unreadable("the input is not a JSON object")
-        judge = decide_image if args.command == "image" else decide
+        judge = {"image": decide_image, "release": decide_release}.get(args.command, decide)
         eligible, why = judge(view, args.base.resolve(), args.head)
     except (OSError, ValueError, Unreadable, heal.Refused, image_heal.Refused) as error:
         print(f"cannot judge the pull request: {error}")
