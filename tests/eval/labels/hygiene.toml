@@ -1,0 +1,1948 @@
+# Labels for Checkov's and zizmor's Findings on the corpus (R48.3, D82a, D82b).
+#
+# These are judged in a table of their own, `hygiene`, and are never pooled into the
+# real-code track. A rule with more than 25 Findings on the corpus is judged on the 25 with
+# the lowest Fingerprints; the labels below are those, and every Finding of a smaller rule.
+#
+# `tp` when the property the rule names holds in that file and a maintainer of the project
+# would not call the report wrong; `fp` otherwise. The executor's judgement, 2026-11-22,
+# read against each file at the project's pinned commit; committed for the owner to read
+# and overrule. Three readings are applied the same way throughout:
+#
+# - A Dockerfile's missing HEALTHCHECK or USER is true for an image that serves, an example
+#   included, and false for a container that builds, tests or is a base for others.
+# - A dangerous trigger is true where the privileged run consumes what a contributor
+#   controls (the pull request's code, or an artifact built from it) or trusts a check that
+#   can be spoofed, and false where it acts only on labels, titles, comments or merged work.
+# - A template expansion is false where only someone with write access sets the value.
+#
+# A label whose verdict changes needs `changed = "<date>: <reason>"`: the baseline records
+# every verdict, and `tests/test_eval_hygiene.py` compares.
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "0abacb8c9719c38c79902fa3783115b8"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "0ba3a6d1e0bb22fff5516fe5c3d24fb8"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "1499e0be11c6f2d0b6450b18ad644fb9"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "22f97341c3d4d4b3d90991bb9f67c095"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "9030a1c70368ec008b2230931c23c50a"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "997423c8149bfd16506ced3789ba3744"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "a7139c96d7fc29c31e36722c9ab3e2df"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "bb1be9d80e54aaac3099ce549efe9352"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "c049284b8ea6fc638d9ab4508d638f00"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "c78db4cb3ca46b4771df04b434c3c002"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "d7b75a01bc53bc632199892595342535"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "ff72a95ce6eda1c4fa970284e6b63604"
+rule = "CKV2_AWS_12"
+path = "main.tf"
+verdict = "fp"
+reason = "The module adopts the default security group by default (`manage_default_security_group` is true) with no ingress and no egress rule, which is what the check asks for; Checkov does not follow the count."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "0c7b373951e3fc705d1634fbdcc3463c"
+rule = "CKV2_AWS_5"
+path = "modules/vpc-endpoints/main.tf"
+verdict = "fp"
+reason = "The group is attached to the module's endpoints through `security_group_ids` (lines 8 and 38 of the file); Checkov does not follow the expression."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "129e0ca9d04a4d55aea997cf68e5f40f"
+rule = "CKV2_AWS_5"
+path = "modules/vpc-endpoints/main.tf"
+verdict = "fp"
+reason = "The group is attached to the module's endpoints through `security_group_ids` (lines 8 and 38 of the file); Checkov does not follow the expression."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "8cda89348046772c9ad188e39a8fbe07"
+rule = "CKV2_AWS_5"
+path = "modules/vpc-endpoints/main.tf"
+verdict = "fp"
+reason = "The group is attached to the module's endpoints through `security_group_ids` (lines 8 and 38 of the file); Checkov does not follow the expression."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "c5b00b2b6ddbe040647018ac66e162f3"
+rule = "CKV2_AWS_5"
+path = "modules/vpc-endpoints/main.tf"
+verdict = "fp"
+reason = "The group is attached to the module's endpoints through `security_group_ids` (lines 8 and 38 of the file); Checkov does not follow the expression."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "11cd929b99b1c7935c5e871b3570f166"
+rule = "CKV_AWS_148"
+path = "main.tf"
+verdict = "fp"
+reason = "`aws_default_vpc` adopts the account's existing default VPC so that it can be managed, and only when `manage_default_vpc` is set; it is false by default, and nothing is provisioned."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "d6cd67dc1fdd362a551d43620ee35bc4"
+rule = "CKV_AWS_148"
+path = "main.tf"
+verdict = "fp"
+reason = "`aws_default_vpc` adopts the account's existing default VPC so that it can be managed, and only when `manage_default_vpc` is set; it is false by default, and nothing is provisioned."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "2ea94a9ae17590ace805d4cba9696068"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "61f52d61fb93e3711bc44f0a6dcfdda3"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "7ddb0e5cef277641efba7213ad20e57d"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "c8b9306d32f5649f59a4e94d01a7a3b8"
+rule = "CKV_AWS_338"
+path = "vpc-flow-logs.tf"
+verdict = "fp"
+reason = "Retention is `flow_log_cloudwatch_log_group_retention_in_days`, null by default, which keeps the logs for ever."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "d225a2f7a750cb5c3d2f85fb433a9a14"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "ed2db78b520b72cb7598fbbe8535f76b"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "f7679829afd8be842183ebd911e13834"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "f7dcd9a5ef424b47842448e7b8825d4f"
+rule = "CKV_AWS_338"
+path = "modules/flow-log/main.tf"
+verdict = "tp"
+reason = "Retention is `cloudwatch_log_group_retention_in_days`, 90 by default: under the year the check asks for."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "1f4a0423273a039c1379a29dd0e5b638"
+rule = "CKV_AWS_394"
+path = "examples/outpost/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "287b45ce3da29b2a3f73307ec9b9d02a"
+rule = "CKV_AWS_394"
+path = "examples/simple/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "28c55542ebf7a8f08bbd38e8d71123b8"
+rule = "CKV_AWS_394"
+path = "examples/secondary-cidr-blocks/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "6c017db10263ea3f1d6128d61fc19960"
+rule = "CKV_AWS_394"
+path = "examples/ipam/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "6d50a1da520a800fa824179be6d265ea"
+rule = "CKV_AWS_394"
+path = "examples/ipv6-dualstack/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "886c07673a9b3281a15b67a1fd3be5c5"
+rule = "CKV_AWS_394"
+path = "examples/flow-log/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "9fb383f9af6977c11a27fb4279f06ae2"
+rule = "CKV_AWS_394"
+path = "examples/block-public-access/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "ae73ea497a5e2ca1fed51c2d505a6cd4"
+rule = "CKV_AWS_394"
+path = "examples/complete/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "af4a11c8ee2a412fa7559fc669173ec6"
+rule = "CKV_AWS_394"
+path = "examples/issues/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "b8b68886f3d4f428d4c5adf086afea20"
+rule = "CKV_AWS_394"
+path = "examples/network-acls/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "cd7606a4af7477804f9e138c01234ab3"
+rule = "CKV_AWS_394"
+path = "examples/ipv6-only/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "d4d7427ecb02f0ba319385f123123b34"
+rule = "CKV_AWS_394"
+path = "examples/separate-route-tables/main.tf"
+verdict = "tp"
+reason = "The example reads every availability zone with no filter, so an opted-in Local Zone would be among them. True by reading; an example, so little rests on it."
+
+[[label]]
+repo = "undici"
+fingerprint = "0ef50941bcdb30d77bfa8aa39159020c"
+rule = "CKV_DOCKER_2"
+path = "test/fixtures/docker/dante/Dockerfile"
+verdict = "fp"
+reason = "A SOCKS proxy the tests start and stop; a health check would have no reader."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "16c5cd6bc7259d7f3ac2215fb3ff97f1"
+rule = "CKV_DOCKER_2"
+path = "examples/cluster-nginx/server/Dockerfile"
+verdict = "tp"
+reason = "An example server that listens on port 3000 behind a load balancer, with no HEALTHCHECK."
+
+[[label]]
+repo = "sanic"
+fingerprint = "4c83c4bb8cea6643f52cba7bc1bcb199"
+rule = "CKV_DOCKER_2"
+path = "docker/Dockerfile"
+verdict = "fp"
+reason = "A base image with no application in it: there is nothing to check until one is added."
+
+[[label]]
+repo = "tornado"
+fingerprint = "4eaedb41fdf2d730b038729a200d357c"
+rule = "CKV_DOCKER_2"
+path = "demos/blog/Dockerfile"
+verdict = "tp"
+reason = "The demo's long-running web server, with no HEALTHCHECK."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "58fff7a1335fa75f80a4dcf69a2f6c36"
+rule = "CKV_DOCKER_2"
+path = "examples/cluster-traefik/server/Dockerfile"
+verdict = "tp"
+reason = "An example server that listens on port 3000 behind a load balancer, with no HEALTHCHECK."
+
+[[label]]
+repo = "httpie"
+fingerprint = "5db787dee80f4facf77c4bc1c9a3bb1b"
+rule = "CKV_DOCKER_2"
+path = "extras/packaging/linux/Dockerfile"
+verdict = "fp"
+reason = "A build container that packages once and exits."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "9fb86fe40f74f7013ec310e3a544632b"
+rule = "CKV_DOCKER_2"
+path = "examples/cluster-httpd/server/Dockerfile"
+verdict = "tp"
+reason = "An example server that listens on port 3000 behind a load balancer, with no HEALTHCHECK."
+
+[[label]]
+repo = "sanic"
+fingerprint = "a0a27403afdca3d5ef2ee5b2a994f243"
+rule = "CKV_DOCKER_2"
+path = "examples/Dockerfile"
+verdict = "tp"
+reason = "An example application image that serves, with no HEALTHCHECK."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "a2090b751e46ec557e27a86ba8b7d457"
+rule = "CKV_DOCKER_2"
+path = "tests/autobahn/Dockerfile.aiohttp"
+verdict = "fp"
+reason = "A container run once for the Autobahn conformance tests."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "a3b001a3e4b65a58f0352b6e530f6fea"
+rule = "CKV_DOCKER_2"
+path = "examples/cluster-haproxy/server/Dockerfile"
+verdict = "tp"
+reason = "An example server that listens on port 3000 behind a load balancer, with no HEALTHCHECK."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "b80f26f0b376839124f84e831af560c7"
+rule = "CKV_DOCKER_2"
+path = "tools/testing/Dockerfile"
+verdict = "fp"
+reason = "A test-runner container that runs the suite and exits."
+
+[[label]]
+repo = "typer"
+fingerprint = "bd02bc672a88e9d84a62579e26a00e45"
+rule = "CKV_DOCKER_2"
+path = "scripts/docker/Dockerfile"
+verdict = "fp"
+reason = "A contributor's container for trying shell completion by hand; it serves nothing."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "deef7e6a218a2b5febae45c193cbbf98"
+rule = "CKV_DOCKER_2"
+path = "examples/cluster-nginx/client/Dockerfile"
+verdict = "tp"
+reason = "An example server that listens on port 3000 behind a load balancer, with no HEALTHCHECK."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "e9cd0cbacff2925edcb84f872ea29654"
+rule = "CKV_DOCKER_2"
+path = "tests/autobahn/Dockerfile.autobahn"
+verdict = "fp"
+reason = "A container run once for the Autobahn conformance tests."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "00a980fc777ab71b262bcbfef80e017e"
+rule = "CKV_DOCKER_3"
+path = "examples/cluster-haproxy/server/Dockerfile"
+verdict = "tp"
+reason = "The example server runs as root, where the base image offers the `node` user."
+
+[[label]]
+repo = "sanic"
+fingerprint = "2406c171d4ec8a31afa02a12abf85868"
+rule = "CKV_DOCKER_3"
+path = "docker/Dockerfile"
+verdict = "fp"
+reason = "A base image: the application image built on it chooses the user, as with the Python image under it."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "43789a7c4bbe17734d51d2ce2334d2ce"
+rule = "CKV_DOCKER_3"
+path = "examples/cluster-nginx/server/Dockerfile"
+verdict = "tp"
+reason = "The example server runs as root, where the base image offers the `node` user."
+
+[[label]]
+repo = "undici"
+fingerprint = "5450f9c0414c5b3675b0b4283370a551"
+rule = "CKV_DOCKER_3"
+path = "test/fixtures/docker/dante/Dockerfile"
+verdict = "fp"
+reason = "A test fixture run only by the tests; its daemon drops to the `dante` user the image adds (`user.unprivileged` in danted.conf)."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "66096e9e129e3bad88d441018564811b"
+rule = "CKV_DOCKER_3"
+path = "examples/cluster-httpd/server/Dockerfile"
+verdict = "tp"
+reason = "The example server runs as root, where the base image offers the `node` user."
+
+[[label]]
+repo = "tornado"
+fingerprint = "7d134f923e90a827a2654ddc9c6a145b"
+rule = "CKV_DOCKER_3"
+path = "demos/blog/Dockerfile"
+verdict = "tp"
+reason = "The demo's web server runs as root."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "7e8e62ae88fbb3a502bcefdc1a19766b"
+rule = "CKV_DOCKER_3"
+path = "examples/cluster-nginx/client/Dockerfile"
+verdict = "tp"
+reason = "The example server runs as root, where the base image offers the `node` user."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "82f8ebebade70a033cfc8de392d56d94"
+rule = "CKV_DOCKER_3"
+path = "examples/cluster-traefik/server/Dockerfile"
+verdict = "tp"
+reason = "The example server runs as root, where the base image offers the `node` user."
+
+[[label]]
+repo = "typer"
+fingerprint = "c870b7f07ad0be6912e91bfe6abcd57a"
+rule = "CKV_DOCKER_3"
+path = "scripts/docker/Dockerfile"
+verdict = "fp"
+reason = "A contributor's container for trying shell completion by hand."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "cbefb4c9cef0afc94a0545f339203927"
+rule = "CKV_DOCKER_3"
+path = "tests/autobahn/Dockerfile.aiohttp"
+verdict = "fp"
+reason = "A container run once for the Autobahn conformance tests; nothing is served from it."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "d9caebef0e218670a747a65f73a17f3c"
+rule = "CKV_DOCKER_3"
+path = "tools/testing/Dockerfile"
+verdict = "fp"
+reason = "A test-runner container that runs the suite and exits; nothing is served from it."
+
+[[label]]
+repo = "sanic"
+fingerprint = "f3dc91822b37259750d64d8e5024c7a9"
+rule = "CKV_DOCKER_3"
+path = "examples/Dockerfile"
+verdict = "tp"
+reason = "The example application runs as root."
+
+[[label]]
+repo = "httpie"
+fingerprint = "f9e9853a95e832a9e4714746d27afaec"
+rule = "CKV_DOCKER_3"
+path = "extras/packaging/linux/Dockerfile"
+verdict = "fp"
+reason = "A build container that packages once and exits; nothing is served from it."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "fb03204d22777462c4d354633f953472"
+rule = "CKV_DOCKER_3"
+path = "tests/autobahn/Dockerfile.autobahn"
+verdict = "fp"
+reason = "A container run once for the Autobahn conformance tests; nothing is served from it."
+
+[[label]]
+repo = "httpie"
+fingerprint = "507d3037e2f645fb985fdb0cdee0fd4e"
+rule = "CKV_DOCKER_4"
+path = "extras/packaging/linux/Dockerfile"
+verdict = "tp"
+reason = "`ADD . /app` copies a local directory, which COPY does without ADD's archive and URL handling."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "aaa1360f5d97b00280fc909e51cf4540"
+rule = "CKV_DOCKER_4"
+path = "tools/testing/Dockerfile"
+verdict = "tp"
+reason = "Three `ADD`s of local paths, which COPY does without ADD's archive and URL handling."
+
+[[label]]
+repo = "typer"
+fingerprint = "46010960fd4e89d19ef21cc6115bf56f"
+rule = "CKV_DOCKER_7"
+path = "scripts/docker/Dockerfile"
+verdict = "tp"
+reason = "`python:latest`, with `uv:latest` beside it: the image changes under the same Dockerfile."
+
+[[label]]
+repo = "undici"
+fingerprint = "81c34e52883029d7ca2907b3ff6eeb5f"
+rule = "CKV_DOCKER_7"
+path = "test/fixtures/docker/dante/Dockerfile"
+verdict = "tp"
+reason = "`alpine:latest`: the tests' proxy changes whenever Alpine's tag moves."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "0f53b056bab321aa94828da2583981a0"
+rule = "CKV_TF_1"
+path = "examples/complete/main.tf"
+verdict = "fp"
+reason = "A registry module of the same organisation, held by a version constraint; a registry source cannot carry a commit hash, so the check asks the example to leave the registry."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "77ae5d922a8789e9b3f8967ccba9fc07"
+rule = "CKV_TF_1"
+path = "examples/flow-log/main.tf"
+verdict = "fp"
+reason = "A registry module of the same organisation, held by a version constraint; a registry source cannot carry a commit hash, so the check asks the example to leave the registry."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "b0c2109cd607c617b155887c3f8d2a17"
+rule = "CKV_TF_1"
+path = "examples/flow-log/main.tf"
+verdict = "fp"
+reason = "A registry module of the same organisation, held by a version constraint; a registry source cannot carry a commit hash, so the check asks the example to leave the registry."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "b9a07cf5242803606c3640eebf5401bd"
+rule = "CKV_TF_1"
+path = "examples/flow-log/main.tf"
+verdict = "fp"
+reason = "A registry module of the same organisation, held by a version constraint; a registry source cannot carry a commit hash, so the check asks the example to leave the registry."
+
+[[label]]
+repo = "httpie"
+fingerprint = "5c2901f2fc3b0d41eb320dc633f28be0"
+rule = "archived-uses"
+path = ".github/workflows/release-linux-standalone.yml"
+verdict = "tp"
+reason = "`actions/upload-release-asset` is archived, and takes no fixes."
+
+[[label]]
+repo = "httpie"
+fingerprint = "b9ac29e829bd7d98135d373af0609f80"
+rule = "archived-uses"
+path = ".github/workflows/release-linux-standalone.yml"
+verdict = "tp"
+reason = "`actions/upload-release-asset` is archived, and takes no fixes."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "0008a4a5119bce55098bcd460739d690"
+rule = "artipacked"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "sanic"
+fingerprint = "0172040b0e49de618855007bf5d51dc1"
+rule = "artipacked"
+path = ".github/workflows/codeql-analysis.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "cobra"
+fingerprint = "01a63775d6c2d9e20a12a5df40c61c63"
+rule = "artipacked"
+path = ".github/workflows/test.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "ripgrep"
+fingerprint = "034fa7f4844eb322b2d48179edcc348f"
+rule = "artipacked"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "express-session"
+fingerprint = "04609f8476d918fedba018274ce40537"
+rule = "artipacked"
+path = ".github/workflows/codeql.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "httpie"
+fingerprint = "08ded4456e58f8235640764df2f87c29"
+rule = "artipacked"
+path = ".github/workflows/content.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "httpie"
+fingerprint = "0aeee009d91e5c3c4cefd3f24274a104"
+rule = "artipacked"
+path = ".github/workflows/code-style.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "sanic"
+fingerprint = "0cd91d61f42bb509d70d7b803820cdc1"
+rule = "artipacked"
+path = ".github/workflows/publish-release.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "0ecfe3bd6de2209b6397c0b00334e18a"
+rule = "artipacked"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "ripgrep"
+fingerprint = "10c50c071629041b11e349867e5493a4"
+rule = "artipacked"
+path = ".github/workflows/release.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "node-fetch"
+fingerprint = "11dfc2971e38f7f6a39c65a5d749e3a9"
+rule = "artipacked"
+path = ".github/workflows/release.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "express-session"
+fingerprint = "176e713a8b42cc3bb80bd4fbc62d16e9"
+rule = "artipacked"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "yargs"
+fingerprint = "1ab852adcaf0ee6f27aaf9e6241742ab"
+rule = "artipacked"
+path = ".github/workflows/ci.yaml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "body-parser"
+fingerprint = "1edd90a3e235fec4031ea59cfc0eec22"
+rule = "artipacked"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "sanic"
+fingerprint = "1f082d99bc63b8a0f89f99293a364303"
+rule = "artipacked"
+path = ".github/workflows/coverage-upload.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "sinatra"
+fingerprint = "1fcf90f46038670e63c35e3b1be1b8b9"
+rule = "artipacked"
+path = ".github/workflows/test.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "rich"
+fingerprint = "2b5cd6363de5ff13408dc165aecd9dc7"
+rule = "artipacked"
+path = ".github/workflows/readmechanged.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "httpie"
+fingerprint = "2c1772e91ebc469f44a60ef34e492a82"
+rule = "artipacked"
+path = ".github/workflows/tests.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "yargs"
+fingerprint = "2c6b63113a76ca863855b20a5e7f5a28"
+rule = "artipacked"
+path = ".github/workflows/ci.yaml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "2d81a778acb97bd5101ed4fbdc18bd29"
+rule = "artipacked"
+path = ".github/workflows/autofix.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "yargs"
+fingerprint = "3dc49ff36386f268598439f88474835e"
+rule = "artipacked"
+path = ".github/workflows/ci.yaml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "cobra"
+fingerprint = "43b716299886e1b5ae194824cedc807f"
+rule = "artipacked"
+path = ".github/workflows/test.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "httpie"
+fingerprint = "4b03ceb59d289b113233fbc6a85d0ea6"
+rule = "artipacked"
+path = ".github/workflows/release-linux-standalone.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "httpie"
+fingerprint = "4b8507aa837fb31772763d1b39376cc7"
+rule = "artipacked"
+path = ".github/workflows/release-snap.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "body-parser"
+fingerprint = "4cc42db52d5c6d2f9969537617fb2d63"
+rule = "artipacked"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout` without `persist-credentials: false`, so the token stays in `.git/config` for the job's later steps."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "56da2df2908cd2cac3d573921338d619"
+rule = "bot-conditions"
+path = ".github/workflows/auto-merge.yml"
+verdict = "tp"
+reason = "`github.actor == 'dependabot[bot]'` under `pull_request_target` with `contents: write`: the actor is whoever caused the last event, not the pull request's author."
+
+[[label]]
+repo = "json-server"
+fingerprint = "004ea8fe17723b887f0244fabc59ce58"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yml"
+verdict = "fp"
+reason = "`setup-node` is given no `cache`, and package.json names no `packageManager`, so it caches nothing: there is no cache to poison."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "004ea8fe17723b887f0244fabc59ce58"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yml"
+verdict = "tp"
+reason = "`cache: npm` in the workflow that publishes to npm on a tag: the packages are built from a restored cache."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1706caa3f4286fb89f6b92932460164d"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "fp"
+reason = "A pip cache for the benchmark job, which builds nothing that is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1ca7d0605f1148ae347e27724f5c8551"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "fp"
+reason = "A pip cache for the lint job, which builds nothing that is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "24e353634aec53a4f4ce28f42f007f07"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "fp"
+reason = "uv's cache for the Autobahn test job, which builds nothing that is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "3068cb91251beb521e609c5b82048a2b"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "fp"
+reason = "`setup-node` is given no `cache`, and package.json names no `packageManager`, so it caches nothing."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "373d21c7672d32ee6a36b0df2f995ffc"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "tp"
+reason = "The llhttp build is restored from a cache and uploaded for the distributions the same workflow publishes on a tag."
+
+[[label]]
+repo = "litestar"
+fingerprint = "3835283fb5a365f438a2cfeedf7bccbd"
+rule = "cache-poisoning"
+path = ".github/workflows/docs.yml"
+verdict = "tp"
+reason = "`enable-cache: true` in the job that builds the documentation and pushes it to gh-pages on a release."
+
+[[label]]
+repo = "litestar"
+fingerprint = "4bf4ffbc7daabca6b4d232bfeadd9411"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yml"
+verdict = "tp"
+reason = "`enable-cache: true` in the job that runs `uv build` and publishes to PyPI."
+
+[[label]]
+repo = "koa"
+fingerprint = "5358aea6717efc20bd9c6e4a6ceac97a"
+rule = "cache-poisoning"
+path = ".github/workflows/npm-publish.yml"
+verdict = "fp"
+reason = "`setup-node` is given no `cache`, and package.json names no `packageManager`, so it caches nothing."
+
+[[label]]
+repo = "llm"
+fingerprint = "641682584204a2eebc8765b4a559c907"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yml"
+verdict = "fp"
+reason = "A pip cache for the publish workflow's test job, which builds nothing that is published."
+
+[[label]]
+repo = "llm"
+fingerprint = "a90123505baf1ac0f2a40cca4c9e93e2"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yml"
+verdict = "tp"
+reason = "`cache: pip` in the job that builds the distributions published to PyPI."
+
+[[label]]
+repo = "sinatra"
+fingerprint = "ba49547c6a22d9bbc2ce5c89770b1ae9"
+rule = "cache-poisoning"
+path = ".github/workflows/release.yml"
+verdict = "tp"
+reason = "`bundler-cache: true` in the job that builds the gems and pushes them to rubygems.org."
+
+[[label]]
+repo = "body-parser"
+fingerprint = "d15dce3df20f23ecd0c7f8c78d5ca7b9"
+rule = "cache-poisoning"
+path = ".github/workflows/npm-publish.yml"
+verdict = "fp"
+reason = "`setup-node` is given no `cache`, and package.json names no `packageManager`, so it caches nothing."
+
+[[label]]
+repo = "multer"
+fingerprint = "d15dce3df20f23ecd0c7f8c78d5ca7b9"
+rule = "cache-poisoning"
+path = ".github/workflows/npm-publish.yml"
+verdict = "fp"
+reason = "`setup-node` is given no `cache`, and package.json names no `packageManager`, so it caches nothing."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "e6a97a07eb928c73f205929b6ed6afe6"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "fp"
+reason = "uv's cache for the test job, which builds nothing that is published."
+
+[[label]]
+repo = "itsdangerous"
+fingerprint = "e86c317bc73010bb56a7b3c4de5ef6b4"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yaml"
+verdict = "tp"
+reason = "`enable-cache: true` in the job that runs `uv build` for the release."
+
+[[label]]
+repo = "jinja"
+fingerprint = "e86c317bc73010bb56a7b3c4de5ef6b4"
+rule = "cache-poisoning"
+path = ".github/workflows/publish.yaml"
+verdict = "tp"
+reason = "`enable-cache: true` in the job that runs `uv build` for the release."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "feea0f874844e3160ae31484d09cd6bc"
+rule = "cache-poisoning"
+path = ".github/workflows/ci-cd.yml"
+verdict = "fp"
+reason = "uv's cache for the mobile test job, which builds nothing that is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "003cb968b7cd862465c52bc6fb070d18"
+rule = "dangerous-triggers"
+path = ".github/workflows/label-remove.yml"
+verdict = "fp"
+reason = "The job only removes two labels through an action; it checks nothing out and reads nothing a contributor wrote."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "0566fb0684509c6fee4af6bbe4a50d32"
+rule = "dangerous-triggers"
+path = ".github/workflows/agent-scan.yml"
+verdict = "fp"
+reason = "One action labels the pull request with `pull-requests: write`; no code of the pull request is checked out or run."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "0704d8fffe89de0dc18adf0902a34683"
+rule = "dangerous-triggers"
+path = ".github/workflows/upload_pr_documentation.yml"
+verdict = "tp"
+reason = "An artifact built from a contributor's pull request is handed to a called workflow with two secrets in scope; its safety rests on that workflow."
+
+[[label]]
+repo = "fastify"
+fingerprint = "0d3149035ae925462d865d567bab2b7f"
+rule = "dangerous-triggers"
+path = ".github/workflows/backport.yml"
+verdict = "fp"
+reason = "It acts only on a merged pull request, whose code is already the project's, through an action pinned by commit."
+
+[[label]]
+repo = "undici"
+fingerprint = "0d3149035ae925462d865d567bab2b7f"
+rule = "dangerous-triggers"
+path = ".github/workflows/backport.yml"
+verdict = "fp"
+reason = "It acts only on a merged pull request, whose code is already the project's, through an action pinned by commit."
+
+[[label]]
+repo = "awesome-cursorrules"
+fingerprint = "1339db66f1a0be3e0bafffbd52af7b9b"
+rule = "dangerous-triggers"
+path = ".github/workflows/main.yml"
+verdict = "tp"
+reason = "It checks out the pull request's head under `pull_request_target`. It runs only the base's scripts over it with a read-only token, so it is handled, and it is the case the rule exists for a reviewer to read."
+
+[[label]]
+repo = "sanic"
+fingerprint = "45679d41648e24b5596169f91bae9c05"
+rule = "dangerous-triggers"
+path = ".github/workflows/coverage-upload.yml"
+verdict = "tp"
+reason = "It checks out the triggering run's head commit, a contributor's, in a run that holds `CODECOV_TOKEN` and a default token."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "481c4edc2254761e84f764024ce658bc"
+rule = "dangerous-triggers"
+path = ".github/workflows/auto-merge.yml"
+verdict = "tp"
+reason = "`pull_request_target` with `contents: write`, gated only on `github.actor`, which is spoofable."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "56d05c5bb10fb91ca44716b323ae6f92"
+rule = "dangerous-triggers"
+path = ".github/workflows/pr-title.yml"
+verdict = "fp"
+reason = "It lints the pull request's title, the use the trigger is documented for; nothing is checked out."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "646048781907b19e1a835d5198f5197c"
+rule = "dangerous-triggers"
+path = ".github/workflows/label-remove.yml"
+verdict = "fp"
+reason = "The job only removes two labels; the comment's text is never read."
+
+[[label]]
+repo = "axios"
+fingerprint = "90f771515c7ba5e44a9798f9ddc9271d"
+rule = "dangerous-triggers"
+path = ".github/workflows/moderator.yml"
+verdict = "fp"
+reason = "A moderation action reads the comment and labels it; no code of a contributor's is checked out or run."
+
+[[label]]
+repo = "litestar"
+fingerprint = "f5a142108bffade3b7d3114af38751a6"
+rule = "dangerous-triggers"
+path = ".github/workflows/docs-preview.yml"
+verdict = "tp"
+reason = "An artifact built from a contributor's pull request is deployed with an app token. The number it reads is validated and the token reaches one preview repository, so it is handled, and it is the case the rule exists for a reviewer to read."
+
+[[label]]
+repo = "undici"
+fingerprint = "1b6d968e3f2128c8c4732d8e250228d8"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "undici"
+fingerprint = "2353ce7606120bc36b667efa79de7092"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "undici"
+fingerprint = "360f12a67c1b30a60ecf9bf961285a29"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "4ba72271706b6966500cda3122c840ea"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "cobra"
+fingerprint = "4e2bbc87b4500bf9789a20be28bee5e6"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "52c142a9cf2b296d50625cabff2d07a3"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "commander"
+fingerprint = "58933bde69d34884981f6e46c4b92abc"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "helmet"
+fingerprint = "58933bde69d34884981f6e46c4b92abc"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "httpx"
+fingerprint = "58933bde69d34884981f6e46c4b92abc"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "koa"
+fingerprint = "58933bde69d34884981f6e46c4b92abc"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "rich"
+fingerprint = "58933bde69d34884981f6e46c4b92abc"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "undici"
+fingerprint = "58933bde69d34884981f6e46c4b92abc"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "70010b4ccfbf8acb178285be0de66db5"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "llm"
+fingerprint = "90f6c6451d29177bcdd03bedb3ae4f25"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "body-parser"
+fingerprint = "983c36181e6a7be468c6ebcccbc11a9f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "express"
+fingerprint = "983c36181e6a7be468c6ebcccbc11a9f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "express-session"
+fingerprint = "983c36181e6a7be468c6ebcccbc11a9f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "koa"
+fingerprint = "983c36181e6a7be468c6ebcccbc11a9f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "multer"
+fingerprint = "983c36181e6a7be468c6ebcccbc11a9f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "node-fetch"
+fingerprint = "983c36181e6a7be468c6ebcccbc11a9f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "98b95628a8f1f1dab11885f99984ca99"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "a0aca0593019741559bd229cd660326f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "a8b56137a43a2ee74ed30af65525ae8f"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "b26d7a1aa4d1cda84f0f6d0fe364826a"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "fp"
+reason = "A cooldown is set, of three days; zizmor asks for seven, which is its preference and not a missing control."
+
+[[label]]
+repo = "commander"
+fingerprint = "d2c8a6f7bb9b1f601b7c363aeacd26ee"
+rule = "dependabot-cooldown"
+path = ".github/dependabot.yml"
+verdict = "tp"
+reason = "No `cooldown` for this ecosystem, so an update is proposed the day it is published."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "004aea62a87d7560714cb53fc972ea74"
+rule = "excessive-permissions"
+path = ".github/workflows/release.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "httpie"
+fingerprint = "00912b41a0b87fe290c4727d4a16203f"
+rule = "excessive-permissions"
+path = ".github/workflows/docs-deploy.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "node-fetch"
+fingerprint = "02fa5c33d28bf763b271bbe8f08eb944"
+rule = "excessive-permissions"
+path = ".github/workflows/types.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "0910f25aea8d77773dbd1d7a683b5073"
+rule = "excessive-permissions"
+path = ".github/workflows/release.yml"
+verdict = "fp"
+reason = "The workflow has one job, which runs semantic-release and needs the permission; moving the block onto the job would change nothing."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "0c0a315f31093df0aec7d5c0a8da8812"
+rule = "excessive-permissions"
+path = ".github/workflows/build_documentation.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "rich"
+fingerprint = "0c16eb5e6b48e94ab159c965d43a42bc"
+rule = "excessive-permissions"
+path = ".github/workflows/pythonpackage.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "10e9246f0de98f011ec9f7f8d781258c"
+rule = "excessive-permissions"
+path = ".github/workflows/autofix.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "terraform-aws-vpc"
+fingerprint = "10f0b2ab109203ee06f1c603edeb5b9d"
+rule = "excessive-permissions"
+path = ".github/workflows/pr-title.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "litestar"
+fingerprint = "1174e2548a03394edf1bbb38b0221f9b"
+rule = "excessive-permissions"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1538ec2a04d497530619bb5655b69f1e"
+rule = "excessive-permissions"
+path = ".github/workflows/reusable-cibuildwheel.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "sanic"
+fingerprint = "154fada0c5107793e41209e97aa6a52d"
+rule = "excessive-permissions"
+path = ".github/workflows/tests.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "passport"
+fingerprint = "161cf1b6c5d3811ced68a0a627220423"
+rule = "excessive-permissions"
+path = ".github/workflows/node.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "sanic"
+fingerprint = "165e76bc33ed4b48b3f0ee2bce8dddb4"
+rule = "excessive-permissions"
+path = ".github/workflows/coverage.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "16db74f84e16baa8085379e9cb409940"
+rule = "excessive-permissions"
+path = ".github/workflows/release.yml"
+verdict = "fp"
+reason = "The workflow has one job, which runs semantic-release and needs the permission; moving the block onto the job would change nothing."
+
+[[label]]
+repo = "litestar"
+fingerprint = "17aaba44a26b934dbc7af253ffb851ff"
+rule = "excessive-permissions"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "httpie"
+fingerprint = "17c8b38538ddd3099abd10f71542aae8"
+rule = "excessive-permissions"
+path = ".github/workflows/coverage.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "falcon"
+fingerprint = "18c373e4cd7c215eab1b98ad1bfe0739"
+rule = "excessive-permissions"
+path = ".github/workflows/test-mailman.yaml"
+verdict = "fp"
+reason = "The workflow has one job, and it declares `contents: read`: nothing is left with the default."
+
+[[label]]
+repo = "litestar"
+fingerprint = "18d4c78bad59fb85901a6573276a4455"
+rule = "excessive-permissions"
+path = ".github/workflows/docs.yml"
+verdict = "fp"
+reason = "The workflow has one job, and it declares `contents: write`, which it needs to push the documentation."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "18df8a6584351fbda572e50a7d759eb9"
+rule = "excessive-permissions"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "node-fetch"
+fingerprint = "19678fec992865b9e0d53c0b658a32d6"
+rule = "excessive-permissions"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "node-fetch"
+fingerprint = "1b8207fbb1ddbeb6fc47da7fab3bca90"
+rule = "excessive-permissions"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "1b9ea0c25d4fad3eb48338ff194ac662"
+rule = "excessive-permissions"
+path = ".github/workflows/prepare-release.yml"
+verdict = "fp"
+reason = "The workflow has one job, which opens the release pull request and needs the permission; moving the block onto the job would change nothing."
+
+[[label]]
+repo = "jinja"
+fingerprint = "1c9a058038d5a6b9f07f25569d25a95d"
+rule = "excessive-permissions"
+path = ".github/workflows/tests.yaml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "litestar"
+fingerprint = "1ca678d2718b0cc8233cd0c1a89b5347"
+rule = "excessive-permissions"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "sanic"
+fingerprint = "1ca88e431be80e68620ebbefa5947c9b"
+rule = "excessive-permissions"
+path = ".github/workflows/coverage.yml"
+verdict = "tp"
+reason = "No `permissions` block on the workflow or on the job, so the token has the repository's default permissions."
+
+[[label]]
+repo = "litestar"
+fingerprint = "85bd3a9290d01705f70830b5e751da3a"
+rule = "github-env"
+path = ".github/workflows/docs-preview.yml"
+verdict = "fp"
+reason = "The value comes from a contributor's artifact, and the step refuses anything but digits before it writes it to `GITHUB_ENV`."
+
+[[label]]
+repo = "undici"
+fingerprint = "032c076805951eceb049377f5b451918"
+rule = "secrets-inherit"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`secrets: inherit` hands every secret to a called workflow that reads one, `CODECOV_TOKEN`."
+
+[[label]]
+repo = "undici"
+fingerprint = "1325190260b5761d96348805484f7a9f"
+rule = "secrets-inherit"
+path = ".github/workflows/nodejs-nightly.yml"
+verdict = "tp"
+reason = "`secrets: inherit` hands every secret to a called workflow that reads one, `CODECOV_TOKEN`."
+
+[[label]]
+repo = "jsonwebtoken"
+fingerprint = "354a9f91fe6f779ff603c30b2fbfb271"
+rule = "secrets-inherit"
+path = ".github/workflows/sca-scan.yml"
+verdict = "tp"
+reason = "`secrets: inherit` hands every secret of the repository to another repository's workflow, pinned by commit."
+
+[[label]]
+repo = "undici"
+fingerprint = "ae70409482d5f2c5b1caa26b57cd7ab9"
+rule = "secrets-inherit"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`secrets: inherit` hands every secret to a called workflow that reads one, `CODECOV_TOKEN`."
+
+[[label]]
+repo = "undici"
+fingerprint = "c5337662a470bec75072dfa2dfecb842"
+rule = "secrets-inherit"
+path = ".github/workflows/nodejs-nightly.yml"
+verdict = "tp"
+reason = "`secrets: inherit` hands every secret to a called workflow that reads none."
+
+[[label]]
+repo = "sanic"
+fingerprint = "0dcc4d450260fc4dc477a90a1d6d3390"
+rule = "template-injection"
+path = ".github/workflows/publish-release.yml"
+verdict = "fp"
+reason = "The tag name of a release, which only someone who can already publish a release sets."
+
+[[label]]
+repo = "ripgrep"
+fingerprint = "10602ae2d89ac0f1096734e08f8eb0ea"
+rule = "template-injection"
+path = ".github/workflows/release.yml"
+verdict = "fp"
+reason = "The pushed tag's name, which the trigger holds to digits and dots, and which only a maintainer pushes."
+
+[[label]]
+repo = "litestar"
+fingerprint = "15bca29ba1218fcaa8ea0fea56677f97"
+rule = "template-injection"
+path = ".github/workflows/notify-released-issues.yml"
+verdict = "fp"
+reason = "An input of a called workflow, set by the project's own caller."
+
+[[label]]
+repo = "sanic"
+fingerprint = "37882faf374798db5cf1d5ea029952fe"
+rule = "template-injection"
+path = ".github/workflows/coverage-upload.yml"
+verdict = "fp"
+reason = "A commit hash and an event name from the triggering run: GitHub's own values in a fixed form, which nobody chooses."
+
+[[label]]
+repo = "sanic"
+fingerprint = "3ba0f7162135480728994bc75cf6460d"
+rule = "template-injection"
+path = ".github/workflows/coverage-upload.yml"
+verdict = "fp"
+reason = "A commit hash and an event name from the triggering run: GitHub's own values in a fixed form, which nobody chooses."
+
+[[label]]
+repo = "undici"
+fingerprint = "56bcdc0674f469ff9d5f236bd31719fe"
+rule = "template-injection"
+path = ".github/workflows/nodejs-shared.yml"
+verdict = "fp"
+reason = "An input of a called workflow, set by the project's own callers."
+
+[[label]]
+repo = "undici"
+fingerprint = "5ef82817bd7e04cb3ff0d302eb0cdfbe"
+rule = "template-injection"
+path = ".github/workflows/nodejs-shared.yml"
+verdict = "fp"
+reason = "An input of a called workflow, set by the project's own callers."
+
+[[label]]
+repo = "undici"
+fingerprint = "8a275fe39c340387963d484519a1cf0f"
+rule = "template-injection"
+path = ".github/workflows/release-create-pr.yml"
+verdict = "fp"
+reason = "A dispatch input and the repository's own values; only someone with write access dispatches it."
+
+[[label]]
+repo = "fastify"
+fingerprint = "8e618746f1240a7aa7040e57e4c81cb0"
+rule = "template-injection"
+path = ".github/workflows/citgm-package.yml"
+verdict = "fp"
+reason = "A dispatch input; only someone with write access dispatches it."
+
+[[label]]
+repo = "undici"
+fingerprint = "a5ff41a4d1f9e0cb9001f523a387cd76"
+rule = "template-injection"
+path = ".github/workflows/release.yml"
+verdict = "fp"
+reason = "The default branch's name, the commit and an earlier job's version: the repository's own values."
+
+[[label]]
+repo = "httpie"
+fingerprint = "bcfe6079043cc3d4d89f86b74cd52ba7"
+rule = "template-injection"
+path = ".github/workflows/release-linux-standalone.yml"
+verdict = "fp"
+reason = "A dispatch input; only someone with write access dispatches it."
+
+[[label]]
+repo = "itsdangerous"
+fingerprint = "c2cc7a2f5f463c6674a4d7d6e2aaa70d"
+rule = "template-injection"
+path = ".github/workflows/publish.yaml"
+verdict = "fp"
+reason = "The pushed tag's name, which only a maintainer pushes."
+
+[[label]]
+repo = "jinja"
+fingerprint = "c2cc7a2f5f463c6674a4d7d6e2aaa70d"
+rule = "template-injection"
+path = ".github/workflows/publish.yaml"
+verdict = "fp"
+reason = "The pushed tag's name, which only a maintainer pushes."
+
+[[label]]
+repo = "sanic"
+fingerprint = "c786b30f4d405d862d7af52b5e8d6010"
+rule = "template-injection"
+path = ".github/workflows/coverage-upload.yml"
+verdict = "fp"
+reason = "A commit hash and an event name from the triggering run: GitHub's own values in a fixed form, which nobody chooses."
+
+[[label]]
+repo = "undici"
+fingerprint = "d953a9fd59c9dd6f60ed70e7bbf1638d"
+rule = "template-injection"
+path = ".github/workflows/nodejs-shared.yml"
+verdict = "fp"
+reason = "An input of a called workflow, set by the project's own callers."
+
+[[label]]
+repo = "sanic"
+fingerprint = "dc791f0480c6d1cf9a3febe3f37b7db4"
+rule = "template-injection"
+path = ".github/workflows/coverage-upload.yml"
+verdict = "fp"
+reason = "A commit hash and an event name from the triggering run: GitHub's own values in a fixed form, which nobody chooses."
+
+[[label]]
+repo = "litestar"
+fingerprint = "de8023c21f708a24d07f6cd165cc8f19"
+rule = "template-injection"
+path = ".github/workflows/test.yml"
+verdict = "fp"
+reason = "An input of a called workflow, set by the project's own caller to a Python version."
+
+[[label]]
+repo = "undici"
+fingerprint = "e17c8295f8593292949604806c5f6026"
+rule = "template-injection"
+path = ".github/workflows/nodejs-shared.yml"
+verdict = "fp"
+reason = "An input of a called workflow, set by the project's own callers."
+
+[[label]]
+repo = "sanic"
+fingerprint = "f3cab39747700afbefe0e3f5b06c647e"
+rule = "template-injection"
+path = ".github/workflows/publish-release.yml"
+verdict = "fp"
+reason = "The tag name of a release, which only someone who can already publish a release sets."
+
+[[label]]
+repo = "undici"
+fingerprint = "f56a30bb6e5df8586e82ab227c1795a9"
+rule = "template-injection"
+path = ".github/workflows/release-create-pr.yml"
+verdict = "fp"
+reason = "A dispatch input and the repository's own values; only someone with write access dispatches it."
+
+[[label]]
+repo = "undici"
+fingerprint = "0d375800c5527d4f0e76823e49e982b3"
+rule = "unpinned-images"
+path = ".github/workflows/autobahn.yml"
+verdict = "tp"
+reason = "`crossbario/autobahn-testsuite:latest` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "207acabdeab5a3dd64dbbe8d97b7efcc"
+rule = "unpinned-images"
+path = ".github/workflows/ci-socket.io-cluster-engine.yml"
+verdict = "tp"
+reason = "`redis:7` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "2ba526f153915900da648e8d944b17bb"
+rule = "unpinned-images"
+path = ".github/workflows/ci-socket.io-postgres-emitter.yml"
+verdict = "tp"
+reason = "`postgres:14` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "undici"
+fingerprint = "5d953f81eb305794aa833374be22868b"
+rule = "unpinned-images"
+path = ".github/workflows/autobahn.yml"
+verdict = "tp"
+reason = "`node:24` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "falcon"
+fingerprint = "740f9637cc3d724fcce04f5aee8fe4d3"
+rule = "unpinned-images"
+path = ".github/workflows/test-mailman.yaml"
+verdict = "tp"
+reason = "`docker://ghcr.io/maxking/mailman-ci-runner-falcon:master` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "79d53765d6dacdf77b62258e216395e8"
+rule = "unpinned-images"
+path = ".github/workflows/ci-socket.io-redis-streams-emitter.yml"
+verdict = "tp"
+reason = "`redis:7` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "undici"
+fingerprint = "827f64339d2891f14ab2555c0413ec32"
+rule = "unpinned-images"
+path = ".github/workflows/autobahn.yml"
+verdict = "tp"
+reason = "`docker://docker` is named by a tag, or by none, and not by digest: the job runs whatever the name holds that day."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "0036c23375b723b214dce6f455d8dc16"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-cd.yml"
+verdict = "tp"
+reason = "`astral-sh/setup-uv@v10.2.0` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "litestar"
+fingerprint = "00401f6886c7a44070485dfbbb0ba580"
+rule = "unpinned-uses"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/setup-python@v7.0.0` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "00fc6ca2000deeacb6477f2d6a8f0070"
+rule = "unpinned-uses"
+path = ".github/workflows/stale.yml"
+verdict = "tp"
+reason = "`actions/stale@v11.0.0` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "010cc23d1dcab39ddb15dd165d563b3a"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-engine.io.yml"
+verdict = "tp"
+reason = "`actions/setup-node@v6` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "0284d4a86ea2c1b09e908e6feca116dc"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-cd.yml"
+verdict = "tp"
+reason = "`codecov/codecov-action@v7` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "02b736cc18d134d52547ec74587d032c"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-socket.io-parser.yml"
+verdict = "tp"
+reason = "`actions/checkout@v6` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "sanic"
+fingerprint = "059596876dc2b7f0c22194cd9f47fb58"
+rule = "unpinned-uses"
+path = ".github/workflows/coverage.yml"
+verdict = "tp"
+reason = "`actions/upload-artifact@v4` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "0a73bd23cbd242c82e36d2c241c37daa"
+rule = "unpinned-uses"
+path = ".github/workflows/dependency-submission.yml"
+verdict = "tp"
+reason = "`actions/github-script@v9` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "litestar"
+fingerprint = "0d38af15d24e2805bb49eb2e096ce252"
+rule = "unpinned-uses"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout@v7.0.1` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "smolagents"
+fingerprint = "101caceb58e829142c7725aa0d7fb8dd"
+rule = "unpinned-uses"
+path = ".github/workflows/tests.yml"
+verdict = "tp"
+reason = "`actions/setup-python@v6` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "ws"
+fingerprint = "1047df4f6148f59f5f3ce61eb822fa93"
+rule = "unpinned-uses"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`coverallsapp/github-action@v2` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "cobra"
+fingerprint = "10623ba720e6143728054b0e08db23ff"
+rule = "unpinned-uses"
+path = ".github/workflows/labeler.yml"
+verdict = "tp"
+reason = "`actions/labeler@v5` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "ripgrep"
+fingerprint = "10a65888c022f3a4ac6e919a0490bd10"
+rule = "unpinned-uses"
+path = ".github/workflows/release.yml"
+verdict = "tp"
+reason = "`dtolnay/rust-toolchain@master` is pinned to a branch, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "12ac20312b6b79e4f65522c1e94a7ab0"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-cd.yml"
+verdict = "tp"
+reason = "`CodSpeedHQ/action@v5.2.1` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "ws"
+fingerprint = "13b362f76b344e8b2127e97e88d8c423"
+rule = "unpinned-uses"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/checkout@v7` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "socket.io"
+fingerprint = "142ecb013ee0094d60fc0909ca0eaba2"
+rule = "unpinned-uses"
+path = ".github/workflows/build-examples.yml"
+verdict = "tp"
+reason = "`actions/checkout@v6` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1455692152420e06134f0d18ecbf8c1a"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-cd.yml"
+verdict = "tp"
+reason = "`actions/download-artifact@v8` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "llm"
+fingerprint = "15d7a8b9944c7bea749ff656bb508f50"
+rule = "unpinned-uses"
+path = ".github/workflows/test.yml"
+verdict = "tp"
+reason = "`actions/checkout@v7` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1688a09fa03e7d52678be3d0f4a8ab69"
+rule = "unpinned-uses"
+path = ".github/workflows/ci-cd.yml"
+verdict = "tp"
+reason = "`codecov/codecov-action@v7` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "litestar"
+fingerprint = "170967c9ee482910dbc13536d6cfebe9"
+rule = "unpinned-uses"
+path = ".github/workflows/ci.yml"
+verdict = "tp"
+reason = "`actions/setup-python@v7.0.0` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "17716fd0b6778a98d1f1bb53a09f9288"
+rule = "unpinned-uses"
+path = ".github/workflows/deploy-release.yml"
+verdict = "tp"
+reason = "`pypa/gh-action-pypi-publish@release/v1` is pinned to a branch, which can be moved, and not to a commit."
+
+[[label]]
+repo = "got"
+fingerprint = "180d2e960bf97caf09bfe62dfef58e43"
+rule = "unpinned-uses"
+path = ".github/workflows/main.yml"
+verdict = "tp"
+reason = "`actions/checkout@v6` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "httpx"
+fingerprint = "18dcf063dcc2e5511b504a4bbc96b2d7"
+rule = "unpinned-uses"
+path = ".github/workflows/publish.yml"
+verdict = "tp"
+reason = "`actions/setup-python@v6` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "aiohttp"
+fingerprint = "1938eee8132fede7e0499c4f9b2ee59a"
+rule = "unpinned-uses"
+path = ".github/workflows/labels.yml"
+verdict = "tp"
+reason = "`actions/github-script@v9` is pinned to a tag, which can be moved, and not to a commit."
+
+[[label]]
+repo = "mkdocs"
+fingerprint = "19dcae42aa0e9af13d39f895e45f96cb"
+rule = "unpinned-uses"
+path = ".github/workflows/deploy-release.yml"
+verdict = "tp"
+reason = "`actions/checkout@v4` is pinned to a tag, which can be moved, and not to a commit."
