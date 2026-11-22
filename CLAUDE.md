@@ -16,7 +16,7 @@ honest about why not, and trustworthy. Locally. **On target is the Score** (R9, 
 `scripts/eval.py`, nine tracks by the OWASP Benchmark's formula, ratcheted in `tests/eval/`.
 
 **Status (2026-11-22).** **`1.6.2` is published**; the Score **74.1** over nine. **Building:** [the heal](.kiro/specs/self-healing-supply-chain/)
-(R44 to R46: its workflows wait for the owner) and [signal and adoption](.kiro/specs/signal-and-adoption/) (R48 on).
+(R44 to R46: its workflows wait for the owner) and [signal and adoption](.kiro/specs/signal-and-adoption/) (R48 built, R49 on).
 
 ## 2. What it is NOT
 

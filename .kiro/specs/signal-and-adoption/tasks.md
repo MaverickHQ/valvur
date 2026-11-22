@@ -375,6 +375,15 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 **Exit:** the Score unchanged on every track, on both lanes; `docs/RULES.md` lists every rule
 that fired on the corpus; the three hygiene tests hold.
 
+**STATUS 2026-11-22:** ✅ the exit is measured, in [`docs/acceptance/r48.md`](../../../docs/acceptance/r48.md).
+- **The Score is 74.1 on both lanes, and no track moved:** the dev machine at `82738cf`
+  (arm64, 327 s with `--jobs 4`) and the pull request's check at `5f2e952` (amd64, eval run
+  45063635361, 622 s). The Mac ran the unit gate; the Score's second lane is the dev
+  machine, as D82t says.
+- **`docs/RULES.md`** lists 25 of Opengrep's rules and 29 others, and is held current.
+- **The three hygiene tests hold,** and every check of #307 passed at `5f2e952`.
+- **Left for the owner:** one line of `release.yml` (§3), and the 241 verdicts to read.
+
 ### Phase R49: the bar on maintained code
 
 - [ ] **R49.1** **Measure first** (D82e, D82f, D82g). No test seam. **Record,** each in the
