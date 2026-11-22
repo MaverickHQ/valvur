@@ -264,3 +264,85 @@ def test_with_no_name_index_no_plan_is_written(tmp_path, monkeypatch):
     assert run.returncode == 2
     assert "valvur check" in run.stderr and "beta" in run.stderr
     assert plan == {}
+
+
+def test_of_several_findings_on_one_package_the_highest_fix_is_the_floor(tmp_path, monkeypatch):
+    projects = {"beta": {"1.0": OLD, "1.1": OLD, "1.2": OLD,
+                         "1.3": {"uploaded": "2026-10-19T06:00:00Z"}}}
+    findings = [_finding("beta", "1.0", "1.1", rule="CVE-2026-0001"),
+                _finding("beta", "1.0", "1.3", rule="CVE-2026-0002"),
+                _finding("beta", "1.0", "1.2", rule="CVE-2026-0003")]
+
+    _run, plan = _plan(tmp_path, monkeypatch, findings, {"beta": "1.0"}, projects)
+
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{
+        "package": "beta", "reason": "young-unattested",
+        "findings": ["fp-CVE-2026-0001-beta", "fp-CVE-2026-0002-beta", "fp-CVE-2026-0003-beta"]}]
+    assert len(plan["findings"]) == 3
+
+
+def test_no_finding_at_the_lock_is_an_empty_plan_and_nothing_else_is_asked_or_written(
+        tmp_path, monkeypatch):
+    elsewhere = _finding("beta", "1.0", "1.1", path="uv.lock")
+    suppressed = _finding("beta", "1.0", "1.1", suppressed={"reason": "accepted"})
+
+    run, plan = _plan(tmp_path, monkeypatch, [elsewhere, suppressed], {"beta": "1.0"},
+                      {"beta": {"1.0": OLD, "1.1": OLD}})
+
+    assert run.returncode == 0, run.stderr
+    assert plan["findings"] == [] and plan["pins"] == [] and plan["escalations"] == []
+    assert (tmp_path / "registry" / "asked.log").read_text() == "", "PyPI was asked"
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "cache", "findings.json", "plan.json", "registry", "start.txt", "tree", "uv.toml",
+        "wheels"]
+
+
+def test_the_incident_of_2026_10_21_replayed(tmp_path, monkeypatch):
+    """A regression test: what the owner did by hand that morning (`698b21e`), by rule.
+
+    PyPI's facts are the real ones, read on 2026-11-22: each version's upload time, what
+    aiohttp requires of yarl, and the publisher on every file's attestation. The Findings
+    are the four the nightly blocked on, with the fixed versions valvur gave that day.
+    (OSV has since named certifi 2026.10.18 as the fix of GHSA-6q48-6c7w-9gw2. The commit
+    of the day took 2026.10.19 as the only release with it, and so does this.)"""
+    aio = {"kind": "GitHub", "repository": "aio-libs/aiohttp", "workflow": "ci-cd.yml"}
+    yarl = {"kind": "GitHub", "repository": "aio-libs/yarl", "workflow": "ci-cd.yml"}
+    certifi = {"kind": "GitHub", "repository": "certifi/python-certifi",
+               "workflow": "release.yml"}
+    projects = {
+        "checkov": {"3.3.22": {**OLD, "requires": ["aiohttp", "certifi"]}},
+        "aiohttp": {
+            "3.14.3": {"uploaded": "2026-07-23T01:52:08Z", "publisher": aio,
+                       "requires": ["yarl<2.0,>=1.17.0"]},
+            "3.14.4": {"uploaded": "2026-10-05T17:37:45Z", "publisher": aio,
+                       "requires": ["yarl<2.0,>=1.25.1"]},
+            "3.14.5": {"uploaded": "2026-10-11T00:59:07Z", "publisher": aio,
+                       "requires": ["yarl<2.0,>=1.25.1"]}},
+        "yarl": {"1.24.5": {"uploaded": "2026-07-20T02:04:21Z", "publisher": yarl},
+                 "1.25.1": {"uploaded": "2026-09-15T19:29:53Z", "publisher": yarl}},
+        "certifi": {"2026.7.22": {"uploaded": "2026-07-22T03:35:11Z", "publisher": certifi},
+                    "2026.10.18": {"uploaded": "2026-10-18T16:21:06Z", "publisher": certifi},
+                    "2026.10.19": {"uploaded": "2026-10-20T02:24:15Z", "publisher": certifi}},
+    }
+    findings = [
+        _finding("aiohttp", "3.14.3", "3.14.4", rule="CVE-2026-111064"),
+        _finding("aiohttp", "3.14.3", "3.14.4", rule="CVE-2026-111066"),
+        _finding("aiohttp", "3.14.3", "3.14.4", rule="GHSA-2g87-pp6c-29x5"),
+        _finding("certifi", "2026.7.22", "2026.10.19", rule="GHSA-6q48-6c7w-9gw2"),
+    ]
+
+    run, plan = _plan(tmp_path, monkeypatch, findings,
+                      {"checkov": "3.3.22", "aiohttp": "3.14.3", "certifi": "2026.7.22",
+                       "yarl": "1.24.5"}, projects, top=("checkov",))
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == [
+        {"package": "aiohttp", "from": "3.14.3", "to": "3.14.5", "why": "fix",
+         "rule": "cooldown", "uploaded": "2026-10-11T00:59:07Z"},
+        {"package": "certifi", "from": "2026.7.22", "to": "2026.10.19", "why": "fix",
+         "rule": "young-attested", "uploaded": "2026-10-20T02:24:15Z", "publisher": certifi},
+        {"package": "yarl", "from": "1.24.5", "to": "1.25.1", "why": "floor of aiohttp 3.14.5",
+         "rule": "cooldown", "uploaded": "2026-09-15T19:29:53Z"},
+    ]
+    assert plan["escalations"] == []

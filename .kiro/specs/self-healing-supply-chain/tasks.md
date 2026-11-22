@@ -627,7 +627,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
     has classic protection: 8 required checks, signatures, linear history, enforced for
     administrators.
 
-- [ ] **R44.2** **The plan** (D81d, D81e). Behaviours, against `tests/fake_registry.py`
+- [x] **R44.2** **The plan** (D81d, D81e). Behaviours, against `tests/fake_registry.py`
   extended with PyPI's JSON and integrity endpoints, and with small wheels:
   1. One Finding with a fix past the cooldown: the newest fixing version past the cooldown, in
      the same major.
@@ -648,6 +648,28 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
       `young-attested` or escalated, as R44.1 found. It is kept as a regression test.
 
   _Requirements: 5.1 to 5.8, 6.1, 6.2, 6.3_
+
+  **STATUS 2026-11-22:** ✅ 1 to 11, in `scripts/heal.py plan` and `scripts/pypi_facts.py`,
+  17 tests in `tests/test_heal_plan.py`.
+  - **Each fix is re-locked alone** by the recipe, in a scratch copy of the tree, so a floor
+    is attributed to the fix that forced it and a fix that cannot land does not hold back
+    the others. A forced package is chosen among the versions that resolve.
+  - **Measured: uv reads no `UV_NO_INDEX`.** With it set, uv resolved `requests` from
+    pypi.org. The tests keep uv off the index with a configuration file named by
+    `UV_CONFIG_FILE`, which holds `no-index` and the directory of wheels.
+  - **Added: no Name Index is no plan.** Without an index `valvur check` answers `unknown`
+    and exits 0, which a heal would have taken for a pass. The plan reads each verdict,
+    and exits 2 naming the version that could not be checked.
+  - **Added: a Finding in Checkov itself** is escalated as `checkov`, as a fix that would
+    move it is. Pre-releases and yanked versions are never offered.
+  - **9 and 10 were green when written,** and each was seen red against a break made by
+    hand: the floor taken as the lowest fix, and Findings at `uv.lock` read as the lock's.
+  - **The incident replayed** with PyPI's real facts, read on 2026-11-22: aiohttp 3.14.5
+    (uploaded 2026-10-11) and yarl 1.25.1 (2026-09-15) by cooldown, certifi 2026.10.19
+    (2026-10-20T02:24Z, 28 hours old at 06:41 on the 21st) as `young-attested` by
+    `certifi/python-certifi`'s `release.yml`, which attested 2026.7.22 too. It is
+    `698b21e`'s three moves. OSV now names certifi 2026.10.18 as that advisory's fix; with
+    that floor the rule would have taken 2026.10.18, also young and attested.
 
 - [ ] **R44.3** **The proposal**. Behaviours:
   1. `heal.py apply` runs the recipe with the plan's pins and refuses a result where an
