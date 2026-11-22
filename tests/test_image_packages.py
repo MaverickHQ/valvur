@@ -41,3 +41,10 @@ def test_the_image_holds_exactly_the_packages_the_list_names():
 
     assert sorted(set(held) - set(listed())) == [], "in the image, and not on the list"
     assert sorted(set(listed()) - set(held)) == [], "on the list, and not in the image"
+
+
+def test_security_md_says_where_a_removed_packages_bytes_remain():
+    text = " ".join((REPO / "SECURITY.md").read_text(encoding="utf-8").split())
+
+    assert ".github/image-packages.txt" in text
+    assert "bytes remain in the base image's layer" in text

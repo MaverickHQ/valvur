@@ -75,7 +75,11 @@ These are vulnerabilities in valvur, not merely bugs:
   bug and an important one — open an issue.
 - **Vulnerabilities in the base image's OS packages** that valvur does not use.
   The published SBOM discloses everything the image contains; a reachable one is in
-  scope, an unreachable one is not.
+  scope, an unreachable one is not. A package that nothing in the image loads is taken out
+  of it, and [`.github/image-packages.txt`](.github/image-packages.txt) names the ones that
+  stay. A removed package's files are gone from the image's filesystem, which is what a scan
+  of the image reads. Its bytes remain in the base image's layer, where a tool that reads
+  layers one by one will still find them.
 
 ## Supported versions
 
