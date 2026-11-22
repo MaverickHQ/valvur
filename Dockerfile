@@ -41,7 +41,7 @@ ARG OPENGREP_SHA256_AMD64=02c9fba481611aa0664bc79ccf7ce59e9e334b76af8921c80b2f73
 ARG OPENGREP_SHA256_ARM64=b7cbedab0b6c9953ea27ce3baa006ad8b6fa1c50ee7433638b63f7fc731519d9
 ARG OPENGREP_URL=https://github.com/opengrep/opengrep/releases/download/v1.31.0
 
-FROM python:3.12-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7 AS opengrep
+FROM python:3.12-alpine3.24@sha256:c5ba3deef00c7758561a0f03c26f44f10589263d40e732b8748e0d1f38f6dd89 AS opengrep
 ARG TARGETARCH
 ARG OPENGREP_SHA256_AMD64
 ARG OPENGREP_SHA256_ARM64
@@ -163,7 +163,7 @@ RUN set -eu; \
       -o /syft ./cmd/syft; \
     /syft version
 
-FROM python:3.12-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7
+FROM python:3.12-alpine3.24@sha256:c5ba3deef00c7758561a0f03c26f44f10589263d40e732b8748e0d1f38f6dd89
 ARG VALVUR_VERSION=0.0.0-dev
 LABEL org.opencontainers.image.source="https://github.com/MaverickHQ/valvur"
 LABEL org.opencontainers.image.description="Fully offline security scanner for AI-generated code"
