@@ -72,6 +72,11 @@ class Precision:
     others: dict[str, int] = field(default_factory=dict)
     #: Coverage notes, counted and not judged.
     notes: int = 0
+    #: (Scanner, rule) to its true and false counts, for each rule with a judged Finding
+    #: (R48.2, D82a). The bar on maintained code is set from these, rule by rule.
+    by_rule: dict[tuple[str, str], list[int]] = field(default_factory=dict)
+    #: Scanner to its active Findings on the corpus, and how many of them were judged.
+    by_scanner: dict[str, dict[str, int]] = field(default_factory=dict)
 
     @property
     def score(self) -> float:
@@ -91,16 +96,27 @@ def judge(findings_by_repo: dict[str, list[dict]],
             if note(finding):
                 result.notes += 1
                 continue
+            scanner = str((finding.get("sources") or ["?"])[0])
+            counted = result.by_scanner.setdefault(
+                scanner, {"findings": 0, "judged": 0, "tp": 0, "fp": 0})
+            counted["findings"] += 1
             if not owned(finding):
-                others.update((finding.get("sources") or ["?"])[:1])
+                others.update([scanner])
                 continue
             label = labels.get((repo, str(finding.get("fingerprint"))))
             if label is None:
                 result.unlabelled.append(f"{repo}: {finding.get('rule')} at "
                                          f"{finding.get('path')} ({finding.get('fingerprint')})")
-            elif label[0] == "tp":
+                continue
+            verdict = label[0]
+            counted["judged"] += 1
+            counted[verdict] += 1
+            result.by_rule.setdefault((scanner, str(finding.get("rule"))), [0, 0])[
+                VERDICTS.index(verdict)] += 1
+            if verdict == "tp":
                 result.tp += 1
             else:
                 result.fp += 1
     result.others = dict(sorted(others.items()))
+    result.by_scanner = dict(sorted(result.by_scanner.items()))
     return result
