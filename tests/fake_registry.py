@@ -189,6 +189,7 @@ def _handler(registry: FakeRegistry, *, cdn: bool):
 
 _SITECUSTOMIZE = '''"""Loaded by every Python process started with this directory first on its path:
 the package registries, answered from here and recorded, never reached."""
+import base64
 import io
 import json
 import os
@@ -213,7 +214,10 @@ def _urlopen(request, *args, **kwargs):
         log.write(url + "\\n")
     if url not in _ANSWERS:
         raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
-    return _Answer(json.dumps(_ANSWERS[url]).encode())
+    answer = _ANSWERS[url]
+    if isinstance(answer, dict) and set(answer) == {"__bytes__"}:
+        return _Answer(base64.b64decode(answer["__bytes__"]))
+    return _Answer(json.dumps(answer).encode())
 
 
 urllib.request.urlopen = _urlopen
@@ -274,3 +278,40 @@ def pypi_answers(projects: dict[str, dict[str, dict]]) -> dict[str, object]:
                     {"publisher": facts["publisher"], "attestations": []}]}
         answers[f"{PYPI}/pypi/{name}/json"] = {"info": {"name": name}, "releases": releases}
     return answers
+
+
+# ------------------------------------------------------- what the image's heal reads
+
+ALPINE = "https://dl-cdn.alpinelinux.org/alpine"
+HUB = "https://hub.docker.com/v2/repositories/library"
+GOPROXY = "https://proxy.golang.org"
+
+
+def raw(data: bytes | str) -> dict[str, str]:
+    """An answer that is these bytes, not JSON, for `FakePackageRegistry`."""
+    import base64
+
+    held = data.encode() if isinstance(data, str) else data
+    return {"__bytes__": base64.b64encode(held).decode()}
+
+
+def apk_index(packages: dict[str, str]) -> dict[str, str]:
+    """An `APKINDEX.tar.gz` that holds each package at one version, as Alpine publishes it."""
+    import io
+    import tarfile
+
+    text = "".join(f"C:Q1x\nP:{name}\nV:{version}\nA:noarch\n\n"
+                   for name, version in packages.items()).encode()
+    held = io.BytesIO()
+    with tarfile.open(fileobj=held, mode="w:gz") as archive:
+        info = tarfile.TarInfo("APKINDEX")
+        info.size = len(text)
+        archive.addfile(info, io.BytesIO(text))
+    return raw(held.getvalue())
+
+
+def alpine_answers(release: str, indexes: dict[str, dict[str, str]],
+                   repository: str = "main") -> dict[str, object]:
+    """Alpine's index of one repository of `release`, for each architecture given."""
+    return {f"{ALPINE}/v{release}/{repository}/{arch}/APKINDEX.tar.gz": apk_index(packages)
+            for arch, packages in indexes.items()}
