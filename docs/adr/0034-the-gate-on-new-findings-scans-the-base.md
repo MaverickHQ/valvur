@@ -1,6 +1,7 @@
 # ADR-0034 — The gate on new Findings scans the base ref itself
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint B; from D82k and D82l in
+**Status:** accepted 2026-11-22 by the owner, at checkpoint B, as proposed on
+2026-11-21; from D82k and D82l in
 [the signal-and-adoption design](../../.kiro/specs/signal-and-adoption/design.md).
 Requirements F5.3 and N2.5. Amends ADR-0021.
 

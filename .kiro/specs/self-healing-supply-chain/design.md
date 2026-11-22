@@ -1,7 +1,8 @@
 # The self-healing supply chain: design
 
 **Status:** proposed 2026-10-21, for the owner's approval; amendment 5 (components 13 to 18,
-D81x to D81ac) proposed 2026-11-21, for the owner's checkpoint B · answers
+D81x to D81ac) proposed 2026-11-21 and accepted by the owner on 2026-11-22 (checkpoint B) ·
+answers
 [requirements.md](requirements.md) · built by [tasks.md](tasks.md)
 
 ## Overview
@@ -666,7 +667,7 @@ owner starts the second half. R42.1 records the dates in the main `tasks.md` §5
 | D81w | **The Go Scanners are built from their release's source** (the owner, 2026-10-31, extending the Gitleaks decision of 2026-10-25 to Trivy, OSV-Scanner and Syft). Each stage downloads the release's Go module, verified against Go's checksum database (`<SCANNER>_SUM`), and builds it with the current Go that every Go stage shares. A module is raised (`<SCANNER>_RAISE`) only to the fixed version of an advisory the image gate names, at an exact version, and the build refuses a raise the release already requires or one that would lower a module. The Scanner's own source is never changed. The image's own Syft writes the release's SBOM. Dependabot no longer sees these three Scanners' releases, so the watchdog does, as it does Opengrep's. On 2026-10-31 the nightly blocked on 8 advisories no upstream release had fixed, and 44 acceptances waited on placeholders; the four binaries built this way had none with a fix, measured with that day's database. | if a raise breaks a Scanner's build, its golden or the Score, that advisory goes to the owner to accept, with the failure, and the Scanner keeps the release's own modules |
 
 
-**Amendment 5,** proposed 2026-11-21 for the owner's checkpoint B:
+**Amendment 5,** proposed 2026-11-21 and accepted by the owner on 2026-11-22 (checkpoint B):
 
 | # | decision | fallback when a measurement disagrees |
 |---|---|---|

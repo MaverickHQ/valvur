@@ -1,6 +1,7 @@
 # Signal and adoption: design
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint B · answers
+**Status:** proposed 2026-11-21; its decisions accepted by the owner on 2026-11-22
+(checkpoint B), as proposed · answers
 [requirements.md](requirements.md) · built by [tasks.md](tasks.md)
 
 ## Overview
@@ -93,7 +94,7 @@ fixture 8, example 3, source 13. All 13 in `source` are documentation in practic
 | `scripts/eval/twins.py` | secrets under test and documentation paths; certificate and cookie cases | R49.4, R49.6 |
 | `rules/llm-output-sinks.yaml` or `src/valvur/checks/` | the flag, or the coverage note | R49.7 |
 | `tests/eval/baseline.json`, `README.md`, `docs/EVALUATING.md` | the baseline raised once, and re-based where D82g says | R49.8 |
-| `docs/adr/0033-…md` to `0037-…md` (new) | the five decisions the owner accepts at checkpoint B | wave 1, item 1.3 |
+| `docs/adr/0033-…md` to `0037-…md` (new) | the five decisions the owner accepted at checkpoint B, 2026-11-22 | wave 1, item 1.3 |
 | `src/valvur/fileset.py`, `engine_host.py`, `history.py`, `api.py`, `cli.py` | `scan --ref`: a commit's tree, read with git's plumbing | R50.2 |
 | `src/valvur/gate.py`, `cli.py`, `docs/CI.md`, `docs/examples/github-actions.yml` | `gate --new-since` | R50.3, R50.4 |
 | `src/valvur/vex.py` (new), `suppressions.py`, `exclusions.py`, `data/security-scan.schema.json` | `[[vex]]` and `[[context]]` in `.security-scan.toml` | R50.5, R50.6 |
@@ -137,9 +138,11 @@ the baseline.
   page lists Gitleaks', Checkov's and zizmor's rules that fired, each with its corpus counts
   in one column and its planted counts in another.
 - **An unlabelled judged Finding fails `--compare`,** as today, in both tables.
-- **Labels cannot be bent.** A label whose `verdict` differs from the one at the last
-  baseline's commit must carry `changed = "<date>: <reason>"`. A test reads the file at the
-  commit `baseline.json` names and compares.
+- **Labels cannot be bent.** `--update-baseline` records each label's verdict in
+  `baseline.json`. A label whose `verdict` differs from the one recorded there must carry
+  `changed = "<date>: <reason>"`, and a test compares the two committed files. (*Changed by
+  the test-driven pass, 2026-11-22:* this read the labels at the baseline's commit. The
+  baseline names no commit, and most CI jobs check out one commit.)
 
 ### 2. The tier table (Requirements 2 and 3)
 
@@ -465,24 +468,25 @@ worked.
 
 ## Decisions: D82
 
-Proposed 2026-11-21. Those marked **ADR** are written as ADRs, status Proposed, in wave 1's
-item 1.3, and accepted, changed or rejected by the owner at checkpoint B.
+Proposed 2026-11-21, and **accepted by the owner on 2026-11-22 (checkpoint B), every row as
+proposed.** Those marked **ADR** are written as ADRs. Requirements 1.2, 5.1 and 10.4 were
+amended that day to say what D82b, D82h and D82m decide.
 
 | # | decision | fallback when a measurement disagrees |
 |---|---|---|
 | D82a | **The eighth track keeps its population:** valvur's rules and Checks, the vendored rules, and Gitleaks. Checkov's and zizmor's Findings are judged in a second table, by rule, and are not pooled into the track. | none needed |
-| D82b | **A rule with more than 25 Findings on the corpus is judged on 25,** those with the lowest Fingerprints, marked *sampled*. This narrows Requirement 1.2, which says *as the others are*. | if R48.1 counts under 300 Findings for Checkov and zizmor together, all are labelled |
+| D82b | **A rule with more than 25 Findings on the corpus is judged on 25,** those with the lowest Fingerprints, marked *sampled*. Requirement 1.2 was amended to say so. | if R48.1 counts under 300 Findings for Checkov and zizmor together, all are labelled |
 | D82c | **One tier table for every Scanner's rules** (`tiers.toml`), applied with the class table. `where` is `everywhere` or `test material`. **ADR-0033.** | none |
 | D82d | **The bar on maintained code:** measured with 5 or more judged Findings on the corpus; under the bar when fewer than half are true. ADR-0029's bar still decides whether a rule ships at all. **ADR-0033.** | if R48 shows a rule with 3 or 4 judged Findings and none true, it is listed for the owner and stays active |
 | D82e | **A rule of valvur's own under the bar is narrowed first,** and takes a row only if the narrower rule fails either measurement. `weak-hash` takes its row at once. | the row, and D82g's cost |
 | D82f | **The docs path class gains** `docs_src`, `doc`, `guide` and `guides` as directory names. R49.1 measures each name on the corpus and on every track before it is added. | a name that moves a planted case is left out, and the Findings it would have covered stay active |
-| D82g | **A demoted rule takes its planted credit with it.** The Score counts active Findings only, so the Python track is re-based once, with both numbers and the reason, as R29.6 re-based the eighth: about 40.9 to 34.7 for `weak-hash` and `random`. The Score as a whole still rises. This is the conflict Requirement 2.5 puts to the owner. **ADR-0033.** | if the owner declines, both rules stay active, and the eighth track's ceiling is about 7 |
-| D82h | **The eighth track's target is 33, with a second measure: at most 8 false active Findings on the corpus, from 168.** Requirement 5.1 says 50, which needs at most 4, and the arithmetic above leaves 7 while the corpus holds 3 true Findings. **ADR-0033.** | if the owner keeps 50, the phase reports what it reached and the owner decides at its exit |
+| D82g | **A demoted rule takes its planted credit with it.** The Score counts active Findings only, so the Python track is re-based once, with both numbers and the reason, as R29.6 re-based the eighth: about 40.9 to 34.7 for `weak-hash` and `random`. The Score as a whole still rises. This is the conflict Requirement 2.5 puts to the owner, who accepted the re-base. **ADR-0033.** | if R49.1 measures a fall of more than 8 points on the Python track, the phase stops before the re-base and the owner is asked again |
+| D82h | **The eighth track's target is 33, with a second measure: at most 8 false active Findings on the corpus, from 168.** Requirement 5.1 said 50, which needs at most 4, and the arithmetic above leaves 7 while the corpus holds 3 true Findings; it was amended to this target. **ADR-0033.** | if the phase ends under 33 or with more than 8, it reports what it reached, with the rule of each false Finding left, and the owner decides at its exit |
 | D82i | **Two rules added,** with generated cases on both static-analysis tracks, the Python ones as a category of their own. | a rule under ADR-0029's bar on its cases is not shipped, and the requirement's criterion stays open, recorded |
 | D82j | **The limit on model output is a note, not a doubt,** when the flag is not adopted. | none |
 | D82k | **The gate's base is a git ref, read with plumbing and scanned by the gate itself** into the cache. No baseline file. **ADR-0034,** amending ADR-0021. | if `git cat-file --batch` is too slow on the acceptance set's largest repository, the tree is read with one `git archive` and `export-ignore` is reported as a limit |
 | D82l | **A Finding is *already there* by its Fingerprint alone,** in any state in the base. Renames and edited matches count as new. | none |
-| D82m | **VEX is honoured only through a `[[vex]]` entry with an expiry.** An unmatched statement is reported at `low` and does not fail the gate at every threshold. This narrows Requirement 10.4, which says *as an unused Suppression is*. **ADR-0035.** | if the owner wants the stricter reading, `valvur.vex.unused` joins the gate's lapsed set |
+| D82m | **VEX is honoured only through a `[[vex]]` entry with an expiry.** An unmatched statement is reported at `low` and does not fail the gate at every threshold. Requirement 10.4 was amended to say so. **ADR-0035.** | none |
 | D82n | **Declared context raises within a tier, never across one.** `Dependency.paths` lists every lockfile. **ADR-0036.** | none |
 | D82o | **Identifiers: one file, four levels of lookup, *mapped to*.** D69 stands, with the editions read again. **ADR-0037.** | where two of OWASP's publications disagree, the newer wins, recorded |
 | D82p | **Imports are measured against the real tools on dispatch,** and held by schema tests between measurements. D71 stands. | if a tool's container cannot start on a hosted runner, it is measured on the dev machine and recorded so |

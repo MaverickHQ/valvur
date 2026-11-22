@@ -1,6 +1,7 @@
 # ADR-0037 — Standard identifiers are mapped in one file, and worded as mapped
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint B; from D82o in
+**Status:** accepted 2026-11-22 by the owner, at checkpoint B, as proposed on
+2026-11-21; from D82o in
 [the signal-and-adoption design](../../.kiro/specs/signal-and-adoption/design.md), which
 brings back D69, parked on 2026-10-09. Requirements F5.10 and F7.9.
 
