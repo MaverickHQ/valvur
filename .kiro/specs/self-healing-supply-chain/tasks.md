@@ -787,6 +787,26 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 7.4, 8.3, 8.4, 8.5, 12.1 to 12.5_
 
+  **STATUS 2026-11-22:** waiting for the owner's session, not attempted. The wave plan
+  batches the 👤 tasks into one sitting in manual approve mode at the wave's end, so the
+  executor passed over this one and went on with R44.7 and after. What the two workflows
+  call exists and is tested:
+  - `observe`: `heal.py mode --findings … --lock … --now …` prints `heal`, `checkov` or
+    `none`;
+  - `plan`: `heal.py plan` (or `plan --checkov`), then `heal.py apply --plan … --out …
+    --run …`, which prints the commit's message; both in a job with no secret;
+  - `propose`: `heal.py verify --plan … --dir …` on the artifact, as data; the commit made
+    with apply's message; `signed_push.py <repo> heal/<date>-<hash>`; `heal.py body` for
+    the pull request;
+  - `escalate`: `heal.py escalations --plan … --observed … --issues … --now … --run …`
+    prints actions for `.github/actions/file-issue`. `--issues` is `gh issue list --state
+    open --json number,title,body,author,comments`;
+  - `judge`: `heal_policy.py lock --base . --head <dir>`, with `files` from `gh pr view
+    --json files` and `commits` from `repos/<repo>/pulls/<n>/commits` on stdin.
+
+  Still to write with the workflows: finding an open heal pull request to rebuild
+  (Requirement 7.5), and the shape tests of behaviour 3.
+
 - [x] **R44.7** **Checkov's new versions, for the owner** (D81q). Behaviours:
   1. On a Monday's first run, a newer Checkov past the cooldown gives mode `checkov`.
   2. The plan edits `requirements-checkov.in` and re-locks with `--upgrade-package checkov`.
