@@ -192,7 +192,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
   _Requirements: 1.3, 2.3_
 
-- [ ] **R48.5** **A mutant of an annotation alone is not counted.**
+- [x] **R48.5** **A mutant of an annotation alone is not counted.**
   **Seam:** `mutation_check.code_changed(before, after)`, as the comments-and-docstrings
   test drives it. Behaviours:
   1. **Guard.** A change to an annotation and to a value is a code change.
@@ -203,6 +203,15 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      *Check:* `tests/test_mutation_ratchet.py`, and the phase's pull request's mutation job.
 
   _Requirements: 15.1_
+
+  **STATUS 2026-11-22:** ✅ 1 to 4, in `scripts/mutation_check.py`, 12 tests in
+  `tests/test_mutation_annotations.py`. 5 is the weekly job's: the baseline, 83.8, is one
+  week's score and may only rise, and the next Wednesday's run is the first to leave
+  annotation-only hunks out. Nothing is recorded by hand before it.
+  - **Added: an annotation a dataclass reads is still a code change.** `ClassVar`, `InitVar`
+    and `KW_ONLY` decide what the class is, so a hunk that changes one of those is counted.
+  - A removed return annotation and a bare declaration (`seen: dict`) are no code change
+    either, with the three cases the task names.
 
 - [ ] **R48.6** **No test compares against a moving target.**
   **Seam:** a guard over the tree, in `tests/test_no_moving_target.py`, whose finder takes a

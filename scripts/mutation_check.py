@@ -30,6 +30,7 @@ import argparse
 import ast
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -75,8 +76,12 @@ def revert_patch(hunk: Hunk) -> str:
     return "\n".join([f"--- a/{hunk.path}", f"+++ b/{hunk.path}", hunk.header, *hunk.body]) + "\n"
 
 
+_READ_BY_A_DATACLASS = re.compile(r"\b(ClassVar|InitVar|KW_ONLY)\b")
+
+
 def _stripped(source: str) -> str:
-    """The AST with docstrings removed and comments already gone: what a test can see."""
+    """The AST with docstrings and annotations removed, and comments already gone: what a
+    test can see."""
     tree = ast.parse(source)
     for node in ast.walk(tree):
         if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
@@ -85,11 +90,21 @@ def _stripped(source: str) -> str:
                     and isinstance(body[0].value, ast.Constant)
                     and isinstance(body[0].value.value, str)):
                 del body[0]
+        # R48.5: an annotation is nothing a test can see, so a hunk that only changes
+        # one is no code change. Except one a dataclass reads, which changes the class.
+        if isinstance(node, ast.arg):
+            node.annotation = None
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            node.returns = None
+        elif isinstance(node, ast.AnnAssign) and not _READ_BY_A_DATACLASS.search(
+                ast.unparse(node.annotation)):
+            node.annotation = ast.Constant(value=None)
     return ast.dump(tree)
 
 
 def code_changed(before: str, after: str) -> bool:
-    """Whether two versions of a module differ in anything but comments and docstrings."""
+    """Whether two versions of a module differ in anything but comments, docstrings and
+    type annotations."""
     try:
         return _stripped(before) != _stripped(after)
     except SyntaxError:
