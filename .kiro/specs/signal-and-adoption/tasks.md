@@ -476,7 +476,7 @@ that fired on the corpus; the three hygiene tests hold.
   entropy 3.5 or more), `curl-auth-header` (a header in a `curl` command) and `pkcs12-file`
   (a file name). One matches a provider's format: `slack-webhook-url`.
 
-- [ ] **R49.2** **The tier table, and its first row** (D82c, D82d, D82e).
+- [x] **R49.2** **The tier table, and its first row** (D82c, D82d, D82e).
   **Seam:** `api.scan` over `LocalRuntime` with canned Scanner output; `findings.json`, the
   Status and `gate.evaluate` read back. For the table against the measurement:
   `rule_precision.tier_disagreements(rows, measured)`. Behaviours:
@@ -503,7 +503,36 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 2.1, 2.2, 2.4, 3.4_
 
-- [ ] **R49.3** **The vendored `random` rule's row, and one home for both rules** (D82e,
+  **STATUS 2026-11-22:** ✅ 1 to 8 (`6425942`, `59b0d93`, `55c7484`), 9 tests in
+  `tests/test_tier_table.py` and 5 in `tests/test_tier_disagreements.py`.
+  - **The closing run,** on the dev machine at `59b0d93`, `valvur:dev`
+    `sha256:5a7bf9c5bc35`:
+
+    | track | baseline | with the three rows |
+    |---|---|---|
+    | Python | 40.9 | 37.1, as R49.1 measured; `--compare` fails on it, as expected |
+    | infrastructure | 95.0 | 95.0 |
+    | real code | 2.3, 3 true and 168 false | 2.6, 3 true and 147 false |
+
+    The acceptance set passes, 8 of 8.
+  - **Added: two rows of other Scanners,** which R49.1 found under the bar and which move
+    no track: Checkov's `CKV2_AWS_12`, 0 true of 12, and zizmor's `cache-poisoning`, 8 of
+    19. A row names its Scanner, so another Scanner's rule of the same name stays active.
+  - **Added: `SUMMARY.md` counts a tiered Finding under *Listed for review*,** apart from
+    *Sinks to review*, with one line that says why. `tests/test_contract.py`'s split of a
+    Results Folder is restated: five parts, where it had four.
+  - **Found by the closing run, and fixed (`55c7484`):** once a rule was listed, the
+    track's `by_rule` and `hygiene` dropped its Findings, since they are no longer active,
+    so the table could not be held to a measurement that had lost the rule. A listed
+    Finding's label now counts for its rule, and not for the track's own numbers.
+  - **Behaviour 4 is a guard at the schema:** a scan never read a `[[tier]]` key, and
+    `project_schema.problem`, which `doctor` reports, refuses it.
+  - **One test restated:** `tests/test_summary_order.py` showed its grouping on
+    `CKV2_AWS_12`, which is inventory now; it uses a rule that is active.
+  - `tier_disagreements` on the real table, after R49.3's row, names the nine rules still
+    to place: R49.4's four, R49.5's three, and the two of zizmor's that wait for the owner.
+
+- [x] **R49.3** **The vendored `random` rule's row, and one home for both rules** (D82e,
   D82g). **Seam:** as R49.2; `rules_doc.render`; the vendored rules' audit, as
   `tests/test_sast_rules_audit.py` drives it. Behaviours:
   1. **Guard, existing.** The audit holds the vendored file byte for byte.
@@ -518,6 +547,28 @@ that fired on the corpus; the three hygiene tests hold.
   *Closes with:* the same two tracks, each delta in the STATUS.
 
   _Requirements: 2.2, 4.4_
+
+  **STATUS 2026-11-22:** ✅ 1 to 5 (`99e9130`), in `tests/test_tier_table.py`,
+  `tests/test_class_table.py`, `tests/test_rules_doc_others.py` and
+  `tests/test_vendored_tier_counts.py`.
+  - **The closing run,** on the dev machine at `55c7484`, `valvur:dev`
+    `sha256:b86a0b7335e8`:
+
+    | track | baseline | with both rules listed |
+    |---|---|---|
+    | Python | 40.9 | 34.6, the 6.3 points R49.1 measured; `--compare` fails on it until R49.8 |
+    | JavaScript | 55.0 | 55.0 |
+    | infrastructure | 95.0 | 95.0 |
+    | real code | 2.3, 3 true and 168 false | 3.1, 3 true and 124 false |
+
+  - **The measurement kept both rules** after R49.2's fix: `by_rule` holds `weak-hash` at 0
+    true and 21 false and `random` at 0 and 23, and `hygiene` holds `CKV2_AWS_12` at 12
+    judged and `cache-poisoning` at 19.
+  - **The class table removes nothing now.** Its removal action went with its one row;
+    `run.json` keeps `removed_by_class`, empty, for whoever reads it.
+  - **The 124 false Findings still active,** by rule: `private-key` 35, `jwt` 29,
+    `generic-api-key` 26, `insecure-cookie` 8, `open-redirect` 7, `curl-auth-header` 6,
+    `path-traversal` 6, `ssrf` 2, and one each of five rules.
 
 - [ ] **R49.4** **A secret in test material** (D82c, D82f).
   **Seam:** the secrets track's generator in `scripts/eval/twins.py` and
