@@ -584,12 +584,17 @@ main list's §1 to §4 stand. This says where each step runs, what it costs and 
 | the image, cache warm | | 1 s | |
 | the acceptance set | | 147 s with its repositories generated, 135 s after | |
 | the end-to-end suite | 12 min (2026-09-29) | 391 s | 602 s amd64, 510 s arm64 |
-| the Score, nine tracks | 663 s, 574 s of it the eighth track | 671 s, 579 s of it the eighth track | |
+| the Score, nine tracks | 663 s, 574 s of it the eighth track | 671 s on its first run there, 579 s of it the eighth track | |
+| the eighth track, run again | | 495 s; its 48 scans alone 477 s, and 302 s run four at a time | |
 
 - **The Mac's gate failed twice on 2026-11-21** when the unit suite ran beside an image
   build, under swap. Alone it takes 150 s.
-- **The dev machine is not faster at the Score,** and is twice as fast at the end-to-end
-  suite. What it buys is that neither runs on an 8 GB Mac beside the session.
+- **The dev machine is a little faster at the Score** once its data is there (the eighth
+  track in 495 s), and twice as fast at the end-to-end suite. What it buys is that neither
+  runs on an 8 GB Mac beside the session.
+- **The eighth track is 48 scans, one after another,** and the scans are nearly all of it:
+  477 s of 495 s. Four at a time they take 302 s on the machine's 4 cores, and two at a time
+  311 s: each scan already runs its Scanners at once, so the cores are the limit.
 - **A command sent to the machine may carry about 70 KB:** 60 KB was accepted and 90 KB
   refused. That is enough for one slice's diff.
 - **The pace of R9 to R47,** from the author dates of their 611 build commits: 83 hours of
