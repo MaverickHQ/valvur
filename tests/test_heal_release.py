@@ -284,3 +284,20 @@ def test_an_entry_the_image_gate_newly_accepts_is_release_needs_owner(repo):
 
     assert run.returncode == 1
     assert "the image gate accepts CVE-2026-0099 busybox" in run.stdout
+
+
+def test_every_condition_the_design_lists_has_something_that_checks_it():
+    """design.md's list is the closed one. A condition added there with nothing here to
+    refuse it fails this test."""
+    sys.path.insert(0, str(HEAL_RELEASE.parent))
+    import heal_release
+
+    design = (REPO / ".kiro" / "specs" / "self-healing-supply-chain" / "design.md").read_text()
+    listed = design.split("- **Nothing a scan depends on has moved.**")[1].split(
+        "\n  Any of them failing")[0]
+    conditions = [line for line in listed.splitlines() if line.startswith("  - ")]
+
+    assert len(conditions) == len(heal_release.SCAN_CONDITIONS) == 5
+    for checker in ("eval.py", "same_output.py", "image_gate.py"):
+        assert (HEAL_RELEASE.parent / checker).is_file()
+        assert any(checker in what for what in heal_release.SCAN_CONDITIONS.values())

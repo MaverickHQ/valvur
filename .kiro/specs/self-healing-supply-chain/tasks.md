@@ -1198,7 +1198,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   _Requirements: 13.3_
 
-- [ ] **R45.6** **An image patch is eligible only when nothing a scan depends on moved**
+- [x] **R45.6** **An image patch is eligible only when nothing a scan depends on moved**
   (D81aa, amendment 5).
   **Seam:** `heal_release.py`'s `main(["check", …])` on a repository made in `tmp_path`;
   `eval.compare`; `scripts/same_output.py`'s `main` with the container runtime faked, so
@@ -1223,6 +1223,26 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   **Added by the pass:** 8, from design.md's error table, and 13.
 
   _Requirements: 21.1, 21.2, 21.3, 21.7_
+
+  **STATUS 2026-11-22:** ✅ 1 to 13, in `scripts/heal_release.py check`, `scripts/eval.py
+  --exact` and `scripts/same_output.py`; 5 more tests in `tests/test_heal_release.py`, 5 in
+  `tests/test_eval_exact.py`, 7 in `tests/test_same_output.py`.
+  - **`check` holds what the repository alone can say:** the Dockerfile inside its envelope,
+    no Scanner's version moved (Checkov's in the lock included), and nothing newly accepted
+    in `.github/image-accepted.yaml`. The Score and the two images' output need a built
+    image, so the release run checks those two (R45.7).
+  - **`--exact` also fails a track that was not measured.** *Every track equals its
+    baseline* cannot be said of a track nobody ran.
+  - **`same_output.py` reuses R47's own judgement:** `scanner_upgrade.capture` and
+    `comparable`, for the six Scanners with a recipe. Gitleaks has none (R47.1) and is not
+    compared. A Scanner that gives no output from both images fails it too: two empty
+    reports are not evidence.
+  - **Measured on the dev machine,** on the day's data: `valvur:dev` against itself gives
+    one output from all six, in 60 s. So does `valvur:dev` at R44's head against the
+    published `ghcr.io/maverickhq/valvur:1.6.2`, in 59 s: the image with no compiler and 26
+    packages reports what 1.6.2 reports.
+  - **The five conditions** of design.md's list are `heal_release.SCAN_CONDITIONS`, each
+    with what checks it, and a test counts the two against each other.
 
 - [ ] **R45.7** 👤 **`release.yml` checks it again** (D81aa, amendment 5).
   **Seam:** `release.yml` as a file, read as R16.3's release constraint tests read it.

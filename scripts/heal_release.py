@@ -51,6 +51,17 @@ PATCH_CLASS = ("fix", "docs", "test", "chore", "ci", "build", "refactor", "perf"
 LOCK = "requirements-checkov.txt"
 DOCKERFILE = "Dockerfile"
 ACCEPTED = ".github/image-accepted.yaml"
+#: design.md's five conditions on an image patch (*Nothing a scan depends on has moved*),
+#: each with what checks it. The first two need a built image and a Score run, so the
+#: release run checks them; `check` holds the third and the fourth's second half; CI the last.
+SCAN_CONDITIONS = {
+    "the Score is exactly its baseline": "scripts/eval.py --compare … --exact",
+    "no Scanner's version moved": "heal_release.py check",
+    "each Scanner gives one output from both images": "scripts/same_output.py",
+    "the image gate blocks on nothing, and accepts nothing new": "scripts/image_gate.py, and "
+                                                                "heal_release.py check",
+    "two builds of the tree are one image": "ci.yml's `reproducible` job",
+}
 _SUBJECT = re.compile(r"([a-z]+)(\([^)]*\))?(!)?: \S")
 #: A heal commit's trailers (design.md, *Trailers*), the lock's and the image's.
 _TRAILER = re.compile(r"^Heal-(Pin|Raise|Drop|Base|Go|Advisory): (.+)$", re.M)
