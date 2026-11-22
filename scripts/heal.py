@@ -13,6 +13,10 @@ or above the fix, in the major version the lock holds, that is older than the co
 none that old, the lowest such release, when it is a day old and every one of its files is
 attested by the Trusted Publisher that attested the version it replaces.
 
+Each fix is then re-locked by the recipe itself, `scripts/lock-checkov.sh`, in a scratch copy.
+A package the resolution moves with it is a floor the fix forces: it is chosen by the same
+rule, among the versions that resolve, and pinned too.
+
 Standard library, and `valvur`'s own version ordering, so a pin and the report that asked
 for it agree on which version is higher. Exit 0 when the plan was written, whatever it holds;
 2 when an input could not be read.
@@ -23,7 +27,11 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -39,6 +47,10 @@ SCHEMA = 1
 COOLDOWN = timedelta(days=7)
 #: D81e: the least age of a version taken before the cooldown, on its publisher's word.
 YOUNG = timedelta(hours=24)
+LOCK = "requirements-checkov.txt"
+RECIPE = "scripts/lock-checkov.sh"
+#: What the recipe reads beside the lock it rewrites.
+RECIPE_READS = (RECIPE, "requirements-checkov.in", "requirements-checkov.overrides")
 
 _PINNED = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s\\;]+)", re.M)
 
@@ -64,22 +76,40 @@ def _at_lock(findings: list[dict], lock: str) -> list[dict]:
             and (f.get("dependency") or {}).get("package")]
 
 
-def _choose(project: str, have: str, floor: str, now: datetime) -> dict | str:
-    """The pin for one package, from PyPI's releases at or above `floor` in the major
-    version of `have`: the newest past the cooldown, else the lowest when the young rule
-    holds. Otherwise the reason it is escalated."""
-    releases = pypi_facts.releases(project)
-    offered = [r for r in releases
-               if version_key(r.version) >= version_key(floor)
-               and release_line(r.version) == release_line(have)]
+def relock(tree: Path, lock_text: str, pins: dict[str, str]) -> str | None:
+    """The lock the recipe writes from `lock_text` with each pin on `--upgrade-package`,
+    in a copy of the tree's recipe, so the tree is never written. None when the recipe
+    fails: the pins cannot be resolved together."""
+    with tempfile.TemporaryDirectory(prefix="valvur-heal-") as scratch:
+        copy = Path(scratch)
+        (copy / "scripts").mkdir()
+        for name in RECIPE_READS:
+            shutil.copy(tree / name, copy / name)
+        (copy / LOCK).write_text(lock_text, encoding="utf-8")
+        arguments = [word for name, version in sorted(pins.items())
+                     for word in ("--upgrade-package", f"{name}=={version}")]
+        run = subprocess.run(["sh", str(copy / RECIPE), *arguments],  # noqa: S603
+                             capture_output=True, text=True, check=False)
+        return (copy / LOCK).read_text(encoding="utf-8") if run.returncode == 0 else None
+
+
+def _choose(project: str, have: str, offered: list[pypi_facts.Release], now: datetime,
+            resolves: Callable[[str], bool] = lambda _version: True) -> dict | str:
+    """The pin for one package from the releases `offered`: the newest past the cooldown,
+    else the lowest that resolves, when the young rule holds for it. Otherwise the reason
+    the package is escalated."""
+    young = offered
     settled = [r for r in offered if now - _when(r.uploaded) >= COOLDOWN]
     if settled:
         best = max(settled, key=lambda r: version_key(r.version))
-        return {"to": best.version, "rule": "cooldown", "uploaded": best.uploaded}
-    if not offered:
-        return "major"
-    lowest = min(offered, key=lambda r: version_key(r.version))
-    replaced = next((r for r in releases if r.version == have), None)
+        if resolves(best.version):
+            return {"to": best.version, "rule": "cooldown", "uploaded": best.uploaded}
+        young = [r for r in offered if version_key(r.version) > version_key(best.version)]
+    lowest = next((r for r in sorted(young, key=lambda r: version_key(r.version))
+                   if resolves(r.version)), None)
+    if lowest is None:
+        return "resolution-failed"
+    replaced = next((r for r in pypi_facts.releases(project) if r.version == have), None)
     was = pypi_facts.publisher(project, replaced) if replaced else None
     old_enough = now - _when(lowest.uploaded) >= YOUNG
     if old_enough and was and pypi_facts.publisher(project, lowest) == was:
@@ -88,7 +118,40 @@ def _choose(project: str, have: str, floor: str, now: datetime) -> dict | str:
     return "young-unattested"
 
 
-def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
+def _in_major(project: str, have: str) -> list[pypi_facts.Release]:
+    return [r for r in pypi_facts.releases(project)
+            if release_line(r.version) == release_line(have)]
+
+
+def _with_its_floors(fix: dict, tree: Path, lock_text: str, have: dict[str, str],
+                     now: datetime) -> list[dict] | str:
+    """The fix's pin and one for each package the resolution moves with it, each chosen by
+    the same rule. Or the reason the fix cannot land by itself."""
+    pins = [fix]
+    for _ in range(len(have)):
+        asked = {pin["package"]: pin["to"] for pin in pins}
+        text = relock(tree, lock_text, asked)
+        if text is None:
+            return "resolution-failed"
+        after = locked(text)
+        moved = sorted(p for p in have if p in after and after[p] != have[p] and p not in asked)
+        if not moved:
+            return pins
+        package = moved[0]
+        above = [r for r in _in_major(package, have[package])
+                 if version_key(r.version) > version_key(have[package])]
+        chosen = _choose(
+            package, have[package], above, now,
+            lambda version, package=package, asked=asked:
+                relock(tree, lock_text, {**asked, package: version}) is not None)
+        if isinstance(chosen, str):
+            return chosen
+        pins.append({"package": package, "from": have[package],
+                     "why": f"floor of {fix['package']} {fix['to']}", **chosen})
+    return "resolution-failed"
+
+
+def plan(findings: list[dict], lock_text: str, *, lock: str, now: str, tree: Path) -> dict:
     at_lock = _at_lock(findings, lock)
     have = locked(lock_text)
     floors: dict[str, str] = {}
@@ -100,15 +163,25 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
         reported.setdefault(package, []).append(finding.get("fingerprint", ""))
         if fixed:
             floors[package] = max(floors.get(package, "0"), fixed, key=version_key)
-    pins, escalations = [], []
+    pins: dict[str, dict] = {}
+    escalations = []
     for package in sorted(reported):
-        chosen = (_choose(package, have[package], floors[package], _when(now))
-                  if package in floors else "no-fix")
+        chosen: dict | str | list[dict] = "no-fix"
+        if package in floors:
+            fixing = [r for r in _in_major(package, have[package])
+                      if version_key(r.version) >= version_key(floors[package])]
+            chosen = _choose(package, have[package], fixing, _when(now)) if fixing else "major"
+        if isinstance(chosen, dict):
+            fix = {"package": package, "from": have[package], "why": "fix", **chosen}
+            chosen = _with_its_floors(fix, tree, lock_text, have, _when(now))
         if isinstance(chosen, str):
             escalations.append({"package": package, "reason": chosen,
                                 "findings": sorted(reported[package])})
-        else:
-            pins.append({"package": package, "from": have[package], "why": "fix", **chosen})
+            continue
+        for pin in chosen:
+            held = pins.get(pin["package"])
+            if held is None or version_key(pin["to"]) > version_key(held["to"]):
+                pins[pin["package"]] = pin
     return {
         "schema": SCHEMA, "made": now, "lock": lock,
         "findings": [{"rule": f["rule"], "fingerprint": f.get("fingerprint", ""),
@@ -118,7 +191,7 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
                       "severity": f.get("severity", ""),
                       "advisory_published": f["dependency"].get("advisory_published", "")}
                      for f in at_lock],
-        "pins": pins, "escalations": escalations,
+        "pins": [pins[package] for package in sorted(pins)], "escalations": escalations,
     }
 
 
@@ -135,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         findings = json.loads(args.findings.read_text(encoding="utf-8"))["findings"]
         made = plan(findings, args.lock.read_text(encoding="utf-8"),
-                    lock=args.lock.name, now=args.now)
+                    lock=args.lock.name, now=args.now, tree=args.lock.resolve().parent)
     except (OSError, ValueError, KeyError, pypi_facts.Unreadable) as error:
         print(f"heal: {error}", file=sys.stderr)
         return 2
