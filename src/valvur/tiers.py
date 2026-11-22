@@ -19,6 +19,9 @@ from .findings import Finding
 
 PATH = Path(__file__).parent / "data" / "tiers.toml"
 EVERYWHERE = "everywhere"
+#: What a Finding's title gains when the table makes it inventory (Requirement 3.4): the
+#: reader of one Finding sees why it is not active. The sentence is a contract.
+WHY = {EVERYWHERE: "a rule under the bar on maintained code: listed for review"}
 
 
 @dataclass(frozen=True)
@@ -51,9 +54,17 @@ def rows() -> tuple[Row, ...]:
     return tuple(found)
 
 
+def row_for(finding: Finding) -> Row | None:
+    """The row that names this Finding's rule, if one does."""
+    return next((row for row in rows() if row.applies(finding)), None)
+
+
 def apply(findings: list[Finding]) -> list[Finding]:
-    """Each Finding, marked `inventory` where a row names its rule."""
-    table = rows()
-    return [replace(finding, inventory=True)
-            if any(row.applies(finding) for row in table) else finding
-            for finding in findings]
+    """Each Finding, made inventory where a row names its rule, with the reason in its
+    title."""
+    kept = []
+    for finding in findings:
+        row = row_for(finding)
+        kept.append(finding if row is None else replace(
+            finding, inventory=True, title=f"{finding.title}, {WHY[row.where]}"))
+    return kept

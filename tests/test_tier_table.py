@@ -87,3 +87,70 @@ def test_a_rule_with_no_row_is_active_as_before(workspace):
 
     assert "inventory" not in record and run.status == "findings"
     assert gate.evaluate(workspace, fail_on="medium").exit_code == 1
+
+
+def test_its_title_says_why_it_is_listed_for_review(workspace):
+    _run, [record] = _scan(workspace, "opengrep", ("valvur.python.weak-hash", "app/hashing.py"))
+
+    assert record["title"] == ("valvur.python.weak-hash found something, a rule under the bar "
+                               "on maintained code: listed for review")
+
+
+def test_the_summary_counts_it_as_listed_for_review_and_not_as_a_sink(workspace):
+    _scan(workspace, "opengrep", ("valvur.python.weak-hash", "app/hashing.py"),
+          ("valvur.python.weak-hash", "app/etag.py"))
+
+    summary = (workspace / RESULTS / "SUMMARY.md").read_text()
+    assert "**Listed for review:** 2" in summary and "Sinks to review" not in summary
+    assert ("_2 finding(s) listed for review: reported by a rule that is under the bar on "
+            "maintained code (`docs/RULES.md`), so more often wrong than right there. Not "
+            "active; `findings` with `inventory: true` lists them._") in " ".join(summary.split())
+
+
+def test_a_project_cannot_name_a_tier(workspace):
+    """A guard: the project file's schema, which `doctor` reads, refuses the key, and a
+    scan ignores it. An agent cannot make Findings go away, or come back, by editing a
+    tier: the table is package data."""
+    from valvur import project_schema, toml_input
+
+    text = '[[tier]]\nscanner = "opengrep"\nid = "valvur.python.weak-hash"\ntier = "active"\n'
+    (workspace / ".security-scan.toml").write_text(text)
+
+    run, [record] = _scan(workspace, "opengrep", ("valvur.python.weak-hash", "app/hashing.py"))
+
+    assert "`tier` is not a key it takes" in project_schema.problem(toml_input.loads(text))
+    assert record["inventory"] is True and run.status != "findings"
+
+
+def test_no_rule_is_named_both_in_the_table_and_by_its_own_file():
+    """The four sink rules keep `metadata.inventory` in their YAML (D47a). One home each."""
+    import re
+
+    from valvur import tiers
+
+    declared = set()
+    for path in (Path(__file__).resolve().parents[1] / "rules").rglob("*.yaml"):
+        for block in path.read_text().split("\n  - id: ")[1:]:
+            if re.search(r"^\s+inventory: true$", block, re.M):
+                declared.add(block.split("\n", 1)[0].strip())
+
+    assert len(declared) == 4
+    assert declared.intersection(row.id for row in tiers.rows()) == set()
+    assert len({(row.scanner, row.id) for row in tiers.rows()}) == len(tiers.rows())
+
+
+@pytest.mark.parametrize("scanner, rule, path", [
+    ("checkov", "CKV2_AWS_12", "infra/main.tf"),
+    ("zizmor", "cache-poisoning", ".github/workflows/publish.yml"),
+])
+def test_another_scanners_rule_under_the_bar_is_inventory_too(workspace, scanner, rule, path):
+    run, [record] = _scan(workspace, scanner, (rule, path))
+
+    assert record["inventory"] is True and run.status == "clean"
+    assert record["title"].endswith("a rule under the bar on maintained code: listed for review")
+
+
+def test_a_row_names_its_scanner_so_another_scanners_rule_of_that_name_is_active(workspace):
+    run, [record] = _scan(workspace, "trivy", ("cache-poisoning", "app/x.py"))
+
+    assert "inventory" not in record and run.status == "findings"

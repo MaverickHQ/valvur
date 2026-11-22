@@ -143,6 +143,42 @@ def from_corpus(findings_by_repo: dict[str, list[dict]],
     return tallies
 
 
+def under_the_bar(tp: int, fp: int) -> bool:
+    """D82d, ADR-0033: measured on the corpus, and fewer than half of it true."""
+    return tp + fp >= MEASURED_FROM and 2 * tp < tp + fp
+
+
+def corpus_counts(measured: dict) -> dict[tuple[str, str], tuple[int, int]]:
+    """(Scanner, rule) to its true and false counts on the corpus, for every rule
+    `rules-measured.json` holds: Opengrep's shipped ones and the others that fired."""
+    counts = {("opengrep", rule): (row["places"]["corpus"]["tp"], row["places"]["corpus"]["fp"])
+              for rule, row in measured.get("rules", {}).items() if "corpus" in row["places"]}
+    counts.update({(row["scanner"], row["rule"]): (row["corpus"]["tp"], row["corpus"]["fp"])
+                   for row in measured.get("others", [])})
+    return counts
+
+
+def tier_disagreements(rows, measured: dict) -> list[str]:
+    """Where the tier table and the measurement disagree (R49.2): a rule under the bar
+    with no row, a row whose counts are not the measurement's, and a row for a rule the
+    measurement does not have. `rows` are `valvur.tiers.rows()`."""
+    counts = corpus_counts(measured)
+    named = {(row.scanner, row.id): row for row in rows}
+    found = []
+    for (scanner, rule), (tp, fp) in counts.items():
+        row = named.get((scanner, rule))
+        if row is None and under_the_bar(tp, fp):
+            found.append(f"{scanner} {rule}: {tp} true of {tp + fp} on the corpus, under the "
+                         "bar, and has no row")
+        elif row is not None and (row.tp, row.fp) != (tp, fp):
+            found.append(f"{scanner} {rule}: its row says {row.tp} true and {row.fp} false, "
+                         f"and the measurement {tp} and {fp}")
+    found += [f"{scanner} {rule}: its row says {row.tp} true and {row.fp} false, and the "
+              "measurement has no such rule"
+              for (scanner, rule), row in named.items() if (scanner, rule) not in counts]
+    return sorted(found)
+
+
 def measure(places: dict[str, dict[str, Tally]], rules: dict[str, dict],
             rule_cwes: dict[str, set[int]]) -> dict[str, dict]:
     """Every shipped rule's row: its counts in each place, its totals and precision."""

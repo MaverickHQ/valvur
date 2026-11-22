@@ -13,3 +13,19 @@ tier = "inventory"
 where = "everywhere"
 corpus = { tp = 0, fp = 21 }
 reason = "On maintained code every use measured was a cache key, an ETag, a protocol's own SHA-1 or an HMAC."
+
+[[rule]]
+scanner = "checkov"
+id = "CKV2_AWS_12"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 0, fp = 12 }
+reason = "Every Finding measured was a module that does restrict the default security group, behind a count Checkov does not follow."
+
+[[rule]]
+scanner = "zizmor"
+id = "cache-poisoning"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 8, fp = 11 }
+reason = "Eleven of nineteen measured were a setup step with no cache configured, or a cache in a test job of a workflow that also publishes."

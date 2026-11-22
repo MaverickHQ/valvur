@@ -20,7 +20,7 @@ from . import agent_rules as _agent_rules
 from . import coverage as _coverage
 from . import datasets as _datasets
 from . import grouping as _grouping
-from . import hygiene, levers, verdict
+from . import hygiene, levers, tiers, verdict
 from . import profiles as _profiles
 from .findings import Status
 from .findings import exploit_badge as _exploit_badge
@@ -219,20 +219,28 @@ def _qualifiers(run: ScanRun, findings) -> list[str]:
 
 def _sinks(run: ScanRun) -> list:
     """The sink inventory (D47a): named for review, not findings by themselves."""
-    return [f for f in run.findings if verdict.inventory(f) and not f.suppressed]
+    return [f for f in run.findings if verdict.inventory(f) and not f.suppressed
+            and tiers.row_for(f) is None]
+
+
+def _listed(run: ScanRun) -> list:
+    """What the tier table made inventory (D82c): a rule under the bar on maintained code."""
+    return [f for f in run.findings if verdict.inventory(f) and not f.suppressed
+            and tiers.row_for(f) is not None]
 
 
 def _status(run: ScanRun, active, suppressed, notes) -> list[str]:
     """The Status and the counts, on two lines. "Findings: 4" for four accepted
     risks read exactly like four live problems; active is the number that means
     "there is work here" (task 19.C.1)."""
-    sinks = _sinks(run)
+    sinks, listed = _sinks(run), _listed(run)
     lines = [
         f"**Status:** {run.status}",
         f"**Active findings:** {len(active)}"
         + (f" · **suppressed:** {len(suppressed)}" if suppressed else "")
         + (f" · **not covered:** {len(notes)}" if notes else "")
         + (f" · **Sinks to review:** {len(sinks)}" if sinks else "")
+        + (f" · **Listed for review:** {len(listed)}" if listed else "")
         + (f" · **fixed since last run:** {len(run.fixed)}" if run.fixed else "")
         + (f" · **not re-checked:** {len(run.not_rechecked)}" if run.not_rechecked else "")
         + (f". {_counts(active)}" if active else ""),
@@ -250,6 +258,13 @@ def _status(run: ScanRun, active, suppressed, notes) -> list[str]:
             f"_{len(sinks)} sink(s) to review: places where code is executed or a query "
             "built from a value, named so a reviewer can check what reaches them. Not "
             "findings by themselves; `findings` with `inventory: true` lists them._",
+            "",
+        ]
+    if listed:
+        lines += [
+            f"_{len(listed)} finding(s) listed for review: reported by a rule that is under "
+            "the bar on maintained code (`docs/RULES.md`), so more often wrong than right "
+            "there. Not active; `findings` with `inventory: true` lists them._",
             "",
         ]
     return lines
