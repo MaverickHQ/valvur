@@ -13,6 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from fake_registry import FakePackageRegistry, pypi_answers
 
 REPO = Path(__file__).resolve().parent.parent
@@ -85,3 +86,34 @@ def test_a_young_fix_a_day_old_from_the_replaced_versions_publisher_is_pinned_as
                              "rule": "young-attested", "uploaded": "2026-10-19T06:00:00Z",
                              "publisher": PUBLISHER}]
     assert plan["escalations"] == []
+
+
+OTHER = {"kind": "GitHub", "repository": "someone-else/beta", "workflow": "release.yml"}
+
+
+@pytest.mark.parametrize("young", [
+    pytest.param({"uploaded": "2026-10-20T12:00:00Z", "publisher": PUBLISHER}, id="under-a-day"),
+    pytest.param({"uploaded": "2026-10-19T06:00:00Z"}, id="unattested"),
+    pytest.param({"uploaded": "2026-10-19T06:00:00Z", "publisher": OTHER}, id="another-publisher"),
+])
+def test_a_young_fix_that_fails_the_rule_is_escalated_and_not_pinned(tmp_path, monkeypatch, young):
+    projects = {"beta": {"1.0": {**OLD, "publisher": PUBLISHER}, "1.1": young}}
+
+    run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                      "beta==1.0 \\\n    --hash=sha256:00\n", projects)
+
+    assert run.returncode == 0, run.stderr
+    assert plan["pins"] == []
+    assert plan["escalations"] == [{"package": "beta", "reason": "young-unattested",
+                                    "findings": ["fp-CVE-2026-0001-beta"]}]
+
+
+def test_a_replaced_version_with_no_attestation_fails_the_rule(tmp_path, monkeypatch):
+    projects = {"beta": {"1.0": OLD,
+                         "1.1": {"uploaded": "2026-10-19T06:00:00Z", "publisher": PUBLISHER}}}
+
+    _run, plan = _plan(tmp_path, monkeypatch, [_finding("beta", "1.0", "1.1")],
+                       "beta==1.0 \\\n    --hash=sha256:00\n", projects)
+
+    assert plan["pins"] == []
+    assert [e["reason"] for e in plan["escalations"]] == ["young-unattested"]

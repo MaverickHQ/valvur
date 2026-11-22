@@ -64,42 +64,47 @@ def _at_lock(findings: list[dict], lock: str) -> list[dict]:
             and (f.get("dependency") or {}).get("package")]
 
 
-def _choose(project: str, have: str, floor: str, now: datetime) -> dict | None:
-    """The pin for one package, from PyPI's releases: at or above `floor`, in the major
-    version of `have`, and the newest of those past the cooldown."""
-    offered = [r for r in pypi_facts.releases(project)
+def _choose(project: str, have: str, floor: str, now: datetime) -> dict | str:
+    """The pin for one package, from PyPI's releases at or above `floor` in the major
+    version of `have`: the newest past the cooldown, else the lowest when the young rule
+    holds. Otherwise the reason it is escalated."""
+    releases = pypi_facts.releases(project)
+    offered = [r for r in releases
                if version_key(r.version) >= version_key(floor)
                and release_line(r.version) == release_line(have)]
     settled = [r for r in offered if now - _when(r.uploaded) >= COOLDOWN]
     if settled:
         best = max(settled, key=lambda r: version_key(r.version))
         return {"to": best.version, "rule": "cooldown", "uploaded": best.uploaded}
-    if not offered:
-        return None
     lowest = min(offered, key=lambda r: version_key(r.version))
-    replaced = next((r for r in pypi_facts.releases(project) if r.version == have), None)
+    replaced = next((r for r in releases if r.version == have), None)
     was = pypi_facts.publisher(project, replaced) if replaced else None
     old_enough = now - _when(lowest.uploaded) >= YOUNG
     if old_enough and was and pypi_facts.publisher(project, lowest) == was:
         return {"to": lowest.version, "rule": "young-attested", "uploaded": lowest.uploaded,
                 "publisher": was}
-    return None
+    return "young-unattested"
 
 
 def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
     at_lock = _at_lock(findings, lock)
     have = locked(lock_text)
     floors: dict[str, str] = {}
+    reported: dict[str, list[str]] = {}
     for finding in at_lock:
         dependency = finding["dependency"]
         fixed = dependency.get("fixed_version") or ""
         package = _name(dependency["package"])
+        reported.setdefault(package, []).append(finding.get("fingerprint", ""))
         if fixed:
             floors[package] = max(floors.get(package, "0"), fixed, key=version_key)
-    pins = []
+    pins, escalations = [], []
     for package in sorted(floors):
         chosen = _choose(package, have[package], floors[package], _when(now))
-        if chosen:
+        if isinstance(chosen, str):
+            escalations.append({"package": package, "reason": chosen,
+                                "findings": sorted(reported[package])})
+        else:
             pins.append({"package": package, "from": have[package], "why": "fix", **chosen})
     return {
         "schema": SCHEMA, "made": now, "lock": lock,
@@ -110,7 +115,7 @@ def plan(findings: list[dict], lock_text: str, *, lock: str, now: str) -> dict:
                       "severity": f.get("severity", ""),
                       "advisory_published": f["dependency"].get("advisory_published", "")}
                      for f in at_lock],
-        "pins": pins, "escalations": [],
+        "pins": pins, "escalations": escalations,
     }
 
 
