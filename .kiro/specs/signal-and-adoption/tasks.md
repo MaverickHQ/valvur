@@ -93,7 +93,7 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
 
 ### Phase R48: the measurement, for every rule and every Scanner
 
-- [ ] **R48.1** **Measure first, and this spec on the build's rails** (D82a, D82b, D82s).
+- [x] **R48.1** **Measure first, and this spec on the build's rails** (D82a, D82b, D82s).
   No test seam. Behaviours:
   1. **Record.** From one run of the eighth track on `main`:
      - Checkov's and zizmor's Findings on the corpus by rule, and how many labels D82b's
@@ -106,6 +106,28 @@ R48 the measurement ─► R49 the bar ─► 1.7.0
      ADR-0037, its Next line names this spec, and the file stays under 200 lines.
      *Check:* `scripts/build_status.py` names R48.2 as this list's next task once this one
      is ticked; `scripts/check_traceability.py` holds; the link check passes.
+
+  **STATUS 2026-11-22:** ✅ 1 and 2. The track was run on the dev machine at `f6882b2`, R46's
+  head, on `valvur:dev` `sha256:72606c26ab3b` and the day's data: 2.3, with 3 true and 168
+  false, in 499 s. On the owner's Mac it took 574 s on 2026-11-21.
+  - **Checkov:** 74 Findings in 10 rules, none over 25: CKV_DOCKER_2 14, CKV_DOCKER_3 14,
+    CKV_AWS_394 12, CKV2_AWS_12 12, CKV_AWS_338 8, CKV_TF_1 4, CKV2_AWS_5 4, CKV_DOCKER_4 2,
+    CKV_AWS_148 2, CKV_DOCKER_7 2. All 74 are labelled.
+  - **zizmor:** 702 Findings in 12 rules, four of them over 25: unpinned-uses 318,
+    excessive-permissions 207, artipacked 76, dependabot-cooldown 34, template-injection
+    20, cache-poisoning 19, dangerous-triggers 12, unpinned-images 7, secrets-inherit 5,
+    archived-uses 2, bot-conditions 1, github-env 1. D82b's rule asks for 167 labels.
+  - **So R48.3 writes 241 labels.** The two Scanners give 776 Findings together, over D82b's
+    fallback of 300, so the sample of 25 a rule stands.
+  - **The other Scanners there:** Trivy 1,240 and OSV-Scanner 1,254, counted and not
+    judged; Gitleaks 98 and Opengrep 115, judged by the track today.
+  - **One of the 172 labels matched no Finding:** `ripgrep`, `valvur.licence.mismatch` at
+    `Cargo.toml`. That is the 172 against the 171 judged. It is left as it is: R48.3's
+    guard is on a verdict that changes, not on a label with nothing to judge.
+  - **The rails:** the main list's §5, §6 and §8 hold D82's row, R48 to R52 and this list's
+    queue, and `CLAUDE.md` lists ADR-0033 to ADR-0037, at 200 lines (`21f42ed`).
+    `build_status.py` still names R44.6, the owner's, ahead of this list: R48 was cut from
+    R46's branch, since the phases stack, and not from `main` as §0 said.
 
 - [ ] **R48.2** **Counts for every judged rule, and for every Scanner** (D82a).
   **Seam:** `eval.run(["real-code-precision"], …, scan=, corpus=)` with a scan that writes
