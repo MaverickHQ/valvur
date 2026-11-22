@@ -28,11 +28,13 @@ def test_each_hash_locked_install_takes_wheels_alone():
         assert re.search(r"--only-binary[= ]:all:", step), step
 
 
-def test_the_build_adds_no_alpine_package_but_the_pinned_raises():
-    """`ALPINE_RAISE` holds each raise as `name=version` (`tests/test_alpine_raise.py`)."""
-    named = [word
-             for step in _run_steps()
-             for added in _ADDED.findall(step)
-             for word in added.split() if not word.startswith("-")]
+def test_the_build_fetches_no_alpine_package_but_the_pinned_raises():
+    """`ALPINE_RAISE` holds each raise as `name=version` (`tests/test_alpine_raise.py`).
+    The one other `apk add` names libraries the base already holds, with `--no-network`
+    (R44.11): it fetches nothing, so there is no version for it to take."""
+    fetched = [word
+               for step in _run_steps()
+               for added in _ADDED.findall(step) if "--no-network" not in added.split()
+               for word in added.split() if not word.startswith("-")]
 
-    assert named == ["${ALPINE_RAISE}"], named
+    assert fetched == ["${ALPINE_RAISE}"], fetched

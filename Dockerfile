@@ -192,7 +192,7 @@ LABEL org.valvur.protocol="2"
 # it. Before any other package is installed. `tests/test_alpine_raise.py` runs this step.
 # `--no-logfile`: Alpine 3.24's apk-tools 3 appends each call, with the time it ran, to
 # the base's `/var/log/apk.log`, the one file two builds of one tree then differed in.
-ARG ALPINE_RAISE="krb5-libs=1.22.3-r0 libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 zlib=1.4-r0"
+ARG ALPINE_RAISE="libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 zlib=1.4-r0"
 RUN set -eu; \
     for raise in ${ALPINE_RAISE}; do \
       name="${raise%%=*}"; \
@@ -204,6 +204,21 @@ RUN set -eu; \
     done; \
     apk add --no-logfile --no-cache ${ALPINE_RAISE}; \
     rm -f /var/cache/apk/*
+# Only the packages valvur loads (R44.11, D81ac). 22 of the 51 findings that 1.6.2 answered
+# were in krb5-libs, which the image held for one reason: CPython's `nis` module links
+# libtirpc and libnsl, and libtirpc links Kerberos. Nothing in the image imports `nis`
+# (measured: not Checkov, not valvur, not the standard library), and Python 3.13 removed it.
+# So the module goes, and with it the nine packages that hung from it. The base names its
+# libraries through one virtual package, `.python-rundeps`. The ones that stay are named
+# here instead, from what is already installed (`--no-network`), and the virtual is dropped.
+# A package's bytes remain in the base's layer; its files are gone from the image, which
+# is what the image gate reads. `.github/image-packages.txt` names what the image holds,
+# and `tests/test_image_packages.py` holds the image to it.
+RUN rm -f /usr/local/lib/python3.12/lib-dynload/nis.cpython-312-*.so \
+ && apk add --no-logfile --no-network gdbm libbz2 libcrypto3 libffi libncursesw libpanelw \
+        libssl3 libuuid readline sqlite-libs xz-libs zlib \
+ && apk del --no-logfile --no-network .python-rundeps \
+ && rm -f /var/cache/apk/*
 
 COPY --from=gitleaks /gitleaks               /usr/local/bin/gitleaks
 COPY --from=trivy    /trivy                   /usr/local/bin/trivy
