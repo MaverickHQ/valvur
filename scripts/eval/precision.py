@@ -94,50 +94,65 @@ class Precision:
         return round(100 * (self.tp + 1) / (self.tp + self.fp + 1), 1)
 
 
+def _listed(finding: dict) -> bool:
+    """In `findings.json` and not active: inventory, by its rule's file or the tier table.
+    Not a suppressed Finding, and not a fixed one."""
+    return bool(finding.get("inventory")) and not finding.get("suppressed") \
+        and finding.get("status") != "fixed"
+
+
 def judge(findings_by_repo: dict[str, list[dict]],
           labels: dict[tuple[str, str], tuple[str, str]],
           hygiene: dict[tuple[str, str], tuple[str, str]] | None = None) -> Precision:
+    """The track is about what is active. The measurement by rule is about the rule: a
+    Finding the tier table lists (R49.2) is not active, and its label still counts for its
+    rule in `by_rule` and `hygiene`, so the table can be held to the measurement. A listed
+    Finding with no label is passed over, as a sink is (D47a)."""
     result, others = Precision(), Counter[str]()
     theirs: dict[tuple[str, str], list[tuple[str, str, dict]]] = {}
     for repo, findings in sorted(findings_by_repo.items()):
         for finding in findings:
-            if not _active(finding):
+            active = _active(finding)
+            if not active and not _listed(finding):
                 continue
             if note(finding):
-                result.notes += 1
+                result.notes += active
                 continue
             scanner = str((finding.get("sources") or ["?"])[0])
             counted = result.by_scanner.setdefault(
                 scanner, {"findings": 0, "judged": 0, "tp": 0, "fp": 0})
-            counted["findings"] += 1
+            counted["findings"] += active
             if scanner in HYGIENE:
                 theirs.setdefault((scanner, str(finding.get("rule"))), []).append(
                     (str(finding.get("fingerprint")), repo, finding))
             if not owned(finding):
-                others.update([scanner])
+                if active:
+                    others.update([scanner])
                 continue
             label = labels.get((repo, str(finding.get("fingerprint"))))
             if label is None:
-                result.unlabelled.append(f"{repo}: {finding.get('rule')} at "
-                                         f"{finding.get('path')} ({finding.get('fingerprint')})")
+                if active:
+                    result.unlabelled.append(
+                        f"{repo}: {finding.get('rule')} at {finding.get('path')} "
+                        f"({finding.get('fingerprint')})")
                 continue
             verdict = label[0]
             counted["judged"] += 1
             counted[verdict] += 1
             result.by_rule.setdefault((scanner, str(finding.get("rule"))), [0, 0])[
                 VERDICTS.index(verdict)] += 1
-            if verdict == "tp":
-                result.tp += 1
-            else:
-                result.fp += 1
+            if active:
+                result.tp += verdict == "tp"
+                result.fp += verdict == "fp"
     for (scanner, rule), found in sorted(theirs.items()):
         row = {"scanner": scanner, "rule": rule, "findings": len(found), "judged": 0, "tp": 0,
                "fp": 0, "sampled": len(found) > SAMPLE}
         for fingerprint, repo, finding in sorted(found, key=lambda f: f[:2])[:SAMPLE]:
             label = (hygiene or {}).get((repo, fingerprint))
             if label is None:
-                result.hygiene_unlabelled.append(
-                    f"{repo}: {rule} at {finding.get('path')} ({fingerprint})")
+                if _active(finding):
+                    result.hygiene_unlabelled.append(
+                        f"{repo}: {rule} at {finding.get('path')} ({fingerprint})")
                 continue
             row["judged"] += 1
             row[label[0]] += 1

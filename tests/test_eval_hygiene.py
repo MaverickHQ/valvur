@@ -124,6 +124,32 @@ def test_a_verdict_that_differs_from_the_baselines_needs_a_reason(tmp_path, chan
     assert harness.precision.label_changes(path, {"flask c1": "tp", "flask gone": "fp"}) == expected
 
 
+def test_a_listed_findings_label_still_measures_its_rule_and_not_the_track(tmp_path):
+    """R49.2: the tier table makes a rule's Findings inventory, and the table is held to
+    the measurement. So the measurement goes on counting the rule's labelled Findings; the
+    track, which is about what is active, does not. By hand: 1 true of 1 active."""
+    found = {"flask": [_finding("a1", "valvur.python.weak-hash", "opengrep", inventory=True),
+                       _finding("a2", "valvur.python.sql-injection", "opengrep"),
+                       _finding("a3", "valvur.python.dangerous-exec", "opengrep", inventory=True),
+                       _finding("c1", "CKV2_AWS_12", "checkov", inventory=True)]}
+
+    _, result = _track(tmp_path, found, {("flask", "c1"): "fp"},
+                       {("flask", "a1"): "fp", ("flask", "a2"): "tp"})
+
+    track = result["tracks"]["real-code-precision"]
+    assert (track["score"], track["tp"], track["fp"]) == (100.0, 1, 0)
+    assert track["by_rule"] == [
+        {"scanner": "opengrep", "rule": "valvur.python.sql-injection", "tp": 1, "fp": 0},
+        {"scanner": "opengrep", "rule": "valvur.python.weak-hash", "tp": 0, "fp": 1}]
+    assert track["hygiene"] == [{"scanner": "checkov", "rule": "CKV2_AWS_12", "findings": 1,
+                                 "judged": 1, "tp": 0, "fp": 1, "sampled": False}]
+    # A sink has no label and needs none; what is active is one Finding of Opengrep's.
+    assert track["unlabelled"] == [] and track["hygiene_unlabelled"] == []
+    assert track["by_scanner"] == {
+        "checkov": {"findings": 0, "judged": 1, "tp": 0, "fp": 1},
+        "opengrep": {"findings": 1, "judged": 2, "tp": 1, "fp": 1}}
+
+
 def test_the_committed_labels_agree_with_the_committed_baseline():
     """The guard itself: a label bent to meet a target shows here, with no git history."""
     harness = _harness()
