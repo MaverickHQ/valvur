@@ -10,7 +10,9 @@ and says `eligible` only when both of these hold:
   `ci`, `build`, `refactor`, `perf` or `style`, with no `!` and no `BREAKING CHANGE`. A heal
   commit is a `fix`, and a Dependabot update squashed by its workflow is a `chore`. A
   feature or a breaking change makes the release minor or major, which is the owner's.
-- of the release machinery (`prepare_release.MACHINERY`), only the Checkov lock changed.
+- of the release machinery (`prepare_release.MACHINERY`), only the Checkov lock changed, or
+  the Dockerfile inside its envelope (`image_heal.py envelope`: R45.6, D81aa);
+- no Scanner's version moved, and the image gate accepts nothing the tag did not.
 
 Otherwise it prints `release-needs-owner:` and why, which the heal escalates under that
 reason. A release with no heal commit in it is not the heal's either.
@@ -38,12 +40,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import image_gate
+import image_heal
 import prepare_release
+import scanner_pins
 
 #: Requirement 9.2's types: none of them adds a feature.
 PATCH_CLASS = ("fix", "docs", "test", "chore", "ci", "build", "refactor", "perf", "style")
 #: The one piece of release machinery a security patch may have moved.
 LOCK = "requirements-checkov.txt"
+DOCKERFILE = "Dockerfile"
+ACCEPTED = ".github/image-accepted.yaml"
 _SUBJECT = re.compile(r"([a-z]+)(\([^)]*\))?(!)?: \S")
 #: A heal commit's trailers (design.md, *Trailers*), the lock's and the image's.
 _TRAILER = re.compile(r"^Heal-(Pin|Raise|Drop|Base|Go|Advisory): (.+)$", re.M)
@@ -100,11 +107,57 @@ def check(root: Path, since: str, until: str = "HEAD") -> tuple[bool, str]:
         return False, f"no heal commit since {since}: this is not the heal's release"
     changed = _git(root, "diff", "--name-only", since, until, "--",
                    *prepare_release.MACHINERY).split()
-    others = sorted(path for path in changed if path != LOCK)
+    others = sorted(path for path in changed if path not in (LOCK, DOCKERFILE))
     if others:
         return False, f"release machinery changed beside the Checkov lock: {', '.join(others)}"
+    moved = []
+    if DOCKERFILE in changed:
+        where = image_heal.differs_outside(_git(root, "show", f"{since}:{DOCKERFILE}"),
+                                           _git(root, "show", f"{until}:{DOCKERFILE}"))
+        if where:
+            return False, f"the {DOCKERFILE} {where}"
+        moved.append(f"the {DOCKERFILE}, inside its envelope")
+    if LOCK in changed:
+        moved.append(LOCK)
+    refused = _a_scanner_moved(root, since, until) or _newly_accepted(root, since, until)
+    if refused:
+        return False, refused
     return True, f"{len(made)} commits since {since}, all patch-class; machinery: " \
-                 f"{LOCK if changed else 'unchanged'}"
+                 f"{' and '.join(moved) or 'unchanged'}"
+
+
+def _a_scanner_moved(root: Path, since: str, until: str) -> str:
+    """Which Scanner's version differs between two commits, or "" (Requirement 21.3). A
+    new Scanner version changes what valvur reports, and that is never a security patch."""
+    try:
+        before = scanner_pins.pins(scanner_pins.at_ref(root, since))
+        after = scanner_pins.pins(scanner_pins.at_ref(root, until))
+    except (ValueError, subprocess.CalledProcessError) as error:
+        return f"a Scanner's pin could not be read: {error}"
+    for tool in sorted(before):
+        if before[tool] != after.get(tool):
+            return f"a Scanner's version moved: {tool} {before[tool]} to {after.get(tool)}"
+    return ""
+
+
+def _newly_accepted(root: Path, since: str, until: str) -> str:
+    """An entry `.github/image-accepted.yaml` holds at `until` and did not at `since`, or
+    "": an acceptance is the owner's judgement, and so is the release that first carries it."""
+    def held(ref: str) -> set[tuple[str, str]]:
+        shown = subprocess.run(["git", "-C", str(root), "show", f"{ref}:{ACCEPTED}"],  # noqa: S603
+                               capture_output=True, text=True, check=False)
+        if shown.returncode != 0:
+            return set()
+        return {(entry["id"], entry.get("package", ""))
+                for entry in image_gate.accepted_entries(shown.stdout)}
+    try:
+        new = sorted(held(until) - held(since))
+    except image_gate.Unreadable as error:
+        return f"{ACCEPTED} could not be read: {error}"
+    if new:
+        return ("the image gate accepts " + ", ".join(f"{vid} {package}" for vid, package in new)
+                + ", which the latest release did not")
+    return ""
 
 
 def _listed(words: list[str]) -> str:

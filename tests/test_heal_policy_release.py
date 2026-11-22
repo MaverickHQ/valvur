@@ -25,6 +25,8 @@ NOW, NEXT = f"{MAJOR}.{MINOR}.{PATCH}", f"{MAJOR}.{MINOR}.{PATCH + 1}"
 HEAL = ("fix: beta 1.1 in the Checkov lock, by the heal\n\nHeal-Pin: beta==1.1\n"
         "Heal-Advisory: CVE-2026-0001 beta published 2026-10-19T16:47:35Z\n"
         "Heal-Run: https://example.invalid/1\n")
+LOCK = ("beta==1.1 \\\n    --hash=sha256:00\n"
+        "checkov==3.3.29 \\\n    --hash=sha256:00\n")
 RELEASE = f"chore: release {NEXT}\n\nRelease-Date: 2026-11-22\nHeal-Run: https://example.invalid/2\n"
 
 
@@ -33,11 +35,13 @@ def base(tree):  # noqa: F811
     """The base branch: the last release's tag, and one heal commit since."""
     _git(tree, "config", "tag.gpgsign", "false")
     _git(tree, "config", "core.hooksPath", "/dev/null")
-    (tree / "requirements-checkov.txt").write_text("beta==1.0 \\\n    --hash=sha256:00\n")
+    (tree / "requirements-checkov.txt").write_text(LOCK.replace("beta==1.1", "beta==1.0"))
+    (tree / "requirements-zizmor.txt").write_text("zizmor==1.32.0 \\\n    --hash=sha256:00\n")
+    (tree / "Dockerfile").write_text((REPO / "Dockerfile").read_text())
     _git(tree, "add", "-A")
     _git(tree, "commit", "-q", "-m", f"chore: release {NOW}")
     _git(tree, "tag", f"v{NOW}")
-    (tree / "requirements-checkov.txt").write_text("beta==1.1 \\\n    --hash=sha256:00\n")
+    (tree / "requirements-checkov.txt").write_text(LOCK)
     _git(tree, "add", "-A")
     _git(tree, "commit", "-q", "-m", HEAL)
     return tree

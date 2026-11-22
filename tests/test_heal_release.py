@@ -22,7 +22,10 @@ HEAL = ("fix: beta 1.1 in the Checkov lock, by the heal\n\nHeal-Pin: beta==1.1\n
 
 
 LOCKED = {"requirements-checkov.txt": "alpha==2.0 \\\n    --hash=sha256:00\n"
-                                      "beta==1.1 \\\n    --hash=sha256:00\n"}
+                                      "beta==1.1 \\\n    --hash=sha256:00\n"
+                                      "checkov==3.3.29 \\\n    --hash=sha256:00\n"}
+#: The real Dockerfile: its pins are what `check` reads, and its envelope what it allows.
+DOCKERFILE = (REPO / "Dockerfile").read_text()
 
 
 def _git(root: Path, *args: str) -> str:
@@ -39,10 +42,11 @@ def repo(tmp_path):
                        ("commit.gpgsign", "false"), ("tag.gpgsign", "false"),
                        ("core.hooksPath", "/dev/null")):
         _git(root, "config", key, value)
-    (root / "requirements-checkov.txt").write_text("alpha==2.0 \\\n    --hash=sha256:00\n"
-                                                   "beta==1.0 \\\n    --hash=sha256:00\n")
+    (root / "requirements-checkov.txt").write_text(LOCKED["requirements-checkov.txt"]
+                                                   .replace("beta==1.1", "beta==1.0"))
+    (root / "requirements-zizmor.txt").write_text("zizmor==1.32.0 \\\n    --hash=sha256:00\n")
     (root / "pyproject.toml").write_text('[project]\nname = "valvur"\nversion = "1.0.0"\n')
-    (root / "Dockerfile").write_text("FROM scratch\n")
+    (root / "Dockerfile").write_text(DOCKERFILE)
     (root / "app.py").write_text("print(1)\n")
     _git(root, "add", "-A")
     _git(root, "commit", "-q", "-m", "chore: release 1.0.0")
@@ -220,3 +224,63 @@ def test_verify_refuses_history_that_check_refuses_and_a_tag_that_lies(repo):
 
     assert feature.returncode == 1 and "feat" in feature.stdout
     assert lying.returncode == 1 and "declares 1.0.1" in lying.stdout
+
+
+def _dockerfile(repo: Path, edit) -> None:
+    _commit(repo, "fix: the image, by the heal\n\nHeal-Raise: ALPINE_RAISE tzdata=2026b-r0\n",
+            Dockerfile=edit(DOCKERFILE))
+
+
+def test_a_dockerfile_changed_only_inside_its_envelope_is_eligible(repo):
+    held = next(line for line in DOCKERFILE.splitlines() if line.startswith("ARG ALPINE_RAISE="))
+    _dockerfile(repo, lambda d: d.replace(held, held[:-1] + ' tzdata=2026b-r0"'))
+
+    run = _check(repo)
+
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "Dockerfile, inside its envelope" in run.stdout
+
+
+@pytest.mark.parametrize("edit, names", [
+    pytest.param(lambda d: d + "RUN echo one more step\n", "outside the envelope at line",
+                 id="a-step"),
+    pytest.param(lambda d: d.replace("USER 10001:10001", "USER 0:0"),
+                 "outside the envelope at line", id="the-user"),
+])
+def test_any_other_difference_in_the_dockerfile_is_release_needs_owner(repo, edit, names):
+    _dockerfile(repo, edit)
+
+    run = _check(repo)
+
+    assert run.returncode == 1 and names in run.stdout
+
+
+def test_a_scanner_whose_version_moved_is_release_needs_owner(repo):
+    version = next(line for line in DOCKERFILE.splitlines()
+                   if line.startswith("ARG TRIVY_VERSION="))
+    moved = version.rsplit(".", 1)[0] + ".999"
+    _dockerfile(repo, lambda d: d.replace(version, moved))
+    in_the_lock = dict(LOCKED)
+    in_the_lock["requirements-checkov.txt"] = in_the_lock["requirements-checkov.txt"].replace(
+        "checkov==3.3.29", "checkov==3.3.30")
+
+    outside = _check(repo)
+    _git(repo, "reset", "-q", "--hard", "v1.0.0")
+    _commit(repo, HEAL, **in_the_lock)
+    checkov = _check(repo)
+
+    assert outside.returncode == 1 and "outside the envelope" in outside.stdout
+    assert checkov.returncode == 1
+    assert "a Scanner's version moved: checkov 3.3.29 to 3.3.30" in checkov.stdout
+
+
+def test_an_entry_the_image_gate_newly_accepts_is_release_needs_owner(repo):
+    accepted = ("accepted:\n  - id: CVE-2026-0099\n    package: busybox\n"
+                "    expires: 2026-12-31\n    reason: no fix yet\n")
+    _commit(repo, HEAL, **LOCKED)
+    _commit(repo, "chore: one finding accepted", **{".github__image-accepted.yaml": accepted})
+
+    run = _check(repo)
+
+    assert run.returncode == 1
+    assert "the image gate accepts CVE-2026-0099 busybox" in run.stdout
