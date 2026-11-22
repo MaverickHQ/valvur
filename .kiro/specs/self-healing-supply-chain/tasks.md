@@ -1284,7 +1284,7 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
 
   The link check reads every new document.
 
-- [ ] **R46.3** **The weekly session, on the escalations and watched** (D81z, amendment 5).
+- [x] **R46.3** **The weekly session, on the escalations and watched** (D81z, amendment 5).
   **Seam:** `docs/MAINTENANCE.md`'s prompt, read as `tests/test_maintenance_routine.py`
   reads it; `watchdog.watch`, with GitHub faked in `tests/fake_github.py` and `now` passed
   in, as its own tests drive it. Behaviours:
@@ -1308,6 +1308,25 @@ R46 time to heal, the documents ◄── R45 security patches release ◄──
   have silenced the watchdog.
 
   _Requirements: 20.4, 24.1, 24.2, 24.3_
+
+  **STATUS 2026-11-22:** ✅ 1 to 8, in `docs/MAINTENANCE.md`, `scripts/watchdog.py
+  --maintenance` and `watchdog.yml`; 13 tests in `tests/test_watchdog_maintenance.py`, 4 in
+  `tests/test_maintenance_record.py`. Ticked with 9 recorded as waiting: `heal.yml` does not
+  exist until R44.6, and the watchdog reads every workflow that has a schedule, so the
+  guard is written with the file.
+  - **The week judged** is this one from Thursday 12:00 UTC, and the one before until then,
+    so a week in progress is never judged and every run judges exactly one.
+  - **Whose marks count:** a pull request titled `chore: maintenance, …` whose head is this
+    repository and whose author is the owner, a member or a collaborator; or a comment
+    naming the week, by one of those, on a record issue that one of those opened. The
+    watchdog's own issue is opened once and said nothing more of, and any such issue is
+    closed when its week gains a mark.
+  - **The routine keeps its own copy of the prompt,** so the two new paragraphs reach it
+    only when the owner updates the routine (§3). Until then a week in which it finds
+    nothing to fix leaves no mark, and the watchdog will say so each Friday.
+  - **`watchdog.yml`** gains the flag and no grant. Whether its token may list a public
+    repository's pull requests with `pull-requests` unset is proved by a dry-run dispatch
+    on this branch, recorded with R46's exit.
 
 ### Phase R47: Scanner upgrades that prepare themselves
 
@@ -1482,7 +1501,7 @@ R42.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | allow `hub.docker.com` for the build | **allowed 2026-10-25** | the owner, 2026-10-25: the build may read `hub.docker.com`. The product still names neither it nor any other new host |
 | R47's workflow | when reached, if auto mode refused | R47.4, in a session in manual approve mode, from its STATUS |
 | make the image gate required for pull requests | before R44.14's proof | add the image gate's two checks to `main`'s required checks, so a heal's image pull request cannot merge on a red gate (Requirement 19.9) |
-| the weekly record's issue | R46.3 | open *maintenance: the weekly record* once, and let the routine's connector comment on issues |
+| the weekly record's issue, and the routine's prompt | **ready** (R46.3, 2026-11-22) | open *maintenance: the weekly record* once; let the routine's connector comment on issues; paste `docs/MAINTENANCE.md`'s prompt into the routine, which keeps its own copy |
 | amendment 5's owner-session tasks | when reached, if auto mode refused | R44.14 and R45.7, in a session in manual approve mode, from each task's STATUS |
 
 ---

@@ -22,6 +22,8 @@ class FakeGitHub:
         #: workflow file → runs, newest first, as the Actions API lists them.
         self.runs: dict[str, list[dict]] = {}
         self.issues: list[dict] = []
+        #: The repository's pull requests, as the Pulls API lists them (R46.3).
+        self.pulls: list[dict] = []
         self.writes: list[tuple[str, str, dict]] = []
         self.reads: list[str] = []
         self.authorizations: list[str | None] = []
@@ -43,9 +45,9 @@ class FakeGitHub:
         self._server.shutdown()
         self._server.server_close()
 
-    def issue(self, title: str, *, state: str = "open") -> dict:
+    def issue(self, title: str, *, state: str = "open", **more) -> dict:
         issue = {"number": len(self.issues) + 1, "title": title, "state": state,
-                 "comments": []}
+                 "comments": [], **more}
         self.issues.append(issue)
         return issue
 
@@ -93,8 +95,11 @@ def _handler(github: FakeGitHub):
                 parts = url.path.removeprefix(f"{prefix}/issues/").split("/")
                 issue = github.issues[int(parts[0]) - 1]
                 if parts[1:] == ["comments"]:
-                    return self._send(200, [{"body": c} for c in issue["comments"]])
+                    return self._send(200, [c if isinstance(c, dict) else {"body": c}
+                                            for c in issue["comments"]])
                 return self._send(200, issue)
+            if url.path == f"{prefix}/pulls":
+                return self._send(200, github.pulls)
             if url.path == f"{prefix}/issues":
                 state = query.get("state", ["open"])[0]
                 return self._send(200, [i for i in github.issues

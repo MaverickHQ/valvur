@@ -55,6 +55,13 @@ COOLDOWN_DAYS = 7
 #: A Scanner with no release in this long may have stopped (D81s).
 LIVENESS_DAYS = 180
 LIVENESS = "watchdog: {} liveness"
+#: The weekly maintenance session's issue, the two marks a week of it leaves, how long
+#: after Monday 00:00 UTC a week is due one (Thursday 12:00), and whose marks count.
+MAINTENANCE = "watchdog: weekly maintenance, {}"
+MAINTENANCE_PULL = "chore: maintenance, "
+RECORD = "maintenance: the weekly record"
+MAINTENANCE_DUE = timedelta(days=3, hours=12)
+OWNERS = ("OWNER", "MEMBER", "COLLABORATOR")
 #: Each Scanner by its project's name, and where it publishes its releases.
 UPSTREAM = {"gitleaks": ("Gitleaks", "gitleaks/gitleaks"),
             "trivy": ("Trivy", "aquasecurity/trivy"),
@@ -151,7 +158,7 @@ def judge(crons: list[str], runs: list[dict], now: datetime) -> tuple[str, str] 
 
 class GitHub:
     def __init__(self, api: str, repo: str, token: str | None):
-        self.api, self.token = api.rstrip("/"), token
+        self.api, self.token, self.repo = api.rstrip("/"), token, repo
         self.base = f"{self.api}/repos/{repo}"
         # An opener rather than `urlopen`: the same request for every method.
         self._opener = urllib.request.build_opener()
@@ -372,6 +379,75 @@ def watch_scanners(github: GitHub, root: Path, now: datetime, *, dry_run: bool,
                                  toolchains=toolchains, supported=supported)
 
 
+def _week(day: datetime) -> tuple[str, datetime, datetime]:
+    """An ISO week as its name, `2026-W47`, with its first moment and its last."""
+    year, number, weekday = day.isocalendar()
+    monday = (day - timedelta(days=weekday - 1)).replace(hour=0, minute=0, second=0,
+                                                         microsecond=0)
+    return f"{year}-W{number:02d}", monday, monday + timedelta(days=7)
+
+
+def _marked(github: GitHub, issues: list[dict], week: str, start: datetime,
+            end: datetime) -> str:
+    """The mark the maintenance session left in a week, or "". Only the owner's count: a
+    pull request under the routine's title from this repository, or a comment naming the
+    week on the owner's own record issue. The repository is public, and anyone can write
+    the other kinds."""
+    for pull in github.call("GET", "/pulls?state=all&sort=created&direction=desc&per_page=100"):
+        if (str(pull.get("title", "")).startswith(MAINTENANCE_PULL)
+                and pull.get("author_association") in OWNERS
+                and ((pull.get("head") or {}).get("repo") or {}).get("full_name") == github.repo
+                and start <= _when(pull["created_at"]) < end):
+            return f"pull request #{pull['number']}"
+    for issue in issues:
+        if issue["title"] == RECORD and issue.get("author_association") in OWNERS:
+            for comment in github.call("GET", f"/issues/{issue['number']}/comments?per_page=100"):
+                if (comment.get("author_association") in OWNERS
+                        and week in str(comment.get("body", ""))):
+                    return f"the record on #{issue['number']}"
+    return ""
+
+
+def watch_maintenance(github: GitHub, now: datetime, *, dry_run: bool) -> list[str]:
+    """The weekly maintenance session, watched (R46.3, Requirement 24). The week judged is
+    this one from Thursday 12:00 UTC, six hours after the session starts, and the one
+    before until then: a week still in progress is never judged. A week with no mark
+    keeps one issue, opened once and said nothing more of. Any such issue whose week has
+    since been marked is closed, naming the mark."""
+    issues = [i for i in github.call("GET", "/issues?state=open&per_page=100")
+              if "pull_request" not in i]
+    _name, monday, _end = _week(now)
+    judged = now if now >= monday + MAINTENANCE_DUE else monday - timedelta(days=1)
+    week, start, end = _week(judged)
+    done = []
+    open_by_title = {i["title"]: i["number"] for i in issues}
+    for title, number in sorted(open_by_title.items()):
+        named = re.fullmatch(MAINTENANCE.format(r"(\d{4})-W(\d{2})"), title)
+        if not named:
+            continue
+        monday_of = datetime.fromisocalendar(int(named.group(1)), int(named.group(2)), 1)
+        its = _week(monday_of.replace(tzinfo=UTC))
+        mark = _marked(github, issues, *its)
+        if mark:
+            done.append(f"would close: {title}" if dry_run else f"closed: {title}")
+            if not dry_run:
+                github.call("POST", f"/issues/{number}/comments",
+                            {"body": f"{its[0]} has its mark: {mark}."})
+                github.call("PATCH", f"/issues/{number}", {"state": "closed"})
+    title = MAINTENANCE.format(week)
+    if title not in open_by_title and not _marked(github, issues, week, start, end):
+        done.append(f"would open: {title}" if dry_run else f"opened: {title}")
+        if not dry_run:
+            github.call("POST", "/issues", {"title": title, "body": (
+                f"The weekly maintenance session left no mark for {week}: no pull request "
+                f"titled `{MAINTENANCE_PULL}…` from this repository, and no comment naming "
+                f"the week on the issue *{RECORD}*.\n\nSeen by the watchdog on "
+                f"{now:%Y-%m-%d %H:%M} UTC. The session may have stopped without failing "
+                "(a usage limit, a lost connector). Run it, or write the record; either "
+                "closes this issue.")})
+    return done
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True)
@@ -383,6 +459,8 @@ def main(argv: list[str] | None = None) -> int:
                                        "judges watchdog.yml")
     parser.add_argument("--scanners", action="store_true",
                         help="also watch the Scanners Dependabot cannot follow")
+    parser.add_argument("--maintenance", action="store_true",
+                        help="also watch the weekly maintenance session")
     parser.add_argument("--root", type=Path, default=REPO,
                         help="the tree whose pins are read (default: this one)")
     parser.add_argument("--toolchains", type=Path, metavar="FILE",
@@ -395,6 +473,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         github = GitHub(args.api, args.repo, token)
         done = watch(github, args.workflows, now, dry_run=args.dry_run, only=args.only)
+        if args.maintenance and args.only is None:
+            done += watch_maintenance(github, now, dry_run=args.dry_run)
         if args.scanners and args.only is None:
             toolchains = (json.loads(args.toolchains.read_text())
                           if args.toolchains else None)
