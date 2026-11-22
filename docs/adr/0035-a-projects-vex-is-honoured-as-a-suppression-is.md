@@ -1,6 +1,7 @@
 # ADR-0035 — A project's own VEX statements are honoured as a Suppression is
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint B; from D82m in
+**Status:** accepted 2026-11-22 by the owner, at checkpoint B, as proposed on
+2026-11-21; from D82m in
 [the signal-and-adoption design](../../.kiro/specs/signal-and-adoption/design.md).
 Requirements F8.1, F8.3 and F8.7.
 
@@ -26,8 +27,8 @@ and it has no expiry field. A Suppression must have one (F8.3), and valvur never
    author and its timestamp. Never hidden.
 5. **A statement that matches nothing is reported at `low`,** and does not fail the gate at
    every threshold as a stale Suppression does. A VEX document is written for a product's
-   consumers and names versions the tree no longer holds. This narrows the approved
-   requirement, which says *as an unused Suppression is*.
+   consumers and names versions the tree no longer holds. The requirement said *as an
+   unused Suppression is* until this ADR amended it.
 6. **valvur writes no VEX statement about a Workspace,** and prints none. The skill's rule on
    Suppressions names `[[vex]]`.
 

@@ -2,7 +2,8 @@
 
 **Status:** approved by the owner on 2026-11-21 (checkpoint A, all seven points of #302 as
 recommended); corrected the same day from the design's measurements, each correction marked
-*Corrected* or *Design finding* below, for the owner's checkpoint B · **Phases:** R48 to R52,
+*Corrected* below; criteria 1.2, 5.1 and 10.4 amended on 2026-11-22, when the owner accepted
+ADR-0033 to ADR-0037 as proposed (checkpoint B), each marked *Amended* · **Phases:** R48 to R52,
 in [tasks.md](tasks.md) · **Decisions:** D82, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses
@@ -93,9 +94,12 @@ first and which to doubt.
 
 1. WHEN the eighth track runs THEN its report SHALL record, for each rule that fired on the
    corpus, its true and false counts, and for each Scanner the number of Findings it gave.
-2. Checkov's and zizmor's Findings on the corpus SHALL be labelled and judged as the others
-   are. The dependency Scanners' SHALL be counted and not judged: an advisory against a
-   pinned version is true by its identity (`CLAUDE.md` §8).
+2. Checkov's and zizmor's Findings on the corpus SHALL be labelled and judged by rule, in a
+   table of their own and not pooled into the track. A rule with more than 25 Findings there
+   SHALL be judged on 25 of them, chosen by a rule a reader can repeat, and marked as
+   sampled. The dependency Scanners' SHALL be counted and not judged: an advisory against a
+   pinned version is true by its identity (`CLAUDE.md` §8). (*Amended 2026-11-22, checkpoint
+   B, ADR-0033 item 7:* this said *judged as the others are*.)
 3. `docs/RULES.md` SHALL give each rule's counts on maintained code apart from its counts on
    the planted tracks, and SHALL be generated from the measurement, as it is today.
 4. A judged Finding with no label SHALL fail the track, as it does today.
@@ -161,12 +165,12 @@ trustworthy, so that later changes cannot quietly undo it.
 
 #### Acceptance Criteria
 
-1. WHEN Requirements 2 to 4 are built THEN at least half of the active Findings on the
-   corpus SHALL be true: a track score of 50 or more. The owner confirmed this number at
-   checkpoint A. *Design finding, 2026-11-21 (D82h):* with 3 true Findings in the corpus,
-   50 needs at most 4 false ones left active, and 7 would remain from rules with one to three
-   Findings there, which no honest bar demotes. The design proposes 33 with a second measure, the
-   number of false active Findings, and the owner decides at checkpoint B which stands.
+1. WHEN Requirements 2 to 4 are built THEN the eighth track SHALL score 33 or more, with at
+   most 8 false active Findings on the corpus, and the report SHALL give that count beside
+   the score. (*Amended 2026-11-22, checkpoint B, ADR-0033 item 8:* this said a score of 50
+   or more, which the owner confirmed at checkpoint A. With 3 true Findings in the corpus,
+   50 needs at most 4 false ones left active, and 7 remain from rules with one to three
+   Findings there, which no honest bar demotes.)
 2. The corpus SHALL keep its 48 projects, at the commits they are pinned to. Its labels
    SHALL NOT be changed to meet the target, and a test SHALL refuse a label whose verdict
    changed without a reason recorded beside it.
@@ -269,7 +273,10 @@ my VEX statement, so that I record the assessment once, in the format my consume
    show the document's author and timestamp with it. The design SHALL say how an OpenVEX
    document carries the expiry. (*Corrected 2026-11-21:* this said a Suppression needs an
    author. It needs a fingerprint, a rule, a path, a reason and an expiry.)
-4. A statement that matches no Finding SHALL be reported, as an unused Suppression is.
+4. A statement that matches no Finding SHALL be reported, at `low`, and SHALL NOT fail the
+   gate at every threshold as an unused Suppression does. (*Amended 2026-11-22, checkpoint
+   B, ADR-0035 item 5:* this said *as an unused Suppression is*. A VEX document is written
+   for a product's consumers and names versions the tree no longer holds.)
 5. valvur SHALL NOT write, generate or propose a VEX statement about the Workspace
    (`CLAUDE.md` §4).
 
@@ -368,7 +375,7 @@ cites it.
 | 1.1 | | R48.2 |
 | 1.2, 1.4, 5.2 | | R48.3 |
 | 1.3, 2.3 | | R48.4 |
-| 2.1, 2.2, 2.4, 3.4 | | R49.2, R49.3 |
+| 2.1, 2.2, 2.4, 3.4 | | R49.2, R49.3, R49.8 |
 | 3.1 to 3.5 | | R49.4 |
 | 4.1, 4.2, 4.4 | | R49.1, R49.3, R49.5 |
 | 4.3 | | R49.6 |

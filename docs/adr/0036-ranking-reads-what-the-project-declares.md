@@ -1,6 +1,7 @@
 # ADR-0036 — Ranking reads what the project declares, and one dependency Finding lists its lockfiles
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint B; from D82n in
+**Status:** accepted 2026-11-22 by the owner, at checkpoint B, as proposed on
+2026-11-21; from D82n in
 [the signal-and-adoption design](../../.kiro/specs/signal-and-adoption/design.md).
 Requirements F6.5, F7.14 and F5.3.
 

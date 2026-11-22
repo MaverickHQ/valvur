@@ -1,6 +1,7 @@
 # ADR-0033 — A bar on maintained code decides which rules count toward the verdict
 
-**Status:** proposed 2026-11-21, for the owner's checkpoint B; from D82a to D82h in
+**Status:** accepted 2026-11-22 by the owner, at checkpoint B, as proposed on
+2026-11-21; from D82a to D82h in
 [the signal-and-adoption design](../../.kiro/specs/signal-and-adoption/design.md).
 Requirements N4.1 and N4.2. Amends ADR-0029 and ADR-0026.
 
@@ -41,7 +42,7 @@ Only Opengrep's adapter can use it today, from a rule's own YAML.
 7. **The eighth track keeps its population.** Checkov's and zizmor's Findings on the corpus
    are judged by rule in a table of their own, and are not pooled into the track.
 8. **The eighth track's target is 33, with at most 8 false active Findings on the corpus.**
-   The approved requirement says 50. With 3 true Findings in the corpus, 50 needs at most 4
+   The requirement said 50 until this ADR amended it. With 3 true Findings in the corpus, 50 needs at most 4
    false ones left active, and 7 remain from rules with one to three Findings there, which
    item 1 does not measure.
 

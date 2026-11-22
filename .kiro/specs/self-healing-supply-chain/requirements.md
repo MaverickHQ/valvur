@@ -1,6 +1,6 @@
 # The self-healing supply chain: requirements
 
-**Status:** proposed 2026-10-21; approved in halves 2026-10-24, R42 and R43 first; amendment 5 (Requirements 19 to 24) approved 2026-11-21, with two corrections from its design marked *Corrected* · **Phases:** R42 to R47, in
+**Status:** proposed 2026-10-21; approved in halves 2026-10-24, R42 and R43 first; amendment 5 (Requirements 19 to 24) approved 2026-11-21, with two corrections from its design marked *Corrected*, both accepted with D81x to D81ac on 2026-11-22 (checkpoint B) · **Phases:** R42 to R47, in
 [tasks.md](tasks.md) · **Decisions:** D81, in [design.md](design.md)
 
 This spec extends [the main spec](../valvur/requirements.md) and uses
