@@ -1,0 +1,124 @@
+# What DefectDojo and Dependency-Track keep of valvur's output, measured (R51.5, D82p,
+# Requirement 9). It scans the test fixture with the image built from this tree, starts each
+# tool from its published images, sends `results.sarif` to the one and `sbom.cdx.json` to
+# the other through the tool's own API, as a user's pipeline would, and reads back what
+# arrived. `scripts/imports_measure.py` writes the report; `docs/acceptance/r51.md` records
+# the numbers the two guides cite.
+#
+# On dispatch only: it is a measurement, run when the artifacts or a tool's version change.
+# It holds no secret and is granted nothing beyond reading the repository. Each tool lives
+# for the job, on the runner's localhost, with keys made in the job. Every image is pinned by
+# digest in `.github/imports/`. valvur itself uploads nothing, here or anywhere.
+name: imports
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: imports
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: both imports, read back through each tool's own API
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - id: version
+        uses: ./.github/actions/version
+      - name: Build the image from this tree
+        env:
+          VER: ${{ steps.version.outputs.version }}
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            VALVUR_VERSION="$VER" docker buildx bake dev \
+              --set '*.cache-from=type=gha' --set '*.cache-to=type=gha,mode=max'
+      - run: uv venv --python 3.12
+      - run: uv sync --extra dev --locked
+
+      - name: Scan the fixture, and ask for its SBOM
+        env:
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          uv run valvur update
+          # A copy, with the fixture's manifests under their real names (R27.2).
+          python3 scripts/fixtures.py broken-repo "$RUNNER_TEMP/broken-repo"
+          # And the two things a real project sends that the fixture does not have: a risk
+          # it accepted, and an ignore of its own that valvur did not accept, which stays a
+          # live finding. An importer that hides the second hides a vulnerability.
+          cat > "$RUNNER_TEMP/broken-repo/.security-scan.toml" <<'TOML'
+          [[suppress]]
+          fingerprint = "baf619f9c1e3b2bb671ea0479a5f941e"
+          rule = "CVE-2023-4863"
+          path = "requirements.txt"
+          expires = 2027-11-23
+          reason = "Measured: an accepted risk, to see how an importer shows one."
+          TOML
+          echo "CVE-2022-46175" > "$RUNNER_TEMP/broken-repo/.trivyignore"
+          # A scan that worked exits zero whatever it found, and the fixture is all findings.
+          uv run valvur scan "$RUNNER_TEMP/broken-repo" --profile offline --sbom
+          ls -l "$RUNNER_TEMP/broken-repo/.security-scan"
+
+      - name: Make DefectDojo's two keys for this run
+        # Every later `docker compose` on its file reads them. Random, used by nothing
+        # outside this job, and gone with the runner.
+        run: |
+          echo "DD_SECRET_KEY=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          echo "DD_CREDENTIAL_AES_256_KEY=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+
+      - name: Start DefectDojo and Dependency-Track
+        run: |
+          set -o pipefail
+          docker compose -f .github/imports/defectdojo.compose.yml up -d --quiet-pull
+          docker compose -f .github/imports/dependency-track.compose.yml up -d --quiet-pull
+          # DefectDojo's initializer prints the password it gave its admin.
+          docker compose -f .github/imports/defectdojo.compose.yml logs initializer \
+            | sed -n 's/.*Admin password: //p' | tail -1 > "$RUNNER_TEMP/defectdojo-password"
+          test -s "$RUNNER_TEMP/defectdojo-password"
+          openssl rand -hex 16 > "$RUNNER_TEMP/dependency-track-password"
+          for url in http://localhost:8080/api/v2/oa3/schema/ http://localhost:8081/api/version; do
+            for _ in $(seq 60); do
+              curl -fsS -o /dev/null "$url" && break
+              sleep 5
+            done
+            curl -fsS -o /dev/null "$url"
+          done
+
+      - name: Send the SARIF to DefectDojo, twice, and read back what arrived
+        run: |
+          set -o pipefail
+          python3 scripts/imports_measure.py defectdojo --url http://localhost:8080 \
+            --password-file "$RUNNER_TEMP/defectdojo-password" \
+            --results "$RUNNER_TEMP/broken-repo/.security-scan" | tee defectdojo.json
+
+      - name: Send the SBOM to Dependency-Track, twice, and read back what arrived
+        run: |
+          set -o pipefail
+          python3 scripts/imports_measure.py dependency-track --url http://localhost:8081 \
+            --password-file "$RUNNER_TEMP/dependency-track-password" \
+            --results "$RUNNER_TEMP/broken-repo/.security-scan" | tee dependency-track.json
+
+      - name: The two reports, in the run's summary
+        if: always()
+        run: |
+          for report in defectdojo.json dependency-track.json; do
+            if [ -s "$report" ]; then
+              { echo "### $report"; echo '```json'; cat "$report"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: What each tool logged, when a step failed
+        if: failure()
+        run: |
+          docker compose -f .github/imports/defectdojo.compose.yml logs --tail 80 || true
+          docker compose -f .github/imports/dependency-track.compose.yml logs --tail 80 || true

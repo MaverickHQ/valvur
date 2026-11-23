@@ -1223,7 +1223,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 8.1, 8.2_
 
-- [ ] **R51.3** **The identifiers in every output.**
+- [x] **R51.3** **The identifiers in every output.**
   **Seam:** `api.scan` over `LocalRuntime`; `findings.json`, `results.sarif`, `SUMMARY.md`;
   the MCP server over stdio; `cli.main(["findings", …])`. Behaviours:
   1. **Guard, existing.** `tests/test_identity.py` and the goldens: every Fingerprint is
@@ -1239,6 +1239,37 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   8. `findings --owasp` filters, in the CLI and in the tool.
 
   *Closes with:* the Score, unchanged.
+
+  **STATUS 2026-11-23:** ✅ 1 to 8, in `tests/test_identifiers_in_outputs.py`, 17 tests.
+  - **Where it is applied:** a pipeline stage, `identifiers`, after `suppress` (the last
+    stage that adds a Finding) and so after `merged`, which folds two rules on one line by
+    the CWE their Scanner gave: a mapped CWE folds nothing. A CWE a Scanner reported is
+    kept. `Finding.owasp` is new, and no Fingerprint is read or written.
+  - **`findings.json`:** `owasp` beside `cwe`, each absent when empty. Schema 1.
+  - **SARIF:** `run.taxonomies` for CWE and for each OWASP list the run is mapped to, with
+    the edition as the taxonomy's version and only the taxa the run uses; each rule's
+    `relationships`; the tags `external/cwe/cwe-89` and `external/owasp/a05:2025`. It
+    validates against the vendored 2.1.0 schema.
+  - **The reply:** `cwe` and `owasp` on each entry, and one Finding in full says *mapped
+    to* with each category's name, list and edition. Its schema is 2.
+  - **`findings --owasp`**, in the CLI and the tool. A category in no list is refused with
+    the editions it could be: `A03:2021` matching nothing would read as *no injection here*.
+  - **`SUMMARY.md`, changed from the design:** the table is one row per list, so it is
+    three rows at most, and it is written when it sorts something: two categories or more,
+    or more active Findings than *Most urgent* shows. The design said *whenever there are
+    active Findings*. Measured, that took a two-Finding repository's summary from 45 lines
+    to 53, past R5.2's one screen, to say *Injection 1* under the one entry it counted.
+    **The owner may overrule this.**
+  - **A dependency Finding** keeps its advisory's CWE and takes its Scanner's category,
+    A03:2025, as the design says: the fix is an upgrade, whatever the weakness.
+  - **Moved with it:** the tools snapshot, `findings --help`, one reply golden, the
+    deferred-import list, the pipeline's pinned order, the skill's tools reference.
+  - **The Score is unchanged:** 76.8 on the dev machine at `1c442cb`, `valvur:dev`
+    `sha256:9fe8d10ba15a`, every track where it was, `--compare` passing, 401 s. The
+    acceptance set passes, 8 of 8 in 133 s.
+  - **The container suite:** 103 passed and 8 skipped at `93b9a46`, 526 s. At `1c442cb` two
+    failed, and not on the change: the dev machine's Docker volume was 96% full of this
+    session's build cache and Syft could not save the image. 24 GB pruned; both pass.
 
   _Requirements: 8.3, 8.6, 8.7_
 
@@ -1272,7 +1303,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 8.4, 8.5_
 
-- [ ] **R51.5** **The imports, measured** (D82p).
+- [x] **R51.5** **The imports, measured** (D82p).
   **Seam:** `imports.yml` as a file, read as `tests/test_eval_workflow.py` reads its own.
   Behaviours:
   1. Its only trigger is dispatch, it holds no secret and no grant beyond reading the
@@ -1280,15 +1311,51 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   2. **Proof.** A dispatched run imports a scan of the fixture into DefectDojo and
      Dependency-Track. `docs/acceptance/r51.md` records what arrived and what was lost.
 
+  **STATUS 2026-11-23:** ✅ 1, in `tests/test_imports_workflow.py`. ✅ 2 as a measurement,
+  **on the dev machine and not by a dispatched run** (D82p's fallback, for another reason).
+  - **Why not dispatched:** GitHub dispatches a workflow only once it is on the default
+    branch, and a phase lands by the owner's fast-forward. The measurement ran the
+    workflow's own compose files and script on the dev machine, arm64. **Its first
+    dispatched run, on amd64, is owed after the landing,** and the tracker says so.
+  - **The pieces:** `.github/workflows/imports.yml`; `.github/imports/*.compose.yml`, four
+    images for DefectDojo 3.5.202 and two for Dependency-Track 5.2.2, each pinned by
+    digest and listening on localhost alone; `scripts/imports_measure.py`, standard library
+    alone. DefectDojo's two keys and Dependency-Track's admin password are made in the
+    job for that run: no key is written in the repository.
+  - **The fixture gains, in the job's copy,** a Suppression and a `.trivyignore` entry:
+    what a real project sends and the fixture lacked.
+  - **What arrived,** in `docs/acceptance/r51.md`: DefectDojo keeps severity, CWE, the
+    OWASP tags, file and line on all 149 findings. **One live Finding arrived hidden,** as
+    an inactive false positive: the one a `.trivyignore` named and valvur did not accept.
+    26 arrive without the Fingerprint. Deduplication is off as installed, so a second
+    import doubles the findings and a re-import does not. Dependency-Track loses nothing.
+  - Both importers' sources were read at their release tags for what they take, before
+    anything was started: the hidden Finding was predicted from DefectDojo's parser and
+    then measured.
+
   _Requirements: 9.1_
 
-- [ ] **R51.6** **CycloneDX, validated.**
+- [x] **R51.6** **CycloneDX, validated.**
   **Seam:** `api.scan` with the SBOM asked for, as `tests/test_sbom_opt_in.py` drives it.
   Behaviours:
   1. A document with a required field removed fails validation against the vendored schema
      of the version it declares.
   2. **Guard.** The scan's `sbom.cdx.json` validates. Then once against `valvur:dev`, with
      Syft itself (`-m e2e`).
+
+  **STATUS 2026-11-23:** ✅ 1 and 2, in `tests/test_sbom_schema.py`.
+  - **The schema** is CycloneDX 1.7's, the version Syft 1.57.1 writes, with the three it
+    refers to (SPDX's licence list, JSF, the cryptography definitions), vendored as
+    published from the specification's tag `1.7.2`, Apache-2.0, under
+    `tests/fixtures/schema/cyclonedx-1.7/`, about 410 KB.
+  - **`tests/cyclonedx.py`** validates a document against the schema of its own
+    `specVersion` and refuses, by name, a version with none vendored: a Syft upgrade that
+    writes 1.8 fails here.
+  - **It bites three ways:** a removed `bomFormat`, a component with no name, and a licence
+    that is no SPDX ID each fail. The last shows the reference to SPDX's list resolves.
+  - **The guard:** the SBOM a scan writes from Syft's committed golden validates, and so
+    does what Syft itself writes in `valvur:dev` for a two-package workspace (the container
+    test, passed on the dev machine at `93b9a46`).
 
   _Requirements: 9.3_
 

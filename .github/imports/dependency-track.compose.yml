@@ -1,0 +1,43 @@
+# Dependency-Track, as its own quickstart starts it, less the frontend: the measurement
+# speaks to the API server (R51.5, D82p). Every image is pinned by digest. The database
+# password is the quickstart's own; this instance lives for one measurement, on localhost,
+# and holds nothing but the SBOM of a test fixture. It sends no telemetry.
+name: valvur-imports-dependency-track
+
+services:
+  apiserver:
+    image: ghcr.io/dependencytrack/apiserver:5.2.2@sha256:cd5bed12ff30fd36980dbee2d6c3b177c37b99c63b60f5a5b15fbca0b31d0f38
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    environment:
+      DT_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/dtrack"
+      DT_DATASOURCE_USERNAME: "dtrack"
+      DT_DATASOURCE_PASSWORD: "dtrack"
+      DT_TELEMETRY_SUBMISSION_DEFAULT_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - apiserver:/data
+
+  postgres:
+    image: postgres:18.6-alpine@sha256:9ba53c7d41ea093baf5c1ba635ba5434c4f979880527d49bb7d9237d3193085b
+    environment:
+      POSTGRES_DB: "dtrack"
+      POSTGRES_USER: "dtrack"
+      POSTGRES_PASSWORD: "dtrack"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres:/var/lib/postgresql
+
+volumes:
+  apiserver: {}
+  postgres: {}
