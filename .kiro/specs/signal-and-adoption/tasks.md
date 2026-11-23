@@ -1442,11 +1442,73 @@ the landing.
 
 ### Phase R52: the evidence an adopter asks for
 
-- [ ] **R52.1** **Measure first** (D82q, D82r). No test seam. **Record,** in the STATUS:
+- [x] **R52.1** **Measure first** (D82q, D82r). No test seam. **Record,** in the STATUS:
   1. each requirement of SLSA's Build track at v1.0, with the release's evidence for it or
      its absence;
   2. the OpenVEX fields a consumer's tool requires, read from the specification;
   3. what GitHub's API gives for each number the Health record shows, and for how long.
+
+  **STATUS 2026-11-23:** ✅ 1 to 3. R52 is on its own branch, stacked on R51's.
+
+  **1. SLSA's Build track, read from `slsa.dev` on 2026-11-23.** The current specification
+  is **1.2**, and 1.0 and 1.1 are marked retired. The Build track's requirements are the
+  same rows: 1.1 changed attestation formats and 1.2 added a Source track. So
+  `SECURITY.md` names the level by the current version, and the design's *at v1.0* is
+  amended to *as 1.0 defined it and 1.2 keeps it*. The rows, with `release.yml`'s evidence:
+
+  | requirement | levels | the release's evidence |
+  |---|---|---|
+  | Choose an appropriate build platform | 1 to 3 | GitHub Actions, on GitHub's own runners |
+  | Follow a consistent build process | 1 to 3 | one workflow, `release.yml`, for every release (ADR-0020) |
+  | Distribute provenance | 1 to 3 | in the registry beside the image (`push-to-registry`), attached to the release as two `.intoto.jsonl` files, and on PyPI for the distributions |
+  | Provenance exists | 1 to 3 | `actions/attest-build-provenance`, predicate `https://slsa.dev/provenance/v1`, on the image's digest and on the wheel and sdist |
+  | Provenance is authentic | 2, 3 | signed through Sigstore with the workflow's own identity; `artifact` verifies it with `gh attestation verify` before anything is promoted |
+  | Hosted | 2, 3 | every job is on `ubuntu-26.04` or `ubuntu-26.04-arm`; none is self-hosted |
+  | Provenance is unforgeable | 3 | **absent.** `stage` holds `id-token: write` beside its own build steps, so the signing identity is within reach of steps the workflow defines |
+  | Isolated | 3 | **absent.** The build is steps of the calling workflow, with a shared build cache (`type=gha`), not a builder run apart from it |
+
+  **So the level is Build L2,** as the design expected, and L3 needs a builder isolated
+  from the workflow that calls it, which D66 left for 2.0.
+
+  **2. OpenVEX, read from `github.com/openvex/spec` on 2026-11-23.** Version 0.2.0,
+  `@context` `https://openvex.dev/ns/v0.2.0`, with a JSON schema at the repository's root.
+  - **A document must have** `@context`, `@id`, `author`, `timestamp`, `version` (an
+    integer from 1) and at least one statement.
+  - **A statement must have** `vulnerability`, whose one required field is `name`, and
+    `status`. The schema does not require `products`; the specification's text does, so
+    every statement names one.
+  - **Status:** `not_affected` needs a `justification` or an `impact_statement`;
+    `affected` needs an `action_statement`; `fixed` and `under_investigation` need nothing.
+  - **Justifications:** `component_not_present`, `vulnerable_code_not_present`,
+    `vulnerable_code_not_in_execute_path`,
+    `vulnerable_code_cannot_be_controlled_by_adversary`, `inline_mitigations_already_exist`.
+  - **A product** is an `@id` or `identifiers` (`purl`, `cpe22`, `cpe23`), with optional
+    `hashes` and `subcomponents`. **The specification does not say how an image by digest
+    is written.** `pkg:oci/…@sha256:…` is the package-URL type for one; R52.2 uses it
+    and says so.
+  - **`statements` must hold at least one,** so R52.2's behaviour 5, *a document with no
+    statements*, is not a valid document. **R52.2 amends it:** verdicts with nothing to
+    say give no document, and the release says there is none to attach.
+  - **The specification defines no matching algorithm** for a consumer.
+
+  **3. What GitHub's API keeps, read on 2026-11-23.** The repository keeps artifacts and
+  logs 90 days, its maximum.
+
+  | number | where it is recorded | kept | read with |
+  |---|---|---|---|
+  | the Score by track | the artifact `eval-report`, from `eval.yml` | 90 days; 7 runs on `main` held, the oldest of 2026-10-05 | a list anyone may read; **the download needs a token** (401 without) |
+  | the image's verdict by day | the artifact `image-gate-published`, from the nightly | **30 days,** by the workflow's own setting; 29 held | the same |
+  | the mutation score | **nowhere but the run's log**: `mutation.yml` prints it and uploads nothing | 90 days, as a log | **nothing a script should parse** |
+  | time to heal | pull requests, commits and releases | for good | `heal_report.py`, which is on R46's branch below this one |
+
+  - **So R52.5 adds an artifact to `mutation.yml`,** one small JSON file, before it can
+    show the score. That is a slice of its own, first.
+  - **`health.yml` is given `actions: read` beside `issues: write`.** A download without
+    a token is refused, 401. Whether a job's token with no `actions` grant may download
+    from a public repository could not be measured from here, since a workflow runs only
+    once it has landed. Behaviour 8 said *`issues: write` and nothing more*, and is
+    amended to those two grants, which are the watchdog's and are known to work.
+  - **The image's verdict by day reaches back 30 days,** and the record says so.
 
 - [ ] **R52.2** **The release's OpenVEX document** (D82q).
   **Seam:** `scripts/image_vex.py`'s `main`, over verdict files as `image_gate.py` writes
