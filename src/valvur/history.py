@@ -69,9 +69,10 @@ def _path(header: bytes) -> str | None:
 
 
 def write(root: Path, dest: Path, *, max_commits: int = MAX_COMMITS,
-          max_bytes: int = MAX_BYTES) -> History | None:
+          max_bytes: int = MAX_BYTES, rev: str | None = None) -> History | None:
     """Write `root`'s history under the directory `dest`; None when `root` is not a
-    repository, or when there is no `git` to read it with."""
+    repository, or when there is no `git` to read it with. Every ref's history, or with
+    `rev` that commit's alone (`scan --ref`, R50.2): what was added after it is not its."""
     command = fileset.git()
     if command is None:
         return None
@@ -81,7 +82,8 @@ def write(root: Path, dest: Path, *, max_commits: int = MAX_COMMITS,
     if inside.returncode != 0 or inside.stdout.strip() != "true":
         return None
     process = subprocess.Popen(  # noqa: S603 — a fixed argv; `root` is an argument
-        [command, "-C", str(root), "-c", "core.quotePath=false", "log", "--all", "-p", "-U0",
+        [command, "-C", str(root), "-c", "core.quotePath=false", "log",
+         *(["--all"] if rev is None else [rev]), "-p", "-U0",
          "--no-color", "--no-ext-diff", "--no-textconv", "--format=%x00%H",
          "-n", str(max_commits + 1)],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)

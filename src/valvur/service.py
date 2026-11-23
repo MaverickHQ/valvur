@@ -9,12 +9,13 @@ and a closure of its own, and one scan was summarised three times.
 
 from __future__ import annotations
 
+import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from . import api, engine_host, profiles
+from . import api, engine_host, profiles, reftree
 from .events import Event
 from .scanrun import ScanRun
 
@@ -62,10 +63,22 @@ def run_scan(
     on_progress: Callable[[Event], None] | None = None, budget_s: float | None = None,
     fresh: bool = False, jobs: int | None = None, sbom: bool = False,
     out: Path | None = None, runner: Any = None, cancellation: Cancellation | None = None,
+    ref: str | None = None,
 ) -> ScanRun:
-    """One Scan Run of `workspace`, its Results Folder written, and its record."""
+    """One Scan Run of `workspace`, its Results Folder written, and its record. With
+    `ref`, of that commit's tree and not the working tree (R50.2): read with git's
+    plumbing into a directory outside the repository, which is gone when this returns.
+    Raises `reftree.NotResolved` for a ref that names no commit, before anything runs."""
+    tree = reftree.resolve(workspace, ref) if ref is not None else None
     runner = runner if runner is not None else new_runner()
     if cancellation is not None:
         cancellation.attach(runner)
-    return api.scan(workspace, runner=runner, profile=profile, on_progress=on_progress,
-                    jobs=jobs, budget_s=budget_s, sbom=sbom, out=out, fresh=fresh)
+    if tree is None:
+        return api.scan(workspace, runner=runner, profile=profile, on_progress=on_progress,
+                        jobs=jobs, budget_s=budget_s, sbom=sbom, out=out, fresh=fresh)
+    with tempfile.TemporaryDirectory(prefix="valvur-ref-") as scratch:
+        files = Path(scratch) / "tree"
+        reftree.export(tree, files)
+        return api.scan(files, runner=runner, profile=profile, on_progress=on_progress,
+                        jobs=jobs, budget_s=budget_s, sbom=sbom, out=out, fresh=fresh,
+                        tree=tree)
