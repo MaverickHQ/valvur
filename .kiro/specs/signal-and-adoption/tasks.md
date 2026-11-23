@@ -816,6 +816,22 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 2.4, 2.5, 5.1, 5.3, 5.4_
 
+  **STATUS 2026-11-22:** ⏸ 1 and 2 are done. **4 and 5 are red on what was measured, so the
+  phase stops here and reports,** in [`docs/acceptance/r49.md`](../../../docs/acceptance/r49.md).
+  - **4 is red:** the real-code track is 29.4 with 12 false active Findings, against 33
+    and 8. It was 2.3 with 168. The twelve are named in the record, each from a rule with
+    one or two Findings on the corpus.
+  - **5 is red:** `tier_disagreements` names zizmor's `dangerous-triggers` and
+    `template-injection`, which wait for the owner (R49.1).
+  - **3 and 6 are held, not written twice.** Either decision can move a track, so the one
+    re-base and the README wait for them. The committed baseline is R48's; `--compare`
+    passes against it, with the Score at 76.8 on the dev machine.
+  - **2:** the scorecard prints *On maintained code: N false active Findings and M true*.
+  - **The order to finish in,** once the owner has answered: rows or not for the two
+    zizmor rules; the re-base test and the baseline, once, on both lanes; the target's
+    test at whatever the owner sets; the README and `docs/HOW-IT-WORKS.md`; the exit, the
+    phase commit and the pull request out of draft.
+
 **Exit:** the eighth track at its target on both lanes; no measured rule under the bar is
 active; no track more than 2 points under its new baseline; the acceptance set passes.
 
@@ -1130,6 +1146,9 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
+| the target of the real-code track | R49.8 | 33 with at most 8 false was set (D82h); 29.4 with 12 is reached, each of the 12 from a rule with one or two Findings. Accept it, set another, or say which single Findings to act on. `docs/acceptance/r49.md` lists them |
+| the JavaScript TLS rule | R49.6 | not shipped, 0 true of 307 on maintained code. Say whether `benchmark/` and `benchmarks/` are test material, with which it could ship listed in tests |
+| `--taint-intrafile` | R49.7 | not adopted by Requirement 6.2's condition. It catches all 34 generated flows; say whether that is worth five Findings to judge |
 | two of zizmor's rules under the bar | R49.1 | decide `dangerous-triggers` and `template-injection`: re-base the infrastructure track (95.0 to 85.0), leave them active, or overrule the labels. R49.1's STATUS has the numbers |
 | one line of `release.yml` | R48.6 | line 157 drops its second argument, `python:3.12-alpine3.24`, as `ci.yml`'s step did; then the entry leaves `tests/test_no_moving_target.py`'s list, which fails until it does |
 | pin the Health issue | R52.5 | pin it in the repository, once |

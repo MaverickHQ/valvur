@@ -37,6 +37,10 @@ VERDICTS = {("flask", "f1"): "fp", ("flask", "f2"): "fp", ("flask", "f3"): "tp",
 
 
 def _track(tmp_path: Path, *, jobs: int = 1, scan=None, found: dict | None = None) -> dict:
+    return _run(tmp_path, jobs=jobs, scan=scan, found=found)["tracks"]["real-code-precision"]
+
+
+def _run(tmp_path: Path, *, jobs: int = 1, scan=None, found: dict | None = None) -> dict:
     harness, found = _harness(), FOUND if found is None else found
     checkouts = tmp_path / "checkouts"
     for name in found:
@@ -53,7 +57,7 @@ def _track(tmp_path: Path, *, jobs: int = 1, scan=None, found: dict | None = Non
         scan=scan or (lambda root: _results(root, found[root.name])),
         image_id=lambda image: "sha256:abc", corpus=[{"name": name} for name in found],
         checkouts=checkouts, labels=labels, hygiene=hygiene, jobs=jobs)
-    return result["tracks"]["real-code-precision"]
+    return result
 
 
 def test_the_tracks_own_numbers_are_what_they_were(tmp_path):
@@ -125,3 +129,22 @@ def test_a_project_whose_scan_fails_under_four_jobs_is_named_and_the_track_is_in
     assert track["incomplete"] == ["sanic", "undici"]
     assert (track["tp"], track["fp"]) == (2, 3)
     assert _track(tmp_path / "again", jobs=1, scan=scan)["incomplete"] == ["sanic", "undici"]
+
+
+def test_the_scorecard_counts_the_false_active_findings_beside_the_track(tmp_path):
+    """R49.8, D82h: the track's number is a ratio, and with few true Findings it hides how
+    many false ones a reader meets. The second measure is printed beside it."""
+    card = _harness().scorecard(_run(tmp_path))
+
+    assert "| real-code-precision | 50.0 |" in card
+    assert ("On maintained code: **3 false active Findings** and 2 true, of 5 judged "
+            "(the second measure of ADR-0033)") in card
+
+
+def test_a_scorecard_without_the_track_says_nothing_of_it(tmp_path):
+    from test_eval_run import _flag_the_config_files
+
+    result = _harness().run(["secrets"], tmp_path / "work", scan=_flag_the_config_files,
+                            image="valvur:dev", image_id=lambda image: "sha256:abc")
+
+    assert "On maintained code" not in _harness().scorecard(result)

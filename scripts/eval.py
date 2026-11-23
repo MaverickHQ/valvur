@@ -510,6 +510,13 @@ def scorecard(result: dict) -> str:
                      for tool in track.get("reused") or []})
     lines += ["", f"Results reused: {', '.join(reused)}" if reused
               else "Results reused: none, every Scanner ran"]
+    real = result["tracks"].get("real-code-precision")
+    if real is not None:
+        # R49.8, D82h: a ratio over few true Findings hides how many false ones a reader
+        # meets, so the count stands beside it.
+        lines += ["", f"On maintained code: **{real['fp']} false active Findings** and "
+                      f"{real['tp']} true, of {real['tp'] + real['fp']} judged (the second "
+                      "measure of ADR-0033)"]
     through = (result["tracks"].get("package-reality") or {}).get("check_package")
     if through is not None:
         # R12.4: the same cases, asked of the tool an agent calls before an install.
