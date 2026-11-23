@@ -837,12 +837,58 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
 ### Phase R50: an existing codebase adopts the gate
 
-- [ ] **R50.1** **Measure first** (D82k, D82m). No test seam. **Record,** in the STATUS:
+- [x] **R50.1** **Measure first** (D82k, D82m). No test seam. **Record,** in the STATUS:
   1. the time to read the largest acceptance repository's tree with `git cat-file --batch`,
      against a Snapshot from disk;
   2. what `actions/checkout` leaves of the base branch at its default depth;
   3. whether OpenVEX's documents or tools name a conventional path, and the current
      specification's required fields.
+
+  **STATUS 2026-11-23:** ✅ 1 to 3. R50 is on its own branch, stacked on R49's: it needs
+  nothing R49.8 will change.
+
+  **1. Reading a tree by git's plumbing is as fast as reading it from disk.** On the dev
+  machine, the median of three, each way into a tar in memory:
+
+  | repository | files | a Snapshot from disk | `ls-tree` and `cat-file --batch` | `git archive` |
+  |---|---|---|---|---|
+  | the acceptance set's `1-gate-shaped` | 303 | 0.08 s | 0.02 s | 0.01 s |
+  | valvur itself | 867 | 0.12 s | 0.10 s | 0.06 s |
+  | the largest corpus checkout, `fastapi` | 3,181 | 0.31 s | 0.30 s | 0.18 s |
+
+  - **So D82k stands and its fallback is not needed:** `cat-file --batch`, which honours
+    no `export-ignore` and so reads the tree a scan of the working tree would.
+  - The acceptance set's own largest git repository has 303 files, too few to say much,
+    so two larger trees are measured beside it. Three of the set's eight are not git
+    repositories where it keeps them.
+
+  **2. At its default depth `actions/checkout` leaves nothing of the base.** From valvur's
+  own run 45066261498, a pull request's job with `fetch-depth: 1`: one fetch,
+  `--depth=1 origin +<sha>:refs/remotes/pull/307/merge`, and a detached checkout of it.
+  No `origin/<base>` ref exists, and the merge commit's parents are not in the object
+  store. A job with `fetch-depth: 0` fetches every branch and tag. So `--new-since
+  origin/main` needs `fetch-depth: 0`, or a fetch of the base ref, and R50.3's behaviour 5
+  says so in the gate's own line.
+
+  **3. OpenVEX names no path, and its required fields are few.** From the specification,
+  v0.2.0 (`@context` `https://openvex.dev/ns/v0.2.0`), and `vexctl`'s README, read
+  2026-11-23:
+  - **No conventional path.** Neither names where a project keeps its documents.
+    `vexctl`'s README uses `.openvex/*.json` in one example command, and says no more. So
+    D82m stands: a document is read only where a `[[vex]]` entry names it.
+  - **A document requires** `@context`, `@id`, `author`, `timestamp`, `version` and
+    `statements`. `role`, `last_updated` and `tooling` are optional.
+  - **A statement requires** `vulnerability` (its `name`; `@id` and `aliases` optional)
+    and `status`, one of `not_affected`, `affected`, `fixed`, `under_investigation`, and
+    must identify a product: `products`, each with an `@id` or `identifiers` such as a
+    purl, and optional `subcomponents`. Products and the timestamp may be inherited from
+    the document.
+  - **`not_affected` must carry a justification or an impact statement.** The five
+    justifications: `component_not_present`, `vulnerable_code_not_present`,
+    `vulnerable_code_not_in_execute_path`,
+    `vulnerable_code_cannot_be_controlled_by_adversary`, `inline_mitigations_already_exist`.
+    The specification's table and its prose differ on whether a justification alone is
+    required; R50.5's behaviour 5 takes either, as the statement table says.
 
 - [ ] **R50.2** **`scan --ref`: a commit's tree** (D82k).
   **Seam:** `cli.main(["scan", …, "--ref", …, "--out", …])` over `LocalRuntime`, on a git
