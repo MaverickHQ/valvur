@@ -1135,10 +1135,56 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
 ### Phase R51: the tools around it
 
-- [ ] **R51.1** **Measure first** (D82o). No test seam. **Record,** in the STATUS:
+- [x] **R51.1** **Measure first** (D82o). No test seam. **Record,** in the STATUS:
   1. the current edition of each OWASP list, read from OWASP's own pages, with the date;
   2. every source of a rule ID, and which can be listed from this repository;
   3. whether Trivy's and OSV-Scanner's output carries a CWE for an advisory.
+
+  **STATUS 2026-11-23:** ✅ 1 to 3. R51 is on its own branch, stacked on R50's.
+
+  **1. The editions, each read from OWASP's own pages on 2026-11-23.**
+
+  | list | edition | read from |
+  |---|---|---|
+  | OWASP Top 10 | **2025**, released; 2021 is the previous one | `owasp.org/www-project-top-ten/`, then `top10.owasp.org/2025` |
+  | OWASP Top 10 for LLM Applications | **2025**, dated 2024-11-17 | `genai.owasp.org/llm-top-10/` |
+  | OWASP Top 10 for Agentic Applications | **2026**, dated December 2025 | `genai.owasp.org`, its PDF |
+  | Agentic AI: Threats and Mitigations | **version 1.1**, December 2025 | `genai.owasp.org`, its PDF |
+
+  - **Top 10:2025:** A01 Broken Access Control, A02 Security Misconfiguration, A03
+    Software Supply Chain Failures, A04 Cryptographic Failures, A05 Injection, A06
+    Insecure Design, A07 Authentication Failures, A08 Software or Data Integrity Failures,
+    A09 Security Logging and Alerting Failures, A10 Mishandling of Exceptional Conditions.
+    **It is not the list design.md was written against:** injection was A03 in 2021 and is
+    A05 now, and supply chain is a category of its own.
+  - **LLM 2025:** LLM01 Prompt Injection, LLM02 Sensitive Information Disclosure, LLM03
+    Supply Chain, LLM04 Data and Model Poisoning, LLM05 Improper Output Handling, LLM06
+    Excessive Agency, LLM07 System Prompt Leakage, LLM08 Vector and Embedding Weaknesses,
+    LLM09 Misinformation, LLM10 Unbounded Consumption.
+  - **Agentic 2026:** ASI01 Agent Goal Hijack, ASI02 Tool Misuse and Exploitation, ASI03
+    Identity and Privilege Abuse, ASI04 Agentic Supply Chain Vulnerabilities, ASI05
+    Unexpected Code Execution, ASI06 Memory & Context Poisoning, ASI07 Insecure
+    Inter-Agent Communication, ASI08 Cascading Failures, ASI09 Human-Agent Trust
+    Exploitation, ASI10 Rogue Agents.
+  - **Threats and Mitigations 1.1** numbers its threats T1 to T17. Sixteen names were read
+    from the PDF and T14's was not. **The mapping uses the Agentic Top 10 and not this
+    one:** it is the list OWASP publishes to be cited, both are of December 2025, and a
+    mapping to a list with one name unread would not be honest. It is named in the file
+    as read and not mapped to.
+  - The two PDFs were read on the dev machine with `pypdf`: this Mac has no PDF reader.
+
+  **2. Seven sources of a rule ID, three of them listable here.**
+  - **Listable:** valvur's Opengrep rules, 24 IDs in `rules/*.yaml`; the vendored rules,
+    4, in `rules/vendor/gitlab/manifest.json`; and the IDs valvur's own code gives its
+    Checks and notes, 36 `valvur.*` strings in `src/valvur`.
+  - **Not listable:** Gitleaks' rules, 222 in its own configuration at v8.30.1; Checkov's
+    checks; zizmor's audits; and Trivy's and OSV-Scanner's advisory IDs, which have no end.
+    Each of these Scanners gets one entry, as design.md says.
+
+  **3. Both dependency Scanners carry a CWE, and no adapter reads it today.** In the
+  committed goldens: Trivy gives `CweIDs` for 75 of 75 advisories; OSV-Scanner gives
+  `database_specific.cwe_ids` for 88 of 149. So R51.2's behaviour 6 holds for both, where
+  the advisory has one.
 
 - [ ] **R51.2** **One mapping, four levels** (D82o).
   **Seam:** `identifiers.of(scanner, rule, finding_class)`, the new module's one function;
