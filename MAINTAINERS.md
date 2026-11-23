@@ -48,6 +48,27 @@ build is reproducible from any commit, and a fork that changes the name and the
 signing identity is what this document asks for rather than what it fears. Do not
 wait for a release that a single person's absence is holding.
 
+## If the maintainer cannot release
+
+One person can release: the signed tag and the approval at the brake are both the
+maintainer's. If that person cannot, as of 2026-11-23:
+
+- **The data a scan reads keeps arriving.** The package-name index, the malicious-package
+  list, CISA KEV and FIRST EPSS are fetched by the scan itself or published daily by a
+  scheduled workflow on `main`, signed with the workflow's identity. No person is in that
+  path.
+- **The published images keep being checked.** The nightly scans the published image and
+  the watchdog reads every scheduled workflow, and each files an issue when it fails.
+  Nobody is there to act on the issue.
+- **No release happens.** Not a feature, and not a security patch: a vulnerability found
+  in the published image stays in it until a person tags a release. ADR-0032 proposes
+  that a security-only patch promote itself after a delay the maintainer can cancel. It
+  is proposed, its workflows are not on `main`, and until they are this line stands.
+- **What you hold still works.** An installed version scans as it did, offline, and its
+  signatures verify with no key of the maintainer's.
+
+A second maintainer is the remedy, and the steps are next.
+
 ## Adding a second maintainer
 
 The steps, in order, so that the second person can do the one thing that matters

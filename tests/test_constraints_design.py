@@ -148,11 +148,14 @@ def test_a_scheduled_workflows_failure_becomes_an_issue():
     # noticed less of their own change than the baseline records (D65d).
     # `watchdog.yml` (daily) joined in R42.5: a red run there means no scheduled run
     # was judged that day, so another's silent failure would stay silent (N3.8).
+    # `health.yml` (daily) joined in R52.5: a red run there means the Health record
+    # was not rewritten, and shows the last day it was.
     assert {name for name, _ in scheduled} == {"index.yml", "corpus.yml", "retention.yml",
                                                "acceptance.yml",
                                                "eval.yml", "refresh.yml",
                                                "scorecard.yml", "fuzz.yml",
-                                               "mutation.yml", "watchdog.yml"}, \
+                                               "mutation.yml", "watchdog.yml",
+                                               "health.yml"}, \
         f"a scheduled workflow was added or removed: {[n for n, _ in scheduled]}"
 
     for name, text in scheduled:

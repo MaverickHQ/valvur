@@ -38,7 +38,17 @@ jobs:
             exit 0
           fi
           uv run --no-sync python scripts/mutation_check.py --base "$base" --limit 80 \
-            --baseline tests/eval/mutation-baseline.json
+            --baseline tests/eval/mutation-baseline.json --out mutation.json
+
+      # What the run measured, where a script can read it: the Health record does (R52.5).
+      # Until now the score was in this run's log alone.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          path: mutation.json
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: A failure is a tracked thing, not an email
         if: failure() && github.event_name == 'schedule'

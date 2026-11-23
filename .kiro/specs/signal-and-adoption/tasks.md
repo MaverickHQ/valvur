@@ -1442,13 +1442,75 @@ the landing.
 
 ### Phase R52: the evidence an adopter asks for
 
-- [ ] **R52.1** **Measure first** (D82q, D82r). No test seam. **Record,** in the STATUS:
+- [x] **R52.1** **Measure first** (D82q, D82r). No test seam. **Record,** in the STATUS:
   1. each requirement of SLSA's Build track at v1.0, with the release's evidence for it or
      its absence;
   2. the OpenVEX fields a consumer's tool requires, read from the specification;
   3. what GitHub's API gives for each number the Health record shows, and for how long.
 
-- [ ] **R52.2** **The release's OpenVEX document** (D82q).
+  **STATUS 2026-11-23:** ✅ 1 to 3. R52 is on its own branch, stacked on R51's.
+
+  **1. SLSA's Build track, read from `slsa.dev` on 2026-11-23.** The current specification
+  is **1.2**, and 1.0 and 1.1 are marked retired. The Build track's requirements are the
+  same rows: 1.1 changed attestation formats and 1.2 added a Source track. So
+  `SECURITY.md` names the level by the current version, and the design's *at v1.0* is
+  amended to *as 1.0 defined it and 1.2 keeps it*. The rows, with `release.yml`'s evidence:
+
+  | requirement | levels | the release's evidence |
+  |---|---|---|
+  | Choose an appropriate build platform | 1 to 3 | GitHub Actions, on GitHub's own runners |
+  | Follow a consistent build process | 1 to 3 | one workflow, `release.yml`, for every release (ADR-0020) |
+  | Distribute provenance | 1 to 3 | in the registry beside the image (`push-to-registry`), attached to the release as two `.intoto.jsonl` files, and on PyPI for the distributions |
+  | Provenance exists | 1 to 3 | `actions/attest-build-provenance`, predicate `https://slsa.dev/provenance/v1`, on the image's digest and on the wheel and sdist |
+  | Provenance is authentic | 2, 3 | signed through Sigstore with the workflow's own identity; `artifact` verifies it with `gh attestation verify` before anything is promoted |
+  | Hosted | 2, 3 | every job is on `ubuntu-26.04` or `ubuntu-26.04-arm`; none is self-hosted |
+  | Provenance is unforgeable | 3 | **absent.** `stage` holds `id-token: write` beside its own build steps, so the signing identity is within reach of steps the workflow defines |
+  | Isolated | 3 | **absent.** The build is steps of the calling workflow, with a shared build cache (`type=gha`), not a builder run apart from it |
+
+  **So the level is Build L2,** as the design expected, and L3 needs a builder isolated
+  from the workflow that calls it, which D66 left for 2.0.
+
+  **2. OpenVEX, read from `github.com/openvex/spec` on 2026-11-23.** Version 0.2.0,
+  `@context` `https://openvex.dev/ns/v0.2.0`, with a JSON schema at the repository's root.
+  - **A document must have** `@context`, `@id`, `author`, `timestamp`, `version` (an
+    integer from 1) and at least one statement.
+  - **A statement must have** `vulnerability`, whose one required field is `name`, and
+    `status`. The schema does not require `products`; the specification's text does, so
+    every statement names one.
+  - **Status:** `not_affected` needs a `justification` or an `impact_statement`;
+    `affected` needs an `action_statement`; `fixed` and `under_investigation` need nothing.
+  - **Justifications:** `component_not_present`, `vulnerable_code_not_present`,
+    `vulnerable_code_not_in_execute_path`,
+    `vulnerable_code_cannot_be_controlled_by_adversary`, `inline_mitigations_already_exist`.
+  - **A product** is an `@id` or `identifiers` (`purl`, `cpe22`, `cpe23`), with optional
+    `hashes` and `subcomponents`. **The specification does not say how an image by digest
+    is written.** `pkg:oci/…@sha256:…` is the package-URL type for one; R52.2 uses it
+    and says so.
+  - **`statements` must hold at least one,** so R52.2's behaviour 5, *a document with no
+    statements*, is not a valid document. **R52.2 amends it:** verdicts with nothing to
+    say give no document, and the release says there is none to attach.
+  - **The specification defines no matching algorithm** for a consumer.
+
+  **3. What GitHub's API keeps, read on 2026-11-23.** The repository keeps artifacts and
+  logs 90 days, its maximum.
+
+  | number | where it is recorded | kept | read with |
+  |---|---|---|---|
+  | the Score by track | the artifact `eval-report`, from `eval.yml` | 90 days; 7 runs on `main` held, the oldest of 2026-10-05 | a list anyone may read; **the download needs a token** (401 without) |
+  | the image's verdict by day | the artifact `image-gate-published`, from the nightly | **30 days,** by the workflow's own setting; 29 held | the same |
+  | the mutation score | **nowhere but the run's log**: `mutation.yml` prints it and uploads nothing | 90 days, as a log | **nothing a script should parse** |
+  | time to heal | pull requests, commits and releases | for good | `heal_report.py`, which is on R46's branch below this one |
+
+  - **So R52.5 adds an artifact to `mutation.yml`,** one small JSON file, before it can
+    show the score. That is a slice of its own, first.
+  - **`health.yml` is given `actions: read` beside `issues: write`.** A download without
+    a token is refused, 401. Whether a job's token with no `actions` grant may download
+    from a public repository could not be measured from here, since a workflow runs only
+    once it has landed. Behaviour 8 said *`issues: write` and nothing more*, and is
+    amended to those two grants, which are the watchdog's and are known to work.
+  - **The image's verdict by day reaches back 30 days,** and the record says so.
+
+- [x] **R52.2** **The release's OpenVEX document** (D82q).
   **Seam:** `scripts/image_vex.py`'s `main`, over verdict files as `image_gate.py` writes
   them, as `tests/test_release_notes_image.py` drives its script. Every slice's document is
   validated against OpenVEX's schema, vendored. Behaviours:
@@ -1461,6 +1523,31 @@ the landing.
   5. Verdicts with nothing to say give a document with no statements.
   6. The same verdicts and the same timestamp give the same bytes.
   7. A verdict that cannot be read exits 2 and writes nothing.
+
+  **STATUS 2026-11-23:** ✅ 1 to 7, with 5 amended, in `tests/test_image_vex.py`, 9 tests,
+  every document validated against OpenVEX 0.2.0's schema, vendored (CC0-1.0).
+  - **`scripts/image_vex.py`,** standard library alone, takes the verdicts as
+    `release_notes_image.py` does, and `--image`, `--digest`, `--release`, `--timestamp`.
+    It reads `.github/image-accepted.yaml` for an acceptance's reason and writes nothing
+    there.
+  - **The product** is the image by digest as `pkg:oci/valvur@sha256%3A…?repository_url=…`,
+    the package-URL form, since OpenVEX names none. The package is its subcomponent, by
+    Trivy's kind: `pkg:apk/alpine/…`, `pkg:pypi/…`, `pkg:golang/…`.
+  - **An entry on one architecture alone** has the image for that architecture as its
+    product, `&arch=arm64`, and its notes say *On arm64 alone*.
+  - **5, amended as R52.1 found:** OpenVEX requires at least one statement, so verdicts
+    with nothing to say give **no document**. The run exits 0, writes nothing and says so.
+    1.6.1's image has nothing accepted, so whether a release has a document depends on
+    whether its image has a vulnerability with no fix.
+  - **`not_affected` is the owner's alone.** It needs a `justification` field in the
+    owner's entry, one of OpenVEX's five. Any other word is refused, exit 2, nothing
+    written. The gate reads that file line by line and already passes the field through.
+    **For the owner:** the field is new to `.github/image-accepted.yaml`, whose header
+    this executor does not edit; R52.3's diff says so.
+  - **Deterministic:** statements are sorted by advisory, package and version, so the
+    order of the arguments and of a verdict's entries changes no byte.
+  - The tests for 2 to 7 were written after the script, so each was checked to bite: five
+    deliberate breaks of the script, each caught by at least one test.
 
   _Requirements: 14.1_
 
@@ -1475,9 +1562,26 @@ the landing.
   5. zizmor finds nothing, at the auditor persona too.
   6. **Proof.** A rehearsal, cancelled at the brake, shows the five attestations.
 
+  **STATUS 2026-11-23:** not started: the owner's, and `release.yml` is untouched. **One
+  finding for the sitting, before the diff is written.** The design attests the document
+  *in `stage`'s grant*. The document is written from the image gate's verdicts, which
+  `artifact` makes, and `artifact` needs `stage`: where the document exists, the job
+  that has it, `notes`, holds `contents: read` and no more. Two ways, the owner's choice:
+  - **(a)** `notes` gains `packages: write` and `id-token: write` and attests the
+    document. A rehearsal shows five attestations, as behaviour 6 says.
+  - **(b)** `stage` attests the four SBOMs, which it makes. `promote`, which holds both
+    grants already, attests the document after the brake. No job gains a grant, and a
+    rehearsal shows four attestations and the document, validated and unattested.
+    **The executor recommends (b):** a job that renders notes should not be able to sign.
+    Behaviour 6 then reads *four, and the fifth at the promotion*.
+  - Also for the sitting: an image with nothing unfixed and nothing accepted has **no
+    document** (R52.2), so `promote` attaches and attests one only when it exists; and
+    the `justification` field R52.2 reads is new to `.github/image-accepted.yaml`, whose
+    header is the owner's to amend.
+
   _Requirements: 14.1_
 
-- [ ] **R52.4** **The level, and who can release.**
+- [x] **R52.4** **The level, and who can release.**
   **Seam:** the documents, read as `tests/test_best_practices.py` reads its own. Behaviours:
   1. `SECURITY.md` states the SLSA Build level R52.1 found, with each requirement's
      evidence. A test refuses a higher level's name, seen red against a planted one.
@@ -1485,9 +1589,29 @@ the landing.
      them. *Check:* the link check.
   3. `docs/BEST-PRACTICES.md` is current with the tree, and the form is in §3.
 
+  **STATUS 2026-11-23:** ✅ 1 to 3.
+  - **`SECURITY.md`** says *valvur's releases reach SLSA Build L2, and no higher*, with a
+    row of evidence for each of the level's six requirements, the command that verifies
+    the provenance, and a subsection naming the two rows L3 adds and why the release has
+    neither. It names the specification as read: 1.0's rows, kept by 1.2.
+  - **`tests/test_slsa_level.py`,** 6 tests. A higher level's name is refused in the
+    README, `SECURITY.md`, `MAINTAINERS.md` and `docs/*.md`, outside the one subsection
+    that says it is out of reach: seen red on the planted *reach SLSA Build L3*. And the
+    evidence is held to `release.yml`: two attestation steps, `push-to-registry`, the
+    verification by predicate type, the two attached files, and no runner but GitHub's.
+  - **`MAINTAINERS.md`** gains *If the maintainer cannot release*: the data keeps
+    arriving and the published image keeps being checked, with nobody to act; **no
+    release happens, not a security patch either,** since ADR-0032 is proposed and its
+    workflows are not on `main`. The design's sentence, *a security patch still releases
+    itself*, is not true today and is not written.
+  - **`docs/BEST-PRACTICES.md`,** three answers were stale: about three thousand unit
+    tests, not two; Python 3.11, 3.13 and 3.14 in CI, not 3.12; and
+    `release_notes_vulns` is Met, not N/A, since 1.6.2 names each CVE it fixed in the
+    image. The form is still in the owner's queue, which the existing test holds.
+
   _Requirements: 14.2, 14.3, 14.5_
 
-- [ ] **R52.5** **The Health record** (D82r).
+- [x] **R52.5** **The Health record** (D82r).
   **Seam:** `scripts/health.py`'s `main`, with GitHub faked through `tests/fake_github.py`;
   the issue it leaves there. `health.yml` as a file. Behaviours:
   1. The issue's body gives the Score by track, from the recorded runs.
@@ -1505,6 +1629,40 @@ the landing.
   **Added by the pass:** 7. The repository is public, and behaviour 4 reads the issue's
   last values back.
 
+  **STATUS 2026-11-23:** ✅ 1 to 9, with 5 and 8 amended, in `tests/test_health.py` (18
+  tests) and `tests/test_mutation_report.py` (4).
+  - **`scripts/health.py`,** standard library alone, on the watchdog's API client. It
+    reads the newest `eval-report` of a run on `main`, each night's
+    `image-gate-published`, the newest `mutation-report`, and `heal_report.py`'s summary
+    for the month, and writes the issue *valvur health*.
+  - **Its last values are in the issue,** in a comment at its end. A number that cannot be
+    read today is shown with its last value and date and *could not be read on …*. One
+    never read is said to be absent. A night's verdict already in the record is not
+    downloaded again, and a day past 30 is dropped.
+  - **Only the issue a workflow's own account opened is the record.** A stranger's issue
+    of that title is neither read nor written, which a test plants values in to show.
+  - **A token goes to the API and never to the storage** a download is redirected to,
+    which refuses one. The fake does the same, so a test holds it.
+  - **Run for real, read only,** on 2026-11-23 with `--dry-run`: the Score 74.1 from
+    `main`'s run of 2026-11-16 and the image's verdict for each of 30 nights, 51 blocking
+    on 2026-11-20 and none since 1.6.2. The redirect works against GitHub itself.
+  - **The mutation score had no artifact** (R52.1). `mutation_check.py --out` writes what
+    it measured and `mutation.yml` uploads it as `mutation-report`, whatever the score
+    did. Until that workflow has run once from `main`, the record says the mutation score
+    could not be read.
+  - **5, amended:** `heal_report.py` exists on this stack, so the record gives its
+    summary: none healed this month, and the baseline. Without that script in the tree it
+    says *not measured yet*.
+  - **8, amended by R52.1:** `health.yml` runs daily at 07:13 UTC and on dispatch, with
+    `actions: read` and `issues: write` and no other grant; its actions are pinned; the
+    watchdog reads its schedule. A failed run files its own issue.
+  - **9:** the README links to the record by a search for the workflow's own issue, since
+    its number does not exist until the first run.
+  - The tests and the script were written together, so each test was checked to bite:
+    seven deliberate breaks of the script, each caught.
+  - **Owed after the landing:** the first run of `health.yml`, and with it whether a job's
+    token downloads an artifact with these two grants.
+
   _Requirements: 14.4_
 
 - [ ] **R52.6** 👤 **A first use, watched.** No test seam. **Record:**
@@ -1517,6 +1675,31 @@ the landing.
 
 **Exit:** a release carries its VEX document and five attestations; `SECURITY.md` states the
 level; the Health record has run for a week; Gate 2 is recorded.
+
+**STATUS 2026-11-23:** **the phase is open at R52.3 and R52.6, both the owner's.** Of the
+exit: `SECURITY.md` states the level. The release's document and its attestations wait for
+R52.3. The Health record is built and was run read-only; it runs daily, and so for a week,
+only once it has landed. Gate 2 is R52.6. Measured on the dev machine at `be45558`: the
+Score 76.8 on every track with `--compare` passing, the acceptance set 8 of 8, the
+container suite 103 passed and 8 skipped. The record is `docs/acceptance/r52.md`.
+
+**The build's summary, 2026-11-23** (`valvur/tasks.md` §2, step 7). Every task that needs no
+owner is done, in this list and in the heal's, so the executor's schedules are deleted and
+the build waits. What stands, as stacked pull requests on `main` at `9af6abb`:
+
+| phase | pull request | state |
+|---|---|---|
+| R44 to R46, the heal | #304, #305, #306 | drafts; their workflows are the owner's |
+| R48, the measurement | #307 | ready |
+| R49, the bar | #308 | draft, open at R49.8: six decisions in `docs/acceptance/r49.md` |
+| R50, the gate on what a change adds | #309 | ready |
+| R51, the tools around it | #310 | draft, open at R51.9 |
+| R52, the evidence | #311 | draft, open at R52.3 and R52.6 |
+
+The Score is 76.8 on the stack's tip, from 74.1 on `main`; the committed baseline is still
+R48's, to be re-based once in R49.8. **Owed after the landing,** since GitHub runs a
+workflow only from the default branch: the first runs of `imports.yml`, `health.yml` and
+`mutation.yml`'s artifact. A session resumes when the owner answers.
 
 ---
 

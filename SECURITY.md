@@ -97,6 +97,39 @@ breaks one is a major release.
      through 0.2.0 and 0.3.0, so a reporter checking whether their version was
      supported read a series superseded twice. -->
 
+## How a release is built: SLSA Build L2
+
+**valvur's releases reach SLSA Build L2, and no higher.** The level is the Build track's,
+as SLSA 1.0 defined it and the current specification, 1.2, keeps it, read on 2026-11-23.
+Each requirement of the level, and where to check it:
+
+| requirement | the evidence |
+|---|---|
+| Choose an appropriate build platform | GitHub Actions, on runners GitHub hosts: [`release.yml`](.github/workflows/release.yml) |
+| Follow a consistent build process | every release is that one workflow, which stages, validates and then promotes: [`docs/RELEASING.md`](docs/RELEASING.md) |
+| Distribute provenance | in the registry beside the image; attached to the GitHub release as `valvur-<version>.image.intoto.jsonl` and `valvur-<version>.dist.intoto.jsonl`; and on PyPI for the wheel and the sdist |
+| Provenance exists | `actions/attest-build-provenance` writes it in SLSA's own format, for the image's digest and for each distribution |
+| Provenance is authentic | signed through Sigstore with the workflow's own identity, a key no person holds. The release verifies it before anything is promoted, and so can you, below |
+| Hosted | every job of the release runs on a runner GitHub hosts, and none on a machine of the maintainer's |
+
+```bash
+gh attestation verify oci://ghcr.io/maverickhq/valvur:<version> --repo MaverickHQ/valvur
+```
+
+A test holds each row to the workflow, so the workflow cannot lose a row's evidence while
+this table keeps it.
+
+### What Build L3 needs, and the release does not have
+
+- **Provenance is unforgeable.** L3 asks that the steps a project writes cannot reach the
+  identity that signs the provenance. Here the job that builds the image is the job that
+  signs for it.
+- **Isolated.** L3 asks for a build that nothing outside it can influence. Here the build
+  is steps of the release workflow, and it reads a build cache that earlier runs wrote.
+
+Both need the build moved into a builder that runs apart from the workflow that calls it.
+That is not planned before 2.0, and until it is done this section says L2.
+
 ## What valvur does with your code
 
 Nothing leaves your machine on the default profile, and you can check that yourself
