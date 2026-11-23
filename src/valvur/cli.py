@@ -13,6 +13,7 @@ from . import coverage as _coverage
 from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
+from . import reftree as _reftree
 from . import service
 from .events import Event, Kind
 from .version import __version__
@@ -329,6 +330,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", default=None, metavar="DIR",
         help="Write .security-scan/ under DIR instead of the workspace, for a checkout "
         "mounted read-only; `gate`, `findings` and `status` then read DIR.",
+    )
+    scan_cmd.add_argument(
+        "--ref", default=None, metavar="REF",
+        help="Scan this commit's tree instead of the working tree: a branch, a tag or a "
+        "commit. Read with git's plumbing, so nothing is checked out and the repository "
+        "is not changed. Needs --out, since the workspace's own result is of the "
+        "working tree.",
     )
     scan_cmd.add_argument(
         "--budget", type=_positive_seconds, default=None, metavar="SECONDS",
@@ -687,6 +695,19 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     return 0 if updated.ok else 1
 
 
+def _ref_refused(workspace: Path, out: Path | None) -> str | None:
+    """Why `scan --ref` cannot write where it was told (R50.2). The Workspace's own
+    Results Folder is of the working tree: a commit's result there would be read as it."""
+    if out is None:
+        return ("--ref needs --out DIR: the result of a commit's tree is never written "
+                "into the workspace, whose own result is of the working tree")
+    own = workspace / _gate.RESULTS_DIR
+    if out == workspace or out == own or own in out.parents:
+        return (f"--out {out} is the workspace's own Results Folder, which is of the "
+                "working tree; give --ref a directory of its own")
+    return None
+
+
 def _one_line(text: str) -> str:
     """A multi-line message as one line, each line but the last ended as a sentence;
     the last is often a command to copy, and keeps no stop."""
@@ -716,13 +737,20 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
         if event.kind in (Kind.FETCH_STARTED, Kind.FETCH_ENDED):
             print(f"  {event}", file=sys.stderr)
 
+    out = Path(args.out).resolve() if getattr(args, "out", None) else None
+    ref = getattr(args, "ref", None)
+    if ref is not None and (refused := _ref_refused(workspace, out)):
+        print(f"  ! {refused}", file=sys.stderr)
+        return 2
     try:
-        out = Path(args.out).resolve() if getattr(args, "out", None) else None
         run = service.run_scan(
             workspace, runner=runner, cancellation=cancellation, profile=profile,
             on_progress=progress, jobs=args.jobs, budget_s=args.budget,
             sbom=getattr(args, "sbom", False), fresh=bool(getattr(args, "fresh", False)),
-            out=out)
+            out=out, ref=ref)
+    except _reftree.NotResolved as unresolved:
+        print(f"  ! {unresolved}", file=sys.stderr)
+        return 2
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.

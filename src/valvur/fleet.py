@@ -420,12 +420,16 @@ def _history_pass(adapters, plan, planned, workspace, context, scratch, on_progr
         say(_events.history_not_read("git is not on PATH here"))
         return None, {"unavailable": "git is not on PATH here (the image carries none, "
                                      "ADR-0005)"}
-    if chosen.scope != "git":
+    # A commit's tree (`scan --ref`) is its files written out, which is no repository:
+    # its history is the repository's it was read from, up to that commit.
+    tree = context.tree
+    if chosen.scope != "git" and tree is None:
         return None, None
     if not context.settings.history:
         say(_events.history_not_read("[scan] history = false"))
         return None, {"off": "[scan] history = false"}
-    written = _history.write(workspace, scratch / HISTORY_DIR)
+    written = (_history.write(workspace, scratch / HISTORY_DIR) if tree is None
+               else _history.write(tree.repository, scratch / HISTORY_DIR, rev=tree.commit))
     if written is None:
         return None, None
     plan.append(adapters[index].history_command(

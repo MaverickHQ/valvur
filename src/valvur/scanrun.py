@@ -101,6 +101,9 @@ class ScanRun:
     config_dropped: int = 0
     #: What the class table removed (D56): {class: {rule: count}}, said in run.json.
     removed_by_class: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: The commit this is a result of, `{ref, commit}`, when it is not the working
+    #: tree's (`scan --ref`, R50.2).
+    tree: dict[str, str] | None = None
     #: OSV-Scanner answers against the lower bounds of unpinned ranges, dropped
     #: (25.3), and the requirements files they came from.
     unpinned_dropped: int = 0

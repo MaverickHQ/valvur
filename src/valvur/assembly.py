@@ -82,6 +82,8 @@ def assemble(outcomes: list[ScannerOutcome | None], cut: list[str], *, declaring
         workspace_files=workspace_files, largest_dirs=tuple(largest_dirs),
         not_read=tuple(not_read), scope=scope, hygiene=hygiene,
         boundary=runner.boundary(), **_staged_fields(staged, osv_read),
+        tree=({"ref": context.tree.ref, "commit": context.tree.commit}
+              if context is not None and context.tree is not None else None),
     )
     _results_written(out or workspace, run, diff, artifacts, raw_outputs)
     return run
