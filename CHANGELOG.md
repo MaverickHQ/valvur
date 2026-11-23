@@ -38,6 +38,20 @@ break things, and has.
   taxonomy other tools use. It is not a statement of what valvur detects.
   [`docs/OWASP-MAPPING.md`](docs/OWASP-MAPPING.md) lists every rule beside its
   identifiers, and each list's categories that none is mapped to.
+- **Guides for DefectDojo and Dependency-Track,** each showing your own pipeline's step
+  with your own token and what arrives, measured against the tool itself:
+  [`docs/DEFECTDOJO.md`](docs/DEFECTDOJO.md) and
+  [`docs/DEPENDENCY-TRACK.md`](docs/DEPENDENCY-TRACK.md). valvur uploads nothing.
+
+### Changed
+
+- **SARIF: an ignore valvur did not accept is no longer written as a suppression.** A
+  project's own ignore with no reason and no expiry (a `.trivyignore` entry, a `nosemgrep`
+  comment) leaves the finding live, and valvur wrote it as a SARIF suppression with
+  `status: rejected`, which the standard defines as not suppressed. Measured, DefectDojo
+  reads any suppression as accepted and filed that live finding as an inactive false
+  positive. The ignore is now in the result's `properties.ignoredBy`, and a `suppressions`
+  entry always means an accepted risk. `findings.json` is unchanged.
 
 ### Fixed
 

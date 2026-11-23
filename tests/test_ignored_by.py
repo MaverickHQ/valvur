@@ -104,10 +104,13 @@ def test_findings_json_and_sarif_carry_it(marked, tmp_path):
     sarif = json.loads(artifacts.sarif(findings, version="1.5.0"))
     results = {(r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"], r["ruleId"]): r
                for r in sarif["runs"][0]["results"]}
-    [suppression] = results[("app/ignored.py", "valvur.python.subprocess-shell-true")][
-        "suppressions"]
-    assert suppression["kind"] == "inSource"
-    assert "suppressions" not in results[("app/twin.py", "valvur.python.subprocess-shell-true")]
+    # Since R51.7 an ignore valvur did not accept is a property, not a SARIF suppression:
+    # an importer reads any suppression as accepted (`tests/test_sarif_for_importers.py`).
+    ignored = results[("app/ignored.py", "valvur.python.subprocess-shell-true")]
+    assert ignored["properties"]["ignoredBy"]["kind"] == "inSource"
+    assert "suppressions" not in ignored
+    twin = results[("app/twin.py", "valvur.python.subprocess-shell-true")]
+    assert "suppressions" not in twin and "ignoredBy" not in twin["properties"]
 
 
 def test_sarif_with_ignores_is_valid_2_1_0(marked):

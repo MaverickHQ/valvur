@@ -1359,7 +1359,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 9.3_
 
-- [ ] **R51.7** **The corrections and the guides.**
+- [x] **R51.7** **The corrections and the guides.**
   **Seam:** as R51.3. Behaviours:
   1. One slice for each field R51.5 found lost: it is carried inside SARIF or CycloneDX,
      where the importing tool reads it.
@@ -1367,6 +1367,34 @@ active; no track more than 2 points under its new baseline; the acceptance set p
      user's own step. *Check:* the link check, and R51.8.
   3. **Guard, existing.** The constraint tests on egress. *Check:* `egress.py` and
      `verify-offline.py` have no diff in the phase.
+
+  **STATUS 2026-11-23:** ✅ 1 to 3.
+  - **One field was lost that a user needs, and it is corrected:** whether a Finding is
+    live. A project's own ignore that valvur did not accept was a SARIF suppression with
+    `status: rejected`, and DefectDojo filed the Finding as an inactive false positive. It
+    is now `properties.ignoredBy` on the result, and a `suppressions` entry means an
+    accepted risk, always. `tests/test_sarif_for_importers.py`, seen red, and
+    `tests/test_ignored_by.py` restated. This amends D77c's form, not its decision:
+    the ignore is still named and still not accepted. `findings.json` is unchanged.
+  - **Not corrected, each with its reason, and each in the guide:**
+    - *The Fingerprint is missing on a Finding found through two lockfiles.* SARIF says a
+      result has several locations when each needs the change, which is the case. One
+      location and the rest as related ones would keep the id and lose the second
+      lockfile in DefectDojo, which is the worse loss. A re-import matches without it.
+    - *An accepted risk arrives marked a false positive.* That is DefectDojo's reading of
+      SARIF's own field for a suppression, and there is no other field to say it in.
+    - *A second import doubles the findings.* DefectDojo installs with deduplication off.
+      The guide's step is a re-import.
+    - *A dependency's package and version have no field.* DefectDojo's SARIF import has
+      none to put them in. They are in the title.
+  - **Dependency-Track lost nothing,** so `sbom.cdx.json` is unchanged.
+  - **The guides:** `docs/DEFECTDOJO.md` and `docs/DEPENDENCY-TRACK.md`, each with the
+    user's own `curl` step and token, and each step the one the measurement ran: a token
+    for DefectDojo, an API key on the *Automation* team for Dependency-Track, which as
+    installed lacks the permission to create a project. Statements that were not
+    measured were taken out before the commit.
+  - **Egress:** `git diff 815943c -- src/valvur/egress.py scripts/verify-offline.py` is
+    empty, and the constraint tests pass in the gate.
 
   _Requirements: 9.2, 9.4_
 

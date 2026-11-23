@@ -325,6 +325,33 @@ def _track_upload(url: str, auth: dict[str, str], sbom: bytes, version: str) -> 
     raise Unreachable(f"the BOM was still being processed after {WAIT_S} s")
 
 
+#: What a pipeline's key needs: to upload, to make the project it uploads to, and for this
+#: measurement to read back what arrived.
+TEAM = "Automation"
+NEEDED = ("BOM_UPLOAD", "PROJECT_CREATION_UPLOAD", "VIEW_PORTFOLIO")
+
+
+def _track_key(url: str, admin: dict[str, str]) -> tuple[dict[str, str], list[str]]:
+    """An API key on the team an install ships for pipelines, as a person would make one
+    in its interface, and what that team was permitted before anything was granted."""
+    teams = _json(*call("GET", f"{url}/api/v1/team", headers=admin), "the teams")
+    team = next((one for one in teams if one.get("name") == TEAM), None)
+    if team is None:
+        team = _json(*call("PUT", f"{url}/api/v1/team",
+                           headers={**admin, "Content-Type": "application/json"},
+                           body=json.dumps({"name": TEAM}).encode()), "making the team")
+    had = sorted(str(p.get("name")) for p in team.get("permissions") or [])
+    for permission in NEEDED:
+        if permission not in had:
+            status, body = call("POST", f"{url}/api/v1/permission/{permission}/team/"
+                                        f"{team['uuid']}", headers=admin)
+            if status >= 400:
+                raise Unreachable(f"granting {permission}: HTTP {status}: {body[:200]!r}")
+    made = _json(*call("PUT", f"{url}/api/v1/team/{team['uuid']}/key", headers=admin),
+                 "the API key")
+    return {"X-Api-Key": str(made["key"])}, had
+
+
 def _licence(component: dict) -> str:
     resolved = component.get("resolvedLicense") or {}
     return str(resolved.get("licenseId") or component.get("licenseExpression")
@@ -346,7 +373,9 @@ def dependency_track(url: str, password: str, results: Path) -> dict:
                                                      "password": password}).encode())
     if status >= 300:
         raise Unreachable(f"the login: HTTP {status}: {body[:200]!r}")
-    auth = {"Authorization": f"Bearer {body.decode().strip()}"}
+    # The admin's session makes the key. Everything after it is done with the key alone,
+    # as a pipeline does it.
+    auth, had = _track_key(url, {"Authorization": f"Bearer {body.decode().strip()}"})
     version = _json(*call("GET", f"{url}/api/version"), "the version").get("version")
 
     sbom_path = results / "sbom.cdx.json"
@@ -374,6 +403,7 @@ def dependency_track(url: str, password: str, results: Path) -> dict:
     again = _track_components(url, auth, project["uuid"])
     return {
         "tool": "Dependency-Track", "version": version,
+        "key": {"team": TEAM, "permitted_as_installed": had, "needed": list(NEEDED)},
         "sent": {"spec_version": document.get("specVersion"), "components": len(sent),
                  "with_purl": sum(1 for c in sent if c.get("purl")),
                  "distinct_purls": len(sent_purls), "with_licence": len(sent_licensed),

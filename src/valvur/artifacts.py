@@ -113,7 +113,8 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
             "properties": {"status": finding.status, "rank": finding.rank,
                            # The path's class (D56), which is not identity.
                            **({"context": finding.context} if finding.context else {}),
-                           **({"inventory": True} if finding.inventory else {})},
+                           **({"inventory": True} if finding.inventory else {}),
+                           **_not_accepted(finding)},
         })
         if finding.suppressed:
             # SARIF's own concept. An invented property would make IDEs show
@@ -123,16 +124,6 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
                 "kind": finding.ignored_by.kind if finding.ignored_by else "external",
                 "status": "accepted",
                 "justification": finding.suppressed,
-            }]
-        elif finding.ignored_by:
-            # The project's own ignore, which valvur did not accept (R38.3, D77c): a
-            # suppression SARIF readers show as rejected, so the result stays live.
-            by = finding.ignored_by
-            results[-1]["suppressions"] = [{
-                "kind": by.kind,
-                "status": "rejected",
-                "justification": (f"{by.ignore} at {by.where}, with no reason and expiry "
-                                  "valvur accepts as a suppression"),
             }]
 
     taxonomies = _taxonomies(findings)
@@ -158,6 +149,19 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
 
 
 CWE_TAXONOMY = "CWE"
+
+
+def _not_accepted(finding: Finding) -> dict:
+    """The project's own ignore, which valvur did not accept (R38.3, D77c), as a property
+    of the result. It was a suppression with `status: rejected`, which SARIF defines as
+    not suppressed. Measured (R51.5): DefectDojo reads any suppression as accepted and
+    files the finding as an inactive false positive. So it is said where it hides
+    nothing, and a `suppressions` entry means accepted, always."""
+    by = finding.ignored_by
+    if by is None or finding.suppressed:
+        return {}
+    return {"ignoredBy": {"ignore": by.ignore, "where": by.where, "kind": by.kind,
+                          "accepted": False}}
 
 
 def _rule(finding: Finding) -> dict:
