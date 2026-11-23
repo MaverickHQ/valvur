@@ -1126,6 +1126,13 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
 **Exit:** the acceptance set passes; the Score unchanged; the proof in R50.4 recorded.
 
+**STATUS 2026-11-23:** ✅ the exit is measured, in [`docs/acceptance/r50.md`](../../../docs/acceptance/r50.md).
+- **On the dev machine at `9990f8e`:** the acceptance set 8 of 8; the Score 76.8 with
+  `--compare` passing, every track where R49 left it; the whole container suite, 102
+  passed and 8 skipped.
+- **The proof:** valvur's own pull request #309, run 45095008959.
+- **Left for the owner:** MaverickHQ/valvur-action#1, and R49.8 on #308.
+
 ### Phase R51: the tools around it
 
 - [ ] **R51.1** **Measure first** (D82o). No test seam. **Record,** in the STATUS:

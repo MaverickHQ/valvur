@@ -8,6 +8,27 @@ break things, and has.
 
 ## [Unreleased]
 
+### Added
+
+- **A gate on what a pull request adds.** `valvur gate --new-since REF` fails only on
+  findings REF does not already have. valvur scans REF's tree itself, read with git's
+  plumbing and never checked out, keeps that result in its cache and compares by
+  fingerprint: there is no baseline file to commit. An incomplete scan and a lapsed
+  suppression still fail, and two scans that did not use the same image, Profile and data
+  are not compared. `valvur scan --ref REF --out DIR` is the scan it runs.
+  [`docs/CI.md`](docs/CI.md) has the pipeline and the two limits.
+- **A project's own VEX.** `.security-scan.toml` may name an OpenVEX document and a date it
+  is accepted until, as `[[vex]]`. A statement that a dependency is not affected, with its
+  reason, or has the fix, suppresses that finding, which says so with the document's
+  author and time. valvur reads no document that is not named, and writes none.
+- **Ranking reads a declaration.** `[[context]]` says a path is internet-facing or holds
+  sensitive data, and a finding under it ranks ahead of the others in its own tier. It is
+  the project's statement, and `REMEDIATION.md` calls it a declaration: valvur does not
+  work out what is reachable.
+- **A dependency finding names every lockfile it was found through,** as `paths`, in
+  `findings.json`, in SARIF and in the `findings` reply. It named the first and dropped
+  the others, so fixing the one named left the finding in place.
+
 ### Fixed
 
 - **Alpine's repository index is no longer kept in the image.** apk-tools 3 writes it to
