@@ -221,6 +221,12 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
             root = benchmark or owasp.checkout(work.parent / "BenchmarkPython")
             verify(root)
             cases = owasp.cases(root)
+            # R49.6: the cases for a weakness the Benchmark lacks, generated beside it.
+            generated_root = work / "sast-python-generated"
+            if generated_root.exists():
+                shutil.rmtree(generated_root)
+            generated_root.mkdir(parents=True)
+            cases = cases + twins.python_generated(generated_root)
         else:
             root = work / track
             if root.exists():
@@ -234,6 +240,12 @@ def run(tracks: list[str], work: Path, *, scan: Callable[[Path], None] = _cli_sc
         began = time.monotonic()
         scan(root)
         findings, run_json = _read(root)
+        if track == "sast-python":
+            scan(generated_root)
+            more, more_run = _read(generated_root)
+            findings = findings + more
+            run_json = {**run_json, "complete": bool(run_json.get("complete"))
+                        and bool(more_run.get("complete"))}
         invalid: dict[str, str] = {}
         if track == "package-reality":
             from valvur import cache
@@ -498,6 +510,13 @@ def scorecard(result: dict) -> str:
                      for tool in track.get("reused") or []})
     lines += ["", f"Results reused: {', '.join(reused)}" if reused
               else "Results reused: none, every Scanner ran"]
+    real = result["tracks"].get("real-code-precision")
+    if real is not None:
+        # R49.8, D82h: a ratio over few true Findings hides how many false ones a reader
+        # meets, so the count stands beside it.
+        lines += ["", f"On maintained code: **{real['fp']} false active Findings** and "
+                      f"{real['tp']} true, of {real['tp'] + real['fp']} judged (the second "
+                      "measure of ADR-0033)"]
     through = (result["tracks"].get("package-reality") or {}).get("check_package")
     if through is not None:
         # R12.4: the same cases, asked of the tool an agent calls before an install.

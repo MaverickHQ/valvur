@@ -18,12 +18,18 @@ rules:
       Request data is concatenated into SQL: the client can change what the query
       does. Pass the value as a bound parameter, `query('... WHERE id = $1', [id])`.
     pattern-sources: &request-sources
-      - pattern-either:
-          - pattern: $REQ.query
-          - pattern: $REQ.body
-          - pattern: $REQ.params
-          - pattern: $REQ.cookies
-          - pattern: $REQ.headers
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+          # A response's headers and body are what a server answered, not what a client
+          # sent (R49.5): an HTTP client following a redirect is not forged.
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(?!(res|resp|response)$)
     pattern-sinks:
       - patterns:
           - pattern-either:
@@ -136,3 +142,18 @@ rules:
               if (<... $SET.includes($U.hostname) ...>) return ...;
               ...
           - focus-metavariable: $U
+
+  # R49.6 (D82i): a weakness AI-written JavaScript gets wrong and no rule here named.
+  # `valvur.javascript.tls-verification-off` was written with it and is not shipped: on
+  # maintained code it was 0 true of 307, in the tests and benchmarks of HTTP libraries.
+  - id: valvur.javascript.insecure-cookie
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-614: Sensitive Cookie Without 'Secure' Attribute"]
+    message: >-
+      A cookie set with secure: false is sent over plain HTTP too, where anyone on the
+      path can read it. Set secure: true, and httpOnly: true for a session cookie.
+    pattern-either:
+      - pattern: "$RES.cookie($NAME, $VALUE, {..., secure: false, ...})"
+      - pattern: "$SESSION({..., cookie: {..., secure: false, ...}, ...})"

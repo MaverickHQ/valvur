@@ -1391,3 +1391,22 @@ rule = "private-key"
 path = "test/fixtures/key.pem"
 verdict = "fp"
 reason = "A private key generated for the test suite's TLS tests, kept as a fixture; it guards nothing."
+
+# R49.6 (D82i), 2026-11-22: `valvur.python.tls-verification-off`, added in this phase. Its
+# two Findings on the corpus, read against the code at each.
+
+[[label]]
+repo = "httpie"
+fingerprint = "ed7c0dfa841c21681cd97e44dda0d824"
+rule = "valvur.python.tls-verification-off"
+path = "httpie/internal/update_warnings.py"
+verdict = "tp"
+reason = "The update check fetches the package index's version file with verify=False: anyone on the path can answer it. Small in effect, and a maintainer would turn verification on."
+
+[[label]]
+repo = "httpx"
+fingerprint = "68c32b2f0c3693461a180cc440c35d7f"
+rule = "valvur.python.tls-verification-off"
+path = "tests/test_config.py"
+verdict = "fp"
+reason = "A test of the library's own verify=False option: it builds the context to assert what the option does."

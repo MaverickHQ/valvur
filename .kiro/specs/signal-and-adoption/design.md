@@ -46,9 +46,9 @@ judged in the last run) and the last Score report on this Mac.
 | `generic-api-key` (Gitleaks) | 0 | 26 | 14 under tests, 2 examples, 4 `docs/`, 4 `docs_src/`, 2 other documents |
 | `python_random_rule-random` (vendored) | 0 | 23 | jitter, ports, temporary names, sample text |
 | `valvur.python.weak-hash` | 0 | 21 | cache keys and ETags 11, a protocol's own SHA-1 5, HMAC 2, content keys 3 |
-| `valvur.python.insecure-cookie` | 0 | 8 | R49.1 records |
-| `valvur.python.open-redirect` | 0 | 7 | R49.1 records |
-| `valvur.python.path-traversal` | 0 | 6 | R49.1 records |
+| `valvur.python.insecure-cookie` | 0 | 8 | all 8 in test files that set `secure=False` on purpose (R49.1) |
+| `valvur.python.open-redirect` | 0 | 7 | 5 redirect to `url_for(…)`, 1 to a path an example builds, 1 in a test (R49.1) |
+| `valvur.python.path-traversal` | 0 | 6 | 3 take a path's name, suffix or absoluteness and open nothing, 2 read pytest's `request.param`, 1 is a crawler's `file://` handler (R49.1) |
 | `curl-auth-header` (Gitleaks) | 0 | 6 | one project's `guide/` |
 | `javascript_eval_rule-eval-with-expression` (vendored) | 2 | 1 | |
 | `valvur.pinning.mutable-git-ref` | 1 | 1 | |

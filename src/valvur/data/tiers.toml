@@ -1,0 +1,79 @@
+# The tier table (D82c, D82d, ADR-0033): the rules, of any Scanner, whose Findings are
+# inventory: reported for review, never active, never counted by the verdict or the gate.
+#
+# A rule has a row when it is measured on maintained code, with five or more judged
+# Findings on the corpus, and fewer than half of them are true. `corpus` is that
+# measurement, and a test holds each row to `tests/eval/rules-measured.json`. This is
+# package data: a project cannot change a tier.
+
+[[rule]]
+scanner = "opengrep"
+id = "valvur.python.weak-hash"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 0, fp = 21 }
+reason = "On maintained code every use measured was a cache key, an ETag, a protocol's own SHA-1 or an HMAC."
+
+[[rule]]
+scanner = "opengrep"
+id = "python_random_rule-random"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 0, fp = 23 }
+reason = "On maintained code every use measured was jitter, a port, a temporary name or sample text."
+
+[[rule]]
+scanner = "opengrep"
+id = "valvur.python.insecure-cookie"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 8 }
+reason = "Every Finding measured was a test that sets secure=False on purpose, to check how a framework writes the attribute."
+
+[[rule]]
+scanner = "gitleaks"
+id = "private-key"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 35 }
+reason = "A private key under a test, fixture, documentation or example path was a fixture in every case measured."
+
+[[rule]]
+scanner = "gitleaks"
+id = "jwt"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 29 }
+reason = "Three base64 segments under a test or documentation path were a sample token in every case measured."
+
+[[rule]]
+scanner = "gitleaks"
+id = "generic-api-key"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 26 }
+reason = "A keyword beside a high-entropy string under a test, documentation or example path was a placeholder or a test value in every case measured."
+
+[[rule]]
+scanner = "gitleaks"
+id = "curl-auth-header"
+tier = "inventory"
+where = "test material"
+corpus = { tp = 0, fp = 6 }
+reason = "Every case measured was a sample command in one project's guide."
+
+[[rule]]
+scanner = "checkov"
+id = "CKV2_AWS_12"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 0, fp = 12 }
+reason = "Every Finding measured was a module that does restrict the default security group, behind a count Checkov does not follow."
+
+[[rule]]
+scanner = "zizmor"
+id = "cache-poisoning"
+tier = "inventory"
+where = "everywhere"
+corpus = { tp = 8, fp = 11 }
+reason = "Eleven of nineteen measured were a setup step with no cache configured, or a cache in a test job of a workflow that also publishes."

@@ -29,12 +29,14 @@ from . import fileset as _fileset
 from . import gitcontext as _gitcontext
 from . import grouping as _grouping
 from . import licence_policy as _licence
+from . import model_output as _model_output
 from . import project_ignores as _project_ignores
 from . import ranking as _ranking
 from . import requirements as _requirements
 from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
+from . import tiers as _tiers
 from .ecosystems import index_form
 from .findings import Finding, merge
 
@@ -213,6 +215,12 @@ def merged(findings: list[Finding], ctx: Context) -> list[Finding]:
     return merge(findings, index_form)
 
 
+def model_output(findings: list[Finding], ctx: Context) -> list[Finding]:
+    """Where a model is called and a sink is named with no flow between them, one
+    coverage note (R49.7); the marks of the model calls themselves never go further."""
+    return _model_output.apply(findings)
+
+
 def context(findings: list[Finding], ctx: Context) -> list[Finding]:
     """Each Finding's path class (D56), which the class table and every reader of
     `findings.json` and SARIF read."""
@@ -222,9 +230,10 @@ def context(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 def classes(findings: list[Finding], ctx: Context) -> list[Finding]:
     """What a path's class changes (D56): a secret in a test ranks low, `weak-hash`
-    in docs is not reported, and what is removed is counted for `run.json`."""
+    in docs is not reported, and what is removed is counted for `run.json`. Then the
+    tier table (D82c): a rule under the bar on maintained code is inventory."""
     kept, ctx.removed_by_class = _classtable.apply(findings)
-    return kept
+    return _tiers.apply(kept)
 
 
 def gitcontext(findings: list[Finding], ctx: Context) -> list[Finding]:
@@ -301,6 +310,10 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("merged", merged,
           "After every filter and every source of Findings, so identity is settled "
           "once over the final set."),
+    Stage("model_output", model_output,
+          "After `merged`, so a model call and a flow are each counted once; before "
+          "`context` and `classes`, so the note gets a class and only the sink rules "
+          "are inventory yet, not what the tier table lists."),
     Stage("context", context,
           "After `merged`, so each identity's class is read once; before anything "
           "that decides by class."),

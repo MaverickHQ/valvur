@@ -50,12 +50,23 @@ def assert_artifacts_agree(results_dir):
     suppressed = [f for f in findings if f.get("suppressed")]
     notes = [f for f in findings
              if not f.get("suppressed") and f["rule"] == COVERAGE_RULE]
-    sinks = [f for f in findings if not f.get("suppressed") and f.get("inventory")
-             and f["rule"] != COVERAGE_RULE]
+    # Five since the tier table (R49.2): a rule under the bar on maintained code is
+    # inventory too, counted under *Listed for review* and told from a sink by its row.
+    from valvur import tiers
 
-    assert len(active) + len(suppressed) + len(notes) + len(sinks) == len(findings), (
+    tiered = {row.id for row in tiers.rows()}
+    inventory = [f for f in findings if not f.get("suppressed") and f.get("inventory")
+                 and f["rule"] != COVERAGE_RULE]
+    sinks = [f for f in inventory if f["rule"] not in tiered]
+    listed = [f for f in inventory if f["rule"] in tiered]
+
+    assert len(active) + len(suppressed) + len(notes) + len(inventory) == len(findings), (
         "the split does not account for every finding in findings.json"
     )
+    if listed:
+        assert f"**Listed for review:** {len(listed)}" in summary, (
+            "SUMMARY.md does not count what the tier table lists in findings.json"
+        )
     if sinks:
         assert f"**Sinks to review:** {len(sinks)}" in summary, (
             "SUMMARY.md does not count the sinks in findings.json"

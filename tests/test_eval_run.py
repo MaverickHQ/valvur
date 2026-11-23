@@ -53,12 +53,13 @@ def test_a_track_is_scanned_scored_and_recorded(tmp_path):
                          image="valvur:dev", image_id=lambda image: "sha256:abc")
 
     secrets = result["tracks"]["secrets"]
-    # Every file-borne secret found, none from history, no placeholder flagged:
-    # TPR 0.5, FPR 0 in each of ten categories.
-    assert secrets["score"] == 50.0
-    assert (secrets["vulnerable"], secrets["safe"]) == (20, 20)
+    # Every secret under `config/` found, none from history or (since R49.4) from the test
+    # and documentation paths, no placeholder flagged: TPR 0.25 in nine categories and 0.5
+    # for the private key, FPR 0 in each.
+    assert secrets["score"] == 27.5
+    assert (secrets["vulnerable"], secrets["safe"]) == (38, 20)
     assert secrets["complete"] is True
-    assert result["score"] == 50.0
+    assert result["score"] == 27.5
     assert result["image"] == {"name": "valvur:dev", "id": "sha256:abc"}
     assert result["data"] == {"database_age_days": 1.5, "name_index_age_days": 2.4,
                               "malicious_age_days": 0.5, "kev_age_days": 33.0,
@@ -74,10 +75,10 @@ def test_the_result_and_its_scorecard_are_written(tmp_path):
 
     written = harness.write(result, tmp_path / "out")
 
-    assert json.loads(written["json"].read_text())["tracks"]["secrets"]["score"] == 50.0
+    assert json.loads(written["json"].read_text())["tracks"]["secrets"]["score"] == 27.5
     card = written["markdown"].read_text()
-    assert "| secrets | 50.0 |" in card
-    assert "**The Score: 50.0**" in card
+    assert "| secrets | 27.5 |" in card
+    assert "**The Score: 27.5**" in card
 
 
 def _result(**scores: float) -> dict:
@@ -182,9 +183,44 @@ def test_the_benchmark_track_is_scored_as_the_owasp_scorecard_scores(tmp_path):
                          verify=lambda checkout: None)
 
     track = result["tracks"]["sast-python"]
-    # pathtraver: TPR 0; sqli: TPR 1, FPR 0. The scorecard's mean: 50.
-    assert track["score"] == 50.0
-    assert (track["vulnerable"], track["safe"]) == (2, 1)
+    # pathtraver: TPR 0; sqli: TPR 1, FPR 0. The scorecard's mean of the Benchmark's two
+    # is 50. Since R49.6 a third category stands beside them, generated, with nothing
+    # found here: TPR 0. The mean of three: 33.3.
+    assert track["score"] == 33.3
+    assert (track["vulnerable"], track["safe"]) == (5, 4)
+    assert {name: (c["tp"], c["fn"]) for name, c in track["categories"].items()} == {
+        "pathtraver": (0, 1), "sqli": (1, 0), "tls-verification (generated)": (0, 3)}
+
+
+def test_the_python_tracks_generated_cases_are_a_category_of_their_own(tmp_path):
+    """R49.6, D82i: the Benchmark is not valvur's to add cases to, so the cases for a
+    weakness it lacks are generated twins, scanned beside it."""
+    harness = _harness()
+    benchmark = tmp_path / "BenchmarkPython"
+    benchmark.mkdir()
+    (benchmark / "expectedresults-0.1.csv").write_text(
+        "# test name, category, real vulnerability, cwe\nBenchmarkTest00100,sqli,true,89\n")
+    scanned = []
+
+    def scan(root: Path) -> None:
+        scanned.append(root.name)
+        found = [{"path": p.relative_to(root).as_posix(), "suppressed": None, "status": "new",
+                  "rule": "valvur.python.tls-verification-off", "sources": ["opengrep"],
+                  "cwe": ["CWE-295"]}
+                 for p in sorted(root.glob("app/t295_[12].py"))]
+        _results(root, found)
+
+    result = harness.run(["sast-python"], tmp_path / "work", scan=scan, image="valvur:dev",
+                         image_id=lambda image: "sha256:abc", benchmark=benchmark,
+                         verify=lambda checkout: None)
+
+    track = result["tracks"]["sast-python"]
+    assert scanned == ["BenchmarkPython", "sast-python-generated"]
+    generated = track["categories"]["tls-verification (generated)"]
+    assert (generated["tp"], generated["fn"], generated["fp"], generated["tn"]) == (2, 1, 0, 3)
+    # sqli: TPR 0. Generated: TPR 2/3, FPR 0. The mean: 33.3.
+    assert track["score"] == 33.3
+    assert not list(benchmark.glob("app/*")), "nothing is written into the Benchmark"
 
 
 def test_real_code_precision_is_scored_and_unlabelled_findings_fail_the_comparison(tmp_path):

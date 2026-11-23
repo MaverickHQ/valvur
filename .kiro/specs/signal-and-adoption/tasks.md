@@ -386,7 +386,7 @@ that fired on the corpus; the three hygiene tests hold.
 
 ### Phase R49: the bar on maintained code
 
-- [ ] **R49.1** **Measure first** (D82e, D82f, D82g). No test seam. **Record,** each in the
+- [x] **R49.1** **Measure first** (D82e, D82f, D82g). No test seam. **Record,** each in the
   STATUS, and design.md's first table completed from it:
   1. for `insecure-cookie`, `open-redirect`, `path-traversal` and `ssrf`, the pattern their
      false Findings share, read from the labelled files, and one cut-down example of each,
@@ -403,7 +403,80 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 4.1_
 
-- [ ] **R49.2** **The tier table, and its first row** (D82c, D82d, D82e).
+  **STATUS 2026-11-22:** ✅ 1 to 4, measured on the dev machine at `f2aca7b` from R48.3's
+  run (`valvur:dev` `sha256:913257ee79d7`), by re-scoring each track's Results Folder with
+  a rule's Findings left out. Re-scored with nothing left out, every track is its run's.
+  **The Python track falls 6.3 points, 40.9 to 34.6, with `weak-hash` and `random` demoted:
+  inside D82g's 8, so the phase goes on.** design.md said about 34.7.
+
+  **1. What the false Findings share, and a cut-down example of each.**
+  - **`valvur.python.insecure-cookie`, 8:** the path, and nothing in the code. All eight
+    are in test files that set `secure=False` on purpose, as
+    `resp.set_cookie('foo', 'bar', secure=False)`. That is the vulnerable form itself, so
+    no narrower pattern separates them. R49.5's slice 4 applies: a row, for test material.
+  - **`valvur.python.open-redirect`, 7:** five redirect to a URL the router builds,
+    `redirect(url_for("display", uid=uid))` and Sanic's
+    `redirect(request.app.url_for("page", path=path))`. One redirects to a path an example
+    builds, `redirect(f"/{short_id}+")`, and one is a test's own URL.
+  - **`valvur.python.path-traversal`, 6:** three take a path's name, suffix or absoluteness
+    and open nothing: `Path(filename).is_absolute()`, `Path(request.url).suffix`,
+    `Path(request.url).name`. Two read pytest's `request.param`, which is no web request:
+    `Path(request.param[0])`. One is a crawler's `file://` handler, which reads the path it
+    was told to.
+  - **`valvur.javascript.ssrf`, 2:** both are HTTP client libraries sending the request
+    their caller asked for: `https.request(options, callback)` and
+    `fetch(new Request(locationURL, requestOptions))`. With 2 judged it is unmeasured on
+    the corpus, and under no bar.
+
+  **2. Each rule under D82d's bar, and what demoting it everywhere costs.** Thirteen rules
+  have 5 or more judged Findings and fewer than half true.
+
+  | Scanner | rule | true / false | tracks that move |
+  |---|---|---|---|
+  | Opengrep | `valvur.python.weak-hash` | 0 / 21 | Python 40.9 to 37.1 |
+  | Opengrep | `python_random_rule-random` | 0 / 23 | Python 40.9 to 38.3 |
+  | Opengrep | `valvur.python.insecure-cookie` | 0 / 8 | Python 40.9 to 33.7 |
+  | Opengrep | `valvur.python.open-redirect` | 0 / 7 | Python 40.9 to 36.6 |
+  | Opengrep | `valvur.python.path-traversal` | 0 / 6 | Python 40.9 to 38.4 |
+  | Gitleaks | `private-key` | 0 / 35 | secrets 100.0 to 90.0 |
+  | Gitleaks | `generic-api-key` | 0 / 26 | JavaScript 55.0 to 45.0 |
+  | Gitleaks | `jwt` | 0 / 29 | none |
+  | Gitleaks | `curl-auth-header` | 0 / 6 | none |
+  | Checkov | `CKV2_AWS_12` | 0 / 12 | none |
+  | zizmor | `cache-poisoning` | 8 / 11 | none |
+  | zizmor | `dangerous-triggers` | 5 / 7 | infrastructure 95.0 to 90.0 |
+  | zizmor | `template-injection` | 0 / 20 | infrastructure 95.0 to 90.0 |
+
+  - **All thirteen demoted everywhere:** Python 20.7, JavaScript 45.0, secrets 90.0,
+    infrastructure 85.0, and the Score 72.3 from 74.1, with the eighth track at 36.4 on 3
+    true and 7 false. That is the cost the tier table's `test material` and R49.5's
+    narrowing exist to avoid: no secrets rule is demoted everywhere, two of Opengrep's
+    five are narrowed first, and `insecure-cookie` is demoted in test material alone.
+  - **D82d's fallback, listed for the owner and left active:** Checkov's `CKV2_AWS_5` and
+    `CKV_TF_1`, each 0 true of 4.
+  - **New, and the owner's to decide (Requirement 2.5).** R48's labels put four rules of
+    Checkov's and zizmor's under the bar, which the design did not foresee. `CKV2_AWS_12`
+    and `cache-poisoning` move no track and take a row in R49.2's table. **Demoting
+    `dangerous-triggers` or `template-injection` takes 5 points from the infrastructure
+    track, past the ratchet, and they are not valvur's rules to narrow.** Until the owner
+    decides they stay active, and R49.8's check names them. The choices: re-base the
+    infrastructure track as D82g re-bases Python (95.0 to 85.0 for both); leave them
+    active as measured noise; or overrule the labels, which are the executor's
+    (`dangerous-triggers` is 5 true of 12 on one reading of *handled*).
+
+  **3. The directory names D82f proposes.** None moves a case on any track.
+  - `docs_src`: 7 judged Findings on the corpus, all false, classed `source` today.
+  - `guide`: 11, all false, classed `source` today, in one project.
+  - `doc` and `guides`: no Finding on the corpus. Safe by the measurement, and without
+    evidence of use.
+
+  **4. Gitleaks' six rules that fired on the corpus,** from `config/gitleaks.toml` at
+  v8.30.1, the version the image ships. Five match a shape: `private-key` (a PEM header and
+  footer), `jwt` (three base64 segments), `generic-api-key` (a keyword beside a string of
+  entropy 3.5 or more), `curl-auth-header` (a header in a `curl` command) and `pkcs12-file`
+  (a file name). One matches a provider's format: `slack-webhook-url`.
+
+- [x] **R49.2** **The tier table, and its first row** (D82c, D82d, D82e).
   **Seam:** `api.scan` over `LocalRuntime` with canned Scanner output; `findings.json`, the
   Status and `gate.evaluate` read back. For the table against the measurement:
   `rule_precision.tier_disagreements(rows, measured)`. Behaviours:
@@ -430,7 +503,36 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 2.1, 2.2, 2.4, 3.4_
 
-- [ ] **R49.3** **The vendored `random` rule's row, and one home for both rules** (D82e,
+  **STATUS 2026-11-22:** ✅ 1 to 8 (`6425942`, `59b0d93`, `55c7484`), 9 tests in
+  `tests/test_tier_table.py` and 5 in `tests/test_tier_disagreements.py`.
+  - **The closing run,** on the dev machine at `59b0d93`, `valvur:dev`
+    `sha256:5a7bf9c5bc35`:
+
+    | track | baseline | with the three rows |
+    |---|---|---|
+    | Python | 40.9 | 37.1, as R49.1 measured; `--compare` fails on it, as expected |
+    | infrastructure | 95.0 | 95.0 |
+    | real code | 2.3, 3 true and 168 false | 2.6, 3 true and 147 false |
+
+    The acceptance set passes, 8 of 8.
+  - **Added: two rows of other Scanners,** which R49.1 found under the bar and which move
+    no track: Checkov's `CKV2_AWS_12`, 0 true of 12, and zizmor's `cache-poisoning`, 8 of
+    19. A row names its Scanner, so another Scanner's rule of the same name stays active.
+  - **Added: `SUMMARY.md` counts a tiered Finding under *Listed for review*,** apart from
+    *Sinks to review*, with one line that says why. `tests/test_contract.py`'s split of a
+    Results Folder is restated: five parts, where it had four.
+  - **Found by the closing run, and fixed (`55c7484`):** once a rule was listed, the
+    track's `by_rule` and `hygiene` dropped its Findings, since they are no longer active,
+    so the table could not be held to a measurement that had lost the rule. A listed
+    Finding's label now counts for its rule, and not for the track's own numbers.
+  - **Behaviour 4 is a guard at the schema:** a scan never read a `[[tier]]` key, and
+    `project_schema.problem`, which `doctor` reports, refuses it.
+  - **One test restated:** `tests/test_summary_order.py` showed its grouping on
+    `CKV2_AWS_12`, which is inventory now; it uses a rule that is active.
+  - `tier_disagreements` on the real table, after R49.3's row, names the nine rules still
+    to place: R49.4's four, R49.5's three, and the two of zizmor's that wait for the owner.
+
+- [x] **R49.3** **The vendored `random` rule's row, and one home for both rules** (D82e,
   D82g). **Seam:** as R49.2; `rules_doc.render`; the vendored rules' audit, as
   `tests/test_sast_rules_audit.py` drives it. Behaviours:
   1. **Guard, existing.** The audit holds the vendored file byte for byte.
@@ -446,7 +548,29 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 2.2, 4.4_
 
-- [ ] **R49.4** **A secret in test material** (D82c, D82f).
+  **STATUS 2026-11-22:** ✅ 1 to 5 (`99e9130`), in `tests/test_tier_table.py`,
+  `tests/test_class_table.py`, `tests/test_rules_doc_others.py` and
+  `tests/test_vendored_tier_counts.py`.
+  - **The closing run,** on the dev machine at `55c7484`, `valvur:dev`
+    `sha256:b86a0b7335e8`:
+
+    | track | baseline | with both rules listed |
+    |---|---|---|
+    | Python | 40.9 | 34.6, the 6.3 points R49.1 measured; `--compare` fails on it until R49.8 |
+    | JavaScript | 55.0 | 55.0 |
+    | infrastructure | 95.0 | 95.0 |
+    | real code | 2.3, 3 true and 168 false | 3.1, 3 true and 124 false |
+
+  - **The measurement kept both rules** after R49.2's fix: `by_rule` holds `weak-hash` at 0
+    true and 21 false and `random` at 0 and 23, and `hygiene` holds `CKV2_AWS_12` at 12
+    judged and `cache-poisoning` at 19.
+  - **The class table removes nothing now.** Its removal action went with its one row;
+    `run.json` keeps `removed_by_class`, empty, for whoever reads it.
+  - **The 124 false Findings still active,** by rule: `private-key` 35, `jwt` 29,
+    `generic-api-key` 26, `insecure-cookie` 8, `open-redirect` 7, `curl-auth-header` 6,
+    `path-traversal` 6, `ssrf` 2, and one each of five rules.
+
+- [x] **R49.4** **A secret in test material** (D82c, D82f).
   **Seam:** the secrets track's generator in `scripts/eval/twins.py` and
   `eval.run(["secrets"], …)`; `api.scan` over `LocalRuntime` with canned Gitleaks output;
   `pathclass.of`. Behaviours:
@@ -466,7 +590,36 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] **R49.5** **The rules that can be narrowed** (D82e).
+  **STATUS 2026-11-22:** ✅ 1 to 7 (`b74b154`, `51720db`), in `tests/test_tier_table.py`,
+  `tests/test_eval_twins.py` and `tests/test_path_classes.py`.
+  - **The closing run,** on the dev machine at `51720db`, `valvur:dev`
+    `sha256:61934a8a9837`, with `--compare`, which passed:
+
+    | track | baseline | this run |
+    |---|---|---|
+    | secrets | 100.0, 40 cases | **100.0, 58 cases** |
+    | JavaScript | 55.0 | 55.0 |
+    | agent configuration | 94.3 | 94.3 |
+    | infrastructure | 95.0 | 95.0 |
+    | real code | 2.3, 3 true and 168 false | **12.1, 3 true and 29 false** |
+
+  - **Every planted secret in test material is caught and active:** the 18 new cases, nine
+    provider formats under `tests/` and under `docs/`, are each reported at `low` by the
+    provider's own rule, and none is inventory.
+  - **Of the 98 false secrets on the corpus, three stay active,** the three design.md
+    named: a `generic-api-key` in a `README`, the one `pkcs12-file`, and the one
+    `slack-webhook-url`, which is a provider's format. So criterion 3.5 does not arise.
+  - **Every secrets rule with a row is silent in test material and measured:** `by_rule`
+    holds `private-key` 0 true of 35, `jwt` 0 of 29, `generic-api-key` 0 of 26 and
+    `curl-auth-header` 0 of 6, as their rows say.
+  - **All four directory names are in,** `docs_src`, `guide`, `doc` and `guides`, in one
+    commit with one parametrized test and not four slices. `doc` and `guides` hold no
+    Finding on the corpus: they are in on D82f's decision and R49.1's finding that they
+    move no planted case, not on evidence of use.
+  - **The JavaScript track does not move:** `generic-api-key` demoted everywhere would
+    cost it 10 points (R49.1), and in test material alone it costs nothing.
+
+- [x] **R49.5** **The rules that can be narrowed** (D82e).
   **Seam:** the rule run by Opengrep in `valvur:dev`, through `api.scan` with the container
   runtime, as `tests/test_python_web_rules.py` drives it (`-m e2e`); `eval.py --per-rule`
   for the two measurements. One rule at a time, in this order, each with these slices:
@@ -483,7 +636,44 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 4.1, 4.2_
 
-- [ ] **R49.6** **Two rules the tracks lacked** (D82i).
+  **STATUS 2026-11-22:** ✅ (`0445cdc`), 4 container tests in
+  `tests/test_narrowed_rules.py`, seen red on three of the four before the narrowing and
+  green after, on the dev machine, with `tests/test_python_web_rules.py`'s planted twins.
+  Measured by the whole Score at `0445cdc`, `valvur:dev` `sha256:f3995ce2a6ff`.
+
+  | rule | on the corpus, before | after | its category on the Python or JavaScript track |
+  |---|---|---|---|
+  | `open-redirect` | 0 true, 7 false | 0 and 2 | `redirect` 9 of 13, unchanged |
+  | `path-traversal` | 0 and 6 | 0 and 1 | `pathtraver` 27 of 65, unchanged |
+  | `insecure-cookie` | 0 and 8 | 0 and 8, all listed | `securecookie` 24 of 24, unchanged |
+  | `ssrf` | 0 and 2 | **0 and 2** | CWE-918 2 of 2, unchanged |
+
+  - **`open-redirect`:** a URL the router builds, `url_for(…)`, is a sanitizer. Two false
+    Findings are left, an example's own path and a test's own URL.
+  - **`path-traversal`:** a path's `name`, `suffix`, `stem` or `is_absolute()` is no sink,
+    and pytest's `request.param` is no source, for every Python taint rule that shares the
+    sources. One is left, a crawler's `file://` handler.
+  - **`insecure-cookie` was not narrowed, and took slice 4:** a row, for test material.
+    Its eight false Findings are the vulnerable form itself. Demoted everywhere it would
+    have cost the Python track 7.2 points; in test material it costs none.
+  - **`ssrf`: the narrowing is real and did not reach the corpus.** A response's headers
+    are no longer request data, which the made example showed red and then green. **The
+    two Findings on the corpus are still reported:** both are HTTP client libraries whose
+    own outgoing request is named `request`, which is what the rule names. No pattern
+    tells a client library from a server by reading one file.
+  - **A reading of the task, for the owner.** Slice 3 asks each narrowed rule to be *over
+    D82d's bar*. `open-redirect`, `path-traversal` and `ssrf` are now *unmeasured there*,
+    with 2, 1 and 2 judged Findings, none true. That is read here as not under the bar:
+    Requirement 2.3 leaves an unmeasured rule as ADR-0029 has it, and D82h says a rule
+    judged on one label is not measured. The other reading restores the old patterns and
+    lists all three everywhere, which costs the Python track 4.3 and 2.5 points for five
+    Findings.
+  - **The whole Score at this point is 76.1, from 74.1.** The real-code track is 26.7 on 3
+    true and 11 false. `--compare` fails on the Python track alone, 34.6, until R49.8.
+  - **Eleven labels now match no Finding:** the ten narrowed away, and R48.1's one. They
+    are left in the file, as that one was.
+
+- [x] **R49.6** **Two rules the tracks lacked** (D82i).
   **Seam:** the generators in `scripts/eval/twins.py`, as `tests/test_eval_twins.py` drives
   them; the rules as R49.5 runs them; `eval.run` for the tracks. Behaviours:
   1. The JavaScript track's generator gives vulnerable and safe cases for CWE-295.
@@ -497,7 +687,55 @@ that fired on the corpus; the three hygiene tests hold.
 
   _Requirements: 4.3_
 
-- [ ] **R49.7** **Model output crossing a function** (D82j).
+  **STATUS 2026-11-22:** ✅ 1 to 7, with one rule of the three **not shipped**, as D82i's
+  fallback says. Tests: `tests/test_added_rules.py` (through Opengrep in the image, seen red
+  for each rule before it existed), `tests/test_eval_twins.py`, `tests/test_eval_run.py`.
+
+  | rule | its planted cases | on the corpus | |
+  |---|---|---|---|
+  | `valvur.javascript.insecure-cookie` | 2 of 2, no safe one | silent | **shipped** |
+  | `valvur.python.tls-verification-off` | 3 of 3, no safe one | 1 true, 1 false | **shipped,** narrowed first |
+  | `valvur.javascript.tls-verification-off` | 2 of 2, no safe one | **0 true of 307** | **not shipped** |
+
+  - **The JavaScript TLS rule is under ADR-0029's bar** by any count: 2 true on its cases
+    and 307 false on maintained code. 299 are in the tests of HTTP libraries, which talk to
+    servers with self-signed certificates (`got` 126, `undici` 126, `axios` 22, `ws` 11),
+    and 8 in two projects' benchmark scripts. It is out of the rule file, and a test holds
+    it out. **Its two cases stay on the JavaScript track, uncaught,** so the Score shows
+    the gap: Requirement 4.3 is open for JavaScript's CWE-295.
+  - **For the owner:** the rule is right in an application and wrong in a library's tests.
+    It could ship listed in test material if `benchmark/` and `benchmarks/` were test
+    material too; that widening is not in D82f, so it is not made here.
+  - **The Python TLS rule as first written was 1 true of 12.** Five of its six Findings
+    outside tests were `context.verify_mode = ssl.CERT_NONE` in a client library that is
+    honouring its own caller's option (`httpx`, `aiohttp`, `tornado`, `scrapy` twice). The
+    pattern is dropped: the rule names the calls an application writes, `verify=False` on
+    `requests` and `httpx`, and `ssl._create_unverified_context`. design.md also listed
+    `ssl.CERT_NONE`.
+  - **Its one true Finding is the phase's only new one on maintained code:** `httpie`
+    fetches its update notice with `requests.get(…, verify=False)`. Both Findings are
+    labelled in `corpus.toml`.
+  - **The Python track's generated cases** are written beside the Benchmark, never into
+    it, scanned in a second Scan Run and reported as `tls-verification (generated)`: three
+    vulnerable and three safe.
+  - **The acceptance set caught the rule on valvur itself.** `6-self` failed with one
+    blocking Finding: `src/valvur/oci.py` reads
+    `ssl._create_unverified_context() if insecure else None`, an operator's opt-in for an
+    internal mirror. That is the same case as the libraries': verification off only when
+    a caller asks. The rule now passes over a call chosen by a conditional expression,
+    with a made case seen reported and then not, and the set passes, 8 of 8.
+  - **Measured** on the dev machine at `db5cf3e` with this task's slice, `valvur:dev`
+    `sha256:eeb6ce895340`, the whole Score with `--compare`, which passed, at **76.8**:
+
+    | track | baseline | this run |
+    |---|---|---|
+    | Python | 40.9, 14 categories | 39.0, 15 categories: the new one at 3 of 3 |
+    | JavaScript | 55.0, 10 categories | 54.2, 12 categories: CWE-614 at 2 of 2, CWE-295 at 0 of 2 |
+    | real code | 2.3, 3 true and 168 false | 29.4, 4 true and 12 false |
+
+    Both static-analysis tracks are inside the ratchet again, so `--compare` passes.
+
+- [x] **R49.7** **Model output crossing a function** (D82j).
   **Seam:** for the measurement, none. For the note: `api.scan` over `LocalRuntime`;
   `SUMMARY.md` and the Status read back. Behaviours:
   1. **Record.** Opengrep's `--taint-intrafile`, at the image's version, on the five
@@ -513,6 +751,50 @@ that fired on the corpus; the three hygiene tests hold.
      sentence planted in a copy.
 
   _Requirements: 6.1, 6.2, 6.3, 6.4_
+
+  **STATUS 2026-11-22:** ✅ 1, then 3 to 5: the flag is **not adopted**, and the note is in.
+  - **The measurement,** Opengrep's `--taint-intrafile` at the image's version, through
+    valvur's own scan with the flag added to the adapter, on the dev machine at `db5cf3e`
+    with R49.6's slice:
+
+    | | without the flag | with it |
+    |---|---|---|
+    | the five advisories | 0 of 5 | **0 of 5** |
+    | the generated cases | 30 of 34, no safe one flagged | 34 of 34, no safe one flagged |
+    | the ninth track | 79.0 | 89.8 |
+    | the Python and JavaScript tracks | 39.0 and 54.2 | 39.0 and 54.2 |
+    | Findings on the corpus | 16 judged | 5 new and unjudged, 3 of the 16 gone |
+    | the acceptance set | 132 s | 133 s |
+
+  - **It catches none of the five, so Requirement 6.2's condition is not met** and nothing
+    in the rules changes. The five new Findings on the corpus are of four request-data
+    rules, not of the model-output rules: the flag is per run, and cannot be given to four
+    rules alone.
+  - **For the owner:** it does catch the four generated flows valvur misses, at no cost
+    in time. Adopting it would raise the ninth track by 10.8 points and needs the five new
+    Findings judged first. The design's condition was the five advisories, so it is left.
+  - **The note** (`src/valvur/model_output.py`, a stage after `merged`): one rule,
+    `valvur.llm.model-call`, marks where a model is called, with the sources the three
+    Python rules share, by reference. Its marks never reach `findings.json`. A Scan Run
+    with a mark, a sink to review and no model-output Finding gains one Finding of
+    `valvur.llm.output-not-followed`, shown under *What valvur could not read*. It is in
+    `NOTE_RULES` and not in `DOUBT_RULES`: the Status is what it was.
+  - **Narrower than design.md in three ways, each said here.** The note is per Scan Run
+    and not per function: a Finding carries a line and no function. The mark is Python's
+    alone, since the sinks valvur names for review are Python's. And the mark needs the
+    file to import a model SDK, so the count is *at least N files*.
+  - **Found on the corpus, and fixed before it was committed:** with the shared sources
+    alone the note told Flask and Litestar that they call a model. `$X.invoke(…)` is
+    Click's test runner too, and `$X.messages.create(…)` is Twilio's. The taint rules can
+    be loose there, since they also need a sink; a statement cannot. A made case with
+    both was seen noted, and then not. On the corpus the note is now in two projects,
+    `llm` and `smolagents`, which do call a model.
+  - **Measured with the note in,** on the dev machine at `756c8fe` with the slice,
+    `valvur:dev` `sha256:f4ec1791eb70`: the whole Score 76.8 with `--compare` passing, no
+    track moved, no mark in any `findings.json`, the acceptance set 8 of 8 in 129 s.
+  - **Slice 5:** no document claims a flow followed across functions or files, in the
+    README, `docs/` or the rule files, and a claim planted in a copy is seen.
+    `docs/HOW-IT-WORKS.md` says what the note is.
 
 - [ ] **R49.8** **The target, the baseline and the README** (D82g, D82h).
   **Seam:** the committed `tests/eval/baseline.json` and `rules-measured.json`, read as
@@ -533,6 +815,22 @@ that fired on the corpus; the three hygiene tests hold.
   what it reached, with the rule of each false Finding left, and the owner decides (D82h).
 
   _Requirements: 2.4, 2.5, 5.1, 5.3, 5.4_
+
+  **STATUS 2026-11-22:** ⏸ 1 and 2 are done. **4 and 5 are red on what was measured, so the
+  phase stops here and reports,** in [`docs/acceptance/r49.md`](../../../docs/acceptance/r49.md).
+  - **4 is red:** the real-code track is 29.4 with 12 false active Findings, against 33
+    and 8. It was 2.3 with 168. The twelve are named in the record, each from a rule with
+    one or two Findings on the corpus.
+  - **5 is red:** `tier_disagreements` names zizmor's `dangerous-triggers` and
+    `template-injection`, which wait for the owner (R49.1).
+  - **3 and 6 are held, not written twice.** Either decision can move a track, so the one
+    re-base and the README wait for them. The committed baseline is R48's; `--compare`
+    passes against it, with the Score at 76.8 on the dev machine.
+  - **2:** the scorecard prints *On maintained code: N false active Findings and M true*.
+  - **The order to finish in,** once the owner has answered: rows or not for the two
+    zizmor rules; the re-base test and the baseline, once, on both lanes; the target's
+    test at whatever the owner sets; the README and `docs/HOW-IT-WORKS.md`; the exit, the
+    phase commit and the pull request out of draft.
 
 **Exit:** the eighth track at its target on both lanes; no measured rule under the bar is
 active; no track more than 2 points under its new baseline; the acceptance set passes.
@@ -848,6 +1146,10 @@ R48.1 adds one row to the main list's §8 that points here. Nothing here blocks 
 | three accounts | before R51.9 | sign in to Codex, Cursor and VS Code's agent mode on the Mac, or say which are not to be run |
 | the action's pull request | R50.4 | land it in `MaverickHQ/valvur-action`, and tag it |
 | the edit to `release.yml` | R52.3 | approve the diff, shown first |
+| the target of the real-code track | R49.8 | 33 with at most 8 false was set (D82h); 29.4 with 12 is reached, each of the 12 from a rule with one or two Findings. Accept it, set another, or say which single Findings to act on. `docs/acceptance/r49.md` lists them |
+| the JavaScript TLS rule | R49.6 | not shipped, 0 true of 307 on maintained code. Say whether `benchmark/` and `benchmarks/` are test material, with which it could ship listed in tests |
+| `--taint-intrafile` | R49.7 | not adopted by Requirement 6.2's condition. It catches all 34 generated flows; say whether that is worth five Findings to judge |
+| two of zizmor's rules under the bar | R49.1 | decide `dangerous-triggers` and `template-injection`: re-base the infrastructure track (95.0 to 85.0), leave them active, or overrule the labels. R49.1's STATUS has the numbers |
 | one line of `release.yml` | R48.6 | line 157 drops its second argument, `python:3.12-alpine3.24`, as `ci.yml`'s step did; then the entry leaves `tests/test_no_moving_target.py`'s list, which fails until it does |
 | pin the Health issue | R52.5 | pin it in the repository, once |
 | the OpenSSF form | R52.4 | paste `docs/BEST-PRACTICES.md` into bestpractices.dev; the badge is added once it passes |

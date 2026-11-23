@@ -106,3 +106,22 @@ def test_a_findings_identity_does_not_depend_on_its_class(scanned, monkeypatch):
     api.scan(scanned, runner=LocalRuntime(FAKE_TOOLS), adapters=[GitleaksAdapter()])
 
     assert fingerprints() == before
+
+
+@pytest.mark.parametrize(("path", "expected"), [
+    # R49.4, D82f: four more names for where documentation lives. R49.1 measured each on
+    # the corpus and on every track: none holds a planted case. `docs_src` and `guide` held
+    # 18 false Findings between them, classed `source`.
+    ("docs_src/security/tutorial001.py", "docs"),
+    ("guide/webapp/worker/factory.py", "docs"),
+    ("doc/api/usage.md", "docs"),
+    ("guides/quickstart/app.py", "docs"),
+    # Whole segments, as ever: none of these is documentation.
+    ("docker/entrypoint.py", "source"),
+    ("src/guidelines.py", "source"),
+    ("app/doctor.py", "source"),
+    # And the order holds: a documentation directory's tests are tests.
+    ("guide/tests/test_build.py", "test"),
+])
+def test_documentation_lives_under_four_more_names(path, expected):
+    assert pathclass.of(path) == expected

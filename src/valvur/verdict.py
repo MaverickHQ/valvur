@@ -32,9 +32,14 @@ LICENCE_STATEMENT_RULES = frozenset({
 #: D27). A statement about where the project installs from; it casts no doubt on a
 #: verdict, because a name bound to a private registry cannot be taken publicly.
 PRIVATE_RULE = "valvur.dependency.private-registry"
+#: A model is called and a sink is named, and valvur follows the output inside one
+#: function alone (R49.7, D82j). A statement about its reach, which casts no doubt: every
+#: project that calls a model would otherwise never read `clean`.
+MODEL_OUTPUT_RULE = "valvur.llm.output-not-followed"
 #: Every rule that is a statement about valvur rather than about the scanned code.
 #: Never active: none of them makes a status `findings` or fails a gate.
-NOTE_RULES = frozenset({RULE, VULNERABILITY_RULE, PRIVATE_RULE}) | LICENCE_STATEMENT_RULES
+NOTE_RULES = frozenset({RULE, VULNERABILITY_RULE, PRIVATE_RULE, MODEL_OUTPUT_RULE}) \
+    | LICENCE_STATEMENT_RULES
 #: The notes that make a nil result `inconclusive` — we did not look, so `clean` is
 #: not ours to claim. A licence statement is deliberately not one: a licence we could
 #: not read is not a vulnerability we did not look for, and the verdict is about

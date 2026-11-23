@@ -205,6 +205,40 @@ JS: dict[int, tuple[str, str, str, str]] = {
         "  const cipher = crypto.createCipheriv('aes-256-gcm', req.app.locals.key, iv);\n"
         "  res.send(cipher.update(req.body.data, 'utf8', 'hex') + cipher.final('hex'));\n});\n",
     ),
+    # R49.6, D82i: two weaknesses the track lacked.
+    295: (
+        "const https = require('https');\napp.get('/status', (req, res) => {\n"
+        "  const agent = new https.Agent({ rejectUnauthorized: false });\n"
+        "  https.get('https://internal.example.com/status', { agent }, (r) => r.pipe(res));\n"
+        "});\n",
+        "process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';\n"
+        "app.get('/ping', async (req, res) => {\n"
+        "  const page = await fetch('https://internal.example.com/ping');\n"
+        "  res.send(await page.text());\n});\n",
+        "const https = require('https');\napp.get('/status', (req, res) => {\n"
+        "  const agent = new https.Agent({ rejectUnauthorized: true });\n"
+        "  https.get('https://internal.example.com/status', { agent }, (r) => r.pipe(res));\n"
+        "});\n",
+        "const fs = require('fs');\nconst https = require('https');\n"
+        "const agent = new https.Agent({ ca: fs.readFileSync('/etc/ssl/internal-ca.pem') });\n"
+        "app.get('/ping', (req, res) => {\n"
+        "  https.get('https://internal.example.com/ping', { agent }, (r) => r.pipe(res));\n"
+        "});\n",
+    ),
+    614: (
+        "app.post('/login', (req, res) => {\n"
+        "  res.cookie('session', issue(req.body.user), { httpOnly: true, secure: false });\n"
+        "  res.sendStatus(204);\n});\n",
+        "const session = require('express-session');\n"
+        "app.use(session({ secret: process.env.SESSION_SECRET, resave: false,\n"
+        "  saveUninitialized: false, cookie: { httpOnly: true, secure: false } }));\n",
+        "app.post('/login', (req, res) => {\n"
+        "  res.cookie('session', issue(req.body.user), { httpOnly: true, secure: true });\n"
+        "  res.sendStatus(204);\n});\n",
+        "const session = require('express-session');\n"
+        "app.use(session({ secret: process.env.SESSION_SECRET, resave: false,\n"
+        "  saveUninitialized: false, cookie: { httpOnly: true, secure: true } }));\n",
+    ),
 }
 
 
@@ -229,6 +263,43 @@ def sast_js(root: Path, seed: int) -> list[Case]:
                               cwes=(cwe,)))
     files["package.json"] = json.dumps({"name": "eval-sast-js", "version": "1.0.0",
                                         "private": True}, indent=2) + "\n"
+    _write(root, files)
+    return cases
+
+
+# ------------------------------------- 1b. the Python track's generated cases
+
+#: The OWASP Benchmark is not valvur's to add cases to. A weakness it lacks is planted
+#: here as twins, scanned beside it and reported as a category of its own (R49.6, D82i).
+#: Per CWE: its category, three vulnerable modules, then three safe ones doing the same.
+PY_GENERATED: dict[int, tuple[str, tuple[str, ...]]] = {
+    295: ("tls-verification (generated)", (
+        "import requests\n\ndef status(url):\n"
+        "    return requests.get(url, verify=False, timeout=10).json()\n",
+        "import httpx\n\ndef client():\n    return httpx.Client(verify=False)\n",
+        "import ssl\nimport urllib.request\n\ndef fetch(url):\n"
+        "    context = ssl._create_unverified_context()\n"
+        "    return urllib.request.urlopen(url, context=context).read()\n",
+        "import requests\n\ndef status(url):\n"
+        "    return requests.get(url, timeout=10).json()\n",
+        "import httpx\n\ndef client():\n"
+        "    return httpx.Client(verify='/etc/ssl/internal-ca.pem')\n",
+        "import ssl\nimport urllib.request\n\ndef fetch(url):\n"
+        "    context = ssl.create_default_context(cafile='/etc/ssl/internal-ca.pem')\n"
+        "    return urllib.request.urlopen(url, context=context).read()\n",
+    )),
+}
+
+
+def python_generated(root: Path) -> list[Case]:
+    """Write the Python track's generated cases into an empty `root`."""
+    cases, files = [], {}
+    for cwe, (category, variants) in PY_GENERATED.items():
+        for n, body in enumerate(variants, 1):
+            path = f"app/t{cwe}_{n}.py"
+            files[path] = body
+            cases.append(Case(f"sast-python-generated-{cwe}-{n}", "sast-python", category,
+                              path, n <= len(variants) // 2, cwes=(cwe,)))
     _write(root, files)
     return cases
 
@@ -289,7 +360,11 @@ SECRETS: dict[str, tuple[Callable[[random.Random], str], str, str]] = {
 
 def secrets(root: Path, seed: int) -> list[Case]:
     """A git tree: each secret committed in a file that stays, and again in a file a
-    later commit deletes, so the history half is judged as well as the tree."""
+    later commit deletes, so the history half is judged as well as the tree.
+
+    And, since R49.4, each provider's format under a test path and under a documentation
+    path: a live-format key in a test is still a key (Requirement 3.2), and the tier
+    table lists only the rules that match a shape. A private key is not planted there."""
     rng = random.Random(seed)  # noqa: S311 — seeded so one seed writes one tree
     cases: list[Case] = []
     first: dict[str, str] = {}
@@ -303,6 +378,14 @@ def secrets(root: Path, seed: int) -> list[Case]:
                                  (f"examples/{category}.env.example", False),
                                  (f"app/{category.replace('-', '_')}_settings.py", False)):
             cases.append(Case(f"secrets-{path}", "secrets", category, path, vulnerable,
+                              sources=("gitleaks",)))
+    # Drawn after every case the track had, so one seed writes those as it always did.
+    for category, (real, _placeholder, _lookup) in SECRETS.items():
+        if category == "private-key":
+            continue
+        for path in (f"tests/{category}_test.env", f"docs/{category}.md"):
+            first[path] = real(rng)
+            cases.append(Case(f"secrets-{path}", "secrets", category, path, True,
                               sources=("gitleaks",)))
     first["README.md"] = "# eval: secrets\n"
     _write(root, first)

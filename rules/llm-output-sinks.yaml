@@ -121,3 +121,33 @@ rules:
       - pattern: $EL.outerHTML = ...
       - pattern: $EL.insertAdjacentHTML(...)
       - pattern: document.write(...)
+
+  # R49.7 (D82j): where a model is called. It reports nothing by itself: valvur reads the
+  # marks to say, once, that it follows a model's output inside one function alone, when
+  # a sink is named and no flow into it was reported. Its patterns are the sources the
+  # rules above share, by reference, so the two cannot drift. Python alone: the sinks
+  # valvur names for review are Python's.
+  - id: valvur.llm.model-call
+    languages: [python]
+    severity: INFO
+    metadata:
+      cwe: ["CWE-94: Code Injection"]
+    message: A model is called here.
+    patterns:
+      - pattern-either: *python-model-sources
+      # In a file that imports a model SDK. The sources alone are loose on purpose, since
+      # a taint rule also needs a sink: Click's test runner has an `invoke` and Twilio's
+      # client a `messages.create`. A statement that a project calls a model must be true.
+      - pattern-either:
+          - pattern-inside: |
+              import $SDK
+              ...
+          - pattern-inside: |
+              import $SDK as $ALIAS
+              ...
+          - pattern-inside: |
+              from $SDK import $NAME
+              ...
+      - metavariable-regex:
+          metavariable: $SDK
+          regex: ^(anthropic|openai|google\.generativeai|google\.genai|langchain\w*|llama_index|litellm|ollama|mistralai|cohere|groq)(\..*)?$
