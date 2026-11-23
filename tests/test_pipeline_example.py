@@ -209,3 +209,20 @@ def test_the_new_findings_job_fails_a_pull_request_that_adds_a_secret(mountable_
     assert loud.returncode == 1, loud.stdout + loud.stderr
     assert "config/new.env" in loud.stdout and "config/old.env" not in loud.stdout.split(
         "gate:")[0]
+
+
+def test_valvurs_own_pull_requests_are_gated_on_what_they_add():
+    """R50.4's proof, held: the self-scan job fetches the base branch's tip and runs
+    `gate --new-since` on a pull request. The job's own gate fails on any finding at
+    all, so this one can only agree with it; it is there to be run, on every pull
+    request, as a user's would be. The base's name reaches the shell as a variable."""
+    ci = (REPO / ".github" / "workflows" / "ci.yml").read_text()
+    job = ci.split("\n  selfscan:\n", 1)[1]
+    step = job.split("Gate this pull request on what it adds", 1)[1].split("\n      - name:", 1)[0]
+
+    assert "if: github.event_name == 'pull_request'" in step
+    assert "BASE_REF: ${{ github.base_ref }}" in step
+    run = step.split("run: |", 1)[1]
+    assert 'git fetch -q --no-tags --depth=1 origin "$BASE_REF"' in run
+    assert 'valvur gate . --fail-on any --new-since "origin/$BASE_REF"' in run
+    assert "${{" not in run
