@@ -1,0 +1,479 @@
+# Standard identifiers, mapped (R51.2, D82o, ADR-0037).
+#
+# A rule is mapped to its CWE and to OWASP's lists at the editions named below, each read
+# from OWASP's own pages on the day it says. Looked up by the rule's ID, then the longest
+# prefix, then the Scanner, then the Finding Class. `owasp = "none"` needs a `reason`.
+#
+# *Mapped to* is the whole claim. An entry says where a Finding sorts in a taxonomy other
+# tools and auditors use. It does not say valvur covers the category, and nothing valvur
+# writes says so. The categories no entry maps to are listed in docs/OWASP-MAPPING.md.
+#
+# Every rule and Check valvur writes or vendors has an entry by ID, which
+# tests/test_identifiers.py holds against the rule files and the source. Gitleaks',
+# Checkov's and zizmor's rules cannot be listed from this repository: each Scanner has
+# one entry. A dependency vulnerability takes the CWE its advisory gives.
+
+[list.top10]
+name = "OWASP Top 10"
+edition = "2025"
+read = 2026-11-23
+source = "https://top10.owasp.org/2025/"
+categories = { "A01:2025" = "Broken Access Control", "A02:2025" = "Security Misconfiguration", "A03:2025" = "Software Supply Chain Failures", "A04:2025" = "Cryptographic Failures", "A05:2025" = "Injection", "A06:2025" = "Insecure Design", "A07:2025" = "Authentication Failures", "A08:2025" = "Software or Data Integrity Failures", "A09:2025" = "Security Logging and Alerting Failures", "A10:2025" = "Mishandling of Exceptional Conditions" }
+
+[list.llm]
+name = "OWASP Top 10 for LLM Applications"
+edition = "2025"
+read = 2026-11-23
+source = "https://genai.owasp.org/llm-top-10/"
+categories = { "LLM01:2025" = "Prompt Injection", "LLM02:2025" = "Sensitive Information Disclosure", "LLM03:2025" = "Supply Chain", "LLM04:2025" = "Data and Model Poisoning", "LLM05:2025" = "Improper Output Handling", "LLM06:2025" = "Excessive Agency", "LLM07:2025" = "System Prompt Leakage", "LLM08:2025" = "Vector and Embedding Weaknesses", "LLM09:2025" = "Misinformation", "LLM10:2025" = "Unbounded Consumption" }
+
+[list.agentic]
+name = "OWASP Top 10 for Agentic Applications"
+edition = "2026"
+read = 2026-11-23
+source = "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/"
+categories = { "ASI01" = "Agent Goal Hijack", "ASI02" = "Tool Misuse and Exploitation", "ASI03" = "Identity and Privilege Abuse", "ASI04" = "Agentic Supply Chain Vulnerabilities", "ASI05" = "Unexpected Code Execution", "ASI06" = "Memory & Context Poisoning", "ASI07" = "Insecure Inter-Agent Communication", "ASI08" = "Cascading Failures", "ASI09" = "Human-Agent Trust Exploitation", "ASI10" = "Rogue Agents" }
+
+[list.agentic-threats]
+name = "Agentic AI: Threats and Mitigations"
+edition = "1.1"
+read = 2026-11-23
+source = "https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/"
+mapped = false
+reason = "Read and not mapped to: the Top 10 for Agentic Applications is the list OWASP publishes to be cited, and of its threats T1 to T17 the name of T14 could not be read from the document."
+
+# A CWE to the Top 10 category whose own List of Mapped CWEs holds it, read from each
+# category's page. A dependency vulnerability's CWE, which its advisory gives, is looked up
+# here. CWE-1321 is in none of the ten lists.
+[cwe]
+"CWE-22" = "A01:2025"
+"CWE-78" = "A05:2025"
+"CWE-79" = "A05:2025"
+"CWE-89" = "A05:2025"
+"CWE-94" = "A05:2025"
+"CWE-95" = "A05:2025"
+"CWE-295" = "A07:2025"
+"CWE-327" = "A04:2025"
+"CWE-328" = "A04:2025"
+"CWE-330" = "A04:2025"
+"CWE-338" = "A04:2025"
+"CWE-494" = "A08:2025"
+"CWE-502" = "A08:2025"
+"CWE-506" = "A08:2025"
+"CWE-601" = "A01:2025"
+"CWE-611" = "A02:2025"
+"CWE-614" = "A02:2025"
+"CWE-732" = "A01:2025"
+"CWE-798" = "A07:2025"
+"CWE-829" = "A08:2025"
+"CWE-918" = "A01:2025"
+"CWE-1104" = "A03:2025"
+"CWE-1357" = "A03:2025"
+"CWE-1395" = "A03:2025"
+
+# ---- valvur's own Opengrep rules, and the four vendored from GitLab's sast-rules.
+# The Top 10 category is the one whose list holds the rule's CWE.
+
+[[rule]]
+id = "valvur.python.string-built-sql"
+cwe = ["CWE-89"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.javascript.sql-injection"
+cwe = ["CWE-89"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "python_sql_rule-hardcoded-sql-expression"
+cwe = ["CWE-89"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.python.command-injection"
+cwe = ["CWE-78"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.javascript.command-injection"
+cwe = ["CWE-78"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.python.subprocess-shell-true"
+cwe = ["CWE-78"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.python.code-injection"
+cwe = ["CWE-95"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.python.dangerous-eval"
+cwe = ["CWE-95"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.python.dangerous-exec"
+cwe = ["CWE-95"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "javascript_eval_rule-eval-with-expression"
+cwe = ["CWE-95"]
+owasp = ["A05:2025"]
+
+[[rule]]
+id = "valvur.python.path-traversal"
+cwe = ["CWE-22"]
+owasp = ["A01:2025"]
+
+[[rule]]
+id = "valvur.javascript.path-traversal"
+cwe = ["CWE-22"]
+owasp = ["A01:2025"]
+
+[[rule]]
+id = "valvur.javascript.ssrf"
+cwe = ["CWE-918"]
+owasp = ["A01:2025"]
+
+[[rule]]
+id = "valvur.python.open-redirect"
+cwe = ["CWE-601"]
+owasp = ["A01:2025"]
+
+[[rule]]
+id = "valvur.python.insecure-cookie"
+cwe = ["CWE-614"]
+owasp = ["A02:2025"]
+
+[[rule]]
+id = "valvur.javascript.insecure-cookie"
+cwe = ["CWE-614"]
+owasp = ["A02:2025"]
+
+[[rule]]
+id = "valvur.python.xml-external-entities"
+cwe = ["CWE-611"]
+owasp = ["A02:2025"]
+
+[[rule]]
+id = "valvur.python.tls-verification-off"
+cwe = ["CWE-295"]
+owasp = ["A07:2025"]
+
+[[rule]]
+id = "valvur.python.weak-hash"
+cwe = ["CWE-328"]
+owasp = ["A04:2025"]
+
+[[rule]]
+id = "python_random_rule-random"
+cwe = ["CWE-338"]
+owasp = ["A04:2025"]
+
+[[rule]]
+id = "valvur.python.insecure-yaml-load"
+cwe = ["CWE-502"]
+owasp = ["A08:2025"]
+
+[[rule]]
+id = "python_deserialization_rule-yaml-load"
+cwe = ["CWE-502"]
+owasp = ["A08:2025"]
+
+[[rule]]
+id = "valvur.pinning.mutable-git-ref"
+cwe = ["CWE-829"]
+owasp = ["A08:2025"]
+
+[[rule]]
+id = "valvur.llm.output-to-code-execution"
+cwe = ["CWE-94"]
+owasp = ["A05:2025", "LLM05:2025", "ASI05"]
+
+[[rule]]
+id = "valvur.llm.output-to-shell"
+cwe = ["CWE-78"]
+owasp = ["A05:2025", "LLM05:2025", "ASI05"]
+
+[[rule]]
+id = "valvur.llm.output-to-sql"
+cwe = ["CWE-89"]
+owasp = ["A05:2025", "LLM05:2025"]
+
+[[rule]]
+id = "valvur.js.output-to-innerhtml"
+cwe = ["CWE-79"]
+owasp = ["A05:2025", "LLM05:2025"]
+
+[[rule]]
+id = "valvur.llm.model-call"
+cwe = []
+owasp = "none"
+reason = "A mark valvur reads to write one note. It reports nothing by itself."
+
+
+# ---- valvur's Checks. No CWE where none names the thing: a directive written to
+# mislead an agent has no weakness ID that says so without stretching one.
+
+[[rule]]
+id = "valvur.ai-artifact.prompt-injection"
+cwe = []
+owasp = ["LLM01:2025", "ASI01"]
+
+[[rule]]
+id = "valvur.ai-artifact.coercive-directive"
+cwe = []
+owasp = ["LLM01:2025", "ASI01"]
+
+[[rule]]
+id = "valvur.ai-artifact.hidden-unicode"
+cwe = []
+owasp = ["LLM01:2025", "ASI01"]
+
+[[rule]]
+id = "valvur.ai-artifact.exfiltration-directive"
+cwe = []
+owasp = ["LLM01:2025", "LLM02:2025", "ASI01"]
+
+[[rule]]
+id = "valvur.ai-artifact.credential-harvesting"
+cwe = []
+owasp = ["LLM01:2025", "LLM02:2025", "ASI03"]
+
+[[rule]]
+id = "valvur.ai-artifact.permission-bypass"
+cwe = []
+owasp = ["LLM06:2025", "ASI02"]
+
+[[rule]]
+id = "valvur.ai-artifact.blanket-auto-approve"
+cwe = []
+owasp = ["LLM06:2025", "ASI02"]
+
+[[rule]]
+id = "valvur.ai-artifact.hook-runs-command"
+cwe = []
+owasp = ["LLM06:2025", "ASI05"]
+
+[[rule]]
+id = "valvur.ai-artifact.mcp-mutable-ref"
+cwe = ["CWE-829"]
+owasp = ["A08:2025", "LLM03:2025", "ASI04"]
+
+[[rule]]
+id = "valvur.ai-artifact.local-config-exposed"
+cwe = []
+owasp = ["A02:2025", "LLM02:2025"]
+
+[[rule]]
+id = "valvur.dependency.nonexistent"
+cwe = ["CWE-1357"]
+owasp = ["A03:2025", "LLM03:2025", "LLM09:2025"]
+
+[[rule]]
+id = "valvur.dependency.near-miss"
+cwe = ["CWE-1357"]
+owasp = ["A03:2025", "LLM03:2025"]
+
+[[rule]]
+id = "valvur.dependency.newly-registered"
+cwe = ["CWE-1357"]
+owasp = ["A03:2025", "LLM03:2025"]
+
+[[rule]]
+id = "valvur.dependency.confusion"
+cwe = ["CWE-1357"]
+owasp = ["A03:2025", "LLM03:2025"]
+
+[[rule]]
+id = "valvur.dependency.malicious"
+cwe = ["CWE-506"]
+owasp = ["A03:2025", "A08:2025", "LLM03:2025", "ASI04"]
+
+[[rule]]
+id = "valvur.dependency.ecosystem-not-covered"
+cwe = []
+owasp = "none"
+reason = "A statement about what valvur read, not a weakness in the code."
+
+[[rule]]
+id = "valvur.dependency.vulnerabilities-unchecked"
+cwe = []
+owasp = "none"
+reason = "A statement about what valvur read, not a weakness in the code."
+
+[[rule]]
+id = "valvur.dependency.not-public"
+cwe = []
+owasp = "none"
+reason = "A statement about what valvur read, not a weakness in the code."
+
+[[rule]]
+id = "valvur.dependency.private-registry"
+cwe = []
+owasp = "none"
+reason = "A statement about what valvur read, not a weakness in the code."
+
+[[rule]]
+id = "valvur.llm.output-not-followed"
+cwe = []
+owasp = "none"
+reason = "A statement about what valvur read, not a weakness in the code."
+
+[[rule]]
+id = "valvur.licence.missing"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[rule]]
+id = "valvur.licence.mismatch"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[rule]]
+id = "valvur.licence.copyleft-in-permissive"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[rule]]
+id = "valvur.licence.dependency-unknown"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[rule]]
+id = "valvur.licence.dependencies-unreadable"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[rule]]
+id = "valvur.licence.unidentified"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[rule]]
+id = "valvur.suppression.expired"
+cwe = []
+owasp = "none"
+reason = "About the project's own record of accepted risks, not a weakness in the code."
+
+[[rule]]
+id = "valvur.suppression.invalid"
+cwe = []
+owasp = "none"
+reason = "About the project's own record of accepted risks, not a weakness in the code."
+
+[[rule]]
+id = "valvur.suppression.stale"
+cwe = []
+owasp = "none"
+reason = "About the project's own record of accepted risks, not a weakness in the code."
+
+[[rule]]
+id = "valvur.vex.not-honoured"
+cwe = []
+owasp = "none"
+reason = "About the project's own record of accepted risks, not a weakness in the code."
+
+[[rule]]
+id = "valvur.vex.unused"
+cwe = []
+owasp = "none"
+reason = "About the project's own record of accepted risks, not a weakness in the code."
+
+
+# ---- by prefix: a rule or Check added without an entry of its own. The test names it.
+
+[[prefix]]
+prefix = "valvur.ai-artifact."
+cwe = []
+owasp = ["LLM01:2025"]
+
+[[prefix]]
+prefix = "valvur.dependency."
+cwe = []
+owasp = ["A03:2025"]
+
+[[prefix]]
+prefix = "valvur.licence."
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+
+# ---- by Scanner: the rules that cannot be listed from this repository.
+
+[[scanner]]
+scanner = "gitleaks"
+cwe = ["CWE-798"]
+owasp = ["A07:2025"]
+
+[[scanner]]
+scanner = "checkov"
+cwe = []
+owasp = ["A02:2025"]
+
+[[scanner]]
+scanner = "zizmor"
+cwe = []
+owasp = ["A03:2025"]
+
+[[scanner]]
+scanner = "trivy"
+cwe = []
+owasp = ["A03:2025"]
+
+[[scanner]]
+scanner = "osv-scanner"
+cwe = []
+owasp = ["A03:2025"]
+
+[[scanner]]
+scanner = "syft"
+cwe = []
+owasp = "none"
+reason = "An SBOM is an inventory, and a component in it is not a finding."
+
+
+# ---- by Finding Class, when nothing above names the rule or its Scanner.
+
+[[class]]
+class = "dependency vulnerability"
+cwe = []
+owasp = ["A03:2025"]
+
+[[class]]
+class = "secret"
+cwe = ["CWE-798"]
+owasp = ["A07:2025"]
+
+[[class]]
+class = "IaC misconfiguration"
+cwe = []
+owasp = ["A02:2025"]
+
+[[class]]
+class = "dependency reality"
+cwe = []
+owasp = ["A03:2025"]
+
+[[class]]
+class = "licence"
+cwe = []
+owasp = "none"
+reason = "A licence is a legal matter, and none of these lists has a category for one."
+
+[[class]]
+class = "static analysis"
+cwe = []
+owasp = "none"
+reason = "A static-analysis rule is mapped by its own entry, and this one has none."

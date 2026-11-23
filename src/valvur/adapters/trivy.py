@@ -19,6 +19,7 @@ from ..findings import Dependency, Exploit, Finding, Severity, advisory_date
 from ..invocation import Invocation, ScannerOutput
 from ..versions import version_key
 from .base import ScannerAdapter, container_relative
+from .base import cwes as _cwes
 
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
@@ -160,6 +161,8 @@ class TrivyAdapter(ScannerAdapter):
                         ),
                         sources=(output.tool,),
                         severity=Severity.parse(vuln.get("Severity")),
+                        # The weakness the advisory names (R51.2): not identity.
+                        cwe=_cwes(vuln.get("CweIDs")),
                         exploit=Exploit(cve=vuln["VulnerabilityID"]),
                         dependency=Dependency(
                             ecosystem=ecosystem,

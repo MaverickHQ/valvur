@@ -1186,7 +1186,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   `database_specific.cwe_ids` for 88 of 149. So R51.2's behaviour 6 holds for both, where
   the advisory has one.
 
-- [ ] **R51.2** **One mapping, four levels** (D82o).
+- [x] **R51.2** **One mapping, four levels** (D82o).
   **Seam:** `identifiers.of(scanner, rule, finding_class)`, the new module's one function;
   the adapters' parse of canned output, for the advisory's CWE. Behaviours:
   1. A rule's own entry is found.
@@ -1197,6 +1197,29 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   5. A test that every rule and Check valvur writes, and every vendored rule, has an entry
      by ID is red, naming each. The file is filled, and it is green.
   6. A dependency Finding takes its advisory's CWE where R51.1 found the Scanner gives one.
+
+  **STATUS 2026-11-23:** ✅ 1 to 6, in `tests/test_identifiers.py`, 16 tests.
+  - **The file** is `src/valvur/data/identifiers.toml`, read by `src/valvur/identifiers.py`
+    (layer `core`). 59 entries by ID: the 28 rules in `rules/` and the 31 IDs valvur's own
+    code gives its Checks and notes. Three by prefix, six by Scanner, six by Finding Class.
+    A file with a `none` and no reason, a category in no list, a list with no edition or no
+    date, or a CWE not written `CWE-n` is refused whole when it is read.
+  - **A rule with a CWE sits in the Top 10 category whose own list holds that CWE.** The
+    24 CWEs the file names were looked up on OWASP's ten category pages for 2025, twice:
+    read by the fetching agent, then counted in the pages' raw HTML on the dev machine.
+    The two agree on all 24. CWE-1321 is in none of the ten lists, so an advisory that
+    names it alone takes its Scanner's category. A test holds every entry to that table,
+    and another holds an entry's CWE to the one its rule file gives Opengrep.
+  - **The LLM and agentic categories are the executor's reading,** for the owner to
+    overrule: neither list publishes a CWE mapping to look them up in. No CWE is given to
+    a Check where none names the thing without stretching one.
+  - **21 entries say `none`, each with its reason:** 17 by ID (the notes about what
+    valvur read, the licence Checks, the Suppression and VEX notes, the model-call mark),
+    the licence prefix, Syft, and the licence and static-analysis classes.
+  - **The advisory's CWE:** `adapters.base.cwes` reads Trivy's `CweIDs` and OSV-Scanner's
+    `database_specific.cwe_ids`. From the goldens: 75 of 75 and 88 of 149, as measured.
+    No Fingerprint moves, which a test holds for Trivy's 75.
+  - Nothing reads `identifiers.of` yet: R51.3 puts it in the outputs.
 
   _Requirements: 8.1, 8.2_
 

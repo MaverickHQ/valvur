@@ -26,6 +26,7 @@ core = [
     "valvur.findings",
     "valvur.fingerprint",
     "valvur.grouping",
+    "valvur.identifiers",
     "valvur.invocation",
     "valvur.lazy",
     "valvur.licence_policy",
