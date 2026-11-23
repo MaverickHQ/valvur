@@ -1683,6 +1683,24 @@ only once it has landed. Gate 2 is R52.6. Measured on the dev machine at `be4555
 Score 76.8 on every track with `--compare` passing, the acceptance set 8 of 8, the
 container suite 103 passed and 8 skipped. The record is `docs/acceptance/r52.md`.
 
+**The build's summary, 2026-11-23** (`valvur/tasks.md` §2, step 7). Every task that needs no
+owner is done, in this list and in the heal's, so the executor's schedules are deleted and
+the build waits. What stands, as stacked pull requests on `main` at `9af6abb`:
+
+| phase | pull request | state |
+|---|---|---|
+| R44 to R46, the heal | #304, #305, #306 | drafts; their workflows are the owner's |
+| R48, the measurement | #307 | ready |
+| R49, the bar | #308 | draft, open at R49.8: six decisions in `docs/acceptance/r49.md` |
+| R50, the gate on what a change adds | #309 | ready |
+| R51, the tools around it | #310 | draft, open at R51.9 |
+| R52, the evidence | #311 | draft, open at R52.3 and R52.6 |
+
+The Score is 76.8 on the stack's tip, from 74.1 on `main`; the committed baseline is still
+R48's, to be re-based once in R49.8. **Owed after the landing,** since GitHub runs a
+workflow only from the default branch: the first runs of `imports.yml`, `health.yml` and
+`mutation.yml`'s artifact. A session resumes when the owner answers.
+
 ---
 
 ## 3. The owner queue for this spec
