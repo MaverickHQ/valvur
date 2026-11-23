@@ -1433,6 +1433,13 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 **Exit:** every rule mapped or marked `none`; both imports measured twice; the Score
 unchanged on both lanes.
 
+**STATUS 2026-11-23:** measured, and **the phase stays open at R51.9,** the owner's. On the
+dev machine at `3c00bee`: 59 entries by ID, 17 of them `none` with a reason; both imports
+measured twice; the Score 76.8 on every track with `--compare` passing; the acceptance set
+8 of 8; the container suite 103 passed and 8 skipped. The amd64 lane is #310's checks. The
+record is `docs/acceptance/r51.md`. The first dispatched run of `imports.yml` is owed after
+the landing.
+
 ### Phase R52: the evidence an adopter asks for
 
 - [ ] **R52.1** **Measure first** (D82q, D82r). No test seam. **Record,** in the STATUS:
