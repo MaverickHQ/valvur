@@ -54,6 +54,10 @@ def _serialise(finding: Finding) -> dict:
     record["sources"] = list(finding.sources)
     if finding.dependency:
         record["dependency"]["path"] = list(finding.dependency.path)
+        # Additive (R50.7): present when the advisory came through more than one lockfile.
+        record["dependency"]["paths"] = list(finding.dependency.paths)
+        if not finding.dependency.paths:
+            del record["dependency"]["paths"]
     # Additive to schema 1 (R13.4, F5.10): present when the rule declares one.
     record["cwe"] = list(finding.cwe)
     if not finding.cwe:
@@ -98,12 +102,16 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
             "ruleId": finding.rule,
             "level": _SARIF_LEVEL.get(finding.severity, "warning"),
             "message": {"text": finding.title},
+            # The Finding's own path first, then every other lockfile a dependency
+            # vulnerability was found through (R50.7).
             "locations": [{
                 "physicalLocation": {
                     "artifactLocation": {"uri": finding.path},
                     **({"region": {"startLine": finding.line}} if finding.line > 0 else {}),
                 }
-            }],
+            }, *({"physicalLocation": {"artifactLocation": {"uri": other}}}
+                 for other in (finding.dependency.paths if finding.dependency else ())
+                 if other != finding.path)],
             "partialFingerprints": {FINGERPRINT_KEY: finding.fingerprint},
             "properties": {"status": finding.status, "rank": finding.rank,
                            # The path's class (D56), which is not identity.

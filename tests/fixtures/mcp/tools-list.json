@@ -375,6 +375,13 @@
               "path": {
                 "type": "string"
               },
+              "paths": {
+                "description": "Every lockfile a dependency vulnerability was found through, when more than one: each needs the fix.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "rank": {
                 "type": "integer"
               },

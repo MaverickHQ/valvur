@@ -125,6 +125,9 @@ _LIST_FINDINGS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
     "findings": {"type": "array", "items": {"type": "object", "properties": {
         "rank": {"type": "integer"}, "status": {"type": "string"},
         "severity": {"type": "string"}, "path": {"type": "string"},
+        "paths": {"type": "array", "items": {"type": "string"},
+                  "description": "Every lockfile a dependency vulnerability was found "
+                  "through, when more than one: each needs the fix."},
         "line": {"type": ["integer", "null"]}, "title": {"type": "string"},
         "rule": {"type": "string"}, "fingerprint": {"type": "string"},
         "suppressed": {"type": "boolean"}, "exploit": {"type": "object"},

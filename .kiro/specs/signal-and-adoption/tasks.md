@@ -985,7 +985,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
     secret. The fake tool had matched it. `tests/test_scan_ref.py`'s untracked key had
     the same flaw, which made its absence prove nothing; both are valid shapes now.
 
-- [ ] **R50.4** **Shown where a team would copy it.**
+- [x] **R50.4** **Shown where a team would copy it.**
   **Seam:** `docs/examples/github-actions.yml`, as `tests/test_pipeline_example.py` runs it.
   Behaviours:
   1. The example gates a pull request on new Findings, with the checkout depth it needs.
@@ -995,6 +995,30 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   4. **Proof.** A pull request of valvur's own, gated so, with its run.
 
   _Requirements: 7.7_
+
+  **STATUS 2026-11-23:** ✅ 1 to 4 (`914c2ac`, `20e9302`).
+  - **The example has a second job, and it is not the image as a step.** The gate reads
+    the base with git, and the image carries none (ADR-0005). So `new-findings` checks out
+    with `fetch-depth: 0`, installs valvur on the runner with `pipx`, at the version of
+    the image the example already names, scans, and runs
+    `valvur gate . --new-since "origin/$GITHUB_BASE_REF"`. One pin serves both jobs, so
+    `prepare_release.py` is unchanged.
+  - **Its two blocks are run by a container test,** in a clone whose `origin/main` is the
+    base, with this tree's valvur and image: a pull request that adds nothing passes
+    though the base has a key, and one that adds a key fails, naming it alone. On the dev
+    machine at `8c4bfa3` with the slice, `valvur:dev` `sha256:13e7f037ff2f`.
+  - **`docs/CI.md`** has a section on the gate and its two limits: a renamed file or a
+    changed match counts as new; and it needs git and the base's commits, so not the
+    image as a step.
+  - **The action's change is MaverickHQ/valvur-action#1,** a draft for the owner: the input
+    `new-since`, passed through, and the README. It is to land once 1.7.0 is published.
+    It has no self-test of the input, since no published valvur has the option yet.
+  - **Proof: valvur's own pull request #309, run 45095008959.** The self-scan job gained a
+    step for pull requests that fetches the base branch's tip and runs the gate. Its line:
+    *"gate: 0 new finding(s) at or above any since
+    origin/build/r49-the-bar-on-maintained-code (4778e37); 0 were already there and were
+    not gated on; 0 below the threshold; 12 suppressed"*, and *gate: passed*. It fetches
+    one commit and not the history, which the gate's own message also offers.
 
 - [x] **R50.5** **A project's own VEX** (D82m).
   **Seam:** `api.scan` over `LocalRuntime` with canned Trivy output, on a Workspace whose
@@ -1053,7 +1077,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
     writes it. Trivy's own package URLs reach `Dependency.purl` today; the phase's exit
     runs the whole container suite.
 
-- [ ] **R50.6** **Ranking reads a declaration** (D82n).
+- [x] **R50.6** **Ranking reads a declaration** (D82n).
   **Seam:** `api.scan` over `LocalRuntime`, on a Workspace whose `.security-scan.toml` holds
   `[[context]]`; the order of `findings.json` and of `REMEDIATION.md`. Behaviours:
   1. **Guard, existing.** `tests/test_ranking.py`: with no declaration, every order is what
@@ -1068,7 +1092,17 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 11.1, 11.2, 11.3_
 
-- [ ] **R50.7** **One dependency Finding lists its lockfiles** (D82n).
+  **STATUS 2026-11-23:** ✅ 1 to 7 (`db5853d`), 14 tests in `tests/test_declared_context.py`.
+  - **One key in the sort, after the tier:** a Finding whose path is under a declared
+    path, by whole segments, sorts first. `tests/test_ranking.py` passes unchanged.
+  - **The Finding carries what the project said,** as `declaration` in `findings.json`,
+    present only when set: "`services/api/` is internet-facing" or "… holds sensitive
+    data". Its item in `REMEDIATION.md` ends *Ranked ahead in its tier, raised by this
+    project's declaration: … (`.security-scan.toml`)*.
+  - **A scan passes over an entry that says anything else;** `doctor` and the schema name
+    it. A wrong declaration can only fail to raise, so it is not a refusal.
+
+- [x] **R50.7** **One dependency Finding lists its lockfiles** (D82n).
   **Seam:** `api.scan` over `LocalRuntime` with canned Trivy output for two lockfiles;
   `findings.json`, `results.sarif` and the MCP reply. Behaviours:
   1. An advisory found through two lockfiles is one Finding with both in `paths`, sorted.
@@ -1078,6 +1112,17 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   4. The reply carries `paths`, its snapshot moves in this commit, and its schema is 2.
 
   _Requirements: 11.4_
+
+  **STATUS 2026-11-23:** ✅ 1 to 4, 5 tests in `tests/test_lockfile_paths.py`.
+  - **`Dependency.paths`,** set where Findings of one Fingerprint are merged, and only when
+    they name more than one lockfile: a Finding through one has no such key, so no
+    golden of a scan moved. Sorted; the Finding's own `path` is the first reported, as
+    before, and the Fingerprint is the literal written down before the change.
+  - **SARIF** gives the Finding's path first and then each other lockfile as a location.
+  - **The reply that carries it is `findings`'s,** which lists Findings; `scan`'s reply
+    lists none. The entry gains `paths`, the tools snapshot
+    (`tests/fixtures/mcp/tools-list.json`) moves by that one property, and the reply
+    schema is 2 as it was: the change is additive.
 
 **Exit:** the acceptance set passes; the Score unchanged; the proof in R50.4 recorded.
 
