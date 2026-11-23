@@ -1510,7 +1510,7 @@ the landing.
     amended to those two grants, which are the watchdog's and are known to work.
   - **The image's verdict by day reaches back 30 days,** and the record says so.
 
-- [ ] **R52.2** **The release's OpenVEX document** (D82q).
+- [x] **R52.2** **The release's OpenVEX document** (D82q).
   **Seam:** `scripts/image_vex.py`'s `main`, over verdict files as `image_gate.py` writes
   them, as `tests/test_release_notes_image.py` drives its script. Every slice's document is
   validated against OpenVEX's schema, vendored. Behaviours:
@@ -1523,6 +1523,31 @@ the landing.
   5. Verdicts with nothing to say give a document with no statements.
   6. The same verdicts and the same timestamp give the same bytes.
   7. A verdict that cannot be read exits 2 and writes nothing.
+
+  **STATUS 2026-11-23:** ✅ 1 to 7, with 5 amended, in `tests/test_image_vex.py`, 9 tests,
+  every document validated against OpenVEX 0.2.0's schema, vendored (CC0-1.0).
+  - **`scripts/image_vex.py`,** standard library alone, takes the verdicts as
+    `release_notes_image.py` does, and `--image`, `--digest`, `--release`, `--timestamp`.
+    It reads `.github/image-accepted.yaml` for an acceptance's reason and writes nothing
+    there.
+  - **The product** is the image by digest as `pkg:oci/valvur@sha256%3A…?repository_url=…`,
+    the package-URL form, since OpenVEX names none. The package is its subcomponent, by
+    Trivy's kind: `pkg:apk/alpine/…`, `pkg:pypi/…`, `pkg:golang/…`.
+  - **An entry on one architecture alone** has the image for that architecture as its
+    product, `&arch=arm64`, and its notes say *On arm64 alone*.
+  - **5, amended as R52.1 found:** OpenVEX requires at least one statement, so verdicts
+    with nothing to say give **no document**. The run exits 0, writes nothing and says so.
+    1.6.1's image has nothing accepted, so whether a release has a document depends on
+    whether its image has a vulnerability with no fix.
+  - **`not_affected` is the owner's alone.** It needs a `justification` field in the
+    owner's entry, one of OpenVEX's five. Any other word is refused, exit 2, nothing
+    written. The gate reads that file line by line and already passes the field through.
+    **For the owner:** the field is new to `.github/image-accepted.yaml`, whose header
+    this executor does not edit; R52.3's diff says so.
+  - **Deterministic:** statements are sorted by advisory, package and version, so the
+    order of the arguments and of a verdict's entries changes no byte.
+  - The tests for 2 to 7 were written after the script, so each was checked to bite: five
+    deliberate breaks of the script, each caught by at least one test.
 
   _Requirements: 14.1_
 
