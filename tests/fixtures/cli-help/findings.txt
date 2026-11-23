@@ -1,6 +1,6 @@
 usage: valvur findings [-h] [--fingerprint FINGERPRINT] [--group GROUP] [--rule RULE]
-                       [--path PREFIX] [--status {new,persisting,regressed}] [--limit LIMIT]
-                       [--include-suppressed] [--inventory]
+                       [--path PREFIX] [--status {new,persisting,regressed}] [--owasp CATEGORY]
+                       [--limit LIMIT] [--include-suppressed] [--inventory]
                        [path]
 
 positional arguments:
@@ -14,6 +14,7 @@ options:
   --rule RULE
   --path PREFIX         Findings under this path, on whole segments
   --status {new,persisting,regressed}
+  --owasp CATEGORY      An OWASP category the findings' rules are mapped to, such as A05:2025
   --limit LIMIT
   --include-suppressed
   --inventory           Also list the sinks named for review, which are not findings by themselves

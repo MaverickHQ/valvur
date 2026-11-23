@@ -11,6 +11,7 @@ import json
 from dataclasses import asdict
 
 from . import grouping as _grouping
+from . import identifiers as _identifiers
 from .findings import Finding
 from .fingerprint import FP_VERSION
 from .text import cut
@@ -62,6 +63,10 @@ def _serialise(finding: Finding) -> dict:
     record["cwe"] = list(finding.cwe)
     if not finding.cwe:
         del record["cwe"]
+    # Additive (R51.3): the OWASP categories the rule is mapped to, where it has any.
+    record["owasp"] = list(finding.owasp)
+    if not finding.owasp:
+        del record["owasp"]
     # Additive (D47a): present on the sink inventory alone.
     if not finding.inventory:
         del record["inventory"]
@@ -88,16 +93,8 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
     results = []
 
     for finding in findings:
-        rules.setdefault(finding.rule, {
-            "id": finding.rule,
-            "shortDescription": {"text": cut(finding.title, 120)},
-            "properties": {"security-severity": _security_severity(finding.severity),
-                           # The rule's weaknesses (R13.4), and the tag code-scanning
-                           # tools read them from.
-                           **({"cwe": list(finding.cwe),
-                               "tags": [f"external/cwe/{c.lower()}" for c in finding.cwe]}
-                              if finding.cwe else {})},
-        })
+        if finding.rule not in rules:
+            rules[finding.rule] = _rule(finding)
         results.append({
             "ruleId": finding.rule,
             "level": _SARIF_LEVEL.get(finding.severity, "warning"),
@@ -138,6 +135,7 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
                                   "valvur accepts as a suppression"),
             }]
 
+    taxonomies = _taxonomies(findings)
     return json.dumps({
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
@@ -147,12 +145,75 @@ def sarif(findings: list[Finding], *, version: str, generation: str = "") -> str
                 "version": version,
                 "informationUri": "https://github.com/MaverickHQ/valvur",
                 "rules": list(rules.values()),
+                **({"supportedTaxonomies": [{"name": t["name"]} for t in taxonomies]}
+                   if taxonomies else {}),
             }},
+            # The taxa this run's Findings are mapped to, and no others (R51.3).
+            **({"taxonomies": taxonomies} if taxonomies else {}),
             **({"automationDetails": {"id": f"valvur/{generation}", "guid": generation}}
                if generation else {}),
             "results": results,
         }],
     }, indent=2) + "\n"
+
+
+CWE_TAXONOMY = "CWE"
+
+
+def _rule(finding: Finding) -> dict:
+    """A rule's descriptor, from the first Finding that names it."""
+    return {
+        "id": finding.rule,
+        "shortDescription": {"text": cut(finding.title, 120)},
+        "properties": {"security-severity": _security_severity(finding.severity),
+                       # The rule's weaknesses (R13.4) and the OWASP categories it is
+                       # mapped to (R51.3), and the tags code-scanning tools read both
+                       # from.
+                       **({"cwe": list(finding.cwe)} if finding.cwe else {}),
+                       **({"owasp": list(finding.owasp)} if finding.owasp else {}),
+                       **({"tags": tags} if (tags := _tags(finding)) else {})},
+        # SARIF's own way to say it (3.49.14): each taxon the rule is relevant to.
+        **({"relationships": related} if (related := _relationships(finding)) else {}),
+    }
+
+
+def _tags(finding: Finding) -> list[str]:
+    return ([f"external/cwe/{c.lower()}" for c in finding.cwe]
+            + [f"external/owasp/{o.lower()}" for o in finding.owasp])
+
+
+def _relationships(finding: Finding) -> list[dict]:
+    lists = _identifiers.table()
+    targets = ([(c, CWE_TAXONOMY) for c in finding.cwe]
+               + [(o, lists.list_of(o).name) for o in finding.owasp])
+    return [{"target": {"id": taxon, "toolComponent": {"name": taxonomy}},
+             "kinds": ["relevant"]} for taxon, taxonomy in targets]
+
+
+def _taxonomies(findings: list[Finding]) -> list[dict]:
+    """SARIF's `run.taxonomies`: CWE, then each OWASP list a Finding is mapped to, in the
+    file's order and at the edition it names. A taxon is *mapped to*: the word in each
+    description, since a reader of SARIF alone sees nothing else of ADR-0037."""
+    lists = _identifiers.table()
+    cwes = sorted({c for f in findings for c in f.cwe}, key=lambda c: int(c.split("-")[1]))
+    mapped = {o for f in findings for o in f.owasp}
+    made = []
+    if cwes:
+        made.append({"name": CWE_TAXONOMY, "organization": "MITRE",
+                     "informationUri": "https://cwe.mitre.org/",
+                     "shortDescription": {"text": "The weaknesses this run's rules and "
+                                                  "advisories name."},
+                     "taxa": [{"id": c} for c in cwes]})
+    for one in lists.lists.values():
+        taxa = [{"id": identifier, "name": name}
+                for identifier, name in one.categories.items() if identifier in mapped]
+        if taxa:
+            made.append({"name": one.name, "organization": "OWASP", "version": one.edition,
+                         "informationUri": one.source,
+                         "shortDescription": {"text": "The categories this run's rules are "
+                                                      "mapped to. A mapping is not coverage."},
+                         "taxa": taxa})
+    return made
 
 
 def _security_severity(severity: str) -> str:

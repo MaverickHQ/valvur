@@ -43,8 +43,10 @@ mapped = false
 reason = "Read and not mapped to: the Top 10 for Agentic Applications is the list OWASP publishes to be cited, and of its threats T1 to T17 the name of T14 could not be read from the document."
 
 # A CWE to the Top 10 category whose own List of Mapped CWEs holds it, read from each
-# category's page. A dependency vulnerability's CWE, which its advisory gives, is looked up
-# here. CWE-1321 is in none of the ten lists.
+# category's page. Every entry below with a CWE is held to this table by a test. A
+# dependency vulnerability is not looked up here: it keeps the CWE its advisory gives and
+# takes its Scanner's category, since the fix is an upgrade whatever the weakness.
+# CWE-1321 is in none of the ten lists.
 [cwe]
 "CWE-22" = "A01:2025"
 "CWE-78" = "A05:2025"

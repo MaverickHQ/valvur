@@ -408,6 +408,9 @@ def build_parser() -> argparse.ArgumentParser:
     findings_cmd.add_argument("--path", dest="finding_path", metavar="PREFIX",
                               help="Findings under this path, on whole segments")
     findings_cmd.add_argument("--status", choices=["new", "persisting", "regressed"])
+    findings_cmd.add_argument(
+        "--owasp", metavar="CATEGORY",
+        help="An OWASP category the findings' rules are mapped to, such as A05:2025")
     findings_cmd.add_argument("--limit", type=int)
     findings_cmd.add_argument("--include-suppressed", action="store_true")
     findings_cmd.add_argument(
@@ -620,7 +623,7 @@ def _cmd_read(args: argparse.Namespace, runner=None) -> int:
     payload = {"workspace": args.path}
     for field, key in (("status", "status"), ("limit", "limit"),
                        ("fingerprint", "fingerprint"), ("group", "group"),
-                       ("rule", "rule"), ("finding_path", "path")):
+                       ("rule", "rule"), ("finding_path", "path"), ("owasp", "owasp")):
         if getattr(args, field, None) is not None:
             payload[key] = getattr(args, field)
     if getattr(args, "include_suppressed", False):

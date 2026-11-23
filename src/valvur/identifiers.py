@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import datetime
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cache
 from pathlib import Path
 
 from . import toml_input
+from .findings import Finding
 
 PATH = Path(__file__).parent / "data" / "identifiers.toml"
 _CWE = re.compile(r"CWE-\d+")
@@ -66,12 +67,16 @@ class Table:
         return self.scanners.get(scanner) or self.classes.get(finding_class) \
             or Identifiers((), ())
 
-    def category(self, identifier: str) -> str:
-        """A category's name, for an ID in any list."""
+    def list_of(self, identifier: str) -> OwaspList:
+        """The list a category's ID belongs to."""
         for one in self.lists.values():
             if identifier in one.categories:
-                return one.categories[identifier]
+                return one
         raise KeyError(identifier)
+
+    def category(self, identifier: str) -> str:
+        """A category's name, for an ID in any list."""
+        return self.list_of(identifier).categories[identifier]
 
 
 def _entry(raw: dict[str, object], name: str, known: set[str]) -> Identifiers:
@@ -130,3 +135,42 @@ def table() -> Table:
 
 def of(scanner: str, rule: str, finding_class: str) -> Identifiers:
     return table().of(scanner, rule, finding_class)
+
+
+#: The Finding Class of a Scanner's Findings, by CONTEXT.md's names.
+_CLASS_OF = {"gitleaks": "secret", "checkov": "IaC misconfiguration",
+             "zizmor": "IaC misconfiguration", "opengrep": "static analysis",
+             "trivy": "dependency vulnerability", "osv-scanner": "dependency vulnerability"}
+_OWN_CLASS = (("valvur.dependency.", "dependency reality"), ("valvur.licence.", "licence"))
+
+
+def class_of(finding: Finding) -> str:
+    """A Finding's class, for the table's last level."""
+    for prefix, name in _OWN_CLASS:
+        if finding.rule.startswith(prefix):
+            return name
+    for source in finding.sources:
+        if source in _CLASS_OF:
+            return _CLASS_OF[source]
+    return "static analysis"
+
+
+def for_finding(finding: Finding, known: Table | None = None) -> Identifiers:
+    """A Finding's entry: by its rule, and by the first of its Scanners the table names."""
+    known = known or table()
+    scanner = next((s for s in finding.sources if s in known.scanners), "")
+    return known.of(scanner, finding.rule, class_of(finding))
+
+
+def apply(findings: list[Finding]) -> list[Finding]:
+    """Each Finding with the categories its rule is mapped to, and with its entry's CWE
+    where its Scanner gave none. A CWE a Scanner reported is kept: an advisory's, or a
+    rule's own. Neither field is identity, and no Fingerprint is read or written here."""
+    marked = []
+    for finding in findings:
+        entry = for_finding(finding)
+        cwe = finding.cwe or entry.cwe
+        if (cwe, entry.owasp) != (finding.cwe, finding.owasp):
+            finding = replace(finding, cwe=cwe, owasp=entry.owasp)
+        marked.append(finding)
+    return marked

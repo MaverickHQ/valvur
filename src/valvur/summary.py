@@ -21,6 +21,7 @@ from . import coverage as _coverage
 from . import datasets as _datasets
 from . import grouping as _grouping
 from . import hygiene, levers, tiers, verdict
+from . import identifiers as _identifiers
 from . import profiles as _profiles
 from .findings import Status
 from .findings import exploit_badge as _exploit_badge
@@ -109,6 +110,7 @@ def render(run: ScanRun) -> str:
     lines += _scope(run, active)
     lines += _not_run(run, notes)
     lines += _top(active)
+    lines += _by_owasp(active)
     lines += _hygiene(run)
     lines += _accepted_and_fixed(run, suppressed)
     lines += _ignored(findings)
@@ -546,6 +548,35 @@ def _top(active) -> list[str]:
         ]
     lines.append("")
     return lines
+
+
+def _by_owasp(active) -> list[str]:
+    """Active Findings counted by the OWASP categories their rules are mapped to
+    (R51.3, ADR-0037). One row per list, so the section is bounded at three rows
+    whatever the run holds. Counts only: a mapping says where a Finding sorts.
+
+    Written when it sorts something: two categories or more, or more Findings than
+    *Most urgent* shows. One category beside the one entry it counts would cost a
+    small repository its one screen (R5.2's measure) and tell its reader nothing."""
+    counted: dict[str, int] = {}
+    for finding in active:
+        for category in finding.owasp:
+            counted[category] = counted.get(category, 0) + 1
+    if len(counted) < 2 and not (counted and len(active) > TOP_N):
+        return []
+    rows = []
+    for one in _identifiers.table().lists.values():
+        cells = [f"{category} {name} {counted[category]:,}"
+                 for category, name in one.categories.items() if category in counted]
+        if cells:
+            rows.append(f"| {one.name} {one.edition} | {'; '.join(cells)} |")
+    unmapped = sum(1 for finding in active if not finding.owasp)
+    return ["## By OWASP category", "",
+            "Active findings, by the categories their rules are mapped to. One finding "
+            "can be mapped to several"
+            + (f"; {unmapped:,} are mapped to none" if unmapped else "")
+            + ". List a category's with `findings --owasp <id>`.", "",
+            "| list | findings by category |", "|---|---|", *rows, ""]
 
 
 def _hygiene(run: ScanRun) -> list[str]:

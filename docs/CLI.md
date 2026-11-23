@@ -54,8 +54,8 @@ Results land in `.security-scan/`:
 
 The folder ignores itself, so results are never committed, and your own `.gitignore` is
 never touched. **You decide which fixes to apply and when to rescan**: there is no
-autonomous loop. `valvur findings` lists the last scan's findings by group, rule, path
-or status, and `valvur findings --fingerprint` shows one in full.
+autonomous loop. `valvur findings` lists the last scan's findings by group, rule, path,
+status or the OWASP category its rule is mapped to (`--owasp A05:2025`), and `valvur findings --fingerprint` shows one in full.
 
 What a scan reads is decided once, before any Scanner starts. In a repository, it is
 the files git would publish (tracked, and untracked but not ignored), plus ignored

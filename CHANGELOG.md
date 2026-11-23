@@ -28,6 +28,14 @@ break things, and has.
 - **A dependency finding names every lockfile it was found through,** as `paths`, in
   `findings.json`, in SARIF and in the `findings` reply. It named the first and dropped
   the others, so fixing the one named left the finding in place.
+- **Every finding names the CWE and the OWASP categories its rule is mapped to,** as `cwe`
+  and `owasp`: in `findings.json`, in SARIF as taxonomies, relationships and tags, and in
+  the `findings` reply. The lists are the OWASP Top 10:2025, the Top 10 for LLM
+  Applications 2025 and the Top 10 for Agentic Applications 2026, each read from OWASP's
+  own pages on 2026-11-23. A dependency finding takes the CWE its advisory gives.
+  `valvur findings --owasp A05:2025` lists a category's, and `SUMMARY.md` counts by
+  category once there is more than one. A mapping says where a finding sorts in a
+  taxonomy other tools use. It is not a statement of what valvur detects.
 
 ### Fixed
 

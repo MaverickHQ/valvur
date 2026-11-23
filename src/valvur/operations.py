@@ -206,6 +206,8 @@ def findings_reply(args: dict, *, roots: list[Path] | None = None) -> tuple[str,
         raise Refusal(f"`status` must be new, persisting or regressed; got {status!r}.")
     filters = {key: args[key] for key in ("fingerprint", "group", "rule", "path", "status")
                if args.get(key)}
+    if args.get("owasp"):
+        filters["owasp"] = _checked_category(args["owasp"])
     data = _load(args.get("workspace"))
     findings = [f for f in data["findings"] if _matches(f, filters)]
     if filters.get("fingerprint") and not findings:
@@ -243,18 +245,53 @@ def findings_reply(args: dict, *, roots: list[Path] | None = None) -> tuple[str,
         lines += [
             "",
             f"{omitted} more not shown. Raise `limit` (max {MAX_LIMIT}) or filter "
-            "by `group`, `rule`, `path` or `status`.",
+            "by `group`, `rule`, `path`, `status` or `owasp`.",
         ]
     lines += caveats
     return "\n".join(lines), structured
 
 
+def _checked_category(value) -> str:
+    """An OWASP category as the mapping writes it, or a refusal that names the editions
+    it could be: last edition's ID matching nothing would read as *none of those here*."""
+    # deferred: startup; the MCP server loads this module before its handshake.
+    from . import identifiers
+
+    lists = [one for one in identifiers.table().lists.values() if one.mapped]
+    asked = str(value).strip().upper()
+    if any(asked in one.categories for one in lists):
+        return asked
+    known = "; ".join(f"{next(iter(one.categories))} to {list(one.categories)[-1]} "
+                      f"({one.name} {one.edition})" for one in lists)
+    raise Refusal(f"`owasp` must be a category valvur's rules are mapped to: {known}; "
+                  f"got {str(value)!r}.")
+
+
+def _mapped_to(finding: dict) -> list[dict]:
+    """A Finding's OWASP categories, each with its name, its list and the edition."""
+    # deferred: startup; the MCP server loads this module before its handshake.
+    from . import identifiers
+
+    known, named = identifiers.table(), []
+    for category in finding.get("owasp") or []:
+        try:
+            one = known.list_of(category)
+        except KeyError:        # written by a valvur with another edition of the mapping
+            named.append({"id": category, "name": "", "list": "", "edition": ""})
+            continue
+        named.append({"id": category, "name": one.categories[category], "list": one.name,
+                      "edition": one.edition})
+    return named
+
+
 def _matches(finding: dict, filters: dict) -> bool:
     """A Finding against the call's filters: exact fingerprint, group, rule and
-    status; `path` a prefix on whole segments, as an exclude is."""
+    status; `path` a prefix on whole segments, as an exclude is; `owasp` a category
+    the Finding's rule is mapped to."""
     prefix = str(filters.get("path") or "").rstrip("/")
     return (all(finding.get(key) == filters[key]
                 for key in ("fingerprint", "group", "rule", "status") if key in filters)
+            and ("owasp" not in filters or filters["owasp"] in (finding.get("owasp") or []))
             and (not prefix or finding["path"] == prefix
                  or finding["path"].startswith(prefix + "/")))
 
@@ -289,6 +326,9 @@ def _structured_finding(finding: dict) -> dict:
         "line": finding.get("line") or None,
         "title": defang.neutralise(str(finding.get("title") or "")),
         "rule": finding["rule"],
+        # R51.3: the weakness, and the OWASP categories the rule is mapped to.
+        **({"cwe": list(finding["cwe"])} if finding.get("cwe") else {}),
+        **({"owasp": list(finding["owasp"])} if finding.get("owasp") else {}),
         "fingerprint": finding["fingerprint"],
         "suppressed": bool(finding.get("suppressed")),
         "exploit": {"kev": exploit.get("kev"), "ransomware": bool(exploit.get("ransomware")),
@@ -304,7 +344,9 @@ def _detail(finding: dict) -> dict:
             "exploit": dict(finding.get("exploit") or {}),
             "dependency": dict(finding.get("dependency") or {}),
             "suppressed": finding.get("suppressed"),
-            "group": finding.get("group")}
+            "group": finding.get("group"),
+            "cwe": list(finding.get("cwe") or []),
+            "owasp": _mapped_to(finding)}
 
 
 def _explained(finding: dict) -> str:
@@ -320,6 +362,12 @@ def _explained(finding: dict) -> str:
     ]
     if finding.get("group"):
         lines.append(f"  group:       {finding['group']}")
+    mapped = list(finding.get("cwe") or []) + [
+        f"{one['id']} {one['name']} ({one['list']} {one['edition']})" if one["list"]
+        else one["id"] for one in _mapped_to(finding)]
+    if mapped:
+        # Mapped to, and no more (ADR-0037): where it sorts, not what valvur covers.
+        lines.append(f"  mapped to:   {'; '.join(mapped)}")
 
     exploit = finding.get("exploit") or {}
     if exploit.get("cve"):

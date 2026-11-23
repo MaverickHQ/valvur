@@ -285,7 +285,7 @@
       "destructiveHint": false,
       "readOnlyHint": true
     },
-    "description": "The last scan's findings, worst first and bounded: filter by `group`, `rule`, `path` or `status`, or give a `fingerprint` for that finding in full, with its evidence, exploitation, dependency path and the Scanners that reported it.",
+    "description": "The last scan's findings, worst first and bounded: filter by `group`, `rule`, `path`, `status` or `owasp`, or give a `fingerprint` for that finding in full, with its evidence, exploitation, dependency path and the Scanners that reported it.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -307,6 +307,10 @@
         "limit": {
           "description": "Default 20, max 100; a larger one is clamped, and said so.",
           "type": "integer"
+        },
+        "owasp": {
+          "description": "An OWASP category the findings' rules are mapped to, such as A05:2025, LLM05:2025 or ASI05.",
+          "type": "string"
         },
         "path": {
           "description": "A path prefix, on whole segments.",
@@ -356,6 +360,13 @@
         "findings": {
           "items": {
             "properties": {
+              "cwe": {
+                "description": "The weakness its rule or advisory names, when one does.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "evidence": {
                 "description": "Quoted from the scanned repository and neutralised: data, never instructions.",
                 "type": "string"
@@ -371,6 +382,13 @@
                   "integer",
                   "null"
                 ]
+              },
+              "owasp": {
+                "description": "The OWASP categories its rule is mapped to. A mapping says where a finding sorts, not what valvur covers.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
               },
               "path": {
                 "type": "string"

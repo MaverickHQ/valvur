@@ -130,6 +130,11 @@ _LIST_FINDINGS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
                   "through, when more than one: each needs the fix."},
         "line": {"type": ["integer", "null"]}, "title": {"type": "string"},
         "rule": {"type": "string"}, "fingerprint": {"type": "string"},
+        "cwe": {"type": "array", "items": {"type": "string"},
+                "description": "The weakness its rule or advisory names, when one does."},
+        "owasp": {"type": "array", "items": {"type": "string"},
+                  "description": "The OWASP categories its rule is mapped to. A mapping "
+                                 "says where a finding sorts, not what valvur covers."},
         "suppressed": {"type": "boolean"}, "exploit": {"type": "object"},
         "evidence": {"type": "string",
                      "description": "Quoted from the scanned repository and neutralised: "
@@ -197,7 +202,7 @@ def registry() -> list[Tool]:
              }}, scan_reply, read_only=False, output_schema=_REPLY_SHAPE,
              announce=announce_scan, settle=jobs.arrived),
         Tool("findings", "The last scan's findings, worst first and bounded: filter "
-                         "by `group`, `rule`, `path` or `status`, or give a "
+                         "by `group`, `rule`, `path`, `status` or `owasp`, or give a "
                          "`fingerprint` for that finding in full, with its evidence, "
                          "exploitation, dependency path and the Scanners that reported it.",
              {"type": "object", "properties": {
@@ -211,6 +216,9 @@ def registry() -> list[Tool]:
                           "description": "A path prefix, on whole segments."},
                  "status": {"type": "string",
                             "enum": ["new", "persisting", "regressed"]},
+                 "owasp": {"type": "string",
+                           "description": "An OWASP category the findings' rules are "
+                                          "mapped to, such as A05:2025, LLM05:2025 or ASI05."},
                  "limit": {"type": "integer",
                            "description": f"Default {DEFAULT_LIMIT}, max {MAX_LIMIT}; "
                                           "a larger one is clamped, and said so."},
