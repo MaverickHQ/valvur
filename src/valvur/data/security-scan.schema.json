@@ -46,6 +46,20 @@
         }
       }
     },
+    "context": {
+      "description": "What this project says of its own paths, which valvur cannot know: a Finding under one ranks ahead of the others in its tier, and never across a tier (ADR-0036). A statement by the project, not analysis.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path"],
+        "properties": {
+          "path": {"description": "A directory, relative to the project root.", "type": "string", "minLength": 1},
+          "exposure": {"description": "`internet`: what is here is reachable from the internet.", "type": "string", "enum": ["internet"]},
+          "data": {"description": "`sensitive`: what is here holds sensitive data.", "type": "string", "enum": ["sensitive"]}
+        }
+      }
+    },
     "vex": {
       "description": "OpenVEX documents of this project's own that valvur honours, each until a date (ADR-0035). A statement in one suppresses a dependency vulnerability. valvur reads no document that is not named here, and writes none.",
       "type": "array",

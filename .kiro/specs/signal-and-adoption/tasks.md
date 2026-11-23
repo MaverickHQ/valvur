@@ -996,7 +996,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 7.7_
 
-- [ ] **R50.5** **A project's own VEX** (D82m).
+- [x] **R50.5** **A project's own VEX** (D82m).
   **Seam:** `api.scan` over `LocalRuntime` with canned Trivy output, on a Workspace whose
   `.security-scan.toml` names an OpenVEX document; `findings.json`, `SUMMARY.md` and
   `gate.evaluate` read back. Behaviours:
@@ -1025,6 +1025,33 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   should not, or fail in silence.
 
   _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+
+  **STATUS 2026-11-23:** ✅ 1 to 14 (`0702bdf`), 28 tests in `tests/test_vex.py`.
+  - **`src/valvur/vex.py`** reads each document a `[[vex]]` entry names and applies its
+    statements in the `suppress` stage, after the Suppressions: a Finding accepted both
+    ways keeps the Suppression's reason, which a person wrote for this project.
+  - **Refused before any Scanner runs:** a path outside the project, absolute, or through
+    a link that leaves it; a file that is not JSON, or has no `@context` under
+    `https://openvex.dev/ns`, or no `statements`; and an entry with no `expires`. The
+    last was added: the schema asks for the date, and a scan does not read the schema.
+  - **Products are compared as package URLs,** without qualifiers, and a PyPI name in
+    its normal form. A statement for another version of the package is another product:
+    it is neither honoured nor reported, and counts as matching nothing.
+  - **Two rules of valvur's own,** both at `low` and both active:
+    `valvur.vex.not-honoured`, for a statement that would apply and names no version or
+    gives no reason, and `valvur.vex.unused`, one Finding a document, counting its
+    statements that match nothing. A statement that matches and says `affected` is not
+    counted so. A lapsed entry is `valvur.suppression.expired`, which the gate already
+    fails on at every threshold.
+  - **Narrower than design.md in one way:** the unused count is a Finding in the list, not
+    a line under *Suppressed* in `SUMMARY.md`. It is in `findings.json`, where a gate and
+    an agent read it.
+  - **An alias counts:** a statement that names the Finding's GHSA ID applies to its CVE.
+  - **Behaviour 13 widens the forbidden tool names** with `vex`, and holds that no command
+    is named for it and that `valvur suppress` prints no VEX.
+  - **Not yet run through the container:** the seam is canned Trivy output, as the task
+    writes it. Trivy's own package URLs reach `Dependency.purl` today; the phase's exit
+    runs the whole container suite.
 
 - [ ] **R50.6** **Ranking reads a declaration** (D82n).
   **Seam:** `api.scan` over `LocalRuntime`, on a Workspace whose `.security-scan.toml` holds

@@ -180,6 +180,10 @@ class Finding:
     #: The advisory's other IDs, as OSV-Scanner lists them (R38.3): what a project's
     #: ignore file may name it by. Not identity.
     aliases: tuple[str, ...] = ()
+    #: The project's own declaration that ranks it ahead in its tier (R50.6, ADR-0036):
+    #: "`services/api/` is internet-facing". What the project said, not what valvur
+    #: found. Not identity.
+    declaration: str = ""
     #: The project's own ignore that would have hidden it (R38.3, D77b). Policy, not
     #: identity, like `suppressed`.
     ignored_by: IgnoredBy | None = None

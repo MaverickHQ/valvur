@@ -67,6 +67,9 @@ def _serialise(finding: Finding) -> dict:
         del record["aliases"]
     if finding.ignored_by is None:
         del record["ignored_by"]
+    # Additive (R50.6): present on a Finding under a path the project declared.
+    if not finding.declaration:
+        del record["declaration"]
     return record
 
 

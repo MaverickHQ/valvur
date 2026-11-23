@@ -277,7 +277,7 @@ def group(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 
 def rank(findings: list[Finding], ctx: Context) -> list[Finding]:
-    return _ranking.apply(findings)
+    return _ranking.apply(findings, ctx.scan.project if ctx.scan is not None else None)
 
 
 def diff(findings: list[Finding], ctx: Context) -> list[Finding]:
