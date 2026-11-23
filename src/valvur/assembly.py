@@ -82,6 +82,8 @@ def assemble(outcomes: list[ScannerOutcome | None], cut: list[str], *, declaring
         workspace_files=workspace_files, largest_dirs=tuple(largest_dirs),
         not_read=tuple(not_read), scope=scope, hygiene=hygiene,
         boundary=runner.boundary(), **_staged_fields(staged, osv_read),
+        tree=({"ref": context.tree.ref, "commit": context.tree.commit}
+              if context is not None and context.tree is not None else None),
     )
     _results_written(out or workspace, run, diff, artifacts, raw_outputs)
     return run
@@ -121,6 +123,7 @@ def _staged_fields(staged: _pipeline.PipelineResult, osv_read: tuple[str, ...]) 
         "epss_scored": provider.epss_scored,
         "epss_age_days": provider.epss_age_days,
         "data_ages": _staleness.data_ages(provider, osv=osv_read),
+        "data_built": _staleness.data_built(provider, osv=osv_read),
         "config_dropped": staged.config_dropped,
         "removed_by_class": staged.removed_by_class,
         "unpinned_dropped": staged.unpinned_dropped,

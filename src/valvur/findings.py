@@ -97,6 +97,10 @@ class Dependency:
     scope: str = "unknown"           # production | development | unknown
     direct: bool | None = None
     path: tuple[str, ...] = ()       # your-app -> webpack@4 -> lodash@4.17.11
+    #: Every lockfile the advisory was found through, sorted, when there is more than
+    #: one (R50.7, ADR-0036). The Finding's own `path` stays the first reported. Not
+    #: identity: a dependency vulnerability's Fingerprint has never held a path.
+    paths: tuple[str, ...] = ()
     #: When the advisory was published, `YYYY-MM-DDTHH:MM:SSZ`, or "" when no Scanner
     #: gave a date that reads (R43.1, F5.11). Trivy's `PublishedDate`, OSV-Scanner's
     #: `published`; the earlier when both report it. Enrichment, so it feeds neither
@@ -180,6 +184,10 @@ class Finding:
     #: The advisory's other IDs, as OSV-Scanner lists them (R38.3): what a project's
     #: ignore file may name it by. Not identity.
     aliases: tuple[str, ...] = ()
+    #: The project's own declaration that ranks it ahead in its tier (R50.6, ADR-0036):
+    #: "`services/api/` is internet-facing". What the project said, not what valvur
+    #: found. Not identity.
+    declaration: str = ""
     #: The project's own ignore that would have hidden it (R38.3, D77b). Policy, not
     #: identity, like `suppressed`.
     ignored_by: IgnoredBy | None = None
@@ -227,12 +235,24 @@ def merge(findings: list[Finding],
             existing,
             sources=combined,
             severity=severity,
-            dependency=_earlier_advisory(existing.dependency, finding.dependency),
+            dependency=_through(_earlier_advisory(existing.dependency, finding.dependency),
+                                existing, finding),
             exploit=existing.exploit or finding.exploit,
             cwe=existing.cwe or finding.cwe,
             aliases=tuple(dict.fromkeys(existing.aliases + finding.aliases)),
         )
     return _fold_repeats(_fold_malicious(list(by_fp.values()), index_form))
+
+
+def _through(dependency: Dependency | None, kept: Finding, other: Finding
+             ) -> Dependency | None:
+    """`dependency` with every lockfile the two Findings name, when they differ: the same
+    advisory through two lockfiles is one Finding, and fixing one file does not fix it."""
+    if dependency is None:
+        return None
+    named = {kept.path, other.path, *dependency.paths,
+             *(other.dependency.paths if other.dependency else ())}
+    return replace(dependency, paths=tuple(sorted(named))) if len(named) > 1 else dependency
 
 
 def _earlier_advisory(kept: Dependency | None, other: Dependency | None) -> Dependency | None:

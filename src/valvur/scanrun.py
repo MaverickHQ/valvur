@@ -80,6 +80,9 @@ class ScanRun:
     #: Every dataset's age and its basis (R11.6, `staleness.data_ages`): what
     #: `run.json`'s `data`, `SUMMARY.md`'s `Data:` line and the MCP reply say.
     data_ages: dict = field(default_factory=dict)
+    #: Each dataset's build instant, in seconds (R50.3, `staleness.data_built`): what a
+    #: gate compares to know that two Scan Runs read the same copy.
+    data_built: dict = field(default_factory=dict)
     # The database that decides whether findings EXIST, as opposed to KEV which only
     # decides how they rank. Until 2026-09-05 only the latter was instrumented.
     db_age_days: float | None = None
@@ -101,6 +104,9 @@ class ScanRun:
     config_dropped: int = 0
     #: What the class table removed (D56): {class: {rule: count}}, said in run.json.
     removed_by_class: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: The commit this is a result of, `{ref, commit}`, when it is not the working
+    #: tree's (`scan --ref`, R50.2).
+    tree: dict[str, str] | None = None
     #: OSV-Scanner answers against the lower bounds of unpinned ranges, dropped
     #: (25.3), and the requirements files they came from.
     unpinned_dropped: int = 0

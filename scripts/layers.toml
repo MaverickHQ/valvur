@@ -89,6 +89,7 @@ infra = [
     "valvur.fileset",
     "valvur.gitcontext",
     "valvur.history",
+    "valvur.reftree",
     "valvur.hygiene",
     "valvur.locking",
     "valvur.name_index",
@@ -109,6 +110,7 @@ infra = [
     "valvur.settings",
     "valvur.state",
     "valvur.suppressions",
+    "valvur.vex",
     "valvur.tree_hash",
 ]
 

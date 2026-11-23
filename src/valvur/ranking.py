@@ -61,6 +61,35 @@ def _exploit_tier(finding: Finding) -> int | None:
     return None
 
 
+#: What a `[[context]]` entry may say of a path, and how it reads (R50.6, ADR-0036).
+#: valvur cannot know either of these, and does not pretend to: the project says so.
+DECLARABLE = {("exposure", "internet"): "is internet-facing",
+              ("data", "sensitive"): "holds sensitive data"}
+
+
+def declarations(project: dict[str, object] | None) -> list[tuple[str, str]]:
+    """Each declared path, with a trailing slash, and what the project says of it. An
+    entry that says anything else is passed over here; `doctor` names it."""
+    found = []
+    entries = (project or {}).get("context")
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            continue
+        said = [words for (key, value), words in DECLARABLE.items() if entry.get(key) == value]
+        path = entry["path"].strip("/")
+        if said and path:
+            found.append((path + "/", said[0]))
+    return found
+
+
+def declared(finding: Finding, known: list[tuple[str, str]]) -> str:
+    """The declaration a Finding's path is under, by whole segments, or ""."""
+    for path, said in known:
+        if (finding.path + "/").startswith(path):
+            return f"`{path}` {said}"
+    return ""
+
+
 def sort_key(finding: Finding,
              flooded: frozenset[str] = frozenset()) -> tuple[object, ...]:
     exploit = finding.exploit
@@ -100,6 +129,9 @@ def sort_key(finding: Finding,
         flood_penalty,
         dev_penalty,
         tier,
+        # Within a tier and never across one (R50.6): what the project declared
+        # internet-facing or sensitive comes first.
+        0 if finding.declaration else 1,
         -epss,
         severity_index,
         finding.path,
@@ -107,8 +139,13 @@ def sort_key(finding: Finding,
     )
 
 
-def apply(findings: list[Finding]) -> list[Finding]:
-    """Sort worst-first and stamp each Finding with its position."""
+def apply(findings: list[Finding],
+          project: dict[str, object] | None = None) -> list[Finding]:
+    """Sort worst-first and stamp each Finding with its position. With the project
+    file, a Finding under a path it declares says so and ranks first in its tier."""
+    known = declarations(project)
+    if known:
+        findings = [replace(f, declaration=declared(f, known)) for f in findings]
     flooded = frozenset(g.id for g in _grouping.describe(findings) if g.machine_written)
     ordered = sorted(findings, key=lambda f: sort_key(f, flooded))
     return [replace(f, rank=i + 1) for i, f in enumerate(ordered)]

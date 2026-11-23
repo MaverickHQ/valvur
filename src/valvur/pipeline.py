@@ -37,6 +37,7 @@ from . import results as _results
 from . import state as _state
 from . import suppressions as _suppressions
 from . import tiers as _tiers
+from . import vex as _vex
 from .ecosystems import index_form
 from .findings import Finding, merge
 
@@ -263,7 +264,12 @@ def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     findings = _suppressions.apply(findings, policy)
     # A project's own ignore with a reason and an expiry is an accepted risk too (D77c).
     findings = _project_ignores.accept(findings)
-    return findings + _suppressions.policy_findings(policy, findings)
+    # And so is a VEX statement in a document the project file accepts until a date
+    # (R50.5, ADR-0035): after the Suppressions, so a Finding accepted twice says the
+    # Suppression's reason, which a person wrote for this project.
+    known = _suppressions.policy_findings(policy, findings)
+    documents = _vex.load(ctx.workspace, ctx.scan.project if ctx.scan is not None else None)
+    return _vex.apply(findings, documents) + known
 
 
 def group(findings: list[Finding], ctx: Context) -> list[Finding]:
@@ -271,7 +277,7 @@ def group(findings: list[Finding], ctx: Context) -> list[Finding]:
 
 
 def rank(findings: list[Finding], ctx: Context) -> list[Finding]:
-    return _ranking.apply(findings)
+    return _ranking.apply(findings, ctx.scan.project if ctx.scan is not None else None)
 
 
 def diff(findings: list[Finding], ctx: Context) -> list[Finding]:

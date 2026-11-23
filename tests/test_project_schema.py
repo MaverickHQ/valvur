@@ -32,7 +32,7 @@ def test_the_schema_is_json_schema_and_ships_in_the_package():
     schema = json.loads(project_schema.PATH.read_text())
 
     assert schema["$schema"].startswith("https://json-schema.org/")
-    assert set(schema["properties"]) == {"scan", "suppress"}
+    assert set(schema["properties"]) == {"context", "scan", "suppress", "vex"}
     assert schema["additionalProperties"] is False
 
 

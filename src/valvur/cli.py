@@ -13,6 +13,7 @@ from . import coverage as _coverage
 from . import gate as _gate
 from . import locking as _locking
 from . import profiles as _profiles
+from . import reftree as _reftree
 from . import service
 from .events import Event, Kind
 from .version import __version__
@@ -331,6 +332,13 @@ def build_parser() -> argparse.ArgumentParser:
         "mounted read-only; `gate`, `findings` and `status` then read DIR.",
     )
     scan_cmd.add_argument(
+        "--ref", default=None, metavar="REF",
+        help="Scan this commit's tree instead of the working tree: a branch, a tag or a "
+        "commit. Read with git's plumbing, so nothing is checked out and the repository "
+        "is not changed. Needs --out, since the workspace's own result is of the "
+        "working tree.",
+    )
+    scan_cmd.add_argument(
         "--budget", type=_positive_seconds, default=None, metavar="SECONDS",
         help="Stop the Scanners past this many seconds: nothing new starts, what is "
         "running is stopped, and the result is reported incomplete with the cut "
@@ -452,6 +460,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on", default=_gate.DEFAULT_THRESHOLD, choices=_gate.THRESHOLDS,
         help="Lowest severity of an active finding that fails the gate (default: high). "
         "`any` is every active finding — what valvur's own release gate uses.",
+    )
+    gate_cmd.add_argument(
+        "--new-since", default=None, metavar="REF",
+        help="Fail only on findings that REF does not already have: a branch, a tag or "
+        "a commit. valvur scans REF's tree itself, into its cache, and compares by "
+        "fingerprint. An incomplete run and a lapsed suppression still fail. In CI the "
+        "checkout needs REF's commit: `fetch-depth: 0`.",
     )
     gate_cmd.add_argument(
         "--no-inconclusive", action="store_true",
@@ -629,8 +644,27 @@ def _cmd_gate(args: argparse.Namespace, runner=None) -> int:
     """`gate`: exit 1 if the last scan should not ship."""
     import os
 
-    verdict = _gate.evaluate(Path(args.path).resolve(), fail_on=args.fail_on,
-                             no_inconclusive=args.no_inconclusive)
+    workspace = Path(args.path).resolve()
+    base = None
+    if getattr(args, "new_since", None):
+        try:
+            base = service.base_scan(workspace, args.new_since, runner=runner)
+        except _reftree.NotResolved as unresolved:
+            # Nothing was compared, so nothing passed. A pull request's job checks out
+            # one commit by default (R50.1), which is the usual reason.
+            why = "" if isinstance(unresolved, _reftree.NoGit) else (
+                ". In CI the usual cause is a shallow checkout: give actions/checkout "
+                "`fetch-depth: 0`, or fetch the base branch first")
+            verdict = _gate.Verdict([f"{unresolved}, so nothing was compared{why}"],
+                                    "gate: the base could not be read", 1)
+            print(_gate.render(verdict,
+                               annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
+            return verdict.exit_code
+        except _locking.Busy as busy:
+            print(f"  ! {busy}", file=sys.stderr)
+            return 1
+    verdict = _gate.evaluate(workspace, fail_on=args.fail_on,
+                             no_inconclusive=args.no_inconclusive, base=base)
     print(_gate.render(verdict, annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
     return verdict.exit_code
 
@@ -687,6 +721,19 @@ def _cmd_update(args: argparse.Namespace, runner=None) -> int:
     return 0 if updated.ok else 1
 
 
+def _ref_refused(workspace: Path, out: Path | None) -> str | None:
+    """Why `scan --ref` cannot write where it was told (R50.2). The Workspace's own
+    Results Folder is of the working tree: a commit's result there would be read as it."""
+    if out is None:
+        return ("--ref needs --out DIR: the result of a commit's tree is never written "
+                "into the workspace, whose own result is of the working tree")
+    own = workspace / _gate.RESULTS_DIR
+    if out == workspace or out == own or own in out.parents:
+        return (f"--out {out} is the workspace's own Results Folder, which is of the "
+                "working tree; give --ref a directory of its own")
+    return None
+
+
 def _one_line(text: str) -> str:
     """A multi-line message as one line, each line but the last ended as a sentence;
     the last is often a command to copy, and keeps no stop."""
@@ -716,13 +763,20 @@ def _cmd_scan(args: argparse.Namespace, runner=None) -> int:
         if event.kind in (Kind.FETCH_STARTED, Kind.FETCH_ENDED):
             print(f"  {event}", file=sys.stderr)
 
+    out = Path(args.out).resolve() if getattr(args, "out", None) else None
+    ref = getattr(args, "ref", None)
+    if ref is not None and (refused := _ref_refused(workspace, out)):
+        print(f"  ! {refused}", file=sys.stderr)
+        return 2
     try:
-        out = Path(args.out).resolve() if getattr(args, "out", None) else None
         run = service.run_scan(
             workspace, runner=runner, cancellation=cancellation, profile=profile,
             on_progress=progress, jobs=args.jobs, budget_s=args.budget,
             sbom=getattr(args, "sbom", False), fresh=bool(getattr(args, "fresh", False)),
-            out=out)
+            out=out, ref=ref)
+    except _reftree.NotResolved as unresolved:
+        print(f"  ! {unresolved}", file=sys.stderr)
+        return 2
     except _locking.Busy as busy:
         # An expected condition, not a crash. A traceback here would read as a bug in
         # valvur when it is a second scan doing exactly what it should.

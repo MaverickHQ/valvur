@@ -837,14 +837,60 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
 ### Phase R50: an existing codebase adopts the gate
 
-- [ ] **R50.1** **Measure first** (D82k, D82m). No test seam. **Record,** in the STATUS:
+- [x] **R50.1** **Measure first** (D82k, D82m). No test seam. **Record,** in the STATUS:
   1. the time to read the largest acceptance repository's tree with `git cat-file --batch`,
      against a Snapshot from disk;
   2. what `actions/checkout` leaves of the base branch at its default depth;
   3. whether OpenVEX's documents or tools name a conventional path, and the current
      specification's required fields.
 
-- [ ] **R50.2** **`scan --ref`: a commit's tree** (D82k).
+  **STATUS 2026-11-23:** ✅ 1 to 3. R50 is on its own branch, stacked on R49's: it needs
+  nothing R49.8 will change.
+
+  **1. Reading a tree by git's plumbing is as fast as reading it from disk.** On the dev
+  machine, the median of three, each way into a tar in memory:
+
+  | repository | files | a Snapshot from disk | `ls-tree` and `cat-file --batch` | `git archive` |
+  |---|---|---|---|---|
+  | the acceptance set's `1-gate-shaped` | 303 | 0.08 s | 0.02 s | 0.01 s |
+  | valvur itself | 867 | 0.12 s | 0.10 s | 0.06 s |
+  | the largest corpus checkout, `fastapi` | 3,181 | 0.31 s | 0.30 s | 0.18 s |
+
+  - **So D82k stands and its fallback is not needed:** `cat-file --batch`, which honours
+    no `export-ignore` and so reads the tree a scan of the working tree would.
+  - The acceptance set's own largest git repository has 303 files, too few to say much,
+    so two larger trees are measured beside it. Three of the set's eight are not git
+    repositories where it keeps them.
+
+  **2. At its default depth `actions/checkout` leaves nothing of the base.** From valvur's
+  own run 45066261498, a pull request's job with `fetch-depth: 1`: one fetch,
+  `--depth=1 origin +<sha>:refs/remotes/pull/307/merge`, and a detached checkout of it.
+  No `origin/<base>` ref exists, and the merge commit's parents are not in the object
+  store. A job with `fetch-depth: 0` fetches every branch and tag. So `--new-since
+  origin/main` needs `fetch-depth: 0`, or a fetch of the base ref, and R50.3's behaviour 5
+  says so in the gate's own line.
+
+  **3. OpenVEX names no path, and its required fields are few.** From the specification,
+  v0.2.0 (`@context` `https://openvex.dev/ns/v0.2.0`), and `vexctl`'s README, read
+  2026-11-23:
+  - **No conventional path.** Neither names where a project keeps its documents.
+    `vexctl`'s README uses `.openvex/*.json` in one example command, and says no more. So
+    D82m stands: a document is read only where a `[[vex]]` entry names it.
+  - **A document requires** `@context`, `@id`, `author`, `timestamp`, `version` and
+    `statements`. `role`, `last_updated` and `tooling` are optional.
+  - **A statement requires** `vulnerability` (its `name`; `@id` and `aliases` optional)
+    and `status`, one of `not_affected`, `affected`, `fixed`, `under_investigation`, and
+    must identify a product: `products`, each with an `@id` or `identifiers` such as a
+    purl, and optional `subcomponents`. Products and the timestamp may be inherited from
+    the document.
+  - **`not_affected` must carry a justification or an impact statement.** The five
+    justifications: `component_not_present`, `vulnerable_code_not_present`,
+    `vulnerable_code_not_in_execute_path`,
+    `vulnerable_code_cannot_be_controlled_by_adversary`, `inline_mitigations_already_exist`.
+    The specification's table and its prose differ on whether a justification alone is
+    required; R50.5's behaviour 5 takes either, as the statement table says.
+
+- [x] **R50.2** **`scan --ref`: a commit's tree** (D82k).
   **Seam:** `cli.main(["scan", …, "--ref", …, "--out", …])` over `LocalRuntime`, on a git
   repository made in `tmp_path`; the result's `findings.json` and `run.json`, and the
   repository afterwards. Behaviours:
@@ -865,7 +911,31 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 7.1, 7.3_
 
-- [ ] **R50.3** **`gate --new-since`** (D82k, D82l).
+  **STATUS 2026-11-23:** ✅ 1 to 10 (`f8f20cf` and the container test), 14 tests in
+  `tests/test_scan_ref.py` and one in `tests/test_cli_parity.py`.
+  - **How it is built:** `src/valvur/reftree.py` resolves the ref and writes the commit's
+    files, read by `ls-tree` and `cat-file --batch`, into a temporary directory outside
+    the repository. That directory is scanned as any Workspace is, into `--out`, and is
+    gone when the scan returns. design.md had the Snapshot built from the blobs in
+    memory; a directory lets every host-side stage read the commit's own files, the
+    project file among them, with no second code path. It is not in the repository, so
+    behaviour 2 holds as written.
+  - **The history pass** reads `git log <commit>` of the repository the tree came from,
+    through `ScanContext.tree`, which also puts `tree: {ref, commit}` in `run.json`.
+  - **Slices 5 to 8 were green as soon as 1 was:** the project file, the excludes and the
+    Suppressions come with the commit's files. The history test was seen red against a
+    hand-made break, reading every ref's history.
+  - **Added:** a ref that begins with a dash is refused unread, so it can never be an
+    option to git; and an `--out` *inside* the Workspace's Results Folder is refused too.
+  - **A submodule** is named by the commit and not written, as the working tree's is not
+    entered. A symbolic link is written as a link, and the File Set's own rule on links
+    that leave the tree applies to it.
+  - **Proof,** on the dev machine at `f8f20cf` with the test, `valvur:dev`
+    `sha256:3584f7d0b651`: a commit's file and a secret deleted before it are found
+    through the Scan Container, an untracked file is not, the Scan Run is complete, and
+    nothing under `.git` changed.
+
+- [x] **R50.3** **`gate --new-since`** (D82k, D82l).
   **Seam:** `cli.main(["gate", …, "--new-since", …])` over `LocalRuntime`, on a repository
   made in `tmp_path` and scanned first; the exit code and the lines printed. Behaviours:
   1. **Guard, existing.** `tests/test_gate_cache.py`'s gate tests: without the option, the
@@ -886,7 +956,36 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] **R50.4** **Shown where a team would copy it.**
+  **STATUS 2026-11-23:** ✅ 1 to 12 (`ede8491` and this commit), 19 tests in
+  `tests/test_gate_new_since.py`.
+  - **Where each part lives.** `gate.evaluate` still reads and scans nothing: it takes a
+    `Base`, the base's Results Folder, and compares. `service.base_scan` resolves the
+    ref, finds or makes that result in `<cache>/base/<root commit>/<commit>/`, and the
+    CLI joins the two. Behaviours 6 to 8 are tested at the reader, on a base result
+    doctored by hand, since a scan cannot be made to differ on purpose.
+  - **`run.json` gains `data_built`,** the instant each dataset's age is measured from,
+    in seconds. An age drifts between two Scan Runs of one copy and the instant does
+    not. It is beside the `data` block and not in it: the MCP reply shows that block, and
+    its goldens did not move. Two instants within 5 s are one copy.
+  - **The reuse rule is the comparison itself:** a base result is used when it is
+    complete and does not differ from the working tree's in image, Profile or data.
+    Otherwise the base is scanned again, and if the two still differ the gate fails and
+    says to scan the working tree again.
+  - **Added: with no git, the line says so.** Inside the image there is none (ADR-0005),
+    and *names no commit* would send a reader to check a branch that exists. `scan --ref`
+    and the gate both say git is not on PATH, and the gate does not then blame the
+    checkout's depth. **So the gate on new Findings runs from the host shim, not from
+    the image as a step:** R50.4's example and `docs/CI.md` say it.
+  - **Proof,** on the dev machine at `ede8491` with this commit's slice, `valvur:dev`
+    `sha256:13e7f037ff2f`: through the Scan Container a secret added after the base
+    fails the gate and one the base holds does not; against `HEAD` it passes. The whole
+    container suite: 100 passed and 8 skipped, and this test.
+  - **The container test first failed, and the test was wrong:** its second key held a
+    `9`, which is no AWS key's alphabet, so the real Gitleaks rightly reported one
+    secret. The fake tool had matched it. `tests/test_scan_ref.py`'s untracked key had
+    the same flaw, which made its absence prove nothing; both are valid shapes now.
+
+- [x] **R50.4** **Shown where a team would copy it.**
   **Seam:** `docs/examples/github-actions.yml`, as `tests/test_pipeline_example.py` runs it.
   Behaviours:
   1. The example gates a pull request on new Findings, with the checkout depth it needs.
@@ -897,7 +996,31 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 7.7_
 
-- [ ] **R50.5** **A project's own VEX** (D82m).
+  **STATUS 2026-11-23:** ✅ 1 to 4 (`914c2ac`, `20e9302`).
+  - **The example has a second job, and it is not the image as a step.** The gate reads
+    the base with git, and the image carries none (ADR-0005). So `new-findings` checks out
+    with `fetch-depth: 0`, installs valvur on the runner with `pipx`, at the version of
+    the image the example already names, scans, and runs
+    `valvur gate . --new-since "origin/$GITHUB_BASE_REF"`. One pin serves both jobs, so
+    `prepare_release.py` is unchanged.
+  - **Its two blocks are run by a container test,** in a clone whose `origin/main` is the
+    base, with this tree's valvur and image: a pull request that adds nothing passes
+    though the base has a key, and one that adds a key fails, naming it alone. On the dev
+    machine at `8c4bfa3` with the slice, `valvur:dev` `sha256:13e7f037ff2f`.
+  - **`docs/CI.md`** has a section on the gate and its two limits: a renamed file or a
+    changed match counts as new; and it needs git and the base's commits, so not the
+    image as a step.
+  - **The action's change is MaverickHQ/valvur-action#1,** a draft for the owner: the input
+    `new-since`, passed through, and the README. It is to land once 1.7.0 is published.
+    It has no self-test of the input, since no published valvur has the option yet.
+  - **Proof: valvur's own pull request #309, run 45095008959.** The self-scan job gained a
+    step for pull requests that fetches the base branch's tip and runs the gate. Its line:
+    *"gate: 0 new finding(s) at or above any since
+    origin/build/r49-the-bar-on-maintained-code (4778e37); 0 were already there and were
+    not gated on; 0 below the threshold; 12 suppressed"*, and *gate: passed*. It fetches
+    one commit and not the history, which the gate's own message also offers.
+
+- [x] **R50.5** **A project's own VEX** (D82m).
   **Seam:** `api.scan` over `LocalRuntime` with canned Trivy output, on a Workspace whose
   `.security-scan.toml` names an OpenVEX document; `findings.json`, `SUMMARY.md` and
   `gate.evaluate` read back. Behaviours:
@@ -927,7 +1050,34 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] **R50.6** **Ranking reads a declaration** (D82n).
+  **STATUS 2026-11-23:** ✅ 1 to 14 (`0702bdf`), 28 tests in `tests/test_vex.py`.
+  - **`src/valvur/vex.py`** reads each document a `[[vex]]` entry names and applies its
+    statements in the `suppress` stage, after the Suppressions: a Finding accepted both
+    ways keeps the Suppression's reason, which a person wrote for this project.
+  - **Refused before any Scanner runs:** a path outside the project, absolute, or through
+    a link that leaves it; a file that is not JSON, or has no `@context` under
+    `https://openvex.dev/ns`, or no `statements`; and an entry with no `expires`. The
+    last was added: the schema asks for the date, and a scan does not read the schema.
+  - **Products are compared as package URLs,** without qualifiers, and a PyPI name in
+    its normal form. A statement for another version of the package is another product:
+    it is neither honoured nor reported, and counts as matching nothing.
+  - **Two rules of valvur's own,** both at `low` and both active:
+    `valvur.vex.not-honoured`, for a statement that would apply and names no version or
+    gives no reason, and `valvur.vex.unused`, one Finding a document, counting its
+    statements that match nothing. A statement that matches and says `affected` is not
+    counted so. A lapsed entry is `valvur.suppression.expired`, which the gate already
+    fails on at every threshold.
+  - **Narrower than design.md in one way:** the unused count is a Finding in the list, not
+    a line under *Suppressed* in `SUMMARY.md`. It is in `findings.json`, where a gate and
+    an agent read it.
+  - **An alias counts:** a statement that names the Finding's GHSA ID applies to its CVE.
+  - **Behaviour 13 widens the forbidden tool names** with `vex`, and holds that no command
+    is named for it and that `valvur suppress` prints no VEX.
+  - **Not yet run through the container:** the seam is canned Trivy output, as the task
+    writes it. Trivy's own package URLs reach `Dependency.purl` today; the phase's exit
+    runs the whole container suite.
+
+- [x] **R50.6** **Ranking reads a declaration** (D82n).
   **Seam:** `api.scan` over `LocalRuntime`, on a Workspace whose `.security-scan.toml` holds
   `[[context]]`; the order of `findings.json` and of `REMEDIATION.md`. Behaviours:
   1. **Guard, existing.** `tests/test_ranking.py`: with no declaration, every order is what
@@ -942,7 +1092,17 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 11.1, 11.2, 11.3_
 
-- [ ] **R50.7** **One dependency Finding lists its lockfiles** (D82n).
+  **STATUS 2026-11-23:** ✅ 1 to 7 (`db5853d`), 14 tests in `tests/test_declared_context.py`.
+  - **One key in the sort, after the tier:** a Finding whose path is under a declared
+    path, by whole segments, sorts first. `tests/test_ranking.py` passes unchanged.
+  - **The Finding carries what the project said,** as `declaration` in `findings.json`,
+    present only when set: "`services/api/` is internet-facing" or "… holds sensitive
+    data". Its item in `REMEDIATION.md` ends *Ranked ahead in its tier, raised by this
+    project's declaration: … (`.security-scan.toml`)*.
+  - **A scan passes over an entry that says anything else;** `doctor` and the schema name
+    it. A wrong declaration can only fail to raise, so it is not a refusal.
+
+- [x] **R50.7** **One dependency Finding lists its lockfiles** (D82n).
   **Seam:** `api.scan` over `LocalRuntime` with canned Trivy output for two lockfiles;
   `findings.json`, `results.sarif` and the MCP reply. Behaviours:
   1. An advisory found through two lockfiles is one Finding with both in `paths`, sorted.
@@ -953,7 +1113,25 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 11.4_
 
+  **STATUS 2026-11-23:** ✅ 1 to 4, 5 tests in `tests/test_lockfile_paths.py`.
+  - **`Dependency.paths`,** set where Findings of one Fingerprint are merged, and only when
+    they name more than one lockfile: a Finding through one has no such key, so no
+    golden of a scan moved. Sorted; the Finding's own `path` is the first reported, as
+    before, and the Fingerprint is the literal written down before the change.
+  - **SARIF** gives the Finding's path first and then each other lockfile as a location.
+  - **The reply that carries it is `findings`'s,** which lists Findings; `scan`'s reply
+    lists none. The entry gains `paths`, the tools snapshot
+    (`tests/fixtures/mcp/tools-list.json`) moves by that one property, and the reply
+    schema is 2 as it was: the change is additive.
+
 **Exit:** the acceptance set passes; the Score unchanged; the proof in R50.4 recorded.
+
+**STATUS 2026-11-23:** ✅ the exit is measured, in [`docs/acceptance/r50.md`](../../../docs/acceptance/r50.md).
+- **On the dev machine at `9990f8e`:** the acceptance set 8 of 8; the Score 76.8 with
+  `--compare` passing, every track where R49 left it; the whole container suite, 102
+  passed and 8 skipped.
+- **The proof:** valvur's own pull request #309, run 45095008959.
+- **Left for the owner:** MaverickHQ/valvur-action#1, and R49.8 on #308.
 
 ### Phase R51: the tools around it
 

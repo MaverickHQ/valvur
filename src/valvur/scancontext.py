@@ -15,6 +15,7 @@ from pathlib import Path
 from . import fileset
 from .exclusions import ScanSettings, read_project, scan_settings
 from .fileset import FileSet
+from .reftree import Tree
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,9 @@ class ScanContext:
     settings: ScanSettings
     #: The exact files the Scan Run examines (ADR-0021).
     file_set: FileSet
+    #: The commit read in place of the working tree (`scan --ref`, R50.2): `workspace` is
+    #: then its files written out, and the history is this repository's up to it.
+    tree: Tree | None = None
 
     @property
     def files(self) -> list[str]:

@@ -9,12 +9,13 @@ and a closure of its own, and one scan was summarised three times.
 
 from __future__ import annotations
 
+import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from . import api, engine_host, profiles
+from . import api, cache, engine_host, gate, profiles, reftree
 from .events import Event
 from .scanrun import ScanRun
 
@@ -57,15 +58,57 @@ def new_runner() -> Any:
     return engine_host.for_scan()
 
 
+def base_scan(workspace: Path, ref: str, *, runner: Any = None,
+              on_progress: Callable[[Event], None] | None = None) -> gate.Base | None:
+    """The base a gate compares with (`gate --new-since`, R50.3, ADR-0034): the commit
+    `ref` names, scanned by `scan --ref` into the cache with the Profile the working
+    tree's Scan Run recorded. A result already there is reused when it is complete and
+    rests on the same image, Profile and data as the working tree's; otherwise the base
+    is scanned again. None when the Workspace has no result to gate.
+
+    Raises `reftree.NotResolved` for a ref that names no commit."""
+    import json  # deferred: only a gate with a base reads a record here
+
+    def record(folder: Path) -> dict | None:
+        try:
+            read = json.loads((folder / gate.RESULTS_DIR / "run.json").read_text("utf-8"))
+        except (OSError, ValueError):
+            return None
+        return read if isinstance(read, dict) else None
+
+    working = record(workspace)
+    if working is None:
+        return None
+    tree = reftree.resolve(workspace, ref)
+    out = cache.root() / "base" / reftree.root(tree) / tree.commit
+    held = record(out)
+    if held is None or not held.get("complete") or gate.differences(working, held):
+        run_scan(workspace, ref=ref, out=out, runner=runner, on_progress=on_progress,
+                 profile=working.get("profile") or profiles.DEFAULT)
+    return gate.Base(ref, tree.commit, out)
+
+
 def run_scan(
     workspace: Path, *, profile: str = profiles.DEFAULT,
     on_progress: Callable[[Event], None] | None = None, budget_s: float | None = None,
     fresh: bool = False, jobs: int | None = None, sbom: bool = False,
     out: Path | None = None, runner: Any = None, cancellation: Cancellation | None = None,
+    ref: str | None = None,
 ) -> ScanRun:
-    """One Scan Run of `workspace`, its Results Folder written, and its record."""
+    """One Scan Run of `workspace`, its Results Folder written, and its record. With
+    `ref`, of that commit's tree and not the working tree (R50.2): read with git's
+    plumbing into a directory outside the repository, which is gone when this returns.
+    Raises `reftree.NotResolved` for a ref that names no commit, before anything runs."""
+    tree = reftree.resolve(workspace, ref) if ref is not None else None
     runner = runner if runner is not None else new_runner()
     if cancellation is not None:
         cancellation.attach(runner)
-    return api.scan(workspace, runner=runner, profile=profile, on_progress=on_progress,
-                    jobs=jobs, budget_s=budget_s, sbom=sbom, out=out, fresh=fresh)
+    if tree is None:
+        return api.scan(workspace, runner=runner, profile=profile, on_progress=on_progress,
+                        jobs=jobs, budget_s=budget_s, sbom=sbom, out=out, fresh=fresh)
+    with tempfile.TemporaryDirectory(prefix="valvur-ref-") as scratch:
+        files = Path(scratch) / "tree"
+        reftree.export(tree, files)
+        return api.scan(files, runner=runner, profile=profile, on_progress=on_progress,
+                        jobs=jobs, budget_s=budget_s, sbom=sbom, out=out, fresh=fresh,
+                        tree=tree)

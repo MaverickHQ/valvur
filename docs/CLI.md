@@ -84,7 +84,32 @@ rule = "CKV_DOCKER_2"
 path = "Dockerfile"
 expires = 2027-03-01
 reason = "The image runs under an orchestrator that health-checks it."
+
+[[vex]]                        # an OpenVEX document of this project's own
+path = "security/valvur.openvex.json"
+expires = 2027-05-21           # accepted until then; after it the gate fails
+
+[[context]]                    # what valvur cannot know, said by the project
+path = "services/api/"
+exposure = "internet"          # or: data = "sensitive"
 ```
+
+A `[[vex]]` entry names an [OpenVEX](https://openvex.dev) document inside the project and
+a date it is accepted until. A statement in it that a dependency is `not_affected`, with
+its reason, or `fixed`, for a finding's advisory and its package at its version,
+suppresses that finding, which then says so with the document's author and time. valvur
+reads no document that is not named here, searches for none, and writes none. A statement
+that would apply and names no version, or gives no reason, is reported and not honoured.
+
+A `[[context]]` entry says a path is internet-facing or holds sensitive data. A finding
+under it ranks ahead of the others in its own tier, never across one, and
+`REMEDIATION.md` says it was raised by the project's declaration. It is the project's
+statement: valvur does not work out what is reachable.
+
+**A commit's tree, and a gate on what is new.** `valvur scan --ref REF --out DIR` scans a
+branch, a tag or a commit, read with git's plumbing: nothing is checked out and the
+repository is not changed. `valvur gate --new-since REF` uses it to scan the base itself
+and fail only on findings the base does not have; [valvur in CI](CI.md) has the pipeline.
 
 Machine settings are `~/.config/valvur/config.toml` (under `$XDG_CONFIG_HOME` when it
 is set): the runtime, the image, the cache, `jobs`, `fetch = "never"` for a machine

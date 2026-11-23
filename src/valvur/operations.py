@@ -282,6 +282,10 @@ def _structured_finding(finding: dict) -> dict:
         "status": finding.get("status", "?"),
         "severity": finding.get("severity", "unknown"),
         "path": finding["path"],
+        # R50.7: every lockfile a dependency vulnerability was found through, when
+        # there is more than one. Fixing the one in `path` does not fix the others.
+        **({"paths": list(through)} if (through := (finding.get("dependency") or {})
+                                         .get("paths")) else {}),
         "line": finding.get("line") or None,
         "title": defang.neutralise(str(finding.get("title") or "")),
         "rule": finding["rule"],

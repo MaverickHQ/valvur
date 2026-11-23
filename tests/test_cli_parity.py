@@ -121,3 +121,20 @@ def test_scan_and_its_command_reach_the_same_result(scanned, tmp_path):
 
     assert (fields["verdict"], fields["counts"]["active"]) == (
         by_cli["status"], by_cli["findings"]["active"])
+
+
+def test_the_scan_tool_takes_no_ref_and_the_command_does():
+    """R50.2: `valvur scan --ref` scans a commit's tree for a gate to compare with. An
+    agent's scan is of the tree the developer is working in, which is the one it can
+    change; a result of another commit beside it would be read as that tree's. So the
+    CLI has the option and the tool has none, and neither writes a commit's result into
+    the Workspace."""
+    from valvur import cli
+    from valvur.mcp.tools import registry
+
+    [scan] = [tool for tool in registry() if tool.name == "scan"]
+    assert "ref" not in scan.schema["properties"] and "out" not in scan.schema["properties"]
+    assert scan.schema["additionalProperties"] is False, "so a ref is refused at the call"
+    options = {action.dest for action in cli.build_parser()._subparsers._group_actions[0]
+               .choices["scan"]._actions}
+    assert {"ref", "out"} <= options

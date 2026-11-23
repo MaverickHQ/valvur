@@ -113,6 +113,9 @@ def _scope(run: ScanRun) -> dict:
         # What the class table removed, by path class and rule (D56): a finding a
         # class rules out is counted here rather than gone without a number.
         "removed_by_class": run.removed_by_class,
+        # Which tree this is a result of (R50.2): absent for the working tree, and for a
+        # commit read by `scan --ref` the ref as given and the commit it named.
+        **({"tree": run.tree} if run.tree is not None else {}),
         "excluded_unpinned": {
             "advisories_dropped": run.unpinned_dropped,
             "files": list(run.unpinned_files),
@@ -151,6 +154,9 @@ def _data(run: ScanRun) -> dict:
         # R11.6: every dataset's age and what it is measured from, in one
         # place; the blocks around it keep what each has always said.
         "data": run.data_ages,
+        # R50.3: the instant each of those ages is measured from, in seconds, so that a
+        # gate can tell two Scan Runs read the same copy of a dataset. An age drifts.
+        "data_built": run.data_built,
         "enrichment": {
             "kev_source": run.kev_source,
             "kev_catalog": run.kev_catalog,

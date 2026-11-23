@@ -518,6 +518,18 @@ jobs:
           fail-on: any
           no-inconclusive: "true"
           version: ""
+      - name: Gate this pull request on what it adds, as a user's CI would (R50.4)
+        # `gate --new-since`, run for real on every pull request: the base branch's
+        # tip is fetched, valvur scans that tree itself, read with git's plumbing, and
+        # fails only on a finding the base does not have. The gate above fails on any
+        # finding at all, so this one can only agree with it.
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          VALVUR_IMAGE: valvur:dev
+        run: |
+          git fetch -q --no-tags --depth=1 origin "$BASE_REF"
+          valvur gate . --fail-on any --new-since "origin/$BASE_REF"
       - name: Refuse to leave scan output behind (ADR-0011)
         if: always()
         run: |

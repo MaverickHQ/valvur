@@ -9,6 +9,7 @@ surface says: `run.json`'s `data`, `SUMMARY.md`'s `Data:` line, the MCP reply.
 
 from __future__ import annotations
 
+import time
 from typing import Protocol
 
 from . import datasets as _datasets
@@ -56,6 +57,21 @@ def data_ages(provider=None, osv=()) -> dict:
         "osv": {name: entry(_datasets.OSV.age(name), osv_offline.age(name)[1])
                 for name in osv},
     }
+
+
+def data_built(provider=None, osv=()) -> dict[str, int]:
+    """Each dataset a Scan Run reads, by name, to the instant its age is measured from, in
+    seconds (R50.3). An age drifts between two Scan Runs of one copy and the instant does
+    not, so two results can be told to rest on the same data. An absent dataset has no
+    entry. Beside `data_ages` and not in it: that block is what every surface shows."""
+    if provider is None:
+        provider = LocalProvider()
+    now = time.time()
+    ages = {"database": _datasets.DATABASE.age(), "name_index": _datasets.NAME_INDEX.age(),
+            "malicious": _datasets.MALICIOUS.age(), "kev": provider.kev_age_days,
+            "epss": provider.epss_age_days,
+            **{f"osv {name}": _datasets.OSV.age(name) for name in osv}}
+    return {name: int(now - age * 86400) for name, age in ages.items() if age is not None}
 
 
 def _kev_entry(provider, aged: dict) -> dict:

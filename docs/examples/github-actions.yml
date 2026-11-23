@@ -11,13 +11,13 @@ on:
   push:
   pull_request:
 permissions: {}
+env:
+  VALVUR_IMAGE: ghcr.io/maverickhq/valvur:1.6.2
 jobs:
   scan:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-    env:
-      VALVUR_IMAGE: ghcr.io/maverickhq/valvur:1.6.2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,3 +48,28 @@ jobs:
           docker run --rm --network=none --user "$(id -u):$(id -g)" \
             -v "$RUNNER_TEMP/valvur-out:/out" \
             "$VALVUR_IMAGE" valvur gate /out --fail-on high
+
+  # A pull request gated on what it adds, for a codebase that has findings already
+  # (valvur 1.7.0 and later). The gate scans the base branch's tree itself and fails
+  # only on findings the base does not have, so it needs git and the base's commits:
+  # valvur installed on the runner, which then starts the container itself, and a full
+  # checkout. The image as a step, as in the job above, carries no git.
+  new-findings:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install valvur, at the image's version
+        run: pipx install "valvur==${VALVUR_IMAGE##*:}"
+      - name: Scan
+        run: |
+          valvur update .
+          valvur scan .
+      - name: Gate on what the pull request adds
+        run: |
+          valvur gate . --new-since "origin/$GITHUB_BASE_REF" --fail-on high

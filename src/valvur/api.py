@@ -9,6 +9,7 @@ written from what they found (`assembly`). Everything tool-specific lives in
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -21,9 +22,11 @@ from . import locking as _locking
 from . import osv_offline as _osv_offline
 from . import owner
 from . import profiles as _profiles
+from . import reftree as _reftree
 from . import results as _results
 from . import scancontext as _scancontext
 from . import settings as _settings
+from . import vex as _vex
 from .adapters.registry import DEFAULT_ADAPTERS
 from .adapters.syft import SyftAdapter
 from .assembly import assemble
@@ -42,6 +45,7 @@ def scan(
     workspace: Path, *, runner: Runtime, adapters=None, profile: str = _profiles.DEFAULT,
     on_progress=None, jobs: int | None = None, budget_s: float | None = None,
     sbom: bool = False, out: Path | None = None, fresh: bool = False,
+    tree: _reftree.Tree | None = None,
 ) -> ScanRun:
     """One Scan Run of `workspace`. Its Results Folder is `.security-scan/` in the
     workspace, or in `out` when given (R8.1): a checkout mounted read-only into a
@@ -91,6 +95,13 @@ def scan(
                         for a in adapters]
         # What the scan reads of the project, read once and passed on (D52d).
         context = _scancontext.build(workspace)
+        # A VEX document the project file names is read here, before any Scanner runs
+        # (R50.5): one that is asked for and cannot be read is refused, never skipped.
+        _vex.load(workspace, context.project)
+        if tree is not None:
+            # `workspace` is a commit's files, written out (R50.2): the record names the
+            # commit, and the history pass reads the repository it came from.
+            context = dataclasses.replace(context, tree=tree)
         data, unfetched = ensure_data(runner, on_progress, workspace=workspace,
                                        adapters=adapters, context=context)
         fetched += data

@@ -242,5 +242,10 @@ def _item(number: int, item) -> list[str]:
         out += _lookup(finding)
     if len(item.findings) > 8:
         out.append(f"- _…and {len(item.findings) - 8} more_")
+    # What the project said of where this is (R50.6), in the word *declaration*: it is
+    # the project's statement that ranked this ahead, and nothing valvur worked out.
+    for said in sorted({f.declaration for f in item.findings if f.declaration}):
+        out += ["", f"Ranked ahead in its tier, raised by this project's declaration: "
+                    f"{said} (`.security-scan.toml`)"]
     out.append("")
     return out
