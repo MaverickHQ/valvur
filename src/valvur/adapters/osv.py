@@ -16,6 +16,7 @@ from ..invocation import NOTHING_TO_SCAN, Invocation, ScannerOutput
 from ..osv_offline import MOUNT
 from ..versions import version_key as _version_key
 from .base import ScannerAdapter, container_relative
+from .base import cwes as _cwes
 
 VERSION = "2.7.1"
 
@@ -93,6 +94,8 @@ class OsvAdapter(ScannerAdapter):
                             fingerprint=_fp.for_dependency_vuln(ecosystem, name, version, vid),
                             sources=(output.tool,),
                             severity=_severity(vuln),
+                            # The weakness the advisory names (R51.2): not identity.
+                            cwe=_cwes((vuln.get("database_specific") or {}).get("cwe_ids")),
                             exploit=Exploit(cve=vid if vid.startswith("CVE-") else ""),
                             # What a project's ignore file may name it by (R38.3).
                             aliases=tuple(a for a in dict.fromkeys(

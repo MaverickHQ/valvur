@@ -1135,12 +1135,58 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
 ### Phase R51: the tools around it
 
-- [ ] **R51.1** **Measure first** (D82o). No test seam. **Record,** in the STATUS:
+- [x] **R51.1** **Measure first** (D82o). No test seam. **Record,** in the STATUS:
   1. the current edition of each OWASP list, read from OWASP's own pages, with the date;
   2. every source of a rule ID, and which can be listed from this repository;
   3. whether Trivy's and OSV-Scanner's output carries a CWE for an advisory.
 
-- [ ] **R51.2** **One mapping, four levels** (D82o).
+  **STATUS 2026-11-23:** ✅ 1 to 3. R51 is on its own branch, stacked on R50's.
+
+  **1. The editions, each read from OWASP's own pages on 2026-11-23.**
+
+  | list | edition | read from |
+  |---|---|---|
+  | OWASP Top 10 | **2025**, released; 2021 is the previous one | `owasp.org/www-project-top-ten/`, then `top10.owasp.org/2025` |
+  | OWASP Top 10 for LLM Applications | **2025**, dated 2024-11-17 | `genai.owasp.org/llm-top-10/` |
+  | OWASP Top 10 for Agentic Applications | **2026**, dated December 2025 | `genai.owasp.org`, its PDF |
+  | Agentic AI: Threats and Mitigations | **version 1.1**, December 2025 | `genai.owasp.org`, its PDF |
+
+  - **Top 10:2025:** A01 Broken Access Control, A02 Security Misconfiguration, A03
+    Software Supply Chain Failures, A04 Cryptographic Failures, A05 Injection, A06
+    Insecure Design, A07 Authentication Failures, A08 Software or Data Integrity Failures,
+    A09 Security Logging and Alerting Failures, A10 Mishandling of Exceptional Conditions.
+    **It is not the list design.md was written against:** injection was A03 in 2021 and is
+    A05 now, and supply chain is a category of its own.
+  - **LLM 2025:** LLM01 Prompt Injection, LLM02 Sensitive Information Disclosure, LLM03
+    Supply Chain, LLM04 Data and Model Poisoning, LLM05 Improper Output Handling, LLM06
+    Excessive Agency, LLM07 System Prompt Leakage, LLM08 Vector and Embedding Weaknesses,
+    LLM09 Misinformation, LLM10 Unbounded Consumption.
+  - **Agentic 2026:** ASI01 Agent Goal Hijack, ASI02 Tool Misuse and Exploitation, ASI03
+    Identity and Privilege Abuse, ASI04 Agentic Supply Chain Vulnerabilities, ASI05
+    Unexpected Code Execution, ASI06 Memory & Context Poisoning, ASI07 Insecure
+    Inter-Agent Communication, ASI08 Cascading Failures, ASI09 Human-Agent Trust
+    Exploitation, ASI10 Rogue Agents.
+  - **Threats and Mitigations 1.1** numbers its threats T1 to T17. Sixteen names were read
+    from the PDF and T14's was not. **The mapping uses the Agentic Top 10 and not this
+    one:** it is the list OWASP publishes to be cited, both are of December 2025, and a
+    mapping to a list with one name unread would not be honest. It is named in the file
+    as read and not mapped to.
+  - The two PDFs were read on the dev machine with `pypdf`: this Mac has no PDF reader.
+
+  **2. Seven sources of a rule ID, three of them listable here.**
+  - **Listable:** valvur's Opengrep rules, 24 IDs in `rules/*.yaml`; the vendored rules,
+    4, in `rules/vendor/gitlab/manifest.json`; and the IDs valvur's own code gives its
+    Checks and notes, 36 `valvur.*` strings in `src/valvur`.
+  - **Not listable:** Gitleaks' rules, 222 in its own configuration at v8.30.1; Checkov's
+    checks; zizmor's audits; and Trivy's and OSV-Scanner's advisory IDs, which have no end.
+    Each of these Scanners gets one entry, as design.md says.
+
+  **3. Both dependency Scanners carry a CWE, and no adapter reads it today.** In the
+  committed goldens: Trivy gives `CweIDs` for 75 of 75 advisories; OSV-Scanner gives
+  `database_specific.cwe_ids` for 88 of 149. So R51.2's behaviour 6 holds for both, where
+  the advisory has one.
+
+- [x] **R51.2** **One mapping, four levels** (D82o).
   **Seam:** `identifiers.of(scanner, rule, finding_class)`, the new module's one function;
   the adapters' parse of canned output, for the advisory's CWE. Behaviours:
   1. A rule's own entry is found.
@@ -1152,9 +1198,32 @@ active; no track more than 2 points under its new baseline; the acceptance set p
      by ID is red, naming each. The file is filled, and it is green.
   6. A dependency Finding takes its advisory's CWE where R51.1 found the Scanner gives one.
 
+  **STATUS 2026-11-23:** ✅ 1 to 6, in `tests/test_identifiers.py`, 16 tests.
+  - **The file** is `src/valvur/data/identifiers.toml`, read by `src/valvur/identifiers.py`
+    (layer `core`). 59 entries by ID: the 28 rules in `rules/` and the 31 IDs valvur's own
+    code gives its Checks and notes. Three by prefix, six by Scanner, six by Finding Class.
+    A file with a `none` and no reason, a category in no list, a list with no edition or no
+    date, or a CWE not written `CWE-n` is refused whole when it is read.
+  - **A rule with a CWE sits in the Top 10 category whose own list holds that CWE.** The
+    24 CWEs the file names were looked up on OWASP's ten category pages for 2025, twice:
+    read by the fetching agent, then counted in the pages' raw HTML on the dev machine.
+    The two agree on all 24. CWE-1321 is in none of the ten lists, so an advisory that
+    names it alone takes its Scanner's category. A test holds every entry to that table,
+    and another holds an entry's CWE to the one its rule file gives Opengrep.
+  - **The LLM and agentic categories are the executor's reading,** for the owner to
+    overrule: neither list publishes a CWE mapping to look them up in. No CWE is given to
+    a Check where none names the thing without stretching one.
+  - **21 entries say `none`, each with its reason:** 17 by ID (the notes about what
+    valvur read, the licence Checks, the Suppression and VEX notes, the model-call mark),
+    the licence prefix, Syft, and the licence and static-analysis classes.
+  - **The advisory's CWE:** `adapters.base.cwes` reads Trivy's `CweIDs` and OSV-Scanner's
+    `database_specific.cwe_ids`. From the goldens: 75 of 75 and 88 of 149, as measured.
+    No Fingerprint moves, which a test holds for Trivy's 75.
+  - Nothing reads `identifiers.of` yet: R51.3 puts it in the outputs.
+
   _Requirements: 8.1, 8.2_
 
-- [ ] **R51.3** **The identifiers in every output.**
+- [x] **R51.3** **The identifiers in every output.**
   **Seam:** `api.scan` over `LocalRuntime`; `findings.json`, `results.sarif`, `SUMMARY.md`;
   the MCP server over stdio; `cli.main(["findings", …])`. Behaviours:
   1. **Guard, existing.** `tests/test_identity.py` and the goldens: every Fingerprint is
@@ -1171,9 +1240,40 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   *Closes with:* the Score, unchanged.
 
+  **STATUS 2026-11-23:** ✅ 1 to 8, in `tests/test_identifiers_in_outputs.py`, 17 tests.
+  - **Where it is applied:** a pipeline stage, `identifiers`, after `suppress` (the last
+    stage that adds a Finding) and so after `merged`, which folds two rules on one line by
+    the CWE their Scanner gave: a mapped CWE folds nothing. A CWE a Scanner reported is
+    kept. `Finding.owasp` is new, and no Fingerprint is read or written.
+  - **`findings.json`:** `owasp` beside `cwe`, each absent when empty. Schema 1.
+  - **SARIF:** `run.taxonomies` for CWE and for each OWASP list the run is mapped to, with
+    the edition as the taxonomy's version and only the taxa the run uses; each rule's
+    `relationships`; the tags `external/cwe/cwe-89` and `external/owasp/a05:2025`. It
+    validates against the vendored 2.1.0 schema.
+  - **The reply:** `cwe` and `owasp` on each entry, and one Finding in full says *mapped
+    to* with each category's name, list and edition. Its schema is 2.
+  - **`findings --owasp`**, in the CLI and the tool. A category in no list is refused with
+    the editions it could be: `A03:2021` matching nothing would read as *no injection here*.
+  - **`SUMMARY.md`, changed from the design:** the table is one row per list, so it is
+    three rows at most, and it is written when it sorts something: two categories or more,
+    or more active Findings than *Most urgent* shows. The design said *whenever there are
+    active Findings*. Measured, that took a two-Finding repository's summary from 45 lines
+    to 53, past R5.2's one screen, to say *Injection 1* under the one entry it counted.
+    **The owner may overrule this.**
+  - **A dependency Finding** keeps its advisory's CWE and takes its Scanner's category,
+    A03:2025, as the design says: the fix is an upgrade, whatever the weakness.
+  - **Moved with it:** the tools snapshot, `findings --help`, one reply golden, the
+    deferred-import list, the pipeline's pinned order, the skill's tools reference.
+  - **The Score is unchanged:** 76.8 on the dev machine at `1c442cb`, `valvur:dev`
+    `sha256:9fe8d10ba15a`, every track where it was, `--compare` passing, 401 s. The
+    acceptance set passes, 8 of 8 in 133 s.
+  - **The container suite:** 103 passed and 8 skipped at `93b9a46`, 526 s. At `1c442cb` two
+    failed, and not on the change: the dev machine's Docker volume was 96% full of this
+    session's build cache and Syft could not save the image. 24 GB pruned; both pass.
+
   _Requirements: 8.3, 8.6, 8.7_
 
-- [ ] **R51.4** **The mapping as a page, and the wording.**
+- [x] **R51.4** **The mapping as a page, and the wording.**
   **Seam:** `generate_docs.py`'s `main`, as `tests/test_generated_docs.py` drives it; a
   wording test over the documents and over one scan's outputs. Behaviours:
   1. The page lists every rule with its identifiers.
@@ -1182,9 +1282,28 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   4. *covers*, *complies* and *certified* beside a list's name are refused, in a document
      and in an output. Seen red against a planted sentence in each.
 
+  **STATUS 2026-11-23:** ✅ 1 to 4, in `tests/test_owasp_mapping_page.py`.
+  - **The page** is `docs/OWASP-MAPPING.md`, three generated blocks in
+    `scripts/generate_docs.py`: the lists with their editions and the day read, every
+    entry at each of the four levels (59 by ID), and each list's categories that no entry
+    is mapped to. Those are 3 of the Top 10's, 4 of the LLM list's and 5 of the agentic
+    list's. It is linked from the README's and `docs/`'s indexes.
+  - **`--check`:** `main` takes the files it reads, so the test gives it a copy of the page
+    with one cell changed and it names the block and exits 1.
+  - **The wording** is `tests/wording.py`'s `claims`: each sentence that names a list or
+    one of its IDs beside a word of coverage, compliance or certification. A word set in
+    emphasis or in code is a mention, which is how a document states the rule, and
+    valvur's own *coverage note* is not a claim. It runs over 24 documents, the tools
+    snapshot and the mapping file, and over one scan's `SUMMARY.md`, `REMEDIATION.md`,
+    `findings.json`, `results.sarif` and reply.
+  - **Seen red, and not only on the planted sentences:** R51.3 had written *"A mapping is
+    not coverage"* into SARIF's taxonomy description. A denial that names the thing is
+    one edit from a claim, so it, the tool's description and the mapping file's comment
+    now say what a mapping is and leave the word out.
+
   _Requirements: 8.4, 8.5_
 
-- [ ] **R51.5** **The imports, measured** (D82p).
+- [x] **R51.5** **The imports, measured** (D82p).
   **Seam:** `imports.yml` as a file, read as `tests/test_eval_workflow.py` reads its own.
   Behaviours:
   1. Its only trigger is dispatch, it holds no secret and no grant beyond reading the
@@ -1192,9 +1311,31 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   2. **Proof.** A dispatched run imports a scan of the fixture into DefectDojo and
      Dependency-Track. `docs/acceptance/r51.md` records what arrived and what was lost.
 
+  **STATUS 2026-11-23:** ✅ 1, in `tests/test_imports_workflow.py`. ✅ 2 as a measurement,
+  **on the dev machine and not by a dispatched run** (D82p's fallback, for another reason).
+  - **Why not dispatched:** GitHub dispatches a workflow only once it is on the default
+    branch, and a phase lands by the owner's fast-forward. The measurement ran the
+    workflow's own compose files and script on the dev machine, arm64. **Its first
+    dispatched run, on amd64, is owed after the landing,** and the tracker says so.
+  - **The pieces:** `.github/workflows/imports.yml`; `.github/imports/*.compose.yml`, four
+    images for DefectDojo 3.5.202 and two for Dependency-Track 5.2.2, each pinned by
+    digest and listening on localhost alone; `scripts/imports_measure.py`, standard library
+    alone. DefectDojo's two keys and Dependency-Track's admin password are made in the
+    job for that run: no key is written in the repository.
+  - **The fixture gains, in the job's copy,** a Suppression and a `.trivyignore` entry:
+    what a real project sends and the fixture lacked.
+  - **What arrived,** in `docs/acceptance/r51.md`: DefectDojo keeps severity, CWE, the
+    OWASP tags, file and line on all 149 findings. **One live Finding arrived hidden,** as
+    an inactive false positive: the one a `.trivyignore` named and valvur did not accept.
+    26 arrive without the Fingerprint. Deduplication is off as installed, so a second
+    import doubles the findings and a re-import does not. Dependency-Track loses nothing.
+  - Both importers' sources were read at their release tags for what they take, before
+    anything was started: the hidden Finding was predicted from DefectDojo's parser and
+    then measured.
+
   _Requirements: 9.1_
 
-- [ ] **R51.6** **CycloneDX, validated.**
+- [x] **R51.6** **CycloneDX, validated.**
   **Seam:** `api.scan` with the SBOM asked for, as `tests/test_sbom_opt_in.py` drives it.
   Behaviours:
   1. A document with a required field removed fails validation against the vendored schema
@@ -1202,9 +1343,23 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   2. **Guard.** The scan's `sbom.cdx.json` validates. Then once against `valvur:dev`, with
      Syft itself (`-m e2e`).
 
+  **STATUS 2026-11-23:** ✅ 1 and 2, in `tests/test_sbom_schema.py`.
+  - **The schema** is CycloneDX 1.7's, the version Syft 1.57.1 writes, with the three it
+    refers to (SPDX's licence list, JSF, the cryptography definitions), vendored as
+    published from the specification's tag `1.7.2`, Apache-2.0, under
+    `tests/fixtures/schema/cyclonedx-1.7/`, about 410 KB.
+  - **`tests/cyclonedx.py`** validates a document against the schema of its own
+    `specVersion` and refuses, by name, a version with none vendored: a Syft upgrade that
+    writes 1.8 fails here.
+  - **It bites three ways:** a removed `bomFormat`, a component with no name, and a licence
+    that is no SPDX ID each fail. The last shows the reference to SPDX's list resolves.
+  - **The guard:** the SBOM a scan writes from Syft's committed golden validates, and so
+    does what Syft itself writes in `valvur:dev` for a two-package workspace (the container
+    test, passed on the dev machine at `93b9a46`).
+
   _Requirements: 9.3_
 
-- [ ] **R51.7** **The corrections and the guides.**
+- [x] **R51.7** **The corrections and the guides.**
   **Seam:** as R51.3. Behaviours:
   1. One slice for each field R51.5 found lost: it is carried inside SARIF or CycloneDX,
      where the importing tool reads it.
@@ -1213,10 +1368,53 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   3. **Guard, existing.** The constraint tests on egress. *Check:* `egress.py` and
      `verify-offline.py` have no diff in the phase.
 
+  **STATUS 2026-11-23:** ✅ 1 to 3.
+  - **One field was lost that a user needs, and it is corrected:** whether a Finding is
+    live. A project's own ignore that valvur did not accept was a SARIF suppression with
+    `status: rejected`, and DefectDojo filed the Finding as an inactive false positive. It
+    is now `properties.ignoredBy` on the result, and a `suppressions` entry means an
+    accepted risk, always. `tests/test_sarif_for_importers.py`, seen red, and
+    `tests/test_ignored_by.py` restated. This amends D77c's form, not its decision:
+    the ignore is still named and still not accepted. `findings.json` is unchanged.
+  - **Not corrected, each with its reason, and each in the guide:**
+    - *The Fingerprint is missing on a Finding found through two lockfiles.* SARIF says a
+      result has several locations when each needs the change, which is the case. One
+      location and the rest as related ones would keep the id and lose the second
+      lockfile in DefectDojo, which is the worse loss. A re-import matches without it.
+    - *An accepted risk arrives marked a false positive.* That is DefectDojo's reading of
+      SARIF's own field for a suppression, and there is no other field to say it in.
+    - *A second import doubles the findings.* DefectDojo installs with deduplication off.
+      The guide's step is a re-import.
+    - *A dependency's package and version have no field.* DefectDojo's SARIF import has
+      none to put them in. They are in the title.
+  - **Dependency-Track lost nothing,** so `sbom.cdx.json` is unchanged.
+  - **The guides:** `docs/DEFECTDOJO.md` and `docs/DEPENDENCY-TRACK.md`, each with the
+    user's own `curl` step and token, and each step the one the measurement ran: a token
+    for DefectDojo, an API key on the *Automation* team for Dependency-Track, which as
+    installed lacks the permission to create a project. Statements that were not
+    measured were taken out before the commit.
+  - **Egress:** `git diff 815943c -- src/valvur/egress.py scripts/verify-offline.py` is
+    empty, and the constraint tests pass in the gate.
+
   _Requirements: 9.2, 9.4_
 
-- [ ] **R51.8** **Measured again.** **Proof:** the dispatched workflow imports both again. A
+- [x] **R51.8** **Measured again.** **Proof:** the dispatched workflow imports both again. A
   test holds each number in the two guides to `docs/acceptance/r51.md`.
+
+  **STATUS 2026-11-23:** ✅, measured on the dev machine as R51.5 was, on fresh instances
+  of both tools, with the script as it is committed. **The dispatched run is still owed
+  after the landing.**
+  - **DefectDojo:** 148 live Findings sent and 148 arrive active, where the first
+    measurement had 147: the one a `.trivyignore` names arrives active. Every other
+    number is as it was: 149 findings, severity and file on all, CWE on 123, the OWASP
+    tags on 146, a line on 53, the Fingerprint on 123. A re-import adds none.
+  - **Dependency-Track:** as it was, 15 components from 16, the 11 distinct packages each
+    with its package URL. This time uploaded with an API key on the *Automation* team, as
+    a pipeline does. As installed that team lacks `PROJECT_CREATION_UPLOAD`, which the
+    guide says.
+  - **The test:** `tests/test_import_guides.py`. Each guide's table is the record's own,
+    byte for byte, between the same markers, and no count stands in a guide's prose that
+    the record's table does not hold. Seen red on the empty tables.
 
   _Requirements: 9.5_
 
@@ -1234,6 +1432,13 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
 **Exit:** every rule mapped or marked `none`; both imports measured twice; the Score
 unchanged on both lanes.
+
+**STATUS 2026-11-23:** measured, and **the phase stays open at R51.9,** the owner's. On the
+dev machine at `3c00bee`: 59 entries by ID, 17 of them `none` with a reason; both imports
+measured twice; the Score 76.8 on every track with `--compare` passing; the acceptance set
+8 of 8; the container suite 103 passed and 8 skipped. The amd64 lane is #310's checks. The
+record is `docs/acceptance/r51.md`. The first dispatched run of `imports.yml` is owed after
+the landing.
 
 ### Phase R52: the evidence an adopter asks for
 

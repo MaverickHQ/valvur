@@ -28,6 +28,30 @@ break things, and has.
 - **A dependency finding names every lockfile it was found through,** as `paths`, in
   `findings.json`, in SARIF and in the `findings` reply. It named the first and dropped
   the others, so fixing the one named left the finding in place.
+- **Every finding names the CWE and the OWASP categories its rule is mapped to,** as `cwe`
+  and `owasp`: in `findings.json`, in SARIF as taxonomies, relationships and tags, and in
+  the `findings` reply. The lists are the OWASP Top 10:2025, the Top 10 for LLM
+  Applications 2025 and the Top 10 for Agentic Applications 2026, each read from OWASP's
+  own pages on 2026-11-23. A dependency finding takes the CWE its advisory gives.
+  `valvur findings --owasp A05:2025` lists a category's, and `SUMMARY.md` counts by
+  category once there is more than one. A mapping says where a finding sorts in a
+  taxonomy other tools use. It is not a statement of what valvur detects.
+  [`docs/OWASP-MAPPING.md`](docs/OWASP-MAPPING.md) lists every rule beside its
+  identifiers, and each list's categories that none is mapped to.
+- **Guides for DefectDojo and Dependency-Track,** each showing your own pipeline's step
+  with your own token and what arrives, measured against the tool itself:
+  [`docs/DEFECTDOJO.md`](docs/DEFECTDOJO.md) and
+  [`docs/DEPENDENCY-TRACK.md`](docs/DEPENDENCY-TRACK.md). valvur uploads nothing.
+
+### Changed
+
+- **SARIF: an ignore valvur did not accept is no longer written as a suppression.** A
+  project's own ignore with no reason and no expiry (a `.trivyignore` entry, a `nosemgrep`
+  comment) leaves the finding live, and valvur wrote it as a SARIF suppression with
+  `status: rejected`, which the standard defines as not suppressed. Measured, DefectDojo
+  reads any suppression as accepted and filed that live finding as an inactive false
+  positive. The ignore is now in the result's `properties.ignoredBy`, and a `suppressions`
+  entry always means an accepted risk. `findings.json` is unchanged.
 
 ### Fixed
 

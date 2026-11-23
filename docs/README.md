@@ -19,6 +19,9 @@
 |---|---|
 | [Evaluating valvur](EVALUATING.md) | the audit: verification commands, the three Statuses, the Score, and what valvur does not claim |
 | [Rules](RULES.md) | each static-analysis rule's true and false positives, measured |
+| [DefectDojo](DEFECTDOJO.md) | importing `results.sarif` in your own pipeline, and what arrives, measured |
+| [Dependency-Track](DEPENDENCY-TRACK.md) | uploading `sbom.cdx.json` in your own pipeline, and what arrives, measured |
+| [CWE and OWASP](OWASP-MAPPING.md) | the identifiers each rule is mapped to, generated from the mapping, and each list's categories none is mapped to |
 | [Acceptance records](acceptance/) | each phase's exit, measured on Linux and on a Mac |
 | [Security policy](../SECURITY.md) | supported versions, and how to report a vulnerability privately |
 

@@ -18,7 +18,7 @@ It changes this machine as its description says, and never the source.
 
 ## `findings`
 
-The last scan's findings, worst first and bounded: filter by `group`, `rule`, `path` or `status`, or give a `fingerprint` for that finding in full, with its evidence, exploitation, dependency path and the Scanners that reported it.
+The last scan's findings, worst first and bounded: filter by `group`, `rule`, `path`, `status` or `owasp`, or give a `fingerprint` for that finding in full, with its evidence, exploitation, dependency path and the Scanners that reported it.
 
 It changes nothing.
 
@@ -28,6 +28,7 @@ It changes nothing.
 - `rule` (string)
 - `path` (string): A path prefix, on whole segments.
 - `status` (string, one of `new`, `persisting`, `regressed`)
+- `owasp` (string): An OWASP category the findings' rules are mapped to, such as A05:2025, LLM05:2025 or ASI05.
 - `limit` (integer): Default 20, max 100; a larger one is clamped, and said so.
 - `include_suppressed` (boolean)
 - `inventory` (boolean): Also list the sinks named for review (code execution, queries built from a value), which are not findings by themselves.

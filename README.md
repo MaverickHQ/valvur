@@ -216,6 +216,7 @@ it ([how](docs/HOW-IT-WORKS.md#1-it-cannot-exfiltrate-your-code-and-you-can-veri
 | [CI](docs/CI.md) | the gate, the GitHub Action and the image in a pipeline |
 | [Evaluating valvur](docs/EVALUATING.md) | the audit: the Score, the gates and the limits |
 | [Rules](docs/RULES.md) | each static-analysis rule's measured precision |
+| [CWE and OWASP](docs/OWASP-MAPPING.md) | the identifiers each rule is mapped to, and the categories none is |
 | [Air-gapped use](docs/AIR-GAPPED.md) | mirrors for every data source |
 | [Every document](docs/README.md) | the protocol, the decisions, releasing and the records |
 

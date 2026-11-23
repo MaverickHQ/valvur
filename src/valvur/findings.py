@@ -174,6 +174,9 @@ class Finding:
     #: The weaknesses its rule declares, as `CWE-n` (F5.10, R13.4). Not identity,
     #: and neither ranking nor grouping reads it.
     cwe: tuple[str, ...] = ()
+    #: The OWASP categories its rule is mapped to, by `identifiers.toml` (R51.3,
+    #: ADR-0037). Mapped to, and no more: not identity, and ranking does not read it.
+    owasp: tuple[str, ...] = ()
     #: Its path's class (D56): `source`, `test`, `fixture`, `docs`, `example`,
     #: `vendored` or `generated`. Not identity: a test's secret is the same Finding
     #: whatever its directory is called.

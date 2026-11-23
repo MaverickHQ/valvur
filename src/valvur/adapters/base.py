@@ -8,6 +8,7 @@ merges, diffs and writes.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -20,6 +21,17 @@ from ..invocation import Invocation, ScannerOutput
 
 if TYPE_CHECKING:
     from ..scancontext import ScanContext
+
+
+_CWE = re.compile(r"CWE-\d+")
+
+
+def cwes(given: object) -> tuple[str, ...]:
+    """The weaknesses an advisory names, as `CWE-n`, in the order given and once each.
+    Anything that is not a list of such IDs gives none: a Scanner's output is data."""
+    if not isinstance(given, list):
+        return ()
+    return tuple(dict.fromkeys(str(one) for one in given if _CWE.fullmatch(str(one))))
 
 
 def container_relative(path: str) -> str:

@@ -28,6 +28,7 @@ from . import exclusions as _exclusions
 from . import fileset as _fileset
 from . import gitcontext as _gitcontext
 from . import grouping as _grouping
+from . import identifiers as _identifiers
 from . import licence_policy as _licence
 from . import model_output as _model_output
 from . import project_ignores as _project_ignores
@@ -272,6 +273,10 @@ def suppress(findings: list[Finding], ctx: Context) -> list[Finding]:
     return _vex.apply(findings, documents) + known
 
 
+def identifiers(findings: list[Finding], ctx: Context) -> list[Finding]:
+    return _identifiers.apply(findings)
+
+
 def group(findings: list[Finding], ctx: Context) -> list[Finding]:
     return _grouping.assign(findings)
 
@@ -338,6 +343,11 @@ PIPELINE: tuple[Stage, ...] = (
     Stage("suppress", suppress,
           "After `enrich` and before `rank`: a suppression is a decision about an "
           "enriched Finding, and suppressed Findings rank last."),
+    Stage("identifiers", identifiers,
+          "After `suppress`, the last stage that adds a Finding, so each one there is "
+          "takes the CWE and the OWASP categories its rule is mapped to (R51.3). After "
+          "`merged`, which folds two rules on one line by the CWE their Scanner gave: "
+          "a mapped CWE must not fold anything."),
     Stage("group", group,
           "After `suppress`, so an accepted risk never counts toward a flood; before "
           "`rank`, which ranks a group of machine-written data below every distinct "
