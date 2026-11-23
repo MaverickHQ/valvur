@@ -384,7 +384,7 @@
                 ]
               },
               "owasp": {
-                "description": "The OWASP categories its rule is mapped to. A mapping says where a finding sorts, not what valvur covers.",
+                "description": "The OWASP categories its rule is mapped to: where the finding sorts, and not a measure of what valvur detects.",
                 "items": {
                   "type": "string"
                 },

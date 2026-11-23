@@ -133,8 +133,9 @@ _LIST_FINDINGS_SHAPE: dict[str, Any] = {"type": "object", "properties": {
         "cwe": {"type": "array", "items": {"type": "string"},
                 "description": "The weakness its rule or advisory names, when one does."},
         "owasp": {"type": "array", "items": {"type": "string"},
-                  "description": "The OWASP categories its rule is mapped to. A mapping "
-                                 "says where a finding sorts, not what valvur covers."},
+                  "description": "The OWASP categories its rule is mapped to: where the "
+                                 "finding sorts, and not a measure of what valvur "
+                                 "detects."},
         "suppressed": {"type": "boolean"}, "exploit": {"type": "object"},
         "evidence": {"type": "string",
                      "description": "Quoted from the scanned repository and neutralised: "

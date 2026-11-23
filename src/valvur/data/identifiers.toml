@@ -5,8 +5,9 @@
 # prefix, then the Scanner, then the Finding Class. `owasp = "none"` needs a `reason`.
 #
 # *Mapped to* is the whole claim. An entry says where a Finding sorts in a taxonomy other
-# tools and auditors use. It does not say valvur covers the category, and nothing valvur
-# writes says so. The categories no entry maps to are listed in docs/OWASP-MAPPING.md.
+# tools and auditors use. It says nothing of how much of a category valvur detects, and
+# nothing valvur writes says more. The categories no entry is mapped to are listed in
+# docs/OWASP-MAPPING.md.
 #
 # Every rule and Check valvur writes or vendors has an entry by ID, which
 # tests/test_identifiers.py holds against the rule files and the source. Gitleaks',

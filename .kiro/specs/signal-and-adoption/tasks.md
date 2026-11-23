@@ -1242,7 +1242,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 8.3, 8.6, 8.7_
 
-- [ ] **R51.4** **The mapping as a page, and the wording.**
+- [x] **R51.4** **The mapping as a page, and the wording.**
   **Seam:** `generate_docs.py`'s `main`, as `tests/test_generated_docs.py` drives it; a
   wording test over the documents and over one scan's outputs. Behaviours:
   1. The page lists every rule with its identifiers.
@@ -1250,6 +1250,25 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   3. `--check` fails on a page that is not current.
   4. *covers*, *complies* and *certified* beside a list's name are refused, in a document
      and in an output. Seen red against a planted sentence in each.
+
+  **STATUS 2026-11-23:** ✅ 1 to 4, in `tests/test_owasp_mapping_page.py`.
+  - **The page** is `docs/OWASP-MAPPING.md`, three generated blocks in
+    `scripts/generate_docs.py`: the lists with their editions and the day read, every
+    entry at each of the four levels (59 by ID), and each list's categories that no entry
+    is mapped to. Those are 3 of the Top 10's, 4 of the LLM list's and 5 of the agentic
+    list's. It is linked from the README's and `docs/`'s indexes.
+  - **`--check`:** `main` takes the files it reads, so the test gives it a copy of the page
+    with one cell changed and it names the block and exits 1.
+  - **The wording** is `tests/wording.py`'s `claims`: each sentence that names a list or
+    one of its IDs beside a word of coverage, compliance or certification. A word set in
+    emphasis or in code is a mention, which is how a document states the rule, and
+    valvur's own *coverage note* is not a claim. It runs over 24 documents, the tools
+    snapshot and the mapping file, and over one scan's `SUMMARY.md`, `REMEDIATION.md`,
+    `findings.json`, `results.sarif` and reply.
+  - **Seen red, and not only on the planted sentences:** R51.3 had written *"A mapping is
+    not coverage"* into SARIF's taxonomy description. A denial that names the thing is
+    one edit from a claim, so it, the tool's description and the mapping file's comment
+    now say what a mapping is and leave the word out.
 
   _Requirements: 8.4, 8.5_
 

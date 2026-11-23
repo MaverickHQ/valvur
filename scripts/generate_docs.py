@@ -278,7 +278,68 @@ def settings_table() -> str:
                   ((f"`{key}`", variable(key), text) for key, text in MIRROR_SETTINGS.items()))
 
 
+def _identifier_cells(entry, known) -> tuple[str, str]:
+    """An entry's CWE, and what it is mapped to: each category by name, or why none."""
+    mapped = "; ".join(f"{o} {known.category(o)}" for o in entry.owasp)
+    return ", ".join(entry.cwe) or "none", mapped or f"none: {entry.reason}"
+
+
+def identifier_lists() -> str:
+    """The lists, each at the edition read on the day `identifiers.toml` names (R51.4)."""
+    from valvur import identifiers
+
+    lists = identifiers.table().lists.values()
+    return _table(("list", "edition", "read from OWASP's pages on", "mapped to"), (
+        (one.name, one.edition, one.read.isoformat(),
+         f"yes, {len(one.categories)} categories" if one.mapped else f"no. {one.reason}")
+        for one in lists))
+
+
+def identifier_rules() -> str:
+    """Every entry of `identifiers.toml`, at each of its four levels (R51.4)."""
+    from valvur import identifiers
+
+    known = identifiers.table()
+    header = ("CWE", "mapped to")
+    levels = (
+        ("By rule", "rule or Check", known.rules,
+         "Every rule valvur writes or vendors, and every Check and note of its own."),
+        ("By prefix", "a rule that starts with", known.prefixes,
+         "For a rule or Check with no entry of its own."),
+        ("By Scanner", "Scanner", known.scanners,
+         "For the rules that cannot be listed from valvur's repository. A dependency "
+         "vulnerability keeps the CWE its advisory gives."),
+        ("By Finding Class", "class", known.classes,
+         "When nothing above names the rule or its Scanner."),
+    )
+    parts = []
+    for title, first, entries, said in levels:
+        rows = ((f"`{name}`", *_identifier_cells(entry, known))
+                for name, entry in sorted(entries.items()))
+        parts.append(f"### {title}\n\n{said}\n\n" + _table((first, *header), rows))
+    return "\n".join(parts)
+
+
+def identifier_unmapped() -> str:
+    """Each list's categories that no entry is mapped to, at any level (R51.4)."""
+    from valvur import identifiers
+
+    known = identifiers.table()
+    mapped = {o for level in (known.rules, known.prefixes, known.scanners, known.classes)
+              for entry in level.values() for o in entry.owasp}
+    lines = []
+    for one in known.lists.values():
+        if not one.mapped:
+            continue
+        left = [f"{c} {name}" for c, name in one.categories.items() if c not in mapped]
+        lines.append(f"- **{one.name} {one.edition}:** " + ("; ".join(left) or "none"))
+    return "\n".join(lines) + "\n"
+
+
 BLOCKS: dict[str, Callable[[], str]] = {
+    "identifier-lists": identifier_lists,
+    "identifier-rules": identifier_rules,
+    "identifier-unmapped": identifier_unmapped,
     "mcp-tools": mcp_tools,
     "agent-rules": agent_rules,
     "mcp-clients": mcp_clients,
@@ -295,6 +356,7 @@ FILES: tuple[Path, ...] = (
     REPO / "docs" / "CLI.md",
     REPO / "docs" / "PROTOCOL.md",
     REPO / "docs" / "AIR-GAPPED.md",
+    REPO / "docs" / "OWASP-MAPPING.md",
     SKILL / "SKILL.md",
     SKILL / "references" / "tools.md",
 )
@@ -337,11 +399,11 @@ def write(files: Iterable[Path] = FILES,
     return rewritten
 
 
-def main(argv: list[str]) -> int:
-    rewritten = stale() if "--check" in argv else write()
+def main(argv: list[str], files: Iterable[Path] = FILES) -> int:
+    rewritten = stale(files) if "--check" in argv else write(files)
     for path, name in rewritten:
         print(f"{'stale' if '--check' in argv else 'wrote'}: {name} in "
-              f"{path.relative_to(REPO)}")
+              f"{path.relative_to(REPO) if path.is_relative_to(REPO) else path}")
     return 1 if rewritten and "--check" in argv else 0
 
 

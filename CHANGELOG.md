@@ -36,6 +36,8 @@ break things, and has.
   `valvur findings --owasp A05:2025` lists a category's, and `SUMMARY.md` counts by
   category once there is more than one. A mapping says where a finding sorts in a
   taxonomy other tools use. It is not a statement of what valvur detects.
+  [`docs/OWASP-MAPPING.md`](docs/OWASP-MAPPING.md) lists every rule beside its
+  identifiers, and each list's categories that none is mapped to.
 
 ### Fixed
 

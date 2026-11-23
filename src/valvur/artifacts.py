@@ -192,7 +192,7 @@ def _relationships(finding: Finding) -> list[dict]:
 
 def _taxonomies(findings: list[Finding]) -> list[dict]:
     """SARIF's `run.taxonomies`: CWE, then each OWASP list a Finding is mapped to, in the
-    file's order and at the edition it names. A taxon is *mapped to*: the word in each
+    file's order and at the edition it names. A taxon is *mapped to*: the words in the
     description, since a reader of SARIF alone sees nothing else of ADR-0037."""
     lists = _identifiers.table()
     cwes = sorted({c for f in findings for c in f.cwe}, key=lambda c: int(c.split("-")[1]))
@@ -211,7 +211,8 @@ def _taxonomies(findings: list[Finding]) -> list[dict]:
             made.append({"name": one.name, "organization": "OWASP", "version": one.edition,
                          "informationUri": one.source,
                          "shortDescription": {"text": "The categories this run's rules are "
-                                                      "mapped to. A mapping is not coverage."},
+                                                      "mapped to: where each finding sorts, "
+                                                      "and no more."},
                          "taxa": taxa})
     return made
 
