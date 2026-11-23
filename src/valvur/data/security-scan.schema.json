@@ -45,6 +45,19 @@
           "reason": {"description": "Why the risk is accepted, for the reviewer.", "type": "string", "minLength": 1}
         }
       }
+    },
+    "vex": {
+      "description": "OpenVEX documents of this project's own that valvur honours, each until a date (ADR-0035). A statement in one suppresses a dependency vulnerability. valvur reads no document that is not named here, and writes none.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "expires"],
+        "properties": {
+          "path": {"description": "The document, relative to the project root and inside it.", "type": "string", "minLength": 1},
+          "expires": {"description": "A TOML date; the document is not honoured after it, and the gate then fails.", "type": "string", "format": "date"}
+        }
+      }
     }
   }
 }

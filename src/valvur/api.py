@@ -26,6 +26,7 @@ from . import reftree as _reftree
 from . import results as _results
 from . import scancontext as _scancontext
 from . import settings as _settings
+from . import vex as _vex
 from .adapters.registry import DEFAULT_ADAPTERS
 from .adapters.syft import SyftAdapter
 from .assembly import assemble
@@ -94,6 +95,9 @@ def scan(
                         for a in adapters]
         # What the scan reads of the project, read once and passed on (D52d).
         context = _scancontext.build(workspace)
+        # A VEX document the project file names is read here, before any Scanner runs
+        # (R50.5): one that is asked for and cannot be read is refused, never skipped.
+        _vex.load(workspace, context.project)
         if tree is not None:
             # `workspace` is a commit's files, written out (R50.2): the record names the
             # commit, and the history pass reads the repository it came from.

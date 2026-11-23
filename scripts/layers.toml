@@ -110,6 +110,7 @@ infra = [
     "valvur.settings",
     "valvur.state",
     "valvur.suppressions",
+    "valvur.vex",
     "valvur.tree_hash",
 ]
 

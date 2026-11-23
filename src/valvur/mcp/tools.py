@@ -36,7 +36,9 @@ from .handlers import (
 from .tool import Tool
 
 # Names that must never appear here. Asserted by test, not by convention.
-FORBIDDEN = ("scan_and_fix", "apply", "write", "remediate", "fix", "patch", "edit")
+FORBIDDEN = ("scan_and_fix", "apply", "write", "remediate", "fix", "patch", "edit",
+             # R50.5: a VEX statement is a risk acceptance, and valvur writes none.
+             "vex")
 
 _WORKSPACE = {
     "type": "string",
