@@ -462,6 +462,13 @@ def build_parser() -> argparse.ArgumentParser:
         "`any` is every active finding — what valvur's own release gate uses.",
     )
     gate_cmd.add_argument(
+        "--new-since", default=None, metavar="REF",
+        help="Fail only on findings that REF does not already have: a branch, a tag or "
+        "a commit. valvur scans REF's tree itself, into its cache, and compares by "
+        "fingerprint. An incomplete run and a lapsed suppression still fail. In CI the "
+        "checkout needs REF's commit: `fetch-depth: 0`.",
+    )
+    gate_cmd.add_argument(
         "--no-inconclusive", action="store_true",
         help="Also fail an `inconclusive` scan: one whose data was too old to be "
         "evidence, or that never inspected part of the tree.",
@@ -637,8 +644,26 @@ def _cmd_gate(args: argparse.Namespace, runner=None) -> int:
     """`gate`: exit 1 if the last scan should not ship."""
     import os
 
-    verdict = _gate.evaluate(Path(args.path).resolve(), fail_on=args.fail_on,
-                             no_inconclusive=args.no_inconclusive)
+    workspace = Path(args.path).resolve()
+    base = None
+    if getattr(args, "new_since", None):
+        try:
+            base = service.base_scan(workspace, args.new_since, runner=runner)
+        except _reftree.NotResolved as unresolved:
+            # Nothing was compared, so nothing passed. A pull request's job checks out
+            # one commit by default (R50.1), which is the usual reason.
+            verdict = _gate.Verdict(
+                [f"{unresolved}, so nothing was compared. In CI the usual cause is a "
+                 "shallow checkout: give actions/checkout `fetch-depth: 0`, or fetch the "
+                 "base branch first"], "gate: the base could not be read", 1)
+            print(_gate.render(verdict,
+                               annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
+            return verdict.exit_code
+        except _locking.Busy as busy:
+            print(f"  ! {busy}", file=sys.stderr)
+            return 1
+    verdict = _gate.evaluate(workspace, fail_on=args.fail_on,
+                             no_inconclusive=args.no_inconclusive, base=base)
     print(_gate.render(verdict, annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
     return verdict.exit_code
 

@@ -52,6 +52,14 @@ def resolve(repository: Path, ref: str) -> Tree:
     return Tree(repository, ref, found.decode().strip())
 
 
+def root(tree: Tree) -> str:
+    """The repository's first commit as that commit sees it: what names the repository,
+    wherever it is checked out."""
+    found = _run(tree.repository, "rev-list", "--max-parents=0", tree.commit)
+    first = sorted((found or b"").decode().split())
+    return first[0] if first else tree.commit
+
+
 def export(tree: Tree, dest: Path) -> int:
     """Write the commit's files under `dest`, which must not exist; how many. A submodule
     is named by the commit and not entered, as in the working tree, so it is not written."""

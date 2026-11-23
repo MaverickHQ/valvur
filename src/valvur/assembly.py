@@ -123,6 +123,7 @@ def _staged_fields(staged: _pipeline.PipelineResult, osv_read: tuple[str, ...]) 
         "epss_scored": provider.epss_scored,
         "epss_age_days": provider.epss_age_days,
         "data_ages": _staleness.data_ages(provider, osv=osv_read),
+        "data_built": _staleness.data_built(provider, osv=osv_read),
         "config_dropped": staged.config_dropped,
         "removed_by_class": staged.removed_by_class,
         "unpinned_dropped": staged.unpinned_dropped,

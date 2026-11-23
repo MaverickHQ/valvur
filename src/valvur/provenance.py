@@ -154,6 +154,9 @@ def _data(run: ScanRun) -> dict:
         # R11.6: every dataset's age and what it is measured from, in one
         # place; the blocks around it keep what each has always said.
         "data": run.data_ages,
+        # R50.3: the instant each of those ages is measured from, in seconds, so that a
+        # gate can tell two Scan Runs read the same copy of a dataset. An age drifts.
+        "data_built": run.data_built,
         "enrichment": {
             "kev_source": run.kev_source,
             "kev_catalog": run.kev_catalog,

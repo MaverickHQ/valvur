@@ -1,4 +1,6 @@
-usage: valvur gate [-h] [--fail-on {critical,high,medium,low,any}] [--no-inconclusive] [path]
+usage: valvur gate [-h] [--fail-on {critical,high,medium,low,any}] [--new-since REF]
+                   [--no-inconclusive]
+                   [path]
 
 positional arguments:
   path                  Workspace that was scanned
@@ -8,5 +10,9 @@ options:
   --fail-on {critical,high,medium,low,any}
                         Lowest severity of an active finding that fails the gate (default: high).
                         `any` is every active finding — what valvur's own release gate uses.
+  --new-since REF       Fail only on findings that REF does not already have: a branch, a tag or a
+                        commit. valvur scans REF's tree itself, into its cache, and compares by
+                        fingerprint. An incomplete run and a lapsed suppression still fail. In CI
+                        the checkout needs REF's commit: `fetch-depth: 0`.
   --no-inconclusive     Also fail an `inconclusive` scan: one whose data was too old to be
                         evidence, or that never inspected part of the tree.

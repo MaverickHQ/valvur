@@ -15,7 +15,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from . import api, engine_host, profiles, reftree
+from . import api, cache, engine_host, gate, profiles, reftree
 from .events import Event
 from .scanrun import ScanRun
 
@@ -56,6 +56,36 @@ def new_runner() -> Any:
     """The runtime a scan uses (R3.9): the Scan Container, or inside the image the
     engine as a process there (R8.1)."""
     return engine_host.for_scan()
+
+
+def base_scan(workspace: Path, ref: str, *, runner: Any = None,
+              on_progress: Callable[[Event], None] | None = None) -> gate.Base | None:
+    """The base a gate compares with (`gate --new-since`, R50.3, ADR-0034): the commit
+    `ref` names, scanned by `scan --ref` into the cache with the Profile the working
+    tree's Scan Run recorded. A result already there is reused when it is complete and
+    rests on the same image, Profile and data as the working tree's; otherwise the base
+    is scanned again. None when the Workspace has no result to gate.
+
+    Raises `reftree.NotResolved` for a ref that names no commit."""
+    import json  # deferred: only a gate with a base reads a record here
+
+    def record(folder: Path) -> dict | None:
+        try:
+            read = json.loads((folder / gate.RESULTS_DIR / "run.json").read_text("utf-8"))
+        except (OSError, ValueError):
+            return None
+        return read if isinstance(read, dict) else None
+
+    working = record(workspace)
+    if working is None:
+        return None
+    tree = reftree.resolve(workspace, ref)
+    out = cache.root() / "base" / reftree.root(tree) / tree.commit
+    held = record(out)
+    if held is None or not held.get("complete") or gate.differences(working, held):
+        run_scan(workspace, ref=ref, out=out, runner=runner, on_progress=on_progress,
+                 profile=working.get("profile") or profiles.DEFAULT)
+    return gate.Base(ref, tree.commit, out)
 
 
 def run_scan(
