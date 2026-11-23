@@ -36,7 +36,7 @@ and why. Where only the owner can confirm an answer, the line says so.
 - **version_semver**: Met. Semantic Versioning. [CHANGELOG.md](../CHANGELOG.md)
 - **version_tags**: Met. Each release is a signed tag `v<version>`. [RELEASING.md](RELEASING.md)
 - **release_notes**: Met. Each release's section in the changelog, in Keep a Changelog's form. [CHANGELOG.md](../CHANGELOG.md)
-- **release_notes_vulns**: N/A. No release has fixed a vulnerability in valvur that had a CVE or similar assignment; one would be named in its section. [CHANGELOG.md](../CHANGELOG.md), [SECURITY.md](../SECURITY.md)
+- **release_notes_vulns**: Met. A release that fixes a vulnerability with a CVE names it under *Security*: 1.6.2's section names each one it fixed in the image, by package. [CHANGELOG.md](../CHANGELOG.md), [SECURITY.md](../SECURITY.md)
 
 ## Reporting
 
@@ -56,8 +56,8 @@ and why. Where only the owner can confirm an answer, the line says so.
 - **build_floss_tools**: Met. Every tool in the build is FLOSS. [NOTICE](../NOTICE)
 - **test**: Met. pytest, released with the project; how to run it is in CONTRIBUTING. [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **test_invocation**: Met. `pytest`, as Python projects do. [CONTRIBUTING.md](../CONTRIBUTING.md)
-- **test_most**: Met. About two thousand unit tests, end-to-end tests against the real container, and a CI job that reverts each hunk of a change to see a test notice. [ci.yml](../.github/workflows/ci.yml)
-- **test_continuous_integration**: Met. Every pull request runs the tests on Python 3.11, 3.12 and 3.13, end to end on amd64 and arm64. [ci.yml](../.github/workflows/ci.yml)
+- **test_most**: Met. About three thousand unit tests, end-to-end tests against the real container, and a CI job that reverts each hunk of a change to see a test notice. [ci.yml](../.github/workflows/ci.yml)
+- **test_continuous_integration**: Met. Every pull request runs the tests on Python 3.11, 3.13 and 3.14, end to end on amd64 and arm64. [ci.yml](../.github/workflows/ci.yml)
 - **test_policy**: Met. Every change is test-driven: a failing test first, then the code. [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **tests_are_added**: Met. Each recent phase's changes came with their tests, recorded in each phase's exit. [docs/acceptance](acceptance/r21.md)
 - **tests_documented_added**: Met. The pull request template's first item. [the pull request template](../.github/PULL_REQUEST_TEMPLATE.md)

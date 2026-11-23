@@ -1564,13 +1564,33 @@ the landing.
 
   _Requirements: 14.1_
 
-- [ ] **R52.4** **The level, and who can release.**
+- [x] **R52.4** **The level, and who can release.**
   **Seam:** the documents, read as `tests/test_best_practices.py` reads its own. Behaviours:
   1. `SECURITY.md` states the SLSA Build level R52.1 found, with each requirement's
      evidence. A test refuses a higher level's name, seen red against a planted one.
   2. **Record.** `MAINTAINERS.md` says who can release today and what continues without
      them. *Check:* the link check.
   3. `docs/BEST-PRACTICES.md` is current with the tree, and the form is in §3.
+
+  **STATUS 2026-11-23:** ✅ 1 to 3.
+  - **`SECURITY.md`** says *valvur's releases reach SLSA Build L2, and no higher*, with a
+    row of evidence for each of the level's six requirements, the command that verifies
+    the provenance, and a subsection naming the two rows L3 adds and why the release has
+    neither. It names the specification as read: 1.0's rows, kept by 1.2.
+  - **`tests/test_slsa_level.py`,** 6 tests. A higher level's name is refused in the
+    README, `SECURITY.md`, `MAINTAINERS.md` and `docs/*.md`, outside the one subsection
+    that says it is out of reach: seen red on the planted *reach SLSA Build L3*. And the
+    evidence is held to `release.yml`: two attestation steps, `push-to-registry`, the
+    verification by predicate type, the two attached files, and no runner but GitHub's.
+  - **`MAINTAINERS.md`** gains *If the maintainer cannot release*: the data keeps
+    arriving and the published image keeps being checked, with nobody to act; **no
+    release happens, not a security patch either,** since ADR-0032 is proposed and its
+    workflows are not on `main`. The design's sentence, *a security patch still releases
+    itself*, is not true today and is not written.
+  - **`docs/BEST-PRACTICES.md`,** three answers were stale: about three thousand unit
+    tests, not two; Python 3.11, 3.13 and 3.14 in CI, not 3.12; and
+    `release_notes_vulns` is Met, not N/A, since 1.6.2 names each CVE it fixed in the
+    image. The form is still in the owner's queue, which the existing test holds.
 
   _Requirements: 14.2, 14.3, 14.5_
 
