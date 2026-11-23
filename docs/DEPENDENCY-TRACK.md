@@ -36,6 +36,17 @@ The answer is a token. Dependency-Track processes the SBOM after it answers, and
 ## What arrives
 
 <!-- measured: dependency-track -->
+With Dependency-Track 5.2.2, for the CycloneDX 1.7 SBOM of valvur's test fixture:
+
+| what was sent | sent | arrived |
+|---|---|---|
+| components | 16 | 15 |
+| of them libraries | 12, with 11 distinct package URLs | 11, each with its package URL |
+| of them files | 4 | 4 |
+| file hashes | 4 | 4 |
+| licences | 0 | 0 |
+| the same SBOM, uploaded again | 16 | 15, as before |
+
 <!-- /measured -->
 
 ## What to know

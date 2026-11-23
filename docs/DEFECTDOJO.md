@@ -44,6 +44,28 @@ each finding a duplicate instead.
 ## What arrives
 
 <!-- measured: defectdojo -->
+With DefectDojo 3.5.202, for a scan of valvur's test fixture:
+
+| what was sent | sent | arrived |
+|---|---|---|
+| findings, one for each file a result names | 149 | 149 |
+| severity | 149 | 149 the same; the one *unknown* arrives as Medium |
+| CWE | 123 | 123 |
+| OWASP categories, as tags | 146 | 146 |
+| file | 149 | 149 |
+| line | 53 | 53 |
+| the Fingerprint, as the tool's unique id | 149 | 123 |
+| the advisory's CVE, as a vulnerability id | 88 | 88 |
+| live findings | 148 | 148 active |
+| of them, one with an ignore valvur did not accept | 1 | 1, active |
+| an accepted risk | 1 | 1, inactive, marked a false positive |
+
+| the same file, sent again as | findings | new |
+|---|---|---|
+| a re-import into the test the first import made | 149 | 0 |
+| a second import, deduplication as installed, off | 149 more | 149, none marked a duplicate |
+| an import with deduplication turned on | 149 more | 149, each marked a duplicate |
+
 <!-- /measured -->
 
 ## What to know

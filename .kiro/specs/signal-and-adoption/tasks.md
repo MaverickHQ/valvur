@@ -1398,8 +1398,23 @@ active; no track more than 2 points under its new baseline; the acceptance set p
 
   _Requirements: 9.2, 9.4_
 
-- [ ] **R51.8** **Measured again.** **Proof:** the dispatched workflow imports both again. A
+- [x] **R51.8** **Measured again.** **Proof:** the dispatched workflow imports both again. A
   test holds each number in the two guides to `docs/acceptance/r51.md`.
+
+  **STATUS 2026-11-23:** ✅, measured on the dev machine as R51.5 was, on fresh instances
+  of both tools, with the script as it is committed. **The dispatched run is still owed
+  after the landing.**
+  - **DefectDojo:** 148 live Findings sent and 148 arrive active, where the first
+    measurement had 147: the one a `.trivyignore` names arrives active. Every other
+    number is as it was: 149 findings, severity and file on all, CWE on 123, the OWASP
+    tags on 146, a line on 53, the Fingerprint on 123. A re-import adds none.
+  - **Dependency-Track:** as it was, 15 components from 16, the 11 distinct packages each
+    with its package URL. This time uploaded with an API key on the *Automation* team, as
+    a pipeline does. As installed that team lacks `PROJECT_CREATION_UPLOAD`, which the
+    guide says.
+  - **The test:** `tests/test_import_guides.py`. Each guide's table is the record's own,
+    byte for byte, between the same markers, and no count stands in a guide's prose that
+    the record's table does not hold. Seen red on the empty tables.
 
   _Requirements: 9.5_
 
