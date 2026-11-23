@@ -223,3 +223,46 @@ def test_two_instants_a_moment_apart_are_one_copy():
         "data: database is not the same copy in both"]
     assert gate.differences(run, {**run, "data_built": {}}) == [
         "data: database is not the same copy in both"]
+
+
+@pytest.mark.e2e
+def test_once_against_the_image_a_new_secret_fails_and_an_old_one_does_not(mountable_tmp,
+                                                                          capsys):
+    """Through the Scan Container: the working tree and the base are each scanned by the
+    real Scanners, and the gate tells the two secrets apart."""
+    live = {"old": "AK" + "IA" + "V7Q2XR4TVBN6WLKJ", "new": "AK" + "IA" + "T6H2WQ7XKC4PMV3J"}
+    root = mountable_tmp / "repo"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    _write(root, {"config/old.env": f"AWS_ACCESS_KEY_ID={live['old']}\n",
+                  ".gitignore": ".security-scan/\n"})
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "one")
+    _git(root, "tag", "v1")
+    _write(root, {"config/new.env": f"AWS_ACCESS_KEY_ID={live['new']}\n"})
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "two")
+    assert cli.main(["scan", str(root)]) in (0, 1)
+    capsys.readouterr()
+
+    code = cli.main(["gate", str(root), "--fail-on", "any", "--new-since", "v1"])
+    said = capsys.readouterr().out
+
+    assert code == 1, said
+    failures = [line for line in said.splitlines() if "—" in line and " in " in line]
+    assert [("config/new.env" in line) for line in failures] == [True], said
+    assert f"since v1 ({_git(root, 'rev-parse', 'v1')[:7]})" in said
+    assert "cannot be compared" not in said and "incomplete" not in said
+    capsys.readouterr()
+    assert cli.main(["gate", str(root), "--fail-on", "any", "--new-since", "HEAD"]) == 0
+
+
+def test_without_git_the_gate_fails_and_does_not_blame_the_checkout(repo, capsys, monkeypatch):
+    from valvur import fileset
+
+    monkeypatch.setattr(fileset, "git", lambda: None)
+
+    code, said = _gate(repo, capsys, "--new-since", "v1")
+
+    assert code == 1 and "git is not on PATH here" in said
+    assert "fetch-depth" not in said and "gate: FAILED" in said

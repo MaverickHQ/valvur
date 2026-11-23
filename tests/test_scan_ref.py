@@ -204,7 +204,7 @@ def test_once_against_the_image_a_refs_tree_and_its_history(mountable_tmp):
     it as a Snapshot, and its history as the directory the host wrote."""
     live = {name: "AK" + "IA" + body for name, body in
             (("old", "V7Q2XR4TVBN6WLKJ"), ("gone", "Z5M3KD2QPLX7RNB4"),
-             ("wip", "T6H2WQ9XKC4PMV3J"))}
+             ("wip", "T6H2WQ7XKC4PMV3J"))}
     root = mountable_tmp / "repo"
     root.mkdir()
     _git(root, "init", "-q", "-b", "main")
@@ -229,3 +229,18 @@ def test_once_against_the_image_a_refs_tree_and_its_history(mountable_tmp):
     assert record["tree"] == {"ref": "v1", "commit": _git(root, "rev-parse", "v1")}
     assert record["complete"] is True
     assert _tree_hash(root / ".git") == before and not (root / RESULTS).exists()
+
+
+def test_without_git_the_error_says_so_and_not_that_the_ref_is_wrong(repo, tmp_path, capsys,
+                                                                    monkeypatch):
+    """Inside the image there is no git (ADR-0005). A ref cannot be read there at all, and
+    saying it names no commit would send the reader to check a branch that exists."""
+    from valvur import fileset
+
+    monkeypatch.setattr(fileset, "git", lambda: None)
+
+    assert cli.main(["scan", str(repo), "--ref", "v1", "--out", str(tmp_path / "out")]) == 2
+
+    said = capsys.readouterr().err
+    assert "git is not on PATH here" in said and "names no commit" not in said
+    assert "the image carries none" in said

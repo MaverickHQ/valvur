@@ -935,7 +935,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
     through the Scan Container, an untracked file is not, the Scan Run is complete, and
     nothing under `.git` changed.
 
-- [ ] **R50.3** **`gate --new-since`** (D82k, D82l).
+- [x] **R50.3** **`gate --new-since`** (D82k, D82l).
   **Seam:** `cli.main(["gate", …, "--new-since", …])` over `LocalRuntime`, on a repository
   made in `tmp_path` and scanned first; the exit code and the lines printed. Behaviours:
   1. **Guard, existing.** `tests/test_gate_cache.py`'s gate tests: without the option, the
@@ -955,6 +955,35 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   12. The help golden moves here. Then once against `valvur:dev`, with `-m e2e`.
 
   _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
+
+  **STATUS 2026-11-23:** ✅ 1 to 12 (`ede8491` and this commit), 19 tests in
+  `tests/test_gate_new_since.py`.
+  - **Where each part lives.** `gate.evaluate` still reads and scans nothing: it takes a
+    `Base`, the base's Results Folder, and compares. `service.base_scan` resolves the
+    ref, finds or makes that result in `<cache>/base/<root commit>/<commit>/`, and the
+    CLI joins the two. Behaviours 6 to 8 are tested at the reader, on a base result
+    doctored by hand, since a scan cannot be made to differ on purpose.
+  - **`run.json` gains `data_built`,** the instant each dataset's age is measured from,
+    in seconds. An age drifts between two Scan Runs of one copy and the instant does
+    not. It is beside the `data` block and not in it: the MCP reply shows that block, and
+    its goldens did not move. Two instants within 5 s are one copy.
+  - **The reuse rule is the comparison itself:** a base result is used when it is
+    complete and does not differ from the working tree's in image, Profile or data.
+    Otherwise the base is scanned again, and if the two still differ the gate fails and
+    says to scan the working tree again.
+  - **Added: with no git, the line says so.** Inside the image there is none (ADR-0005),
+    and *names no commit* would send a reader to check a branch that exists. `scan --ref`
+    and the gate both say git is not on PATH, and the gate does not then blame the
+    checkout's depth. **So the gate on new Findings runs from the host shim, not from
+    the image as a step:** R50.4's example and `docs/CI.md` say it.
+  - **Proof,** on the dev machine at `ede8491` with this commit's slice, `valvur:dev`
+    `sha256:13e7f037ff2f`: through the Scan Container a secret added after the base
+    fails the gate and one the base holds does not; against `HEAD` it passes. The whole
+    container suite: 100 passed and 8 skipped, and this test.
+  - **The container test first failed, and the test was wrong:** its second key held a
+    `9`, which is no AWS key's alphabet, so the real Gitleaks rightly reported one
+    secret. The fake tool had matched it. `tests/test_scan_ref.py`'s untracked key had
+    the same flaw, which made its absence prove nothing; both are valid shapes now.
 
 - [ ] **R50.4** **Shown where a team would copy it.**
   **Seam:** `docs/examples/github-actions.yml`, as `tests/test_pipeline_example.py` runs it.

@@ -24,6 +24,10 @@ class NotResolved(ValueError):
     """The ref names no commit in this repository."""
 
 
+class NoGit(NotResolved):
+    """There is no git to read a ref with: inside the image, by ADR-0005."""
+
+
 @dataclass(frozen=True)
 class Tree:
     """The commit a Scan Run read in place of the working tree, and the repository it is
@@ -45,6 +49,11 @@ def _run(repository: Path, *args: str, stdin: bytes | None = None) -> bytes | No
 
 def resolve(repository: Path, ref: str) -> Tree:
     """The commit `ref` names. A ref that starts with a dash is refused unread."""
+    if fileset.git() is None:
+        # Not the ref's fault, and the reader should not go looking at their branches.
+        raise NoGit(f"git is not on PATH here, so `{ref}` cannot be read (the image "
+                          "carries none, ADR-0005): run this from the host, where valvur "
+                          "starts the container itself")
     found = None if ref.startswith("-") else _run(
         repository, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}")
     if not found or not found.strip():

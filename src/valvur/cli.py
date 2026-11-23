@@ -652,10 +652,11 @@ def _cmd_gate(args: argparse.Namespace, runner=None) -> int:
         except _reftree.NotResolved as unresolved:
             # Nothing was compared, so nothing passed. A pull request's job checks out
             # one commit by default (R50.1), which is the usual reason.
-            verdict = _gate.Verdict(
-                [f"{unresolved}, so nothing was compared. In CI the usual cause is a "
-                 "shallow checkout: give actions/checkout `fetch-depth: 0`, or fetch the "
-                 "base branch first"], "gate: the base could not be read", 1)
+            why = "" if isinstance(unresolved, _reftree.NoGit) else (
+                ". In CI the usual cause is a shallow checkout: give actions/checkout "
+                "`fetch-depth: 0`, or fetch the base branch first")
+            verdict = _gate.Verdict([f"{unresolved}, so nothing was compared{why}"],
+                                    "gate: the base could not be read", 1)
             print(_gate.render(verdict,
                                annotations=os.environ.get("GITHUB_ACTIONS") == "true"))
             return verdict.exit_code
