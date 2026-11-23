@@ -890,7 +890,7 @@ active; no track more than 2 points under its new baseline; the acceptance set p
     The specification's table and its prose differ on whether a justification alone is
     required; R50.5's behaviour 5 takes either, as the statement table says.
 
-- [ ] **R50.2** **`scan --ref`: a commit's tree** (D82k).
+- [x] **R50.2** **`scan --ref`: a commit's tree** (D82k).
   **Seam:** `cli.main(["scan", …, "--ref", …, "--out", …])` over `LocalRuntime`, on a git
   repository made in `tmp_path`; the result's `findings.json` and `run.json`, and the
   repository afterwards. Behaviours:
@@ -910,6 +910,30 @@ active; no track more than 2 points under its new baseline; the acceptance set p
   10. Once against `valvur:dev`, with `-m e2e`.
 
   _Requirements: 7.1, 7.3_
+
+  **STATUS 2026-11-23:** ✅ 1 to 10 (`f8f20cf` and the container test), 14 tests in
+  `tests/test_scan_ref.py` and one in `tests/test_cli_parity.py`.
+  - **How it is built:** `src/valvur/reftree.py` resolves the ref and writes the commit's
+    files, read by `ls-tree` and `cat-file --batch`, into a temporary directory outside
+    the repository. That directory is scanned as any Workspace is, into `--out`, and is
+    gone when the scan returns. design.md had the Snapshot built from the blobs in
+    memory; a directory lets every host-side stage read the commit's own files, the
+    project file among them, with no second code path. It is not in the repository, so
+    behaviour 2 holds as written.
+  - **The history pass** reads `git log <commit>` of the repository the tree came from,
+    through `ScanContext.tree`, which also puts `tree: {ref, commit}` in `run.json`.
+  - **Slices 5 to 8 were green as soon as 1 was:** the project file, the excludes and the
+    Suppressions come with the commit's files. The history test was seen red against a
+    hand-made break, reading every ref's history.
+  - **Added:** a ref that begins with a dash is refused unread, so it can never be an
+    option to git; and an `--out` *inside* the Workspace's Results Folder is refused too.
+  - **A submodule** is named by the commit and not written, as the working tree's is not
+    entered. A symbolic link is written as a link, and the File Set's own rule on links
+    that leave the tree applies to it.
+  - **Proof,** on the dev machine at `f8f20cf` with the test, `valvur:dev`
+    `sha256:3584f7d0b651`: a commit's file and a secret deleted before it are found
+    through the Scan Container, an untracked file is not, the Scan Run is complete, and
+    nothing under `.git` changed.
 
 - [ ] **R50.3** **`gate --new-since`** (D82k, D82l).
   **Seam:** `cli.main(["gate", …, "--new-since", …])` over `LocalRuntime`, on a repository

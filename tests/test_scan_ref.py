@@ -196,3 +196,36 @@ def test_history_is_read_up_to_the_ref_and_no_further(repo, tmp_path):
     assert "new.env" not in evidence and "wip.env" not in evidence
     record = json.loads((out / RESULTS / "run.json").read_text())
     assert record["history"]["commits"] == 2
+
+
+@pytest.mark.e2e
+def test_once_against_the_image_a_refs_tree_and_its_history(mountable_tmp):
+    """The same through the Scan Container and the real Gitleaks: the commit's files reach
+    it as a Snapshot, and its history as the directory the host wrote."""
+    live = {name: "AK" + "IA" + body for name, body in
+            (("old", "V7Q2XR4TVBN6WLKJ"), ("gone", "Z5M3KD2QPLX7RNB4"),
+             ("wip", "T6H2WQ9XKC4PMV3J"))}
+    root = mountable_tmp / "repo"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    _write(root, {"config/old.env": f"AWS_ACCESS_KEY_ID={live['old']}\n",
+                  "config/gone.env": f"AWS_ACCESS_KEY_ID={live['gone']}\n"})
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "one")
+    _write(root, {"config/gone.env": None})
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "two")
+    _git(root, "tag", "v1")
+    _write(root, {"config/wip.env": f"AWS_ACCESS_KEY_ID={live['wip']}\n"})
+    before, out = _tree_hash(root / ".git"), mountable_tmp / "out"
+
+    assert cli.main(["scan", str(root), "--ref", "v1", "--out", str(out)]) in (0, 1)
+
+    secrets = [f for f in _findings(out) if "gitleaks" in f["sources"]]
+    assert sorted({f["path"] for f in secrets}) == ["config/gone.env", "config/old.env"]
+    assert ["in git history" in f["title"] for f in sorted(secrets, key=lambda f: f["path"])] \
+        == [True, False]
+    record = json.loads((out / RESULTS / "run.json").read_text())
+    assert record["tree"] == {"ref": "v1", "commit": _git(root, "rev-parse", "v1")}
+    assert record["complete"] is True
+    assert _tree_hash(root / ".git") == before and not (root / RESULTS).exists()
