@@ -1562,6 +1562,23 @@ the landing.
   5. zizmor finds nothing, at the auditor persona too.
   6. **Proof.** A rehearsal, cancelled at the brake, shows the five attestations.
 
+  **STATUS 2026-11-23:** not started: the owner's, and `release.yml` is untouched. **One
+  finding for the sitting, before the diff is written.** The design attests the document
+  *in `stage`'s grant*. The document is written from the image gate's verdicts, which
+  `artifact` makes, and `artifact` needs `stage`: where the document exists, the job
+  that has it, `notes`, holds `contents: read` and no more. Two ways, the owner's choice:
+  - **(a)** `notes` gains `packages: write` and `id-token: write` and attests the
+    document. A rehearsal shows five attestations, as behaviour 6 says.
+  - **(b)** `stage` attests the four SBOMs, which it makes. `promote`, which holds both
+    grants already, attests the document after the brake. No job gains a grant, and a
+    rehearsal shows four attestations and the document, validated and unattested.
+    **The executor recommends (b):** a job that renders notes should not be able to sign.
+    Behaviour 6 then reads *four, and the fifth at the promotion*.
+  - Also for the sitting: an image with nothing unfixed and nothing accepted has **no
+    document** (R52.2), so `promote` attaches and attests one only when it exists; and
+    the `justification` field R52.2 reads is new to `.github/image-accepted.yaml`, whose
+    header is the owner's to amend.
+
   _Requirements: 14.1_
 
 - [x] **R52.4** **The level, and who can release.**
@@ -1658,6 +1675,13 @@ the landing.
 
 **Exit:** a release carries its VEX document and five attestations; `SECURITY.md` states the
 level; the Health record has run for a week; Gate 2 is recorded.
+
+**STATUS 2026-11-23:** **the phase is open at R52.3 and R52.6, both the owner's.** Of the
+exit: `SECURITY.md` states the level. The release's document and its attestations wait for
+R52.3. The Health record is built and was run read-only; it runs daily, and so for a week,
+only once it has landed. Gate 2 is R52.6. Measured on the dev machine at `be45558`: the
+Score 76.8 on every track with `--compare` passing, the acceptance set 8 of 8, the
+container suite 103 passed and 8 skipped. The record is `docs/acceptance/r52.md`.
 
 ---
 
