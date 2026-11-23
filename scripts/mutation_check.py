@@ -162,6 +162,19 @@ def score(report: list[tuple[Hunk, str]]) -> float | None:
     return round(100 * caught / measured, 1) if measured else None
 
 
+def measurement(report: list[tuple[Hunk, str]]) -> dict:
+    """What a run measured, for whoever reads it afterwards (R52.5): the score and the
+    counts behind it."""
+    count = {verdict: sum(1 for _, v in report if v == verdict)
+             for verdict in ("caught", "survived", "no code change", "not applied")}
+    return {"score": score(report), "caught": count["caught"], "survived": count["survived"],
+            "documentation_only": count["no code change"], "not_applied": count["not applied"]}
+
+
+def write_measured(path: Path, report: list[tuple[Hunk, str]]) -> None:
+    path.write_text(json.dumps(measurement(report)) + "\n", encoding="utf-8")
+
+
 def falls(measured: float | None, baseline: dict) -> bool:
     """Under the recorded score: the week's tests notice less of their own change."""
     return measured is not None and measured < float(baseline.get("score", 0))
@@ -182,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="exit 1 when the score falls under the one recorded here")
     parser.add_argument("--update-baseline", action="store_true",
                         help="with --baseline, raise it to a higher score; never lower it")
+    parser.add_argument("--out", type=Path, metavar="FILE",
+                        help="write what was measured, as JSON, for the Health record")
     args = parser.parse_args(argv)
 
     repo = Path(__file__).resolve().parent.parent
@@ -211,6 +226,8 @@ def main(argv: list[str] | None = None) -> int:
             out.write(f"## Mutation check\n\n{caught} caught, {len(survivors)} survived\n\n")
             for hunk, verdict in report:
                 out.write(f"- `{hunk.path}` `{hunk.header.split(' @@')[0]}` — {verdict}\n")
+    if args.out is not None:
+        write_measured(args.out, report)
     measured = score(report)
     if args.baseline is not None:
         recorded = json.loads(args.baseline.read_text(encoding="utf-8"))

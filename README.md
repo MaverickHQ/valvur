@@ -231,6 +231,9 @@ it ([how](docs/HOW-IT-WORKS.md#1-it-cannot-exfiltrate-your-code-and-you-can-veri
 - **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and the short list of
   what is refused on principle. [MAINTAINERS.md](MAINTAINERS.md) says who maintains valvur,
   one person today, and what you can rely on. There is no paid tier and no support contract.
+- **How the project is doing:** [the health record](https://github.com/MaverickHQ/valvur/issues?q=is%3Aissue+is%3Aopen+in%3Atitle+%22valvur+health%22+author%3Aapp%2Fgithub-actions),
+  one issue a daily workflow rewrites from recorded runs: the Score by track, what the
+  nightly found in the published image, the mutation score and time to heal.
 
 ## Licence
 

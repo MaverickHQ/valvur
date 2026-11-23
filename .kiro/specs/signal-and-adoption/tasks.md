@@ -1594,7 +1594,7 @@ the landing.
 
   _Requirements: 14.2, 14.3, 14.5_
 
-- [ ] **R52.5** **The Health record** (D82r).
+- [x] **R52.5** **The Health record** (D82r).
   **Seam:** `scripts/health.py`'s `main`, with GitHub faked through `tests/fake_github.py`;
   the issue it leaves there. `health.yml` as a file. Behaviours:
   1. The issue's body gives the Score by track, from the recorded runs.
@@ -1611,6 +1611,40 @@ the landing.
 
   **Added by the pass:** 7. The repository is public, and behaviour 4 reads the issue's
   last values back.
+
+  **STATUS 2026-11-23:** ✅ 1 to 9, with 5 and 8 amended, in `tests/test_health.py` (18
+  tests) and `tests/test_mutation_report.py` (4).
+  - **`scripts/health.py`,** standard library alone, on the watchdog's API client. It
+    reads the newest `eval-report` of a run on `main`, each night's
+    `image-gate-published`, the newest `mutation-report`, and `heal_report.py`'s summary
+    for the month, and writes the issue *valvur health*.
+  - **Its last values are in the issue,** in a comment at its end. A number that cannot be
+    read today is shown with its last value and date and *could not be read on …*. One
+    never read is said to be absent. A night's verdict already in the record is not
+    downloaded again, and a day past 30 is dropped.
+  - **Only the issue a workflow's own account opened is the record.** A stranger's issue
+    of that title is neither read nor written, which a test plants values in to show.
+  - **A token goes to the API and never to the storage** a download is redirected to,
+    which refuses one. The fake does the same, so a test holds it.
+  - **Run for real, read only,** on 2026-11-23 with `--dry-run`: the Score 74.1 from
+    `main`'s run of 2026-11-16 and the image's verdict for each of 30 nights, 51 blocking
+    on 2026-11-20 and none since 1.6.2. The redirect works against GitHub itself.
+  - **The mutation score had no artifact** (R52.1). `mutation_check.py --out` writes what
+    it measured and `mutation.yml` uploads it as `mutation-report`, whatever the score
+    did. Until that workflow has run once from `main`, the record says the mutation score
+    could not be read.
+  - **5, amended:** `heal_report.py` exists on this stack, so the record gives its
+    summary: none healed this month, and the baseline. Without that script in the tree it
+    says *not measured yet*.
+  - **8, amended by R52.1:** `health.yml` runs daily at 07:13 UTC and on dispatch, with
+    `actions: read` and `issues: write` and no other grant; its actions are pinned; the
+    watchdog reads its schedule. A failed run files its own issue.
+  - **9:** the README links to the record by a search for the workflow's own issue, since
+    its number does not exist until the first run.
+  - The tests and the script were written together, so each test was checked to bite:
+    seven deliberate breaks of the script, each caught.
+  - **Owed after the landing:** the first run of `health.yml`, and with it whether a job's
+    token downloads an artifact with these two grants.
 
   _Requirements: 14.4_
 

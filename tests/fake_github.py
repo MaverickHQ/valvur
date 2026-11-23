@@ -10,8 +10,10 @@ for the watchdog's Scanner checks.
 
 from __future__ import annotations
 
+import io
 import json
 import threading
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
@@ -31,6 +33,15 @@ class FakeGitHub:
         self.authorizations: list[str | None] = []
         #: upstream repository → releases, newest first, as the Releases API lists them.
         self.releases: dict[str, list[dict]] = {}
+        #: The repository's artifacts, as the Actions API lists them (R52.5). Each one's
+        #: files are served as a zip from another path, which the API redirects to, as
+        #: GitHub redirects a download to its storage.
+        self.artifacts: list[dict] = []
+        self.files: dict[int, dict[str, bytes]] = {}
+        #: What the storage was sent as authorization: a token must not follow there.
+        self.storage_authorizations: list[str | None] = []
+        #: Artifact names whose listing fails, as an API that is down does.
+        self.broken: set[str] = set()
         #: go.dev's `/dl/?mode=json`: the supported releases.
         self.go: list[dict] = [{"version": "go1.27.3", "stable": True},
                                {"version": "go1.26.10", "stable": True}]
@@ -52,6 +63,17 @@ class FakeGitHub:
                  "comments": [], **more}
         self.issues.append(issue)
         return issue
+
+    def artifact(self, name: str, files: dict[str, object], *, created: str,
+                 branch: str = "main", expired: bool = False) -> dict:
+        """An artifact of a run on `branch`, holding `files` (JSON-encoded unless bytes)."""
+        made = {"id": 1000 + len(self.artifacts), "name": name, "created_at": created,
+                "expired": expired, "workflow_run": {"head_branch": branch}}
+        self.files[made["id"]] = {
+            path: body if isinstance(body, bytes) else json.dumps(body).encode()
+            for path, body in files.items()}
+        self.artifacts.insert(0, made)
+        return made
 
 
 def _handler(github: FakeGitHub):
@@ -78,6 +100,32 @@ def _handler(github: FakeGitHub):
             url = urlsplit(self.path)
             query = parse_qs(url.query)
             github.reads.append(self.path)
+            if url.path == f"{prefix}/actions/artifacts":
+                name = query.get("name", [None])[0]
+                if name in github.broken:
+                    return self._send(503, {"message": "Service Unavailable"})
+                found = sorted((a for a in github.artifacts if name in (None, a["name"])),
+                               key=lambda a: a["created_at"], reverse=True)
+                return self._send(200, {"total_count": len(found), "artifacts": found})
+            if url.path.startswith(f"{prefix}/actions/artifacts/") and url.path.endswith("/zip"):
+                self.send_response(302)
+                self.send_header("Location", f"{github.url}/storage/{url.path.split('/')[-2]}")
+                self.send_header("Content-Length", "0")
+                return self.end_headers()
+            if url.path.startswith("/storage/"):
+                github.authorizations.pop()
+                github.storage_authorizations.append(self.headers.get("Authorization"))
+                if self.headers.get("Authorization"):
+                    return self._send(403, {"message": "the storage refuses a token"})
+                packed = io.BytesIO()
+                with zipfile.ZipFile(packed, "w") as archive:
+                    for path, body in github.files[int(url.path.split("/")[-1])].items():
+                        archive.writestr(path, body)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Length", str(len(packed.getvalue())))
+                self.end_headers()
+                return self.wfile.write(packed.getvalue())
             if url.path.startswith(f"{prefix}/actions/workflows/") and url.path.endswith("/runs"):
                 name = url.path.split("/")[-2]
                 if name not in github.runs:
@@ -118,7 +166,8 @@ def _handler(github: FakeGitHub):
             path = urlsplit(self.path).path
             github.writes.append(("POST", path, body))
             if path == f"{prefix}/issues":
-                issue = github.issue(body["title"])
+                # A workflow's own token opens an issue as this account.
+                issue = github.issue(body["title"], user={"login": "github-actions[bot]"})
                 issue["body"] = body.get("body", "")
                 return self._send(201, issue)
             if path.startswith(f"{prefix}/issues/") and path.endswith("/comments"):

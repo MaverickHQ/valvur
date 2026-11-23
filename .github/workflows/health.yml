@@ -1,0 +1,61 @@
+# The Health record: one issue, rewritten daily from recorded runs (R52.5, D82r,
+# Requirement 14.4). `scripts/health.py` reads the Score by track from the weekly run's
+# `eval-report`, the published image's verdict from each night's `image-gate-published`,
+# the mutation score from `mutation-report`, and time to heal from the pull requests and
+# releases, and writes them into the issue titled *valvur health* that this workflow's own
+# account opened. A number it cannot read keeps its last value and date, and says so.
+#
+# It commits nothing, so it holds no grant that can push: it may read the runs' artifacts
+# and write issues. An issue of that title opened by anyone else is neither read nor
+# written. The watchdog reads this schedule as it reads every other.
+#
+# 07:13 UTC, after the nightly and the watchdog have usually finished.
+name: health
+
+on:
+  schedule:
+    - cron: "13 7 * * *"     # daily, 07:13 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: health
+  cancel-in-progress: false
+
+jobs:
+  record:
+    name: the health record, from recorded runs
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: read    # the artifacts the numbers are in
+      issues: write    # the one issue
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rewrite the record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: python3 scripts/health.py --repo "$REPO"
+
+      - name: A record that cannot be written is filed
+        if: failure() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: "the health record could not be written"
+          failed: "The scheduled `health` run failed"
+          body: |-
+            Nothing users have changes. What is lost is the day's rewrite of the *valvur health* issue, which then shows the last day it was written.
+
+            Recovery: read the run's log, fix the cause, and dispatch this workflow again.
+
+      - name: A run that passes closes it
+        if: success() && github.event_name == 'schedule'
+        uses: ./.github/actions/file-issue
+        with:
+          title: "the health record could not be written"
+          passed: "true"

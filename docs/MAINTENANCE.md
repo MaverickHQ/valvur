@@ -66,9 +66,10 @@ it only when the owner updates the routine.
    `acceptance.yml` (daily), `fuzz.yml` (nightly), `index.yml` (daily, two jobs),
    `corpus.yml`, `eval.yml`, `retention.yml` and `refresh.yml` (Mondays; the refresh
    acts on the first), `scorecard.yml` (Tuesdays), `mutation.yml` (Wednesdays; a fall
-   is fixed by the test that notices a surviving hunk, never by lowering the baseline)
-   and `watchdog.yml` (daily), which files `watchdog: <file>` for any of them that failed
-   or stopped running (R42.5).
+   is fixed by the test that notices a surviving hunk, never by lowering the baseline),
+   `health.yml` (daily; a failure leaves the *valvur health* issue showing the last day
+   it was written) and `watchdog.yml` (daily), which files `watchdog: <file>` for any of
+   them that failed or stopped running (R42.5).
    For each failed run, read its log,
    and tell a cause in this repository from one outside it: a host down, a runner lost.
    The first is fixed on the branch. The second is listed, since the next run will say
