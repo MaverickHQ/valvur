@@ -53,7 +53,19 @@ rules:
       Request data reaches a shell command: exec runs its string through a shell, so
       the client can append commands of its own. Use execFile or spawn with an
       argument list and no shell.
-    pattern-sources: *request-sources
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+          # A response's headers and body are what a server answered, not what a client
+          # sent (R49.5): an HTTP client following a redirect is not forged.
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(?!(res|resp|response)$)
     pattern-sinks:
       - patterns:
           - pattern-either:
@@ -79,7 +91,19 @@ rules:
       Request data reaches a file path: a client can climb out of the intended
       directory with "../". Reduce the name with path.basename, pass a `root` to
       sendFile, or refuse a resolved path outside its base directory.
-    pattern-sources: *request-sources
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+          # A response's headers and body are what a server answered, not what a client
+          # sent (R49.5): an HTTP client following a redirect is not forged.
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(?!(res|resp|response)$)
     pattern-sanitizers:
       - pattern: path.basename(...)
       # A resolved path checked to lie under its base before it is used.
@@ -109,7 +133,19 @@ rules:
       Request data decides where the server sends a request: a client can make it
       reach internal services or cloud metadata. Parse the URL and allow only hosts
       on a fixed list, or look the destination up by name.
-    pattern-sources: *request-sources
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+          # A response's headers and body are what a server answered, not what a client
+          # sent (R49.5): an HTTP client following a redirect is not forged.
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(?!(res|resp|response)$)
     pattern-sanitizers:
       # A parsed URL whose host is checked against a list.
       - by-side-effect: true

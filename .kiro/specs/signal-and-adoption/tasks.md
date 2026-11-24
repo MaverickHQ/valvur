@@ -1701,6 +1701,129 @@ R48's, to be re-based once in R49.8. **Owed after the landing,** since GitHub ru
 workflow only from the default branch: the first runs of `imports.yml`, `health.yml` and
 `mutation.yml`'s artifact. A session resumes when the owner answers.
 
+
+### Phase R53: the close-out, one pass for each area
+
+**Added on 2026-11-24, with the owner's agreement to the re-cut plan**
+(`~/valvur-handover/RELEASE-PLAN-2026-11-24.md`): everything built ships as one release,
+1.7.0, after seven passes that each open one area once. **The owner's decisions of
+2026-11-24** ("please proceed with the recommendations"), which close R49.8's six and the
+others in §3:
+
+| decision | decided |
+|---|---|
+| one release or two | one, 1.7.0 |
+| Opengrep 2.0.0 (#295) | in 1.7.0, accepted on the same judged Findings as before and not on the Score alone |
+| the real-code target | 29.4 with 12 false is accepted for 1.7.0, and re-read on the new engine |
+| zizmor's `dangerous-triggers` and `template-injection` | stay active |
+| the JavaScript TLS rule | not in 1.7.0 |
+| `--taint-intrafile` | decided on the engine that ships, by R53.6's measurement |
+| a narrowed rule with one or two false Findings | unmeasured, not under the bar, as built |
+| which job attests the VEX document | `promote`, so no job gains a grant |
+| `SUMMARY.md`'s OWASP table | as built |
+| the LLM and agentic categories | as built |
+| ADR-0032 | accepted |
+| Gitleaks (#258) | kept through 1.x |
+| the parked list | the plan's dispositions |
+
+The workflows and `release.yml` stay the owner's to approve, in manual approve mode, as
+`valvur/tasks.md` §0 says. This phase holds what the executor builds.
+
+- [x] **R53.1** **Measure first.** No test seam. **Record,** in the STATUS: what Opengrep
+  2.0.0 changes, measured against the image, the golden, the container suite and the Score.
+
+  **STATUS 2026-11-24:** ✅ Measured three times on the dev machine at `3fd0ede` with the
+  pins moved. A first run is discarded: its image build failed and the script measured the
+  old image.
+
+  | | 1.31.0 | 2.0.0, as valvur is | 2.0.0, aliases written out |
+  |---|---|---|---|
+  | the Score | 76.8 | 70.6 | 77.5 |
+  | sast-python, sast-js, llm-output | 39.0, 54.2, 79.0 | 30.4, 29.2, 36.8 | 39.1, 54.2, 79.0 |
+  | real-code precision | 29.4 (4 true, 12 false) | 50.0 (4, 5) | 35.7 (4, 9) |
+  | the golden's results, errors | 41, 0 | 26, 9 | 41, 0 |
+  | container tests | 103 pass | 93 pass, 10 fail | 102 pass, 1 fail |
+  | the image | 942 MB | 803 MB | 803 MB |
+
+  - **2.0.0 resolves no YAML alias in a rule.** Nine taint rules are refused, *Expected a
+    list for pattern-sources*, and never run. R53.2.
+  - **2.0.0 reads `.semgrepignore` from the scanned root, not from where it starts.** A
+    probe with a flaw in each of `app/`, `tests/`, `build/`, `vendor/` and `node_modules/`:
+    with valvur's file where Opengrep starts, only `app/` is reported; with it at the
+    scanned root, all five. **The Score rose for this reason:** the false findings that
+    went were in directories no longer read (`insecure-cookie` 8 to none, and one each of
+    three other rules). The ratchet passed. `tests/test_narrowed_rules.py` failed on the
+    cookie under `tests/`, which is how it was seen. R53.3 and R53.5.
+  - **2.0.0 is a native, static binary that unpacks nothing:** 165 MB, where 1.31.0 was
+    50 MB that unpacked 239 MB. It scans on a read-only root with a non-executable `/tmp`
+    and writes nothing. The image's unpack step fails on the directory that no longer
+    appears. R53.4.
+  - **Also read:** no musl build, and the one Linux binary runs on Alpine; both
+    architectures are signed by the release workflow on `main`, not on a branch for the
+    release as 1.30.2 to 1.33.1 were; `--taint-intrafile` is still there, and
+    `--enable-interfile`, `--interfile-depth` and `--interfile-timeout` are new;
+    `--semgrepignore-filename` and `--project-root` exist; `--x-ignore-semgrepignore-files`
+    is marked as no part of the API and is not used.
+  - Small tracks run in 1.3 s where they took 4.4 s.
+
+- [x] **R53.2** **The rules load on an engine that resolves no alias.**
+  **Seam:** the rule files as text, as `tests/test_identifiers.py` reads them; then the
+  Opengrep golden. Behaviours:
+  1. A rule file that reuses a block through a YAML alias is refused by name. Red on the
+     twelve there are.
+  2. Each block is written out, and every file parses to the rules it held before.
+
+  **STATUS 2026-11-24:** ✅ 1 and 2. `tests/test_rules_hold_no_alias.py`, red on the twelve
+  aliases in three files and green with each block written out (three in the JavaScript
+  rules, three in the model-output rules, six in the Python rules). The anchors stay where
+  they were defined, since an anchor alone is harmless. Before and after were parsed with a
+  YAML parser and compared: every file holds exactly the rules it held. So nothing moves on
+  1.31.0, and the unit gate's golden tests pass unchanged.
+
+- [ ] **R53.3** **Opengrep reads every directory of the File Set, on 2.0.0 as on 1.31.0.**
+  **Seam:** `LocalRuntime` over the fake tools, as `tests/test_engine.py` drives it; then
+  the Scan Container (`-m e2e`). Behaviours:
+  1. A tool's `files` are written where it starts and at the scanned root. An image of
+     this protocol given a plan by an older shim still turns Opengrep's own list off.
+  2. A flaw under `tests/`, `build/`, `vendor/` and `node_modules/` is each reported,
+     through the container.
+  3. A file of that name in the project is replaced in the Snapshot's copy alone, and
+     `docs/PROTOCOL.md` says so.
+
+- [ ] **R53.4** **The binary that unpacks nothing.**
+  **Seam:** the adapter's `command`; the Dockerfile and `docs/PROTOCOL.md` as files.
+  Behaviours:
+  1. The adapter sets no cache directory, and the image has no unpack step.
+  2. `/opt/opengrep` stays, empty, for a shim that still names it.
+  3. The pins, the signature check's identity and the golden are 2.0.0's.
+
+- [ ] **R53.5** **A Scanner upgrade is accepted on the same judged Findings.**
+  **Seam:** `scripts/eval/same_judged.py`'s `main`, over two reports as `eval.py` writes
+  them. Behaviours:
+  1. Two reports whose judged rules have the same counts, and whose goldens scanned the
+     same paths, exit 0.
+  2. A rule with fewer judged Findings exits 1 and names it, though the Score rose.
+  3. **Proof.** The 2.0.0 image against 1.31.0's report: the same, or each difference
+     explained in the STATUS.
+
+- [ ] **R53.6** **The taint modes, measured on the engine that ships.** No test seam.
+  **Record:** `--taint-intrafile` and `--enable-interfile` against the 34 generated flows,
+  the five advisories and the corpus, with the time each costs. Adopted only by
+  Requirement 6.2's condition.
+
+- [ ] **R53.7** **Checkov at its current version,** through R44.7's one writer. The golden
+  recaptured, the infrastructure track unmoved or its change explained.
+
+- [ ] **R53.8** **The baseline, once** (R49.8, which this closes). The re-base test, the
+  baseline on both lanes, `docs/RULES.md` regenerated, the README's and
+  `docs/HOW-IT-WORKS.md`'s numbers.
+
+- [ ] **R53.9** **The documents, once, last.** After the owner's first-use sitting (R52.6,
+  R51.9): what it found; R46.2; ADR-0032's row; the changelog cut; ROADMAP.
+
+**Exit:** the Score at or above the stack's on every track, on the same judged Findings;
+the acceptance set and the container suite pass; the baseline re-based once.
+
 ---
 
 ## 3. The owner queue for this spec

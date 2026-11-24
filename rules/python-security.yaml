@@ -118,8 +118,26 @@ rules:
     message: >-
       Request data reaches eval() or exec(): the client's input runs as Python. Parse
       the value instead, with ast.literal_eval for a literal or json.loads for data.
-    pattern-sources: *request-sources
-    pattern-propagators: *list-propagators
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: flask.request.$ATTR
+              - pattern: request.$ATTR
+          # pytest hands a fixture its own `request`, and `request.param` is the test's
+          # parameter: no client sent it (R49.5).
+          - metavariable-regex:
+              metavariable: $ATTR
+              regex: ^(?!param$)
+    pattern-propagators:
+      - pattern: $L.append($X)
+        from: $X
+        to: $L
+      - pattern: $L.extend($X)
+        from: $X
+        to: $L
+      - pattern: $L.insert($I, $X)
+        from: $X
+        to: $L
     pattern-sanitizers:
       # A value checked to be one quoted string literal before it runs.
       - by-side-effect: true
@@ -194,8 +212,26 @@ rules:
       directory with "../" and read or write any file the process can. Reduce the
       name with os.path.basename or werkzeug's secure_filename, or refuse a path
       that resolves outside its base directory.
-    pattern-sources: *request-sources
-    pattern-propagators: *list-propagators
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: flask.request.$ATTR
+              - pattern: request.$ATTR
+          # pytest hands a fixture its own `request`, and `request.param` is the test's
+          # parameter: no client sent it (R49.5).
+          - metavariable-regex:
+              metavariable: $ATTR
+              regex: ^(?!param$)
+    pattern-propagators:
+      - pattern: $L.append($X)
+        from: $X
+        to: $L
+      - pattern: $L.extend($X)
+        from: $X
+        to: $L
+      - pattern: $L.insert($I, $X)
+        from: $X
+        to: $L
     pattern-sanitizers:
       # A path refused when it climbs out of its directory.
       - by-side-effect: true
@@ -244,8 +280,26 @@ rules:
       Request data decides where a redirect goes: a link on this site can send its
       visitor anywhere, which phishing uses. Parse the URL and allow only a relative
       path or a host on a fixed list.
-    pattern-sources: *request-sources
-    pattern-propagators: *list-propagators
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: flask.request.$ATTR
+              - pattern: request.$ATTR
+          # pytest hands a fixture its own `request`, and `request.param` is the test's
+          # parameter: no client sent it (R49.5).
+          - metavariable-regex:
+              metavariable: $ATTR
+              regex: ^(?!param$)
+    pattern-propagators:
+      - pattern: $L.append($X)
+        from: $X
+        to: $L
+      - pattern: $L.extend($X)
+        from: $X
+        to: $L
+      - pattern: $L.insert($I, $X)
+        from: $X
+        to: $L
     pattern-sanitizers:
       # A URL whose host is checked once parsed.
       - by-side-effect: true

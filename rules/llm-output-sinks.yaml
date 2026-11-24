@@ -72,7 +72,22 @@ rules:
     message: >-
       Model output reaches a shell. Use an argument list, and validate against an
       allowlist before running anything a model chose.
-    pattern-sources: *python-model-sources
+    pattern-sources:
+      - pattern: $CLIENT.messages.create(...)
+      # Also `client.chat.completions.create(...)`: $CLIENT binds to `client.chat`.
+      # A separate chat.completions pattern was measured redundant by mutation.
+      - pattern: $CLIENT.completions.create(...)
+      - pattern: $CLIENT.responses.create(...)
+      - pattern: openai.ChatCompletion.create(...)
+      - pattern: openai.Completion.create(...)
+      - pattern: $MODEL.generate_content(...)
+      - pattern: $LLM.invoke(...)
+      - pattern: $LLM.ainvoke(...)
+      - pattern: $LLM.predict(...)
+      - pattern: litellm.completion(...)
+      - pattern: litellm.acompletion(...)
+      - pattern: ollama.chat(...)
+      - pattern: ollama.generate(...)
     pattern-sinks:
       - pattern: os.system(...)
       - pattern: os.popen(...)
@@ -88,7 +103,22 @@ rules:
       Model output reaches a database query. Injection is injection regardless of
       whether a human or a model wrote the value — a model must never choose the
       query text; use parameterised queries with the model's answer as a value.
-    pattern-sources: *python-model-sources
+    pattern-sources:
+      - pattern: $CLIENT.messages.create(...)
+      # Also `client.chat.completions.create(...)`: $CLIENT binds to `client.chat`.
+      # A separate chat.completions pattern was measured redundant by mutation.
+      - pattern: $CLIENT.completions.create(...)
+      - pattern: $CLIENT.responses.create(...)
+      - pattern: openai.ChatCompletion.create(...)
+      - pattern: openai.Completion.create(...)
+      - pattern: $MODEL.generate_content(...)
+      - pattern: $LLM.invoke(...)
+      - pattern: $LLM.ainvoke(...)
+      - pattern: $LLM.predict(...)
+      - pattern: litellm.completion(...)
+      - pattern: litellm.acompletion(...)
+      - pattern: ollama.chat(...)
+      - pattern: ollama.generate(...)
     # The query alone (R41.4): the parameters after it are where this message tells the
     # model's answer to go, and track 9 found the rule flagging every such fix.
     pattern-sinks:
@@ -134,7 +164,22 @@ rules:
       cwe: ["CWE-94: Code Injection"]
     message: A model is called here.
     patterns:
-      - pattern-either: *python-model-sources
+      - pattern-either:
+          - pattern: $CLIENT.messages.create(...)
+          # Also `client.chat.completions.create(...)`: $CLIENT binds to `client.chat`.
+          # A separate chat.completions pattern was measured redundant by mutation.
+          - pattern: $CLIENT.completions.create(...)
+          - pattern: $CLIENT.responses.create(...)
+          - pattern: openai.ChatCompletion.create(...)
+          - pattern: openai.Completion.create(...)
+          - pattern: $MODEL.generate_content(...)
+          - pattern: $LLM.invoke(...)
+          - pattern: $LLM.ainvoke(...)
+          - pattern: $LLM.predict(...)
+          - pattern: litellm.completion(...)
+          - pattern: litellm.acompletion(...)
+          - pattern: ollama.chat(...)
+          - pattern: ollama.generate(...)
       # In a file that imports a model SDK. The sources alone are loose on purpose, since
       # a taint rule also needs a sink: Click's test runner has an `invoke` and Twilio's
       # client a `messages.create`. A statement that a project calls a model must be true.
