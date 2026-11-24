@@ -92,9 +92,16 @@ class _Running:
         self.tool = tool
         self.name = tool["tool"]
         # Written where the tool starts, for a tool that reads its configuration
-        # from its working directory: Opengrep's `.semgrepignore` (R3.9).
+        # from its working directory: Opengrep's `.semgrepignore` (R3.9). And at the
+        # scanned root, where Opengrep 2.0.0 reads it from (R53.3): with it in the
+        # first place alone, `tests/`, `build/`, `dist/` and `vendor/` went unread.
+        # The root is the Snapshot's copy, never the project. Done here and not asked
+        # of the plan, so an older shim's plan is right on this image too.
         for name, text in tool.get("files", []):
+            if Path(name).name != name:     # a name, never a path out of either place
+                continue
             (scratch / name).write_text(text, encoding="utf-8")
+            (workspace / name).write_text(text, encoding="utf-8")
         argv = [_mapped(a, workspace, results, cache) for a in tool["argv"]]
         env = {**os.environ, **{name: _mapped(value, workspace, results, cache)
                                 for name, value in tool.get("env", [])}}

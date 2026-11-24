@@ -37,7 +37,10 @@ The Scan Container runs `python -m valvur.engine` and nothing else:
    "jobs": int | null}`. Each tool is `{"tool", "version", "argv", "report",
    "network", "timeout", "env", "files", "empty_when"}`; its argv names `/workspace`
    and `/results`, its report lands under `/results`, and its `files` are written
-   into its working directory before it starts (Opengrep's `.semgrepignore`). A tool
+   into its working directory and into `/workspace` before it starts (Opengrep's
+   `.semgrepignore`, which 2.0.0 reads from the root it scans). A file of that name in
+   the project is replaced in the Snapshot's copy alone: the File Set decides what is
+   read, not the project's ignore file. A name that is a path is written nowhere. A tool
    whose `network` is true is started with `VALVUR_NETWORK=1`, and every other
    without it, whatever the engine's own environment holds.
 3. It starts the tools, at most `jobs` at once (all when null), each in its own

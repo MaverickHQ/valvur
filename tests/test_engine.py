@@ -239,6 +239,68 @@ def test_a_tools_files_are_in_its_working_directory(tmp_path):
     assert (scratch / "cat.txt").read_text() == "# nothing\n"
 
 
+def test_a_tools_files_are_at_the_scanned_root_too(tmp_path):
+    """R53.3. Opengrep 2.0.0 reads `.semgrepignore` from the root it scans and not from
+    where it starts (measured 2026-11-24): with the file where it starts alone, `tests/`,
+    `build/`, `vendor/` and `node_modules/` went unread. The engine writes it in both
+    places, so an image of this protocol is right whichever Opengrep it holds, and
+    whichever shim wrote its plan."""
+    from valvur.invocation import Invocation
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.py").write_text("x = 1\n")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    LocalRuntime(FAKE_TOOLS).run(
+        [Invocation(tool="cat", version="0", report="cat.txt",
+                    argv=("fake-cat-cwd", "/workspace/.semgrepignore", "/results/cat.txt"),
+                    files=((".semgrepignore", "# nothing\n"),))],
+        snapshot(ws, ["a.py"]), scratch)
+
+    assert (scratch / "cat.txt").read_text() == "# nothing\n"
+    assert not (ws / ".semgrepignore").exists(), "the project itself gained a file"
+
+
+def test_a_projects_own_file_of_that_name_is_replaced_in_the_copy_alone(tmp_path):
+    """The File Set decides what a scan reads (ADR-0021), so the project's own ignore
+    file does not. It is replaced in the Snapshot's copy, and the project's is as it was."""
+    from valvur.invocation import Invocation
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / ".semgrepignore").write_text("tests/\n")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    LocalRuntime(FAKE_TOOLS).run(
+        [Invocation(tool="cat", version="0", report="cat.txt",
+                    argv=("fake-cat-cwd", "/workspace/.semgrepignore", "/results/cat.txt"),
+                    files=((".semgrepignore", "# nothing\n"),))],
+        snapshot(ws, [".semgrepignore"]), scratch)
+
+    assert (scratch / "cat.txt").read_text() == "# nothing\n"
+    assert (ws / ".semgrepignore").read_text() == "tests/\n"
+
+
+def test_a_file_named_with_a_path_is_written_nowhere(tmp_path):
+    """A plan is the shim's, and a name is a name: one with a directory in it is followed
+    nowhere, and the tool runs without it. It used to stop the engine."""
+    from valvur.invocation import Invocation
+
+    ws = tmp_path / "ws"
+    (ws / "sub").mkdir(parents=True)
+    (ws / "sub" / "kept.txt").write_text("the project's\n")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    LocalRuntime(FAKE_TOOLS).run(
+        [Invocation(tool="cat", version="0", report="cat.txt",
+                    argv=("fake-cat-cwd", "/workspace/sub/kept.txt", "/results/cat.txt"),
+                    files=(("sub/kept.txt", "the plan's\n"),))],
+        snapshot(ws, ["sub/kept.txt"]), scratch)
+
+    assert (scratch / "cat.txt").read_text() == "the project's\n"
+
+
 def test_opengrep_is_told_to_ignore_nothing():
     """Opengrep, like Semgrep, skips `build/`, `dist/`, `vendor/`, `test/` and
     `tests/` when it finds no `.semgrepignore` — measured inside the image, a

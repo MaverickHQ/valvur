@@ -1780,15 +1780,30 @@ The workflows and `release.yml` stay the owner's to approve, in manual approve m
   YAML parser and compared: every file holds exactly the rules it held. So nothing moves on
   1.31.0, and the unit gate's golden tests pass unchanged.
 
-- [ ] **R53.3** **Opengrep reads every directory of the File Set, on 2.0.0 as on 1.31.0.**
+- [x] **R53.3** **Opengrep reads every directory of the File Set, on 2.0.0 as on 1.31.0.**
   **Seam:** `LocalRuntime` over the fake tools, as `tests/test_engine.py` drives it; then
   the Scan Container (`-m e2e`). Behaviours:
   1. A tool's `files` are written where it starts and at the scanned root. An image of
      this protocol given a plan by an older shim still turns Opengrep's own list off.
-  2. A flaw under `tests/`, `build/`, `vendor/` and `node_modules/` is each reported,
+  2. A flaw under `tests/`, `test/`, `build/`, `dist/` and `vendor/` is each reported,
      through the container.
   3. A file of that name in the project is replaced in the Snapshot's copy alone, and
      `docs/PROTOCOL.md` says so.
+
+  **STATUS 2026-11-24:** ✅ 1 and 3 in `tests/test_engine.py`; 2 in
+  `tests/test_opengrep_reads_every_directory.py`, proved on 1.31.0 here and on 2.0.0 with
+  R53.4.
+  - **In the engine, not in the plan.** The engine writes each of a tool's `files` where
+    the tool starts and at `/workspace`. So an image of this protocol is right with either
+    Opengrep, and with a plan from a 1.6.2 shim, which names the working directory alone.
+    A flag would have broken that: `--semgrepignore-filename` is 2.0.0's.
+  - **The project's own `.semgrepignore`** is replaced in the Snapshot's copy and is as it
+    was on disk, which both tests hold. It never decided what valvur reads.
+  - **A name that is a path is written nowhere.** It used to stop the engine.
+  - **Through the container on 1.31.0:** a flaw in each of `app/`, `tests/`, `test/`,
+    `build/`, `dist/` and `vendor/` is reported, with a project ignore file asking for
+    less. The test first listed `node_modules/` too and was wrong: valvur's own File Set
+    leaves that out, so it never reaches a Scanner.
 
 - [ ] **R53.4** **The binary that unpacks nothing.**
   **Seam:** the adapter's `command`; the Dockerfile and `docs/PROTOCOL.md` as files.

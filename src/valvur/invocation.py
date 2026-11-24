@@ -83,9 +83,10 @@ class Invocation:
     #: Stderr phrases that mean an empty result, honestly earned (see
     #: NOTHING_TO_SCAN). Empty: a missing report is always a failure.
     empty_when: tuple[str, ...] = ()
-    #: Files the engine writes into the tool's working directory before it
-    #: starts, as (name, text): configuration a tool reads from where it runs —
-    #: Opengrep's `.semgrepignore` (R3.9). Gone with the Scan Container.
+    #: Files the engine writes into the tool's working directory, and at the scanned
+    #: root, before it starts, as (name, text): configuration a tool reads from where
+    #: it runs or from what it scans. Opengrep's `.semgrepignore` (R3.9, R53.3). Gone
+    #: with the Scan Container; the project's own file of that name is untouched.
     files: tuple[tuple[str, str], ...] = ()
     #: Environment the tool is started with, as (name, value). The network grant
     #: is not here — egress sets it, and nothing an adapter says can.
