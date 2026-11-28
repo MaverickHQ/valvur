@@ -72,7 +72,7 @@ RUN set -eu; \
 # action updates since July, so its own modules stay where 8.30.1 left them, and 25
 # advisories with a fix waited in them as acceptances: `GITLEAKS_RAISE` raises them (D81w),
 # `mholt/archives` with `rardecode`, whose new reader it needs to build.
-FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gitleaks
+FROM golang:1.27.4-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS gitleaks
 ARG GITLEAKS_VERSION=8.30.1
 ARG GITLEAKS_SUM=h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=
 ARG GITLEAKS_RAISE="github.com/klauspost/compress@v1.20.1 github.com/mholt/archives@v0.1.5 github.com/nwaples/rardecode/v2@v2.4.1 github.com/ulikunitz/xz@v0.5.17 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2 golang.org/x/sys@v0.49.0 golang.org/x/text@v0.43.0"
@@ -102,7 +102,7 @@ RUN set -eu; \
 # so an upgrade drops it, and one that would lower a module. A release moves `_VERSION` and
 # `_SUM` together (`docs/MAINTENANCE.md`); the watchdog reports a new one, since Dependabot
 # no longer can. Apache-2.0, each.
-FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS trivy
+FROM golang:1.27.4-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS trivy
 ARG TRIVY_VERSION=0.76.2
 ARG TRIVY_SUM=h1:RYBcQklHCFOHg/sfYSfe8v4/W5H2rAZrP5THPWY5F+A=
 ARG TRIVY_RAISE="go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2"
@@ -122,7 +122,7 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}" \
       -o /trivy ./cmd/trivy; \
     /trivy --version
-FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS osv
+FROM golang:1.27.4-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS osv
 ARG OSV_SCANNER_VERSION=2.7.1
 ARG OSV_SCANNER_SUM=h1:U7tpL4Gjajxb/laKd9Is1YswSZVu/mbLhReVlUpi57g=
 ARG OSV_SCANNER_RAISE="go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2"
@@ -142,7 +142,7 @@ RUN set -eu; \
       -ldflags="-s -w -X=github.com/google/osv-scanner/v2/internal/version.OSVVersion=${OSV_SCANNER_VERSION}" \
       -o /osv-scanner ./cmd/osv-scanner; \
     /osv-scanner --version
-FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS syft
+FROM golang:1.27.4-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS syft
 ARG SYFT_VERSION=1.57.1
 ARG SYFT_SUM=h1:lrbWhc8hbZJSKekMdB3PKetO0upE+lv9ihUfv9CXgfU=
 ARG SYFT_RAISE="go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2"
